@@ -8,12 +8,18 @@ import {
     window,
 } from "vscode";
 
-import { Command, SetClipboardCommand, SyncDocumentCommand } from "@bpmn-modeler/shared";
+import {
+    Command,
+    NavigateToImplementationCommand,
+    SetClipboardCommand,
+    SyncDocumentCommand,
+} from "@bpmn-modeler/shared";
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { ArtifactService } from "../service/ArtifactService";
+import { ImplementationMapService } from "../service/ImplementationMapService";
 
 /** VS Code view-type identifier for the BPMN custom editor. */
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
@@ -31,12 +37,14 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param bpmnService BPMN-specific business logic and session management.
      * @param artifactSvc Workspace artifact discovery and watcher creation.
      * @param vsUI User-facing message and logging helper.
+     * @param implMapSvc Service task → source code linking service.
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly bpmnService: BpmnModelerService,
         private readonly artifactSvc: ArtifactService,
         private readonly vsUI: VsCodeUI,
+        private readonly implMapSvc: ImplementationMapService,
     ) {}
 
     /**
@@ -81,6 +89,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             this.editorStore.subscribeToTabChangeEvent(editorId);
             this.editorStore.subscribeToDisposeEvent(editorId, () => {
                 this.bpmnService.disposeSession(editorId);
+                this.implMapSvc.dispose(editorId);
             });
 
             const { disposables, errors } = await this.artifactSvc.createWatcher(
@@ -135,10 +144,16 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                             (message as SetClipboardCommand).text,
                         );
                         break;
-                    case "SyncDocumentCommand":
-                        await this.bpmnService.sync(
+                    case "SyncDocumentCommand": {
+                        const content = (message as SyncDocumentCommand).content;
+                        await this.bpmnService.sync(id, content);
+                        this.implMapSvc.update(id, content);
+                        break;
+                    }
+                    case "NavigateToImplementationCommand":
+                        this.implMapSvc.navigate(
                             id,
-                            (message as SyncDocumentCommand).content,
+                            (message as NavigateToImplementationCommand).activityId,
                         );
                         break;
                 }
