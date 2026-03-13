@@ -75,10 +75,6 @@
 /**
  * BPMN shapes
  */
-.djs-element > .djs-visual {
-    /* The color has to be inverted so it is the same as in the token simulation view. */
-    filter: invert(1);
-}
 
 /* Grid */
 .layer-djs-grid {

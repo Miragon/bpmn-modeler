@@ -57,10 +57,25 @@ export class BpmnModeler {
 
         this.engine = engine;
 
+        // Get the css variables for fill and stroke color
+        const fill = getComputedStyle(document.documentElement).getPropertyValue(
+            "--canvas-fill-color",
+        );
+        const stroke = getComputedStyle(document.documentElement).getPropertyValue(
+            "--palette-entry-color",
+        );
+        const MODELER_OPTIONS_WITH_COLORS = {
+            ...MODELER_OPTIONS,
+            bpmnRenderer: {
+                defaultFillColor: fill,
+                defaultStrokeColor: stroke,
+            },
+        };
+
         switch (engine) {
             case "c7": {
                 this.modeler = new BpmnModeler7({
-                    ...MODELER_OPTIONS,
+                    ...MODELER_OPTIONS_WITH_COLORS,
                     additionalModules: [
                         ...commonModules,
                         CreateAppendElementTemplatesModule,
@@ -71,7 +86,7 @@ export class BpmnModeler {
             }
             case "c8": {
                 this.modeler = new BpmnModeler8({
-                    ...MODELER_OPTIONS,
+                    ...MODELER_OPTIONS_WITH_COLORS,
                     additionalModules: [...commonModules],
                 });
                 break;

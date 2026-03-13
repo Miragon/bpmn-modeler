@@ -5,20 +5,14 @@
 
     /** Dark theme primary colors — driven by --vscode-button-background */
     --dt-primary-a0: var(--vscode-button-background, #ff6a00);
-    /** Pre-inverted for filter:invert(1) shapes — cannot be derived from a runtime variable */
-    --dt-primary-a0-invert: #0888d2;
     --dt-primary-a0-opacity-30: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 30%, transparent);
     --dt-primary-a10: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 85%, white 15%);
     --dt-primary-a20: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 70%, white 30%);
     --dt-primary-a20-opacity-15: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 15%, transparent);
     --dt-primary-a30: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 55%, white 45%);
-    /** Pre-inverted for filter:invert(1) shapes — cannot be derived from a runtime variable */
-    --dt-primary-a30-invert: #005e98;
     --dt-primary-a40: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 40%, white 60%);
     --dt-primary-a40-opacity-15: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 15%, transparent);
     --dt-primary-a50: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 25%, white 75%);
-    /** Pre-inverted for filter:invert(1) shapes — cannot be derived from a runtime variable */
-    --dt-primary-a50-invert: #003e67;
 
     /** Dark theme surface colors — driven by --vscode-editor-background / foreground */
     --dt-surface-a0: var(--vscode-editor-background, #121212);
@@ -39,8 +33,6 @@
     --dt-surface-tonal-a50: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 95%, var(--vscode-button-background, #ff6a00) 5%);
 
     --dt-color-red-a10: var(--vscode-errorForeground, #E65C57);
-    /** Pre-inverted for filter:invert(1) shapes — cannot be derived from a runtime variable */
-    --dt-color-red-a10-invert: #15999e;
     --dt-color-red-a10-invert-opacity-60: color-mix(in srgb, #15999e 60%, transparent);
     /** No VS Code equivalent for error background — keep hardcoded */
     --dt-color-red-a20: hsl(360, 100%, 92%);
