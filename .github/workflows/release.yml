@@ -91,7 +91,7 @@ jobs:
 
       - name: Upload vsix artifact (dry-run)
         if: inputs.dry-run == true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bpmn-modeler-plugin-v${{ steps.version.outputs.version }}
           path: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
