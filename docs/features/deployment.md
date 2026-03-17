@@ -103,12 +103,12 @@ The start-instance request sends the payload JSON object directly as the request
 
 The deploy request sends a multipart body with `tenantId` (optional) and file parts all named `resources`.
 
-The start-instance request wraps the payload into:
+The start-instance request sends the payload variables as top-level fields alongside `processDefinitionId`:
 
 ```json
 {
   "processDefinitionId": "<process-definition-key>",
-  "variables": { ... }
+  ...payload
 }
 ```
 
@@ -136,9 +136,7 @@ my-project/
 
 ### Payload Format
 
-The payload file is a plain JSON object. It is sent differently depending on the engine:
-
-**Camunda 7** — sent as-is in the request body:
+The payload file is a plain JSON object whose keys become the process variables. Both Camunda 7 and Camunda 8 use the same format:
 
 ```json
 {
@@ -147,18 +145,7 @@ The payload file is a plain JSON object. It is sent differently depending on the
 }
 ```
 
-**Camunda 8** — wrapped into the `variables` field:
-
-```json
-{
-  "processDefinitionId": "order-process",
-  "variables": {
-    "amount": 1500,
-    "customerId": "cust-42"
-  }
-```
-
-In both cases, only the plain object (the content of the `.json` file) needs to be provided. The extension handles the wrapping for Camunda 8 automatically.
+The extension handles engine-specific request body construction (e.g. adding `processDefinitionId` for Camunda 8) automatically.
 
 ## Authentication
 
