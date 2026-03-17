@@ -32,3 +32,51 @@ export class UserCancelledError extends Error {
         super("The operation was cancelled by the user.");
     }
 }
+
+/** Thrown when {@link DeploymentConfigBuilder.build} finds empty required fields. */
+export class InvalidDeploymentConfigError extends Error {
+    /**
+     * @param missingFields Names of the required fields that were empty.
+     */
+    constructor(missingFields: string[]) {
+        super(
+            `Invalid deployment configuration. Missing required fields: ${missingFields.join(", ")}.`,
+        );
+        this.name = "InvalidDeploymentConfigError";
+    }
+}
+
+/** Thrown when fetching an OAuth2 access token fails. */
+export class TokenFetchError extends Error {
+    /**
+     * @param reason Human-readable description of why the token fetch failed.
+     */
+    constructor(reason: string) {
+        super(`Failed to fetch OAuth2 access token: ${reason}`);
+        this.name = "TokenFetchError";
+    }
+}
+
+/** Thrown by {@link CamundaRestClient} when the REST API returns a non-2xx status. */
+export class DeploymentFailedError extends Error {
+    /**
+     * @param status HTTP status code returned by the server.
+     * @param body Response body text for diagnostic purposes.
+     */
+    constructor(status: number, body: string) {
+        super(`Deployment failed with HTTP ${status}: ${body}`);
+        this.name = "DeploymentFailedError";
+    }
+}
+
+/** Thrown by {@link CamundaRestClient} when starting a process instance returns a non-2xx status. */
+export class StartInstanceFailedError extends Error {
+    /**
+     * @param status HTTP status code returned by the server.
+     * @param body Response body text for diagnostic purposes.
+     */
+    constructor(status: number, body: string) {
+        super(`Start instance failed with HTTP ${status}: ${body}`);
+        this.name = "StartInstanceFailedError";
+    }
+}

@@ -83,7 +83,8 @@ yarn test --testPathPattern=apps/modeler-plugin/src/service/bpmnUtils.spec.ts
 yarn lint
 ```
 
-Coverage reports are uploaded to [Codecov](https://app.codecov.io/gh/Miragon/miranum-ide)
+Coverage reports are uploaded
+to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-vscode-modeler)
 on CI.
 
 ## Code Style

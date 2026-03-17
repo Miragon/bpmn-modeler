@@ -28,10 +28,10 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/Miragon/miranum-ide.git"
+        "url": "https://github.com/Miragon/bpmn-vscode-modeler.git"
     },
     "bugs": {
-        "url": "https://github.com/Miragon/miranum-ide/issues"
+        "url": "https://github.com/Miragon/bpmn-vscode-modeler/issues"
     },
     "engines": {
         "vscode": "^1.76.0"
@@ -78,6 +78,25 @@
                 "priority": "default"
             }
         ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "bpmn-modeler-deploy",
+                    "title": "Deploy Diagram",
+                    "icon": "$(rocket)"
+                }
+            ]
+        },
+        "views": {
+            "bpmn-modeler-deploy": [
+                {
+                    "type": "webview",
+                    "id": "bpmn-modeler.deploymentView",
+                    "name": "Deploy Diagram",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                }
+            ]
+        },
         "commands": [
             {
                 "command": "bpmn-modeler.toggleTextEditor",
@@ -96,6 +115,11 @@
             {
                 "command": "bpmn-modeler.saveDiagramAsSvgCommand",
                 "title": "BPMN Modeler: Save Diagram as SVG"
+            },
+            {
+                "command": "bpmn-modeler.deployDiagram",
+                "title": "BPMN Modeler: Deploy Diagram",
+                "icon": "$(rocket)"
             }
         ],
         "keybindings": [
@@ -122,6 +146,10 @@
                 {
                     "command": "bpmn-modeler.saveDiagramAsSvgCommand",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.deployDiagram",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
                 }
             ],
             "editor/title": [
@@ -129,6 +157,11 @@
                     "command": "bpmn-modeler.toggleTextEditor",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' || activeWebviewPanelId == 'bpmn-modeler.dmn'"
+                },
+                {
+                    "command": "bpmn-modeler.deployDiagram",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
                 }
             ]
         },
@@ -144,6 +177,11 @@
                     "type": "string",
                     "default": ".camunda",
                     "markdownDescription": "Name of the config folder searched at each directory level from the BPMN file up to the workspace root. **Element templates must be placed under `<config>/element-templates/`** (e.g. `.camunda/element-templates/my-template.json`)."
+                },
+                "miragon.bpmnModeler.c8ApiVersion": {
+                    "type": "string",
+                    "default": "v2",
+                    "markdownDescription": "REST API version prefix for Camunda 8 endpoints (e.g. `v2`). Change this if your Camunda 8 cluster uses a different API version."
                 },
                 "miragon.bpmnModeler.showTransactionBoundaries": {
                     "type": "boolean",

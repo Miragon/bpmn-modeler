@@ -11,7 +11,7 @@ const { TsconfigPathsPlugin } = require("tsconfig-paths-webpack-plugin");
  * - Entry: src/main.ts
  * - Output: ../../dist/apps/modeler-plugin/
  * - Externalises the `vscode` module (provided by VS Code at runtime)
- * - Resolves @miranum-ide/* path aliases via TsconfigPathsPlugin
+ * - Resolves @bpmn-modeler/* path aliases via TsconfigPathsPlugin
  * - Copies package.json (without devDependencies/scripts), assets, and webview dist folders
  *
  * @param {object} env - Webpack environment variables
@@ -33,7 +33,7 @@ module.exports = (env, argv) => {
         resolve: {
             extensions: [".ts", ".js"],
             plugins: [
-                // Resolves @miranum-ide/* path aliases from tsconfig.app.json.
+                // Resolves @bpmn-modeler/* path aliases from tsconfig.app.json.
                 new TsconfigPathsPlugin({
                     configFile: path.resolve(__dirname, "tsconfig.app.json"),
                 }),
@@ -102,6 +102,15 @@ module.exports = (env, argv) => {
                             "../../dist/webview-staging/dmn-webview",
                         ),
                         to: "dmn-webview",
+                        noErrorOnMissing: true,
+                    },
+                    {
+                        // Copy the deployment webview build artefacts into the extension output.
+                        from: path.resolve(
+                            __dirname,
+                            "../../dist/webview-staging/deployment-webview",
+                        ),
+                        to: "deployment-webview",
                         noErrorOnMissing: true,
                     },
                 ],

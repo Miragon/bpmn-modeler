@@ -28,7 +28,6 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -98,7 +97,7 @@ jobs:
           retention-days: 7
 
       - name: Commit and tag
-        if: success() && inputs.dry-run == false
+        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
         run: |
           NEW_VERSION="${{ steps.version.outputs.version }}"
           git add apps/modeler-plugin/package.json
@@ -108,7 +107,7 @@ jobs:
           git push origin "v${NEW_VERSION}"
 
       - name: Create GitHub Release
-        if: success() && inputs.dry-run == false
+        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
@@ -117,7 +116,7 @@ jobs:
           files: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
 
       - name: Publish to VS Code Marketplace
-        if: success() && inputs.dry-run == false
+        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
         working-directory: dist/apps/modeler-plugin
         run: vsce publish --yarn --no-dependencies
         env:

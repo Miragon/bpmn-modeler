@@ -1,0 +1,390 @@
+/* Uses VS Code CSS variables for automatic light/dark theme support. */
+
+* {
+    box-sizing: border-box;
+}
+
+body,
+html {
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    font-family: var(--vscode-font-family, "Helvetica Neue", Helvetica, Arial, sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+    padding: 0;
+    margin: 0;
+}
+
+#app {
+    padding: 0;
+}
+
+/* --- Collapsible sections --- */
+
+.section {
+    border-bottom: 1px solid var(--vscode-panel-border, transparent);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--vscode-sideBarSectionHeader-background, transparent);
+    color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+    cursor: pointer;
+    user-select: none;
+}
+
+.section-header:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.section-header:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+}
+
+.section-chevron {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid currentColor;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.section-header[aria-expanded="true"] .section-chevron {
+    transform: rotate(90deg);
+}
+
+.section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.section-body {
+    padding: 8px 16px 12px;
+    overflow: hidden;
+    max-height: 1000px;
+    opacity: 1;
+    transition: max-height 0.2s ease, opacity 0.15s ease, padding 0.2s ease;
+}
+
+.section.collapsed .section-body {
+    max-height: 0;
+    padding: 0 16px;
+    opacity: 0;
+}
+
+.form-group {
+    margin-bottom: 12px;
+}
+
+label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+input[type="text"],
+input[type="password"],
+select {
+    width: 100%;
+    padding: 4px 8px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 2px;
+    font-size: var(--vscode-font-size, 13px);
+    font-family: var(--vscode-font-family);
+    outline: none;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+select:focus {
+    border-color: var(--vscode-focusBorder);
+}
+
+input[readonly] {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.hint {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    margin-top: 3px;
+}
+
+.additional-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.additional-files-header label {
+    margin-bottom: 0;
+}
+
+#add-files-btn {
+    background: none;
+    border: 1px solid var(--vscode-button-secondaryBackground, var(--vscode-input-border));
+    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+    border-radius: 2px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#add-files-btn:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+#file-list {
+    list-style: none;
+    margin: 4px 0 0 0;
+    padding: 0;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px;
+    font-size: 12px;
+    color: var(--vscode-foreground);
+    border-radius: 2px;
+}
+
+.file-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.file-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.remove-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-icon-foreground);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    flex-shrink: 0;
+    line-height: 1;
+    opacity: 0.7;
+}
+
+.remove-btn:hover {
+    opacity: 1;
+    color: var(--vscode-errorForeground);
+}
+
+#deploy-btn {
+    width: calc(100% - 32px);
+    padding: 6px 12px;
+    margin: 16px 16px 0;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 2px;
+    font-size: var(--vscode-font-size, 13px);
+    font-family: var(--vscode-font-family);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#deploy-btn:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+#deploy-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.status-banner {
+    display: none;
+    margin: 12px 16px 0;
+    padding: 8px 10px;
+    border-radius: 2px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.status-banner.progress {
+    background-color: var(--vscode-notifications-background);
+    color: var(--vscode-foreground);
+    border: 1px solid var(--vscode-input-border, transparent);
+}
+
+.status-banner.success {
+    background-color: var(--vscode-inputValidation-infoBackground);
+    color: var(--vscode-inputValidation-infoForeground, var(--vscode-foreground));
+    border: 1px solid var(--vscode-inputValidation-infoBorder);
+}
+
+.status-banner.error {
+    background-color: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+}
+
+/* --- Password toggle --- */
+
+.password-wrapper {
+    position: relative;
+    display: flex;
+}
+
+.password-wrapper input {
+    flex: 1;
+    padding-right: 28px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--vscode-icon-foreground);
+    opacity: 0.6;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+}
+
+.password-toggle:hover {
+    opacity: 1;
+}
+
+.password-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+.auth-fields {
+    display: none;
+}
+
+.auth-fields.visible {
+    display: block;
+}
+
+/* --- Tab bar --- */
+
+.tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--vscode-panel-border, transparent);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 6px 12px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--vscode-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    opacity: 0.7;
+    font-family: var(--vscode-font-family);
+}
+
+.tab-btn:hover {
+    opacity: 1;
+}
+
+.tab-btn.active {
+    opacity: 1;
+    border-bottom-color: var(--vscode-focusBorder);
+}
+
+/* --- Tab panels --- */
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+/* --- Payload selector --- */
+
+.payload-selector {
+    display: flex;
+    gap: 4px;
+}
+
+.payload-selector input {
+    flex: 1;
+}
+
+#select-payload-btn {
+    background: none;
+    border: 1px solid var(--vscode-button-secondaryBackground, var(--vscode-input-border));
+    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+    border-radius: 2px;
+    width: 28px;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+#select-payload-btn:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+#start-instance-btn {
+    width: calc(100% - 32px);
+    padding: 6px 12px;
+    margin: 16px 16px 0;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 2px;
+    font-size: var(--vscode-font-size, 13px);
+    font-family: var(--vscode-font-family);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#start-instance-btn:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+#start-instance-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

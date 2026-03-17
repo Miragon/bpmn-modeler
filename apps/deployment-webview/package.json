@@ -1,9 +1,9 @@
 {
-    "name": "dmn-webview",
+    "name": "deployment-webview",
     "version": "0.0.1",
     "private": true,
     "license": "Apache-2.0",
-    "description": "Webview frontend for the DMN modeler in BPMN Modeler.",
+    "description": "Webview frontend for the deployment panel in BPMN Modeler.",
     "scripts": {
         "build": "vite build",
         "dev": "vite build --watch",

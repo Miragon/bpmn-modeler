@@ -118,6 +118,16 @@ Resolved by `TsconfigPathsPlugin` (webpack) and `vite-tsconfig-paths` (Vite).
 - **Tests**: Jest + `ts-jest` — `apps/bpmn-modeler/jest.config.ts`
 - Output: `dist/apps/bpmn-modeler/`
 
+### Deployment Webview (Dual-HTML Pattern)
+
+The deployment sidebar has **two copies** of its HTML structure that must stay in sync:
+
+- `apps/deployment-webview/index.html` — used by Vite during development
+- `apps/modeler-plugin/src/infrastructure/DeploymentWebviewHtml.ts` — inline HTML served
+  at runtime inside VS Code
+
+When modifying the deployment form markup, update **both** files.
+
 ### Element Template Discovery
 
 `ArtifactService` uses a convention-based approach: element templates are searched under
