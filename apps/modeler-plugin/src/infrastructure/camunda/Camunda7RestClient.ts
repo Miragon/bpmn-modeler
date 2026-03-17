@@ -89,7 +89,9 @@ export class Camunda7RestClient implements CamundaEnginePort {
         const extraHeaders = await this.authResolver.resolve(config.auth);
 
         const fullUrl = `${baseEndpoint}/process-definition/key/${encodeURIComponent(config.processDefinitionKey)}/start`;
-        const requestBody = config.payload ?? {};
+        const requestBody = {
+            variables: config.payload ?? {},
+        };
 
         const { status, body: responseBody } =
             await this.httpClient.postJson(fullUrl, requestBody, extraHeaders);

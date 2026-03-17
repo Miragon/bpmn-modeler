@@ -92,7 +92,11 @@ sequenceDiagram
 
 The deploy request sends a multipart body with fields `deployment-name`, `tenant-id` (optional), `deployment-source` (`"BPMN Modeler"`), and one file part per resource.
 
-The start-instance request sends the payload JSON object directly as the request body.
+The start-instance request wraps the payload in a `variables` key:
+
+```json
+{ "variables": { ...payload } }
+```
 
 ### Camunda 8
 
@@ -103,12 +107,12 @@ The start-instance request sends the payload JSON object directly as the request
 
 The deploy request sends a multipart body with `tenantId` (optional) and file parts all named `resources`.
 
-The start-instance request sends the payload variables as top-level fields alongside `processDefinitionId`:
+The start-instance request sends `processDefinitionId` alongside the payload wrapped in a `variables` key:
 
 ```json
 {
   "processDefinitionId": "<process-definition-key>",
-  ...payload
+  "variables": { ...payload }
 }
 ```
 
@@ -136,7 +140,11 @@ my-project/
 
 ### Payload Format
 
-The payload file is a plain JSON object whose keys become the process variables. Both Camunda 7 and Camunda 8 use the same format:
+Camunda 7 and Camunda 8 expect **different** payload formats. The extension sends the payload file contents as-is (wrapped in a `variables` key), so the file must match the target engine's format.
+
+#### Camunda 8
+
+A plain JSON object whose keys become process variables:
 
 ```json
 {
@@ -145,7 +153,18 @@ The payload file is a plain JSON object whose keys become the process variables.
 }
 ```
 
-The extension handles engine-specific request body construction (e.g. adding `processDefinitionId` for Camunda 8) automatically.
+#### Camunda 7
+
+Each variable is an object with `value` (required), `type` (optional), and `valueInfo` (optional):
+
+```json
+{
+  "amount": { "value": 1500 },
+  "customerId": { "value": "cust-42", "type": "String" }
+}
+```
+
+See the [Camunda 7 REST API docs](https://docs.camunda.org/rest/camunda-bpm-platform/7.22/#tag/Process-Definition/operation/startProcessInstanceByKey) for the full variable schema.
 
 ## Authentication
 
