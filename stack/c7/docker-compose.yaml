@@ -1,0 +1,9 @@
+services:
+  camunda:
+    image: camunda/camunda-bpm-platform:7.24.0
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./web.xml:/camunda/webapps/engine-rest/WEB-INF/web.xml
+    # BasicAuth enabled via custom web.xml — credentials: demo / demo
+    # REST API: http://localhost:8080/engine-rest

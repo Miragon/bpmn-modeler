@@ -1,0 +1,176 @@
+import { Uri, Webview } from "vscode";
+import { getNonce } from "./helpers";
+
+/** Output directory name for the deployment webview build artefacts. */
+const DEPLOYMENT_WEBVIEW_PATH = "deployment-webview";
+
+/**
+ * Generates the HTML shell for the deployment sidebar WebviewView.
+ *
+ * Resolves asset URIs relative to the extension's install directory and
+ * injects a nonce for the Content-Security-Policy `script-src` directive so
+ * that only the bundled script can execute.
+ *
+ * @param webview The VS Code Webview instance (used to convert local URIs).
+ * @param extensionUri URI of the extension's install directory.
+ * @returns HTML string to set as `webviewView.webview.html`.
+ */
+export function deploymentWebviewHtml(webview: Webview, extensionUri: Uri): string {
+    const baseUri = Uri.joinPath(extensionUri, DEPLOYMENT_WEBVIEW_PATH);
+
+    const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
+    const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
+
+    const nonce = getNonce();
+
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                <meta http-equiv="Content-Security-Policy"
+                      content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"/>
+                <link href="${styleUri}" rel="stylesheet"/>
+                <title>Deploy Diagram</title>
+            </head>
+            <body>
+                <div id="app">
+                    <div class="section" id="section-connection">
+                        <div class="section-header" data-section="connection" aria-expanded="true" role="button" tabindex="0">
+                            <span class="section-chevron"></span>
+                            <span class="section-title">Connection</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="form-group">
+                                <label for="deployment-name">Deployment Name</label>
+                                <input id="deployment-name" type="text" placeholder="e.g. my-process" />
+                            </div>
+                            <div class="form-group">
+                                <label for="tenant-id">Tenant ID</label>
+                                <input id="tenant-id" type="text" placeholder="(optional)" />
+                            </div>
+                            <div class="form-group">
+                                <label for="endpoint">REST Endpoint</label>
+                                <input id="endpoint" type="text" placeholder="http://localhost:8080/engine-rest" />
+                                <div class="hint">Should point to a running Camunda REST API.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="engine">Engine</label>
+                                <select id="engine">
+                                    <option value="c7">Camunda Platform 7</option>
+                                    <option value="c8">Camunda Cloud 8</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section" id="section-authentication">
+                        <div class="section-header" data-section="authentication" aria-expanded="true" role="button" tabindex="0">
+                            <span class="section-chevron"></span>
+                            <span class="section-title">Authentication</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="form-group">
+                                <label for="auth-type">Authentication</label>
+                                <select id="auth-type">
+                                    <option value="none">None</option>
+                                    <option value="basic">Basic Auth</option>
+                                    <option value="oauth2">OAuth2 Client Credentials</option>
+                                </select>
+                            </div>
+                            <div id="basic-auth-fields" class="auth-fields">
+                                <div class="form-group">
+                                    <label for="auth-username">Username</label>
+                                    <input id="auth-username" type="text" placeholder="Username" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="auth-password">Password</label>
+                                    <div class="password-wrapper">
+                                        <input id="auth-password" type="password" placeholder="Password" />
+                                        <button type="button" class="password-toggle" title="Show password" aria-label="Show password">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                                <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="oauth2-auth-fields" class="auth-fields">
+                                <div class="form-group">
+                                    <label for="auth-client-id">Client ID</label>
+                                    <input id="auth-client-id" type="text" placeholder="Client ID" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="auth-client-secret">Client Secret</label>
+                                    <div class="password-wrapper">
+                                        <input id="auth-client-secret" type="password" placeholder="Client Secret" />
+                                        <button type="button" class="password-toggle" title="Show password" aria-label="Show password">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                                <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="auth-token-endpoint">Token Endpoint</label>
+                                    <input id="auth-token-endpoint" type="text" placeholder="https://login.example.com/oauth/token" />
+                                    <div class="hint">URL of the OAuth2 token endpoint.</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="auth-audience">Audience</label>
+                                    <input id="auth-audience" type="text" placeholder="(optional)" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-bar">
+                        <button class="tab-btn active" data-tab="deploy">Deploy</button>
+                        <button class="tab-btn" data-tab="start-instance">Start Instance</button>
+                    </div>
+
+                    <div class="tab-panel active" id="tab-deploy">
+                        <div class="form-group" style="padding: 8px 16px 0;">
+                            <label for="main-file-path">Main File</label>
+                            <input id="main-file-path" type="text" readonly />
+                        </div>
+                        <div class="form-group" style="padding: 0 16px;">
+                            <div class="additional-files-header">
+                                <label>Include additional files</label>
+                                <button id="add-files-btn" title="Select additional files">+</button>
+                            </div>
+                            <ul id="file-list"></ul>
+                        </div>
+
+                        <div id="status-banner" class="status-banner"></div>
+
+                        <button id="deploy-btn">Deploy</button>
+                    </div>
+
+                    <div class="tab-panel" id="tab-start-instance">
+                        <div class="form-group" style="padding: 8px 16px 0;">
+                            <label for="process-definition-key">Process Definition Key</label>
+                            <input id="process-definition-key" type="text" placeholder="e.g. Process_0gjrx3e" />
+                        </div>
+                        <div class="form-group" style="padding: 0 16px;">
+                            <label>Payload</label>
+                            <div class="payload-selector">
+                                <input id="payload-file" type="text" readonly placeholder="(none)" />
+                                <button id="select-payload-btn" title="Select payload file">...</button>
+                            </div>
+                            <div class="hint">JSON file from &lt;configFolder&gt;/payloads/</div>
+                        </div>
+
+                        <div id="start-status-banner" class="status-banner"></div>
+
+                        <button id="start-instance-btn">Start Instance</button>
+                    </div>
+                </div>
+                <script nonce="${nonce}" src="${scriptUri}"></script>
+            </body>
+        </html>
+    `;
+}

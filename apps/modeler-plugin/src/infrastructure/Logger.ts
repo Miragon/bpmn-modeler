@@ -5,8 +5,14 @@ export class Logger {
 
     private static _isOpen = false;
 
+    public static get isOpen(): boolean {
+        return this._isOpen;
+    }
+
     public static get(): vscode.LogOutputChannel;
+
     public static get(channel: string): vscode.LogOutputChannel;
+
     public static get(channel?: string): vscode.LogOutputChannel {
         if (this._logger) {
             return this._logger;
@@ -16,15 +22,9 @@ export class Logger {
                     log: true,
                 }));
             } else {
-                throw new Error(
-                    "[Miranum.Modeler.Logger] Please set the output channel",
-                );
+                throw new Error("[bpmn.modeler.logger] Please set the output channel");
             }
         }
-    }
-
-    public static get isOpen(): boolean {
-        return this._isOpen;
     }
 
     public static hide() {
@@ -39,7 +39,7 @@ export class Logger {
 
     public static info(...args: string[]): void {
         if (!this._logger) {
-            throw new Error("[Miranum.Modeler.Logger] Logger is not initialized!");
+            throw new Error("[bpmn.modeler.logger] Logger is not initialized!");
         }
         const message = args.join(" ");
         this._logger.info(message);
@@ -47,7 +47,7 @@ export class Logger {
 
     public static error(...args: string[]): void {
         if (!this._logger) {
-            throw new Error("[Miranum.Modeler.Logger] Logger is not initialized!");
+            throw new Error("[bpmn.modeler.logger] Logger is not initialized!");
         }
         const message = args.join(" ");
         this._logger.error(message);

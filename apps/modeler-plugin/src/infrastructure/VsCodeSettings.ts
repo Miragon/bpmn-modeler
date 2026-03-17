@@ -45,6 +45,19 @@ export class VsCodeSettings {
     }
 
     /**
+     * Reads the Camunda 8 REST API version prefix from VS Code configuration.
+     *
+     * Defaults to `"v2"` if the setting is not configured.
+     *
+     * @returns The API version string (e.g. `"v2"`).
+     */
+    getC8ApiVersion(): string {
+        return workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .get<string>("c8ApiVersion", "v2");
+    }
+
+    /**
      * Shows a quick-pick prompt and returns the selected execution platform key.
      *
      * @param placeHolder Prompt text shown in the quick-pick widget.

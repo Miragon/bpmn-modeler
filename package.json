@@ -8,13 +8,15 @@
         "libs/*"
     ],
     "scripts": {
-        "build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview -s build:plugin",
+        "build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview build:deployment-webview -s build:plugin",
         "build:libs": "npm-run-all build:lib:shared",
         "build:lib:shared": "corepack yarn workspace @bpmn-modeler/shared build",
         "build:bpmn-webview": "corepack yarn workspace bpmn-webview build",
         "build:dmn-webview": "corepack yarn workspace dmn-webview build",
+        "build:deployment-webview": "corepack yarn workspace deployment-webview build",
         "build:plugin": "corepack yarn workspace vs-code-bpmn-modeler build",
-        "dev": "npm-run-all -s build:libs build:bpmn-webview build:dmn-webview -p dev:libs dev:bpmn-webview dev:dmn-webview dev:plugin",
+        "dev:deployment-webview": "corepack yarn workspace deployment-webview dev",
+        "dev": "npm-run-all -s build:libs build:bpmn-webview build:dmn-webview build:deployment-webview -p dev:libs dev:bpmn-webview dev:dmn-webview dev:deployment-webview dev:plugin",
         "dev:libs": "npm-run-all dev:lib:shared",
         "dev:lib:shared": "corepack yarn workspace @bpmn-modeler/shared dev",
         "dev:bpmn-webview": "corepack yarn workspace bpmn-webview dev",
@@ -22,6 +24,7 @@
         "dev:plugin": "corepack yarn workspace vs-code-bpmn-modeler dev",
         "serve:bpmn-webview": "corepack yarn workspace bpmn-webview serve",
         "serve:dmn-webview": "corepack yarn workspace dmn-webview serve",
+        "serve:deployment-webview": "corepack yarn workspace deployment-webview serve",
         "test": "jest --coverage",
         "lint": "eslint ."
     },

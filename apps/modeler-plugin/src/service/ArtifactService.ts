@@ -92,17 +92,39 @@ export class ArtifactService {
         workspaceRoot: string,
         configFolder: string,
     ): Promise<string[]> {
+        return this.collectSubDirs(documentDir, workspaceRoot, configFolder, "element-templates");
+    }
+
+    /**
+     * Collects sub-directories of the config folder from `documentDir` up to
+     * `workspaceRoot` (inclusive), ordered nearest-first.
+     *
+     * At each directory level the path `<level>/<configFolder>/<subFolder>`
+     * is checked. Levels where the directory does not exist are silently skipped.
+     *
+     * @param documentDir Starting directory (the BPMN file's directory).
+     * @param workspaceRoot Upper bound for the upward walk.
+     * @param configFolder Name of the config folder (e.g. `.camunda`).
+     * @param subFolder Name of the sub-folder to search for (e.g. `"element-templates"`, `"payloads"`).
+     * @returns Absolute paths to existing sub-directories, nearest-first.
+     */
+    private async collectSubDirs(
+        documentDir: string,
+        workspaceRoot: string,
+        configFolder: string,
+        subFolder: string,
+    ): Promise<string[]> {
         const dirs: string[] = [];
         let current = documentDir;
 
         // Walk upward from documentDir to workspaceRoot (inclusive).
         // The condition ensures we stay within the workspace boundary.
         while (current === workspaceRoot || current.startsWith(workspaceRoot + "/")) {
-            const templateDir = posix.join(current, configFolder, "element-templates");
+            const targetDir = posix.join(current, configFolder, subFolder);
             try {
                 // Probe for the directory by reading it; only add if it exists.
-                await this.vsWorkspace.readDirectory(templateDir);
-                dirs.push(templateDir);
+                await this.vsWorkspace.readDirectory(targetDir);
+                dirs.push(targetDir);
             } catch (error) {
                 if (!(error instanceof DirectoryNotFound)) {
                     throw error;
@@ -152,6 +174,31 @@ export class ArtifactService {
             allPaths.push(...(await this.readDirectory(dir, ".json")));
         }
         return [allPaths, ".json"];
+    }
+
+    /**
+     * Returns the file paths for all JSON payload files discoverable from the
+     * given document directory, searching `<configFolder>/payloads/` at each
+     * directory level up to the workspace root.
+     *
+     * @param documentDir Directory of the open document.
+     * @returns Absolute paths to all discovered `.json` payload files.
+     */
+    async getPayloadPaths(documentDir: string): Promise<string[]> {
+        const configFolder = this.vsSettings.getConfigFolder();
+        const workspaceRoot = await this.getWorkspaceRoot(documentDir);
+        const payloadDirs = await this.collectSubDirs(
+            documentDir,
+            workspaceRoot,
+            configFolder,
+            "payloads",
+        );
+
+        const allPaths: string[] = [];
+        for (const dir of payloadDirs) {
+            allPaths.push(...(await this.readDirectory(dir, ".json")));
+        }
+        return allPaths;
     }
 
     /**

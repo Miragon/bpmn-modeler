@@ -1,12 +1,12 @@
 {
-  "name": "dmn-webview",
-  "version": "0.0.1",
-  "private": true,
-  "license": "Apache-2.0",
-  "description": "Webview frontend for the DMN modeler in Miranum IDE.",
-  "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
-    "serve": "vite"
-  }
+    "name": "dmn-webview",
+    "version": "0.0.1",
+    "private": true,
+    "license": "Apache-2.0",
+    "description": "Webview frontend for the DMN modeler in BPMN Modeler.",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite build --watch",
+        "serve": "vite"
+    }
 }

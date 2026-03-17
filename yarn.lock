@@ -4588,6 +4588,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"deployment-webview@workspace:apps/deployment-webview":
+  version: 0.0.0-use.local
+  resolution: "deployment-webview@workspace:apps/deployment-webview"
+  languageName: unknown
+  linkType: soft
+
 "detect-newline@npm:^3.1.0":
   version: 3.1.0
   resolution: "detect-newline@npm:3.1.0"

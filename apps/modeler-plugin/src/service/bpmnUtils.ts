@@ -88,6 +88,24 @@ export function detectExecutionPlatform(bpmnFile: string): "c7" | "c8" {
     }
 }
 
+/**
+ * Extracts the process ID from the first `<bpmn:process>` element in the given BPMN XML.
+ *
+ * @param bpmnFile The raw BPMN XML string to inspect.
+ * @returns The `id` attribute value of the first `<bpmn:process>` element.
+ * @throws {Error} If no `<bpmn:process>` element with an `id` attribute is found.
+ */
+export function extractProcessId(bpmnFile: string): string {
+    const regex = /<bpmn:process\s+[^>]*id="([^"]+)"/;
+    const match = bpmnFile.match(regex);
+
+    if (match) {
+        return match[1];
+    }
+
+    throw new Error("No <bpmn:process> element with an id attribute found in the BPMN file.");
+}
+
 /** Empty Camunda 7 BPMN diagram used when opening a new blank `.bpmn` file. */
 export const EMPTY_C7_BPMN_DIAGRAM = `
 <?xml version="1.0" encoding="UTF-8"?>

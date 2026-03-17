@@ -2,6 +2,8 @@ import {
     commands,
     ConfigurationChangeEvent,
     Disposable,
+    Event,
+    EventEmitter,
     TextDocument,
     TextDocumentChangeEvent,
     WebviewPanel,
@@ -35,7 +37,7 @@ type EditorEntry = {
  * Encapsulates the module-level globals that previously lived in
  * `adapter/out/editor.ts`.
  */
-export class EditorStore {
+export class EditorStore implements Disposable {
     /** All currently open editors, keyed by document URI path. */
     private readonly editors: Map<string, EditorEntry> = new Map();
 
@@ -44,6 +46,13 @@ export class EditorStore {
 
     /** The document URI path of the editor that is currently focused. */
     private activeEditorId: string | undefined;
+
+    /** Fires when the active editor changes, carrying the new editor's id. */
+    private readonly _onDidChangeActiveEditor = new EventEmitter<string>();
+
+    /** Event that fires when the active editor changes. */
+    readonly onDidChangeActiveEditor: Event<string> =
+        this._onDidChangeActiveEditor.event;
 
     // ─── Editor lifecycle ────────────────────────────────────────────────────
 
@@ -66,7 +75,7 @@ export class EditorStore {
         const panel = this.initWebviewHtml(viewType, webviewPanel);
         this.editors.set(editorId, { id: editorId, ui: panel, document });
         this.disposables.set(editorId, []);
-        this.activeEditorId = editorId;
+        this.setActiveEditor(editorId);
         this.updateOpenEditorCounter(this.editors.size);
         return panel;
     }
@@ -103,7 +112,11 @@ export class EditorStore {
      * @param id Document URI path of the editor that is now active.
      */
     setActiveEditor(id: string): void {
+        if (id === this.activeEditorId) {
+            return;
+        }
         this.activeEditorId = id;
+        this._onDidChangeActiveEditor.fire(id);
     }
 
     /**
@@ -288,6 +301,15 @@ export class EditorStore {
         }
     }
 
+    // ─── Disposal ──────────────────────────────────────────────────────────
+
+    /**
+     * Disposes the internal event emitter.
+     */
+    dispose(): void {
+        this._onDidChangeActiveEditor.dispose();
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     /**
@@ -322,8 +344,12 @@ export class EditorStore {
 
         if (this.activeEditorId === editorId) {
             const remaining = [...this.editors.keys()];
-            this.activeEditorId =
+            const next =
                 remaining.length > 0 ? remaining[remaining.length - 1] : undefined;
+            this.activeEditorId = next;
+            if (next) {
+                this._onDidChangeActiveEditor.fire(next);
+            }
         }
     }
 

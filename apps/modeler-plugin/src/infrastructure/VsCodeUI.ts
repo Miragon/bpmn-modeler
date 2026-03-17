@@ -12,7 +12,7 @@ import { VsCodeLogger, VsCodeTextEditor } from "./window";
 export class VsCodeUI {
     private readonly textEditor = new VsCodeTextEditor();
 
-    private readonly logger = new VsCodeLogger("MiranumIDE.Modeler");
+    private readonly logger = new VsCodeLogger("bpmn.modeler");
 
     /**
      * Shows an information message in the VS Code notification area.

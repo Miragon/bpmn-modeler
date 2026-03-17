@@ -38,7 +38,7 @@ export function bpmnEditorUi(webview: Webview, extensionUri: Uri): string {
                 <link href="${styleUri}" rel="stylesheet"/>
                 <link href="${themeUri}" rel="stylesheet" id="theme-link"/>
                 <link href="${fontUri}" rel="stylesheet"/>
-                <title>Miranum: BPMN Modeler</title>
+                <title>BPMN Modeler</title>
             </head>
             <body>
                 <div class="content with-diagram" id="js-drop-zone">
@@ -82,7 +82,7 @@ export function dmnModelerHtml(webview: Webview, extensionUri: Uri): string {
                 <link href="${styleUri}" rel="stylesheet" type="text/css" />
                 <link href="${frontUri}" rel="stylesheet" type="text/css" />
 
-                <title>Miranum: DMN Modeler</title>
+                <title>DMN Modeler</title>
             </head>
             <body>
                 <div class="content with-diagram" id="js-drop-zone">
