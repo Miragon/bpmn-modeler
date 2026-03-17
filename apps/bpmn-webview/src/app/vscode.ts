@@ -79,7 +79,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
         switch (true) {
             case message.type === "GetBpmnFileCommand": {
                 console.debug("[DEBUG] GetBpmnFileCommand", message);
-                dispatchEvent(new BpmnFileQuery("", "c7"));
+                dispatchEvent(new BpmnFileQuery("", "c8"));
                 break;
             }
             case message.type === "GetElementTemplatesCommand": {
