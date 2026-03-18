@@ -2510,7 +2510,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/parser@npm:8.57.1":
+"@typescript-eslint/parser@npm:8.57.1, @typescript-eslint/parser@npm:^8.57.1":
   version: 8.57.1
   resolution: "@typescript-eslint/parser@npm:8.57.1"
   dependencies:
@@ -2523,22 +2523,6 @@ __metadata:
     eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
     typescript: ">=4.8.4 <6.0.0"
   checksum: 10c0/ab624f5ad6f3585ee690d11be36597135779a373e7f07810ed921163de2e879000f6d3213db67413ee630bcf25d5cfaa24b089ee49596cd11b0456372bc17163
-  languageName: node
-  linkType: hard
-
-"@typescript-eslint/parser@npm:^8.56.1":
-  version: 8.56.1
-  resolution: "@typescript-eslint/parser@npm:8.56.1"
-  dependencies:
-    "@typescript-eslint/scope-manager": "npm:8.56.1"
-    "@typescript-eslint/types": "npm:8.56.1"
-    "@typescript-eslint/typescript-estree": "npm:8.56.1"
-    "@typescript-eslint/visitor-keys": "npm:8.56.1"
-    debug: "npm:^4.4.3"
-  peerDependencies:
-    eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
-    typescript: ">=4.8.4 <6.0.0"
-  checksum: 10c0/61c9dab481e795b01835c00c9c7c845f1d7ea7faf3b8657fccee0f8658a65390cb5fe2b5230ae8c4241bd6e0c32aa9455a91989a492bd3bd6fec7c7d9339377a
   languageName: node
   linkType: hard
 
@@ -3876,7 +3860,7 @@ __metadata:
     "@types/vscode": "npm:^1.76.0"
     "@types/vscode-webview": "npm:^1.57.5"
     "@typescript-eslint/eslint-plugin": "npm:^8.56.1"
-    "@typescript-eslint/parser": "npm:^8.56.1"
+    "@typescript-eslint/parser": "npm:^8.57.1"
     "@vitest/coverage-v8": "npm:4.0.18"
     "@vitest/ui": "npm:4.0.18"
     bpmn-js: "npm:^18.13.1"
