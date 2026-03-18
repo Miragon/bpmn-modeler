@@ -7,9 +7,12 @@ import { VsCodeDocument } from "./infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "./infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "./infrastructure/VsCodeSettings";
 import { VsCodeUI } from "./infrastructure/VsCodeUI";
+import { VsCodeFileResolver } from "./infrastructure/VsCodeFileResolver";
+import { VsCodeMapPersistence } from "./infrastructure/VsCodeMapPersistence";
 import { ArtifactService } from "./service/ArtifactService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
 import { DmnModelerService } from "./service/DmnModelerService";
+import { ImplementationMapService } from "./service/ImplementationMapService";
 import { CommandController } from "./controller/CommandController";
 import { BpmnEditorController } from "./controller/BpmnEditorController";
 import { DmnEditorController } from "./controller/DmnEditorController";
@@ -59,6 +62,8 @@ export function activate(context: ExtensionContext): void {
     const restClient = new CamundaEngineRouter(c7Client, c8Client);
 
     // 3. Services
+    const fileResolver = new VsCodeFileResolver();
+    const mapPersistence = new VsCodeMapPersistence();
     const artifactSvc = new ArtifactService(vsWorkspace, vsSettings);
     const bpmnService = new BpmnModelerService(
         editorStore,
@@ -68,6 +73,14 @@ export function activate(context: ExtensionContext): void {
         artifactSvc,
     );
     const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
+    const implMapSvc = new ImplementationMapService(
+        editorStore,
+        fileResolver,
+        vsUI,
+        mapPersistence,
+        artifactSvc,
+        vsSettings,
+    );
     const deploymentSvc = new DeploymentService(
         vsDocument,
         vsWorkspace,
@@ -87,9 +100,13 @@ export function activate(context: ExtensionContext): void {
 
     // 4. Controllers
     const commandController = new CommandController(editorStore, vsDocument, vsUI);
-    new BpmnEditorController(editorStore, bpmnService, artifactSvc, vsUI).register(
-        context,
-    );
+    new BpmnEditorController(
+        editorStore,
+        bpmnService,
+        artifactSvc,
+        vsUI,
+        implMapSvc,
+    ).register(context);
     new DmnEditorController(editorStore, dmnService, vsUI).register(context);
     commandController.register(context);
     new DeploymentController(editorStore, vsDocument, deploymentSvc, startInstanceSvc, vsUI).register(context);

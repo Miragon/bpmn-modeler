@@ -1,0 +1,41 @@
+/**
+ * Styles for the implementation-link hover overlay.
+ */
+
+.implementation-link-overlay {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: var(--vscode-editorHoverWidget-background, #252526);
+    border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
+    color: var(--vscode-editorHoverWidget-foreground, #cccccc);
+    font-size: 12px;
+    font-family: var(--vscode-font-family, sans-serif);
+    white-space: nowrap;
+    pointer-events: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+    z-index: 1000;
+}
+
+.implementation-link-overlay a {
+    color: var(--vscode-textLink-foreground, #3794ff);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.implementation-link-overlay a:hover {
+    text-decoration: underline;
+}
+
+.implementation-link-overlay.unresolved a {
+    color: var(--vscode-disabledForeground, #969696);
+    cursor: default;
+    text-decoration: none;
+}
+
+.implementation-link-overlay .impl-icon {
+    font-size: 14px;
+    opacity: 0.8;
+}

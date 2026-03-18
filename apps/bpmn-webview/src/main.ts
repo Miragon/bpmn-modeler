@@ -17,8 +17,10 @@ import {
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
     GetElementTemplatesCommand,
+    ImplementationMapQuery,
     LogErrorCommand,
     LogInfoCommand,
+    NavigateToImplementationCommand,
     NoModelerError,
     Query,
     SetClipboardCommand,
@@ -84,6 +86,11 @@ window.onload = async function () {
             (text) => vscode.postMessage(new SetClipboardCommand(text)),
         );
     }
+
+    // Wire up implementation-link navigation: overlay click → post command to host.
+    bpmnModeler.onImplementationLinkNavigate((activityId) => {
+        vscode.postMessage(new NavigateToImplementationCommand(activityId));
+    });
 
     console.debug("[DEBUG] Modeler is initialized...");
 
@@ -219,6 +226,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
         }
         case queryOrCommand.type === "ClipboardQuery": {
             clipboardResolver.done(message.data as ClipboardQuery);
+            break;
+        }
+        case queryOrCommand.type === "ImplementationMapQuery": {
+            try {
+                const query = message.data as ImplementationMapQuery;
+                bpmnModeler.getImplementationLink().updateEntries(query.entries);
+            } catch (error: any) {
+                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
             break;
         }
         case queryOrCommand.type === "GetDiagramAsSVGCommand": {

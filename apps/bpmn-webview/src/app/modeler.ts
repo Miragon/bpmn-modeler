@@ -7,6 +7,9 @@ import ElementTemplateChooserModule from "@bpmn-io/element-template-chooser";
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { BpmnModelerSetting, NoModelerError } from "@bpmn-modeler/shared";
+import ImplementationLinkModule, {
+    ImplementationLink,
+} from "@bpmn-modeler/implementation-link";
 import { createReviver } from "bpmn-js-native-copy-paste/lib/PasteUtil.js";
 import { ViewportData } from "./vscode";
 
@@ -50,7 +53,11 @@ export class BpmnModeler {
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
     create(engine: "c7" | "c8"): void {
-        const commonModules = [TokenSimulationModule, ElementTemplateChooserModule];
+        const commonModules = [
+            TokenSimulationModule,
+            ElementTemplateChooserModule,
+            ImplementationLinkModule,
+        ];
 
         this.engine = engine;
 
@@ -355,6 +362,30 @@ export class BpmnModeler {
 
             return false;
         });
+    }
+
+    /**
+     * Returns the `implementationLink` module instance from the modeler.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    getImplementationLink(): ImplementationLink {
+        return this.getModeler().get<ImplementationLink>("implementationLink");
+    }
+
+    /**
+     * Subscribes to the `implementationLink.navigate` event fired when the user
+     * clicks an implementation-link overlay.
+     *
+     * @param cb Callback invoked with the BPMN activity ID to navigate to.
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    onImplementationLinkNavigate(cb: (activityId: string) => void): void {
+        this.getModeler()
+            .get<any>("eventBus")
+            .on("implementationLink.navigate", (event: any) => {
+                cb(event.activityId);
+            });
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────

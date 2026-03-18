@@ -78,6 +78,29 @@ export class ClipboardQuery extends Query {
     }
 }
 
+/** Simplified implementation-link data for a single BPMN element. */
+export interface ImplementationLinkEntry {
+    /** Display text for the overlay (e.g. class simple name or topic). */
+    readonly label: string;
+    /** Whether the implementation file has been found in the workspace. */
+    readonly resolved: boolean;
+}
+
+/**
+ * Delivers the implementation-link lookup map to the webview.
+ *
+ * Keys are BPMN element IDs (activity IDs). The webview uses this to show
+ * hover overlays on elements that have implementation references.
+ */
+export class ImplementationMapQuery extends Query {
+    public readonly entries: Record<string, ImplementationLinkEntry>;
+
+    constructor(entries: Record<string, ImplementationLinkEntry>) {
+        super("ImplementationMapQuery");
+        this.entries = entries;
+    }
+}
+
 // <================================== Queries ===================================
 //
 // =================================== Commands ==================================>
@@ -125,6 +148,21 @@ export class SetClipboardCommand extends Command {
     constructor(text: string) {
         super("SetClipboardCommand");
         this.text = text;
+    }
+}
+
+/**
+ * Sent by the webview when the user clicks an implementation-link overlay.
+ *
+ * Carries only the activity ID — the extension host already knows the
+ * resolved file path from its {@link ImplementationMapQuery} map.
+ */
+export class NavigateToImplementationCommand extends Command {
+    public readonly activityId: string;
+
+    constructor(activityId: string) {
+        super("NavigateToImplementationCommand");
+        this.activityId = activityId;
     }
 }
 
