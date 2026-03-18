@@ -1,5 +1,6 @@
 import { env, window } from "vscode";
 
+import { UserCancelledError } from "../domain/errors";
 import { VsCodeLogger, VsCodeTextEditor } from "./window";
 
 /**
@@ -92,5 +93,59 @@ export class VsCodeUI {
      */
     logError(error: Error): void {
         this.logger.error(error);
+    }
+
+    // ─── Quick-pick prompts ──────────────────────────────────────────────────
+
+    /**
+     * Shows a quick-pick prompt and returns the selected execution platform key.
+     *
+     * @param placeHolder Prompt text shown in the quick-pick widget.
+     * @param items List of items to display (e.g. ["Camunda 7", "Camunda 8"]).
+     * @returns `"c7"` for Camunda 7, `"c8"` for Camunda 8.
+     * @throws {UserCancelledError} If the user dismisses the quick pick.
+     * @throws {Error} If the user selects an unknown item.
+     */
+    async pickExecutionPlatform(
+        placeHolder: string,
+        items: string[],
+    ): Promise<"c7" | "c8"> {
+        const result = await window.showQuickPick(items, {
+            placeHolder,
+            onDidSelectItem: (item) => item,
+        });
+
+        if (result === undefined) {
+            throw new UserCancelledError();
+        } else if (result === "Camunda 7") {
+            return "c7";
+        } else if (result === "Camunda 8") {
+            return "c8";
+        } else {
+            throw new Error(`Unknown execution platform version: "${result}"`);
+        }
+    }
+
+    /**
+     * Shows a quick-pick with available engine versions for the given platform.
+     *
+     * @param platform The execution platform (`"c7"` or `"c8"`).
+     * @param versions The list of available versions to display.
+     * @returns The selected version string.
+     * @throws {UserCancelledError} If the user dismisses the quick pick.
+     */
+    async pickEngineVersion(
+        platform: "c7" | "c8",
+        versions: readonly string[],
+    ): Promise<string> {
+        const label = platform === "c7" ? "Camunda 7" : "Camunda 8";
+        const result = await window.showQuickPick([...versions], {
+            placeHolder: `Select ${label} engine version`,
+        });
+
+        if (result === undefined) {
+            throw new UserCancelledError();
+        }
+        return result;
     }
 }

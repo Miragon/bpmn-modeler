@@ -6,6 +6,7 @@ import { EditorStore } from "./infrastructure/EditorStore";
 import { VsCodeDocument } from "./infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "./infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "./infrastructure/VsCodeSettings";
+import { VsCodeStatusBar } from "./infrastructure/VsCodeStatusBar";
 import { VsCodeUI } from "./infrastructure/VsCodeUI";
 import { ArtifactService } from "./service/ArtifactService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
@@ -49,6 +50,7 @@ export function activate(context: ExtensionContext): void {
     const vsDocument = new VsCodeDocument(editorStore);
     const vsWorkspace = new VsCodeWorkspace();
     const vsSettings = new VsCodeSettings();
+    const statusBar = new VsCodeStatusBar();
     const vsUI = new VsCodeUI();
     const deploymentState = new VsCodeDeploymentState();
     const secretStore = new VsCodeSecretStore();
@@ -66,6 +68,7 @@ export function activate(context: ExtensionContext): void {
         vsSettings,
         vsUI,
         artifactSvc,
+        statusBar,
     );
     const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
     const deploymentSvc = new DeploymentService(
@@ -86,8 +89,8 @@ export function activate(context: ExtensionContext): void {
     );
 
     // 4. Controllers
-    const commandController = new CommandController(editorStore, vsDocument, vsUI);
-    new BpmnEditorController(editorStore, bpmnService, artifactSvc, vsUI).register(
+    const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
+    new BpmnEditorController(editorStore, bpmnService, artifactSvc, vsUI, vsDocument, statusBar).register(
         context,
     );
     new DmnEditorController(editorStore, dmnService, vsUI).register(context);
