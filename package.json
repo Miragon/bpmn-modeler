@@ -29,7 +29,7 @@
         "lint": "eslint ."
     },
     "devDependencies": {
-        "@eslint/eslintrc": "^3.3.4",
+        "@eslint/eslintrc": "^3.3.5",
         "@eslint/js": "^10.0.1",
         "@stylistic/eslint-plugin": "^5.10.0",
         "@types/jest": "^30.0.0",
