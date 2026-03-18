@@ -49,6 +49,37 @@ let modelerIsInitialized = false;
 let clipboardResolver = createResolver<ClipboardQuery>();
 
 /**
+ * Registers a capture-phase keydown listener that intercepts Cmd+A / Ctrl+A
+ * when the target is a contenteditable element and explicitly selects all text
+ * via the Selection API.
+ *
+ * Capture phase is required because diagram-js's {@link DirectEditing._handleKey}
+ * calls `stopPropagation()` on every keydown from the contenteditable overlay,
+ * which would prevent a bubbling listener on `document` from ever firing.
+ */
+function installSelectAllHandler(): void {
+    document.addEventListener(
+        "keydown",
+        (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "a") {
+                const target = e.target as HTMLElement;
+                if (target.isContentEditable) {
+                    e.preventDefault();
+                    const selection = window.getSelection();
+                    if (selection) {
+                        const range = document.createRange();
+                        range.selectNodeContents(target);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                }
+            }
+        },
+        true,
+    );
+}
+
+/**
  * Entry point executed once the webview DOM is fully loaded.
  *
  * Registers the message listener first so no backend messages are missed,
@@ -63,6 +94,7 @@ let clipboardResolver = createResolver<ClipboardQuery>();
 window.onload = async function () {
     window.addEventListener("message", onReceiveMessage);
     initResizer();
+    installSelectAllHandler();
     bpmnModeler.initTheme();
 
     vscode.postMessage(new GetBpmnFileCommand());
