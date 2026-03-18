@@ -13,6 +13,11 @@ updates:
       prefix: fix
       prefix-development: chore
       include: scope
+    groups:
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
   # Fetch and update latest `github-actions` packages
   - package-ecosystem: github-actions
     directory: "/"
@@ -26,3 +31,8 @@ updates:
       prefix: fix
       prefix-development: chore
       include: scope
+    groups:
+      github-actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
