@@ -76,10 +76,6 @@
     background-color: var(--canvas-fill-color) !important;
 }
 
-.djs-container svg:focus {
-    outline: none;
-}
-
 /**
  * BPMN shapes — override fill and stroke set by bpmn-js.
  * Some renderers use inline styles, so !important is required.

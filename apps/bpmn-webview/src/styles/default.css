@@ -81,6 +81,14 @@ a:link {
     display: block;
 }
 
+.djs-container {
+    user-select: none;
+}
+
+.djs-container svg:focus {
+    outline: none;
+}
+
 .panel-resizer {
     width: 4px;
     flex-shrink: 0;
@@ -96,6 +104,13 @@ a:link {
 .properties-panel-parent {
     border-left: 1px solid #ccc;
     overflow: auto;
+    user-select: none;
+}
+
+.properties-panel-parent input,
+.properties-panel-parent textarea,
+.properties-panel-parent [contenteditable="true"] {
+    user-select: text;
 }
 
 .properties-panel-parent:empty {
