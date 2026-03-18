@@ -39,9 +39,6 @@ export class BpmnModeler {
 
     private settings: BpmnModelerSetting = { ...DEFAULT_SETTINGS };
 
-    /** Tracks the current VS Code theme kind; used to re-apply grid opacity after diagram init. */
-    private isDark: boolean = false;
-
     /** Tracks the active engine so transaction-boundary calls are gated to C7 only. */
     private engine: "c7" | "c8" | undefined = undefined;
 
@@ -57,25 +54,10 @@ export class BpmnModeler {
 
         this.engine = engine;
 
-        // Get the css variables for fill and stroke color
-        const fill = getComputedStyle(document.documentElement).getPropertyValue(
-            "--canvas-fill-color",
-        );
-        const stroke = getComputedStyle(document.documentElement).getPropertyValue(
-            "--palette-entry-color",
-        );
-        const MODELER_OPTIONS_WITH_COLORS = {
-            ...MODELER_OPTIONS,
-            bpmnRenderer: {
-                defaultFillColor: fill,
-                defaultStrokeColor: stroke,
-            },
-        };
-
         switch (engine) {
             case "c7": {
                 this.modeler = new BpmnModeler7({
-                    ...MODELER_OPTIONS_WITH_COLORS,
+                    ...MODELER_OPTIONS,
                     additionalModules: [
                         ...commonModules,
                         CreateAppendElementTemplatesModule,
@@ -86,7 +68,7 @@ export class BpmnModeler {
             }
             case "c8": {
                 this.modeler = new BpmnModeler8({
-                    ...MODELER_OPTIONS_WITH_COLORS,
+                    ...MODELER_OPTIONS,
                     additionalModules: [...commonModules],
                 });
                 break;
@@ -249,23 +231,6 @@ export class BpmnModeler {
     }
 
     /**
-     * Dims the diagram-js-grid layer when in dark mode.
-     *
-     * Must be called **after** the first diagram has been loaded, because the
-     * grid `<g class="layer djs-grid">` element is created lazily by
-     * `diagram-js-grid` during the `diagram.init` event — it does not exist in
-     * the DOM before that point.  `initTheme()` runs too early to reach it, so
-     * `main.ts` must call this explicitly once `openXml` has resolved.
-     *
-     * Live theme switches (handled by the `MutationObserver` in
-     * `initTheme`) also call `applyGridFilter`, so those are covered
-     * automatically without needing to call this method again.
-     */
-    public applyGridStyle(): void {
-        this.applyGridFilter(this.isDark);
-    }
-
-    /**
      * Triggers the align-to-origin plugin if the setting is enabled.
      *
      * @throws {NoModelerError} If the modeler has not been created yet.
@@ -397,13 +362,12 @@ export class BpmnModeler {
     /**
      * Swaps the `#theme-link` stylesheet between `lightTheme.css` and
      * `darkTheme.css`.  Compares the current href to avoid unnecessary DOM
-     * mutations, then applies the grid filter for the new theme kind.
+     * mutations.  Shape and grid colors are handled entirely by CSS rules in
+     * each theme stylesheet, so no additional JS work is needed after the swap.
      *
      * @param isDark `true` to apply the dark theme, `false` for the light theme.
      */
     private applyTheme(isDark: boolean): void {
-        this.isDark = isDark;
-
         const theme = document.querySelector<HTMLLinkElement>("#theme-link");
         if (!theme) {
             console.error("Theme link element not found.");
@@ -418,31 +382,6 @@ export class BpmnModeler {
         } else if (!isDark && css === "darkTheme.css") {
             theme.href = href.replace(/darkTheme\.css$/, "lightTheme.css");
         }
-
-        // The grid may already exist when the theme changes at runtime (e.g.
-        // the user switches VS Code themes while a diagram is open).
-        this.applyGridFilter(isDark);
-    }
-
-    /**
-     * Sets the opacity of the `<g class="layer djs-grid">` SVG layer.
-     *
-     * diagram-js-grid hard-codes the dot colour to `#ccc`, which creates harsh
-     * contrast against dark backgrounds.  Reducing the layer opacity to 25 %
-     * makes the grid visible but unobtrusive.  Restores full opacity for light
-     * themes.
-     *
-     * This is a no-op when the grid layer is not yet in the DOM — the caller
-     * must retry after diagram initialisation via {@link applyGridStyle}.
-     *
-     * @param isDark `true` to dim the grid, `false` to restore full opacity.
-     */
-    private applyGridFilter(isDark: boolean): void {
-        const grid = document.querySelector<SVGGElement>(".djs-grid");
-        if (!grid) {
-            return;
-        }
-        grid.style.opacity = isDark ? "0.25" : "";
     }
 
     /**

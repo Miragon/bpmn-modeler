@@ -110,9 +110,6 @@ async function initializeModeler(
         bpmnModeler.create(engine);
         bpmnModeler.onCommandStackChanged(sendXmlChanges);
         await openXml(bpmn);
-        // The grid layer is created during diagram.init (triggered by openXml),
-        // so this is the earliest point at which the opacity can be applied.
-        bpmnModeler.applyGridStyle();
 
         // Restore the saved viewport if one exists (e.g. after a tab switch).
         // Must run after openXml because the canvas does not exist before importXML.
