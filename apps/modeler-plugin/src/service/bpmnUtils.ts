@@ -106,10 +106,16 @@ export function extractProcessId(bpmnFile: string): string {
     throw new Error("No <bpmn:process> element with an id attribute found in the BPMN file.");
 }
 
-/** Empty Camunda 7 BPMN diagram used when opening a new blank `.bpmn` file. */
-export const EMPTY_C7_BPMN_DIAGRAM = `
+/**
+ * Returns an empty Camunda 7 BPMN diagram with the given engine version.
+ *
+ * @param version The Camunda 7 version string (e.g. `"7.24.0"`).
+ * @returns A minimal BPMN XML string for Camunda Platform.
+ */
+export function emptyC7BpmnDiagram(version: string): string {
+    return `
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1d2hcmz" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.20.0">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1d2hcmz" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="${version}">
   <bpmn:process id="Process_0gjrx3e" isExecutable="true" camunda:historyTimeToLive="180">
     <bpmn:startEvent id="StartEvent_1" />
   </bpmn:process>
@@ -122,11 +128,18 @@ export const EMPTY_C7_BPMN_DIAGRAM = `
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
 `;
+}
 
-/** Empty Camunda 8 BPMN diagram used when opening a new blank `.bpmn` file. */
-export const EMPTY_C8_BPMN_DIAGRAM = `
+/**
+ * Returns an empty Camunda 8 BPMN diagram with the given engine version.
+ *
+ * @param version The Camunda 8 version string (e.g. `"8.8.0"`).
+ * @returns A minimal BPMN XML string for Camunda Cloud.
+ */
+export function emptyC8BpmnDiagram(version: string): string {
+    return `
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1ksue5u" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.22.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1ksue5u" targetNamespace="http://bpmn.io/schema/bpmn" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.22.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="${version}">
   <bpmn:process id="Process_0vf1lkj" isExecutable="true">
     <bpmn:startEvent id="StartEvent_1" />
   </bpmn:process>
@@ -139,6 +152,33 @@ export const EMPTY_C8_BPMN_DIAGRAM = `
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
 `;
+}
+
+/**
+ * Extracts the full `modeler:executionPlatformVersion` value from BPMN XML.
+ *
+ * @param bpmnFile The raw BPMN XML string to inspect.
+ * @returns The version string (e.g. `"8.8.0"`) or `undefined` if not found.
+ */
+export function detectExecutionPlatformVersion(bpmnFile: string): string | undefined {
+    const regex = /modeler:executionPlatformVersion="(\d+\.\d+\.\d+)"/;
+    const match = bpmnFile.match(regex);
+    return match ? match[1] : undefined;
+}
+
+/**
+ * Replaces the `modeler:executionPlatformVersion` attribute value in the BPMN XML.
+ *
+ * @param bpmnFile The raw BPMN XML string to modify.
+ * @param newVersion The new version string to set (e.g. `"8.7.0"`).
+ * @returns A new BPMN XML string with the updated version.
+ */
+export function updateExecutionPlatformVersion(bpmnFile: string, newVersion: string): string {
+    return bpmnFile.replace(
+        /modeler:executionPlatformVersion="\d+\.\d+\.\d+"/,
+        `modeler:executionPlatformVersion="${newVersion}"`,
+    );
+}
 
 /** Empty DMN diagram used when opening a new blank `.dmn` file. */
 export const EMPTY_DMN_DIAGRAM = `

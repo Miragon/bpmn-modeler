@@ -120,6 +120,10 @@
                 "command": "bpmn-modeler.deployDiagram",
                 "title": "BPMN Modeler: Deploy Diagram",
                 "icon": "$(rocket)"
+            },
+            {
+                "command": "bpmn-modeler.changeEngineVersion",
+                "title": "Camunda Modeler: Change Engine Version"
             }
         ],
         "keybindings": [
@@ -149,6 +153,10 @@
                 },
                 {
                     "command": "bpmn-modeler.deployDiagram",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.changeEngineVersion",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 }
             ],

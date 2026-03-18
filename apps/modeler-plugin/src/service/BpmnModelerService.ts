@@ -10,22 +10,21 @@ import {
 import { ModelerSession } from "../domain/session";
 import { SettingBuilder } from "../domain/model";
 import { ExecutionPlatformNotDetectedError, UserCancelledError } from "../domain/errors";
+import { getLatestVersion, getVersions } from "../domain/engineVersions";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
+import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { ArtifactChangeTarget, ArtifactService } from "./ArtifactService";
 import {
     addExecutionPlatform,
     detectExecutionPlatform,
-    EMPTY_C7_BPMN_DIAGRAM,
-    EMPTY_C8_BPMN_DIAGRAM,
+    detectExecutionPlatformVersion,
+    emptyC7BpmnDiagram,
+    emptyC8BpmnDiagram,
+    updateExecutionPlatformVersion,
 } from "./bpmnUtils";
-
-/** Camunda 7 version string injected when adding an execution platform. */
-const C7_VERSION = "7.24.0";
-/** Camunda 8 version string injected when adding an execution platform. */
-const C8_VERSION = "8.8.0";
 
 /**
  * Application service for the BPMN modeler.
@@ -43,9 +42,10 @@ export class BpmnModelerService implements ArtifactChangeTarget {
     /**
      * @param editorStore Central registry for open editor panels and messaging.
      * @param vsDocument Active-document read/write helper.
-     * @param vsSettings VS Code configuration and quick-pick helper.
-     * @param vsUI User-facing message and logging helper.
+     * @param vsSettings VS Code configuration reader.
+     * @param vsUI User-facing message, logging, and quick-pick helper.
      * @param artifactSvc Service for locating forms and element templates.
+     * @param statusBar Status bar item manager for element templates and engine version.
      */
     constructor(
         private readonly editorStore: EditorStore,
@@ -53,6 +53,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         private readonly vsSettings: VsCodeSettings,
         private readonly vsUI: VsCodeUI,
         private readonly artifactSvc: ArtifactService,
+        private readonly statusBar: VsCodeStatusBar,
     ) {}
 
     // ─── Session management ───────────────────────────────────────────────────
@@ -100,22 +101,35 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             let bpmnFile = this.vsDocument.getContent(editorId);
 
             if (bpmnFile === "") {
-                const ep = await this.vsSettings.getExecutionPlatformVersion(
+                const ep = await this.vsUI.pickExecutionPlatform(
                     "Select the engine.",
                     ["Camunda 7", "Camunda 8"],
                 );
 
-                bpmnFile = ep === "c7" ? EMPTY_C7_BPMN_DIAGRAM : EMPTY_C8_BPMN_DIAGRAM;
+                const latestVersion = getLatestVersion(ep);
+                bpmnFile =
+                    ep === "c7"
+                        ? emptyC7BpmnDiagram(latestVersion)
+                        : emptyC8BpmnDiagram(latestVersion);
 
                 await this.vsDocument.write(editorId, bpmnFile);
                 await this.vsDocument.save(editorId);
             }
 
             try {
-                return await this.editorStore.postMessage(
+                const ep = detectExecutionPlatform(bpmnFile);
+                const sent = await this.editorStore.postMessage(
                     editorId,
-                    new BpmnFileQuery(bpmnFile, detectExecutionPlatform(bpmnFile)),
+                    new BpmnFileQuery(bpmnFile, ep),
                 );
+
+                // Update the status bar with the detected version.
+                const version = detectExecutionPlatformVersion(bpmnFile);
+                if (version) {
+                    this.statusBar.showEngineVersion(ep, version);
+                }
+
+                return sent;
             } catch (error) {
                 if (
                     error instanceof Error &&
@@ -123,23 +137,24 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 ) {
                     return false;
                 } else if (error instanceof ExecutionPlatformNotDetectedError) {
-                    const ep = await this.vsSettings.getExecutionPlatformVersion(
+                    const ep = await this.vsUI.pickExecutionPlatform(
                         "Select the execution platform.",
                         ["Camunda 7", "Camunda 8"],
                     );
 
+                    const latestVersion = getLatestVersion(ep);
                     const newBpmnFile =
                         ep === "c7"
                             ? addExecutionPlatform(
                                   bpmnFile,
                                   "Camunda Platform",
-                                  C7_VERSION,
+                                  latestVersion,
                                   `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`,
                               )
                             : addExecutionPlatform(
                                   bpmnFile,
                                   "Camunda Cloud",
-                                  C8_VERSION,
+                                  latestVersion,
                                   `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`,
                               );
 
@@ -147,6 +162,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                         editorId,
                         new BpmnFileQuery(newBpmnFile, ep),
                     );
+                    this.statusBar.showEngineVersion(ep, latestVersion);
                     return this.vsDocument.write(editorId, newBpmnFile);
                 } else {
                     return this.handleError(error as Error);
@@ -196,7 +212,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
      * @returns `true` on success, `false` on any failure.
      */
     async setElementTemplates(editorId: string): Promise<boolean> {
-        this.vsSettings.showElementTemplatesLoading();
+        this.statusBar.showElementTemplatesLoading();
         try {
             const documentDir = posix.dirname(this.vsDocument.getFilePath(editorId));
 
@@ -228,19 +244,19 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     new ElementTemplatesQuery(sorted),
                 )
             ) {
-                this.vsSettings.showElementTemplatesReady(sorted.length);
+                this.statusBar.showElementTemplatesReady(sorted.length);
                 if (artifacts.length > 0) {
                     this.vsUI.logInfo(`${artifacts.length} element templates are set.`);
                 }
                 return true;
             } else {
-                this.vsSettings.hideElementTemplatesStatus();
+                this.statusBar.hideElementTemplatesStatus();
                 return this.handleError(
                     new Error("Setting the `elementTemplates` failed."),
                 );
             }
         } catch (error) {
-            this.vsSettings.hideElementTemplatesStatus();
+            this.statusBar.hideElementTemplatesStatus();
             return this.handleError(error as Error);
         }
     }
@@ -318,6 +334,36 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             await this.vsUI.writeClipboard(text);
         } catch (error) {
             this.vsUI.logError(error as Error);
+        }
+    }
+
+    // ─── Change engine version ─────────────────────────────────────────────
+
+    /**
+     * Prompts the user to select a new engine version for the given editor and
+     * updates the BPMN XML, the webview, and the status bar accordingly.
+     *
+     * @param editorId Document URI path of the target editor.
+     * @returns `true` on success, `false` on any failure or cancellation.
+     */
+    async changeEngineVersion(editorId: string): Promise<boolean> {
+        try {
+            const bpmnFile = this.vsDocument.getContent(editorId);
+            const platform = detectExecutionPlatform(bpmnFile);
+            const versions = getVersions(platform);
+
+            const newVersion = await this.vsUI.pickEngineVersion(platform, versions);
+
+            const updatedBpmn = updateExecutionPlatformVersion(bpmnFile, newVersion);
+            await this.vsDocument.write(editorId, updatedBpmn);
+
+            this.statusBar.showEngineVersion(platform, newVersion);
+            return await this.display(editorId);
+        } catch (error) {
+            if (error instanceof UserCancelledError) {
+                return false;
+            }
+            return this.handleError(error as Error);
         }
     }
 

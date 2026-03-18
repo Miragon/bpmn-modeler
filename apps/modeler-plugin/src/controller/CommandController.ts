@@ -8,6 +8,7 @@ import {
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { BpmnModelerService } from "../service/BpmnModelerService";
 
 /** VS Code command ID for toggling the text editor. */
 const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
@@ -17,6 +18,8 @@ const LOGGING_CMD = "bpmn-modeler.openLoggingConsole";
 const COPY_SVG_CMD = "bpmn-modeler.copyDiagramAsSvg";
 /** VS Code command ID for saving the diagram as an SVG file. */
 const SAVE_SVG_CMD = "bpmn-modeler.saveDiagramAsSvgCommand";
+/** VS Code command ID for changing the engine version. */
+const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
@@ -33,11 +36,13 @@ export class CommandController {
      * @param editorStore Central registry for open editor panels and messaging.
      * @param vsDocument Active-document path helper.
      * @param vsUI User-facing message and logging helper.
+     * @param bpmnService BPMN-specific business logic for engine version changes.
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly vsDocument: VsCodeDocument,
         private readonly vsUI: VsCodeUI,
+        private readonly bpmnService: BpmnModelerService,
     ) {}
 
     /**
@@ -52,6 +57,7 @@ export class CommandController {
             commands.registerCommand(LOGGING_CMD, this.showLogging, this),
             commands.registerCommand(COPY_SVG_CMD, this.writeToClipboard, this),
             commands.registerCommand(SAVE_SVG_CMD, this.writeToFile, this),
+            commands.registerCommand(CHANGE_ENGINE_VERSION_CMD, this.changeEngineVersion, this),
         );
     }
 
@@ -71,6 +77,16 @@ export class CommandController {
      */
     showLogging(): void {
         this.vsUI.openLoggingConsole();
+    }
+
+    /**
+     * Prompts the user to select a new engine version for the active BPMN editor.
+     *
+     * Delegates to {@link BpmnModelerService.changeEngineVersion}.
+     */
+    changeEngineVersion(): Promise<boolean> {
+        const activeId = this.editorStore.getActiveEditorId();
+        return this.bpmnService.changeEngineVersion(activeId);
     }
 
     /**

@@ -11,9 +11,12 @@ import {
 import { Command, SetClipboardCommand, SyncDocumentCommand } from "@bpmn-modeler/shared";
 
 import { EditorStore } from "../infrastructure/EditorStore";
+import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { ArtifactService } from "../service/ArtifactService";
+import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
+import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
 /** VS Code view-type identifier for the BPMN custom editor. */
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
@@ -31,12 +34,16 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param bpmnService BPMN-specific business logic and session management.
      * @param artifactSvc Workspace artifact discovery and watcher creation.
      * @param vsUI User-facing message and logging helper.
+     * @param vsDocument Active-document read helper (for status bar version detection).
+     * @param statusBar Status bar item manager for engine version display.
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly bpmnService: BpmnModelerService,
         private readonly artifactSvc: ArtifactService,
         private readonly vsUI: VsCodeUI,
+        private readonly vsDocument: VsCodeDocument,
+        private readonly statusBar: VsCodeStatusBar,
     ) {}
 
     /**
@@ -78,9 +85,11 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             this.subscribeToMessageEvent(editorId);
             this.subscribeToDocumentChangeEvent(editorId);
             this.subscribeToSettingChangeEvent(editorId);
+            this.subscribeToViewStateChangeEvent(editorId, webviewPanel);
             this.editorStore.subscribeToTabChangeEvent(editorId);
             this.editorStore.subscribeToDisposeEvent(editorId, () => {
                 this.bpmnService.disposeSession(editorId);
+                this.statusBar.hideEngineVersion();
             });
 
             const { disposables, errors } = await this.artifactSvc.createWatcher(
@@ -189,5 +198,48 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                 this.bpmnService.setElementTemplates(id);
             }
         });
+    }
+
+    /**
+     * Subscribes to webview panel view-state changes to show or hide the
+     * engine version status bar item when the BPMN editor gains or loses focus.
+     *
+     * @param editorId Document URI path of the target editor.
+     * @param webviewPanel The webview panel to observe.
+     */
+    private subscribeToViewStateChangeEvent(
+        editorId: string,
+        webviewPanel: WebviewPanel,
+    ): void {
+        webviewPanel.onDidChangeViewState(() => {
+            if (webviewPanel.active) {
+                this.updateEngineVersionStatusBar(editorId);
+            } else {
+                this.statusBar.hideEngineVersion();
+            }
+        });
+    }
+
+    /**
+     * Reads the current document content and updates the engine-version status
+     * bar with the detected platform and version.
+     *
+     * @param editorId Document URI path of the target editor.
+     */
+    private updateEngineVersionStatusBar(editorId: string): void {
+        try {
+            const content = this.vsDocument.getContent(editorId);
+            if (content === "") {
+                return;
+            }
+            const platform = detectExecutionPlatform(content);
+            const version = detectExecutionPlatformVersion(content);
+            if (version) {
+                this.statusBar.showEngineVersion(platform, version);
+            }
+        } catch {
+            // If detection fails (e.g. no platform yet), hide the status bar.
+            this.statusBar.hideEngineVersion();
+        }
     }
 }

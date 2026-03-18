@@ -29,6 +29,15 @@ module.exports = [
             },
         },
     },
+    // Node.js globals for ESM scripts (e.g. CI helper scripts)
+    {
+        files: [".github/scripts/**/*.mjs"],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+            },
+        },
+    },
     ...compat
         .config({
             extends: [
