@@ -3,6 +3,10 @@
 :root .djs-parent {
     --canvas-fill-color: var(--dt-surface-a10);
 
+    --bpmn-shape-fill-color: var(--dt-surface-a10);
+    --bpmn-shape-stroke-color: var(--dt-primary-a40);
+    --bpmn-label-color: var(--bpmn-shape-stroke-color);
+
     --bendpoint-fill-color: var(--dt-primary-a30);
     --bendpoint-stroke-color: var(--canvas-fill-color);
 
@@ -72,17 +76,44 @@
     background-color: var(--canvas-fill-color) !important;
 }
 
-/**
- * BPMN shapes
- */
-.djs-element > .djs-visual {
-    /* The color has to be inverted so it is the same as in the token simulation view. */
-    filter: invert(1);
+.djs-container svg:focus {
+    outline: none;
 }
 
-/* Grid */
+/**
+ * BPMN shapes — override fill and stroke set by bpmn-js.
+ * Some renderers use inline styles, so !important is required.
+ */
+.djs-shape > .djs-visual > *:not(text) {
+    fill: var(--bpmn-shape-fill-color) !important;
+    stroke: var(--bpmn-shape-stroke-color) !important;
+}
+
+/* Text inside shapes (e.g. task labels rendered inline) */
+.djs-shape > .djs-visual > text {
+    fill: var(--bpmn-label-color) !important;
+}
+
+.djs-connection > .djs-visual > path {
+    stroke: var(--bpmn-shape-stroke-color) !important;
+    fill: none !important;
+}
+
+/* Labels (text elements) */
+.djs-label .djs-visual text {
+    fill: var(--bpmn-label-color) !important;
+}
+
+/* SVG markers (arrows on connections) in <defs> */
+defs marker > path,
+defs marker > circle {
+    fill: var(--bpmn-shape-stroke-color) !important;
+    stroke: var(--bpmn-shape-stroke-color) !important;
+}
+
+/* Grid — the element has class="layer djs-grid" (two classes) */
 .layer-djs-grid {
-    opacity: 0.25;
+    opacity: 0.5;
 }
 
 .djs-direct-editing-parent {
