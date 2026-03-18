@@ -43,7 +43,7 @@
     --input-background-color: var(--dt-surface-a20);
     --input-border-color: var(--dt-surface-a10);
 
-    --input-focus-background-color: var(--dt-primary-a50);
+    --input-focus-background-color: var(--dt-surface-a20);
     --input-focus-border-color: var(--dt-primary-a10);
     --focus-outline-color: var(--dt-primary-a0);
 
@@ -81,11 +81,11 @@
     --feel-hover-background-color: var(--dt-surface-a20);
     --feel-active-background-color: transparent;
     --feel-required-color: var(--dt-surface-a60);
-    --feel-open-popup-color: hsla(0, 0%, 32%, 1);
-    --feel-open-popup-background-color: var(--dt-surface-a70);
+    --feel-open-popup-color: var(--dt-surface-a70);
+    --feel-open-popup-background-color: var(--dt-surface-a20);
     --feel-open-popup-hover-color: var(--dt-primary-a10);
 
-    --feel-indicator-background-color: var(--dt-surface-a70);
+    --feel-indicator-background-color: var(--dt-surface-a20);
 
     --feelers-select-color: var(--dt-primary-a40);
 }
@@ -111,7 +111,7 @@
 
 .bio-properties-panel-textarea > textarea:focus,
 .bio-properties-panel-textfield > input:focus {
-    color: var(--dt-surface-a10) !important;
+    color: var(--dt-surface-a70) !important;
 }
 
 .bio-properties-panel-checkbox > input[type="checkbox"] {
@@ -139,7 +139,65 @@
 }
 
 .bio-properties-panel-select > select:focus {
-    color: var(--dt-surface-a20) !important;
+    color: var(--dt-surface-a70) !important;
+}
+
+/**
+ * CodeMirror (FEEL expression editor) — @bpmn-io/properties-panel does not
+ * pass darkMode:true to feelers/feel-editor, so the light cm-theme is always
+ * used.  Its syntax-highlight colors (e.g. #065aaa for variable names) are
+ * unreadable on a dark background.  Override all text colors inside the
+ * editor so content remains legible.
+ */
+.bio-properties-panel-feel-editor-container .cm-editor {
+    color: var(--dt-surface-a70) !important;
+    caret-color: var(--dt-surface-a70) !important;
+}
+
+.bio-properties-panel-feel-editor-container .cm-editor .cm-cursor,
+.bio-properties-panel-feel-editor-container .cm-editor .cm-dropCursor,
+.bio-properties-panel-feel-editor-container .cm-editor .cm-content {
+    border-left-color: var(--dt-surface-a70) !important;
+    caret-color: var(--dt-surface-a70) !important;
+}
+
+/* Open-popup icon — SVG path has no fill attribute, defaults to black */
+.bio-properties-panel-open-feel-popup svg {
+    fill: var(--dt-surface-a70) !important;
+}
+
+.bio-properties-panel-feel-editor-container .cm-editor .cm-line,
+.bio-properties-panel-feel-editor-container .cm-editor .cm-line span {
+    color: inherit !important;
+}
+
+/* Autocomplete & tooltip popups */
+.cm-tooltip {
+    background-color: var(--dt-surface-a0) !important;
+    border: 1px solid var(--dt-surface-a30) !important;
+    color: var(--dt-surface-a70) !important;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+    color: var(--dt-surface-a60) !important;
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+    background-color: var(--dt-primary-a0) !important;
+    color: var(--dt-surface-a70) !important;
+}
+
+/* Completion info panel (function signature / examples) */
+.cm-completionInfo {
+    background-color: var(--dt-surface-a0) !important;
+    border: 1px solid var(--dt-surface-a30) !important;
+    color: var(--dt-surface-a70) !important;
+}
+
+/* Diagnostics (lint errors/warnings) */
+.cm-diagnostic {
+    background-color: var(--dt-surface-a0) !important;
+    color: var(--dt-surface-a70) !important;
 }
 
 .bio-properties-panel-dropdown-button__menu {
