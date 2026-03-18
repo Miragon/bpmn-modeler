@@ -877,6 +877,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-modeler/implementation-link@workspace:libs/implementation-link":
+  version: 0.0.0-use.local
+  resolution: "@bpmn-modeler/implementation-link@workspace:libs/implementation-link"
+  languageName: unknown
+  linkType: soft
+
 "@bpmn-modeler/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@bpmn-modeler/shared@workspace:libs/shared"

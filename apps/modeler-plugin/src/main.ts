@@ -8,6 +8,7 @@ import { VsCodeWorkspace } from "./infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "./infrastructure/VsCodeSettings";
 import { VsCodeUI } from "./infrastructure/VsCodeUI";
 import { VsCodeFileResolver } from "./infrastructure/VsCodeFileResolver";
+import { VsCodeMapPersistence } from "./infrastructure/VsCodeMapPersistence";
 import { ArtifactService } from "./service/ArtifactService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
 import { DmnModelerService } from "./service/DmnModelerService";
@@ -62,6 +63,7 @@ export function activate(context: ExtensionContext): void {
 
     // 3. Services
     const fileResolver = new VsCodeFileResolver();
+    const mapPersistence = new VsCodeMapPersistence();
     const artifactSvc = new ArtifactService(vsWorkspace, vsSettings);
     const bpmnService = new BpmnModelerService(
         editorStore,
@@ -71,7 +73,14 @@ export function activate(context: ExtensionContext): void {
         artifactSvc,
     );
     const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
-    const implMapSvc = new ImplementationMapService(editorStore, fileResolver, vsUI);
+    const implMapSvc = new ImplementationMapService(
+        editorStore,
+        fileResolver,
+        vsUI,
+        mapPersistence,
+        artifactSvc,
+        vsSettings,
+    );
     const deploymentSvc = new DeploymentService(
         vsDocument,
         vsWorkspace,

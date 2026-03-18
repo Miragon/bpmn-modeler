@@ -4,22 +4,39 @@
  * After each BPMN sync, {@link update} re-parses the XML, diffs the
  * implementation references against the current map, and resolves new or
  * changed entries to workspace file paths. The resulting map is sent to
- * the webview as an {@link ImplementationMapQuery}.
+ * the webview as an {@link ImplementationMapQuery} and persisted as a
+ * JSON file under `<configFolder>/implementation-map/`.
  */
 import { posix } from "path";
-import { Disposable } from "vscode";
+import { Disposable, workspace } from "vscode";
 
-import { ImplementationLinkEntry, ImplementationMapQuery } from "@bpmn-modeler/shared";
+import { asyncDebounce, ImplementationLinkEntry, ImplementationMapQuery } from "@bpmn-modeler/shared";
 
 import {
     ImplementationEntry,
     ImplementationKind,
     RawImplementationRef,
 } from "../domain/implementation";
+import { buildPersistedMap, BuildPersistedMapInput, PersistedVariable } from "../domain/persistedMap";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeFileResolver } from "../infrastructure/VsCodeFileResolver";
+import {
+    toAbsolutePath,
+    toRelativePath,
+    VsCodeMapPersistence,
+} from "../infrastructure/VsCodeMapPersistence";
+import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
-import { extractImplementationRefs } from "./bpmnXmlParser";
+import { ArtifactService } from "./ArtifactService";
+import {
+    detectEngine,
+    extractActivityDetails,
+    extractImplementationRefs,
+    extractProcessId,
+} from "./bpmnXmlParser";
+
+/** Debounce interval for persisting the implementation map (ms). */
+const PERSIST_DEBOUNCE_MS = 2000;
 
 /**
  * Manages implementation-link maps for all open BPMN editors.
@@ -29,6 +46,7 @@ import { extractImplementationRefs } from "./bpmnXmlParser";
  * - Resolves identifiers to workspace file paths
  * - Watches the file system for renames/deletes of resolved files
  * - Sends simplified map data to the webview for overlay display
+ * - Persists the map as JSON for external tooling (AI agents, skills)
  * - Handles navigation requests by opening the resolved file
  */
 export class ImplementationMapService {
@@ -38,23 +56,45 @@ export class ImplementationMapService {
     /** File system watcher disposables per editor. */
     private readonly watchers: Map<string, Disposable[]> = new Map();
 
-    /** Tracks all resolved file paths per editor for quick invalidation. */
+    /** Caches the last XML per editor to skip redundant re-parses. */
     private readonly lastXml: Map<string, string> = new Map();
+
+    /** Tracks editors that have been initialised with a warm cache check. */
+    private readonly initialised: Set<string> = new Set();
+
+    /** Workspace-level event listener disposables (registered once). */
+    private readonly workspaceDisposables: Disposable[] = [];
+
+    /** Debounced persist function per editor. */
+    private readonly debouncedPersist: Map<string, (editorId: string) => Promise<void>> =
+        new Map();
 
     /**
      * @param editorStore Central registry for open editor panels and messaging.
      * @param fileResolver VS Code file search and open adapter.
      * @param vsUI User-facing message and logging helper.
+     * @param mapPersistence Infrastructure adapter for reading/writing map JSON files.
+     * @param artifactSvc Workspace root resolution helper.
+     * @param vsSettings VS Code settings accessor (config folder name).
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly fileResolver: VsCodeFileResolver,
         private readonly vsUI: VsCodeUI,
-    ) {}
+        private readonly mapPersistence: VsCodeMapPersistence,
+        private readonly artifactSvc: ArtifactService,
+        private readonly vsSettings: VsCodeSettings,
+    ) {
+        this.registerWorkspaceEvents();
+    }
 
     /**
      * Re-parses the BPMN XML, diffs against the current map, resolves new or
-     * changed entries, and sends the updated map to the webview.
+     * changed entries, sends the updated map to the webview, and triggers
+     * debounced persistence.
+     *
+     * On first call for an editor, attempts to load an existing persisted map
+     * to warm the cache (avoids cold-start re-resolution).
      *
      * @param editorId Document URI path of the target editor.
      * @param bpmnXml Current BPMN XML content.
@@ -67,6 +107,12 @@ export class ImplementationMapService {
         this.lastXml.set(editorId, bpmnXml);
 
         try {
+            // Warm cache on first call for this editor.
+            if (!this.initialised.has(editorId)) {
+                this.initialised.add(editorId);
+                await this.warmCache(editorId);
+            }
+
             const currentRefs = extractImplementationRefs(bpmnXml);
             const existingMap = this.maps.get(editorId) ?? new Map();
             const newMap = new Map<string, ImplementationEntry>();
@@ -87,6 +133,7 @@ export class ImplementationMapService {
             this.maps.set(editorId, newMap);
             await this.sendMapToWebview(editorId, newMap);
             this.updateWatchers(editorId, newMap);
+            this.getDebouncedPersist(editorId)(editorId);
         } catch (error) {
             this.vsUI.logError(
                 new Error(`Failed to update implementation map: ${(error as Error).message}`),
@@ -130,17 +177,272 @@ export class ImplementationMapService {
     /**
      * Disposes all watchers and map state for a closed editor.
      *
+     * The persisted JSON file is intentionally NOT deleted — it survives
+     * editor sessions and is only removed if the BPMN file itself is deleted.
+     *
      * @param editorId Document URI path of the editor being closed.
      */
     dispose(editorId: string): void {
         this.maps.delete(editorId);
         this.lastXml.delete(editorId);
+        this.initialised.delete(editorId);
+        this.debouncedPersist.delete(editorId);
         const disposables = this.watchers.get(editorId);
         if (disposables) {
             for (const d of disposables) {
                 d.dispose();
             }
             this.watchers.delete(editorId);
+        }
+    }
+
+    /**
+     * Disposes workspace-level event listeners.
+     *
+     * Called when the extension is deactivated.
+     */
+    disposeWorkspaceListeners(): void {
+        for (const d of this.workspaceDisposables) {
+            d.dispose();
+        }
+        this.workspaceDisposables.length = 0;
+    }
+
+    // ─── Warm cache ─────────────────────────────────────────────────────────
+
+    /**
+     * Loads an existing persisted map for the editor and seeds the in-memory
+     * map with its resolved paths, avoiding expensive cold-start re-resolution.
+     *
+     * @param editorId Document URI path of the target editor.
+     */
+    private async warmCache(editorId: string): Promise<void> {
+        try {
+            const persistPath = await this.computePersistPath(editorId);
+            if (!persistPath) return;
+
+            const persisted = await this.mapPersistence.readMap(persistPath);
+            if (!persisted) return;
+
+            const workspaceRoot = await this.getWorkspaceRoot(editorId);
+            const warmMap = new Map<string, ImplementationEntry>();
+
+            for (const [activityId, activity] of Object.entries(persisted.activities)) {
+                const absolutePath = activity.implementation.filePath
+                    ? toAbsolutePath(activity.implementation.filePath, workspaceRoot)
+                    : undefined;
+
+                warmMap.set(activityId, {
+                    kind: activity.implementation.kind,
+                    identifier: activity.implementation.identifier,
+                    filePath: absolutePath,
+                    label: this.computeLabel(
+                        activity.implementation.kind,
+                        activity.implementation.identifier,
+                    ),
+                    resolved: activity.implementation.resolved,
+                });
+            }
+
+            // Only set if there is no map yet (avoid overwriting fresher data).
+            if (!this.maps.has(editorId)) {
+                this.maps.set(editorId, warmMap);
+            }
+        } catch {
+            // Warm cache is best-effort — failures are non-fatal.
+        }
+    }
+
+    // ─── Persistence ────────────────────────────────────────────────────────
+
+    /**
+     * Returns a debounced persist function for the given editor, creating one
+     * on first access.
+     *
+     * @param editorId Target editor.
+     * @returns The debounced persist function.
+     */
+    private getDebouncedPersist(editorId: string): (editorId: string) => Promise<void> {
+        let fn = this.debouncedPersist.get(editorId);
+        if (!fn) {
+            fn = asyncDebounce(
+                (id: string) => this.persist(id),
+                PERSIST_DEBOUNCE_MS,
+            );
+            this.debouncedPersist.set(editorId, fn);
+        }
+        return fn;
+    }
+
+    /**
+     * Persists the in-memory implementation map for the given editor as a
+     * JSON file under `<configFolder>/implementation-map/<bpmnFileName>.json`.
+     *
+     * @param editorId Document URI path of the target editor.
+     */
+    private async persist(editorId: string): Promise<void> {
+        try {
+            const map = this.maps.get(editorId);
+            const xml = this.lastXml.get(editorId);
+            if (!map || !xml) return;
+
+            const persistPath = await this.computePersistPath(editorId);
+            if (!persistPath) return;
+
+            const workspaceRoot = await this.getWorkspaceRoot(editorId);
+            const processId = extractProcessId(xml);
+            const engine = detectEngine(xml);
+            const activityDetails = extractActivityDetails(xml);
+
+            // Build a lookup from activityId → extraction details for I/O params.
+            const detailsById = new Map(
+                activityDetails.map((d) => [d.activityId, d]),
+            );
+
+            const activities: BuildPersistedMapInput["activities"] = {};
+            for (const [activityId, entry] of map) {
+                const details = detailsById.get(activityId);
+                const inputs: PersistedVariable[] =
+                    details?.inputs.map((p) => ({ name: p.name, value: p.value })) ?? [];
+                const outputs: PersistedVariable[] =
+                    details?.outputs.map((p) => ({ name: p.name, value: p.value })) ?? [];
+
+                activities[activityId] = {
+                    name: details?.activityName ?? "",
+                    kind: entry.kind,
+                    identifier: entry.identifier,
+                    filePath: entry.filePath
+                        ? toRelativePath(entry.filePath, workspaceRoot)
+                        : null,
+                    resolved: entry.resolved,
+                    inputs,
+                    outputs,
+                };
+            }
+
+            const persistedMap = buildPersistedMap({ processId, engine, activities });
+            await this.mapPersistence.writeMap(persistPath, persistedMap);
+        } catch (error) {
+            this.vsUI.logWarning(
+                `Failed to persist implementation map: ${(error as Error).message}`,
+            );
+        }
+    }
+
+    /**
+     * Computes the absolute output path for the persisted map JSON file.
+     *
+     * @param editorId Document URI path of the BPMN file.
+     * @returns Absolute path to the JSON file, or `undefined` if the workspace root
+     *   cannot be determined.
+     */
+    private async computePersistPath(editorId: string): Promise<string | undefined> {
+        const workspaceRoot = await this.getWorkspaceRoot(editorId);
+        if (!workspaceRoot) return undefined;
+
+        const configFolder = this.vsSettings.getConfigFolder();
+        const bpmnFileName = posix.basename(editorId, posix.extname(editorId));
+        return posix.join(workspaceRoot, configFolder, "implementation-map", `${bpmnFileName}.json`);
+    }
+
+    /**
+     * Resolves the workspace root for the given editor's document directory.
+     *
+     * @param editorId Document URI path.
+     * @returns Absolute workspace root path.
+     */
+    private async getWorkspaceRoot(editorId: string): Promise<string> {
+        const documentDir = posix.dirname(editorId);
+        return this.artifactSvc.getWorkspaceRoot(documentDir);
+    }
+
+    // ─── Workspace-level file system events ─────────────────────────────────
+
+    /**
+     * Registers workspace-level event listeners for file rename, delete, and
+     * create events to keep the in-memory maps and persisted files in sync.
+     */
+    private registerWorkspaceEvents(): void {
+        this.workspaceDisposables.push(
+            workspace.onDidRenameFiles((event) => {
+                for (const { oldUri, newUri } of event.files) {
+                    this.handleFileRename(oldUri.path, newUri.path);
+                }
+            }),
+        );
+
+        this.workspaceDisposables.push(
+            workspace.onDidDeleteFiles((event) => {
+                for (const uri of event.files) {
+                    this.handleFileDelete(uri.path);
+                }
+            }),
+        );
+
+        this.workspaceDisposables.push(
+            workspace.onDidCreateFiles(() => {
+                this.handleFileCreate();
+            }),
+        );
+    }
+
+    /**
+     * Handles a file rename event by updating matching file paths in all
+     * in-memory maps and re-persisting affected editors.
+     *
+     * @param oldPath Absolute path of the renamed file (before).
+     * @param newPath Absolute path of the renamed file (after).
+     */
+    private handleFileRename(oldPath: string, newPath: string): void {
+        for (const [editorId, map] of this.maps) {
+            let changed = false;
+            for (const [activityId, entry] of map) {
+                if (entry.filePath === oldPath) {
+                    map.set(activityId, { ...entry, filePath: newPath });
+                    changed = true;
+                }
+            }
+            if (changed) {
+                this.sendMapToWebview(editorId, map);
+                this.getDebouncedPersist(editorId)(editorId);
+            }
+        }
+    }
+
+    /**
+     * Handles a file delete event by marking matching entries as unresolved
+     * in all in-memory maps and re-persisting affected editors.
+     *
+     * @param deletedPath Absolute path of the deleted file.
+     */
+    private handleFileDelete(deletedPath: string): void {
+        for (const [editorId, map] of this.maps) {
+            let changed = false;
+            for (const [activityId, entry] of map) {
+                if (entry.filePath === deletedPath) {
+                    map.set(activityId, {
+                        ...entry,
+                        filePath: undefined,
+                        resolved: false,
+                    });
+                    changed = true;
+                }
+            }
+            if (changed) {
+                this.sendMapToWebview(editorId, map);
+                this.getDebouncedPersist(editorId)(editorId);
+            }
+        }
+    }
+
+    /**
+     * Handles a file create event by triggering re-resolution for all editors.
+     *
+     * A previously unresolvable reference may now match the newly created file.
+     */
+    private handleFileCreate(): void {
+        for (const editorId of this.maps.keys()) {
+            this.reResolveUnresolved(editorId);
         }
     }
 
@@ -442,6 +744,7 @@ export class ImplementationMapService {
 
         if (changed) {
             await this.sendMapToWebview(editorId, map);
+            this.getDebouncedPersist(editorId)(editorId);
         }
     }
 }

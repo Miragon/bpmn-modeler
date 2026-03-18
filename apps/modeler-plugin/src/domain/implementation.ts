@@ -44,3 +44,34 @@ export interface RawImplementationRef {
     /** Raw identifier value from the XML. */
     readonly identifier: string;
 }
+
+/**
+ * A single I/O parameter extracted from the BPMN XML extension elements.
+ */
+export interface RawIOParameter {
+    /** Parameter name. */
+    readonly name: string;
+    /** Whether this is an input or output parameter. */
+    readonly direction: "input" | "output";
+    /** Raw expression / value from the XML. */
+    readonly value?: string;
+}
+
+/**
+ * Full extraction result for a single activity, including implementation
+ * reference and I/O parameters.
+ *
+ * Produced by {@link extractActivityDetails} in the XML parser.
+ */
+export interface RawActivityExtraction {
+    /** BPMN element `id` attribute. */
+    readonly activityId: string;
+    /** BPMN element `name` attribute. */
+    readonly activityName: string;
+    /** Implementation reference, if present. */
+    readonly implementation?: RawImplementationRef;
+    /** Input parameters extracted from the XML. */
+    readonly inputs: RawIOParameter[];
+    /** Output parameters extracted from the XML. */
+    readonly outputs: RawIOParameter[];
+}

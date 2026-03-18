@@ -33,8 +33,9 @@ sequenceDiagram
     participant S as ImplementationMapService
     participant P as BPMN XML Parser
     participant F as VsCodeFileResolver
+    participant D as VsCodeMapPersistence
 
-    Note over W,F: Phase 1 — Resolution (on every BPMN sync)
+    Note over W,D: Phase 1 — Resolution (on every BPMN sync)
 
     C->>S: update(editorId, bpmnXml)
     S->>P: extractImplementationRefs(xml)
@@ -46,8 +47,10 @@ sequenceDiagram
     end
 
     S->>W: ImplementationMapQuery {activityId → {label, resolved}}
+    S->>P: extractActivityDetails(xml) + extractProcessId(xml)
+    S->>D: writeMap(path, persistedMap) [debounced 2s]
 
-    Note over W,F: Phase 2 — Navigation (on user click)
+    Note over W,D: Phase 2 — Navigation (on user click)
 
     W->>W: User hovers element → overlay appears
     W->>C: NavigateToImplementationCommand(activityId)
@@ -55,6 +58,63 @@ sequenceDiagram
     S->>F: openFile(filePath)
     F-->>W: File opens in VS Code editor
 ```
+
+## Persisted Implementation Map
+
+The in-memory implementation map is persisted as a JSON file so that external tooling (AI agents, custom skills) can understand process-to-code mappings without running the extension.
+
+### File Location
+
+```
+<workspaceRoot>/<configFolder>/implementation-map/<bpmnFileName>.json
+```
+
+For example, with the default config folder: `.camunda/implementation-map/my-process.json`.
+
+### Schema
+
+```jsonc
+{
+  "$schema": "https://raw.githubusercontent.com/.../implementation-map.v1.json",
+  "version": 1,
+  "processId": "Process_Payment",
+  "engine": "c7",              // "c7" | "c8"
+  "lastUpdated": "2026-03-17T10:30:00.000Z",
+  "activities": {
+    "Task_1": {
+      "name": "Process Payment",
+      "implementation": {
+        "kind": "javaClass",
+        "identifier": "com.example.PaymentDelegate",
+        "filePath": "src/main/java/com/example/PaymentDelegate.java",  // workspace-relative
+        "resolved": true
+      },
+      "inputs": [
+        { "name": "orderId", "value": "${execution.getVariable(\"orderId\")}" }
+      ],
+      "outputs": [
+        { "name": "paymentId", "value": "${paymentResult}" }
+      ]
+    }
+  }
+}
+```
+
+File paths are **workspace-relative** so the file is portable and committable. I/O parameters are extracted from BPMN XML extension elements:
+
+- **C7**: `camunda:inputOutput > camunda:inputParameter / camunda:outputParameter`
+- **C8**: `zeebe:ioMapping > zeebe:input / zeebe:output`
+
+### Lifecycle
+
+- **Written** after each BPMN sync (debounced at 2 seconds).
+- **Warm cache**: When an editor opens for the first time, an existing persisted map is loaded to seed resolved paths and avoid cold-start re-resolution.
+- **Workspace events**: File renames, deletes, and creates update the in-memory map and re-persist affected editors.
+- **Editor close**: The persisted file is **not** deleted — it survives editor sessions. It is only removed if the `.bpmn` file itself is deleted.
+
+### TODO: Properties Panel UI
+
+> The properties panel UI for type linking (letting users manually associate an activity with a source file or annotate I/O parameter types) is **not yet implemented**. The webview and properties panel components will need to be updated to support this feature in a future iteration.
 
 ## Resolution Strategies
 
@@ -73,10 +133,11 @@ After resolution, the service sets up file system watchers on directories contai
 
 The feature follows the existing layered architecture of the extension:
 
-- **Domain** (`implementation.ts`) — Pure value types: `ImplementationEntry`, `RawImplementationRef`, `ImplementationKind`. No external dependencies.
-- **Service** (`ImplementationMapService.ts`) — Owns per-editor lookup maps, orchestrates parsing, resolution, file watching, and webview communication.
+- **Domain** (`implementation.ts`, `persistedMap.ts`) — Pure value types (`ImplementationEntry`, `RawImplementationRef`, `RawActivityExtraction`, `PersistedProcessMap`, etc.) and the `buildPersistedMap()` builder. No external dependencies.
+- **Service** (`ImplementationMapService.ts`) — Owns per-editor lookup maps, orchestrates parsing, resolution, file watching, persistence, warm cache, and webview communication.
 - **Infrastructure** (`VsCodeFileResolver.ts`) — Adapter for VS Code workspace file search, text search, file open, and watcher APIs.
-- **Parser** (`bpmnXmlParser.ts`) — Pure function that extracts `RawImplementationRef[]` from BPMN XML using namespace-aware DOM parsing.
+- **Infrastructure** (`VsCodeMapPersistence.ts`) — Adapter for reading/writing persisted map JSON files via `workspace.fs`, plus path conversion helpers.
+- **Parser** (`bpmnXmlParser.ts`) — Pure functions: `extractImplementationRefs()` for backward-compatible ref extraction, `extractActivityDetails()` for full extraction with I/O parameters, `extractProcessId()`, and `detectEngine()`.
 - **Webview module** (`libs/implementation-link/`) — A diagram-js injectable service that manages hover overlays on the canvas.
 
 ## Message Protocol
