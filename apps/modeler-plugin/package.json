@@ -7,7 +7,7 @@
     "displayName": "Camunda Modeler by Miragon",
     "description": "Create and edit BPMN 2.0 and DMN Diagrams for Camunda 7 and Camunda 8 with VS Code.",
     "license": "SEE LICENSE IN LICENSE",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "publisher": "miragon-gmbh",
     "homepage": "https://www.miragon.io/",
     "galleryBanner": {
