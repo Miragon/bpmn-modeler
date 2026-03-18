@@ -41,6 +41,7 @@ export default defineConfig({
 
     build: {
         target: "es2021",
+        commonjsOptions: { transformMixedEsModules: true },
         chunkSizeWarningLimit: 1200,
         outDir: "../../dist/webview-staging/bpmn-webview",
         emptyOutDir: true,
