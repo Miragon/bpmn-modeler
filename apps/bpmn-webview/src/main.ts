@@ -31,7 +31,13 @@ import {
     VsCodeClipboardModule,
     LabelClipboardModule,
 } from "@bpmn-modeler/bpmn-clipboard";
-import { BpmnModeler, getVsCodeApi, initResizer, UnsupportedEngineError } from "./app";
+import {
+    BpmnModeler,
+    getVsCodeApi,
+    initResizer,
+    installContentEditableClipboardPolyfill,
+    UnsupportedEngineError,
+} from "./app";
 
 const vscode = getVsCodeApi();
 
@@ -120,6 +126,15 @@ window.onload = async function () {
                 ],
             },
         ];
+
+        // The FEEL editor (CodeMirror 6) in the C8 properties panel lives outside
+        // the bpmn-js DI context, so the DI clipboard modules above don't reach it.
+        // This polyfill intercepts Cmd/Ctrl+C/V on contenteditable elements and
+        // bridges them through the extension host clipboard.
+        installContentEditableClipboardPolyfill(
+            requestTextClipboard,
+            writeTextClipboard,
+        );
     }
 
     vscode.postMessage(new GetBpmnFileCommand());
