@@ -5,6 +5,7 @@ import {
     BpmnModelerSettingQuery,
     ClipboardQuery,
     ElementTemplatesQuery,
+    TextClipboardQuery,
 } from "@bpmn-modeler/shared";
 
 import { ModelerSession } from "../domain/session";
@@ -313,6 +314,26 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             return await this.editorStore.postMessage(
                 editorId,
                 new ClipboardQuery(text),
+            );
+        } catch (error) {
+            this.vsUI.logError(error as Error);
+            return false;
+        }
+    }
+
+    /**
+     * Reads the system clipboard and sends its text content to the webview
+     * as a {@link TextClipboardQuery}, used for label text paste operations.
+     *
+     * @param editorId Document URI path of the requesting editor.
+     * @returns `true` on success, `false` on any failure.
+     */
+    async readTextClipboard(editorId: string): Promise<boolean> {
+        try {
+            const text = await this.vsUI.readClipboard();
+            return await this.editorStore.postMessage(
+                editorId,
+                new TextClipboardQuery(text),
             );
         } catch (error) {
             this.vsUI.logError(error as Error);

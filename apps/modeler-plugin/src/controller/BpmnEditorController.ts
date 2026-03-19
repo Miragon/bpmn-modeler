@@ -8,7 +8,12 @@ import {
     window,
 } from "vscode";
 
-import { Command, SetClipboardCommand, SyncDocumentCommand } from "@bpmn-modeler/shared";
+import {
+    Command,
+    SetClipboardCommand,
+    SetTextClipboardCommand,
+    SyncDocumentCommand,
+} from "@bpmn-modeler/shared";
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
@@ -142,6 +147,14 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     case "SetClipboardCommand":
                         this.bpmnService.writeClipboard(
                             (message as SetClipboardCommand).text,
+                        );
+                        break;
+                    case "GetTextClipboardCommand":
+                        this.bpmnService.readTextClipboard(id);
+                        break;
+                    case "SetTextClipboardCommand":
+                        this.bpmnService.writeClipboard(
+                            (message as SetTextClipboardCommand).text,
                         );
                         break;
                     case "SyncDocumentCommand":

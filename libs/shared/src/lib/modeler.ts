@@ -78,6 +78,15 @@ export class ClipboardQuery extends Query {
     }
 }
 
+export class TextClipboardQuery extends Query {
+    public readonly text: string;
+
+    constructor(text: string) {
+        super("TextClipboardQuery");
+        this.text = text;
+    }
+}
+
 // <================================== Queries ===================================
 //
 // =================================== Commands ==================================>
@@ -124,6 +133,21 @@ export class SetClipboardCommand extends Command {
 
     constructor(text: string) {
         super("SetClipboardCommand");
+        this.text = text;
+    }
+}
+
+export class GetTextClipboardCommand extends Command {
+    constructor() {
+        super("GetTextClipboardCommand");
+    }
+}
+
+export class SetTextClipboardCommand extends Command {
+    public readonly text: string;
+
+    constructor(text: string) {
+        super("SetTextClipboardCommand");
         this.text = text;
     }
 }

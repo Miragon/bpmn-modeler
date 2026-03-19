@@ -20,7 +20,8 @@
         "noFallthroughCasesInSwitch": true,
         "baseUrl": "./",
         "paths": {
-            "@bpmn-modeler/shared": ["libs/shared/src/index.ts"]
+            "@bpmn-modeler/shared": ["libs/shared/src/index.ts"],
+            "@bpmn-modeler/bpmn-clipboard": ["libs/bpmn-clipboard/src/index.ts"]
         }
     },
     "exclude": ["node_modules", "tmp"]
