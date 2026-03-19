@@ -27,6 +27,7 @@ export default defineConfig({
     resolve: {
         dedupe: [
             "preact",
+            "@bpmn-io/properties-panel",
             "@codemirror/state",
             "@codemirror/view",
             "@codemirror/language",
