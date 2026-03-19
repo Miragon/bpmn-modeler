@@ -683,7 +683,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/feel-editor@npm:^2.5.0":
+"@bpmn-io/feel-editor@npm:^2.5.0, @bpmn-io/feel-editor@npm:^2.5.2":
   version: 2.5.2
   resolution: "@bpmn-io/feel-editor@npm:2.5.2"
   dependencies:
@@ -725,19 +725,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/form-js-carbon-styles@npm:1.21.0":
-  version: 1.21.0
-  resolution: "@bpmn-io/form-js-carbon-styles@npm:1.21.0"
-  checksum: 10c0/28e474fc628485fcc02166c82cae714930abf09c4a1037636381cd2c9a04e629ae0df2e8083fcaa142e610274988ec8dad6d4c5d02cab6378bcdfa1f306e1874
+"@bpmn-io/form-js-carbon-styles@npm:1.21.2":
+  version: 1.21.2
+  resolution: "@bpmn-io/form-js-carbon-styles@npm:1.21.2"
+  checksum: 10c0/9ab848a244ec5a47a4dae56d7e346369afd2e65b6b1a3854a30ed67be59919b2667f51b77d709fc10466c94326362363586422476c6bed4be90ee1952af2b096
   languageName: node
   linkType: hard
 
-"@bpmn-io/form-js-editor@npm:1.21.0":
-  version: 1.21.0
-  resolution: "@bpmn-io/form-js-editor@npm:1.21.0"
+"@bpmn-io/form-js-editor@npm:1.21.2":
+  version: 1.21.2
+  resolution: "@bpmn-io/form-js-editor@npm:1.21.2"
   dependencies:
     "@bpmn-io/draggle": "npm:^4.1.2"
-    "@bpmn-io/form-js-viewer": "npm:1.21.0"
+    "@bpmn-io/form-js-viewer": "npm:1.21.2"
     "@bpmn-io/properties-panel": "npm:^3.40.3"
     array-move: "npm:^4.0.0"
     big.js: "npm:^7.0.1"
@@ -745,16 +745,16 @@ __metadata:
     min-dash: "npm:^5.0.0"
     min-dom: "npm:^5.2.0"
     preact: "npm:>=10.5.14 <=10.15.1"
-  checksum: 10c0/5fcadb19a552318eaa1c8dbac3913c761f0ce151ff0f7145cc7ca067f1bb1acc73ca52e84c75e466319f396a432649ea3e20889a4186b1c19af25d8ae4908779
+  checksum: 10c0/0ec4bf7efe8d6286ff21a2f2ea105438e4725167444bdd15495583b80bedc3af4bc638e0c567e560617ab870afa4d8b19a9b7df90d968cc1c441245def00177e
   languageName: node
   linkType: hard
 
-"@bpmn-io/form-js-playground@npm:1.21.0":
-  version: 1.21.0
-  resolution: "@bpmn-io/form-js-playground@npm:1.21.0"
+"@bpmn-io/form-js-playground@npm:1.21.2":
+  version: 1.21.2
+  resolution: "@bpmn-io/form-js-playground@npm:1.21.2"
   dependencies:
-    "@bpmn-io/form-js-editor": "npm:1.21.0"
-    "@bpmn-io/form-js-viewer": "npm:1.21.0"
+    "@bpmn-io/form-js-editor": "npm:1.21.2"
+    "@bpmn-io/form-js-viewer": "npm:1.21.2"
     "@codemirror/autocomplete": "npm:^6.20.0"
     "@codemirror/commands": "npm:^6.10.1"
     "@codemirror/lang-json": "npm:^6.0.2"
@@ -768,13 +768,13 @@ __metadata:
     file-drops: "npm:^0.7.0"
     mitt: "npm:^3.0.1"
     preact: "npm:^10.5.14"
-  checksum: 10c0/5d3adf7b80a5cb29829aa0699b1b5ce456ba272aef9726c2621b619b6bf74bb4da4d5cc68da65875009f42f53535978ff8a5f108c485c74d1a2c59bd64bffc62
+  checksum: 10c0/3a9bbdf614b48bd28e7caa049dde1e548eb0ee7f34baca855f4f72fcd5a75c2ec8bb7179740d169e68dd78de0ba046e035c260264253dcca72b66ffc32cb875a
   languageName: node
   linkType: hard
 
-"@bpmn-io/form-js-viewer@npm:1.21.0":
-  version: 1.21.0
-  resolution: "@bpmn-io/form-js-viewer@npm:1.21.0"
+"@bpmn-io/form-js-viewer@npm:1.21.2":
+  version: 1.21.2
+  resolution: "@bpmn-io/form-js-viewer@npm:1.21.2"
   dependencies:
     "@bpmn-io/feelin": "npm:^6.1.0"
     "@carbon/grid": "npm:^11.49.0"
@@ -790,19 +790,19 @@ __metadata:
     marked: "npm:^17.0.1"
     min-dash: "npm:^5.0.0"
     preact: "npm:^10.5.14"
-  checksum: 10c0/2381b32fd62dddbc35512685ef79f98457a3e7c2666e61044a3a1fb2255bcb23ce7bad18cc342f6d70b4728b448f7b2c17e4bceb26a378083e27999dc066baed
+  checksum: 10c0/2ef6cf661b4ad273d8eacb7880c29ce768a0bfd747a9d9172b636a35f09dc669fecb62413f0fdf611d43c3c452aabceb193e5f24294338352dedf36989b88f22
   languageName: node
   linkType: hard
 
-"@bpmn-io/form-js@npm:1.21.0":
-  version: 1.21.0
-  resolution: "@bpmn-io/form-js@npm:1.21.0"
+"@bpmn-io/form-js@npm:1.21.2":
+  version: 1.21.2
+  resolution: "@bpmn-io/form-js@npm:1.21.2"
   dependencies:
-    "@bpmn-io/form-js-carbon-styles": "npm:1.21.0"
-    "@bpmn-io/form-js-editor": "npm:1.21.0"
-    "@bpmn-io/form-js-playground": "npm:1.21.0"
-    "@bpmn-io/form-js-viewer": "npm:1.21.0"
-  checksum: 10c0/a8907d0b48cb0766a530193f2a82e5c28b174161cf078675bd5581e696226953b691fec72bcddc91d8136201b84ce3090d4ad3efbcfda7001c28d76623f0986f
+    "@bpmn-io/form-js-carbon-styles": "npm:1.21.2"
+    "@bpmn-io/form-js-editor": "npm:1.21.2"
+    "@bpmn-io/form-js-playground": "npm:1.21.2"
+    "@bpmn-io/form-js-viewer": "npm:1.21.2"
+  checksum: 10c0/89d89fa60e555c585c921023407b50af42c9994ec4c92403317867101b7704fa9a98560bf21e60b3dd1d90c4e6f68bbe4d2e74a0ab70d95728c4de2b7999aea6
   languageName: node
   linkType: hard
 
@@ -838,7 +838,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/properties-panel@npm:3.40.3, @bpmn-io/properties-panel@npm:^3.40.0, @bpmn-io/properties-panel@npm:^3.40.3":
+"@bpmn-io/properties-panel@npm:3.40.4":
+  version: 3.40.4
+  resolution: "@bpmn-io/properties-panel@npm:3.40.4"
+  dependencies:
+    "@bpmn-io/feel-editor": "npm:^2.5.2"
+    "@carbon/icons": "npm:^11.69.0"
+    "@codemirror/view": "npm:^6.28.1"
+    classnames: "npm:^2.5.1"
+    feelers: "npm:^1.5.1"
+    focus-trap: "npm:^8.0.0"
+    min-dash: "npm:^5.0.0"
+    min-dom: "npm:^5.2.0"
+  checksum: 10c0/b6d1701d1ad6775479ef27f069247abdcefbeebd6cf92f129a25b906cfd124219297d562d86d3a605064ce5e7890aa3b42851571ee7456ba72cf323c5bb97122
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/properties-panel@npm:^3.40.0, @bpmn-io/properties-panel@npm:^3.40.3":
   version: 3.40.3
   resolution: "@bpmn-io/properties-panel@npm:3.40.3"
   dependencies:
@@ -3869,8 +3885,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "bpmn-vscode-modeler@workspace:."
   dependencies:
-    "@bpmn-io/form-js": "npm:1.21.0"
-    "@bpmn-io/properties-panel": "npm:3.40.3"
+    "@bpmn-io/form-js": "npm:1.21.2"
+    "@bpmn-io/properties-panel": "npm:3.40.4"
     "@eslint/eslintrc": "npm:^3.3.5"
     "@eslint/js": "npm:^10.0.1"
     "@stylistic/eslint-plugin": "npm:^5.10.0"
@@ -3915,7 +3931,7 @@ __metadata:
     typescript-eslint: "npm:^8.57.1"
     uuid: "npm:^13.0.0"
     vite: "npm:7.1.11"
-    vite-plugin-static-copy: "npm:3.1.2"
+    vite-plugin-static-copy: "npm:3.3.0"
     vite-tsconfig-paths: "npm:^6.1.1"
     vitest: "npm:4.1.0"
     webpack: "npm:^5.98.0"
@@ -6005,17 +6021,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fs-extra@npm:^11.3.0":
-  version: 11.3.4
-  resolution: "fs-extra@npm:11.3.4"
-  dependencies:
-    graceful-fs: "npm:^4.2.0"
-    jsonfile: "npm:^6.0.1"
-    universalify: "npm:^2.0.0"
-  checksum: 10c0/e08276f767a62496ae97d711aaa692c6a478177f24a85979b6a2881c9db9c68b8c2ad5da0bcf92c0b2a474cea6e935ec245656441527958fd8372cb647087df0
-  languageName: node
-  linkType: hard
-
 "fs-minipass@npm:^2.0.0":
   version: 2.1.0
   resolution: "fs-minipass@npm:2.1.0"
@@ -6326,7 +6331,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"graceful-fs@npm:^4.1.2, graceful-fs@npm:^4.1.6, graceful-fs@npm:^4.2.0, graceful-fs@npm:^4.2.11, graceful-fs@npm:^4.2.4, graceful-fs@npm:^4.2.6":
+"graceful-fs@npm:^4.1.2, graceful-fs@npm:^4.2.11, graceful-fs@npm:^4.2.4, graceful-fs@npm:^4.2.6":
   version: 4.2.11
   resolution: "graceful-fs@npm:4.2.11"
   checksum: 10c0/386d011a553e02bc594ac2ca0bd6d9e4c22d7fa8cfbfc448a6d148c59ea881b092db9dbe3547ae4b88e55f1b01f7c4a2ecc53b310c042793e63aa44cf6c257f2
@@ -7792,19 +7797,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonfile@npm:^6.0.1":
-  version: 6.2.0
-  resolution: "jsonfile@npm:6.2.0"
-  dependencies:
-    graceful-fs: "npm:^4.1.6"
-    universalify: "npm:^2.0.0"
-  dependenciesMeta:
-    graceful-fs:
-      optional: true
-  checksum: 10c0/7f4f43b08d1869ded8a6822213d13ae3b99d651151d77efd1557ced0889c466296a7d9684e397bd126acf5eb2cfcb605808c3e681d0fdccd2fe5a04b47e76c0d
-  languageName: node
-  linkType: hard
-
 "keyv@npm:^4.5.4":
   version: 4.5.4
   resolution: "keyv@npm:4.5.4"
@@ -8716,7 +8708,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"p-map@npm:^7.0.3":
+"p-map@npm:^7.0.4":
   version: 7.0.4
   resolution: "p-map@npm:7.0.4"
   checksum: 10c0/a5030935d3cb2919d7e89454d1ce82141e6f9955413658b8c9403cfe379283770ed3048146b44cde168aa9e8c716505f196d5689db0ae3ce9a71521a2fef3abd
@@ -10248,7 +10240,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tinyglobby@npm:^0.2.12, tinyglobby@npm:^0.2.14, tinyglobby@npm:^0.2.15":
+"tinyglobby@npm:^0.2.12, tinyglobby@npm:^0.2.15":
   version: 0.2.15
   resolution: "tinyglobby@npm:0.2.15"
   dependencies:
@@ -10689,13 +10681,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"universalify@npm:^2.0.0":
-  version: 2.0.1
-  resolution: "universalify@npm:2.0.1"
-  checksum: 10c0/73e8ee3809041ca8b818efb141801a1004e3fc0002727f1531f4de613ea281b494a40909596dae4a042a4fb6cd385af5d4db2e137b1362e0e91384b828effd3a
-  languageName: node
-  linkType: hard
-
 "unrs-resolver@npm:^1.7.11":
   version: 1.11.1
   resolution: "unrs-resolver@npm:1.11.1"
@@ -10837,18 +10822,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite-plugin-static-copy@npm:3.1.2":
-  version: 3.1.2
-  resolution: "vite-plugin-static-copy@npm:3.1.2"
+"vite-plugin-static-copy@npm:3.3.0":
+  version: 3.3.0
+  resolution: "vite-plugin-static-copy@npm:3.3.0"
   dependencies:
     chokidar: "npm:^3.6.0"
-    fs-extra: "npm:^11.3.0"
-    p-map: "npm:^7.0.3"
+    p-map: "npm:^7.0.4"
     picocolors: "npm:^1.1.1"
-    tinyglobby: "npm:^0.2.14"
+    tinyglobby: "npm:^0.2.15"
   peerDependencies:
-    vite: ^5.0.0 || ^6.0.0 || ^7.0.0
-  checksum: 10c0/1a65f4c9d291cc27483a5b225b1ac5610edc3aa2f13fa3a76a77327874c83bbee52e1011ee0bf5b0168b9b7b974213d49fe800e44af398cfbcb6607814b45c5b
+    vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
+  checksum: 10c0/c70d48a1edfada3d1d90f13311a5ab7e67ea0decdf6b5758a6ba8b10db4e64e8e3573f43b7fe56024eff783ce945fe290ee7b96872f9df1ca0059458dd85713b
   languageName: node
   linkType: hard
 
