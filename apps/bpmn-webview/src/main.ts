@@ -17,13 +17,20 @@ import {
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
     GetElementTemplatesCommand,
+    GetTextClipboardCommand,
     LogErrorCommand,
     LogInfoCommand,
     NoModelerError,
     Query,
     SetClipboardCommand,
+    SetTextClipboardCommand,
     SyncDocumentCommand,
+    TextClipboardQuery,
 } from "@bpmn-modeler/shared";
+import {
+    VsCodeClipboardModule,
+    LabelClipboardModule,
+} from "@bpmn-modeler/bpmn-clipboard";
 import { BpmnModeler, getVsCodeApi, initResizer, UnsupportedEngineError } from "./app";
 
 const vscode = getVsCodeApi();
@@ -46,7 +53,10 @@ const debouncedUpdateXML = asyncDebounce(openXml, 100);
 const bpmnFileResolver = createResolver<BpmnFileQuery>();
 
 let modelerIsInitialized = false;
-let clipboardResolver = createResolver<ClipboardQuery>();
+
+// Separate resolvers for element clipboard and text (label) clipboard.
+let elementClipboardResolver = createResolver<ClipboardQuery>();
+let textClipboardResolver = createResolver<TextClipboardQuery>();
 
 /**
  * Entry point executed once the webview DOM is fully loaded.
@@ -65,25 +75,62 @@ window.onload = async function () {
     initResizer();
     bpmnModeler.initTheme();
 
+    // Build clipboard DI modules conditionally.
+    // In development (plain browser) NativeCopyPaste handles clipboard natively.
+    let clipboardModules: any[] | undefined;
+
+    if (process.env.NODE_ENV !== "development") {
+        const requestElementClipboard = async (): Promise<string> => {
+            elementClipboardResolver = createResolver<ClipboardQuery>();
+            vscode.postMessage(new GetClipboardCommand());
+            const q = await elementClipboardResolver.wait();
+            return q?.text ?? "";
+        };
+        const writeElementClipboard = (text: string): void => {
+            vscode.postMessage(new SetClipboardCommand(text));
+        };
+
+        const requestTextClipboard = async (): Promise<string> => {
+            textClipboardResolver = createResolver<TextClipboardQuery>();
+            vscode.postMessage(new GetTextClipboardCommand());
+            const q = await textClipboardResolver.wait();
+            return q?.text ?? "";
+        };
+        const writeTextClipboard = (text: string): void => {
+            vscode.postMessage(new SetTextClipboardCommand(text));
+        };
+
+        clipboardModules = [
+            VsCodeClipboardModule,
+            LabelClipboardModule,
+            {
+                elementClipboardBridge: [
+                    "value",
+                    {
+                        requestClipboard: requestElementClipboard,
+                        writeClipboard: writeElementClipboard,
+                    },
+                ],
+                textClipboardBridge: [
+                    "value",
+                    {
+                        requestClipboard: requestTextClipboard,
+                        writeClipboard: writeTextClipboard,
+                    },
+                ],
+            },
+        ];
+    }
+
     vscode.postMessage(new GetBpmnFileCommand());
 
     const bpmnFileQuery = await bpmnFileResolver.wait();
-    await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine);
+    await initializeModeler(
+        bpmnFileQuery?.content,
+        bpmnFileQuery?.engine,
+        clipboardModules,
+    );
     modelerIsInitialized = true;
-
-    // Only override clipboard in VS Code where navigator.clipboard is sandboxed.
-    // In development (plain browser) NativeCopyPaste handles clipboard natively.
-    if (process.env.NODE_ENV !== "development") {
-        bpmnModeler.installClipboardInterceptor(
-            async () => {
-                clipboardResolver = createResolver<ClipboardQuery>();
-                vscode.postMessage(new GetClipboardCommand());
-                const q = await clipboardResolver.wait();
-                return q?.text ?? "";
-            },
-            (text) => vscode.postMessage(new SetClipboardCommand(text)),
-        );
-    }
 
     console.debug("[DEBUG] Modeler is initialized...");
 
@@ -96,10 +143,12 @@ window.onload = async function () {
  *
  * @param bpmn Initial BPMN XML, or `undefined` to create a blank diagram.
  * @param engine Execution platform identifier (`"c7"` or `"c8"`).
+ * @param extraModules Optional bpmn-js DI modules (e.g. clipboard bridges).
  */
 async function initializeModeler(
     bpmn: string | undefined,
     engine: "c7" | "c8" | undefined,
+    extraModules?: any[],
 ): Promise<void> {
     if (!engine) {
         vscode.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
@@ -107,7 +156,7 @@ async function initializeModeler(
     }
 
     try {
-        bpmnModeler.create(engine);
+        bpmnModeler.create(engine, extraModules);
         bpmnModeler.onCommandStackChanged(sendXmlChanges);
         await openXml(bpmn);
 
@@ -218,7 +267,11 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             break;
         }
         case queryOrCommand.type === "ClipboardQuery": {
-            clipboardResolver.done(message.data as ClipboardQuery);
+            elementClipboardResolver.done(message.data as ClipboardQuery);
+            break;
+        }
+        case queryOrCommand.type === "TextClipboardQuery": {
+            textClipboardResolver.done(message.data as TextClipboardQuery);
             break;
         }
         case queryOrCommand.type === "GetDiagramAsSVGCommand": {

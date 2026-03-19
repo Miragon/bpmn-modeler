@@ -1,0 +1,26 @@
+{
+  "name": "miranum-ide",
+  "description": "Project-specific skills for the Miranum IDE BPMN/DMN modeler VS Code extension",
+  "skills": [
+    {
+      "name": "architecture",
+      "path": "../skills/architecture/SKILL.md"
+    },
+    {
+      "name": "bpmn-js",
+      "path": "../skills/bpmn-js/SKILL.md"
+    },
+    {
+      "name": "vscode-custom-editors",
+      "path": "../skills/vscode-custom-editors/SKILL.md"
+    },
+    {
+      "name": "vscode-webviews",
+      "path": "../skills/vscode-webviews/SKILL.md"
+    },
+    {
+      "name": "vscode-ux-guidelines",
+      "path": "../skills/vscode-ux-guidelines/SKILL.md"
+    }
+  ]
+}

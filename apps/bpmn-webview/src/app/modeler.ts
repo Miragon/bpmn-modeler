@@ -7,7 +7,6 @@ import ElementTemplateChooserModule from "@bpmn-io/element-template-chooser";
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { BpmnModelerSetting, NoModelerError } from "@bpmn-modeler/shared";
-import { createReviver } from "bpmn-js-native-copy-paste/lib/PasteUtil.js";
 import { ViewportData } from "./vscode";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
@@ -47,10 +46,12 @@ export class BpmnModeler {
      *
      * @param engine Camunda engine version — `"c7"` for Camunda Platform 7,
      *   `"c8"` for Camunda Cloud 8.
+     * @param extraModules Optional bpmn-js DI modules (e.g. clipboard bridges).
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
-    create(engine: "c7" | "c8"): void {
+    create(engine: "c7" | "c8", extraModules?: any[]): void {
         const commonModules = [TokenSimulationModule, ElementTemplateChooserModule];
+        const extra = extraModules ?? [];
 
         this.engine = engine;
 
@@ -62,6 +63,7 @@ export class BpmnModeler {
                         ...commonModules,
                         CreateAppendElementTemplatesModule,
                         TransactionBoundariesModule,
+                        ...extra,
                     ],
                 });
                 break;
@@ -69,7 +71,7 @@ export class BpmnModeler {
             case "c8": {
                 this.modeler = new BpmnModeler8({
                     ...MODELER_OPTIONS,
-                    additionalModules: [...commonModules],
+                    additionalModules: [...commonModules, ...extra],
                 });
                 break;
             }
@@ -281,80 +283,6 @@ export class BpmnModeler {
                     cb({ x, y, width, height });
                 }, 100);
             });
-    }
-
-    /**
-     * Installs high-priority listeners on both `copyPaste.elementsCopied` and
-     * `copyPaste.pasteElements` to mediate clipboard access through the
-     * extension host.
-     *
-     * VS Code sandboxed webview iframes lack both `clipboard-read` and
-     * `clipboard-write` permissions, so `navigator.clipboard` calls fail
-     * silently.  These interceptors replace NativeCopyPaste (priority 2050)
-     * by running at priority **2051**.
-     *
-     * **Copy** — serialises the copied element tree as a prefixed JSON string
-     * and sends it to the extension host, which writes it to the system
-     * clipboard via `vscode.env.clipboard.writeText()`.
-     *
-     * **Paste** — when the bpmn-js internal clipboard is empty (cross-editor
-     * paste), requests clipboard text from the extension host, deserialises
-     * the BPMN clip payload, and re-triggers the paste.
-     *
-     * @param requestClipboard Async callback that reads clipboard text via
-     *   the extension host.
-     * @param writeClipboard Callback that sends text to the extension host
-     *   for writing to the system clipboard.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
-    installClipboardInterceptor(
-        requestClipboard: () => Promise<string>,
-        writeClipboard: (text: string) => void,
-    ): void {
-        const modeler = this.getModeler();
-        const eventBus = modeler.get<any>("eventBus");
-        const copyPaste = modeler.get<any>("copyPaste");
-        const moddle = modeler.get<any>("moddle");
-
-        const CLIP_PREFIX = "bpmn-js-clip----";
-
-        // ── Copy interceptor ─────────────────────────────────────────────
-        eventBus.on("copyPaste.elementsCopied", 2051, (context: any) => {
-            const serialized = CLIP_PREFIX + JSON.stringify(context.tree);
-            writeClipboard(serialized);
-            context.hints = context.hints || {};
-            context.hints.clip = false;
-        });
-
-        // ── Paste interceptor ────────────────────────────────────────────
-        eventBus.on("copyPaste.pasteElements", 2051, (context: any) => {
-            if (context.tree) {
-                return;
-            }
-
-            // Snapshot context NOW, before `return false` calls preventDefault()
-            // which sets `defaultPrevented: true` on the same object.  If we spread
-            // `context` asynchronously after that, the new pasteEvent inherits
-            // `defaultPrevented: true` and CopyPaste.paste() sees canPaste===false,
-            // silently aborting before any elements are created.
-            const contextSnapshot = { ...context };
-
-            requestClipboard().then((text) => {
-                if (!text || !text.startsWith(CLIP_PREFIX)) {
-                    return;
-                }
-
-                try {
-                    const json = text.substring(CLIP_PREFIX.length);
-                    const tree = JSON.parse(json, createReviver(moddle));
-                    copyPaste.paste({ ...contextSnapshot, tree });
-                } catch (error) {
-                    console.error("Failed to deserialise clipboard content", error);
-                }
-            });
-
-            return false;
-        });
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────

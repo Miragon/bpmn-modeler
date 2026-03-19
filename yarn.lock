@@ -893,6 +893,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-modeler/bpmn-clipboard@workspace:libs/bpmn-clipboard":
+  version: 0.0.0-use.local
+  resolution: "@bpmn-modeler/bpmn-clipboard@workspace:libs/bpmn-clipboard"
+  languageName: unknown
+  linkType: soft
+
 "@bpmn-modeler/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@bpmn-modeler/shared@workspace:libs/shared"
