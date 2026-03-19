@@ -88,12 +88,16 @@ module.exports = (env, argv) => {
                     },
                     {
                         // Copy the BPMN webview build artefacts into the extension output.
+                        // info.minimized prevents TerserPlugin from re-minimizing the
+                        // already-minified Vite output, which would mangle variable names
+                        // and break preact/htm tagged templates at runtime.
                         from: path.resolve(
                             __dirname,
                             "../../dist/webview-staging/bpmn-webview",
                         ),
                         to: "bpmn-webview",
                         noErrorOnMissing: true,
+                        info: { minimized: true },
                     },
                     {
                         // Copy the DMN webview build artefacts into the extension output.
@@ -103,6 +107,7 @@ module.exports = (env, argv) => {
                         ),
                         to: "dmn-webview",
                         noErrorOnMissing: true,
+                        info: { minimized: true },
                     },
                     {
                         // Copy the deployment webview build artefacts into the extension output.
@@ -112,6 +117,7 @@ module.exports = (env, argv) => {
                         ),
                         to: "deployment-webview",
                         noErrorOnMissing: true,
+                        info: { minimized: true },
                     },
                 ],
             }),
