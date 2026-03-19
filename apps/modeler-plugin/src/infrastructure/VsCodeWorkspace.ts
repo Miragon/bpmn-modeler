@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { FileType, Uri, workspace } from "vscode";
+import { FileType, GlobPattern, Uri, workspace } from "vscode";
 
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 
@@ -99,6 +99,27 @@ export class VsCodeWorkspace {
                 throw new FileNotFound(reason);
             },
         );
+    }
+
+    /**
+     * Writes content to a file on disk, creating it if it does not exist.
+     *
+     * @param path Absolute path to the file.
+     * @param content The string content to write.
+     */
+    async writeFile(path: string, content: string): Promise<void> {
+        await fs.writeFile(Uri.file(path), Buffer.from(content));
+    }
+
+    /**
+     * Finds files in the workspace matching the given glob pattern.
+     *
+     * @param pattern A glob pattern (e.g. `"**\/*.bpmn"`).
+     * @returns An array of absolute file paths.
+     */
+    async findFiles(pattern: GlobPattern): Promise<string[]> {
+        const uris = await workspace.findFiles(pattern);
+        return uris.map((uri) => uri.path);
     }
 
     /**

@@ -69,6 +69,7 @@ export function activate(context: ExtensionContext): void {
         vsUI,
         artifactSvc,
         statusBar,
+        vsWorkspace,
     );
     const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
     const deploymentSvc = new DeploymentService(

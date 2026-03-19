@@ -12,8 +12,10 @@ import { ModelerSession } from "../domain/session";
 import { SettingBuilder } from "../domain/model";
 import { ExecutionPlatformNotDetectedError, UserCancelledError } from "../domain/errors";
 import { getLatestVersion, getVersions } from "../domain/engineVersions";
+import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
+import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
@@ -47,6 +49,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
      * @param vsUI User-facing message, logging, and quick-pick helper.
      * @param artifactSvc Service for locating forms and element templates.
      * @param statusBar Status bar item manager for element templates and engine version.
+     * @param vsWorkspace Workspace filesystem helper for reading/writing files on disk.
      */
     constructor(
         private readonly editorStore: EditorStore,
@@ -55,6 +58,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         private readonly vsUI: VsCodeUI,
         private readonly artifactSvc: ArtifactService,
         private readonly statusBar: VsCodeStatusBar,
+        private readonly vsWorkspace: VsCodeWorkspace,
     ) {}
 
     // ─── Session management ───────────────────────────────────────────────────
@@ -386,6 +390,176 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             }
             return this.handleError(error as Error);
         }
+    }
+
+    // ─── Migrate all diagrams ──────────────────────────────────────────────
+
+    /**
+     * Scans all `.bpmn` files in the workspace and updates their
+     * `modeler:executionPlatformVersion` to a user-selected target version.
+     *
+     * Same-engine only — no cross-platform migration (C7↔C8).
+     *
+     * @returns `true` on success, `false` on cancellation or failure.
+     */
+    async migrateAllDiagrams(): Promise<boolean> {
+        try {
+            const paths = await this.vsWorkspace.findFiles("**/*.bpmn");
+            if (paths.length === 0) {
+                this.vsUI.showInfo("No BPMN files found in the workspace.");
+                return false;
+            }
+
+            const plan = await this.buildMigrationPlan(paths);
+            if (plan.isEmpty()) {
+                this.vsUI.showInfo(
+                    "Could not detect the engine for any BPMN file in the workspace.",
+                );
+                return false;
+            }
+
+            if (plan.undetected.length > 0) {
+                this.vsUI.logWarning(
+                    `Skipped ${plan.undetected.length} file(s) with undetectable engine: ${plan.undetected.join(", ")}`,
+                );
+            }
+
+            let scope: MigrationScope;
+            if (plan.hasBothPlatforms()) {
+                scope = await this.vsUI.pickMigrationScope(
+                    plan.c7Files.length,
+                    plan.c8Files.length,
+                );
+            } else if (plan.hasC7()) {
+                scope = "c7";
+            } else {
+                scope = "c8";
+            }
+
+            // Collect all user input before applying any writes.
+            // This prevents document-change listeners (triggered by write) from
+            // stealing focus and dismissing a subsequent QuickPick.
+            let c7Version: string | undefined;
+            let c8Version: string | undefined;
+
+            if (scope === "c7" || scope === "both") {
+                c7Version = await this.vsUI.pickEngineVersion("c7", getVersions("c7"));
+            }
+            if (scope === "c8" || scope === "both") {
+                c8Version = await this.vsUI.pickEngineVersion("c8", getVersions("c8"));
+            }
+
+            // Apply all writes after user input is complete
+            const summaryParts: string[] = [];
+
+            if (c7Version) {
+                const c7Updated = await this.applyVersionUpdate(plan.c7Files, c7Version, "c7");
+                if (c7Updated > 0) {
+                    summaryParts.push(`${c7Updated} diagram(s) to Camunda 7 (${c7Version})`);
+                }
+            }
+
+            if (c8Version) {
+                const c8Updated = await this.applyVersionUpdate(plan.c8Files, c8Version, "c8");
+                if (c8Updated > 0) {
+                    summaryParts.push(`${c8Updated} diagram(s) to Camunda 8 (${c8Version})`);
+                }
+            }
+
+            if (summaryParts.length > 0) {
+                this.vsUI.showInfo(`Updated ${summaryParts.join(" and ")}.`);
+            } else {
+                this.vsUI.showInfo("All diagrams are already at the selected version.");
+            }
+
+            return true;
+        } catch (error) {
+            if (error instanceof UserCancelledError) {
+                return false;
+            }
+            return this.handleError(error as Error);
+        }
+    }
+
+    /**
+     * Reads and classifies all BPMN files into a {@link MigrationPlan}.
+     *
+     * @param paths Absolute file paths of discovered `.bpmn` files.
+     */
+    private async buildMigrationPlan(paths: string[]): Promise<MigrationPlan> {
+        const c7Files: BpmnFileEntry[] = [];
+        const c8Files: BpmnFileEntry[] = [];
+        const undetected: string[] = [];
+
+        for (const filePath of paths) {
+            const content = await this.vsWorkspace.readFile(filePath);
+            try {
+                const platform = detectExecutionPlatform(content);
+                const version = detectExecutionPlatformVersion(content);
+                const entry: BpmnFileEntry = { path: filePath, content, platform, version };
+                if (platform === "c7") {
+                    c7Files.push(entry);
+                } else {
+                    c8Files.push(entry);
+                }
+            } catch {
+                undetected.push(filePath);
+            }
+        }
+
+        return new MigrationPlan(c7Files, c8Files, undetected);
+    }
+
+    /**
+     * Writes the updated version to each file, skipping files already at
+     * the target version. Files open in an editor are updated via
+     * {@link VsCodeDocument.write}; files only on disk are written via
+     * {@link VsCodeWorkspace.writeFile}.
+     *
+     * @param files The files to update.
+     * @param targetVersion The new version string.
+     * @param platform The execution platform for files that need `addExecutionPlatform`.
+     * @returns The number of files actually updated.
+     */
+    private async applyVersionUpdate(
+        files: readonly BpmnFileEntry[],
+        targetVersion: string,
+        platform: "c7" | "c8",
+    ): Promise<number> {
+        let updatedCount = 0;
+
+        for (const file of files) {
+            if (file.version === targetVersion) {
+                continue;
+            }
+
+            let updatedContent: string;
+            if (file.version === undefined) {
+                // File has namespace but no version attribute — inject it.
+                const platformName = platform === "c7" ? "Camunda Platform" : "Camunda Cloud";
+                const schema =
+                    platform === "c7"
+                        ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
+                        : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
+                updatedContent = addExecutionPlatform(file.content, platformName, targetVersion, schema);
+                this.vsUI.logWarning(
+                    `Added missing executionPlatform attribute to: ${file.path}`,
+                );
+            } else {
+                updatedContent = updateExecutionPlatformVersion(file.content, targetVersion);
+            }
+
+            const editorId = this.editorStore.findEditorIdByPath(file.path);
+            if (editorId !== undefined) {
+                await this.vsDocument.write(editorId, updatedContent);
+            } else {
+                await this.vsWorkspace.writeFile(file.path, updatedContent);
+            }
+
+            updatedCount++;
+        }
+
+        return updatedCount;
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────

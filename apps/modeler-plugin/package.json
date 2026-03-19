@@ -124,6 +124,10 @@
             {
                 "command": "bpmn-modeler.changeEngineVersion",
                 "title": "Camunda Modeler: Change Engine Version"
+            },
+            {
+                "command": "bpmn-modeler.migrateAllDiagrams",
+                "title": "Camunda Modeler: Migrate All BPMN Diagrams"
             }
         ],
         "keybindings": [
@@ -158,6 +162,10 @@
                 {
                     "command": "bpmn-modeler.changeEngineVersion",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.migrateAllDiagrams",
+                    "when": "workspaceFolderCount > 0"
                 }
             ],
             "editor/title": [

@@ -10,7 +10,7 @@ export default {
         ],
     },
     moduleNameMapper: {
-        "^@modeler-plugin/shared$": "<rootDir>/../../libs/shared/src/index.ts",
+        "^@bpmn-modeler/shared$": "<rootDir>/../../libs/shared/src/index.ts",
     },
     moduleFileExtensions: ["ts", "js", "html"],
     coverageDirectory: "../../coverage/apps/modeler-plugin",
