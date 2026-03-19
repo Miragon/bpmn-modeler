@@ -141,6 +141,22 @@ export class EditorStore implements Disposable {
         return this.getEditorById(editorId).document;
     }
 
+    /**
+     * Finds the editor id for a file that is currently open, identified by its
+     * absolute file system path.
+     *
+     * @param filePath Absolute file system path to look up.
+     * @returns The editor id (document URI path), or `undefined` if the file is not open.
+     */
+    findEditorIdByPath(filePath: string): string | undefined {
+        for (const [, entry] of this.editors) {
+            if (entry.document.uri.path === filePath) {
+                return entry.id;
+            }
+        }
+        return undefined;
+    }
+
     // ─── Disposables ─────────────────────────────────────────────────────────
 
     /**

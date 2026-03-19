@@ -20,6 +20,8 @@ const COPY_SVG_CMD = "bpmn-modeler.copyDiagramAsSvg";
 const SAVE_SVG_CMD = "bpmn-modeler.saveDiagramAsSvgCommand";
 /** VS Code command ID for changing the engine version. */
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
+/** VS Code command ID for migrating all BPMN diagrams in the workspace. */
+const MIGRATE_ALL_CMD = "bpmn-modeler.migrateAllDiagrams";
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
@@ -58,6 +60,7 @@ export class CommandController {
             commands.registerCommand(COPY_SVG_CMD, this.writeToClipboard, this),
             commands.registerCommand(SAVE_SVG_CMD, this.writeToFile, this),
             commands.registerCommand(CHANGE_ENGINE_VERSION_CMD, this.changeEngineVersion, this),
+            commands.registerCommand(MIGRATE_ALL_CMD, this.migrateAllDiagrams, this),
         );
     }
 
@@ -87,6 +90,15 @@ export class CommandController {
     changeEngineVersion(): Promise<boolean> {
         const activeId = this.editorStore.getActiveEditorId();
         return this.bpmnService.changeEngineVersion(activeId);
+    }
+
+    /**
+     * Migrates all BPMN diagrams in the workspace to a user-selected version.
+     *
+     * Delegates to {@link BpmnModelerService.migrateAllDiagrams}.
+     */
+    migrateAllDiagrams(): Promise<boolean> {
+        return this.bpmnService.migrateAllDiagrams();
     }
 
     /**

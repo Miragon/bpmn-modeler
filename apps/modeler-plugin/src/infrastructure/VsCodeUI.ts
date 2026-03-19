@@ -1,6 +1,7 @@
 import { env, window } from "vscode";
 
 import { UserCancelledError } from "../domain/errors";
+import { MigrationScope } from "../domain/MigrationPlan";
 import { VsCodeLogger, VsCodeTextEditor } from "./window";
 
 /**
@@ -123,6 +124,37 @@ export class VsCodeUI {
             return "c8";
         } else {
             throw new Error(`Unknown execution platform version: "${result}"`);
+        }
+    }
+
+    /**
+     * Shows a quick-pick for choosing which diagrams to migrate when both
+     * Camunda 7 and 8 files are present in the workspace.
+     *
+     * @param c7Count Number of Camunda 7 diagrams discovered.
+     * @param c8Count Number of Camunda 8 diagrams discovered.
+     * @returns The selected migration scope.
+     * @throws {UserCancelledError} If the user dismisses the quick pick.
+     */
+    async pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope> {
+        const items = [
+            `Camunda 7 only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
+            `Camunda 8 only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
+            `Both (${c7Count + c8Count} diagram${c7Count + c8Count !== 1 ? "s" : ""})`,
+        ];
+
+        const result = await window.showQuickPick(items, {
+            placeHolder: "Which diagrams do you want to migrate?",
+        });
+
+        if (result === undefined) {
+            throw new UserCancelledError();
+        } else if (result.startsWith("Camunda 7")) {
+            return "c7";
+        } else if (result.startsWith("Camunda 8")) {
+            return "c8";
+        } else {
+            return "both";
         }
     }
 
