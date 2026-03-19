@@ -26,6 +26,7 @@ export default defineConfig({
 
     resolve: {
         dedupe: [
+            "preact",
             "@codemirror/state",
             "@codemirror/view",
             "@codemirror/language",

@@ -38,7 +38,7 @@ jobs:
           token: ${{ secrets.RELEASE_PAT }}
 
       - name: Corepack enable
-        run: corepack enable && corepack prepare yarn@stable --activate
+        run: corepack enable
 
       - name: Setup Node 20
         uses: actions/setup-node@v6

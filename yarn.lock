@@ -8942,21 +8942,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"preact@npm:>=10.5.14 <=10.15.1":
-  version: 10.15.1
-  resolution: "preact@npm:10.15.1"
-  checksum: 10c0/4eb7da6dbc560d517277043c0be83e19829ade595fac6eb009b7fcf0153ae471eae02deab9a2d73b1a4248df1cc6514c9d9a505fbf302bfbc254756a395a095c
-  languageName: node
-  linkType: hard
-
-"preact@npm:^10.11.2":
-  version: 10.24.1
-  resolution: "preact@npm:10.24.1"
-  checksum: 10c0/f9bc8b2f88d340f1b8f854208889244059c46916449b8f8f2174fcacbc0904c445c5870896fb0cfeaf442eeade975857e8e03f0785135c41d63cd32d9414c9c6
-  languageName: node
-  linkType: hard
-
-"preact@npm:^10.5.14":
+"preact@npm:10.28.4":
   version: 10.28.4
   resolution: "preact@npm:10.28.4"
   checksum: 10c0/712384e92d6c676c8f4c230eab81329a66acfecf700390aebfe5fc46168fa3686345d47f2292068dcc0a6d86425a3d9a3d743730e356e867a8402442afb989db
