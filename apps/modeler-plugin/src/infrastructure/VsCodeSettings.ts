@@ -9,7 +9,7 @@ export class VsCodeSettings {
     getAlignToOrigin(): boolean {
         return (
             workspace
-                .getConfiguration("miragon.camundaModeler")
+                .getConfiguration("miragon.bpmnModeler")
                 .get<boolean>("alignToOrigin") ?? false
         );
     }
@@ -50,5 +50,18 @@ export class VsCodeSettings {
         return workspace
             .getConfiguration("miragon.bpmnModeler")
             .get<string>("c8ApiVersion", "v2");
+    }
+
+    /**
+     * Reads the UI language setting from VS Code configuration.
+     *
+     * Defaults to `"en"` (English) if the setting is not configured.
+     *
+     * @returns The locale code (e.g. `"de"`, `"fr"`).
+     */
+    getLanguage(): string {
+        return workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .get<string>("language", "en");
     }
 }

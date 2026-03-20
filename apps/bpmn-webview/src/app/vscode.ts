@@ -28,6 +28,7 @@ export interface ViewportData {
 /** Shape of the data persisted via `vscode.setState` / `vscode.getState`. */
 export interface WebviewState {
     viewport?: ViewportData;
+    selectedElementIds?: string[];
 }
 
 type StateType = WebviewState;
@@ -121,6 +122,10 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
             }
             case message.type === "LogErrorCommand": {
                 console.error((message as LogErrorCommand).message);
+                break;
+            }
+            case message.type === "LanguageQuery": {
+                console.debug("[DEBUG] LanguageQuery", message);
                 break;
             }
             default: {

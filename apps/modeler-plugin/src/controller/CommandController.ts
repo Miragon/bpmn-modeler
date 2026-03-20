@@ -1,9 +1,19 @@
-import { commands, Disposable, env, ExtensionContext, Uri, workspace } from "vscode";
+import {
+    commands,
+    ConfigurationTarget,
+    Disposable,
+    env,
+    ExtensionContext,
+    Uri,
+    window,
+    workspace,
+} from "vscode";
 
 import {
     Command,
     GetDiagramAsSVGCommand,
 } from "@bpmn-modeler/shared";
+import { supportedLanguages } from "@bpmn-modeler/bpmn-i18n";
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
@@ -22,6 +32,8 @@ const SAVE_SVG_CMD = "bpmn-modeler.saveDiagramAsSvgCommand";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 /** VS Code command ID for migrating all BPMN diagrams in the workspace. */
 const MIGRATE_ALL_CMD = "bpmn-modeler.migrateAllDiagrams";
+/** VS Code command ID for changing the modeler language. */
+const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
@@ -61,6 +73,7 @@ export class CommandController {
             commands.registerCommand(SAVE_SVG_CMD, this.writeToFile, this),
             commands.registerCommand(CHANGE_ENGINE_VERSION_CMD, this.changeEngineVersion, this),
             commands.registerCommand(MIGRATE_ALL_CMD, this.migrateAllDiagrams, this),
+            commands.registerCommand(CHANGE_LANGUAGE_CMD, this.changeLanguage, this),
         );
     }
 
@@ -99,6 +112,31 @@ export class CommandController {
      */
     migrateAllDiagrams(): Promise<boolean> {
         return this.bpmnService.migrateAllDiagrams();
+    }
+
+    /**
+     * Prompts the user to select a UI language for the active modeler webview.
+     *
+     * Shows a QuickPick with all supported languages and sends the selected
+     * locale to the active webview via {@link BpmnModelerService.setLanguage}.
+     */
+    async changeLanguage(): Promise<void> {
+        const items = supportedLanguages.map((lang) => ({
+            label: lang.label,
+            description: lang.locale,
+        }));
+
+        const picked = await window.showQuickPick(items, {
+            placeHolder: "Select the modeler language",
+        });
+
+        if (!picked) {
+            return;
+        }
+
+        await workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .update("language", picked.description, ConfigurationTarget.Workspace);
     }
 
     /**

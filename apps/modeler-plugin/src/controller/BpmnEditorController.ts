@@ -140,6 +140,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                         break;
                     case "GetBpmnModelerSettingCommand":
                         this.bpmnService.setSettings(id);
+                        this.bpmnService.setLanguage(id);
                         break;
                     case "GetClipboardCommand":
                         this.bpmnService.readClipboard(id);
@@ -201,7 +202,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      */
     private subscribeToSettingChangeEvent(editorId: string): void {
         this.editorStore.subscribeToSettingChangeEvent(editorId, (event, id) => {
-            if (event.affectsConfiguration("miragon.camundaModeler.alignToOrigin")) {
+            if (event.affectsConfiguration("miragon.bpmnModeler.alignToOrigin")) {
                 this.bpmnService.setSettings(id);
             }
             if (event.affectsConfiguration("miragon.bpmnModeler.showTransactionBoundaries")) {
@@ -209,6 +210,9 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             }
             if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
                 this.bpmnService.setElementTemplates(id);
+            }
+            if (event.affectsConfiguration("miragon.bpmnModeler.language")) {
+                this.bpmnService.setLanguage(id);
             }
         });
     }

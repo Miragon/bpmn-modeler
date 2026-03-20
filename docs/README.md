@@ -12,6 +12,12 @@ element template support.
 - [Development](development.md)
 - [Releases](releases.md)
 
+### Features
+
+- [Copy & Paste](features/copy-paste.md)
+- [Deployment](features/deployment.md)
+- [Language Support](features/language-support.md)
+
 <hr>
 
 ## Used Software

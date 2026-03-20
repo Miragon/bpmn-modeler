@@ -7,7 +7,8 @@ import ElementTemplateChooserModule from "@bpmn-io/element-template-chooser";
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { BpmnModelerSetting, NoModelerError } from "@bpmn-modeler/shared";
-import { ViewportData } from "./vscode";
+import { ViewportManager } from "./viewport";
+import { SelectionManager } from "./selection";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
@@ -32,6 +33,10 @@ const MODELER_OPTIONS = {
  * A single instance is created at application startup and shared via the
  * module-level export in {@link index.ts}.  All methods throw
  * {@link NoModelerError} if called before {@link create}.
+ *
+ * Viewport and selection concerns are delegated to {@link ViewportManager}
+ * and {@link SelectionManager}, accessible via the corresponding getters
+ * after {@link create} has been called.
  */
 export class BpmnModeler {
     private modeler: Modeler | undefined = undefined;
@@ -40,6 +45,34 @@ export class BpmnModeler {
 
     /** Tracks the active engine so transaction-boundary calls are gated to C7 only. */
     private engine: "c7" | "c8" | undefined = undefined;
+
+    private _viewport: ViewportManager | undefined;
+
+    private _selection: SelectionManager | undefined;
+
+    /**
+     * Access the viewport manager after {@link create}.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    get viewport(): ViewportManager {
+        if (!this._viewport) {
+            throw new NoModelerError();
+        }
+        return this._viewport;
+    }
+
+    /**
+     * Access the selection manager after {@link create}.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    get selection(): SelectionManager {
+        if (!this._selection) {
+            throw new NoModelerError();
+        }
+        return this._selection;
+    }
 
     /**
      * Creates and mounts a new bpmn-js modeler for the given execution engine.
@@ -79,6 +112,10 @@ export class BpmnModeler {
                 throw new UnsupportedEngineError(engine);
             }
         }
+
+        const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
+        this._viewport = new ViewportManager(accessor);
+        this._selection = new SelectionManager(accessor);
     }
 
     /**
@@ -211,28 +248,6 @@ export class BpmnModeler {
     }
 
     /**
-     * Reads the current VS Code theme from `document.body` class list, applies
-     * the matching theme stylesheet immediately, then installs a
-     * `MutationObserver` to react to live theme changes.
-     *
-     * VS Code injects `vscode-dark`, `vscode-light`, or
-     * `vscode-high-contrast` onto `<body>` in every webview.
-     */
-    public initTheme(): void {
-        const isDark =
-            document.body.classList.contains("vscode-dark") ||
-            document.body.classList.contains("vscode-high-contrast");
-        this.applyTheme(isDark);
-
-        new MutationObserver(() => {
-            const dark =
-                document.body.classList.contains("vscode-dark") ||
-                document.body.classList.contains("vscode-high-contrast");
-            this.applyTheme(dark);
-        }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    }
-
-    /**
      * Triggers the align-to-origin plugin if the setting is enabled.
      *
      * @throws {NoModelerError} If the modeler has not been created yet.
@@ -244,73 +259,17 @@ export class BpmnModeler {
     }
 
     /**
-     * Returns the current canvas viewbox (position and zoom level).
+     * Returns a service from the modeler's dependency injection container.
      *
+     * @param name The DI service name (e.g. `"customTranslator"`).
+     * @returns The service instance.
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
-    getViewport(): ViewportData {
-        const { x, y, width, height } = this.getModeler().get<any>("canvas").viewbox();
-        return { x, y, width, height };
-    }
-
-    /**
-     * Restores the canvas to a previously saved viewbox.
-     *
-     * @param viewport The viewbox to apply.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
-    setViewport(viewport: ViewportData): void {
-        this.getModeler().get<any>("canvas").viewbox(viewport);
-    }
-
-    /**
-     * Subscribes to canvas viewbox changes with a 100 ms debounce.
-     *
-     * The debounce prevents a flood of state writes while the user is actively
-     * panning or zooming; only the final position after the gesture is persisted.
-     *
-     * @param cb Callback invoked with the new {@link ViewportData} after each change.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
-    onViewportChanged(cb: (viewport: ViewportData) => void): void {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        this.getModeler()
-            .get<any>("eventBus")
-            .on("canvas.viewbox.changed", (event: any) => {
-                clearTimeout(timer);
-                timer = setTimeout(() => {
-                    const { x, y, width, height } = event.viewbox;
-                    cb({ x, y, width, height });
-                }, 100);
-            });
+    getService<T = any>(name: string): T {
+        return this.getModeler().get<T>(name);
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
-
-    /**
-     * Swaps the `#theme-link` stylesheet between `lightTheme.css` and
-     * `darkTheme.css`.  Compares the current href to avoid unnecessary DOM
-     * mutations.  Shape and grid colors are handled entirely by CSS rules in
-     * each theme stylesheet, so no additional JS work is needed after the swap.
-     *
-     * @param isDark `true` to apply the dark theme, `false` for the light theme.
-     */
-    private applyTheme(isDark: boolean): void {
-        const theme = document.querySelector<HTMLLinkElement>("#theme-link");
-        if (!theme) {
-            console.error("Theme link element not found.");
-            return;
-        }
-
-        const href = theme.href;
-        const css = href.split("/").pop();
-
-        if (isDark && css === "lightTheme.css") {
-            theme.href = href.replace(/lightTheme\.css$/, "darkTheme.css");
-        } else if (!isDark && css === "darkTheme.css") {
-            theme.href = href.replace(/darkTheme\.css$/, "lightTheme.css");
-        }
-    }
 
     /**
      * Returns the modeler instance, throwing if it has not been created yet.

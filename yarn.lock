@@ -899,6 +899,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@bpmn-modeler/bpmn-i18n@workspace:libs/bpmn-i18n":
+  version: 0.0.0-use.local
+  resolution: "@bpmn-modeler/bpmn-i18n@workspace:libs/bpmn-i18n"
+  languageName: unknown
+  linkType: soft
+
 "@bpmn-modeler/shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@bpmn-modeler/shared@workspace:libs/shared"

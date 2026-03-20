@@ -123,11 +123,15 @@
             },
             {
                 "command": "bpmn-modeler.changeEngineVersion",
-                "title": "Camunda Modeler: Change Engine Version"
+                "title": "BPMN Modeler: Change Engine Version"
             },
             {
                 "command": "bpmn-modeler.migrateAllDiagrams",
-                "title": "Camunda Modeler: Migrate All BPMN Diagrams"
+                "title": "BPMN Modeler: Migrate All BPMN Diagrams"
+            },
+            {
+                "command": "bpmn-modeler.changeLanguage",
+                "title": "BPMN Modeler: Change Modeler Language"
             }
         ],
         "keybindings": [
@@ -166,6 +170,10 @@
                 {
                     "command": "bpmn-modeler.migrateAllDiagrams",
                     "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "bpmn-modeler.changeLanguage",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
                 }
             ],
             "editor/title": [
@@ -184,7 +192,7 @@
         "configuration": {
             "title": "BPMN Modeler",
             "properties": {
-                "miragon.camundaModeler.alignToOrigin": {
+                "miragon.bpmnModeler.alignToOrigin": {
                     "type": "boolean",
                     "default": false,
                     "markdownDescription": "Align the diagram to the origin when opening a new diagram. Click [here](https://github.com/bpmn-io/align-to-origin) to see the behaviour when enabled."
@@ -203,6 +211,33 @@
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Show transaction boundaries in the BPMN diagram (Camunda 7 only). Click [here](https://docs.camunda.io/docs/8.7/components/best-practices/development/understanding-transaction-handling-c7/) to learn more."
+                },
+                "miragon.bpmnModeler.language": {
+                    "type": "string",
+                    "default": "en",
+                    "enum": [
+                        "de",
+                        "en",
+                        "es",
+                        "fr",
+                        "nl-nl",
+                        "pt-br",
+                        "ru",
+                        "zh-Hans",
+                        "zh-Hant"
+                    ],
+                    "enumItemLabels": [
+                        "Deutsch",
+                        "English",
+                        "Español",
+                        "Français",
+                        "Nederlands",
+                        "Português (Brasil)",
+                        "Русский",
+                        "简体中文",
+                        "繁体中文"
+                    ],
+                    "markdownDescription": "UI language for the BPMN/DMN modeler (palette, context pad, properties panel)."
                 }
             }
         }
