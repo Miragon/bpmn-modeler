@@ -49,6 +49,10 @@ libs/
 - `@bpmn-modeler/shared` → `libs/shared/src/index.ts`
 - Resolved by `TsconfigPathsPlugin` (webpack) and `vite-tsconfig-paths` (Vite)
 
+## Configuration Namespace
+
+All VS Code settings use the `miragon.bpmnModeler` namespace (e.g. `miragon.bpmnModeler.alignToOrigin`, `miragon.bpmnModeler.language`). Do **not** use the legacy `miragon.camundaModeler` prefix.
+
 ## Deployment Webview (Dual-HTML Pattern)
 
 The deployment sidebar has **two copies** of its HTML that must stay in sync:

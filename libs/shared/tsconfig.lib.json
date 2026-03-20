@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "module": "commonjs",
-    "outDir": "../../../dist/libs/shared",
+    "outDir": "../../dist/libs/shared",
     "declaration": true,
     "types": ["node"]
   },

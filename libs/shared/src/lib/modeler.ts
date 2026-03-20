@@ -87,6 +87,16 @@ export class TextClipboardQuery extends Query {
     }
 }
 
+/** Delivers the user's language selection to the webview for live translation. */
+export class LanguageQuery extends Query {
+    public readonly locale: string;
+
+    constructor(locale: string) {
+        super("LanguageQuery");
+        this.locale = locale;
+    }
+}
+
 // <================================== Queries ===================================
 //
 // =================================== Commands ==================================>

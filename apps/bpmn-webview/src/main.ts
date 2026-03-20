@@ -18,6 +18,7 @@ import {
     GetDiagramAsSVGCommand,
     GetElementTemplatesCommand,
     GetTextClipboardCommand,
+    LanguageQuery,
     LogErrorCommand,
     LogInfoCommand,
     NoModelerError,
@@ -31,13 +32,16 @@ import {
     VsCodeClipboardModule,
     LabelClipboardModule,
 } from "@bpmn-modeler/bpmn-clipboard";
+import { TranslateModule, CustomTranslator, type SupportedLocale } from "@bpmn-modeler/bpmn-i18n";
 import {
     BpmnModeler,
     getVsCodeApi,
     initResizer,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
+    initTheme,
 } from "./app";
+import { WebviewStateManager } from "./app/state";
 
 const vscode = getVsCodeApi();
 
@@ -64,6 +68,18 @@ let modelerIsInitialized = false;
 let elementClipboardResolver = createResolver<ClipboardQuery>();
 let textClipboardResolver = createResolver<TextClipboardQuery>();
 
+// Resolvers that signal when element templates and settings have been applied.
+// Selection restore is deferred until both complete so that side-effects
+// (e.g. transaction-boundary rendering) do not clear the restored selection.
+const elementTemplatesResolver = createResolver<ElementTemplatesQuery>();
+const settingsResolver = createResolver<BpmnModelerSettingQuery>();
+
+/**
+ * State manager for persisting and restoring viewport/selection across tab switches.
+ * Initialised after the modeler is created.
+ */
+let stateManager: WebviewStateManager;
+
 /**
  * Entry point executed once the webview DOM is fully loaded.
  *
@@ -79,7 +95,7 @@ let textClipboardResolver = createResolver<TextClipboardQuery>();
 window.onload = async function () {
     window.addEventListener("message", onReceiveMessage);
     initResizer();
-    bpmnModeler.initTheme();
+    initTheme();
 
     // Build clipboard DI modules conditionally.
     // In development (plain browser) NativeCopyPaste handles clipboard natively.
@@ -140,17 +156,35 @@ window.onload = async function () {
     vscode.postMessage(new GetBpmnFileCommand());
 
     const bpmnFileQuery = await bpmnFileResolver.wait();
+    const extraModules = [TranslateModule, ...(clipboardModules ?? [])];
     await initializeModeler(
         bpmnFileQuery?.content,
         bpmnFileQuery?.engine,
-        clipboardModules,
+        extraModules,
     );
     modelerIsInitialized = true;
 
     console.debug("[DEBUG] Modeler is initialized...");
 
+    stateManager = new WebviewStateManager(vscode, bpmnModeler);
+
+    // Phase 1: restore viewport (canvas exists after openXml)
+    stateManager.restoreViewport();
+
+    // Request templates + settings, wait for both to apply
     vscode.postMessage(new GetElementTemplatesCommand());
     vscode.postMessage(new GetBpmnModelerSettingCommand());
+
+    await Promise.all([
+        elementTemplatesResolver.wait(),
+        settingsResolver.wait(),
+    ]);
+
+    // Phase 2: restore selection (safe now — side-effects done)
+    stateManager.restoreSelection();
+
+    // Phase 3: begin persisting changes
+    stateManager.startPersisting();
 };
 
 /**
@@ -174,26 +208,6 @@ async function initializeModeler(
         bpmnModeler.create(engine, extraModules);
         bpmnModeler.onCommandStackChanged(sendXmlChanges);
         await openXml(bpmn);
-
-        // Restore the saved viewport if one exists (e.g. after a tab switch).
-        // Must run after openXml because the canvas does not exist before importXML.
-        try {
-            const saved = vscode.getState().viewport;
-            if (saved) {
-                bpmnModeler.setViewport(saved);
-            }
-        } catch {
-            // No state yet — first open, leave viewport at diagram-js default.
-        }
-
-        // Persist viewport changes so they survive the next tab switch.
-        bpmnModeler.onViewportChanged((viewport) => {
-            try {
-                vscode.updateState({ viewport });
-            } catch {
-                vscode.setState({ viewport });
-            }
-        });
     } catch (error: any) {
         if (error instanceof NoModelerError) {
             vscode.postMessage(new LogErrorCommand(error.message));
@@ -267,6 +281,9 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 const elementTemplates = (message.data as ElementTemplatesQuery)
                     .elementTemplates;
                 bpmnModeler.setElementTemplates(elementTemplates);
+                elementTemplatesResolver.done(
+                    message.data as ElementTemplatesQuery,
+                );
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
@@ -276,6 +293,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             try {
                 const setting = (message.data as BpmnModelerSettingQuery).setting;
                 bpmnModeler.setSettings(setting);
+                settingsResolver.done(message.data as BpmnModelerSettingQuery);
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
@@ -289,6 +307,17 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             textClipboardResolver.done(message.data as TextClipboardQuery);
             break;
         }
+        case queryOrCommand.type === "LanguageQuery": {
+            try {
+                const query = message.data as LanguageQuery;
+                const translator = bpmnModeler.getService<CustomTranslator>("customTranslator");
+                translator.setLanguage(query.locale as SupportedLocale);
+                await refreshDiagram();
+            } catch (error: any) {
+                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
         case queryOrCommand.type === "GetDiagramAsSVGCommand": {
             try {
                 const command = message.data as GetDiagramAsSVGCommand;
@@ -300,4 +329,18 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
         }
     }
+}
+
+/**
+ * Re-renders the diagram by exporting and re-importing the XML.
+ *
+ * Preserves the current viewport (position and zoom) so the user does not
+ * lose their place.  Used after a language switch to force bpmn-js to
+ * re-invoke `translate()` for all UI elements.
+ */
+async function refreshDiagram(): Promise<void> {
+    const xml = await bpmnModeler.exportDiagram();
+    const viewport = bpmnModeler.viewport.getViewport();
+    await bpmnModeler.loadDiagram(xml);
+    bpmnModeler.viewport.setViewport(viewport);
 }

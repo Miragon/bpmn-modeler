@@ -5,6 +5,7 @@ import {
     BpmnModelerSettingQuery,
     ClipboardQuery,
     ElementTemplatesQuery,
+    LanguageQuery,
     TextClipboardQuery,
 } from "@bpmn-modeler/shared";
 
@@ -360,6 +361,25 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         } catch (error) {
             this.vsUI.logError(error as Error);
         }
+    }
+
+    // ─── Language ──────────────────────────────────────────────────────────
+
+    /**
+     * Reads the configured language from workspace settings and sends it to
+     * the webview for the given editor.
+     *
+     * @param editorId Document URI path of the target editor.
+     */
+    setLanguage(editorId: string): void {
+        const locale = this.vsSettings.getLanguage();
+        this.editorStore
+            .postMessage(editorId, new LanguageQuery(locale))
+            .catch((error) => {
+                this.vsUI.logError(
+                    error instanceof Error ? error : new Error(String(error)),
+                );
+            });
     }
 
     // ─── Change engine version ─────────────────────────────────────────────
