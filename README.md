@@ -37,6 +37,16 @@ workflow.
 - **Element Templates**: Convention-based element template discovery — place templates
   under `<configFolder>/element-templates/` anywhere between your BPMN file and the
   workspace root. No extra project config file needed.
+- **Copy & Paste**: Full clipboard support for BPMN elements within and across editor
+  tabs, as well as text copy/paste inside diagram labels — working around VS Code
+  webview clipboard restrictions.
+- **Deployment**: Deploy BPMN/DMN diagrams and start process instances directly from a
+  sidebar panel. Supports Camunda 7 and Camunda 8 with no auth, Basic Auth, and OAuth2
+  Client Credentials. Payload files are discovered by convention from
+  `<configFolder>/payloads/`.
+- **Multi-Language UI**: The modeler UI (palette, context pad, properties panel) is
+  available in English, Deutsch, Français, Nederlands, Português (Brasil), Русский,
+  简体中文, and 繁體中文. Change the language via settings or the command palette.
 
 ## Getting Started (Users)
 
@@ -45,9 +55,11 @@ The modeler opens automatically as a custom editor.
 
 ### Configuration
 
-| Setting                            | Default    | Description                                     |
-|------------------------------------|------------|-------------------------------------------------|
-| `miragon.bpmnModeler.configFolder` | `.camunda` | Folder name used for element template discovery |
+| Setting                            | Default    | Description                                                        |
+|------------------------------------|------------|--------------------------------------------------------------------|
+| `miragon.bpmnModeler.configFolder` | `.camunda` | Folder name used for element template and payload file discovery   |
+| `miragon.bpmnModeler.language`     | `en`       | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)           |
+| `miragon.bpmnModeler.c8ApiVersion` | `v2`       | REST API version prefix for Camunda 8 deployment endpoints         |
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
