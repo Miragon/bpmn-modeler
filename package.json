@@ -57,7 +57,7 @@
         "tsconfig-paths-webpack-plugin": "^4.2.0",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.57.2",
-        "vite": "7.1.11",
+        "vite": "8.0.2",
         "vite-plugin-static-copy": "3.3.0",
         "vite-tsconfig-paths": "^6.1.1",
         "vitest": "4.1.1",
