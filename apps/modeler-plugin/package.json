@@ -212,6 +212,19 @@
                     "default": true,
                     "markdownDescription": "Show transaction boundaries in the BPMN diagram (Camunda 7 only). Click [here](https://docs.camunda.io/docs/8.7/components/best-practices/development/understanding-transaction-handling-c7/) to learn more."
                 },
+                "miragon.bpmnModeler.colorTheme": {
+                    "type": "string",
+                    "default": "automatic",
+                    "enum": [
+                        "automatic",
+                        "light"
+                    ],
+                    "enumItemLabels": [
+                        "Automatic (follow VS Code theme)",
+                        "Light"
+                    ],
+                    "markdownDescription": "Controls the color theme of the BPMN modeler canvas. `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme."
+                },
                 "miragon.bpmnModeler.language": {
                     "type": "string",
                     "default": "en",

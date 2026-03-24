@@ -5,6 +5,7 @@ export class BpmnModelerSetting {
     constructor(
         public readonly alignToOrigin: boolean,
         public readonly showTransactionBoundaries: boolean,
+        public readonly colorTheme: "automatic" | "light",
     ) {}
 }
 
@@ -15,6 +16,8 @@ export class SettingBuilder {
     private _alignToOrigin = false;
 
     private _showTransactionBoundaries = true;
+
+    private _colorTheme: "automatic" | "light" = "automatic";
 
     /** Sets the alignToOrigin flag. */
     alignToOrigin(value: boolean): SettingBuilder {
@@ -28,11 +31,18 @@ export class SettingBuilder {
         return this;
     }
 
+    /** Sets the color theme mode. */
+    colorTheme(value: "automatic" | "light"): SettingBuilder {
+        this._colorTheme = value;
+        return this;
+    }
+
     /** Builds and returns a {@link BpmnModelerSetting} instance. */
     buildBpmnModeler(): BpmnModelerSetting {
         return new BpmnModelerSetting(
             this._alignToOrigin,
             this._showTransactionBoundaries,
+            this._colorTheme,
         );
     }
 }
