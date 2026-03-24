@@ -1,16 +1,28 @@
-/** Minimum width (px) the properties panel can be dragged to. */
+/**
+ * Minimum width (px) the properties panel can be resized to.
+ * Dragging below this threshold collapses the panel entirely.
+ */
 const MIN_PANEL_WIDTH = 200;
 /** Maximum width (px) the properties panel can be dragged to. */
 const MAX_PANEL_WIDTH = 1600;
+
+/** CSS class applied to the panel when it is collapsed (width 0, hidden). */
+const COLLAPSED_CLASS = "collapsed";
 
 /**
  * Attaches mouse-drag listeners to the `.panel-resizer` element so the user
  * can resize the properties panel by dragging the divider.
  *
  * Dragging left widens the panel; dragging right narrows it.
- * Width is clamped between {@link MIN_PANEL_WIDTH} and {@link MAX_PANEL_WIDTH}.
+ * Width is clamped between {@link MIN_PANEL_WIDTH} and {@link MAX_PANEL_WIDTH}
+ * when the panel is visible.
  *
- * Strategy: track the intended flex-basis in `targetWidth` (initialised once at
+ * When the user drags below {@link MIN_PANEL_WIDTH} the panel collapses to
+ * zero width (hidden). The resizer stays visible so the user can drag it back
+ * to the left to restore the panel. The panel reappears once the intended
+ * width crosses {@link MIN_PANEL_WIDTH} again.
+ *
+ * Strategy: track the intended width in `targetWidth` (initialised once at
  * mousedown from `panel.offsetWidth`) and accumulate incremental deltas on it.
  * `panel.offsetWidth` is never read again during the drag, so the flex layout's
  * computed width cannot create a feedback loop that collapses the panel.
@@ -18,44 +30,80 @@ const MAX_PANEL_WIDTH = 1600;
  * immediately visible with no dead zone.
  */
 export function initResizer(): void {
-    const resizer = document.getElementById("js-panel-resizer");
-    const panel = document.getElementById("js-properties-panel");
+    const resizerEl = document.getElementById("js-panel-resizer");
+    const panelEl = document.getElementById("js-properties-panel");
 
-    if (!resizer || !panel) {
+    if (!resizerEl || !panelEl) {
         console.warn("[resizer] Required DOM elements not found — skipping resizer init.");
         return;
     }
 
+    // Re-assign after the null guard so TypeScript narrows the type for closures.
+    const resizer: HTMLElement = resizerEl;
+    const panel: HTMLElement = panelEl;
+
     let isResizing = false;
     let lastX = 0;
-    /** Tracks the intended flex-basis (px) independently of offsetWidth. */
+    /** Tracks the intended width (px) independently of offsetWidth. */
     let targetWidth = 0;
+    /** Whether the panel is currently collapsed (zero width). */
+    let isCollapsed = false;
+
+    /**
+     * Collapse the panel to zero width and mark both the panel and the resizer
+     * with a CSS class. The panel hides its border and overflow; the resizer
+     * becomes wider so it remains easy to grab.
+     */
+    function collapse(): void {
+        isCollapsed = true;
+        panel.style.width = "0";
+        panel.classList.add(COLLAPSED_CLASS);
+        resizer.classList.add(COLLAPSED_CLASS);
+    }
+
+    /**
+     * Restore the panel from its collapsed state by removing the CSS class
+     * from both the panel and the resizer.
+     * The caller is responsible for setting the new panel width afterwards.
+     */
+    function expand(): void {
+        isCollapsed = false;
+        panel.classList.remove(COLLAPSED_CLASS);
+        resizer.classList.remove(COLLAPSED_CLASS);
+    }
 
     /**
      * Begin a resize operation: snapshot the panel's current width as the
-     * target flex-basis and capture the pointer position as the delta baseline.
+     * target and capture the pointer position as the delta baseline.
      * Reading `offsetWidth` only once here avoids the flex feedback loop during
      * the drag.
      */
     resizer.addEventListener("mousedown", (e: MouseEvent) => {
         isResizing = true;
         lastX = e.clientX;
-        // Snapshot once — offsetWidth is never read again while dragging.
-        targetWidth = panel.offsetWidth;
+        // When collapsed the panel has zero offsetWidth — start from 0 so the
+        // user must drag past MIN_PANEL_WIDTH to uncollapse.
+        targetWidth = isCollapsed ? 0 : panel.offsetWidth;
 
-        // Prevent text selection while dragging.
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
     });
 
     /**
      * Update the panel width as the pointer moves.
-     * Moving left (positive delta) increases the panel width because the panel
-     * is on the right side of the canvas.
      *
-     * `targetWidth` accumulates the intended width so the flex layout's actual
-     * computed width cannot drift the target downward (feedback loop).
-     * `lastX` resets every frame so reversing at a clamp boundary takes effect
+     * Moving left (positive delta) increases the panel width because the panel
+     * is on the right side of the canvas. `targetWidth` is allowed to go all
+     * the way down to 0 so the collapse/expand logic can use
+     * {@link MIN_PANEL_WIDTH} as the snap threshold:
+     *
+     * - Below MIN_PANEL_WIDTH and dragging right → panel collapses.
+     * - Below MIN_PANEL_WIDTH, collapsed, and dragging left → panel appears
+     *   immediately at MIN_PANEL_WIDTH (preview). It stays at that width until
+     *   targetWidth catches up and exceeds MIN_PANEL_WIDTH.
+     * - At or above MIN_PANEL_WIDTH → panel is visible at `targetWidth`.
+     *
+     * `lastX` resets every frame so reversing at a boundary takes effect
      * immediately with no dead zone.
      */
     document.addEventListener("mousemove", (e: MouseEvent) => {
@@ -64,10 +112,26 @@ export function initResizer(): void {
         }
 
         const delta = lastX - e.clientX;
-        // Reset baseline each frame — prevents dead-zone accumulation at clamp boundaries.
         lastX = e.clientX;
-        targetWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, targetWidth + delta));
-        panel.style.width = `${targetWidth}px`;
+        targetWidth = Math.max(0, Math.min(MAX_PANEL_WIDTH, targetWidth + delta));
+
+        if (targetWidth < MIN_PANEL_WIDTH) {
+            if (isCollapsed && targetWidth > 0) {
+                // Any accumulated leftward drag from collapsed state — reveal the
+                // panel at minimum width immediately. targetWidth keeps accumulating
+                // naturally; the panel stays at MIN_PANEL_WIDTH until it catches up.
+                expand();
+                panel.style.width = `${MIN_PANEL_WIDTH}px`;
+            } else if (!isCollapsed && targetWidth <= 0) {
+                // User dragged all the way back to the starting point — collapse.
+                collapse();
+            }
+        } else {
+            if (isCollapsed) {
+                expand();
+            }
+            panel.style.width = `${targetWidth}px`;
+        }
     });
 
     /** End the resize operation and restore default pointer behaviour. */
