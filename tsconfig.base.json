@@ -18,11 +18,14 @@
         "forceConsistentCasingInFileNames": true,
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
+        "jsx": "react-jsx",
+        "jsxImportSource": "preact",
         "baseUrl": "./",
         "paths": {
             "@bpmn-modeler/shared": ["libs/shared/src/index.ts"],
             "@bpmn-modeler/bpmn-clipboard": ["libs/bpmn-clipboard/src/index.ts"],
-            "@bpmn-modeler/bpmn-i18n": ["libs/bpmn-i18n/src/index.ts"]
+            "@bpmn-modeler/bpmn-i18n": ["libs/bpmn-i18n/src/index.ts"],
+            "@bpmn-modeler/element-template-chooser": ["libs/element-template-chooser/src/index.ts"]
         }
     },
     "exclude": ["node_modules", "tmp"]

@@ -1,0 +1,686 @@
+/* ─── Element Template Chooser ─────────────────────────────────────────── */
+/* All classes are prefixed with `etc-` to avoid collisions.               */
+
+/* ── Theme tokens ─────────────────────────────────────────────────────── */
+/* Light-mode defaults. Overridden by the dark-mode block at the bottom   */
+/* when the VS Code webview has a dark theme active.                      */
+
+:root {
+    --etc-bg:               #ffffff;
+    --etc-bg-elevated:      #fafafa;
+    --etc-bg-hover:         #f5f7fa;
+    --etc-bg-selected:      #eef6fb;
+    --etc-bg-input:         #fafafa;
+    --etc-bg-input-focus:   #ffffff;
+    --etc-bg-code:          #e8edf2;
+    --etc-bg-impl:          #f4f6f8;
+    --etc-bg-param:         #fafafa;
+    --etc-bg-icon:          #e8edf2;
+    --etc-bg-clear:         #e8e8e8;
+    --etc-bg-clear-hover:   #d0d0d0;
+    --etc-bg-backdrop:      rgba(0, 0, 0, 0.35);
+
+    --etc-text:             #1a1a1a;
+    --etc-text-secondary:   #666;
+    --etc-text-muted:       #888;
+    --etc-text-faint:       #aaa;
+    --etc-text-code:        #555;
+    --etc-text-icon:        #8899aa;
+    --etc-text-impl:        #445;
+
+    --etc-border:           #eee;
+    --etc-border-input:     #ddd;
+    --etc-border-impl:      #e8ecf0;
+    --etc-border-param:     #f0f0f0;
+
+    --etc-accent:           #4499c9;
+    --etc-accent-hover:     #3388b8;
+    --etc-accent-active:    #2b7aaf;
+    --etc-accent-text:      #2b7aaf;
+    --etc-accent-bg:        #eef6fb;
+    --etc-accent-bg-hover:  #ddeef7;
+    --etc-accent-ring:      rgba(68, 153, 201, 0.15);
+    --etc-accent-shadow:    rgba(68, 153, 201, 0.3);
+
+    --etc-badge-cat-bg:     #f0eaff;
+    --etc-badge-cat-text:   #7c5cbf;
+    --etc-badge-props-bg:   #e8f4e8;
+    --etc-badge-props-text: #4a8a4a;
+    --etc-badge-req-bg:     #ffeaea;
+    --etc-badge-req-text:   #c44;
+    --etc-badge-ro-bg:      #f0f0f0;
+    --etc-badge-ro-text:    #777;
+    --etc-badge-opt-bg:     #fff4e5;
+    --etc-badge-opt-text:   #a67c2e;
+
+    --etc-scrollbar:        #d0d0d0;
+    --etc-shadow:           rgba(0, 0, 0, 0.18);
+    --etc-shadow-outline:   rgba(0, 0, 0, 0.06);
+}
+
+/* ── Overlay root & backdrop ──────────────────────────────────────────── */
+
+.etc-overlay-root {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+}
+
+.etc-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--etc-bg-backdrop);
+    backdrop-filter: blur(2px);
+    animation: etc-fade-in 0.15s ease-out;
+}
+
+@keyframes etc-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ── Modal container ──────────────────────────────────────────────────── */
+
+.etc-modal {
+    display: flex;
+    flex-direction: column;
+    width: min(820px, 90vw);
+    max-height: min(600px, 80vh);
+    background: var(--etc-bg);
+    border-radius: 12px;
+    box-shadow:
+        0 20px 60px var(--etc-shadow),
+        0 0 0 1px var(--etc-shadow-outline);
+    animation: etc-slide-up 0.2s ease-out;
+    overflow: hidden;
+}
+
+@keyframes etc-slide-up {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
+.etc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 0;
+    flex-shrink: 0;
+}
+
+.etc-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--etc-text);
+    letter-spacing: -0.01em;
+}
+
+.etc-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--etc-text-secondary);
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.etc-close-btn:hover {
+    background: var(--etc-bg-elevated);
+    color: var(--etc-text);
+}
+
+/* ── Search ────────────────────────────────────────────────────────────── */
+
+.etc-search-wrapper {
+    position: relative;
+    margin: 12px 20px 0;
+    flex-shrink: 0;
+}
+
+.etc-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--etc-text-faint);
+    pointer-events: none;
+}
+
+.etc-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 32px 0 32px;
+    border: 1px solid var(--etc-border-input);
+    border-radius: 8px;
+    background: var(--etc-bg-input);
+    font-size: 13px;
+    color: var(--etc-text);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.etc-search-input::placeholder {
+    color: var(--etc-text-faint);
+}
+
+.etc-search-input:focus {
+    border-color: var(--etc-accent);
+    box-shadow: 0 0 0 3px var(--etc-accent-ring);
+    background: var(--etc-bg-input-focus);
+}
+
+.etc-search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 50%;
+    background: var(--etc-bg-clear);
+    color: var(--etc-text-secondary);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.etc-search-clear:hover {
+    background: var(--etc-bg-clear-hover);
+}
+
+/* ── Category filter chips ────────────────────────────────────────────── */
+
+.etc-filters {
+    display: flex;
+    gap: 6px;
+    padding: 10px 20px 0;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.etc-chip {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--etc-border-input);
+    border-radius: 13px;
+    background: var(--etc-bg);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--etc-text-secondary);
+    cursor: pointer;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+}
+
+.etc-chip:hover {
+    border-color: var(--etc-text-faint);
+    background: var(--etc-bg-elevated);
+}
+
+.etc-chip--active {
+    border-color: var(--etc-accent);
+    background: var(--etc-accent-bg);
+    color: var(--etc-accent-text);
+}
+
+.etc-chip--active:hover {
+    background: var(--etc-accent-bg-hover);
+}
+
+/* ── Main body (list + preview) ───────────────────────────────────────── */
+
+.etc-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    margin-top: 12px;
+    border-top: 1px solid var(--etc-border);
+}
+
+/* ── Template list panel ──────────────────────────────────────────────── */
+
+.etc-list-panel {
+    width: 320px;
+    min-width: 260px;
+    overflow-y: auto;
+    padding: 8px;
+    border-right: 1px solid var(--etc-border);
+    flex-shrink: 0;
+}
+
+.etc-list-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.etc-list-panel::-webkit-scrollbar-thumb {
+    background: var(--etc-scrollbar);
+    border-radius: 3px;
+}
+
+/* ── Template card ────────────────────────────────────────────────────── */
+
+.etc-template-card {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    border: 1px solid transparent;
+}
+
+.etc-template-card:hover {
+    background: var(--etc-bg-hover);
+}
+
+.etc-template-card--selected,
+.etc-template-card--focused {
+    background: var(--etc-accent-bg);
+    border-color: var(--etc-accent);
+}
+
+.etc-template-card + .etc-template-card {
+    margin-top: 2px;
+}
+
+.etc-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.etc-card-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+
+.etc-card-icon-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: var(--etc-bg-icon);
+    color: var(--etc-text-icon);
+    flex-shrink: 0;
+}
+
+.etc-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.etc-card-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--etc-text);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.etc-card-impl {
+    font-size: 11px;
+    color: var(--etc-text-icon);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.etc-card-impl code {
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--etc-bg-code);
+    color: var(--etc-text-code);
+    font-family: monospace;
+}
+
+.etc-card-desc {
+    font-size: 11px;
+    color: var(--etc-text-muted);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.etc-card-meta {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    padding-left: 32px;
+}
+
+/* ── Badges ───────────────────────────────────────────────────────────── */
+
+.etc-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.etc-badge--category {
+    background: var(--etc-badge-cat-bg);
+    color: var(--etc-badge-cat-text);
+}
+
+.etc-badge--props {
+    background: var(--etc-badge-props-bg);
+    color: var(--etc-badge-props-text);
+}
+
+.etc-badge--required {
+    background: var(--etc-badge-req-bg);
+    color: var(--etc-badge-req-text);
+}
+
+.etc-badge--readonly {
+    background: var(--etc-badge-ro-bg);
+    color: var(--etc-badge-ro-text);
+}
+
+.etc-badge--optional {
+    background: var(--etc-badge-opt-bg);
+    color: var(--etc-badge-opt-text);
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+.etc-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.etc-empty-text {
+    margin: 0;
+    font-size: 13px;
+    color: var(--etc-text-muted);
+    font-weight: 500;
+}
+
+.etc-empty-hint {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: var(--etc-text-faint);
+}
+
+/* ── Preview panel ────────────────────────────────────────────────────── */
+
+.etc-preview-panel {
+    flex: 1;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.etc-preview-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--etc-text-faint);
+    font-size: 13px;
+}
+
+.etc-preview {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Scrollable area that holds sticky header + details + params */
+.etc-preview-scroll {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.etc-preview-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.etc-preview-scroll::-webkit-scrollbar-thumb {
+    background: var(--etc-scrollbar);
+    border-radius: 3px;
+}
+
+/* Frozen row: stays pinned at the top while the rest scrolls */
+.etc-preview-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--etc-bg);
+    padding: 16px 20px 10px;
+    border-bottom: 1px solid var(--etc-border);
+}
+
+/* Description, docs link, and ID — scroll away on scroll-down */
+.etc-preview-details {
+    padding: 0 20px 12px;
+    border-bottom: 1px solid var(--etc-border);
+}
+
+.etc-preview-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--etc-text);
+}
+
+.etc-impl-detail {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--etc-bg-impl);
+    border: 1px solid var(--etc-border-impl);
+}
+
+.etc-impl-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--etc-text-icon);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+}
+
+.etc-impl-value {
+    font-size: 12px;
+    color: var(--etc-text-impl);
+    font-family: monospace;
+    word-break: break-all;
+}
+
+.etc-preview-desc {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--etc-text-secondary);
+    line-height: 1.5;
+}
+
+.etc-preview-docs-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--etc-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.etc-preview-docs-link:hover {
+    text-decoration: underline;
+}
+
+.etc-preview-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.etc-preview-id {
+    font-size: 10px;
+    color: var(--etc-text-faint);
+    font-family: monospace;
+}
+
+/* ── Parameter sections ───────────────────────────────────────────────── */
+
+.etc-preview-params {
+    padding: 0 20px 16px;
+}
+
+.etc-preview-no-params {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    color: var(--etc-text-faint);
+    font-size: 12px;
+}
+
+.etc-param-section {
+    margin-top: 16px;
+}
+
+.etc-param-title {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--etc-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.etc-param-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.etc-param-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--etc-bg-param);
+    border: 1px solid var(--etc-border-param);
+}
+
+.etc-param-item + .etc-param-item {
+    margin-top: 4px;
+}
+
+.etc-param-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.etc-param-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--etc-text);
+}
+
+.etc-param-badges {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.etc-param-desc {
+    margin: 3px 0 0;
+    font-size: 11px;
+    color: var(--etc-text-muted);
+    line-height: 1.4;
+}
+
+.etc-param-value {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--etc-bg-code);
+    font-size: 11px;
+    color: var(--etc-text-code);
+    font-family: monospace;
+    word-break: break-all;
+}
+
+/* ── Preview footer / apply button ────────────────────────────────────── */
+
+.etc-preview-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--etc-border);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.etc-apply-btn {
+    height: 34px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--etc-accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.etc-apply-btn:hover {
+    background: var(--etc-accent-hover);
+    box-shadow: 0 2px 8px var(--etc-accent-shadow);
+}
+
+.etc-apply-btn:active {
+    background: var(--etc-accent-active);
+    transform: translateY(1px);
+}
+
+/* ── Dark theme ───────────────────────────────────────────────────────── */
+/* Dark-mode overrides for the --etc-* tokens live in the dark theme       */
+/* stylesheet (apps/bpmn-webview/src/styles/dark-theme/element-template-   */
+/* chooser.css) and are only loaded when the dark theme is active.         */
+/* This respects the "colorTheme: light" setting which forces light mode   */
+/* even when VS Code itself uses a dark theme.                             */

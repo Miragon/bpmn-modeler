@@ -1,0 +1,71 @@
+/**
+ * Dark theme overrides for the element template chooser overlay.
+ *
+ * Redefines the --etc-* tokens (defined in libs/element-template-chooser/
+ * src/chooser.css) using the --dt-* palette from colors.css, which in turn
+ * derives from VS Code's injected --vscode-* variables.
+ *
+ * This file is only loaded when the dark theme is active (controlled by
+ * theme.ts), so the "colorTheme: light" setting correctly forces light mode
+ * even when VS Code itself uses a dark theme.
+ */
+@import "colors.css";
+
+.etc-overlay-root {
+    /* ── Backgrounds ──────────────────────────────────────────────────── */
+    --etc-bg:               var(--dt-surface-a10);
+    --etc-bg-elevated:      var(--dt-surface-a20);
+    --etc-bg-hover:         var(--dt-surface-a20);
+    --etc-bg-selected:      var(--dt-surface-tonal-a40);
+    --etc-bg-input:         var(--dt-surface-a20);
+    --etc-bg-input-focus:   var(--dt-surface-a20);
+    --etc-bg-code:          var(--dt-surface-a0);
+    --etc-bg-impl:          var(--dt-surface-tonal-a50);
+    --etc-bg-param:         var(--dt-surface-a0);
+    --etc-bg-icon:          var(--dt-surface-a20);
+    --etc-bg-clear:         var(--dt-surface-a20);
+    --etc-bg-clear-hover:   var(--dt-surface-a30);
+    --etc-bg-backdrop:      rgba(0, 0, 0, 0.55);
+
+    /* ── Text ─────────────────────────────────────────────────────────── */
+    --etc-text:             var(--dt-surface-a70);
+    --etc-text-secondary:   var(--dt-surface-a60);
+    --etc-text-muted:       var(--dt-surface-a50);
+    --etc-text-faint:       var(--dt-surface-a40);
+    --etc-text-code:        var(--dt-surface-a60);
+    --etc-text-icon:        var(--dt-surface-a50);
+    --etc-text-impl:        var(--dt-surface-a70);
+
+    /* ── Borders ──────────────────────────────────────────────────────── */
+    --etc-border:           var(--dt-surface-a30);
+    --etc-border-input:     var(--dt-surface-a30);
+    --etc-border-impl:      var(--dt-surface-a30);
+    --etc-border-param:     var(--dt-surface-a30);
+
+    /* ── Accent / primary ─────────────────────────────────────────────── */
+    --etc-accent:           var(--dt-primary-a0);
+    --etc-accent-hover:     var(--dt-primary-a10);
+    --etc-accent-active:    var(--dt-primary-a0);
+    --etc-accent-text:      var(--dt-primary-a20);
+    --etc-accent-bg:        var(--dt-primary-a0-opacity-30);
+    --etc-accent-bg-hover:  var(--dt-surface-tonal-a30);
+    --etc-accent-ring:      var(--dt-primary-a0-opacity-30);
+    --etc-accent-shadow:    var(--dt-primary-a0-opacity-30);
+
+    /* ── Badges ───────────────────────────────────────────────────────── */
+    --etc-badge-cat-bg:     color-mix(in srgb, #7c5cbf 25%, transparent);
+    --etc-badge-cat-text:   #c4a8ff;
+    --etc-badge-props-bg:   color-mix(in srgb, #4a8a4a 25%, transparent);
+    --etc-badge-props-text: #7cd17c;
+    --etc-badge-req-bg:     color-mix(in srgb, var(--dt-color-red-a10) 25%, transparent);
+    --etc-badge-req-text:   var(--dt-color-red-a10);
+    --etc-badge-ro-bg:      var(--dt-surface-a20);
+    --etc-badge-ro-text:    var(--dt-surface-a50);
+    --etc-badge-opt-bg:     color-mix(in srgb, #a67c2e 25%, transparent);
+    --etc-badge-opt-text:   #e8c06a;
+
+    /* ── Misc ─────────────────────────────────────────────────────────── */
+    --etc-scrollbar:        var(--dt-surface-a30);
+    --etc-shadow:           rgba(0, 0, 0, 0.5);
+    --etc-shadow-outline:   rgba(255, 255, 255, 0.06);
+}

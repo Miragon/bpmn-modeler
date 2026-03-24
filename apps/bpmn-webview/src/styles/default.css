@@ -141,11 +141,6 @@ a:link {
     min-height: 100%;
 }
 
-.djs-popup.element-template-chooser {
-    max-width: 1000px;
-    width: fit-content !important;
-}
-
 /* see issue https://github.com/microsoft/vscode/issues/213045 */
 @supports selector(::-webkit-scrollbar) {
     html {

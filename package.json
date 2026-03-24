@@ -65,7 +65,6 @@
         "webpack-cli": "^7.0.2"
     },
     "dependencies": {
-        "@bpmn-io/element-template-chooser": "^2.1.0",
         "@bpmn-io/form-js": "1.21.2",
         "@bpmn-io/properties-panel": "3.40.4",
         "bpmn-js": "^18.13.2",
