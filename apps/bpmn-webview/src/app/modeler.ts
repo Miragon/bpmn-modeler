@@ -9,10 +9,12 @@ import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anythi
 import { BpmnModelerSetting, NoModelerError } from "@bpmn-modeler/shared";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
+import { setColorThemeMode } from "./theme";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
     showTransactionBoundaries: true,
+    colorTheme: "automatic",
 };
 
 const MODELER_OPTIONS = {
@@ -238,6 +240,11 @@ export class BpmnModeler {
         // Ensure the modeler exists before applying any settings.
         this.getModeler();
         this.settings = { ...this.settings, ...settings };
+
+        // Apply color theme mode change immediately.
+        if (settings.colorTheme !== undefined) {
+            setColorThemeMode(this.settings.colorTheme);
+        }
 
         // Apply transaction boundary visibility change immediately for C7.
         if (this.engine === "c7") {

@@ -53,6 +53,20 @@ export class VsCodeSettings {
     }
 
     /**
+     * Reads the color theme mode from VS Code configuration.
+     *
+     * Defaults to `"automatic"` if the setting is not configured.
+     *
+     * @returns `"automatic"` to follow VS Code theme, or `"light"` for always-light.
+     */
+    getColorTheme(): "automatic" | "light" {
+        const value = workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .get<string>("colorTheme", "automatic");
+        return value === "light" ? "light" : "automatic";
+    }
+
+    /**
      * Reads the UI language setting from VS Code configuration.
      *
      * Defaults to `"en"` (English) if the setting is not configured.

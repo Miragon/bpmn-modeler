@@ -55,11 +55,33 @@ The modeler opens automatically as a custom editor.
 
 ### Configuration
 
-| Setting                            | Default    | Description                                                        |
-|------------------------------------|------------|--------------------------------------------------------------------|
-| `miragon.bpmnModeler.configFolder` | `.camunda` | Folder name used for element template and payload file discovery   |
-| `miragon.bpmnModeler.language`     | `en`       | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)           |
-| `miragon.bpmnModeler.c8ApiVersion` | `v2`       | REST API version prefix for Camunda 8 deployment endpoints         |
+Search for "BPMN Modeler" in Settings (`Ctrl+,` / `Cmd+,`) to view all available options.
+
+| Setting                                         | Default     | Description                                                      |
+|-------------------------------------------------|-------------|------------------------------------------------------------------|
+| `miragon.bpmnModeler.configFolder`              | `.camunda`  | Folder name used for element template and payload file discovery |
+| `miragon.bpmnModeler.language`                  | `en`        | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)         |
+| `miragon.bpmnModeler.colorTheme`                | `automatic` | Color theme for the BPMN canvas (`automatic` or `light`)         |
+| `miragon.bpmnModeler.showTransactionBoundaries` | `true`      | Show transaction boundaries in the BPMN canvas (C7 only)         |
+| `miragon.bpmnModeler.c8ApiVersion`              | `v2`        | REST API version prefix for Camunda 8 deployment endpoints       |
+
+### Command Palette
+
+Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) to view
+all available commands.
+
+| Command                                   | Keybinding     | Description                                                      |
+|-------------------------------------------|----------------|------------------------------------------------------------------|
+| BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
+| BPMN Modeler: Deploy Diagram              |                | Open the Deployment sidebar for the current BPMN/DMN diagram     |
+| BPMN Modeler: Copy Diagram as SVG         |                | Copy the current diagram to the clipboard as SVG                 |
+| BPMN Modeler: Save Diagram as SVG         |                | Create a SVG file of the current diagram next to the bpmn file   |
+| BPMN Modeler: Change Engine Version       |                | Switch between engine versions (not between platforms C7 -> C8)  |
+| BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
+| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the bpmn modeler                |
+| BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
+
+
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
