@@ -67,6 +67,19 @@ export class VsCodeSettings {
     }
 
     /**
+     * Reads the favourite BPMN element types from VS Code configuration.
+     *
+     * Defaults to an empty array if not configured.
+     *
+     * @returns Array of BPMN type strings (e.g. `["bpmn:ServiceTask"]`).
+     */
+    getFavouriteBpmnElements(): string[] {
+        return workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .get<string[]>("favouriteBpmnElements", []);
+    }
+
+    /**
      * Reads the UI language setting from VS Code configuration.
      *
      * Defaults to `"en"` (English) if the setting is not configured.

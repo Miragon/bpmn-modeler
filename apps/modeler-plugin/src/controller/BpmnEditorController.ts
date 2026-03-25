@@ -211,6 +211,9 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             if (event.affectsConfiguration("miragon.bpmnModeler.colorTheme")) {
                 this.bpmnService.setSettings(id);
             }
+            if (event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")) {
+                this.bpmnService.setSettings(id);
+            }
             if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
                 this.bpmnService.setElementTemplates(id);
             }

@@ -893,6 +893,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-modeler/append-menu@workspace:libs/append-menu":
+  version: 0.0.0-use.local
+  resolution: "@bpmn-modeler/append-menu@workspace:libs/append-menu"
+  languageName: unknown
+  linkType: soft
+
 "@bpmn-modeler/bpmn-clipboard@workspace:libs/bpmn-clipboard":
   version: 0.0.0-use.local
   resolution: "@bpmn-modeler/bpmn-clipboard@workspace:libs/bpmn-clipboard"
@@ -902,6 +908,15 @@ __metadata:
 "@bpmn-modeler/bpmn-i18n@workspace:libs/bpmn-i18n":
   version: 0.0.0-use.local
   resolution: "@bpmn-modeler/bpmn-i18n@workspace:libs/bpmn-i18n"
+  languageName: unknown
+  linkType: soft
+
+"@bpmn-modeler/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates":
+  version: 0.0.0-use.local
+  resolution: "@bpmn-modeler/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates"
+  peerDependencies:
+    bpmn-js: ">=14.0.0"
+    bpmn-js-create-append-anything: ">=1.0.0"
   languageName: unknown
   linkType: soft
 

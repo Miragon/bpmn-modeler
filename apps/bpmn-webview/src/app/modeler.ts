@@ -6,6 +6,8 @@ import TokenSimulationModule from "bpmn-js-token-simulation";
 import { ElementTemplateChooserModule } from "@bpmn-modeler/element-template-chooser";
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
+import { AppendMenuModule } from "@bpmn-modeler/append-menu";
+import { CreateAppendC7ElementTemplatesModule } from "@bpmn-modeler/create-append-c7-element-templates";
 import { BpmnModelerSetting, NoModelerError } from "@bpmn-modeler/shared";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
@@ -97,6 +99,8 @@ export class BpmnModeler {
                     additionalModules: [
                         ...commonModules,
                         CreateAppendElementTemplatesModule,
+                        CreateAppendC7ElementTemplatesModule,
+                        AppendMenuModule,
                         TransactionBoundariesModule,
                         ...extra,
                     ],
@@ -118,6 +122,14 @@ export class BpmnModeler {
         const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
         this._viewport = new ViewportManager(accessor);
         this._selection = new SelectionManager(accessor);
+
+        // Apply default favourites immediately after creation.
+        if (this.settings.favouriteBpmnElements) {
+            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
+            if (appendMenuOverride) {
+                appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
+            }
+        }
     }
 
     /**
@@ -251,6 +263,14 @@ export class BpmnModeler {
             const tb = this.getModeler().get<any>("transactionBoundaries");
             // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
+        }
+
+        // Apply favourite BPMN elements to the append menu.
+        if (settings.favouriteBpmnElements !== undefined) {
+            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
+            if (appendMenuOverride) {
+                appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
+            }
         }
     }
 
