@@ -87,7 +87,11 @@ export class BpmnModeler {
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
     create(engine: "c7" | "c8", extraModules?: any[]): void {
-        const commonModules = [TokenSimulationModule, ElementTemplateChooserModule];
+        const commonModules = [
+            TokenSimulationModule,
+            ElementTemplateChooserModule,
+            AppendMenuModule,
+        ];
         const extra = extraModules ?? [];
 
         this.engine = engine;
@@ -100,7 +104,6 @@ export class BpmnModeler {
                         ...commonModules,
                         CreateAppendElementTemplatesModule,
                         CreateAppendC7ElementTemplatesModule,
-                        AppendMenuModule,
                         TransactionBoundariesModule,
                         ...extra,
                     ],
