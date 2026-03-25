@@ -4,6 +4,9 @@
  */
 import type { ElementTemplate, TemplateProperty } from "@bpmn-modeler/element-template-chooser";
 
+// Re-export for use in components.
+export type { TemplateProperty };
+
 /**
  * Action shape for a popup menu entry.
  *
@@ -266,4 +269,45 @@ export function extractImplementationDetail(
         }
     }
     return undefined;
+}
+
+// ─── Binding direction classification ─────────────────────────────────────
+
+/** Direction category for a template property binding. */
+export type BindingDirection = "input" | "output" | "property" | "hidden";
+
+/**
+ * Classifies a template property binding into a direction category.
+ *
+ * Used to split template properties into input, output, and property
+ * sections in the hover card preview.
+ *
+ * @param binding The property's binding descriptor.
+ * @returns The classified direction.
+ */
+export function classifyBinding(binding: TemplateProperty["binding"]): BindingDirection {
+    const type = binding.type;
+
+    if (type === "camunda:out" || type === "camunda:outputParameter" || type === "zeebe:output") {
+        return "output";
+    }
+
+    if (
+        type === "camunda:in" ||
+        type === "camunda:inputParameter" ||
+        type === "camunda:in:businessKey" ||
+        type === "zeebe:input"
+    ) {
+        return "input";
+    }
+
+    if (type === "property" || type === "zeebe:property") {
+        return "property";
+    }
+
+    if (type === "zeebe:taskHeader") {
+        return "property";
+    }
+
+    return "hidden";
 }

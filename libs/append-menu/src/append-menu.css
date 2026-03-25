@@ -316,12 +316,7 @@
     white-space: nowrap;
 }
 
-/* ── Expanded card details ────────────────────────────────────────────── */
-
-.am-card-details {
-    margin-top: 8px;
-    padding-left: 32px;
-}
+/* ── Implementation detail (shared by hover card) ────────────────────── */
 
 .am-impl-detail {
     display: flex;
@@ -350,19 +345,6 @@
     word-break: break-all;
 }
 
-.am-card-desc {
-    margin: 0 0 6px;
-    font-size: 11px;
-    color: var(--am-text-muted);
-    line-height: 1.4;
-}
-
-.am-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .am-card-docs-link {
     display: inline-flex;
     align-items: center;
@@ -375,6 +357,180 @@
 
 .am-card-docs-link:hover {
     text-decoration: underline;
+}
+
+/* ── Floating hover card ─────────────────────────────────────────────── */
+
+.am-hover-card {
+    position: fixed;
+    z-index: 5010;
+    width: 300px;
+    background: var(--am-bg);
+    border-radius: 8px;
+    box-shadow:
+        0 6px 24px var(--am-shadow),
+        0 0 0 1px var(--am-shadow-outline);
+    animation: am-hover-appear 0.1s ease-out;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes am-hover-appear {
+    from { opacity: 0; transform: translateX(-4px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.am-hover-card-scroll {
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.am-hover-card-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+
+.am-hover-card-scroll::-webkit-scrollbar-thumb {
+    background: var(--am-scrollbar);
+    border-radius: 2px;
+}
+
+.am-hover-card-header {
+    margin-bottom: 8px;
+}
+
+.am-hover-card-name {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--am-text);
+    line-height: 1.3;
+}
+
+.am-hover-card-details {
+    margin-bottom: 10px;
+}
+
+.am-hover-card-desc {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--am-text-secondary);
+    line-height: 1.4;
+}
+
+.am-hover-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.am-hover-card-id {
+    font-size: 10px;
+    color: var(--am-text-faint);
+    font-family: monospace;
+    word-break: break-all;
+}
+
+/* ── Hover card parameter sections ───────────────────────────────────── */
+
+.am-hover-card-params {
+    border-top: 1px solid var(--am-border);
+    padding-top: 8px;
+}
+
+.am-hover-card-no-params {
+    margin: 0;
+    font-size: 11px;
+    color: var(--am-text-faint);
+    font-style: italic;
+}
+
+.am-hover-param-section {
+    margin-bottom: 8px;
+}
+
+.am-hover-param-section:last-child {
+    margin-bottom: 0;
+}
+
+.am-hover-param-title {
+    margin: 0 0 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--am-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.am-hover-param-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.am-hover-param-item {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--am-border);
+}
+
+.am-hover-param-item:last-child {
+    border-bottom: none;
+}
+
+.am-hover-param-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.am-hover-param-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--am-text);
+}
+
+.am-hover-param-badges {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.am-hover-param-desc {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: var(--am-text-muted);
+    line-height: 1.3;
+}
+
+.am-hover-param-value {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--am-text-code);
+    background: var(--am-bg-code);
+    padding: 1px 4px;
+    border-radius: 3px;
+    word-break: break-all;
+}
+
+/* ── Additional badge variants for hover card ────────────────────────── */
+
+.am-badge--required {
+    background: #fde8e8;
+    color: #c53030;
+}
+
+.am-badge--readonly {
+    background: var(--am-bg-impl);
+    color: var(--am-text-icon);
+}
+
+.am-badge--optional {
+    background: var(--am-badge-props-bg);
+    color: var(--am-badge-props-text);
 }
 
 /* ── Badges ───────────────────────────────────────────────────────────── */
@@ -535,9 +691,7 @@
 }
 
 .am-bpmn-grid--compact {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
+    align-items: center;
     gap: 2px;
 }
 
@@ -574,6 +728,12 @@
     width: auto;
     padding: 4px;
     justify-content: center;
+}
+
+.am-bpmn-button--icon-only .am-bpmn-icon {
+    width: 22px;
+    height: 22px;
+    font-size: 22px;
 }
 
 .am-bpmn-icon {
