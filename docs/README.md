@@ -17,6 +17,8 @@ element template support.
 - [Copy & Paste](features/copy-paste.md)
 - [Deployment](features/deployment.md)
 - [Language Support](features/language-support.md)
+- [Element Templates Chooser](features/element-template-chooser.md)
+- [Append Menu](features/append-menu.md)
 
 <hr>
 
