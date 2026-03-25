@@ -157,12 +157,12 @@ export function AppendMenuOverlay({
     return (
         <div class="am-click-away" onClick={onCancel}>
             <div
-                ref={panelRef}
-                class={`am-panel ${hasTemplates ? "" : "am-panel--palette-only"}`}
-                style={panelStyle
+              ref={panelRef}
+              class={`am-panel ${hasTemplates ? "" : "am-panel--palette-only"}`}
+              style={panelStyle
                     ? { left: `${panelStyle.left}px`, top: `${panelStyle.top}px` }
                     : { left: `${position.x}px`, top: `${position.y}px` }}
-                onClick={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
                 {/* Search bar */}
                 <div class="am-search-wrapper">
@@ -170,22 +170,22 @@ export function AppendMenuOverlay({
                         <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" />
                     </svg>
                     <input
-                        ref={searchRef}
-                        class="am-search-input"
-                        type="text"
-                        placeholder="Search..."
-                        value={search}
-                        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+                      ref={searchRef}
+                      class="am-search-input"
+                      type="text"
+                      placeholder="Search..."
+                      value={search}
+                      onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                     />
                     {search && (
                         <button
-                            class="am-search-clear"
-                            onClick={() => {
+                          class="am-search-clear"
+                          onClick={() => {
                                 setSearch("");
                                 searchRef.current?.focus();
                             }}
-                            type="button"
-                            aria-label="Clear search"
+                          type="button"
+                          aria-label="Clear search"
                         >
                             ×
                         </button>
@@ -196,22 +196,22 @@ export function AppendMenuOverlay({
                 <div class="am-body">
                     {hasTemplates && (
                         <TemplatePanel
-                            entries={templateEntries}
-                            search={search}
-                            activeCategory={activeCategory}
-                            selectedTemplateId={selectedTemplate?.id ?? null}
-                            onCategoryChange={setActiveCategory}
-                            onTemplateClick={handleTemplateClick}
+                          entries={templateEntries}
+                          search={search}
+                          activeCategory={activeCategory}
+                          selectedTemplateId={selectedTemplate?.id ?? null}
+                          onCategoryChange={setActiveCategory}
+                          onTemplateClick={handleTemplateClick}
                         />
                     )}
                     <BpmnElementPalette
-                        groups={bpmnGroups}
-                        favourites={favourites}
-                        search={search}
-                        appliesToFilter={appliesToFilter}
-                        expanded={paletteExpanded}
-                        onToggleExpand={() => setPaletteExpanded((prev) => !prev)}
-                        onSelect={handleBpmnSelect}
+                      groups={bpmnGroups}
+                      favourites={favourites}
+                      search={search}
+                      appliesToFilter={appliesToFilter}
+                      expanded={paletteExpanded}
+                      onToggleExpand={() => setPaletteExpanded((prev) => !prev)}
+                      onSelect={handleBpmnSelect}
                     />
                 </div>
             </div>

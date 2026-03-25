@@ -47,7 +47,7 @@ export function ExpandableTemplateCard({
 
     return (
         <div
-            class={[
+          class={[
                 "am-template-card",
                 focused ? "am-template-card--focused" : "",
                 selected ? "am-template-card--selected" : "",
@@ -55,15 +55,17 @@ export function ExpandableTemplateCard({
             ]
                 .filter(Boolean)
                 .join(" ")}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            onClick={(e) => onClick(e as unknown as Event)}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onClick={(e) => onClick(e as unknown as Event)}
         >
             {/* Collapsed content — always visible */}
             <div class="am-card-header">
-                {appliesTo.length === 1 ? (
+                {appliesTo.length === 1
+? (
                     <span class={`am-card-bpmn-icon ${bpmnTypeToIconClass(appliesTo[0])}`} />
-                ) : (
+                )
+: (
                     <span class="am-card-bpmn-icon bpmn-icon-task" />
                 )}
                 <div class="am-card-text">
@@ -92,11 +94,11 @@ export function ExpandableTemplateCard({
                     <div class="am-card-meta">
                         {entry.documentationRef && (
                             <a
-                                class="am-card-docs-link"
-                                href={entry.documentationRef}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
+                              class="am-card-docs-link"
+                              href={entry.documentationRef}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                             >
                                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                                     <path d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.001 1.001 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z" />
@@ -107,7 +109,9 @@ export function ExpandableTemplateCard({
                         )}
                         {visiblePropertyCount !== undefined && (
                             <span class="am-badge am-badge--props">
-                                {visiblePropertyCount} properties
+                                {visiblePropertyCount}
+{" "}
+properties
                             </span>
                         )}
                     </div>
