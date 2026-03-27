@@ -59,6 +59,8 @@ export interface BpmnModelerSetting {
     readonly alignToOrigin: boolean;
     readonly showTransactionBoundaries: boolean;
     readonly colorTheme: "automatic" | "light";
+    /** BPMN type strings to pin at the top of the append menu palette (max 6). */
+    readonly favouriteBpmnElements?: string[];
 }
 
 export class BpmnModelerSettingQuery extends Query {

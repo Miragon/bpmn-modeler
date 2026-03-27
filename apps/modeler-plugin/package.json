@@ -225,6 +225,20 @@
                     ],
                     "markdownDescription": "Controls the color theme of the BPMN modeler canvas. `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme."
                 },
+                "miragon.bpmnModeler.favouriteBpmnElements": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bpmn:ServiceTask",
+                        "bpmn:UserTask",
+                        "bpmn:CallActivity",
+                        "bpmn:ExclusiveGateway"
+                    ],
+                    "maxItems": 6,
+                    "markdownDescription": "BPMN element types to pin at the top of the append menu palette (max 6). Use BPMN type names like `bpmn:ServiceTask`, `bpmn:UserTask`, `bpmn:CallActivity`, `bpmn:ExclusiveGateway`."
+                },
                 "miragon.bpmnModeler.language": {
                     "type": "string",
                     "default": "en",

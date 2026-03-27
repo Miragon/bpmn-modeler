@@ -1,0 +1,33 @@
+{
+    "name": "@bpmn-modeler/create-append-c7-element-templates",
+    "version": "0.1.0",
+    "description": "Polyfills elementTemplates.createElement() for the Camunda 7 bpmn-js modeler, enabling bpmn-js-create-append-anything to create template-preconfigured elements.",
+    "license": "MIT",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.lib.json"
+    },
+    "keywords": [
+        "bpmn-js",
+        "bpmn-io",
+        "bpmn-js-element-templates",
+        "bpmn-js-create-append-anything",
+        "camunda-7"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Miragon/bpmn-vscode-modeler",
+        "directory": "libs/create-append-c7-element-templates"
+    },
+    "bugs": {
+        "url": "https://github.com/Miragon/bpmn-vscode-modeler/issues"
+    },
+    "peerDependencies": {
+        "bpmn-js": ">=14.0.0",
+        "bpmn-js-create-append-anything": ">=1.0.0"
+    }
+}

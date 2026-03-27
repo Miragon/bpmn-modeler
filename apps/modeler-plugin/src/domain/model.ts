@@ -6,6 +6,7 @@ export class BpmnModelerSetting {
         public readonly alignToOrigin: boolean,
         public readonly showTransactionBoundaries: boolean,
         public readonly colorTheme: "automatic" | "light",
+        public readonly favouriteBpmnElements: string[],
     ) {}
 }
 
@@ -18,6 +19,8 @@ export class SettingBuilder {
     private _showTransactionBoundaries = true;
 
     private _colorTheme: "automatic" | "light" = "automatic";
+
+    private _favouriteBpmnElements: string[] = [];
 
     /** Sets the alignToOrigin flag. */
     alignToOrigin(value: boolean): SettingBuilder {
@@ -37,12 +40,19 @@ export class SettingBuilder {
         return this;
     }
 
+    /** Sets the favourite BPMN element types for the append menu palette. */
+    favouriteBpmnElements(value: string[]): SettingBuilder {
+        this._favouriteBpmnElements = value;
+        return this;
+    }
+
     /** Builds and returns a {@link BpmnModelerSetting} instance. */
     buildBpmnModeler(): BpmnModelerSetting {
         return new BpmnModelerSetting(
             this._alignToOrigin,
             this._showTransactionBoundaries,
             this._colorTheme,
+            this._favouriteBpmnElements,
         );
     }
 }

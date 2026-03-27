@@ -57,13 +57,14 @@ The modeler opens automatically as a custom editor.
 
 Search for "BPMN Modeler" in Settings (`Ctrl+,` / `Cmd+,`) to view all available options.
 
-| Setting                                         | Default     | Description                                                      |
-|-------------------------------------------------|-------------|------------------------------------------------------------------|
-| `miragon.bpmnModeler.configFolder`              | `.camunda`  | Folder name used for element template and payload file discovery |
-| `miragon.bpmnModeler.language`                  | `en`        | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)         |
-| `miragon.bpmnModeler.colorTheme`                | `automatic` | Color theme for the BPMN canvas (`automatic` or `light`)         |
-| `miragon.bpmnModeler.showTransactionBoundaries` | `true`      | Show transaction boundaries in the BPMN canvas (C7 only)         |
-| `miragon.bpmnModeler.c8ApiVersion`              | `v2`        | REST API version prefix for Camunda 8 deployment endpoints       |
+| Setting                                         | Default                     | Description                                                             |
+|-------------------------------------------------|-----------------------------|-------------------------------------------------------------------------|
+| `miragon.bpmnModeler.configFolder`              | `.camunda`                  | Folder name used for element template and payload file discovery        |
+| `miragon.bpmnModeler.language`                  | `en`                        | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)                |
+| `miragon.bpmnModeler.colorTheme`                | `automatic`                 | Color theme for the BPMN canvas (`automatic` or `light`)                |
+| `miragon.bpmnModeler.favouriteBpmnElements`     | `["bpmn:ServiceTask", ...]` | BPMN element types to pin at the top of the append menu palette (max 6) |
+| `miragon.bpmnModeler.showTransactionBoundaries` | `true`                      | Show transaction boundaries in the BPMN canvas (C7 only)                |
+| `miragon.bpmnModeler.c8ApiVersion`              | `v2`                        | REST API version prefix for Camunda 8 deployment endpoints              |
 
 ### Command Palette
 

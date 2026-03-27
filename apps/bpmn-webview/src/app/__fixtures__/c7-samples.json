@@ -6,6 +6,10 @@
     "appliesTo": [
       "bpmn:ServiceTask"
     ],
+    "category": {
+      "id": "communication",
+      "name": "Communication"
+    },
     "properties": [
       {
         "label": "Implementation Type",

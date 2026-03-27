@@ -1,0 +1,102 @@
+name: Release create-append-c7-element-templates
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry-run:
+        description: 'Dry run (no commit, tag, or publish)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: create-append-c7-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Corepack enable
+        run: corepack enable
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: yarn
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/${{ github.repository }}"
+
+      - name: Bump version
+        id: version
+        run: |
+          PKG_NAME="@bpmn-modeler/create-append-c7-element-templates"
+          yarn workspace "$PKG_NAME" version "${{ inputs.release-type }}"
+          NEW_VERSION=$(node -e "console.log(require('./libs/create-append-c7-element-templates/package.json').version)")
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag does not exist
+        run: |
+          TAG="create-append-c7-element-templates/v${{ steps.version.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists; aborting." && exit 1
+          fi
+
+      - name: Build library
+        run: yarn workspace @bpmn-modeler/create-append-c7-element-templates build
+
+      - name: Dry-run publish
+        if: inputs.dry-run == true
+        working-directory: libs/create-append-c7-element-templates
+        run: npm publish --access public --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Commit, tag, and publish
+        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+          TAG="create-append-c7-element-templates/v${NEW_VERSION}"
+
+          git add libs/create-append-c7-element-templates/package.json
+          git commit -m "chore(release): @bpmn-modeler/create-append-c7-element-templates v${NEW_VERSION}"
+          git push origin HEAD
+
+          git tag -a "$TAG" -m "release $TAG"
+          git push origin "$TAG"
+
+      - name: Publish to npm
+        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
+        working-directory: libs/create-append-c7-element-templates
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

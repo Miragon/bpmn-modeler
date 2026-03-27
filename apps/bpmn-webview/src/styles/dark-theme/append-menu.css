@@ -1,0 +1,63 @@
+/**
+ * Dark theme overrides for the append menu overlay.
+ *
+ * Redefines the --am-* tokens (defined in libs/append-menu/src/append-menu.css)
+ * using the --dt-* palette from colors.css, which in turn derives from
+ * VS Code's injected --vscode-* variables.
+ *
+ * This file is only loaded when the dark theme is active (controlled by
+ * theme.ts), so the "colorTheme: light" setting correctly forces light mode
+ * even when VS Code itself uses a dark theme.
+ */
+@import "colors.css";
+
+.am-overlay-root {
+    /* ── Backgrounds ──────────────────────────────────────────────────── */
+    --am-bg:               var(--dt-surface-a10);
+    --am-bg-elevated:      var(--dt-surface-a20);
+    --am-bg-hover:         var(--dt-surface-a20);
+    --am-bg-input:         var(--dt-surface-a20);
+    --am-bg-input-focus:   var(--dt-surface-a20);
+    --am-bg-code:          var(--dt-surface-a0);
+    --am-bg-impl:          var(--dt-surface-tonal-a50);
+    --am-bg-icon:          var(--dt-surface-a20);
+    --am-bg-clear:         var(--dt-surface-a20);
+    --am-bg-clear-hover:   var(--dt-surface-a30);
+    --am-bg-backdrop:      rgba(0, 0, 0, 0.55);
+    --am-bg-bpmn-btn:      var(--dt-surface-a0);
+    --am-bg-bpmn-btn-hover: var(--dt-surface-a20);
+
+    /* ── Text ─────────────────────────────────────────────────────────── */
+    --am-text:             var(--dt-surface-a70);
+    --am-text-secondary:   var(--dt-surface-a60);
+    --am-text-muted:       var(--dt-surface-a50);
+    --am-text-faint:       var(--dt-surface-a40);
+    --am-text-code:        var(--dt-surface-a60);
+    --am-text-icon:        var(--dt-surface-a50);
+    --am-text-impl:        var(--dt-surface-a70);
+
+    /* ── Borders ──────────────────────────────────────────────────────── */
+    --am-border:           var(--dt-surface-a30);
+    --am-border-input:     var(--dt-surface-a30);
+    --am-border-impl:      var(--dt-surface-a30);
+    --am-border-bpmn-btn:  var(--dt-surface-a30);
+
+    /* ── Accent / primary ─────────────────────────────────────────────── */
+    --am-accent:           var(--dt-primary-a0);
+    --am-accent-hover:     var(--dt-primary-a10);
+    --am-accent-text:      var(--dt-primary-a20);
+    --am-accent-bg:        var(--dt-primary-a0-opacity-30);
+    --am-accent-bg-hover:  var(--dt-surface-tonal-a30);
+    --am-accent-ring:      var(--dt-primary-a0-opacity-30);
+
+    /* ── Badges ───────────────────────────────────────────────────────── */
+    --am-badge-cat-bg:     color-mix(in srgb, #7c5cbf 25%, transparent);
+    --am-badge-cat-text:   #c4a8ff;
+    --am-badge-props-bg:   color-mix(in srgb, #4a8a4a 25%, transparent);
+    --am-badge-props-text: #7cd17c;
+
+    /* ── Misc ─────────────────────────────────────────────────────────── */
+    --am-scrollbar:        var(--dt-surface-a30);
+    --am-shadow:           rgba(0, 0, 0, 0.5);
+    --am-shadow-outline:   rgba(255, 255, 255, 0.06);
+}

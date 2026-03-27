@@ -281,6 +281,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 .alignToOrigin(this.vsSettings.getAlignToOrigin())
                 .showTransactionBoundaries(this.vsSettings.getShowTransactionBoundaries())
                 .colorTheme(this.vsSettings.getColorTheme())
+                .favouriteBpmnElements(this.vsSettings.getFavouriteBpmnElements())
                 .buildBpmnModeler();
 
             if (
@@ -290,6 +291,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                         alignToOrigin: settings.alignToOrigin,
                         showTransactionBoundaries: settings.showTransactionBoundaries,
                         colorTheme: settings.colorTheme,
+                        favouriteBpmnElements: settings.favouriteBpmnElements,
                     }),
                 )
             ) {

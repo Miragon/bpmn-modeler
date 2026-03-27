@@ -25,7 +25,9 @@
             "@bpmn-modeler/shared": ["libs/shared/src/index.ts"],
             "@bpmn-modeler/bpmn-clipboard": ["libs/bpmn-clipboard/src/index.ts"],
             "@bpmn-modeler/bpmn-i18n": ["libs/bpmn-i18n/src/index.ts"],
-            "@bpmn-modeler/element-template-chooser": ["libs/element-template-chooser/src/index.ts"]
+            "@bpmn-modeler/element-template-chooser": ["libs/element-template-chooser/src/index.ts"],
+            "@bpmn-modeler/append-menu": ["libs/append-menu/src/index.ts"],
+            "@bpmn-modeler/create-append-c7-element-templates": ["libs/create-append-c7-element-templates/src/index.ts"]
         }
     },
     "exclude": ["node_modules", "tmp"]
