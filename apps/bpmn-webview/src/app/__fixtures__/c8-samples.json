@@ -1,0 +1,816 @@
+[
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "Email Connector",
+    "id": "io.camunda.examples.EmailConnector",
+    "description": "A Email sending task.",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "properties": [
+      {
+        "type": "Hidden",
+        "value": "send-email",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "Hostname",
+        "description": "Specify the email server (SMTP) host name",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "HOST_NAME"
+        },
+        "constraints": {
+          "notEmpty": true
+        }
+      },
+      {
+        "label": "Port",
+        "description": "Specify the email server (SMTP) port (default=25)",
+        "type": "String",
+        "value": "= 25",
+        "optional": true,
+        "binding": {
+          "type": "zeebe:input",
+          "name": "PORT"
+        }
+      },
+      {
+        "label": "Username",
+        "description": "Specify the user name to authenticate with",
+        "type": "String",
+        "optional": true,
+        "binding": {
+          "type": "zeebe:input",
+          "name": "USER_NAME"
+        }
+      },
+      {
+        "label": "Password",
+        "description": "Specify the password to authenticate with",
+        "type": "String",
+        "optional": true,
+        "binding": {
+          "type": "zeebe:input",
+          "name": "PASSWORD"
+        }
+      },
+      {
+        "label": "Sender",
+        "description": "Enter the FROM field",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "sender"
+        },
+        "constraints": {
+          "notEmpty": true
+        }
+      },
+      {
+        "label": "Recipient",
+        "description": "Enter the TO field",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "recipient"
+        },
+        "constraints": {
+          "notEmpty": true
+        }
+      },
+      {
+        "label": "Subject",
+        "description": "Enter the mail subject",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "subject"
+        },
+        "constraints": {
+          "notEmpty": true
+        }
+      },
+      {
+        "label": "Body",
+        "description": "Enter the email message body",
+        "type": "Text",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "message"
+        },
+        "constraints": {
+          "notEmpty": true
+        },
+        "placeholder": "message"
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "REST Connector",
+    "id": "io.camunda.examples.RestConnector",
+    "description": "A REST API invocation task.",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "properties": [
+      {
+        "type": "Hidden",
+        "value": "http",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "REST Endpoint URL",
+        "description": "Specify the url of the REST API to talk to.",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "url"
+        },
+        "constraints": {
+          "notEmpty": true,
+          "pattern": {
+            "value": "^https?://.*",
+            "message": "Must be http(s) URL."
+          }
+        }
+      },
+      {
+        "label": "REST Method",
+        "description": "Specify the HTTP method to use.",
+        "type": "Dropdown",
+        "value": "get",
+        "choices": [
+          { "name": "GET", "value": "get" },
+          { "name": "POST", "value": "post" },
+          { "name": "PATCH", "value": "patch" },
+          { "name": "DELETE", "value": "delete" }
+        ],
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "method"
+        }
+      },
+      {
+        "label": "Request Body",
+        "description": "Data to send to the endpoint.",
+        "value": "",
+        "type": "String",
+        "optional": true,
+        "binding": {
+          "type": "zeebe:input",
+          "name": "body"
+        }
+      },
+      {
+        "label": "Result Variable",
+        "description": "Name of variable to store the response data in.",
+        "value": "response",
+        "type": "String",
+        "optional": true,
+        "binding": {
+          "type": "zeebe:output",
+          "source": "= body"
+        }
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "(Conditional) REST Connector",
+    "id": "io.camunda.examples.ConditionalRestConnector",
+    "description": "A REST API invocation task.",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "properties": [
+      {
+        "type": "Hidden",
+        "value": "http",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "REST Endpoint URL",
+        "description": "Specify the url of the REST API to talk to.",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "url"
+        },
+        "constraints": {
+          "notEmpty": true,
+          "pattern": {
+            "value": "^https?://.*",
+            "message": "Must be http(s) URL."
+          }
+        }
+      },
+      {
+        "id": "httpMethod",
+        "label": "REST Method",
+        "description": "Specify the HTTP method to use.",
+        "type": "Dropdown",
+        "value": "get",
+        "choices": [
+          { "name": "GET", "value": "get" },
+          { "name": "POST", "value": "post" },
+          { "name": "PATCH", "value": "patch" },
+          { "name": "DELETE", "value": "delete" }
+        ],
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "method"
+        }
+      },
+      {
+        "label": "Request Body",
+        "description": "Data to send to the endpoint.",
+        "value": "",
+        "type": "String",
+        "optional": true,
+        "binding": {
+          "type": "zeebe:input",
+          "name": "body"
+        },
+        "condition": {
+          "property": "httpMethod",
+          "oneOf": ["patch", "post", "delete"]
+        }
+      },
+      {
+        "id": "authenticationType",
+        "label": "Authentication Type",
+        "description": "Specify the authentication type to use.",
+        "type": "Dropdown",
+        "value": "",
+        "optional": true,
+        "choices": [
+          {
+            "name": "None",
+            "value": ""
+          },
+          {
+            "name": "Basic",
+            "value": "basic"
+          },
+          {
+            "name": "Bearer",
+            "value": "bearer"
+          }
+        ],
+        "binding": {
+          "type": "zeebe:input",
+          "name": "authentication.type"
+        }
+      },
+      {
+        "label": "Username",
+        "type": "String",
+        "feel": "optional",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "authentication.username"
+        },
+        "constraints": {
+          "notEmpty": true
+        },
+        "condition": {
+          "allMatch": [
+            {
+              "property": "httpMethod",
+              "oneOf": ["patch", "post", "delete"]
+            },
+            {
+              "property": "authenticationType",
+              "equals": "basic"
+            }
+          ]
+        }
+      },
+      {
+        "label": "Password",
+        "type": "String",
+        "feel": "optional",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "authentication.password"
+        },
+        "constraints": {
+          "notEmpty": true
+        },
+        "condition": {
+          "allMatch": [
+            {
+              "property": "httpMethod",
+              "oneOf": ["patch", "post", "delete"]
+            },
+            {
+              "property": "authenticationType",
+              "equals": "basic"
+            }
+          ]
+        }
+      },
+      {
+        "label": "Bearer Token",
+        "type": "String",
+        "feel": "optional",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "authentication.token"
+        },
+        "constraints": {
+          "notEmpty": true
+        },
+        "condition": {
+          "property": "authenticationType",
+          "equals": "bearer"
+        }
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "Groups",
+    "id": "io.camunda.examples.Groups",
+    "description": "Example template to provide groups.",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "properties": [
+      {
+        "type": "Hidden",
+        "value": "http",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "REST Endpoint URL",
+        "description": "Specify the url of the REST API to talk to.",
+        "group": "headers",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "url"
+        },
+        "constraints": {
+          "notEmpty": true,
+          "pattern": {
+            "value": "^https?://.*",
+            "message": "Must be http(s) URL."
+          }
+        }
+      },
+      {
+        "label": "REST Method",
+        "description": "Specify the HTTP method to use.",
+        "group": "headers",
+        "type": "Dropdown",
+        "value": "get",
+        "choices": [
+          { "name": "GET", "value": "get" },
+          { "name": "POST", "value": "post" },
+          { "name": "PATCH", "value": "patch" },
+          { "name": "DELETE", "value": "delete" }
+        ],
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "method"
+        }
+      },
+      {
+        "label": "Request Body",
+        "description": "Data to send to the endpoint.",
+        "value": "",
+        "group": "payload",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "body"
+        }
+      },
+      {
+        "label": "Result Variable",
+        "description": "Name of variable to store the response data in.",
+        "group": "mapping",
+        "value": "response",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:output",
+          "source": "= body"
+        }
+      }
+    ],
+    "groups": [
+      {
+        "id": "headers",
+        "label": "Request headers"
+      },
+      {
+        "id": "payload",
+        "label": "Request payload"
+      },
+      {
+        "id": "mapping",
+        "label": "Response mapping"
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "FEEL",
+    "id": "io.camunda.examples.Feel",
+    "description": "Example template to provide FEEL inputs.",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "properties": [
+      {
+        "type": "Hidden",
+        "value": "http",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "REST Endpoint URL",
+        "description": "Specify the url of the REST API to talk to.",
+        "type": "String",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "url"
+        },
+        "constraints": {
+          "notEmpty": true,
+          "pattern": {
+            "value": "^https?://.*",
+            "message": "Must be http(s) URL."
+          }
+        }
+      },
+      {
+        "label": "REST Method",
+        "description": "Specify the HTTP method to use.",
+        "type": "Dropdown",
+        "value": "get",
+        "choices": [
+          { "name": "GET", "value": "get" },
+          { "name": "POST", "value": "post" },
+          { "name": "PATCH", "value": "patch" },
+          { "name": "DELETE", "value": "delete" }
+        ],
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "method"
+        }
+      },
+      {
+        "label": "Request Body",
+        "description": "Data to send to the endpoint.",
+        "value": "",
+        "optional": true,
+        "type": "Text",
+        "binding": {
+          "type": "zeebe:input",
+          "name": "body"
+        },
+        "feel": "optional"
+      },
+      {
+        "label": "Result Variable",
+        "description": "Name of variable to store the response data in.",
+        "value": "= response",
+        "optional": true,
+        "type": "String",
+        "binding": {
+          "type": "zeebe:output",
+          "source": "= body"
+        },
+        "feel": "required"
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "id": "io.camunda.examples.ScriptWorker",
+    "name": "Script Worker",
+    "description": "A script task worker",
+    "appliesTo": [
+      "bpmn:ScriptTask"
+    ],
+    "properties":[
+      {
+        "label": "Job type",
+        "type": "String",
+        "value": "script",
+        "group": "job-definition",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "Language",
+        "value": "javascript",
+        "type": "Dropdown",
+        "choices": [
+          {
+            "name": "FEEL",
+            "value": "feel"
+          },
+          {
+            "name": "Groovy",
+            "value": "groovy"
+          },
+          {
+            "name": "JavaScript",
+            "value": "javascript"
+          },
+          {
+            "name": "Kotlin",
+            "value": "kotlin"
+          },
+          {
+            "name": "Mustache",
+            "value": "mustache"
+          }
+        ],
+        "group": "script",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "language"
+        }
+      },
+      {
+        "label": "Script",
+        "value": "a + b",
+        "type": "Text",
+        "group": "script",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "script"
+        }
+      }
+    ],
+    "groups": [
+      {
+        "id": "job-definition",
+        "label": "Job definition"
+      },
+      {
+        "id": "script",
+        "label": "Script"
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "id": "io.camunda.examples.PaymentTask",
+    "name": "Payment task",
+    "description": "A payment task worker",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "properties":[
+      {
+        "label": "Job type",
+        "type": "String",
+        "value": "payment-service",
+        "group": "job-definition",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "Method",
+        "value": "visa",
+        "type": "Dropdown",
+        "choices": [
+          {
+            "name": "American Express",
+            "value": "american-express"
+          },
+          {
+            "name": "Mastercard",
+            "value": "mastercard"
+          },
+          {
+            "name": "Visa",
+            "value": "visa"
+          }
+        ],
+        "group": "headers",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "method"
+        }
+      }
+    ],
+    "groups": [
+      {
+        "id": "job-definition",
+        "label": "Job definition"
+      },
+      {
+        "id": "headers",
+        "label": "Headers"
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "id": "io.camunda.examples.KafkaTask",
+    "name": "Kafka worker",
+    "description": "A kafka task worker",
+    "appliesTo": [
+      "bpmn:ServiceTask",
+      "bpmn:SendTask"
+    ],
+    "properties":[
+      {
+        "type": "Hidden",
+        "value": "kafka",
+        "binding": {
+          "type": "zeebe:taskDefinition:type"
+        }
+      },
+      {
+        "label": "Method",
+        "value": "payment",
+        "type": "String",
+        "group": "headers",
+        "binding": {
+          "type": "zeebe:taskHeader",
+          "key": "kafka-topic"
+        }
+      }
+    ],
+    "groups": [
+      {
+        "id": "headers",
+        "label": "Headers"
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "id": "io.camunda.examples.WithIcon",
+    "name": "With Icon",
+    "description": "An example element template with custom icon.",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "documentationRef": "https://docs.camunda.io/docs/components/modeler/desktop-modeler/element-templates/defining-templates/#icons",
+    "icon": {
+      "contents": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22' fill='none'%3E%3Ccircle cx='11' cy='11' r='9' fill='black'/%3E%3Ccircle cx='11' cy='11' r='9' fill='black'/%3E%3Cpath d='M7.05691 7.72727H8.95321L10.9561 12.6136H11.0413L13.0441 7.72727H14.9404V15H13.449V10.2663H13.3886L11.5065 14.9645H10.4909L8.60875 10.2486H8.54838V15H7.05691V7.72727Z' fill='white'/%3E%3C/svg%3E"
+    },
+    "properties":[
+      {
+        "type": "Hidden",
+        "value": "With icon",
+        "binding": {
+          "type": "property",
+          "name": "name"
+        }
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "Element Type",
+    "id": "io.camunda.examples.ElementType",
+    "description": "An example element template that changes the element type.",
+    "appliesTo": [
+      "bpmn:Task"
+    ],
+    "elementType": {
+      "value": "bpmn:ServiceTask"
+    },
+    "documentationRef": "https://docs.camunda.io/docs/components/modeler/desktop-modeler/element-templates/defining-templates/",
+    "properties": [
+      {
+        "type": "Hidden",
+        "value": "Change element type",
+        "binding": {
+          "type": "property",
+          "name": "name"
+        }
+      }
+    ]
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "Documentation URL",
+    "id": "io.camunda.examples.DocumentationRef",
+    "description": "An example element template with documentation URL.",
+    "appliesTo": [
+      "bpmn:ServiceTask"
+    ],
+    "documentationRef": "https://docs.camunda.io/docs/components/modeler/desktop-modeler/element-templates/",
+    "properties": [
+      {
+        "type": "Hidden",
+        "value": "With documentationRef",
+        "binding": {
+          "type": "property",
+          "name": "name"
+        }
+      }
+    ]
+  },
+  {
+  "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+  "name": "Compatibility test",
+  "id": "io.camunda.examples.compatibility",
+  "version": 1,
+  "description": "This version is compatible with all Camunda 8 versions.",
+  "engines": {
+    "camunda": "^8.0"
+  },
+  "appliesTo": [
+    "bpmn:Task"
+  ],
+  "properties": []
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "Compatibility test",
+    "id": "io.camunda.examples.compatibility",
+    "version": 2,
+    "description": "This version is compatible with Camunda 8.5 and above.",
+    "engines": {
+      "camunda": ">=8.5"
+    },
+    "appliesTo": [
+      "bpmn:Task"
+    ],
+    "properties": []
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "Compatibility test - incompatible, no upgrade",
+    "id": "io.camunda.examples.incompatible",
+    "version": 2,
+    "description": "This version is not compatible with Desktop Modeler and Camunda 8",
+    "engines": {
+      "camunda": "^9",
+      "camundaDesktopModeler": "0"
+    },
+    "appliesTo": [
+      "bpmn:Task"
+    ],
+    "properties": []
+  },
+  {
+    "$schema": "https://unpkg.com/@camunda/zeebe-element-templates-json-schema/resources/schema.json",
+    "name": "Conditional Event",
+    "id": "conditional-event",
+    "version": 1,
+    "description": "Conditional event template",
+    "appliesTo": [
+      "bpmn:Event"
+    ],
+    "elementType": {
+      "value": "bpmn:IntermediateCatchEvent",
+      "eventDefinition": "bpmn:ConditionalEventDefinition"
+    },
+    "properties": [
+      {
+        "label": "Condition Expression",
+        "type": "String",
+        "value": "=foo > 100",
+        "feel": "required",
+        "binding": {
+          "type": "bpmn:ConditionalEventDefinition#property",
+          "name": "condition"
+        }
+      },
+      {
+        "label": "Variable Names",
+        "type": "String",
+        "value": "foo,bar",
+        "binding": {
+          "type": "bpmn:ConditionalEventDefinition#zeebe:conditionalFilter#property",
+          "name": "variableNames"
+        }
+      },
+      {
+        "label": "Variable Events",
+        "type": "String",
+        "value": "create,update",
+        "binding": {
+          "type": "bpmn:ConditionalEventDefinition#zeebe:conditionalFilter#property",
+          "name": "variableEvents"
+        }
+      }
+    ]
+  }
+]

@@ -24,6 +24,11 @@ export default defineConfig({
         }),
     ],
 
+    esbuild: {
+        jsx: "automatic",
+        jsxImportSource: "preact",
+    },
+
     resolve: {
         dedupe: [
             "preact",

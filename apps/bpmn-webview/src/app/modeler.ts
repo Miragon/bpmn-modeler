@@ -3,7 +3,7 @@ import BpmnModeler7 from "camunda-bpmn-js/lib/camunda-platform/Modeler";
 import BpmnModeler8 from "camunda-bpmn-js/lib/camunda-cloud/Modeler";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
 import TokenSimulationModule from "bpmn-js-token-simulation";
-import ElementTemplateChooserModule from "@bpmn-io/element-template-chooser";
+import { ElementTemplateChooserModule } from "@bpmn-modeler/element-template-chooser";
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { BpmnModelerSetting, NoModelerError } from "@bpmn-modeler/shared";

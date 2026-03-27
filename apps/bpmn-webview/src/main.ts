@@ -280,6 +280,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             try {
                 const elementTemplates = (message.data as ElementTemplatesQuery)
                     .elementTemplates;
+                console.log("Received element templates: ", elementTemplates);
                 bpmnModeler.setElementTemplates(elementTemplates);
                 elementTemplatesResolver.done(
                     message.data as ElementTemplatesQuery,
