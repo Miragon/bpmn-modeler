@@ -662,15 +662,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/element-templates-validator@npm:^2.19.0":
-  version: 2.19.0
-  resolution: "@bpmn-io/element-templates-validator@npm:2.19.0"
+"@bpmn-io/element-templates-validator@npm:^2.20.1":
+  version: 2.20.1
+  resolution: "@bpmn-io/element-templates-validator@npm:2.20.1"
   dependencies:
     "@camunda/element-templates-json-schema": "npm:^0.21.0"
-    "@camunda/zeebe-element-templates-json-schema": "npm:^0.37.0"
+    "@camunda/zeebe-element-templates-json-schema": "npm:^0.39.1"
     json-source-map: "npm:^0.6.1"
     min-dash: "npm:^5.0.0"
-  checksum: 10c0/1de6c67c394b6c72f222d82b3eedc762fa15658fb7dd5da1574c947d408d083dfe685a19cba9833cccc4b99d64461a688b4bb239e3734cbf79add36520232cb3
+  checksum: 10c0/86db218e9defcfee68def23e452a3211786b385f9562a2f5006c28f96bcb9595c3ff97447954122cedd5713362de570052bb07a598df3363b4d88cebb0ab8648
   languageName: node
   linkType: hard
 
@@ -858,9 +858,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/properties-panel@npm:3.40.4":
-  version: 3.40.4
-  resolution: "@bpmn-io/properties-panel@npm:3.40.4"
+"@bpmn-io/properties-panel@npm:3.40.5, @bpmn-io/properties-panel@npm:^3.40.5":
+  version: 3.40.5
+  resolution: "@bpmn-io/properties-panel@npm:3.40.5"
   dependencies:
     "@bpmn-io/feel-editor": "npm:^2.5.2"
     "@carbon/icons": "npm:^11.69.0"
@@ -870,11 +870,11 @@ __metadata:
     focus-trap: "npm:^8.0.0"
     min-dash: "npm:^5.0.0"
     min-dom: "npm:^5.2.0"
-  checksum: 10c0/b6d1701d1ad6775479ef27f069247abdcefbeebd6cf92f129a25b906cfd124219297d562d86d3a605064ce5e7890aa3b42851571ee7456ba72cf323c5bb97122
+  checksum: 10c0/dda97ee07aacc0d1f6b5d6dd65448443ef598517fcf9c75a93981af768c2247dd214d30a12a41352f242350df0a0993df4336c426a45b4f8b5fd989b07ae297d
   languageName: node
   linkType: hard
 
-"@bpmn-io/properties-panel@npm:^3.40.0, @bpmn-io/properties-panel@npm:^3.40.3":
+"@bpmn-io/properties-panel@npm:^3.40.3":
   version: 3.40.3
   resolution: "@bpmn-io/properties-panel@npm:3.40.3"
   dependencies:
@@ -983,10 +983,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@camunda/zeebe-element-templates-json-schema@npm:^0.37.0":
-  version: 0.37.0
-  resolution: "@camunda/zeebe-element-templates-json-schema@npm:0.37.0"
-  checksum: 10c0/7f8297f44833ec2910e4e1bb35aa049a88d56c5fc3f7140aedfb28af13bd3cae2dc94a32a6d74b80b0cad3cd291c8a5f75d811222213ae174f10e081d7c9dbdb
+"@camunda/zeebe-element-templates-json-schema@npm:^0.39.1":
+  version: 0.39.1
+  resolution: "@camunda/zeebe-element-templates-json-schema@npm:0.39.1"
+  checksum: 10c0/26163cd8c59fc800314b91a82694cebe0f17baa309f0417c1a7e1cc1d7a3bf68561185f0efcec156ae7b6986adab902237dcf749dd022acff65d2a8ebdf282c3
   languageName: node
   linkType: hard
 
@@ -3826,11 +3826,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-js-element-templates@npm:^2.21.0":
-  version: 2.22.0
-  resolution: "bpmn-js-element-templates@npm:2.22.0"
+"bpmn-js-element-templates@npm:^2.23.0":
+  version: 2.23.0
+  resolution: "bpmn-js-element-templates@npm:2.23.0"
   dependencies:
-    "@bpmn-io/element-templates-validator": "npm:^2.19.0"
+    "@bpmn-io/element-templates-validator": "npm:^2.20.1"
     "@bpmn-io/extract-process-variables": "npm:^2.2.1"
     bpmnlint: "npm:^11.12.0"
     classnames: "npm:^2.5.1"
@@ -3847,7 +3847,7 @@ __metadata:
     bpmn-js-properties-panel: ">= 2"
     camunda-bpmn-js-behaviors: ">= 1.2.1"
     diagram-js: ">= 11.9"
-  checksum: 10c0/0e3f0032b7f16463a5a6bef4199162c9844f67cc8911107693f24908deb5f73fd8f6333c21e9294401c373b161ae1923f292a54873519e5ddaaf5da080374636
+  checksum: 10c0/491f91ff9cba6e66219abe2c6fa0c4dafd1c1952e0e311f5eba6a35fa5bd34b48971f3cde984d587bb97fe9766574b4ffd7c146c9bf57e76d737cb7fad9a1a54
   languageName: node
   linkType: hard
 
@@ -3902,35 +3902,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-js@npm:^18.12.0":
-  version: 18.13.1
-  resolution: "bpmn-js@npm:18.13.1"
+"bpmn-js@npm:^18.13.2, bpmn-js@npm:^18.14.0":
+  version: 18.14.0
+  resolution: "bpmn-js@npm:18.14.0"
   dependencies:
     bpmn-moddle: "npm:^10.0.0"
-    diagram-js: "npm:^15.9.0"
+    diagram-js: "npm:^15.11.0"
     diagram-js-direct-editing: "npm:^3.3.0"
-    ids: "npm:^3.0.0"
+    ids: "npm:^3.0.2"
     inherits-browser: "npm:^0.1.0"
     min-dash: "npm:^5.0.0"
     min-dom: "npm:^5.2.0"
     tiny-svg: "npm:^4.1.4"
-  checksum: 10c0/8e7852138c4b3cf00f1749826ddcfd0cb14504d2b4db801b761b5f50b8d01a563368a29ef58fab5bb22a5d08f7aed700c6ff9544e6af24ef5210423dc8ccda58
-  languageName: node
-  linkType: hard
-
-"bpmn-js@npm:^18.13.2":
-  version: 18.13.2
-  resolution: "bpmn-js@npm:18.13.2"
-  dependencies:
-    bpmn-moddle: "npm:^10.0.0"
-    diagram-js: "npm:^15.10.0"
-    diagram-js-direct-editing: "npm:^3.3.0"
-    ids: "npm:^3.0.0"
-    inherits-browser: "npm:^0.1.0"
-    min-dash: "npm:^5.0.0"
-    min-dom: "npm:^5.2.0"
-    tiny-svg: "npm:^4.1.4"
-  checksum: 10c0/0b961965ae0e090068a7dc0149c9966618fb71cb545b279170067a7451999c15dcb8b09589da774b49b869dd1d0c56237dc9dd4f078fac794e5911ce8ece3eba
+  checksum: 10c0/316b45afce86bde53ed1a4b7e0a8f79cec8a8c63ad28907f0fd236b80e04dca1cbd99edc96e0d72f48193ad622a144f35e849b7d8a96325c97ca7dad07ce8d48
   languageName: node
   linkType: hard
 
@@ -3950,7 +3934,7 @@ __metadata:
   resolution: "bpmn-vscode-modeler@workspace:."
   dependencies:
     "@bpmn-io/form-js": "npm:1.21.2"
-    "@bpmn-io/properties-panel": "npm:3.40.4"
+    "@bpmn-io/properties-panel": "npm:3.40.5"
     "@eslint/eslintrc": "npm:^3.3.5"
     "@eslint/js": "npm:^10.0.1"
     "@stylistic/eslint-plugin": "npm:^5.10.0"
@@ -3964,18 +3948,18 @@ __metadata:
     "@typescript-eslint/parser": "npm:^8.57.2"
     "@vitest/coverage-v8": "npm:4.1.2"
     "@vitest/ui": "npm:4.1.2"
-    bpmn-js: "npm:^18.13.2"
+    bpmn-js: "npm:^18.14.0"
     bpmn-js-create-append-anything: "npm:^1.2.0"
     bpmn-js-native-copy-paste: "npm:^0.3.0"
     bpmn-js-properties-panel: "npm:^5.53.0"
     bpmn-js-token-simulation: "npm:^0.39.3"
-    camunda-bpmn-js: "npm:^5.25.0"
+    camunda-bpmn-js: "npm:^5.26.0"
     camunda-bpmn-js-behaviors: "npm:^1.14.1"
     camunda-bpmn-moddle: "npm:^7.0.1"
     camunda-dmn-moddle: "npm:^1.3.1"
     camunda-transaction-boundaries: "npm:^1.1.2"
     copy-webpack-plugin: "npm:^14.0.0"
-    diagram-js: "npm:^15.10.0"
+    diagram-js: "npm:^15.11.0"
     dmn-js: "npm:^17.7.0"
     dmn-js-properties-panel: "npm:^3.10.0"
     eslint: "npm:^10.1.0"
@@ -4230,26 +4214,26 @@ __metadata:
   languageName: node
   linkType: hard
 
-"camunda-bpmn-js@npm:^5.25.0":
-  version: 5.25.0
-  resolution: "camunda-bpmn-js@npm:5.25.0"
+"camunda-bpmn-js@npm:^5.26.0":
+  version: 5.26.0
+  resolution: "camunda-bpmn-js@npm:5.26.0"
   dependencies:
     "@bpmn-io/align-to-origin": "npm:^0.7.0"
     "@bpmn-io/element-template-chooser": "npm:^2.1.0"
     "@bpmn-io/element-template-icon-renderer": "npm:^1.0.0"
-    "@bpmn-io/properties-panel": "npm:^3.40.0"
+    "@bpmn-io/properties-panel": "npm:^3.40.5"
     "@bpmn-io/variable-resolver": "npm:^3.0.0"
     "@camunda/example-data-properties-provider": "npm:^1.3.0"
-    bpmn-js: "npm:^18.12.0"
+    bpmn-js: "npm:^18.13.2"
     bpmn-js-color-picker: "npm:^0.7.2"
     bpmn-js-copy-as-image: "npm:^0.4.1"
     bpmn-js-create-append-anything: "npm:^1.2.0"
-    bpmn-js-element-templates: "npm:^2.21.0"
+    bpmn-js-element-templates: "npm:^2.23.0"
     bpmn-js-executable-fix: "npm:^0.2.1"
     bpmn-js-native-copy-paste: "npm:^0.3.0"
     camunda-bpmn-js-behaviors: "npm:^1.14.1"
     camunda-bpmn-moddle: "npm:^7.0.1"
-    diagram-js: "npm:^15.9.1"
+    diagram-js: "npm:^15.10.0"
     diagram-js-grid: "npm:^2.0.1"
     diagram-js-minimap: "npm:^5.3.0"
     diagram-js-origin: "npm:^1.4.0"
@@ -4258,7 +4242,7 @@ __metadata:
     zeebe-bpmn-moddle: "npm:^1.12.0"
   peerDependencies:
     bpmn-js-properties-panel: ">= 3.0.0"
-  checksum: 10c0/156fe92ccd378637cee0f9d559de38fe27aad09bf30d06c8d5e83dacd3b66213e70630cfb713729b6f9d7873782c788f06596b08887e7d04871f5377bdbdf2d9
+  checksum: 10c0/b1785fa9625c21e83bbf02f91f55705f394b89fdcc82c1bc8f692bc23d7071f10025a1256896e056813c96bce4a7bbaa5fb5d0ce30537190060c7d84e49dc5de
   languageName: node
   linkType: hard
 
@@ -4875,7 +4859,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diagram-js@npm:^15.7.0, diagram-js@npm:^15.9.0, diagram-js@npm:^15.9.1":
+"diagram-js@npm:^15.11.0":
+  version: 15.11.0
+  resolution: "diagram-js@npm:15.11.0"
+  dependencies:
+    "@bpmn-io/diagram-js-ui": "npm:^0.2.3"
+    clsx: "npm:^2.1.1"
+    didi: "npm:^11.0.0"
+    inherits-browser: "npm:^0.1.0"
+    min-dash: "npm:^5.0.0"
+    min-dom: "npm:^5.3.0"
+    object-refs: "npm:^0.4.0"
+    path-intersection: "npm:^4.1.0"
+    tiny-svg: "npm:^4.1.4"
+  checksum: 10c0/2ebbfe1f89058f6177c694e901348a445aeac087f2b39bf7d4d360681891a8b771909863e66852ca0e469153bb7a9230d86f01a2ac05337095c8b21cd4a9f0a1
+  languageName: node
+  linkType: hard
+
+"diagram-js@npm:^15.7.0":
   version: 15.9.1
   resolution: "diagram-js@npm:15.9.1"
   dependencies:
@@ -6581,7 +6582,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ids@npm:^3.0.0, ids@npm:^3.0.1":
+"ids@npm:^3.0.0, ids@npm:^3.0.1, ids@npm:^3.0.2":
   version: 3.0.2
   resolution: "ids@npm:3.0.2"
   checksum: 10c0/ba2c3692978782e37a5fcdd4a508f75db909bc5b20e2b4a1ffba47c986779cf1a95fd2f9466182a697186c8e67912aa5f6fe8343de4c6ba79b8ae6842799ec77
