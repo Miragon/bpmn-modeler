@@ -1,0 +1,44 @@
+name: Epic
+description: Track a larger initiative broken down into sub-issues
+title: "[Epic] "
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is this epic about and why is it needed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Goals / Acceptance Criteria
+      description: How do you know this epic is done?
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is explicitly in and out of scope?
+      placeholder: |
+        **In scope:**
+        - ...
+
+        **Out of scope:**
+        - ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Links, references, sketches, or any other context.
+    validations:
+      required: false
