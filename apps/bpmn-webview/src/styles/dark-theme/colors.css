@@ -34,8 +34,10 @@
 
     --dt-color-red-a10: var(--vscode-errorForeground, #E65C57);
     --dt-color-red-a10-invert-opacity-60: color-mix(in srgb, #15999e 60%, transparent);
-    /** No VS Code equivalent for error background — keep hardcoded */
-    --dt-color-red-a20: hsl(360, 100%, 92%);
+    /** Dark-mode error background: a muted red tinted surface, not the
+     *  near-white pink used in light mode. Mixes the error foreground with
+     *  the editor background so it stays readable behind the error text. */
+    --dt-color-red-a20: color-mix(in srgb, var(--vscode-errorForeground, #E65C57) 22%, var(--vscode-editor-background, #121212));
 
     --dt-color-blue-a50: var(--vscode-textLink-foreground, hsl(205, 100%, 50%));
 }

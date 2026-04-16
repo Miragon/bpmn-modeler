@@ -207,3 +207,37 @@
         color: var(--dt-surface-a70) !important;
     }
 }
+
+/* Dark-theme layout overrides for the host page.
+ *
+ * default.css paints html/body white and the panel dividers light grey.
+ * Any 1-px rounding gap in the flex layout (e.g. when the properties panel
+ * is collapsed to width 0) lets the white body show through, producing the
+ * bright vertical strip that was reported on the dark theme. */
+html,
+body {
+    background-color: var(--dt-surface-a0);
+    color: var(--dt-surface-a70);
+}
+
+.panel-resizer {
+    border-left-color: var(--dt-surface-a20);
+}
+
+.panel-resizer:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+    border-left-color: var(--dt-primary-a10);
+}
+
+.panel-resizer.collapsed {
+    border-left-color: transparent;
+}
+
+.panel-resizer.collapsed:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+    border-left-color: var(--dt-primary-a10);
+}
+
+.properties-panel-parent {
+    border-left-color: var(--dt-surface-a30);
+}
