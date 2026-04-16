@@ -24,7 +24,7 @@
     --palette-entry-color: var(--dt-primary-a40);
     --palette-entry-hover-color: var(--dt-primary-a50);
     --palette-entry-selected-color: var(--dt-primary-a0);
-    --palette-separator-color: var(--dt-surface-tonal-a40);
+    --palette-separator-color: var(--dt-surface-a30);
     --palette-toggle-hover-background-color: var(--dt-surface-a60);
     --palette-background-color: var(--dt-surface-a10);
     --palette-border-color: var(--dt-surface-tonal-a40);
@@ -142,15 +142,22 @@ defs marker > circle {
 /**
  * Popup
  */
-.djs-popup-entry-name {
-    filter: invert(1) !important;
-}
-
 .djs-popup-title {
     color: var(--dt-surface-a70) !important;
 }
 
 .djs-popup-header-group > li > button {
     color: var(--dt-primary-a50) !important;
+}
+
+/**
+ * "Powered by bpmn.io" attribution logo.
+ *
+ * bpmn-js hardcodes `color: #404040` as an inline style and the SVG uses
+ * `fill="currentColor"`, so the logo is nearly invisible on dark backgrounds.
+ * Override with a light muted grey that stays subtle but readable.
+ */
+.bjs-powered-by {
+    color: var(--dt-surface-a50) !important;
 }
 

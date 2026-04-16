@@ -75,15 +75,18 @@ export function AppendMenuOverlay({
     onSelect,
     onCancel,
 }: AppendMenuOverlayProps) {
+    const hasTemplates = templateEntries.length > 0;
+
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [selectedTemplate, setSelectedTemplate] = useState<EnrichedTemplateEntry | null>(null);
-    const [paletteExpanded, setPaletteExpanded] = useState(false);
+    // When the workspace has no element templates, default to the expanded
+    // palette so users see the full BPMN element list instead of an awkward
+    // icon-only column next to an empty template panel.
+    const [paletteExpanded, setPaletteExpanded] = useState(!hasTemplates);
     const searchRef = useRef<HTMLInputElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [panelStyle, setPanelStyle] = useState<{ left: number; top: number } | null>(null);
-
-    const hasTemplates = templateEntries.length > 0;
 
     // The set of BPMN types the selected multi-type template applies to.
     const appliesToFilter = useMemo<Set<string> | null>(() => {
