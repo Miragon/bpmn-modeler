@@ -229,13 +229,37 @@ body {
     border-left-color: var(--dt-primary-a10);
 }
 
+/* Override the accent colors used by the collapsed resizer's pseudo-element
+ * line segments. default.css exposes `--panel-resizer-accent-color` and
+ * `--panel-resizer-accent-hover-color`, so overriding the custom properties
+ * here wins regardless of stylesheet load order. */
 .panel-resizer.collapsed {
-    border-left-color: transparent;
+    --panel-resizer-accent-color: var(--dt-surface-a30);
+    --panel-resizer-accent-hover-color: var(--dt-primary-a10);
 }
 
 .panel-resizer.collapsed:hover {
     background-color: var(--dt-primary-a0-opacity-30);
-    border-left-color: var(--dt-primary-a10);
+}
+
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+}
+
+.panel-resizer-toggle {
+    background-color: var(--dt-surface-a10);
+    border-color: var(--dt-surface-a30);
+    color: var(--dt-surface-a70);
+}
+
+.panel-resizer-toggle:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+    border-color: var(--dt-primary-a10);
+    color: var(--dt-primary-a10);
+}
+
+.panel-resizer-toggle:focus-visible {
+    outline-color: var(--dt-primary-a10);
 }
 
 .properties-panel-parent {

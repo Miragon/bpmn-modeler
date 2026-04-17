@@ -37,6 +37,7 @@ import {
     BpmnModeler,
     getVsCodeApi,
     initResizer,
+    setResizerTranslate,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
     initTheme,
@@ -163,6 +164,11 @@ window.onload = async function () {
         extraModules,
     );
     modelerIsInitialized = true;
+
+    // Resizer is created before the modeler, so wire up translation now that
+    // the bpmn-js DI container (and therefore the shared translator) is ready.
+    const translator = bpmnModeler.getService<CustomTranslator>("customTranslator");
+    setResizerTranslate((key) => translator.translate(key));
 
     console.debug("[DEBUG] Modeler is initialized...");
 
@@ -313,6 +319,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 const query = message.data as LanguageQuery;
                 const translator = bpmnModeler.getService<CustomTranslator>("customTranslator");
                 translator.setLanguage(query.locale as SupportedLocale);
+                setResizerTranslate((key) => translator.translate(key));
                 await refreshDiagram();
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));

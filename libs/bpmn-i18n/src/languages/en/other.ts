@@ -19,6 +19,7 @@
  */
 const translations: Record<string, string> = {
     "Open minimap": "Open minimap",
+    "Open properties panel": "Open properties panel",
     "This maps to the process definition key.": "This maps to the process definition key.",
     "Key": "Key",
     "Intermediate Throw Event": "Intermediate Throw Event",

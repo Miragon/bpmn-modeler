@@ -19,6 +19,7 @@
  */
 const translations: Record<string, string> = {
     "Open minimap": "Открыть миникарту",
+    "Open properties panel": "Открыть панель свойств",
     "This maps to the process definition key.": "Это соответствует ключу процесса.",
     "Key": "Ключ",
     "Intermediate Throw Event": "Промежуточное событие отправления",
