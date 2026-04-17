@@ -29,6 +29,9 @@ on top of [bpmn-js](https://bpmn.io/toolkit/bpmn-js/). It targets teams working
 with **Camunda 7 and Camunda 8** and integrates directly into your existing VS Code
 workflow.
 
+> **Powered by [bpmn.io](https://bpmn.io/)** — Built on [bpmn-js](https://github.com/bpmn-io/bpmn-js)
+> and [dmn-js](https://github.com/bpmn-io/dmn-js). Thanks to the bpmn.io team for their work.
+
 ## Features
 
 - **BPMN Modeling**: Create and edit BPMN 2.0 diagrams with full Camunda 7 and Camunda 8
@@ -47,6 +50,8 @@ workflow.
 - **Multi-Language UI**: The modeler UI (palette, context pad, properties panel) is
   available in English, Deutsch, Français, Nederlands, Português (Brasil), Русский,
   简体中文, and 繁體中文. Change the language via settings or the command palette.
+
+![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/modeler-preview.png)
 
 ## Getting Started (Users)
 
