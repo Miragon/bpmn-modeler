@@ -10,7 +10,7 @@ updates:
       interval: daily
       time: "05:00"
     commit-message:
-      prefix: fix
+      prefix: chore
       prefix-development: chore
       include: scope
     groups:
@@ -28,7 +28,7 @@ updates:
     labels:
       - "Technical Dept"
     commit-message:
-      prefix: fix
+      prefix: chore
       prefix-development: chore
       include: scope
     groups:
