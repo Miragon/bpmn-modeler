@@ -152,6 +152,7 @@ const translations: Record<string, string> = {
     "Must provide a standard event": "Muss ein Standardereignis bereitstellen",
     "Not found": "Nicht gefunden",
     "Open minimap": "Minikarte öffnen",
+    "Open properties panel": "Eigenschaften-Panel öffnen",
     "Output Expression": "Ausgangsausdruck",
     "Output Label": "Ausgabebezeichnung",
     "Output Name": "Ausgabename",

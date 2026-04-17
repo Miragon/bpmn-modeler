@@ -97,6 +97,12 @@ a:link {
     border-left: 1px solid #e0e0e0;
     transition: background-color 0.15s ease, width 0.15s ease;
     position: relative;
+    /* Default accent colors for the collapsed-state line segments. Declared
+     * at `.panel-resizer` (specificity 0,1,0) so that a theme override placed
+     * on `.panel-resizer.collapsed` (specificity 0,2,0) always wins,
+     * regardless of stylesheet load order. */
+    --panel-resizer-accent-color: rgba(0, 120, 212, 0.4);
+    --panel-resizer-accent-hover-color: rgba(0, 120, 212, 0.8);
 }
 
 .panel-resizer:hover {
@@ -106,12 +112,114 @@ a:link {
 
 .panel-resizer.collapsed {
     width: 8px;
-    border-left-color: rgba(0, 120, 212, 0.4);
+    /* The blue accent line is drawn by the `::before` / `::after`
+     * pseudo-elements below instead of `border-left`. A real border is
+     * rendered at the parent's border-box edge, and the absolutely-
+     * positioned toggle button inside the resizer does not reliably cover
+     * it (Chromium paints the border above the button's background in some
+     * layer configurations). Splitting the line into two pseudo-element
+     * segments that physically stop above and resume below the button
+     * guarantees a clean interruption without relying on stacking/compositing
+     * behavior.
+     *
+     * The accent colors are themed via `--panel-resizer-accent-color` and
+     * `--panel-resizer-accent-hover-color`, which are declared on
+     * `.panel-resizer` above.
+     *
+     * Zero the border width outright instead of just setting the color to
+     * transparent — otherwise the generic `.panel-resizer:hover` rule (here
+     * or in the dark theme) can recolor a still-present 1 px border back to
+     * a visible value on hover, reintroducing the through-button bleed. */
+    border-left-width: 0;
+}
+
+/* Two segments of the blue accent line: one above the toggle button, one
+ * below. The gap between them is calculated from the button's fixed 40 px
+ * height (20 px half-height + 2 px visual breathing room). */
+.panel-resizer.collapsed::before,
+.panel-resizer.collapsed::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 1px;
+    background-color: var(--panel-resizer-accent-color);
+    pointer-events: none;
+}
+
+.panel-resizer.collapsed::before {
+    top: 0;
+    bottom: calc(50% + 22px);
+}
+
+.panel-resizer.collapsed::after {
+    top: calc(50% + 22px);
+    bottom: 0;
 }
 
 .panel-resizer.collapsed:hover {
     background-color: rgba(0, 120, 212, 0.2);
-    border-left-color: rgba(0, 120, 212, 0.8);
+}
+
+.panel-resizer.collapsed:hover::before,
+.panel-resizer.collapsed:hover::after {
+    background-color: var(--panel-resizer-accent-hover-color);
+}
+
+/* When the pointer is over the toggle button the button supplies its own
+ * hover styling. Suppress the resizer's collapsed-hover tint so the two do
+ * not stack into a halo effect around the button. */
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+}
+
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover)::before,
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover)::after {
+    background-color: var(--panel-resizer-accent-color);
+}
+
+/* Toggle button shown only when the panel is collapsed.
+ * The button sits in the middle of the collapsed resizer bar and protrudes
+ * slightly to the left over the canvas, mirroring the Camunda Modeler pattern
+ * so users have an obvious affordance to reopen the panel. */
+.panel-resizer-toggle {
+    display: none;
+    position: absolute;
+    /* Vertical centering via top + margin instead of `transform: translateY(-50%)`.
+     * A transform places the button in its own compositor layer, which in
+     * Chromium causes the resizer's `border-left` to bleed through the
+     * button's opaque background. Plain top + negative margin keeps the
+     * button in the parent's paint layer so the background correctly
+     * interrupts the resizer's blue accent line where the pill sits. */
+    top: 50%;
+    margin-top: -20px;
+    right: 0;
+    width: 14px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid rgba(0, 120, 212, 0.4);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    background-color: #f5f5f5;
+    color: #555;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.panel-resizer.collapsed .panel-resizer-toggle {
+    display: flex;
+}
+
+.panel-resizer-toggle:hover {
+    background-color: rgba(0, 120, 212, 0.15);
+    color: rgba(0, 120, 212, 0.9);
+}
+
+.panel-resizer-toggle:focus-visible {
+    outline: 2px solid rgba(0, 120, 212, 0.8);
+    outline-offset: 1px;
 }
 
 .properties-panel-parent {

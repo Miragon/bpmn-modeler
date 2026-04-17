@@ -19,6 +19,7 @@
  */
 const translations: Record<string, string> = {
     "Open minimap": "打開縮略圖",
+    "Open properties panel": "打開屬性面板",
     "This maps to the process definition key.": "映射為流程定義Key.",
     "Key": "Key",
     "Intermediate Throw Event": "中間抛出事件",

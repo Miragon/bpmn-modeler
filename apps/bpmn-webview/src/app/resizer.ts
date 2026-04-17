@@ -9,6 +9,49 @@ const MAX_PANEL_WIDTH = 1600;
 /** CSS class applied to the panel when it is collapsed (width 0, hidden). */
 const COLLAPSED_CLASS = "collapsed";
 
+/** English fallback label for the toggle button, used as the translation key. */
+const OPEN_PANEL_LABEL = "Open properties panel";
+
+/**
+ * Chevron-left SVG used as the toggle button icon.
+ * Inline so no additional icon dependency is required.
+ */
+const CHEVRON_LEFT_SVG = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="14" viewBox="0 0 10 14" aria-hidden="true" focusable="false">
+    <path d="M7.5 2 2 7l5.5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+`;
+
+/**
+ * Holds references to the toggle button and a translate function so the label
+ * can be refreshed when the user switches language after init.
+ */
+let toggleButton: HTMLButtonElement | undefined;
+let translateFn: (key: string) => string = (key) => key;
+
+/**
+ * Applies the current translation to the toggle button's `aria-label` and
+ * `title` attributes. Safe to call before the button has been created.
+ */
+function applyToggleButtonTranslation(): void {
+    if (!toggleButton) {
+        return;
+    }
+    const label = translateFn(OPEN_PANEL_LABEL);
+    toggleButton.setAttribute("aria-label", label);
+    toggleButton.title = label;
+}
+
+/**
+ * Registers the translate function used for the toggle button's accessible
+ * label and tooltip. Call this once the bpmn-js DI container is ready, and
+ * again after every language switch to refresh the label.
+ */
+export function setResizerTranslate(translate: (key: string) => string): void {
+    translateFn = translate;
+    applyToggleButtonTranslation();
+}
+
 /**
  * Attaches mouse-drag listeners to the `.panel-resizer` element so the user
  * can resize the properties panel by dragging the divider.
@@ -48,6 +91,36 @@ export function initResizer(): void {
     let targetWidth = 0;
     /** Whether the panel is currently collapsed (zero width). */
     let isCollapsed = false;
+
+    /**
+     * Create the toggle button and append it to the resizer. The button is
+     * hidden via CSS (`.panel-resizer-toggle` is only shown while the resizer
+     * carries the `collapsed` class) so we do not need to toggle its
+     * visibility from JavaScript.
+     */
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "panel-resizer-toggle";
+    button.innerHTML = CHEVRON_LEFT_SVG;
+    // Prevent the click from starting a resize drag on the surrounding resizer.
+    button.addEventListener("mousedown", (e: MouseEvent) => {
+        e.stopPropagation();
+    });
+    button.addEventListener("click", (e: MouseEvent) => {
+        e.stopPropagation();
+        if (!isCollapsed) {
+            return;
+        }
+        expand();
+        // Open to twice the drag-to-collapse threshold so the panel appears
+        // with enough room to read its contents without immediate resizing.
+        const openWidth = MIN_PANEL_WIDTH * 2;
+        targetWidth = openWidth;
+        panel.style.width = `${openWidth}px`;
+    });
+    resizer.appendChild(button);
+    toggleButton = button;
+    applyToggleButtonTranslation();
 
     /**
      * Collapse the panel to zero width and mark both the panel and the resizer

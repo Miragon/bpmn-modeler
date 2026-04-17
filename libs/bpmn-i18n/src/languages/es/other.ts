@@ -148,6 +148,7 @@ const translations: Record<string, string> = {
     "Must provide a standard event": "Debe proporcionar un evento estándar",
     "Not found": "No encontrado",
     "Open minimap": "Abrir minimapa",
+    "Open properties panel": "Abrir panel de propiedades",
     "Output Expression": "Expresión de salida",
     "Output Label": "Etiqueta de salida",
     "Output Name": "Nombre de salida",
