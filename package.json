@@ -34,7 +34,7 @@
         "@stylistic/eslint-plugin": "^5.10.0",
         "@types/jest": "^30.0.0",
         "@types/lodash": "^4.17.24",
-        "@types/node": "20.x",
+        "@types/node": "25.x",
         "@types/uuid": "^11.0.0",
         "@types/vscode": "^1.76.0",
         "@types/vscode-webview": "^1.57.5",
