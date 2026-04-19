@@ -2,6 +2,7 @@
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 // css
 import "./styles/default.css";
+import "./styles/diff.css";
 
 import {
     asyncDebounce,
@@ -42,6 +43,7 @@ import {
     UnsupportedEngineError,
     initTheme,
 } from "./app";
+import { DiffMode } from "./app/diff/DiffMode";
 import { WebviewStateManager } from "./app/state";
 
 const vscode = getVsCodeApi();
@@ -95,8 +97,12 @@ let stateManager: WebviewStateManager;
  */
 window.onload = async function () {
     window.addEventListener("message", onReceiveMessage);
-    initResizer();
     initTheme();
+
+    // Viewer mode (one side of a diff view) skips the resizer + properties
+    // panel + palette, so we don't call initResizer() here — the chrome is
+    // hidden by .viewer-mode CSS once we confirm the mode below.  For the
+    // modeler path, initResizer() is called after the branch check.
 
     // Build clipboard DI modules conditionally.
     // In development (plain browser) NativeCopyPaste handles clipboard natively.
@@ -157,6 +163,23 @@ window.onload = async function () {
     vscode.postMessage(new GetBpmnFileCommand());
 
     const bpmnFileQuery = await bpmnFileResolver.wait();
+
+    // Diff view: host told us this pane is one half of a diff, so bootstrap
+    // the readonly DiffMode and skip the editable modeler entirely.
+    if (bpmnFileQuery?.viewerMode === "viewer") {
+        document.body.classList.add("viewer-mode");
+        const canvas = document.getElementById("js-canvas");
+        const dropZone = document.getElementById("js-drop-zone");
+        if (!canvas || !dropZone) {
+            console.error("Diff mode: missing #js-canvas or #js-drop-zone");
+            return;
+        }
+        const diffMode = new DiffMode("#js-canvas", dropZone, vscode);
+        await diffMode.startWith(bpmnFileQuery.content);
+        return;
+    }
+
+    initResizer();
     const extraModules = [TranslateModule, ...(clipboardModules ?? [])];
     await initializeModeler(
         bpmnFileQuery?.content,

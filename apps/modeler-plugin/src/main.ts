@@ -9,6 +9,7 @@ import { VsCodeSettings } from "./infrastructure/VsCodeSettings";
 import { VsCodeStatusBar } from "./infrastructure/VsCodeStatusBar";
 import { VsCodeUI } from "./infrastructure/VsCodeUI";
 import { ArtifactService } from "./service/ArtifactService";
+import { BpmnDiffService } from "./service/BpmnDiffService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
 import { DmnModelerService } from "./service/DmnModelerService";
 import { CommandController } from "./controller/CommandController";
@@ -72,6 +73,7 @@ export function activate(context: ExtensionContext): void {
         vsWorkspace,
     );
     const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
+    const diffService = new BpmnDiffService(vsUI);
     const deploymentSvc = new DeploymentService(
         vsDocument,
         vsWorkspace,
@@ -91,9 +93,15 @@ export function activate(context: ExtensionContext): void {
 
     // 4. Controllers
     const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
-    new BpmnEditorController(editorStore, bpmnService, artifactSvc, vsUI, vsDocument, statusBar).register(
-        context,
-    );
+    new BpmnEditorController(
+        editorStore,
+        bpmnService,
+        diffService,
+        artifactSvc,
+        vsUI,
+        vsDocument,
+        statusBar,
+    ).register(context);
     new DmnEditorController(editorStore, dmnService, vsUI).register(context);
     commandController.register(context);
     new DeploymentController(editorStore, vsDocument, deploymentSvc, startInstanceSvc, vsUI).register(context);

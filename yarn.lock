@@ -3842,6 +3842,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bpmn-js-differ@npm:^3.2.0":
+  version: 3.2.0
+  resolution: "bpmn-js-differ@npm:3.2.0"
+  dependencies:
+    diffpatch: "npm:^0.6.0"
+    min-dash: "npm:^5.0.0"
+  checksum: 10c0/0de9000dbfd014ed14df301e8886c1397a702542f22813ea9189e0473947f9edcfb1d69fa94aaa455c6c55a4a47c1915caea12afe60700defc300a288e166eac
+  languageName: node
+  linkType: hard
+
 "bpmn-js-element-templates@npm:^2.23.0":
   version: 2.23.0
   resolution: "bpmn-js-element-templates@npm:2.23.0"
@@ -3966,6 +3976,7 @@ __metadata:
     "@vitest/ui": "npm:4.1.4"
     bpmn-js: "npm:^18.14.0"
     bpmn-js-create-append-anything: "npm:^1.2.0"
+    bpmn-js-differ: "npm:^3.2.0"
     bpmn-js-native-copy-paste: "npm:^0.3.0"
     bpmn-js-properties-panel: "npm:^5.53.0"
     bpmn-js-token-simulation: "npm:^0.39.3"
@@ -4937,6 +4948,17 @@ __metadata:
   version: 4.0.2
   resolution: "diff@npm:4.0.2"
   checksum: 10c0/81b91f9d39c4eaca068eb0c1eb0e4afbdc5bb2941d197f513dd596b820b956fef43485876226d65d497bebc15666aa2aa82c679e84f65d5f2bfbf14ee46e32c1
+  languageName: node
+  linkType: hard
+
+"diffpatch@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "diffpatch@npm:0.6.0"
+  dependencies:
+    picocolors: "npm:^1.0.1"
+  bin:
+    diffpatch: bin/diffpatch
+  checksum: 10c0/47859a328f100059656d50633e1d2bbf0c87a27a2c54d12f486d6ae471617243861c7ee65ed2c1868b006a2b69c3edf89829bf6d31d03a2e15411da0dee43ad0
   languageName: node
   linkType: hard
 
@@ -8957,7 +8979,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"picocolors@npm:^1.1.1":
+"picocolors@npm:^1.0.1, picocolors@npm:^1.1.1":
   version: 1.1.1
   resolution: "picocolors@npm:1.1.1"
   checksum: 10c0/e2e3e8170ab9d7c7421969adaa7e1b31434f789afb9b3f115f6b96d91945041ac3ceb02e9ec6fe6510ff036bcc0bf91e69a1772edc0b707e12b19c0f2d6bcf58
