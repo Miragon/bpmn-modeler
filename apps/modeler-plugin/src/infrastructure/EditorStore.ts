@@ -10,15 +10,10 @@ import {
     workspace,
 } from "vscode";
 
-import { getContext } from "./extensionContext";
 import { Command, Query } from "@bpmn-modeler/shared";
 
-import { bpmnEditorUi, dmnModelerHtml } from "./WebviewHtml";
+import { bootstrapWebview } from "./bootstrapWebview";
 
-/** VS Code view-type identifier for the BPMN custom editor. */
-const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
-/** VS Code view-type identifier for the DMN custom editor. */
-const DMN_VIEW_TYPE = "bpmn-modeler.dmn";
 /** VS Code `setContext` command key used by keybinding/menu `when` clauses. */
 const OPEN_EDITORS_COUNTER_KEY = "bpmn-modeler.openCustomEditors";
 
@@ -38,7 +33,16 @@ type EditorEntry = {
  * `adapter/out/editor.ts`.
  */
 export class EditorStore implements Disposable {
-    /** All currently open editors, keyed by document URI path. */
+    /**
+     * All currently open editors, keyed by the stringified document URI
+     * (`document.uri.toString()`).
+     *
+     * Keying on the full URI — scheme included — is essential: VS Code opens
+     * diff editors as two independent `resolveCustomTextEditor` calls, one for
+     * a `git:` URI and one for a `file:` URI that share the same fs path.  If
+     * we keyed by path alone the second registration would clobber the first
+     * and one pane would render empty.
+     */
     private readonly editors: Map<string, EditorEntry> = new Map();
 
     /** VS Code event-subscription disposables, keyed by editorId. */
@@ -72,35 +76,12 @@ export class EditorStore implements Disposable {
         webviewPanel: WebviewPanel,
         document: TextDocument,
     ): WebviewPanel {
-        const panel = this.initWebviewHtml(viewType, webviewPanel);
+        const panel = bootstrapWebview(viewType, webviewPanel);
         this.editors.set(editorId, { id: editorId, ui: panel, document });
         this.disposables.set(editorId, []);
         this.setActiveEditor(editorId);
         this.updateOpenEditorCounter(this.editors.size);
         return panel;
-    }
-
-    /**
-     * Sets the webview HTML content on the panel based on the view type.
-     *
-     * @param viewType VS Code view-type identifier.
-     * @param webviewPanel The panel whose HTML is to be set.
-     * @returns The configured WebviewPanel.
-     * @throws {Error} If the viewType is not supported.
-     */
-    initWebviewHtml(viewType: string, webviewPanel: WebviewPanel): WebviewPanel {
-        const webview = webviewPanel.webview;
-        webview.options = { enableScripts: true };
-
-        if (viewType === BPMN_VIEW_TYPE) {
-            webview.html = bpmnEditorUi(webview, getContext().extensionUri);
-        } else if (viewType === DMN_VIEW_TYPE) {
-            webview.html = dmnModelerHtml(webview, getContext().extensionUri);
-        } else {
-            throw new Error(`Unsupported view type: ${viewType}`);
-        }
-
-        return webviewPanel;
     }
 
     // ─── Active editor ────────────────────────────────────────────────────────
@@ -142,15 +123,24 @@ export class EditorStore implements Disposable {
     }
 
     /**
-     * Finds the editor id for a file that is currently open, identified by its
-     * absolute file system path.
+     * Finds the editor id for an editable file that is currently open,
+     * identified by its absolute URI path.
      *
-     * @param filePath Absolute file system path to look up.
-     * @returns The editor id (document URI path), or `undefined` if the file is not open.
+     * Only `file:`-scheme editors are returned — callers expect a session they
+     * can write to, never the readonly `git:` counterpart that may be open
+     * alongside it in a diff view.
+     *
+     * @param filePath Absolute URI path (as produced by `Uri.file(...).path`)
+     *   to look up.
+     * @returns The editor id (stringified URI), or `undefined` if the file
+     *   is not open in an editable editor.
      */
     findEditorIdByPath(filePath: string): string | undefined {
         for (const [, entry] of this.editors) {
-            if (entry.document.uri.path === filePath) {
+            if (
+                entry.document.uri.scheme === "file" &&
+                entry.document.uri.path === filePath
+            ) {
                 return entry.id;
             }
         }

@@ -36,6 +36,9 @@
     "engines": {
         "vscode": "^1.76.0"
     },
+    "extensionDependencies": [
+        "vscode.git"
+    ],
     "icon": "assets/miragon-logo.png",
     "categories": [
         "Visualization",

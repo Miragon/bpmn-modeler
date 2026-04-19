@@ -1,8 +1,11 @@
 import {
+    ApplyDiffHighlightsQuery,
     BpmnFileQuery,
     BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
+    DiffCounts,
+    DiffSide,
     ElementTemplatesQuery,
     LogErrorCommand,
     LogInfoCommand,
@@ -11,10 +14,12 @@ import {
     VsCodeApi,
     VsCodeImpl,
     VsCodeMock,
+    ViewportChangedCommand,
 } from "@bpmn-modeler/shared";
 
 import c7Samples from "./__fixtures__/c7-samples.json";
 import c8Samples from "./__fixtures__/c8-samples.json";
+import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "./__fixtures__/mock-diff";
 
 declare const process: { env: { NODE_ENV: string } };
 
@@ -125,10 +130,68 @@ export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
 }
 
 /**
+ * Dev-only mode selector, driven by `?mode=` in the URL.
+ *
+ * `modeler` (default) — serves the full editable modeler, matches pre-existing
+ *   dev behaviour.
+ * `diff-before` / `diff-after` — serves the left or right pane of a diff view
+ *   with real `bpmn-js-differ` highlights computed from two fixture XMLs.
+ */
+type DevMode = "modeler" | "diff-before" | "diff-after";
+
+/** Pre-computed diff sliced per side — cached on the mock instance. */
+interface CachedDiff {
+    before: {
+        removed: string[];
+        changed: string[];
+        layoutChanged: string[];
+    };
+    after: {
+        added: string[];
+        changed: string[];
+        layoutChanged: string[];
+    };
+    counts: DiffCounts;
+}
+
+function readDevMode(): DevMode {
+    const raw = new URLSearchParams(window.location.search).get("mode");
+    if (raw === "diff-before" || raw === "diff-after" || raw === "modeler") {
+        return raw;
+    }
+    if (raw !== null && raw !== "") {
+        console.warn(
+            `[dev] Unknown ?mode=${raw}; falling back to "modeler". ` +
+                `Known values: modeler, diff-before, diff-after.`,
+        );
+    }
+    return "modeler";
+}
+
+/**
  * Development-only mock that simulates the VS Code extension host by
  * dispatching synthetic `MessageEvent`s in response to outbound commands.
+ *
+ * Selects behaviour from a {@link DevMode} derived from the URL.  Diff modes
+ * lazily import `bpmn-moddle` + `bpmn-js-differ` on the first
+ * `DiffReadyCommand` so those dependencies stay out of the production bundle
+ * (dead-code-eliminated along with the whole class when `NODE_ENV` is
+ * production).
  */
 class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
+    private readonly devMode: DevMode = readDevMode();
+
+    private cachedDiff: CachedDiff | undefined;
+
+    constructor() {
+        super();
+        console.info(
+            "[dev] bpmn-webview mock ready.  Mode:",
+            this.devMode,
+            "\nURL variants: /, /?mode=diff-before, /?mode=diff-after",
+        );
+    }
+
     /**
      * Merges `state` into the current mock state, initialising it when no
      * state has been set yet (i.e. when {@link getState} would throw).
@@ -153,7 +216,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
         switch (true) {
             case message.type === "GetBpmnFileCommand": {
                 console.debug("[DEBUG] GetBpmnFileCommand", message);
-                dispatchEvent(new BpmnFileQuery(MOCK_BPMN_XML, "c7"));
+                this.handleGetBpmnFile();
                 break;
             }
             case message.type === "GetElementTemplatesCommand": {
@@ -205,6 +268,19 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 console.debug("[DEBUG] LanguageQuery", message);
                 break;
             }
+            case message.type === "DiffReadyCommand": {
+                console.debug("[DEBUG] DiffReadyCommand");
+                void this.handleDiffReady();
+                break;
+            }
+            case message.type === "ViewportChangedCommand": {
+                // Single-pane preview: there's no partner to sync with.
+                console.debug(
+                    "[DEBUG] ViewportChangedCommand (no partner in dev)",
+                    (message as ViewportChangedCommand).viewport,
+                );
+                break;
+            }
             default: {
                 throw new Error(
                     `Unknown message type: ${(message as MessageType).type}`,
@@ -220,4 +296,119 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
             );
         }
     }
+
+    // ─── Private — mode-aware handlers ───────────────────────────────────────
+
+    private handleGetBpmnFile(): void {
+        switch (this.devMode) {
+            case "diff-before":
+                dispatch(new BpmnFileQuery(MOCK_DIFF_BEFORE_XML, "c7", "viewer"));
+                return;
+            case "diff-after":
+                dispatch(new BpmnFileQuery(MOCK_DIFF_AFTER_XML, "c7", "viewer"));
+                return;
+            case "modeler":
+                dispatch(new BpmnFileQuery(MOCK_BPMN_XML, "c7"));
+                return;
+        }
+    }
+
+    private async handleDiffReady(): Promise<void> {
+        const side: DiffSide | undefined =
+            this.devMode === "diff-before"
+                ? "before"
+                : this.devMode === "diff-after"
+                    ? "after"
+                    : undefined;
+        if (!side) {
+            // DiffReadyCommand arrived in modeler mode — ignore.
+            return;
+        }
+
+        let cached: CachedDiff;
+        try {
+            cached = await this.ensureCachedDiff();
+        } catch (error) {
+            console.error(
+                "[dev] Failed to compute mock diff; diff highlights unavailable.",
+                error,
+            );
+            return;
+        }
+
+        const slice = cached[side];
+        const added = side === "after" ? (slice as { added: string[] }).added : [];
+        const removed = side === "before" ? (slice as { removed: string[] }).removed : [];
+
+        dispatch(
+            new ApplyDiffHighlightsQuery(
+                side,
+                added,
+                removed,
+                slice.changed,
+                slice.layoutChanged,
+                cached.counts,
+            ),
+        );
+    }
+
+    private async ensureCachedDiff(): Promise<CachedDiff> {
+        if (this.cachedDiff) {
+            return this.cachedDiff;
+        }
+
+        // Dynamic imports keep these ~200 KB of dev-only dependencies out of
+        // the production webview bundle (Rollup emits them as separate chunks
+        // that the dead-code-eliminated MockedVsCodeApi never loads).
+        //
+        // `bpmn-moddle`'s default export is the `simple` factory, not a class —
+        // it must be called without `new` (call it as a plain function).
+        // Under Vite's ESM interop the `.default` lives on the module
+        // namespace, while some bundlers place it on a nested `.default` —
+        // handle both shapes.
+        // Vite's dep optimizer pre-bundles `bpmn-moddle` such that the
+        // factory is exposed as a named export `BpmnModdle`, while the
+        // webpack/CJS shape exposes it as `.default`.  Accept both.
+        const moddleMod = (await import("bpmn-moddle")) as unknown as {
+            default?: () => { fromXML: (xml: string) => Promise<{ rootElement: unknown }> };
+            BpmnModdle?: () => { fromXML: (xml: string) => Promise<{ rootElement: unknown }> };
+        };
+        const createBpmnModdle = moddleMod.default ?? moddleMod.BpmnModdle;
+        if (typeof createBpmnModdle !== "function") {
+            throw new Error(
+                "bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.",
+            );
+        }
+
+        const { diff } = await import("bpmn-js-differ");
+
+        const moddle = createBpmnModdle();
+        const beforeDefs = (await moddle.fromXML(MOCK_DIFF_BEFORE_XML)).rootElement;
+        const afterDefs = (await moddle.fromXML(MOCK_DIFF_AFTER_XML)).rootElement;
+        const result = diff(
+            beforeDefs as Parameters<typeof diff>[0],
+            afterDefs as Parameters<typeof diff>[1],
+        );
+
+        const added = Object.keys(result._added);
+        const removed = Object.keys(result._removed);
+        const changed = Object.keys(result._changed);
+        const layoutChanged = Object.keys(result._layoutChanged);
+
+        this.cachedDiff = {
+            before: { removed, changed, layoutChanged },
+            after: { added, changed, layoutChanged },
+            counts: {
+                added: added.length,
+                removed: removed.length,
+                changed: changed.length,
+                layoutChanged: layoutChanged.length,
+            },
+        };
+        return this.cachedDiff;
+    }
+}
+
+function dispatch(event: MessageType): void {
+    window.dispatchEvent(new MessageEvent("message", { data: event }));
 }

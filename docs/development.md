@@ -70,6 +70,30 @@ yarn workspace vs-code-bpmn-modeler build
 yarn workspace bpmn-webview build
 ```
 
+### Preview the BPMN webview in a plain browser
+
+The BPMN webview can run standalone against a mocked VS Code host. This avoids
+reloading the Extension Development Host while iterating on webview UI.
+
+```bash
+yarn serve:bpmn-webview
+# → http://localhost:5173/
+```
+
+A URL query parameter selects what the mock serves:
+
+| URL                                      | What renders                                                                                 |
+|------------------------------------------|----------------------------------------------------------------------------------------------|
+| `/` (or `?mode=modeler`)                 | Full editable Camunda modeler with a hardcoded sample diagram — matches the production modeler experience. |
+| `/?mode=diff-before`                     | Readonly **before** (left) pane of a diff view, with highlights for removed / changed / moved elements.    |
+| `/?mode=diff-after`                      | Readonly **after** (right) pane, with highlights for added / changed / moved elements.                     |
+
+The diff modes run `bpmn-js-differ` against two fixture XMLs
+(`apps/bpmn-webview/src/app/__fixtures__/mock-diff.ts`) so highlights reflect
+the real differ's output. All mock code and its dependencies are gated on
+`NODE_ENV === "development"` and tree-shaken out of the production webview
+bundle.
+
 ## Testing & Linting
 
 ```bash

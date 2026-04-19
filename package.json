@@ -69,6 +69,7 @@
         "@bpmn-io/properties-panel": "3.40.6",
         "bpmn-js": "^18.14.0",
         "bpmn-js-create-append-anything": "^1.2.0",
+        "bpmn-js-differ": "^3.2.0",
         "bpmn-js-native-copy-paste": "^0.3.0",
         "bpmn-js-properties-panel": "^5.53.0",
         "bpmn-js-token-simulation": "^0.39.3",

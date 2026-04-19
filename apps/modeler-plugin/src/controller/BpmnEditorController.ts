@@ -19,6 +19,7 @@ import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
+import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
 import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
@@ -37,6 +38,8 @@ export class BpmnEditorController implements CustomTextEditorProvider {
     /**
      * @param editorStore Central registry for open editor panels and subscriptions.
      * @param bpmnService BPMN-specific business logic and session management.
+     * @param diffService Diff coordinator — queried on resolve to decide
+     *   whether to take the readonly viewer branch.
      * @param artifactSvc Workspace artifact discovery and watcher creation.
      * @param vsUI User-facing message and logging helper.
      * @param vsDocument Active-document read helper (for status bar version detection).
@@ -45,6 +48,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
     constructor(
         private readonly editorStore: EditorStore,
         private readonly bpmnService: BpmnModelerService,
+        private readonly diffService: BpmnDiffService,
         private readonly artifactSvc: ArtifactService,
         private readonly vsUI: VsCodeUI,
         private readonly vsDocument: VsCodeDocument,
@@ -78,7 +82,28 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         _token: CancellationToken,
     ): Promise<void> {
         try {
-            const editorId = document.uri.path;
+            // `git:`-scheme documents are always readonly (Git extension's
+            // FileSystemProvider owns their content).  `file:` documents that
+            // belong to an open diff view are also readonly here — editing
+            // them through the diff pane would race with the built-in diff
+            // editor's change detection.  For `file:` URIs we also guard
+            // against a *second* resolve for a URI that already has a diff
+            // viewer: when the user opens the SCM diff and then opens the
+            // same working-tree file in a normal editor group, VS Code fires
+            // `resolveCustomTextEditor` again and the label-based heuristic
+            // still matches — so we also require that no diff pane has been
+            // registered for this URI yet.
+            const isGitScheme = document.uri.scheme === "git";
+            const isNewDiffPane =
+                this.diffService.isPartOfDiff(document.uri) &&
+                !this.diffService.hasPaneForUri(document.uri);
+            if (isGitScheme || isNewDiffPane) {
+                this.diffService.resolveDiffPane(webviewPanel, document);
+                return;
+            }
+
+            const editorId = document.uri.toString();
+
             this.editorStore.createEditor(
                 BPMN_VIEW_TYPE,
                 editorId,
@@ -184,8 +209,8 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             (event: TextDocumentChangeEvent) => {
                 if (
                     event.contentChanges.length !== 0 &&
-                    editorId.split(".").pop() === "bpmn" &&
-                    editorId === event.document.uri.path
+                    event.document.uri.path.endsWith(".bpmn") &&
+                    editorId === event.document.uri.toString()
                 ) {
                     this.vsUI.logInfo("OnDidChangeTextDocument -> display");
                     this.bpmnService.display(editorId);

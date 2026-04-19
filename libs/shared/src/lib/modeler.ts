@@ -25,15 +25,32 @@
 import { Command, Query } from "./messages";
 
 // =================================== Queries ==================================>
+/**
+ * The webview can either host the full editable modeler or a readonly viewer
+ * used for side-by-side diff rendering.
+ */
+export type BpmnViewerMode = "modeler" | "viewer";
+
 export class BpmnFileQuery extends Query {
     public readonly content: string;
 
     public readonly engine: "c7" | "c8";
 
-    constructor(content: string, engine: "c7" | "c8") {
+    /**
+     * Rendering mode. Defaults to `"modeler"` for backward compatibility; set
+     * to `"viewer"` when the pane is one half of a git diff view.
+     */
+    public readonly viewerMode: BpmnViewerMode;
+
+    constructor(
+        content: string,
+        engine: "c7" | "c8",
+        viewerMode: BpmnViewerMode = "modeler",
+    ) {
         super("BpmnFileQuery");
         this.content = content;
         this.engine = engine;
+        this.viewerMode = viewerMode;
     }
 }
 
@@ -393,3 +410,102 @@ export class ProcessDefinitionKeyQuery extends Query {
 }
 
 // <================================== Start Instance ===================================
+
+// =================================== BPMN Diff ==================================>
+
+/** Which side of the diff a webview pane represents. */
+export type DiffSide = "before" | "after";
+
+/** Summary counts used for the diff legend chip. */
+export interface DiffCounts {
+    readonly added: number;
+    readonly removed: number;
+    readonly changed: number;
+    readonly layoutChanged: number;
+}
+
+/** Canvas viewbox used for pan/zoom synchronisation between panes. */
+export interface Viewport {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+}
+
+/**
+ * Sent from the extension host to each webview pane once a diff pair is armed
+ * and `bpmn-js-differ` has produced its result.  Each side receives only the
+ * element ids relevant to its canvas (e.g. `_removed` ids on the `before`
+ * side only; `_added` on `after` only; `_changed` and `_layoutChanged` on
+ * both because the elements exist in both versions).
+ */
+export class ApplyDiffHighlightsQuery extends Query {
+    public readonly side: DiffSide;
+
+    public readonly added: string[];
+
+    public readonly removed: string[];
+
+    public readonly changed: string[];
+
+    public readonly layoutChanged: string[];
+
+    public readonly counts: DiffCounts;
+
+    constructor(
+        side: DiffSide,
+        added: string[],
+        removed: string[],
+        changed: string[],
+        layoutChanged: string[],
+        counts: DiffCounts,
+    ) {
+        super("ApplyDiffHighlightsQuery");
+        this.side = side;
+        this.added = added;
+        this.removed = removed;
+        this.changed = changed;
+        this.layoutChanged = layoutChanged;
+        this.counts = counts;
+    }
+}
+
+/**
+ * Sent from the host to a pane to apply the partner pane's viewport.  The
+ * receiving pane must suppress its next outgoing `ViewportChangedCommand` to
+ * avoid a feedback loop.
+ */
+export class SyncViewportQuery extends Query {
+    public readonly viewport: Viewport;
+
+    constructor(viewport: Viewport) {
+        super("SyncViewportQuery");
+        this.viewport = viewport;
+    }
+}
+
+/**
+ * Sent from a viewer pane after a user-initiated pan or zoom.  The host
+ * forwards the viewport to the partner pane via {@link SyncViewportQuery}.
+ */
+export class ViewportChangedCommand extends Command {
+    public readonly viewport: Viewport;
+
+    constructor(viewport: Viewport) {
+        super("ViewportChangedCommand");
+        this.viewport = viewport;
+    }
+}
+
+/**
+ * Sent from a viewer pane once it has finished importing the initial XML
+ * diagram.  The host tracks this per pane to know when a diff pair is armed
+ * (both panes ready) and it can safely post {@link ApplyDiffHighlightsQuery}.
+ */
+export class DiffReadyCommand extends Command {
+    constructor() {
+        super("DiffReadyCommand");
+    }
+}
+
+// <================================== BPMN Diff ===================================

@@ -61,7 +61,7 @@ export class DmnEditorController implements CustomTextEditorProvider {
         _token: CancellationToken,
     ): void | Thenable<void> {
         try {
-            const editorId = document.uri.path;
+            const editorId = document.uri.toString();
             this.editorStore.createEditor(DMN_VIEW_TYPE, editorId, webviewPanel, document);
             this.dmnService.registerSession(editorId);
 
@@ -120,8 +120,8 @@ export class DmnEditorController implements CustomTextEditorProvider {
             (event: TextDocumentChangeEvent) => {
                 if (
                     event.contentChanges.length !== 0 &&
-                    editorId.split(".").pop() === "dmn" &&
-                    editorId === event.document.uri.path
+                    event.document.uri.path.endsWith(".dmn") &&
+                    editorId === event.document.uri.toString()
                 ) {
                     this.vsUI.logInfo("OnDidChangeTextDocument -> display");
                     this.dmnService.display(editorId);
