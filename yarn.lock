@@ -3899,7 +3899,7 @@ __metadata:
     typescript-eslint: "npm:8.58.2"
     uuid: "npm:13.0.0"
     vite: "npm:7.1.11"
-    vite-plugin-static-copy: "npm:3.3.0"
+    vite-plugin-static-copy: "npm:4.1.0"
     vite-tsconfig-paths: "npm:6.1.1"
     vitest: "npm:4.1.4"
     webpack: "npm:5.106.2"
@@ -9956,17 +9956,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite-plugin-static-copy@npm:3.3.0":
-  version: 3.3.0
-  resolution: "vite-plugin-static-copy@npm:3.3.0"
+"vite-plugin-static-copy@npm:4.1.0":
+  version: 4.1.0
+  resolution: "vite-plugin-static-copy@npm:4.1.0"
   dependencies:
     chokidar: "npm:^3.6.0"
     p-map: "npm:^7.0.4"
     picocolors: "npm:^1.1.1"
     tinyglobby: "npm:^0.2.15"
   peerDependencies:
-    vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
-  checksum: 10c0/c70d48a1edfada3d1d90f13311a5ab7e67ea0decdf6b5758a6ba8b10db4e64e8e3573f43b7fe56024eff783ce945fe290ee7b96872f9df1ca0059458dd85713b
+    vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+  checksum: 10c0/60b7cb1dfe24eff3a262849ca886129f20641edd5e27425f61acf7e405140ba172b5a7e15bfc6177768446be2cfa13899e519e386b1bd78116ab9c037ada3b9d
   languageName: node
   linkType: hard
 
