@@ -20,6 +20,21 @@ body.viewer-mode #js-canvas {
     width: 100%;
 }
 
+/* ─── Split divider ────────────────────────────────────────────────────
+   VS Code's diff sash sits between the two webviews but renders no
+   visible line against the canvas background, so users cannot tell where
+   to grab to resize.  Each pane draws a themed border on the edge facing
+   its partner; together they form a clear seam at the sash.  The
+   `data-diff-side` attribute is set by DiffMode.paint() once the host
+   broadcasts which side this pane represents. */
+body.viewer-mode[data-diff-side="before"] {
+    border-right: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
+}
+
+body.viewer-mode[data-diff-side="after"] {
+    border-left: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
+}
+
 /* ─── Element markers ──────────────────────────────────────────────────── */
 
 .djs-element.diff-added .djs-visual > :nth-child(1) {
@@ -144,23 +159,42 @@ body.viewer-mode #js-canvas {
     cursor: default;
 }
 
-/* Dark-theme tweaks — mirror the webview's light/dark stylesheet pattern. */
-body.dark .diff-legend {
+/* Dark-theme tweaks — VS Code tags <body> with `vscode-dark` or
+   `vscode-high-contrast` (see app/theme.ts), not `dark`. */
+/* VS Code's `--vscode-editorGroup-border` is very low-contrast against the
+   BPMN canvas's white background in dark themes (canvas is not themed),
+   so the dashed seam becomes almost invisible.  Force a mid-grey that
+   reads on white for dark/high-contrast users. */
+body.vscode-dark.viewer-mode[data-diff-side="before"],
+body.vscode-high-contrast.viewer-mode[data-diff-side="before"] {
+    border-right-color: #8a8a8a;
+}
+
+body.vscode-dark.viewer-mode[data-diff-side="after"],
+body.vscode-high-contrast.viewer-mode[data-diff-side="after"] {
+    border-left-color: #8a8a8a;
+}
+
+body.vscode-dark .diff-legend,
+body.vscode-high-contrast .diff-legend {
     background: rgba(40, 40, 40, 0.96);
     border-color: #555;
     color: #e8e8e8;
 }
 
-body.dark .diff-legend__nav {
+body.vscode-dark .diff-legend__nav,
+body.vscode-high-contrast .diff-legend__nav {
     border-left-color: #555;
 }
 
-body.dark .diff-legend__nav-btn {
+body.vscode-dark .diff-legend__nav-btn,
+body.vscode-high-contrast .diff-legend__nav-btn {
     background: #2b2b2b;
     border-color: #555;
     color: #e8e8e8;
 }
 
-body.dark .diff-legend__nav-btn:hover:not(:disabled) {
+body.vscode-dark .diff-legend__nav-btn:hover:not(:disabled),
+body.vscode-high-contrast .diff-legend__nav-btn:hover:not(:disabled) {
     background: #3a3a3a;
 }

@@ -94,6 +94,13 @@ const translations: Record<string, string> = {
     "Annotation": "Annotation",
     "Output Expression": "Output Expression",
     "Data Type": "Data Type",
+    // Diff legend (bpmn diff view)
+    "Added": "Added",
+    "Removed": "Removed",
+    "Changed": "Changed",
+    "Moved": "Moved",
+    "Prev change": "Prev change",
+    "Next change": "Next change",
 };
 
 export default translations;

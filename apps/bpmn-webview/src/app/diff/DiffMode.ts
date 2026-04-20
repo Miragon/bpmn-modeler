@@ -106,6 +106,11 @@ export class DiffMode {
     }
 
     private paint(query: ApplyDiffHighlightsQuery): void {
+        // Tag the body so diff.css can render a divider on the edge facing the
+        // partner pane — the two borders meet at VS Code's sash, giving the
+        // user a visible hint of where to drag to resize the split.
+        document.body.dataset.diffSide = query.side;
+
         this.viewer.clearHighlights();
         this.viewer.applyHighlights(query.added, "diff-added");
         this.viewer.applyHighlights(query.removed, "diff-removed");

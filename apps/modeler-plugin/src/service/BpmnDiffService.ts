@@ -18,15 +18,17 @@ import {
     CursorChangedCommand,
     DiffCounts,
     DiffSide,
+    LanguageQuery,
     sortIdsByOrder,
     SyncCursorQuery,
     SyncViewportQuery,
     ViewportChangedCommand,
 } from "@bpmn-modeler/shared";
 
-import { TextDocument, Uri, WebviewPanel, window } from "vscode";
+import { ConfigurationChangeEvent, Disposable, TextDocument, Uri, WebviewPanel, window, workspace } from "vscode";
 
 import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
+import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { detectExecutionPlatform } from "./bpmnUtils";
 
@@ -72,10 +74,29 @@ export class BpmnDiffService {
     /** Every live diff pane, keyed by its {@link WebviewPanel} reference. */
     private readonly panes = new Map<WebviewPanel, DiffPaneEntry>();
 
+    /** Dispose handle for the language-setting change subscription. */
+    private languageSubscription?: Disposable;
+
     /**
      * @param vsUI Logging helper for parse failures and dropped posts.
+     * @param vsSettings Settings reader — provides the active UI locale so
+     *   each diff pane's legend and chrome render in the user's language from
+     *   the moment it opens, and re-renders on setting changes.
      */
-    constructor(private readonly vsUI: VsCodeUI) {}
+    constructor(
+        private readonly vsUI: VsCodeUI,
+        private readonly vsSettings: VsCodeSettings,
+    ) {
+        this.languageSubscription = workspace.onDidChangeConfiguration((event) =>
+            this.onConfigurationChanged(event),
+        );
+    }
+
+    /** Releases the language-setting subscription.  Called when the extension deactivates. */
+    dispose(): void {
+        this.languageSubscription?.dispose();
+        this.languageSubscription = undefined;
+    }
 
     /**
      * Returns `true` when `uri` belongs to an open BPMN diff tab.
@@ -258,11 +279,46 @@ export class BpmnDiffService {
 
     private async markReady(entry: DiffPaneEntry): Promise<void> {
         entry.ready = true;
+        await this.sendLanguage(entry);
         const partner = entry.partner;
         if (partner?.ready) {
             const [before, after] =
                 entry.side === "before" ? [entry, partner] : [partner, entry];
             await this.computeAndBroadcast(before, after);
+        }
+    }
+
+    /**
+     * Posts the current UI locale to the given pane so its legend and other
+     * non-bpmn-js UI render in the user's language.  Silently drops the post
+     * when the pane is hidden or already disposed — the pane will request the
+     * language again on its next resolve.
+     */
+    private async sendLanguage(entry: DiffPaneEntry): Promise<void> {
+        try {
+            await entry.panel.webview.postMessage(
+                new LanguageQuery(this.vsSettings.getLanguage()),
+            );
+        } catch (error) {
+            this.vsUI.logInfo(
+                `setLanguage dropped: ${(error as Error).message}`,
+            );
+        }
+    }
+
+    /**
+     * Re-posts the current locale to every ready diff pane when the user
+     * changes `miragon.bpmnModeler.language`.  Ignores unrelated setting
+     * changes so panes only churn when the language actually moves.
+     */
+    private onConfigurationChanged(event: ConfigurationChangeEvent): void {
+        if (!event.affectsConfiguration("miragon.bpmnModeler.language")) {
+            return;
+        }
+        for (const entry of this.panes.values()) {
+            if (entry.ready) {
+                void this.sendLanguage(entry);
+            }
         }
     }
 
