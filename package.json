@@ -43,7 +43,7 @@
         "@vitest/coverage-v8": "4.1.4",
         "@vitest/ui": "4.1.4",
         "copy-webpack-plugin": "^14.0.0",
-        "eslint": "^10.2.0",
+        "eslint": "^10.2.1",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.5",
         "jest": "^30.3.0",
@@ -64,7 +64,7 @@
         "webpack-cli": "^7.0.2"
     },
     "dependencies": {
-        "@bpmn-io/form-js": "1.21.2",
+        "@bpmn-io/form-js": "1.21.3",
         "@bpmn-io/properties-panel": "3.40.6",
         "bpmn-js": "^18.14.0",
         "bpmn-js-create-append-anything": "^1.2.0",
