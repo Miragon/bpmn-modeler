@@ -1,8 +1,10 @@
 import {
     ApplyDiffHighlightsQuery,
     Command,
+    CursorChangedCommand,
     DiffReadyCommand,
     Query,
+    SyncCursorQuery,
     SyncViewportQuery,
     VsCodeApi,
     ViewportChangedCommand,
@@ -20,12 +22,19 @@ type MessageType = Query | Command;
  * Replaces the full modeler stack with a single {@link DiffViewer} + a
  * {@link DiffLegend} chip.  Handles the viewer-mode message protocol:
  *   - Initial XML handed in by {@link startWith} → import, emit {@link DiffReadyCommand}.
- *   - Incoming {@link ApplyDiffHighlightsQuery} → paint markers, show legend.
+ *   - Incoming {@link ApplyDiffHighlightsQuery} → paint markers, show legend
+ *     on both panes (counts + navigationOrder are symmetric across sides).
  *   - Incoming {@link SyncViewportQuery} → apply partner's viewport.
+ *   - Incoming {@link SyncCursorQuery} → advance local stepper without
+ *     re-emitting (would otherwise ping-pong the two panes forever).
  *   - Outgoing {@link ViewportChangedCommand} on user pan/zoom.
+ *   - Outgoing {@link CursorChangedCommand} on user-driven Next/Prev so the
+ *     partner pane's stepper stays in lockstep.
  *
- * Nav buttons cycle a local cursor over the side's own changed-element ids;
- * the partner pane stays in sync via the normal viewport-sync channel.
+ * Nav buttons cycle a shared cursor over `navigationOrder`; both panes drive
+ * focus locally so changed/layoutChanged elements glow on both sides.
+ * Added/removed ids exist on only one pane; the other anchors via
+ * {@link findAnchor} and follows via the viewport-sync channel.
  */
 export class DiffMode {
     private readonly viewer: DiffViewer;
@@ -48,8 +57,8 @@ export class DiffMode {
     ) {
         this.viewer = new DiffViewer(canvasSelector);
         this.legend = new DiffLegend(legendParent, {
-            onPrevious: () => this.navigate(-1),
-            onNext: () => this.navigate(1),
+            onPrevious: () => this.step(-1),
+            onNext: () => this.step(1),
         });
 
         this.viewer.onViewportChanged((viewport) => {
@@ -80,6 +89,9 @@ export class DiffMode {
             case "SyncViewportQuery":
                 this.viewer.setViewport((message as SyncViewportQuery).viewport);
                 break;
+            case "SyncCursorQuery":
+                this.applyCursor((message as SyncCursorQuery).index, false);
+                break;
         }
     }
 
@@ -100,58 +112,109 @@ export class DiffMode {
         this.viewer.applyHighlights(query.changed, "diff-changed");
         this.viewer.applyHighlights(query.layoutChanged, "diff-layout-changed");
 
-        // Rebuild nav order: removed (before only) / added (after only) first,
-        // then changed, then layoutChanged.  Stable order lets the two panes
-        // iterate in lockstep when the user clicks Next on either side.
-        //
         // Skip connections whose *only* change is `layoutChanged` — that
         // happens when a task moves and its incoming/outgoing flows get new
         // waypoints as a side-effect.  The flow carries no semantic change
         // on its own, and the user already sees it highlighted when the
         // attached shape comes up in the cycle.
-        //
-        // Deduplicate: an edge whose source/target genuinely changes appears
-        // in both `changed` and `layoutChanged`, but should land in the
-        // cycle only once.
         const semanticIds = new Set<string>([
             ...query.removed,
             ...query.added,
             ...query.changed,
         ]);
-        const layoutForNav = query.layoutChanged.filter(
-            (id) => semanticIds.has(id) || !this.viewer.isConnection(id),
-        );
+        const isLayoutOnlyConnection = (id: string): boolean =>
+            !semanticIds.has(id) &&
+            query.layoutChanged.includes(id) &&
+            this.viewer.isConnection(id);
 
+        // Use the host-provided sequence-flow order so the stepper walks
+        // start event → end event instead of in differ insertion order.
         this.changeIds.length = 0;
-        const seen = new Set<string>();
-        for (const id of [
-            ...query.removed,
-            ...query.added,
-            ...query.changed,
-            ...layoutForNav,
-        ]) {
-            if (!seen.has(id)) {
-                seen.add(id);
+        for (const id of query.navigationOrder) {
+            if (!isLayoutOnlyConnection(id)) {
                 this.changeIds.push(id);
             }
         }
         this.cursor = -1;
 
-        // Legend (counts + stepper) lives on the "after" pane only.  The
-        // counts are symmetric so rendering them twice is redundant, and
-        // stepping from the after pane already syncs the before pane via
-        // the viewport channel.
-        if (query.side === "after") {
-            this.legend.update(query.counts);
-        }
+        // Both panes render the legend now: counts are symmetric across
+        // sides, and each pane drives a synced cursor over the same
+        // navigationOrder array, so the user can step from either side.
+        this.legend.update(query.counts);
     }
 
-    private navigate(step: 1 | -1): void {
+    /**
+     * User-driven step from this pane's Next/Prev buttons.  Computes the new
+     * cursor, applies it locally, and posts {@link CursorChangedCommand} so
+     * the host can fan it to the partner pane via {@link SyncCursorQuery}.
+     */
+    private step(direction: 1 | -1): void {
         if (this.changeIds.length === 0) {
             return;
         }
-        this.cursor =
-            (this.cursor + step + this.changeIds.length) % this.changeIds.length;
-        this.viewer.focusElement(this.changeIds[this.cursor]);
+        const next =
+            (this.cursor + direction + this.changeIds.length) %
+            this.changeIds.length;
+        this.applyCursor(next, true, direction);
+    }
+
+    /**
+     * Moves the local stepper to `index` and either focuses (id exists on
+     * this canvas) or anchors on a surviving neighbour (id is partner-only).
+     * Posts {@link CursorChangedCommand} when `emit` is true — set to false
+     * for incoming {@link SyncCursorQuery} to avoid a ping-pong loop.
+     *
+     * `direction` biases the anchor walk towards the user's step direction
+     * when invoked from {@link step}; an incoming sync defaults to forward
+     * search since the partner already chose the canonical direction.
+     */
+    private applyCursor(
+        index: number,
+        emit: boolean,
+        direction: 1 | -1 = 1,
+    ): void {
+        if (this.changeIds.length === 0) {
+            return;
+        }
+        this.cursor = index;
+        const targetId = this.changeIds[this.cursor];
+
+        if (!this.viewer.focusElement(targetId)) {
+            // Target id lives only on the partner pane.  Centre on the
+            // nearest neighbour in `changeIds` that exists on this canvas —
+            // the viewbox move then propagates via viewport-sync so the
+            // partner pane brings the actual element into view with its
+            // diff highlight.  Without this anchoring the stepper appears
+            // frozen whenever the cursor lands on a partner-only id.
+            const anchor = this.findAnchor(this.cursor, direction);
+            if (anchor !== undefined) {
+                this.viewer.centerOnElement(anchor);
+            }
+            this.viewer.clearSelectionMarker();
+        }
+
+        if (emit) {
+            this.vscode.postMessage(new CursorChangedCommand(this.cursor));
+        }
+    }
+
+    /**
+     * Walks outward from `cursor` in `changeIds`, preferring `direction`, to
+     * locate an id that is present on this pane.  Returns `undefined` only
+     * in the degenerate case where every id in the cycle lives exclusively
+     * on the partner pane.
+     */
+    private findAnchor(cursor: number, direction: 1 | -1): string | undefined {
+        const len = this.changeIds.length;
+        for (let i = 1; i < len; i++) {
+            for (const dir of [direction, -direction] as const) {
+                const idx = ((cursor + dir * i) % len + len) % len;
+                const id = this.changeIds[idx];
+                if (this.viewer.hasElement(id)) {
+                    return id;
+                }
+            }
+        }
+        return undefined;
     }
 }

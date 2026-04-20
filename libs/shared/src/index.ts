@@ -4,3 +4,4 @@ export * from "./lib/asyncDebounce";
 export * from "./lib/utils";
 export * from "./lib/messages";
 export * from "./lib/modeler";
+export * from "./lib/bpmnFlowOrder";

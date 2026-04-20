@@ -25,16 +25,21 @@ Colours intentionally match the bpmn.io/diff demo so users familiar with that UI
 
 ## Legend Chip
 
-The floating legend sits at the top-centre of the **after pane only**; counts are symmetric across the diff, so rendering them twice would be redundant, and hosting the stepper on a single pane keeps a single input path — the before pane follows via viewport sync. The chip reveals itself once the differ has reported its results:
+The floating legend sits at the top-centre of **both panes**.  Each pane reveals its chip once the differ has reported its results:
 
-- Four count slots — Added / Removed / Changed / Moved — each with its colour swatch.
-- A **Prev change** / **Next change** navigator that cycles through the change ids on the after pane (`added → changed → layoutChanged`), filtered to skip connections whose *only* classification is `layoutChanged` — those are waypoint side-effects of a moved shape and carry no semantic change.
-- Clicking a nav button centres the viewport on the target at the current zoom and paints a gold glow (`.diff-selected`, implemented via `filter: drop-shadow` so it layers on top of any category stroke). The previous glow is removed before the next is added, so exactly one element is marked at a time. `clearHighlights` strips `diff-selected` alongside the category markers, so repaints start from a clean slate.
+- Four count slots — Added / Removed / Changed / Moved — each with its colour swatch.  Counts are symmetric across the two sides; both panes show the same numbers.
+- A **Prev change** / **Next change** navigator that cycles through the shared `navigationOrder` array (sequence-flow ordered, with `removed` ids anchored next to surviving neighbours), filtered to skip connections whose *only* classification is `layoutChanged` — those are waypoint side-effects of a moved shape and carry no semantic change.
+- Clicking a nav button on either pane advances **both** cursors via the [cursor-sync channel](#viewport-and-cursor-sync).  The pane that owns the current id paints a gold glow (`.diff-selected`, implemented via `filter: drop-shadow` so it layers on top of any category stroke); the other pane anchors its viewport on the nearest neighbour that does exist locally and clears its own selection marker so the user is not misled.  For `changed` and `layoutChanged` ids the element exists on both panes, so both glow simultaneously.
+- The previous glow is removed before the next is added, so exactly one element is marked per pane at any time.  `clearHighlights` strips `diff-selected` alongside the category markers, so repaints start from a clean slate.
 - Buttons are disabled when there are no changes at all.
 
-## Viewport Sync
+## Viewport and Cursor Sync
 
-Each pane emits a `ViewportChangedCommand` (debounced 80 ms) whenever the user pans or zooms. The extension host forwards it to the partner pane as a `SyncViewportQuery`, which calls `canvas.viewbox()` on the partner. A suppression guard on the receiving side prevents the resulting `canvas.viewbox.changed` event from echoing back and creating a feedback loop.
+Two parallel cross-pane channels keep the panes coordinated:
+
+**Viewport sync.** Each pane emits a `ViewportChangedCommand` (debounced 80 ms) whenever the user pans or zooms. The extension host forwards it to the partner pane as a `SyncViewportQuery`, which calls `canvas.viewbox()` on the partner. A suppression guard on the receiving side prevents the resulting `canvas.viewbox.changed` event from echoing back and creating a feedback loop.
+
+**Cursor sync.** Each pane emits a `CursorChangedCommand { index }` after the user clicks Next/Prev. The host forwards it to the partner pane as a `SyncCursorQuery { index }`, which calls the receiving pane's internal `applyCursor(index, false)`.  The `false` flag suppresses re-emission — without it the two panes would ping-pong indefinitely.  No DOM-event guard is needed because the partner applies the cursor passively (`focusElement` / `centerOnElement` only); it never originates a `CursorChangedCommand` of its own from a sync.
 
 ## Developer Preview
 
@@ -73,6 +78,9 @@ sequenceDiagram
 
     BeforePane->>Diff: ViewportChangedCommand (pan/zoom)
     Diff->>AfterPane: SyncViewportQuery
+
+    AfterPane->>Diff: CursorChangedCommand (Next/Prev)
+    Diff->>BeforePane: SyncCursorQuery
 ```
 
 Key design decisions:
@@ -95,52 +103,17 @@ The webview's `main.ts` inspects the first `BpmnFileQuery` and branches on `view
 
 All types are defined in `libs/shared/src/lib/modeler.ts`.
 
-| Message                      | Direction          | Payload                                                      |
-|------------------------------|--------------------|--------------------------------------------------------------|
-| `BpmnFileQuery`              | host → webview     | `{ content, engine, viewerMode: "modeler" \| "viewer" }`     |
-| `DiffReadyCommand`           | webview → host     | `{}` — signals the pane has imported its XML.                |
-| `ApplyDiffHighlightsQuery`   | host → webview     | `{ side, added, removed, changed, layoutChanged, counts }`   |
-| `ViewportChangedCommand`     | webview → host     | `{ viewport: { x, y, width, height } }`                      |
-| `SyncViewportQuery`          | host → webview     | `{ viewport }` — applied to the partner pane.                |
+| Message                      | Direction          | Payload                                                                          |
+|------------------------------|--------------------|----------------------------------------------------------------------------------|
+| `BpmnFileQuery`              | host → webview     | `{ content, engine, viewerMode: "modeler" \| "viewer" }`                         |
+| `DiffReadyCommand`           | webview → host     | `{}` — signals the pane has imported its XML.                                    |
+| `ApplyDiffHighlightsQuery`   | host → webview     | `{ side, added, removed, changed, layoutChanged, counts, navigationOrder }`      |
+| `ViewportChangedCommand`     | webview → host     | `{ viewport: { x, y, width, height } }`                                          |
+| `SyncViewportQuery`          | host → webview     | `{ viewport }` — applied to the partner pane.                                    |
+| `CursorChangedCommand`       | webview → host     | `{ index }` — current position in the shared `navigationOrder`.                  |
+| `SyncCursorQuery`            | host → webview     | `{ index }` — applied to the partner pane via `applyCursor(index, false)`.       |
 
-Each pane receives only the ids that exist on its canvas: the before side sees `removed / changed / layoutChanged`, the after side sees `added / changed / layoutChanged`. This means `applyHighlights` does not need a per-pane filter pass.
-
-## Future Work: Cross-Pane Selection Sync
-
-The `diff-selected` glow currently lives only on the pane whose stepper the user clicks — the after pane. The before pane follows via `SyncViewportQuery` but gives no cue about *which* element inside the incoming viewbox is the one under inspection. For elements that exist on both sides (`changed` and `layoutChanged`) we could mirror the glow.
-
-### Proposed protocol
-
-Add a new cross-pane channel analogous to viewport sync:
-
-- `SelectionChangedCommand { elementId: string | undefined }` — webview → host, posted by `DiffMode.navigate()` alongside the existing `viewer.focusElement` call.
-- `SyncSelectionQuery { elementId: string | undefined }` — host → partner webview, fanned out by `BpmnDiffService` through `DiffPair.getPartner()` (the same lookup used for viewport sync).
-- An `undefined` payload clears the marker — useful for future states (e.g. "no change selected" on first paint) without inventing a second command.
-
-### Webview changes
-
-- Extract the marker bookkeeping out of `DiffViewer.focusElement` into a standalone `markSelected(id: string | undefined)` that toggles the class without moving the viewbox. `focusElement` then composes `pan + markSelected`; the partner pane calls `markSelected` only — its viewport is already driven by the separate `SyncViewportQuery` path.
-- `DiffMode.onMessage` gains a case for `SyncSelectionQuery` that resolves the id against `elementRegistry`. If the element is absent on this side (i.e. `added` on after / `removed` on before) `markSelected(undefined)` simply clears any existing marker.
-
-### Host changes
-
-- `BpmnDiffService` gains a forwarder that mirrors its viewport handler: receive `SelectionChangedCommand`, look up the partner in the pair, post `SyncSelectionQuery`.
-- The viewer branch in `BpmnEditorController` (currently wiring only `DiffReadyCommand` + `ViewportChangedCommand`) subscribes additionally to the new command. No routing change to the modeler branch.
-
-### Edge cases
-
-- **Element absent on partner.** The query arrives with an id that has no entry in the partner's `elementRegistry`; `markSelected` must accept that and clear any existing marker rather than throwing. This happens for every `added`/`removed` selection, which is the majority of diff categories.
-- **Repaint race.** `clearHighlights` (invoked at the top of every `paint`) already strips `diff-selected` and resets `selectedId`. A stray in-flight `SyncSelectionQuery` could reinstate the glow on a stale id after a fresh paint. Mitigation: gate the query handler on "have I received my initial `ApplyDiffHighlightsQuery`?" and drop pre-paint selection messages.
-- **Partner not yet ready.** If the user steps between `DiffReadyCommand` on one pane and the other, the partner has no XML imported yet. Either queue the latest selection server-side and flush on the partner's `DiffReadyCommand`, or drop it silently — the user will step again.
-- **Suppression-on-echo.** Unlike the viewport guard (which suppresses a bounce-back from `canvas.viewbox.changed`), selection changes don't emit a partner event, so no guard is needed. The partner applies the marker passively.
-
-### Files to touch
-
-- `libs/shared/src/lib/modeler.ts` — add `SelectionChangedCommand` + `SyncSelectionQuery`.
-- `apps/modeler-plugin/src/service/BpmnDiffService.ts` — forwarder.
-- `apps/modeler-plugin/src/controller/BpmnEditorController.ts` — wire the new command in the viewer branch.
-- `apps/bpmn-webview/src/app/diff/DiffMode.ts` — emit the command from `navigate()`, handle the query in `onMessage`.
-- `apps/bpmn-webview/src/app/diff/DiffViewer.ts` — split `markSelected(id)` out of `focusElement`.
+Each pane receives only the ids that exist on its canvas: the before side sees `removed / changed / layoutChanged`, the after side sees `added / changed / layoutChanged`. The `counts` and `navigationOrder` fields are symmetric and shipped to both sides — they drive the dual-Legend and the cursor-sync stepper. This means `applyHighlights` does not need a per-pane filter pass.
 
 ## Key Files
 

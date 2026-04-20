@@ -2,14 +2,18 @@ import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
     BpmnModelerSettingQuery,
+    buildFlowOrder,
+    buildRemovedAnchors,
     ClipboardQuery,
     Command,
+    CursorChangedCommand,
     DiffCounts,
     DiffSide,
     ElementTemplatesQuery,
     LogErrorCommand,
     LogInfoCommand,
     Query,
+    sortIdsByOrder,
     SyncDocumentCommand,
     VsCodeApi,
     VsCodeImpl,
@@ -152,6 +156,8 @@ interface CachedDiff {
         layoutChanged: string[];
     };
     counts: DiffCounts;
+    /** Pre-merged sequence-flow order shared by both panes. */
+    navigationOrder: string[];
 }
 
 function readDevMode(): DevMode {
@@ -281,6 +287,14 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 );
                 break;
             }
+            case message.type === "CursorChangedCommand": {
+                // Single-pane preview: stepper advances locally only.
+                console.debug(
+                    "[DEBUG] CursorChangedCommand (no partner in dev)",
+                    (message as CursorChangedCommand).index,
+                );
+                break;
+            }
             default: {
                 throw new Error(
                     `Unknown message type: ${(message as MessageType).type}`,
@@ -348,6 +362,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 slice.changed,
                 slice.layoutChanged,
                 cached.counts,
+                cached.navigationOrder,
             ),
         );
     }
@@ -395,15 +410,53 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
         const changed = Object.keys(result._changed);
         const layoutChanged = Object.keys(result._layoutChanged);
 
+        const afterOrder = buildFlowOrder(afterDefs as never);
+        const removedAnchors = buildRemovedAnchors(
+            removed,
+            beforeDefs as never,
+            afterOrder,
+        );
+        const sortedAdded = sortIdsByOrder(added, afterOrder);
+        const sortedRemoved = sortIdsByOrder(removed, removedAnchors);
+        const sortedChanged = sortIdsByOrder(changed, afterOrder);
+        const sortedLayoutChanged = sortIdsByOrder(layoutChanged, afterOrder);
+        const merged: string[] = [];
+        const seen = new Set<string>();
+        for (const id of [
+            ...sortedAdded,
+            ...sortedRemoved,
+            ...sortedChanged,
+            ...sortedLayoutChanged,
+        ]) {
+            if (!seen.has(id)) {
+                seen.add(id);
+                merged.push(id);
+            }
+        }
+        const navigationOrder = sortIdsByOrder(
+            merged,
+            afterOrder,
+            removedAnchors,
+        );
+
         this.cachedDiff = {
-            before: { removed, changed, layoutChanged },
-            after: { added, changed, layoutChanged },
+            before: {
+                removed: sortedRemoved,
+                changed: sortedChanged,
+                layoutChanged: sortedLayoutChanged,
+            },
+            after: {
+                added: sortedAdded,
+                changed: sortedChanged,
+                layoutChanged: sortedLayoutChanged,
+            },
             counts: {
                 added: added.length,
                 removed: removed.length,
                 changed: changed.length,
                 layoutChanged: layoutChanged.length,
             },
+            navigationOrder,
         };
         return this.cachedDiff;
     }
