@@ -452,6 +452,14 @@ export class ApplyDiffHighlightsQuery extends Query {
 
     public readonly counts: DiffCounts;
 
+    /**
+     * Pre-merged, sequence-flow-ordered list of all ids the stepper should
+     * cycle through (start event → end event order, with removed elements
+     * anchored next to surviving neighbours).  Both panes receive the same
+     * array so Next/Prev keeps the two cursors in lockstep.
+     */
+    public readonly navigationOrder: string[];
+
     constructor(
         side: DiffSide,
         added: string[],
@@ -459,6 +467,7 @@ export class ApplyDiffHighlightsQuery extends Query {
         changed: string[],
         layoutChanged: string[],
         counts: DiffCounts,
+        navigationOrder: string[],
     ) {
         super("ApplyDiffHighlightsQuery");
         this.side = side;
@@ -467,6 +476,7 @@ export class ApplyDiffHighlightsQuery extends Query {
         this.changed = changed;
         this.layoutChanged = layoutChanged;
         this.counts = counts;
+        this.navigationOrder = navigationOrder;
     }
 }
 
@@ -494,6 +504,36 @@ export class ViewportChangedCommand extends Command {
     constructor(viewport: Viewport) {
         super("ViewportChangedCommand");
         this.viewport = viewport;
+    }
+}
+
+/**
+ * Sent from a viewer pane after the user advances the diff stepper.  The host
+ * forwards the new cursor index to the partner pane via {@link SyncCursorQuery}
+ * so both panes' steppers stay in lockstep.  The index refers to a position in
+ * the shared `navigationOrder` array carried on {@link ApplyDiffHighlightsQuery}.
+ */
+export class CursorChangedCommand extends Command {
+    public readonly index: number;
+
+    constructor(index: number) {
+        super("CursorChangedCommand");
+        this.index = index;
+    }
+}
+
+/**
+ * Sent from the host to a pane to apply the partner pane's stepper cursor.
+ * The receiving pane focuses (or anchors) the element at the given index in
+ * its local `navigationOrder` and must NOT re-emit `CursorChangedCommand`,
+ * otherwise the two panes would ping-pong indefinitely.
+ */
+export class SyncCursorQuery extends Query {
+    public readonly index: number;
+
+    constructor(index: number) {
+        super("SyncCursorQuery");
+        this.index = index;
     }
 }
 

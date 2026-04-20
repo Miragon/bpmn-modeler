@@ -12,9 +12,14 @@ import { diff } from "bpmn-js-differ";
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
+    buildFlowOrder,
+    buildRemovedAnchors,
     Command,
+    CursorChangedCommand,
     DiffCounts,
     DiffSide,
+    sortIdsByOrder,
+    SyncCursorQuery,
     SyncViewportQuery,
     ViewportChangedCommand,
 } from "@bpmn-modeler/shared";
@@ -56,12 +61,12 @@ interface DiffPaneEntry {
  *      custom-editor-backed diff tabs and no typed signal is available.
  *   2. Bootstrap the webview for a newly-resolved diff pane, wire up the
  *      narrow viewer-mode message protocol (`GetBpmnFileCommand`,
- *      `DiffReadyCommand`, `ViewportChangedCommand`), and link the pane to
- *      its partner by shared file path.
+ *      `DiffReadyCommand`, `ViewportChangedCommand`, `CursorChangedCommand`),
+ *      and link the pane to its partner by shared file path.
  *   3. Once both panes of a pair are ready, run `bpmn-js-differ` on the
  *      parsed XMLs and broadcast per-side {@link ApplyDiffHighlightsQuery}.
- *   4. Forward viewport-change messages from one pane to its partner so
- *      panning and zooming stay in sync.
+ *   4. Forward viewport-change and cursor-change messages from one pane to
+ *      its partner so panning, zooming, and stepper navigation stay in sync.
  */
 export class BpmnDiffService {
     /** Every live diff pane, keyed by its {@link WebviewPanel} reference. */
@@ -219,6 +224,12 @@ export class BpmnDiffService {
                     (message as ViewportChangedCommand).viewport,
                 );
                 break;
+            case "CursorChangedCommand":
+                await this.forwardCursor(
+                    entry,
+                    (message as CursorChangedCommand).index,
+                );
+                break;
         }
     }
 
@@ -274,6 +285,28 @@ export class BpmnDiffService {
         } catch (error) {
             this.vsUI.logInfo(
                 `syncViewport dropped: ${(error as Error).message}`,
+            );
+        }
+    }
+
+    /**
+     * Posts the partner's stepper cursor change so both panes' Next/Prev
+     * navigation stays in lockstep.  Mirrors {@link forwardViewport} — same
+     * partner lookup, same drop-silently-on-failure semantics.
+     */
+    private async forwardCursor(
+        entry: DiffPaneEntry,
+        index: number,
+    ): Promise<void> {
+        const partner = entry.partner;
+        if (!partner) {
+            return;
+        }
+        try {
+            await partner.panel.webview.postMessage(new SyncCursorQuery(index));
+        } catch (error) {
+            this.vsUI.logInfo(
+                `syncCursor dropped: ${(error as Error).message}`,
             );
         }
     }
@@ -338,26 +371,62 @@ export class BpmnDiffService {
             layoutChanged: layoutChanged.length,
         };
 
+        // Order all id arrays by sequence-flow position so the diff stepper
+        // walks from start event to end event instead of in the differ's
+        // arbitrary insertion order.  Removed elements live only on the
+        // before canvas; anchor each one next to a surviving neighbour in the
+        // after order so it appears near where it used to be in the flow.
+        const afterOrder = buildFlowOrder(afterDefs as never);
+        const removedAnchors = buildRemovedAnchors(
+            removed,
+            beforeDefs as never,
+            afterOrder,
+        );
+        const sortedAdded = sortIdsByOrder(added, afterOrder);
+        const sortedRemoved = sortIdsByOrder(removed, removedAnchors);
+        const sortedChanged = sortIdsByOrder(changed, afterOrder);
+        const sortedLayoutChanged = sortIdsByOrder(layoutChanged, afterOrder);
+
+        // Merged navigation order: dedup across categories, then sort once
+        // more so removed elements interleave with added/changed at their
+        // anchored positions instead of sitting in their own block.
+        const merged: string[] = [];
+        const seen = new Set<string>();
+        for (const id of [
+            ...sortedAdded,
+            ...sortedRemoved,
+            ...sortedChanged,
+            ...sortedLayoutChanged,
+        ]) {
+            if (!seen.has(id)) {
+                seen.add(id);
+                merged.push(id);
+            }
+        }
+        const navigationOrder = sortIdsByOrder(merged, afterOrder, removedAnchors);
+
         await this.postHighlights(
             before.panel,
             new ApplyDiffHighlightsQuery(
                 "before",
                 [],
-                removed,
-                changed,
-                layoutChanged,
+                sortedRemoved,
+                sortedChanged,
+                sortedLayoutChanged,
                 counts,
+                navigationOrder,
             ),
         );
         await this.postHighlights(
             after.panel,
             new ApplyDiffHighlightsQuery(
                 "after",
-                added,
+                sortedAdded,
                 [],
-                changed,
-                layoutChanged,
+                sortedChanged,
+                sortedLayoutChanged,
                 counts,
+                navigationOrder,
             ),
         );
     }

@@ -122,8 +122,9 @@ export class DiffViewer {
     }
 
     /**
-     * Centres the viewport on the element with the given id, preserving the
-     * current zoom level.  Returns `true` if the element was found.
+     * Centres the viewport on the element with the given id and marks it as
+     * the stepper's current selection.  Returns `true` if the element was
+     * found on this canvas.
      *
      * Shapes carry `x/y/width/height`; connections (sequence flows, message
      * flows, associations) carry `waypoints` instead — in that case the
@@ -131,6 +132,32 @@ export class DiffViewer {
      * would centre at (0, 0) and produce a visible "reset" jump.
      */
     focusElement(id: string): boolean {
+        if (!this.centerOnElement(id)) {
+            return false;
+        }
+        const canvas = this.getCanvas();
+        if (this.selectedId && this.selectedId !== id) {
+            canvas.removeMarker(this.selectedId, DIFF_SELECTED_CLASS);
+        }
+        canvas.addMarker(id, DIFF_SELECTED_CLASS);
+        this.selectedId = id;
+        return true;
+    }
+
+    /**
+     * Centres the viewport on `id` without touching the selection marker.
+     * Used by the diff stepper to anchor the viewport on a surviving
+     * neighbour when the target id only exists on the partner pane (e.g. a
+     * removed element when this is the after pane).
+     *
+     * Sets {@link suppressNextChangeEvent} so the resulting viewbox change
+     * does NOT emit `ViewportChangedCommand`.  The cursor-sync channel
+     * already keeps the partner pane positioned (each pane independently
+     * resolves the cursor against its own registry), so re-emitting via
+     * viewport-sync would race the cursor sync and overwrite the partner's
+     * correctly-focused viewbox with this pane's anchor position.
+     */
+    centerOnElement(id: string): boolean {
         const registry = this.viewer.get<any>("elementRegistry");
         const element = registry.get(id);
         if (!element) {
@@ -142,18 +169,34 @@ export class DiffViewer {
         }
         const canvas = this.getCanvas();
         const viewbox = canvas.viewbox();
+        this.suppressNextChangeEvent = true;
         canvas.viewbox({
             x: centre.x - viewbox.width / 2,
             y: centre.y - viewbox.height / 2,
             width: viewbox.width,
             height: viewbox.height,
         });
-        if (this.selectedId && this.selectedId !== id) {
-            canvas.removeMarker(this.selectedId, DIFF_SELECTED_CLASS);
-        }
-        canvas.addMarker(id, DIFF_SELECTED_CLASS);
-        this.selectedId = id;
         return true;
+    }
+
+    /** Returns `true` when `id` is present in this pane's element registry. */
+    hasElement(id: string): boolean {
+        const registry = this.viewer.get<any>("elementRegistry");
+        return !!registry.get(id);
+    }
+
+    /**
+     * Removes the stepper-selection marker from whatever element currently
+     * carries it.  Called when the stepper lands on an id that does not exist
+     * on this pane: leaving the marker on the previous element would mislead
+     * the user into thinking it is still the active step.
+     */
+    clearSelectionMarker(): void {
+        if (!this.selectedId) {
+            return;
+        }
+        this.getCanvas().removeMarker(this.selectedId, DIFF_SELECTED_CLASS);
+        this.selectedId = undefined;
     }
 
     /**
