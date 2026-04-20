@@ -45,7 +45,6 @@
         "copy-webpack-plugin": "^14.0.0",
         "eslint": "^10.2.0",
         "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-import": "^2.32.0",
         "eslint-plugin-prettier": "^5.5.5",
         "jest": "^30.3.0",
         "jest-environment-node": "^30.3.0",

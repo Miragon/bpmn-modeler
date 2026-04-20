@@ -6,7 +6,7 @@
     "description": "Webview frontend for the DMN modeler in BPMN Modeler.",
     "scripts": {
         "build": "vite build",
-        "dev": "vite build --watch",
+        "dev": "portless run sh -c 'vite --port $PORT'",
         "serve": "vite"
     }
 }
