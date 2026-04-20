@@ -134,9 +134,12 @@ export class CommandController {
             return;
         }
 
+        // Language is a personal UI preference rather than a project-scoped
+        // setting — writing at Global (User) level avoids pinning one
+        // collaborator's choice to a shared workspace settings file.
         await workspace
             .getConfiguration("miragon.bpmnModeler")
-            .update("language", picked.description, ConfigurationTarget.Workspace);
+            .update("language", picked.description, ConfigurationTarget.Global);
     }
 
     /**

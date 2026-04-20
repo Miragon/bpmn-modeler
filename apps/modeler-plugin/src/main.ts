@@ -73,7 +73,8 @@ export function activate(context: ExtensionContext): void {
         vsWorkspace,
     );
     const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
-    const diffService = new BpmnDiffService(vsUI);
+    const diffService = new BpmnDiffService(vsUI, vsSettings);
+    context.subscriptions.push(diffService);
     const deploymentSvc = new DeploymentService(
         vsDocument,
         vsWorkspace,

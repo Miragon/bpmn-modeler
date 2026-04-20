@@ -1,3 +1,5 @@
+import { i18n } from "@bpmn-modeler/bpmn-i18n";
+
 /**
  * Minimum width (px) the properties panel can be resized to.
  * Dragging below this threshold collapses the panel entirely.
@@ -23,33 +25,13 @@ const CHEVRON_LEFT_SVG = `
 `;
 
 /**
- * Holds references to the toggle button and a translate function so the label
- * can be refreshed when the user switches language after init.
+ * Applies the current translation of {@link OPEN_PANEL_LABEL} to the given
+ * toggle button's `aria-label` and `title` attributes.
  */
-let toggleButton: HTMLButtonElement | undefined;
-let translateFn: (key: string) => string = (key) => key;
-
-/**
- * Applies the current translation to the toggle button's `aria-label` and
- * `title` attributes. Safe to call before the button has been created.
- */
-function applyToggleButtonTranslation(): void {
-    if (!toggleButton) {
-        return;
-    }
-    const label = translateFn(OPEN_PANEL_LABEL);
-    toggleButton.setAttribute("aria-label", label);
-    toggleButton.title = label;
-}
-
-/**
- * Registers the translate function used for the toggle button's accessible
- * label and tooltip. Call this once the bpmn-js DI container is ready, and
- * again after every language switch to refresh the label.
- */
-export function setResizerTranslate(translate: (key: string) => string): void {
-    translateFn = translate;
-    applyToggleButtonTranslation();
+function applyToggleButtonTranslation(button: HTMLButtonElement): void {
+    const label = i18n.translate(OPEN_PANEL_LABEL);
+    button.setAttribute("aria-label", label);
+    button.title = label;
 }
 
 /**
@@ -119,8 +101,8 @@ export function initResizer(): void {
         panel.style.width = `${openWidth}px`;
     });
     resizer.appendChild(button);
-    toggleButton = button;
-    applyToggleButtonTranslation();
+    applyToggleButtonTranslation(button);
+    i18n.onChange(() => applyToggleButtonTranslation(button));
 
     /**
      * Collapse the panel to zero width and mark both the panel and the resizer

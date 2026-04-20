@@ -33,12 +33,11 @@ import {
     VsCodeClipboardModule,
     LabelClipboardModule,
 } from "@bpmn-modeler/bpmn-clipboard";
-import { TranslateModule, CustomTranslator, type SupportedLocale } from "@bpmn-modeler/bpmn-i18n";
+import { TranslateModule, i18n, type SupportedLocale } from "@bpmn-modeler/bpmn-i18n";
 import {
     BpmnModeler,
     getVsCodeApi,
     initResizer,
-    setResizerTranslate,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
     initTheme,
@@ -188,11 +187,6 @@ window.onload = async function () {
     );
     modelerIsInitialized = true;
 
-    // Resizer is created before the modeler, so wire up translation now that
-    // the bpmn-js DI container (and therefore the shared translator) is ready.
-    const translator = bpmnModeler.getService<CustomTranslator>("customTranslator");
-    setResizerTranslate((key) => translator.translate(key));
-
     console.debug("[DEBUG] Modeler is initialized...");
 
     stateManager = new WebviewStateManager(vscode, bpmnModeler);
@@ -340,10 +334,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
         case queryOrCommand.type === "LanguageQuery": {
             try {
                 const query = message.data as LanguageQuery;
-                const translator = bpmnModeler.getService<CustomTranslator>("customTranslator");
-                translator.setLanguage(query.locale as SupportedLocale);
-                setResizerTranslate((key) => translator.translate(key));
-                await refreshDiagram();
+                // Switch the shared translator; the DI-bound service and all
+                // onChange subscribers (resizer, diff legend, …) pick it up.
+                // bpmn-js itself still needs a diagram re-import to re-invoke
+                // translate() for already-rendered elements — skipped in
+                // viewer mode where there is no editable modeler.
+                i18n.setLanguage(query.locale as SupportedLocale);
+                if (modelerIsInitialized) {
+                    await refreshDiagram();
+                }
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

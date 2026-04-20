@@ -1,9 +1,13 @@
 import { DiffCounts } from "@bpmn-modeler/shared";
+import { i18n } from "@bpmn-modeler/bpmn-i18n";
 
 export interface DiffLegendCallbacks {
     onPrevious: () => void;
     onNext: () => void;
 }
+
+/** Dictionary key rendered as a count slot's label. */
+type SlotKey = "Added" | "Removed" | "Changed" | "Moved";
 
 /**
  * Floating legend chip anchored to the top of the canvas.
@@ -12,34 +16,36 @@ export interface DiffLegendCallbacks {
  * navigation buttons that step through the diff's changed elements.  Stays
  * hidden until {@link update} is called so the canvas isn't cluttered while
  * the diagram is still importing.
+ *
+ * Labels are sourced from the shared {@link i18n} translator and re-rendered
+ * automatically when the active language changes.
  */
 export class DiffLegend {
     private readonly root: HTMLElement;
 
-    private readonly addedCount: HTMLElement;
-
-    private readonly removedCount: HTMLElement;
-
-    private readonly changedCount: HTMLElement;
-
-    private readonly layoutCount: HTMLElement;
+    private readonly slots: readonly { key: SlotKey; el: HTMLElement }[];
 
     private readonly prevButton: HTMLButtonElement;
 
     private readonly nextButton: HTMLButtonElement;
+
+    /** Latest counts passed to {@link update}, kept so {@link renderLabels} can redraw on language change. */
+    private counts: DiffCounts = { added: 0, removed: 0, changed: 0, layoutChanged: 0 };
 
     constructor(parent: HTMLElement, callbacks: DiffLegendCallbacks) {
         this.root = document.createElement("div");
         this.root.className = "diff-legend";
         this.root.style.display = "none";
 
-        this.addedCount = this.makeCountSlot("added", "Added");
-        this.removedCount = this.makeCountSlot("removed", "Removed");
-        this.changedCount = this.makeCountSlot("changed", "Changed");
-        this.layoutCount = this.makeCountSlot("layout", "Moved");
+        this.slots = [
+            { key: "Added", el: this.makeCountSlot("added") },
+            { key: "Removed", el: this.makeCountSlot("removed") },
+            { key: "Changed", el: this.makeCountSlot("changed") },
+            { key: "Moved", el: this.makeCountSlot("layout") },
+        ];
 
-        this.prevButton = this.makeNavButton("‹ Prev change", callbacks.onPrevious);
-        this.nextButton = this.makeNavButton("Next change ›", callbacks.onNext);
+        this.prevButton = this.makeNavButton(callbacks.onPrevious);
+        this.nextButton = this.makeNavButton(callbacks.onNext);
 
         const nav = document.createElement("div");
         nav.className = "diff-legend__nav";
@@ -47,6 +53,9 @@ export class DiffLegend {
         this.root.append(nav);
 
         parent.append(this.root);
+
+        this.renderLabels();
+        i18n.onChange(() => this.renderLabels());
     }
 
     /**
@@ -54,10 +63,8 @@ export class DiffLegend {
      * buttons when there are no changes at all.
      */
     update(counts: DiffCounts): void {
-        this.setCount(this.addedCount, counts.added);
-        this.setCount(this.removedCount, counts.removed);
-        this.setCount(this.changedCount, counts.changed);
-        this.setCount(this.layoutCount, counts.layoutChanged);
+        this.counts = counts;
+        this.renderLabels();
 
         const total =
             counts.added + counts.removed + counts.changed + counts.layoutChanged;
@@ -70,7 +77,7 @@ export class DiffLegend {
 
     // ─── Private helpers ─────────────────────────────────────────────────────
 
-    private makeCountSlot(kind: string, label: string): HTMLElement {
+    private makeCountSlot(kind: string): HTMLElement {
         const slot = document.createElement("div");
         slot.className = `diff-legend__slot diff-legend__slot--${kind}`;
 
@@ -80,24 +87,36 @@ export class DiffLegend {
 
         const text = document.createElement("span");
         text.className = "diff-legend__label";
-        text.textContent = `${label}: 0`;
-        text.dataset.label = label;
         slot.append(text);
 
         this.root.append(slot);
         return text;
     }
 
-    private setCount(slot: HTMLElement, count: number): void {
-        slot.textContent = `${slot.dataset.label}: ${count}`;
-    }
-
-    private makeNavButton(label: string, onClick: () => void): HTMLButtonElement {
+    private makeNavButton(onClick: () => void): HTMLButtonElement {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "diff-legend__nav-btn";
-        btn.textContent = label;
         btn.addEventListener("click", onClick);
         return btn;
+    }
+
+    /**
+     * Redraws every translated label from the current {@link counts} and
+     * {@link i18n} locale.  Called on init, on {@link update}, and whenever
+     * {@link i18n} notifies of a language switch.
+     */
+    private renderLabels(): void {
+        const countFor: Record<SlotKey, number> = {
+            Added: this.counts.added,
+            Removed: this.counts.removed,
+            Changed: this.counts.changed,
+            Moved: this.counts.layoutChanged,
+        };
+        for (const { key, el } of this.slots) {
+            el.textContent = `${i18n.translate(key)}: ${countFor[key]}`;
+        }
+        this.prevButton.textContent = `‹ ${i18n.translate("Prev change")}`;
+        this.nextButton.textContent = `${i18n.translate("Next change")} ›`;
     }
 }
