@@ -121,7 +121,6 @@ module.exports = [
             rules: {
                 ...config.rules,
                 "@typescript-eslint/no-explicit-any": "warn",
-                "import/no-extraneous-dependencies": "off",
             },
         })),
     ...compat
