@@ -53,6 +53,14 @@ yarn build:libs
 yarn dev
 ```
 
+### Docs site
+
+```bash
+yarn docs:dev
+```
+
+Opens the VitePress docs site in your browser.
+
 ### Run the extension in VS Code
 
 1. Open the repository root in VS Code.
@@ -192,4 +200,4 @@ Key design decisions:
 - **Webview communication**: `postMessage` with typed message contracts defined in
   `libs/shared`.
 
-See [`CLAUDE.md`](../CLAUDE.md) for the full architectural reference.
+See `CLAUDE.md` in the repository root for the full architectural reference.

@@ -11,7 +11,7 @@ const compat = new FlatCompat({
 
 module.exports = [
     {
-        ignores: ["**/dist"],
+        ignores: ["**/dist", "docs/**"],
     },
     {
         plugins: {

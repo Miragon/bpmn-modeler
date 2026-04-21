@@ -1,6 +1,6 @@
 # Element Template Chooser
 
-The BPMN Modeler extension includes a custom element template chooser that lets you browse, search, filter, preview, and apply [Camunda Element Templates](https://docs.camunda.io/docs/components/modeler/desktop-modeler/element-templates/about-templates/) directly from the properties panel. It replaces the upstream `@bpmn-io/element-template-chooser` with a richer, Preact-based UI built as a standalone bpmn-js plugin.
+The BPMN Modeler extension includes a custom element template chooser that lets you browse, search, filter, preview, and apply [Camunda Element Templates](https://docs.camunda.io/docs/components/modeler/desktop-modeler/element-templates/about-templates/) directly from the properties panel.
 
 ## Usage
 
@@ -99,28 +99,6 @@ Filters are applied in this order:
 2. **Text search** — the remaining templates are further filtered by the search query.
 
 Both filters reset independently: clearing the search does not reset the category, and vice versa.
-
-## Architecture
-
-### Library: `libs/element-template-chooser/`
-
-The plugin is implemented as a standalone library under `libs/element-template-chooser/`, following the same pattern as `libs/bpmn-clipboard/` and `libs/bpmn-i18n/`. It has no build step of its own — the consuming app's Vite build compiles the TypeScript and TSX sources directly via the `@bpmn-modeler/element-template-chooser` path alias.
-
-### bpmn-js DI Module
-
-The library exports a single DI module (`ElementTemplateChooserModule`) that registers one service:
-
-- **`elementTemplateChooser`** — listens for the `elementTemplates.select` event fired by the properties panel's "Select" button. When fired, it queries the `elementTemplates` service for matching templates, renders the Preact overlay, and calls `elementTemplates.applyTemplate()` when the user confirms a choice.
-
-### Rendering Strategy
-
-The overlay is rendered using Preact's `render()` and `h()` functions into a dynamically created container appended to the canvas parent. The container uses `position: fixed` to center the modal over the entire viewport. On close (apply, cancel, or Escape), the Preact tree is unmounted and the container is removed from the DOM.
-
-The components use the `/** @jsx h */` pragma to ensure Vite's esbuild compiles JSX with Preact's `h()` function rather than React's `createElement()`.
-
-### Template Matching
-
-Only templates whose `appliesTo` array includes the selected element's type are shown. Templates already applied to the element (matched by `modelerTemplate` business object property) are excluded. This filtering is performed by the bpmn-js `elementTemplates.getLatest(element)` service.
 
 ## How to Create Good Element Templates
 
@@ -258,14 +236,6 @@ In the chooser, this template would show:
 - **Card**: "Send E-Mail" with description, "Communication" badge, "4 properties" count (the Hidden property is excluded)
 - **Preview**: name, description, documentation link, category badge, template ID, then Properties (none visible), Input Parameters (Recipient *required*, Subject *required*, Body *required* with description), Output Parameters (Send Result with default value `emailSentStatus`)
 
-## Key Files
+---
 
-| File | Purpose |
-|---|---|
-| `libs/element-template-chooser/src/index.ts` | DI module export and CSS import |
-| `libs/element-template-chooser/src/ElementTemplateChooser.ts` | bpmn-js service: event listener, overlay lifecycle |
-| `libs/element-template-chooser/src/types.ts` | `ElementTemplate`, `TemplateProperty` interfaces, binding classifier |
-| `libs/element-template-chooser/src/components/ChooserOverlay.tsx` | Main overlay component: search, filters, list, keyboard nav |
-| `libs/element-template-chooser/src/components/TemplatePreview.tsx` | Detail preview panel with parameter sections |
-| `libs/element-template-chooser/src/chooser.css` | All styles (prefixed with `etc-`) |
-| `apps/bpmn-webview/src/app/modeler.ts` | Registers the module as `additionalModules` |
+For implementation details, see [Contributing → Element Template Chooser internals](/vscode/contributing/architecture/element-template-chooser).
