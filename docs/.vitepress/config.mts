@@ -101,10 +101,6 @@ export default withMermaid(defineConfig({
                 icon: "github",
                 link: "https://github.com/Miragon/bpmn-vscode-modeler",
             },
-            {
-                icon: "linkedin",
-                link: "https://www.linkedin.com/company/miragon-io",
-            },
         ],
         search: { provider: "local" },
     },
