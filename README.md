@@ -1,5 +1,3 @@
-<div id="top"></div>
-
 <!-- PROJECT SHIELDS -->
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
@@ -91,9 +89,6 @@ all available commands.
 | BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
 
 
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to learn,
@@ -131,8 +126,6 @@ code style, branching model, and CI/CD details, see
 Please use semantic commit messages as described
 in [here](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716).
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
 ## Support
 
 If you have questions or need support, reach out via
@@ -141,8 +134,6 @@ email ([info@miragon.io](mailto:info@miragon.io)).
 ## License
 
 Distributed under the [Apache License Version 2.0](LICENSE).
-
-<p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
