@@ -37,7 +37,6 @@ export default withMermaid(defineConfig({
                         { text: "Overview", link: "/vscode/features/" },
                         { text: "Append Menu", link: "/vscode/features/append-menu" },
                         { text: "BPMN Diff", link: "/vscode/features/bpmn-diff" },
-                        { text: "Copy & Paste", link: "/vscode/features/copy-paste" },
                         { text: "Deployment", link: "/vscode/features/deployment" },
                         {
                             text: "Element Template Chooser",

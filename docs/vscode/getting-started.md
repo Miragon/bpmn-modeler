@@ -16,15 +16,7 @@ code --install-extension miragon-gmbh.vs-code-bpmn-modeler
 ## Open a diagram
 
 Create or open any `.bpmn` or `.dmn` file in your workspace — the modeler opens
-automatically as the default editor for that file type. You can also use the
-command palette:
-
-- **BPMN Modeler: Toggle Standard Text Editor** — switch between the graphical
-  modeler and the raw XML view (`Ctrl+Shift+E`).
-- **BPMN Modeler: Copy Diagram as SVG** / **Save Diagram as SVG** — export the
-  current diagram as a vector image.
-- **BPMN Modeler: Change Modeler Language** — pick the modeler UI language at
-  runtime.
+automatically as the default editor for that file type.
 
 ## Element templates
 
@@ -51,6 +43,21 @@ Brazilian Portuguese, Russian, Simplified and Traditional Chinese). Set
 `miragon.bpmnModeler.language` in your VS Code settings, or run **BPMN Modeler:
 Change Modeler Language** from the command palette. See
 [Language Support](/vscode/features/language-support) for the full list.
+
+## Commands
+
+All commands are accessible via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) — search for "BPMN Modeler".
+
+| Command | Keybinding | Description |
+|---|---|---|
+| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Switch between the graphical modeler and the raw XML view |
+| BPMN Modeler: Copy Diagram as SVG | | Copy the current diagram to the clipboard as SVG |
+| BPMN Modeler: Save Diagram as SVG | | Save a SVG file of the current diagram next to the BPMN file |
+| BPMN Modeler: Change Modeler Language | | Switch the modeler UI language |
+| BPMN Modeler: Deploy Diagram | | Open the Deployment sidebar for the current diagram |
+| BPMN Modeler: Change Engine Version | | Switch between engine versions |
+| BPMN Modeler: Migrate All BPMN Diagrams | | Switch engine version for all BPMN diagrams in the workspace |
+| BPMN Modeler: Display Logging Information | | Open a console showing modeler log output |
 
 ## Next steps
 

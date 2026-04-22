@@ -11,9 +11,6 @@ Here's what you get, roughly in the order you reach for it.
 - **[Element Template Chooser](/vscode/features/element-template-chooser)** —
   browse, preview, and apply Camunda element templates from the properties
   panel. Category filters, instant search, full template preview.
-- **[Copy & Paste](/vscode/features/copy-paste)** — copy elements between open
-  `.bpmn` tabs, paste labels, select all. System clipboard integration.
-
 ## Compare
 
 - **[BPMN Diff](/vscode/features/bpmn-diff)** — swap VS Code's text diff

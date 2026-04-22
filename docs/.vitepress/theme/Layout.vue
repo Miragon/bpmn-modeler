@@ -1,9 +1,21 @@
 <script setup lang="ts">
 import DefaultTheme from "vitepress/theme";
+import { ref, onMounted } from "vue";
 import { withBase } from "vitepress";
 const { Layout } = DefaultTheme;
 
-const VERSION = "0.9.0";
+const version = ref("unknown");
+onMounted(async () => {
+    try {
+        const res = await fetch("https://api.github.com/repos/Miragon/bpmn-vscode-modeler/releases/latest");
+        if (!res.ok) return;
+        const { tag_name } = await res.json();
+        version.value = (tag_name ?? "").replace(/^v/, "") || "unknown";
+    } catch {
+        // leave as "unknown"
+    }
+});
+
 const MARKETPLACE_URL =
     "https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler";
 const GITHUB_URL = "https://github.com/Miragon/bpmn-vscode-modeler";
@@ -14,7 +26,7 @@ const GITHUB_URL = "https://github.com/Miragon/bpmn-vscode-modeler";
         <template #nav-bar-content-after>
             <div class="nav-extras">
                 <span class="version-chip">
-                    <span class="v-dot"></span>v{{ VERSION }}
+                    <span class="v-dot"></span>v{{ version }}
                 </span>
                 <a
                     class="install-btn"

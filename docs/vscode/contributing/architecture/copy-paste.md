@@ -9,8 +9,7 @@ methods fail silently even though the API object is defined. Two bpmn-js DI
 modules, each with its own resolver, bridge the webview to the extension
 host's `vscode.env.clipboard`.
 
-See the [user-facing Copy & Paste page](/vscode/features/copy-paste) for the
-UX contract.
+See the [Getting Started](/vscode/getting-started) page for the available commands.
 
 ## System overview
 
