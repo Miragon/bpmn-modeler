@@ -5,7 +5,8 @@
     "private": true,
     "workspaces": [
         "apps/*",
-        "libs/*"
+        "libs/*",
+        "docs"
     ],
     "scripts": {
         "build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview build:deployment-webview -s build:plugin",
@@ -25,6 +26,9 @@
         "serve:bpmn-webview": "corepack yarn workspace bpmn-webview serve",
         "serve:dmn-webview": "corepack yarn workspace dmn-webview serve",
         "serve:deployment-webview": "corepack yarn workspace deployment-webview serve",
+        "docs:dev": "corepack yarn workspace docs dev",
+        "docs:build": "corepack yarn workspace docs build",
+        "docs:preview": "corepack yarn workspace docs preview",
         "test": "jest --coverage",
         "lint": "eslint ."
     },

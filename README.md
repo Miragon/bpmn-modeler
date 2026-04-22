@@ -16,6 +16,8 @@
     </a>
     <h3>BPMN VS Code Modeler</h3>
     <p>
+        <a href="https://miragon.github.io/bpmn-vscode-modeler/">Documentation</a>
+        ·
         <a href="https://github.com/Miragon/bpmn-vscode-modeler/issues">Report Bug</a>
         ·
         <a href="https://github.com/Miragon/bpmn-vscode-modeler/pulls">Request Feature</a>

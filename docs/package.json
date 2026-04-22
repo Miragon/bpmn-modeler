@@ -1,0 +1,14 @@
+{
+    "name": "docs",
+    "private": true,
+    "scripts": {
+        "dev": "portless run sh -c '(open $PORTLESS_URL/bpmn-vscode-modeler/) & vitepress dev . --port $PORT --host 127.0.0.1'",
+        "build": "vitepress build .",
+        "preview": "vitepress preview ."
+    },
+    "devDependencies": {
+        "mermaid": "10.9.3",
+        "vitepress": "1.6.4",
+        "vitepress-plugin-mermaid": "^2.0.17"
+    }
+}

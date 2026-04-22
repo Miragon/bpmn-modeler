@@ -1,4 +1,8 @@
-# Releases
+# Release process
+
+This page documents the release workflow for maintainers. The user-facing
+version history lives on
+[GitHub Releases](https://github.com/Miragon/bpmn-vscode-modeler/releases).
 
 ```mermaid
 flowchart LR
@@ -20,7 +24,7 @@ flowchart LR
     style v0.1 stroke: #00E676, background-color: black, color: white
     style v1 stroke: #00E676, background-color: black, color: white
     style marketplace fill: #00E676, color: black, stroke: black
-    style main stroke: #00E676, color: black
+    style main stroke: #00E676
 %% graphs
     subgraph main
         feat1 --- feat2
@@ -32,6 +36,7 @@ flowchart LR
     feat2 --> v0.1
     feat4 --> v1
     marketplace -.- v0.1
+    marketplace -.- v1
 ```
 
 ## Create a new release

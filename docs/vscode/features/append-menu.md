@@ -1,4 +1,4 @@
-# Custom Append Menu
+# Append Menu
 
 The BPMN Modeler extension replaces the default popup menu from the `bpmn-js-create-append-anything` plugin with a custom two-panel UI. It combines element templates and standard BPMN elements in a single, positioned panel anchored to the context pad or palette toolbar.
 
@@ -104,37 +104,6 @@ You can pin up to 6 frequently used BPMN elements at the top of the palette by c
 
 Favourites appear in a separate "Favourites" section above the regular BPMN element groups, separated by a divider line. They are subject to the same search filtering and `appliesTo` filtering as regular entries.
 
-## Architecture
+---
 
-### Libraries
-
-The feature is split across two libraries:
-
-| Library | Purpose |
-|---------|---------|
-| `libs/append-menu/` | Custom UI overlay — intercepts the popup menu and renders the Preact-based two-panel interface. |
-| `libs/create-append-c7-element-templates/` | Polyfills `elementTemplates.createElement()` for Camunda 7, enabling the `bpmn-js-create-append-anything` plugin to create template-preconfigured elements. |
-
-### How It Works
-
-1. `AppendMenuOverride` decorates the diagram-js `popupMenu.open()` method.
-2. When `bpmn-append` or `bpmn-create` is triggered, the override collects entries from all registered providers via `popupMenu._getContext()`.
-3. Entries are classified into template entries (enriched with full `ElementTemplate` data) and standard BPMN element entries (grouped by category).
-4. A Preact overlay is rendered into `document.body`, positioned near the trigger point and clamped to the canvas bounds.
-5. Clicking outside, pressing Escape, or diagram events (`contextPad.close`, `canvas.viewbox.changing`, `commandStack.changed`) close the menu.
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `libs/append-menu/src/index.ts` | DI module export |
-| `libs/append-menu/src/AppendMenuOverride.ts` | Decorates `popupMenu.open()`, manages overlay lifecycle |
-| `libs/append-menu/src/types.ts` | Entry types, classification, BPMN type → icon mapping |
-| `libs/append-menu/src/components/AppendMenuOverlay.tsx` | Root component: positioning, search, state management |
-| `libs/append-menu/src/components/TemplatePanel.tsx` | Template list with category chips and keyboard navigation |
-| `libs/append-menu/src/components/BpmnElementPalette.tsx` | Collapsible BPMN element palette with favourites |
-| `libs/append-menu/src/components/ExpandableTemplateCard.tsx` | Template card with hover-to-expand detail |
-| `libs/append-menu/src/append-menu.css` | All styles (prefixed with `am-`) |
-| `libs/create-append-c7-element-templates/src/index.ts` | C7 createElement polyfill module |
-| `libs/create-append-c7-element-templates/src/TemplateElementFactory.ts` | Creates shapes with templates applied via command stack |
-| `libs/create-append-c7-element-templates/src/ExtendElementTemplates.ts` | Patches `createElement` onto the C7 element templates service |
+For implementation details, see [Contributing → Append Menu internals](/vscode/contributing/architecture/append-menu).
