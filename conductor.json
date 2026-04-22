@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "setup": "corepack yarn install",
+    "run": "corepack yarn dev",
+    "archive": "rm -rf dist node_modules"
+  },
+  "runScriptMode": "nonconcurrent"
+}
