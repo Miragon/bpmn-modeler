@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import DefaultTheme from "vitepress/theme";
 import { ref, onMounted } from "vue";
-import { withBase } from "vitepress";
+import { useData, withBase } from "vitepress";
 const { Layout } = DefaultTheme;
+const { frontmatter } = useData();
 
 const version = ref("unknown");
 onMounted(async () => {
@@ -78,7 +79,7 @@ const GITHUB_URL = "https://github.com/Miragon/bpmn-vscode-modeler";
         </template>
 
         <template #layout-bottom>
-            <footer class="site-footer">
+            <footer v-if="frontmatter.layout === 'home'" class="site-footer">
                 <div class="site-footer-inner">
                     <div class="site-footer-brand">
                         <img
