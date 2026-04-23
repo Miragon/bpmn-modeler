@@ -12,6 +12,7 @@ import {
     ElementTemplatesQuery,
     LogErrorCommand,
     LogInfoCommand,
+    PropertiesPanelStateQuery,
     Query,
     sortIdsByOrder,
     SyncDocumentCommand,
@@ -244,6 +245,15 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                         colorTheme: "light",
                     }),
                 );
+                break;
+            }
+            case message.type === "GetPropertiesPanelStateCommand": {
+                console.debug("[DEBUG] GetPropertiesPanelStateCommand", message);
+                dispatchEvent(new PropertiesPanelStateQuery(true));
+                break;
+            }
+            case message.type === "SetPropertiesPanelStateCommand": {
+                console.debug("[DEBUG] SetPropertiesPanelStateCommand", message);
                 break;
             }
             case message.type === "GetClipboardCommand": {

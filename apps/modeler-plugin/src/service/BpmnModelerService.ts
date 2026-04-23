@@ -6,6 +6,7 @@ import {
     ClipboardQuery,
     ElementTemplatesQuery,
     LanguageQuery,
+    PropertiesPanelStateQuery,
     TextClipboardQuery,
 } from "@bpmn-modeler/shared";
 
@@ -15,6 +16,7 @@ import { ExecutionPlatformNotDetectedError, UserCancelledError } from "../domain
 import { getLatestVersion, getVersions } from "../domain/engineVersions";
 import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
 import { EditorStore } from "../infrastructure/EditorStore";
+import { PropertiesPanelStateRepository } from "../infrastructure/PropertiesPanelStateRepository";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
@@ -51,6 +53,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
      * @param artifactSvc Service for locating forms and element templates.
      * @param statusBar Status bar item manager for element templates and engine version.
      * @param vsWorkspace Workspace filesystem helper for reading/writing files on disk.
+     * @param panelStateRepo Persistence for the global properties-panel visibility default.
      */
     constructor(
         private readonly editorStore: EditorStore,
@@ -60,6 +63,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         private readonly artifactSvc: ArtifactService,
         private readonly statusBar: VsCodeStatusBar,
         private readonly vsWorkspace: VsCodeWorkspace,
+        private readonly panelStateRepo: PropertiesPanelStateRepository,
     ) {}
 
     // ─── Session management ───────────────────────────────────────────────────
@@ -302,6 +306,56 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         } catch (error) {
             this.vsUI.logError(error as Error);
             return false;
+        }
+    }
+
+    // ─── Properties-panel visibility ───────────────────────────────────────
+
+    /**
+     * Reads the globally persisted properties-panel visibility default
+     * synchronously.  Used by the editor controller at resolve time so the
+     * webview HTML can be pre-rendered with the correct collapsed state and
+     * the panel never flashes visible before {@link sendPropertiesPanelState}
+     * delivers the value over the message channel.
+     */
+    getPersistedPanelVisibility(): boolean {
+        return this.panelStateRepo.getVisibility();
+    }
+
+    /**
+     * Sends the globally persisted properties-panel visibility default to the
+     * given editor.  Called when the webview requests the initial value on
+     * startup via {@link GetPropertiesPanelStateCommand}.
+     *
+     * @param editorId Document URI path of the target editor.
+     * @returns `true` on success, `false` on any failure.
+     */
+    async sendPropertiesPanelState(editorId: string): Promise<boolean> {
+        try {
+            const visible = this.panelStateRepo.getVisibility();
+            return await this.editorStore.postMessage(
+                editorId,
+                new PropertiesPanelStateQuery(visible),
+            );
+        } catch (error) {
+            this.vsUI.logError(error as Error);
+            return false;
+        }
+    }
+
+    /**
+     * Persists the user's panel-visibility toggle as the new global default.
+     * Intentionally does not re-broadcast to other open webviews: each
+     * running webview is authoritative over its own panel, so hiding the
+     * panel in one side-by-side editor must not close it in its neighbour.
+     *
+     * @param visible The new global default — `true` for visible, `false` for collapsed.
+     */
+    async setPropertiesPanelVisibility(visible: boolean): Promise<void> {
+        try {
+            await this.panelStateRepo.setVisibility(visible);
+        } catch (error) {
+            this.vsUI.logError(error as Error);
         }
     }
 

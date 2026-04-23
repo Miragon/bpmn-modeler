@@ -25,6 +25,34 @@ const CHEVRON_LEFT_SVG = `
 `;
 
 /**
+ * Public API surface exposed by {@link initResizer}.  Lets higher layers
+ * (state persistence, initial-state restoration) observe and drive the
+ * properties-panel visibility without touching the DOM directly.
+ */
+export interface PropertiesPanelHandle {
+    /** `true` if the panel is currently visible, `false` if collapsed. */
+    isVisible(): boolean;
+
+    /**
+     * Programmatically show or hide the panel.  No-op when the panel is
+     * already in the requested state (keeps listeners free of spurious
+     * notifications).  When revealing a collapsed panel the width is set to
+     * `MIN_PANEL_WIDTH * 2` so the restored panel has enough room to read
+     * without immediate resizing — matching the toggle-button behaviour.
+     */
+    setVisible(visible: boolean): void;
+
+    /**
+     * Subscribe to visibility transitions.  Listeners are invoked with the
+     * new visibility (`true` = visible) immediately after a transition, both
+     * from programmatic {@link setVisible} calls and from user drag / toggle
+     * interactions.  There is no unsubscribe helper because the single
+     * consumer lives for the webview's entire lifetime.
+     */
+    onVisibilityChanged(callback: (visible: boolean) => void): void;
+}
+
+/**
  * Applies the current translation of {@link OPEN_PANEL_LABEL} to the given
  * toggle button's `aria-label` and `title` attributes.
  */
@@ -35,8 +63,23 @@ function applyToggleButtonTranslation(button: HTMLButtonElement): void {
 }
 
 /**
+ * Returned when the resizer cannot find its DOM targets.  All operations on
+ * this handle are no-ops so the rest of the webview can call
+ * {@link PropertiesPanelHandle.setVisible} or subscribe without extra null
+ * checks.  Matches the historical behaviour where the old `initResizer()`
+ * silently returned after logging a warning.
+ */
+const NOOP_HANDLE: PropertiesPanelHandle = {
+    isVisible: () => true,
+    setVisible: () => undefined,
+    onVisibilityChanged: () => undefined,
+};
+
+/**
  * Attaches mouse-drag listeners to the `.panel-resizer` element so the user
- * can resize the properties panel by dragging the divider.
+ * can resize the properties panel by dragging the divider, and returns a
+ * {@link PropertiesPanelHandle} that exposes the panel's visibility as
+ * observable state.
  *
  * Dragging left widens the panel; dragging right narrows it.
  * Width is clamped between {@link MIN_PANEL_WIDTH} and {@link MAX_PANEL_WIDTH}
@@ -54,13 +97,13 @@ function applyToggleButtonTranslation(button: HTMLButtonElement): void {
  * `lastX` resets every frame to ensure reversing at a clamp boundary is
  * immediately visible with no dead zone.
  */
-export function initResizer(): void {
+export function initResizer(): PropertiesPanelHandle {
     const resizerEl = document.getElementById("js-panel-resizer");
     const panelEl = document.getElementById("js-properties-panel");
 
     if (!resizerEl || !panelEl) {
         console.warn("[resizer] Required DOM elements not found — skipping resizer init.");
-        return;
+        return NOOP_HANDLE;
     }
 
     // Re-assign after the null guard so TypeScript narrows the type for closures.
@@ -71,8 +114,35 @@ export function initResizer(): void {
     let lastX = 0;
     /** Tracks the intended width (px) independently of offsetWidth. */
     let targetWidth = 0;
-    /** Whether the panel is currently collapsed (zero width). */
-    let isCollapsed = false;
+    /**
+     * Whether the panel is currently collapsed (zero width).
+     *
+     * Seeded from the DOM so that when the host pre-renders the HTML with the
+     * `collapsed` class (to avoid a flash of the visible panel while waiting
+     * for the persisted-state round-trip), the resizer's in-memory state
+     * matches the rendered state and the subsequent `setVisible(false)` call
+     * from {@link main.ts} becomes a no-op.
+     */
+    let isCollapsed = panel.classList.contains(COLLAPSED_CLASS);
+
+    /** Subscribers notified after every visibility transition. */
+    const visibilityListeners: Array<(visible: boolean) => void> = [];
+
+    /**
+     * Fires all subscribers with the current visibility.  Called only from
+     * {@link collapse} and {@link expand} so notifications line up one-to-one
+     * with real state transitions.
+     */
+    function notifyVisibilityChange(): void {
+        const visible = !isCollapsed;
+        for (const cb of visibilityListeners) {
+            try {
+                cb(visible);
+            } catch (error) {
+                console.error("[resizer] Visibility listener threw:", error);
+            }
+        }
+    }
 
     /**
      * Create the toggle button and append it to the resizer. The button is
@@ -110,10 +180,14 @@ export function initResizer(): void {
      * becomes wider so it remains easy to grab.
      */
     function collapse(): void {
+        if (isCollapsed) {
+            return;
+        }
         isCollapsed = true;
         panel.style.width = "0";
         panel.classList.add(COLLAPSED_CLASS);
         resizer.classList.add(COLLAPSED_CLASS);
+        notifyVisibilityChange();
     }
 
     /**
@@ -122,9 +196,13 @@ export function initResizer(): void {
      * The caller is responsible for setting the new panel width afterwards.
      */
     function expand(): void {
+        if (!isCollapsed) {
+            return;
+        }
         isCollapsed = false;
         panel.classList.remove(COLLAPSED_CLASS);
         resizer.classList.remove(COLLAPSED_CLASS);
+        notifyVisibilityChange();
     }
 
     /**
@@ -199,4 +277,24 @@ export function initResizer(): void {
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
     });
+
+    return {
+        isVisible: () => !isCollapsed,
+        setVisible: (visible: boolean) => {
+            if (visible === !isCollapsed) {
+                return;
+            }
+            if (visible) {
+                expand();
+                const openWidth = MIN_PANEL_WIDTH * 2;
+                targetWidth = openWidth;
+                panel.style.width = `${openWidth}px`;
+            } else {
+                collapse();
+            }
+        },
+        onVisibilityChanged: (callback) => {
+            visibilityListeners.push(callback);
+        },
+    };
 }

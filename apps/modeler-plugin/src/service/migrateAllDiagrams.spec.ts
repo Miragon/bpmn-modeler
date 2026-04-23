@@ -93,6 +93,11 @@ function createMocks() {
         findGitRoot: jest.fn(),
     };
 
+    const panelStateRepo = {
+        getVisibility: jest.fn().mockReturnValue(true),
+        setVisibility: jest.fn().mockResolvedValue(undefined),
+    };
+
     const service = new BpmnModelerService(
         editorStore as any,
         vsDocument as any,
@@ -101,6 +106,7 @@ function createMocks() {
         artifactSvc as any,
         statusBar as any,
         vsWorkspace as any,
+        panelStateRepo as any,
     );
 
     return { service, editorStore, vsDocument, vsUI, vsWorkspace };

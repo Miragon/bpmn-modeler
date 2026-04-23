@@ -17,9 +17,19 @@ const DMN_WEBVIEW_PATH = "dmn-webview";
  *
  * @param webview The VS Code Webview instance (used to convert local URIs).
  * @param extensionUri URI of the extension's install directory.
+ * @param initialPanelVisible The globally persisted properties-panel default.
+ *   When `false`, the panel and its resizer are rendered with the `collapsed`
+ *   class (and `width: 0` on the panel) so the panel never flashes visible
+ *   before the webview's JavaScript has a chance to request and apply the
+ *   persisted state.  Defaults to `true` for safety (e.g. diff panes that
+ *   hide the panel via CSS anyway).
  * @returns HTML string to set as `webview.html`.
  */
-export function bpmnEditorUi(webview: Webview, extensionUri: Uri): string {
+export function bpmnEditorUi(
+    webview: Webview,
+    extensionUri: Uri,
+    initialPanelVisible: boolean = true,
+): string {
     const baseUri = Uri.joinPath(extensionUri, BPMN_WEBVIEW_PATH);
 
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
@@ -28,6 +38,18 @@ export function bpmnEditorUi(webview: Webview, extensionUri: Uri): string {
     const themeUri = webview.asWebviewUri(Uri.joinPath(baseUri, "lightTheme.css"));
 
     const nonce = getNonce();
+
+    // Pre-apply the collapsed class + zero width so the panel never appears
+    // for a frame before initResizer() picks up the persisted state.  The
+    // resizer reads its `collapsed` class at startup so its in-memory state
+    // stays in sync with this pre-rendered DOM.
+    const panelClass = initialPanelVisible
+        ? "properties-panel-parent"
+        : "properties-panel-parent collapsed";
+    const resizerClass = initialPanelVisible
+        ? "panel-resizer"
+        : "panel-resizer collapsed";
+    const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
 
     return `
         <!DOCTYPE html>
@@ -43,8 +65,8 @@ export function bpmnEditorUi(webview: Webview, extensionUri: Uri): string {
             <body>
                 <div class="content with-diagram" id="js-drop-zone">
                     <div class="canvas" id="js-canvas"></div>
-                    <div id="js-panel-resizer" class="panel-resizer"></div>
-                    <div class="properties-panel-parent" id="js-properties-panel"></div>
+                    <div id="js-panel-resizer" class="${resizerClass}"></div>
+                    <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>
                 </div>
                 <script nonce="${nonce}" src="${scriptUri}"></script>
             </body>

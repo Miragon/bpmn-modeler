@@ -11,6 +11,7 @@ import {
 import {
     Command,
     SetClipboardCommand,
+    SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
 } from "@bpmn-modeler/shared";
@@ -104,11 +105,15 @@ export class BpmnEditorController implements CustomTextEditorProvider {
 
             const editorId = document.uri.toString();
 
+            // Pre-apply the persisted panel visibility to the webview HTML so
+            // the panel never flashes open before the async GetPropertiesPanelStateCommand
+            // round-trip completes.
             this.editorStore.createEditor(
                 BPMN_VIEW_TYPE,
                 editorId,
                 webviewPanel,
                 document,
+                this.bpmnService.getPersistedPanelVisibility(),
             );
             this.bpmnService.registerSession(editorId);
 
@@ -166,6 +171,14 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     case "GetBpmnModelerSettingCommand":
                         this.bpmnService.setSettings(id);
                         this.bpmnService.setLanguage(id);
+                        break;
+                    case "GetPropertiesPanelStateCommand":
+                        this.bpmnService.sendPropertiesPanelState(id);
+                        break;
+                    case "SetPropertiesPanelStateCommand":
+                        this.bpmnService.setPropertiesPanelVisibility(
+                            (message as SetPropertiesPanelStateCommand).visible,
+                        );
                         break;
                     case "GetClipboardCommand":
                         this.bpmnService.readClipboard(id);

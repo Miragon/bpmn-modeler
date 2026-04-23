@@ -3,6 +3,7 @@ import { env, ExtensionContext, Uri, window } from "vscode";
 import { setContext } from "./infrastructure/extensionContext";
 
 import { EditorStore } from "./infrastructure/EditorStore";
+import { PropertiesPanelStateRepository } from "./infrastructure/PropertiesPanelStateRepository";
 import { VsCodeDocument } from "./infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "./infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "./infrastructure/VsCodeSettings";
@@ -60,6 +61,7 @@ export function activate(context: ExtensionContext): void {
     const c7Client = new Camunda7RestClient(httpClient, authResolver);
     const c8Client = new Camunda8RestClient(httpClient, authResolver, vsSettings.getC8ApiVersion());
     const restClient = new CamundaEngineRouter(c7Client, c8Client);
+    const panelStateRepo = new PropertiesPanelStateRepository(context);
 
     // 3. Services
     const artifactSvc = new ArtifactService(vsWorkspace, vsSettings);
@@ -71,6 +73,7 @@ export function activate(context: ExtensionContext): void {
         artifactSvc,
         statusBar,
         vsWorkspace,
+        panelStateRepo,
     );
     const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
     const diffService = new BpmnDiffService(vsUI, vsSettings);

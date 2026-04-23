@@ -68,6 +68,10 @@ export class EditorStore implements Disposable {
      * @param editorId Document URI path used as the session key.
      * @param webviewPanel The panel provided by VS Code.
      * @param document The text document being edited.
+     * @param initialPanelVisible BPMN-only: the persisted properties-panel
+     *   default to pre-apply on the webview HTML so the panel never flashes
+     *   visible before the webview's JavaScript picks up the state.  Ignored
+     *   for DMN editors; defaults to `true`.
      * @returns The configured WebviewPanel.
      */
     createEditor(
@@ -75,8 +79,9 @@ export class EditorStore implements Disposable {
         editorId: string,
         webviewPanel: WebviewPanel,
         document: TextDocument,
+        initialPanelVisible: boolean = true,
     ): WebviewPanel {
-        const panel = bootstrapWebview(viewType, webviewPanel);
+        const panel = bootstrapWebview(viewType, webviewPanel, initialPanelVisible);
         this.editors.set(editorId, { id: editorId, ui: panel, document });
         this.disposables.set(editorId, []);
         this.setActiveEditor(editorId);
