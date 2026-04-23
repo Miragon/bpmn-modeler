@@ -16,6 +16,11 @@
 - **corepack** enabled: `corepack enable`
 - **VS Code**
 
+The webview `dev:*` scripts (standalone browser preview) use
+[`portless`](https://www.npmjs.com/package/portless), which is installed
+automatically as a dev dependency by `yarn install` — no global install
+required.
+
 ## Setup
 
 ```bash
@@ -49,8 +54,8 @@ yarn build:libs
 ### Watch mode
 
 ```bash
-# Rebuild all workspaces on change
-yarn dev
+# Rebuild all workspaces on change (feeds the F5 Extension Host)
+yarn watch
 ```
 
 ### Docs site
@@ -64,7 +69,7 @@ Opens the VitePress docs site in your browser.
 ### Run the extension in VS Code
 
 1. Open the repository root in VS Code.
-2. Run `yarn dev` to start watch mode.
+2. Run `yarn watch` to start watch mode.
 3. Open the **Run and Debug** panel and select **"Run modeler-plugin"**.
 4. Press **F5** to launch the Extension Development Host.
 
@@ -84,9 +89,11 @@ The BPMN webview can run standalone against a mocked VS Code host. This avoids
 reloading the Extension Development Host while iterating on webview UI.
 
 ```bash
-yarn serve:bpmn-webview
-# → http://localhost:5173/
+yarn dev:bpmn-webview
 ```
+
+This launches a Vite dev server via [`portless`](#prerequisites); the URL is
+printed to stdout when the server starts.
 
 A URL query parameter selects what the mock serves:
 

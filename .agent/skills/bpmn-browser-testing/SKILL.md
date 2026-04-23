@@ -5,7 +5,7 @@ description: >
   Use this skill whenever the user asks to test, inspect, or interact with the BPMN modeler
   in a browser — including adding/modifying BPMN elements, checking the properties panel,
   verifying UI behavior, or debugging the webview. Also trigger when the user mentions
-  "serve:bpmn-webview", "open the modeler in a browser", "add a task/event/gateway",
+  "open the modeler in a browser", "add a task/event/gateway",
   "check the properties panel", or any visual/interactive testing of the BPMN webview.
 ---
 
@@ -18,7 +18,7 @@ using the Playwright MCP plugin. The webview is an SVG-based BPMN editor built o
 ## Starting the dev server
 
 ```bash
-corepack yarn serve:bpmn-webview
+corepack yarn workspce bpmn-webview serve
 ```
 
 This runs Vite on `http://localhost:5173`. In dev mode (`NODE_ENV=development`), the
