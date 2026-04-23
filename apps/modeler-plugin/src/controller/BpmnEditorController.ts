@@ -106,8 +106,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             const editorId = document.uri.toString();
 
             // Pre-apply the persisted panel visibility to the webview HTML so
-            // the panel never flashes open before the async GetPropertiesPanelStateCommand
-            // round-trip completes.
+            // the panel never flashes open before CSS settles.
             this.editorStore.createEditor(
                 BPMN_VIEW_TYPE,
                 editorId,
@@ -171,9 +170,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     case "GetBpmnModelerSettingCommand":
                         this.bpmnService.setSettings(id);
                         this.bpmnService.setLanguage(id);
-                        break;
-                    case "GetPropertiesPanelStateCommand":
-                        this.bpmnService.sendPropertiesPanelState(id);
                         break;
                     case "SetPropertiesPanelStateCommand":
                         this.bpmnService.setPropertiesPanelVisibility(
