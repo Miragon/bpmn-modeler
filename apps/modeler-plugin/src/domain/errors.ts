@@ -19,13 +19,6 @@ export class DirectoryNotFound extends Error {
     }
 }
 
-/** Thrown when the execution platform cannot be auto-detected from BPMN XML. */
-export class ExecutionPlatformNotDetectedError extends Error {
-    constructor() {
-        super("The execution platform could not be detected.");
-    }
-}
-
 /** Thrown when the user cancels a prompt (e.g. quick-pick). */
 export class UserCancelledError extends Error {
     constructor() {

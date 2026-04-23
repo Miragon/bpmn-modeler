@@ -10,6 +10,8 @@ import {
 
 import {
     Command,
+    detectExecutionPlatform,
+    detectExecutionPlatformVersion,
     SetClipboardCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
@@ -21,7 +23,6 @@ import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
-import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
 /** VS Code view-type identifier for the BPMN custom editor. */

@@ -5,8 +5,6 @@
  * and can therefore be tested in isolation.
  */
 
-import { ExecutionPlatformNotDetectedError } from "../domain/errors";
-
 /**
  * Injects `modeler:executionPlatform` and `modeler:executionPlatformVersion`
  * attributes — and optionally a namespace declaration — into the
@@ -47,44 +45,6 @@ export function addExecutionPlatform(
         return bpmnFile.replace(regex, `${definition.join(" ")}`);
     } else {
         throw new Error("The BPMN file does not contain a `bpmn:definitions` tag.");
-    }
-}
-
-/**
- * Detects the Camunda execution platform declared in the BPMN file.
- *
- * First checks for an explicit `modeler:executionPlatformVersion` attribute,
- * then falls back to detecting namespace declarations for `xmlns:camunda`
- * (Camunda 7) and `xmlns:zeebe` (Camunda 8).
- *
- * @param bpmnFile The raw BPMN XML string to inspect.
- * @returns `"c7"` for Camunda Platform 7, `"c8"` for Camunda Cloud 8.
- * @throws {Error} If the execution platform version is unsupported.
- * @throws {Error} If the execution platform cannot be detected.
- */
-export function detectExecutionPlatform(bpmnFile: string): "c7" | "c8" {
-    const regexExecutionPlatform = /modeler:executionPlatformVersion="([78])\.\d+\.\d+"/;
-    const match = bpmnFile.match(regexExecutionPlatform);
-
-    if (match) {
-        switch (match[1]) {
-            case "7":
-                return "c7";
-            case "8":
-                return "c8";
-            default:
-                throw new Error(
-                    `The execution platform version ${match[1]} is not supported.`,
-                );
-        }
-    }
-
-    if (bpmnFile.match(/xmlns:camunda=".*"/)) {
-        return "c7";
-    } else if (bpmnFile.match(/xmlns:zeebe=".*"/)) {
-        return "c8";
-    } else {
-        throw new ExecutionPlatformNotDetectedError();
     }
 }
 
@@ -152,18 +112,6 @@ export function emptyC8BpmnDiagram(version: string): string {
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>
 `;
-}
-
-/**
- * Extracts the full `modeler:executionPlatformVersion` value from BPMN XML.
- *
- * @param bpmnFile The raw BPMN XML string to inspect.
- * @returns The version string (e.g. `"8.8.0"`) or `undefined` if not found.
- */
-export function detectExecutionPlatformVersion(bpmnFile: string): string | undefined {
-    const regex = /modeler:executionPlatformVersion="(\d+\.\d+\.\d+)"/;
-    const match = bpmnFile.match(regex);
-    return match ? match[1] : undefined;
 }
 
 /**

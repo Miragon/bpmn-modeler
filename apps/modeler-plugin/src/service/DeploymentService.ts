@@ -1,7 +1,11 @@
 import * as path from "path";
 import { Uri, window, workspace } from "vscode";
 
-import { AuthConfigPayload, DeploymentFormDefaults } from "@bpmn-modeler/shared";
+import {
+    AuthConfigPayload,
+    DeploymentFormDefaults,
+    detectExecutionPlatform,
+} from "@bpmn-modeler/shared";
 
 import { DeploymentConfig, DeploymentResult } from "../domain/deployment";
 import { CamundaEnginePort } from "../domain/ports";
@@ -10,7 +14,6 @@ import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeSecretStore } from "../infrastructure/VsCodeSecretStore";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
-import { detectExecutionPlatform } from "./bpmnUtils";
 
 /**
  * Orchestrates the full BPMN deployment workflow.

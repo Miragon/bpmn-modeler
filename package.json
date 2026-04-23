@@ -9,13 +9,14 @@
         "docs"
     ],
     "scripts": {
-        "build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview build:deployment-webview -s build:plugin",
+        "build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview build:deployment-webview -s build:plugin build:modeler-cli",
         "build:libs": "npm-run-all build:lib:shared",
         "build:lib:shared": "corepack yarn workspace @bpmn-modeler/shared build",
         "build:bpmn-webview": "corepack yarn workspace bpmn-webview build",
         "build:dmn-webview": "corepack yarn workspace dmn-webview build",
         "build:deployment-webview": "corepack yarn workspace deployment-webview build",
         "build:plugin": "corepack yarn workspace vs-code-bpmn-modeler build",
+        "build:modeler-cli": "corepack yarn workspace @miragon/bpmn-modeler-cli build",
         "dev:deployment-webview": "corepack yarn workspace deployment-webview dev",
         "dev": "npm-run-all -s build:libs build:bpmn-webview build:dmn-webview build:deployment-webview -p dev:libs dev:bpmn-webview dev:dmn-webview dev:deployment-webview dev:plugin",
         "dev:libs": "npm-run-all dev:lib:shared",

@@ -89,6 +89,13 @@ all available commands.
 | BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
 
 
+## Using the modeler outside VS Code
+
+The same bpmn-js modeler is also available as a standalone CLI for editing
+BPMN/DMN files from **IntelliJ IDEA**, WebStorm, Vim, or the terminal — no
+JetBrains plugin required. See **[apps/modeler-cli/README.md](apps/modeler-cli/README.md)**
+for installation and IntelliJ setup instructions.
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to learn,

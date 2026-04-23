@@ -1,0 +1,28 @@
+{
+    "name": "@miragon/bpmn-modeler-cli",
+    "version": "0.0.1",
+    "private": true,
+    "license": "Apache-2.0",
+    "description": "Open BPMN/DMN files in a local browser modeler from any IDE or the terminal.",
+    "bin": {
+        "bpmn-modeler": "./dist/index.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.app.json && node ./scripts/copy-webviews.cjs",
+        "start": "node ./dist/index.js"
+    },
+    "dependencies": {
+        "@bpmn-modeler/shared": "workspace:*",
+        "chokidar": "3.6.0",
+        "commander": "12.1.0",
+        "express": "4.21.2",
+        "ws": "8.18.0"
+    },
+    "devDependencies": {
+        "@types/express": "4.17.21",
+        "@types/ws": "8.5.13"
+    }
+}

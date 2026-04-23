@@ -16,6 +16,7 @@ import {
     buildRemovedAnchors,
     Command,
     CursorChangedCommand,
+    detectExecutionPlatform,
     DiffCounts,
     DiffSide,
     LanguageQuery,
@@ -30,7 +31,6 @@ import { ConfigurationChangeEvent, Disposable, TextDocument, Uri, WebviewPanel, 
 import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
-import { detectExecutionPlatform } from "./bpmnUtils";
 
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
 

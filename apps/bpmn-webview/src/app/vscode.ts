@@ -19,6 +19,7 @@ import {
     VsCodeImpl,
     VsCodeMock,
     ViewportChangedCommand,
+    WebSocketChannelImpl,
 } from "@bpmn-modeler/shared";
 
 import c7Samples from "./__fixtures__/c7-samples.json";
@@ -120,17 +121,27 @@ type MessageType = Command | Query;
 /**
  * Returns the appropriate VS Code API implementation.
  *
- * In `development` mode a {@link MockedVsCodeApi} is returned so the webview
- * can be run standalone in a browser without a VS Code host.  In all other
- * environments the real {@link VsCodeImpl} is used.
+ * Selection order (runtime feature detection — one bundle, three channels):
+ *
+ * 1. `acquireVsCodeApi` exists → VS Code extension host (production).
+ * 2. `window.__WS_BRIDGE__` is set → standalone CLI host (modeler-cli),
+ *    bridges to a local Node.js server over WebSocket.
+ * 3. `NODE_ENV === "development"` → in-browser dev mock with fixture data.
  */
 export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
-    console.log(process.env.NODE_ENV);
-    if (process.env.NODE_ENV === "development") {
-        return new MockedVsCodeApi();
-    } else {
+    if (typeof acquireVsCodeApi === "function") {
         return new VsCodeImpl<StateType, MessageType>();
     }
+    const wsBridge = (window as unknown as { __WS_BRIDGE__?: string }).__WS_BRIDGE__;
+    if (wsBridge) {
+        return new WebSocketChannelImpl<StateType, MessageType>(wsBridge);
+    }
+    if (process.env.NODE_ENV === "development") {
+        return new MockedVsCodeApi();
+    }
+    throw new Error(
+        "No VS Code API, WebSocket bridge, or dev mock available in this environment.",
+    );
 }
 
 /**

@@ -5,6 +5,8 @@
 /dist
 /tmp
 /out-tsc
+/libs/*/dist
+/apps/*/dist
 
 # dependencies
 node_modules
@@ -55,3 +57,4 @@ vitest.config.*.timestamp*
 docs/.vitepress/dist
 docs/.vitepress/cache
 .gstack/
+.agent/

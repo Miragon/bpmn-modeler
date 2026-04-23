@@ -4,14 +4,17 @@ import {
     BpmnFileQuery,
     BpmnModelerSettingQuery,
     ClipboardQuery,
+    detectExecutionPlatform,
+    detectExecutionPlatformVersion,
     ElementTemplatesQuery,
+    ExecutionPlatformNotDetectedError,
     LanguageQuery,
     TextClipboardQuery,
 } from "@bpmn-modeler/shared";
 
 import { ModelerSession } from "../domain/session";
 import { SettingBuilder } from "../domain/model";
-import { ExecutionPlatformNotDetectedError, UserCancelledError } from "../domain/errors";
+import { UserCancelledError } from "../domain/errors";
 import { getLatestVersion, getVersions } from "../domain/engineVersions";
 import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
 import { EditorStore } from "../infrastructure/EditorStore";
@@ -23,8 +26,6 @@ import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { ArtifactChangeTarget, ArtifactService } from "./ArtifactService";
 import {
     addExecutionPlatform,
-    detectExecutionPlatform,
-    detectExecutionPlatformVersion,
     emptyC7BpmnDiagram,
     emptyC8BpmnDiagram,
     updateExecutionPlatformVersion,
