@@ -6,6 +6,7 @@ import {
     ClipboardQuery,
     ElementTemplatesQuery,
     LanguageQuery,
+    PropertiesPanelStateQuery,
     TextClipboardQuery,
 } from "@bpmn-modeler/shared";
 
@@ -314,10 +315,32 @@ export class BpmnModelerService implements ArtifactChangeTarget {
      * Reads the globally persisted properties-panel visibility default
      * synchronously.  Used by the editor controller at resolve time so the
      * webview HTML can be pre-rendered with the correct collapsed state and
-     * the panel never flashes visible before CSS applies.
+     * the panel never flashes visible before {@link sendPropertiesPanelState}
+     * delivers the value over the message channel.
      */
     getPersistedPanelVisibility(): boolean {
         return this.panelStateRepo.getVisibility();
+    }
+
+    /**
+     * Sends the globally persisted properties-panel visibility default to the
+     * given editor.  Called when the webview requests the initial value on
+     * startup via {@link GetPropertiesPanelStateCommand}.
+     *
+     * @param editorId Document URI path of the target editor.
+     * @returns `true` on success, `false` on any failure.
+     */
+    async sendPropertiesPanelState(editorId: string): Promise<boolean> {
+        try {
+            const visible = this.panelStateRepo.getVisibility();
+            return await this.editorStore.postMessage(
+                editorId,
+                new PropertiesPanelStateQuery(visible),
+            );
+        } catch (error) {
+            this.vsUI.logError(error as Error);
+            return false;
+        }
     }
 
     /**
