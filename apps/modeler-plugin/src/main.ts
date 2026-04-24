@@ -2,6 +2,7 @@ import { env, ExtensionContext, Uri, window } from "vscode";
 
 import { setContext } from "./infrastructure/extensionContext";
 
+import { CompareSelectionStore } from "./infrastructure/CompareSelectionStore";
 import { EditorStore } from "./infrastructure/EditorStore";
 import { PropertiesPanelStateRepository } from "./infrastructure/PropertiesPanelStateRepository";
 import { VsCodeDocument } from "./infrastructure/VsCodeDocument";
@@ -13,6 +14,7 @@ import { ArtifactService } from "./service/ArtifactService";
 import { BpmnDiffService } from "./service/BpmnDiffService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
 import { DmnModelerService } from "./service/DmnModelerService";
+import { BpmnCompareController } from "./controller/BpmnCompareController";
 import { CommandController } from "./controller/CommandController";
 import { BpmnEditorController } from "./controller/BpmnEditorController";
 import { DmnEditorController } from "./controller/DmnEditorController";
@@ -55,6 +57,7 @@ export function activate(context: ExtensionContext): void {
     const statusBar = new VsCodeStatusBar();
     const vsUI = new VsCodeUI();
     const deploymentState = new VsCodeDeploymentState();
+    const compareSelection = new CompareSelectionStore();
     const secretStore = new VsCodeSecretStore();
     const httpClient = new FetchHttpClient();
     const authResolver = new AuthHeaderResolver(httpClient);
@@ -107,6 +110,7 @@ export function activate(context: ExtensionContext): void {
         statusBar,
     ).register(context);
     new DmnEditorController(editorStore, dmnService, vsUI).register(context);
+    new BpmnCompareController(compareSelection, diffService, vsUI).register(context);
     commandController.register(context);
     new DeploymentController(editorStore, vsDocument, deploymentSvc, startInstanceSvc, vsUI).register(context);
 }

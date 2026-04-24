@@ -5,8 +5,9 @@
 The BPMN diff view renders two side-by-side readonly BPMN canvases in place of
 VS Code's default text diff, with colour-coded element highlights driven by
 [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ). The interesting
-architecture lives in the extension host: detecting when VS Code opens a diff
-pair, coordinating two independent webviews, and keeping their viewports and
+architecture lives in the extension host: routing each resolving
+`CustomTextEditor` into the viewer path when its URI belongs to an open diff,
+coordinating two independent webviews, and keeping their viewports and
 highlight cursors in sync.
 
 See the [user-facing BPMN Diff page](/vscode/features/bpmn-diff) for the UX
@@ -14,49 +15,77 @@ description.
 
 ## System overview
 
-A diff pair is two `CustomTextEditor` webviews backing the same file: a
-`git:`-scheme URI (before) and a `file:`-scheme URI (after). Both are resolved
-by `BpmnEditorController`, which branches into a readonly viewer path when
-either URI belongs to a diff pair.
+A **diff session** is two `CustomTextEditor` webviews that together render one
+diff tab. Sessions come from two origins:
+
+- **`scm`** — VS Code opened the diff via Source Control, `git diff`, a PR
+  review, etc. One URI is typically `git:` (ref), the other `file:` (working
+  tree). The session is created lazily: the first pane to resolve is stashed
+  in a "pending SCM" slot keyed by `uri.path`; when the second pane resolves
+  with the same path, both are promoted into a `DiffSession("scm", …)`.
+- **`compare-files`** — the extension opened the diff via its own Explorer
+  commands (`bpmn-modeler.compareSelected` or the two-step
+  `selectForCompare` / `compareWithSelected`). Both URIs are known up front,
+  so the session is **pre-registered** before `vscode.diff` fires and a
+  30 s TTL sweeper evicts it if no pane ever attaches.
+
+`BpmnEditorController.resolveCustomTextEditor` asks
+`BpmnDiffService.shouldResolveAsDiff(uri)` for each resolving pane. That
+method runs an ordered decision tree: already-has-a-pane → no (the caller is
+a second resolve for a file already open elsewhere); pre-registered session →
+yes; `git:` scheme → yes; label heuristic matches a diff tab → yes;
+otherwise → no.
 
 ```mermaid
 sequenceDiagram
     participant VSCode as VS Code
-    participant Tracker as DiffTabTracker
+    participant Ctrl as BpmnCompareController
     participant Diff as BpmnDiffService
+    participant Editor as BpmnEditorController
     participant BeforePane as Before Webview
     participant AfterPane as After Webview
 
-    VSCode->>Tracker: onDidChangeTabs (diff opened)
-    Tracker->>Diff: onDidOpen(pair)
-    Diff->>Diff: register DiffPair (armed=false)
+    Note over Ctrl,Diff: compare-files origin (pre-registered)
+    Ctrl->>Diff: registerCompareFilesSession(left, right)
+    Ctrl->>VSCode: executeCommand("vscode.diff", left, right)
 
-    VSCode->>BeforePane: resolveCustomTextEditor (git:)
+    Note over VSCode,Editor: scm origin (lazy) skips the two calls above
+    VSCode->>Editor: resolveCustomTextEditor (before URI)
+    Editor->>Diff: shouldResolveAsDiff → resolveDiffPane
+    Diff->>Diff: findSessionFor(uri) — attach or stash pending SCM
+
+    VSCode->>Editor: resolveCustomTextEditor (after URI)
+    Editor->>Diff: shouldResolveAsDiff → resolveDiffPane
+    Diff->>Diff: promote pending → DiffSession / attach
+
     BeforePane->>Diff: DiffReadyCommand
-    Diff->>Diff: pair.markReady(before)
-
-    VSCode->>AfterPane: resolveCustomTextEditor (file:)
     AfterPane->>Diff: DiffReadyCommand
-    Diff->>Diff: pair.markReady(after) → isArmed()
-
-    Diff->>Diff: bpmn-moddle.fromXML(before + after)
-    Diff->>Diff: bpmn-js-differ.diff(defs, defs)
+    Diff->>Diff: session.isArmed() — run bpmn-moddle + bpmn-js-differ
     Diff->>BeforePane: ApplyDiffHighlightsQuery(removed, changed, moved, counts)
     Diff->>AfterPane: ApplyDiffHighlightsQuery(added, changed, moved, counts)
 
     BeforePane->>Diff: ViewportChangedCommand (pan/zoom)
     Diff->>AfterPane: SyncViewportQuery
-
     AfterPane->>Diff: CursorChangedCommand (Next/Prev)
     Diff->>BeforePane: SyncCursorQuery
 ```
 
 ## Entry points
 
-- **`DiffTabTracker`** (extension host) — observes `vscode.window.tabGroups`
-  and emits open/close events for BPMN diff tabs.
-- **`DiffPair`** (extension host) — state machine for a single diff pair
-  (armed flag, side resolution, partner lookup).
+- **`BpmnCompareController`** (extension host) — registers the three Explorer
+  commands (`selectForCompare`, `compareWithSelected`, `compareSelected`),
+  pre-registers a `compare-files` session, and invokes `vscode.diff`.
+- **`CompareSelectionStore`** (extension host) — ephemeral single-URI store
+  that bridges the two-step flow. Toggles the
+  `bpmn-modeler.compareSelectionActive` context key so "Compare with Selected"
+  only appears in the menu when a pick is pending.
+- **`BpmnDiffService`** (extension host) — owns every session, runs the
+  differ, broadcasts highlights, and forwards viewport/cursor sync messages.
+- **`DiffSession`** (extension host) — domain object for one diff: `origin`,
+  fixed `before`/`after` URIs, attached panes, armed flag.
+- **`BpmnEditorController`** (extension host) — branches resolving custom
+  editors between editable modeler and readonly viewer via
+  `BpmnDiffService.shouldResolveAsDiff(uri)`.
 - **`DiffMode`** (webview) — webview entry point for viewer mode, wires the
   viewer + legend + message handlers.
 
@@ -64,10 +93,11 @@ sequenceDiagram
 
 | File | Purpose |
 |---|---|
-| `apps/modeler-plugin/src/infrastructure/DiffTabTracker.ts` | Observes `vscode.window.tabGroups` and emits open/close events for BPMN diff tabs. |
-| `apps/modeler-plugin/src/domain/DiffPair.ts` | State machine for a single diff pair (armed flag, side resolution, partner lookup). |
-| `apps/modeler-plugin/src/service/BpmnDiffService.ts` | Runs `bpmn-js-differ`, broadcasts highlights, forwards viewport-sync messages. |
-| `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Branches between editable modeler and readonly viewer based on URI scheme / diff. |
+| `apps/modeler-plugin/src/service/BpmnDiffService.ts` | Session registry, differ runner, highlight broadcaster, viewport/cursor forwarder. Hosts `shouldResolveAsDiff` and `registerCompareFilesSession`. |
+| `apps/modeler-plugin/src/service/DiffSession.ts` | Domain object for one diff: origin, fixed before/after URIs, pane slots, armed flag. |
+| `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Branches between editable modeler and readonly viewer via `BpmnDiffService.shouldResolveAsDiff`. |
+| `apps/modeler-plugin/src/controller/BpmnCompareController.ts` | Explorer commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and the shared `openBpmnDiff` dispatch. |
+| `apps/modeler-plugin/src/infrastructure/CompareSelectionStore.ts` | In-memory store for the pending "Select for Compare" URI; toggles the `bpmn-modeler.compareSelectionActive` context key. |
 | `apps/modeler-plugin/src/types/bpmn-js-differ.d.ts` | Ambient shim for the untyped `bpmn-js-differ` package. |
 | `apps/modeler-plugin/src/types/bpmn-moddle.d.ts` | Ambient shim for `bpmn-moddle` (factory function, not a class). |
 | `apps/bpmn-webview/src/app/diff/DiffMode.ts` | Webview entry point for viewer mode — wires viewer + legend + message handlers. |
@@ -146,12 +176,21 @@ the differ is upgraded.
 - **Editor id is the full URI string**, not just the path. `git:` and `file:`
   URIs for the same file produce different editor ids, so the `EditorStore`
   can hold both panes side by side without collision.
-- **`DiffTabTracker.isInDiff(uri)` scans the current tab tree** rather than
-  trusting cached state. Custom-editor resolution can race ahead of the
-  `onDidChangeTabs` event, and a fresh scan avoids the race.
-- **The pair is armed only when both panes signal ready.** The differ runs
-  exactly once per pair; subsequent document edits from Git (e.g. checkout of
-  another ref) retire and re-register the pair.
+- **SCM pairing is keyed by `uri.path`, not by the full URI.** That is the
+  only thing `git:foo.bpmn` and `file:foo.bpmn` share. The two paths of a
+  `compare-files` session deliberately differ, which is why that origin must
+  be pre-registered — lazy pairing would never match them.
+- **`shouldResolveAsDiff` short-circuits when a pane already exists for the
+  URI.** Without this, opening a working-tree file in a normal editor tab
+  while the SCM diff is still open would trigger a second resolve, and the
+  label heuristic would route it to the diff path too.
+- **`compare-files` sessions carry a TTL** (`COMPARE_FILES_TTL_MS`, 30 s).
+  If the caller invokes `vscode.diff` and the tab never opens (VS Code swallowed
+  the error, the user cancelled a dialog, etc.) the sweeper evicts the
+  session so the same pair can be registered again cleanly.
+- **Sessions are armed only when both panes signal ready.** The differ runs
+  exactly once per session; subsequent document edits from Git (e.g. checkout
+  of another ref) retire and re-register the session.
 - **`bpmn-moddle` is loaded via dynamic `import()`.** This keeps it in its
   own webpack chunk so the extension host doesn't pay the parse cost until a
   diff actually opens. The package's default export is a factory function

@@ -83,22 +83,15 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         _token: CancellationToken,
     ): Promise<void> {
         try {
-            // `git:`-scheme documents are always readonly (Git extension's
-            // FileSystemProvider owns their content).  `file:` documents that
-            // belong to an open diff view are also readonly here — editing
-            // them through the diff pane would race with the built-in diff
-            // editor's change detection.  For `file:` URIs we also guard
-            // against a *second* resolve for a URI that already has a diff
-            // viewer: when the user opens the SCM diff and then opens the
-            // same working-tree file in a normal editor group, VS Code fires
-            // `resolveCustomTextEditor` again and the label-based heuristic
-            // still matches — so we also require that no diff pane has been
-            // registered for this URI yet.
-            const isGitScheme = document.uri.scheme === "git";
-            const isNewDiffPane =
-                this.diffService.isPartOfDiff(document.uri) &&
-                !this.diffService.hasPaneForUri(document.uri);
-            if (isGitScheme || isNewDiffPane) {
+            // Diff branch: the service decides whether this URI should
+            // resolve as a diff pane.  It checks, in order: a pre-registered
+            // `compare-files` session (our own command), `git:` scheme
+            // (always readonly, always SCM), or the label-based SCM diff
+            // heuristic — while also guarding against a *second* resolve
+            // for a URI that already has a pane (e.g. user opens the
+            // working-tree file in a normal editor tab while the SCM diff
+            // is still open).
+            if (this.diffService.shouldResolveAsDiff(document.uri)) {
                 this.diffService.resolveDiffPane(webviewPanel, document);
                 return;
             }

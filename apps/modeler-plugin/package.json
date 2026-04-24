@@ -135,6 +135,18 @@
             {
                 "command": "bpmn-modeler.changeLanguage",
                 "title": "BPMN Modeler: Change Modeler Language"
+            },
+            {
+                "command": "bpmn-modeler.selectForCompare",
+                "title": "BPMN Modeler: Select for Compare"
+            },
+            {
+                "command": "bpmn-modeler.compareWithSelected",
+                "title": "BPMN Modeler: Compare with Selected"
+            },
+            {
+                "command": "bpmn-modeler.compareSelected",
+                "title": "BPMN Modeler: Compare Selected"
             }
         ],
         "keybindings": [
@@ -177,6 +189,35 @@
                 {
                     "command": "bpmn-modeler.changeLanguage",
                     "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.selectForCompare",
+                    "when": "false"
+                },
+                {
+                    "command": "bpmn-modeler.compareWithSelected",
+                    "when": "false"
+                },
+                {
+                    "command": "bpmn-modeler.compareSelected",
+                    "when": "false"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "bpmn-modeler.selectForCompare",
+                    "group": "3_compare",
+                    "when": "resourceExtname == .bpmn && !listDoubleSelection"
+                },
+                {
+                    "command": "bpmn-modeler.compareWithSelected",
+                    "group": "3_compare",
+                    "when": "resourceExtname == .bpmn && bpmn-modeler.compareSelectionActive && !listDoubleSelection"
+                },
+                {
+                    "command": "bpmn-modeler.compareSelected",
+                    "group": "3_compare",
+                    "when": "resourceExtname == .bpmn && listDoubleSelection"
                 }
             ],
             "editor/title": [
