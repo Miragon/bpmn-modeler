@@ -6502,7 +6502,7 @@ __metadata:
   dependencies:
     mermaid: "npm:10.9.3"
     vitepress: "npm:1.6.4"
-    vitepress-plugin-mermaid: "npm:^2.0.17"
+    vitepress-plugin-mermaid: "npm:2.0.17"
   languageName: unknown
   linkType: soft
 
@@ -12693,7 +12693,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vitepress-plugin-mermaid@npm:^2.0.17":
+"vitepress-plugin-mermaid@npm:2.0.17":
   version: 2.0.17
   resolution: "vitepress-plugin-mermaid@npm:2.0.17"
   dependencies:
