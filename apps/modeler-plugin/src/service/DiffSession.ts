@@ -1,18 +1,8 @@
 import { TextDocument, Uri, WebviewPanel } from "vscode";
 
-import { DiffSide } from "@bpmn-modeler/shared";
+import { DiffOrigin, DiffSide } from "@bpmn-modeler/shared";
 
-/**
- * Where a {@link DiffSession} came from.
- *
- * - `"scm"`: VS Code opened the diff (Source Control panel, `git diff`, PR
- *   review). Session is created lazily when the second pane resolves; URIs
- *   are paired by path equality.
- * - `"compare-files"`: the extension itself opened the diff via the
- *   `bpmn-modeler.compareWithSelected` command. Session is pre-registered
- *   before `vscode.diff` is invoked, so pane resolution is a simple lookup.
- */
-export type DiffOrigin = "scm" | "compare-files";
+export { DiffOrigin };
 
 /**
  * A single webview pane inside a diff session.
@@ -56,8 +46,13 @@ export class DiffSession {
     private afterPane?: DiffPaneEntry;
 
     /**
-     * @param origin How this session came to be — affects nothing in the diff
-     *   logic itself but is useful for logging and future per-origin UX.
+     * Prefer the origin-specific factories ({@link forCompareFiles},
+     * {@link forScm}) over calling this directly — they encapsulate each
+     * origin's side-assignment rule.
+     *
+     * @param origin How this session came to be.  Surfaces in the diff-legend
+     *   UI so compare-files panes can show origin-specific affordances (the
+     *   filename label, the swap button) that don't apply to SCM diffs.
      * @param beforeUri URI rendered in the left pane.
      * @param afterUri URI rendered in the right pane.
      */
@@ -66,6 +61,41 @@ export class DiffSession {
         readonly beforeUri: Uri,
         readonly afterUri: Uri,
     ) {}
+
+    /**
+     * Builds a `compare-files` session with the caller's left/right order
+     * fixed as before/after.  Matches the visual order VS Code renders
+     * `vscode.diff(a, b)` in — no inference is necessary because the
+     * extension itself supplied both URIs.
+     */
+    static forCompareFiles(leftUri: Uri, rightUri: Uri): DiffSession {
+        return new DiffSession("compare-files", leftUri, rightUri);
+    }
+
+    /**
+     * Builds an `scm` session from the two panes VS Code handed us, applying
+     * the SCM side-assignment rule:
+     *
+     *   - If one URI is `file:` it is the working tree → `after`.
+     *   - Otherwise (ref-vs-ref, both `git:`) the first-resolved pane is
+     *     `before`, second is `after` — arbitrary but matches the visual
+     *     order VS Code's SCM diff chose.
+     *
+     * The panes are returned alongside the session so the caller can attach
+     * them without re-deriving the pairing.
+     */
+    static forScm(
+        first: DiffPaneEntry,
+        second: DiffPaneEntry,
+    ): { session: DiffSession; before: DiffPaneEntry; after: DiffPaneEntry } {
+        const { before, after } = resolveScmSides(first, second);
+        const session = new DiffSession(
+            "scm",
+            before.document.uri,
+            after.document.uri,
+        );
+        return { session, before, after };
+    }
 
     /**
      * Returns the canonical side for the given URI, or `undefined` when the
@@ -170,4 +200,24 @@ export class DiffSession {
             this.afterPane.ready
         );
     }
+}
+
+/**
+ * Resolves SCM-diff side assignment for two panes that share a path.
+ *
+ * Invariant: `file:` URIs represent the working tree and must be `after`.
+ * For ref-vs-ref diffs (both `git:`) side follows resolution order, which
+ * mirrors VS Code's own visual ordering choice.
+ */
+function resolveScmSides(
+    first: DiffPaneEntry,
+    second: DiffPaneEntry,
+): { before: DiffPaneEntry; after: DiffPaneEntry } {
+    if (second.document.uri.scheme === "file") {
+        return { before: first, after: second };
+    }
+    if (first.document.uri.scheme === "file") {
+        return { before: second, after: first };
+    }
+    return { before: first, after: second };
 }

@@ -101,6 +101,7 @@ const translations: Record<string, string> = {
     "Moved": "Moved",
     "Prev change": "Prev change",
     "Next change": "Next change",
+    "Swap sides": "Swap sides",
 };
 
 export default translations;

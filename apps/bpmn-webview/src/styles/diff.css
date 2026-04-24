@@ -84,9 +84,9 @@ body.viewer-mode[data-diff-side="after"] {
     left: 50%;
     transform: translateX(-50%);
     display: none;
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 6px;
     padding: 8px 12px;
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid #d0d0d0;
@@ -96,6 +96,23 @@ body.viewer-mode[data-diff-side="after"] {
     color: #1f1f1f;
     z-index: 100;
     user-select: none;
+}
+
+/* Filename subtitle — only rendered on compare-files panes where the tab
+   title alone is not enough to disambiguate which pane shows which file. */
+.diff-legend__filename {
+    font-weight: 600;
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.diff-legend__counts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
 }
 
 .diff-legend__slot {
@@ -136,6 +153,15 @@ body.viewer-mode[data-diff-side="after"] {
     display: inline-flex;
     gap: 4px;
     margin-left: 4px;
+    padding-left: 12px;
+    border-left: 1px solid #d0d0d0;
+}
+
+/* Swap group sits after the nav group with its own divider so the
+   compare-files-only affordance is visually distinct from the always-on
+   prev/next navigation. */
+.diff-legend__swap-group {
+    display: inline-flex;
     padding-left: 12px;
     border-left: 1px solid #d0d0d0;
 }
@@ -183,7 +209,9 @@ body.vscode-high-contrast .diff-legend {
 }
 
 body.vscode-dark .diff-legend__nav,
-body.vscode-high-contrast .diff-legend__nav {
+body.vscode-dark .diff-legend__swap-group,
+body.vscode-high-contrast .diff-legend__nav,
+body.vscode-high-contrast .diff-legend__swap-group {
     border-left-color: #555;
 }
 

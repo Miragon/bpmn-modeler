@@ -209,6 +209,7 @@ const translations: Record<string, string> = {
     "Sub Process (collapsed)": "Subproceso (contraído)",
     "Sub Process (expanded)": "Subproceso (expandido)",
     "Sub Process": "Subproceso",
+    "Swap sides": "Intercambiar lados",
     "Task Listeners": "Listeners de tarea",
     "Task": "Tarea",
     "Template": "Plantilla",
