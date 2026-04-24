@@ -24,7 +24,7 @@ import {
     ViewportChangedCommand,
 } from "@bpmn-modeler/shared";
 
-import { ConfigurationChangeEvent, Disposable, TextDocument, Uri, WebviewPanel, window, workspace } from "vscode";
+import { commands, ConfigurationChangeEvent, Disposable, TextDocument, Uri, WebviewPanel, window, workspace } from "vscode";
 
 import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
@@ -144,16 +144,46 @@ export class BpmnDiffService {
      *   ignore the return value).
      */
     registerCompareFilesSession(leftUri: Uri, rightUri: Uri): DiffSession {
-        const session = new DiffSession("compare-files", leftUri, rightUri);
-        const id = this.sessionIdOf(session);
-        this.sessions.set(id, session);
-        this.sessionByUri.set(leftUri.toString(), session);
-        this.sessionByUri.set(rightUri.toString(), session);
+        const session = DiffSession.forCompareFiles(leftUri, rightUri);
+        this.indexSession(session);
         this.ttlTimers.set(
             session,
             setTimeout(() => this.sweepOrphan(session), COMPARE_FILES_TTL_MS),
         );
         return session;
+    }
+
+    /**
+     * One-call `compare-files` diff-open: pre-registers the session, invokes
+     * `vscode.diff`, and constructs the tab title.
+     *
+     * Session registration must happen before `vscode.diff` so that when VS
+     * Code immediately resolves each pane through the
+     * `CustomTextEditorProvider`, pane lookup via {@link findSessionFor}
+     * succeeds synchronously — otherwise the panes would fall through to the
+     * SCM label heuristic.
+     *
+     * Errors from `vscode.diff` are surfaced to the user here so both entry
+     * points ({@link BpmnCompareController} and {@link swapCompareFilesSides})
+     * share the same failure UX.
+     */
+    async openCompareFilesDiff(leftUri: Uri, rightUri: Uri): Promise<void> {
+        this.registerCompareFilesSession(leftUri, rightUri);
+        const title = `${basenameOfUri(leftUri)} ↔ ${basenameOfUri(rightUri)}`;
+        try {
+            await commands.executeCommand(
+                "vscode.diff",
+                leftUri,
+                rightUri,
+                title,
+                { preview: false },
+            );
+        } catch (error) {
+            this.vsUI.logError(error as Error);
+            this.vsUI.showError(
+                `Failed to open compare view: ${(error as Error).message}`,
+            );
+        }
     }
 
     /**
@@ -308,19 +338,25 @@ export class BpmnDiffService {
         }
 
         this.pendingScm.delete(path);
-        const { before, after } = resolveScmSides(pending.entry, entry);
-        const session = new DiffSession(
-            "scm",
-            before.document.uri,
-            after.document.uri,
+        const { session, before, after } = DiffSession.forScm(
+            pending.entry,
+            entry,
         );
         session.attachPane(before);
         session.attachPane(after);
+        this.indexSession(session);
+    }
 
-        const id = this.sessionIdOf(session);
-        this.sessions.set(id, session);
-        this.sessionByUri.set(before.document.uri.toString(), session);
-        this.sessionByUri.set(after.document.uri.toString(), session);
+    /**
+     * Adds `session` to the `sessions` map and the per-URI lookup index.
+     *
+     * Both session-creation paths (eager `compare-files` and lazy `scm`)
+     * funnel through here so the two maps never drift out of sync.
+     */
+    private indexSession(session: DiffSession): void {
+        this.sessions.set(this.sessionIdOf(session), session);
+        this.sessionByUri.set(session.beforeUri.toString(), session);
+        this.sessionByUri.set(session.afterUri.toString(), session);
     }
 
     private sessionIdOf(session: DiffSession): string {
@@ -391,7 +427,36 @@ export class BpmnDiffService {
                     (message as CursorChangedCommand).index,
                 );
                 break;
+            case "SwapCompareSidesCommand":
+                await this.swapCompareFilesSides(entry);
+                break;
         }
+    }
+
+    /**
+     * Closes the current diff tab and reopens it with the two URIs swapped.
+     *
+     * Only applies to `compare-files` sessions: the extension owns both URIs
+     * and the tab title, so it can legitimately retire and recreate the diff.
+     * SCM panes never emit {@link SwapCompareSidesCommand} — the button is
+     * hidden there — but we still guard against misuse since message routing
+     * cannot encode origin at the type level.
+     *
+     * Disposing the webview panels triggers `disposePane` for both sides,
+     * which tears down the old session and removes it from the indexes.  The
+     * subsequent `openCompareFilesDiff` then registers a fresh session with
+     * the reversed before/after assignment.
+     */
+    private async swapCompareFilesSides(entry: DiffPaneEntry): Promise<void> {
+        const session = this.sessionByUri.get(entry.document.uri.toString());
+        if (!session || session.origin !== "compare-files") {
+            return;
+        }
+        const { beforeUri, afterUri } = session;
+        for (const pane of session.attachedPanes()) {
+            pane.panel.dispose();
+        }
+        await this.openCompareFilesDiff(afterUri, beforeUri);
     }
 
     /**
@@ -428,7 +493,7 @@ export class BpmnDiffService {
         const before = session.before();
         const after = session.after();
         if (before && after) {
-            await this.computeAndBroadcast(before, after);
+            await this.computeAndBroadcast(session, before, after);
         }
     }
 
@@ -527,6 +592,7 @@ export class BpmnDiffService {
      *   - `_changed` and `_layoutChanged` elements exist on both.
      */
     private async computeAndBroadcast(
+        session: DiffSession,
         before: DiffPaneEntry,
         after: DiffPaneEntry,
     ): Promise<void> {
@@ -622,6 +688,8 @@ export class BpmnDiffService {
                 sortedLayoutChanged,
                 counts,
                 navigationOrder,
+                session.origin,
+                basenameOfUri(before.document.uri),
             ),
         );
         await this.postHighlights(
@@ -634,6 +702,8 @@ export class BpmnDiffService {
                 sortedLayoutChanged,
                 counts,
                 navigationOrder,
+                session.origin,
+                basenameOfUri(after.document.uri),
             ),
         );
     }
@@ -655,24 +725,4 @@ export class BpmnDiffService {
 function basenameOfUri(uri: Uri): string {
     const parts = uri.path.split("/");
     return parts[parts.length - 1] ?? "";
-}
-
-/**
- * Resolves SCM-diff side assignment for two panes that share a path.
- *
- * Invariant: `file:` URIs represent the working tree and must be `after`.
- * For ref-vs-ref diffs (both `git:`) side follows resolution order, which
- * mirrors VS Code's own visual ordering choice.
- */
-function resolveScmSides(
-    first: DiffPaneEntry,
-    second: DiffPaneEntry,
-): { before: DiffPaneEntry; after: DiffPaneEntry } {
-    if (second.document.uri.scheme === "file") {
-        return { before: first, after: second };
-    }
-    if (first.document.uri.scheme === "file") {
-        return { before: second, after: first };
-    }
-    return { before: first, after: second };
 }

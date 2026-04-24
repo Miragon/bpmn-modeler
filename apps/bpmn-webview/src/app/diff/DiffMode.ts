@@ -4,6 +4,7 @@ import {
     CursorChangedCommand,
     DiffReadyCommand,
     Query,
+    SwapCompareSidesCommand,
     SyncCursorQuery,
     SyncViewportQuery,
     VsCodeApi,
@@ -59,6 +60,11 @@ export class DiffMode {
         this.legend = new DiffLegend(legendParent, {
             onPrevious: () => this.step(-1),
             onNext: () => this.step(1),
+            // The button is only visible on compare-files panes (the legend
+            // toggles its display based on origin), so the host side will only
+            // ever receive this command from a compare-files session.  The
+            // host still validates origin defensively before acting.
+            onSwap: () => this.vscode.postMessage(new SwapCompareSidesCommand()),
         });
 
         this.viewer.onViewportChanged((viewport) => {
@@ -145,7 +151,13 @@ export class DiffMode {
         // Both panes render the legend now: counts are symmetric across
         // sides, and each pane drives a synced cursor over the same
         // navigationOrder array, so the user can step from either side.
-        this.legend.update(query.counts);
+        // The origin/filename fields drive origin-specific affordances
+        // inside DiffLegend (filename subtitle, swap button).
+        this.legend.update({
+            counts: query.counts,
+            origin: query.origin,
+            filename: query.paneFilename,
+        });
     }
 
     /**

@@ -33,9 +33,14 @@ Useful when the two files live in different Explorer folders, or when you want t
 2. Right-click the second `.bpmn` file → **BPMN Modeler: Compare with Selected**.
 3. The diff tab opens as above.
 
-Selection is in-memory only; reloading the window or running the compare clears it. The menu mirrors VS Code's built-in compare UX: **Select for Compare** and **Compare with Selected** disappear while two files are multi-selected — **Compare Selected** takes their place.
+Selection is in-memory only; reloading the window or running the compare clears it. The menu mirrors VS Code's built-in compare UX: **Select for Compare** and **Compare with Selected** disappear while two files are multi-selected — **Compare Selected** takes their place. Selecting three or more `.bpmn` files hides every compare entry (there is no meaningful three-way compare).
 
-The same viewport/cursor sync and highlight legend that ships for Git diffs applies here — the two origins are indistinguishable in the UI. Each pane is a `NavigatedViewer`: read-only but fully navigable with mouse wheel, drag, and keyboard.
+Compare-files diffs carry two extras the SCM diff does not need:
+
+- **Filename subtitle** on each pane's legend, so you can tell at a glance which file is rendered on which side.
+- **Swap button** on the legend (`⇄ Swap sides`) that closes the diff tab and reopens it with the two files reversed.
+
+The viewport/cursor sync and highlight legend otherwise match the Git-diff view. Each pane is a `NavigatedViewer`: read-only but fully navigable with mouse wheel, drag, and keyboard.
 
 ## Highlights
 
@@ -58,6 +63,7 @@ A floating legend sits at the top-centre of **both panes**:
 - A **Prev change** / **Next change** navigator that cycles through the shared change list in sequence-flow order.
 - Clicking a nav button on either pane advances **both** cursors.  The pane that owns the current id paints a gold glow; the other pane anchors its viewport on the nearest neighbour that does exist locally and clears its own selection marker so the user is not misled.  For elements that exist on both panes, both will glow simultaneously.
 - Buttons are disabled when there are no changes at all.
+- For compare-files diffs, each pane's legend additionally shows the file's **basename** as a subtitle and a **Swap sides** (`⇄`) button.  SCM diffs hide both — VS Code's tab title already carries the filename/ref metadata, and swapping refs isn't an operation the extension owns.
 
 ## Viewport and Cursor Sync
 

@@ -66,6 +66,7 @@ const translations: Record<string, string> = {
     "Call Activity": "調用活動",
     "Sub Process (expanded)": "子流程 (展開)",
     "Sub Process": "子流程",
+    "Swap sides": "交換左右",
     "Task": "任務",
     "This maps to the task definition key.": "映射為任務定义Key.",
     "Collapsed Pool": "折叠泳道",

@@ -20,14 +20,17 @@ diff tab. Sessions come from two origins:
 
 - **`scm`** — VS Code opened the diff via Source Control, `git diff`, a PR
   review, etc. One URI is typically `git:` (ref), the other `file:` (working
-  tree). The session is created lazily: the first pane to resolve is stashed
-  in a "pending SCM" slot keyed by `uri.path`; when the second pane resolves
-  with the same path, both are promoted into a `DiffSession("scm", …)`.
+  tree). The session is created lazily via `DiffSession.forScm(…)`: the
+  first pane to resolve is stashed in a "pending SCM" slot keyed by
+  `uri.path`; when the second pane resolves with the same path, both are
+  promoted into a `DiffSession("scm", …)`. The factory encapsulates the
+  side-assignment rule (`file:` URI → `after`, otherwise resolution order).
 - **`compare-files`** — the extension opened the diff via its own Explorer
   commands (`bpmn-modeler.compareSelected` or the two-step
   `selectForCompare` / `compareWithSelected`). Both URIs are known up front,
-  so the session is **pre-registered** before `vscode.diff` fires and a
-  30 s TTL sweeper evicts it if no pane ever attaches.
+  so the session is **pre-registered** by `BpmnDiffService.openCompareFilesDiff`
+  (which delegates to `DiffSession.forCompareFiles(…)`) before `vscode.diff`
+  fires, and a 30 s TTL sweeper evicts it if no pane ever attaches.
 
 `BpmnEditorController.resolveCustomTextEditor` asks
 `BpmnDiffService.shouldResolveAsDiff(uri)` for each resolving pane. That
@@ -61,8 +64,8 @@ sequenceDiagram
     BeforePane->>Diff: DiffReadyCommand
     AfterPane->>Diff: DiffReadyCommand
     Diff->>Diff: session.isArmed() — run bpmn-moddle + bpmn-js-differ
-    Diff->>BeforePane: ApplyDiffHighlightsQuery(removed, changed, moved, counts)
-    Diff->>AfterPane: ApplyDiffHighlightsQuery(added, changed, moved, counts)
+    Diff->>BeforePane: ApplyDiffHighlightsQuery(removed, changed, moved, counts, origin, paneFilename)
+    Diff->>AfterPane: ApplyDiffHighlightsQuery(added, changed, moved, counts, origin, paneFilename)
 
     BeforePane->>Diff: ViewportChangedCommand (pan/zoom)
     Diff->>AfterPane: SyncViewportQuery
@@ -73,16 +76,20 @@ sequenceDiagram
 ## Entry points
 
 - **`BpmnCompareController`** (extension host) — registers the three Explorer
-  commands (`selectForCompare`, `compareWithSelected`, `compareSelected`),
-  pre-registers a `compare-files` session, and invokes `vscode.diff`.
+  commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and
+  dispatches each to `BpmnDiffService.openCompareFilesDiff`, which owns the
+  session-register + `vscode.diff` + tab-title construction.
 - **`CompareSelectionStore`** (extension host) — ephemeral single-URI store
   that bridges the two-step flow. Toggles the
   `bpmn-modeler.compareSelectionActive` context key so "Compare with Selected"
   only appears in the menu when a pick is pending.
 - **`BpmnDiffService`** (extension host) — owns every session, runs the
-  differ, broadcasts highlights, and forwards viewport/cursor sync messages.
+  differ, broadcasts highlights, forwards viewport/cursor sync messages, and
+  handles the compare-files-only swap-sides operation.
 - **`DiffSession`** (extension host) — domain object for one diff: `origin`,
-  fixed `before`/`after` URIs, attached panes, armed flag.
+  fixed `before`/`after` URIs, attached panes, armed flag. Exposes two
+  origin-specific factories (`forCompareFiles`, `forScm`) that each
+  encapsulate their own side-assignment rule.
 - **`BpmnEditorController`** (extension host) — branches resolving custom
   editors between editable modeler and readonly viewer via
   `BpmnDiffService.shouldResolveAsDiff(uri)`.
@@ -115,17 +122,23 @@ All types are defined in `libs/shared/src/lib/modeler.ts`.
 |---|---|---|
 | `BpmnFileQuery` | host → webview | `{ content, engine, viewerMode: "modeler" \| "viewer" }` |
 | `DiffReadyCommand` | webview → host | `{}` — signals the pane has imported its XML |
-| `ApplyDiffHighlightsQuery` | host → webview | `{ side, added, removed, changed, layoutChanged, counts, navigationOrder }` |
+| `ApplyDiffHighlightsQuery` | host → webview | `{ side, added, removed, changed, layoutChanged, counts, navigationOrder, origin, paneFilename }` |
 | `ViewportChangedCommand` | webview → host | `{ viewport: { x, y, width, height } }` |
 | `SyncViewportQuery` | host → webview | `{ viewport }` — applied to the partner pane |
 | `CursorChangedCommand` | webview → host | `{ index }` — current position in the shared `navigationOrder` |
 | `SyncCursorQuery` | host → webview | `{ index }` — applied to the partner pane via `applyCursor(index, false)` |
+| `SwapCompareSidesCommand` | webview → host | `{}` — user clicked the swap button on a compare-files legend |
 
 Each pane receives only the ids that exist on its canvas: the before side sees
 `removed / changed / layoutChanged`, the after side sees
 `added / changed / layoutChanged`. The `counts` and `navigationOrder` fields are
 symmetric — they drive the dual legend and the cursor-sync stepper, so
 `applyHighlights` does not need a per-pane filter pass.
+
+The `origin` and `paneFilename` fields are always sent, but the webview
+only renders the filename label and swap button when `origin === "compare-files"`.
+SCM panes receive the same fields so the message shape stays uniform;
+they are simply ignored by the legend.
 
 ## Interaction flow
 
@@ -151,6 +164,19 @@ The extension host forwards it to the partner pane as a `SyncViewportQuery`,
 which calls `canvas.viewbox()` on the partner. A suppression guard on the
 receiving side prevents the resulting `canvas.viewbox.changed` event from
 echoing back and creating a feedback loop.
+
+### Swap sides (compare-files only)
+
+Compare-files diff panes render a swap button on the legend. When clicked, the
+webview posts `SwapCompareSidesCommand` to the host, which looks up the
+sending pane's session, confirms the origin is `compare-files`, disposes both
+webview panels, and re-invokes `BpmnDiffService.openCompareFilesDiff` with the
+two URIs reversed. Disposing the panels cascades through `disposePane` and
+cleans up the old session's index entries before the fresh session registers,
+so the two sessions never collide.
+
+SCM panes never render the button — VS Code owns the tab title and the ref
+metadata there, and swapping git refs isn't an operation the extension owns.
 
 ### Cursor sync
 

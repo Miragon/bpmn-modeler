@@ -66,6 +66,7 @@ const translations: Record<string, string> = {
     "Call Activity": "Вызывающее действие",
     "Sub Process (expanded)": "Подпроцесс (расширенный)",
     "Sub Process": "Подпроцесс",
+    "Swap sides": "Поменять стороны",
     "Task": "Задача",
     "This maps to the task definition key.": "Это соответствует ключу задачи.",
     "Collapsed Pool": "Разрушенный пул",

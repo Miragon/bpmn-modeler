@@ -207,12 +207,12 @@
                 {
                     "command": "bpmn-modeler.selectForCompare",
                     "group": "3_compare",
-                    "when": "resourceExtname == .bpmn && !listDoubleSelection"
+                    "when": "resourceExtname == .bpmn && !listMultiSelection"
                 },
                 {
                     "command": "bpmn-modeler.compareWithSelected",
                     "group": "3_compare",
-                    "when": "resourceExtname == .bpmn && bpmn-modeler.compareSelectionActive && !listDoubleSelection"
+                    "when": "resourceExtname == .bpmn && bpmn-modeler.compareSelectionActive && !listMultiSelection"
                 },
                 {
                     "command": "bpmn-modeler.compareSelected",

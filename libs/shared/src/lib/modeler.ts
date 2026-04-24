@@ -461,6 +461,16 @@ export class ProcessDefinitionKeyQuery extends Query {
 /** Which side of the diff a webview pane represents. */
 export type DiffSide = "before" | "after";
 
+/**
+ * How a diff session was opened.
+ *
+ * Surfaces in the legend UI so that compare-files panes can show the origin-
+ * specific affordances (filename label, swap button) that don't apply to an
+ * SCM diff, where VS Code already owns the tab title and the two URIs may
+ * share the same basename.
+ */
+export type DiffOrigin = "scm" | "compare-files";
+
 /** Summary counts used for the diff legend chip. */
 export interface DiffCounts {
     readonly added: number;
@@ -505,6 +515,22 @@ export class ApplyDiffHighlightsQuery extends Query {
      */
     public readonly navigationOrder: string[];
 
+    /**
+     * How the diff was opened.  Drives origin-specific legend affordances:
+     * compare-files panes show a filename label and a swap button; SCM panes
+     * show neither because VS Code already carries that information on the
+     * tab title.
+     */
+    public readonly origin: DiffOrigin;
+
+    /**
+     * Basename of this pane's document URI, rendered on the legend when
+     * {@link origin} is `compare-files`.  Always sent (even for `scm` origin)
+     * so the message shape stays uniform; the webview decides whether to
+     * display it based on {@link origin}.
+     */
+    public readonly paneFilename: string;
+
     constructor(
         side: DiffSide,
         added: string[],
@@ -513,6 +539,8 @@ export class ApplyDiffHighlightsQuery extends Query {
         layoutChanged: string[],
         counts: DiffCounts,
         navigationOrder: string[],
+        origin: DiffOrigin,
+        paneFilename: string,
     ) {
         super("ApplyDiffHighlightsQuery");
         this.side = side;
@@ -522,6 +550,8 @@ export class ApplyDiffHighlightsQuery extends Query {
         this.layoutChanged = layoutChanged;
         this.counts = counts;
         this.navigationOrder = navigationOrder;
+        this.origin = origin;
+        this.paneFilename = paneFilename;
     }
 }
 
@@ -590,6 +620,18 @@ export class SyncCursorQuery extends Query {
 export class DiffReadyCommand extends Command {
     constructor() {
         super("DiffReadyCommand");
+    }
+}
+
+/**
+ * Sent from a compare-files viewer pane when the user clicks the swap button
+ * on the legend.  The host looks up the session from the sending pane's URI,
+ * verifies the origin is `compare-files`, and reopens the diff with the two
+ * URIs swapped.  SCM panes never emit this — the button is hidden there.
+ */
+export class SwapCompareSidesCommand extends Command {
+    constructor() {
+        super("SwapCompareSidesCommand");
     }
 }
 

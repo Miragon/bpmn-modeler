@@ -27,15 +27,16 @@ const STATUS_MESSAGE_TIMEOUT_MS = 3_000;
  * - **Two-step** (single right-click at a time): "Select for Compare" stores
  *   the URI in {@link CompareSelectionStore} and activates a context key so
  *   "Compare with Selected" appears on the next right-click.  The second
- *   step pre-registers a {@link DiffSession}, invokes `vscode.diff`, and
+ *   step opens the diff via {@link BpmnDiffService.openCompareFilesDiff} and
  *   clears the selection (one-shot).
  * - **Single-step** (multi-selection of exactly two files): "Compare Selected"
  *   receives both URIs at once via the Explorer's `(uri, uris)` callback
  *   signature, skips the store entirely, and dispatches the same diff-open
  *   path.
  *
- * Both paths funnel through {@link openBpmnDiff} so session registration,
- * tab-title construction, and error reporting stay in one place.
+ * Both paths funnel through {@link BpmnDiffService.openCompareFilesDiff} so
+ * session registration, tab-title construction, and error reporting stay in
+ * one place — and the swap-sides flow can re-use the exact same entry point.
  *
  * Keeping these commands in their own controller (rather than folding them
  * into {@link CommandController}) respects SRP — compare commands activate
@@ -127,7 +128,7 @@ export class BpmnCompareController {
             return;
         }
 
-        await this.openBpmnDiff(leftUri, rightUri);
+        await this.diffService.openCompareFilesDiff(leftUri, rightUri);
         await this.selection.clear();
     }
 
@@ -164,38 +165,7 @@ export class BpmnCompareController {
             return;
         }
 
-        await this.openBpmnDiff(leftUri, rightUri);
-    }
-
-    /**
-     * Shared diff-open path for every compare entry point.
-     *
-     * The session must be registered *before* `vscode.diff` runs so that when
-     * VS Code resolves each pane through our `CustomTextEditorProvider` the
-     * diff service finds the session synchronously via
-     * {@link BpmnDiffService.findSessionFor} (see
-     * `BpmnDiffService.shouldResolveAsDiff`).  Errors are surfaced to the
-     * user and logged — the caller handles any flow-specific state cleanup
-     * (e.g. clearing the selection store) around this call.
-     */
-    private async openBpmnDiff(leftUri: Uri, rightUri: Uri): Promise<void> {
-        this.diffService.registerCompareFilesSession(leftUri, rightUri);
-
-        const title = `${basenameOf(leftUri)} ↔ ${basenameOf(rightUri)}`;
-        try {
-            await commands.executeCommand(
-                "vscode.diff",
-                leftUri,
-                rightUri,
-                title,
-                { preview: false },
-            );
-        } catch (error) {
-            this.vsUI.logError(error as Error);
-            this.vsUI.showError(
-                `Failed to open compare view: ${(error as Error).message}`,
-            );
-        }
+        await this.diffService.openCompareFilesDiff(leftUri, rightUri);
     }
 }
 
