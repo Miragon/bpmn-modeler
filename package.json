@@ -17,6 +17,7 @@
         "build:deployment-webview": "corepack yarn workspace deployment-webview build",
         "build:plugin": "corepack yarn workspace vs-code-bpmn-modeler build",
         "build:modeler-cli": "corepack yarn workspace @miragon/bpmn-modeler-cli build",
+        "build:intellij-plugin": "cd apps/intellij-plugin && ./gradlew buildPlugin",
         "dev:deployment-webview": "corepack yarn workspace deployment-webview dev",
         "dev": "npm-run-all -s build:libs build:bpmn-webview build:dmn-webview build:deployment-webview -p dev:libs dev:bpmn-webview dev:dmn-webview dev:deployment-webview dev:plugin",
         "dev:libs": "npm-run-all dev:lib:shared",

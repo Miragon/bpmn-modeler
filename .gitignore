@@ -8,6 +8,12 @@
 /libs/*/dist
 /apps/*/dist
 
+# Gradle (IntelliJ plugin)
+/apps/intellij-plugin/.gradle/
+/apps/intellij-plugin/.intellijPlatform/
+/apps/intellij-plugin/build/
+/apps/intellij-plugin/src/main/resources/cli/
+
 # dependencies
 node_modules
 .yarn/install-state.gz

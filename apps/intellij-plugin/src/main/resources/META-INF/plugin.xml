@@ -1,0 +1,18 @@
+<idea-plugin>
+    <id>io.miragon.bpmn.intellij</id>
+    <name>BPMN Modeler</name>
+    <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
+
+    <description><![CDATA[
+        Open <b>BPMN 2.0</b> and <b>DMN</b> diagrams directly in IntelliJ.<br>
+        Uses the same bpmn-js / dmn-js modeler that ships in the VS Code extension
+        — no external tool configuration required.<br><br>
+        Requires Node.js 20+ on PATH.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileEditorProvider implementation="io.miragon.bpmn.intellij.BpmnFileEditorProvider"/>
+    </extensions>
+</idea-plugin>
