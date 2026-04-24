@@ -5,20 +5,23 @@
  * with all concrete message types required by the BPMN and DMN modeler features:
  *
  * Queries (extension host → webview):
- * - {@link BpmnFileQuery}            — deliver BPMN XML and detected engine type for rendering
- * - {@link DmnFileQuery}             — deliver DMN XML for rendering
- * - {@link ElementTemplatesQuery}    — deliver the resolved element-template list
- * - {@link BpmnModelerSettingQuery}  — deliver modeler settings (e.g. alignToOrigin)
- * - {@link ClipboardQuery}           — deliver clipboard text (host mediates sandboxed reads)
+ * - {@link BpmnFileQuery}                 — deliver BPMN XML and detected engine type for rendering
+ * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
+ * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
+ * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
+ * - {@link PropertiesPanelStateQuery}     — deliver the global default visibility of the properties panel
+ * - {@link ClipboardQuery}                — deliver clipboard text (host mediates sandboxed reads)
  *
  * Commands (webview → extension host):
- * - {@link GetBpmnFileCommand}            — webview is ready; request the BPMN file
- * - {@link GetDmnFileCommand}             — webview is ready; request the DMN file
- * - {@link GetElementTemplatesCommand}    — request the current element-template list
- * - {@link GetBpmnModelerSettingCommand}  — request current modeler settings
- * - {@link GetClipboardCommand}           — request clipboard text from the host
- * - {@link SetClipboardCommand}           — ask the host to write text to the clipboard
- * - {@link GetDiagramAsSVGCommand}        — request an SVG export of the current diagram
+ * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
+ * - {@link GetDmnFileCommand}                 — webview is ready; request the DMN file
+ * - {@link GetElementTemplatesCommand}        — request the current element-template list
+ * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
+ * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
+ * - {@link SetPropertiesPanelStateCommand}    — report a user toggle so the host can update the global default
+ * - {@link GetClipboardCommand}               — request clipboard text from the host
+ * - {@link SetClipboardCommand}               — ask the host to write text to the clipboard
+ * - {@link GetDiagramAsSVGCommand}            — request an SVG export of the current diagram
  *
  * @see messages.ts for the base {@link Query} and {@link Command} classes.
  */
@@ -89,6 +92,22 @@ export class BpmnModelerSettingQuery extends Query {
     }
 }
 
+/**
+ * Delivers the globally persisted default visibility of the BPMN properties
+ * panel to a newly opened webview.  The webview uses this value only when its
+ * own webview state has no `panelVisible` entry yet — once a live webview has
+ * its own state, it ignores further global changes so that toggling the panel
+ * on one side-by-side diagram does not affect its neighbour.
+ */
+export class PropertiesPanelStateQuery extends Query {
+    public readonly visible: boolean;
+
+    constructor(visible: boolean) {
+        super("PropertiesPanelStateQuery");
+        this.visible = visible;
+    }
+}
+
 export class ClipboardQuery extends Query {
     public readonly text: string;
 
@@ -149,6 +168,32 @@ export class GetElementTemplatesCommand extends Command {
 export class GetBpmnModelerSettingCommand extends Command {
     constructor() {
         super("GetBpmnModelerSettingCommand");
+    }
+}
+
+/**
+ * Webview-side trigger used during startup to request the host's current
+ * global default for the properties-panel visibility.  The host answers with
+ * {@link PropertiesPanelStateQuery}.
+ */
+export class GetPropertiesPanelStateCommand extends Command {
+    constructor() {
+        super("GetPropertiesPanelStateCommand");
+    }
+}
+
+/**
+ * Informs the extension host that the user has toggled the properties panel
+ * in this webview.  The host persists the new value as the global default so
+ * the next freshly opened BPMN webview picks it up.  Existing, already-open
+ * webviews keep their own in-memory state and are intentionally not updated.
+ */
+export class SetPropertiesPanelStateCommand extends Command {
+    public readonly visible: boolean;
+
+    constructor(visible: boolean) {
+        super("SetPropertiesPanelStateCommand");
+        this.visible = visible;
     }
 }
 

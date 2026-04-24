@@ -16,7 +16,7 @@ Use `corepack yarn` as the package manager. Build orchestration uses `npm-run-al
 corepack yarn install           # Install dependencies
 corepack yarn build             # Build everything (libs → webviews + plugin)
 corepack yarn build:libs        # Build shared libraries only
-corepack yarn dev               # Development watch mode
+corepack yarn watch             # Development watch mode (F5 Extension Host)
 corepack yarn test              # Test (Jest)
 corepack yarn lint              # Lint
 
@@ -27,6 +27,21 @@ corepack yarn workspace bpmn-webview build
 # Run a single test file
 corepack yarn test --testPathPattern=apps/bpmn-modeler/src/service/bpmnUtils.spec.ts
 ```
+
+### Webview scripts (bpmn-webview, dmn-webview, deployment-webview)
+
+Each webview workspace has three scripts, one per workflow:
+
+- `build` — one-shot bundle to `dist/webview-staging/<name>/`.
+- `watch` — `vite build --watch`; rebuilds the bundle to disk. Used by the
+  root `yarn watch` orchestrator (the VS Code extension host reads the files
+  from disk via `webview.asWebviewUri`, so a dev HTTP server would not work
+  here).
+- `serve` — Vite HTTP dev server via for standalone browser preview.
+
+At the root level: `yarn watch` runs the F5 orchestrator;
+`yarn workspace bpmn-webview serve` / `yarn workspace dmn-webview serve` / `yarn workspace deployment-webview serve`
+launch the per-webview dev server.
 
 ## Workspace Structure
 

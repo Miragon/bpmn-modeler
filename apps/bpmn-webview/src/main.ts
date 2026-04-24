@@ -18,13 +18,16 @@ import {
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
     GetElementTemplatesCommand,
+    GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
     LanguageQuery,
     LogErrorCommand,
     LogInfoCommand,
     NoModelerError,
+    PropertiesPanelStateQuery,
     Query,
     SetClipboardCommand,
+    SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
@@ -75,6 +78,11 @@ let textClipboardResolver = createResolver<TextClipboardQuery>();
 // (e.g. transaction-boundary rendering) do not clear the restored selection.
 const elementTemplatesResolver = createResolver<ElementTemplatesQuery>();
 const settingsResolver = createResolver<BpmnModelerSettingQuery>();
+
+// Resolves once the host has replied with the global properties-panel default.
+// The webview uses this value only when its own webview state has no
+// panelVisible entry — see WebviewStateManager.restorePanelVisibility.
+const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
 
 /**
  * State manager for persisting and restoring viewport/selection across tab switches.
@@ -178,7 +186,7 @@ window.onload = async function () {
         return;
     }
 
-    initResizer();
+    const propertiesPanelHandle = initResizer();
     const extraModules = [TranslateModule, ...(clipboardModules ?? [])];
     await initializeModeler(
         bpmnFileQuery?.content,
@@ -194,14 +202,27 @@ window.onload = async function () {
     // Phase 1: restore viewport (canvas exists after openXml)
     stateManager.restoreViewport();
 
-    // Request templates + settings, wait for both to apply
+    // Request templates + settings + panel state, wait for all to apply
     vscode.postMessage(new GetElementTemplatesCommand());
     vscode.postMessage(new GetBpmnModelerSettingCommand());
+    vscode.postMessage(new GetPropertiesPanelStateCommand());
 
-    await Promise.all([
+    const [, , panelStateQuery] = await Promise.all([
         elementTemplatesResolver.wait(),
         settingsResolver.wait(),
+        panelStateResolver.wait(),
     ]);
+
+    // Apply the host's global properties-panel default.  A missing query
+    // (unlikely but possible if the resolver was cancelled) falls back to a
+    // visible panel so the user is never stranded without properties editing.
+    propertiesPanelHandle.setVisible(panelStateQuery?.visible ?? true);
+
+    // Report user toggles back to the host so the global default tracks the
+    // latest preference across all BPMN editors.
+    propertiesPanelHandle.onVisibilityChanged((visible) => {
+        vscode.postMessage(new SetPropertiesPanelStateCommand(visible));
+    });
 
     // Phase 2: restore selection (safe now — side-effects done)
     stateManager.restoreSelection();
@@ -321,6 +342,10 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
+            break;
+        }
+        case queryOrCommand.type === "PropertiesPanelStateQuery": {
+            panelStateResolver.done(message.data as PropertiesPanelStateQuery);
             break;
         }
         case queryOrCommand.type === "ClipboardQuery": {
