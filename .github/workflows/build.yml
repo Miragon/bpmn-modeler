@@ -12,6 +12,9 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v6
 
+      - name: Check pinned dependencies
+        uses: Miragon/pin-npm-dependencies@v1
+
       - name: Enable corepack
         run: corepack enable
 

@@ -9,6 +9,6 @@
     "devDependencies": {
         "mermaid": "10.9.3",
         "vitepress": "1.6.4",
-        "vitepress-plugin-mermaid": "^2.0.17"
+        "vitepress-plugin-mermaid": "2.0.17"
     }
 }
