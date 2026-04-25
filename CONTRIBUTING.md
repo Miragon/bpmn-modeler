@@ -131,6 +131,23 @@ extension is untouched; the dev version is active only in that window.
 
 ---
 
+### Troubleshooting
+
+**Unexpected features showing in the extension (e.g. unreleased UI from another branch)**
+
+If you previously ran an older `dev:install` command from a feature branch, that
+dev build may have been force-installed into your real VS Code and replaced your
+Marketplace version. To restore the clean Marketplace version:
+
+```bash
+code --uninstall-extension miragon-gmbh.vs-code-bpmn-modeler
+```
+
+Then reinstall from the Extensions panel in VS Code. The current `yarn dev:open`
+workflow avoids this problem entirely — it never modifies your installed extension.
+
+---
+
 For deeper guidance — standalone browser preview of the webview UI, build
 system internals, and architecture — see
 [`docs/vscode/contributing/development.md`](docs/vscode/contributing/development.md).
