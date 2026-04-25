@@ -37,6 +37,9 @@ jobs:
           persist-credentials: false
           token: ${{ secrets.RELEASE_PAT }}
 
+      - name: Check pinned dependencies
+        uses: Miragon/pin-npm-dependencies@v1
+
       - name: Corepack enable
         run: corepack enable
 
