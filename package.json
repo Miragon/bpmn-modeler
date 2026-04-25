@@ -31,7 +31,8 @@
         "docs:preview": "corepack yarn workspace docs preview",
         "test": "jest --coverage",
         "lint": "eslint .",
-        "dev:open": "npm-run-all -s build dev:open:launch",
+        "dev:open": "npm-run-all -s dev:open:clean build dev:open:launch",
+        "dev:open:clean": "node -e \"require('fs').rmSync('dist/apps/modeler-plugin', { recursive: true, force: true })\"",
         "dev:open:launch": "code --extensionDevelopmentPath=dist/apps/modeler-plugin resources/example-process"
     },
     "devDependencies": {
