@@ -68,13 +68,30 @@ Opens the VitePress docs site in your browser.
 
 ### Run the extension in VS Code
 
-1. Open the repository root in VS Code.
-2. Run `yarn watch` to start watch mode.
-3. Open the **Run and Debug** panel and select **"Run modeler-plugin"**.
-4. Press **F5** to launch the Extension Development Host.
+Two workflows are available — choose based on where you are in your work:
 
-To reload the extension host after a change, press **Cmd+R** (macOS) or **Ctrl+R** (
-Windows/Linux).
+**Extension Development Host (daily development)**
+
+1. Open the repository root in VS Code.
+2. Run `yarn watch` and wait for the first build to complete.
+3. Press **F5** (or open **Run and Debug** → select **"Run modeler-plugin"** → click play).
+
+A second VS Code window opens with your extension loaded. Open a `.bpmn` or
+`.dmn` file inside it to use the modeler.
+
+To pick up a code change: wait for the watcher to rebuild, then press
+**Cmd+R** (macOS) or **Ctrl+R** (Windows/Linux) inside the Extension
+Development Host window.
+
+**Open in real VS Code (pre-PR validation)**
+
+```bash
+yarn dev:open
+```
+
+Builds the project and opens a new VS Code window with the dev build loaded
+alongside your real settings and extensions — your Marketplace install is
+untouched. See [`CONTRIBUTING.md`](../../../../CONTRIBUTING.md) for full details.
 
 ### Target a single workspace
 

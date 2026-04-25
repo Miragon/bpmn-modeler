@@ -30,7 +30,9 @@
         "docs:build": "corepack yarn workspace docs build",
         "docs:preview": "corepack yarn workspace docs preview",
         "test": "jest --coverage",
-        "lint": "eslint ."
+        "lint": "eslint .",
+        "dev:open": "npm-run-all -s build dev:open:launch",
+        "dev:open:launch": "code --extensionDevelopmentPath=dist/apps/modeler-plugin resources/example-process"
     },
     "devDependencies": {
         "@eslint/eslintrc": "3.3.5",

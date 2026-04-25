@@ -55,3 +55,4 @@ vitest.config.*.timestamp*
 docs/.vitepress/dist
 docs/.vitepress/cache
 .gstack/
+.agent/logs/
