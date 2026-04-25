@@ -143,8 +143,10 @@ Marketplace version. To restore the clean Marketplace version:
 code --uninstall-extension miragon-gmbh.vs-code-bpmn-modeler
 ```
 
-Then reinstall from the Extensions panel in VS Code. The current `yarn dev:open`
-workflow avoids this problem entirely — it never modifies your installed extension.
+Then reinstall from the Extensions panel in VS Code. Unlike the old `dev:install`,
+`yarn dev:open` never modifies your installed extension — so this situation cannot
+be caused by it. If you already have a dev build installed, the uninstall above is
+still needed to clear it.
 
 ---
 
