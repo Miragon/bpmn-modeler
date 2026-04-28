@@ -11,8 +11,8 @@
     <a href="#">
         <img src="https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/miragon-logo.png" alt="Miragon" height="160">
     </a>
-    <h3>Model BPMN where your code already lives.</h3>
-    <p>A family of BPMN/DMN tools built around a shared modeler core — VS Code today, more surfaces tomorrow.</p>
+    <h3>BPMN, where your work already happens.</h3>
+    <p>A growing family of BPMN/DMN tools built around a shared modeler core — in VS Code, on the desktop, and (soon) talking to your AI assistant.</p>
     <p>
         <a href="https://miragon.github.io/bpmn-vscode-modeler/">Documentation</a>
         ·
@@ -34,11 +34,23 @@ re-open in your IDE, commit, repeat.
 We wanted to skip the round trip. **Open a `.bpmn` file. Model. Commit.
 Done.** Same editor, same git workflow, same diff in code review.
 
-That core idea — *bring BPMN modeling to where the engineers already are* —
-turned into the modeler you see below, and then into a small family of
-related tools sharing the same engine. This repo hosts all of them.
-
 ![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/modeler-preview.png)
+
+That first idea — *bring BPMN modeling to where engineers already are* —
+turned into the VS Code modeler you see above. From there, the same core
+quietly grew into more places where process work actually happens:
+
+- **In VS Code**, as the public extension — the original product.
+- **On the desktop**, as a standalone Theia/Electron app for users and
+  organisations not on VS Code, with the exact same modeling surface.
+- **In your AI assistant**, via a separate plugin that pushes your BPMN
+  landscape to an LLM over MCP — so Claude can lint your models, diff what
+  you just edited against what's deployed, and answer questions about a
+  whole process landscape without anyone pasting XML into chat. *(Landing
+  soon — see [PR #943](https://github.com/Miragon/bpmn-vscode-modeler/pull/943)
+  and the [bpmn-iq](https://github.com/Miragon/bpmn-iq) project.)*
+
+Different surfaces, one modeling engine, one repo.
 
 ## What you get
 
@@ -78,6 +90,7 @@ surfaces; each one has its own README with its own pitch.
 |---|---|---|
 | [`apps/modeler-plugin`](apps/modeler-plugin/README.md) | The VS Code extension — the public BPMN/DMN modeler. | Published on the [Marketplace][marketplace-url] |
 | [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler — same features, no VS Code required. | Build-from-source, unreleased |
+| `apps/bpmn-iq-plugin` | Separate VS Code extension that pushes your BPMN landscape to an LLM over MCP — see [bpmn-iq](https://github.com/Miragon/bpmn-iq). | Landing in [PR #943](https://github.com/Miragon/bpmn-vscode-modeler/pull/943) |
 | [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
 | [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
 | [`apps/deployment-webview`](apps/deployment-webview/README.md) | Deployment sidebar webview. | Internal |
