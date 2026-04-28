@@ -16,6 +16,7 @@ development guide (project structure, build system, architecture, testing), see
 - [Development Setup](#development-setup)
 - [Pull Request Process](#pull-request-process)
 - [Commit Messages](#commit-messages)
+- [Updating a Marketplace Listing](#updating-a-marketplace-listing)
 - [License](#license)
 
 ## Code of Conduct
@@ -121,6 +122,36 @@ docs: clarify element template discovery
 ```
 
 Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`.
+
+## Updating a Marketplace Listing
+
+A VS Code Marketplace listing is composed from two sources inside the
+extension's workspace (e.g. `apps/modeler-plugin/`):
+
+1. **`README.md`** — rendered as the listing's main content. The
+   workspace-local README is bundled into the VSIX by
+   `webpack.config.js` via `CopyWebpackPlugin`. **Never** point this copy
+   at the root `README.md` — the root file is a repo-level overview and
+   does not belong on a product page.
+2. **`package.json` fields** — listing metadata: `displayName`,
+   `description`, `categories`, `keywords`, `icon`, `badges`, `repository`,
+   `homepage`, `galleryBanner`.
+
+To preview a listing locally before publishing:
+
+```bash
+corepack yarn build
+cd dist/apps/modeler-plugin
+npx @vscode/vsce package --no-dependencies --out preview.vsix
+```
+
+Open the `.vsix` (it is a zip): the `extension/README.md` inside is exactly
+what the Marketplace will render. You can also run
+`npx @vscode/vsce ls` from the same directory to list everything bundled.
+
+When introducing a new publishable extension, follow the same pattern:
+ship a workspace-local `README.md` and copy it (not the root one) into the
+VSIX from that workspace's `webpack.config.js`.
 
 ## License
 
