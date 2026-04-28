@@ -25,11 +25,11 @@ features:
 
 ## Why <span class="grad">Miragon BPMN Modeler</span>?
 
-Process modeling belongs in your development environment — not in a separate app.
+Professional BPMN and DMN modeling that fits how you work — embedded in VS Code for developers, or as a standalone desktop app when you need one. Same engine underneath, your choice of surface.
 
 | Feature | Miragon BPMN Modeler | Camunda Modeler (Desktop) | bpmn.io (Web) |
 |---------|----------------------|---------------------------|---------------|
-| Works inside your IDE | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |
+| Available as | <span class="ok">✓</span> VS Code extension + Standalone app | Standalone app only | Web only |
 | Visual BPMN diff | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |
 | One-click deploy to Camunda 7 & 8 | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="no">✕</span> |
 | Element template discovery | <span class="ok">✓</span> Auto by convention | <span class="ok">✓</span> Manual config | <span class="no">✕</span> |

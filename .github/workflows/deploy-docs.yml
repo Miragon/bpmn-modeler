@@ -25,6 +25,10 @@ jobs:
         with:
           node-version: 20
           cache: yarn
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - run: corepack yarn install --immutable
       - run: corepack yarn docs:build
       - uses: actions/upload-pages-artifact@v3
