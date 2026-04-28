@@ -1,161 +1,102 @@
 <div id="top"></div>
 
-<!-- PROJECT SHIELDS -->
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-<!-- END OF PROJECT SHIELDS -->
 
-<!-- PROJECT LOGO -->
 <br />
 <div align="center">
     <a href="#">
-        <img src="https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/miragon-logo.png" alt="Logo" height="180">
+        <img src="https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/miragon-logo.png" alt="Miragon" height="160">
     </a>
-    <h3>BPMN VS Code Modeler</h3>
+    <h3>BPMN VS Code Modeler — monorepo</h3>
+    <p>A family of BPMN/DMN modeling tools built around a shared modeler core.</p>
     <p>
         <a href="https://miragon.github.io/bpmn-vscode-modeler/">Documentation</a>
         ·
-        <a href="https://github.com/Miragon/bpmn-vscode-modeler/issues">Report Bug</a>
+        <a href="https://github.com/Miragon/bpmn-vscode-modeler/issues">Issues</a>
         ·
-        <a href="https://github.com/Miragon/bpmn-vscode-modeler/pulls">Request Feature</a>
+        <a href="https://github.com/Miragon/bpmn-vscode-modeler/pulls">Pull requests</a>
     </p>
 </div>
 
-## About The Project
+## What this repo ships
 
-The BPMN VS Code Modeler is a VS Code extension for BPMN and DMN process modeling, built
-on top of [bpmn-js](https://bpmn.io/toolkit/bpmn-js/). It targets teams working
-with **Camunda 7 and Camunda 8** and integrates directly into your existing VS Code
-workflow.
+This repository hosts more than one product. They share a common BPMN/DMN
+modeling core (built on [bpmn-js](https://bpmn.io/) and
+[dmn-js](https://github.com/bpmn-io/dmn-js)) and target different surfaces:
 
-> **Powered by [bpmn.io](https://bpmn.io/)** — Built on [bpmn-js](https://github.com/bpmn-io/bpmn-js)
-> and [dmn-js](https://github.com/bpmn-io/dmn-js). Thanks to the bpmn.io team for their work.
+- **BPMN/DMN modeling for Camunda 7 and Camunda 8** — full BPMN 2.0 and DMN
+  editing with engine-aware properties.
+- **Deployment workflows** — deploy diagrams and start instances against C7
+  or C8 from inside the editor.
+- **BPMN diff** — element-level visual diff across two `.bpmn` files.
+- **Multi-language UI** — modeler localised into 9 languages.
+- **Multiple delivery surfaces** — VS Code extension today, standalone
+  desktop app target in progress, more extensions planned.
 
-## Features
+Each product has its own README with its own pitch, feature list, and (where
+applicable) marketplace listing. Start there.
 
-- **BPMN Modeling**: Create and edit BPMN 2.0 diagrams with full Camunda 7 and Camunda 8
-  support.
-- **DMN Modeling**: Create and edit DMN decision tables.
-- **Element Templates**: Convention-based element template discovery — place templates
-  under `<configFolder>/element-templates/` anywhere between your BPMN file and the
-  workspace root. No extra project config file needed.
-- **Deployment**: Deploy BPMN/DMN diagrams and start process instances directly from a
-  sidebar panel. Supports Camunda 7 and Camunda 8 with no auth, Basic Auth, and OAuth2
-  Client Credentials. Payload files are discovered by convention from
-  `<configFolder>/payloads/`.
-- **BPMN Diff View**: Side-by-side readonly BPMN canvases for `.bpmn` files. 
-  Element-level changes are colour-coded (added, removed, changed, moved) via 
-  [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ), with synchronized 
-  pan/zoom and a prev/next change navigator.
-- **Multi-Language UI**: The modeler UI (palette, context pad, properties panel) is
-  available in English, Deutsch, Français, Nederlands, Português (Brasil), Русский,
-  简体中文, and 繁體中文. Change the language via settings or the command palette.
+## Modules
 
-![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/modeler-preview.png)
+| Module | What it is | Status |
+|---|---|---|
+| [`apps/modeler-plugin`](apps/modeler-plugin/README.md) | VS Code extension — the public BPMN/DMN modeler. | Published on the [VS Code Marketplace][marketplace-url] |
+| [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler. | Build-from-source, unreleased |
+| [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
+| [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
+| [`apps/deployment-webview`](apps/deployment-webview/README.md) | Deployment sidebar webview. | Internal |
+| [`libs/shared`](libs/shared/README.md) | Shared message types and webview utilities. | Internal |
 
-## Getting Started (Users)
+> Internal modules are not published separately — they are bundled into the
+> distributables above.
 
-Install the extension from the VS Code Marketplace and open any `.bpmn` or `.dmn` file.
-The modeler opens automatically as a custom editor.
+## For users
 
-### Configuration
+You probably want **[`apps/modeler-plugin`](apps/modeler-plugin/README.md)** —
+install *Camunda Modeler by Miragon* from the VS Code Marketplace and open
+any `.bpmn` or `.dmn` file.
 
-Search for "BPMN Modeler" in Settings (`Ctrl+,` / `Cmd+,`) to view all available options.
+## For contributors
 
-| Setting                                         | Default                     | Description                                                             |
-|-------------------------------------------------|-----------------------------|-------------------------------------------------------------------------|
-| `miragon.bpmnModeler.configFolder`              | `.camunda`                  | Folder name used for element template and payload file discovery        |
-| `miragon.bpmnModeler.language`                  | `en`                        | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)                |
-| `miragon.bpmnModeler.colorTheme`                | `automatic`                 | Color theme for the BPMN canvas (`automatic` or `light`)                |
-| `miragon.bpmnModeler.favouriteBpmnElements`     | `["bpmn:ServiceTask", ...]` | BPMN element types to pin at the top of the append menu palette (max 6) |
-| `miragon.bpmnModeler.showTransactionBoundaries` | `true`                      | Show transaction boundaries in the BPMN canvas (C7 only)                |
-| `miragon.bpmnModeler.c8ApiVersion`              | `v2`                        | REST API version prefix for Camunda 8 deployment endpoints              |
+- Development setup, PR flow, and commit conventions:
+  [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Architecture, build system, testing, and contributor walkthroughs:
+  [`docs/`](docs/) (also published at
+  <https://miragon.github.io/bpmn-vscode-modeler/>)
 
-### Command Palette
+Quick orientation:
 
-Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) to view
-all available commands.
+```bash
+corepack enable
+corepack yarn install
+corepack yarn build      # build everything
+corepack yarn watch      # F5 in VS Code → "Run modeler-plugin"
+```
 
-| Command                                   | Keybinding     | Description                                                      |
-|-------------------------------------------|----------------|------------------------------------------------------------------|
-| BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
-| BPMN Modeler: Deploy Diagram              |                | Open the Deployment sidebar for the current BPMN/DMN diagram     |
-| BPMN Modeler: Copy Diagram as SVG         |                | Copy the current diagram to the clipboard as SVG                 |
-| BPMN Modeler: Save Diagram as SVG         |                | Create a SVG file of the current diagram next to the bpmn file   |
-| BPMN Modeler: Change Engine Version       |                | Switch between engine versions (not between platforms C7 -> C8)  |
-| BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
-| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the bpmn modeler                |
-| BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
-
-
-## Contributing
-
-Contributions are what make the open source community such an amazing place to learn,
-inspire, and create. Any contributions are **greatly appreciated**.
-
-For a full contributor guide including setup, project structure, development workflow,
-code style, branching model, and CI/CD details, see
-**[docs/README.md](docs/README.md)**.
-
-### Quick Start
-
-1. **Prerequisites**: Node.js v20+, `corepack enable`, VS Code
-2. **Clone and install**:
-   ```bash
-   git clone https://github.com/Miragon/bpmn-vscode-modeler.git
-   cd bpmn-vscode-modeler
-   corepack yarn install
-   ```
-3. **Start watch mode**: `yarn dev`
-4. **Launch the extension**: Open the **Run and Debug** panel in VS Code, select
-   **"Run modeler-plugin"**, and press **F5**.
-
-### Opening a Pull Request
-
-1. Open an issue with the tag `enhancement` or `bug`
-2. Fork the repository
-3. Create a feature branch (`git checkout -b feat/my-feature`)
-4. Use semantic commit messages scoped to the affected workspace:
-   ```
-   feat(bpmn): add token simulation toolbar
-   fix(dmn): correct decision table rendering
-   ```
-5. Push and open a Pull Request
-
-Please use semantic commit messages as described
-in [here](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full setup.
 
 ## Support
 
-If you have questions or need support, reach out via
-email ([info@miragon.io](mailto:info@miragon.io)).
+Questions or commercial support: [info@miragon.io](mailto:info@miragon.io).
 
 ## License
 
-Distributed under the [Apache License Version 2.0](LICENSE).
+Distributed under the [Apache License 2.0](LICENSE).
 
 <!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
 [contributors-shield]: https://img.shields.io/github/contributors/Miragon/bpmn-vscode-modeler.svg?style=for-the-badge
-
 [contributors-url]: https://github.com/Miragon/bpmn-vscode-modeler/graphs/contributors
-
 [forks-shield]: https://img.shields.io/github/forks/Miragon/bpmn-vscode-modeler.svg?style=for-the-badge
-
 [forks-url]: https://github.com/Miragon/bpmn-vscode-modeler/network/members
-
 [stars-shield]: https://img.shields.io/github/stars/Miragon/bpmn-vscode-modeler.svg?style=for-the-badge
-
 [stars-url]: https://github.com/Miragon/bpmn-vscode-modeler/stargazers
-
 [issues-shield]: https://img.shields.io/github/issues/Miragon/bpmn-vscode-modeler.svg?style=for-the-badge
-
 [issues-url]: https://github.com/Miragon/bpmn-vscode-modeler/issues
-
 [license-shield]: https://img.shields.io/github/license/Miragon/bpmn-vscode-modeler.svg?style=for-the-badge
-
 [license-url]: https://github.com/Miragon/bpmn-vscode-modeler/blob/main/LICENSE
+[marketplace-url]: https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler

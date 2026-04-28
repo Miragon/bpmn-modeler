@@ -82,7 +82,10 @@ module.exports = (env, argv) => {
                         noErrorOnMissing: true,
                     },
                     {
-                        from: path.resolve(__dirname, "../../README.md"),
+                        // The Marketplace listing is rendered from the README
+                        // bundled into the VSIX. Always use the workspace-local
+                        // README so each extension's listing is self-contained.
+                        from: path.resolve(__dirname, "README.md"),
                         to: ".",
                         noErrorOnMissing: true,
                     },
