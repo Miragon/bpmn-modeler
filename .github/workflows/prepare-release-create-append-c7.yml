@@ -1,4 +1,9 @@
-name: Release create-append-c7-element-templates
+name: Prepare Release create-append-c7-element-templates
+
+# Bumps the @bpmn-modeler/create-append-c7-element-templates version,
+# builds it as a sanity gate, commits and tags the bump, then creates
+# a GitHub Release. Publishing to npm is handled by
+# publish-create-append-c7.yml on release: published.
 
 on:
   workflow_dispatch:
@@ -12,7 +17,7 @@ on:
           - minor
           - major
       dry-run:
-        description: 'Dry run (no commit, tag, or publish)'
+        description: 'Dry run (no commit, tag, or release)'
         required: false
         type: boolean
         default: false
@@ -21,12 +26,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: create-append-c7-release
+  group: create-append-c7-prepare-release
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release
+  prepare:
+    name: Prepare release
     runs-on: ubuntu-latest
 
     steps:
@@ -48,15 +53,9 @@ jobs:
         with:
           node-version: '20'
           cache: yarn
-          registry-url: 'https://registry.npmjs.org'
 
-      - name: Install Linux build deps for Theia native modules
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
-
-      - name: Install dependencies
-        run: yarn install --immutable
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-vscode-modeler @bpmn-modeler/create-append-c7-element-templates
 
       - name: Configure Git
         run: |
@@ -82,29 +81,21 @@ jobs:
       - name: Build library
         run: yarn workspace @bpmn-modeler/create-append-c7-element-templates build
 
-      - name: Dry-run publish
-        if: inputs.dry-run == true
-        working-directory: libs/create-append-c7-element-templates
-        run: npm publish --access public --dry-run
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Commit, tag, and publish
+      - name: Commit and tag
         if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
         run: |
           NEW_VERSION="${{ steps.version.outputs.version }}"
           TAG="create-append-c7-element-templates/v${NEW_VERSION}"
-
           git add libs/create-append-c7-element-templates/package.json
           git commit -m "chore(release): @bpmn-modeler/create-append-c7-element-templates v${NEW_VERSION}"
           git push origin HEAD
-
           git tag -a "$TAG" -m "release $TAG"
           git push origin "$TAG"
 
-      - name: Publish to npm
+      - name: Create GitHub Release
         if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
-        working-directory: libs/create-append-c7-element-templates
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: create-append-c7-element-templates/v${{ steps.version.outputs.version }}
+          name: '@bpmn-modeler/create-append-c7-element-templates v${{ steps.version.outputs.version }}'
+          generate_release_notes: true

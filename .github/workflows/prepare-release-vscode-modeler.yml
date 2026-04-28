@@ -1,4 +1,8 @@
-name: Release
+name: Prepare Release VS Code Modeler
+
+# Bumps the VS Code modeler version, runs lint+test+build as a sanity gate,
+# commits and tags the bump, then creates a draft GitHub Release.
+# Publishing is handled by publish-vscode-modeler.yml on release: published.
 
 on:
   workflow_dispatch:
@@ -12,7 +16,7 @@ on:
           - minor
           - major
       dry-run:
-        description: 'Dry run (no commit, tag, release, or publish)'
+        description: 'Dry run (no commit, tag, or release)'
         required: false
         type: boolean
         default: false
@@ -21,12 +25,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: bpmn-modeler-release
+  group: bpmn-modeler-prepare-release
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release
+  prepare:
+    name: Prepare release
     runs-on: ubuntu-latest
 
     steps:
@@ -49,13 +53,8 @@ jobs:
           node-version: '20'
           cache: yarn
 
-      - name: Install Linux build deps for Theia native modules
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
-
-      - name: Install dependencies
-        run: yarn install --immutable
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-vscode-modeler vs-code-bpmn-modeler bpmn-webview dmn-webview deployment-webview @bpmn-modeler/shared @bpmn-modeler/append-menu @bpmn-modeler/bpmn-clipboard @bpmn-modeler/bpmn-i18n @bpmn-modeler/element-template-chooser @bpmn-modeler/create-append-c7-element-templates
 
       - name: Configure Git
         run: |
@@ -89,21 +88,6 @@ jobs:
       - name: Build
         run: yarn build
 
-      - name: Install vsce
-        run: npm install -g @vscode/vsce@3.2.2
-
-      - name: Package vsix
-        working-directory: dist/apps/modeler-plugin
-        run: vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
-
-      - name: Upload vsix artifact (dry-run)
-        if: inputs.dry-run == true
-        uses: actions/upload-artifact@v7
-        with:
-          name: bpmn-modeler-plugin-v${{ steps.version.outputs.version }}
-          path: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
-          retention-days: 7
-
       - name: Commit and tag
         if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
         run: |
@@ -121,11 +105,3 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
-          files: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
-
-      - name: Publish to VS Code Marketplace
-        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
-        working-directory: dist/apps/modeler-plugin
-        run: vsce publish --yarn --no-dependencies
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PUBLISH }}

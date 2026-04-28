@@ -42,7 +42,7 @@ flowchart LR
 ## Create a new release
 
 Releases are triggered manually
-via [GitHub Actions](https://github.com/Miragon/bpmn-modeler/actions/workflows/release.yml).
+via [GitHub Actions](https://github.com/Miragon/bpmn-modeler/actions/workflows/prepare-release-vscode-modeler.yml).
 
 ### Steps
 
