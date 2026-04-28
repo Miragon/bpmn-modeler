@@ -216,8 +216,18 @@
   background: #0F1129;
   transform: translateY(-1px);
 }
-.hero-actions .btn-primary .vscode-icon {
+.hero-actions .btn-primary .vscode-icon,
+.hero-actions .btn-primary-alt .standalone-icon {
   width: 16px; height: 16px; flex-shrink: 0;
+}
+.hero-actions .btn-primary-alt {
+  background: #2F3560;
+  color: #F4F6FE;
+  box-shadow: 0 8px 24px -8px rgba(47, 53, 96, 0.45);
+}
+.hero-actions .btn-primary-alt:hover {
+  background: #383E6E;
+  transform: translateY(-1px);
 }
 .hero-actions .btn-secondary {
   background: var(--miragon-card-glass);
@@ -240,6 +250,46 @@
 }
 .hero-actions .btn-tertiary:hover {
   color: var(--miragon-blue);
+}
+.preview-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: rgba(51, 93, 228, 0.12);
+  color: var(--miragon-blue);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.dark .preview-pill {
+  background: rgba(98, 131, 236, 0.18);
+  color: var(--miragon-blue-light);
+}
+.preview-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--miragon-green);
+  box-shadow: 0 0 8px var(--miragon-green);
+  animation: preview-dot-pulse 1.8s ease-in-out infinite;
+}
+@keyframes preview-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
+/* Inverted pill inside the filled dark alt button */
+.hero-actions .btn-primary-alt .preview-pill {
+  background: rgba(255, 255, 255, 0.18);
+  color: #F4F6FE;
+  margin-left: 4px;
+  padding: 3px 9px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
 /* Hero screenshot: rounded, centered, large, with soft halo. Override VP's 320px square container. */

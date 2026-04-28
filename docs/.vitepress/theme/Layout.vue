@@ -47,9 +47,9 @@ const GITHUB_URL = "https://github.com/Miragon/bpmn-vscode-modeler";
                 inside your IDE.
             </h1>
             <p class="hero-tagline">
-                Design, diff, and deploy BPMN and DMN workflows without leaving
-                VS Code. Full Camunda 7 and 8 support, professional modeling,
-                zero context switching.
+                Design, diff, and deploy BPMN and DMN workflows without
+                leaving your editor. Full Camunda 7 and 8 support,
+                professional modeling, zero context switching.
             </p>
             <div class="hero-actions">
                 <a
@@ -72,7 +72,27 @@ const GITHUB_URL = "https://github.com/Miragon/bpmn-vscode-modeler";
                     Install for VS Code
                 </a>
                 <a
-                    class="btn btn-secondary"
+                    class="btn btn-primary-alt"
+                    :href="withBase('/standalone/getting-started')"
+                >
+                    <svg
+                        class="standalone-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path
+                            d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-7v2h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2H4a1 1 0 0 1-1-1V4zm2 1v10h14V5H5z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                    Standalone
+                    <span class="preview-pill">
+                        <span class="preview-dot"></span>Preview
+                    </span>
+                </a>
+                <a
+                    class="btn btn-tertiary"
                     :href="withBase('/vscode/getting-started')"
                 >Learn more</a>
             </div>

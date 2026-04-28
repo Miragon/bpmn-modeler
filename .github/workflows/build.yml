@@ -18,13 +18,22 @@ jobs:
       - name: Enable corepack
         run: corepack enable
 
-      - name: Setup NodeJS 20
+      - name: Setup NodeJS 22
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
+
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
 
       - name: Install dependencies
         run: yarn install --immutable
+        env:
+          # @vscode/ripgrep postinstall hits the GitHub API; without a
+          # token it gets rate-limited (403) on busy days.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Audit dependencies
         run: yarn npm audit --all --severity high

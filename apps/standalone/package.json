@@ -1,0 +1,79 @@
+{
+  "private": true,
+  "name": "standalone",
+  "description": "Miragon BPMN Modeler — standalone Theia-based Electron desktop app",
+  "productName": "Miragon BPMN Modeler",
+  "version": "0.9.2",
+  "main": "scripts/theia-electron-main.js",
+  "license": "Apache-2.0",
+  "author": "Miragon",
+  "engines": {
+    "node": ">=22"
+  },
+  "theiaExtensions": [
+    {
+      "frontend": "src/browser/frontend-module"
+    }
+  ],
+  "theia": {
+    "target": "electron",
+    "frontend": {
+      "config": {
+        "applicationName": "Miragon BPMN Modeler",
+        "reloadOnReconnect": true,
+        "preferences": {
+          "files.enableTrash": false,
+          "security.workspace.trust.enabled": false
+        }
+      }
+    },
+    "backend": {
+      "config": {
+        "frontendConnectionTimeout": -1,
+        "startupTimeout": -1,
+        "resolveSystemPlugins": false,
+        "configurationFolder": ".miragon-bpmn-modeler"
+      }
+    }
+  },
+  "dependencies": {
+    "@theia/core": "1.70.2",
+    "@theia/editor": "1.70.2",
+    "@theia/electron": "1.70.2",
+    "@theia/filesystem": "1.70.2",
+    "@theia/keymaps": "1.70.2",
+    "@theia/messages": "1.70.2",
+    "@theia/monaco": "1.70.2",
+    "@theia/navigator": "1.70.2",
+    "@theia/output": "1.70.2",
+    "@theia/plugin-ext": "1.70.2",
+    "@theia/plugin-ext-vscode": "1.70.2",
+    "@theia/preferences": "1.70.2",
+    "@theia/process": "1.70.2",
+    "@theia/terminal": "1.70.2",
+    "@theia/variable-resolver": "1.70.2",
+    "@theia/workspace": "1.70.2",
+    "electron-updater": "6.3.9",
+    "yauzl": "2.10.0"
+  },
+  "devDependencies": {
+    "@theia/cli": "1.70.2",
+    "@theia/native-webpack-plugin": "1.70.2",
+    "electron": "39.8.7",
+    "electron-builder": "26.0.12",
+    "rimraf": "5.0.10"
+  },
+  "scripts": {
+    "bundle": "node scripts/bundle-extension.mjs",
+    "clean": "theia clean && rimraf node_modules lib src-gen dist gen-webpack*.js",
+    "clean:dist": "rimraf dist",
+    "rebuild": "theia rebuild:electron --cacheRoot ../..",
+    "build": "theia build --app-target=\"electron\" --mode development",
+    "build:prod": "theia build --app-target=\"electron\"",
+    "start": "electron scripts/theia-electron-main.js",
+    "start:debug": "yarn start --log-level=debug",
+    "package": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder -c.mac.identity=null -c.mac.notarize=false -c.mac.hardenedRuntime=false --publish never --mac dmg",
+    "package:signed": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder --publish never --mac dmg",
+    "package:release": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder --publish always --mac dmg"
+  }
+}

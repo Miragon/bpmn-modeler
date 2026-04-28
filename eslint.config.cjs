@@ -21,7 +21,7 @@ module.exports = [
     },
     // Node.js globals for CommonJS config and build files
     {
-        files: ["**/*.cjs", "**/webpack.config.js"],
+        files: ["**/*.cjs", "**/webpack.config.js", "apps/standalone/scripts/**/*.js"],
         languageOptions: {
             sourceType: "commonjs",
             globals: {
@@ -31,7 +31,7 @@ module.exports = [
     },
     // Node.js globals for ESM scripts (e.g. CI helper scripts)
     {
-        files: [".github/scripts/**/*.mjs"],
+        files: [".github/scripts/**/*.mjs", "apps/standalone/scripts/**/*.mjs"],
         languageOptions: {
             globals: {
                 ...globals.node,
@@ -136,7 +136,7 @@ module.exports = [
         })),
     // Disable TS-specific rules that don't apply to CommonJS build/config files
     {
-        files: ["**/*.cjs", "**/webpack.config.js"],
+        files: ["**/*.cjs", "**/webpack.config.js", "apps/standalone/scripts/**/*.js"],
         rules: {
             "@typescript-eslint/no-require-imports": "off",
         },

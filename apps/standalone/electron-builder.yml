@@ -1,0 +1,64 @@
+appId: io.miragon.bpmn-modeler
+productName: Miragon BPMN Modeler
+copyright: Copyright (c) Miragon
+electronVersion: 39.8.7
+directories:
+  buildResources: resources
+  output: dist
+publish:
+  provider: github
+  owner: Miragon
+  repo: bpmn-vscode-modeler
+files:
+  - lib/**/*
+  - src-gen/**/*
+  - scripts/**/*
+  - package.json
+  # exclude sources & declarations
+  - "!**/*.ts"
+  - "!**/*.d.ts"
+  - "!**/*.ts.map"
+  - "!**/*.js.map"
+  - "!**/*.map"
+  - "!**/*.map.gz"
+  - "!**/*.js.gz"
+  - "!**/*.css.gz"
+  # exclude docs & changelogs that ride along in node_modules
+  - "!**/*.md"
+  - "!**/*.markdown"
+  - "!**/{CHANGELOG,HISTORY,RELEASES,README,NEWS}*"
+  - "!**/LICENSE*"
+  - "!**/AUTHORS*"
+  # exclude dev-only dirs
+  - "!**/{test,tests,__tests__,__mocks__,example,examples,doc,docs,fixture,fixtures,spec,specs}/**"
+  - "!**/{.github,.vscode,.idea,.husky}/**"
+  # exclude config / metadata files
+  - "!**/{.eslintrc,.prettierrc,.editorconfig,.nycrc,.babelrc,.jshintrc}*"
+  - "!**/*.{yml,yaml}"
+  - "!**/tsconfig*.json"
+  - "!**/jest.config*"
+  - "!**/.travis.yml"
+extraResources:
+  - from: plugins
+    to: app/plugins
+    filter:
+      - "**/*"
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+  icon: resources/icon.png
+  identity: "Miragon GmbH (G5JZQ328LJ)"
+  hardenedRuntime: true
+  notarize: true
+dmg:
+  format: ULFO
+win:
+  target:
+    - nsis
+  icon: resources/icon.png
+linux:
+  target:
+    - AppImage
+  icon: resources/icon.png
+  category: Development
