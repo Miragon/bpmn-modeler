@@ -43,12 +43,8 @@ quietly grew into more places where process work actually happens:
 - **In VS Code**, as the public extension — the original product.
 - **On the desktop**, as a standalone Theia/Electron app for users and
   organisations not on VS Code, with the exact same modeling surface.
-- **In your AI assistant**, via a separate plugin that pushes your BPMN
-  landscape to an LLM over MCP — so Claude can lint your models, diff what
-  you just edited against what's deployed, and answer questions about a
-  whole process landscape without anyone pasting XML into chat. *(Landing
-  soon — see [PR #943](https://github.com/Miragon/bpmn-vscode-modeler/pull/943)
-  and the [bpmn-iq](https://github.com/Miragon/bpmn-iq) project.)*
+- **And next: AI-assisted BPMN tooling** — bringing the same modeling
+  context into your AI assistant. *Stay tuned.* ✨
 
 Different surfaces, one modeling engine, one repo.
 
