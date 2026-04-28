@@ -24,7 +24,6 @@ Here's what you get, roughly in the order you reach for it.
 - **[Deployment](/vscode/features/deployment)** — push BPMN/DMN diagrams and
   start process instances directly from VS Code. Camunda 7 and 8 support,
   three auth modes, payload file discovery by convention.
-
 ## Configure
 
 - **[Language Support](/vscode/features/language-support)** — switch the

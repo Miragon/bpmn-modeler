@@ -8,7 +8,7 @@ hero:
 features:
   - icon: ◎
     title: Professional modeling
-    details: Full Camunda 7 & 8. Element templates, append menu, multi-language display, copy-paste across diagrams.
+    details: Full Camunda 7, 8 & compatible forks (Operaton, CIB7). Element templates, append menu, multi-language display, copy-paste across diagrams.
     link: /vscode/features/append-menu
     linkText: Explore modeling
   - icon: ⇌
@@ -34,5 +34,6 @@ Professional BPMN and DMN modeling that fits how you work — embedded in VS Cod
 | One-click deploy to Camunda 7 & 8 | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="no">✕</span> |
 | Element template discovery | <span class="ok">✓</span> Auto by convention | <span class="ok">✓</span> Manual config | <span class="no">✕</span> |
 | Camunda 7 support | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="no">✕</span> |
+| Operaton / CIB7 support | <span class="ok">✓</span> via C7 compatibility | <span class="ok">✓</span> | <span class="ok">✓</span> |
 | Camunda 8 / Zeebe support | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="ok">✓</span> |
 | Open source | <span class="ok">✓</span> Apache 2.0 | <span class="ok">✓</span> | <span class="ok">✓</span> |

@@ -28,8 +28,8 @@
 
 The BPMN VS Code Modeler is a VS Code extension for BPMN and DMN process modeling, built
 on top of [bpmn-js](https://bpmn.io/toolkit/bpmn-js/). It targets teams working
-with **Camunda 7 and Camunda 8** and integrates directly into your existing VS Code
-workflow.
+with **Camunda 7, Camunda 8**, and compatible forks such as **Operaton** and **CIB7**,
+and integrates directly into your existing VS Code workflow.
 
 > **Powered by [bpmn.io](https://bpmn.io/)** — Built on [bpmn-js](https://github.com/bpmn-io/bpmn-js)
 > and [dmn-js](https://github.com/bpmn-io/dmn-js). Thanks to the bpmn.io team for their work.
@@ -37,7 +37,7 @@ workflow.
 ## Features
 
 - **BPMN Modeling**: Create and edit BPMN 2.0 diagrams with full Camunda 7 and Camunda 8
-  support.
+  support, including compatible forks (Operaton, CIB7).
 - **DMN Modeling**: Create and edit DMN decision tables.
 - **Element Templates**: Convention-based element template discovery — place templates
   under `<configFolder>/element-templates/` anywhere between your BPMN file and the
