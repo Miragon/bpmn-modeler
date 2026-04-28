@@ -50,8 +50,9 @@ Different surfaces, one modeling engine, one repo.
 
 ## What you get
 
-- **Full BPMN 2.0 + DMN modeling** for **Camunda 7** and **Camunda 8** —
-  engine-aware properties, no profile switching ceremony.
+- **Full BPMN 2.0 + DMN modeling** for **Camunda 7** and **Camunda 8**
+  (plus compatible forks like **Operaton** and **CIB7**) — engine-aware
+  properties, no profile switching ceremony.
 - **Element templates by convention** — drop them in `.camunda/element-templates/`
   next to your BPMN file, the modeler picks them up. No project config required.
 - **Deploy from the editor** — a sidebar that pushes your diagram to C7 or

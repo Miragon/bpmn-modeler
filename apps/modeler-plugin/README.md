@@ -24,7 +24,8 @@ project.
 
 ## Features
 
-- **BPMN modeling** — full BPMN 2.0 with Camunda 7 and Camunda 8 properties.
+- **BPMN modeling** — full BPMN 2.0 with Camunda 7 and Camunda 8 properties,
+  including compatible forks like Operaton and CIB7.
 - **DMN modeling** — decision tables, decision requirements diagrams, literal
   expressions.
 - **Element templates** — convention-based discovery: drop templates under

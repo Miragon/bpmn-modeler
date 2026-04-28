@@ -1,7 +1,8 @@
 # Getting Started
 
 The Miragon BPMN Modeler is a VS Code extension for editing BPMN 2.0 and DMN
-diagrams with full Camunda 7 and Camunda 8 support.
+diagrams with full Camunda 7 and Camunda 8 support. Camunda 7-compatible engines such as
+**Operaton** and **CIB7** are also supported — they share the same BPMN metamodel.
 
 ## Install
 
