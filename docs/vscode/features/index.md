@@ -25,6 +25,14 @@ Here's what you get, roughly in the order you reach for it.
   start process instances directly from VS Code. Camunda 7 and 8 support,
   three auth modes, payload file discovery by convention.
 
+## Operaton & CIB7 Compatibility
+
+Operaton and CIB7 are community forks of Camunda 7 that retain a backward-compatible
+BPMN metamodel. Because this modeler's Camunda 7 support targets the standard C7
+metamodel, diagrams and element templates designed for Camunda 7 work unchanged with
+Operaton and CIB7. No separate engine profile is needed — select Camunda 7 as your
+engine target.
+
 ## Configure
 
 - **[Language Support](/vscode/features/language-support)** — switch the
