@@ -227,6 +227,25 @@ export class SetTextClipboardCommand extends Command {
     }
 }
 
+/**
+ * Sent by the BPMN webview whenever the user changes the canvas selection.
+ *
+ * Used by the bpmn-iq editor bridge to push the active element id to the
+ * daemon's session endpoint, so LLM tools resolving `modelId: "active"`
+ * also see the selected element.
+ *
+ * Payload is already debounced on the webview side and may be an empty
+ * array when the user clears the selection.
+ */
+export class SelectionChangedCommand extends Command {
+    public readonly elementIds: string[];
+
+    constructor(elementIds: string[]) {
+        super("SelectionChangedCommand");
+        this.elementIds = elementIds;
+    }
+}
+
 // <================================== Commands ===================================
 
 // =================================== Errors ==================================>

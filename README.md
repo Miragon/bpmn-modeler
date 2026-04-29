@@ -99,8 +99,16 @@ surfaces; each one has its own README with its own pitch.
 
 We love PRs. Whether you fix a typo or land a feature, the path is the same:
 
+> **Note**: The `bpmn-iq` workspace depends on a private `@miragon/*` package
+> on GitHub Packages. Export `GITHUB_TOKEN` (a classic PAT with the
+> `read:packages` scope) before running `yarn install`, or the install will
+> fail with `Environment variable not found (GITHUB_TOKEN)`. See
+> [`CONTRIBUTING.md`](CONTRIBUTING.md#github-packages-auth-bpmn-iq-dependency)
+> for the full setup.
+
 ```bash
 corepack enable
+export GITHUB_TOKEN=ghp_yourtoken   # see CONTRIBUTING.md
 corepack yarn install
 corepack yarn build      # build everything
 corepack yarn watch      # F5 in VS Code → "Run modeler-plugin"

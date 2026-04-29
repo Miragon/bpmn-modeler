@@ -7,6 +7,15 @@ on:
 
 permissions:
   contents: read
+  packages: read
+
+# `.yarnrc.yml` interpolates `${GITHUB_TOKEN}` to authenticate the
+# `@miragon/bpmn-iq-daemon-client` install against npm.pkg.github.com.
+# Yarn evaluates the file on every invocation (including the `yarn --version`
+# call setup-node makes), so the token must be present from the very first
+# yarn command in every job.
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   detect-changes:
@@ -19,6 +28,7 @@ jobs:
       bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
       create-append-c7: ${{ steps.filter.outputs.create-append-c7 }}
       modeler-plugin: ${{ steps.filter.outputs.modeler-plugin }}
+      bpmn-iq-plugin: ${{ steps.filter.outputs.bpmn-iq-plugin }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
@@ -43,6 +53,8 @@ jobs:
               - 'libs/create-append-c7-element-templates/**'
             modeler-plugin:
               - 'apps/modeler-plugin/**'
+            bpmn-iq-plugin:
+              - 'apps/bpmn-iq-plugin/**'
             bpmn-webview:
               - 'apps/bpmn-webview/**'
             dmn-webview:
@@ -68,8 +80,6 @@ jobs:
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies
         run: yarn install --immutable
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn lint
 
   audit:
@@ -88,8 +98,6 @@ jobs:
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies
         run: yarn install --immutable
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn npm audit --all --severity high
 
   build-shared:
@@ -198,8 +206,6 @@ jobs:
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
         run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler build
 
   test-modeler-plugin:
@@ -222,8 +228,6 @@ jobs:
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
         run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
@@ -233,6 +237,45 @@ jobs:
           fail_ci_if_error: false
           flags: modeler-plugin
           name: modeler-plugin
+          verbose: true
+
+  build-bpmn-iq-plugin:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bpmn-iq-plugin == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-iq-plugin
+      - run: yarn workspace bpmn-iq-plugin build
+
+  test-bpmn-iq-plugin:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bpmn-iq-plugin == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler bpmn-iq-plugin
+      - run: yarn workspace bpmn-iq-plugin test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/apps/bpmn-iq-plugin"
+          fail_ci_if_error: false
+          flags: bpmn-iq-plugin
+          name: bpmn-iq-plugin
           verbose: true
 
   test-bpmn-webview:
@@ -375,6 +418,8 @@ jobs:
       - build-create-append-c7
       - build-modeler-plugin
       - test-modeler-plugin
+      - build-bpmn-iq-plugin
+      - test-bpmn-iq-plugin
       - test-bpmn-webview
       - test-bpmn-i18n
       - build-bpmn-webview

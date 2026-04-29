@@ -75,6 +75,32 @@ cd bpmn-modeler
 corepack yarn install
 ```
 
+### GitHub Packages auth (bpmn-iq dependency)
+
+The `bpmn-iq-plugin` workspace depends on [`@miragon/bpmn-iq-daemon-client`](https://github.com/Miragon/bpmn-iq),
+a **private** package on the GitHub npm registry. The repo's `.yarnrc.yml`
+interpolates `${GITHUB_TOKEN}` from the environment to authenticate Yarn
+against `npm.pkg.github.com` for the `@miragon` scope, so `yarn install`
+fails with `Environment variable not found (GITHUB_TOKEN)` until you set it.
+
+1. Create a [classic Personal Access Token](https://github.com/settings/tokens)
+   with the **`read:packages`** scope. If your GitHub account uses SSO,
+   authorise the token for the Miragon org.
+2. Export it as `GITHUB_TOKEN` before running yarn:
+   ```bash
+   export GITHUB_TOKEN=ghp_yourtoken
+   corepack yarn install
+   ```
+   …or one-shot it via the `gh` CLI (the CLI itself needs `read:packages`):
+   ```bash
+   GITHUB_TOKEN=$(gh auth token) corepack yarn install
+   ```
+3. Persist `GITHUB_TOKEN` in your shell profile (`~/.zshrc` / `~/.bashrc`)
+   so the pre-push hook (`corepack yarn install --immutable`) also sees it.
+
+The scope override in `.yarnrc.yml` only rewires `@miragon/*` packages —
+every other dependency still resolves against the default npm registry.
+
 ### Run the Extension Development Host
 
 1. Start watch mode:
@@ -82,9 +108,37 @@ corepack yarn install
    corepack yarn watch
    ```
 2. Open the **Run and Debug** panel in VS Code.
-3. Select **"Run modeler-plugin"** and press **F5**.
+3. Pick a launch config and press **F5**:
+    - **"Run modeler-plugin"** — modeler only.
+    - **"Run bpmn-iq-plugin (with modeler)"** — both extensions in the same
+      Extension Host. Use this for any bpmn-iq work; the plugin declares the
+      modeler as an `extensionDependencies` and won't activate without it.
 
 Reload the host after a change with `Cmd+R` (macOS) or `Ctrl+R` (Windows/Linux).
+
+For end-to-end testing via real VSIX install, run `corepack yarn dev:install`.
+The script packages **both** plugins and installs them in the right order
+(modeler first, bpmn-iq second) — VSIX-from-disk installs do not auto-resolve
+extension dependencies from the marketplace, so the order matters.
+
+### Local Miragon Cloud testing (bpmn-iq plugin)
+
+The bpmn-iq plugin's status-bar **Switch to Miragon Cloud** action is
+gated on a build-time URL.  In the OSS source the URL is empty, which
+hides the action entirely.  To enable it locally, drop a `.env` file
+(gitignored) at the repo root with:
+
+```
+MIRAGON_CLOUD_DAEMON_URL=https://your-cloud-daemon.example
+```
+
+`apps/bpmn-iq-plugin/webpack.config.js` reads this via `dotenv` and
+inlines it into the bundle through `webpack.DefinePlugin`.  Rebuild
+(`corepack yarn run build:bpmn-iq`) and the action becomes available.
+
+The `miragon.bpmnIq.cloudDaemonUrl` VS Code setting overrides the
+build-time bake at runtime — useful for enterprise customers pointing
+at a self-hosted daemon without rebuilding the extension.
 
 For comprehensive guidance (standalone browser preview, testing, architecture),
 see [`docs/development.md`](docs/development.md).

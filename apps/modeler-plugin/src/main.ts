@@ -1,7 +1,8 @@
-import { env, ExtensionContext, Uri, window } from "vscode";
+import { env, EventEmitter, ExtensionContext, Uri, window } from "vscode";
 
 import { setContext } from "./infrastructure/extensionContext";
 
+import type { BpmnModelerApi } from "./api";
 import { CompareSelectionStore } from "./infrastructure/CompareSelectionStore";
 import { EditorStore } from "./infrastructure/EditorStore";
 import { PropertiesPanelStateRepository } from "./infrastructure/PropertiesPanelStateRepository";
@@ -35,13 +36,11 @@ import { DeploymentController } from "./controller/DeploymentController";
  * Wires up all infrastructure, services, and controllers using plain
  * constructor injection — no DI framework required.
  *
- * Instantiation order:
- * 1. Infrastructure (EditorStore, VsCodeDocument, VsCodeWorkspace, VsCodeSettings, VsCodeUI,
- *    VsCodeDeploymentState, CamundaRestClient)
- * 2. Services (ArtifactService, BpmnModelerService, DmnModelerService, DeploymentService)
- * 3. Controllers (CommandController, BpmnEditorController, DmnEditorController, DeploymentController)
+ * Returns a {@link BpmnModelerApi} so other extensions (e.g. the bpmn-iq
+ * plugin) can subscribe to selection-changed events without importing
+ * extension-internal types.
  */
-export function activate(context: ExtensionContext): void {
+export function activate(context: ExtensionContext): BpmnModelerApi {
     // 0. Notify the user of a new release (once per version).
     notifyIfNewRelease(context);
 
@@ -98,7 +97,11 @@ export function activate(context: ExtensionContext): void {
         artifactSvc,
     );
 
-    // 4. Controllers
+    // 4. Public API: selection-change emitter exposed to other extensions.
+    const selectionEmitter = new EventEmitter<{ uri: Uri; elementId?: string }>();
+    context.subscriptions.push(selectionEmitter);
+
+    // 5. Controllers
     const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
     new BpmnEditorController(
         editorStore,
@@ -108,11 +111,16 @@ export function activate(context: ExtensionContext): void {
         vsUI,
         vsDocument,
         statusBar,
+        selectionEmitter,
     ).register(context);
     new DmnEditorController(editorStore, dmnService, vsUI).register(context);
     new BpmnCompareController(compareSelection, diffService, vsUI).register(context);
     commandController.register(context);
     new DeploymentController(editorStore, vsDocument, deploymentSvc, startInstanceSvc, vsUI).register(context);
+
+    return {
+        onDidChangeSelection: selectionEmitter.event,
+    };
 }
 
 const RELEASES_BASE = "https://github.com/Miragon/bpmn-modeler/releases/tag";

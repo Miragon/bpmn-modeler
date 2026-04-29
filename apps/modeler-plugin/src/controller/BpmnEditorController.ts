@@ -1,15 +1,18 @@
 import {
     CancellationToken,
     CustomTextEditorProvider,
+    EventEmitter,
     ExtensionContext,
     TextDocument,
     TextDocumentChangeEvent,
+    Uri,
     WebviewPanel,
     window,
 } from "vscode";
 
 import {
     Command,
+    SelectionChangedCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
@@ -54,6 +57,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly vsUI: VsCodeUI,
         private readonly vsDocument: VsCodeDocument,
         private readonly statusBar: VsCodeStatusBar,
+        private readonly selectionEmitter: EventEmitter<{ uri: Uri; elementId?: string }>,
     ) {}
 
     /**
@@ -195,10 +199,26 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                             (message as SyncDocumentCommand).content,
                         );
                         break;
+                    case "SelectionChangedCommand":
+                        this.handleSelectionChanged(
+                            id,
+                            (message as SelectionChangedCommand).elementIds,
+                        );
+                        break;
                 }
                 this.vsUI.logInfo(`Message processed -> ${message.type}`);
             },
         );
+    }
+
+    /**
+     * Forwards the webview's selection change to extension-API subscribers
+     * (e.g. the bpmn-iq plugin).  Fires regardless of whether anyone is
+     * listening — VS Code's EventEmitter handles the no-subscriber case.
+     */
+    private handleSelectionChanged(editorId: string, elementIds: string[]): void {
+        const doc = this.editorStore.getDocumentForEditor(editorId);
+        this.selectionEmitter.fire({ uri: doc.uri, elementId: elementIds[0] });
     }
 
     /**
