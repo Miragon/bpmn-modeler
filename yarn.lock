@@ -2105,15 +2105,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@bpmn-modeler/create-append-c7-element-templates@workspace:*, @bpmn-modeler/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates":
-  version: 0.0.0-use.local
-  resolution: "@bpmn-modeler/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates"
-  peerDependencies:
-    bpmn-js: 18.14.0
-    bpmn-js-create-append-anything: 1.2.0
-  languageName: unknown
-  linkType: soft
-
 "@bpmn-modeler/element-template-chooser@workspace:*, @bpmn-modeler/element-template-chooser@workspace:libs/element-template-chooser":
   version: 0.0.0-use.local
   resolution: "@bpmn-modeler/element-template-chooser@workspace:libs/element-template-chooser"
@@ -3812,6 +3803,15 @@ __metadata:
   checksum: 10c0/f1e76e79263fb681ea2143c3ce72fabb6b33520c3a8578321f487fa0aed9c421e2ef640b9e38c1800a0f11f953d20d1815c5bd0050ad69a9731522ccdbed30ae
   languageName: node
   linkType: hard
+
+"@miragon/create-append-c7-element-templates@workspace:*, @miragon/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates":
+  version: 0.0.0-use.local
+  resolution: "@miragon/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates"
+  peerDependencies:
+    bpmn-js: 18.14.0
+    bpmn-js-create-append-anything: 1.2.0
+  languageName: unknown
+  linkType: soft
 
 "@modelcontextprotocol/sdk@npm:^1.25.1":
   version: 1.29.0
@@ -8290,9 +8290,9 @@ __metadata:
     "@bpmn-modeler/append-menu": "workspace:*"
     "@bpmn-modeler/bpmn-clipboard": "workspace:*"
     "@bpmn-modeler/bpmn-i18n": "workspace:*"
-    "@bpmn-modeler/create-append-c7-element-templates": "workspace:*"
     "@bpmn-modeler/element-template-chooser": "workspace:*"
     "@bpmn-modeler/shared": "workspace:*"
+    "@miragon/create-append-c7-element-templates": "workspace:*"
     "@types/vscode-webview": "npm:1.57.5"
     bpmn-js: "npm:18.14.0"
     bpmn-js-create-append-anything: "npm:1.2.0"

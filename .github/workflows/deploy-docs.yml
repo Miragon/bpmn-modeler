@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 20
           cache: yarn
-      - run: corepack yarn workspaces focus bpmn-vscode-modeler docs
+      - run: corepack yarn workspaces focus bpmn-modeler docs
       - run: corepack yarn docs:build
       - uses: actions/upload-pages-artifact@v5
         with:

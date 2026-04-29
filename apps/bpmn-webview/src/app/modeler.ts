@@ -7,7 +7,7 @@ import { ElementTemplateChooserModule } from "@bpmn-modeler/element-template-cho
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@bpmn-modeler/append-menu";
-import { CreateAppendC7ElementTemplatesModule } from "@bpmn-modeler/create-append-c7-element-templates";
+import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7-element-templates";
 import { BpmnModelerSetting, NoModelerError } from "@bpmn-modeler/shared";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";

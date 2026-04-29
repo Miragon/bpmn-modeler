@@ -5,7 +5,7 @@
  *
  * Register as an `additionalModule` when creating the C7 bpmn-js modeler:
  * ```ts
- * import { CreateAppendC7ElementTemplatesModule } from "@bpmn-modeler/create-append-c7-element-templates";
+ * import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7-element-templates";
  *
  * new BpmnModeler({ additionalModules: [CreateAppendC7ElementTemplatesModule] });
  * ```

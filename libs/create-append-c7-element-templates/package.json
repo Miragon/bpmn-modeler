@@ -1,5 +1,5 @@
 {
-    "name": "@bpmn-modeler/create-append-c7-element-templates",
+    "name": "@miragon/create-append-c7-element-templates",
     "version": "0.1.0",
     "description": "Polyfills elementTemplates.createElement() for the Camunda 7 bpmn-js modeler, enabling bpmn-js-create-append-anything to create template-preconfigured elements.",
     "license": "MIT",

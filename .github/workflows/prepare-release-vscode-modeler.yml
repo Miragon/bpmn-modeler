@@ -54,7 +54,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-vscode-modeler vs-code-bpmn-modeler bpmn-webview dmn-webview deployment-webview @bpmn-modeler/shared @bpmn-modeler/append-menu @bpmn-modeler/bpmn-clipboard @bpmn-modeler/bpmn-i18n @bpmn-modeler/element-template-chooser @bpmn-modeler/create-append-c7-element-templates
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler bpmn-webview dmn-webview deployment-webview @bpmn-modeler/shared @bpmn-modeler/append-menu @bpmn-modeler/bpmn-clipboard @bpmn-modeler/bpmn-i18n @bpmn-modeler/element-template-chooser @miragon/create-append-c7-element-templates
 
       - name: Configure Git
         run: |

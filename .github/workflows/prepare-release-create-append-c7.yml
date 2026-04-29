@@ -1,6 +1,6 @@
 name: Prepare Release create-append-c7-element-templates
 
-# Bumps the @bpmn-modeler/create-append-c7-element-templates version,
+# Bumps the @miragon/create-append-c7-element-templates version,
 # builds it as a sanity gate, commits and tags the bump, then creates
 # a GitHub Release. Publishing to npm is handled by
 # publish-create-append-c7.yml on release: published.
@@ -55,7 +55,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-vscode-modeler @bpmn-modeler/create-append-c7-element-templates
+        run: yarn workspaces focus bpmn-modeler @miragon/create-append-c7-element-templates
 
       - name: Configure Git
         run: |
@@ -66,7 +66,7 @@ jobs:
       - name: Bump version
         id: version
         run: |
-          PKG_NAME="@bpmn-modeler/create-append-c7-element-templates"
+          PKG_NAME="@miragon/create-append-c7-element-templates"
           yarn workspace "$PKG_NAME" version "${{ inputs.release-type }}"
           NEW_VERSION=$(node -e "console.log(require('./libs/create-append-c7-element-templates/package.json').version)")
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
@@ -79,7 +79,7 @@ jobs:
           fi
 
       - name: Build library
-        run: yarn workspace @bpmn-modeler/create-append-c7-element-templates build
+        run: yarn workspace @miragon/create-append-c7-element-templates build
 
       - name: Commit and tag
         if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
@@ -87,7 +87,7 @@ jobs:
           NEW_VERSION="${{ steps.version.outputs.version }}"
           TAG="create-append-c7-element-templates/v${NEW_VERSION}"
           git add libs/create-append-c7-element-templates/package.json
-          git commit -m "chore(release): @bpmn-modeler/create-append-c7-element-templates v${NEW_VERSION}"
+          git commit -m "chore(release): @miragon/create-append-c7-element-templates v${NEW_VERSION}"
           git push origin HEAD
           git tag -a "$TAG" -m "release $TAG"
           git push origin "$TAG"
@@ -97,5 +97,5 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: create-append-c7-element-templates/v${{ steps.version.outputs.version }}
-          name: '@bpmn-modeler/create-append-c7-element-templates v${{ steps.version.outputs.version }}'
+          name: '@miragon/create-append-c7-element-templates v${{ steps.version.outputs.version }}'
           generate_release_notes: true

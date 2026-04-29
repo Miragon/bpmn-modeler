@@ -19,38 +19,51 @@ These two processes talk through **typed message contracts** defined in
 `libs/shared/src/lib/modeler.ts`. There is no shared memory and no direct
 function calls — everything crosses via `postMessage`.
 
+The same extension is shipped two ways:
+
+- as a **`.vsix`** to the VS Code Marketplace (the primary delivery channel), and
+- bundled into a **standalone Theia/Electron desktop app** (`apps/standalone`),
+  which loads the very same `.vsix` as a Theia plugin. The host/webview split
+  above is identical in both delivery modes.
+
 ## Monorepo layout
 
 ```
 apps/
-  modeler-plugin/   # Extension host (Node, webpack)
-  bpmn-webview/     # BPMN webview (browser, Vite)
-  dmn-webview/      # DMN webview (browser, Vite)
+  modeler-plugin/     # Extension host (Node, webpack) — produces the .vsix
+  bpmn-webview/       # BPMN webview (browser, Vite)
+  dmn-webview/        # DMN webview (browser, Vite)
   deployment-webview/ # Deployment sidebar UI (Vite)
+  standalone/         # Theia/Electron shell — bundles the .vsix into a desktop app
 libs/
   shared/                        # Message contracts, cross-process utils
   bpmn-clipboard/                # bpmn-js DI module (copy/paste)
   bpmn-i18n/                     # bpmn-js DI module (translations)
   append-menu/                   # bpmn-js DI module (custom append UI)
   element-template-chooser/      # bpmn-js DI module (template picker)
-  create-append-c7-element-templates/ # bpmn-js polyfill for C7 template creation
+  create-append-c7-element-templates/ # bpmn-js polyfill for C7 template creation (npm-published)
 ```
 
 | Workspace | Lives at | What it does |
 |---|---|---|
-| `vs-code-bpmn-modeler` | `apps/modeler-plugin` | VS Code extension host entry |
+| `vs-code-bpmn-modeler` | `apps/modeler-plugin` | VS Code extension host entry; produces the `.vsix` |
 | `bpmn-webview` | `apps/bpmn-webview` | BPMN editor UI + diff viewer |
 | `dmn-webview` | `apps/dmn-webview` | DMN editor UI |
-| `deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar (Vite dev) |
+| `deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
+| `standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into a signed macOS DMG |
 | `@bpmn-modeler/shared` | `libs/shared` | Message types, cross-process utilities |
-| `libs/bpmn-clipboard/` | — | bpmn-js DI module for clipboard integration |
-| `libs/bpmn-i18n/` | — | bpmn-js DI module for translations |
-| `libs/append-menu/` | — | Preact-based append menu overlay |
-| `libs/element-template-chooser/` | — | Preact-based template chooser overlay |
+| `@bpmn-modeler/bpmn-clipboard` | `libs/bpmn-clipboard` | bpmn-js DI module for clipboard integration |
+| `@bpmn-modeler/bpmn-i18n` | `libs/bpmn-i18n` | bpmn-js DI module for translations |
+| `@bpmn-modeler/append-menu` | `libs/append-menu` | Preact-based append menu overlay |
+| `@bpmn-modeler/element-template-chooser` | `libs/element-template-chooser` | Preact-based template chooser overlay |
+| `@miragon/create-append-c7-element-templates` | `libs/create-append-c7-element-templates` | Standalone npm-publishable bpmn-js polyfill for Camunda 7 template creation |
 
-`libs/*` are source-only — the consuming Vite build compiles the TypeScript and
-TSX files directly via the `@bpmn-modeler/<lib>` path alias. There is no
-separate build step per library.
+Most `libs/*` are source-only — the consuming Vite/webpack build compiles the
+TypeScript and TSX files directly via the `@bpmn-modeler/<lib>` path alias.
+Two libs have their own `tsc` build step:
+`@bpmn-modeler/shared` (compiled because it's also consumed by the extension host),
+and `@miragon/create-append-c7-element-templates` (compiled because it's
+published to npm as a standalone artefact).
 
 ## Extension host vs webview
 
@@ -142,10 +155,13 @@ method rather than adding a new service — e.g. `AppendMenuOverride` wraps
 
 | Target | Tool | Config |
 |---|---|---|
-| Extension host | webpack + ts-loader | `apps/modeler-plugin/webpack.config.js` |
+| Extension host (`.vsix`) | webpack + ts-loader | `apps/modeler-plugin/webpack.config.js` |
 | BPMN webview | Vite | `apps/bpmn-webview/vite.config.mts` |
 | DMN webview | Vite | `apps/dmn-webview/vite.config.mts` |
-| Deployment webview (dev) | Vite | `apps/deployment-webview/vite.config.mts` |
+| Deployment webview | Vite | `apps/deployment-webview/vite.config.mts` |
+| Standalone macOS DMG | `@theia/cli` + electron-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml` |
+| Shared lib (`@bpmn-modeler/shared`) | tsc | `libs/shared/tsconfig.lib.json` |
+| c7 npm lib | tsc | `libs/create-append-c7-element-templates/tsconfig.lib.json` |
 | Tests | Jest + ts-jest | `apps/modeler-plugin/jest.config.ts` |
 | Path alias resolution | `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) | `tsconfig.base.json` |
 
