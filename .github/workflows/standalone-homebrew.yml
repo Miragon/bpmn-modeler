@@ -24,35 +24,44 @@ on:
         type: boolean
         default: false
 
+permissions: {}
+
 jobs:
   update-tap:
     name: Update Cask formula
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
     steps:
       - name: Resolve tag and version
         id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
           else
-            TAG="${{ github.event.workflow_run.head_branch }}"
-            # workflow_run fires on the tag ref; extract from ref if needed
+            TAG="$RUN_HEAD_BRANCH"
+            # workflow_run fires on the tag ref; fall back to latest release if needed
             if [[ "$TAG" != standalone-v* ]]; then
-              TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
+              TAG=$(gh api "repos/$GH_REPO/releases/latest" --jq '.tag_name')
             fi
           fi
           VERSION="${TAG#standalone-v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download DMG and compute sha256
         id: sha
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
-          TAG="${{ steps.meta.outputs.tag }}"
-          VERSION="${{ steps.meta.outputs.version }}"
           DMG="miragon-bpmn-modeler-${VERSION}-arm64.dmg"
           URL="https://github.com/Miragon/bpmn-modeler/releases/download/${TAG}/${DMG}"
           echo "Downloading $URL"
@@ -63,9 +72,10 @@ jobs:
 
       - name: Generate Cask formula
         id: formula
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          SHA: ${{ steps.sha.outputs.sha256 }}
         run: |
-          VERSION="${{ steps.meta.outputs.version }}"
-          SHA="${{ steps.sha.outputs.sha256 }}"
           cat > miragon-bpmn-modeler.rb <<EOF
           cask "miragon-bpmn-modeler" do
             version "${VERSION}"
@@ -84,9 +94,11 @@ jobs:
 
       - name: Push to homebrew-tap
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          VERSION="${{ steps.meta.outputs.version }}"
-          git clone https://x-access-token:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com/Miragon/homebrew-tap.git tap
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Miragon/homebrew-tap.git" tap
           cp miragon-bpmn-modeler.rb tap/Casks/miragon-bpmn-modeler.rb
           cd tap
           git config user.name "github-actions[bot]"
