@@ -38,7 +38,7 @@ uphold this code.
 
 Before opening a bug report, please:
 
-1. Search [existing issues](https://github.com/Miragon/bpmn-vscode-modeler/issues)
+1. Search [existing issues](https://github.com/Miragon/bpmn-modeler/issues)
    to avoid duplicates.
 2. Verify you are running the latest version of the extension from the
    Marketplace.
@@ -70,8 +70,8 @@ Discussing scope in an issue *before* writing code saves everyone time.
 ### Clone and install
 
 ```bash
-git clone https://github.com/Miragon/bpmn-vscode-modeler.git
-cd bpmn-vscode-modeler
+git clone https://github.com/Miragon/bpmn-modeler.git
+cd bpmn-modeler
 corepack yarn install
 ```
 

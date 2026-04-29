@@ -5,7 +5,7 @@ deployment features as the VS Code extension, no VS Code required. Built on
 [Eclipse Theia](https://theia-ide.org/) and packaged with Electron, loading
 the same `.vsix` that ships to the VS Code Marketplace.
 
-![BPMN Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/modeler-preview.png)
+![BPMN Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-preview.png)
 
 > Same modeling surface as the VS Code extension — the screenshot above is
 > the modeler running in VS Code; the standalone app shows the exact same
@@ -146,4 +146,4 @@ apps/standalone/
 
 ## Related
 
-- Issue: [#917](https://github.com/Miragon/bpmn-vscode-modeler/issues/917)
+- Issue: [#917](https://github.com/Miragon/bpmn-modeler/issues/917)

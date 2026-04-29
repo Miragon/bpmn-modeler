@@ -1,13 +1,13 @@
 <div align="center">
-    <img src="https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/miragon-logo.png" alt="Miragon" height="140">
+    <img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="140">
     <h3>Camunda Modeler by Miragon</h3>
     <p>BPMN 2.0 and DMN modeling for Camunda 7 and Camunda 8 — directly in VS Code.</p>
     <p>
-        <a href="https://miragon.github.io/bpmn-vscode-modeler/">Documentation</a>
+        <a href="https://miragon.github.io/bpmn-modeler/">Documentation</a>
         ·
-        <a href="https://github.com/Miragon/bpmn-vscode-modeler/issues">Report Bug</a>
+        <a href="https://github.com/Miragon/bpmn-modeler/issues">Report Bug</a>
         ·
-        <a href="https://github.com/Miragon/bpmn-vscode-modeler/pulls">Request Feature</a>
+        <a href="https://github.com/Miragon/bpmn-modeler/pulls">Request Feature</a>
     </p>
 </div>
 
@@ -42,7 +42,7 @@ project.
   available in English, Deutsch, Español, Français, Nederlands,
   Português (Brasil), Русский, 简体中文, and 繁體中文.
 
-![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-vscode-modeler/main/images/modeler-preview.png)
+![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-preview.png)
 
 ## Getting started
 
@@ -81,10 +81,10 @@ Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`
 
 ## Support and feedback
 
-- Documentation: <https://miragon.github.io/bpmn-vscode-modeler/>
-- Bugs / feature requests: <https://github.com/Miragon/bpmn-vscode-modeler/issues>
+- Documentation: <https://miragon.github.io/bpmn-modeler/>
+- Bugs / feature requests: <https://github.com/Miragon/bpmn-modeler/issues>
 - Contact: [info@miragon.io](mailto:info@miragon.io)
 
 ## License
 
-Distributed under the [Apache License 2.0](https://github.com/Miragon/bpmn-vscode-modeler/blob/main/LICENSE).
+Distributed under the [Apache License 2.0](https://github.com/Miragon/bpmn-modeler/blob/main/LICENSE).

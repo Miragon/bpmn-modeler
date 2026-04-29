@@ -28,10 +28,10 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/Miragon/bpmn-vscode-modeler.git"
+        "url": "https://github.com/Miragon/bpmn-modeler.git"
     },
     "bugs": {
-        "url": "https://github.com/Miragon/bpmn-vscode-modeler/issues"
+        "url": "https://github.com/Miragon/bpmn-modeler/issues"
     },
     "engines": {
         "vscode": "^1.76.0"

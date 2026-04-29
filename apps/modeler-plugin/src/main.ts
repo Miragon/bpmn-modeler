@@ -115,7 +115,7 @@ export function activate(context: ExtensionContext): void {
     new DeploymentController(editorStore, vsDocument, deploymentSvc, startInstanceSvc, vsUI).register(context);
 }
 
-const RELEASES_BASE = "https://github.com/Miragon/bpmn-vscode-modeler/releases/tag";
+const RELEASES_BASE = "https://github.com/Miragon/bpmn-modeler/releases/tag";
 const LAST_NOTIFIED_KEY = "lastNotifiedVersion";
 
 /**

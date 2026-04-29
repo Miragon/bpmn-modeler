@@ -8,7 +8,7 @@ directories:
 publish:
   provider: github
   owner: Miragon
-  repo: bpmn-vscode-modeler
+  repo: bpmn-modeler
 files:
   - lib/**/*
   - src-gen/**/*

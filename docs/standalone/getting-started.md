@@ -11,14 +11,14 @@ Windows and Linux builds may follow.
 ## Download & install
 
 Signed, notarized `.dmg` artefacts are published to
-[GitHub Releases](https://github.com/Miragon/bpmn-vscode-modeler/releases).
+[GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
 Look for tags matching `standalone-v*` and download the `.dmg`. Drag it
 to `/Applications` and double-click — no Gatekeeper workaround needed.
 
 The app then auto-updates from GitHub Releases on each launch.
 
 If you'd rather build from source, see
-[`apps/standalone/README.md`](https://github.com/Miragon/bpmn-vscode-modeler/blob/main/apps/standalone/README.md).
+[`apps/standalone/README.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md).
 
 ## Open a diagram
 

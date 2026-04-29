@@ -2,7 +2,7 @@
 
 This page documents the release workflow for maintainers. The user-facing
 version history lives on
-[GitHub Releases](https://github.com/Miragon/bpmn-vscode-modeler/releases).
+[GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
 
 ```mermaid
 flowchart LR
@@ -42,7 +42,7 @@ flowchart LR
 ## Create a new release
 
 Releases are triggered manually
-via [GitHub Actions](https://github.com/Miragon/bpmn-vscode-modeler/actions/workflows/release.yml).
+via [GitHub Actions](https://github.com/Miragon/bpmn-modeler/actions/workflows/release.yml).
 
 ### Steps
 

@@ -123,7 +123,7 @@ yarn lint
 ```
 
 Coverage reports are uploaded
-to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-vscode-modeler)
+to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-modeler)
 on CI.
 
 ## Code Style

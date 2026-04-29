@@ -4,7 +4,7 @@ import { withMermaid } from "vitepress-plugin-mermaid";
 export default withMermaid(defineConfig({
     title: "Miragon BPMN Modeler",
     description: "Professional BPMN/DMN process modeling — as a VS Code extension or a standalone desktop app",
-    base: "/bpmn-vscode-modeler/",
+    base: "/bpmn-modeler/",
     appearance: false,
     head: [
         [
@@ -12,7 +12,7 @@ export default withMermaid(defineConfig({
             {
                 rel: "icon",
                 type: "image/png",
-                href: "/bpmn-vscode-modeler/miragon-favicon.png",
+                href: "/bpmn-modeler/miragon-favicon.png",
             },
         ],
     ],
@@ -105,7 +105,7 @@ export default withMermaid(defineConfig({
         socialLinks: [
             {
                 icon: "github",
-                link: "https://github.com/Miragon/bpmn-vscode-modeler",
+                link: "https://github.com/Miragon/bpmn-modeler",
             },
         ],
         search: { provider: "local" },
