@@ -87,7 +87,6 @@ surfaces; each one has its own README with its own pitch.
 |---|---|---|
 | [`apps/modeler-plugin`](apps/modeler-plugin/README.md) | The VS Code extension — the public BPMN/DMN modeler. | Published on the [Marketplace][marketplace-url] |
 | [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler — same features, no VS Code required. | Build-from-source, unreleased |
-| `apps/bpmn-iq-plugin` | Separate VS Code extension that pushes your BPMN landscape to an LLM over MCP — see [bpmn-iq](https://github.com/Miragon/bpmn-iq). | Landing in [PR #943](https://github.com/Miragon/bpmn-modeler/pull/943) |
 | [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
 | [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
 | [`apps/deployment-webview`](apps/deployment-webview/README.md) | Deployment sidebar webview. | Internal |
