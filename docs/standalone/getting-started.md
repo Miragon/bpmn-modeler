@@ -10,12 +10,27 @@ Windows and Linux builds may follow.
 
 ## Download & install
 
+### Homebrew (recommended)
+
+```bash
+brew tap miragon/tap
+brew install --cask miragon-bpmn-modeler
+```
+
+To upgrade later:
+
+```bash
+brew upgrade --cask miragon-bpmn-modeler
+```
+
+### Manual download
+
 Signed, notarized `.dmg` artefacts are published to
 [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
 Look for tags matching `standalone-v*` and download the `.dmg`. Drag it
 to `/Applications` and double-click — no Gatekeeper workaround needed.
 
-The app then auto-updates from GitHub Releases on each launch.
+The app auto-updates from GitHub Releases on each launch.
 
 If you'd rather build from source, see
 [`apps/standalone/README.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md).
