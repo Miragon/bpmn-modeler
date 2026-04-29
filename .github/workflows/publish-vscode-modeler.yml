@@ -1,0 +1,102 @@
+name: Publish VS Code Modeler
+
+# Builds and publishes the VS Code extension when a GitHub Release with a
+# v* tag is published. Also supports a manual workflow_dispatch with a
+# dry-run option that produces a vsix artifact without publishing.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (build + package, do not publish)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpmn-modeler-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v'))
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check pinned dependencies
+        uses: Miragon/pin-npm-dependencies@v1
+
+      - name: Corepack enable
+        run: corepack enable
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: yarn
+
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler bpmn-webview dmn-webview deployment-webview @bpmn-modeler/shared @bpmn-modeler/append-menu @bpmn-modeler/bpmn-clipboard @bpmn-modeler/bpmn-i18n @bpmn-modeler/element-template-chooser @miragon/create-append-c7-element-templates
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION=$(node -e "console.log(require('./apps/modeler-plugin/package.json').version)")
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package.json version matches tag
+        if: github.event_name == 'release'
+        run: |
+          PKG_VERSION=$(node -e "console.log(require('./apps/modeler-plugin/package.json').version)")
+          if [ "$PKG_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "package.json version ($PKG_VERSION) does not match release tag (${{ steps.version.outputs.version }})." && exit 1
+          fi
+
+      - name: Build
+        run: yarn build
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce@3.2.2
+
+      - name: Package vsix
+        working-directory: dist/apps/modeler-plugin
+        run: vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
+
+      - name: Upload vsix artifact (dry-run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
+        uses: actions/upload-artifact@v7
+        with:
+          name: bpmn-modeler-plugin-v${{ steps.version.outputs.version }}
+          path: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
+          retention-days: 7
+
+      - name: Attach vsix to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
+
+      - name: Publish to VS Code Marketplace
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
+        working-directory: dist/apps/modeler-plugin
+        run: vsce publish --yarn --no-dependencies
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PUBLISH }}

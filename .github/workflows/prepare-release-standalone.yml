@@ -1,0 +1,90 @@
+name: Prepare Release Standalone
+
+# Bumps the standalone app version, commits and tags the bump, then
+# creates a GitHub Release. Building, signing, notarizing and publishing
+# the DMG is handled by publish-standalone.yml on release: published.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry-run:
+        description: 'Dry run (no commit, tag, or release)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: standalone-prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Corepack enable
+        run: corepack enable
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: yarn
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/${{ github.repository }}"
+
+      - name: Bump version
+        id: version
+        run: |
+          yarn workspace standalone version "${{ inputs.release-type }}"
+          NEW_VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag does not exist
+        run: |
+          TAG="standalone-v${{ steps.version.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists; aborting." && exit 1
+          fi
+
+      - name: Commit and tag
+        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+          TAG="standalone-v${NEW_VERSION}"
+          git add apps/standalone/package.json
+          git commit -m "chore(release): standalone v${NEW_VERSION}"
+          git push origin HEAD
+          git tag -a "$TAG" -m "release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: standalone-v${{ steps.version.outputs.version }}
+          name: 'Standalone v${{ steps.version.outputs.version }}'
+          generate_release_notes: true

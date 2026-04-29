@@ -1,30 +1,27 @@
-# `libs/shared/` — webview shared library
+# `@bpmn-modeler/shared`
 
-Internal module. **Not published separately.**
+Shared message types and utilities used by both the VS Code extension host
+(`apps/modeler-plugin`) and the webviews (`apps/bpmn-webview`,
+`apps/dmn-webview`, `apps/deployment-webview`).
 
-Provides the typed Query/Command message protocol and shared utilities used
-by every webview in this repo (BPMN, DMN, deployment) to talk to the
-extension host. Consumed via the `@bpmn-modeler/shared` path alias defined
-in `tsconfig.base.json`.
+## Usage
 
-## Usage from a webview workspace
+Add a workspace dependency in the consuming workspace's `package.json`:
 
-Add the alias to your `vite.config.mts`:
+```json
+{
+  "dependencies": {
+    "@bpmn-modeler/shared": "workspace:*"
+  }
+}
+```
+
+Then import normally:
 
 ```ts
-export default defineConfig( {
-    // ...
-    resolve: {
-        alias: [
-            {
-                find: "@bpmn-modeler/shared",
-                replacement: path.resolve(
-                    __dirname,
-                    "../../libs/shared/src"
-                )
-            }
-        ]
-    },
-    // ...
-} );
+import { someUtil, SomeMessageType } from "@bpmn-modeler/shared";
 ```
+
+Path resolution is handled by `tsconfig.base.json` (via `paths`) plus
+`vite-tsconfig-paths` (for webviews) and `tsconfig-paths-webpack-plugin`
+(for the extension host). No manual `vite.config` alias required.

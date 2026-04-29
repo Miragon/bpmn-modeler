@@ -107,6 +107,10 @@ corepack yarn build      # build everything
 corepack yarn watch      # F5 in VS Code → "Run modeler-plugin"
 ```
 
+> Working on a single workspace only? `yarn workspaces focus <name>` installs just
+> that tree and skips the rest. See [Workspace dependencies](https://miragon.github.io/bpmn-modeler/vscode/contributing/development#workspace-dependencies)
+> for the focus targets per pipeline.
+
 For the full setup, PR flow, and commit conventions see
 **[`CONTRIBUTING.md`](CONTRIBUTING.md)**. For architecture, build system,
 and contributor walkthroughs see **[`docs/`](docs/)** (also published at

@@ -5,7 +5,8 @@
         "module": "commonjs",
         "outDir": "./dist",
         "declaration": true,
-        "types": ["node"]
+        "types": ["node"],
+        "ignoreDeprecations": "5.0"
     },
     "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
     "include": ["src/**/*.ts"]

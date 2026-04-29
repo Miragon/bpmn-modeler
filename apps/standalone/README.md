@@ -90,20 +90,29 @@ the login keychain. See [Releasing](#releasing) below for the full setup.
 
 ## Releasing
 
-CI handles releases via `.github/workflows/release-standalone.yml`.
+CI handles releases via two workflows:
+
+- `.github/workflows/prepare-release-standalone.yml` — manual
+  (`workflow_dispatch`). Bumps `apps/standalone/package.json`, commits,
+  tags `standalone-vX.Y.Z`, creates the GitHub Release.
+- `.github/workflows/publish-standalone.yml` — fires on
+  `release: published` for `standalone-v*` tags. Runs on `macos-latest`,
+  builds the `.vsix`, bundles it, signs with the Apple Developer ID cert,
+  notarizes, and uploads the `.dmg` + `latest-mac.yml` to the release.
+  Existing installs pick up updates via `electron-updater` on next launch.
 
 To cut a release:
 
-1. Bump `apps/standalone/package.json` `version` to match
-   `apps/modeler-plugin/package.json`.
-2. Commit + push to `main`.
-3. `git tag standalone-v<version> && git push --tags`.
+1. Go to **Actions** → **Prepare Release Standalone** → **Run workflow**,
+   pick `patch` / `minor` / `major`. The prepare workflow tags + creates
+   the release.
+2. The `release: published` event auto-triggers **Publish Standalone**,
+   which produces and uploads the signed DMG.
 
-CI runs on `macos-latest`, builds the `.vsix`, bundles it, signs with the
-Apple Developer ID cert (from GitHub secrets), submits for notarization,
-and publishes the `.dmg` + `latest-mac.yml` to the GitHub Release matching
-the tag. Existing installs pick up updates via `electron-updater` on next
-launch.
+Both workflows accept a `dry-run` input. See
+[Release process](../../docs/vscode/contributing/release-process.md) for
+the full pipeline diagram and the equivalent flow for the VS Code
+extension and the c7 npm lib.
 
 **Required GitHub repo secrets** (one-time setup):
 

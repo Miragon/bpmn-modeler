@@ -1,0 +1,80 @@
+name: Publish create-append-c7-element-templates
+
+# Builds and publishes @miragon/create-append-c7-element-templates
+# to npm when a GitHub Release with a create-append-c7-element-templates/v*
+# tag is published. Also supports a manual workflow_dispatch with a
+# dry-run option (npm publish --dry-run).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (npm publish --dry-run)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: create-append-c7-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'create-append-c7-element-templates/'))
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check pinned dependencies
+        uses: Miragon/pin-npm-dependencies@v1
+
+      - name: Corepack enable
+        run: corepack enable
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: yarn
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/create-append-c7-element-templates
+
+      - name: Verify package.json version matches tag
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TAG_VERSION="${TAG#create-append-c7-element-templates/v}"
+          PKG_VERSION=$(node -e "console.log(require('./libs/create-append-c7-element-templates/package.json').version)")
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "package.json version ($PKG_VERSION) does not match release tag ($TAG_VERSION)." && exit 1
+          fi
+
+      - name: Build library
+        run: yarn workspace @miragon/create-append-c7-element-templates build
+
+      - name: Dry-run publish
+        if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
+        working-directory: libs/create-append-c7-element-templates
+        run: npm publish --access public --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to npm
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
+        working-directory: libs/create-append-c7-element-templates
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

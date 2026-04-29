@@ -4,65 +4,113 @@ This page documents the release workflow for maintainers. The user-facing
 version history lives on
 [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
 
+## Overview
+
+Each shippable artefact has **two** workflows: a `prepare-*` and a `publish-*`.
+The split exists so the prepare workflow can create a GitHub Release without
+the publish workflow accidentally re-triggering itself in a loop. Splitting
+into separate files also keeps each workflow short and single-purpose.
+
+- **`prepare-*`** — manual (`workflow_dispatch`). Bumps the version, runs the
+  sanity checks, commits the bump, pushes the tag, and creates a GitHub
+  Release. Does **not** publish anything.
+- **`publish-*`** — fires on `release: published`. Builds the artefact,
+  attaches it to the existing release, and pushes it to the relevant
+  registry (Marketplace / npm / GitHub Release assets). Also runnable
+  manually with `dry-run: true` to produce an artefact without uploading.
+
+Both workflows accept a `dry-run` input for safe local validation.
+
+## Pipeline flow
+
 ```mermaid
 flowchart LR
-%% declarations
-    feat1[feat/feature1]
-    feat2[feat/feature2]
-    feat3[feat/feature3]
-    feat4[feat/feature4]
-    feat5[feat/feature5]
-    v0.1((v0.1.0))
-    v1((v1.0.0))
-    marketplace[VS Code Marketplace]
-%% style
-    style feat1 stroke: #00E676, background-color: black, color: white
-    style feat2 stroke: #00E676, background-color: black, color: white
-    style feat3 stroke: #00E676, background-color: black, color: white
-    style feat4 stroke: #00E676, background-color: black, color: white
-    style feat5 stroke: #00E676, background-color: black, color: white
-    style v0.1 stroke: #00E676, background-color: black, color: white
-    style v1 stroke: #00E676, background-color: black, color: white
-    style marketplace fill: #00E676, color: black, stroke: black
-    style main stroke: #00E676
-%% graphs
-    subgraph main
-        feat1 --- feat2
-        feat2 --- feat3
-        feat3 --- feat4
-        feat4 --- feat5
-    end
+    user([Maintainer])
+    prepare[prepare-release-*.yml<br/>workflow_dispatch]
+    bump[Bump version<br/>commit + tag]
+    ghrelease[(GitHub Release<br/>tag prefix v* / standalone-v* / …)]
+    publish[publish-*.yml<br/>release: published]
+    artifact[(Marketplace / npm /<br/>signed DMG)]
 
-    feat2 --> v0.1
-    feat4 --> v1
-    marketplace -.- v0.1
-    marketplace -.- v1
+    user -->|Run workflow| prepare
+    prepare --> bump
+    bump --> ghrelease
+    ghrelease -.->|release event| publish
+    publish --> artifact
+
+    user -.->|workflow_dispatch<br/>dry-run=true| publish
 ```
 
-## Create a new release
+## Releases per artefact
 
-Releases are triggered manually
-via [GitHub Actions](https://github.com/Miragon/bpmn-modeler/actions/workflows/release.yml).
+### VS Code extension
 
-### Steps
+Published to the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler).
 
-1. Go to the **Actions** tab → **Release** workflow → **Run workflow**.
-2. Select the **release type**:
-    - `patch` — bug fixes (0.0.x)
-    - `minor` — new features, backwards-compatible (0.x.0)
-    - `major` — breaking changes (x.0.0)
-3. Optionally enable **Dry run** to validate the pipeline without committing, tagging, or
-   publishing.
-4. Click **Run workflow**.
+| File | Trigger | Tag prefix |
+|---|---|---|
+| `prepare-release-vscode-modeler.yml` | manual | — |
+| `publish-vscode-modeler.yml` | `release: published`, `workflow_dispatch` | `v*` (e.g. `v0.9.3`) |
 
-### What the workflow does
+`prepare` bumps `apps/modeler-plugin/package.json`, runs lint + test + build,
+then commits, tags `vX.Y.Z`, and creates a GitHub Release. `publish` packages
+the `.vsix`, attaches it to the release, and runs `vsce publish` against the
+VS Code Marketplace.
 
-1. Bumps the version in `apps/modeler-plugin/package.json` according to the selected
-   release type.
-2. Runs lint, tests, and build.
-3. Packages the extension as a `.vsix` file.
-4. Commits the version bump, creates a git tag (`vX.Y.Z`), and pushes to `main`.
-5. Creates a GitHub Release with auto-generated release notes and attaches the `.vsix`.
-6. Publishes the extension to the VS Code Marketplace.
+### create-append-c7-element-templates (npm lib)
 
-> The workflow only runs on the `main` branch. Dry-run mode skips steps 4–6.
+Published to [npm](https://www.npmjs.com/package/@miragon/create-append-c7-element-templates).
+
+| File | Trigger | Tag prefix |
+|---|---|---|
+| `prepare-release-create-append-c7.yml` | manual | — |
+| `publish-create-append-c7.yml` | `release: published`, `workflow_dispatch` | `create-append-c7-element-templates/v*` |
+
+`prepare` bumps `libs/create-append-c7-element-templates/package.json` and
+builds the library; `publish` runs `npm publish --access public`.
+
+### Standalone macOS app
+
+Published as DMG assets on [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases?q=standalone-v).
+
+| File | Trigger | Tag prefix |
+|---|---|---|
+| `prepare-release-standalone.yml` | manual | — |
+| `publish-standalone.yml` | `release: published`, `workflow_dispatch` | `standalone-v*` |
+
+`prepare` bumps `apps/standalone/package.json`. `publish` runs on
+`macos-latest`, signs and notarizes the DMG with the Apple Developer ID
+cert, and attaches the DMG + `latest-mac.yml` manifest to the release
+(consumed by `electron-updater` for in-app auto-update).
+
+## How to release
+
+The flow is identical for all three artefacts. Example: VS Code extension.
+
+1. Go to the **Actions** tab → **Prepare Release VS Code Modeler** → **Run workflow**.
+2. Pick the **release type** (`patch` / `minor` / `major`) and decide whether
+   to enable **Dry run**.
+3. Click **Run workflow**.
+4. The prepare workflow:
+   - Bumps `apps/modeler-plugin/package.json`.
+   - Runs lint, test, build.
+   - Commits the bump, pushes the `vX.Y.Z` tag, creates the GitHub Release.
+5. The new release fires a `release: published` event, which automatically
+   triggers **Publish VS Code Modeler**:
+   - Builds the extension at the tagged commit.
+   - Verifies `package.json` version matches the release tag.
+   - Packages the `.vsix`, attaches it to the release, publishes to the
+     VS Code Marketplace.
+
+> Both workflows only run on the `main` branch (prepare) or against a
+> matching tag prefix (publish). Dry-run on prepare skips commit/tag/release.
+> Dry-run on publish builds the artefact and uploads it as a workflow
+> artifact instead of publishing it.
+
+## Tag/version drift safeguard
+
+Each `publish-*` workflow checks that the tagged release matches the version
+in `package.json` before doing anything publishable. If the prepare workflow
+created the release, the versions match by construction. If a maintainer
+creates a release manually with a tag that doesn't match `package.json`,
+the publish workflow aborts with a clear error.

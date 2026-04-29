@@ -39,6 +39,36 @@ Modeler) and its supporting packages:
 | `dmn-webview`          | `apps/dmn-webview`    | DMN editor UI (Vite/browser)          |
 | `@bpmn-modeler/shared` | `libs/shared`         | Shared message types and utilities    |
 
+### Workspace dependencies
+
+Every workspace declares its own runtime and build dependencies in its
+own `package.json`. The root `package.json` only carries cross-cutting
+tooling (eslint, prettier, npm-run-all, typescript). This lets CI install
+just the tree it needs via `yarn workspaces focus`:
+
+```bash
+# Modeler-only tree (no Theia, no native-keymap, no apt-step required)
+yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler bpmn-webview \
+  dmn-webview deployment-webview @bpmn-modeler/shared @bpmn-modeler/append-menu \
+  @bpmn-modeler/bpmn-clipboard @bpmn-modeler/bpmn-i18n \
+  @bpmn-modeler/element-template-chooser \
+  @miragon/create-append-c7-element-templates
+
+# Just the c7 npm lib
+yarn workspaces focus bpmn-modeler @miragon/create-append-c7-element-templates
+
+# Just the docs site
+yarn workspaces focus bpmn-modeler docs
+
+# Full repo (needed for the standalone Theia app)
+yarn install
+```
+
+The standalone app (`apps/standalone`) pulls Theia + `native-keymap`,
+whose `node-gyp` postinstall needs `libx11-dev libxkbfile-dev
+libsecret-1-dev` on Linux — which is why only the full-install workflow
+(`build.yml`) runs the apt-step.
+
 ## Development Workflow
 
 ### Build
@@ -177,11 +207,18 @@ Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
 
 ## CI/CD
 
-| Workflow       | Trigger                                | Steps                                                           |
-|----------------|----------------------------------------|-----------------------------------------------------------------|
-| **Build**      | Every push / PR                        | lint → test → build                                             |
-| **PR Labeler** | PR opened/updated                      | Auto-labels PRs by changed workspace                            |
-| **Release**    | Manual (`workflow_dispatch` on `main`) | Bump version → build → package `.vsix` → publish to Marketplace |
+| Workflow            | Trigger                                                  | Purpose                                                                       |
+|---------------------|----------------------------------------------------------|-------------------------------------------------------------------------------|
+| **Build**           | every push / PR                                          | lint → test → build, full install (apt-step for Theia native modules)         |
+| **PR Labeler**      | PR opened / updated                                      | auto-labels PRs by changed workspace                                          |
+| **Prepare Release ***| manual (`workflow_dispatch`)                            | bump version, sanity build, commit, tag, create GitHub Release                |
+| **Publish ***       | `release: published` (or `workflow_dispatch` + dry-run)  | build artefact, attach to release, push to Marketplace / npm / GitHub Release |
+| **Deploy Docs**     | `release: published` / manual                            | VitePress build + GitHub Pages deploy                                         |
+
+There are three `prepare-*` and three `publish-*` workflows — one pair
+per artefact (VS Code extension, c7 npm lib, standalone macOS app). See
+[Release process](./release-process) for the operational guide and the
+pipeline flow diagram.
 
 ## Architecture Overview
 

@@ -1,5 +1,11 @@
 {
     "name": "@bpmn-modeler/bpmn-clipboard",
     "version": "0.0.1",
-    "private": true
+    "private": true,
+    "dependencies": {
+        "bpmn-js-native-copy-paste": "0.3.0"
+    },
+    "peerDependencies": {
+        "bpmn-js": "18.14.0"
+    }
 }

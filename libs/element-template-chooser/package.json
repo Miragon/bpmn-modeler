@@ -1,5 +1,11 @@
 {
     "name": "@bpmn-modeler/element-template-chooser",
     "version": "0.0.1",
-    "private": true
+    "private": true,
+    "dependencies": {
+        "preact": "10.28.4"
+    },
+    "peerDependencies": {
+        "bpmn-js": "18.14.0"
+    }
 }
