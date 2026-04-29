@@ -11,7 +11,7 @@ name: Update Homebrew Tap
 
 on:
   workflow_run:
-    workflows: ["Release Standalone (macOS)"]
+    workflows: ["Publish Standalone (macOS)"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -39,18 +39,16 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_TAG: ${{ inputs.tag }}
-          RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             TAG="$INPUT_TAG"
           else
-            TAG="$RUN_HEAD_BRANCH"
-            # workflow_run fires on the tag ref; fall back to latest release if needed
-            if [[ "$TAG" != standalone-v* ]]; then
-              TAG=$(gh api "repos/$GH_REPO/releases/latest" --jq '.tag_name')
-            fi
+            # publish-standalone.yml is triggered by release:published, so
+            # head_branch is unreliable — fetch the latest standalone-v* release directly
+            TAG=$(gh api "repos/$GH_REPO/releases" \
+              --jq '[.[] | select(.tag_name | startswith("standalone-v"))][0].tag_name')
           fi
           VERSION="${TAG#standalone-v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
