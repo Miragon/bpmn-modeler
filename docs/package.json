@@ -2,7 +2,7 @@
     "name": "docs",
     "private": true,
     "scripts": {
-        "dev": "portless run sh -c '(open $PORTLESS_URL/bpmn-vscode-modeler/) & vitepress dev . --port $PORT --host 127.0.0.1'",
+        "dev": "portless run sh -c '(open $PORTLESS_URL/bpmn-modeler/) & vitepress dev . --port $PORT --host 127.0.0.1'",
         "build": "vitepress build .",
         "preview": "vitepress preview ."
     },

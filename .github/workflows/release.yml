@@ -21,7 +21,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: bpmn-vscode-modeler-release
+  group: bpmn-modeler-release
   cancel-in-progress: false
 
 jobs:

@@ -8,7 +8,7 @@ const { frontmatter } = useData();
 const version = ref("unknown");
 onMounted(async () => {
     try {
-        const res = await fetch("https://api.github.com/repos/Miragon/bpmn-vscode-modeler/releases/latest");
+        const res = await fetch("https://api.github.com/repos/Miragon/bpmn-modeler/releases/latest");
         if (!res.ok) return;
         const { tag_name } = await res.json();
         version.value = (tag_name ?? "").replace(/^v/, "") || "unknown";
@@ -19,7 +19,7 @@ onMounted(async () => {
 
 const MARKETPLACE_URL =
     "https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler";
-const GITHUB_URL = "https://github.com/Miragon/bpmn-vscode-modeler";
+const GITHUB_URL = "https://github.com/Miragon/bpmn-modeler";
 </script>
 
 <template>

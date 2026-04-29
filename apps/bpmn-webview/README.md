@@ -35,7 +35,7 @@ isolated UI work without launching VS Code.
 ## Further reading
 
 - Architecture and message protocol:
-  [`/architecture`](https://miragon.github.io/bpmn-vscode-modeler/) skill /
+  [`/architecture`](https://miragon.github.io/bpmn-modeler/) skill /
   docs site.
 - bpmn-js internals (EventBus, services, copy-paste): the project's
   `/bpmn-js` skill.

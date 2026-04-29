@@ -26,5 +26,5 @@ corepack yarn workspace dmn-webview serve  # standalone Vite dev server in a bro
 ## Further reading
 
 - Architecture and message protocol: project `/architecture` skill, docs
-  site at <https://miragon.github.io/bpmn-vscode-modeler/>.
+  site at <https://miragon.github.io/bpmn-modeler/>.
 - Webview lifecycle and CSP: project `/vscode-webviews` skill.
