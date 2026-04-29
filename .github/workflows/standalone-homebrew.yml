@@ -1,4 +1,4 @@
-name: Update Homebrew Tap
+name: Publish Standalone (Homebrew)
 
 # Updates the Cask formula in Miragon/homebrew-tap after a standalone release.
 #
