@@ -1,8 +1,8 @@
 #!/bin/sh
 # Verify the lockfile is up to date before pushing.
 # Mirrors the `yarn install --immutable` check that runs in CI.
-if ! yarn install --immutable --check-resolutions 2>&1; then
+if ! corepack yarn install --immutable 2>&1; then
     echo ""
-    echo "✗ yarn.lock is out of date. Run 'yarn install' and commit the updated lockfile."
+    echo "yarn.lock is out of date. Run 'yarn install' and commit the updated lockfile."
     exit 1
 fi
