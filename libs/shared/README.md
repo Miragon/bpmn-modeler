@@ -1,4 +1,4 @@
-# `@bpmn-modeler/shared`
+# `@miragon/bpmn-modeler-shared`
 
 Shared message types and utilities used by both the VS Code extension host
 (`apps/modeler-plugin`) and the webviews (`apps/bpmn-webview`,
@@ -11,7 +11,7 @@ Add a workspace dependency in the consuming workspace's `package.json`:
 ```json
 {
   "dependencies": {
-    "@bpmn-modeler/shared": "workspace:*"
+    "@miragon/bpmn-modeler-shared": "workspace:*"
   }
 }
 ```
@@ -19,7 +19,7 @@ Add a workspace dependency in the consuming workspace's `package.json`:
 Then import normally:
 
 ```ts
-import { someUtil, SomeMessageType } from "@bpmn-modeler/shared";
+import { someUtil, SomeMessageType } from "@miragon/bpmn-modeler-shared";
 ```
 
 Path resolution is handled by `tsconfig.base.json` (via `paths`) plus

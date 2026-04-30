@@ -6,8 +6,8 @@
         "test": "jest --coverage"
     },
     "dependencies": {
-        "@bpmn-modeler/bpmn-i18n": "workspace:*",
-        "@bpmn-modeler/shared": "workspace:*",
+        "@miragon/bpmn-modeler-i18n": "workspace:*",
+        "@miragon/bpmn-modeler-shared": "workspace:*",
         "bpmn-js-differ": "3.2.0",
         "lodash": "4.18.1",
         "min-dash": "5.0.0",

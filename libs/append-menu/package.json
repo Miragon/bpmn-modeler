@@ -1,9 +1,9 @@
 {
-    "name": "@bpmn-modeler/append-menu",
+    "name": "@miragon/bpmn-modeler-append-menu",
     "version": "0.0.1",
     "private": true,
     "dependencies": {
-        "@bpmn-modeler/element-template-chooser": "workspace:*",
+        "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
         "preact": "10.29.1"
     },
     "peerDependencies": {

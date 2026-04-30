@@ -35,9 +35,9 @@ Modeler) and its supporting packages:
 | Workspace              | Path                  | Description                           |
 |------------------------|-----------------------|---------------------------------------|
 | `vs-code-bpmn-modeler` | `apps/modeler-plugin` | VS Code extension host (Node/Webpack) |
-| `bpmn-webview`         | `apps/bpmn-webview`   | BPMN editor UI (Vite/browser)         |
-| `dmn-webview`          | `apps/dmn-webview`    | DMN editor UI (Vite/browser)          |
-| `@bpmn-modeler/shared` | `libs/shared`         | Shared message types and utilities    |
+| `@miragon/bpmn-modeler-webview` | `apps/bpmn-webview`   | BPMN editor UI (Vite/browser)         |
+| `@miragon/dmn-modeler-webview`  | `apps/dmn-webview`    | DMN editor UI (Vite/browser)          |
+| `@miragon/bpmn-modeler-shared` | `libs/shared`         | Shared message types and utilities    |
 
 ### Workspace dependencies
 
@@ -48,10 +48,10 @@ just the tree it needs via `yarn workspaces focus`:
 
 ```bash
 # Modeler-only tree (no Theia, no native-keymap, no apt-step required)
-yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler bpmn-webview \
-  dmn-webview deployment-webview @bpmn-modeler/shared @bpmn-modeler/append-menu \
-  @bpmn-modeler/bpmn-clipboard @bpmn-modeler/bpmn-i18n \
-  @bpmn-modeler/element-template-chooser \
+yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-webview \
+  @miragon/dmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-append-menu \
+  @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n \
+  @miragon/bpmn-modeler-element-template-chooser \
   @miragon/create-append-c7-element-templates
 
 # Just the c7 npm lib
@@ -110,7 +110,7 @@ Windows/Linux).
 
 ```bash
 yarn workspace vs-code-bpmn-modeler build
-yarn workspace bpmn-webview build
+yarn workspace @miragon/bpmn-modeler-webview build
 ```
 
 ### Preview the BPMN webview in a plain browser

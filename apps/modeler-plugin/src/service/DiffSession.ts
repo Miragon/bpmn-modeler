@@ -1,6 +1,6 @@
 import { TextDocument, Uri, WebviewPanel } from "vscode";
 
-import { DiffOrigin, DiffSide } from "@bpmn-modeler/shared";
+import { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-shared";
 
 export { DiffOrigin };
 

@@ -10,7 +10,7 @@ import {
     workspace,
 } from "vscode";
 
-import { Command, Query } from "@bpmn-modeler/shared";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import { bootstrapWebview } from "./bootstrapWebview";
 

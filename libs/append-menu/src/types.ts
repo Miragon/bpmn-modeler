@@ -2,7 +2,7 @@
  * Type definitions for popup menu entries and utilities to classify them
  * into element template entries vs. standard BPMN element entries.
  */
-import type { ElementTemplate, TemplateProperty } from "@bpmn-modeler/element-template-chooser";
+import type { ElementTemplate, TemplateProperty } from "@miragon/bpmn-modeler-element-template-chooser";
 
 // Re-export for use in components.
 export type { TemplateProperty };

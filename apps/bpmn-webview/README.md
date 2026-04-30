@@ -21,7 +21,7 @@ From the repo root:
 
 ```bash
 corepack yarn watch                       # rebuild bundle to disk; F5 launches the extension host
-corepack yarn workspace bpmn-webview serve  # standalone Vite dev server in a browser
+corepack yarn workspace @miragon/bpmn-modeler-webview serve  # standalone Vite dev server in a browser
 ```
 
 `watch` is what you want when developing the full extension. `serve` is for

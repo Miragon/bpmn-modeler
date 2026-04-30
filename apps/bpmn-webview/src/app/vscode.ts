@@ -20,7 +20,7 @@ import {
     VsCodeImpl,
     VsCodeMock,
     ViewportChangedCommand,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import c7Samples from "./__fixtures__/c7-samples.json";
 import c8Samples from "./__fixtures__/c8-samples.json";

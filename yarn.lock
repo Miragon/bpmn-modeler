@@ -1972,56 +1972,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-modeler/append-menu@workspace:*, @bpmn-modeler/append-menu@workspace:libs/append-menu":
-  version: 0.0.0-use.local
-  resolution: "@bpmn-modeler/append-menu@workspace:libs/append-menu"
-  dependencies:
-    "@bpmn-modeler/element-template-chooser": "workspace:*"
-    preact: "npm:10.29.1"
-  peerDependencies:
-    bpmn-js: 18.15.0
-  languageName: unknown
-  linkType: soft
-
-"@bpmn-modeler/bpmn-clipboard@workspace:*, @bpmn-modeler/bpmn-clipboard@workspace:libs/bpmn-clipboard":
-  version: 0.0.0-use.local
-  resolution: "@bpmn-modeler/bpmn-clipboard@workspace:libs/bpmn-clipboard"
-  dependencies:
-    bpmn-js-native-copy-paste: "npm:0.3.0"
-  peerDependencies:
-    bpmn-js: 18.15.0
-  languageName: unknown
-  linkType: soft
-
-"@bpmn-modeler/bpmn-i18n@workspace:*, @bpmn-modeler/bpmn-i18n@workspace:libs/bpmn-i18n":
-  version: 0.0.0-use.local
-  resolution: "@bpmn-modeler/bpmn-i18n@workspace:libs/bpmn-i18n"
-  languageName: unknown
-  linkType: soft
-
-"@bpmn-modeler/element-template-chooser@workspace:*, @bpmn-modeler/element-template-chooser@workspace:libs/element-template-chooser":
-  version: 0.0.0-use.local
-  resolution: "@bpmn-modeler/element-template-chooser@workspace:libs/element-template-chooser"
-  dependencies:
-    preact: "npm:10.29.1"
-  peerDependencies:
-    bpmn-js: 18.15.0
-  languageName: unknown
-  linkType: soft
-
-"@bpmn-modeler/shared@workspace:*, @bpmn-modeler/shared@workspace:libs/shared":
-  version: 0.0.0-use.local
-  resolution: "@bpmn-modeler/shared@workspace:libs/shared"
-  dependencies:
-    "@types/lodash": "npm:4.17.24"
-    "@types/node": "npm:25.6.0"
-    "@types/vscode-webview": "npm:1.57.5"
-    lodash: "npm:4.18.1"
-    tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
-  languageName: unknown
-  linkType: soft
-
 "@braintree/sanitize-url@npm:^6.0.0":
   version: 6.0.4
   resolution: "@braintree/sanitize-url@npm:6.0.4"
@@ -3577,12 +3527,168 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@miragon/bpmn-modeler-append-menu@workspace:*, @miragon/bpmn-modeler-append-menu@workspace:libs/append-menu":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-append-menu@workspace:libs/append-menu"
+  dependencies:
+    "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
+    preact: "npm:10.29.1"
+  peerDependencies:
+    bpmn-js: 18.15.0
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-clipboard@workspace:*, @miragon/bpmn-modeler-clipboard@workspace:libs/bpmn-clipboard":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-clipboard@workspace:libs/bpmn-clipboard"
+  dependencies:
+    bpmn-js-native-copy-paste: "npm:0.3.0"
+  peerDependencies:
+    bpmn-js: 18.15.0
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview"
+  dependencies:
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@types/vscode-webview": "npm:1.57.5"
+    tslib: "npm:2.8.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.0.10"
+    vite-tsconfig-paths: "npm:6.1.1"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-docs@workspace:docs":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-docs@workspace:docs"
+  dependencies:
+    mermaid: "npm:11.14.0"
+    vitepress: "npm:1.6.4"
+    vitepress-plugin-mermaid: "npm:2.0.17"
+    vitest: "npm:2.1.9"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-element-template-chooser@workspace:*, @miragon/bpmn-modeler-element-template-chooser@workspace:libs/element-template-chooser":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-element-template-chooser@workspace:libs/element-template-chooser"
+  dependencies:
+    preact: "npm:10.29.1"
+  peerDependencies:
+    bpmn-js: 18.15.0
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-i18n@workspace:*, @miragon/bpmn-modeler-i18n@workspace:libs/bpmn-i18n":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-i18n@workspace:libs/bpmn-i18n"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-shared@workspace:*, @miragon/bpmn-modeler-shared@workspace:libs/shared":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-shared@workspace:libs/shared"
+  dependencies:
+    "@types/lodash": "npm:4.17.24"
+    "@types/node": "npm:25.6.0"
+    "@types/vscode-webview": "npm:1.57.5"
+    lodash: "npm:4.18.1"
+    tslib: "npm:2.8.1"
+    typescript: "npm:6.0.3"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-standalone@workspace:apps/standalone":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-standalone@workspace:apps/standalone"
+  dependencies:
+    "@theia/cli": "npm:1.70.2"
+    "@theia/core": "npm:1.70.2"
+    "@theia/editor": "npm:1.70.2"
+    "@theia/electron": "npm:1.70.2"
+    "@theia/filesystem": "npm:1.70.2"
+    "@theia/keymaps": "npm:1.70.2"
+    "@theia/messages": "npm:1.70.2"
+    "@theia/monaco": "npm:1.70.2"
+    "@theia/native-webpack-plugin": "npm:1.70.2"
+    "@theia/navigator": "npm:1.70.2"
+    "@theia/output": "npm:1.70.2"
+    "@theia/plugin-ext": "npm:1.70.2"
+    "@theia/plugin-ext-vscode": "npm:1.70.2"
+    "@theia/preferences": "npm:1.70.2"
+    "@theia/process": "npm:1.70.2"
+    "@theia/terminal": "npm:1.70.2"
+    "@theia/variable-resolver": "npm:1.70.2"
+    "@theia/workspace": "npm:1.70.2"
+    electron: "npm:39.8.9"
+    electron-builder: "npm:26.8.1"
+    electron-updater: "npm:6.8.3"
+    rimraf: "npm:6.1.3"
+    yauzl: "npm:3.3.0"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview"
+  dependencies:
+    "@bpmn-io/properties-panel": "npm:3.41.2"
+    "@miragon/bpmn-modeler-append-menu": "workspace:*"
+    "@miragon/bpmn-modeler-clipboard": "workspace:*"
+    "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
+    "@miragon/bpmn-modeler-i18n": "workspace:*"
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@miragon/create-append-c7-element-templates": "workspace:*"
+    "@types/vscode-webview": "npm:1.57.5"
+    bpmn-js: "npm:18.15.0"
+    bpmn-js-create-append-anything: "npm:1.2.0"
+    bpmn-js-properties-panel: "npm:5.54.0"
+    bpmn-js-token-simulation: "npm:0.39.3"
+    camunda-bpmn-js: "npm:5.27.0"
+    camunda-bpmn-js-behaviors: "npm:1.14.1"
+    camunda-bpmn-moddle: "npm:7.0.1"
+    camunda-transaction-boundaries: "npm:1.1.2"
+    diagram-js: "npm:15.13.0"
+    lodash: "npm:4.18.1"
+    min-dash: "npm:5.0.0"
+    tslib: "npm:2.8.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.0.10"
+    vite-plugin-static-copy: "npm:4.1.0"
+    vite-tsconfig-paths: "npm:6.1.1"
+    zeebe-bpmn-moddle: "npm:1.13.0"
+  languageName: unknown
+  linkType: soft
+
 "@miragon/create-append-c7-element-templates@workspace:*, @miragon/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates":
   version: 0.0.0-use.local
   resolution: "@miragon/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates"
   peerDependencies:
     bpmn-js: 18.15.0
     bpmn-js-create-append-anything: 1.2.0
+  languageName: unknown
+  linkType: soft
+
+"@miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
+  version: 0.0.0-use.local
+  resolution: "@miragon/dmn-modeler-webview@workspace:apps/dmn-webview"
+  dependencies:
+    "@bpmn-io/properties-panel": "npm:3.41.2"
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@types/vscode-webview": "npm:1.57.5"
+    camunda-dmn-moddle: "npm:1.3.1"
+    diagram-js: "npm:15.13.0"
+    dmn-js: "npm:17.8.0"
+    dmn-js-properties-panel: "npm:3.11.0"
+    min-dash: "npm:5.0.0"
+    tslib: "npm:2.8.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.0.10"
+    vite-plugin-static-copy: "npm:4.1.0"
+    vite-tsconfig-paths: "npm:6.1.1"
   languageName: unknown
   linkType: soft
 
@@ -8311,38 +8417,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"bpmn-webview@workspace:apps/bpmn-webview":
-  version: 0.0.0-use.local
-  resolution: "bpmn-webview@workspace:apps/bpmn-webview"
-  dependencies:
-    "@bpmn-io/properties-panel": "npm:3.41.2"
-    "@bpmn-modeler/append-menu": "workspace:*"
-    "@bpmn-modeler/bpmn-clipboard": "workspace:*"
-    "@bpmn-modeler/bpmn-i18n": "workspace:*"
-    "@bpmn-modeler/element-template-chooser": "workspace:*"
-    "@bpmn-modeler/shared": "workspace:*"
-    "@miragon/create-append-c7-element-templates": "workspace:*"
-    "@types/vscode-webview": "npm:1.57.5"
-    bpmn-js: "npm:18.15.0"
-    bpmn-js-create-append-anything: "npm:1.2.0"
-    bpmn-js-properties-panel: "npm:5.54.0"
-    bpmn-js-token-simulation: "npm:0.39.3"
-    camunda-bpmn-js: "npm:5.27.0"
-    camunda-bpmn-js-behaviors: "npm:1.14.1"
-    camunda-bpmn-moddle: "npm:7.0.1"
-    camunda-transaction-boundaries: "npm:1.1.2"
-    diagram-js: "npm:15.13.0"
-    lodash: "npm:4.18.1"
-    min-dash: "npm:5.0.0"
-    tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
-    vite: "npm:8.0.10"
-    vite-plugin-static-copy: "npm:4.1.0"
-    vite-tsconfig-paths: "npm:6.1.1"
-    zeebe-bpmn-moddle: "npm:1.13.0"
-  languageName: unknown
-  linkType: soft
-
 "bpmnlint-utils@npm:^1.1.1":
   version: 1.1.1
   resolution: "bpmnlint-utils@npm:1.1.1"
@@ -10351,19 +10425,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deployment-webview@workspace:apps/deployment-webview":
-  version: 0.0.0-use.local
-  resolution: "deployment-webview@workspace:apps/deployment-webview"
-  dependencies:
-    "@bpmn-modeler/shared": "workspace:*"
-    "@types/vscode-webview": "npm:1.57.5"
-    tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
-    vite: "npm:8.0.10"
-    vite-tsconfig-paths: "npm:6.1.1"
-  languageName: unknown
-  linkType: soft
-
 "dequal@npm:^2.0.0":
   version: 2.0.3
   resolution: "dequal@npm:2.0.3"
@@ -10701,37 +10762,6 @@ __metadata:
   checksum: 10c0/ac1d329ad3a16254d06aa8221b26c02300fe123649cd3244d957506460431ebc04ea624534b81f70df760a7b7dd4406d117cc9b2377f503b69b539ad32f0d608
   languageName: node
   linkType: hard
-
-"dmn-webview@workspace:apps/dmn-webview":
-  version: 0.0.0-use.local
-  resolution: "dmn-webview@workspace:apps/dmn-webview"
-  dependencies:
-    "@bpmn-io/properties-panel": "npm:3.41.2"
-    "@bpmn-modeler/shared": "workspace:*"
-    "@types/vscode-webview": "npm:1.57.5"
-    camunda-dmn-moddle: "npm:1.3.1"
-    diagram-js: "npm:15.13.0"
-    dmn-js: "npm:17.8.0"
-    dmn-js-properties-panel: "npm:3.11.0"
-    min-dash: "npm:5.0.0"
-    tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
-    vite: "npm:8.0.10"
-    vite-plugin-static-copy: "npm:4.1.0"
-    vite-tsconfig-paths: "npm:6.1.1"
-  languageName: unknown
-  linkType: soft
-
-"docs@workspace:docs":
-  version: 0.0.0-use.local
-  resolution: "docs@workspace:docs"
-  dependencies:
-    mermaid: "npm:11.14.0"
-    vitepress: "npm:1.6.4"
-    vitepress-plugin-mermaid: "npm:2.0.17"
-    vitest: "npm:2.1.9"
-  languageName: unknown
-  linkType: soft
 
 "dom-iterator@npm:^1.0.2":
   version: 1.0.2
@@ -19070,36 +19100,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"standalone@workspace:apps/standalone":
-  version: 0.0.0-use.local
-  resolution: "standalone@workspace:apps/standalone"
-  dependencies:
-    "@theia/cli": "npm:1.70.2"
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/electron": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/keymaps": "npm:1.70.2"
-    "@theia/messages": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
-    "@theia/native-webpack-plugin": "npm:1.70.2"
-    "@theia/navigator": "npm:1.70.2"
-    "@theia/output": "npm:1.70.2"
-    "@theia/plugin-ext": "npm:1.70.2"
-    "@theia/plugin-ext-vscode": "npm:1.70.2"
-    "@theia/preferences": "npm:1.70.2"
-    "@theia/process": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    electron: "npm:39.8.9"
-    electron-builder: "npm:26.8.1"
-    electron-updater: "npm:6.8.3"
-    rimraf: "npm:6.1.3"
-    yauzl: "npm:3.3.0"
-  languageName: unknown
-  linkType: soft
-
 "stat-mode@npm:^1.0.0":
   version: 1.0.0
   resolution: "stat-mode@npm:1.0.0"
@@ -21050,8 +21050,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "vs-code-bpmn-modeler@workspace:apps/modeler-plugin"
   dependencies:
-    "@bpmn-modeler/bpmn-i18n": "workspace:*"
-    "@bpmn-modeler/shared": "workspace:*"
+    "@miragon/bpmn-modeler-i18n": "workspace:*"
+    "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/jest": "npm:30.0.0"
     "@types/lodash": "npm:4.17.24"
     "@types/node": "npm:25.6.0"

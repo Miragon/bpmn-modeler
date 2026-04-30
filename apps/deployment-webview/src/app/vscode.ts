@@ -11,7 +11,7 @@ import {
     VsCodeApi,
     VsCodeImpl,
     VsCodeMock,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 declare const process: { env: { NODE_ENV: string } };
 

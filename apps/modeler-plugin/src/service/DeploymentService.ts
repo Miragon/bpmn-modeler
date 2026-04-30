@@ -1,7 +1,7 @@
 import * as path from "path";
 import { Uri, window, workspace } from "vscode";
 
-import { AuthConfigPayload, DeploymentFormDefaults } from "@bpmn-modeler/shared";
+import { AuthConfigPayload, DeploymentFormDefaults } from "@miragon/bpmn-modeler-shared";
 
 import { DeploymentConfig, DeploymentResult } from "../domain/deployment";
 import { CamundaEnginePort } from "../domain/ports";

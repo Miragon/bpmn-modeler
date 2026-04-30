@@ -8,7 +8,7 @@ import {
     LanguageQuery,
     PropertiesPanelStateQuery,
     TextClipboardQuery,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import { ModelerSession } from "../domain/session";
 import { SettingBuilder } from "../domain/model";

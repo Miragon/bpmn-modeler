@@ -1,5 +1,5 @@
 {
-    "name": "bpmn-webview",
+    "name": "@miragon/bpmn-modeler-webview",
     "version": "0.0.1",
     "private": true,
     "license": "Apache-2.0",
@@ -12,11 +12,11 @@
     },
     "dependencies": {
         "@bpmn-io/properties-panel": "3.41.2",
-        "@bpmn-modeler/append-menu": "workspace:*",
-        "@bpmn-modeler/bpmn-clipboard": "workspace:*",
-        "@bpmn-modeler/bpmn-i18n": "workspace:*",
-        "@bpmn-modeler/element-template-chooser": "workspace:*",
-        "@bpmn-modeler/shared": "workspace:*",
+        "@miragon/bpmn-modeler-append-menu": "workspace:*",
+        "@miragon/bpmn-modeler-clipboard": "workspace:*",
+        "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
+        "@miragon/bpmn-modeler-i18n": "workspace:*",
+        "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/create-append-c7-element-templates": "workspace:*",
         "bpmn-js": "18.15.0",
         "bpmn-js-create-append-anything": "1.2.0",

@@ -35,16 +35,16 @@ corepack yarn build
  npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies)
 
 # 2. Unpack the .vsix into this workspace's plugins/ directory
-corepack yarn workspace standalone bundle
+corepack yarn workspace @miragon/bpmn-modeler-standalone bundle
 
 # 3. Rebuild Theia's native modules against Electron's Node ABI
-corepack yarn workspace standalone run rebuild
+corepack yarn workspace @miragon/bpmn-modeler-standalone run rebuild
 
 # 4. Build Theia (webpack frontend + backend bundles)
-corepack yarn workspace standalone build
+corepack yarn workspace @miragon/bpmn-modeler-standalone build
 
 # 5. Launch the Electron app in dev mode
-corepack yarn workspace standalone start
+corepack yarn workspace @miragon/bpmn-modeler-standalone start
 ```
 
 > **Note:** step 3 must be invoked as `yarn ... run rebuild`, not `yarn ...
@@ -64,14 +64,14 @@ corepack yarn build
  npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies)
 
 # 2. Unpack it into apps/standalone/plugins/
-corepack yarn workspace standalone bundle
+corepack yarn workspace @miragon/bpmn-modeler-standalone bundle
 
 # 3. Rebuild native modules
-corepack yarn workspace standalone run rebuild
+corepack yarn workspace @miragon/bpmn-modeler-standalone run rebuild
 
 # 4. Pick one packaging script:
-corepack yarn workspace standalone run package          # unsigned (Gatekeeper warning)
-corepack yarn workspace standalone run package:signed   # signed + notarized (no warning)
+corepack yarn workspace @miragon/bpmn-modeler-standalone run package          # unsigned (Gatekeeper warning)
+corepack yarn workspace @miragon/bpmn-modeler-standalone run package:signed   # signed + notarized (no warning)
 ```
 
 | Script | Use it for | Apple secrets needed |

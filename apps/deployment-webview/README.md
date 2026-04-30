@@ -28,7 +28,7 @@ From the repo root:
 
 ```bash
 corepack yarn watch                              # rebuild bundle to disk; F5 launches the extension host
-corepack yarn workspace deployment-webview serve  # standalone Vite dev server in a browser
+corepack yarn workspace @miragon/bpmn-modeler-deployment-webview serve  # standalone Vite dev server in a browser
 ```
 
 ## Further reading

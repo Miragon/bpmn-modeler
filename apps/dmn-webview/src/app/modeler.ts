@@ -6,7 +6,7 @@ import {
 } from "dmn-js-properties-panel";
 import camundaModdleDescriptors from "camunda-dmn-moddle/resources/camunda.json";
 
-import { NoModelerError } from "@bpmn-modeler/shared";
+import { NoModelerError } from "@miragon/bpmn-modeler-shared";
 
 let modeler: DmnModeler | undefined;
 

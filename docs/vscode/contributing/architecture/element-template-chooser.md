@@ -20,7 +20,7 @@ for UX screenshots and the authoring guide.
 
 The library is source-only (no build step). The consuming app's Vite build
 compiles its TypeScript and TSX files directly via the
-`@bpmn-modeler/element-template-chooser` path alias, following the same pattern
+`@miragon/bpmn-modeler-element-template-chooser` path alias, following the same pattern
 as `libs/bpmn-clipboard/` and `libs/bpmn-i18n/`.
 
 ## Entry points

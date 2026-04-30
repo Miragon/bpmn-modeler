@@ -1,5 +1,5 @@
 {
-    "name": "docs",
+    "name": "@miragon/bpmn-modeler-docs",
     "private": true,
     "scripts": {
         "dev": "portless run sh -c '(open $PORTLESS_URL/bpmn-modeler/) & vitepress dev . --port $PORT --host 127.0.0.1'",

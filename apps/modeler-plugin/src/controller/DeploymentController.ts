@@ -29,7 +29,7 @@ import {
     StartInstanceCommand,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 /** VS Code view ID for the deployment sidebar WebviewView. */
 const DEPLOYMENT_VIEW_ID = "bpmn-modeler.deploymentView";

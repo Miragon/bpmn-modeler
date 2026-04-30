@@ -9,7 +9,7 @@ import {
     SyncViewportQuery,
     VsCodeApi,
     ViewportChangedCommand,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import { WebviewState } from "../vscode";
 import { DiffLegend } from "./DiffLegend";

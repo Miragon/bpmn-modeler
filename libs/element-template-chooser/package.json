@@ -1,5 +1,5 @@
 {
-    "name": "@bpmn-modeler/element-template-chooser",
+    "name": "@miragon/bpmn-modeler-element-template-chooser",
     "version": "0.0.1",
     "private": true,
     "dependencies": {

@@ -1,4 +1,4 @@
-import { DmnFileQuery } from "@bpmn-modeler/shared";
+import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { ModelerSession } from "../domain/session";
 import { UserCancelledError } from "../domain/errors";

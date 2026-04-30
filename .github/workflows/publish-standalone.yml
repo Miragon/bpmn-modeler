@@ -59,11 +59,11 @@ jobs:
         run: npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
 
       - name: Bundle extension into standalone plugins/
-        run: yarn workspace standalone bundle
+        run: yarn workspace @miragon/bpmn-modeler-standalone bundle
 
       - name: Build, sign, notarize DMG (dry-run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
-        run: yarn workspace standalone run package:signed
+        run: yarn workspace @miragon/bpmn-modeler-standalone run package:signed
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build, sign, notarize, publish DMG
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
-        run: yarn workspace standalone run package:release
+        run: yarn workspace @miragon/bpmn-modeler-standalone run package:release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}

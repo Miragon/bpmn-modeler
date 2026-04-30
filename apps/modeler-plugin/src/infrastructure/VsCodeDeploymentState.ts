@@ -1,4 +1,4 @@
-import { AuthTypePayload } from "@bpmn-modeler/shared";
+import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
 
 import { getContext } from "./extensionContext";
 
