@@ -139,7 +139,7 @@ function notifyIfNewRelease(context: ExtensionContext): void {
 
     window
         .showInformationMessage(
-            `Camunda Modeler updated to v${current}. See what's new!`,
+            `BPMN Modeler updated to v${current}. See what's new!`,
             "View Release Notes",
         )
         .then((selection) => {
