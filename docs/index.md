@@ -2,8 +2,8 @@
 layout: home
 hero:
   image:
-    src: /modeler-preview.png
-    alt: BPMN Modeler in VS Code
+    src: /standalone-preview.png
+    alt: BPMN Modeler standalone desktop app
 
 features:
   - icon: ◎

@@ -29,6 +29,7 @@
         "docs:dev": "corepack yarn workspace docs dev",
         "docs:build": "corepack yarn workspace docs build",
         "docs:preview": "corepack yarn workspace docs preview",
+        "docs:test": "corepack yarn workspace docs test",
         "test": "corepack yarn workspace vs-code-bpmn-modeler test",
         "lint": "eslint .",
         "prepare": "git config core.hooksPath .githooks"
