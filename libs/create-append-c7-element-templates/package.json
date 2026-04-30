@@ -27,7 +27,7 @@
         "url": "https://github.com/Miragon/bpmn-modeler/issues"
     },
     "peerDependencies": {
-        "bpmn-js": "18.14.0",
+        "bpmn-js": "18.15.0",
         "bpmn-js-create-append-anything": "1.2.0"
     }
 }

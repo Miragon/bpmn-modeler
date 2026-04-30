@@ -5,7 +5,6 @@
     "target": "ESNext",
     "module": "ESNext",
     "lib": ["ESNext", "DOM"],
-    "moduleResolution": "Node",
     "types": ["vite/client", "vitest"],
     "esModuleInterop": true,
     "isolatedModules": true,
