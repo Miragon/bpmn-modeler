@@ -1,17 +1,5 @@
 name: Publish Standalone (macOS)
 
-# Builds, signs, notarizes the standalone macOS DMG and attaches it to
-# the GitHub Release (with latest-mac.yml manifest for auto-update).
-# Triggered by publishing a release with a standalone-v* tag, or
-# manually via workflow_dispatch with a dry-run option.
-#
-# Required GitHub repo secrets:
-#   CSC_LINK                       base64-encoded .p12 of the Developer ID Application cert
-#   CSC_KEY_PASSWORD               password for the .p12
-#   APPLE_ID                       Apple ID email of a Miragon team member
-#   APPLE_APP_SPECIFIC_PASSWORD    app-specific password (appleid.apple.com)
-#   APPLE_TEAM_ID                  G5JZQ328LJ
-
 on:
   release:
     types: [published]
