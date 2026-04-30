@@ -91,7 +91,6 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.name }}
           name: Standalone App ${{ steps.tag.outputs.name }}
-          prerelease: true
           files: |
             apps/standalone/dist/*.dmg
             apps/standalone/dist/*.dmg.blockmap
