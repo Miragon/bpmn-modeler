@@ -59,7 +59,7 @@
   "devDependencies": {
     "@theia/cli": "1.70.2",
     "@theia/native-webpack-plugin": "1.70.2",
-    "electron": "41.3.0",
+    "electron": "^39.8.7",
     "electron-builder": "26.8.1",
     "rimraf": "6.1.3"
   },

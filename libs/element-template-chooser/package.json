@@ -6,6 +6,6 @@
         "preact": "10.29.1"
     },
     "peerDependencies": {
-        "bpmn-js": "18.14.0"
+        "bpmn-js": "18.15.0"
     }
 }
