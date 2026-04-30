@@ -9,6 +9,17 @@ publish:
   provider: github
   owner: Miragon
   repo: bpmn-modeler
+fileAssociations:
+  - ext: bpmn
+    name: BPMN Process Model
+    description: BPMN 2.0 Process Diagram
+    mimeType: application/bpmn+xml
+    role: Editor
+  - ext: dmn
+    name: DMN Decision Model
+    description: DMN 1.3 Decision Table
+    mimeType: application/dmn+xml
+    role: Editor
 
 files:
   - lib/**/*
