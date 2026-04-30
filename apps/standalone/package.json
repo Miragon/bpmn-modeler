@@ -74,6 +74,6 @@
     "start:debug": "yarn start --log-level=debug",
     "package": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder -c.mac.identity=null -c.mac.notarize=false -c.mac.hardenedRuntime=false --publish never --mac dmg",
     "package:signed": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder --publish never --mac dmg",
-    "package:release": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder --publish always --mac dmg"
+    "package:release": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder --publish never --mac dmg"
   }
 }

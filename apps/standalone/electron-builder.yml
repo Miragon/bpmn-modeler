@@ -9,7 +9,7 @@ publish:
   provider: github
   owner: Miragon
   repo: bpmn-modeler
-  releaseType: prerelease
+
 files:
   - lib/**/*
   - src-gen/**/*
