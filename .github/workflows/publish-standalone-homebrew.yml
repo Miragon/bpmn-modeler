@@ -60,7 +60,7 @@ jobs:
           TAG: ${{ steps.meta.outputs.tag }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
-          DMG="miragon-bpmn-modeler-${VERSION}-arm64.dmg"
+          DMG="Miragon.BPMN.Modeler-${VERSION}-arm64.dmg"
           URL="https://github.com/Miragon/bpmn-modeler/releases/download/${TAG}/${DMG}"
           echo "Downloading $URL"
           curl -fsSL -o "$DMG" "$URL"
@@ -79,7 +79,7 @@ jobs:
             version "${VERSION}"
             sha256 "${SHA}"
 
-            url "https://github.com/Miragon/bpmn-modeler/releases/download/standalone-v#{version}/miragon-bpmn-modeler-#{version}-arm64.dmg"
+            url "https://github.com/Miragon/bpmn-modeler/releases/download/standalone-v#{version}/Miragon.BPMN.Modeler-#{version}-arm64.dmg"
             name "Miragon BPMN Modeler"
             desc "Standalone BPMN/DMN process modeler"
             homepage "https://github.com/Miragon/bpmn-modeler"
