@@ -10811,7 +10811,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron@npm:^39.8.7":
+"electron@npm:39.8.9":
   version: 39.8.9
   resolution: "electron@npm:39.8.9"
   dependencies:
@@ -18911,7 +18911,7 @@ __metadata:
     "@theia/terminal": "npm:1.70.2"
     "@theia/variable-resolver": "npm:1.70.2"
     "@theia/workspace": "npm:1.70.2"
-    electron: "npm:^39.8.7"
+    electron: "npm:39.8.9"
     electron-builder: "npm:26.8.1"
     electron-updater: "npm:6.8.3"
     rimraf: "npm:6.1.3"

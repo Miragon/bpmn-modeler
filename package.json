@@ -30,7 +30,8 @@
         "docs:build": "corepack yarn workspace docs build",
         "docs:preview": "corepack yarn workspace docs preview",
         "test": "corepack yarn workspace vs-code-bpmn-modeler test",
-        "lint": "eslint ."
+        "lint": "eslint .",
+        "prepare": "git config core.hooksPath .githooks"
     },
     "devDependencies": {
         "@eslint/eslintrc": "3.3.5",
