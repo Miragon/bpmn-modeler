@@ -3,7 +3,7 @@
     "version": "0.0.1",
     "private": true,
     "dependencies": {
-        "preact": "10.28.4"
+        "preact": "10.29.1"
     },
     "peerDependencies": {
         "bpmn-js": "18.14.0"

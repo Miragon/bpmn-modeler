@@ -4,7 +4,7 @@
     "private": true,
     "dependencies": {
         "@bpmn-modeler/element-template-chooser": "workspace:*",
-        "preact": "10.28.4"
+        "preact": "10.29.1"
     },
     "peerDependencies": {
         "bpmn-js": "18.14.0"
