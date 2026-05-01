@@ -59,6 +59,10 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies
         run: yarn install --immutable
         env:
@@ -75,6 +79,10 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies
         run: yarn install --immutable
         env:
