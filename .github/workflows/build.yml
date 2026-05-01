@@ -303,7 +303,7 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: corepack yarn workspaces focus docs
+      - run: corepack yarn workspaces focus @miragon/bpmn-modeler-docs
       - run: corepack yarn docs:test
       - run: corepack yarn docs:build
 

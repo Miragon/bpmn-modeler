@@ -51,7 +51,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies (focused)
-        run: yarn workspaces focus standalone
+        run: yarn workspaces focus @miragon/bpmn-modeler-standalone
 
       - name: Configure Git
         run: |
