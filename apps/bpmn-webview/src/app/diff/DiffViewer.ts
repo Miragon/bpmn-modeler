@@ -1,7 +1,7 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
-import { Viewport } from "@bpmn-modeler/shared";
+import { Viewport } from "@miragon/bpmn-modeler-shared";
 
 /** CSS class applied to each element category on the canvas. */
 export type DiffMarkerClass =

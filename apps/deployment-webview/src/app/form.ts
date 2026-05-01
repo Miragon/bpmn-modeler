@@ -9,7 +9,7 @@ import {
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
     VsCodeApi,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import { WebviewState } from "./vscode";
 

@@ -1,8 +1,20 @@
 #!/bin/sh
-# Verify the lockfile is up to date before pushing.
-# Mirrors the `yarn install --immutable` check that runs in CI.
-if ! corepack yarn install --immutable 2>&1; then
-    echo ""
-    echo "yarn.lock is out of date. Run 'yarn install' and commit the updated lockfile."
-    exit 1
-fi
+set -e
+
+echo "▶ Pre-push: yarn install --immutable"
+corepack yarn install --immutable
+
+echo "▶ Pre-push: lint"
+corepack yarn lint
+
+echo "▶ Pre-push: test"
+corepack yarn test
+
+echo "▶ Pre-push: compile libs"
+corepack yarn workspace @miragon/bpmn-modeler-shared build
+corepack yarn workspace @miragon/bpmn-modeler-i18n build
+corepack yarn workspace @miragon/bpmn-modeler-clipboard build
+corepack yarn workspace @miragon/bpmn-modeler-element-template-chooser build
+corepack yarn workspace @miragon/bpmn-modeler-append-menu build
+
+echo "✓ All pre-push checks passed."

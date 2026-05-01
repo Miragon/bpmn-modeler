@@ -10,7 +10,7 @@ export default {
         ],
     },
     moduleNameMapper: {
-        "^@bpmn-modeler/shared$": "<rootDir>/../../libs/shared/src/index.ts",
+        "^@miragon/bpmn-modeler-shared$": "<rootDir>/../../libs/shared/src/index.ts",
     },
     moduleFileExtensions: ["ts", "js", "html"],
     coverageDirectory: "../../coverage/apps/modeler-plugin",

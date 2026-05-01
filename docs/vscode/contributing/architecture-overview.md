@@ -47,21 +47,21 @@ libs/
 | Workspace | Lives at | What it does |
 |---|---|---|
 | `vs-code-bpmn-modeler` | `apps/modeler-plugin` | VS Code extension host entry; produces the `.vsix` |
-| `bpmn-webview` | `apps/bpmn-webview` | BPMN editor UI + diff viewer |
-| `dmn-webview` | `apps/dmn-webview` | DMN editor UI |
-| `deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
-| `standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into a signed macOS DMG |
-| `@bpmn-modeler/shared` | `libs/shared` | Message types, cross-process utilities |
-| `@bpmn-modeler/bpmn-clipboard` | `libs/bpmn-clipboard` | bpmn-js DI module for clipboard integration |
-| `@bpmn-modeler/bpmn-i18n` | `libs/bpmn-i18n` | bpmn-js DI module for translations |
-| `@bpmn-modeler/append-menu` | `libs/append-menu` | Preact-based append menu overlay |
-| `@bpmn-modeler/element-template-chooser` | `libs/element-template-chooser` | Preact-based template chooser overlay |
+| `@miragon/bpmn-modeler-webview` | `apps/bpmn-webview` | BPMN editor UI + diff viewer |
+| `@miragon/dmn-modeler-webview` | `apps/dmn-webview` | DMN editor UI |
+| `@miragon/bpmn-modeler-deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
+| `@miragon/bpmn-modeler-standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into a signed macOS DMG |
+| `@miragon/bpmn-modeler-shared` | `libs/shared` | Message types, cross-process utilities |
+| `@miragon/bpmn-modeler-clipboard` | `libs/bpmn-clipboard` | bpmn-js DI module for clipboard integration |
+| `@miragon/bpmn-modeler-i18n` | `libs/bpmn-i18n` | bpmn-js DI module for translations |
+| `@miragon/bpmn-modeler-append-menu` | `libs/append-menu` | Preact-based append menu overlay |
+| `@miragon/bpmn-modeler-element-template-chooser` | `libs/element-template-chooser` | Preact-based template chooser overlay |
 | `@miragon/create-append-c7-element-templates` | `libs/create-append-c7-element-templates` | Standalone npm-publishable bpmn-js polyfill for Camunda 7 template creation |
 
 Most `libs/*` are source-only — the consuming Vite/webpack build compiles the
-TypeScript and TSX files directly via the `@bpmn-modeler/<lib>` path alias.
+TypeScript and TSX files directly via the `@miragon/bpmn-modeler-<lib>` path alias.
 Two libs have their own `tsc` build step:
-`@bpmn-modeler/shared` (compiled because it's also consumed by the extension host),
+`@miragon/bpmn-modeler-shared` (compiled because it's also consumed by the extension host),
 and `@miragon/create-append-c7-element-templates` (compiled because it's
 published to npm as a standalone artefact).
 
@@ -160,7 +160,7 @@ method rather than adding a new service — e.g. `AppendMenuOverride` wraps
 | DMN webview | Vite | `apps/dmn-webview/vite.config.mts` |
 | Deployment webview | Vite | `apps/deployment-webview/vite.config.mts` |
 | Standalone macOS DMG | `@theia/cli` + electron-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml` |
-| Shared lib (`@bpmn-modeler/shared`) | tsc | `libs/shared/tsconfig.lib.json` |
+| Shared lib (`@miragon/bpmn-modeler-shared`) | tsc | `libs/shared/tsconfig.lib.json` |
 | c7 npm lib | tsc | `libs/create-append-c7-element-templates/tsconfig.lib.json` |
 | Tests | Jest + ts-jest | `apps/modeler-plugin/jest.config.ts` |
 | Path alias resolution | `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) | `tsconfig.base.json` |

@@ -130,7 +130,7 @@ window.addEventListener('message', (event) => {
 
 ### Request-Response Pattern
 
-Some operations need a response (e.g., clipboard read). The webview sends a Command and waits for a Query response using the `createResolver` utility from `@bpmn-modeler/shared`:
+Some operations need a response (e.g., clipboard read). The webview sends a Command and waits for a Query response using the `createResolver` utility from `@miragon/bpmn-modeler-shared`:
 
 ```typescript
 // Webview side (main.ts) — sends request, awaits response via resolver

@@ -22,7 +22,7 @@ corepack yarn lint              # Lint
 
 # Target a single workspace
 corepack yarn workspace vs-code-bpmn-modeler build
-corepack yarn workspace bpmn-webview build
+corepack yarn workspace @miragon/bpmn-modeler-webview build
 
 # Run a single test file
 corepack yarn test --testPathPattern=apps/bpmn-modeler/src/service/bpmnUtils.spec.ts
@@ -40,7 +40,7 @@ Each webview workspace has three scripts, one per workflow:
 - `serve` — Vite HTTP dev server via for standalone browser preview.
 
 At the root level: `yarn watch` runs the F5 orchestrator;
-`yarn workspace bpmn-webview serve` / `yarn workspace dmn-webview serve` / `yarn workspace deployment-webview serve`
+`yarn workspace @miragon/bpmn-modeler-webview serve` / `yarn workspace @miragon/dmn-modeler-webview serve` / `yarn workspace @miragon/bpmn-modeler-deployment-webview serve`
 launch the per-webview dev server.
 
 ## Workspace Structure
@@ -63,7 +63,7 @@ libs/
 
 ## Path Aliases (`tsconfig.base.json`)
 
-- `@bpmn-modeler/shared` → `libs/shared/src/index.ts`
+- `@miragon/bpmn-modeler-shared` → `libs/shared/src/index.ts`
 - Resolved by `TsconfigPathsPlugin` (webpack) and `vite-tsconfig-paths` (Vite)
 
 ## Configuration Namespace

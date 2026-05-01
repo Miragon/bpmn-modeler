@@ -1,5 +1,5 @@
 {
-    "name": "deployment-webview",
+    "name": "@miragon/bpmn-modeler-deployment-webview",
     "version": "0.0.1",
     "private": true,
     "license": "Apache-2.0",
@@ -11,7 +11,7 @@
         "serve": "vite"
     },
     "dependencies": {
-        "@bpmn-modeler/shared": "workspace:*",
+        "@miragon/bpmn-modeler-shared": "workspace:*",
         "tslib": "2.8.1"
     },
     "devDependencies": {

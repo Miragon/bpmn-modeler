@@ -1,4 +1,4 @@
-import { VsCodeApi } from "@bpmn-modeler/shared";
+import { VsCodeApi } from "@miragon/bpmn-modeler-shared";
 import { WebviewState } from "./vscode";
 import { BpmnModeler } from "./modeler";
 

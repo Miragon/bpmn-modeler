@@ -1,5 +1,5 @@
-import { DiffCounts, DiffOrigin } from "@bpmn-modeler/shared";
-import { i18n } from "@bpmn-modeler/bpmn-i18n";
+import { DiffCounts, DiffOrigin } from "@miragon/bpmn-modeler-shared";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 export interface DiffLegendCallbacks {
     onPrevious: () => void;

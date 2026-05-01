@@ -11,7 +11,7 @@ import { render, h } from "preact";
 import { AppendMenuOverlay } from "./components/AppendMenuOverlay";
 import { classifyEntries, executeEntryAction } from "./types";
 import type { PopupMenuEntry, PopupMenuEntryAction } from "./types";
-import type { ElementTemplate } from "@bpmn-modeler/element-template-chooser";
+import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 
 /** Provider IDs that this override intercepts. */
 const INTERCEPTED_PROVIDERS = new Set(["bpmn-append", "bpmn-create"]);

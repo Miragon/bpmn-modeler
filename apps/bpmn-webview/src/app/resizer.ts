@@ -1,4 +1,4 @@
-import { i18n } from "@bpmn-modeler/bpmn-i18n";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 /**
  * Minimum width (px) the properties panel can be resized to.

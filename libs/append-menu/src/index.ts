@@ -7,7 +7,7 @@
  *
  * Register as an `additionalModule` when creating the bpmn-js modeler:
  * ```ts
- * import { AppendMenuModule } from "@bpmn-modeler/append-menu";
+ * import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
  *
  * new BpmnModeler({ additionalModules: [AppendMenuModule] });
  * ```

@@ -7,7 +7,7 @@ import {
     StartInstanceConfigPayload,
     StartInstanceResultQuery,
     VsCodeApi,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 /**
  * Manages the Start Instance tab DOM state: populating fields, collecting

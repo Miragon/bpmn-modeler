@@ -51,7 +51,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies (focused)
-        run: yarn workspaces focus standalone
+        run: yarn workspaces focus @miragon/bpmn-modeler-standalone
 
       - name: Configure Git
         run: |
@@ -62,12 +62,12 @@ jobs:
       - name: Bump version
         id: version
         run: |
-          yarn workspace standalone version "${{ inputs.release-type }}"
+          yarn workspace @miragon/bpmn-modeler-standalone version "${{ inputs.release-type }}"
           NEW_VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build standalone
-        run: yarn workspace standalone build
+        run: yarn workspace @miragon/bpmn-modeler-standalone build
 
       - name: Ensure tag does not exist
         run: |

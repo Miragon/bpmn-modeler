@@ -6,7 +6,7 @@
  *
  * Register as an `additionalModule` when creating the bpmn-js modeler:
  * ```ts
- * import { ElementTemplateChooserModule } from "@bpmn-modeler/element-template-chooser";
+ * import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
  *
  * new BpmnModeler({ additionalModules: [ElementTemplateChooserModule] });
  * ```

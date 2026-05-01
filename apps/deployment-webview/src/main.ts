@@ -11,7 +11,7 @@ import {
     SelectedPayloadFileQuery,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import { DeploymentForm } from "./app/form";
 import { StartInstanceForm } from "./app/startInstanceForm";

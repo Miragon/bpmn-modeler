@@ -22,7 +22,7 @@ import {
     SyncCursorQuery,
     SyncViewportQuery,
     ViewportChangedCommand,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import { commands, ConfigurationChangeEvent, Disposable, TextDocument, Uri, WebviewPanel, window, workspace } from "vscode";
 

@@ -181,4 +181,4 @@ Base types provide a `type` discriminator string. Concrete messages extend `Quer
 - **Engine router**: `src/infrastructure/camunda/CamundaEngineRouter.ts`
 - **Session guard**: `src/domain/session.ts`
 - **Message types**: `libs/shared/src/lib/messages.ts` (repo root)
-- **Path aliases**: `tsconfig.base.json` (repo root, `@bpmn-modeler/shared` → `libs/shared/src/index.ts`)
+- **Path aliases**: `tsconfig.base.json` (repo root, `@miragon/bpmn-modeler-shared` → `libs/shared/src/index.ts`)

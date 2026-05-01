@@ -31,12 +31,12 @@ import {
     SetTextClipboardCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 import {
     VsCodeClipboardModule,
     LabelClipboardModule,
-} from "@bpmn-modeler/bpmn-clipboard";
-import { TranslateModule, i18n, type SupportedLocale } from "@bpmn-modeler/bpmn-i18n";
+} from "@miragon/bpmn-modeler-clipboard";
+import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnModeler,
     getVsCodeApi,

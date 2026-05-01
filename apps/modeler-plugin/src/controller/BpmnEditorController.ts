@@ -14,7 +14,7 @@ import {
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";

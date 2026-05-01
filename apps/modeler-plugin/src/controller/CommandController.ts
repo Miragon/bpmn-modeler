@@ -12,8 +12,8 @@ import {
 import {
     Command,
     GetDiagramAsSVGCommand,
-} from "@bpmn-modeler/shared";
-import { supportedLanguages } from "@bpmn-modeler/bpmn-i18n";
+} from "@miragon/bpmn-modeler-shared";
+import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";

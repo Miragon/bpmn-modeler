@@ -8,7 +8,7 @@ import {
     window,
 } from "vscode";
 
-import { Command, SyncDocumentCommand } from "@bpmn-modeler/shared";
+import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";

@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 22
           cache: yarn
-      - run: corepack yarn workspaces focus bpmn-modeler docs
+      - run: corepack yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-docs
       - run: corepack yarn docs:test
       - run: corepack yarn docs:build
       - uses: actions/upload-pages-artifact@v5

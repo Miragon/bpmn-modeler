@@ -22,7 +22,7 @@ import {
     NoModelerError,
     Query,
     SyncDocumentCommand,
-} from "@bpmn-modeler/shared";
+} from "@miragon/bpmn-modeler-shared";
 
 import {
     createModeler,
