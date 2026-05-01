@@ -44,11 +44,14 @@ jobs:
       - name: Corepack enable
         run: corepack enable
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: yarn
+
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus standalone
 
       - name: Configure Git
         run: |
@@ -62,6 +65,9 @@ jobs:
           yarn workspace standalone version "${{ inputs.release-type }}"
           NEW_VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build standalone
+        run: yarn workspace standalone build
 
       - name: Ensure tag does not exist
         run: |

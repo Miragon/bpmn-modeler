@@ -6,47 +6,214 @@ on:
     types: [ opened, reopened, synchronize ]
 
 jobs:
-  build:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      bpmn-i18n: ${{ steps.filter.outputs.bpmn-i18n }}
+      element-template-chooser: ${{ steps.filter.outputs.element-template-chooser }}
+      append-menu: ${{ steps.filter.outputs.append-menu }}
+      bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
+      create-append-c7: ${{ steps.filter.outputs.create-append-c7 }}
+      modeler-plugin: ${{ steps.filter.outputs.modeler-plugin }}
+      bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
+      dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
+      deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - 'libs/shared/**'
+            bpmn-i18n:
+              - 'libs/bpmn-i18n/**'
+            element-template-chooser:
+              - 'libs/element-template-chooser/**'
+            append-menu:
+              - 'libs/append-menu/**'
+            bpmn-clipboard:
+              - 'libs/bpmn-clipboard/**'
+            create-append-c7:
+              - 'libs/create-append-c7-element-templates/**'
+            modeler-plugin:
+              - 'apps/modeler-plugin/**'
+            bpmn-webview:
+              - 'apps/bpmn-webview/**'
+            dmn-webview:
+              - 'apps/dmn-webview/**'
+            deployment-webview:
+              - 'apps/deployment-webview/**'
+            docs:
+              - 'docs/**'
+
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v6
-
-      - name: Check pinned dependencies
-        uses: Miragon/pin-npm-dependencies@v1
-
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: Setup NodeJS 22
-        uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+      - uses: Miragon/pin-npm-dependencies@v1
+      - run: corepack enable
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: yarn
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn lint
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: Miragon/pin-npm-dependencies@v1
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn npm audit --all --severity high
+
+  build-shared:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: yarn workspaces focus @bpmn-modeler/shared
+      - run: yarn workspace @bpmn-modeler/shared build
+
+  build-bpmn-i18n:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bpmn-i18n == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: yarn workspaces focus @bpmn-modeler/bpmn-i18n
+      - run: yarn workspace @bpmn-modeler/bpmn-i18n build
+
+  build-element-template-chooser:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.element-template-chooser == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: yarn workspaces focus @bpmn-modeler/element-template-chooser
+      - run: yarn workspace @bpmn-modeler/element-template-chooser build
+
+  build-append-menu:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.append-menu == 'true' ||
+      needs.detect-changes.outputs.element-template-chooser == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: yarn workspaces focus @bpmn-modeler/append-menu
+      - run: yarn workspace @bpmn-modeler/append-menu build
+
+  build-bpmn-clipboard:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bpmn-clipboard == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: yarn workspaces focus @bpmn-modeler/bpmn-clipboard
+      - run: yarn workspace @bpmn-modeler/bpmn-clipboard build
+
+  build-create-append-c7:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.create-append-c7 == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: yarn workspaces focus @miragon/create-append-c7-element-templates
+      - run: yarn workspace @miragon/create-append-c7-element-templates build
+
+  build-modeler-plugin:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.modeler-plugin == 'true' ||
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
       - name: Install Linux build deps for Theia native modules
         run: |
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
-
-      - name: Install dependencies
-        run: yarn install --immutable
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus vs-code-bpmn-modeler @bpmn-modeler/shared @bpmn-modeler/bpmn-i18n
         env:
-          # @vscode/ripgrep postinstall hits the GitHub API; without a
-          # token it gets rate-limited (403) on busy days.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn workspace vs-code-bpmn-modeler build
 
-      - name: Audit dependencies
-        run: yarn npm audit --all --severity high
-
-      - name: Lint
-        run: yarn lint
-
-      - name: Test
-        run: yarn test
-
-      - name: Build
-        run: yarn build
-
+  test-modeler-plugin:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.modeler-plugin == 'true' ||
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus vs-code-bpmn-modeler @bpmn-modeler/shared @bpmn-modeler/bpmn-i18n
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
@@ -56,3 +223,103 @@ jobs:
           flags: unittests
           name: bpmn-modeler
           verbose: true
+
+  build-bpmn-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.bpmn-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n == 'true' ||
+      needs.detect-changes.outputs.append-menu == 'true' ||
+      needs.detect-changes.outputs.element-template-chooser == 'true' ||
+      needs.detect-changes.outputs.bpmn-clipboard == 'true' ||
+      needs.detect-changes.outputs.create-append-c7 == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-webview @bpmn-modeler/shared @bpmn-modeler/bpmn-i18n @bpmn-modeler/append-menu @bpmn-modeler/element-template-chooser @bpmn-modeler/bpmn-clipboard @miragon/create-append-c7-element-templates
+      - run: yarn workspace bpmn-webview build
+
+  build-dmn-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.dmn-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus dmn-webview @bpmn-modeler/shared
+      - run: yarn workspace dmn-webview build
+
+  build-deployment-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.deployment-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus deployment-webview @bpmn-modeler/shared
+      - run: yarn workspace deployment-webview build
+
+  verify-docs:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: Miragon/pin-npm-dependencies@v1
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - run: corepack yarn workspaces focus docs
+      - run: corepack yarn docs:test
+      - run: corepack yarn docs:build
+
+  ci:
+    if: always()
+    needs:
+      - lint
+      - audit
+      - build-shared
+      - build-bpmn-i18n
+      - build-element-template-chooser
+      - build-append-menu
+      - build-bpmn-clipboard
+      - build-create-append-c7
+      - build-modeler-plugin
+      - test-modeler-plugin
+      - build-bpmn-webview
+      - build-dmn-webview
+      - build-deployment-webview
+      - verify-docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs passed or were skipped
+        run: |
+          results='${{ toJSON(needs) }}'
+          echo "$results" | jq -e '
+            to_entries | all(
+              .value.result == "success" or .value.result == "skipped"
+            )
+          '
