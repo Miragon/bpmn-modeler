@@ -3532,6 +3532,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-append-menu@workspace:libs/append-menu"
   dependencies:
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
+    bpmn-js: "npm:18.15.0"
     preact: "npm:10.29.1"
     typescript: "npm:6.0.3"
   peerDependencies:
@@ -3578,6 +3579,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-element-template-chooser@workspace:libs/element-template-chooser"
   dependencies:
+    bpmn-js: "npm:18.15.0"
     preact: "npm:10.29.1"
     typescript: "npm:6.0.3"
   peerDependencies:
