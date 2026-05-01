@@ -103,8 +103,8 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: yarn workspaces focus @bpmn-modeler/shared
-      - run: yarn workspace @bpmn-modeler/shared build
+      - run: yarn workspaces focus @miragon/bpmn-modeler-shared
+      - run: yarn workspace @miragon/bpmn-modeler-shared build
 
   build-bpmn-i18n:
     needs: detect-changes
@@ -117,8 +117,8 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: yarn workspaces focus @bpmn-modeler/bpmn-i18n
-      - run: yarn workspace @bpmn-modeler/bpmn-i18n build
+      - run: yarn workspaces focus @miragon/bpmn-modeler-i18n
+      - run: yarn workspace @miragon/bpmn-modeler-i18n build
 
   build-element-template-chooser:
     needs: detect-changes
@@ -131,8 +131,8 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: yarn workspaces focus @bpmn-modeler/element-template-chooser
-      - run: yarn workspace @bpmn-modeler/element-template-chooser build
+      - run: yarn workspaces focus @miragon/bpmn-modeler-element-template-chooser
+      - run: yarn workspace @miragon/bpmn-modeler-element-template-chooser build
 
   build-append-menu:
     needs: detect-changes
@@ -147,8 +147,8 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: yarn workspaces focus @bpmn-modeler/append-menu
-      - run: yarn workspace @bpmn-modeler/append-menu build
+      - run: yarn workspaces focus @miragon/bpmn-modeler-append-menu
+      - run: yarn workspace @miragon/bpmn-modeler-append-menu build
 
   build-bpmn-clipboard:
     needs: detect-changes
@@ -161,8 +161,8 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: yarn workspaces focus @bpmn-modeler/bpmn-clipboard
-      - run: yarn workspace @bpmn-modeler/bpmn-clipboard build
+      - run: yarn workspaces focus @miragon/bpmn-modeler-clipboard
+      - run: yarn workspace @miragon/bpmn-modeler-clipboard build
 
   build-create-append-c7:
     needs: detect-changes
@@ -197,7 +197,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus vs-code-bpmn-modeler @bpmn-modeler/shared @bpmn-modeler/bpmn-i18n
+        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler build
@@ -221,7 +221,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus vs-code-bpmn-modeler @bpmn-modeler/shared @bpmn-modeler/bpmn-i18n
+        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn test
@@ -254,8 +254,8 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-webview @bpmn-modeler/shared @bpmn-modeler/bpmn-i18n @bpmn-modeler/append-menu @bpmn-modeler/element-template-chooser @bpmn-modeler/bpmn-clipboard @miragon/create-append-c7-element-templates
-      - run: yarn workspace bpmn-webview build
+        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard @miragon/create-append-c7-element-templates
+      - run: yarn workspace @miragon/bpmn-modeler-webview build
 
   build-dmn-webview:
     needs: detect-changes
@@ -271,8 +271,8 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus dmn-webview @bpmn-modeler/shared
-      - run: yarn workspace dmn-webview build
+        run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/bpmn-modeler-shared
+      - run: yarn workspace @miragon/dmn-modeler-webview build
 
   build-deployment-webview:
     needs: detect-changes
@@ -288,8 +288,8 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus deployment-webview @bpmn-modeler/shared
-      - run: yarn workspace deployment-webview build
+        run: yarn workspaces focus @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared
+      - run: yarn workspace @miragon/bpmn-modeler-deployment-webview build
 
   verify-docs:
     needs: detect-changes

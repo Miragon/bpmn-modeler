@@ -67,7 +67,7 @@ jobs:
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build standalone
-        run: yarn workspace standalone build
+        run: yarn workspace @miragon/bpmn-modeler-standalone build
 
       - name: Ensure tag does not exist
         run: |
