@@ -257,33 +257,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/compat-data@npm:^7.28.6, @babel/compat-data@npm:^7.29.0":
+"@babel/compat-data@npm:^7.28.6":
   version: 7.29.0
   resolution: "@babel/compat-data@npm:7.29.0"
   checksum: 10c0/08f348554989d23aa801bf1405aa34b15e841c0d52d79da7e524285c77a5f9d298e70e11d91cc578d8e2c9542efc586d50c5f5cf8e1915b254a9dcf786913a94
   languageName: node
   linkType: hard
 
-"@babel/core@npm:^7.10.0, @babel/core@npm:^7.27.4":
-  version: 7.29.0
-  resolution: "@babel/core@npm:7.29.0"
-  dependencies:
-    "@babel/code-frame": "npm:^7.29.0"
-    "@babel/generator": "npm:^7.29.0"
-    "@babel/helper-compilation-targets": "npm:^7.28.6"
-    "@babel/helper-module-transforms": "npm:^7.28.6"
-    "@babel/helpers": "npm:^7.28.6"
-    "@babel/parser": "npm:^7.29.0"
-    "@babel/template": "npm:^7.28.6"
-    "@babel/traverse": "npm:^7.29.0"
-    "@babel/types": "npm:^7.29.0"
-    "@jridgewell/remapping": "npm:^2.3.5"
-    convert-source-map: "npm:^2.0.0"
-    debug: "npm:^4.1.0"
-    gensync: "npm:^1.0.0-beta.2"
-    json5: "npm:^2.2.3"
-    semver: "npm:^6.3.1"
-  checksum: 10c0/5127d2e8e842ae409e11bcbb5c2dff9874abf5415e8026925af7308e903f4f43397341467a130490d1a39884f461bc2b67f3063bce0be44340db89687fd852aa
+"@babel/compat-data@npm:^7.29.3":
+  version: 7.29.3
+  resolution: "@babel/compat-data@npm:7.29.3"
+  checksum: 10c0/81bddd53ce1b1395576fbb7cb739631a976f6b421cd260e6cf2715a9691b9a0ec12ca5c4e1bb88088e60dc87875f6e4ef7fa8674f1dc96ae1bd7c357416605a7
   languageName: node
   linkType: hard
 
@@ -307,6 +291,29 @@ __metadata:
     json5: "npm:^2.2.3"
     semver: "npm:^6.3.1"
   checksum: 10c0/a425fa40e73cb72b6464063a57c478bc2de9dbcc19c280f1b55a3d88b35d572e87e8594e7d7b4880331addb6faef641bbeb701b91b41b8806cd4deae5d74f401
+  languageName: node
+  linkType: hard
+
+"@babel/core@npm:^7.27.4, @babel/core@npm:^7.29.0":
+  version: 7.29.0
+  resolution: "@babel/core@npm:7.29.0"
+  dependencies:
+    "@babel/code-frame": "npm:^7.29.0"
+    "@babel/generator": "npm:^7.29.0"
+    "@babel/helper-compilation-targets": "npm:^7.28.6"
+    "@babel/helper-module-transforms": "npm:^7.28.6"
+    "@babel/helpers": "npm:^7.28.6"
+    "@babel/parser": "npm:^7.29.0"
+    "@babel/template": "npm:^7.28.6"
+    "@babel/traverse": "npm:^7.29.0"
+    "@babel/types": "npm:^7.29.0"
+    "@jridgewell/remapping": "npm:^2.3.5"
+    convert-source-map: "npm:^2.0.0"
+    debug: "npm:^4.1.0"
+    gensync: "npm:^1.0.0-beta.2"
+    json5: "npm:^2.2.3"
+    semver: "npm:^6.3.1"
+  checksum: 10c0/5127d2e8e842ae409e11bcbb5c2dff9874abf5415e8026925af7308e903f4f43397341467a130490d1a39884f461bc2b67f3063bce0be44340db89687fd852aa
   languageName: node
   linkType: hard
 
@@ -700,6 +707,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/plugin-bugfix-safari-rest-destructuring-rhs-array@npm:^7.29.3":
+  version: 7.29.3
+  resolution: "@babel/plugin-bugfix-safari-rest-destructuring-rhs-array@npm:7.29.3"
+  dependencies:
+    "@babel/helper-plugin-utils": "npm:^7.28.6"
+    "@babel/helper-skip-transparent-expression-wrappers": "npm:^7.27.1"
+  peerDependencies:
+    "@babel/core": ^7.0.0
+  checksum: 10c0/5c60605526e87d1bb200faa6c2fae606764bd675f3338c32924feac55ad98671ccb16f270112310a8667e50e4905d893993c4e2533a9bb53507e8fcc2f6893ad
+  languageName: node
+  linkType: hard
+
 "@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining@npm:^7.27.1":
   version: 7.27.1
   resolution: "@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining@npm:7.27.1"
@@ -1038,7 +1057,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/plugin-transform-classes@npm:^7.10.0, @babel/plugin-transform-classes@npm:^7.28.6":
+"@babel/plugin-transform-classes@npm:^7.28.6":
   version: 7.28.6
   resolution: "@babel/plugin-transform-classes@npm:7.28.6"
   dependencies:
@@ -1453,7 +1472,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/plugin-transform-runtime@npm:^7.10.0":
+"@babel/plugin-transform-runtime@npm:^7.29.0":
   version: 7.29.0
   resolution: "@babel/plugin-transform-runtime@npm:7.29.0"
   dependencies:
@@ -1572,17 +1591,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/preset-env@npm:^7.10.0":
-  version: 7.29.2
-  resolution: "@babel/preset-env@npm:7.29.2"
+"@babel/preset-env@npm:^7.29.2":
+  version: 7.29.3
+  resolution: "@babel/preset-env@npm:7.29.3"
   dependencies:
-    "@babel/compat-data": "npm:^7.29.0"
+    "@babel/compat-data": "npm:^7.29.3"
     "@babel/helper-compilation-targets": "npm:^7.28.6"
     "@babel/helper-plugin-utils": "npm:^7.28.6"
     "@babel/helper-validator-option": "npm:^7.27.1"
     "@babel/plugin-bugfix-firefox-class-in-computed-class-key": "npm:^7.28.5"
     "@babel/plugin-bugfix-safari-class-field-initializer-scope": "npm:^7.27.1"
     "@babel/plugin-bugfix-safari-id-destructuring-collision-in-function-expression": "npm:^7.27.1"
+    "@babel/plugin-bugfix-safari-rest-destructuring-rhs-array": "npm:^7.29.3"
     "@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining": "npm:^7.27.1"
     "@babel/plugin-bugfix-v8-static-class-fields-redefine-readonly": "npm:^7.28.6"
     "@babel/plugin-proposal-private-property-in-object": "npm:7.21.0-placeholder-for-preset-env.2"
@@ -1648,7 +1668,7 @@ __metadata:
     semver: "npm:^6.3.1"
   peerDependencies:
     "@babel/core": ^7.0.0-0
-  checksum: 10c0/d49cb005f2dbc3f2293ab6d80ee8f1380e6215af5518fe26b087c8961c1ea8ebaa554dfce589abe1fbebac25ad7c2515d943dec3859ea2d4981a3f8f4711c580
+  checksum: 10c0/40591ca097502b547eaf844fceaafbc71aa726a86bec95b66ca4e762b2642a8dfc224eb9204a9d0d952ad62b6b326008f6be4dfc9e274e4438503e4975848372
   languageName: node
   linkType: hard
 
@@ -1665,7 +1685,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/runtime@npm:^7.10.0, @babel/runtime@npm:^7.20.13":
+"@babel/runtime@npm:^7.20.13, @babel/runtime@npm:^7.29.2":
   version: 7.29.2
   resolution: "@babel/runtime@npm:7.29.2"
   checksum: 10c0/30b80a0140d16467792e1bbeb06f655b0dab70407da38dfac7fedae9c859f9ae9d846ef14ad77bd3814c064295fe9b1bc551f1541ea14646ae9f22b71a8bc17a
@@ -2313,7 +2333,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@electron/get@npm:^2.0.0":
+"@electron/get@npm:^2.0.0, @electron/get@npm:^2.0.3":
   version: 2.0.3
   resolution: "@electron/get@npm:2.0.3"
   dependencies:
@@ -2379,7 +2399,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@electron/rebuild@npm:^4.0.0, @electron/rebuild@npm:^4.0.3":
+"@electron/rebuild@npm:^4.0.3":
   version: 4.0.4
   resolution: "@electron/rebuild@npm:4.0.4"
   dependencies:
@@ -3571,7 +3591,7 @@ __metadata:
     mermaid: "npm:11.14.0"
     vitepress: "npm:1.6.4"
     vitepress-plugin-mermaid: "npm:2.0.17"
-    vitest: "npm:2.1.9"
+    vitest: "npm:4.1.5"
   languageName: unknown
   linkType: soft
 
@@ -3612,25 +3632,25 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-standalone@workspace:apps/standalone"
   dependencies:
-    "@theia/cli": "npm:1.70.2"
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/electron": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/keymaps": "npm:1.70.2"
-    "@theia/messages": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
-    "@theia/native-webpack-plugin": "npm:1.70.2"
-    "@theia/navigator": "npm:1.70.2"
-    "@theia/output": "npm:1.70.2"
-    "@theia/plugin-ext": "npm:1.70.2"
-    "@theia/plugin-ext-vscode": "npm:1.70.2"
-    "@theia/preferences": "npm:1.70.2"
-    "@theia/process": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    electron: "npm:39.8.9"
+    "@theia/cli": "npm:1.71.0"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/electron": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/keymaps": "npm:1.71.0"
+    "@theia/messages": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
+    "@theia/native-webpack-plugin": "npm:1.71.0"
+    "@theia/navigator": "npm:1.71.0"
+    "@theia/output": "npm:1.71.0"
+    "@theia/plugin-ext": "npm:1.71.0"
+    "@theia/plugin-ext-vscode": "npm:1.71.0"
+    "@theia/preferences": "npm:1.71.0"
+    "@theia/process": "npm:1.71.0"
+    "@theia/terminal": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    electron: "npm:41.4.0"
     electron-builder: "npm:26.8.1"
     electron-updater: "npm:6.8.3"
     rimraf: "npm:6.1.3"
@@ -3658,7 +3678,7 @@ __metadata:
     camunda-bpmn-js-behaviors: "npm:1.14.1"
     camunda-bpmn-moddle: "npm:7.0.1"
     camunda-transaction-boundaries: "npm:1.1.2"
-    diagram-js: "npm:15.13.0"
+    diagram-js: "npm:15.14.0"
     lodash: "npm:4.18.1"
     min-dash: "npm:5.0.0"
     tslib: "npm:2.8.1"
@@ -3687,7 +3707,7 @@ __metadata:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/vscode-webview": "npm:1.57.5"
     camunda-dmn-moddle: "npm:1.3.1"
-    diagram-js: "npm:15.13.0"
+    diagram-js: "npm:15.14.0"
     dmn-js: "npm:17.8.0"
     dmn-js-properties-panel: "npm:3.11.0"
     min-dash: "npm:5.0.0"
@@ -3699,7 +3719,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@modelcontextprotocol/sdk@npm:^1.25.1":
+"@modelcontextprotocol/sdk@npm:^1.29.0":
   version: 1.29.0
   resolution: "@modelcontextprotocol/sdk@npm:1.29.0"
   dependencies:
@@ -3944,7 +3964,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@parcel/watcher@npm:^2.5.0":
+"@parcel/watcher@npm:^2.5.6":
   version: 2.5.6
   resolution: "@parcel/watcher@npm:2.5.6"
   dependencies:
@@ -4455,6 +4475,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@standard-schema/spec@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@standard-schema/spec@npm:1.1.0"
+  checksum: 10c0/d90f55acde4b2deb983529c87e8025fa693de1a5e8b49ecc6eb84d1fd96328add0e03d7d551442156c7432fd78165b2c26ff561b970a9a881f046abb78d6a526
+  languageName: node
+  linkType: hard
+
 "@stroncium/procfs@npm:^1.2.1":
   version: 1.2.1
   resolution: "@stroncium/procfs@npm:1.2.1"
@@ -4487,74 +4514,74 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@theia/ai-core@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/ai-core@npm:1.70.2"
+"@theia/ai-core@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/ai-core@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/output": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
+    "@theia/output": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
     "@types/js-yaml": "npm:^4.0.9"
     fast-deep-equal: "npm:^3.1.3"
-    js-yaml: "npm:^4.1.0"
+    js-yaml: "npm:^4.1.1"
     tslib: "npm:^2.6.2"
-    undici: "npm:^7.16.0"
-  checksum: 10c0/b260b8520d1fa92868c6df0bdec59e76681161ba113f50dcfc1061f37fbcc7d6b7e1117cf4f948d90d0e1a30172c4680d92fc8677d536109f6fb405b2f42cb12
+    undici: "npm:^7.24.6"
+  checksum: 10c0/1700928fa7aab6c9a74a591df7ab01b58ff70a146a7492a084d0b897c8d641ea6c6b3fb6af6d24a99c5749e2048b95b26f134b576cd50cf75c3f123719d24c21
   languageName: node
   linkType: hard
 
-"@theia/ai-mcp@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/ai-mcp@npm:1.70.2"
+"@theia/ai-mcp@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/ai-mcp@npm:1.71.0"
   dependencies:
-    "@modelcontextprotocol/sdk": "npm:^1.25.1"
-    "@theia/ai-core": "npm:1.70.2"
-    "@theia/core": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-  checksum: 10c0/6e60759bece16ab34733a2abd8c217366f00f52f62f371e50c6a2b43cb9f0fc324714cd42926b26ba121e8a4c9955acc1122fbd14d6599a543e47427d623eec8
+    "@modelcontextprotocol/sdk": "npm:^1.29.0"
+    "@theia/ai-core": "npm:1.71.0"
+    "@theia/core": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+  checksum: 10c0/7c4556e8cfad8de965ece16d2f287c2a58c6dad8c137376b121facb3c89d9321f18c68c7524139557144ab2fe8ffe92b0887d1c421be903b51a8c9ffb70ee28c
   languageName: node
   linkType: hard
 
-"@theia/application-manager@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/application-manager@npm:1.70.2"
+"@theia/application-manager@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/application-manager@npm:1.71.0"
   dependencies:
-    "@babel/core": "npm:^7.10.0"
-    "@babel/plugin-transform-classes": "npm:^7.10.0"
-    "@babel/plugin-transform-runtime": "npm:^7.10.0"
-    "@babel/preset-env": "npm:^7.10.0"
-    "@electron/rebuild": "npm:^4.0.0"
-    "@theia/application-package": "npm:1.70.2"
-    "@theia/ffmpeg": "npm:1.70.2"
-    "@theia/native-webpack-plugin": "npm:1.70.2"
-    "@types/fs-extra": "npm:^4.0.2"
-    "@types/semver": "npm:^7.5.0"
-    babel-loader: "npm:^8.2.2"
+    "@babel/core": "npm:^7.29.0"
+    "@babel/plugin-transform-classes": "npm:^7.28.6"
+    "@babel/plugin-transform-runtime": "npm:^7.29.0"
+    "@babel/preset-env": "npm:^7.29.2"
+    "@electron/rebuild": "npm:^4.0.3"
+    "@theia/application-package": "npm:1.71.0"
+    "@theia/ffmpeg": "npm:1.71.0"
+    "@theia/native-webpack-plugin": "npm:1.71.0"
+    "@types/fs-extra": "npm:^4.0.15"
+    "@types/semver": "npm:^7.7.1"
+    babel-loader: "npm:^8.4.1"
     buffer: "npm:^6.0.3"
-    compression-webpack-plugin: "npm:^9.0.0"
+    compression-webpack-plugin: "npm:^9.2.0"
     copy-webpack-plugin: "npm:^8.1.1"
-    css-loader: "npm:^6.2.0"
+    css-loader: "npm:^6.11.0"
     fs-extra: "npm:^4.0.2"
     http-server: "npm:^14.1.1"
     ignore-loader: "npm:^0.1.2"
-    less: "npm:^3.0.3"
-    mini-css-extract-plugin: "npm:^2.6.1"
-    node-loader: "npm:^2.0.0"
+    less: "npm:^3.13.1"
+    mini-css-extract-plugin: "npm:^2.10.2"
+    node-loader: "npm:^2.1.0"
     path-browserify: "npm:^1.0.1"
-    semver: "npm:^7.5.4"
+    semver: "npm:^7.7.4"
     source-map: "npm:^0.6.1"
-    source-map-loader: "npm:^2.0.1"
-    source-map-support: "npm:^0.5.19"
+    source-map-loader: "npm:^2.0.2"
+    source-map-support: "npm:^0.5.21"
     string-replace-loader: "npm:^3.3.0"
     style-loader: "npm:^2.0.0"
     tslib: "npm:^2.6.2"
     umd-compat-loader: "npm:^2.1.2"
-    webpack: "npm:^5.76.0"
+    webpack: "npm:^5.105.4"
     webpack-cli: "npm:4.7.0"
     worker-loader: "npm:^3.0.8"
     yargs: "npm:^15.3.1"
@@ -4563,67 +4590,67 @@ __metadata:
   peerDependenciesMeta:
     "@theia/electron":
       optional: true
-  checksum: 10c0/63426c8b7fedbd35e4f2c36ef9926cf3a35c16c14a4d9fd8028d0adf7488760f8bbe1c86ba8fbfd7e14ac2830d7f963eab10a38f7028dfcc0541fb27720f11e1
+  checksum: 10c0/97e07977b578101d1771a0565c8f44193ab44bbbe2e12d80c00af603a455078eb19eb1377a55bffa0c12380cee8e67f52739a32a2546b494ed3f850dd9f99680
   languageName: node
   linkType: hard
 
-"@theia/application-package@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/application-package@npm:1.70.2"
+"@theia/application-package@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/application-package@npm:1.71.0"
   dependencies:
-    "@theia/request": "npm:1.70.2"
-    "@types/fs-extra": "npm:^4.0.2"
-    "@types/semver": "npm:^7.5.0"
+    "@theia/request": "npm:1.71.0"
+    "@types/fs-extra": "npm:^4.0.15"
+    "@types/semver": "npm:^7.7.1"
     "@types/write-json-file": "npm:^2.2.1"
-    deepmerge: "npm:^4.2.2"
+    deepmerge: "npm:^4.3.1"
     fs-extra: "npm:^4.0.2"
-    is-electron: "npm:^2.1.0"
-    nano: "npm:^10.1.3"
+    is-electron: "npm:^2.2.2"
+    nano: "npm:^10.1.4"
     resolve-package-path: "npm:^4.0.3"
-    semver: "npm:^7.5.4"
+    semver: "npm:^7.7.4"
     tslib: "npm:^2.6.2"
-    write-json-file: "npm:^2.2.0"
-  checksum: 10c0/40a6b7b2569c3a770c3c94e41043e57baadd34f75ac48722448f38151efd62a40038a9652131b2f3bba03456d7afcbce946a7ee8dba937438eaeaebd0aa63a5e
+    write-json-file: "npm:^2.3.0"
+  checksum: 10c0/8603e85aa07566b936e321291e3d155e2b65e02e095341fe5c36aad3dc6427cd31113d8ff1fc7bdc4f99a86c831123693226eb6f2bb8a995e33935bf0689c2a2
   languageName: node
   linkType: hard
 
-"@theia/bulk-edit@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/bulk-edit@npm:1.70.2"
+"@theia/bulk-edit@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/bulk-edit@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/workspace": "npm:1.70.2"
+    "@theia/workspace": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/3b3a317579638156910ab8857c8ba73ec090ce18138d95a9282cb08b7ee11f269703b44a3c6555d1b4476355b5aa6fdd0ce5f4f6f5271f76317939a5349e2eb2
+  checksum: 10c0/774c694c02615542533b8ebe5c4589627f96f085ba8504d0b456eb1c3441b1a7c170df5239dd33c834042d2144c4069b8de92f8d852202f71d0fc15a277d4ca6
   languageName: node
   linkType: hard
 
-"@theia/callhierarchy@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/callhierarchy@npm:1.70.2"
+"@theia/callhierarchy@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/callhierarchy@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    ts-md5: "npm:^1.2.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    ts-md5: "npm:^1.3.1"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/31ff3b13c083ec91bc3d6902d01b375af81784c9932779fe4f1c3e28948fd047da6eef04dd0a5d83f2958f713dae377b614decb03af875a24d0587d66ef44c04
+  checksum: 10c0/c653cf9f144989179e286e0414aacb2b4b6ccdaa19c881a2bc7259f3072a6e25ac0beb21af1623a2f68a9f94e269697f5379131d91bf0f8a9fc440493a109d5e
   languageName: node
   linkType: hard
 
-"@theia/cli@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/cli@npm:1.70.2"
+"@theia/cli@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/cli@npm:1.71.0"
   dependencies:
-    "@theia/application-manager": "npm:1.70.2"
-    "@theia/application-package": "npm:1.70.2"
-    "@theia/ffmpeg": "npm:1.70.2"
-    "@theia/localization-manager": "npm:1.70.2"
-    "@theia/ovsx-client": "npm:1.70.2"
-    "@theia/request": "npm:1.70.2"
+    "@theia/application-manager": "npm:1.71.0"
+    "@theia/application-package": "npm:1.71.0"
+    "@theia/ffmpeg": "npm:1.71.0"
+    "@theia/localization-manager": "npm:1.71.0"
+    "@theia/ovsx-client": "npm:1.71.0"
+    "@theia/request": "npm:1.71.0"
     "@types/chai": "npm:^4.2.7"
     "@types/mocha": "npm:^10.0.0"
     "@types/node-fetch": "npm:^2.5.7"
@@ -4631,44 +4658,44 @@ __metadata:
     chalk: "npm:4.0.0"
     decompress: "npm:^4.2.1"
     escape-string-regexp: "npm:4.0.0"
-    glob: "npm:^8.0.3"
+    glob: "npm:^8.1.0"
     http-server: "npm:^14.1.1"
     limiter: "npm:^2.1.0"
     log-update: "npm:^4.0.0"
-    mocha: "npm:^10.1.0"
-    patch-package: "npm:^8.0.0"
+    mocha: "npm:^10.8.2"
+    patch-package: "npm:^8.0.1"
     puppeteer: "npm:23.1.0"
     puppeteer-core: "npm:23.1.0"
     puppeteer-to-istanbul: "npm:1.4.0"
-    temp: "npm:^0.9.1"
+    temp: "npm:^0.9.4"
     tslib: "npm:^2.6.2"
     yargs: "npm:^15.3.1"
   bin:
     theia: bin/theia.js
     theia-patch: bin/theia-patch.js
-  checksum: 10c0/4679da8028f687c016e416905607455cc25f3c9b0df3677e18f072b3c1ee3b0b1add87ea79fa9fbcea5519700c2930f21a9edf2567230c08a69dd951b2fc396f
+  checksum: 10c0/941d470c30d3ccb598bd2214bb1ab45f90fddb3c7a03b36cbf2be0c12a7d9fbcbb1049d0e506a6e5bd926f114a936d0b8add013f7846a030b75d0030b79276dc
   languageName: node
   linkType: hard
 
-"@theia/console@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/console@npm:1.70.2"
+"@theia/console@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/console@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    anser: "npm:^2.0.1"
+    anser: "npm:^2.3.5"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/fe12587425c1fe388393516e95d8bd9c8e19552837cd5a8188ef2918707106fdb31058ef53880d1952e940f1a3f53bc82145649ef4dbdbe255b58850da2c7930
+  checksum: 10c0/184a334c9b567ba6f588d644bf76eda79fb9c8b4e577c9a99720238b09f20326ab8c711b13bf6355b575fc9314d299df8e4a05ded750c4c8b963830b5bed71e9
   languageName: node
   linkType: hard
 
-"@theia/core@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/core@npm:1.70.2"
+"@theia/core@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/core@npm:1.71.0"
   dependencies:
-    "@babel/runtime": "npm:^7.10.0"
+    "@babel/runtime": "npm:^7.29.2"
     "@lumino/algorithm": "npm:^2.0.4"
     "@lumino/commands": "npm:^2.3.3"
     "@lumino/coreutils": "npm:^2.2.2"
@@ -4679,31 +4706,31 @@ __metadata:
     "@lumino/signaling": "npm:^2.1.5"
     "@lumino/virtualdom": "npm:^2.0.4"
     "@lumino/widgets": "npm:2.7.5"
-    "@parcel/watcher": "npm:^2.5.0"
-    "@theia/application-package": "npm:1.70.2"
-    "@theia/request": "npm:1.70.2"
-    "@types/body-parser": "npm:^1.16.4"
+    "@parcel/watcher": "npm:^2.5.6"
+    "@theia/application-package": "npm:1.71.0"
+    "@theia/request": "npm:1.71.0"
+    "@types/body-parser": "npm:^1.19.6"
     "@types/express": "npm:^4.17.21"
     "@types/fs-extra": "npm:^4.0.2"
     "@types/lodash.debounce": "npm:4.0.3"
-    "@types/lodash.throttle": "npm:^4.1.3"
-    "@types/markdown-it": "npm:^14.1.0"
+    "@types/lodash.throttle": "npm:^4.1.9"
+    "@types/markdown-it": "npm:^14.1.2"
     "@types/markdown-it-emoji": "npm:^3.0.1"
-    "@types/react": "npm:^18.0.15"
-    "@types/react-dom": "npm:^18.0.6"
-    "@types/route-parser": "npm:^0.1.1"
-    "@types/safer-buffer": "npm:^2.1.0"
+    "@types/react": "npm:^18.3.28"
+    "@types/react-dom": "npm:^18.3.7"
+    "@types/route-parser": "npm:^0.1.7"
+    "@types/safer-buffer": "npm:^2.1.3"
     "@types/uuid": "npm:^9.0.8"
-    "@types/ws": "npm:^8.5.5"
+    "@types/ws": "npm:^8.18.1"
     "@types/yargs": "npm:^15"
     "@vscode/codicons": "npm:0.0.45"
-    ajv: "npm:^6.5.3"
-    async-mutex: "npm:^0.4.0"
-    body-parser: "npm:^1.17.2"
-    cookie: "npm:^1.0.2"
-    dompurify: "npm:^3.2.4"
+    ajv: "npm:^6.14.0"
+    async-mutex: "npm:^0.4.1"
+    body-parser: "npm:^1.20.4"
+    cookie: "npm:^1.1.1"
+    dompurify: "npm:^3.3.3"
     drivelist: "npm:^12.0.2"
-    express: "npm:^4.21.0"
+    express: "npm:^4.22.1"
     fast-json-stable-stringify: "npm:^2.1.0"
     file-icons-js: "npm:~1.0.3"
     font-awesome: "npm:^4.7.0"
@@ -4711,213 +4738,213 @@ __metadata:
     fuzzy: "npm:^0.1.3"
     http-proxy-agent: "npm:^5.0.0"
     https-proxy-agent: "npm:^5.0.0"
-    iconv-lite: "npm:^0.6.0"
-    inversify: "npm:^6.1.3"
-    jschardet: "npm:^2.1.1"
+    iconv-lite: "npm:^0.6.3"
+    inversify: "npm:^6.2.2"
+    jschardet: "npm:^2.3.0"
     keytar: "npm:7.9.0"
     lodash.debounce: "npm:^4.0.8"
     lodash.throttle: "npm:^4.1.1"
-    markdown-it: "npm:^14.1.0"
+    markdown-it: "npm:^14.1.1"
     markdown-it-anchor: "npm:^9.2.0"
     markdown-it-emoji: "npm:^3.0.0"
-    msgpackr: "npm:^1.10.2"
+    msgpackr: "npm:^1.11.9"
     p-debounce: "npm:^2.1.0"
     perfect-scrollbar: "npm:1.5.5"
-    react: "npm:^18.2.0"
-    react-dom: "npm:^18.2.0"
-    react-tooltip: "npm:^4.2.21"
-    react-virtuoso: "npm:^2.17.0"
+    react: "npm:^18.3.1"
+    react-dom: "npm:^18.3.1"
+    react-tooltip: "npm:^4.5.1"
+    react-virtuoso: "npm:^2.19.1"
     reflect-metadata: "npm:^0.2.2"
     route-parser: "npm:^0.0.5"
     safer-buffer: "npm:^2.1.2"
-    socket.io: "npm:^4.5.3"
-    socket.io-client: "npm:^4.5.3"
+    socket.io: "npm:^4.8.3"
+    socket.io-client: "npm:^4.8.3"
     tslib: "npm:^2.6.2"
     uuid: "npm:^9.0.1"
     vscode-languageserver-protocol: "npm:3.17.5"
     vscode-uri: "npm:3.0.8"
-    ws: "npm:^8.17.1"
+    ws: "npm:^8.20.0"
     yargs: "npm:^15.3.1"
   peerDependencies:
     "@theia/electron": "*"
   peerDependenciesMeta:
     "@theia/electron":
       optional: true
-  checksum: 10c0/b6d5b2b614c36aebad771271433a1bf831a1f3a138fb202ab762dccec0c1ac2ab38bcdb5ab1529cdd0e4e3cbc9fa9dca052bd3b856573562a6af0cee326efe05
+  checksum: 10c0/fddb4f148cb418a25926f24805d5eb4f20a128e9552a6b4bbd5516fefa00283ec54487c45f38dda7ee9b982d8abaa54a5ddf6702dbf9f9304ac94195a820c9fa
   languageName: node
   linkType: hard
 
-"@theia/debug@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/debug@npm:1.70.2"
+"@theia/debug@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/debug@npm:1.71.0"
   dependencies:
-    "@theia/console": "npm:1.70.2"
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/markers": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/console": "npm:1.71.0"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/markers": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/output": "npm:1.70.2"
-    "@theia/process": "npm:1.70.2"
-    "@theia/task": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
-    "@theia/test": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    "@vscode/debugprotocol": "npm:^1.51.0"
+    "@theia/output": "npm:1.71.0"
+    "@theia/process": "npm:1.71.0"
+    "@theia/task": "npm:1.71.0"
+    "@theia/terminal": "npm:1.71.0"
+    "@theia/test": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    "@vscode/debugprotocol": "npm:^1.68.0"
     fast-deep-equal: "npm:^3.1.3"
-    jsonc-parser: "npm:^2.2.0"
+    jsonc-parser: "npm:^2.3.1"
     p-debounce: "npm:^2.1.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/6b1fb9cf5a87df0c545d30841ef5cf9d26f8e4dd436b80d72da3ad0ce7daee747a1c7b69726a7c09c9fc79416aa9ff650d8ffdfc3414fdf6a7fb19df3493a5bf
+  checksum: 10c0/15cf739f8ad310004c08a9cbc07b813f632fe78a67fdb7c9fc068b44943ef552ebf0bc3f56249d5ca8ff02d1718d1ef2ae97367639c56bab73339eea9c9c98aa
   languageName: node
   linkType: hard
 
-"@theia/editor-preview@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/editor-preview@npm:1.70.2"
+"@theia/editor-preview@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/editor-preview@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/navigator": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/navigator": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/9a326eb8937207aa5cdf404fb9446af7266dd83f45859eddbc8a133583a12ba6287e4566f97c67e37e581685b32e6e05fa15dcd0092256aa807f49e4ed3a333d
+  checksum: 10c0/59ab4fcab61ba7876c6e0f19c376f322c1cb11f030afba279e8ed24dd5b90f0877e0827e364c97033540070a9cff7cfb7b4acb1b4e37f5f05c13815b2fb702b2
   languageName: node
   linkType: hard
 
-"@theia/editor@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/editor@npm:1.70.2"
+"@theia/editor@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/editor@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/d384caaf0f7c6169709d3b015c13b40549c266e0e7539f5c8bb1d818a4643cc50a1cfd56f81f651369f4cb8c9c395399e572ea96271e7983516e73de2428831a
+  checksum: 10c0/235a15e5750d6cc438c92f7467176401a80c75afad0a7ed4cded59a89830057f81f80d7f7eecff605b25e1865b12b6d9399c726b6d57c15341c46bc5de6748e9
   languageName: node
   linkType: hard
 
-"@theia/electron@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/electron@npm:1.70.2"
+"@theia/electron@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/electron@npm:1.71.0"
   dependencies:
-    electron-store: "npm:^8.0.0"
+    electron-store: "npm:^8.2.0"
     fix-path: "npm:^4.0.0"
-    native-keymap: "npm:^2.2.1"
+    native-keymap: "npm:^2.5.0"
   peerDependencies:
     electron: 39.8.7
-  checksum: 10c0/dd946feda3e0cf69fb8149388a89c3737bbeb79f4a0bdc175abdd525c51a5b7fad626f9ed4f1edd3d31192bf20f918e0f541c1ce0eb4e5fb1c1fae406d44336c
+  checksum: 10c0/3c8b1671d43ae1c00c8da2bc883b68a0bfc6ebcb85b2b49430bb7e337221aec0594a616e66c0b693c7db4b726762964f0d25cad0e4088dcfd348924a76ce944c
   languageName: node
   linkType: hard
 
-"@theia/ffmpeg@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/ffmpeg@npm:1.70.2"
+"@theia/ffmpeg@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/ffmpeg@npm:1.71.0"
   dependencies:
-    "@electron/get": "npm:^2.0.0"
+    "@electron/get": "npm:^2.0.3"
     node-gyp: "npm:latest"
     tslib: "npm:^2.6.2"
-    unzipper: "npm:^0.9.11"
-  checksum: 10c0/f4295ff28edbe3099fa32792f63251136834b6728c3cc8daf164c61621a55cd99489652be78c38feafa1921c9fcac87c5a1989edcafb249a465cade0929fa2ba
+    unzipper: "npm:^0.9.15"
+  checksum: 10c0/acb8bace942c4c484467a0e7d5df509eb7de382110cb0d4b3030f9a6dfd61722d9ec4e933332981f7e108164ac40409635be0532edcd6e82c9477033b11af4f9
   languageName: node
   linkType: hard
 
-"@theia/file-search@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/file-search@npm:1.70.2"
+"@theia/file-search@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/file-search@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/process": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    "@vscode/ripgrep": "npm:^1.14.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/process": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    "@vscode/ripgrep": "npm:^1.17.1"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/12ca009882f015e9aa54d22a44b8962c635fdc6833414130b690fe89ccf7460bfaef66b740927de80631622cc09693a6d848fb088a6be1b6a775af1df84b6441
+  checksum: 10c0/0829d59d5173e1b877db2d58be16476d959c4de0946fefbde518806e3f41b8bf0a9f7f4c612ed5c4453ad2f8ab35fd5fb15cd218c65e8505d7dd296b47039143
   languageName: node
   linkType: hard
 
-"@theia/filesystem@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/filesystem@npm:1.70.2"
+"@theia/filesystem@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/filesystem@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@types/body-parser": "npm:^1.17.0"
-    "@types/multer": "npm:^1.4.7"
-    "@types/tar-fs": "npm:^1.16.1"
+    "@theia/core": "npm:1.71.0"
+    "@types/body-parser": "npm:^1.19.6"
+    "@types/multer": "npm:^1.4.13"
+    "@types/tar-fs": "npm:^1.16.3"
     "@types/tar-stream": "npm:^3.1.4"
-    async-mutex: "npm:^0.3.1"
-    body-parser: "npm:^1.18.3"
-    http-status-codes: "npm:^1.3.0"
-    ignore: "npm:^6.0.0"
-    minimatch: "npm:^10.0.3"
-    multer: "npm:^2.0.1"
+    async-mutex: "npm:^0.3.2"
+    body-parser: "npm:^1.20.4"
+    http-status-codes: "npm:^1.4.0"
+    ignore: "npm:^6.0.2"
+    minimatch: "npm:^10.2.5"
+    multer: "npm:^2.1.1"
     opfs-worker: "npm:1.3.1"
-    rimraf: "npm:^5.0.0"
+    rimraf: "npm:^5.0.10"
     stat-mode: "npm:^1.0.0"
-    tar-fs: "npm:^3.0.9"
-    tar-stream: "npm:^3.1.7"
+    tar-fs: "npm:^3.1.2"
+    tar-stream: "npm:^3.1.8"
     trash: "npm:^7.2.0"
     tslib: "npm:^2.6.2"
-    vscode-languageserver-textdocument: "npm:^1.0.1"
-  checksum: 10c0/422d3b7d56b55deec1daa97472670e1e034c019c0672936ee1a62e250c072970da85f85950867281bdb6170ad3dc8efc87b181e798af3c7e4428a619154d5d16
+    vscode-languageserver-textdocument: "npm:^1.0.12"
+  checksum: 10c0/8aacf5ba7f1d8cdf86e86ba916fe49285be6005f9d668456c9357966500530663aea88057a419d569716428c3b84c533fb62c0ddd2e58264239b1cf13ac949a6
   languageName: node
   linkType: hard
 
-"@theia/keymaps@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/keymaps@npm:1.70.2"
+"@theia/keymaps@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/keymaps@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/preferences": "npm:1.70.2"
-    "@theia/userstorage": "npm:1.70.2"
-    jsonc-parser: "npm:^2.2.0"
+    "@theia/preferences": "npm:1.71.0"
+    "@theia/userstorage": "npm:1.71.0"
+    jsonc-parser: "npm:^2.3.1"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/5570eb5d21b4b0eac9427edefe01f845d25905db67b08dc61b22037fef078f04d821c7d87dbf5bda741b0164adf70e3550a3aeecdda249443da22db3a60883c9
+  checksum: 10c0/441ed7296c3e46722ac5ff0f8886fcbfb913b8bc9bed9fa73d5f7f31ec8b306eeef9ca41a0b23b83091c413c593726ea7f9c956326b42ea29e12172e13dae049
   languageName: node
   linkType: hard
 
-"@theia/localization-manager@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/localization-manager@npm:1.70.2"
+"@theia/localization-manager@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/localization-manager@npm:1.71.0"
   dependencies:
-    "@types/bent": "npm:^7.0.1"
-    "@types/fs-extra": "npm:^4.0.2"
-    bent: "npm:^7.1.0"
+    "@types/bent": "npm:^7.3.8"
+    "@types/fs-extra": "npm:^4.0.15"
+    bent: "npm:^7.3.12"
     chalk: "npm:4.0.0"
-    deepmerge: "npm:^4.2.2"
+    deepmerge: "npm:^4.3.1"
     fs-extra: "npm:^4.0.2"
-    glob: "npm:^7.2.0"
+    glob: "npm:^7.2.3"
     limiter: "npm:^2.1.0"
     tslib: "npm:^2.6.2"
     typescript: "npm:~5.9.3"
-  checksum: 10c0/9b04c449cf3a935f9efd936b7c59bd531851a80dd20b8f424b0af3ae7dad5e2a1f47892d94318666eaafa00e9c885af91254382952bfa5c0fe51d76d7a490358
+  checksum: 10c0/4b5683e3ce6667b065cae73e446ae9af4b7914a151faeb35a2b8e3f6781de8a0b55bcabd31f604b89a6d2dfced99bdebb1c3393ceade76c7c33d59af68341ab9
   languageName: node
   linkType: hard
 
-"@theia/markers@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/markers@npm:1.70.2"
+"@theia/markers@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/markers@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/9aaf6eee23ae47af71cb83b95fdbc552e2317bd87d39bdd30e47c808c5ecfdd54916db82fcbb461520ce7366bebe54591d6bcf25e9246561b66b6cd82c374078
+  checksum: 10c0/2ff48fddf3c49313d5878d77ceb27a4daa676b494176fb71d0e9a9b7e16746ba6d79ae10f43d43da935b3622cb0a3f55dc6ae1b9388dc989eeaa3ea7ee01e593
   languageName: node
   linkType: hard
 
-"@theia/messages@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/messages@npm:1.70.2"
+"@theia/messages@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/messages@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    react-perfect-scrollbar: "npm:^1.5.3"
-    ts-md5: "npm:^1.2.2"
+    "@theia/core": "npm:1.71.0"
+    react-perfect-scrollbar: "npm:^1.5.8"
+    ts-md5: "npm:^1.3.1"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/f854a42546519a77caa5e2a1092f4221f60306612fb86b8cf1b5cffaa348664750074a67cc52647a4e8e1637a5902875ccfa3a90e3d1e8b49667ac58b1dc063f
+  checksum: 10c0/5fe08ae3488267282c9646c4856e650f4b0af49c2b929ec7c32aac33e2dc88306242c2f9040e6de98dc3b3663632738e6608776b14699140e6e7d9e780688eb5
   languageName: node
   linkType: hard
 
@@ -4931,394 +4958,393 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@theia/monaco@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/monaco@npm:1.70.2"
+"@theia/monaco@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/monaco@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/markers": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/markers": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/outline-view": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    fast-plist: "npm:^0.1.2"
+    "@theia/outline-view": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    fast-plist: "npm:^0.1.3"
     idb: "npm:^4.0.5"
-    jsonc-parser: "npm:^2.2.0"
+    jsonc-parser: "npm:^2.3.1"
     tslib: "npm:^2.6.2"
     vscode-oniguruma: "npm:2.0.1"
-    vscode-textmate: "npm:^9.2.0"
-  checksum: 10c0/773cf5f32adc67877e299cb19faef412c7985a04f9bb95105f56b49907f01480438be4af263d414e1b5ea9c097d1183792b4cdf0fc4ae46398b6b03ee55d14f4
+    vscode-textmate: "npm:^9.3.2"
+  checksum: 10c0/728d4a12330d05d91fc43d4a196ac611a3816921f5a9a1f0a0a28ef69b591fc6660ebd88aa454263b8c21d079d96954e195d843234dfeb44138cc38f6eb142f5
   languageName: node
   linkType: hard
 
-"@theia/native-webpack-plugin@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/native-webpack-plugin@npm:1.70.2"
+"@theia/native-webpack-plugin@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/native-webpack-plugin@npm:1.71.0"
   dependencies:
-    detect-libc: "npm:^2.0.2"
+    detect-libc: "npm:^2.1.2"
     tslib: "npm:^2.6.2"
-    webpack: "npm:^5.76.0"
-  checksum: 10c0/bf0abec983ebdce875585283cf6314f925c917da3bf6ae073847b27b0d87a5f433a743e32b381a646df5e69c14593a397b384173592fdcc51cc08abc845d14b9
+    webpack: "npm:^5.105.4"
+  checksum: 10c0/2eb821d69f4d4d0ef0f781b9a46f2417b51a3c38529c18daab6cd463281b7460ba0d602b1da95f6162836edb9e70e358f356b2bf16727a7458e50575ae2d5375
   languageName: node
   linkType: hard
 
-"@theia/navigator@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/navigator@npm:1.70.2"
+"@theia/navigator@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/navigator@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    minimatch: "npm:^10.0.3"
+    "@theia/core": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    minimatch: "npm:^10.2.5"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/928f5a57a5445385992abf347336c19c7f2da8b40417443cc6dad3ec761bdc7617e83b4dc2c75a721a77ce59e4540b4e0bbb33152d21e015f2b6dc37faf620e7
+  checksum: 10c0/3d38936d2bdc64bf130c3a9e56f385dfb408f464a9233f67027e47a7b49d1224e0df1e536a941425de12832aee34945a23b30cc9d069808136108355b2916514
   languageName: node
   linkType: hard
 
-"@theia/notebook@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/notebook@npm:1.70.2"
+"@theia/notebook@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/notebook@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/outline-view": "npm:1.70.2"
-    advanced-mark.js: "npm:^2.6.0"
+    "@theia/outline-view": "npm:1.71.0"
+    advanced-mark.js: "npm:^2.7.0"
     react-perfect-scrollbar: "npm:^1.5.8"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/a8820351f2458b2162315224c74339f98ce232cfb41240e42dbad5ca91a18681ab4ba2c34e3e6b066d81a85c45bc2fc5130e8513db92aa7f046d1be7a6e7ad9b
+  checksum: 10c0/a250e7c66afdc975167025c4b39af8ffe6681c3bcb2ce4b956bddd9e90637a1cbc2ad0fa46d91aba989d7bef3d183f80c63c55c139ae5e8747d0a7a4c7d40216
   languageName: node
   linkType: hard
 
-"@theia/outline-view@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/outline-view@npm:1.70.2"
+"@theia/outline-view@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/outline-view@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/4d4e076bd3fc24e43e3acb12194ee8269ee64aebdb76fe3a171f45775846fabc766840fcaea0f8c1884af2efe69fdc6800e2de901d50e78f17c1af1f689385e0
+  checksum: 10c0/185b820b98461817eac08fd3f9727dbab4322904241943c9eef7e2a7a0fa17ac1447e3b2ba13b891447363df005bb480774f282a007481a443885c5a4287ea34
   languageName: node
   linkType: hard
 
-"@theia/output@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/output@npm:1.70.2"
+"@theia/output@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/output@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    p-queue: "npm:^8.0.1"
+    p-queue: "npm:^8.1.1"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/823163e475492eaab96d1678106e749d16d7cc6593e462bc8ee25d26dec71bd8da2bd17d11dabb592c98dd1741e7052312b77764a9010753ab3a1eb7d03fcd35
+  checksum: 10c0/d93ba55154160e25a4b29de0057f006a801382f00dc206c44eb0fa623d13032840049aa4646351ef645cf56c50e049aca6cb7b382c5a84219c8f05862cc4a571
   languageName: node
   linkType: hard
 
-"@theia/ovsx-client@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/ovsx-client@npm:1.70.2"
+"@theia/ovsx-client@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/ovsx-client@npm:1.71.0"
   dependencies:
-    "@theia/request": "npm:1.70.2"
+    "@theia/request": "npm:1.71.0"
     limiter: "npm:^2.1.0"
-    semver: "npm:^7.5.4"
+    semver: "npm:^7.7.4"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/1e08126637d8c6573414f1a500e28213b95b0be6c16b08019c0c060cb1a53526a36d98fb68fcb93858a37e235073108fdb2fc5f410907c2235adce98234a4034
+  checksum: 10c0/93c0bd8ce2821c0f2e5b7aaf5c9d77928305cf1047f42ed8d344b7f80ba0bb024492e92df2562f111445b7b2db00e5f67e14d3bcec77586ab38c743726997b0c
   languageName: node
   linkType: hard
 
-"@theia/plugin-ext-vscode@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/plugin-ext-vscode@npm:1.70.2"
+"@theia/plugin-ext-vscode@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/plugin-ext-vscode@npm:1.71.0"
   dependencies:
-    "@theia/callhierarchy": "npm:1.70.2"
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/callhierarchy": "npm:1.71.0"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/navigator": "npm:1.70.2"
-    "@theia/outline-view": "npm:1.70.2"
-    "@theia/plugin": "npm:1.70.2"
-    "@theia/plugin-ext": "npm:1.70.2"
-    "@theia/scm": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
-    "@theia/typehierarchy": "npm:1.70.2"
-    "@theia/userstorage": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
+    "@theia/navigator": "npm:1.71.0"
+    "@theia/outline-view": "npm:1.71.0"
+    "@theia/plugin": "npm:1.71.0"
+    "@theia/plugin-ext": "npm:1.71.0"
+    "@theia/scm": "npm:1.71.0"
+    "@theia/terminal": "npm:1.71.0"
+    "@theia/typehierarchy": "npm:1.71.0"
+    "@theia/userstorage": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
     decompress: "npm:^4.2.1"
-    filenamify: "npm:^4.1.0"
+    filenamify: "npm:^4.3.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/e5ca7b08e834482f46f977b808b41eed30c25bcc855b21a4fee3ca389433603c89d3c03343546d60c6d63e8c370b595b2dddcef482005b0463d95333c75ab04d
+  checksum: 10c0/cc8cae90570c3ee09edf8dd0e6627c44b3b1e55d0c5de3a19a71c7ae4fde4c1a8b3022a1d7a7de5d0bfdb17d731db228e9d12fe1575b13003b51005985d621e1
   languageName: node
   linkType: hard
 
-"@theia/plugin-ext@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/plugin-ext@npm:1.70.2"
+"@theia/plugin-ext@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/plugin-ext@npm:1.71.0"
   dependencies:
-    "@theia/ai-mcp": "npm:1.70.2"
-    "@theia/bulk-edit": "npm:1.70.2"
-    "@theia/callhierarchy": "npm:1.70.2"
-    "@theia/console": "npm:1.70.2"
-    "@theia/core": "npm:1.70.2"
-    "@theia/debug": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/editor-preview": "npm:1.70.2"
-    "@theia/file-search": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/markers": "npm:1.70.2"
-    "@theia/messages": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/ai-mcp": "npm:1.71.0"
+    "@theia/bulk-edit": "npm:1.71.0"
+    "@theia/callhierarchy": "npm:1.71.0"
+    "@theia/console": "npm:1.71.0"
+    "@theia/core": "npm:1.71.0"
+    "@theia/debug": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/editor-preview": "npm:1.71.0"
+    "@theia/file-search": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/markers": "npm:1.71.0"
+    "@theia/messages": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/navigator": "npm:1.70.2"
-    "@theia/notebook": "npm:1.70.2"
-    "@theia/output": "npm:1.70.2"
-    "@theia/plugin": "npm:1.70.2"
-    "@theia/preferences": "npm:1.70.2"
-    "@theia/scm": "npm:1.70.2"
-    "@theia/search-in-workspace": "npm:1.70.2"
-    "@theia/task": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
-    "@theia/test": "npm:1.70.2"
-    "@theia/timeline": "npm:1.70.2"
-    "@theia/typehierarchy": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    "@types/mime": "npm:^2.0.1"
-    "@vscode/debugprotocol": "npm:^1.51.0"
+    "@theia/navigator": "npm:1.71.0"
+    "@theia/notebook": "npm:1.71.0"
+    "@theia/output": "npm:1.71.0"
+    "@theia/plugin": "npm:1.71.0"
+    "@theia/preferences": "npm:1.71.0"
+    "@theia/scm": "npm:1.71.0"
+    "@theia/search-in-workspace": "npm:1.71.0"
+    "@theia/task": "npm:1.71.0"
+    "@theia/terminal": "npm:1.71.0"
+    "@theia/test": "npm:1.71.0"
+    "@theia/timeline": "npm:1.71.0"
+    "@theia/typehierarchy": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    "@types/mime": "npm:^2.0.3"
+    "@vscode/debugprotocol": "npm:^1.68.0"
     "@vscode/proxy-agent": "npm:^0.13.2"
-    async-mutex: "npm:^0.4.0"
+    async-mutex: "npm:^0.4.1"
     decompress: "npm:^4.2.1"
     escape-html: "npm:^1.0.3"
-    filenamify: "npm:^4.1.0"
+    filenamify: "npm:^4.3.0"
     is-electron: "npm:^2.2.0"
-    jsonc-parser: "npm:^2.2.0"
+    jsonc-parser: "npm:^2.3.1"
     lodash.clonedeep: "npm:^4.5.0"
-    macaddress: "npm:^0.5.3"
-    mime: "npm:^2.4.4"
+    macaddress: "npm:^0.5.4"
+    mime: "npm:^2.6.0"
     node-pty: "npm:1.2.0-beta.12"
-    semver: "npm:^7.5.4"
+    semver: "npm:^7.7.4"
     tslib: "npm:^2.6.2"
     vhost: "npm:^3.0.2"
-    vscode-textmate: "npm:^9.2.0"
-  checksum: 10c0/5634f86dd2c28fdeeef2ca16b48954f1560c62bd8d38aa3575e4a81876c654bc8475c800b6f803548562ea05702c5a5b8e26cdc59fa640c0cfdf0c940ce35880
+    vscode-textmate: "npm:^9.3.2"
+  checksum: 10c0/5d4af72a66843b1cc24de670c4e01c8a56924eb13870a11c6c735e7bfcfcc9cc88016826be059714701bce84682d5dc486b4507b7e6ed1f395fd504321fb21a2
   languageName: node
   linkType: hard
 
-"@theia/plugin@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/plugin@npm:1.70.2"
-  checksum: 10c0/cf930f4e02427d86b938dc04a41cd23ad92ee4bb7091dfbda689ba036a8af4c2f631ad051cf9265db711a6e0b9853d1c0b56b2936f54a773dd83e4a34eadc2f1
+"@theia/plugin@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/plugin@npm:1.71.0"
+  checksum: 10c0/4589044adb19e4296bd6330feb8f2020aa49c5674388a8273919b4f72ec889e53f3af5e7df8400d8681d5e49868bad920ae61fdbcaa7c0f105b3e9095d7db356
   languageName: node
   linkType: hard
 
-"@theia/preferences@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/preferences@npm:1.70.2"
+"@theia/preferences@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/preferences@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/userstorage": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    async-mutex: "npm:^0.3.1"
+    "@theia/userstorage": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    async-mutex: "npm:^0.3.2"
     fast-deep-equal: "npm:^3.1.3"
-    jsonc-parser: "npm:^2.2.0"
+    jsonc-parser: "npm:^2.3.1"
     p-debounce: "npm:^2.1.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/eb60ecc208fae1abdaff9f9e0a88ddf950474601f7dc0edd1085475115b427a4e1ea8cdceb43addb6f533bd1e144165920d001cae5a7bf68a0e0625ce7ef5abc
+  checksum: 10c0/cbd586d131face89dc0ac70d458740fde6441fda24a9afd7e208585585e4dafc9027a17bf6de3f45420a1533f01e7bdf39a2e08ba75c7c48e084b8297702b027
   languageName: node
   linkType: hard
 
-"@theia/process@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/process@npm:1.70.2"
+"@theia/process@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/process@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
     node-pty: "npm:1.2.0-beta.12"
-    string-argv: "npm:^0.1.1"
+    string-argv: "npm:^0.1.2"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/15d05a89a745694ed861f89c22249911f4f6b5acb1c044266b4d795c7aec70a29b7610722a43ec3f23cb421e8586e091f31ce0329b54d524bd3eb7ba4432ef68
+  checksum: 10c0/3fecab87294ba8dc977e60285ae8564a9dcc4e3193482db63868d3645d084f7a2300f395a0974f6bbe8d350ce82ec44e6362e9c442d863f3a3a110546f2ab6eb
   languageName: node
   linkType: hard
 
-"@theia/request@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/request@npm:1.70.2"
+"@theia/request@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/request@npm:1.71.0"
   dependencies:
-    http-proxy-agent: "npm:^5.0.0"
-    https-proxy-agent: "npm:^5.0.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/7461d937e4c1bb36bc8a646bd3276d77a1c2a4f1b4af685e4f0b0940e10a8486eafe6a739dbccd8575705bcf6b668967599f45ce69058820b363710af49732ab
+    undici: "npm:^7.16.0"
+  checksum: 10c0/9bae28f0cdba5b16d82a480ecdf115a0461f3cd853e8307e232357b5c604ad065f3b3edbd5d925ad6a9e67e30666f84fd13338c222d63f14e02b5130080781e3
   languageName: node
   linkType: hard
 
-"@theia/scm@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/scm@npm:1.70.2"
+"@theia/scm@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/scm@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@types/diff": "npm:^5.2.1"
-    diff: "npm:^5.2.0"
+    "@types/diff": "npm:^5.2.3"
+    diff: "npm:^5.2.2"
     p-debounce: "npm:^2.1.0"
-    react-textarea-autosize: "npm:^8.5.5"
-    ts-md5: "npm:^1.2.2"
+    react-textarea-autosize: "npm:^8.5.9"
+    ts-md5: "npm:^1.3.1"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/51bf98596ce5adb6d285fbebfc553b23a087966785c77f2f9074b54bd45975c4ed26403b6ad8839a05cf25a8e838a2183bacc6d828ea47700ff0a1adeaf3d7c8
+  checksum: 10c0/9ed97526a72fd45505d160b163cbff5a81fe6134c5d8ce2138c0adaa9083152feb66c99f62dc82dbfb62d5909852fb786daa268fa6e1e4d199562b2cee9c896a
   languageName: node
   linkType: hard
 
-"@theia/search-in-workspace@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/search-in-workspace@npm:1.70.2"
+"@theia/search-in-workspace@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/search-in-workspace@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/navigator": "npm:1.70.2"
-    "@theia/process": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    "@vscode/ripgrep": "npm:^1.14.2"
-    minimatch: "npm:^10.0.3"
-    react-textarea-autosize: "npm:^8.5.5"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/navigator": "npm:1.71.0"
+    "@theia/process": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    "@vscode/ripgrep": "npm:^1.17.1"
+    minimatch: "npm:^10.2.5"
+    react-textarea-autosize: "npm:^8.5.9"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/077b17a742b3b4501473b32ffedeebeac199730d8424c04ef834474a5c17c61907ed11f1cefd676968e18eaf2fcaeadd38ed80e3a6da144e8bbeaea82b6779dd
+  checksum: 10c0/476b57c746074da1d06c710219c369064f5a3ca9c9bfd1050b1a495a414163f18f00a372ad8f9c91f4f74d5e749053c2e54f869ce5f9c2edd000dfa06efd8832
   languageName: node
   linkType: hard
 
-"@theia/task@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/task@npm:1.70.2"
+"@theia/task@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/task@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/markers": "npm:1.70.2"
-    "@theia/monaco": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/markers": "npm:1.71.0"
+    "@theia/monaco": "npm:1.71.0"
     "@theia/monaco-editor-core": "npm:1.108.201"
-    "@theia/process": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
-    "@theia/terminal-manager": "npm:1.70.2"
-    "@theia/userstorage": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
-    async-mutex: "npm:^0.3.1"
-    jsonc-parser: "npm:^2.2.0"
+    "@theia/process": "npm:1.71.0"
+    "@theia/terminal": "npm:1.71.0"
+    "@theia/terminal-manager": "npm:1.71.0"
+    "@theia/userstorage": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
+    async-mutex: "npm:^0.3.2"
+    jsonc-parser: "npm:^2.3.1"
     p-debounce: "npm:^2.1.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/5a04bfd6445e47cd3e0a764e12fd736ff7fc07ec76681cbfbee2e72ed717b3033ac10cb62f5ea93249eba17a40569dcedb5a2071afd695daa0ca04b8f7f595c1
+  checksum: 10c0/c0583e1913b5bbfd8d8663619b494192947a162c3e6c917a01a8af6f829ed832420ddf16d58d963a3c3a2ee74953b3ea622f3bd17f2c49f20a8ec63476b04e9f
   languageName: node
   linkType: hard
 
-"@theia/terminal-manager@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/terminal-manager@npm:1.70.2"
+"@theia/terminal-manager@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/terminal-manager@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/preferences": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
-  checksum: 10c0/06df6839b5a3716892f9639c317e91f9f7d887a7d56d882d5ef977a40f0c9ab90c4de521d7c66aa3b321979c4742fb060aaa424676264ada3bb7c2b46c6f235b
+    "@theia/core": "npm:1.71.0"
+    "@theia/preferences": "npm:1.71.0"
+    "@theia/terminal": "npm:1.71.0"
+  checksum: 10c0/aea78dd86c85d40f01efe92efb7ac4b99e94c04541eeb550dd86891d0ad826bfb4def365082b38bf36394e648c49da3e9f561110d72cebe3c8bface528f8334d
   languageName: node
   linkType: hard
 
-"@theia/terminal@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/terminal@npm:1.70.2"
+"@theia/terminal@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/terminal@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/file-search": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/process": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    "@theia/workspace": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/file-search": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/process": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
+    "@theia/workspace": "npm:1.71.0"
     tslib: "npm:^2.6.2"
     xterm: "npm:^5.3.0"
     xterm-addon-fit: "npm:^0.8.0"
     xterm-addon-search: "npm:^0.13.0"
     xterm-addon-webgl: "npm:^0.16.0"
-  checksum: 10c0/bacae1781a6a154b93805816a5b92b02f0c1bb2036e7fc58265935bb78a3f1b8bbdcb5294e1ef3688553066222d734285b8941cf5e86c5132358e5d4f7e63466
+  checksum: 10c0/955c1f85762643e9dbf27045e942b98a24bfada82af4479d8f742e43a6d603df2ed65366ef93538af619d6331544497adb6b4f63208c345408c385061e6e6257
   languageName: node
   linkType: hard
 
-"@theia/test@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/test@npm:1.70.2"
+"@theia/test@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/test@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/navigator": "npm:1.70.2"
-    "@theia/terminal": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/navigator": "npm:1.71.0"
+    "@theia/terminal": "npm:1.71.0"
     xterm: "npm:^5.3.0"
     xterm-addon-fit: "npm:^0.8.0"
-  checksum: 10c0/3ed69c92345cb996d1455ec07d63cc47d8fd169b1eba59e8c1ac4fe991d65ba000da5e57fdfcbbd98780225610fc3eab732d24a0b458ecbbc15408923b2382c6
+  checksum: 10c0/c40613d96384d1d15e9b51fc3e210c05ef4686c50f7215302f27c944c6c4b3199927d6119bd6d433e1d973b75dea95a4ba8fd313c82c69dab4327e40b7d89503
   languageName: node
   linkType: hard
 
-"@theia/timeline@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/timeline@npm:1.70.2"
+"@theia/timeline@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/timeline@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/navigator": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/navigator": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/2947b4b8afde978cea701be99c3a16ce01861ab58e401b870ad3dd6bf54d2c5ea6d5faaed787e1b6088ddcc1a1dc9339610fa15254713a3096e1d85e179ba82b
+  checksum: 10c0/bfb3a559f773c06e8e48a5a4b1568cb333810cf87278c78c13c4955e15b60c751224edbc7e11eefcc73bfcaeb8f1ab9cf12f8f23aa3e87c684b16d789ae514bb
   languageName: node
   linkType: hard
 
-"@theia/typehierarchy@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/typehierarchy@npm:1.70.2"
+"@theia/typehierarchy@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/typehierarchy@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/editor": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/editor": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/dbb690cf11d28fad3f546adc559907b39198311aaf34c1f1b62bd6ac4c45c5d14e376f7392fe31342c5e796b4475ff00c8a266404b90580c7d1aa02ab0d720fd
+  checksum: 10c0/61afbc0b538c73cbba3728c6e0e4470882ad121e5e3b10ae1ef97750c3f66f3cfae06cd47e6e805dafcad6b16b2495385f650cceffa5e90836cdac33b23ca028
   languageName: node
   linkType: hard
 
-"@theia/userstorage@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/userstorage@npm:1.70.2"
+"@theia/userstorage@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/userstorage@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/6ea1b7edb7ff8367fe1bf42a847779388c0bceafbecce7f833dfb759a9e5d936681666b2544451760692ec103d43a4d489eb195c4c98663ccff975bb0fb324e9
+  checksum: 10c0/74c7fd1ba15da6fe8e5e282413145008f40a38e1a9de1af413a4230c2ba590a18b3107f665046d04111f8954c147a53a7d3c822f57945c55b67810aa07c0fb80
   languageName: node
   linkType: hard
 
-"@theia/variable-resolver@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/variable-resolver@npm:1.70.2"
+"@theia/variable-resolver@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/variable-resolver@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
+    "@theia/core": "npm:1.71.0"
     tslib: "npm:^2.6.2"
-  checksum: 10c0/23e810efde649cff02abd64084603b5a3ca2a3776fdcc35417bbfc461a582cf3819de5e9e2effd1ab59494cc9815a9cc4057982f51138fba9d445d8c7a59dcbf
+  checksum: 10c0/318ffa86a859019f8a380cf11d4094c19f799de27d00826a405a219f9e1077295aaf61e604d9ed2408abf2cbde7e11167ee12965710f1af58bbf2eb9b2b646c0
   languageName: node
   linkType: hard
 
-"@theia/workspace@npm:1.70.2":
-  version: 1.70.2
-  resolution: "@theia/workspace@npm:1.70.2"
+"@theia/workspace@npm:1.71.0":
+  version: 1.71.0
+  resolution: "@theia/workspace@npm:1.71.0"
   dependencies:
-    "@theia/core": "npm:1.70.2"
-    "@theia/filesystem": "npm:1.70.2"
-    "@theia/variable-resolver": "npm:1.70.2"
-    jsonc-parser: "npm:^2.2.0"
+    "@theia/core": "npm:1.71.0"
+    "@theia/filesystem": "npm:1.71.0"
+    "@theia/variable-resolver": "npm:1.71.0"
+    jsonc-parser: "npm:^2.3.1"
     tslib: "npm:^2.6.2"
     valid-filename: "npm:^2.0.1"
-  checksum: 10c0/3792085fc141dbdbd4d917b5e11dedacf0018a9bb868d3795cef317f8b351fe90f8330419b5f41447d291d59b2c40f7fd4e5dd4787a47e3132eeaf8bd7eaa749
+  checksum: 10c0/3c8c5a39f00b5ca625ff93b831232f9c8c7c8fb32bacb2a5910b8f34a4e26921dad899c75407c40ae6c338920f2f5782eaa70b814451c85c86f6f80c0d7ef9fd
   languageName: node
   linkType: hard
 
@@ -5421,7 +5447,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/bent@npm:^7.0.1":
+"@types/bent@npm:^7.3.8":
   version: 7.3.8
   resolution: "@types/bent@npm:7.3.8"
   dependencies:
@@ -5430,7 +5456,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/body-parser@npm:*, @types/body-parser@npm:^1.16.4, @types/body-parser@npm:^1.17.0":
+"@types/body-parser@npm:*, @types/body-parser@npm:^1.19.6":
   version: 1.19.6
   resolution: "@types/body-parser@npm:1.19.6"
   dependencies:
@@ -5456,6 +5482,16 @@ __metadata:
   version: 4.3.20
   resolution: "@types/chai@npm:4.3.20"
   checksum: 10c0/4601189d611752e65018f1ecadac82e94eed29f348e1d5430e5681a60b01e1ecf855d9bcc74ae43b07394751f184f6970fac2b5561fc57a1f36e93a0f5ffb6e8
+  languageName: node
+  linkType: hard
+
+"@types/chai@npm:^5.2.2":
+  version: 5.2.3
+  resolution: "@types/chai@npm:5.2.3"
+  dependencies:
+    "@types/deep-eql": "npm:*"
+    assertion-error: "npm:^2.0.1"
+  checksum: 10c0/e0ef1de3b6f8045a5e473e867c8565788c444271409d155588504840ad1a53611011f85072188c2833941189400228c1745d78323dac13fcede9c2b28bacfb2f
   languageName: node
   linkType: hard
 
@@ -5758,7 +5794,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/diff@npm:^5.2.1":
+"@types/deep-eql@npm:*":
+  version: 4.0.2
+  resolution: "@types/deep-eql@npm:4.0.2"
+  checksum: 10c0/bf3f811843117900d7084b9d0c852da9a044d12eb40e6de73b552598a6843c21291a8a381b0532644574beecd5e3491c5ff3a0365ab86b15d59862c025384844
+  languageName: node
+  linkType: hard
+
+"@types/diff@npm:^5.2.3":
   version: 5.2.3
   resolution: "@types/diff@npm:5.2.3"
   checksum: 10c0/dd2e99e272a7023f3e5c71099599553c7d6c9a6b9d67f202b593b8d59b0528361eba39a8674ab18eba76217b6bad8f1a09417a9a571daaf7c0f49d67d4f305e2
@@ -5862,7 +5905,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/fs-extra@npm:^4.0.2":
+"@types/fs-extra@npm:^4.0.15, @types/fs-extra@npm:^4.0.2":
   version: 4.0.15
   resolution: "@types/fs-extra@npm:4.0.15"
   dependencies:
@@ -5975,7 +6018,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/lodash.throttle@npm:^4.1.3":
+"@types/lodash.throttle@npm:^4.1.9":
   version: 4.1.9
   resolution: "@types/lodash.throttle@npm:4.1.9"
   dependencies:
@@ -6000,7 +6043,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/markdown-it@npm:^14, @types/markdown-it@npm:^14.1.0, @types/markdown-it@npm:^14.1.2":
+"@types/markdown-it@npm:^14, @types/markdown-it@npm:^14.1.2":
   version: 14.1.2
   resolution: "@types/markdown-it@npm:14.1.2"
   dependencies:
@@ -6033,7 +6076,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/mime@npm:^2.0.1":
+"@types/mime@npm:^2.0.3":
   version: 2.0.3
   resolution: "@types/mime@npm:2.0.3"
   checksum: 10c0/ca10b1ae5d2fa34d95ffe412f0bd5983896a9a7ccd34cce5cb3318aa64be1793b0de64733cf0355cb136ff3d064101b6219988bf3a86fc244278b20fcd1fd9d4
@@ -6054,7 +6097,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/multer@npm:^1.4.7":
+"@types/multer@npm:^1.4.13":
   version: 1.4.13
   resolution: "@types/multer@npm:1.4.13"
   dependencies:
@@ -6091,12 +6134,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^22.7.7":
-  version: 22.19.17
-  resolution: "@types/node@npm:22.19.17"
+"@types/node@npm:^24.9.0":
+  version: 24.12.2
+  resolution: "@types/node@npm:24.12.2"
   dependencies:
-    undici-types: "npm:~6.21.0"
-  checksum: 10c0/b66c484c0a9f6d88b1ef360b0f487717234ee1a482cb2551ff73d9f3c43a42a777daf4c8a5eee970960728f8fe1f3877d3d8c6ffabcbca74cb401a59db700fa4
+    undici-types: "npm:~7.16.0"
+  checksum: 10c0/710050c42f89075c4479e4e1e4c2532486b0c41b1e2a8a13ad88641c88b88cdaea87414e19224f30028719737bd70e327edcaa184d50e86b9418941edd7eb02b
   languageName: node
   linkType: hard
 
@@ -6138,7 +6181,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react-dom@npm:^18.0.6":
+"@types/react-dom@npm:^18.3.7":
   version: 18.3.7
   resolution: "@types/react-dom@npm:18.3.7"
   peerDependencies:
@@ -6147,7 +6190,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:^18.0.15":
+"@types/react@npm:^18.3.28":
   version: 18.3.28
   resolution: "@types/react@npm:18.3.28"
   dependencies:
@@ -6166,14 +6209,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/route-parser@npm:^0.1.1":
+"@types/route-parser@npm:^0.1.7":
   version: 0.1.7
   resolution: "@types/route-parser@npm:0.1.7"
   checksum: 10c0/bdedb2a8be9bc8e9ec6a327a74cd92f871a5774a7e778053e6b8a70cac74d7e97c5660320b81280c85503d8468aa59dc934f3cd5aa3b0fea3a02128ec0219734
   languageName: node
   linkType: hard
 
-"@types/safer-buffer@npm:^2.1.0":
+"@types/safer-buffer@npm:^2.1.3":
   version: 2.1.3
   resolution: "@types/safer-buffer@npm:2.1.3"
   dependencies:
@@ -6182,7 +6225,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/semver@npm:^7.5.0":
+"@types/semver@npm:^7.7.1":
   version: 7.7.1
   resolution: "@types/semver@npm:7.7.1"
   checksum: 10c0/c938aef3bf79a73f0f3f6037c16e2e759ff40c54122ddf0b2583703393d8d3127130823facb880e694caa324eb6845628186aac1997ee8b31dc2d18fafe26268
@@ -6236,7 +6279,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/tar-fs@npm:^1.16.1":
+"@types/tar-fs@npm:^1.16.3":
   version: 1.16.3
   resolution: "@types/tar-fs@npm:1.16.3"
   dependencies:
@@ -6320,7 +6363,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/ws@npm:^8.5.12, @types/ws@npm:^8.5.5":
+"@types/ws@npm:^8.18.1, @types/ws@npm:^8.5.12":
   version: 8.18.1
   resolution: "@types/ws@npm:8.18.1"
   dependencies:
@@ -6690,84 +6733,85 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitest/expect@npm:2.1.9":
-  version: 2.1.9
-  resolution: "@vitest/expect@npm:2.1.9"
+"@vitest/expect@npm:4.1.5":
+  version: 4.1.5
+  resolution: "@vitest/expect@npm:4.1.5"
   dependencies:
-    "@vitest/spy": "npm:2.1.9"
-    "@vitest/utils": "npm:2.1.9"
-    chai: "npm:^5.1.2"
-    tinyrainbow: "npm:^1.2.0"
-  checksum: 10c0/98d1cf02917316bebef9e4720723e38298a1c12b3c8f3a81f259bb822de4288edf594e69ff64f0b88afbda6d04d7a4f0c2f720f3fec16b4c45f5e2669f09fdbb
+    "@standard-schema/spec": "npm:^1.1.0"
+    "@types/chai": "npm:^5.2.2"
+    "@vitest/spy": "npm:4.1.5"
+    "@vitest/utils": "npm:4.1.5"
+    chai: "npm:^6.2.2"
+    tinyrainbow: "npm:^3.1.0"
+  checksum: 10c0/5184682304db471aa20024c1154210ad3d6d590afb61646201ce1a15297259f9a35f92f8fad4435bc8a82135e307ddd27c8495f72417d72d9aa139eb281d9e06
   languageName: node
   linkType: hard
 
-"@vitest/mocker@npm:2.1.9":
-  version: 2.1.9
-  resolution: "@vitest/mocker@npm:2.1.9"
+"@vitest/mocker@npm:4.1.5":
+  version: 4.1.5
+  resolution: "@vitest/mocker@npm:4.1.5"
   dependencies:
-    "@vitest/spy": "npm:2.1.9"
+    "@vitest/spy": "npm:4.1.5"
     estree-walker: "npm:^3.0.3"
-    magic-string: "npm:^0.30.12"
+    magic-string: "npm:^0.30.21"
   peerDependencies:
     msw: ^2.4.9
-    vite: ^5.0.0
+    vite: ^6.0.0 || ^7.0.0 || ^8.0.0
   peerDependenciesMeta:
     msw:
       optional: true
     vite:
       optional: true
-  checksum: 10c0/f734490d8d1206a7f44dfdfca459282f5921d73efa72935bb1dc45307578defd38a4131b14853316373ec364cbe910dbc74594ed4137e0da35aa4d9bb716f190
+  checksum: 10c0/bcfe97700476130933c7ea33fa670c8d2768a81de5325ce407f901e55c2f66cabbb88a7b6cffb46ddf33dff7d8fc209d769fb298f568e310fbeead9b36f6fdb9
   languageName: node
   linkType: hard
 
-"@vitest/pretty-format@npm:2.1.9, @vitest/pretty-format@npm:^2.1.9":
-  version: 2.1.9
-  resolution: "@vitest/pretty-format@npm:2.1.9"
+"@vitest/pretty-format@npm:4.1.5":
+  version: 4.1.5
+  resolution: "@vitest/pretty-format@npm:4.1.5"
   dependencies:
-    tinyrainbow: "npm:^1.2.0"
-  checksum: 10c0/155f9ede5090eabed2a73361094bb35ed4ec6769ae3546d2a2af139166569aec41bb80e031c25ff2da22b71dd4ed51e5468e66a05e6aeda5f14b32e30bc18f00
+    tinyrainbow: "npm:^3.1.0"
+  checksum: 10c0/42b5e9b75e87c0a884d36bee364e2d07ee45e96f413377737a74993e077d90c3a12aa36743855aee5e4e28b78fae20e3e6de5eef8d5344b9aba2bc1e1d5537a1
   languageName: node
   linkType: hard
 
-"@vitest/runner@npm:2.1.9":
-  version: 2.1.9
-  resolution: "@vitest/runner@npm:2.1.9"
+"@vitest/runner@npm:4.1.5":
+  version: 4.1.5
+  resolution: "@vitest/runner@npm:4.1.5"
   dependencies:
-    "@vitest/utils": "npm:2.1.9"
-    pathe: "npm:^1.1.2"
-  checksum: 10c0/e81f176badb12a815cbbd9bd97e19f7437a0b64e8934d680024b0f768d8670d59cad698ef0e3dada5241b6731d77a7bb3cd2c7cb29f751fd4dd35eb11c42963a
+    "@vitest/utils": "npm:4.1.5"
+    pathe: "npm:^2.0.3"
+  checksum: 10c0/6a03b313a121155f6dd9e32eeb103c0e12440f586bc4ba1f0d77444e44c6df4652a44443718552037463115635b8378e11f35902d90ce1326f77743219fca056
   languageName: node
   linkType: hard
 
-"@vitest/snapshot@npm:2.1.9":
-  version: 2.1.9
-  resolution: "@vitest/snapshot@npm:2.1.9"
+"@vitest/snapshot@npm:4.1.5":
+  version: 4.1.5
+  resolution: "@vitest/snapshot@npm:4.1.5"
   dependencies:
-    "@vitest/pretty-format": "npm:2.1.9"
-    magic-string: "npm:^0.30.12"
-    pathe: "npm:^1.1.2"
-  checksum: 10c0/394974b3a1fe96186a3c87f933b2f7f1f7b7cc42f9c781d80271dbb4c987809bf035fecd7398b8a3a2d54169e3ecb49655e38a0131d0e7fea5ce88960613b526
+    "@vitest/pretty-format": "npm:4.1.5"
+    "@vitest/utils": "npm:4.1.5"
+    magic-string: "npm:^0.30.21"
+    pathe: "npm:^2.0.3"
+  checksum: 10c0/e11bf50d06702331290750a40eaef86078c108df3cd9a52bb1be7b84250048790163f36827525be6a383a4bb1994fc35e6d0c24239a41688b0bb68a1d15d172f
   languageName: node
   linkType: hard
 
-"@vitest/spy@npm:2.1.9":
-  version: 2.1.9
-  resolution: "@vitest/spy@npm:2.1.9"
-  dependencies:
-    tinyspy: "npm:^3.0.2"
-  checksum: 10c0/12a59b5095e20188b819a1d797e0a513d991b4e6a57db679927c43b362a3eff52d823b34e855a6dd9e73c9fa138dcc5ef52210841a93db5cbf047957a60ca83c
+"@vitest/spy@npm:4.1.5":
+  version: 4.1.5
+  resolution: "@vitest/spy@npm:4.1.5"
+  checksum: 10c0/fda6b1ee0a2fec1a152d8041aba7a79744c3876863b244d1ed406d02b36e8ccc997edb2e3963d1027d728d3dc5a33813e11bef53a0a14fc7de4de5e721d0f591
   languageName: node
   linkType: hard
 
-"@vitest/utils@npm:2.1.9":
-  version: 2.1.9
-  resolution: "@vitest/utils@npm:2.1.9"
+"@vitest/utils@npm:4.1.5":
+  version: 4.1.5
+  resolution: "@vitest/utils@npm:4.1.5"
   dependencies:
-    "@vitest/pretty-format": "npm:2.1.9"
-    loupe: "npm:^3.1.2"
-    tinyrainbow: "npm:^1.2.0"
-  checksum: 10c0/81a346cd72b47941f55411f5df4cc230e5f740d1e97e0d3f771b27f007266fc1f28d0438582f6409ea571bc0030ed37f684c64c58d1947d6298d770c21026fdf
+    "@vitest/pretty-format": "npm:4.1.5"
+    convert-source-map: "npm:^2.0.0"
+    tinyrainbow: "npm:^3.1.0"
+  checksum: 10c0/72409717e68018e5fe42fa173cc4eff6def8c35bd52013f86ddb414cd28d73fcc425ac62968e01a52371b3fd5a7a775536283d2f1d64432753f628712a6a4908
   languageName: node
   linkType: hard
 
@@ -6778,7 +6822,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vscode/debugprotocol@npm:^1.51.0":
+"@vscode/debugprotocol@npm:^1.68.0":
   version: 1.68.0
   resolution: "@vscode/debugprotocol@npm:1.68.0"
   checksum: 10c0/e4b21bad518f7db66f7bd5c07b8303af36dbee920c9250d0f5d3910fb181ee1f7e83c536004b3258041d54d18c86fc361de3c2225958a458dbf5ece99c317870
@@ -6803,7 +6847,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vscode/ripgrep@npm:^1.14.2":
+"@vscode/ripgrep@npm:^1.17.1":
   version: 1.17.1
   resolution: "@vscode/ripgrep@npm:1.17.1"
   dependencies:
@@ -7341,7 +7385,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"advanced-mark.js@npm:^2.6.0":
+"advanced-mark.js@npm:^2.7.0":
   version: 2.7.1
   resolution: "advanced-mark.js@npm:2.7.1"
   checksum: 10c0/835e5a2a0d529b7921a42b19082df2e9d136c9a6cb23daa526c0d526b9a17bf32512dea7c46d74c4c00baa635cd4e2b999c398664573ad69b057e0faef63dcad
@@ -7431,7 +7475,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^6.10.0, ajv@npm:^6.12.0, ajv@npm:^6.12.4, ajv@npm:^6.12.5, ajv@npm:^6.14.0, ajv@npm:^6.5.3":
+"ajv@npm:^6.10.0, ajv@npm:^6.12.0, ajv@npm:^6.12.4, ajv@npm:^6.12.5, ajv@npm:^6.14.0":
   version: 6.14.0
   resolution: "ajv@npm:6.14.0"
   dependencies:
@@ -7489,7 +7533,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"anser@npm:^2.0.1":
+"anser@npm:^2.3.5":
   version: 2.3.5
   resolution: "anser@npm:2.3.5"
   checksum: 10c0/c8ab6eb8241f675a9a8c0e2f5ade9f8ead55ddb6e4f3587214ceac662012d89ab1a6e5d7daa0010941a5d8d9bda2c7ea958cd6fe6e52db0fb612f7fcd6c4ce3f
@@ -7787,7 +7831,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"async-mutex@npm:^0.3.1":
+"async-mutex@npm:^0.3.2":
   version: 0.3.2
   resolution: "async-mutex@npm:0.3.2"
   dependencies:
@@ -7796,7 +7840,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"async-mutex@npm:^0.4.0":
+"async-mutex@npm:^0.4.1":
   version: 0.4.1
   resolution: "async-mutex@npm:0.4.1"
   dependencies:
@@ -7882,7 +7926,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"babel-loader@npm:^8.2.2":
+"babel-loader@npm:^8.4.1":
   version: 8.4.1
   resolution: "babel-loader@npm:8.4.1"
   dependencies:
@@ -8133,7 +8177,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bent@npm:^7.1.0":
+"bent@npm:^7.3.12":
   version: 7.3.12
   resolution: "bent@npm:7.3.12"
   dependencies:
@@ -8219,9 +8263,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"body-parser@npm:^1.17.2, body-parser@npm:^1.18.3, body-parser@npm:~1.20.3":
-  version: 1.20.4
-  resolution: "body-parser@npm:1.20.4"
+"body-parser@npm:^1.20.4":
+  version: 1.20.5
+  resolution: "body-parser@npm:1.20.5"
   dependencies:
     bytes: "npm:~3.1.2"
     content-type: "npm:~1.0.5"
@@ -8231,11 +8275,11 @@ __metadata:
     http-errors: "npm:~2.0.1"
     iconv-lite: "npm:~0.4.24"
     on-finished: "npm:~2.4.1"
-    qs: "npm:~6.14.0"
+    qs: "npm:~6.15.1"
     raw-body: "npm:~2.5.3"
     type-is: "npm:~1.6.18"
     unpipe: "npm:~1.0.0"
-  checksum: 10c0/569c1e896297d1fcd8f34026c8d0ab70b90d45343c15c5d8dff5de2bad08125fc1e2f8c2f3f4c1ac6c0caaad115218202594d37dcb8d89d9b5dcae1c2b736aa9
+  checksum: 10c0/ad777ca5e4711eae253c93f50fdc4608c60b76a9710d79e5e5b84581c76691e6ad21ecc9158986d9ea2b365df73e403ca33c27a8bccc1a7cfc2ccc248548118d
   languageName: node
   linkType: hard
 
@@ -8253,6 +8297,26 @@ __metadata:
     raw-body: "npm:^3.0.1"
     type-is: "npm:^2.0.1"
   checksum: 10c0/95a830a003b38654b75166ca765358aa92ee3d561bf0e41d6ccdde0e1a0c9783cab6b90b20eb635d23172c010b59d3563a137a738e74da4ba714463510d05137
+  languageName: node
+  linkType: hard
+
+"body-parser@npm:~1.20.3":
+  version: 1.20.4
+  resolution: "body-parser@npm:1.20.4"
+  dependencies:
+    bytes: "npm:~3.1.2"
+    content-type: "npm:~1.0.5"
+    debug: "npm:2.6.9"
+    depd: "npm:2.0.0"
+    destroy: "npm:~1.2.0"
+    http-errors: "npm:~2.0.1"
+    iconv-lite: "npm:~0.4.24"
+    on-finished: "npm:~2.4.1"
+    qs: "npm:~6.14.0"
+    raw-body: "npm:~2.5.3"
+    type-is: "npm:~1.6.18"
+    unpipe: "npm:~1.0.0"
+  checksum: 10c0/569c1e896297d1fcd8f34026c8d0ab70b90d45343c15c5d8dff5de2bad08125fc1e2f8c2f3f4c1ac6c0caaad115218202594d37dcb8d89d9b5dcae1c2b736aa9
   languageName: node
   linkType: hard
 
@@ -8689,13 +8753,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cac@npm:^6.7.14":
-  version: 6.7.14
-  resolution: "cac@npm:6.7.14"
-  checksum: 10c0/4ee06aaa7bab8981f0d54e5f5f9d4adcd64058e9697563ce336d8a3878ed018ee18ebe5359b2430eceae87e0758e62ea2019c3f52ae6e211b1bd2e133856cd10
-  languageName: node
-  linkType: hard
-
 "cacache@npm:^18.0.0":
   version: 18.0.4
   resolution: "cacache@npm:18.0.4"
@@ -8929,16 +8986,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chai@npm:^5.1.2":
-  version: 5.3.3
-  resolution: "chai@npm:5.3.3"
-  dependencies:
-    assertion-error: "npm:^2.0.1"
-    check-error: "npm:^2.1.1"
-    deep-eql: "npm:^5.0.1"
-    loupe: "npm:^3.1.0"
-    pathval: "npm:^2.0.0"
-  checksum: 10c0/b360fd4d38861622e5010c2f709736988b05c7f31042305fa3f4e9911f6adb80ccfb4e302068bf8ed10e835c2e2520cba0f5edc13d878b886987e5aa62483f53
+"chai@npm:^6.2.2":
+  version: 6.2.2
+  resolution: "chai@npm:6.2.2"
+  checksum: 10c0/e6c69e5f0c11dffe6ea13d0290936ebb68fcc1ad688b8e952e131df6a6d5797d5e860bc55cef1aca2e950c3e1f96daf79e9d5a70fb7dbaab4e46355e2635ed53
   languageName: node
   linkType: hard
 
@@ -9009,13 +9060,6 @@ __metadata:
   dependencies:
     get-func-name: "npm:^2.0.2"
   checksum: 10c0/94aa37a7315c0e8a83d0112b5bfb5a8624f7f0f81057c73e4707729cdd8077166c6aefb3d8e2b92c63ee130d4a2ff94bad46d547e12f3238cc1d78342a973841
-  languageName: node
-  linkType: hard
-
-"check-error@npm:^2.1.1":
-  version: 2.1.3
-  resolution: "check-error@npm:2.1.3"
-  checksum: 10c0/878e99038fb6476316b74668cd6a498c7e66df3efe48158fa40db80a06ba4258742ac3ee2229c4a2a98c5e73f5dff84eb3e50ceb6b65bbd8f831eafc8338607d
   languageName: node
   linkType: hard
 
@@ -9395,7 +9439,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"compression-webpack-plugin@npm:^9.0.0":
+"compression-webpack-plugin@npm:^9.2.0":
   version: 9.2.0
   resolution: "compression-webpack-plugin@npm:9.2.0"
   dependencies:
@@ -9502,7 +9546,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cookie@npm:^1.0.2":
+"cookie@npm:^1.1.1":
   version: 1.1.1
   resolution: "cookie@npm:1.1.1"
   checksum: 10c0/79c4ddc0fcad9c4f045f826f42edf54bcc921a29586a4558b0898277fa89fb47be95bc384c2253f493af7b29500c830da28341274527328f18eba9f58afa112c
@@ -9692,7 +9736,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"css-loader@npm:^6.2.0":
+"css-loader@npm:^6.11.0":
   version: 6.11.0
   resolution: "css-loader@npm:6.11.0"
   dependencies:
@@ -10215,7 +10259,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"debug@npm:^4.3.5, debug@npm:^4.3.6, debug@npm:^4.3.7, debug@npm:^4.4.0, debug@npm:^4.4.3, debug@npm:~4.4.1":
+"debug@npm:^4.3.5, debug@npm:^4.3.6, debug@npm:^4.4.0, debug@npm:^4.4.3, debug@npm:~4.4.1":
   version: 4.4.3
   resolution: "debug@npm:4.4.3"
   dependencies:
@@ -10334,13 +10378,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deep-eql@npm:^5.0.1":
-  version: 5.0.2
-  resolution: "deep-eql@npm:5.0.2"
-  checksum: 10c0/7102cf3b7bb719c6b9c0db2e19bf0aa9318d141581befe8c7ce8ccd39af9eaa4346e5e05adef7f9bd7015da0f13a3a25dcfe306ef79dc8668aedbecb658dd247
-  languageName: node
-  linkType: hard
-
 "deep-extend@npm:^0.6.0":
   version: 0.6.0
   resolution: "deep-extend@npm:0.6.0"
@@ -10355,7 +10392,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deepmerge@npm:^4.2.2, deepmerge@npm:^4.3.1":
+"deepmerge@npm:^4.3.1":
   version: 4.3.1
   resolution: "deepmerge@npm:4.3.1"
   checksum: 10c0/e53481aaf1aa2c4082b5342be6b6d8ad9dfe387bc92ce197a66dea08bd4265904a087e75e464f14d1347cf2ac8afe1e4c16b266e0561cc5df29382d3c5f80044
@@ -10453,7 +10490,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"detect-libc@npm:^2.0.0, detect-libc@npm:^2.0.1, detect-libc@npm:^2.0.2, detect-libc@npm:^2.0.3":
+"detect-libc@npm:^2.0.0, detect-libc@npm:^2.0.1, detect-libc@npm:^2.0.3, detect-libc@npm:^2.1.2":
   version: 2.1.2
   resolution: "detect-libc@npm:2.1.2"
   checksum: 10c0/acc675c29a5649fa1fb6e255f993b8ee829e510b6b56b0910666949c80c364738833417d0edb5f90e4e46be17228b0f2b66a010513984e18b15deeeac49369c4
@@ -10535,7 +10572,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diagram-js@npm:15.13.0, diagram-js@npm:^15.13.0":
+"diagram-js@npm:15.14.0":
+  version: 15.14.0
+  resolution: "diagram-js@npm:15.14.0"
+  dependencies:
+    "@bpmn-io/diagram-js-ui": "npm:^0.2.3"
+    clsx: "npm:^2.1.1"
+    didi: "npm:^11.0.0"
+    inherits-browser: "npm:^0.1.0"
+    min-dash: "npm:^5.0.0"
+    min-dom: "npm:^5.3.0"
+    object-refs: "npm:^0.4.0"
+    path-intersection: "npm:^4.1.0"
+    tiny-svg: "npm:^4.1.4"
+  checksum: 10c0/233d60a4dff5afb272a3e89741729bc723254583b81f7334820180ffc48192ecae7da41469ce370752cf9838534497df62540a388a3e727e7bc85b2b3e77a3e2
+  languageName: node
+  linkType: hard
+
+"diagram-js@npm:^15.13.0":
   version: 15.13.0
   resolution: "diagram-js@npm:15.13.0"
   dependencies:
@@ -10566,7 +10620,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diff@npm:^5.2.0":
+"diff@npm:^5.2.0, diff@npm:^5.2.2":
   version: 5.2.2
   resolution: "diff@npm:5.2.2"
   checksum: 10c0/52da594c54e9033423da26984b1449ae6accd782d5afc4431c9a192a8507ddc83120fe8f925d7220b9da5b5963c7b6f5e46add3660a00cb36df7a13420a09d4b
@@ -10799,7 +10853,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:^3.2.4, dompurify@npm:^3.3.1":
+"dompurify@npm:^3.3.1":
   version: 3.4.1
   resolution: "dompurify@npm:3.4.1"
   dependencies:
@@ -10808,6 +10862,18 @@ __metadata:
     "@types/trusted-types":
       optional: true
   checksum: 10c0/440a4246020cb54b82ef2cb66381e4d310a0c470f9994655e61b6122811f0eaa00a2f9665d2bed30ca3f58932ba7bb0d5e26fdfce61c8daf35d21a3f5a799e48
+  languageName: node
+  linkType: hard
+
+"dompurify@npm:^3.3.3":
+  version: 3.4.2
+  resolution: "dompurify@npm:3.4.2"
+  dependencies:
+    "@types/trusted-types": "npm:^2.0.7"
+  dependenciesMeta:
+    "@types/trusted-types":
+      optional: true
+  checksum: 10c0/23ab3ab079480a49e1426c4ee7279e393913fa7f2193c4142a5be54d4163dbdd969558675876c6b8bbcbf2ad5d1bc3e00bf902acf142fff12e50274a65ae95b3
   languageName: node
   linkType: hard
 
@@ -10931,7 +10997,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron-store@npm:^8.0.0":
+"electron-store@npm:^8.2.0":
   version: 8.2.0
   resolution: "electron-store@npm:8.2.0"
   dependencies:
@@ -10971,16 +11037,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron@npm:39.8.9":
-  version: 39.8.9
-  resolution: "electron@npm:39.8.9"
+"electron@npm:41.4.0":
+  version: 41.4.0
+  resolution: "electron@npm:41.4.0"
   dependencies:
     "@electron/get": "npm:^2.0.0"
-    "@types/node": "npm:^22.7.7"
+    "@types/node": "npm:^24.9.0"
     extract-zip: "npm:^2.0.1"
   bin:
     electron: cli.js
-  checksum: 10c0/519eae5b139487d51f664549d66d291e8cbaa772e777ab9b2168dec0efbe7c4f5764f878146429123df6af329da627c2004cd492256e264096235f1925a7dfa1
+  checksum: 10c0/d687382cca8cda8e92688be6e4bf368e0746240792b877078b62ae2709b2db7ec5382650c129df470b59b1b974c46efab319b2966f596d013adefb4317562ce8
   languageName: node
   linkType: hard
 
@@ -11233,13 +11299,6 @@ __metadata:
   version: 1.3.0
   resolution: "es-errors@npm:1.3.0"
   checksum: 10c0/0a61325670072f98d8ae3b914edab3559b6caa980f08054a3b872052640d91da01d38df55df797fcc916389d77fc92b8d5906cf028f4db46d7e3003abecbca85
-  languageName: node
-  linkType: hard
-
-"es-module-lexer@npm:^1.5.4":
-  version: 1.7.0
-  resolution: "es-module-lexer@npm:1.7.0"
-  checksum: 10c0/4c935affcbfeba7fb4533e1da10fa8568043df1e3574b869385980de9e2d475ddc36769891936dbb07036edb3c3786a8b78ccf44964cd130dedc1f2c984b6c7b
   languageName: node
   linkType: hard
 
@@ -11777,7 +11836,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expect-type@npm:^1.1.0":
+"expect-type@npm:^1.3.0":
   version: 1.3.0
   resolution: "expect-type@npm:1.3.0"
   checksum: 10c0/8412b3fe4f392c420ab41dae220b09700e4e47c639a29ba7ba2e83cc6cffd2b4926f7ac9e47d7e277e8f4f02acda76fd6931cb81fd2b382fa9477ef9ada953fd
@@ -11830,7 +11889,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"express@npm:^4.21.0":
+"express@npm:^4.22.1":
   version: 4.22.1
   resolution: "express@npm:4.22.1"
   dependencies:
@@ -11977,7 +12036,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-plist@npm:^0.1.2":
+"fast-plist@npm:^0.1.3":
   version: 0.1.3
   resolution: "fast-plist@npm:0.1.3"
   checksum: 10c0/440421e09ef94497a94fa3babdd49d17ad968728823e62b7e055e79a38b38e3b84d7561e893ef2414c99572e107a41ae393b78fb9db1908a65e21432829d8289
@@ -12120,7 +12179,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"filenamify@npm:^4.1.0":
+"filenamify@npm:^4.3.0":
   version: 4.3.0
   resolution: "filenamify@npm:4.3.0"
   dependencies:
@@ -12704,7 +12763,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"glob@npm:^7.1.2, glob@npm:^7.1.3, glob@npm:^7.1.4, glob@npm:^7.1.6, glob@npm:^7.2.0":
+"glob@npm:^7.1.2, glob@npm:^7.1.3, glob@npm:^7.1.4, glob@npm:^7.1.6, glob@npm:^7.2.3":
   version: 7.2.3
   resolution: "glob@npm:7.2.3"
   dependencies:
@@ -12718,7 +12777,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"glob@npm:^8.0.3, glob@npm:^8.1.0":
+"glob@npm:^8.1.0":
   version: 8.1.0
   resolution: "glob@npm:8.1.0"
   dependencies:
@@ -13137,7 +13196,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"http-status-codes@npm:^1.3.0":
+"http-status-codes@npm:^1.4.0":
   version: 1.4.0
   resolution: "http-status-codes@npm:1.4.0"
   checksum: 10c0/dd1d00517c4d468869db0344f706e545a7fe91b73ac123f11c694700d569cff3f901b329d9c6486f984b96292caecf8dbe8c1fb808708adc78c957bd6a91eb6c
@@ -13201,7 +13260,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"iconv-lite@npm:0.6, iconv-lite@npm:0.6.3, iconv-lite@npm:^0.6.0, iconv-lite@npm:^0.6.2":
+"iconv-lite@npm:0.6, iconv-lite@npm:0.6.3, iconv-lite@npm:^0.6.2, iconv-lite@npm:^0.6.3":
   version: 0.6.3
   resolution: "iconv-lite@npm:0.6.3"
   dependencies:
@@ -13279,7 +13338,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ignore@npm:^6.0.0":
+"ignore@npm:^6.0.2":
   version: 6.0.2
   resolution: "ignore@npm:6.0.2"
   checksum: 10c0/9a38feac1861906a78ba0f03e8ef3cd6b0526dce2a1a84e1009324b557763afeb9c3ebcc04666b21f7bbf71adda45e76781bb9e2eaa0903d45dcaded634454f5
@@ -13436,7 +13495,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"inversify@npm:^6.1.3":
+"inversify@npm:^6.2.2":
   version: 6.2.2
   resolution: "inversify@npm:6.2.2"
   dependencies:
@@ -13560,7 +13619,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"is-electron@npm:^2.1.0, is-electron@npm:^2.2.0":
+"is-electron@npm:^2.2.0, is-electron@npm:^2.2.2":
   version: 2.2.2
   resolution: "is-electron@npm:2.2.2"
   checksum: 10c0/327bb373f7be01b16cdff3998b5ddaa87d28f576092affaa7fe0659571b3306fdd458afbf0683a66841e7999af13f46ad0e1b51647b469526cd05a4dd736438a
@@ -14487,7 +14546,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jschardet@npm:^2.1.1":
+"jschardet@npm:^2.3.0":
   version: 2.3.0
   resolution: "jschardet@npm:2.3.0"
   checksum: 10c0/990b54b2a28d587cc3182eb2f4f93190ec803223cb22e346e016f489cfa6befbeed5ba609e263f38d1a5da168cddc4b73407c09a816847f2fdc1c1a3fd063ef1
@@ -14615,7 +14674,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonc-parser@npm:^2.2.0":
+"jsonc-parser@npm:^2.3.1":
   version: 2.3.1
   resolution: "jsonc-parser@npm:2.3.1"
   checksum: 10c0/b5e823612f6518a4d35e65d3c642e87b994c52a71b6d83d306d59f9b57003a1f6c64659808f0f1c3448991c28916d56faca45222f31ddb1a32effecdef0f0485
@@ -14750,7 +14809,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"less@npm:^3.0.3":
+"less@npm:^3.13.1":
   version: 3.13.1
   resolution: "less@npm:3.13.1"
   dependencies:
@@ -15120,13 +15179,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"loupe@npm:^3.1.0, loupe@npm:^3.1.2":
-  version: 3.2.1
-  resolution: "loupe@npm:3.2.1"
-  checksum: 10c0/910c872cba291309664c2d094368d31a68907b6f5913e989d301b5c25f30e97d76d77f23ab3bf3b46d0f601ff0b6af8810c10c31b91d2c6b2f132809ca2cc705
-  languageName: node
-  linkType: hard
-
 "lowercase-keys@npm:^2.0.0":
   version: 2.0.0
   resolution: "lowercase-keys@npm:2.0.0"
@@ -15180,14 +15232,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"macaddress@npm:^0.5.3":
+"macaddress@npm:^0.5.4":
   version: 0.5.4
   resolution: "macaddress@npm:0.5.4"
   checksum: 10c0/4ee901fdfd6d789b1407323b70b91f6f3385005148651607705039684eb935361b560768e405e9ab477f95ac23509321a2db6635fac01ed9024f02fced2eb641
   languageName: node
   linkType: hard
 
-"magic-string@npm:^0.30.12, magic-string@npm:^0.30.21":
+"magic-string@npm:^0.30.21":
   version: 0.30.21
   resolution: "magic-string@npm:0.30.21"
   dependencies:
@@ -15293,7 +15345,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"markdown-it@npm:^14.1.0":
+"markdown-it@npm:^14.1.1":
   version: 14.1.1
   resolution: "markdown-it@npm:14.1.1"
   dependencies:
@@ -15545,7 +15597,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mime@npm:^2.4.4, mime@npm:^2.5.2":
+"mime@npm:^2.5.2, mime@npm:^2.6.0":
   version: 2.6.0
   resolution: "mime@npm:2.6.0"
   bin:
@@ -15606,7 +15658,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mini-css-extract-plugin@npm:^2.6.1":
+"mini-css-extract-plugin@npm:^2.10.2":
   version: 2.10.2
   resolution: "mini-css-extract-plugin@npm:2.10.2"
   dependencies:
@@ -15618,7 +15670,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^10.0.3":
+"minimatch@npm:^10.0.3, minimatch@npm:^10.2.5":
   version: 10.2.5
   resolution: "minimatch@npm:10.2.5"
   dependencies:
@@ -15841,7 +15893,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mocha@npm:^10.1.0":
+"mocha@npm:^10.8.2":
   version: 10.8.2
   resolution: "mocha@npm:10.8.2"
   dependencies:
@@ -15965,7 +16017,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"msgpackr@npm:^1.10.2":
+"msgpackr@npm:^1.11.9":
   version: 1.11.10
   resolution: "msgpackr@npm:1.11.10"
   dependencies:
@@ -15977,7 +16029,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"multer@npm:^2.0.1":
+"multer@npm:^2.1.1":
   version: 2.1.1
   resolution: "multer@npm:2.1.1"
   dependencies:
@@ -15989,7 +16041,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nano@npm:^10.1.3":
+"nano@npm:^10.1.4":
   version: 10.1.4
   resolution: "nano@npm:10.1.4"
   dependencies:
@@ -16025,7 +16077,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"native-keymap@npm:^2.2.1":
+"native-keymap@npm:^2.5.0":
   version: 2.5.0
   resolution: "native-keymap@npm:2.5.0"
   dependencies:
@@ -16213,7 +16265,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-loader@npm:^2.0.0":
+"node-loader@npm:^2.1.0":
   version: 2.1.0
   resolution: "node-loader@npm:2.1.0"
   dependencies:
@@ -16386,6 +16438,13 @@ __metadata:
     has-symbols: "npm:^1.0.3"
     object-keys: "npm:^1.1.1"
   checksum: 10c0/60108e1fa2706f22554a4648299b0955236c62b3685c52abf4988d14fffb0e7731e00aa8c6448397e3eb63d087dcc124a9f21e1980f36d0b2667f3c18bacd469
+  languageName: node
+  linkType: hard
+
+"obug@npm:^2.1.1":
+  version: 2.1.1
+  resolution: "obug@npm:2.1.1"
+  checksum: 10c0/59dccd7de72a047e08f8649e94c1015ec72f94eefb6ddb57fb4812c4b425a813bc7e7cd30c9aca20db3c59abc3c85cc7a62bb656a968741d770f4e8e02bc2e78
   languageName: node
   linkType: hard
 
@@ -16570,7 +16629,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"p-queue@npm:^8.0.1":
+"p-queue@npm:^8.1.1":
   version: 8.1.1
   resolution: "p-queue@npm:8.1.1"
   dependencies:
@@ -16672,7 +16731,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"patch-package@npm:^8.0.0":
+"patch-package@npm:^8.0.1":
   version: 8.0.1
   resolution: "patch-package@npm:8.0.1"
   dependencies:
@@ -16825,13 +16884,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pathe@npm:^1.1.2":
-  version: 1.1.2
-  resolution: "pathe@npm:1.1.2"
-  checksum: 10c0/64ee0a4e587fb0f208d9777a6c56e4f9050039268faaaaecd50e959ef01bf847b7872785c36483fa5cdcdbdfdb31fef2ff222684d4fc21c330ab60395c681897
-  languageName: node
-  linkType: hard
-
 "pathe@npm:^2.0.1, pathe@npm:^2.0.3":
   version: 2.0.3
   resolution: "pathe@npm:2.0.3"
@@ -16843,13 +16895,6 @@ __metadata:
   version: 1.1.1
   resolution: "pathval@npm:1.1.1"
   checksum: 10c0/f63e1bc1b33593cdf094ed6ff5c49c1c0dc5dc20a646ca9725cc7fe7cd9995002d51d5685b9b2ec6814342935748b711bafa840f84c0bb04e38ff40a335c94dc
-  languageName: node
-  linkType: hard
-
-"pathval@npm:^2.0.0":
-  version: 2.0.1
-  resolution: "pathval@npm:2.0.1"
-  checksum: 10c0/460f4709479fbf2c45903a65655fc8f0a5f6d808f989173aeef5fdea4ff4f303dc13f7870303999add60ec49d4c14733895c0a869392e9866f1091fa64fd7581
   languageName: node
   linkType: hard
 
@@ -17451,7 +17496,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"qs@npm:^6.13.0, qs@npm:^6.14.0, qs@npm:^6.14.1, qs@npm:^6.4.0":
+"qs@npm:^6.13.0, qs@npm:^6.14.0, qs@npm:^6.14.1, qs@npm:^6.4.0, qs@npm:~6.15.1":
   version: 6.15.1
   resolution: "qs@npm:6.15.1"
   dependencies:
@@ -17553,7 +17598,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^18.2.0":
+"react-dom@npm:^18.3.1":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1"
   dependencies:
@@ -17579,7 +17624,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-perfect-scrollbar@npm:^1.5.3, react-perfect-scrollbar@npm:^1.5.8":
+"react-perfect-scrollbar@npm:^1.5.8":
   version: 1.5.8
   resolution: "react-perfect-scrollbar@npm:1.5.8"
   dependencies:
@@ -17592,7 +17637,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-textarea-autosize@npm:^8.5.5":
+"react-textarea-autosize@npm:^8.5.9":
   version: 8.5.9
   resolution: "react-textarea-autosize@npm:8.5.9"
   dependencies:
@@ -17605,7 +17650,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-tooltip@npm:^4.2.21":
+"react-tooltip@npm:^4.5.1":
   version: 4.5.1
   resolution: "react-tooltip@npm:4.5.1"
   dependencies:
@@ -17618,7 +17663,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-virtuoso@npm:^2.17.0":
+"react-virtuoso@npm:^2.19.1":
   version: 2.19.1
   resolution: "react-virtuoso@npm:2.19.1"
   dependencies:
@@ -17631,7 +17676,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^18.2.0":
+"react@npm:^18.3.1":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
   dependencies:
@@ -18010,7 +18055,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rimraf@npm:^5.0.0":
+"rimraf@npm:^5.0.10":
   version: 5.0.10
   resolution: "rimraf@npm:5.0.10"
   dependencies:
@@ -18846,7 +18891,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"socket.io-client@npm:^4.5.3":
+"socket.io-client@npm:^4.8.3":
   version: 4.8.3
   resolution: "socket.io-client@npm:4.8.3"
   dependencies:
@@ -18868,7 +18913,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"socket.io@npm:^4.5.3":
+"socket.io@npm:^4.8.3":
   version: 4.8.3
   resolution: "socket.io@npm:4.8.3"
   dependencies:
@@ -18959,7 +19004,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"source-map-loader@npm:^2.0.1":
+"source-map-loader@npm:^2.0.2":
   version: 2.0.2
   resolution: "source-map-loader@npm:2.0.2"
   dependencies:
@@ -18982,7 +19027,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"source-map-support@npm:^0.5.19, source-map-support@npm:~0.5.20":
+"source-map-support@npm:^0.5.19, source-map-support@npm:^0.5.21, source-map-support@npm:~0.5.20":
   version: 0.5.21
   resolution: "source-map-support@npm:0.5.21"
   dependencies:
@@ -19121,10 +19166,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"std-env@npm:^3.8.0":
-  version: 3.10.0
-  resolution: "std-env@npm:3.10.0"
-  checksum: 10c0/1814927a45004d36dde6707eaf17552a546769bc79a6421be2c16ce77d238158dfe5de30910b78ec30d95135cc1c59ea73ee22d2ca170f8b9753f84da34c427f
+"std-env@npm:^4.0.0-rc.1":
+  version: 4.1.0
+  resolution: "std-env@npm:4.1.0"
+  checksum: 10c0/2e14b6b490db34cb969a48d9cf7c35bca4a47653914aac2814221baae7b867a5b15940d133625c391621971f98cd2266a5dc7036669960e883f1081db2a56558
   languageName: node
   linkType: hard
 
@@ -19146,7 +19191,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"string-argv@npm:^0.1.1":
+"string-argv@npm:^0.1.2":
   version: 0.1.2
   resolution: "string-argv@npm:0.1.2"
   checksum: 10c0/7674d8d6c09cc89fdcf6d814227934138c114b75c3349d01fd21748dacb1ca8456982e6872475f4523b90848d2988b044494167e51284fe11c234b13c4c83989
@@ -19483,7 +19528,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tar-fs@npm:^3.0.6, tar-fs@npm:^3.0.9":
+"tar-fs@npm:^3.0.6, tar-fs@npm:^3.1.2":
   version: 3.1.2
   resolution: "tar-fs@npm:3.1.2"
   dependencies:
@@ -19528,7 +19573,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tar-stream@npm:^3.1.5, tar-stream@npm:^3.1.7":
+"tar-stream@npm:^3.1.5":
   version: 3.1.8
   resolution: "tar-stream@npm:3.1.8"
   dependencies:
@@ -19537,6 +19582,18 @@ __metadata:
     fast-fifo: "npm:^1.2.0"
     streamx: "npm:^2.15.0"
   checksum: 10c0/c4bf369de2302fcf30218d091167a5372ee79b69a1b5bb493ddb7714193ca805719558966334bab1f2775c8142826865f24e25459ff1c5f0a096bc3a3d5c5ce2
+  languageName: node
+  linkType: hard
+
+"tar-stream@npm:^3.1.8":
+  version: 3.2.0
+  resolution: "tar-stream@npm:3.2.0"
+  dependencies:
+    b4a: "npm:^1.6.4"
+    bare-fs: "npm:^4.5.5"
+    fast-fifo: "npm:^1.2.0"
+    streamx: "npm:^2.15.0"
+  checksum: 10c0/8a06c915f93c9b0906e79867e36a9cfe197da4d41b72e89ec0de99577ae755505d14815c1346b70c2410aa09d3145c3e3af2ff5802b6af84990cdd6c60dbb997
   languageName: node
   linkType: hard
 
@@ -19586,7 +19643,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"temp@npm:^0.9.1":
+"temp@npm:^0.9.4":
   version: 0.9.4
   resolution: "temp@npm:0.9.4"
   dependencies:
@@ -19705,14 +19762,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tinyexec@npm:^0.3.1":
-  version: 0.3.2
-  resolution: "tinyexec@npm:0.3.2"
-  checksum: 10c0/3efbf791a911be0bf0821eab37a3445c2ba07acc1522b1fa84ae1e55f10425076f1290f680286345ed919549ad67527d07281f1c19d584df3b74326909eb1f90
-  languageName: node
-  linkType: hard
-
-"tinyexec@npm:^1.0.1":
+"tinyexec@npm:^1.0.1, tinyexec@npm:^1.0.2":
   version: 1.1.2
   resolution: "tinyexec@npm:1.1.2"
   checksum: 10c0/9e0ef6c001ce54688cf16833a02f70a339276219ca947b88930b124267de2cffc764ff44e87e7369384b1d75ab63491465412cbbdf06f2437956b9ab66ab4491
@@ -19739,24 +19789,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tinypool@npm:^1.0.1":
-  version: 1.1.1
-  resolution: "tinypool@npm:1.1.1"
-  checksum: 10c0/bf26727d01443061b04fa863f571016950888ea994ba0cd8cba3a1c51e2458d84574341ab8dbc3664f1c3ab20885c8cf9ff1cc4b18201f04c2cde7d317fff69b
-  languageName: node
-  linkType: hard
-
-"tinyrainbow@npm:^1.2.0":
-  version: 1.2.0
-  resolution: "tinyrainbow@npm:1.2.0"
-  checksum: 10c0/7f78a4b997e5ba0f5ecb75e7ed786f30bab9063716e7dff24dd84013fb338802e43d176cb21ed12480561f5649a82184cf31efb296601a29d38145b1cdb4c192
-  languageName: node
-  linkType: hard
-
-"tinyspy@npm:^3.0.2":
-  version: 3.0.2
-  resolution: "tinyspy@npm:3.0.2"
-  checksum: 10c0/55ffad24e346622b59292e097c2ee30a63919d5acb7ceca87fc0d1c223090089890587b426e20054733f97a58f20af2c349fb7cc193697203868ab7ba00bcea0
+"tinyrainbow@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "tinyrainbow@npm:3.1.0"
+  checksum: 10c0/f11cf387a26c5c9255bec141a90ac511b26172981b10c3e50053bc6700ea7d2336edcc4a3a21dbb8412fe7c013477d2ba4d7e4877800f3f8107be5105aad6511
   languageName: node
   linkType: hard
 
@@ -19937,7 +19973,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-md5@npm:^1.2.2":
+"ts-md5@npm:^1.3.1":
   version: 1.3.1
   resolution: "ts-md5@npm:1.3.1"
   checksum: 10c0/1a3963172184ab260eadb0c34c597f97e64ecd5151c9cee3fe24c275945c659096adcb2a70f7ee434d7d163309f52e6df968a3ebaeee0cd422695c3650bdd6b8
@@ -20309,10 +20345,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici-types@npm:~6.21.0":
-  version: 6.21.0
-  resolution: "undici-types@npm:6.21.0"
-  checksum: 10c0/c01ed51829b10aa72fc3ce64b747f8e74ae9b60eafa19a7b46ef624403508a54c526ffab06a14a26b3120d055e1104d7abe7c9017e83ced038ea5cf52f8d5e04
+"undici-types@npm:~7.16.0":
+  version: 7.16.0
+  resolution: "undici-types@npm:7.16.0"
+  checksum: 10c0/3033e2f2b5c9f1504bdc5934646cb54e37ecaca0f9249c983f7b1fc2e87c6d18399ebb05dc7fd5419e02b2e915f734d872a65da2e3eeed1813951c427d33cc9a
   languageName: node
   linkType: hard
 
@@ -20330,7 +20366,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici@npm:^7.16.0":
+"undici@npm:^7.16.0, undici@npm:^7.24.6":
   version: 7.25.0
   resolution: "undici@npm:7.25.0"
   checksum: 10c0/02a0b45dc14eb91bc488948750232450fe52f27a6b08086d6ac6736bb47908d600fe3a96d346f12eab24729c782e5c2f693bc8e8eca6696d4e4c09b1ed4cb4ec
@@ -20531,7 +20567,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unzipper@npm:^0.9.11":
+"unzipper@npm:^0.9.15":
   version: 0.9.15
   resolution: "unzipper@npm:0.9.15"
   dependencies:
@@ -20810,21 +20846,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite-node@npm:2.1.9":
-  version: 2.1.9
-  resolution: "vite-node@npm:2.1.9"
-  dependencies:
-    cac: "npm:^6.7.14"
-    debug: "npm:^4.3.7"
-    es-module-lexer: "npm:^1.5.4"
-    pathe: "npm:^1.1.2"
-    vite: "npm:^5.0.0"
-  bin:
-    vite-node: vite-node.mjs
-  checksum: 10c0/0d3589f9f4e9cff696b5b49681fdb75d1638c75053728be52b4013f70792f38cb0120a9c15e3a4b22bdd6b795ad7c2da13bcaf47242d439f0906049e73bdd756
-  languageName: node
-  linkType: hard
-
 "vite-plugin-static-copy@npm:4.1.0":
   version: 4.1.0
   resolution: "vite-plugin-static-copy@npm:4.1.0"
@@ -20852,7 +20873,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite@npm:8.0.10":
+"vite@npm:8.0.10, vite@npm:^6.0.0 || ^7.0.0 || ^8.0.0":
   version: 8.0.10
   resolution: "vite@npm:8.0.10"
   dependencies:
@@ -20909,7 +20930,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite@npm:^5.0.0, vite@npm:^5.4.14":
+"vite@npm:^5.4.14":
   version: 5.4.21
   resolution: "vite@npm:5.4.21"
   dependencies:
@@ -21003,43 +21024,59 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vitest@npm:2.1.9":
-  version: 2.1.9
-  resolution: "vitest@npm:2.1.9"
+"vitest@npm:4.1.5":
+  version: 4.1.5
+  resolution: "vitest@npm:4.1.5"
   dependencies:
-    "@vitest/expect": "npm:2.1.9"
-    "@vitest/mocker": "npm:2.1.9"
-    "@vitest/pretty-format": "npm:^2.1.9"
-    "@vitest/runner": "npm:2.1.9"
-    "@vitest/snapshot": "npm:2.1.9"
-    "@vitest/spy": "npm:2.1.9"
-    "@vitest/utils": "npm:2.1.9"
-    chai: "npm:^5.1.2"
-    debug: "npm:^4.3.7"
-    expect-type: "npm:^1.1.0"
-    magic-string: "npm:^0.30.12"
-    pathe: "npm:^1.1.2"
-    std-env: "npm:^3.8.0"
+    "@vitest/expect": "npm:4.1.5"
+    "@vitest/mocker": "npm:4.1.5"
+    "@vitest/pretty-format": "npm:4.1.5"
+    "@vitest/runner": "npm:4.1.5"
+    "@vitest/snapshot": "npm:4.1.5"
+    "@vitest/spy": "npm:4.1.5"
+    "@vitest/utils": "npm:4.1.5"
+    es-module-lexer: "npm:^2.0.0"
+    expect-type: "npm:^1.3.0"
+    magic-string: "npm:^0.30.21"
+    obug: "npm:^2.1.1"
+    pathe: "npm:^2.0.3"
+    picomatch: "npm:^4.0.3"
+    std-env: "npm:^4.0.0-rc.1"
     tinybench: "npm:^2.9.0"
-    tinyexec: "npm:^0.3.1"
-    tinypool: "npm:^1.0.1"
-    tinyrainbow: "npm:^1.2.0"
-    vite: "npm:^5.0.0"
-    vite-node: "npm:2.1.9"
+    tinyexec: "npm:^1.0.2"
+    tinyglobby: "npm:^0.2.15"
+    tinyrainbow: "npm:^3.1.0"
+    vite: "npm:^6.0.0 || ^7.0.0 || ^8.0.0"
     why-is-node-running: "npm:^2.3.0"
   peerDependencies:
     "@edge-runtime/vm": "*"
-    "@types/node": ^18.0.0 || >=20.0.0
-    "@vitest/browser": 2.1.9
-    "@vitest/ui": 2.1.9
+    "@opentelemetry/api": ^1.9.0
+    "@types/node": ^20.0.0 || ^22.0.0 || >=24.0.0
+    "@vitest/browser-playwright": 4.1.5
+    "@vitest/browser-preview": 4.1.5
+    "@vitest/browser-webdriverio": 4.1.5
+    "@vitest/coverage-istanbul": 4.1.5
+    "@vitest/coverage-v8": 4.1.5
+    "@vitest/ui": 4.1.5
     happy-dom: "*"
     jsdom: "*"
+    vite: ^6.0.0 || ^7.0.0 || ^8.0.0
   peerDependenciesMeta:
     "@edge-runtime/vm":
       optional: true
+    "@opentelemetry/api":
+      optional: true
     "@types/node":
       optional: true
-    "@vitest/browser":
+    "@vitest/browser-playwright":
+      optional: true
+    "@vitest/browser-preview":
+      optional: true
+    "@vitest/browser-webdriverio":
+      optional: true
+    "@vitest/coverage-istanbul":
+      optional: true
+    "@vitest/coverage-v8":
       optional: true
     "@vitest/ui":
       optional: true
@@ -21047,9 +21084,11 @@ __metadata:
       optional: true
     jsdom:
       optional: true
+    vite:
+      optional: false
   bin:
     vitest: vitest.mjs
-  checksum: 10c0/e339e16dccacf4589ff43cb1f38c7b4d14427956ae8ef48702af6820a9842347c2b6c77356aeddb040329759ca508a3cb2b104ddf78103ea5bc98ab8f2c3a54e
+  checksum: 10c0/196eaf5e95b45a3f6d3001a2408d7dc6f146c29c873ed4e42e1ad4c9327122934fb3793a12b6ce3b7c25d355e738b20123acc0894ce30358c3370b15f4bd0865
   languageName: node
   linkType: hard
 
@@ -21099,7 +21138,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vscode-languageserver-textdocument@npm:^1.0.1, vscode-languageserver-textdocument@npm:~1.0.11":
+"vscode-languageserver-textdocument@npm:^1.0.12, vscode-languageserver-textdocument@npm:~1.0.11":
   version: 1.0.12
   resolution: "vscode-languageserver-textdocument@npm:1.0.12"
   checksum: 10c0/534349894b059602c4d97615a1147b6c4c031141c2093e59657f54e38570f5989c21b376836f13b9375419869242e9efb4066643208b21ab1e1dee111a0f00fb
@@ -21131,7 +21170,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vscode-textmate@npm:^9.2.0":
+"vscode-textmate@npm:^9.3.2":
   version: 9.3.2
   resolution: "vscode-textmate@npm:9.3.2"
   checksum: 10c0/873c319d4ca245e97a106be92c2ae9d7d3dd5a3b4cdbdf609a21314c3e8e9c034d65238219b2b150815e8f4230b3db718a173f3185472e92dd8d974296758b8f
@@ -21247,7 +21286,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack@npm:5.106.2, webpack@npm:^5.76.0":
+"webpack@npm:5.106.2, webpack@npm:^5.105.4":
   version: 5.106.2
   resolution: "webpack@npm:5.106.2"
   dependencies:
@@ -21509,7 +21548,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"write-json-file@npm:^2.2.0":
+"write-json-file@npm:^2.3.0":
   version: 2.3.0
   resolution: "write-json-file@npm:2.3.0"
   dependencies:
@@ -21523,7 +21562,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.17.1, ws@npm:^8.18.0":
+"ws@npm:^8.18.0, ws@npm:^8.20.0":
   version: 8.20.0
   resolution: "ws@npm:8.20.0"
   peerDependencies:
