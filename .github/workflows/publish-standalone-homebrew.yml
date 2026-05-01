@@ -1,0 +1,106 @@
+name: Publish Standalone (Homebrew)
+
+# Updates the Cask formula in Miragon/homebrew-tap after a standalone release.
+#
+# Triggers:
+#   - Automatically after release-standalone.yml completes successfully
+#   - Manually via workflow_dispatch (supports dry_run for testing without pushing)
+#
+# Required GitHub repo secret:
+#   HOMEBREW_TAP_TOKEN   PAT with repo scope on Miragon/homebrew-tap
+
+on:
+  workflow_run:
+    workflows: ["Publish Standalone (macOS)"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. standalone-v0.9.2)"
+        required: true
+        type: string
+      dry_run:
+        description: "Generate formula without pushing to tap"
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  update-tap:
+    name: Update Cask formula
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve tag and version
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+          else
+            # publish-standalone.yml is triggered by release:published, so
+            # head_branch is unreliable — fetch the latest standalone-v* release directly
+            TAG=$(gh api "repos/$GH_REPO/releases" \
+              --jq '[.[] | select(.tag_name | startswith("standalone-v"))][0].tag_name')
+          fi
+          VERSION="${TAG#standalone-v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download DMG and compute sha256
+        id: sha
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          DMG="Miragon.BPMN.Modeler-${VERSION}-arm64.dmg"
+          URL="https://github.com/Miragon/bpmn-modeler/releases/download/${TAG}/${DMG}"
+          echo "Downloading $URL"
+          curl -fsSL -o "$DMG" "$URL"
+          SHA=$(shasum -a 256 "$DMG" | awk '{print $1}')
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "sha256: $SHA"
+
+      - name: Generate Cask formula
+        id: formula
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          SHA: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          cat > miragon-bpmn-modeler.rb <<EOF
+          cask "miragon-bpmn-modeler" do
+            version "${VERSION}"
+            sha256 "${SHA}"
+
+            url "https://github.com/Miragon/bpmn-modeler/releases/download/standalone-v#{version}/Miragon.BPMN.Modeler-#{version}-arm64.dmg"
+            name "Miragon BPMN Modeler"
+            desc "Standalone BPMN/DMN process modeler"
+            homepage "https://github.com/Miragon/bpmn-modeler"
+
+            app "Miragon BPMN Modeler.app"
+          end
+          EOF
+          echo "--- Generated formula ---"
+          cat miragon-bpmn-modeler.rb
+
+      - name: Push to homebrew-tap
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Miragon/homebrew-tap.git" tap
+          cp miragon-bpmn-modeler.rb tap/Casks/miragon-bpmn-modeler.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/miragon-bpmn-modeler.rb
+          git commit -m "chore: update miragon-bpmn-modeler to ${VERSION}"
+          git push

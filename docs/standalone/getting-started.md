@@ -8,17 +8,32 @@ app for when you don't want to run a full IDE.
 The standalone app currently ships for **macOS on Apple Silicon**.
 Windows and Linux builds may follow.
 
-## Download & install
+## Install
 
-Signed, notarized `.dmg` artefacts are published to
-[GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
-Look for tags matching `standalone-v*` and download the `.dmg`. Drag it
-to `/Applications` and double-click — no Gatekeeper workaround needed.
+Head to the [**Download** page](/download) for the latest macOS `.dmg` and the
+Homebrew tap snippet. Both options install the same signed and notarized
+build; the app auto-updates from GitHub Releases on each launch, regardless
+of how it was installed.
 
-The app then auto-updates from GitHub Releases on each launch.
+### Upgrade later
 
-If you'd rather build from source, see
+If you installed via Homebrew:
+
+```bash
+brew upgrade --cask miragon-bpmn-modeler
+```
+
+For the manual install, the in-app auto-updater handles new versions on
+launch — there's nothing to do.
+
+### Build from source
+
+If you'd rather build it yourself, see
 [`apps/standalone/README.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md).
+A locally-built `.dmg` (without the Apple credentials the release pipeline
+uses) is unsigned. macOS Gatekeeper will block the first launch —
+right-click the app in `/Applications` → **Open** → confirm. After that
+one-time bypass, the app launches normally.
 
 ## Open a diagram
 
@@ -70,10 +85,3 @@ engine, same element templates, same diff view, same deploy flow. Explore:
 A few things differ from the VS Code surface — no Extensions view, no Source
 Control, no Command Palette keybindings for VS Code-specific commands. The
 modeler itself behaves identically.
-
-## Building from source
-
-A locally-built `.dmg` (without the Apple credentials the release
-pipeline uses) is unsigned. macOS Gatekeeper will block the first launch —
-right-click the app in `/Applications` → **Open** → confirm. After that
-one-time bypass, the app launches normally.

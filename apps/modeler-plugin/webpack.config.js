@@ -36,6 +36,7 @@ module.exports = (env, argv) => {
                 // Resolves @bpmn-modeler/* path aliases from tsconfig.app.json.
                 new TsconfigPathsPlugin({
                     configFile: path.resolve(__dirname, "tsconfig.app.json"),
+                    baseUrl: path.resolve(__dirname, "../.."),
                 }),
             ],
         },
@@ -47,7 +48,12 @@ module.exports = (env, argv) => {
             rules: [
                 {
                     test: /\.ts$/,
-                    use: "ts-loader",
+                    use: {
+                        loader: "ts-loader",
+                        options: {
+                            configFile: path.resolve(__dirname, "tsconfig.app.json"),
+                        },
+                    },
                     exclude: /node_modules/,
                 },
             ],

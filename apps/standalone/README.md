@@ -114,6 +114,11 @@ Both workflows accept a `dry-run` input. See
 the full pipeline diagram and the equivalent flow for the VS Code
 extension and the c7 npm lib.
 
+After the release is published, `.github/workflows/standalone-homebrew.yml`
+automatically updates the Cask formula in
+[Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap) so that
+`brew upgrade --cask miragon-bpmn-modeler` picks up the new version.
+
 **Required GitHub repo secrets** (one-time setup):
 
 | Secret | Source |
@@ -123,6 +128,7 @@ extension and the c7 npm lib.
 | `APPLE_ID` | Apple ID email of a Miragon team member |
 | `APPLE_APP_SPECIFIC_PASSWORD` | generated at appleid.apple.com |
 | `APPLE_TEAM_ID` | `G5JZQ328LJ` |
+| `HOMEBREW_TAP_TOKEN` | PAT with `repo` scope on `Miragon/homebrew-tap` |
 
 ## Structure
 

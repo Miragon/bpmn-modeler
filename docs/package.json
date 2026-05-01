@@ -4,11 +4,13 @@
     "scripts": {
         "dev": "portless run sh -c '(open $PORTLESS_URL/bpmn-modeler/) & vitepress dev . --port $PORT --host 127.0.0.1'",
         "build": "vitepress build .",
-        "preview": "vitepress preview ."
+        "preview": "vitepress preview .",
+        "test": "vitest run"
     },
     "devDependencies": {
-        "mermaid": "10.9.3",
+        "mermaid": "11.14.0",
         "vitepress": "1.6.4",
-        "vitepress-plugin-mermaid": "2.0.17"
+        "vitepress-plugin-mermaid": "2.0.17",
+        "vitest": "2.1.9"
     }
 }
