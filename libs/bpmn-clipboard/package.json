@@ -2,10 +2,16 @@
     "name": "@miragon/bpmn-modeler-clipboard",
     "version": "0.0.1",
     "private": true,
+    "scripts": {
+        "build": "tsc --noEmit"
+    },
     "dependencies": {
         "bpmn-js-native-copy-paste": "0.3.0"
     },
     "peerDependencies": {
         "bpmn-js": "18.15.0"
+    },
+    "devDependencies": {
+        "typescript": "6.0.3"
     }
 }

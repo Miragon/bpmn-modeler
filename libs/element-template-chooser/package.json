@@ -2,10 +2,16 @@
     "name": "@miragon/bpmn-modeler-element-template-chooser",
     "version": "0.0.1",
     "private": true,
+    "scripts": {
+        "build": "tsc --noEmit"
+    },
     "dependencies": {
         "preact": "10.29.1"
     },
     "peerDependencies": {
         "bpmn-js": "18.15.0"
+    },
+    "devDependencies": {
+        "typescript": "6.0.3"
     }
 }

@@ -3533,6 +3533,7 @@ __metadata:
   dependencies:
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
     preact: "npm:10.29.1"
+    typescript: "npm:6.0.3"
   peerDependencies:
     bpmn-js: 18.15.0
   languageName: unknown
@@ -3543,6 +3544,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-clipboard@workspace:libs/bpmn-clipboard"
   dependencies:
     bpmn-js-native-copy-paste: "npm:0.3.0"
+    typescript: "npm:6.0.3"
   peerDependencies:
     bpmn-js: 18.15.0
   languageName: unknown
@@ -3577,6 +3579,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-element-template-chooser@workspace:libs/element-template-chooser"
   dependencies:
     preact: "npm:10.29.1"
+    typescript: "npm:6.0.3"
   peerDependencies:
     bpmn-js: 18.15.0
   languageName: unknown
@@ -3585,6 +3588,8 @@ __metadata:
 "@miragon/bpmn-modeler-i18n@workspace:*, @miragon/bpmn-modeler-i18n@workspace:libs/bpmn-i18n":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-i18n@workspace:libs/bpmn-i18n"
+  dependencies:
+    typescript: "npm:6.0.3"
   languageName: unknown
   linkType: soft
 
