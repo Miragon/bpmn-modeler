@@ -2,6 +2,11 @@ name: PR Labeler
 on:
   pull_request:
     types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   labelPR:
     name: Label PR With Repo(s)
@@ -16,8 +21,6 @@ jobs:
   label-by-type:
     name: Label PR By Conventional Commit Type
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
       - name: Apply label from PR title prefix
         uses: actions/github-script@v9
