@@ -50,7 +50,7 @@ async function copyHomebrew() {
             <div class="dl-hero">
                 <h1 class="dl-h1">
                     BPMN Modeler,<br />
-                    <span class="grad">made for you</span>.
+                    <span class="grad">made for you.</span>
                 </h1>
                 <p class="dl-sub">
                     Edit BPMN and DMN files in VS Code or as a standalone
