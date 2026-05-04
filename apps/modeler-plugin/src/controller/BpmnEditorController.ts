@@ -10,6 +10,7 @@ import {
 
 import {
     Command,
+    OpenScriptEditorCommand,
     NavigateToReferencedModelCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
@@ -23,6 +24,7 @@ import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
+import { ScriptTaskService } from "../service/ScriptTaskService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
 import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
@@ -44,6 +46,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param diffService Diff coordinator — queried on resolve to decide
      *   whether to take the readonly viewer branch.
      * @param artifactSvc Workspace artifact discovery and watcher creation.
+     * @param scriptTaskSvc Virtual script document management for script tasks.
      * @param vsUI User-facing message and logging helper.
      * @param vsDocument Active-document read helper (for status bar version detection).
      * @param statusBar Status bar item manager for engine version display.
@@ -54,6 +57,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly bpmnService: BpmnModelerService,
         private readonly diffService: BpmnDiffService,
         private readonly artifactSvc: ArtifactService,
+        private readonly scriptTaskSvc: ScriptTaskService,
         private readonly vsUI: VsCodeUI,
         private readonly vsDocument: VsCodeDocument,
         private readonly statusBar: VsCodeStatusBar,
@@ -71,9 +75,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param context The VS Code extension context.
      */
     register(context: ExtensionContext): void {
-        const provider = window.registerCustomEditorProvider(BPMN_VIEW_TYPE, this, {
-            webviewOptions: { retainContextWhenHidden: true },
-        });
+        const provider = window.registerCustomEditorProvider(BPMN_VIEW_TYPE, this);
         context.subscriptions.push(provider);
     }
 
@@ -128,6 +130,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             this.editorStore.subscribeToDisposeEvent(editorId, () => {
                 this.bpmnService.disposeSession(editorId);
                 this.statusBar.hideEngineVersion();
+                this.scriptTaskSvc.disposeForEditor(editorId);
             });
 
             const { disposables, errors } = await this.artifactSvc.createWatcher(
@@ -158,64 +161,87 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param editorId Document URI path of the editor whose webview to listen to.
      */
     private subscribeToMessageEvent(editorId: string): void {
-        this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
-            this.vsUI.logInfo(`Message received -> ${message.type}`);
-            switch (message.type) {
-                case "GetBpmnFileCommand":
-                    if (await this.bpmnService.display(id)) {
-                        this.vsUI.logInfo("Bpmn modeler is ready");
-                    }
-                    break;
-                case "GetElementTemplatesCommand":
-                    this.bpmnService.setElementTemplates(id);
-                    break;
-                case "GetBpmnModelerSettingCommand":
-                    this.bpmnService.setSettings(id);
-                    this.bpmnService.setLanguage(id);
-                    break;
-                case "GetPropertiesPanelStateCommand":
-                    this.bpmnService.sendPropertiesPanelState(id);
-                    break;
-                case "SetPropertiesPanelStateCommand":
-                    this.bpmnService.setPropertiesPanelVisibility(
-                        (message as SetPropertiesPanelStateCommand).visible,
-                    );
-                    break;
-                case "GetClipboardCommand":
-                    this.bpmnService.readClipboard(id);
-                    break;
-                case "SetClipboardCommand":
-                    this.bpmnService.writeClipboard((message as SetClipboardCommand).text);
-                    break;
-                case "GetTextClipboardCommand":
-                    this.bpmnService.readTextClipboard(id);
-                    break;
-                case "SetTextClipboardCommand":
-                    this.bpmnService.writeClipboard((message as SetTextClipboardCommand).text);
-                    break;
-                case "SyncDocumentCommand":
-                    await this.bpmnService.sync(id, (message as SyncDocumentCommand).content);
-                    break;
-                case "NavigateToReferencedModelCommand": {
-                    const cmd = message as NavigateToReferencedModelCommand;
-                    // Defence-in-depth: reject unknown discriminants
-                    // rather than letting them fall through to the
-                    // decision branch by default.
-                    if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
-                        this.vsUI.logWarning(
-                            `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
-                                cmd.referenceKind,
-                            )}`,
+        this.editorStore.subscribeToMessageEvent(
+            editorId,
+            async (message: Command, id: string) => {
+                this.vsUI.logInfo(`Message received -> ${message.type}`);
+                switch (message.type) {
+                    case "GetBpmnFileCommand":
+                        if (await this.bpmnService.display(id)) {
+                            this.vsUI.logInfo("Bpmn modeler is ready");
+                        }
+                        break;
+                    case "GetElementTemplatesCommand":
+                        this.bpmnService.setElementTemplates(id);
+                        break;
+                    case "GetBpmnModelerSettingCommand":
+                        this.bpmnService.setSettings(id);
+                        this.bpmnService.setLanguage(id);
+                        this.scriptTaskSvc.resyncOpenDocuments(id); // (re)load for changes while webview was hidden
+                        break;
+                    case "GetPropertiesPanelStateCommand":
+                        this.bpmnService.sendPropertiesPanelState(id);
+                        break;
+                    case "SetPropertiesPanelStateCommand":
+                        this.bpmnService.setPropertiesPanelVisibility(
+                            (message as SetPropertiesPanelStateCommand).visible,
+                        );
+                        break;
+                    case "GetClipboardCommand":
+                        this.bpmnService.readClipboard(id);
+                        break;
+                    case "SetClipboardCommand":
+                        this.bpmnService.writeClipboard(
+                            (message as SetClipboardCommand).text,
+                        );
+                        break;
+                    case "GetTextClipboardCommand":
+                        this.bpmnService.readTextClipboard(id);
+                        break;
+                    case "SetTextClipboardCommand":
+                        this.bpmnService.writeClipboard(
+                            (message as SetTextClipboardCommand).text,
+                        );
+                        break;
+                    case "SyncDocumentCommand":
+                        await this.bpmnService.sync(
+                            id,
+                            (message as SyncDocumentCommand).content,
+                        );
+                        break;
+                    case "OpenScriptEditorCommand": {
+                        const cmd = message as OpenScriptEditorCommand;
+                        await this.scriptTaskSvc.openScriptEditor(
+                            id,
+                            cmd.elementId,
+                            cmd.kind,
+                            cmd.listenerIndex,
+                            cmd.eventName,
+                            cmd.scriptFormat,
+                            cmd.content,
                         );
                         break;
                     }
-                    const sourceDocument = this.editorStore.getDocumentForEditor(id);
-                    await this.modelNavigationService.navigate(
-                        cmd.referenceId,
-                        cmd.referenceKind,
-                        sourceDocument.uri,
-                    );
-                    break;
+                    case "NavigateToReferencedModelCommand": {
+                        const cmd = message as NavigateToReferencedModelCommand;
+                        // Defence-in-depth: reject unknown discriminants
+                        // rather than letting them fall through to the
+                        // decision branch by default.
+                        if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
+                            this.vsUI.logWarning(
+                                `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
+                                    cmd.referenceKind,
+                                )}`,
+                            );
+                            break;
+                        }
+                        const sourceDocument = this.editorStore.getDocumentForEditor(id);
+                        await this.modelNavigationService.navigate(
+                            cmd.referenceId,
+                            cmd.referenceKind,
+                            sourceDocument.uri,
+                        );
+                        break;
                 }
             }
             this.vsUI.logInfo(`Message processed -> ${message.type}`);
@@ -282,7 +308,10 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param editorId Document URI path of the target editor.
      * @param webviewPanel The webview panel to observe.
      */
-    private subscribeToViewStateChangeEvent(editorId: string, webviewPanel: WebviewPanel): void {
+    private subscribeToViewStateChangeEvent(
+        editorId: string,
+        webviewPanel: WebviewPanel
+    ): void {
         webviewPanel.onDidChangeViewState(() => {
             if (webviewPanel.active) {
                 this.updateEngineVersionStatusBar(editorId);
