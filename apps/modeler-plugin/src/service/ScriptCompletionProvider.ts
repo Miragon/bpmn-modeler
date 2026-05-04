@@ -24,14 +24,15 @@ import {
 
 /**
  * VS Code language-feature provider that powers IntelliSense for inline
- * Camunda 7 scripts authored in Groovy, Python, or Ruby.
+ * Camunda 7 scripts across all supported languages (JavaScript, Groovy,
+ * Python, Ruby).
  *
- * JavaScript scripts get IntelliSense for free via the TypeScript language
- * service (which discovers the sibling `camunda.d.ts` we write into the
- * virtual filesystem). The other JSR-223 languages have no equivalent
- * declaration mechanism, so we register a `CompletionItemProvider` and a
- * `HoverProvider` keyed to the `bpmn-script://` scheme that supplies the
- * same API surface.
+ * VS Code's `tsserver` does not enumerate sibling files of a custom URI
+ * scheme through `FileSystemProvider`s, so a `camunda.d.ts` written next
+ * to `script.js` in the `bpmn-script://` virtual filesystem is invisible
+ * to the inferred TypeScript project. We therefore drive JavaScript
+ * IntelliSense through the same `CompletionItemProvider` path as the other
+ * JSR-223 languages, keeping behaviour and method signatures consistent.
  *
  * The provider derives the script's *kind* (script task / execution
  * listener / task listener) from the URI path slug — written by
@@ -50,11 +51,16 @@ import {
  */
 export class ScriptCompletionProvider implements CompletionItemProvider {
     /** Languages this provider participates in. */
-    private static readonly LANGUAGES = ["groovy", "python", "ruby"] as const;
+    private static readonly LANGUAGES = [
+        "javascript",
+        "groovy",
+        "python",
+        "ruby",
+    ] as const;
 
     /**
-     * Registers the completion provider for every supported non-JS language
-     * scoped to the `bpmn-script` scheme.
+     * Registers the completion provider for every supported language scoped
+     * to the `bpmn-script` scheme.
      */
     register(context: ExtensionContext): void {
         for (const language of ScriptCompletionProvider.LANGUAGES) {

@@ -4,17 +4,14 @@ import { ScriptKind } from "@miragon/bpmn-modeler-shared";
  * Domain model describing the Camunda 7 JSR-223 script execution context.
  *
  * Single source of truth for the bean/method API surface exposed to inline
- * scripts. Two consumers read this catalog:
+ * scripts. {@link ScriptCompletionProvider} reads this catalog to drive
+ * autocomplete for every supported language (JavaScript, Groovy, Python,
+ * Ruby) — VS Code's `tsserver` doesn't enumerate the `bpmn-script://`
+ * virtual filesystem, so we can't rely on TypeScript ambient `.d.ts`
+ * stubs and route all four languages through the same provider.
  *
- * 1. {@link ScriptCompletionProvider} drives autocomplete for Groovy, Python,
- *    and Ruby (where TypeScript ambient `.d.ts` stubs don't apply).
- * 2. The renderer in `scriptApiDts.ts` turns this catalog into the ambient
- *    `camunda.d.ts` text written next to each JavaScript script in the
- *    bpmn-script virtual filesystem, so the JS language service picks up
- *    the same API surface.
- *
- * Adding a new method: extend the appropriate `*_TYPE.methods` list. Both
- * IntelliSense paths pick up the change automatically.
+ * Adding a new method: extend the appropriate `*_TYPE.methods` list. The
+ * completion provider picks up the change automatically.
  */
 
 /** Describes a single parameter of a method call. */
@@ -35,14 +32,13 @@ export interface MethodDef {
 }
 
 /**
- * Describes a complex Camunda type (e.g. `DelegateExecution`) — the shape
- * we render as a TypeScript `interface` and use to look up methods for
- * `<bean>.<member>` completions.
+ * Describes a complex Camunda type (e.g. `DelegateExecution`) — the bag
+ * of methods we look up to populate `<bean>.<member>` completions.
  */
 export interface TypeDef {
-    /** Java type name, also used as the rendered TS interface name. */
+    /** Java type name (e.g. `DelegateExecution`). */
     readonly name: string;
-    /** Description rendered above the TS `interface` declaration. */
+    /** Human-readable description of the type. */
     readonly description: string;
     /** Methods callable on instances of this type. */
     readonly methods: readonly MethodDef[];
@@ -229,10 +225,7 @@ const DELEGATE_TASK_TYPE: TypeDef = {
     methods: DELEGATE_TASK_METHODS,
 };
 
-/**
- * All complex (interface-typed) types referenced by any bean, in the order
- * they should be rendered as `interface` declarations in the ambient d.ts.
- */
+/** All complex (interface-typed) types referenced by any bean. */
 export const COMPLEX_TYPES: readonly TypeDef[] = [
     DELEGATE_EXECUTION_TYPE,
     DELEGATE_TASK_TYPE,
@@ -282,9 +275,8 @@ const BEANS_BY_KIND: Record<ScriptKind, readonly BeanDef[]> = {
 
 /**
  * Returns the beans available in the script execution context for a given
- * script kind. The completion provider uses this to filter root-level
- * identifier completions and to validate `<bean>.<member>` lookups; the
- * d.ts renderer uses it to decide which `declare const` lines to emit.
+ * script kind. The completion provider uses this to drive root-level
+ * identifier completions and to validate `<bean>.<member>` lookups.
  */
 export function beansFor(kind: ScriptKind): readonly BeanDef[] {
     return BEANS_BY_KIND[kind];

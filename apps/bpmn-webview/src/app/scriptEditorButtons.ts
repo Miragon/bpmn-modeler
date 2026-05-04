@@ -21,8 +21,8 @@ import {
  * Click handlers fire {@link OPEN_SCRIPT_EDITOR_EVENT} on the bpmn-js event
  * bus with a {@link OpenScriptEditorEvent} payload. The webview entry point
  * forwards it to the extension host as `OpenScriptEditorCommand`, which
- * opens the inline script in a virtual `bpmn-script://` editor with kind-
- * aware `camunda.d.ts` IntelliSense stubs.
+ * opens the inline script in a virtual `bpmn-script://` editor with
+ * kind-aware completion suggestions for the bound Camunda beans.
  *
  * The listener-row buttons read the listener identity (element id, type,
  * index) from the entry's `data-entry-id` attribute at *click time* rather

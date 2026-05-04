@@ -3,10 +3,10 @@
  * identifiers and file extensions.
  *
  * Known mappings cover the languages this extension provides IntelliSense
- * for (TypeScript ambient stubs for JavaScript; a `CompletionItemProvider`
- * for Groovy / Python / Ruby). Unknown formats fall back to `plaintext`,
- * which is intentionally treated as *unsupported* so the open flow can
- * prompt the user to pick a real language instead.
+ * for via the shared `CompletionItemProvider` (JavaScript, Groovy, Python,
+ * Ruby). Unknown formats fall back to `plaintext`, which is intentionally
+ * treated as *unsupported* so the open flow can prompt the user to pick a
+ * real language instead.
  */
 export class ScriptLanguage {
     private static readonly MAPPINGS: ReadonlyMap<
