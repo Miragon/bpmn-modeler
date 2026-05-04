@@ -3,16 +3,19 @@
     --dt-dark-a0: #000000;
     --dt-light-a0: #ffffff;
 
-    /** Dark theme primary colors — driven by --vscode-button-background */
-    --dt-primary-a0: var(--vscode-button-background, #ff6a00);
-    --dt-primary-a0-opacity-30: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 30%, transparent);
-    --dt-primary-a10: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 85%, white 15%);
-    --dt-primary-a20: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 70%, white 30%);
-    --dt-primary-a20-opacity-15: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 15%, transparent);
-    --dt-primary-a30: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 55%, white 45%);
-    --dt-primary-a40: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 40%, white 60%);
-    --dt-primary-a40-opacity-15: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 15%, transparent);
-    --dt-primary-a50: color-mix(in srgb, var(--vscode-button-background, #ff6a00) 25%, white 75%);
+    /** Dark theme primary colors — fixed neutral grey so the diagram does
+     *  not pick up the host theme's accent (e.g. a brand-coloured button bg).
+     *  Selection outlines, palette entries and other interaction affordances
+     *  derive from this scale. */
+    --dt-primary-a0: #bdbdbd;
+    --dt-primary-a0-opacity-30: color-mix(in srgb, #bdbdbd 30%, transparent);
+    --dt-primary-a10: color-mix(in srgb, #bdbdbd 85%, white 15%);
+    --dt-primary-a20: color-mix(in srgb, #bdbdbd 70%, white 30%);
+    --dt-primary-a20-opacity-15: color-mix(in srgb, #bdbdbd 15%, transparent);
+    --dt-primary-a30: color-mix(in srgb, #bdbdbd 55%, white 45%);
+    --dt-primary-a40: color-mix(in srgb, #bdbdbd 40%, white 60%);
+    --dt-primary-a40-opacity-15: color-mix(in srgb, #bdbdbd 15%, transparent);
+    --dt-primary-a50: color-mix(in srgb, #bdbdbd 25%, white 75%);
 
     /** Dark theme surface colors — driven by --vscode-editor-background / foreground */
     --dt-surface-a0: var(--vscode-editor-background, #121212);
@@ -25,12 +28,12 @@
     --dt-surface-a70: var(--vscode-editor-foreground, #F2F2F2);
 
     /** Dark theme tonal surface colors — bg tinted toward accent */
-    --dt-surface-tonal-a0: color-mix(in srgb, var(--vscode-editor-background, #121212) 70%, var(--vscode-button-background, #ff6a00) 30%);
-    --dt-surface-tonal-a10: color-mix(in srgb, var(--vscode-editor-background, #121212) 60%, var(--vscode-button-background, #ff6a00) 40%);
-    --dt-surface-tonal-a20: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 65%, var(--vscode-button-background, #ff6a00) 35%);
-    --dt-surface-tonal-a30: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 80%, var(--vscode-button-background, #ff6a00) 20%);
-    --dt-surface-tonal-a40: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 90%, var(--vscode-button-background, #ff6a00) 10%);
-    --dt-surface-tonal-a50: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 95%, var(--vscode-button-background, #ff6a00) 5%);
+    --dt-surface-tonal-a0: color-mix(in srgb, var(--vscode-editor-background, #121212) 70%, #bdbdbd 30%);
+    --dt-surface-tonal-a10: color-mix(in srgb, var(--vscode-editor-background, #121212) 60%, #bdbdbd 40%);
+    --dt-surface-tonal-a20: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 65%, #bdbdbd 35%);
+    --dt-surface-tonal-a30: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 80%, #bdbdbd 20%);
+    --dt-surface-tonal-a40: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 90%, #bdbdbd 10%);
+    --dt-surface-tonal-a50: color-mix(in srgb, var(--vscode-input-background, #3f3f3f) 95%, #bdbdbd 5%);
 
     --dt-color-red-a10: var(--vscode-errorForeground, #E65C57);
     --dt-color-red-a10-invert-opacity-60: color-mix(in srgb, #15999e 60%, transparent);

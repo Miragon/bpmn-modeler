@@ -1,0 +1,28 @@
+/**
+ * Tiny brand polish layer on top of the Miragon Light/Dark themes.
+ *
+ * The themes themselves cover token-driven colors. Anything that the
+ * VS Code/Theia color token model does not express — font weight on the
+ * status bar, the green underline on the active activity-bar tab — lives
+ * here. Keep it minimal: every rule should be unreachable through a
+ * theme-token override.
+ */
+
+:root {
+    --miragon-green: #00e676;
+    --miragon-green-hover: #33eb91;
+    --miragon-black: #0a0a0a;
+    --miragon-black-soft: #141414;
+}
+
+/* Make the green status bar text feel intentional. */
+#theia-statusBar {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+/* Slight visual weight on the active activity bar item indicator. */
+.theia-app-left .p-TabBar-tab.p-mod-current::before,
+.theia-app-right .p-TabBar-tab.p-mod-current::before {
+    background-color: var(--miragon-green) !important;
+}
