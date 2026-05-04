@@ -200,6 +200,7 @@ export class ScriptTaskService {
         }
         this.pendingResync.delete(editorId);
 
+        const deferredCleanups: Uri[] = [];
         for (const entry of this.openDocuments.values()) {
             if (entry.editorId !== editorId) {
                 continue;
@@ -222,6 +223,12 @@ export class ScriptTaskService {
                         content,
                     ),
                 );
+                // The user may have closed the script tab while the BPMN
+                // webview was hidden — `cleanupClosedScript` deferred the
+                // cleanup until we replayed. Now that we have, finish it.
+                if (!this.isUriOpenInAnyTab(entry.uri)) {
+                    deferredCleanups.push(entry.uri);
+                }
             } catch (error) {
                 // The webview can transition back to hidden between the
                 // reload signal and our replay (e.g. user clicks another
@@ -236,6 +243,9 @@ export class ScriptTaskService {
                     this.vsUI.logError(error as Error);
                 }
             }
+        }
+        for (const uri of deferredCleanups) {
+            this.performCleanup(uri);
         }
     }
 
@@ -308,10 +318,46 @@ export class ScriptTaskService {
         }
     }
 
+    private isUriOpenInAnyTab(uri: Uri): boolean {
+        const target = uri.toString();
+        for (const group of window.tabGroups.all) {
+            for (const tab of group.tabs) {
+                if (
+                    tab.input instanceof TabInputText &&
+                    tab.input.uri.toString() === target
+                ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private cleanupClosedScript(uri: Uri): void {
-        if (!this.openDocuments.has(uri.path)) {
+        const entry = this.openDocuments.get(uri.path);
+        if (!entry) {
             return;
         }
+
+        // Tab moves between groups arrive as a close + open pair for the
+        // same URI; if the URI is still open in another tab, this was a
+        // move and the entry must stay alive for keystroke tracking.
+        if (this.isUriOpenInAnyTab(uri)) {
+            return;
+        }
+
+        // Real close, but the BPMN webview was hidden when the user typed
+        // — `pendingResync` carries the buffered edit, and the only copy
+        // of its content is the virtual file. Defer cleanup until the
+        // resync runs so it can read scriptFs and replay before we delete.
+        if (this.pendingResync.has(entry.editorId)) {
+            return;
+        }
+
+        this.performCleanup(uri);
+    }
+
+    private performCleanup(uri: Uri): void {
         this.openDocuments.delete(uri.path);
 
         // Each script lives in its own slug directory. Deleting it both
