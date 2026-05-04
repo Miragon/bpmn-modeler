@@ -47,12 +47,25 @@ launch the per-webview dev server.
 
 ```
 apps/
-  modeler-plugin/  # VS Code extension (Node/Webpack)
-  bpmn-webview/    # BPMN webview frontend (Vite/browser)
-  dmn-webview/     # DMN webview frontend (Vite/browser)
+  modeler-plugin/        # VS Code extension (Node/Webpack)
+  bpmn-webview/          # BPMN webview frontend (Vite/browser)
+  dmn-webview/           # DMN webview frontend (Vite/browser)
+  deployment-webview/    # Deployment sidebar webview (Vite/browser)
+  standalone/            # Theia/Electron desktop host shell
 libs/
-  shared/          # Shared webview utilities and message types
+  shared/                # Shared webview utilities and message types
+  standalone-extension/  # Theia frontend extension consumed by
+                         # `apps/standalone/` (Miragon themes, splash,
+                         # hidden built-in views)
 ```
+
+The standalone Electron app is composed of the Theia shell (`apps/standalone/`)
+plus a Theia frontend extension (`libs/standalone-extension/`). The extension
+ships as its own package because Theia's generator only discovers
+`theiaExtensions` declared on dependencies — see
+`libs/standalone-extension/README.md` for details. Run
+`yarn workspace @miragon/bpmn-modeler-standalone dev` for the full
+build → package plugin → bundle → start chain.
 
 ## Build System
 

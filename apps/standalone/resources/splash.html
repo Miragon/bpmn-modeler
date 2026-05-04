@@ -1,0 +1,88 @@
+<!doctype html>
+<!--
+    Splash screen shown by Theia's Electron main process while the renderer
+    is starting up. Loaded via `theia.frontend.config.electron.splashScreenOptions`
+    in apps/standalone/package.json — the path is resolved relative to the
+    Theia project root, so the file must live in `resources/` and be listed
+    in `electron-builder.yml` so it ships in the packaged DMG.
+
+    Self-contained (no external assets except `miragon-logo.png` which sits
+    next to this file) so it renders instantly without waiting on bundlers.
+-->
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Miragon BPMN Modeler</title>
+    <style>
+        :root {
+            --miragon-green: #00e676;
+            --miragon-black: #0a0a0a;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--miragon-black);
+            color: #ffffff;
+            font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .container {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 28px;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+        .logo {
+            width: 220px;
+            height: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 0 24px rgba(0, 230, 118, 0.35));
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .title .accent { color: var(--miragon-green); }
+        .progress {
+            width: 240px;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -40%;
+            width: 40%;
+            height: 100%;
+            background: var(--miragon-green);
+            border-radius: 2px;
+            animation: slide 1.4s ease-in-out infinite;
+        }
+        @keyframes slide {
+            0%   { left: -40%; }
+            100% { left: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img class="logo" src="miragon-logo.png" alt="Miragon" />
+        <div class="title">Miragon <span class="accent">BPMN Modeler</span></div>
+        <div class="progress"></div>
+    </div>
+</body>
+</html>

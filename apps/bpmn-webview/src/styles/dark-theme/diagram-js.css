@@ -4,8 +4,8 @@
     --canvas-fill-color: var(--dt-surface-a10);
 
     --bpmn-shape-fill-color: var(--dt-surface-a10);
-    --bpmn-shape-stroke-color: var(--dt-primary-a40);
-    --bpmn-label-color: var(--bpmn-shape-stroke-color);
+    --bpmn-shape-stroke-color: var(--dt-surface-a60);
+    --bpmn-label-color: var(--dt-surface-a70);
 
     --bendpoint-fill-color: var(--dt-primary-a30);
     --bendpoint-stroke-color: var(--canvas-fill-color);

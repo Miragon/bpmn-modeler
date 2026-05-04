@@ -10,20 +10,28 @@
   "engines": {
     "node": ">=22"
   },
-  "theiaExtensions": [
-    {
-      "frontend": "src/browser/frontend-module"
-    }
-  ],
   "theia": {
     "target": "electron",
     "frontend": {
       "config": {
         "applicationName": "Miragon BPMN Modeler",
         "reloadOnReconnect": true,
+        "defaultTheme": {
+          "light": "miragon-light",
+          "dark": "miragon-dark"
+        },
         "preferences": {
           "files.enableTrash": false,
           "security.workspace.trust.enabled": false
+        },
+        "electron": {
+          "splashScreenOptions": {
+            "content": "resources/splash.html",
+            "width": 480,
+            "height": 320,
+            "minDuration": 1000,
+            "maxDuration": 30000
+          }
         }
       }
     },
@@ -37,6 +45,7 @@
     }
   },
   "dependencies": {
+    "@miragon/bpmn-modeler-standalone-extension": "workspace:*",
     "@theia/core": "1.70.2",
     "@theia/editor": "1.70.2",
     "@theia/electron": "1.70.2",
@@ -59,8 +68,10 @@
   "devDependencies": {
     "@theia/cli": "1.70.2",
     "@theia/native-webpack-plugin": "1.70.2",
+    "@vscode/vsce": "3.2.1",
     "electron": "39.8.9",
     "electron-builder": "26.8.1",
+    "npm-run-all": "4.1.5",
     "rimraf": "6.1.3"
   },
   "scripts": {
@@ -68,8 +79,16 @@
     "clean": "theia clean && rimraf node_modules lib src-gen dist gen-webpack*.js",
     "clean:dist": "rimraf dist",
     "rebuild": "theia rebuild:electron --cacheRoot ../..",
-    "build": "theia build --app-target=\"electron\" --mode development",
-    "build:prod": "theia build --app-target=\"electron\"",
+    "build:extension": "corepack yarn workspace @miragon/bpmn-modeler-standalone-extension build",
+    "build": "npm-run-all -s build:extension build:theia",
+    "build:theia": "theia build --app-target=\"electron\" --mode development",
+    "build:prod": "npm-run-all -s build:extension build:prod:theia",
+    "build:prod:theia": "theia build --app-target=\"electron\"",
+    "build:repo": "corepack yarn --cwd ../.. build",
+    "package-plugin": "node scripts/package-plugin.mjs",
+    "prepare-plugin": "npm-run-all -s package-plugin bundle",
+    "dev": "npm-run-all -s build:repo prepare-plugin build start",
+    "dev:fast": "npm-run-all -s build start",
     "start": "electron scripts/theia-electron-main.js",
     "start:debug": "yarn start --log-level=debug",
     "package": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder -c.mac.identity=null -c.mac.notarize=false -c.mac.hardenedRuntime=false --publish never --mac dmg",
