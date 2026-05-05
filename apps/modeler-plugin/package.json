@@ -79,6 +79,20 @@
     ],
     "main": "main.js",
     "contributes": {
+        "themes": [
+            {
+                "id": "miragon-light",
+                "label": "Miragon Light",
+                "uiTheme": "vs",
+                "path": "./themes/miragon-light.json"
+            },
+            {
+                "id": "miragon-dark",
+                "label": "Miragon Dark",
+                "uiTheme": "vs-dark",
+                "path": "./themes/miragon-dark.json"
+            }
+        ],
         "customEditors": [
             {
                 "id": "bpmn-modeler.bpmn",
