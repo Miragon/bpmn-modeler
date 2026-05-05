@@ -29,5 +29,5 @@
             "@miragon/create-append-c7-element-templates": ["./libs/create-append-c7-element-templates/src/index.ts"]
         }
     },
-    "exclude": ["node_modules", "tmp"]
+    "exclude": ["node_modules", "tmp", "dist", "**/lib", "**/src-gen"]
 }

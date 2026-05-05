@@ -2,21 +2,17 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
+    "module": "commonjs",
+    "moduleResolution": "bundler",
     "types": [
-      "vitest/globals",
+      "jest",
       "node"
     ]
   },
   "include": [
-    "vite.config.mts",
+    "jest.config.ts",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
-    "src/**/*.test.tsx",
-    "src/**/*.spec.tsx",
-    "src/**/*.test.js",
-    "src/**/*.spec.js",
-    "src/**/*.test.jsx",
-    "src/**/*.spec.jsx",
     "src/**/*.d.ts"
   ]
 }

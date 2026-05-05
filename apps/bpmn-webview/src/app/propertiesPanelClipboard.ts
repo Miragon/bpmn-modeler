@@ -1,4 +1,37 @@
 /**
+ * Handles Ctrl/Cmd+A: selects all text in focused inputs; fully intercepts
+ * the event for canvas focus and delegates element selection to onSelectAll.
+ */
+function handleSelectAll(e: KeyboardEvent, el: Element, onSelectAll?: () => void): void {
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        e.stopPropagation();
+        e.preventDefault();
+        el.select();
+        return;
+    }
+    e.stopPropagation();
+    e.preventDefault();
+    onSelectAll?.();
+}
+
+/**
+ * Writes the current text selection to the extension-host clipboard.
+ */
+function handleCopy(writeClipboard: (text: string) => void): void {
+    const text = window.getSelection()?.toString() ?? "";
+    if (text) writeClipboard(text);
+}
+
+/**
+ * Reads from the extension-host clipboard and pastes into the target element.
+ */
+function handlePaste(el: HTMLElement, requestClipboard: () => Promise<string>): void {
+    requestClipboard().then((text) => {
+        if (text) dispatchPasteOrInsert(el, text);
+    });
+}
+
+/**
  * Polyfills clipboard operations for all `contenteditable` elements in
  * VS Code webviews.
  *
@@ -13,27 +46,31 @@
  *
  * @param requestClipboard Async callback that reads clipboard text via the extension host.
  * @param writeClipboard Callback that writes text to the extension host clipboard.
+ * @param onSelectAll Called when Ctrl+A fires outside a text input (e.g. on the canvas).
  */
 export function installContentEditableClipboardPolyfill(
     requestClipboard: () => Promise<string>,
     writeClipboard: (text: string) => void,
+    onSelectAll?: () => void,
 ): void {
     let handled = false;
 
-    // ── Primary: capture-phase keydown listener ─────────────────────────
     document.addEventListener(
         "keydown",
         (e: KeyboardEvent) => {
             const el = document.activeElement;
-            if (
-                !(el instanceof HTMLElement) ||
-                el.contentEditable !== "true"
-            ) {
-                return;
-            }
+            if (!(el instanceof Element)) return;
 
             const isMod = e.metaKey || e.ctrlKey;
             if (!isMod) return;
+
+            if (e.key === "a") {
+                handleSelectAll(e, el, onSelectAll);
+                return;
+            }
+
+            if (!(el instanceof HTMLElement)) return;
+            if (el.contentEditable !== "true") return;
 
             if (e.key === "v") {
                 handled = true;
@@ -41,12 +78,7 @@ export function installContentEditableClipboardPolyfill(
                     handled = false;
                 }, 200);
                 e.preventDefault();
-
-                requestClipboard().then((text) => {
-                    if (text) {
-                        dispatchPasteOrInsert(el, text);
-                    }
-                });
+                handlePaste(el, requestClipboard);
             }
 
             if (e.key === "c") {
@@ -54,68 +86,46 @@ export function installContentEditableClipboardPolyfill(
                 setTimeout(() => {
                     handled = false;
                 }, 200);
-                const text = window.getSelection()?.toString() ?? "";
-                if (text) {
-                    writeClipboard(text);
-                }
+                handleCopy(writeClipboard);
             }
         },
-        true, // capture phase — fires before DirectEditing's stopPropagation()
+        true,
     );
 
-    // ── Secondary: execCommand polyfill (fallback) ──────────────────────
-    document.execCommand = function (
-        command: string,
-        showUI?: boolean,
-        value?: string,
-    ): boolean {
-        const el = document.activeElement;
+    const nativeExecCommand = Document.prototype.execCommand;
 
-        if (
-            el instanceof HTMLElement &&
-            el.contentEditable === "true"
-        ) {
-            if (command === "paste") {
-                if (handled) return true;
-                requestClipboard().then((text) => {
-                    if (text) {
-                        dispatchPasteOrInsert(el, text);
-                    }
-                });
-                return true;
-            }
+    Object.defineProperty(document, "execCommand", {
+        value: function (command: string, showUI?: boolean, value?: string): boolean {
+            const el = document.activeElement;
 
-            if (command === "copy") {
-                if (handled) return true;
-                const text = window.getSelection()?.toString() ?? "";
-                if (text) {
-                    writeClipboard(text);
+            if (el instanceof HTMLElement && el.contentEditable === "true") {
+                if (command === "paste") {
+                    if (handled) return true;
+                    handlePaste(el, requestClipboard);
+                    return true;
                 }
-                return true;
-            }
-        }
 
-        return Document.prototype.execCommand.call(
-            document,
-            command,
-            showUI,
-            value,
-        );
-    };
+                if (command === "copy") {
+                    if (handled) return true;
+                    handleCopy(writeClipboard);
+                    return true;
+                }
+            }
+
+            return nativeExecCommand?.call(document, command, showUI, value) ?? false;
+        },
+        writable: true,
+        configurable: true,
+    });
 }
 
 /**
  * Dispatches a synthetic `ClipboardEvent("paste")` on the target element.
- * If no JavaScript handler consumes the event (i.e. `defaultPrevented` remains
- * false), falls back to inserting the text directly via the native
- * `execCommand("insertText")`.
+ * Falls back to `execCommand("insertText")` when no JS handler consumes it.
  *
- * This two-step approach is necessary because:
- * - Editors with JS paste handlers (e.g. CodeMirror 6 / FEEL editor) consume
- *   the ClipboardEvent and handle insertion themselves.
- * - Plain contenteditable elements (e.g. diagram-js TextBox / canvas label
- *   editor) rely on the browser's native paste behavior, which does not fire
- *   for synthetic events — so we must insert the text explicitly.
+ * Editors with JS paste handlers (e.g. CodeMirror 6 / FEEL editor) consume
+ * the ClipboardEvent themselves; plain contenteditable elements (e.g.
+ * diagram-js TextBox) rely on the explicit insertText fallback.
  *
  * @param el The target contenteditable element.
  * @param text The plain text to paste.
@@ -130,10 +140,7 @@ function dispatchPasteOrInsert(el: HTMLElement, text: string): void {
     });
     el.dispatchEvent(event);
 
-    // If no JS handler consumed the paste event, insert text directly.
-    // This covers plain contenteditable elements like the canvas label editor
-    // (diagram-js TextBox) which have no JS paste handler.
     if (!event.defaultPrevented) {
-        Document.prototype.execCommand.call(document, "insertText", false, text);
+        Document.prototype.execCommand?.call(document, "insertText", false, text);
     }
 }

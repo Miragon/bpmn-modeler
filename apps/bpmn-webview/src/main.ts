@@ -164,6 +164,10 @@ window.onload = async function () {
         installContentEditableClipboardPolyfill(
             requestTextClipboard,
             writeTextClipboard,
+            () => {
+                if (!modelerIsInitialized) return;
+                bpmnModeler.getService<any>("editorActions").trigger("selectElements");
+            },
         );
     }
 
