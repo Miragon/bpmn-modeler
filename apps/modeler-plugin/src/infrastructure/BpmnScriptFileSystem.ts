@@ -16,7 +16,7 @@ import {
  *
  * Stores virtual script documents so that VS Code can open them in full
  * editor tabs with syntax highlighting and IntelliSense. Each file is
- * keyed by its URI path (e.g. `/{editorHash}/{elementId}/script.js`).
+ * keyed by its URI path (e.g. `/{editorHash}/{elementId}/{slug}/{filename}`).
  */
 export class BpmnScriptFileSystem implements FileSystemProvider {
     private readonly files = new Map<string, Uint8Array>();

@@ -147,8 +147,15 @@ export class ScriptTaskService {
         const lang = new ScriptLanguage(effectiveFormat);
         const editorHash = this.hashEditorId(editorId);
         const slug = this.slugFor(kind, listenerIndex, eventName);
+        const filename = this.filenameFor(
+            elementId,
+            kind,
+            listenerIndex,
+            eventName,
+            lang.extension,
+        );
         const scriptUri = Uri.parse(
-            `bpmn-script:/${editorHash}/${elementId}/${slug}/script.${lang.extension}`,
+            `bpmn-script:/${editorHash}/${elementId}/${slug}/${filename}`,
         );
 
         // Already open: just reveal the existing editor.
@@ -506,6 +513,46 @@ export class ScriptTaskService {
         const event = eventName ? `-${eventName}` : "";
         const idx = listenerIndex ?? 0;
         return `${kind}-${idx}${event}`;
+    }
+
+    /**
+     * Builds the editor tab's filename so the user can identify a script at a
+     * glance from the tab strip. URI uniqueness is already guaranteed by the
+     * `<editorHash>/<elementId>/<slug>/` path segments — the filename is for
+     * humans, so we collapse the slug into a shorter readable form.
+     *
+     * Element IDs are XML NCNames in practice but the spec permits a wider
+     * set than POSIX-clean filenames; we replace anything outside
+     * `[A-Za-z0-9_-]` with `_` so the tab title stays well-formed across
+     * platforms.
+     *
+     * Examples:
+     *   - script task on `Task_1`            → `Task_1.js`
+     *   - exec listener (start, idx 0)       → `Task_1.execution-start.js`
+     *   - exec listener (start, idx 1)       → `Task_1.execution-start-1.js`
+     *   - task listener (create, idx 0)      → `UserTask_1.task-create.js`
+     */
+    private filenameFor(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        eventName: string | undefined,
+        extension: string,
+    ): string {
+        const safeId = elementId.replace(/[^A-Za-z0-9_-]/g, "_");
+        if (kind === "script-task") {
+            return `${safeId}.${extension}`;
+        }
+        const prefix = kind === "execution-listener" ? "execution" : "task";
+        const parts = [prefix];
+        if (eventName) {
+            parts.push(eventName);
+        }
+        const idx = listenerIndex ?? 0;
+        if (idx > 0) {
+            parts.push(String(idx));
+        }
+        return `${safeId}.${parts.join("-")}.${extension}`;
     }
 
     /**

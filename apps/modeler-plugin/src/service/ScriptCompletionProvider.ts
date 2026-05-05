@@ -29,7 +29,7 @@ import {
  *
  * VS Code's `tsserver` does not enumerate sibling files of a custom URI
  * scheme through `FileSystemProvider`s, so a `camunda.d.ts` written next
- * to `script.js` in the `bpmn-script://` virtual filesystem is invisible
+ * to a virtual `.js` file in the `bpmn-script://` filesystem is invisible
  * to the inferred TypeScript project. We therefore drive JavaScript
  * IntelliSense through the same `CompletionItemProvider` path as the other
  * JSR-223 languages, keeping behaviour and method signatures consistent.
