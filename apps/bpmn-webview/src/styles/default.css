@@ -287,6 +287,15 @@ a:link {
     padding-right: 4px;
 }
 
+/* Center the inline VS Code SVG inside the 22x22 context-pad entry. The
+   default .entry rule centers font-icons via text-align/font-size, which
+   does not apply to a child <svg>. */
+.djs-context-pad .edit-script-entry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* see issue https://github.com/microsoft/vscode/issues/213045 */
 @supports selector(::-webkit-scrollbar) {
     html {

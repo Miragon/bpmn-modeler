@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { beansFor } from "../domain/scriptApi";
 import {
     matchMemberAccess,

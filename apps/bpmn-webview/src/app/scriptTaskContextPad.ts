@@ -1,4 +1,5 @@
 import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import { VSCODE_ICON_SVG } from "./vscodeIcon";
 
 /**
  * bpmn-js context pad provider that adds an "Edit Script" entry for
@@ -68,7 +69,7 @@ class ScriptTaskContextPadProvider {
         return {
             "edit-script": {
                 group: "edit",
-                className: "bpmn-icon-script-task",
+                html: `<div class="entry edit-script-entry" draggable="true">${VSCODE_ICON_SVG}</div>`,
                 title: "Edit Script",
                 action: {
                     click: () => {
