@@ -221,18 +221,73 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: yarn test
+      - run: yarn workspace vs-code-bpmn-modeler test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: "./coverage"
+          directory: "./coverage/apps/modeler-plugin"
           fail_ci_if_error: false
-          flags: unittests
-          name: bpmn-modeler
+          flags: modeler-plugin
+          name: modeler-plugin
+          verbose: true
+
+  test-bpmn-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.bpmn-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n == 'true' ||
+      needs.detect-changes.outputs.append-menu == 'true' ||
+      needs.detect-changes.outputs.element-template-chooser == 'true' ||
+      needs.detect-changes.outputs.bpmn-clipboard == 'true' ||
+      needs.detect-changes.outputs.create-append-c7 == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard @miragon/create-append-c7-element-templates
+      - run: yarn workspace @miragon/bpmn-modeler-webview test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/apps/bpmn-webview"
+          fail_ci_if_error: false
+          flags: bpmn-webview
+          name: bpmn-webview
+          verbose: true
+
+  test-bpmn-i18n:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bpmn-i18n == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-i18n
+      - run: yarn workspace @miragon/bpmn-modeler-i18n test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/libs/bpmn-i18n"
+          fail_ci_if_error: false
+          flags: bpmn-i18n
+          name: bpmn-i18n
           verbose: true
 
   build-bpmn-webview:
@@ -320,6 +375,8 @@ jobs:
       - build-create-append-c7
       - build-modeler-plugin
       - test-modeler-plugin
+      - test-bpmn-webview
+      - test-bpmn-i18n
       - build-bpmn-webview
       - build-dmn-webview
       - build-deployment-webview

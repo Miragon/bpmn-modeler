@@ -3,9 +3,12 @@
     "version": "0.0.1",
     "private": true,
     "scripts": {
-        "build": "tsc --noEmit"
+        "build": "tsc --noEmit",
+        "test": "vitest run --coverage"
     },
     "devDependencies": {
-        "typescript": "6.0.3"
+        "@vitest/coverage-v8": "4.1.5",
+        "typescript": "6.0.3",
+        "vitest": "4.1.5"
     }
 }
