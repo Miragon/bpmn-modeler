@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+
 import { UserCancelledError } from "../domain/errors";
 import { BpmnModelerService } from "./BpmnModelerService";
 
@@ -36,66 +38,66 @@ const unknownBpmn = `<?xml version="1.0" encoding="UTF-8"?>
 
 function createMocks() {
     const editorStore = {
-        findEditorIdByPath: jest.fn().mockReturnValue(undefined),
-        postMessage: jest.fn(),
-        getActiveEditorId: jest.fn(),
-        getDocumentForEditor: jest.fn(),
-        subscribeToMessageEvent: jest.fn(),
-        subscribeToActiveEditorMessage: jest.fn(),
+        findEditorIdByPath: vi.fn().mockReturnValue(undefined),
+        postMessage: vi.fn(),
+        getActiveEditorId: vi.fn(),
+        getDocumentForEditor: vi.fn(),
+        subscribeToMessageEvent: vi.fn(),
+        subscribeToActiveEditorMessage: vi.fn(),
     };
 
     const vsDocument = {
-        write: jest.fn().mockResolvedValue(true),
-        getContent: jest.fn(),
-        getFilePath: jest.fn(),
-        save: jest.fn(),
+        write: vi.fn().mockResolvedValue(true),
+        getContent: vi.fn(),
+        getFilePath: vi.fn(),
+        save: vi.fn(),
     };
 
     const vsSettings = {
-        getAlignToOrigin: jest.fn(),
-        getShowTransactionBoundaries: jest.fn(),
+        getAlignToOrigin: vi.fn(),
+        getShowTransactionBoundaries: vi.fn(),
     };
 
     const vsUI = {
-        showInfo: jest.fn(),
-        showError: jest.fn(),
-        logInfo: jest.fn(),
-        logWarning: jest.fn(),
-        logError: jest.fn(),
-        pickExecutionPlatform: jest.fn(),
-        pickEngineVersion: jest.fn(),
-        pickMigrationScope: jest.fn(),
-        toggleTextEditor: jest.fn(),
-        readClipboard: jest.fn(),
-        writeClipboard: jest.fn(),
-        openLoggingConsole: jest.fn(),
+        showInfo: vi.fn(),
+        showError: vi.fn(),
+        logInfo: vi.fn(),
+        logWarning: vi.fn(),
+        logError: vi.fn(),
+        pickExecutionPlatform: vi.fn(),
+        pickEngineVersion: vi.fn(),
+        pickMigrationScope: vi.fn(),
+        toggleTextEditor: vi.fn(),
+        readClipboard: vi.fn(),
+        writeClipboard: vi.fn(),
+        openLoggingConsole: vi.fn(),
     };
 
     const artifactSvc = {
-        getArtifactPaths: jest.fn(),
-        readFile: jest.fn(),
-        createWatcher: jest.fn(),
+        getArtifactPaths: vi.fn(),
+        readFile: vi.fn(),
+        createWatcher: vi.fn(),
     };
 
     const statusBar = {
-        showEngineVersion: jest.fn(),
-        showElementTemplatesLoading: jest.fn(),
-        showElementTemplatesReady: jest.fn(),
-        hideElementTemplatesStatus: jest.fn(),
+        showEngineVersion: vi.fn(),
+        showElementTemplatesLoading: vi.fn(),
+        showElementTemplatesReady: vi.fn(),
+        hideElementTemplatesStatus: vi.fn(),
     };
 
     const vsWorkspace = {
-        findFiles: jest.fn().mockResolvedValue([]),
-        readFile: jest.fn(),
-        writeFile: jest.fn().mockResolvedValue(undefined),
-        getWorkspaceFolderForDocument: jest.fn(),
-        readDirectory: jest.fn(),
-        findGitRoot: jest.fn(),
+        findFiles: vi.fn().mockResolvedValue([]),
+        readFile: vi.fn(),
+        writeFile: vi.fn().mockResolvedValue(undefined),
+        getWorkspaceFolderForDocument: vi.fn(),
+        readDirectory: vi.fn(),
+        findGitRoot: vi.fn(),
     };
 
     const panelStateRepo = {
-        getVisibility: jest.fn().mockReturnValue(true),
-        setVisibility: jest.fn().mockResolvedValue(undefined),
+        getVisibility: vi.fn().mockReturnValue(true),
+        setVisibility: vi.fn().mockResolvedValue(undefined),
     };
 
     const service = new BpmnModelerService(

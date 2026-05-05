@@ -162,7 +162,7 @@ method rather than adding a new service — e.g. `AppendMenuOverride` wraps
 | Standalone macOS DMG | `@theia/cli` + electron-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml` |
 | Shared lib (`@miragon/bpmn-modeler-shared`) | tsc | `libs/shared/tsconfig.lib.json` |
 | c7 npm lib | tsc | `libs/create-append-c7-element-templates/tsconfig.lib.json` |
-| Tests | Jest + ts-jest | `apps/modeler-plugin/jest.config.ts` |
+| Tests | Vitest | `apps/modeler-plugin/vitest.config.ts` |
 | Path alias resolution | `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) | `tsconfig.base.json` |
 
 `yarn build` in the repo root uses `npm-run-all` to build libs first, then the

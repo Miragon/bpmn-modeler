@@ -1,6 +1,8 @@
 import * as http from "http";
 import { AddressInfo } from "net";
 
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
 import { FetchHttpClient } from "../FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda8RestClient } from "./Camunda8RestClient";

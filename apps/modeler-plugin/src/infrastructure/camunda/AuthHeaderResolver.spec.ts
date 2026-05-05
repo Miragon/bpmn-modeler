@@ -1,21 +1,20 @@
+import { Mocked, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { BasicAuth, NoAuth, OAuth2Auth } from "../../domain/deployment";
 import { TokenFetchError } from "../../domain/errors";
 import { HttpClient, HttpResponse } from "../../domain/ports";
 
-/**
- * Creates a mock {@link HttpClient} with jest stubs for all methods.
- */
-function mockHttpClient(): jest.Mocked<HttpClient> {
+function mockHttpClient(): Mocked<HttpClient> {
     return {
-        postJson: jest.fn(),
-        postForm: jest.fn(),
-        postMultipart: jest.fn(),
+        postJson: vi.fn(),
+        postForm: vi.fn(),
+        postMultipart: vi.fn(),
     };
 }
 
 describe("AuthHeaderResolver", () => {
-    let httpClient: jest.Mocked<HttpClient>;
+    let httpClient: Mocked<HttpClient>;
     let resolver: AuthHeaderResolver;
 
     beforeEach(() => {
