@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import { addExecutionPlatform } from "./bpmnUtils";
 
 describe("addExecutionPlatform", () => {

@@ -17,7 +17,7 @@ corepack yarn install           # Install dependencies
 corepack yarn build             # Build everything (libs → webviews + plugin)
 corepack yarn build:libs        # Build shared libraries only
 corepack yarn watch             # Development watch mode (F5 Extension Host)
-corepack yarn test              # Test (Jest)
+corepack yarn test              # Test (Vitest)
 corepack yarn lint              # Lint
 
 # Target a single workspace
@@ -25,7 +25,7 @@ corepack yarn workspace vs-code-bpmn-modeler build
 corepack yarn workspace @miragon/bpmn-modeler-webview build
 
 # Run a single test file
-corepack yarn test --testPathPattern=apps/bpmn-modeler/src/service/bpmnUtils.spec.ts
+corepack yarn test apps/modeler-plugin/src/service/bpmnUtils.spec.ts
 ```
 
 ### Webview scripts (bpmn-webview, dmn-webview, deployment-webview)
@@ -71,7 +71,7 @@ build → package plugin → bundle → start chain.
 
 - **Extension host**: Webpack + `ts-loader` — `apps/bpmn-modeler/webpack.config.js`
 - **Webviews**: Vite — `apps/{bpmn,dmn}-webview/vite.config.mts`
-- **Tests**: Jest + `ts-jest` — `apps/bpmn-modeler/jest.config.ts`
+- **Tests**: Vitest — `apps/modeler-plugin/vitest.config.ts`
 - **Output**: `dist/apps/bpmn-modeler/`
 
 ## Path Aliases (`tsconfig.base.json`)

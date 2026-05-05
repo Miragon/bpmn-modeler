@@ -1,13 +1,24 @@
+import {
+    afterAll,
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from "vitest";
+
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
 
 const mocks = {
-    requestClipboard: jest.fn().mockResolvedValue(""),
-    writeClipboard: jest.fn<void, [string]>(),
-    onSelectAll: jest.fn(),
+    requestClipboard: vi.fn().mockResolvedValue(""),
+    writeClipboard: vi.fn<(text: string) => void>(),
+    onSelectAll: vi.fn(),
 };
 
 beforeAll(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     installContentEditableClipboardPolyfill(
         () => mocks.requestClipboard(),
         (text) => mocks.writeClipboard(text),
@@ -16,11 +27,11 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
 });
 
 beforeEach(() => {
-    jest.runAllTimers();
+    vi.runAllTimers();
     mocks.requestClipboard.mockReset().mockResolvedValue("");
     mocks.writeClipboard.mockReset();
     mocks.onSelectAll.mockReset();
@@ -28,7 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
 });
 
 function focusedInput(): HTMLInputElement {
@@ -62,7 +73,7 @@ function ctrl(key: string): KeyboardEvent {
 describe("selecting all text in a properties-panel input (Ctrl+A)", () => {
     it("selects all text in the field", () => {
         const input = focusedInput();
-        const selectSpy = jest.spyOn(input, "select");
+        const selectSpy = vi.spyOn(input, "select");
         input.dispatchEvent(ctrl("a"));
         expect(selectSpy).toHaveBeenCalled();
     });
@@ -91,7 +102,7 @@ describe("copy and paste in the FEEL expression editor", () => {
 
     it("Ctrl+C copies the selected expression text to the extension-host clipboard", () => {
         const editor = focusedEditor();
-        jest.spyOn(window, "getSelection").mockReturnValue({
+        vi.spyOn(window, "getSelection").mockReturnValue({
             toString: () => "some expression",
         } as unknown as Selection);
         editor.dispatchEvent(ctrl("c"));

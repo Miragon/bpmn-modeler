@@ -1,15 +1,14 @@
+import { Mocked, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { CamundaEngineRouter } from "./CamundaEngineRouter";
 import { CamundaEnginePort } from "../../domain/ports";
 import { DeploymentConfig, DeploymentResult, NoAuth } from "../../domain/deployment";
 import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
 
-/**
- * Creates a mock {@link CamundaEnginePort} with jest stubs.
- */
-function mockEnginePort(): jest.Mocked<CamundaEnginePort> {
+function mockEnginePort(): Mocked<CamundaEnginePort> {
     return {
-        deploy: jest.fn(),
-        startInstance: jest.fn(),
+        deploy: vi.fn(),
+        startInstance: vi.fn(),
     };
 }
 
@@ -20,8 +19,8 @@ function mockEnginePort(): jest.Mocked<CamundaEnginePort> {
  * correct engine-specific implementation based on `config.engine`.
  */
 describe("CamundaEngineRouter", () => {
-    let c7: jest.Mocked<CamundaEnginePort>;
-    let c8: jest.Mocked<CamundaEnginePort>;
+    let c7: Mocked<CamundaEnginePort>;
+    let c8: Mocked<CamundaEnginePort>;
     let router: CamundaEngineRouter;
 
     beforeEach(() => {

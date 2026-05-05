@@ -5,12 +5,11 @@
     "module": "commonjs",
     "moduleResolution": "bundler",
     "types": [
-      "jest",
       "node"
     ]
   },
   "include": [
-    "jest.config.ts",
+    "vitest.config.ts",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
     "src/**/*.d.ts"

@@ -50,7 +50,7 @@ files:
   - "!**/{.eslintrc,.prettierrc,.editorconfig,.nycrc,.babelrc,.jshintrc}*"
   - "!**/*.{yml,yaml}"
   - "!**/tsconfig*.json"
-  - "!**/jest.config*"
+  - "!**/vitest.config*"
   - "!**/.travis.yml"
 extraResources:
   - from: plugins
