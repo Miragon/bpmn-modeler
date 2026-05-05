@@ -38,11 +38,17 @@ export const OPEN_SCRIPT_EDITOR_EVENT = "scriptEditor.open";
 class ScriptTaskContextPadProvider {
     private readonly eventBus: any;
 
-    static $inject = ["eventBus"];
+    static $inject = ["eventBus", "contextPad"];
 
-    /** @param eventBus The bpmn-js event bus instance. */
-    constructor(eventBus: any) {
+    /**
+     * @param eventBus The bpmn-js event bus instance.
+     * @param contextPad The bpmn-js context pad service. The provider must
+     *   register itself here, otherwise {@link getContextPadEntries} is
+     *   never called even though the class is instantiated via `__init__`.
+     */
+    constructor(eventBus: any, contextPad: any) {
         this.eventBus = eventBus;
+        contextPad.registerProvider(this);
     }
 
     /**
