@@ -14,9 +14,10 @@
  *      explicitly aware that Light/Dark/Auto are options, instead of being
  *      silently dropped into whatever the OS preference dictates.
  *
- *   4. Falls back to the OS appearance (`prefers-color-scheme: dark`) when
- *      no Miragon theme is currently active — covers fresh profiles AND
- *      profiles where Theia's default won the race during startup.
+ *   4. Falls back to **Miragon Light** when no Miragon theme is currently
+ *      active — covers fresh profiles AND profiles where Theia's default
+ *      won the race during startup. The OS-appearance helper remains
+ *      available for the explicit "Use System Theme" picker choice.
  *
  * Why both `initialize()` and `onStart()` apply the theme:
  *   `initialize()` runs synchronously before first paint so the UI never
@@ -109,16 +110,20 @@ export class MiragonThemeContribution implements FrontendApplicationContribution
 
     /**
      * If the active theme is not one of ours (e.g. an orphaned Theia default
-     * carried over from an earlier run), pick a Miragon theme based on the
-     * OS preference. Once a Miragon theme is active, leave the user's choice
-     * alone so manual switches survive restarts.
+     * carried over from an earlier run), apply Miragon Light as the default.
+     * Once a Miragon theme is active, leave the user's choice alone so manual
+     * switches survive restarts.
      */
     private ensureMiragonTheme(): void {
         const activeId = this.themeService.getCurrentTheme().id;
         if ((MIRAGON_THEME_IDS as readonly string[]).includes(activeId)) {
             return;
         }
-        this.applySystemTheme();
+        this.applyDefaultTheme();
+    }
+
+    private applyDefaultTheme(): void {
+        this.themeService.setCurrentTheme(MIRAGON_LIGHT_THEME_ID, true);
     }
 
     private applySystemTheme(): void {
@@ -139,16 +144,16 @@ export class MiragonThemeContribution implements FrontendApplicationContribution
             const choice = await this.quickInputService.showQuickPick(
                 [
                     {
-                        label: SYSTEM_CHOICE_LABEL,
-                        description: "Follow your OS appearance (recommended)",
+                        label: "Miragon Light",
+                        description: "Light UI with Miragon accents (recommended)",
                     },
                     {
                         label: "Miragon Dark",
                         description: "Dark UI with Miragon accents",
                     },
                     {
-                        label: "Miragon Light",
-                        description: "Light UI with Miragon accents",
+                        label: SYSTEM_CHOICE_LABEL,
+                        description: "Follow your OS appearance",
                     },
                 ],
                 {

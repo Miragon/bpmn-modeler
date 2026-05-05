@@ -16,10 +16,7 @@
       "config": {
         "applicationName": "Miragon BPMN Modeler",
         "reloadOnReconnect": true,
-        "defaultTheme": {
-          "light": "miragon-light",
-          "dark": "miragon-dark"
-        },
+        "defaultTheme": "miragon-light",
         "preferences": {
           "files.enableTrash": false,
           "security.workspace.trust.enabled": false

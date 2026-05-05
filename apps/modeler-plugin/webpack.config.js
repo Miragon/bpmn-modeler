@@ -83,6 +83,16 @@ module.exports = (env, argv) => {
                         noErrorOnMissing: true,
                     },
                     {
+                        // Single source of truth: themes live in the standalone
+                        // extension. `vsce package --no-dependencies` strips
+                        // node_modules, so the JSON must be present in dist.
+                        from: path.resolve(
+                            __dirname,
+                            "../../libs/standalone-extension/src/themes",
+                        ),
+                        to: "themes",
+                    },
+                    {
                         from: path.resolve(__dirname, "../../LICENSE"),
                         to: ".",
                         noErrorOnMissing: true,
