@@ -65,6 +65,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:signed
         env:
+          NODE_OPTIONS: --max-old-space-size=8192
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -83,6 +84,7 @@ jobs:
         if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:release
         env:
+          NODE_OPTIONS: --max-old-space-size=8192
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
