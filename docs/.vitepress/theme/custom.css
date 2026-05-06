@@ -78,36 +78,12 @@
 .VPNavBar:not(.has-sidebar) .DocSearch-Button:hover { background: rgba(255,255,255,0.75) !important; }
 .dark .VPNavBar:not(.has-sidebar) .DocSearch-Button:hover { background: rgba(255,255,255,0.1) !important; }
 
-/* Nav extras: version chip + Install button */
+/* Nav extras: Install button */
 .nav-extras {
   display: inline-flex;
   align-items: center;
   gap: 12px;
   margin-left: 16px;
-}
-.version-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  background: rgba(255,255,255,0.5);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--miragon-border);
-  border-radius: 6px;
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 12px;
-  color: var(--miragon-fg-muted);
-  font-weight: 600;
-}
-.dark .version-chip {
-  background: rgba(255,255,255,0.04);
-}
-.version-chip .v-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--miragon-green);
-  box-shadow: 0 0 8px var(--miragon-green);
 }
 .install-btn {
   display: inline-flex;
