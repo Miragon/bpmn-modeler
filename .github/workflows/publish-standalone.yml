@@ -1,8 +1,6 @@
 name: Publish Standalone (macOS)
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       dry-run:
@@ -22,7 +20,6 @@ jobs:
   publish-macos:
     name: Build, sign, notarize, publish (macOS)
     runs-on: macos-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'standalone-v'))
 
     steps:
       - name: Checkout sources
@@ -41,16 +38,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify package.json version matches tag
-        if: github.event_name == 'release'
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          TAG_VERSION="${TAG#standalone-v}"
-          PKG_VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "apps/standalone/package.json version ($PKG_VERSION) does not match release tag ($TAG_VERSION)." && exit 1
-          fi
-
       - name: Build extension
         run: yarn build
 
@@ -62,9 +49,10 @@ jobs:
         run: yarn workspace @miragon/bpmn-modeler-standalone bundle
 
       - name: Build, sign, notarize DMG (dry-run)
-        if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
+        if: inputs.dry-run == true
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:signed
         env:
+          NODE_OPTIONS: --max-old-space-size=8192
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -72,7 +60,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload DMG artifact (dry-run)
-        if: github.event_name == 'workflow_dispatch' && inputs.dry-run == true
+        if: inputs.dry-run == true
         uses: actions/upload-artifact@v7
         with:
           name: standalone-dmg-dry-run
@@ -80,9 +68,10 @@ jobs:
           retention-days: 7
 
       - name: Build, sign, notarize, publish DMG
-        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.dry-run == false)
+        if: inputs.dry-run == false
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:release
         env:
+          NODE_OPTIONS: --max-old-space-size=8192
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
