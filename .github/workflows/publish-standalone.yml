@@ -67,14 +67,30 @@ jobs:
           path: apps/standalone/dist/*.dmg
           retention-days: 7
 
-      - name: Build, sign, notarize, publish DMG
+      - name: Build, sign, notarize DMG
         if: inputs.dry-run == false
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:release
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload artifacts to release
+        if: inputs.dry-run == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
+          TAG="standalone-v${VERSION}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG does not exist. Create it first (tag + 'gh release create $TAG')." && exit 1
+          fi
+          shopt -s nullglob
+          FILES=(apps/standalone/dist/*.dmg apps/standalone/dist/*.dmg.blockmap apps/standalone/dist/latest-mac.yml)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No artifacts found in apps/standalone/dist/." && exit 1
+          fi
+          gh release upload "$TAG" "${FILES[@]}" --clobber
