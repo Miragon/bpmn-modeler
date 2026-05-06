@@ -82,6 +82,7 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Miragon/homebrew-tap.git" tap
+          mkdir -p tap/Casks
           cp miragon-bpmn-modeler.rb tap/Casks/miragon-bpmn-modeler.rb
           cd tap
           git config user.name "github-actions[bot]"
