@@ -1,31 +1,19 @@
 <script setup lang="ts">
 import DefaultTheme from "vitepress/theme";
-import { ref, computed, onMounted } from "vue";
+import { computed } from "vue";
 import { useData, withBase } from "vitepress";
 import SiteFooter from "./components/SiteFooter.vue";
-import { fetchLatestStandaloneRelease } from "./utils/release";
 const { Layout } = DefaultTheme;
 const { frontmatter, page } = useData();
 const showSiteFooter = computed(() =>
     frontmatter.value.layout === "home" || page.value.relativePath === "download.md",
 );
-
-// Display the literal release tag (e.g. "standalone-v0.9.2") in the top-nav
-// version chip — no prefix munging.
-const releaseTag = ref<string | null>(null);
-onMounted(async () => {
-    const release = await fetchLatestStandaloneRelease();
-    releaseTag.value = release?.tagName ?? null;
-});
 </script>
 
 <template>
     <Layout>
         <template #nav-bar-content-after>
             <div class="nav-extras">
-                <span v-if="releaseTag" class="version-chip">
-                    <span class="v-dot"></span>{{ releaseTag }}
-                </span>
                 <a class="install-btn" :href="withBase('/download')">
                     <span class="ico">↓</span> Install
                 </a>
