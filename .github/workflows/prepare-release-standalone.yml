@@ -1,8 +1,9 @@
 name: Prepare Release Standalone
 
-# Bumps the standalone app version, commits and tags the bump, then
-# creates a GitHub Release. Building, signing, notarizing and publishing
-# the DMG is handled by publish-standalone.yml on release: published.
+# Bumps the standalone app and standalone-extension versions in lockstep,
+# commits and tags the bump, then creates a GitHub Release. Building,
+# signing, notarizing and publishing the DMG is handled by
+# publish-standalone.yml.
 
 on:
   workflow_dispatch:
@@ -64,6 +65,7 @@ jobs:
         run: |
           yarn workspace @miragon/bpmn-modeler-standalone version "${{ inputs.release-type }}"
           NEW_VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
+          yarn workspace @miragon/bpmn-modeler-standalone-extension version "$NEW_VERSION"
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build standalone
@@ -81,7 +83,7 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.version.outputs.version }}"
           TAG="standalone-v${NEW_VERSION}"
-          git add apps/standalone/package.json
+          git add apps/standalone/package.json libs/standalone-extension/package.json
           git commit -m "chore(release): standalone v${NEW_VERSION}"
           git push origin HEAD
           git tag -a "$TAG" -m "release $TAG"
