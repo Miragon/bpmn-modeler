@@ -89,7 +89,7 @@
     color: #fff;
 }
 .dl-btn-secondary {
-    background: #fff;
+    background: var(--vp-c-bg);
     color: var(--miragon-fg);
     border-color: var(--miragon-border);
 }
@@ -180,7 +180,7 @@ button.dl-btn {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background: #fff;
+    background: var(--vp-c-bg);
     border: 1px solid var(--miragon-border);
     border-radius: 16px;
     overflow: hidden;
@@ -226,7 +226,7 @@ button.dl-btn {
 
 .dl-cards { display: none; flex-direction: column; gap: 12px; }
 .dl-card-platform {
-    background: #fff;
+    background: var(--vp-c-bg);
     border: 1px solid var(--miragon-border);
     border-radius: 14px;
     padding: 16px;
@@ -251,7 +251,7 @@ button.dl-btn {
     margin-top: 28px;
 }
 .dl-card {
-    background: #fff;
+    background: var(--vp-c-bg);
     border: 1px solid var(--miragon-border);
     border-radius: 14px;
     padding: 18px 20px;
