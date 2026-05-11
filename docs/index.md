@@ -2,7 +2,8 @@
 layout: home
 hero:
   image:
-    src: /standalone-preview.png
+    light: /standalone-preview-light.png
+    dark: /standalone-preview-dark.png
     alt: BPMN Modeler standalone desktop app
 
 features:

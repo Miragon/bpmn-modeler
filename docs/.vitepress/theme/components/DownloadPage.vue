@@ -76,10 +76,16 @@ async function copyHomebrew() {
             </div>
             <div class="dl-preview">
                 <img
-                    :src="withBase('/standalone-preview.png')"
+                    :src="withBase('/standalone-preview-light.png')"
                     alt=""
                     aria-hidden="true"
-                    class="dl-preview-img"
+                    class="dl-preview-img dl-preview-img-light"
+                />
+                <img
+                    :src="withBase('/standalone-preview-dark.png')"
+                    alt=""
+                    aria-hidden="true"
+                    class="dl-preview-img dl-preview-img-dark"
                 />
             </div>
         </section>

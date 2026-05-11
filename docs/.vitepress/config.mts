@@ -5,7 +5,6 @@ export default withMermaid(defineConfig({
     title: "Miragon BPMN Modeler",
     description: "Professional BPMN/DMN process modeling — as a VS Code extension or a standalone desktop app",
     base: "/bpmn-modeler/",
-    appearance: false,
     head: [
         [
             "link",

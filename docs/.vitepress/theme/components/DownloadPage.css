@@ -153,6 +153,9 @@ button.dl-btn {
     border-radius: 12px;
     display: block;
 }
+.dl-preview-img-dark { display: none; }
+.dark .dl-preview-img-light { display: none; }
+.dark .dl-preview-img-dark { display: block; }
 
 /* Platforms */
 .dl-platforms { margin-top: 56px; }
