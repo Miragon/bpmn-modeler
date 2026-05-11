@@ -89,7 +89,7 @@
     color: #fff;
 }
 .dl-btn-secondary {
-    background: #fff;
+    background: var(--vp-c-bg-elv);
     color: var(--miragon-fg);
     border-color: var(--miragon-border);
 }
@@ -150,9 +150,21 @@ button.dl-btn {
 .dl-preview-img {
     width: 100%;
     height: auto;
-    border-radius: 12px;
+    border: 1px solid var(--miragon-border);
+    border-radius: 14px;
     display: block;
+    box-shadow:
+        0 30px 60px -20px rgba(27,30,58,0.28),
+        0 6px 16px -6px rgba(27,30,58,0.10);
 }
+.dark .dl-preview-img {
+    box-shadow:
+        0 30px 60px -20px rgba(0,0,0,0.65),
+        0 6px 16px -6px rgba(0,0,0,0.35);
+}
+.dl-preview-img-dark { display: none; }
+.dark .dl-preview-img-light { display: none; }
+.dark .dl-preview-img-dark { display: block; }
 
 /* Platforms */
 .dl-platforms { margin-top: 56px; }
@@ -168,7 +180,7 @@ button.dl-btn {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background: #fff;
+    background: var(--vp-c-bg-elv);
     border: 1px solid var(--miragon-border);
     border-radius: 16px;
     overflow: hidden;
@@ -214,7 +226,7 @@ button.dl-btn {
 
 .dl-cards { display: none; flex-direction: column; gap: 12px; }
 .dl-card-platform {
-    background: #fff;
+    background: var(--vp-c-bg-elv);
     border: 1px solid var(--miragon-border);
     border-radius: 14px;
     padding: 16px;
@@ -239,7 +251,7 @@ button.dl-btn {
     margin-top: 28px;
 }
 .dl-card {
-    background: #fff;
+    background: var(--vp-c-bg-elv);
     border: 1px solid var(--miragon-border);
     border-radius: 14px;
     padding: 18px 20px;

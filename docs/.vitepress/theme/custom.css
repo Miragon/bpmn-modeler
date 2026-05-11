@@ -297,7 +297,6 @@
 }
 .VPHero .VPImage.image-src,
 .VPHero .image-src {
-  display: block !important;
   width: 100% !important;
   height: auto !important;
   max-width: 100% !important;
@@ -309,12 +308,17 @@
   bottom: auto !important;
   transform: none !important;
   margin: 0 !important;
-  border-radius: 20px;
-  box-shadow: 0 40px 80px -20px rgba(27,30,58,0.25), 0 0 0 1px rgba(255,255,255,0.5);
+  border: 1px solid var(--miragon-border);
+  border-radius: 14px;
+  box-shadow:
+    0 30px 60px -20px rgba(27,30,58,0.28),
+    0 6px 16px -6px rgba(27,30,58,0.10);
 }
 .dark .VPHero .VPImage.image-src,
 .dark .VPHero .image-src {
-  box-shadow: 0 40px 100px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+  box-shadow:
+    0 30px 60px -20px rgba(0,0,0,0.65),
+    0 6px 16px -6px rgba(0,0,0,0.35);
 }
 .hero-actions { justify-content: center !important; }
 

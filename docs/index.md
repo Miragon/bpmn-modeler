@@ -2,7 +2,8 @@
 layout: home
 hero:
   image:
-    src: /standalone-preview.png
+    light: /standalone-preview-light.png
+    dark: /standalone-preview-dark.png
     alt: BPMN Modeler standalone desktop app
 
 features:
@@ -31,6 +32,7 @@ Professional BPMN and DMN modeling that fits how you work — embedded in VS Cod
 |---------|----------------------|---------------------------|---------------|
 | Available as | <span class="ok">✓</span> VS Code extension + Standalone app | Standalone app only | Web only |
 | Visual BPMN diff | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |
+| Light & dark mode | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |
 | One-click deploy to Camunda 7 & 8 | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="no">✕</span> |
 | Element template discovery | <span class="ok">✓</span> Auto by convention | <span class="ok">✓</span> Manual config | <span class="no">✕</span> |
 | Camunda 7 support | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="no">✕</span> |
