@@ -77,9 +77,9 @@ export class DiffSession {
      * the SCM side-assignment rule:
      *
      *   - If one URI is `file:` it is the working tree → `after`.
-     *   - Otherwise (ref-vs-ref, both `git:`) the first-resolved pane is
-     *     `before`, second is `after` — arbitrary but matches the visual
-     *     order VS Code's SCM diff chose.
+     *   - Otherwise (ref-vs-ref, both `git:` / both `gitfs:`) the
+     *     first-resolved pane is `before`, second is `after` — arbitrary but
+     *     matches the visual order VS Code's / Theia's SCM diff chose.
      *
      * The panes are returned alongside the session so the caller can attach
      * them without re-deriving the pairing.
@@ -206,8 +206,8 @@ export class DiffSession {
  * Resolves SCM-diff side assignment for two panes that share a path.
  *
  * Invariant: `file:` URIs represent the working tree and must be `after`.
- * For ref-vs-ref diffs (both `git:`) side follows resolution order, which
- * mirrors VS Code's own visual ordering choice.
+ * For ref-vs-ref diffs (both `git:` in VS Code, both `gitfs:` in Theia) side
+ * follows resolution order, which mirrors the host's own visual ordering.
  */
 function resolveScmSides(
     first: DiffPaneEntry,

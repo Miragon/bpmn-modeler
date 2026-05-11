@@ -18,10 +18,11 @@ description.
 A **diff session** is two `CustomTextEditor` webviews that together render one
 diff tab. Sessions come from two origins:
 
-- **`scm`** — VS Code opened the diff via Source Control, `git diff`, a PR
-  review, etc. One URI is typically `git:` (ref), the other `file:` (working
-  tree). The session is created lazily via `DiffSession.forScm(…)`: the
-  first pane to resolve is stashed in a "pending SCM" slot keyed by
+- **`scm`** — The host (VS Code or Theia) opened the diff via Source Control,
+  `git diff`, a PR review, etc. One URI is typically the Git-provided ref
+  (`git:` in VS Code, `gitfs:` in Theia's `@theia/git`), the other `file:`
+  (working tree). The session is created lazily via `DiffSession.forScm(…)`:
+  the first pane to resolve is stashed in a "pending SCM" slot keyed by
   `uri.path`; when the second pane resolves with the same path, both are
   promoted into a `DiffSession("scm", …)`. The factory encapsulates the
   side-assignment rule (`file:` URI → `after`, otherwise resolution order).
@@ -36,8 +37,8 @@ diff tab. Sessions come from two origins:
 `BpmnDiffService.shouldResolveAsDiff(uri)` for each resolving pane. That
 method runs an ordered decision tree: already-has-a-pane → no (the caller is
 a second resolve for a file already open elsewhere); pre-registered session →
-yes; `git:` scheme → yes; label heuristic matches a diff tab → yes;
-otherwise → no.
+yes; Git-provided scheme (`git:` or `gitfs:`) → yes; label heuristic matches a
+diff tab → yes; otherwise → no.
 
 ```mermaid
 sequenceDiagram
@@ -199,13 +200,21 @@ the differ is upgraded.
 
 ## Gotchas
 
-- **Editor id is the full URI string**, not just the path. `git:` and `file:`
-  URIs for the same file produce different editor ids, so the `EditorStore`
-  can hold both panes side by side without collision.
+- **Editor id is the full URI string**, not just the path. Git-provided URIs
+  (`git:` in VS Code, `gitfs:` in Theia) and `file:` URIs for the same file
+  produce different editor ids, so the `EditorStore` can hold both panes side
+  by side without collision.
+- **Dual-host Git scheme handling.** `shouldResolveAsDiff` recognises both
+  VS Code's `git:` and Theia's `gitfs:` schemes via the
+  `GIT_PROVIDED_SCHEMES` set in `BpmnDiffService.ts`. Add new schemes there
+  if porting to another host; do not branch on a single hardcoded scheme.
 - **SCM pairing is keyed by `uri.path`, not by the full URI.** That is the
-  only thing `git:foo.bpmn` and `file:foo.bpmn` share. The two paths of a
-  `compare-files` session deliberately differ, which is why that origin must
-  be pre-registered — lazy pairing would never match them.
+  only thing `git:foo.bpmn` / `gitfs:foo.bpmn` and `file:foo.bpmn` share.
+  Pairing flows through `scmPairingKey(uri)` so future hosts that bake ref
+  metadata into the path (e.g. `/foo.bpmn@HEAD`) can normalize in one place.
+  The two paths of a `compare-files` session deliberately differ, which is
+  why that origin must be pre-registered — lazy pairing would never match
+  them.
 - **`shouldResolveAsDiff` short-circuits when a pane already exists for the
   URI.** Without this, opening a working-tree file in a normal editor tab
   while the SCM diff is still open would trigger a second resolve, and the
