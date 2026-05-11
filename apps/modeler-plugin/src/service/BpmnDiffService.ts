@@ -35,6 +35,15 @@ import { DiffPaneEntry, DiffSession } from "./DiffSession";
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
 
 /**
+ * URI schemes used by Git-provider extensions to surface ref/index/working-tree
+ * documents. VS Code's built-in Git extension uses `git:`; Theia's `@theia/git`
+ * (used by the standalone desktop shell) uses `gitfs:`. Both are always
+ * readonly and always belong to a diff, so the scheme alone is a sufficient
+ * signal for `shouldResolveAsDiff`.
+ */
+const GIT_PROVIDED_SCHEMES = new Set<string>(["git", "gitfs"]);
+
+/**
  * Milliseconds a pre-registered `compare-files` session stays alive with no
  * panes attached before it is swept.  Covers the "user triggered the command
  * but the diff tab never opened" edge case.  Longer than any realistic
@@ -90,9 +99,9 @@ export class BpmnDiffService {
     private readonly sessionByUri = new Map<string, DiffSession>();
 
     /**
-     * SCM panes awaiting their partner.  Keyed by `document.uri.path` so
-     * `git:foo.bpmn` and `file:foo.bpmn` meet here before being promoted into
-     * a session.
+     * SCM panes awaiting their partner.  Keyed by {@link scmPairingKey} so
+     * the Git-provided URI (`git:` in VS Code, `gitfs:` in Theia) and the
+     * working-tree `file:` URI meet here before being promoted into a session.
      */
     private readonly pendingScm = new Map<string, PendingScmPane>();
 
@@ -205,8 +214,10 @@ export class BpmnDiffService {
      *      the SCM diff was already open — that second tab is an editable
      *      modeler, not another diff pane.
      *   2. A pre-registered `compare-files` session exists → true.
-     *   3. The URI is a `git:` scheme → true.  Git-provided documents are
-     *      always readonly and always belong to a diff.
+     *   3. The URI uses a Git-provided scheme (see
+     *      {@link GIT_PROVIDED_SCHEMES}) → true. Covers VS Code's `git:` and
+     *      Theia's `gitfs:` — both are always readonly and always belong to a
+     *      diff.
      *   4. The URI sits in a diff tab per the label heuristic → true.  This
      *      is the only signal for SCM diffs when both URIs share the `file:`
      *      scheme (uncommon but possible for some diff-to-working-tree flows).
@@ -218,7 +229,7 @@ export class BpmnDiffService {
         if (this.findSessionFor(uri)) {
             return true;
         }
-        if (uri.scheme === "git") {
+        if (GIT_PROVIDED_SCHEMES.has(uri.scheme)) {
             return true;
         }
         return this.isPartOfDiff(uri);
@@ -329,15 +340,15 @@ export class BpmnDiffService {
      *     order VS Code's SCM diff chose.
      */
     private attachOrPendScmPane(entry: DiffPaneEntry): void {
-        const path = entry.document.uri.path;
-        const pending = this.pendingScm.get(path);
+        const key = this.scmPairingKey(entry.document.uri);
+        const pending = this.pendingScm.get(key);
 
         if (!pending) {
-            this.pendingScm.set(path, { entry });
+            this.pendingScm.set(key, { entry });
             return;
         }
 
-        this.pendingScm.delete(path);
+        this.pendingScm.delete(key);
         const { session, before, after } = DiffSession.forScm(
             pending.entry,
             entry,
@@ -345,6 +356,19 @@ export class BpmnDiffService {
         session.attachPane(before);
         session.attachPane(after);
         this.indexSession(session);
+    }
+
+    /**
+     * Pairing key for matching the two panes of an SCM diff. Both VS Code
+     * (`git:foo.bpmn` ↔ `file:foo.bpmn`) and Theia (`gitfs:foo.bpmn` ↔
+     * `file:foo.bpmn`) surface the two sides with different schemes but the
+     * same workspace-relative `uri.path`, so the raw path is the pairing key.
+     *
+     * If a future host bakes ref metadata into the path (e.g.
+     * `/foo.bpmn@HEAD`), normalize it here so the two paths still meet.
+     */
+    private scmPairingKey(uri: Uri): string {
+        return uri.path;
     }
 
     /**

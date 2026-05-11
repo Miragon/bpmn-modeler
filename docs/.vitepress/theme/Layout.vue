@@ -29,7 +29,7 @@ const showSiteFooter = computed(() =>
             <p class="hero-tagline">
                 Design, diff, and deploy BPMN and DMN workflows without
                 leaving your editor. Full Camunda 7 and 8 support,
-                professional modeling, zero context switching.
+                built-in Git, professional modeling, zero context switching.
             </p>
             <div class="hero-actions">
                 <a class="btn btn-primary" :href="withBase('/download')">

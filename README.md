@@ -42,7 +42,9 @@ quietly grew into more places where process work actually happens:
 
 - **In VS Code**, as the public extension — the original product.
 - **On the desktop**, as a standalone Theia/Electron app for users and
-  organisations not on VS Code, with the exact same modeling surface.
+  organisations not on VS Code — same modeling surface, plus a built-in
+  Source Control view, BPMN-aware diff against working-tree changes, and
+  auto-save out of the box.
 - **And next: AI-assisted BPMN tooling** — bringing the same modeling
   context into your AI assistant. *Stay tuned.* ✨
 

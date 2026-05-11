@@ -14,7 +14,7 @@ features:
     linkText: Explore modeling
   - icon: ⇌
     title: Visual BPMN diff
-    details: Element-level change review. Catch silent process drift the same way you review code.
+    details: Element-level review of process drift — Git-friendly in both VS Code and standalone. Catch drift like you review code.
     link: /vscode/features/bpmn-diff
     linkText: See diff view
   - icon: ↗
@@ -32,6 +32,8 @@ Professional BPMN and DMN modeling that fits how you work — embedded in VS Cod
 |---------|----------------------|---------------------------|---------------|
 | Available as | <span class="ok">✓</span> VS Code extension + Standalone app | Standalone app only | Web only |
 | Visual BPMN diff | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |
+| Git Source Control (standalone) | <span class="ok">✓</span> Built-in | <span class="no">✕</span> | <span class="no">✕</span> |
+| Auto-save (standalone default) | <span class="ok">✓</span> | <span class="no">✕</span> | n/a |
 | Light & dark mode | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |
 | One-click deploy to Camunda 7 & 8 | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="no">✕</span> |
 | Element template discovery | <span class="ok">✓</span> Auto by convention | <span class="ok">✓</span> Manual config | <span class="no">✕</span> |

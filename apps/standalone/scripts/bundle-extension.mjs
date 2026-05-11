@@ -9,7 +9,7 @@
 //   (cd dist/apps/modeler-plugin && npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies)
 //   corepack yarn workspace standalone bundle
 
-import { createWriteStream, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, rmSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,14 +40,12 @@ if (!existsSync(vsixSrc)) {
   process.exit(1);
 }
 
-if (existsSync(pluginsDir)) {
-  for (const entry of readdirSync(pluginsDir)) {
-    rmSync(resolve(pluginsDir, entry), { recursive: true, force: true });
-  }
-} else {
-  mkdirSync(pluginsDir, { recursive: true });
-}
-
+// Only wipe our own plugin subdirectory — other entries (notably
+// vscode-builtin-git, downloaded by `theia download:plugins`) must survive
+// re-bundling. Theia treats every subdirectory of `theiaPluginsDir` as a
+// plugin and a `rm -rf plugins/*` would drop them every dev cycle.
+mkdirSync(pluginsDir, { recursive: true });
+rmSync(unpackedDir, { recursive: true, force: true });
 mkdirSync(unpackedDir, { recursive: true });
 
 await new Promise((resolveP, reject) => {

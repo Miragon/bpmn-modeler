@@ -2,8 +2,7 @@ node_modules/
 lib/
 src-gen/
 dist/
-plugins/*.vsix
-plugins/bpmn-modeler-plugin/
+plugins/
 gen-webpack*.js
 *.log
 .theia-ide/

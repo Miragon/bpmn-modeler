@@ -82,6 +82,26 @@ engine, same element templates, same diff view, same deploy flow. Explore:
 - [Element Template Chooser](/vscode/features/element-template-chooser)
 - [Language Support](/vscode/features/language-support)
 
-A few things differ from the VS Code surface — no Extensions view, no Source
-Control, no Command Palette keybindings for VS Code-specific commands. The
-modeler itself behaves identically.
+A few things differ from the VS Code surface — no Extensions view and no
+Command Palette keybindings for VS Code-specific commands. The modeler
+itself behaves identically.
+
+## Auto-save
+
+The standalone saves every change ~1 second after the last edit, so the file
+on disk always matches what you see in the canvas and the Source Control
+view reflects modifications immediately. Disable or change the delay in
+**Settings → Files: Auto Save**.
+
+## Source Control
+
+The standalone ships with the same VS Code Git extension that powers the
+Source Control view in VS Code, including BPMN-aware diffs for modified
+diagrams. Git operations rely on the system `git` binary:
+
+- **macOS** — install Xcode Command Line Tools (`xcode-select --install`)
+  or [git-scm.com](https://git-scm.com/).
+- **Windows** — [git-scm.com](https://git-scm.com/).
+
+If `git --version` works in your terminal, the standalone app will pick it
+up on launch.

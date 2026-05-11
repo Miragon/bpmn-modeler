@@ -13,7 +13,16 @@
 ## Prerequisites
 
 - **Node.js** v20 or later
-- **corepack** enabled: `corepack enable`
+- **corepack on `PATH`** and enabled. `corepack --version` must resolve in the
+  shell you run `yarn install` from — the build scripts invoke
+  `corepack yarn …` directly. If it prints `command not found` (Volta and a
+  few other version managers don't ship a `corepack` shim), install it first:
+  ```bash
+  npm install -g corepack@latest
+  corepack enable
+  ```
+  Standard Node distributions already include `corepack`; `corepack enable` is
+  enough.
 - **VS Code**
 
 The webview `dev:*` scripts (standalone browser preview) use
