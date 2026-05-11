@@ -64,7 +64,22 @@ Discussing scope in an issue *before* writing code saves everyone time.
 ### Prerequisites
 
 - **Node.js** v20 or later
-- [`corepack`](https://nodejs.org/api/corepack.html) enabled: `corepack enable`
+- [`corepack`](https://nodejs.org/api/corepack.html) **on your `PATH`** and
+  enabled. This repo pins Yarn via `packageManager` in `package.json` and the
+  build scripts invoke `corepack yarn …` directly, so `corepack --version` must
+  resolve in the same shell you run `yarn install` from.
+
+  Some Node version managers do not ship a `corepack` shim — Volta is a known
+  example. If `corepack --version` prints `command not found`, install it
+  explicitly and then enable it:
+
+  ```bash
+  npm install -g corepack@latest
+  corepack enable
+  ```
+
+  Standard Node distributions already include `corepack`; running
+  `corepack enable` once is enough.
 - **VS Code**
 
 ### Clone and install
