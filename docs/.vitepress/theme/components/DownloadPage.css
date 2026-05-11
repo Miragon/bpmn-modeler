@@ -150,8 +150,17 @@ button.dl-btn {
 .dl-preview-img {
     width: 100%;
     height: auto;
-    border-radius: 12px;
+    border: 1px solid var(--miragon-border);
+    border-radius: 14px;
     display: block;
+    box-shadow:
+        0 30px 60px -20px rgba(27,30,58,0.28),
+        0 6px 16px -6px rgba(27,30,58,0.10);
+}
+.dark .dl-preview-img {
+    box-shadow:
+        0 30px 60px -20px rgba(0,0,0,0.65),
+        0 6px 16px -6px rgba(0,0,0,0.35);
 }
 .dl-preview-img-dark { display: none; }
 .dark .dl-preview-img-light { display: none; }

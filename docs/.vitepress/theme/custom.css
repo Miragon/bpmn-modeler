@@ -308,13 +308,17 @@
   bottom: auto !important;
   transform: none !important;
   margin: 0 !important;
-  border: 1px solid var(--miragon-border-soft);
+  border: 1px solid var(--miragon-border);
   border-radius: 14px;
-  box-shadow: 0 24px 60px -24px rgba(27,30,58,0.22);
+  box-shadow:
+    0 30px 60px -20px rgba(27,30,58,0.28),
+    0 6px 16px -6px rgba(27,30,58,0.10);
 }
 .dark .VPHero .VPImage.image-src,
 .dark .VPHero .image-src {
-  box-shadow: 0 24px 60px -24px rgba(0,0,0,0.55);
+  box-shadow:
+    0 30px 60px -20px rgba(0,0,0,0.65),
+    0 6px 16px -6px rgba(0,0,0,0.35);
 }
 .hero-actions { justify-content: center !important; }
 
