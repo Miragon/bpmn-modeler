@@ -1,17 +1,17 @@
 /**
- * Handles Ctrl/Cmd+A: selects all text in focused inputs; fully intercepts
- * the event for canvas focus and delegates element selection to onSelectAll.
+ * Returns true if `el` is a surface where the user is editing text
+ * (`<input>`, `<textarea>`, or any `contenteditable` element).
+ *
+ * The webview-level keyboard guard uses this predicate to decide whether
+ * bpmn-js should be allowed to receive a Ctrl/Cmd+A keystroke: text surfaces
+ * own their own selection, so the event must not reach bpmn-js's Keyboard
+ * service.
  */
-function handleSelectAll(e: KeyboardEvent, el: Element, onSelectAll?: () => void): void {
-    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-        e.stopPropagation();
-        e.preventDefault();
-        el.select();
-        return;
-    }
-    e.stopPropagation();
-    e.preventDefault();
-    onSelectAll?.();
+function isTextEditingSurface(el: Element | null): boolean {
+    if (el instanceof HTMLInputElement) return true;
+    if (el instanceof HTMLTextAreaElement) return true;
+    if (el instanceof HTMLElement && el.contentEditable === "true") return true;
+    return false;
 }
 
 /**
@@ -32,26 +32,36 @@ function handlePaste(el: HTMLElement, requestClipboard: () => Promise<string>): 
 }
 
 /**
- * Polyfills clipboard operations for all `contenteditable` elements in
- * VS Code webviews.
+ * Installs the webview-level keyboard / clipboard guard.
  *
- * Uses two complementary mechanisms:
- * 1. A `keydown` capture-phase listener that intercepts Cmd/Ctrl+C/V before
- *    any element handler can call `stopPropagation()` (fixes the canvas label
- *    editor whose DirectEditing module stops propagation on every keydown).
- * 2. A `document.execCommand` polyfill as fallback for non-keyboard clipboard
- *    triggers (e.g. VS Code command palette).
+ * Two responsibilities, both registered as a single document-level capture-phase
+ * `keydown` listener:
  *
- * A dedup flag prevents double-handling when both layers fire.
+ * 1. **Ctrl/Cmd+A guard.** When focus is on a text-editing surface
+ *    (`<input>`, `<textarea>`, or any contenteditable element), stop the event
+ *    from propagating so bpmn-js's `Keyboard` service does not turn it into a
+ *    canvas `selectElements` action. The surface's own owner then handles the
+ *    keystroke:
+ *      - browser native for `<input>` / `<textarea>`,
+ *      - `LabelClipboardModule` for the BPMN label overlay,
+ *      - CodeMirror 6 for the Camunda 8 FEEL expression editor.
+ *    When focus is elsewhere, the handler does nothing — bpmn-js's built-in
+ *    Ctrl+A binding selects the canvas.
+ *
+ * 2. **Ctrl/Cmd+C/V bridge for contenteditable.** VS Code webview iframes lack
+ *    clipboard permissions, and bpmn-js's `DirectEditing._handleKey` calls
+ *    `stopPropagation()` on every keydown from the label overlay. The
+ *    capture-phase listener intercepts the keys early and bridges them through
+ *    the extension host. A `document.execCommand` polyfill covers non-keyboard
+ *    triggers (e.g. VS Code command palette); a dedup flag prevents double
+ *    handling when both layers fire.
  *
  * @param requestClipboard Async callback that reads clipboard text via the extension host.
  * @param writeClipboard Callback that writes text to the extension host clipboard.
- * @param onSelectAll Called when Ctrl+A fires outside a text input (e.g. on the canvas).
  */
 export function installContentEditableClipboardPolyfill(
     requestClipboard: () => Promise<string>,
     writeClipboard: (text: string) => void,
-    onSelectAll?: () => void,
 ): void {
     let handled = false;
 
@@ -65,7 +75,9 @@ export function installContentEditableClipboardPolyfill(
             if (!isMod) return;
 
             if (e.key === "a") {
-                handleSelectAll(e, el, onSelectAll);
+                if (isTextEditingSurface(el)) {
+                    e.stopPropagation();
+                }
                 return;
             }
 

@@ -14,16 +14,22 @@ import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipbo
 const mocks = {
     requestClipboard: vi.fn().mockResolvedValue(""),
     writeClipboard: vi.fn<(text: string) => void>(),
-    onSelectAll: vi.fn(),
 };
+
+/**
+ * Bubble-phase spy that stands in for bpmn-js's `Keyboard` service: if the
+ * guard correctly stops propagation, this never fires; if propagation leaks
+ * through, this records the keystroke as bpmn-js would have seen it.
+ */
+const bpmnJsKeyboardSpy = vi.fn<(e: KeyboardEvent) => void>();
 
 beforeAll(() => {
     vi.useFakeTimers();
     installContentEditableClipboardPolyfill(
         () => mocks.requestClipboard(),
         (text) => mocks.writeClipboard(text),
-        () => mocks.onSelectAll(),
     );
+    document.addEventListener("keydown", (e) => bpmnJsKeyboardSpy(e));
 });
 
 afterAll(() => {
@@ -34,7 +40,7 @@ beforeEach(() => {
     vi.runAllTimers();
     mocks.requestClipboard.mockReset().mockResolvedValue("");
     mocks.writeClipboard.mockReset();
-    mocks.onSelectAll.mockReset();
+    bpmnJsKeyboardSpy.mockReset();
     document.body.innerHTML = "";
 });
 
@@ -44,6 +50,13 @@ afterEach(() => {
 
 function focusedInput(): HTMLInputElement {
     const el = document.createElement("input");
+    document.body.appendChild(el);
+    el.focus();
+    return el;
+}
+
+function focusedTextarea(): HTMLTextAreaElement {
+    const el = document.createElement("textarea");
     document.body.appendChild(el);
     el.focus();
     return el;
@@ -70,33 +83,31 @@ function ctrl(key: string): KeyboardEvent {
     return new KeyboardEvent("keydown", { key, ctrlKey: true, bubbles: true });
 }
 
-describe("selecting all text in a properties-panel input (Ctrl+A)", () => {
-    it("selects all text in the field", () => {
-        const input = focusedInput();
-        const selectSpy = vi.spyOn(input, "select");
-        input.dispatchEvent(ctrl("a"));
-        expect(selectSpy).toHaveBeenCalled();
+describe("Ctrl+A guard: text-editing surfaces own their selection", () => {
+    it("does not let Ctrl+A in a properties-panel <input> reach bpmn-js", () => {
+        focusedInput().dispatchEvent(ctrl("a"));
+        expect(bpmnJsKeyboardSpy).not.toHaveBeenCalled();
     });
 
-    it("does not accidentally trigger diagram-element selection", () => {
-        const input = focusedInput();
-        input.dispatchEvent(ctrl("a"));
-        expect(mocks.onSelectAll).not.toHaveBeenCalled();
+    it("does not let Ctrl+A in a <textarea> reach bpmn-js", () => {
+        focusedTextarea().dispatchEvent(ctrl("a"));
+        expect(bpmnJsKeyboardSpy).not.toHaveBeenCalled();
     });
-});
 
-describe("selecting all elements in the diagram (Ctrl+A on the canvas)", () => {
-    it("selects all elements in the diagram", () => {
-        const canvas = focusedDiv();
-        canvas.dispatchEvent(ctrl("a"));
-        expect(mocks.onSelectAll).toHaveBeenCalled();
+    it("does not let Ctrl+A in a contenteditable (label / FEEL editor) reach bpmn-js", () => {
+        focusedEditor().dispatchEvent(ctrl("a"));
+        expect(bpmnJsKeyboardSpy).not.toHaveBeenCalled();
+    });
+
+    it("lets Ctrl+A on a non-text element propagate so bpmn-js can select the canvas", () => {
+        focusedDiv().dispatchEvent(ctrl("a"));
+        expect(bpmnJsKeyboardSpy).toHaveBeenCalledTimes(1);
     });
 });
 
 describe("copy and paste in the FEEL expression editor", () => {
     it("Ctrl+V pastes from the extension-host clipboard into the editor", () => {
-        const editor = focusedEditor();
-        editor.dispatchEvent(ctrl("v"));
+        focusedEditor().dispatchEvent(ctrl("v"));
         expect(mocks.requestClipboard).toHaveBeenCalled();
     });
 
@@ -110,8 +121,7 @@ describe("copy and paste in the FEEL expression editor", () => {
     });
 
     it("paste does nothing when a plain element (not an editor) is focused", () => {
-        const div = focusedDiv();
-        div.dispatchEvent(ctrl("v"));
+        focusedDiv().dispatchEvent(ctrl("v"));
         expect(mocks.requestClipboard).not.toHaveBeenCalled();
     });
 });

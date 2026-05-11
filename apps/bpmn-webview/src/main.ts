@@ -160,14 +160,12 @@ window.onload = async function () {
         // The FEEL editor (CodeMirror 6) in the C8 properties panel lives outside
         // the bpmn-js DI context, so the DI clipboard modules above don't reach it.
         // This polyfill intercepts Cmd/Ctrl+C/V on contenteditable elements and
-        // bridges them through the extension host clipboard.
+        // bridges them through the extension host clipboard, and guards Ctrl+A
+        // in text-editing surfaces from being stolen by bpmn-js's Keyboard
+        // service (canvas Ctrl+A is owned by bpmn-js's SelectionKeyBindings).
         installContentEditableClipboardPolyfill(
             requestTextClipboard,
             writeTextClipboard,
-            () => {
-                if (!modelerIsInitialized) return;
-                bpmnModeler.getService<any>("editorActions").trigger("selectElements");
-            },
         );
     }
 
