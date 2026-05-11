@@ -42,17 +42,10 @@ jobs:
           persist-credentials: false
           token: ${{ secrets.RELEASE_PAT }}
 
-      - name: Corepack enable
-        run: corepack enable
-
       - name: Setup Node 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: yarn
-
-      - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/bpmn-modeler-standalone
 
       - name: Configure Git
         run: |
@@ -62,14 +55,27 @@ jobs:
 
       - name: Bump version
         id: version
+        env:
+          RELEASE_TYPE: ${{ inputs.release-type }}
         run: |
-          yarn workspace @miragon/bpmn-modeler-standalone version "${{ inputs.release-type }}"
-          NEW_VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
-          yarn workspace @miragon/bpmn-modeler-standalone-extension version "$NEW_VERSION"
+          NEW_VERSION=$(node -e '
+            const fs = require("fs");
+            const t = process.env.RELEASE_TYPE;
+            const p = "apps/standalone/package.json";
+            const q = "libs/standalone-extension/package.json";
+            const pkg = JSON.parse(fs.readFileSync(p, "utf8"));
+            const [maj, min, pat] = pkg.version.split(".").map(Number);
+            const next = t === "major" ? `${maj + 1}.0.0`
+                       : t === "minor" ? `${maj}.${min + 1}.0`
+                                       : `${maj}.${min}.${pat + 1}`;
+            pkg.version = next;
+            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + "\n");
+            const ext = JSON.parse(fs.readFileSync(q, "utf8"));
+            ext.version = next;
+            fs.writeFileSync(q, JSON.stringify(ext, null, 2) + "\n");
+            console.log(next);
+          ')
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Build standalone
-        run: yarn workspace @miragon/bpmn-modeler-standalone build
 
       - name: Ensure tag does not exist
         run: |
