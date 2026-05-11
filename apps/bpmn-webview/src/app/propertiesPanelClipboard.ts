@@ -34,27 +34,28 @@ function handlePaste(el: HTMLElement, requestClipboard: () => Promise<string>): 
 /**
  * Installs the webview-level keyboard / clipboard guard.
  *
- * Two responsibilities, both registered as a single document-level capture-phase
- * `keydown` listener:
+ * Registers two `keydown` listeners on `document`, each with a deliberately
+ * chosen phase:
  *
- * 1. **Ctrl/Cmd+A guard.** When focus is on a text-editing surface
- *    (`<input>`, `<textarea>`, or any contenteditable element), stop the event
- *    from propagating so bpmn-js's `Keyboard` service does not turn it into a
- *    canvas `selectElements` action. The surface's own owner then handles the
- *    keystroke:
- *      - browser native for `<input>` / `<textarea>`,
- *      - `LabelClipboardModule` for the BPMN label overlay,
- *      - CodeMirror 6 for the Camunda 8 FEEL expression editor.
- *    When focus is elsewhere, the handler does nothing — bpmn-js's built-in
- *    Ctrl+A binding selects the canvas.
- *
- * 2. **Ctrl/Cmd+C/V bridge for contenteditable.** VS Code webview iframes lack
- *    clipboard permissions, and bpmn-js's `DirectEditing._handleKey` calls
- *    `stopPropagation()` on every keydown from the label overlay. The
- *    capture-phase listener intercepts the keys early and bridges them through
- *    the extension host. A `document.execCommand` polyfill covers non-keyboard
- *    triggers (e.g. VS Code command palette); a dedup flag prevents double
+ * 1. **Capture phase — Ctrl/Cmd+C/V bridge for contenteditable.** VS Code
+ *    webview iframes lack clipboard permissions, and bpmn-js's
+ *    `DirectEditing._handleKey` calls `stopPropagation()` on every keydown
+ *    from the label overlay. Capture-phase fires before that stopPropagation,
+ *    so the bridge can intercept the keys and route them through the
+ *    extension host. A `document.execCommand` polyfill covers non-keyboard
+ *    triggers (VS Code command palette); a dedup flag prevents double
  *    handling when both layers fire.
+ *
+ * 2. **Bubble phase — Ctrl/Cmd+A guard.** Each text surface owns its own
+ *    Ctrl+A: browser native for `<input>`/`<textarea>`, `LabelClipboardModule`
+ *    for the BPMN label overlay, CodeMirror 6 for the Camunda 8 FEEL editor.
+ *    Bubble-phase lets those owners run first (capture + target phases).
+ *    Then, at `document` during bubble, we call `stopImmediatePropagation()`
+ *    if focus is on a text surface — that blocks bpmn-js's `Keyboard`
+ *    listener, which is also on `document` in bubble phase and registered
+ *    after us (modeler boots after this polyfill). When focus is elsewhere
+ *    the listener returns without stopping, so bpmn-js's built-in
+ *    `selectElements` binding handles the canvas case.
  *
  * @param requestClipboard Async callback that reads clipboard text via the extension host.
  * @param writeClipboard Callback that writes text to the extension host clipboard.
@@ -69,19 +70,10 @@ export function installContentEditableClipboardPolyfill(
         "keydown",
         (e: KeyboardEvent) => {
             const el = document.activeElement;
-            if (!(el instanceof Element)) return;
+            if (!(el instanceof HTMLElement)) return;
 
             const isMod = e.metaKey || e.ctrlKey;
             if (!isMod) return;
-
-            if (e.key === "a") {
-                if (isTextEditingSurface(el)) {
-                    e.stopPropagation();
-                }
-                return;
-            }
-
-            if (!(el instanceof HTMLElement)) return;
             if (el.contentEditable !== "true") return;
 
             if (e.key === "v") {
@@ -102,6 +94,31 @@ export function installContentEditableClipboardPolyfill(
             }
         },
         true,
+    );
+
+    document.addEventListener(
+        "keydown",
+        (e: KeyboardEvent) => {
+            if (!(e.metaKey || e.ctrlKey)) return;
+            if (e.key !== "a") return;
+            const el = document.activeElement;
+            if (!isTextEditingSurface(el)) return;
+
+            // Block bpmn-js's Keyboard listener (same node, same phase,
+            // registered after us). stopPropagation alone would leave it
+            // running because it doesn't affect same-node listeners.
+            e.stopImmediatePropagation();
+
+            // Contenteditable surfaces (BPMN label, FEEL editor) own their
+            // own selection via scoped handlers run in earlier phases.
+            // For `<input>`/`<textarea>`, the native default action is
+            // unreliable inside the webview (likely pre-empted by another
+            // listener calling preventDefault), so select explicitly.
+            if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+                el.select();
+            }
+        },
+        false,
     );
 
     const nativeExecCommand = Document.prototype.execCommand;
