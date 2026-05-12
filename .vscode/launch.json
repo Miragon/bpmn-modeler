@@ -18,6 +18,29 @@
                 "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
                 "webpack://?:*/*": "${workspaceFolder}/apps/modeler-plugin/*"
             }
+        },
+        {
+            "name": "Run bpmn-iq-plugin (with modeler)",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--disable-extensions",
+                "--extensionDevelopmentPath=${workspaceFolder}/dist/apps/modeler-plugin",
+                "--extensionDevelopmentPath=${workspaceFolder}/dist/apps/bpmn-iq-plugin"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/dist/apps/modeler-plugin/**/*.js",
+                "${workspaceFolder}/dist/apps/bpmn-iq-plugin/**/*.js"
+            ],
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/dist/apps/modeler-plugin/**",
+                "${workspaceFolder}/dist/apps/bpmn-iq-plugin/**",
+                "!**/node_modules/**"
+            ],
+            "sourceMapPathOverrides": {
+                "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
+                "webpack://?:*/*": "${workspaceFolder}/apps/*"
+            }
         }
     ]
 }

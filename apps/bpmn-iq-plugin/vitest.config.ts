@@ -2,15 +2,12 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
     test: {
-        projects: [
-            "apps/modeler-plugin",
-            "apps/bpmn-webview",
-            "apps/bpmn-iq-plugin",
-            "libs/bpmn-i18n",
-        ],
+        name: "bpmn-iq-plugin",
+        environment: "node",
+        include: ["src/**/*.spec.ts"],
         coverage: {
             provider: "v8",
-            reportsDirectory: "./coverage",
+            reportsDirectory: "../../coverage/apps/bpmn-iq-plugin",
             reporter: ["text", "html", "lcov", "clover", "json"],
         },
     },

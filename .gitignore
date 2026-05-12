@@ -56,5 +56,10 @@ vitest.config.*.timestamp*
 docs/.vitepress/dist
 docs/.vitepress/cache
 .gstack/
-.agent/
 .claude/logs/
+.agent/
+
+# Local environment overrides — used by webpack DefinePlugin to bake build-
+# time values like the bpmn-iq cloud daemon URL. Never commit.
+.env
+.env.local

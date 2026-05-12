@@ -3079,6 +3079,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@miragon/bpmn-iq-daemon-client@npm:0.4.0":
+  version: 0.4.0
+  resolution: "@miragon/bpmn-iq-daemon-client@npm:0.4.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40miragon%2Fbpmn-iq-daemon-client%2F0.4.0%2Fd09a9589df8c5ea5f4401d5ab99a64ec58a69bf9"
+  checksum: 10c0/6b01b9b2aaec7db591d22ba8ec0a4f298ea67051d20e68eaa4b829c3740e9e9d2c0dd231ef8ea33deec7606c291353ffa7a8c3436192906706dce2625dc99e61
+  languageName: node
+  linkType: hard
+
 "@miragon/bpmn-modeler-append-menu@workspace:*, @miragon/bpmn-modeler-append-menu@workspace:libs/append-menu":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-append-menu@workspace:libs/append-menu"
@@ -7729,6 +7736,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bpmn-iq-plugin@workspace:apps/bpmn-iq-plugin":
+  version: 0.0.0-use.local
+  resolution: "bpmn-iq-plugin@workspace:apps/bpmn-iq-plugin"
+  dependencies:
+    "@miragon/bpmn-iq-daemon-client": "npm:0.4.0"
+    "@types/node": "npm:25.6.0"
+    "@types/vscode": "npm:1.93.0"
+    "@vitest/coverage-v8": "npm:4.1.5"
+    copy-webpack-plugin: "npm:14.0.0"
+    dotenv: "npm:17.4.2"
+    ts-loader: "npm:9.5.7"
+    tsconfig-paths-webpack-plugin: "npm:4.2.0"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.5"
+    webpack: "npm:5.106.2"
+    webpack-cli: "npm:7.0.2"
+  languageName: unknown
+  linkType: soft
+
 "bpmn-js-color-picker@npm:^0.7.2":
   version: 0.7.2
   resolution: "bpmn-js-color-picker@npm:0.7.2"
@@ -10354,6 +10380,13 @@ __metadata:
   dependencies:
     dotenv: "npm:^16.4.5"
   checksum: 10c0/d80b8a7be085edf351270b96ac0e794bc3ddd7f36157912939577cb4d33ba6492ebee349d59798b71b90e36f498d24a2a564fb4aa00073b2ef4c2a3a49c467b1
+  languageName: node
+  linkType: hard
+
+"dotenv@npm:17.4.2":
+  version: 17.4.2
+  resolution: "dotenv@npm:17.4.2"
+  checksum: 10c0/164f8e77a646c8446867d5b588d26ea6005c8ea7c5eb41cf926f6113d23f2191355f6e0cfd95ea9bab98394a5b0a3f1e51a8399711b666fe55cc7b0bd745f942
   languageName: node
   linkType: hard
 

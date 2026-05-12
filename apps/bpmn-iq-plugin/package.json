@@ -1,0 +1,124 @@
+{
+    "name": "bpmn-iq-plugin",
+    "scripts": {
+        "build": "webpack --mode production",
+        "dev": "webpack --mode development --watch",
+        "test": "vitest run --coverage"
+    },
+    "displayName": "BPMN IQ",
+    "description": "Live multi-editor BPMN collaboration and LLM-driven analysis. Pairs with a running bpmn-iq daemon.",
+    "license": "SEE LICENSE IN LICENSE",
+    "version": "0.1.0",
+    "publisher": "miragon-gmbh",
+    "homepage": "https://www.miragon.io/",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Miragon/bpmn-vscode-modeler.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Miragon/bpmn-vscode-modeler/issues"
+    },
+    "engines": {
+        "vscode": "^1.76.0"
+    },
+    "extensionDependencies": [
+        "miragon-gmbh.vs-code-bpmn-modeler"
+    ],
+    "icon": "assets/miragon-logo.png",
+    "categories": [
+        "Other"
+    ],
+    "keywords": [
+        "BPMN",
+        "Camunda",
+        "collaboration",
+        "AI",
+        "MCP"
+    ],
+    "main": "main.js",
+    "activationEvents": [
+        "workspaceContains:**/*.bpmn",
+        "workspaceContains:**/.bpmn-iq/workspace.json"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "miragon.bpmnIq.toggle",
+                "title": "bpmn-iq: Toggle Sync"
+            },
+            {
+                "command": "miragon.bpmnIq.showMenu",
+                "title": "bpmn-iq: Show Status Menu"
+            },
+            {
+                "command": "miragon.bpmnIq.start",
+                "title": "bpmn-iq: Start Sync"
+            },
+            {
+                "command": "miragon.bpmnIq.stop",
+                "title": "bpmn-iq: Stop Sync"
+            },
+            {
+                "command": "miragon.bpmnIq.pull",
+                "title": "bpmn-iq: Join Workspace…"
+            },
+            {
+                "command": "miragon.bpmnIq.openWebUi",
+                "title": "bpmn-iq: Open Web UI"
+            },
+            {
+                "command": "miragon.bpmnIq.copyWebUiUrl",
+                "title": "bpmn-iq: Copy Web UI Link"
+            },
+            {
+                "command": "miragon.bpmnIq.switchToCloud",
+                "title": "bpmn-iq: Switch to Miragon Cloud"
+            },
+            {
+                "command": "miragon.bpmnIq.switchToLocal",
+                "title": "bpmn-iq: Switch to Local Daemon"
+            }
+        ],
+        "configuration": {
+            "title": "BPMN IQ",
+            "properties": {
+                "miragon.bpmnIq.daemonUrl": {
+                    "type": "string",
+                    "default": "http://localhost:4000",
+                    "markdownDescription": "Base URL of the bpmn-iq daemon. The REST and SSE endpoints are served from this host."
+                },
+                "miragon.bpmnIq.hydrateOnStart": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "When starting bpmn-iq sync, pull every model from the daemon and overwrite local files. Turn this off if you want your local files to be the source of truth on startup."
+                },
+                "miragon.bpmnIq.workspaceName": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Display name for this workspace on the daemon. Leave empty to use the folder's basename."
+                },
+                "miragon.bpmnIq.cloudDaemonUrl": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "URL of the Miragon Cloud bpmn-iq daemon used by the status-bar **Switch to Miragon Cloud** action. Empty by default in OSS builds; set this to a self-hosted enterprise daemon URL to enable the action. When unset, the action is hidden."
+                }
+            }
+        }
+    },
+    "dependencies": {
+        "@miragon/bpmn-iq-daemon-client": "0.4.0"
+    },
+    "devDependencies": {
+        "@types/node": "25.6.0",
+        "@types/vscode": "1.93.0",
+        "@vitest/coverage-v8": "4.1.5",
+        "copy-webpack-plugin": "14.0.0",
+        "dotenv": "17.4.2",
+        "ts-loader": "9.5.7",
+        "tsconfig-paths-webpack-plugin": "4.2.0",
+        "typescript": "6.0.3",
+        "vitest": "4.1.5",
+        "webpack": "5.106.2",
+        "webpack-cli": "7.0.2"
+    }
+}
