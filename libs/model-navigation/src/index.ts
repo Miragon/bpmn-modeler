@@ -6,7 +6,7 @@
  * Register as an `additionalModule` when creating the bpmn-js modeler:
  *
  * ```ts
- * import { NavigateToReferencedModelModule } from "@miragon/bpmn-modeler-context-pad-navigate";
+ * import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
  *
  * new BpmnModeler({ additionalModules: [NavigateToReferencedModelModule] });
  * ```

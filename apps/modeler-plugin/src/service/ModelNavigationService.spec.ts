@@ -459,6 +459,24 @@ describe("stripXmlCommentsAndCdata", () => {
         expect(output).not.toContain("CDATA");
         expect(output).not.toContain("id=\"X\"");
     });
+
+    it("is idempotent so no residual <!-- can survive multiple passes", () => {
+        // CodeQL flags single-pass replacement as "incomplete multi-character
+        // sanitization": certain nesting can leave a residual `<!--`.  The
+        // contract the loop guarantees is idempotency — running the stripper
+        // a second time changes nothing — and "no `<!--` left in the output".
+        const cases = [
+            `<a/><!--<!---->-->`,
+            `<!---><!-->-->`,
+            `<!-- a <!-- b --> c -->`,
+        ];
+        for (const input of cases) {
+            const once = stripXmlCommentsAndCdata(input);
+            const twice = stripXmlCommentsAndCdata(once);
+            expect(twice).toBe(once);
+            expect(once).not.toContain("<!--");
+        }
+    });
 });
 
 describe("buildIdRegex", () => {

@@ -197,9 +197,6 @@ export class VsCodeUI {
         const items = paths
             .map((path) => ({
                 label: posix.basename(path),
-                // `asRelativePath` handles Windows drive-letter casing and
-                // the multi-root case (it prefixes the folder name when
-                // several workspace folders match).
                 description: workspace.asRelativePath(Uri.file(path)),
                 path,
             }))

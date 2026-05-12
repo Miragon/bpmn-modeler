@@ -47,8 +47,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param vsUI User-facing message and logging helper.
      * @param vsDocument Active-document read helper (for status bar version detection).
      * @param statusBar Status bar item manager for engine version display.
-     * @param modelNavigationService Resolves `calledElement` / `decisionRef`
-     *   references against the workspace and opens the target file.
+     * @param modelNavigationService Resolves references and opens the target file.
      */
     constructor(
         private readonly editorStore: EditorStore,
@@ -216,8 +215,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                             );
                             break;
                         }
-                        const sourceDocument =
-                            this.editorStore.getDocumentForEditor(id);
+                        const sourceDocument = this.editorStore.getDocumentForEditor(id);
                         await this.modelNavigationService.navigate(
                             cmd.referenceId,
                             cmd.referenceKind,

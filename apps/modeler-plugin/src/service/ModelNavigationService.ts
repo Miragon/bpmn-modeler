@@ -28,12 +28,6 @@ const REFERENCE_ID_DISPLAY_LIMIT = 100;
  * Resolves a process or decision id to a workspace file and opens it in its
  * registered custom editor.  Triggered by
  * `NavigateToReferencedModelCommand` from the BPMN webview.
- *
- * Search strategy: glob the workspace for `.bpmn` or `.dmn` files and match
- * `<…:process id="…">` / `<…:decision id="…">` with a regex.  Parsing the
- * full XML with bpmn-moddle would be ~100× slower for a small payoff — the
- * regex is exact enough to anchor on the id attribute and tolerant of
- * namespace prefixes.
  */
 export class ModelNavigationService {
     /**
@@ -72,10 +66,6 @@ export class ModelNavigationService {
 
         const paths = await this.vsWorkspace.findFiles(glob, exclude);
 
-        // Read all candidates in parallel.  Each file independently catches
-        // its own errors so a single unreadable file doesn't sink the search;
-        // a count of read failures is kept so we can distinguish "genuinely
-        // no match" from "all candidates were unreadable".
         let readFailures = 0;
         const results = await Promise.all(
             paths.map(async (path) => {
@@ -146,9 +136,20 @@ function escapeRegex(value: string): string {
  * Exported for use in tests.
  */
 export function stripXmlCommentsAndCdata(xml: string): string {
-    return xml
-        .replace(/<!--[\s\S]*?-->/g, "")
-        .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+    // Loop until the input stops changing.  A single regex pass can leave
+    // a residual `<!--` when the input is an adversarial / pathological
+    // nesting like `<!--<!---->-->` — flagged by CodeQL as "incomplete
+    // multi-character sanitization".  Re-running until stable is the
+    // recommended pattern.
+    let previous: string;
+    let current = xml;
+    do {
+        previous = current;
+        current = current
+            .replace(/<!--[\s\S]*?-->/g, "")
+            .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+    } while (current !== previous);
+    return current;
 }
 
 /**

@@ -7,7 +7,7 @@ import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-temp
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import { NavigateToReferencedModelModule } from "@miragon/bpmn-modeler-context-pad-navigate";
+import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7-element-templates";
 import { BpmnModelerSetting, NoModelerError } from "@miragon/bpmn-modeler-shared";
 import { ViewportManager } from "./viewport";

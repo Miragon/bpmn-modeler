@@ -1,5 +1,5 @@
 {
-    "name": "@miragon/bpmn-modeler-context-pad-navigate",
+    "name": "@miragon/bpmn-model-navigation",
     "version": "0.0.1",
     "private": true,
     "scripts": {
@@ -10,7 +10,7 @@
         "@miragon/bpmn-modeler-shared": "workspace:*"
     },
     "peerDependencies": {
-        "bpmn-js": "^18.15.0"
+        "bpmn-js": "18.15.0"
     },
     "devDependencies": {
         "bpmn-js": "18.15.0",
