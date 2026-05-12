@@ -3,7 +3,7 @@
   "name": "@miragon/bpmn-modeler-standalone",
   "description": "Miragon BPMN Modeler — standalone Theia-based Electron desktop app",
   "productName": "Miragon BPMN Modeler",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "scripts/theia-electron-main.js",
   "license": "Apache-2.0",
   "author": "Miragon",
