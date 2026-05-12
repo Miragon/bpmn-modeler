@@ -90,34 +90,43 @@ the login keychain. See [Releasing](#releasing) below for the full setup.
 
 ## Releasing
 
-CI handles releases via two workflows:
+CI handles releases via a single orchestrator workflow that chains three
+sub-workflows. Each sub-workflow remains independently runnable for reruns.
 
-- `.github/workflows/prepare-release-standalone.yml` — manual
-  (`workflow_dispatch`). Bumps `apps/standalone/package.json`, commits,
-  tags `standalone-vX.Y.Z`, creates the GitHub Release.
-- `.github/workflows/publish-standalone.yml` — fires on
-  `release: published` for `standalone-v*` tags. Runs on `macos-latest`,
-  builds the `.vsix`, bundles it, signs with the Apple Developer ID cert,
-  notarizes, and uploads the `.dmg` + `latest-mac.yml` to the release.
+- `.github/workflows/release-standalone.yml` — **single entry point**
+  (`workflow_dispatch`). Runs prepare → publish → homebrew in sequence,
+  propagating `dry-run` to every step.
+- `.github/workflows/prepare-release-standalone.yml` — bumps
+  `apps/standalone/package.json` + `libs/standalone-extension/package.json`,
+  commits, tags `standalone-vX.Y.Z`, creates the GitHub Release.
+- `.github/workflows/publish-standalone.yml` — two-job pipeline:
+  builds the `.vsix` on `ubuntu-latest`, then signs/notarizes the DMG on
+  `macos-latest` and uploads `.dmg` + `latest-mac.yml` to the release.
   Existing installs pick up updates via `electron-updater` on next launch.
+- `.github/workflows/publish-standalone-homebrew.yml` — updates the Cask
+  formula in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap)
+  so `brew upgrade --cask miragon-bpmn-modeler` picks up the new version.
 
 To cut a release:
 
-1. Go to **Actions** → **Prepare Release Standalone** → **Run workflow**,
-   pick `patch` / `minor` / `major`. The prepare workflow tags + creates
-   the release.
-2. The `release: published` event auto-triggers **Publish Standalone**,
-   which produces and uploads the signed DMG.
+1. Go to **Actions** → **Release Standalone** → **Run workflow**.
+2. Pick `release-type` (`patch` / `minor` / `major`), toggle `dry-run`
+   on/off (defaults to off), optionally tick `skip-homebrew` if you only
+   want the DMG.
+3. The orchestrator runs `prepare` → `publish` → `homebrew` automatically.
+   In dry-run mode nothing is committed, tagged, uploaded, or pushed; the
+   DMG lands as a workflow artifact and the cask formula is only logged.
 
-Both workflows accept a `dry-run` input. See
-[Release process](../../docs/vscode/contributing/release-process.md) for
-the full pipeline diagram and the equivalent flow for the VS Code
-extension and the c7 npm lib.
+The orchestrator pauses before the Homebrew step if the `homebrew-tap`
+environment has a required reviewer configured (see *Approval gate* below).
 
-After the release is published, `.github/workflows/standalone-homebrew.yml`
-automatically updates the Cask formula in
-[Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap) so that
-`brew upgrade --cask miragon-bpmn-modeler` picks up the new version.
+**Single-step reruns:** Each sub-workflow keeps its own `workflow_dispatch`
+trigger. Use these for debugging a single phase without re-running the
+whole chain.
+
+See [Release process](../../docs/vscode/contributing/release-process.md)
+for the equivalent flow for the VS Code extension and the c7 npm lib
+(which use a different `workflow_dispatch`-based pattern).
 
 **Required GitHub repo secrets** (one-time setup):
 
@@ -128,7 +137,27 @@ automatically updates the Cask formula in
 | `APPLE_ID` | Apple ID email of a Miragon team member |
 | `APPLE_APP_SPECIFIC_PASSWORD` | generated at appleid.apple.com |
 | `APPLE_TEAM_ID` | `G5JZQ328LJ` |
-| `HOMEBREW_TAP_TOKEN` | PAT with `repo` scope on `Miragon/homebrew-tap` |
+| `RELEASE_PAT` | PAT with `repo` scope, used by `prepare` to push commits/tags |
+| `HOMEBREW_TAP_TOKEN` | PAT with `repo` scope on `Miragon/homebrew-tap` (recommended: scope to the `homebrew-tap` environment, see below) |
+
+### Approval gate / environment setup
+
+The Homebrew tap update is the only step that publishes to a public
+destination outside this repo. The workflow expects a GitHub environment
+named `homebrew-tap`. To configure a manual approval gate before each
+tap push:
+
+1. Repo *Settings* → *Environments* → **New environment** → name it
+   `homebrew-tap`.
+2. *Deployment protection rules* → **Required reviewers** → add at least
+   one maintainer.
+3. (Recommended) move `HOMEBREW_TAP_TOKEN` from *Repository secrets* to
+   the `homebrew-tap` environment's *Environment secrets* — tightens
+   blast radius so the token is only usable from this gated job.
+
+The orchestrator pauses on the Homebrew job until a reviewer approves.
+Wait time is free in terms of runner minutes. If you skip step 2, the
+chain runs through without a gate; dry-run remains the only safety net.
 
 ## Structure
 

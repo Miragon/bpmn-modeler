@@ -4,6 +4,10 @@ name: Prepare Release Standalone
 # commits and tags the bump, then creates a GitHub Release. Building,
 # signing, notarizing and publishing the DMG is handled by
 # publish-standalone.yml.
+#
+# Callable two ways:
+#   - workflow_dispatch (manual single-step run)
+#   - workflow_call (from release-standalone.yml orchestrator)
 
 on:
   workflow_dispatch:
@@ -21,6 +25,25 @@ on:
         required: false
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      release-type:
+        description: 'Release type (patch/minor/major)'
+        required: true
+        type: string
+      dry-run:
+        description: 'Dry run (no commit, tag, or release)'
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      version:
+        description: 'The new version (e.g. 0.0.4). The release tag is always standalone-v${version}.'
+        value: ${{ jobs.prepare.outputs.version }}
+    secrets:
+      RELEASE_PAT:
+        description: 'PAT with repo scope, used to push commits/tags and create the release'
+        required: true
 
 permissions:
   contents: write
@@ -33,6 +56,8 @@ jobs:
   prepare:
     name: Prepare release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -46,6 +71,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: yarn
 
       - name: Configure Git
         run: |

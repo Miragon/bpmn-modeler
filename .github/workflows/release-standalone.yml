@@ -1,0 +1,63 @@
+name: Release Standalone
+
+# Single-click orchestrator: prepare → publish → homebrew.
+# Each sub-workflow is also runnable on its own via workflow_dispatch for
+# debugging or partial reruns. Dry-run propagates to all three steps.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry-run:
+        description: 'Dry run (no commit, tag, release, upload, or tap push)'
+        required: false
+        type: boolean
+        default: false
+      skip-homebrew:
+        description: 'Skip the Homebrew tap update'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: standalone-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release
+    uses: ./.github/workflows/prepare-release-standalone.yml
+    with:
+      release-type: ${{ inputs.release-type }}
+      dry-run: ${{ inputs.dry-run }}
+    secrets: inherit
+
+  publish:
+    name: Publish DMG
+    needs: prepare
+    uses: ./.github/workflows/publish-standalone.yml
+    with:
+      dry-run: ${{ inputs.dry-run }}
+    secrets: inherit
+
+  homebrew:
+    name: Update Homebrew tap
+    needs: [prepare, publish]
+    if: ${{ !inputs.skip-homebrew }}
+    uses: ./.github/workflows/publish-standalone-homebrew.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      dmg-sha256: ${{ needs.publish.outputs.dmg-sha256 }}
+      dmg-filename: ${{ needs.publish.outputs.dmg-filename }}
+      dry-run: ${{ inputs.dry-run }}
+    secrets: inherit
