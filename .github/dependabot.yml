@@ -7,7 +7,7 @@ updates:
     labels:
       - "Technical Dept"
     schedule:
-      interval: daily
+      interval: weekly
       time: "05:00"
     commit-message:
       prefix: chore
