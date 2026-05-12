@@ -34,8 +34,3 @@ The module expects a `vsCodeBridge` DI value with a `postMessage` method
 so it never has to call `acquireVsCodeApi()` directly (which can only be
 invoked once per webview).
 
-## See also
-
-- Issue [#973](https://github.com/Miragon/bpmn-modeler/issues/973) — original feature request.
-- `apps/modeler-plugin/src/service/ModelNavigationService.ts` — the
-  extension-host counterpart that resolves the id against the workspace.
