@@ -48,6 +48,7 @@ jobs:
     uses: ./.github/workflows/publish-standalone.yml
     with:
       dry-run: ${{ inputs.dry-run }}
+      ref: ${{ inputs.dry-run && '' || format('standalone-v{0}', needs.prepare.outputs.version) }}
     secrets: inherit
 
   homebrew:

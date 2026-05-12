@@ -26,6 +26,11 @@ on:
         required: false
         type: boolean
         default: true
+      ref:
+        description: 'Git ref to check out (e.g. the bump tag from prepare-release). Defaults to the triggering SHA.'
+        required: false
+        type: string
+        default: ''
     outputs:
       dmg-sha256:
         description: 'sha256 of the signed/notarized DMG'
@@ -60,6 +65,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Enable corepack
         run: corepack enable
@@ -101,6 +108,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Enable corepack
         run: corepack enable
