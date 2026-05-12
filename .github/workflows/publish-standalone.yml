@@ -1,5 +1,16 @@
 name: Publish Standalone (macOS)
 
+# Builds the VS Code extension on Linux, then signs, notarizes and uploads
+# the macOS DMG. Split into two jobs so the expensive macOS runner only
+# handles what genuinely needs macOS (codesign + notarytool + electron-builder).
+#
+# Callable two ways:
+#   - workflow_dispatch (manual single-step run; dry-run defaults to true)
+#   - workflow_call (from release-standalone.yml orchestrator)
+#
+# In workflow_call mode the workflow exposes the DMG's sha256 and filename
+# so the homebrew job can skip re-downloading the ~150 MB DMG.
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,6 +19,31 @@ on:
         required: false
         type: boolean
         default: true
+  workflow_call:
+    inputs:
+      dry-run:
+        description: 'Dry run (build + sign + notarize, do not publish)'
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      dmg-sha256:
+        description: 'sha256 of the signed/notarized DMG'
+        value: ${{ jobs.package-dmg.outputs.dmg-sha256 }}
+      dmg-filename:
+        description: 'Base filename of the DMG (e.g. Miragon BPMN Modeler-0.0.4-arm64.dmg)'
+        value: ${{ jobs.package-dmg.outputs.dmg-filename }}
+    secrets:
+      CSC_LINK:
+        required: true
+      CSC_KEY_PASSWORD:
+        required: true
+      APPLE_ID:
+        required: true
+      APPLE_APP_SPECIFIC_PASSWORD:
+        required: true
+      APPLE_TEAM_ID:
+        required: true
 
 permissions:
   contents: write
@@ -17,9 +53,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish-macos:
-    name: Build, sign, notarize, publish (macOS)
-    runs-on: macos-latest
+  build-vsix:
+    name: Build VS Code extension (.vsix)
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout sources
@@ -28,22 +64,63 @@ jobs:
       - name: Enable corepack
         run: corepack enable
 
-      - name: Setup NodeJS 22
+      - name: Setup Node 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: yarn
 
       - name: Install dependencies
-        run: yarn
+        run: yarn install --immutable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build extension
+      - name: Build (libs → webviews → modeler-plugin)
         run: yarn build
 
-      - name: Package extension as .vsix
+      - name: Package .vsix
         working-directory: dist/apps/modeler-plugin
         run: npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
+
+      - name: Upload .vsix artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: standalone-vsix
+          path: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
+          retention-days: 1
+          if-no-files-found: error
+
+  package-dmg:
+    name: Sign, notarize, publish DMG (macOS)
+    runs-on: macos-latest
+    needs: build-vsix
+    outputs:
+      dmg-sha256: ${{ steps.dmg-meta.outputs.sha256 }}
+      dmg-filename: ${{ steps.dmg-meta.outputs.filename }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download .vsix from build-vsix job
+        uses: actions/download-artifact@v6
+        with:
+          name: standalone-vsix
+          path: dist/apps/modeler-plugin
 
       - name: Bundle extension into standalone plugins/
         run: yarn workspace @miragon/bpmn-modeler-standalone bundle
@@ -59,15 +136,7 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Upload DMG artifact (dry-run)
-        if: inputs.dry-run == true
-        uses: actions/upload-artifact@v7
-        with:
-          name: standalone-dmg-dry-run
-          path: apps/standalone/dist/*.dmg
-          retention-days: 7
-
-      - name: Build, sign, notarize DMG
+      - name: Build, sign, notarize DMG (release)
         if: inputs.dry-run == false
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:release
         env:
@@ -77,6 +146,33 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Compute DMG metadata (sha256 + filename)
+        id: dmg-meta
+        run: |
+          shopt -s nullglob
+          DMG_FILES=(apps/standalone/dist/*.dmg)
+          if [ "${#DMG_FILES[@]}" -eq 0 ]; then
+            echo "No DMG produced in apps/standalone/dist/." && exit 1
+          fi
+          DMG_PATH="${DMG_FILES[0]}"
+          DMG_NAME="$(basename "$DMG_PATH")"
+          SHA="$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')"
+          echo "filename=$DMG_NAME" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "DMG: $DMG_NAME"
+          echo "sha256: $SHA"
+
+      - name: Upload DMG artifact (dry-run)
+        if: inputs.dry-run == true
+        uses: actions/upload-artifact@v7
+        with:
+          name: standalone-dmg-dry-run
+          path: |
+            apps/standalone/dist/*.dmg
+            apps/standalone/dist/*.dmg.blockmap
+            apps/standalone/dist/latest-mac.yml
+          retention-days: 7
 
       - name: Upload artifacts to release
         if: inputs.dry-run == false

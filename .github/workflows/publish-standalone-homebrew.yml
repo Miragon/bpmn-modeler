@@ -2,23 +2,50 @@ name: Publish Standalone (Homebrew)
 
 # Updates the Cask formula in Miragon/homebrew-tap after a standalone release.
 #
-# Triggers:
-#   - Manually via workflow_dispatch (supports dry_run for testing without pushing)
+# Callable two ways:
+#   - workflow_call (from release-standalone.yml orchestrator) — receives the
+#     DMG sha256 and filename as inputs, so no re-download of the ~150 MB DMG.
+#   - workflow_dispatch (manual rerun) — sha256 and filename are recomputed
+#     by downloading the DMG from the release.
 #
-# Required GitHub repo secret:
+# Required GitHub repo secret (or homebrew-tap environment secret):
 #   HOMEBREW_TAP_TOKEN   PAT with repo scope on Miragon/homebrew-tap
 
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Release tag (e.g. standalone-v0.0.1)"
+      version:
+        description: "Version without prefix (e.g. 0.0.1). Tag is always standalone-v<version>."
         required: true
         type: string
-      dry_run:
+      dry-run:
         description: "Generate formula without pushing to tap"
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      version:
+        description: "Version without prefix (e.g. 0.0.4)"
+        required: true
+        type: string
+      dmg-sha256:
+        description: "sha256 of the DMG (skip recompute when provided)"
+        required: false
+        type: string
+        default: ""
+      dmg-filename:
+        description: "DMG filename (e.g. Miragon.BPMN.Modeler-0.0.4-arm64.dmg)"
+        required: false
+        type: string
+        default: ""
+      dry-run:
+        description: "Generate formula without pushing to tap"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      HOMEBREW_TAP_TOKEN:
+        required: true
 
 permissions: {}
 
@@ -26,24 +53,38 @@ jobs:
   update-tap:
     name: Update Cask formula
     runs-on: ubuntu-latest
+    environment: homebrew-tap
     permissions:
       contents: read
     steps:
-      - name: Resolve tag and version
+      - name: Resolve tag and DMG metadata
         id: meta
         env:
-          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_SHA: ${{ inputs.dmg-sha256 }}
+          INPUT_FILENAME: ${{ inputs.dmg-filename }}
         run: |
-          TAG="$INPUT_TAG"
-          VERSION="${TAG#standalone-v}"
+          VERSION="$INPUT_VERSION"
+          TAG="standalone-v${VERSION}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Download DMG and compute sha256
+          if [ -n "$INPUT_SHA" ] && [ -n "$INPUT_FILENAME" ]; then
+            echo "skip-download=true" >> "$GITHUB_OUTPUT"
+            echo "sha256=$INPUT_SHA" >> "$GITHUB_OUTPUT"
+            echo "filename=$INPUT_FILENAME" >> "$GITHUB_OUTPUT"
+            echo "Using sha256 + filename from orchestrator inputs (skipping DMG download)."
+          else
+            echo "skip-download=false" >> "$GITHUB_OUTPUT"
+            echo "Will download DMG from release to recompute sha256 + filename."
+          fi
+
+      - name: Download DMG and compute sha256 (fallback)
+        if: steps.meta.outputs.skip-download == 'false'
         id: sha
         env:
           TAG: ${{ steps.meta.outputs.tag }}
-          VERSION: ${{ steps.meta.outputs.version }}
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           DMG="Miragon.BPMN.Modeler-${VERSION}-arm64.dmg"
           URL="https://github.com/Miragon/bpmn-modeler/releases/download/${TAG}/${DMG}"
@@ -51,20 +92,39 @@ jobs:
           curl -fsSL -o "$DMG" "$URL"
           SHA=$(shasum -a 256 "$DMG" | awk '{print $1}')
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "filename=$DMG" >> "$GITHUB_OUTPUT"
           echo "sha256: $SHA"
 
-      - name: Generate Cask formula
-        id: formula
+      - name: Resolve final sha256 and filename
+        id: final
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
-          SHA: ${{ steps.sha.outputs.sha256 }}
+          ORCH_SHA: ${{ steps.meta.outputs.sha256 }}
+          ORCH_FILE: ${{ steps.meta.outputs.filename }}
+          FALLBACK_SHA: ${{ steps.sha.outputs.sha256 }}
+          FALLBACK_FILE: ${{ steps.sha.outputs.filename }}
         run: |
+          SHA="${ORCH_SHA:-$FALLBACK_SHA}"
+          FILE="${ORCH_FILE:-$FALLBACK_FILE}"
+          if [ -z "$SHA" ] || [ -z "$FILE" ]; then
+            echo "Failed to resolve DMG sha256/filename." && exit 1
+          fi
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "filename=$FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Cask formula
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ steps.final.outputs.sha256 }}
+          FILENAME: ${{ steps.final.outputs.filename }}
+        run: |
+          URL_FILENAME="${FILENAME// /%20}"
           cat > miragon-bpmn-modeler.rb <<EOF
           cask "miragon-bpmn-modeler" do
             version "${VERSION}"
             sha256 "${SHA}"
 
-            url "https://github.com/Miragon/bpmn-modeler/releases/download/standalone-v#{version}/Miragon.BPMN.Modeler-#{version}-arm64.dmg"
+            url "https://github.com/Miragon/bpmn-modeler/releases/download/${TAG}/${URL_FILENAME}"
             name "Miragon BPMN Modeler"
             desc "Standalone BPMN/DMN process modeler"
             homepage "https://github.com/Miragon/bpmn-modeler"
@@ -76,9 +136,9 @@ jobs:
           cat miragon-bpmn-modeler.rb
 
       - name: Push to homebrew-tap
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry-run }}
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
+          VERSION: ${{ inputs.version }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Miragon/homebrew-tap.git" tap

@@ -6,39 +6,50 @@ version history lives on
 
 ## Overview
 
-Each shippable artefact has **two** workflows: a `prepare-*` and a `publish-*`.
-The split exists so the prepare workflow can create a GitHub Release without
-the publish workflow accidentally re-triggering itself in a loop. Splitting
-into separate files also keeps each workflow short and single-purpose.
+Each shippable artefact has a `prepare-*` and a `publish-*` workflow. The
+split keeps each file short, single-purpose, and individually rerunnable
+for debugging.
 
-- **`prepare-*`** — manual (`workflow_dispatch`). Bumps the version, runs the
-  sanity checks, commits the bump, pushes the tag, and creates a GitHub
-  Release. Does **not** publish anything.
-- **`publish-*`** — fires on `release: published`. Builds the artefact,
-  attaches it to the existing release, and pushes it to the relevant
-  registry (Marketplace / npm / GitHub Release assets). Also runnable
-  manually with `dry-run: true` to produce an artefact without uploading.
+- **`prepare-*`** — bumps the version, runs the sanity checks, commits the
+  bump, pushes the tag, creates a GitHub Release. Does **not** publish.
+- **`publish-*`** — builds the artefact, attaches it to the existing
+  release, and pushes it to the relevant registry (Marketplace / npm /
+  GitHub Release assets / Homebrew). Runnable manually with `dry-run: true`
+  to produce an artefact without uploading.
 
-Both workflows accept a `dry-run` input for safe local validation.
+All workflows accept a `dry-run` input for safe local validation.
+
+The **standalone** app additionally has an orchestrator
+(`release-standalone.yml`) that chains `prepare` → `publish` → `homebrew`
+via `workflow_call`. Other artefacts are launched with separate
+`workflow_dispatch` calls per phase.
 
 ## Pipeline flow
 
 ```mermaid
 flowchart LR
     user([Maintainer])
-    prepare[prepare-release-*.yml<br/>workflow_dispatch]
-    bump[Bump version<br/>commit + tag]
-    ghrelease[(GitHub Release<br/>tag prefix v* / standalone-v* / …)]
-    publish[publish-*.yml<br/>release: published]
-    artifact[(Marketplace / npm /<br/>signed DMG)]
 
-    user -->|Run workflow| prepare
-    prepare --> bump
-    bump --> ghrelease
-    ghrelease -.->|release event| publish
-    publish --> artifact
+    subgraph Standalone[Standalone macOS app]
+        orchestrator[release-standalone.yml<br/>workflow_dispatch]
+        s_prepare[prepare-release-standalone.yml<br/>workflow_call]
+        s_publish[publish-standalone.yml<br/>workflow_call<br/>Linux + macOS jobs]
+        s_brew[publish-standalone-homebrew.yml<br/>workflow_call<br/>env: homebrew-tap]
+        s_assets[(GitHub Release DMG<br/>+ Homebrew Cask)]
 
-    user -.->|workflow_dispatch<br/>dry-run=true| publish
+        orchestrator --> s_prepare --> s_publish --> s_brew --> s_assets
+    end
+
+    subgraph Other[VS Code extension / c7 npm lib]
+        o_prepare[prepare-release-*.yml<br/>workflow_dispatch]
+        o_publish[publish-*.yml<br/>workflow_dispatch]
+        o_assets[(Marketplace / npm)]
+
+        o_prepare --> o_publish --> o_assets
+    end
+
+    user -->|1 click| orchestrator
+    user -->|2 clicks| o_prepare
 ```
 
 ## Releases per artefact
@@ -49,13 +60,13 @@ Published to the [VS Code Marketplace](https://marketplace.visualstudio.com/item
 
 | File | Trigger | Tag prefix |
 |---|---|---|
-| `prepare-release-vscode-modeler.yml` | manual | — |
-| `publish-vscode-modeler.yml` | `release: published`, `workflow_dispatch` | `v*` (e.g. `v0.9.3`) |
+| `prepare-release-vscode-modeler.yml` | `workflow_dispatch` | — |
+| `publish-vscode-modeler.yml` | `workflow_dispatch` | `v*` (e.g. `v0.9.3`) |
 
 `prepare` bumps `apps/modeler-plugin/package.json`, runs lint + test + build,
 then commits, tags `vX.Y.Z`, and creates a GitHub Release. `publish` packages
 the `.vsix`, attaches it to the release, and runs `vsce publish` against the
-VS Code Marketplace.
+VS Code Marketplace. Both steps are launched separately by the maintainer.
 
 ### create-append-c7-element-templates (npm lib)
 
@@ -63,49 +74,54 @@ Published to [npm](https://www.npmjs.com/package/@miragon/create-append-c7-eleme
 
 | File | Trigger | Tag prefix |
 |---|---|---|
-| `prepare-release-create-append-c7.yml` | manual | — |
-| `publish-create-append-c7.yml` | `release: published`, `workflow_dispatch` | `create-append-c7-element-templates/v*` |
+| `prepare-release-create-append-c7.yml` | `workflow_dispatch` | — |
+| `publish-create-append-c7.yml` | `workflow_dispatch` | `create-append-c7-element-templates/v*` |
 
 `prepare` bumps `libs/create-append-c7-element-templates/package.json` and
-builds the library; `publish` runs `npm publish --access public`.
+builds the library; `publish` runs `npm publish --access public`. Both
+steps are launched separately by the maintainer.
 
 ### Standalone macOS app
 
-Published as DMG assets on [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases?q=standalone-v).
+Published as DMG assets on [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases?q=standalone-v)
+and as a Cask in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap).
 
 | File | Trigger | Tag prefix |
 |---|---|---|
-| `prepare-release-standalone.yml` | manual | — |
-| `publish-standalone.yml` | `release: published`, `workflow_dispatch` | `standalone-v*` |
+| `release-standalone.yml` (orchestrator) | `workflow_dispatch` | — |
+| `prepare-release-standalone.yml` | `workflow_dispatch` + `workflow_call` | — |
+| `publish-standalone.yml` | `workflow_dispatch` + `workflow_call` | `standalone-v*` |
+| `publish-standalone-homebrew.yml` | `workflow_dispatch` + `workflow_call` | — |
 
-`prepare` bumps `apps/standalone/package.json`. `publish` runs on
-`macos-latest`, signs and notarizes the DMG with the Apple Developer ID
-cert, and attaches the DMG + `latest-mac.yml` manifest to the release
-(consumed by `electron-updater` for in-app auto-update).
+The standalone orchestrator chains prepare → publish → homebrew in one
+click. `publish-standalone.yml` is split across two jobs: the `.vsix` is
+built on `ubuntu-latest`, then the DMG is signed and notarized with the
+Apple Developer ID cert on `macos-latest`. The DMG + `latest-mac.yml`
+manifest are attached to the release (consumed by `electron-updater` for
+in-app auto-update), and the Cask formula is updated in `homebrew-tap`.
 
 ## How to release
 
-The flow is identical for all three artefacts. Example: VS Code extension.
+### VS Code extension and c7 npm lib
 
-1. Go to the **Actions** tab → **Prepare Release VS Code Modeler** → **Run workflow**.
-2. Pick the **release type** (`patch` / `minor` / `major`) and decide whether
-   to enable **Dry run**.
-3. Click **Run workflow**.
-4. The prepare workflow:
-   - Bumps `apps/modeler-plugin/package.json`.
-   - Runs lint, test, build.
-   - Commits the bump, pushes the `vX.Y.Z` tag, creates the GitHub Release.
-5. The new release fires a `release: published` event, which automatically
-   triggers **Publish VS Code Modeler**:
-   - Builds the extension at the tagged commit.
-   - Verifies `package.json` version matches the release tag.
-   - Packages the `.vsix`, attaches it to the release, publishes to the
-     VS Code Marketplace.
+1. Go to **Actions** → **Prepare Release …** → **Run workflow**.
+2. Pick the **release type** (`patch` / `minor` / `major`) and decide
+   whether to enable **Dry run**.
+3. Once the prepare workflow finishes, go to **Actions** → **Publish …**
+   → **Run workflow** and decide whether to dry-run.
 
-> Both workflows only run on the `main` branch (prepare) or against a
-> matching tag prefix (publish). Dry-run on prepare skips commit/tag/release.
-> Dry-run on publish builds the artefact and uploads it as a workflow
-> artifact instead of publishing it.
+### Standalone macOS app
+
+1. Go to **Actions** → **Release Standalone** → **Run workflow**.
+2. Pick `release-type`, toggle `dry-run`/`skip-homebrew`.
+3. Watch the chain run prepare → publish → homebrew. If the
+   `homebrew-tap` environment has a required reviewer, the run pauses
+   on the homebrew job until the reviewer approves.
+
+> Dry-run on prepare skips commit/tag/release. Dry-run on publish builds
+> the artefact and uploads it as a workflow artifact instead of pushing
+> to the release. Dry-run on homebrew generates the Cask formula and
+> only logs it.
 
 ## Tag/version drift safeguard
 
