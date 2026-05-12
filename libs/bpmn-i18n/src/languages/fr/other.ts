@@ -95,6 +95,7 @@ const translations: Record<string, string> = {
     "Annotation": "Annotation",
     "Output Expression": "Expression de sortie",
     "Data Type": "Type de données",
+    "Navigate to referenced model": "Accéder au modèle référencé",
 };
 
 export default translations;

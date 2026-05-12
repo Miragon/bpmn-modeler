@@ -26,6 +26,7 @@
             "@miragon/bpmn-modeler-i18n": ["./libs/bpmn-i18n/src/index.ts"],
             "@miragon/bpmn-modeler-element-template-chooser": ["./libs/element-template-chooser/src/index.ts"],
             "@miragon/bpmn-modeler-append-menu": ["./libs/append-menu/src/index.ts"],
+            "@miragon/bpmn-modeler-context-pad-navigate": ["./libs/context-pad-navigate/src/index.ts"],
             "@miragon/create-append-c7-element-templates": ["./libs/create-append-c7-element-templates/src/index.ts"]
         }
     },

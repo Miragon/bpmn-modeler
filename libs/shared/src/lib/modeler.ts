@@ -203,6 +203,26 @@ export class GetClipboardCommand extends Command {
     }
 }
 
+/**
+ * Sent by the BPMN webview when the user clicks the "Navigate to referenced
+ * model" link on the properties panel for a Call Activity or Business Rule
+ * Task.  The host searches the workspace for `.bpmn` / `.dmn` files declaring
+ * a `process` / `decision` with the given id and either opens the unique
+ * match, shows a QuickPick when several files match, or shows an info
+ * notification when no match is found.
+ */
+export class NavigateToReferencedModelCommand extends Command {
+    public readonly referenceId: string;
+
+    public readonly referenceKind: "process" | "decision";
+
+    constructor(referenceId: string, referenceKind: "process" | "decision") {
+        super("NavigateToReferencedModelCommand");
+        this.referenceId = referenceId;
+        this.referenceKind = referenceKind;
+    }
+}
+
 export class SetClipboardCommand extends Command {
     public readonly text: string;
 

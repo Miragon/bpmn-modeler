@@ -3103,6 +3103,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-context-pad-navigate@workspace:*, @miragon/bpmn-modeler-context-pad-navigate@workspace:libs/context-pad-navigate":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-context-pad-navigate@workspace:libs/context-pad-navigate"
+  dependencies:
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    bpmn-js: "npm:18.15.0"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.5"
+  peerDependencies:
+    bpmn-js: 18.15.0
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview"
@@ -3215,6 +3228,7 @@ __metadata:
     "@bpmn-io/properties-panel": "npm:3.41.2"
     "@miragon/bpmn-modeler-append-menu": "workspace:*"
     "@miragon/bpmn-modeler-clipboard": "workspace:*"
+    "@miragon/bpmn-modeler-context-pad-navigate": "workspace:*"
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"

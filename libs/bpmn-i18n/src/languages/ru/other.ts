@@ -96,6 +96,7 @@ const translations: Record<string, string> = {
     "Output Expression": "Выходное выражение",
     "Data Type": "Тип данных",
     "Create new BPMN Diagram (Camunda Platform)": "Создать новую BPMN диграмму (Camunda Platform)",
+    "Navigate to referenced model": "Перейти к связанной модели",
 };
 
 export default translations;

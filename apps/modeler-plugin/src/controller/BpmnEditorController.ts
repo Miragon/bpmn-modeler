@@ -10,6 +10,7 @@ import {
 
 import {
     Command,
+    NavigateToReferencedModelCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
@@ -22,6 +23,7 @@ import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
+import { ModelNavigationService } from "../service/ModelNavigationService";
 import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
@@ -45,6 +47,8 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param vsUI User-facing message and logging helper.
      * @param vsDocument Active-document read helper (for status bar version detection).
      * @param statusBar Status bar item manager for engine version display.
+     * @param modelNavigationService Resolves `calledElement` / `decisionRef`
+     *   references against the workspace and opens the target file.
      */
     constructor(
         private readonly editorStore: EditorStore,
@@ -54,6 +58,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly vsUI: VsCodeUI,
         private readonly vsDocument: VsCodeDocument,
         private readonly statusBar: VsCodeStatusBar,
+        private readonly modelNavigationService: ModelNavigationService,
     ) {}
 
     /**
@@ -195,6 +200,31 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                             (message as SyncDocumentCommand).content,
                         );
                         break;
+                    case "NavigateToReferencedModelCommand": {
+                        const cmd = message as NavigateToReferencedModelCommand;
+                        // Defence-in-depth: reject unknown discriminants
+                        // rather than letting them fall through to the
+                        // decision branch by default.
+                        if (
+                            cmd.referenceKind !== "process" &&
+                            cmd.referenceKind !== "decision"
+                        ) {
+                            this.vsUI.logWarning(
+                                `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
+                                    cmd.referenceKind,
+                                )}`,
+                            );
+                            break;
+                        }
+                        const sourceDocument =
+                            this.editorStore.getDocumentForEditor(id);
+                        await this.modelNavigationService.navigate(
+                            cmd.referenceId,
+                            cmd.referenceKind,
+                            sourceDocument.uri,
+                        );
+                        break;
+                    }
                 }
                 this.vsUI.logInfo(`Message processed -> ${message.type}`);
             },

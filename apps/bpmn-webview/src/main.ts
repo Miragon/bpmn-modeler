@@ -191,7 +191,10 @@ window.onload = async function () {
     }
 
     const propertiesPanelHandle = initResizer();
-    const extraModules = [TranslateModule, ...(clipboardModules ?? [])];
+    const vsCodeBridgeModule = {
+        vsCodeBridge: ["value", { postMessage: (m: unknown) => vscode.postMessage(m as never) }],
+    };
+    const extraModules = [TranslateModule, vsCodeBridgeModule, ...(clipboardModules ?? [])];
     await initializeModeler(
         bpmnFileQuery?.content,
         bpmnFileQuery?.engine,

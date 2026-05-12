@@ -15,6 +15,7 @@
         "@bpmn-io/properties-panel": "3.41.2",
         "@miragon/bpmn-modeler-append-menu": "workspace:*",
         "@miragon/bpmn-modeler-clipboard": "workspace:*",
+        "@miragon/bpmn-modeler-context-pad-navigate": "workspace:*",
         "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",

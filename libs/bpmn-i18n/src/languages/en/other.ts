@@ -94,6 +94,8 @@ const translations: Record<string, string> = {
     "Annotation": "Annotation",
     "Output Expression": "Output Expression",
     "Data Type": "Data Type",
+    // Context pad — Navigate to referenced model
+    "Navigate to referenced model": "Navigate to referenced model",
     // Diff legend (bpmn diff view)
     "Added": "Added",
     "Removed": "Removed",

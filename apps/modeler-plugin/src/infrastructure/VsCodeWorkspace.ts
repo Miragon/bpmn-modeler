@@ -115,10 +115,17 @@ export class VsCodeWorkspace {
      * Finds files in the workspace matching the given glob pattern.
      *
      * @param pattern A glob pattern (e.g. `"**\/*.bpmn"`).
+     * @param exclude Optional glob (or `null`) forwarded to
+     *   {@link workspace.findFiles}.  `undefined` keeps VS Code's default
+     *   (`files.exclude` only); a glob string adds those patterns on top;
+     *   `null` opts out of every default exclude.
      * @returns An array of absolute file paths.
      */
-    async findFiles(pattern: GlobPattern): Promise<string[]> {
-        const uris = await workspace.findFiles(pattern);
+    async findFiles(
+        pattern: GlobPattern,
+        exclude?: GlobPattern | null,
+    ): Promise<string[]> {
+        const uris = await workspace.findFiles(pattern, exclude);
         return uris.map((uri) => uri.path);
     }
 

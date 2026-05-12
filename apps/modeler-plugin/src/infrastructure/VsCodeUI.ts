@@ -1,4 +1,6 @@
-import { env, window } from "vscode";
+import { posix } from "path";
+
+import { env, Uri, window, workspace } from "vscode";
 
 import { UserCancelledError } from "../domain/errors";
 import { MigrationScope } from "../domain/MigrationPlan";
@@ -179,5 +181,33 @@ export class VsCodeUI {
             throw new UserCancelledError();
         }
         return result;
+    }
+
+    /**
+     * Shows a quick-pick listing candidate files when several workspace files
+     * declare the same process / decision id.  Sorted by workspace-relative
+     * path so that nearby files surface first.
+     *
+     * @param paths Absolute file paths returned by the workspace search.
+     * @returns The chosen path, or `undefined` if the user dismissed the
+     *   pick.  Cancellation is *not* treated as an error here because the
+     *   user is free to back out of a navigation prompt.
+     */
+    async pickReferencedModel(paths: string[]): Promise<string | undefined> {
+        const items = paths
+            .map((path) => ({
+                label: posix.basename(path),
+                // `asRelativePath` handles Windows drive-letter casing and
+                // the multi-root case (it prefixes the folder name when
+                // several workspace folders match).
+                description: workspace.asRelativePath(Uri.file(path)),
+                path,
+            }))
+            .sort((a, b) => a.description.localeCompare(b.description));
+
+        const picked = await window.showQuickPick(items, {
+            placeHolder: "Select the referenced model to open",
+        });
+        return picked?.path;
     }
 }
