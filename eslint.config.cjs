@@ -11,7 +11,7 @@ const compat = new FlatCompat({
 
 module.exports = [
     {
-        ignores: ["**/dist", "**/lib", "**/src-gen", "**/plugins", "**/gen-webpack*.js", "docs/**"],
+        ignores: ["**/dist", "**/lib", "**/src-gen", "**/plugins", "**/gen-webpack*.js", "**/.browser_modules", "docs/**"],
     },
     {
         plugins: {

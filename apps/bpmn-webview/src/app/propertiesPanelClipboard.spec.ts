@@ -23,6 +23,17 @@ const mocks = {
  */
 const bpmnJsKeyboardSpy = vi.fn<(e: KeyboardEvent) => void>();
 
+/**
+ * Bubble-phase spy on `window` that stands in for Theia's webview
+ * pre-bootstrap forwarder. The real forwarder lives on the inner iframe's
+ * window in bubble phase and posts the keystroke to the outer Theia shell
+ * unconditionally (no `defaultPrevented` gate); if it fires, the outer
+ * shell runs SELECT_ALL = `document.execCommand("selectAll")` against the
+ * whole Theia chrome. The Ctrl+A guard must stop the bubble at `document`
+ * so this never sees the event — for *every* surface, canvas included.
+ */
+const theiaForwarderSpy = vi.fn<(e: KeyboardEvent) => void>();
+
 beforeAll(() => {
     vi.useFakeTimers();
     installContentEditableClipboardPolyfill(
@@ -30,6 +41,7 @@ beforeAll(() => {
         (text) => mocks.writeClipboard(text),
     );
     document.addEventListener("keydown", (e) => bpmnJsKeyboardSpy(e));
+    window.addEventListener("keydown", (e) => theiaForwarderSpy(e));
 });
 
 afterAll(() => {
@@ -41,6 +53,7 @@ beforeEach(() => {
     mocks.requestClipboard.mockReset().mockResolvedValue("");
     mocks.writeClipboard.mockReset();
     bpmnJsKeyboardSpy.mockReset();
+    theiaForwarderSpy.mockReset();
     document.body.innerHTML = "";
 });
 
@@ -102,6 +115,23 @@ describe("Ctrl+A guard: text-editing surfaces own their selection", () => {
     it("lets Ctrl+A on a non-text element propagate so bpmn-js can select the canvas", () => {
         focusedDiv().dispatchEvent(ctrl("a"));
         expect(bpmnJsKeyboardSpy).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("Ctrl+A guard: block the Theia outer-shell SELECT_ALL forward", () => {
+    it("stops Ctrl+A on the canvas before it reaches `window`", () => {
+        focusedDiv().dispatchEvent(ctrl("a"));
+        expect(theiaForwarderSpy).not.toHaveBeenCalled();
+    });
+
+    it("stops Ctrl+A in an <input> before it reaches `window`", () => {
+        focusedInput().dispatchEvent(ctrl("a"));
+        expect(theiaForwarderSpy).not.toHaveBeenCalled();
+    });
+
+    it("stops Ctrl+A in a contenteditable before it reaches `window`", () => {
+        focusedEditor().dispatchEvent(ctrl("a"));
+        expect(theiaForwarderSpy).not.toHaveBeenCalled();
     });
 });
 

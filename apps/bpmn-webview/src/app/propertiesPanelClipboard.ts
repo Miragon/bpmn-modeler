@@ -50,12 +50,19 @@ function handlePaste(el: HTMLElement, requestClipboard: () => Promise<string>): 
  *    Ctrl+A: browser native for `<input>`/`<textarea>`, `LabelClipboardModule`
  *    for the BPMN label overlay, CodeMirror 6 for the Camunda 8 FEEL editor.
  *    Bubble-phase lets those owners run first (capture + target phases).
- *    Then, at `document` during bubble, we call `stopImmediatePropagation()`
- *    if focus is on a text surface — that blocks bpmn-js's `Keyboard`
- *    listener, which is also on `document` in bubble phase and registered
- *    after us (modeler boots after this polyfill). When focus is elsewhere
- *    the listener returns without stopping, so bpmn-js's built-in
- *    `selectElements` binding handles the canvas case.
+ *    Then, at `document` during bubble, we always call `stopPropagation()`
+ *    so the event never reaches `window`. This is what blocks the Theia
+ *    standalone host from forwarding the keystroke to its outer shell:
+ *    Theia's webview pre-bootstrap (`@theia/plugin-ext/.../pre/main.js`)
+ *    listens on the inner iframe's `window` in bubble phase and posts the
+ *    event unconditionally (it does NOT gate on `defaultPrevented`). Without
+ *    `stopPropagation` here the outer shell receives a synthetic Ctrl+A and
+ *    runs `CommonCommands.SELECT_ALL` = `document.execCommand('selectAll')`
+ *    against the whole Theia shell, visibly selecting the file explorer,
+ *    toolbar, etc. `stopPropagation` (not `stopImmediatePropagation`) leaves
+ *    bpmn-js's `Keyboard` listener intact because it sits on the same node.
+ *    For text surfaces we additionally call `stopImmediatePropagation()` to
+ *    block bpmn-js (same-node, same-phase, registered after us).
  *
  * @param requestClipboard Async callback that reads clipboard text via the extension host.
  * @param writeClipboard Callback that writes text to the extension host clipboard.
@@ -101,8 +108,21 @@ export function installContentEditableClipboardPolyfill(
         (e: KeyboardEvent) => {
             if (!(e.metaKey || e.ctrlKey)) return;
             if (e.key !== "a") return;
+
+            // Stop the bubble before it reaches `window`. Theia's webview
+            // pre-bootstrap listens there and forwards keydowns to the
+            // outer shell unconditionally (it does NOT gate on
+            // defaultPrevented), which would otherwise run a global
+            // SELECT_ALL against the Theia chrome. Same-node listeners
+            // (bpmn-js's Keyboard) still fire because stopPropagation
+            // doesn't affect them.
+            e.stopPropagation();
+
             const el = document.activeElement;
-            if (!isTextEditingSurface(el)) return;
+            if (!isTextEditingSurface(el)) {
+                // Canvas / no text surface: let bpmn-js handle selectElements.
+                return;
+            }
 
             // Block bpmn-js's Keyboard listener (same node, same phase,
             // registered after us). stopPropagation alone would leave it
@@ -111,9 +131,8 @@ export function installContentEditableClipboardPolyfill(
 
             // Contenteditable surfaces (BPMN label, FEEL editor) own their
             // own selection via scoped handlers run in earlier phases.
-            // For `<input>`/`<textarea>`, the native default action is
-            // unreliable inside the webview (likely pre-empted by another
-            // listener calling preventDefault), so select explicitly.
+            // For `<input>`/`<textarea>`, the native Ctrl+A default action
+            // is unreliable inside webview iframes, so we select explicitly.
             if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
                 el.select();
             }
