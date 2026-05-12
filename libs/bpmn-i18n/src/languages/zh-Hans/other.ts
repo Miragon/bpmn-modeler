@@ -100,6 +100,7 @@ const translations: Record<string, string> = {
     "Template": "模版",
     "Errors": "错误",
     "No errors defined.": "没有定义错误。",
+    "Navigate to referenced model": "跳转到引用的模型",
 };
 
 export default translations;
