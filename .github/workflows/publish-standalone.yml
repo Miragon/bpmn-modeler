@@ -71,7 +71,7 @@ jobs:
           cache: yarn
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: yarn install --immutable --mode=skip-build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
