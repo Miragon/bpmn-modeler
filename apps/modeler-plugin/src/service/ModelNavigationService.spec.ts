@@ -24,8 +24,9 @@ import { commands } from "vscode";
 import {
     buildExcludeGlob,
     buildIdRegex,
+    findExcludedRanges,
+    matchesOutsideComments,
     ModelNavigationService,
-    stripXmlCommentsAndCdata,
 } from "./ModelNavigationService";
 
 function createMocks(files: Record<string, string>) {
@@ -438,44 +439,48 @@ describe("buildExcludeGlob", () => {
     });
 });
 
-describe("stripXmlCommentsAndCdata", () => {
-    it("removes single-line and multi-line comments", () => {
-        expect(stripXmlCommentsAndCdata("<a/><!--hide--><b/>")).toBe("<a/><b/>");
-        expect(
-            stripXmlCommentsAndCdata(
-                `<a/>\n<!-- line 1\nline 2\n-->\n<b/>`,
-            ),
-        ).toContain("<a/>");
-        expect(
-            stripXmlCommentsAndCdata(
-                `<a/>\n<!-- line 1\nline 2\n-->\n<b/>`,
-            ),
-        ).not.toContain("line 1");
+describe("findExcludedRanges", () => {
+    it("returns comment offsets", () => {
+        const xml = `<a/><!--hide--><b/>`;
+        const ranges = findExcludedRanges(xml);
+
+        expect(ranges).toHaveLength(1);
+        expect(xml.slice(ranges[0][0], ranges[0][1])).toBe("<!--hide-->");
     });
 
-    it("removes CDATA blocks", () => {
-        const input = `<a><![CDATA[<bpmn:process id="X"/>]]></a>`;
-        const output = stripXmlCommentsAndCdata(input);
-        expect(output).not.toContain("CDATA");
-        expect(output).not.toContain("id=\"X\"");
+    it("returns CDATA offsets", () => {
+        const xml = `<a><![CDATA[<bpmn:process id="X"/>]]></a>`;
+        const ranges = findExcludedRanges(xml);
+
+        expect(ranges).toHaveLength(1);
+        expect(xml.slice(ranges[0][0], ranges[0][1])).toContain("CDATA");
     });
 
-    it("is idempotent so no residual <!-- can survive multiple passes", () => {
-        // CodeQL flags single-pass replacement as "incomplete multi-character
-        // sanitization": certain nesting can leave a residual `<!--`.  The
-        // contract the loop guarantees is idempotency — running the stripper
-        // a second time changes nothing — and "no `<!--` left in the output".
-        const cases = [
-            `<a/><!--<!---->-->`,
-            `<!---><!-->-->`,
-            `<!-- a <!-- b --> c -->`,
-        ];
-        for (const input of cases) {
-            const once = stripXmlCommentsAndCdata(input);
-            const twice = stripXmlCommentsAndCdata(once);
-            expect(twice).toBe(once);
-            expect(once).not.toContain("<!--");
-        }
+    it("returns empty array when nothing matches", () => {
+        expect(findExcludedRanges("<a/>")).toEqual([]);
+    });
+});
+
+describe("matchesOutsideComments", () => {
+    const idRe = (id: string) => new RegExp(`<process id="${id}"/>`);
+
+    it("returns true when the id occurs in plain XML", () => {
+        expect(matchesOutsideComments("<process id=\"X\"/>", idRe("X"))).toBe(true);
+    });
+
+    it("returns false when the only occurrence is inside a comment", () => {
+        const xml = `<a/><!-- <process id="X"/> --><b/>`;
+        expect(matchesOutsideComments(xml, idRe("X"))).toBe(false);
+    });
+
+    it("returns false when the only occurrence is inside CDATA", () => {
+        const xml = `<a><![CDATA[<process id="X"/>]]></a>`;
+        expect(matchesOutsideComments(xml, idRe("X"))).toBe(false);
+    });
+
+    it("returns true when a real match exists alongside a commented decoy", () => {
+        const xml = `<!-- <process id="X"/> --><process id="X"/>`;
+        expect(matchesOutsideComments(xml, idRe("X"))).toBe(true);
     });
 });
 

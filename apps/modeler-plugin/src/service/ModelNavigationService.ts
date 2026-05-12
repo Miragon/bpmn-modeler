@@ -71,8 +71,7 @@ export class ModelNavigationService {
             paths.map(async (path) => {
                 try {
                     const xml = await this.vsWorkspace.readFile(path);
-                    const stripped = stripXmlCommentsAndCdata(xml);
-                    return pattern.test(stripped) ? path : undefined;
+                    return matchesOutsideComments(xml, pattern) ? path : undefined;
                 } catch (error) {
                     readFailures++;
                     this.vsUI.logWarning(
@@ -129,27 +128,50 @@ function escapeRegex(value: string): string {
 }
 
 /**
- * Removes XML comments and CDATA sections so they cannot produce false
- * matches.  A commented-out `<!-- <bpmn:process id="X"/> -->` or a sample id
- * inside `<![CDATA[…]]>` should not count as a real declaration.
+ * Returns the start/end offset pairs of every XML comment and CDATA section
+ * in `xml`.  Used to reject id matches that fall inside one of those
+ * regions: a commented-out `<!-- <bpmn:process id="X"/> -->` or a sample
+ * id inside `<![CDATA[…]]>` must not count as a real declaration.
+ *
+ * Note: we deliberately *enumerate* ranges rather than `.replace()` the
+ * comments away — string-replace based "sanitisation" of HTML-like
+ * patterns trips CodeQL's `js/incomplete-multi-character-sanitization`
+ * rule, even when run to a fixed point.  We're not sanitising for
+ * rendering anyway; we're filtering match positions against known
+ * exclusion ranges.
  *
  * Exported for use in tests.
  */
-export function stripXmlCommentsAndCdata(xml: string): string {
-    // Loop until the input stops changing.  A single regex pass can leave
-    // a residual `<!--` when the input is an adversarial / pathological
-    // nesting like `<!--<!---->-->` — flagged by CodeQL as "incomplete
-    // multi-character sanitization".  Re-running until stable is the
-    // recommended pattern.
-    let previous: string;
-    let current = xml;
-    do {
-        previous = current;
-        current = current
-            .replace(/<!--[\s\S]*?-->/g, "")
-            .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
-    } while (current !== previous);
-    return current;
+export function findExcludedRanges(xml: string): Array<[number, number]> {
+    const ranges: Array<[number, number]> = [];
+    for (const re of [
+        /<!--[\s\S]*?-->/g,
+        /<!\[CDATA\[[\s\S]*?\]\]>/g,
+    ]) {
+        let match;
+        while ((match = re.exec(xml)) !== null) {
+            ranges.push([match.index, match.index + match[0].length]);
+        }
+    }
+    return ranges;
+}
+
+/**
+ * Returns true if `pattern` matches at least one position in `xml` that is
+ * not inside a comment or CDATA section.
+ *
+ * Exported for use in tests.
+ */
+export function matchesOutsideComments(xml: string, pattern: RegExp): boolean {
+    const excluded = findExcludedRanges(xml);
+    const global = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+    let match;
+    while ((match = global.exec(xml)) !== null) {
+        if (!excluded.some(([start, end]) => match!.index >= start && match!.index < end)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
