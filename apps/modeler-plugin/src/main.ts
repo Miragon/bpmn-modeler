@@ -15,6 +15,7 @@ import { BpmnDiffService } from "./service/BpmnDiffService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
 import { DmnModelerService } from "./service/DmnModelerService";
 import { ModelNavigationService } from "./service/ModelNavigationService";
+import { ReferencedModelLocator } from "./service/modelNavigation/ReferencedModelLocator";
 import { BpmnCompareController } from "./controller/BpmnCompareController";
 import { CommandController } from "./controller/CommandController";
 import { BpmnEditorController } from "./controller/BpmnEditorController";
@@ -98,7 +99,11 @@ export function activate(context: ExtensionContext): void {
         vsUI,
         artifactSvc,
     );
-    const modelNavigationService = new ModelNavigationService(vsWorkspace, vsUI);
+    const referencedModelLocator = new ReferencedModelLocator(vsWorkspace, vsUI);
+    const modelNavigationService = new ModelNavigationService(
+        referencedModelLocator,
+        vsUI,
+    );
 
     // 4. Controllers
     const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
