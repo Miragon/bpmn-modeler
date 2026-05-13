@@ -1,0 +1,5 @@
+#!/bin/sh
+set -e
+
+echo "▶ Pre-commit: lint-staged"
+corepack yarn exec lint-staged
