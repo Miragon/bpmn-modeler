@@ -10,11 +10,11 @@
         "@miragon/bpmn-modeler-shared": "workspace:*"
     },
     "peerDependencies": {
-        "bpmn-js": "18.15.0"
+        "bpmn-js": "18.16.1"
     },
     "devDependencies": {
-        "bpmn-js": "18.15.0",
+        "bpmn-js": "18.16.1",
         "typescript": "6.0.3",
-        "vitest": "4.1.5"
+        "vitest": "4.1.6"
     }
 }
