@@ -39,7 +39,7 @@ export function addExecutionPlatform(
         // before appending the new attributes.
         const definition = match[0].split(" ");
         if (definition[definition.length - 1].endsWith(">")) {
-            definition[definition.length - 1] = definition[definition.length - 1].replace(">", "");
+            definition[definition.length - 1] = definition[definition.length - 1].slice(0, -1);
             definition.push(insert);
         }
         return bpmnFile.replace(regex, `${definition.join(" ")}`);
