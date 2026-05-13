@@ -24,11 +24,7 @@ import { is } from "bpmn-js/lib/util/ModelUtil";
 
 import { NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
 
-import {
-    BusinessObjectLike,
-    extractReference,
-    ReferenceKind,
-} from "./extractReference";
+import { BusinessObjectLike, extractReference, ReferenceKind } from "./extractReference";
 
 interface ContextPad {
     registerProvider(provider: NavigateContextPadProvider): void;

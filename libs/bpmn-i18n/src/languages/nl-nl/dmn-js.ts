@@ -76,7 +76,8 @@ const translations: Record<string, string> = {
     "Remove Output Column": "Verwijder Output Kolom",
     "Remove Rule": "Verwijder Regel",
     "Set Value": "Geef Waarde",
-    "Strings must be in double quotes.": "Teksten moeten tussen dubbele aanhalingstekens staan.",
+    "Strings must be in double quotes.":
+        "Teksten moeten tussen dubbele aanhalingstekens staan.",
     "Type": "Type",
 };
 

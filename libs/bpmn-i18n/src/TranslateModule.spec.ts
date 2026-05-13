@@ -32,10 +32,10 @@ describe("CustomTranslator", () => {
         });
 
         it("should replace multiple placeholders", () => {
-            const result = translator.translate(
-                "no parent for {element} in {parent}",
-                { element: "Task_1", parent: "Process_1" },
-            );
+            const result = translator.translate("no parent for {element} in {parent}", {
+                element: "Task_1",
+                parent: "Process_1",
+            });
             expect(result).toBe("no parent for Task_1 in Process_1");
         });
     });
@@ -61,7 +61,9 @@ describe("CustomTranslator", () => {
 
         it("should fall back to the original template for untranslated keys", () => {
             translator.setLanguage("de");
-            const result = translator.translate("This key does not exist in any dictionary");
+            const result = translator.translate(
+                "This key does not exist in any dictionary",
+            );
             expect(result).toBe("This key does not exist in any dictionary");
         });
 

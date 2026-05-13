@@ -64,9 +64,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 break;
             }
             case "RequestStoredCredentialsCommand": {
-                dispatchEvent(
-                    new StoredCredentialsQuery({ authType: "none" }),
-                );
+                dispatchEvent(new StoredCredentialsQuery({ authType: "none" }));
                 break;
             }
             case "RequestAdditionalFilesCommand": {
@@ -81,15 +79,11 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 break;
             }
             case "RequestProcessDefinitionKeyCommand": {
-                dispatchEvent(
-                    new ProcessDefinitionKeyQuery("Process_0gjrx3e"),
-                );
+                dispatchEvent(new ProcessDefinitionKeyQuery("Process_0gjrx3e"));
                 break;
             }
             case "RequestPayloadFilesCommand": {
-                dispatchEvent(
-                    new SelectedPayloadFileQuery("", ""),
-                );
+                dispatchEvent(new SelectedPayloadFileQuery("", ""));
                 break;
             }
             case "StartInstanceCommand": {

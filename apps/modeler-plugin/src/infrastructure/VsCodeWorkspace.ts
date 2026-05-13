@@ -2,7 +2,11 @@ import { posix } from "path";
 
 import { FileType, GlobPattern, Uri, workspace } from "vscode";
 
-import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
+import {
+    DirectoryNotFound,
+    FileNotFound,
+    NoWorkspaceFolderFoundError,
+} from "../domain/errors";
 
 const fs = workspace.fs;
 

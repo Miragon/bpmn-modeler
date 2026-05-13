@@ -18,8 +18,7 @@ vi.mock("vscode", () => ({
         get workspaceFolders() {
             return workspaceState.folders;
         },
-        getWorkspaceFolder: (uri: { path: string }) =>
-            workspaceState.folderForUri(uri),
+        getWorkspaceFolder: (uri: { path: string }) => workspaceState.folderForUri(uri),
     },
 }));
 
@@ -45,10 +44,7 @@ const dmnWithDecision = (id: string) =>
  */
 type DirTree = Record<string, Array<string | { name: string; type: "directory" }>>;
 
-function createLocator(opts: {
-    fileContents: Record<string, string>;
-    tree?: DirTree;
-}) {
+function createLocator(opts: { fileContents: Record<string, string>; tree?: DirTree }) {
     const { fileContents, tree = {} } = opts;
     const vsWorkspace = {
         findFiles: vi.fn().mockImplementation((glob: string) => {
@@ -74,10 +70,7 @@ function createLocator(opts: {
         }),
     };
     const vsUI = { logInfo: vi.fn(), logWarning: vi.fn() };
-    const locator = new ReferencedModelLocator(
-        vsWorkspace as never,
-        vsUI as never,
-    );
+    const locator = new ReferencedModelLocator(vsWorkspace as never, vsUI as never);
     return { locator, vsWorkspace, vsUI };
 }
 
@@ -214,7 +207,11 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
     it("reads candidate files in parallel", async () => {
         const { locator, vsWorkspace } = createLocator({
-            fileContents: { "/a.bpmn": "<doc/>", "/b.bpmn": "<doc/>", "/c.bpmn": "<doc/>" },
+            fileContents: {
+                "/a.bpmn": "<doc/>",
+                "/b.bpmn": "<doc/>",
+                "/c.bpmn": "<doc/>",
+            },
         });
         const pending: ((value: string) => void)[] = [];
         vsWorkspace.readFile.mockImplementation(
@@ -297,10 +294,7 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
                 "/work/node_modules/inner.bpmn": bpmnWithProcess("Wanted"),
             },
             tree: {
-                "/work": [
-                    "wanted.bpmn",
-                    { name: "node_modules", type: "directory" },
-                ],
+                "/work": ["wanted.bpmn", { name: "node_modules", type: "directory" }],
                 "/work/node_modules": ["inner.bpmn"],
             },
         });
@@ -308,9 +302,7 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
 
         const result = await locator.findDeclaringFiles("Wanted", "process");
 
-        expect(vsWorkspace.readDirectory).not.toHaveBeenCalledWith(
-            "/work/node_modules",
-        );
+        expect(vsWorkspace.readDirectory).not.toHaveBeenCalledWith("/work/node_modules");
         expect(result.kind).toBe("matches");
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/work/wanted.bpmn"]);
@@ -390,7 +382,9 @@ describe("findDeclaringFiles — loose file (no workspace folder)", () => {
 
 describe("id regex semantics", () => {
     const expectFinds = (id: string, xml: string, kind: "process" | "decision") => {
-        const { locator } = createLocator({ fileContents: { "/a.bpmn": xml, "/a.dmn": xml } });
+        const { locator } = createLocator({
+            fileContents: { "/a.bpmn": xml, "/a.dmn": xml },
+        });
         return locator.findDeclaringFiles(id, kind);
     };
 

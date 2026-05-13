@@ -24,7 +24,10 @@ import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
-import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
+import {
+    detectExecutionPlatform,
+    detectExecutionPlatformVersion,
+} from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
 /** VS Code view-type identifier for the BPMN custom editor. */
@@ -270,13 +273,19 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             if (event.affectsConfiguration("miragon.bpmnModeler.alignToOrigin")) {
                 this.bpmnService.setSettings(id);
             }
-            if (event.affectsConfiguration("miragon.bpmnModeler.showTransactionBoundaries")) {
+            if (
+                event.affectsConfiguration(
+                    "miragon.bpmnModeler.showTransactionBoundaries",
+                )
+            ) {
                 this.bpmnService.setSettings(id);
             }
             if (event.affectsConfiguration("miragon.bpmnModeler.colorTheme")) {
                 this.bpmnService.setSettings(id);
             }
-            if (event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")) {
+            if (
+                event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")
+            ) {
                 this.bpmnService.setSettings(id);
             }
             if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {

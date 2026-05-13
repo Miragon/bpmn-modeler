@@ -6,7 +6,4 @@
 const configs = require("./gen-webpack.config.js");
 const nodeConfig = require("./gen-webpack.node.config.js");
 
-module.exports = [
-    ...configs,
-    nodeConfig.config,
-];
+module.exports = [...configs, nodeConfig.config];

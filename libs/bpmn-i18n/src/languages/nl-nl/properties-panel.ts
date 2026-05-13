@@ -141,8 +141,10 @@ const translations: Record<string, string> = {
     "Must match pattern {pattern}": "Moet hetzelfde zijn als patroon {pattern}",
     "Must not be empty": "Mag niet leeg zijn",
     "Must provide a value": "Moet een waarde bevatten",
-    "Must provide a value for timeout task listener": "Moet een waarde bevatten voor timeout-task-listener",
-    "Must provide either loop cardinality or collection": "Moet ofwel loop-cardinality of collection bevatten",
+    "Must provide a value for timeout task listener":
+        "Moet een waarde bevatten voor timeout-task-listener",
+    "Must provide either loop cardinality or collection":
+        "Moet ofwel loop-cardinality of collection bevatten",
     "Name": "Name",
     "Name must not contain spaces": "Name mag geen spaties bevatten",
     "Out Mapping": "Out-Mapping",
@@ -165,9 +167,12 @@ const translations: Record<string, string> = {
     "Signal Name": "Signal-Name",
     "Source": "Source",
     "Source Expression": "Source-Expression",
-    "Specify more than one group as a comma separated list.": "Specificeer meer dan één groep als een lijst gescheiden door komma's.",
-    "Specify more than one user as a comma separated list.": "Specificeer meer dan één gebruiker als een lijst gescheiden door komma's.",
-    "Specify more than one variable change event as a comma separated list.": "Specificeer meer dan één variable-change-event als een lijst gescheiden door komma's.",
+    "Specify more than one group as a comma separated list.":
+        "Specificeer meer dan één groep als een lijst gescheiden door komma's.",
+    "Specify more than one user as a comma separated list.":
+        "Specificeer meer dan één gebruiker als een lijst gescheiden door komma's.",
+    "Specify more than one variable change event as a comma separated list.":
+        "Specificeer meer dan één variable-change-event als een lijst gescheiden door komma's.",
     "start": "start",
     "Startable": "Startbaar",
     "String": "Tekst",
@@ -179,7 +184,8 @@ const translations: Record<string, string> = {
     "Task Priority": "Task-Priority",
     "Tenant Id": "Tenant-Id",
     "Text": "Text",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "De due-date als een EL expression (bv. ${eenDatum} of een ISO date (bv. 2015-06-26T09:54:00)",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "De due-date als een EL expression (bv. ${eenDatum} of een ISO date (bv. 2015-06-26T09:54:00)",
     "timeout": "timeout",
     "Timer Definition": "Timer-Definition",
     "Timer Definition Type": "Timer-Definition-Type",

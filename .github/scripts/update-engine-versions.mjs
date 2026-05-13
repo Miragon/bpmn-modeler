@@ -64,9 +64,7 @@ async function fetchStableC8Releases() {
     }
 
     // Convert minor numbers to 8.X.0 strings, sorted descending.
-    return [...minorVersions]
-        .sort((a, b) => b - a)
-        .map((minor) => `8.${minor}.0`);
+    return [...minorVersions].sort((a, b) => b - a).map((minor) => `8.${minor}.0`);
 }
 
 /**

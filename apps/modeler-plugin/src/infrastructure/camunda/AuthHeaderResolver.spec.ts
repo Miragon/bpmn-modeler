@@ -41,9 +41,7 @@ describe("AuthHeaderResolver", () => {
     });
 
     it("should encode special characters correctly in BasicAuth", async () => {
-        const result = await resolver.resolve(
-            new BasicAuth("user:name", "p@ss:wörd"),
-        );
+        const result = await resolver.resolve(new BasicAuth("user:name", "p@ss:wörd"));
 
         const expected = Buffer.from("user:name:p@ss:wörd").toString("base64");
         expect(result).toEqual({ Authorization: `Basic ${expected}` });
@@ -118,12 +116,7 @@ describe("AuthHeaderResolver", () => {
             body: "Unauthorized",
         });
 
-        const auth = new OAuth2Auth(
-            "cid",
-            "csec",
-            "http://idp.local/token",
-            "",
-        );
+        const auth = new OAuth2Auth("cid", "csec", "http://idp.local/token", "");
 
         await expect(resolver.resolve(auth)).rejects.toThrow(TokenFetchError);
     });
@@ -134,17 +127,10 @@ describe("AuthHeaderResolver", () => {
             body: "not json",
         });
 
-        const auth = new OAuth2Auth(
-            "cid",
-            "csec",
-            "http://idp.local/token",
-            "",
-        );
+        const auth = new OAuth2Auth("cid", "csec", "http://idp.local/token", "");
 
         await expect(resolver.resolve(auth)).rejects.toThrow(TokenFetchError);
-        await expect(resolver.resolve(auth)).rejects.toThrow(
-            /Invalid JSON response/,
-        );
+        await expect(resolver.resolve(auth)).rejects.toThrow(/Invalid JSON response/);
     });
 
     it("should throw TokenFetchError when access_token is missing", async () => {
@@ -153,12 +139,7 @@ describe("AuthHeaderResolver", () => {
             body: JSON.stringify({ token_type: "bearer" }),
         });
 
-        const auth = new OAuth2Auth(
-            "cid",
-            "csec",
-            "http://idp.local/token",
-            "",
-        );
+        const auth = new OAuth2Auth("cid", "csec", "http://idp.local/token", "");
 
         await expect(resolver.resolve(auth)).rejects.toThrow(TokenFetchError);
         await expect(resolver.resolve(auth)).rejects.toThrow(

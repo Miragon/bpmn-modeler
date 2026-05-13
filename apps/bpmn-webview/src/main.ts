@@ -190,14 +190,17 @@ window.onload = async function () {
 
     const propertiesPanelHandle = initResizer();
     const vsCodeBridgeModule = {
-        vsCodeBridge: ["value", { postMessage: (m: unknown) => vscode.postMessage(m as never) }],
+        vsCodeBridge: [
+            "value",
+            { postMessage: (m: unknown) => vscode.postMessage(m as never) },
+        ],
     };
-    const extraModules = [TranslateModule, vsCodeBridgeModule, ...(clipboardModules ?? [])];
-    await initializeModeler(
-        bpmnFileQuery?.content,
-        bpmnFileQuery?.engine,
-        extraModules,
-    );
+    const extraModules = [
+        TranslateModule,
+        vsCodeBridgeModule,
+        ...(clipboardModules ?? []),
+    ];
+    await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
     modelerIsInitialized = true;
 
     console.debug("[DEBUG] Modeler is initialized...");
@@ -331,9 +334,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     .elementTemplates;
                 console.log("Received element templates: ", elementTemplates);
                 bpmnModeler.setElementTemplates(elementTemplates);
-                elementTemplatesResolver.done(
-                    message.data as ElementTemplatesQuery,
-                );
+                elementTemplatesResolver.done(message.data as ElementTemplatesQuery);
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

@@ -24,10 +24,12 @@ const translations: Record<string, string> = {
     "Divide into three Lanes": "Разделить на три дорожки",
     "Add Lane below": "Добавить дорожку ниже",
     "Append ReceiveTask": "Добавить задачу приема сообщения",
-    "Append MessageIntermediateCatchEvent": "Добавить промежуточное событие приема сообщения",
+    "Append MessageIntermediateCatchEvent":
+        "Добавить промежуточное событие приема сообщения",
     "Append TimerIntermediateCatchEvent": "Добавить промежуточное событие таймер",
     "Append ConditionIntermediateCatchEvent": "Добавить промежуточное событие условие",
-    "Append SignalIntermediateCatchEvent": "Добавить промежуточное событие приема сигнала",
+    "Append SignalIntermediateCatchEvent":
+        "Добавить промежуточное событие приема сигнала",
     "Append compensation activity": "Добавить событийный подпроцесс",
     "Append EndEvent": "Добавить конечное событие",
     "Append Gateway": "Добавить шлюз",
@@ -36,18 +38,21 @@ const translations: Record<string, string> = {
     "Append TextAnnotation": "Добавить текстовую аннотацию",
     "Change type": "Изменить тип",
     "Connect using Association": "Соединить с помощью ассоциации",
-    "Connect using Sequence/MessageFlow or Association": "Соединить с помощью потока управления/сообщений или ассоциации",
+    "Connect using Sequence/MessageFlow or Association":
+        "Соединить с помощью потока управления/сообщений или ассоциации",
     "Connect using DataInputAssociation": "Соединить с помощью ассоциации",
     "Remove": "Удалить",
     "no shape type specified": "не указан тип фигуры",
     "out of bounds release": "выход за пределы",
     "more than {count} child lanes": "более {count} дочерних дорожек",
     "element required": "обязательный элемент",
-    "no parent for {element} in {parent}": "нет родительского элемента для {element} в {parent}",
+    "no parent for {element} in {parent}":
+        "нет родительского элемента для {element} в {parent}",
     "Create {type}": "Создать {type}",
     "Activate the hand tool": "Активировать инструмент свободного перемещения",
     "Activate the lasso tool": "Активировать интрумент лассо",
-    "Activate the create/remove space tool": "Активировать инструмент создания/удаления пространства",
+    "Activate the create/remove space tool":
+        "Активировать инструмент создания/удаления пространства",
     "Activate the global connect tool": "Активировать инструмент соединения",
     "Create StartEvent": "Создать стартовое событие",
     "Create Intermediate/Boundary Event": "Создать промежуточное/граничащее событие",
@@ -63,20 +68,28 @@ const translations: Record<string, string> = {
     "Sequential Multi Instance": "Последовательный мультипроцесс",
     "Loop": "Цикл",
     "Ad-hoc": "Ad-hoc",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "элемент {element}, на который ссылается {referenced}#{property} еще не создан",
-    "unknown di {di} for element {semantic}": "неизвестная директория {di} для элемента {semantic}",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "элемент {element}, на который ссылается {referenced}#{property} еще не создан",
+    "unknown di {di} for element {semantic}":
+        "неизвестная директория {di} для элемента {semantic}",
     "missing {semantic}#attachedToRef": "потерянный {semantic}#attachedToRef",
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ссылка не указана",
     "already rendered {element}": "уже используемый {element}",
     "failed to import {element}": "не удалось импортировать {element}",
-    "multiple DI elements defined for {element}": "несколько элементов DI, определенных для {element}",
+    "multiple DI elements defined for {element}":
+        "несколько элементов DI, определенных для {element}",
     "no bpmnElement referenced in {element}": "нет ссылки на элемент BPMN в {element}",
-    "diagram not part of bpmn:Definitions": "диаграмма не является частью bpmn:Definitions",
+    "diagram not part of bpmn:Definitions":
+        "диаграмма не является частью bpmn:Definitions",
     "no diagram to display": "нет диаграммы для отображения",
-    "no process or collaboration to display": "нет процесса или совместной процесса для отображения",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "исправление отсутствующего элемента BPMN в {plane} для {rootElement}",
-    "unsupported bpmnElement for {plane}: {rootElement}": "неподдреживаемый элемент BPMN для {plane}: {rootElement}",
-    "unrecognized flowElement {element} in context {context}": "нераспознанный поток {element} в контексте {context}",
+    "no process or collaboration to display":
+        "нет процесса или совместной процесса для отображения",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "исправление отсутствующего элемента BPMN в {plane} для {rootElement}",
+    "unsupported bpmnElement for {plane}: {rootElement}":
+        "неподдреживаемый элемент BPMN для {plane}: {rootElement}",
+    "unrecognized flowElement {element} in context {context}":
+        "нераспознанный поток {element} в контексте {context}",
     "HELLO {you}!": "ПРИВЕТ {you}!",
 };
 

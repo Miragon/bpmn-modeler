@@ -24,7 +24,8 @@ const translations: Record<string, string> = {
     "Add Property": "添加屬性",
     "Add Value": "添加值",
     "All": "所有",
-    "Available process variables, identified in the diagram.": "圖中標識的可用流程變量。",
+    "Available process variables, identified in the diagram.":
+        "圖中標識的可用流程變量。",
     "Assignee": "處理人",
     "assignment": "分配",
     "Asynchronous After": "異步后",
@@ -172,8 +173,10 @@ const translations: Record<string, string> = {
     "Source": "來源",
     "Source Expression": "來源表達式",
     "Specify more than one group as a comma separated list.": "若有多個組請用逗號分隔。",
-    "Specify more than one user as a comma separated list.": "若有多個用戶請用逗號分隔。",
-    "Specify more than one variable change event as a comma separated list.": "若有多個變量更改事件請用逗號分隔。",
+    "Specify more than one user as a comma separated list.":
+        "若有多個用戶請用逗號分隔。",
+    "Specify more than one variable change event as a comma separated list.":
+        "若有多個變量更改事件請用逗號分隔。",
     "start": "啓動",
     "Startable": "可啓動",
     "String": "字符串",
@@ -185,7 +188,8 @@ const translations: Record<string, string> = {
     "Task Priority": "任務優先級",
     "Tenant Id": "租戶Id",
     "Text": "文本",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "截止日期可为EL表達式（例如${someDate}或ISO日期（例如2015-06-26T09:54:00）",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "截止日期可为EL表達式（例如${someDate}或ISO日期（例如2015-06-26T09:54:00）",
     "timeout": "超時",
     "Timer Definition": "定時器定義",
     "Timer Definition Type": "定時器定義類型",

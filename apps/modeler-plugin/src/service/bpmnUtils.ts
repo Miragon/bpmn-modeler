@@ -103,7 +103,9 @@ export function extractProcessId(bpmnFile: string): string {
         return match[1];
     }
 
-    throw new Error("No <bpmn:process> element with an id attribute found in the BPMN file.");
+    throw new Error(
+        "No <bpmn:process> element with an id attribute found in the BPMN file.",
+    );
 }
 
 /**
@@ -173,7 +175,10 @@ export function detectExecutionPlatformVersion(bpmnFile: string): string | undef
  * @param newVersion The new version string to set (e.g. `"8.7.0"`).
  * @returns A new BPMN XML string with the updated version.
  */
-export function updateExecutionPlatformVersion(bpmnFile: string, newVersion: string): string {
+export function updateExecutionPlatformVersion(
+    bpmnFile: string,
+    newVersion: string,
+): string {
     return bpmnFile.replace(
         /modeler:executionPlatformVersion="\d+\.\d+\.\d+"/,
         `modeler:executionPlatformVersion="${newVersion}"`,

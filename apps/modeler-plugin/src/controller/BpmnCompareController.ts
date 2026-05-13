@@ -1,9 +1,4 @@
-import {
-    commands,
-    ExtensionContext,
-    Uri,
-    window,
-} from "vscode";
+import { commands, ExtensionContext, Uri, window } from "vscode";
 
 import { CompareSelectionStore } from "../infrastructure/CompareSelectionStore";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
@@ -74,11 +69,7 @@ export class BpmnCompareController {
                 this.compareWithSelected,
                 this,
             ),
-            commands.registerCommand(
-                COMPARE_SELECTED_CMD,
-                this.compareSelected,
-                this,
-            ),
+            commands.registerCommand(COMPARE_SELECTED_CMD, this.compareSelected, this),
         );
     }
 
@@ -118,7 +109,7 @@ export class BpmnCompareController {
         const leftUri = this.selection.get();
         if (!leftUri) {
             this.vsUI.showInfo(
-                "No file selected for compare. Right-click a .bpmn file and choose \"Select for Compare\" first.",
+                'No file selected for compare. Right-click a .bpmn file and choose "Select for Compare" first.',
             );
             return;
         }
@@ -153,9 +144,7 @@ export class BpmnCompareController {
     ): Promise<void> {
         const bpmnUris = (uris ?? []).filter(isBpmnUri);
         if (bpmnUris.length !== 2) {
-            this.vsUI.showInfo(
-                "Select exactly two .bpmn files to compare.",
-            );
+            this.vsUI.showInfo("Select exactly two .bpmn files to compare.");
             return;
         }
 

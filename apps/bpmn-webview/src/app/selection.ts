@@ -34,9 +34,7 @@ export class SelectionManager {
      */
     selectElementsByIds(ids: string[]): void {
         const registry = this.getService<any>("elementRegistry");
-        const elements = ids
-            .map((id: string) => registry.get(id))
-            .filter(Boolean);
+        const elements = ids.map((id: string) => registry.get(id)).filter(Boolean);
         if (elements.length > 0) {
             this.getService<any>("selection").select(elements);
         }
@@ -48,14 +46,9 @@ export class SelectionManager {
      * @param cb Callback invoked with the IDs of the newly selected elements.
      */
     onSelectionChanged(cb: (elementIds: string[]) => void): void {
-        this.getService<any>("eventBus").on(
-            "selection.changed",
-            (event: any) => {
-                const ids = (event.newSelection ?? []).map(
-                    (el: any) => el.id,
-                );
-                cb(ids);
-            },
-        );
+        this.getService<any>("eventBus").on("selection.changed", (event: any) => {
+            const ids = (event.newSelection ?? []).map((el: any) => el.id);
+            cb(ids);
+        });
     }
 }

@@ -77,12 +77,9 @@ export class DeploymentForm {
         this.endpointInput = this.requireElement<HTMLInputElement>("#endpoint");
         this.engineSelect = this.requireElement<HTMLSelectElement>("#engine");
         this.authTypeSelect = this.requireElement<HTMLSelectElement>("#auth-type");
-        this.basicAuthFields =
-            this.requireElement<HTMLDivElement>("#basic-auth-fields");
-        this.authUsernameInput =
-            this.requireElement<HTMLInputElement>("#auth-username");
-        this.authPasswordInput =
-            this.requireElement<HTMLInputElement>("#auth-password");
+        this.basicAuthFields = this.requireElement<HTMLDivElement>("#basic-auth-fields");
+        this.authUsernameInput = this.requireElement<HTMLInputElement>("#auth-username");
+        this.authPasswordInput = this.requireElement<HTMLInputElement>("#auth-password");
         this.oauth2AuthFields =
             this.requireElement<HTMLDivElement>("#oauth2-auth-fields");
         this.authClientIdInput =
@@ -91,8 +88,7 @@ export class DeploymentForm {
             this.requireElement<HTMLInputElement>("#auth-client-secret");
         this.authTokenEndpointInput =
             this.requireElement<HTMLInputElement>("#auth-token-endpoint");
-        this.authAudienceInput =
-            this.requireElement<HTMLInputElement>("#auth-audience");
+        this.authAudienceInput = this.requireElement<HTMLInputElement>("#auth-audience");
         this.mainFilePathInput =
             this.requireElement<HTMLInputElement>("#main-file-path");
         this.additionalFilesBtn =

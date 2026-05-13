@@ -141,8 +141,10 @@ const translations: Record<string, string> = {
     "Must match pattern {pattern}": "Must match pattern {pattern}",
     "Must not be empty": "Must not be empty",
     "Must provide a value": "Must provide a value",
-    "Must provide a value for timeout task listener": "Must provide a value for timeout task listener",
-    "Must provide either loop cardinality or collection": "Must provide either loop cardinality or collection",
+    "Must provide a value for timeout task listener":
+        "Must provide a value for timeout task listener",
+    "Must provide either loop cardinality or collection":
+        "Must provide either loop cardinality or collection",
     "Name": "Name",
     "Name must not contain spaces": "Name must not contain spaces",
     "Out Mapping": "Out Mapping",
@@ -165,9 +167,12 @@ const translations: Record<string, string> = {
     "Signal Name": "Signal Name",
     "Source": "Source",
     "Source Expression": "Source Expression",
-    "Specify more than one group as a comma separated list.": "Specify more than one group as a comma separated list.",
-    "Specify more than one user as a comma separated list.": "Specify more than one user as a comma separated list.",
-    "Specify more than one variable change event as a comma separated list.": "Specify more than one variable change event as a comma separated list.",
+    "Specify more than one group as a comma separated list.":
+        "Specify more than one group as a comma separated list.",
+    "Specify more than one user as a comma separated list.":
+        "Specify more than one user as a comma separated list.",
+    "Specify more than one variable change event as a comma separated list.":
+        "Specify more than one variable change event as a comma separated list.",
     "start": "start",
     "Startable": "Startable",
     "String": "String",
@@ -179,7 +184,8 @@ const translations: Record<string, string> = {
     "Task Priority": "Task Priority",
     "Tenant Id": "Tenant Id",
     "Text": "Text",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)",
     "timeout": "timeout",
     "Timer Definition": "Timer Definition",
     "Timer Definition Type": "Timer Definition Type",

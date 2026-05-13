@@ -68,7 +68,12 @@ export class DmnEditorController implements CustomTextEditorProvider {
     ): void | Thenable<void> {
         try {
             const editorId = document.uri.toString();
-            this.editorStore.createEditor(DMN_VIEW_TYPE, editorId, webviewPanel, document);
+            this.editorStore.createEditor(
+                DMN_VIEW_TYPE,
+                editorId,
+                webviewPanel,
+                document,
+            );
             this.dmnService.registerSession(editorId);
 
             this.subscribeToMessageEvent(editorId);

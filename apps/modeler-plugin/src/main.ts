@@ -64,7 +64,11 @@ export function activate(context: ExtensionContext): void {
     const httpClient = new FetchHttpClient();
     const authResolver = new AuthHeaderResolver(httpClient);
     const c7Client = new Camunda7RestClient(httpClient, authResolver);
-    const c8Client = new Camunda8RestClient(httpClient, authResolver, vsSettings.getC8ApiVersion());
+    const c8Client = new Camunda8RestClient(
+        httpClient,
+        authResolver,
+        vsSettings.getC8ApiVersion(),
+    );
     const restClient = new CamundaEngineRouter(c7Client, c8Client);
     const panelStateRepo = new PropertiesPanelStateRepository(context);
 
@@ -106,7 +110,12 @@ export function activate(context: ExtensionContext): void {
     );
 
     // 4. Controllers
-    const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
+    const commandController = new CommandController(
+        editorStore,
+        vsDocument,
+        vsUI,
+        bpmnService,
+    );
     new BpmnEditorController(
         editorStore,
         bpmnService,
@@ -120,7 +129,13 @@ export function activate(context: ExtensionContext): void {
     new DmnEditorController(editorStore, dmnService, vsUI).register(context);
     new BpmnCompareController(compareSelection, diffService, vsUI).register(context);
     commandController.register(context);
-    new DeploymentController(editorStore, vsDocument, deploymentSvc, startInstanceSvc, vsUI).register(context);
+    new DeploymentController(
+        editorStore,
+        vsDocument,
+        deploymentSvc,
+        startInstanceSvc,
+        vsUI,
+    ).register(context);
 }
 
 const RELEASES_BASE = "https://github.com/Miragon/bpmn-modeler/releases/tag";

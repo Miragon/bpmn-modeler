@@ -210,11 +210,7 @@ export class EditorStore implements Disposable {
         const id = editorId;
         const entry = this.getEditorById(id);
         const d = this.disposables.get(id);
-        entry.ui.webview.onDidReceiveMessage(
-            (e: Command) => callback(e, id),
-            null,
-            d,
-        );
+        entry.ui.webview.onDidReceiveMessage((e: Command) => callback(e, id), null, d);
     }
 
     /**
@@ -265,11 +261,7 @@ export class EditorStore implements Disposable {
     ): void {
         const id = editorId;
         const d = this.disposables.get(id);
-        workspace.onDidChangeConfiguration(
-            (e) => callback(e, id),
-            null,
-            d,
-        );
+        workspace.onDidChangeConfiguration((e) => callback(e, id), null, d);
     }
 
     /**

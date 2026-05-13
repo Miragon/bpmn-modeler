@@ -75,7 +75,10 @@ function initTabs(): void {
             const tab = btn.dataset.tab;
             if (!tab) return;
             activateTab(tab, tabBtns, tabPanels);
-            vscode.setState({ ...((vscode.getState() as Record<string, unknown>) ?? {}), activeTab: tab });
+            vscode.setState({
+                ...((vscode.getState() as Record<string, unknown>) ?? {}),
+                activeTab: tab,
+            });
         });
     }
 }

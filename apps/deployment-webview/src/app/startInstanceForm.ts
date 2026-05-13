@@ -40,18 +40,20 @@ export class StartInstanceForm {
     constructor(
         private readonly vscode: VsCodeApi<unknown, Command | Query>,
         private readonly getSharedAuth: () => AuthConfigPayload,
-        private readonly getSharedConnection: () => { endpoint: string; engine: "c7" | "c8" },
+        private readonly getSharedConnection: () => {
+            endpoint: string;
+            engine: "c7" | "c8";
+        },
     ) {
-        this.processDefinitionKeyInput =
-            this.requireElement<HTMLInputElement>("#process-definition-key");
-        this.payloadFileInput =
-            this.requireElement<HTMLInputElement>("#payload-file");
+        this.processDefinitionKeyInput = this.requireElement<HTMLInputElement>(
+            "#process-definition-key",
+        );
+        this.payloadFileInput = this.requireElement<HTMLInputElement>("#payload-file");
         this.selectPayloadBtn =
             this.requireElement<HTMLButtonElement>("#select-payload-btn");
         this.startInstanceBtn =
             this.requireElement<HTMLButtonElement>("#start-instance-btn");
-        this.statusBanner =
-            this.requireElement<HTMLDivElement>("#start-status-banner");
+        this.statusBanner = this.requireElement<HTMLDivElement>("#start-status-banner");
 
         this.bindEvents();
     }

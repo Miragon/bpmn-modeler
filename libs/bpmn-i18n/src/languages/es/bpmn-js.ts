@@ -23,7 +23,8 @@ const translations: Record<string, string> = {
     "Activate global connect tool": "Activar herramienta de conexión global",
     "Activate hand tool": "Activar herramienta de mano",
     "Activate lasso tool": "Activar herramienta de lazo",
-    "Activate the create/remove space tool": "Activar herramienta de crear/eliminar espacio",
+    "Activate the create/remove space tool":
+        "Activar herramienta de crear/eliminar espacio",
     "Activate the global connect tool": "Activar herramienta de conexión global",
     "Activate the hand tool": "Activar herramienta de mano",
     "Activate the lasso tool": "Activar herramienta de lazo",
@@ -37,24 +38,32 @@ const translations: Record<string, string> = {
     "already rendered {element}": "{element} ya fue renderizado",
     "Append {type}": "Añadir {type}",
     "Append compensation activity": "Añadir actividad de compensación",
-    "Append conditional intermediate catch event": "Añadir evento intermedio de captura condicional",
-    "Append ConditionIntermediateCatchEvent": "Añadir evento intermedio de captura condicional",
+    "Append conditional intermediate catch event":
+        "Añadir evento intermedio de captura condicional",
+    "Append ConditionIntermediateCatchEvent":
+        "Añadir evento intermedio de captura condicional",
     "Append end event": "Añadir evento de fin",
     "Append EndEvent": "Añadir evento de fin",
     "Append gateway": "Añadir Gateway",
     "Append Gateway": "Añadir Gateway",
     "Append Intermediate/Boundary Event": "Añadir evento intermedio/de límite",
     "Append intermediate/boundary event": "Añadir evento intermedio/de límite",
-    "Append message intermediate catch event": "Añadir evento intermedio de captura de mensaje",
-    "Append MessageIntermediateCatchEvent": "Añadir evento intermedio de captura de mensaje",
+    "Append message intermediate catch event":
+        "Añadir evento intermedio de captura de mensaje",
+    "Append MessageIntermediateCatchEvent":
+        "Añadir evento intermedio de captura de mensaje",
     "Append receive task": "Añadir tarea de recepción",
     "Append ReceiveTask": "Añadir tarea de recepción",
-    "Append signal intermediate catch event": "Añadir evento intermedio de captura de señal",
-    "Append SignalIntermediateCatchEvent": "Añadir evento intermedio de captura de señal",
+    "Append signal intermediate catch event":
+        "Añadir evento intermedio de captura de señal",
+    "Append SignalIntermediateCatchEvent":
+        "Añadir evento intermedio de captura de señal",
     "Append task": "Añadir tarea",
     "Append Task": "Añadir tarea",
-    "Append timer intermediate catch event": "Añadir evento intermedio de captura de temporizador",
-    "Append TimerIntermediateCatchEvent": "Añadir evento intermedio de captura de temporizador",
+    "Append timer intermediate catch event":
+        "Añadir evento intermedio de captura de temporizador",
+    "Append TimerIntermediateCatchEvent":
+        "Añadir evento intermedio de captura de temporizador",
     "Business rule task": "Tarea de regla de negocio",
     "Call activity": "Actividad de llamada",
     "Cancel boundary event": "Evento de límite de cancelación",
@@ -64,22 +73,29 @@ const translations: Record<string, string> = {
     "Collection": "Colección",
     "Compensation boundary event": "Evento de límite de compensación",
     "Compensation end event": "Evento de fin de compensación",
-    "Compensation intermediate throw event": "Evento intermedio de lanzamiento de compensación",
+    "Compensation intermediate throw event":
+        "Evento intermedio de lanzamiento de compensación",
     "Compensation start event": "Evento de inicio de compensación",
     "Complex gateway": "Gateway complejo",
-    "Conditional boundary event (non-interrupting)": "Evento de límite condicional (no interrumpible)",
+    "Conditional boundary event (non-interrupting)":
+        "Evento de límite condicional (no interrumpible)",
     "Conditional boundary event": "Evento de límite condicional",
     "Conditional flow": "Flujo condicional",
     "Conditional intermediate catch event": "Evento intermedio de captura condicional",
-    "Conditional start event (non-interrupting)": "Evento de inicio condicional (no interrumpible)",
+    "Conditional start event (non-interrupting)":
+        "Evento de inicio condicional (no interrumpible)",
     "Conditional start event": "Evento de inicio condicional",
     "Connect to other element": "Conectar con otro elemento",
     "Connect using association": "Conectar usando asociación",
     "Connect using Association": "Conectar usando asociación",
-    "Connect using data input association": "Conectar usando asociación de entrada de datos",
-    "Connect using DataInputAssociation": "Conectar usando asociación de entrada de datos",
-    "Connect using Sequence/MessageFlow or Association": "Conectar usando flujo de secuencia/mensaje o asociación",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "Corrigiendo bpmnElement faltante en {plane} a {rootElement}",
+    "Connect using data input association":
+        "Conectar usando asociación de entrada de datos",
+    "Connect using DataInputAssociation":
+        "Conectar usando asociación de entrada de datos",
+    "Connect using Sequence/MessageFlow or Association":
+        "Conectar usando flujo de secuencia/mensaje o asociación",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "Corrigiendo bpmnElement faltante en {plane} a {rootElement}",
     "Create {type}": "Crear {type}",
     "Create data object reference": "Crear referencia de objeto de datos",
     "Create data store reference": "Crear referencia de almacén de datos",
@@ -105,24 +121,29 @@ const translations: Record<string, string> = {
     "Data store reference": "Almacén de datos",
     "Default flow": "Flujo predeterminado",
     "Delete": "Eliminar",
-    "diagram not part of bpmn:Definitions": "El diagrama no es parte de bpmn:Definitions",
+    "diagram not part of bpmn:Definitions":
+        "El diagrama no es parte de bpmn:Definitions",
     "Distribute elements horizontally": "Distribuir elementos horizontalmente",
     "Distribute elements vertically": "Distribuir elementos verticalmente",
     "Divide into three Lanes": "Dividir en tres carriles",
     "Divide into three lanes": "Dividir en tres carriles",
     "Divide into two Lanes": "Dividir en dos carriles",
     "Divide into two lanes": "Dividir en dos carriles",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "Elemento {element} referenciado por {referenced}#{property} aún no dibujado",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "Elemento {element} referenciado por {referenced}#{property} aún no dibujado",
     "element required": "Elemento requerido",
     "End event": "Evento de fin",
     "Error boundary event": "Evento de límite de error",
     "Error end event": "Evento de fin de error",
     "Error start event": "Evento de inicio de error",
-    "Escalation boundary event (non-interrupting)": "Evento de límite de escalación (no interrumpible)",
+    "Escalation boundary event (non-interrupting)":
+        "Evento de límite de escalación (no interrumpible)",
     "Escalation boundary event": "Evento de límite de escalación",
     "Escalation end event": "Evento de fin de escalación",
-    "Escalation intermediate throw event": "Evento intermedio de lanzamiento de escalación",
-    "Escalation start event (non-interrupting)": "Evento de inicio de escalación (no interrumpible)",
+    "Escalation intermediate throw event":
+        "Evento intermedio de lanzamiento de escalación",
+    "Escalation start event (non-interrupting)":
+        "Evento de inicio de escalación (no interrumpible)",
     "Escalation start event": "Evento de inicio de escalación",
     "Event based instantiating Gateway": "Gateway instanciador basado en eventos",
     "Event sub-process": "Subproceso de evento",
@@ -137,23 +158,30 @@ const translations: Record<string, string> = {
     "Link intermediate throw event": "Evento intermedio de lanzamiento de enlace",
     "Loop": "Bucle",
     "Manual task": "Tarea manual",
-    "Message boundary event (non-interrupting)": "Evento de límite de mensaje (no interrumpible)",
+    "Message boundary event (non-interrupting)":
+        "Evento de límite de mensaje (no interrumpible)",
     "Message boundary event": "Evento de límite de mensaje",
     "Message end event": "Evento de fin de mensaje",
     "Message intermediate catch event": "Evento intermedio de captura de mensaje",
     "Message intermediate throw event": "Evento intermedio de lanzamiento de mensaje",
-    "Message start event (non-interrupting)": "Evento de inicio de mensaje (no interrumpible)",
+    "Message start event (non-interrupting)":
+        "Evento de inicio de mensaje (no interrumpible)",
     "Message start event": "Evento de inicio de mensaje",
     "missing {semantic}#attachedToRef": "Falta {semantic}#attachedToRef",
     "more than {count} child lanes": "Más de {count} carriles hijos",
-    "multiple DI elements defined for {element}": "Múltiples elementos DI definidos para {element}",
-    "no bpmnElement referenced in {element}": "Ningún bpmnElement referenciado en {element}",
+    "multiple DI elements defined for {element}":
+        "Múltiples elementos DI definidos para {element}",
+    "no bpmnElement referenced in {element}":
+        "Ningún bpmnElement referenciado en {element}",
     "no diagram to display": "No hay diagrama para mostrar",
-    "no parent for {element} in {parent}": "No hay elemento padre para {element} en {parent}",
-    "no process or collaboration to display": "No hay proceso o colaboración para mostrar",
+    "no parent for {element} in {parent}":
+        "No hay elemento padre para {element} en {parent}",
+    "no process or collaboration to display":
+        "No hay proceso o colaboración para mostrar",
     "no shape type specified": "No se especificó tipo de forma",
     "out of bounds release": "Liberación fuera de los límites",
-    "Parallel Event based instantiating Gateway": "Gateway instanciador paralelo basado en eventos",
+    "Parallel Event based instantiating Gateway":
+        "Gateway instanciador paralelo basado en eventos",
     "Parallel gateway": "Gateway paralelo (AND)",
     "Parallel Multi Instance": "Instancia múltiple paralela",
     "Parallel multi-instance": "Instancia múltiple paralela",
@@ -166,12 +194,14 @@ const translations: Record<string, string> = {
     "Sequential Multi Instance": "Instancia múltiple secuencial",
     "Sequential multi-instance": "Instancia múltiple secuencial",
     "Service task": "Tarea de servicio",
-    "Signal boundary event (non-interrupting)": "Evento de límite de señal (no interrumpible)",
+    "Signal boundary event (non-interrupting)":
+        "Evento de límite de señal (no interrumpible)",
     "Signal boundary event": "Evento de límite de señal",
     "Signal end event": "Evento de fin de señal",
     "Signal intermediate catch event": "Evento intermedio de captura de señal",
     "Signal intermediate throw event": "Evento intermedio de lanzamiento de señal",
-    "Signal start event (non-interrupting)": "Evento de inicio de señal (no interrumpible)",
+    "Signal start event (non-interrupting)":
+        "Evento de inicio de señal (no interrumpible)",
     "Signal start event": "Evento de inicio de señal",
     "Start event": "Evento de inicio",
     "Sub-process (collapsed)": "Subproceso (contraído)",
@@ -179,16 +209,21 @@ const translations: Record<string, string> = {
     "Sub-process": "Subproceso",
     "Task": "Tarea",
     "Terminate end event": "Evento de fin de terminación",
-    "Timer boundary event (non-interrupting)": "Evento de límite de temporizador (no interrumpible)",
+    "Timer boundary event (non-interrupting)":
+        "Evento de límite de temporizador (no interrumpible)",
     "Timer boundary event": "Evento de límite de temporizador",
     "Timer intermediate catch event": "Evento intermedio de captura de temporizador",
-    "Timer start event (non-interrupting)": "Evento de inicio de temporizador (no interrumpible)",
+    "Timer start event (non-interrupting)":
+        "Evento de inicio de temporizador (no interrumpible)",
     "Timer start event": "Evento de inicio de temporizador",
     "Toggle non-interrupting": "Alternar no interrumpible",
     "Transaction": "Transacción",
-    "unknown di {di} for element {semantic}": "DI desconocido {di} para el elemento {semantic}",
-    "unrecognized flowElement {element} in context {context}": "flowElement {element} no reconocido en el contexto {context}",
-    "unsupported bpmnElement for {plane}: {rootElement}": "bpmnElement no soportado para {plane}: {rootElement}",
+    "unknown di {di} for element {semantic}":
+        "DI desconocido {di} para el elemento {semantic}",
+    "unrecognized flowElement {element} in context {context}":
+        "flowElement {element} no reconocido en el contexto {context}",
+    "unsupported bpmnElement for {plane}: {rootElement}":
+        "bpmnElement no soportado para {plane}: {rootElement}",
     "User task": "Tarea de usuario",
 };
 

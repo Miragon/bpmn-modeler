@@ -141,8 +141,10 @@ const translations: Record<string, string> = {
     "Must match pattern {pattern}": "Doit correspondre au modèle {pattern}",
     "Must not be empty": "Ne doit pas être vide",
     "Must provide a value": "Doit fournir une valeur",
-    "Must provide a value for timeout task listener": "Doit fournir une valeur pour l'écouteur de tâche de délai d'attente",
-    "Must provide either loop cardinality or collection": "Doit fournir soit la cardinalité de boucle soit la collection",
+    "Must provide a value for timeout task listener":
+        "Doit fournir une valeur pour l'écouteur de tâche de délai d'attente",
+    "Must provide either loop cardinality or collection":
+        "Doit fournir soit la cardinalité de boucle soit la collection",
     "Name": "Nom",
     "Name must not contain spaces": "Le nom ne doit pas contenir d'espaces",
     "Out Mapping": "Mappage de sortie",
@@ -165,9 +167,12 @@ const translations: Record<string, string> = {
     "Signal Name": "Nom du signal",
     "Source": "Source",
     "Source Expression": "Expression source",
-    "Specify more than one group as a comma separated list.": "Spécifiez plusieurs groupes sous forme de liste séparée par des virgules.",
-    "Specify more than one user as a comma separated list.": "Spécifiez plusieurs utilisateurs sous forme de liste séparée par des virgules.",
-    "Specify more than one variable change event as a comma separated list.": "Spécifiez plusieurs événements de changement de variable sous forme de liste séparée par des virgules.",
+    "Specify more than one group as a comma separated list.":
+        "Spécifiez plusieurs groupes sous forme de liste séparée par des virgules.",
+    "Specify more than one user as a comma separated list.":
+        "Spécifiez plusieurs utilisateurs sous forme de liste séparée par des virgules.",
+    "Specify more than one variable change event as a comma separated list.":
+        "Spécifiez plusieurs événements de changement de variable sous forme de liste séparée par des virgules.",
     "start": "démarrer",
     "Startable": "Démarrable",
     "String": "Chaîne",
@@ -179,7 +184,8 @@ const translations: Record<string, string> = {
     "Task Priority": "Priorité de tâche",
     "Tenant Id": "ID du locataire",
     "Text": "Texte",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "La date d'échéance sous forme d'expression EL (par ex. ${someDate} ou une date ISO (par ex. 2015-06-26T09:54:00)",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "La date d'échéance sous forme d'expression EL (par ex. ${someDate} ou une date ISO (par ex. 2015-06-26T09:54:00)",
     "timeout": "délai d'attente",
     "Timer Definition": "Définition de minuterie",
     "Timer Definition Type": "Type de définition de minuterie",

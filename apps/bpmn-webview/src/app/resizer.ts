@@ -102,7 +102,9 @@ export function initResizer(): PropertiesPanelHandle {
     const panelEl = document.getElementById("js-properties-panel");
 
     if (!resizerEl || !panelEl) {
-        console.warn("[resizer] Required DOM elements not found — skipping resizer init.");
+        console.warn(
+            "[resizer] Required DOM elements not found — skipping resizer init.",
+        );
         return NOOP_HANDLE;
     }
 
