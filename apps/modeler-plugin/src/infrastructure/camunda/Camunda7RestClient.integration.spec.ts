@@ -6,12 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FetchHttpClient } from "../FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda7RestClient } from "./Camunda7RestClient";
-import {
-    BasicAuth,
-    DeploymentConfig,
-    NoAuth,
-    OAuth2Auth,
-} from "../../domain/deployment";
+import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/deployment";
 import { StartInstanceConfig } from "../../domain/startInstance";
 import { DeploymentFailedError, StartInstanceFailedError } from "../../domain/errors";
 
@@ -26,11 +21,7 @@ describe("Camunda7RestClient (integration)", () => {
     let baseUrl: string;
 
     /** Handler installed per-test; receives the raw request and body buffer. */
-    let handler: (
-        req: http.IncomingMessage,
-        body: Buffer,
-        res: http.ServerResponse,
-    ) => void;
+    let handler: (req: http.IncomingMessage, body: Buffer, res: http.ServerResponse) => void;
 
     beforeAll(async () => {
         server = http.createServer((req, res) => {
@@ -104,9 +95,9 @@ describe("Camunda7RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await expect(
-            client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
-        ).rejects.toThrow(DeploymentFailedError);
+        await expect(client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]))).rejects.toThrow(
+            DeploymentFailedError,
+        );
     });
 
     // ── Start instance ──────────────────────────────────────────────────
@@ -136,9 +127,7 @@ describe("Camunda7RestClient (integration)", () => {
         const client = createClient();
         const config = new StartInstanceConfig("missing", baseUrl, "c7", new NoAuth());
 
-        await expect(client.startInstance(config)).rejects.toThrow(
-            StartInstanceFailedError,
-        );
+        await expect(client.startInstance(config)).rejects.toThrow(StartInstanceFailedError);
     });
 
     // ── Auth headers ────────────────────────────────────────────────────

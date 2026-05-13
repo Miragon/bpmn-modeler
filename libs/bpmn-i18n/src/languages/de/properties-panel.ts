@@ -128,8 +128,7 @@ const translations: Record<string, string> = {
         "Definieren Sie die zu bewertende Entscheidung und wie das Bewertungsergebnis zurückgeführt wird. ",
     "Define the ID of the process to call (e.g. ":
         "Definieren Sie die ID des aufzurufenden Prozesses (z. B.",
-    "Define the name of the message (e.g. ":
-        "Definieren Sie den Namen der Nachricht (z. B.",
+    "Define the name of the message (e.g. ": "Definieren Sie den Namen der Nachricht (z. B.",
     "Define the name of the variable that will contain the error code.":
         "Definieren Sie den Namen der Variablen, die den Fehlercode enthält.",
     "Define the name of the variable that will contain the error message.":
@@ -305,8 +304,7 @@ const translations: Record<string, string> = {
     "Mapping must have a value": "Zuordnung muss einen Wert haben",
     "Message event documentation": "Dokumentation zu Nachrichtenereignissen",
     "Message Name": "Nachrichtenname",
-    "Message throw event documentation":
-        "Dokumentation zu auslösenden Nachrichtenereignissen",
+    "Message throw event documentation": "Dokumentation zu auslösenden Nachrichtenereignissen",
     "Message variable": "Nachrichtenvariable",
     "Message": "Nachricht",
     "Multi Instance ": "Mehrfachinstanz ",
@@ -366,8 +364,7 @@ const translations: Record<string, string> = {
     "Propagate all variables": "Alle Variablen propagieren",
     "Properties": "Eigenschaften",
     "Receive task documentation": "Dokumentation zur Empfangsaufgabe",
-    "Refers to the process variable name":
-        "Bezieht sich auf den Namen der Prozessvariablen",
+    "Refers to the process variable name": "Bezieht sich auf den Namen der Prozessvariablen",
     "Resource": "Ressource",
     "Result variable": "Ergebnisvariable",
     "Result Variable": "Ergebnisvariable",
@@ -438,8 +435,7 @@ const translations: Record<string, string> = {
         "Das Fälligkeitsdatum als EL-Ausdruck (z. B. ${someDate}) oder als ISO-Datum (z. B. 2015-06-26T09:54:00).",
     "The number of times the engine tries executing this activity if a worker signals a failure. The default is three.":
         "Die Anzahl der Versuche, die die Engine unternimmt, um diese Aktivität auszuführen, wenn ein Worker einen Fehler signalisiert. Standard ist drei.",
-    "This maps to the process definition key.":
-        "Dies entspricht dem Prozessdefinitionsschlüssel.",
+    "This maps to the process definition key.": "Dies entspricht dem Prozessdefinitionsschlüssel.",
     "Throw expression": "Ausnahmeausdruck",
     "Time to live": "Lebensdauer",
     "timeout": "Zeitlimit",

@@ -46,9 +46,7 @@ export function bpmnEditorUi(
     const panelClass = initialPanelVisible
         ? "properties-panel-parent"
         : "properties-panel-parent collapsed";
-    const resizerClass = initialPanelVisible
-        ? "panel-resizer"
-        : "panel-resizer collapsed";
+    const resizerClass = initialPanelVisible ? "panel-resizer" : "panel-resizer collapsed";
     const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
 
     return `
@@ -85,9 +83,7 @@ export function dmnModelerHtml(webview: Webview, extensionUri: Uri): string {
     const baseUri = Uri.joinPath(extensionUri, DMN_WEBVIEW_PATH);
 
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
-    const styleResetUri = webview.asWebviewUri(
-        Uri.joinPath(extensionUri, "assets", "reset.css"),
-    );
+    const styleResetUri = webview.asWebviewUri(Uri.joinPath(extensionUri, "assets", "reset.css"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
     const frontUri = webview.asWebviewUri(Uri.joinPath(baseUri, "css", "dmn.css"));
 

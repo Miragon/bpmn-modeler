@@ -86,10 +86,7 @@ module.exports = (env, argv) => {
                         // Single source of truth: themes live in the standalone
                         // extension. `vsce package --no-dependencies` strips
                         // node_modules, so the JSON must be present in dist.
-                        from: path.resolve(
-                            __dirname,
-                            "../../libs/standalone-extension/src/themes",
-                        ),
+                        from: path.resolve(__dirname, "../../libs/standalone-extension/src/themes"),
                         to: "themes",
                     },
                     {
@@ -110,20 +107,14 @@ module.exports = (env, argv) => {
                         // info.minimized prevents TerserPlugin from re-minimizing the
                         // already-minified Vite output, which would mangle variable names
                         // and break preact/htm tagged templates at runtime.
-                        from: path.resolve(
-                            __dirname,
-                            "../../dist/webview-staging/bpmn-webview",
-                        ),
+                        from: path.resolve(__dirname, "../../dist/webview-staging/bpmn-webview"),
                         to: "bpmn-webview",
                         noErrorOnMissing: true,
                         info: { minimized: true },
                     },
                     {
                         // Copy the DMN webview build artefacts into the extension output.
-                        from: path.resolve(
-                            __dirname,
-                            "../../dist/webview-staging/dmn-webview",
-                        ),
+                        from: path.resolve(__dirname, "../../dist/webview-staging/dmn-webview"),
                         to: "dmn-webview",
                         noErrorOnMissing: true,
                         info: { minimized: true },

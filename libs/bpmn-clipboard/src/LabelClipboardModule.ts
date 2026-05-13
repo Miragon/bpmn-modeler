@@ -105,11 +105,7 @@ class LabelClipboard {
 
         eventBus.on("directEditing.deactivate", () => {
             if (this.activeElement && this.keydownHandler) {
-                this.activeElement.removeEventListener(
-                    "keydown",
-                    this.keydownHandler,
-                    true,
-                );
+                this.activeElement.removeEventListener("keydown", this.keydownHandler, true);
             }
             this.keydownHandler = null;
             this.activeElement = null;

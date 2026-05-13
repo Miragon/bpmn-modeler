@@ -68,11 +68,7 @@ export class CommandController {
             commands.registerCommand(LOGGING_CMD, this.showLogging, this),
             commands.registerCommand(COPY_SVG_CMD, this.writeToClipboard, this),
             commands.registerCommand(SAVE_SVG_CMD, this.writeToFile, this),
-            commands.registerCommand(
-                CHANGE_ENGINE_VERSION_CMD,
-                this.changeEngineVersion,
-                this,
-            ),
+            commands.registerCommand(CHANGE_ENGINE_VERSION_CMD, this.changeEngineVersion, this),
             commands.registerCommand(MIGRATE_ALL_CMD, this.migrateAllDiagrams, this),
             commands.registerCommand(CHANGE_LANGUAGE_CMD, this.changeLanguage, this),
         );
@@ -181,13 +177,9 @@ export class CommandController {
     private requestSvg(onSvg: (svg: string) => void): void {
         const activeId = this.editorStore.getActiveEditorId();
 
-        this.editorStore
-            .postMessage(activeId, new GetDiagramAsSVGCommand())
-            .catch((error) => {
-                this.vsUI.logError(
-                    error instanceof Error ? error : new Error(String(error)),
-                );
-            });
+        this.editorStore.postMessage(activeId, new GetDiagramAsSVGCommand()).catch((error) => {
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+        });
 
         // Dispose previous subscription to avoid accumulating listeners.
         this.svgSubscription?.dispose();

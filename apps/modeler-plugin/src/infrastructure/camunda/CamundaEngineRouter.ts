@@ -26,10 +26,7 @@ export class CamundaEngineRouter implements CamundaEnginePort {
      * @param fileContents Map of filename → UTF-8 file content.
      * @returns The deployment result from the selected engine client.
      */
-    deploy(
-        config: DeploymentConfig,
-        fileContents: Map<string, string>,
-    ): Promise<DeploymentResult> {
+    deploy(config: DeploymentConfig, fileContents: Map<string, string>): Promise<DeploymentResult> {
         return (config.engine === "c7" ? this.c7 : this.c8).deploy(config, fileContents);
     }
 

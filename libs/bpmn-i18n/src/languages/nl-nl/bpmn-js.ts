@@ -26,8 +26,7 @@ const translations: Record<string, string> = {
     "Append ReceiveTask": "Voeg Receive-Task toe",
     "Append MessageIntermediateCatchEvent": "Voeg Message-Intermediate-Catch-Event toe",
     "Append TimerIntermediateCatchEvent": "Voeg Timer-Intermediate-Catch-Event toe",
-    "Append ConditionIntermediateCatchEvent":
-        "Voeg Condition-Intermediate-Catch-Event toe",
+    "Append ConditionIntermediateCatchEvent": "Voeg Condition-Intermediate-Catch-Event toe",
     "Append SignalIntermediateCatchEvent": "Voeg Signal-Intermediate-Catch-Event toe",
     "Append compensation activity": "Voeg compensation activity toe",
     "Append EndEvent": "Voeg End-Event toe",
@@ -44,13 +43,11 @@ const translations: Record<string, string> = {
     "out of bounds release": "release buiten bereik",
     "more than {count} child lanes": "meer dan {count} child lanes",
     "element required": "element vereist",
-    "no parent for {element} in {parent}":
-        "geen ouderelement voor {element} in {parent}",
+    "no parent for {element} in {parent}": "geen ouderelement voor {element} in {parent}",
     "Create {type}": "Maak {type}",
     "Activate the hand tool": "Activeer het hand gereedschap",
     "Activate the lasso tool": "Activeer het lasso gereedschap",
-    "Activate the create/remove space tool":
-        "Activeer het maak/verwijder ruimte gereedschap",
+    "Activate the create/remove space tool": "Activeer het maak/verwijder ruimte gereedschap",
     "Activate the global connect tool": "Activeer het globale verbinding gereedschap",
     "Create StartEvent": "Maak Start-Event",
     "Create Intermediate/Boundary Event": "Maak Intermediate/Boundary Event",
@@ -68,21 +65,17 @@ const translations: Record<string, string> = {
     "Ad-hoc": "Ad-hoc",
     "element {element} referenced by {referenced}#{property} not yet drawn":
         "element {element} gerefereerd door {referenced}#{property} nog niet getekend",
-    "unknown di {di} for element {semantic}":
-        "onbekende di {di} voor element {semantic}",
+    "unknown di {di} for element {semantic}": "onbekende di {di} voor element {semantic}",
     "missing {semantic}#attachedToRef": "{semantic}#attachedToRef ontbreekt",
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ref niet gespecificeerd",
     "already rendered {element}": "{element} reeds getekend",
     "failed to import {element}": "importeren van {element} gefaald",
     "multiple DI elements defined for {element}":
         "meerdere DI elementen gedefinieerd voor {element}",
-    "no bpmnElement referenced in {element}":
-        "geen bpmnElement gerefereerd in {element}",
-    "diagram not part of bpmn:Definitions":
-        "diagram geen onderdeel van bpmn:Definitions",
+    "no bpmnElement referenced in {element}": "geen bpmnElement gerefereerd in {element}",
+    "diagram not part of bpmn:Definitions": "diagram geen onderdeel van bpmn:Definitions",
     "no diagram to display": "geen diagram om weer te geven",
-    "no process or collaboration to display":
-        "geen process of collaboration om weer te geven",
+    "no process or collaboration to display": "geen process of collaboration om weer te geven",
     "correcting missing bpmnElement on {plane} to {rootElement}":
         "corrigeer ontbrekend bpmnElement op {plane} naar {rootElement}",
     "unsupported bpmnElement for {plane}: {rootElement}":

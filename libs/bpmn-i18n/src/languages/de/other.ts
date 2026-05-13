@@ -93,8 +93,7 @@ const translations: Record<string, string> = {
     "Deprecated": "Veraltet",
     "Description": "Beschreibung",
     "Edit String": "Zeichenkette bearbeiten",
-    "Empty pool/participant (removes content)":
-        "Leerer Pool/Teilnehmer (Inhalt wird entfernt)",
+    "Empty pool/participant (removes content)": "Leerer Pool/Teilnehmer (Inhalt wird entfernt)",
     "Empty pool/participant": "Leerer Pool/Teilnehmer (Inhalt wird entfernt)",
     "Empty": "Leer",
     "End Event": "Endereignis",
@@ -151,8 +150,7 @@ const translations: Record<string, string> = {
     "Literal Expression": "Literaler Ausdruck",
     "Local variable assignment": "Lokale Variablenzuweisung",
     "Manual Task": "Manuelle Aufgabe",
-    "Message Boundary Event (non-interrupting)":
-        "Nachrichtengrenzereignis (nicht unterbrechend)",
+    "Message Boundary Event (non-interrupting)": "Nachrichtengrenzereignis (nicht unterbrechend)",
     "Message Boundary Event": "Nachrichtengrenzereignis",
     "Message End Event": "Nachrichtenendereignis",
     "Message Intermediate Catch Event": "Nachrichten-Zwischenfangerereignis",
@@ -204,8 +202,7 @@ const translations: Record<string, string> = {
     "Repetition Rule": "Wiederholungsregel",
     "Required Rule": "Erforderliche Regel",
     "resultList": "Ergebnisliste",
-    "Rule is overwritten by item control":
-        "Regel wird durch Elementsteuerung überschrieben",
+    "Rule is overwritten by item control": "Regel wird durch Elementsteuerung überschrieben",
     "Rule order": "Regelreihenfolge",
     "Rule": "Regel",
     "Rules": "Regeln",
@@ -218,8 +215,7 @@ const translations: Record<string, string> = {
     "Service Task": "Serviceaufgabe",
     "Set Value": "Wert setzen",
     "Show Standard Event": "Standardereignis anzeigen",
-    "Signal Boundary Event (non-interrupting)":
-        "Signalgrenzereignis (nicht unterbrechend)",
+    "Signal Boundary Event (non-interrupting)": "Signalgrenzereignis (nicht unterbrechend)",
     "Signal Boundary Event": "Signalgrenzereignis",
     "Signal End Event": "Signalendereignis",
     "Signal Intermediate Catch Event": "Signalzwischenereignis (Empfangend)",

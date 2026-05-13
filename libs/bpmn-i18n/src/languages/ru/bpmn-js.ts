@@ -24,12 +24,10 @@ const translations: Record<string, string> = {
     "Divide into three Lanes": "Разделить на три дорожки",
     "Add Lane below": "Добавить дорожку ниже",
     "Append ReceiveTask": "Добавить задачу приема сообщения",
-    "Append MessageIntermediateCatchEvent":
-        "Добавить промежуточное событие приема сообщения",
+    "Append MessageIntermediateCatchEvent": "Добавить промежуточное событие приема сообщения",
     "Append TimerIntermediateCatchEvent": "Добавить промежуточное событие таймер",
     "Append ConditionIntermediateCatchEvent": "Добавить промежуточное событие условие",
-    "Append SignalIntermediateCatchEvent":
-        "Добавить промежуточное событие приема сигнала",
+    "Append SignalIntermediateCatchEvent": "Добавить промежуточное событие приема сигнала",
     "Append compensation activity": "Добавить событийный подпроцесс",
     "Append EndEvent": "Добавить конечное событие",
     "Append Gateway": "Добавить шлюз",
@@ -46,8 +44,7 @@ const translations: Record<string, string> = {
     "out of bounds release": "выход за пределы",
     "more than {count} child lanes": "более {count} дочерних дорожек",
     "element required": "обязательный элемент",
-    "no parent for {element} in {parent}":
-        "нет родительского элемента для {element} в {parent}",
+    "no parent for {element} in {parent}": "нет родительского элемента для {element} в {parent}",
     "Create {type}": "Создать {type}",
     "Activate the hand tool": "Активировать инструмент свободного перемещения",
     "Activate the lasso tool": "Активировать интрумент лассо",
@@ -70,8 +67,7 @@ const translations: Record<string, string> = {
     "Ad-hoc": "Ad-hoc",
     "element {element} referenced by {referenced}#{property} not yet drawn":
         "элемент {element}, на который ссылается {referenced}#{property} еще не создан",
-    "unknown di {di} for element {semantic}":
-        "неизвестная директория {di} для элемента {semantic}",
+    "unknown di {di} for element {semantic}": "неизвестная директория {di} для элемента {semantic}",
     "missing {semantic}#attachedToRef": "потерянный {semantic}#attachedToRef",
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ссылка не указана",
     "already rendered {element}": "уже используемый {element}",
@@ -79,8 +75,7 @@ const translations: Record<string, string> = {
     "multiple DI elements defined for {element}":
         "несколько элементов DI, определенных для {element}",
     "no bpmnElement referenced in {element}": "нет ссылки на элемент BPMN в {element}",
-    "diagram not part of bpmn:Definitions":
-        "диаграмма не является частью bpmn:Definitions",
+    "diagram not part of bpmn:Definitions": "диаграмма не является частью bpmn:Definitions",
     "no diagram to display": "нет диаграммы для отображения",
     "no process or collaboration to display":
         "нет процесса или совместной процесса для отображения",

@@ -127,11 +127,7 @@ export function TemplatePanel({
             } else if (e.key === "ArrowUp") {
                 e.preventDefault();
                 setFocusIndex((prev) => Math.max(prev - 1, 0));
-            } else if (
-                e.key === "Enter" &&
-                focusIndex >= 0 &&
-                focusIndex < filtered.length
-            ) {
+            } else if (e.key === "Enter" && focusIndex >= 0 && focusIndex < filtered.length) {
                 e.preventDefault();
                 const focused = filtered[focusIndex];
                 onTemplateClick(focused, e as unknown as Event);
@@ -158,10 +154,7 @@ export function TemplatePanel({
         if (hovered) {
             setHoveredIndex(index);
         } else {
-            hideTimeoutRef.current = window.setTimeout(
-                () => setHoveredIndex(-1),
-                HOVER_HIDE_DELAY,
-            );
+            hideTimeoutRef.current = window.setTimeout(() => setHoveredIndex(-1), HOVER_HIDE_DELAY);
         }
     }, []);
 
@@ -172,10 +165,7 @@ export function TemplatePanel({
 
     /** Starts the hide delay when the mouse leaves the hover card. */
     const handleHoverCardLeave = useCallback(() => {
-        hideTimeoutRef.current = window.setTimeout(
-            () => setHoveredIndex(-1),
-            HOVER_HIDE_DELAY,
-        );
+        hideTimeoutRef.current = window.setTimeout(() => setHoveredIndex(-1), HOVER_HIDE_DELAY);
     }, []);
 
     /**
@@ -224,9 +214,7 @@ export function TemplatePanel({
                             key={cat.id}
                             class={`am-chip ${activeCategory === cat.id ? "am-chip--active" : ""}`}
                             onClick={() =>
-                                onCategoryChange(
-                                    activeCategory === cat.id ? null : cat.id,
-                                )
+                                onCategoryChange(activeCategory === cat.id ? null : cat.id)
                             }
                             type="button"
                         >
@@ -241,9 +229,7 @@ export function TemplatePanel({
                 {filtered.length === 0 ? (
                     <div class="am-empty">
                         <p class="am-empty-text">No templates found</p>
-                        {search && (
-                            <p class="am-empty-hint">Try a different search term</p>
-                        )}
+                        {search && <p class="am-empty-hint">Try a different search term</p>}
                     </div>
                 ) : (
                     filtered.map((enriched, idx) => (

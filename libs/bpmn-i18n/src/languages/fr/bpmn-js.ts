@@ -70,21 +70,16 @@ const translations: Record<string, string> = {
     "Ad-hoc": "Ad-hoc",
     "element {element} referenced by {referenced}#{property} not yet drawn":
         "élément {element} référencé par {referenced}#{property} pas encore dessiné",
-    "unknown di {di} for element {semantic}":
-        "di {di} inconnu pour l'élément {semantic}",
+    "unknown di {di} for element {semantic}": "di {di} inconnu pour l'élément {semantic}",
     "missing {semantic}#attachedToRef": "{semantic}#attachedToRef manquant",
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ref non spécifié",
     "already rendered {element}": "{element} déjà rendu",
     "failed to import {element}": "échec de l'importation de {element}",
-    "multiple DI elements defined for {element}":
-        "plusieurs éléments DI définis pour {element}",
-    "no bpmnElement referenced in {element}":
-        "aucun bpmnElement référencé dans {element}",
-    "diagram not part of bpmn:Definitions":
-        "diagramme ne fait pas partie de bpmn:Definitions",
+    "multiple DI elements defined for {element}": "plusieurs éléments DI définis pour {element}",
+    "no bpmnElement referenced in {element}": "aucun bpmnElement référencé dans {element}",
+    "diagram not part of bpmn:Definitions": "diagramme ne fait pas partie de bpmn:Definitions",
     "no diagram to display": "aucun diagramme à afficher",
-    "no process or collaboration to display":
-        "aucun processus ou collaboration à afficher",
+    "no process or collaboration to display": "aucun processus ou collaboration à afficher",
     "correcting missing bpmnElement on {plane} to {rootElement}":
         "correction du bpmnElement manquant sur {plane} vers {rootElement}",
     "unsupported bpmnElement for {plane}: {rootElement}":

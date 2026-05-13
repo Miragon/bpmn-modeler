@@ -119,8 +119,7 @@ export class DiffLegend {
         this.renderLabels();
 
         const { counts, origin } = context;
-        const total =
-            counts.added + counts.removed + counts.changed + counts.layoutChanged;
+        const total = counts.added + counts.removed + counts.changed + counts.layoutChanged;
         const hasChanges = total > 0;
         this.prevButton.disabled = !hasChanges;
         this.nextButton.disabled = !hasChanges;

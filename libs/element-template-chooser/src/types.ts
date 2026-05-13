@@ -141,11 +141,7 @@ export function classifyBinding(binding: TemplateProperty["binding"]): BindingDi
     const type = binding.type;
 
     // Output bindings (C7 + C8)
-    if (
-        type === "camunda:out" ||
-        type === "camunda:outputParameter" ||
-        type === "zeebe:output"
-    ) {
+    if (type === "camunda:out" || type === "camunda:outputParameter" || type === "zeebe:output") {
         return "output";
     }
 

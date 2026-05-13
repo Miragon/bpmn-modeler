@@ -59,9 +59,7 @@ function createLocator(opts: { fileContents: Record<string, string>; tree?: DirT
             const entries = tree[dir];
             if (!entries) return Promise.reject(new Error("ENOENT"));
             return Promise.resolve(
-                entries.map((e) =>
-                    typeof e === "string" ? [e, "file"] : [e.name, e.type],
-                ),
+                entries.map((e) => (typeof e === "string" ? [e, "file"] : [e.name, e.type])),
             );
         }),
         readFile: vi.fn().mockImplementation((path: string) => {
@@ -178,9 +176,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
                 "/good.bpmn": bpmnWithProcess("ProcessB"),
             },
         });
-        vsWorkspace.readFile.mockImplementationOnce(() =>
-            Promise.reject(new Error("EACCES")),
-        );
+        vsWorkspace.readFile.mockImplementationOnce(() => Promise.reject(new Error("EACCES")));
 
         const result = await locator.findDeclaringFiles("ProcessB", "process");
 
@@ -248,11 +244,7 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
             fsPath: "/work/parent.bpmn",
         } as never;
 
-        const result = await locator.findDeclaringFiles(
-            "ChildProcess",
-            "process",
-            documentUri,
-        );
+        const result = await locator.findDeclaringFiles("ChildProcess", "process", documentUri);
 
         expect(vsWorkspace.findFiles).toHaveBeenCalledTimes(1);
         expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");
@@ -264,9 +256,7 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
     });
 
     it("recurses into subdirectories", async () => {
-        workspaceState.folders = [
-            { uri: { scheme: "file", path: "/work", fsPath: "/work" } },
-        ];
+        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
         const { locator, vsWorkspace } = createLocator({
             fileContents: { "/work/sub/child.bpmn": bpmnWithProcess("Nested") },
             tree: {
@@ -285,9 +275,7 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
     });
 
     it("skips baseline-excluded directories (node_modules, dist, .git, …)", async () => {
-        workspaceState.folders = [
-            { uri: { scheme: "file", path: "/work", fsPath: "/work" } },
-        ];
+        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
         const { locator, vsWorkspace } = createLocator({
             fileContents: {
                 "/work/wanted.bpmn": bpmnWithProcess("Wanted"),
@@ -310,9 +298,7 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
     });
 
     it("tolerates unreadable subdirectories", async () => {
-        workspaceState.folders = [
-            { uri: { scheme: "file", path: "/work", fsPath: "/work" } },
-        ];
+        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
         const { locator, vsWorkspace } = createLocator({
             fileContents: { "/work/ok.bpmn": bpmnWithProcess("Wanted") },
             tree: {
@@ -349,11 +335,7 @@ describe("findDeclaringFiles — loose file (no workspace folder)", () => {
             fsPath: "/work/parent.bpmn",
         } as never;
 
-        const result = await locator.findDeclaringFiles(
-            "ChildProcess",
-            "process",
-            documentUri,
-        );
+        const result = await locator.findDeclaringFiles("ChildProcess", "process", documentUri);
 
         expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
         expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");

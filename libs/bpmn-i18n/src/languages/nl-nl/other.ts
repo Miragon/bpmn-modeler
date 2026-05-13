@@ -69,8 +69,7 @@ const translations: Record<string, string> = {
     "Sub Process": "Sub-Process",
     "Swap sides": "Zijden omwisselen",
     "Task": "Task",
-    "This maps to the task definition key.":
-        "Dit wordt vertaald naar de task definition key.",
+    "This maps to the task definition key.": "Dit wordt vertaald naar de task definition key.",
     "Collapsed Pool": "Ingeklapte Pool",
     "Expanded Pool": "Uitgeklapte Pool",
     "flow elements must be children of pools/participants":
@@ -85,15 +84,12 @@ const translations: Record<string, string> = {
     "Cancel Boundary Event": "Cancel-Boundary-Event",
     "Signal Boundary Event": "Signal-Boundary-Event",
     "Compensation Boundary Event": "Compensation-Boundary-Event",
-    "Message Boundary Event (non-interrupting)":
-        "Message-Boundary-Event (non-interrupting)",
+    "Message Boundary Event (non-interrupting)": "Message-Boundary-Event (non-interrupting)",
     "Timer Boundary Event (non-interrupting)": "Timer-Boundary-Event (non-interrupting)",
-    "Escalation Boundary Event (non-interrupting)":
-        "Escalation-Boundary-Event (non-interrupting)",
+    "Escalation Boundary Event (non-interrupting)": "Escalation-Boundary-Event (non-interrupting)",
     "Conditional Boundary Event (non-interrupting)":
         "Conditional-Boundary-Event (non-interrupting)",
-    "Signal Boundary Event (non-interrupting)":
-        "Signal-Boundary-Event (non-interrupting)",
+    "Signal Boundary Event (non-interrupting)": "Signal-Boundary-Event (non-interrupting)",
     "Connect using Information/Knowledge/Authority Requirement or Association":
         "Verbind met Information/Knowledge/Authority Requirement of Association",
     "Empty": "Leeg",

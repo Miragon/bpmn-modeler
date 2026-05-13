@@ -306,9 +306,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 break;
             }
             default: {
-                throw new Error(
-                    `Unknown message type: ${(message as MessageType).type}`,
-                );
+                throw new Error(`Unknown message type: ${(message as MessageType).type}`);
             }
         }
 
@@ -353,17 +351,13 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
         try {
             cached = await this.ensureCachedDiff();
         } catch (error) {
-            console.error(
-                "[dev] Failed to compute mock diff; diff highlights unavailable.",
-                error,
-            );
+            console.error("[dev] Failed to compute mock diff; diff highlights unavailable.", error);
             return;
         }
 
         const slice = cached[side];
         const added = side === "after" ? (slice as { added: string[] }).added : [];
-        const removed =
-            side === "before" ? (slice as { removed: string[] }).removed : [];
+        const removed = side === "before" ? (slice as { removed: string[] }).removed : [];
 
         dispatch(
             new ApplyDiffHighlightsQuery(
@@ -426,11 +420,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
         const layoutChanged = Object.keys(result._layoutChanged);
 
         const afterOrder = buildFlowOrder(afterDefs as never);
-        const removedAnchors = buildRemovedAnchors(
-            removed,
-            beforeDefs as never,
-            afterOrder,
-        );
+        const removedAnchors = buildRemovedAnchors(removed, beforeDefs as never, afterOrder);
         const sortedAdded = sortIdsByOrder(added, afterOrder);
         const sortedRemoved = sortIdsByOrder(removed, removedAnchors);
         const sortedChanged = sortIdsByOrder(changed, afterOrder);

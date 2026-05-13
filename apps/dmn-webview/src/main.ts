@@ -90,12 +90,9 @@ async function openXML(dmn: string | undefined) {
 
     if (result.warnings.length > 0) {
         const warnings = result.warnings.map(
-            (warning) =>
-                `${warning.message}\n${warning.error.message}\n${warning.error.stack}\n`,
+            (warning) => `${warning.message}\n${warning.error.message}\n${warning.error.stack}\n`,
         );
-        const message = `Diagram was opened with following warnings: ${formatErrors(
-            warnings,
-        )}
+        const message = `Diagram was opened with following warnings: ${formatErrors(warnings)}
             `;
         vscode.postMessage(new LogInfoCommand(message));
     }
@@ -118,8 +115,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
                 if (error instanceof NoModelerError) {
                     dmnFileResolver.done(message.data as DmnFileQuery);
                 } else {
-                    const errorMessage =
-                        error instanceof Error ? error.message : `${error}`;
+                    const errorMessage = error instanceof Error ? error.message : `${error}`;
                     vscode.postMessage(
                         new LogErrorCommand(
                             `Something went wrong when receiving the message ${errorMessage}`,

@@ -68,12 +68,7 @@ export class DmnEditorController implements CustomTextEditorProvider {
     ): void | Thenable<void> {
         try {
             const editorId = document.uri.toString();
-            this.editorStore.createEditor(
-                DMN_VIEW_TYPE,
-                editorId,
-                webviewPanel,
-                document,
-            );
+            this.editorStore.createEditor(DMN_VIEW_TYPE, editorId, webviewPanel, document);
             this.dmnService.registerSession(editorId);
 
             this.subscribeToMessageEvent(editorId);
@@ -95,26 +90,20 @@ export class DmnEditorController implements CustomTextEditorProvider {
      * @param editorId Document URI path of the editor whose webview to listen to.
      */
     private subscribeToMessageEvent(editorId: string): void {
-        this.editorStore.subscribeToMessageEvent(
-            editorId,
-            async (message: Command, id: string) => {
-                this.vsUI.logInfo(`Message received -> ${message.type}`);
-                switch (message.type) {
-                    case "GetDmnFileCommand":
-                        if (await this.dmnService.display(id)) {
-                            this.vsUI.logInfo("Dmn modeler is ready");
-                        }
-                        break;
-                    case "SyncDocumentCommand":
-                        await this.dmnService.sync(
-                            id,
-                            (message as SyncDocumentCommand).content,
-                        );
-                        break;
-                }
-                this.vsUI.logInfo(`Message processed -> ${message.type}`);
-            },
-        );
+        this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
+            this.vsUI.logInfo(`Message received -> ${message.type}`);
+            switch (message.type) {
+                case "GetDmnFileCommand":
+                    if (await this.dmnService.display(id)) {
+                        this.vsUI.logInfo("Dmn modeler is ready");
+                    }
+                    break;
+                case "SyncDocumentCommand":
+                    await this.dmnService.sync(id, (message as SyncDocumentCommand).content);
+                    break;
+            }
+            this.vsUI.logInfo(`Message processed -> ${message.type}`);
+        });
     }
 
     /**

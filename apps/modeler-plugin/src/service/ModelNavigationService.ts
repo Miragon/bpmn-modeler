@@ -36,10 +36,7 @@ export class ModelNavigationService {
         const result = await window.withProgress(
             {
                 location: ProgressLocation.Window,
-                title: `Searching for ${kind} "${truncate(
-                    referenceId,
-                    PROGRESS_LABEL_LIMIT,
-                )}"…`,
+                title: `Searching for ${kind} "${truncate(referenceId, PROGRESS_LABEL_LIMIT)}"…`,
             },
             () => this.locator.findDeclaringFiles(referenceId, kind, sourceDocumentUri),
         );

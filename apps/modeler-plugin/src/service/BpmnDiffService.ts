@@ -194,9 +194,7 @@ export class BpmnDiffService {
             });
         } catch (error) {
             this.vsUI.logError(error as Error);
-            this.vsUI.showError(
-                `Failed to open compare view: ${(error as Error).message}`,
-            );
+            this.vsUI.showError(`Failed to open compare view: ${(error as Error).message}`);
         }
     }
 
@@ -312,9 +310,7 @@ export class BpmnDiffService {
             ready: false,
         };
 
-        panel.webview.onDidReceiveMessage((message: Command) =>
-            this.onMessage(entry, message),
-        );
+        panel.webview.onDidReceiveMessage((message: Command) => this.onMessage(entry, message));
         panel.onDidDispose(() => this.disposePane(entry));
 
         const session = this.findSessionFor(document.uri);
@@ -436,10 +432,7 @@ export class BpmnDiffService {
                 await this.markReady(entry);
                 break;
             case "ViewportChangedCommand":
-                await this.forwardViewport(
-                    entry,
-                    (message as ViewportChangedCommand).viewport,
-                );
+                await this.forwardViewport(entry, (message as ViewportChangedCommand).viewport);
                 break;
             case "CursorChangedCommand":
                 await this.forwardCursor(entry, (message as CursorChangedCommand).index);
@@ -491,9 +484,7 @@ export class BpmnDiffService {
             } catch {
                 engine = "c7";
             }
-            await entry.panel.webview.postMessage(
-                new BpmnFileQuery(content, engine, "viewer"),
-            );
+            await entry.panel.webview.postMessage(new BpmnFileQuery(content, engine, "viewer"));
         } catch (error) {
             this.vsUI.logError(error as Error);
         }
@@ -522,9 +513,7 @@ export class BpmnDiffService {
      */
     private async sendLanguage(entry: DiffPaneEntry): Promise<void> {
         try {
-            await entry.panel.webview.postMessage(
-                new LanguageQuery(this.vsSettings.getLanguage()),
-            );
+            await entry.panel.webview.postMessage(new LanguageQuery(this.vsSettings.getLanguage()));
         } catch (error) {
             this.vsUI.logInfo(`setLanguage dropped: ${(error as Error).message}`);
         }
@@ -656,11 +645,7 @@ export class BpmnDiffService {
         // before canvas; anchor each one next to a surviving neighbour in the
         // after order so it appears near where it used to be in the flow.
         const afterOrder = buildFlowOrder(afterDefs as never);
-        const removedAnchors = buildRemovedAnchors(
-            removed,
-            beforeDefs as never,
-            afterOrder,
-        );
+        const removedAnchors = buildRemovedAnchors(removed, beforeDefs as never, afterOrder);
         const sortedAdded = sortIdsByOrder(added, afterOrder);
         const sortedRemoved = sortIdsByOrder(removed, removedAnchors);
         const sortedChanged = sortIdsByOrder(changed, afterOrder);
@@ -721,9 +706,7 @@ export class BpmnDiffService {
         try {
             await panel.webview.postMessage(query);
         } catch (error) {
-            this.vsUI.logInfo(
-                `ApplyDiffHighlights dropped: ${(error as Error).message}`,
-            );
+            this.vsUI.logInfo(`ApplyDiffHighlights dropped: ${(error as Error).message}`);
         }
     }
 }

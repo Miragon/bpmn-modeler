@@ -78,9 +78,7 @@ describe("BpmnEditorController — NavigateToReferencedModelCommand dispatch", (
         const cmd = new NavigateToReferencedModelCommand("ProcessB", "process");
         await callback(cmd, "file:///src/a.bpmn");
 
-        expect(editorStore.getDocumentForEditor).toHaveBeenCalledWith(
-            "file:///src/a.bpmn",
-        );
+        expect(editorStore.getDocumentForEditor).toHaveBeenCalledWith("file:///src/a.bpmn");
         expect(modelNavigationService.navigate).toHaveBeenCalledWith(
             "ProcessB",
             "process",

@@ -24,10 +24,7 @@ import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
-import {
-    detectExecutionPlatform,
-    detectExecutionPlatformVersion,
-} from "../service/bpmnUtils";
+import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
 /** VS Code view-type identifier for the BPMN custom editor. */
@@ -161,81 +158,68 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param editorId Document URI path of the editor whose webview to listen to.
      */
     private subscribeToMessageEvent(editorId: string): void {
-        this.editorStore.subscribeToMessageEvent(
-            editorId,
-            async (message: Command, id: string) => {
-                this.vsUI.logInfo(`Message received -> ${message.type}`);
-                switch (message.type) {
-                    case "GetBpmnFileCommand":
-                        if (await this.bpmnService.display(id)) {
-                            this.vsUI.logInfo("Bpmn modeler is ready");
-                        }
-                        break;
-                    case "GetElementTemplatesCommand":
-                        this.bpmnService.setElementTemplates(id);
-                        break;
-                    case "GetBpmnModelerSettingCommand":
-                        this.bpmnService.setSettings(id);
-                        this.bpmnService.setLanguage(id);
-                        break;
-                    case "GetPropertiesPanelStateCommand":
-                        this.bpmnService.sendPropertiesPanelState(id);
-                        break;
-                    case "SetPropertiesPanelStateCommand":
-                        this.bpmnService.setPropertiesPanelVisibility(
-                            (message as SetPropertiesPanelStateCommand).visible,
-                        );
-                        break;
-                    case "GetClipboardCommand":
-                        this.bpmnService.readClipboard(id);
-                        break;
-                    case "SetClipboardCommand":
-                        this.bpmnService.writeClipboard(
-                            (message as SetClipboardCommand).text,
-                        );
-                        break;
-                    case "GetTextClipboardCommand":
-                        this.bpmnService.readTextClipboard(id);
-                        break;
-                    case "SetTextClipboardCommand":
-                        this.bpmnService.writeClipboard(
-                            (message as SetTextClipboardCommand).text,
-                        );
-                        break;
-                    case "SyncDocumentCommand":
-                        await this.bpmnService.sync(
-                            id,
-                            (message as SyncDocumentCommand).content,
-                        );
-                        break;
-                    case "NavigateToReferencedModelCommand": {
-                        const cmd = message as NavigateToReferencedModelCommand;
-                        // Defence-in-depth: reject unknown discriminants
-                        // rather than letting them fall through to the
-                        // decision branch by default.
-                        if (
-                            cmd.referenceKind !== "process" &&
-                            cmd.referenceKind !== "decision"
-                        ) {
-                            this.vsUI.logWarning(
-                                `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
-                                    cmd.referenceKind,
-                                )}`,
-                            );
-                            break;
-                        }
-                        const sourceDocument = this.editorStore.getDocumentForEditor(id);
-                        await this.modelNavigationService.navigate(
-                            cmd.referenceId,
-                            cmd.referenceKind,
-                            sourceDocument.uri,
+        this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
+            this.vsUI.logInfo(`Message received -> ${message.type}`);
+            switch (message.type) {
+                case "GetBpmnFileCommand":
+                    if (await this.bpmnService.display(id)) {
+                        this.vsUI.logInfo("Bpmn modeler is ready");
+                    }
+                    break;
+                case "GetElementTemplatesCommand":
+                    this.bpmnService.setElementTemplates(id);
+                    break;
+                case "GetBpmnModelerSettingCommand":
+                    this.bpmnService.setSettings(id);
+                    this.bpmnService.setLanguage(id);
+                    break;
+                case "GetPropertiesPanelStateCommand":
+                    this.bpmnService.sendPropertiesPanelState(id);
+                    break;
+                case "SetPropertiesPanelStateCommand":
+                    this.bpmnService.setPropertiesPanelVisibility(
+                        (message as SetPropertiesPanelStateCommand).visible,
+                    );
+                    break;
+                case "GetClipboardCommand":
+                    this.bpmnService.readClipboard(id);
+                    break;
+                case "SetClipboardCommand":
+                    this.bpmnService.writeClipboard((message as SetClipboardCommand).text);
+                    break;
+                case "GetTextClipboardCommand":
+                    this.bpmnService.readTextClipboard(id);
+                    break;
+                case "SetTextClipboardCommand":
+                    this.bpmnService.writeClipboard((message as SetTextClipboardCommand).text);
+                    break;
+                case "SyncDocumentCommand":
+                    await this.bpmnService.sync(id, (message as SyncDocumentCommand).content);
+                    break;
+                case "NavigateToReferencedModelCommand": {
+                    const cmd = message as NavigateToReferencedModelCommand;
+                    // Defence-in-depth: reject unknown discriminants
+                    // rather than letting them fall through to the
+                    // decision branch by default.
+                    if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
+                        this.vsUI.logWarning(
+                            `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
+                                cmd.referenceKind,
+                            )}`,
                         );
                         break;
                     }
+                    const sourceDocument = this.editorStore.getDocumentForEditor(id);
+                    await this.modelNavigationService.navigate(
+                        cmd.referenceId,
+                        cmd.referenceKind,
+                        sourceDocument.uri,
+                    );
+                    break;
                 }
-                this.vsUI.logInfo(`Message processed -> ${message.type}`);
-            },
-        );
+            }
+            this.vsUI.logInfo(`Message processed -> ${message.type}`);
+        });
     }
 
     /**
@@ -273,19 +257,13 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             if (event.affectsConfiguration("miragon.bpmnModeler.alignToOrigin")) {
                 this.bpmnService.setSettings(id);
             }
-            if (
-                event.affectsConfiguration(
-                    "miragon.bpmnModeler.showTransactionBoundaries",
-                )
-            ) {
+            if (event.affectsConfiguration("miragon.bpmnModeler.showTransactionBoundaries")) {
                 this.bpmnService.setSettings(id);
             }
             if (event.affectsConfiguration("miragon.bpmnModeler.colorTheme")) {
                 this.bpmnService.setSettings(id);
             }
-            if (
-                event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")
-            ) {
+            if (event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")) {
                 this.bpmnService.setSettings(id);
             }
             if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
@@ -304,10 +282,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param editorId Document URI path of the target editor.
      * @param webviewPanel The webview panel to observe.
      */
-    private subscribeToViewStateChangeEvent(
-        editorId: string,
-        webviewPanel: WebviewPanel,
-    ): void {
+    private subscribeToViewStateChangeEvent(editorId: string, webviewPanel: WebviewPanel): void {
         webviewPanel.onDidChangeViewState(() => {
             if (webviewPanel.active) {
                 this.updateEngineVersionStatusBar(editorId);

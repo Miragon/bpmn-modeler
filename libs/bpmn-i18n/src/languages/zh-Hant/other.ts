@@ -71,8 +71,7 @@ const translations: Record<string, string> = {
     "This maps to the task definition key.": "映射為任務定义Key.",
     "Collapsed Pool": "折叠泳道",
     "Expanded Pool": "展開泳道",
-    "flow elements must be children of pools/participants":
-        "流程元素必須是泳池/參與者的子元素",
+    "flow elements must be children of pools/participants": "流程元素必須是泳池/參與者的子元素",
     "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
         "跟進日期可為EL表達式（例如${someDate}或ISO日期（例如2015-06-26T09:54:00）",
     "Message Boundary Event": "消息邊界事件",

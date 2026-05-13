@@ -128,11 +128,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
 
     return (
         <div class="etc-backdrop" onClick={onCancel}>
-            <div
-                class="etc-modal"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={handleKeyDown}
-            >
+            <div class="etc-modal" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
                 {/* Header */}
                 <div class="etc-header">
                     <h2 class="etc-title">Element Templates</h2>
@@ -142,12 +138,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                         aria-label="Close"
                         type="button"
                     >
-                        <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                        >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <path d="M8 8.707l3.646 3.647.708-.708L8.707 8l3.647-3.646-.708-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z" />
                         </svg>
                     </button>
@@ -202,9 +193,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                 key={cat.id}
                                 class={`etc-chip ${activeCategory === cat.id ? "etc-chip--active" : ""}`}
                                 onClick={() =>
-                                    setActiveCategory(
-                                        activeCategory === cat.id ? null : cat.id,
-                                    )
+                                    setActiveCategory(activeCategory === cat.id ? null : cat.id)
                                 }
                                 type="button"
                             >
@@ -221,9 +210,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                             <div class="etc-empty">
                                 <p class="etc-empty-text">No templates found</p>
                                 {search && (
-                                    <p class="etc-empty-hint">
-                                        Try a different search term
-                                    </p>
+                                    <p class="etc-empty-hint">Try a different search term</p>
                                 )}
                             </div>
                         ) : (
@@ -232,12 +219,8 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                     key={t.id}
                                     class={[
                                         "etc-template-card",
-                                        selectedId === t.id
-                                            ? "etc-template-card--selected"
-                                            : "",
-                                        focusIndex === idx
-                                            ? "etc-template-card--focused"
-                                            : "",
+                                        selectedId === t.id ? "etc-template-card--selected" : "",
+                                        focusIndex === idx ? "etc-template-card--focused" : "",
                                     ]
                                         .filter(Boolean)
                                         .join(" ")}
@@ -274,15 +257,12 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                                 );
                                                 return impl ? (
                                                     <span class="etc-card-impl">
-                                                        {impl.label}:
-                                                        <code>{impl.value}</code>
+                                                        {impl.label}:<code>{impl.value}</code>
                                                     </span>
                                                 ) : null;
                                             })()}
                                             {t.description && (
-                                                <span class="etc-card-desc">
-                                                    {t.description}
-                                                </span>
+                                                <span class="etc-card-desc">{t.description}</span>
                                             )}
                                         </div>
                                     </div>

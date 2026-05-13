@@ -24,8 +24,7 @@ const translations: Record<string, string> = {
     "Add Property": "添加屬性",
     "Add Value": "添加值",
     "All": "所有",
-    "Available process variables, identified in the diagram.":
-        "圖中標識的可用流程變量。",
+    "Available process variables, identified in the diagram.": "圖中標識的可用流程變量。",
     "Assignee": "處理人",
     "assignment": "分配",
     "Asynchronous After": "異步后",
@@ -173,8 +172,7 @@ const translations: Record<string, string> = {
     "Source": "來源",
     "Source Expression": "來源表達式",
     "Specify more than one group as a comma separated list.": "若有多個組請用逗號分隔。",
-    "Specify more than one user as a comma separated list.":
-        "若有多個用戶請用逗號分隔。",
+    "Specify more than one user as a comma separated list.": "若有多個用戶請用逗號分隔。",
     "Specify more than one variable change event as a comma separated list.":
         "若有多個變量更改事件請用逗號分隔。",
     "start": "啓動",

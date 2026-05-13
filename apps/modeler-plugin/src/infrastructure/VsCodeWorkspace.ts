@@ -2,11 +2,7 @@ import { posix } from "path";
 
 import { FileType, GlobPattern, Uri, workspace } from "vscode";
 
-import {
-    DirectoryNotFound,
-    FileNotFound,
-    NoWorkspaceFolderFoundError,
-} from "../domain/errors";
+import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 
 const fs = workspace.fs;
 
@@ -125,10 +121,7 @@ export class VsCodeWorkspace {
      *   `null` opts out of every default exclude.
      * @returns An array of absolute file paths.
      */
-    async findFiles(
-        pattern: GlobPattern,
-        exclude?: GlobPattern | null,
-    ): Promise<string[]> {
+    async findFiles(pattern: GlobPattern, exclude?: GlobPattern | null): Promise<string[]> {
         const uris = await workspace.findFiles(pattern, exclude);
         return uris.map((uri) => uri.path);
     }

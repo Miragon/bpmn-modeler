@@ -73,9 +73,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
             }
             case "DeployCommand": {
                 console.debug("[DEBUG] DeployCommand", message);
-                dispatchEvent(
-                    new DeploymentResultQuery(true, "Deployment succeeded (mock)."),
-                );
+                dispatchEvent(new DeploymentResultQuery(true, "Deployment succeeded (mock)."));
                 break;
             }
             case "RequestProcessDefinitionKeyCommand": {
@@ -89,11 +87,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
             case "StartInstanceCommand": {
                 console.debug("[DEBUG] StartInstanceCommand", message);
                 dispatchEvent(
-                    new StartInstanceResultQuery(
-                        true,
-                        "Process instance started (mock).",
-                        "12345",
-                    ),
+                    new StartInstanceResultQuery(true, "Process instance started (mock).", "12345"),
                 );
                 break;
             }
