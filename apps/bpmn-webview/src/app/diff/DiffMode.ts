@@ -170,8 +170,7 @@ export class DiffMode {
             return;
         }
         const next =
-            (this.cursor + direction + this.changeIds.length) %
-            this.changeIds.length;
+            (this.cursor + direction + this.changeIds.length) % this.changeIds.length;
         this.applyCursor(next, true, direction);
     }
 
@@ -185,11 +184,7 @@ export class DiffMode {
      * when invoked from {@link step}; an incoming sync defaults to forward
      * search since the partner already chose the canonical direction.
      */
-    private applyCursor(
-        index: number,
-        emit: boolean,
-        direction: 1 | -1 = 1,
-    ): void {
+    private applyCursor(index: number, emit: boolean, direction: 1 | -1 = 1): void {
         if (this.changeIds.length === 0) {
             return;
         }
@@ -225,7 +220,7 @@ export class DiffMode {
         const len = this.changeIds.length;
         for (let i = 1; i < len; i++) {
             for (const dir of [direction, -direction] as const) {
-                const idx = ((cursor + dir * i) % len + len) % len;
+                const idx = (((cursor + dir * i) % len) + len) % len;
                 const id = this.changeIds[idx];
                 if (this.viewer.hasElement(id)) {
                     return id;

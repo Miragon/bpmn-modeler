@@ -111,10 +111,10 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             let bpmnFile = this.vsDocument.getContent(editorId);
 
             if (bpmnFile === "") {
-                const ep = await this.vsUI.pickExecutionPlatform(
-                    "Select the engine.",
-                    ["Camunda 7", "Camunda 8"],
-                );
+                const ep = await this.vsUI.pickExecutionPlatform("Select the engine.", [
+                    "Camunda 7",
+                    "Camunda 8",
+                ]);
 
                 const latestVersion = getLatestVersion(ep);
                 bpmnFile =
@@ -283,7 +283,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         try {
             const settings = new SettingBuilder()
                 .alignToOrigin(this.vsSettings.getAlignToOrigin())
-                .showTransactionBoundaries(this.vsSettings.getShowTransactionBoundaries())
+                .showTransactionBoundaries(
+                    this.vsSettings.getShowTransactionBoundaries(),
+                )
                 .colorTheme(this.vsSettings.getColorTheme())
                 .favouriteBpmnElements(this.vsSettings.getFavouriteBpmnElements())
                 .buildBpmnModeler();
@@ -531,16 +533,28 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             const summaryParts: string[] = [];
 
             if (c7Version) {
-                const c7Updated = await this.applyVersionUpdate(plan.c7Files, c7Version, "c7");
+                const c7Updated = await this.applyVersionUpdate(
+                    plan.c7Files,
+                    c7Version,
+                    "c7",
+                );
                 if (c7Updated > 0) {
-                    summaryParts.push(`${c7Updated} diagram(s) to Camunda 7 (${c7Version})`);
+                    summaryParts.push(
+                        `${c7Updated} diagram(s) to Camunda 7 (${c7Version})`,
+                    );
                 }
             }
 
             if (c8Version) {
-                const c8Updated = await this.applyVersionUpdate(plan.c8Files, c8Version, "c8");
+                const c8Updated = await this.applyVersionUpdate(
+                    plan.c8Files,
+                    c8Version,
+                    "c8",
+                );
                 if (c8Updated > 0) {
-                    summaryParts.push(`${c8Updated} diagram(s) to Camunda 8 (${c8Version})`);
+                    summaryParts.push(
+                        `${c8Updated} diagram(s) to Camunda 8 (${c8Version})`,
+                    );
                 }
             }
 
@@ -574,7 +588,12 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             try {
                 const platform = detectExecutionPlatform(content);
                 const version = detectExecutionPlatformVersion(content);
-                const entry: BpmnFileEntry = { path: filePath, content, platform, version };
+                const entry: BpmnFileEntry = {
+                    path: filePath,
+                    content,
+                    platform,
+                    version,
+                };
                 if (platform === "c7") {
                     c7Files.push(entry);
                 } else {
@@ -614,17 +633,26 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             let updatedContent: string;
             if (file.version === undefined) {
                 // File has namespace but no version attribute — inject it.
-                const platformName = platform === "c7" ? "Camunda Platform" : "Camunda Cloud";
+                const platformName =
+                    platform === "c7" ? "Camunda Platform" : "Camunda Cloud";
                 const schema =
                     platform === "c7"
                         ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
                         : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
-                updatedContent = addExecutionPlatform(file.content, platformName, targetVersion, schema);
+                updatedContent = addExecutionPlatform(
+                    file.content,
+                    platformName,
+                    targetVersion,
+                    schema,
+                );
                 this.vsUI.logWarning(
                     `Added missing executionPlatform attribute to: ${file.path}`,
                 );
             } else {
-                updatedContent = updateExecutionPlatformVersion(file.content, targetVersion);
+                updatedContent = updateExecutionPlatformVersion(
+                    file.content,
+                    targetVersion,
+                );
             }
 
             const editorId = this.editorStore.findEditorIdByPath(file.path);

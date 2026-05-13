@@ -28,7 +28,9 @@ const pluginDir = resolve(here, "..", "..", "..", "dist", "apps", "modeler-plugi
 
 if (!existsSync(resolve(pluginDir, "package.json"))) {
     console.error(`ERROR: ${pluginDir}/package.json not found.`);
-    console.error("Run `corepack yarn build` at the repo root first to produce the modeler plugin output.");
+    console.error(
+        "Run `corepack yarn build` at the repo root first to produce the modeler plugin output.",
+    );
     process.exit(1);
 }
 

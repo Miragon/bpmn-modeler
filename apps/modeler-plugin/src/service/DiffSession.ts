@@ -89,11 +89,7 @@ export class DiffSession {
         second: DiffPaneEntry,
     ): { session: DiffSession; before: DiffPaneEntry; after: DiffPaneEntry } {
         const { before, after } = resolveScmSides(first, second);
-        const session = new DiffSession(
-            "scm",
-            before.document.uri,
-            after.document.uri,
-        );
+        const session = new DiffSession("scm", before.document.uri, after.document.uri);
         return { session, before, after };
     }
 

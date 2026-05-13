@@ -54,8 +54,12 @@ export class Camunda7RestClient implements CamundaEnginePort {
         const fullUrl = `${baseEndpoint}/deployment/create`;
         const extraHeaders = await this.authResolver.resolve(config.auth);
 
-        const { status, body: responseBody } =
-            await this.httpClient.postMultipart(fullUrl, body, boundary, extraHeaders);
+        const { status, body: responseBody } = await this.httpClient.postMultipart(
+            fullUrl,
+            body,
+            boundary,
+            extraHeaders,
+        );
 
         if (status < 200 || status >= 300) {
             throw new DeploymentFailedError(status, responseBody);
@@ -93,8 +97,11 @@ export class Camunda7RestClient implements CamundaEnginePort {
             variables: config.payload ?? {},
         };
 
-        const { status, body: responseBody } =
-            await this.httpClient.postJson(fullUrl, requestBody, extraHeaders);
+        const { status, body: responseBody } = await this.httpClient.postJson(
+            fullUrl,
+            requestBody,
+            extraHeaders,
+        );
 
         if (status < 200 || status >= 300) {
             throw new StartInstanceFailedError(status, responseBody);

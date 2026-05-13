@@ -55,8 +55,12 @@ export class Camunda8RestClient implements CamundaEnginePort {
         const fullUrl = `${baseEndpoint}/${this.apiVersion}/deployments`;
         const extraHeaders = await this.authResolver.resolve(config.auth);
 
-        const { status, body: responseBody } =
-            await this.httpClient.postMultipart(fullUrl, body, boundary, extraHeaders);
+        const { status, body: responseBody } = await this.httpClient.postMultipart(
+            fullUrl,
+            body,
+            boundary,
+            extraHeaders,
+        );
 
         if (status < 200 || status >= 300) {
             throw new DeploymentFailedError(status, responseBody);
@@ -65,9 +69,10 @@ export class Camunda8RestClient implements CamundaEnginePort {
         let deploymentId: string | undefined;
         try {
             const json = JSON.parse(responseBody);
-            deploymentId = json.deploymentKey !== undefined
-                ? String(json.deploymentKey)
-                : undefined;
+            deploymentId =
+                json.deploymentKey !== undefined
+                    ? String(json.deploymentKey)
+                    : undefined;
         } catch {
             // Response was not valid JSON — deploymentId remains undefined.
         }
@@ -100,8 +105,11 @@ export class Camunda8RestClient implements CamundaEnginePort {
             variables: config.payload ?? {},
         };
 
-        const { status, body: responseBody } =
-            await this.httpClient.postJson(fullUrl, requestBody, extraHeaders);
+        const { status, body: responseBody } = await this.httpClient.postJson(
+            fullUrl,
+            requestBody,
+            extraHeaders,
+        );
 
         if (status < 200 || status >= 300) {
             throw new StartInstanceFailedError(status, responseBody);
@@ -110,9 +118,10 @@ export class Camunda8RestClient implements CamundaEnginePort {
         let processInstanceId: string | undefined;
         try {
             const json = JSON.parse(responseBody);
-            processInstanceId = json.processInstanceKey !== undefined
-                ? String(json.processInstanceKey)
-                : undefined;
+            processInstanceId =
+                json.processInstanceKey !== undefined
+                    ? String(json.processInstanceKey)
+                    : undefined;
         } catch {
             // Response was not valid JSON — processInstanceId remains undefined.
         }

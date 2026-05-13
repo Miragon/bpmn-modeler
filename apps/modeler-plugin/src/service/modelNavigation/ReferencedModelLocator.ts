@@ -143,10 +143,13 @@ export class ReferencedModelLocator {
                                     Array<[string, "file" | "directory"]>,
                                 ],
                         )
-                        .catch(() => [dir, []] as [
-                            string,
-                            Array<[string, "file" | "directory"]>,
-                        ]),
+                        .catch(
+                            () =>
+                                [dir, []] as [
+                                    string,
+                                    Array<[string, "file" | "directory"]>,
+                                ],
+                        ),
                 ),
             );
             const nextLevel: string[] = [];
@@ -209,9 +212,7 @@ export class ReferencedModelLocator {
                 }
             }),
         );
-        const matches = results.filter(
-            (path): path is string => path !== undefined,
-        );
+        const matches = results.filter((path): path is string => path !== undefined);
 
         this.vsUI.logInfo(
             `[nav] candidates=${paths.length} matches=${matches.length} readFailures=${failures.length} reads-took=${Date.now() - startedAt}ms`,
@@ -234,10 +235,7 @@ export class ReferencedModelLocator {
      * 50-100× slower than this regex, which matters across a 100-file
      * workspace.
      */
-    private buildIdPattern(
-        referenceId: string,
-        kind: "process" | "decision",
-    ): RegExp {
+    private buildIdPattern(referenceId: string, kind: "process" | "decision"): RegExp {
         const tag = kind === "process" ? "process" : "decision";
         return new RegExp(
             `<(?:[\\w-]+:)?${tag}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegex(referenceId)}["']`,
@@ -268,11 +266,7 @@ export class ReferencedModelLocator {
         );
         let match;
         while ((match = global.exec(xml)) !== null) {
-            if (
-                !excluded.some(
-                    ([s, e]) => match!.index >= s && match!.index < e,
-                )
-            ) {
+            if (!excluded.some(([s, e]) => match!.index >= s && match!.index < e)) {
                 return true;
             }
         }

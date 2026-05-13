@@ -84,7 +84,10 @@ export class DmnModelerService {
             if (error instanceof UserCancelledError) {
                 return false;
             }
-            if (error instanceof Error && error.message === "The active editor is hidden.") {
+            if (
+                error instanceof Error &&
+                error.message === "The active editor is hidden."
+            ) {
                 return false;
             }
             return this.handleError(error as Error);

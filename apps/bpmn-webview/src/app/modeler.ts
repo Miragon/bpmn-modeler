@@ -130,7 +130,10 @@ export class BpmnModeler {
 
         // Apply default favourites immediately after creation.
         if (this.settings.favouriteBpmnElements) {
-            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
+            const appendMenuOverride = this.getModeler().get<any>(
+                "appendMenuOverride",
+                false,
+            );
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
             }
@@ -272,7 +275,10 @@ export class BpmnModeler {
 
         // Apply favourite BPMN elements to the append menu.
         if (settings.favouriteBpmnElements !== undefined) {
-            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
+            const appendMenuOverride = this.getModeler().get<any>(
+                "appendMenuOverride",
+                false,
+            );
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
             }

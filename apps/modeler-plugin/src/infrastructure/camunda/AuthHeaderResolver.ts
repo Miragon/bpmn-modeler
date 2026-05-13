@@ -75,24 +75,18 @@ export class AuthHeaderResolver {
         }
 
         if (response.status < 200 || response.status >= 300) {
-            throw new TokenFetchError(
-                `HTTP ${response.status}: ${response.body}`,
-            );
+            throw new TokenFetchError(`HTTP ${response.status}: ${response.body}`);
         }
 
         let json: Record<string, unknown>;
         try {
             json = JSON.parse(response.body);
         } catch {
-            throw new TokenFetchError(
-                `Invalid JSON response: ${response.body}`,
-            );
+            throw new TokenFetchError(`Invalid JSON response: ${response.body}`);
         }
 
         if (typeof json.access_token !== "string") {
-            throw new TokenFetchError(
-                "Response does not contain an access_token.",
-            );
+            throw new TokenFetchError("Response does not contain an access_token.");
         }
 
         return json.access_token;

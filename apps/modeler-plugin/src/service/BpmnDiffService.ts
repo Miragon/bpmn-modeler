@@ -24,7 +24,16 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { commands, ConfigurationChangeEvent, Disposable, TextDocument, Uri, WebviewPanel, window, workspace } from "vscode";
+import {
+    commands,
+    ConfigurationChangeEvent,
+    Disposable,
+    TextDocument,
+    Uri,
+    WebviewPanel,
+    window,
+    workspace,
+} from "vscode";
 
 import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
@@ -180,13 +189,9 @@ export class BpmnDiffService {
         this.registerCompareFilesSession(leftUri, rightUri);
         const title = `${basenameOfUri(leftUri)} ↔ ${basenameOfUri(rightUri)}`;
         try {
-            await commands.executeCommand(
-                "vscode.diff",
-                leftUri,
-                rightUri,
-                title,
-                { preview: false },
-            );
+            await commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
+                preview: false,
+            });
         } catch (error) {
             this.vsUI.logError(error as Error);
             this.vsUI.showError(
@@ -257,10 +262,7 @@ export class BpmnDiffService {
                 if (tab.input !== undefined) {
                     continue;
                 }
-                if (
-                    tab.label.startsWith(`${basename} (`) ||
-                    tab.label.includes(` ↔ `)
-                ) {
+                if (tab.label.startsWith(`${basename} (`) || tab.label.includes(` ↔ `)) {
                     return true;
                 }
             }
@@ -349,10 +351,7 @@ export class BpmnDiffService {
         }
 
         this.pendingScm.delete(key);
-        const { session, before, after } = DiffSession.forScm(
-            pending.entry,
-            entry,
-        );
+        const { session, before, after } = DiffSession.forScm(pending.entry, entry);
         session.attachPane(before);
         session.attachPane(after);
         this.indexSession(session);
@@ -428,10 +427,7 @@ export class BpmnDiffService {
         }
     }
 
-    private async onMessage(
-        entry: DiffPaneEntry,
-        message: Command,
-    ): Promise<void> {
+    private async onMessage(entry: DiffPaneEntry, message: Command): Promise<void> {
         switch (message.type) {
             case "GetBpmnFileCommand":
                 await this.sendViewerFile(entry);
@@ -446,10 +442,7 @@ export class BpmnDiffService {
                 );
                 break;
             case "CursorChangedCommand":
-                await this.forwardCursor(
-                    entry,
-                    (message as CursorChangedCommand).index,
-                );
+                await this.forwardCursor(entry, (message as CursorChangedCommand).index);
                 break;
             case "SwapCompareSidesCommand":
                 await this.swapCompareFilesSides(entry);
@@ -533,9 +526,7 @@ export class BpmnDiffService {
                 new LanguageQuery(this.vsSettings.getLanguage()),
             );
         } catch (error) {
-            this.vsUI.logInfo(
-                `setLanguage dropped: ${(error as Error).message}`,
-            );
+            this.vsUI.logInfo(`setLanguage dropped: ${(error as Error).message}`);
         }
     }
 
@@ -570,13 +561,9 @@ export class BpmnDiffService {
             return;
         }
         try {
-            await partner.panel.webview.postMessage(
-                new SyncViewportQuery(viewport),
-            );
+            await partner.panel.webview.postMessage(new SyncViewportQuery(viewport));
         } catch (error) {
-            this.vsUI.logInfo(
-                `syncViewport dropped: ${(error as Error).message}`,
-            );
+            this.vsUI.logInfo(`syncViewport dropped: ${(error as Error).message}`);
         }
     }
 
@@ -585,10 +572,7 @@ export class BpmnDiffService {
      * navigation stays in lockstep.  Mirrors {@link forwardViewport} — same
      * partner lookup, same drop-silently-on-failure semantics.
      */
-    private async forwardCursor(
-        entry: DiffPaneEntry,
-        index: number,
-    ): Promise<void> {
+    private async forwardCursor(entry: DiffPaneEntry, index: number): Promise<void> {
         const partner = this.partnerOf(entry);
         if (!partner) {
             return;
@@ -596,9 +580,7 @@ export class BpmnDiffService {
         try {
             await partner.panel.webview.postMessage(new SyncCursorQuery(index));
         } catch (error) {
-            this.vsUI.logInfo(
-                `syncCursor dropped: ${(error as Error).message}`,
-            );
+            this.vsUI.logInfo(`syncCursor dropped: ${(error as Error).message}`);
         }
     }
 

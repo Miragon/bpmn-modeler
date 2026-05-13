@@ -1,7 +1,35 @@
 # Add files here to ignore them from prettier formatting
 
-/dist
-/coverage
+# Build output and caches
+**/dist
+**/lib
+**/build
+**/out
+**/coverage
+**/.nx/cache
+**/.nx/workspace-data
+**/.theia
+**/.browser_modules
 
-/.nx/cache
-/.nx/workspace-data
+# Generated code
+**/src-gen
+**/gen-webpack*.js
+
+# Theia plugin downloads (apps/standalone)
+apps/standalone/plugins
+apps/standalone/configs/builtins.json
+
+# Docs site (handled by its own workspace if needed)
+docs
+
+# Vendored / third-party formats Prettier shouldn't touch
+*.bpmn
+*.dmn
+*.svg
+*.lock
+yarn.lock
+pnpm-lock.yaml
+package-lock.json
+
+# Auto-generated changelogs
+**/CHANGELOG.md

@@ -6,7 +6,11 @@
  * a collapsible BPMN element palette on the right.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
-import type { EnrichedTemplateEntry, BpmnElementGroup, PopupMenuEntryAction } from "../types";
+import type {
+    EnrichedTemplateEntry,
+    BpmnElementGroup,
+    PopupMenuEntryAction,
+} from "../types";
 import { TemplatePanel } from "./TemplatePanel";
 import { BpmnElementPalette } from "./BpmnElementPalette";
 
@@ -79,14 +83,17 @@ export function AppendMenuOverlay({
 
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
-    const [selectedTemplate, setSelectedTemplate] = useState<EnrichedTemplateEntry | null>(null);
+    const [selectedTemplate, setSelectedTemplate] =
+        useState<EnrichedTemplateEntry | null>(null);
     // When the workspace has no element templates, default to the expanded
     // palette so users see the full BPMN element list instead of an awkward
     // icon-only column next to an empty template panel.
     const [paletteExpanded, setPaletteExpanded] = useState(!hasTemplates);
     const searchRef = useRef<HTMLInputElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
-    const [panelStyle, setPanelStyle] = useState<{ left: number; top: number } | null>(null);
+    const [panelStyle, setPanelStyle] = useState<{ left: number; top: number } | null>(
+        null,
+    );
 
     // The set of BPMN types the selected multi-type template applies to.
     const appliesToFilter = useMemo<Set<string> | null>(() => {
@@ -160,35 +167,43 @@ export function AppendMenuOverlay({
     return (
         <div class="am-click-away" onClick={onCancel}>
             <div
-              ref={panelRef}
-              class={`am-panel ${hasTemplates ? "" : "am-panel--palette-only"}`}
-              style={panelStyle
-                    ? { left: `${panelStyle.left}px`, top: `${panelStyle.top}px` }
-                    : { left: `${position.x}px`, top: `${position.y}px` }}
-              onClick={(e) => e.stopPropagation()}
+                ref={panelRef}
+                class={`am-panel ${hasTemplates ? "" : "am-panel--palette-only"}`}
+                style={
+                    panelStyle
+                        ? { left: `${panelStyle.left}px`, top: `${panelStyle.top}px` }
+                        : { left: `${position.x}px`, top: `${position.y}px` }
+                }
+                onClick={(e) => e.stopPropagation()}
             >
                 {/* Search bar */}
                 <div class="am-search-wrapper">
-                    <svg class="am-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <svg
+                        class="am-search-icon"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                    >
                         <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" />
                     </svg>
                     <input
-                      ref={searchRef}
-                      class="am-search-input"
-                      type="text"
-                      placeholder="Search..."
-                      value={search}
-                      onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+                        ref={searchRef}
+                        class="am-search-input"
+                        type="text"
+                        placeholder="Search..."
+                        value={search}
+                        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                     />
                     {search && (
                         <button
-                          class="am-search-clear"
-                          onClick={() => {
+                            class="am-search-clear"
+                            onClick={() => {
                                 setSearch("");
                                 searchRef.current?.focus();
                             }}
-                          type="button"
-                          aria-label="Clear search"
+                            type="button"
+                            aria-label="Clear search"
                         >
                             ×
                         </button>
@@ -199,22 +214,22 @@ export function AppendMenuOverlay({
                 <div class="am-body">
                     {hasTemplates && (
                         <TemplatePanel
-                          entries={templateEntries}
-                          search={search}
-                          activeCategory={activeCategory}
-                          selectedTemplateId={selectedTemplate?.id ?? null}
-                          onCategoryChange={setActiveCategory}
-                          onTemplateClick={handleTemplateClick}
+                            entries={templateEntries}
+                            search={search}
+                            activeCategory={activeCategory}
+                            selectedTemplateId={selectedTemplate?.id ?? null}
+                            onCategoryChange={setActiveCategory}
+                            onTemplateClick={handleTemplateClick}
                         />
                     )}
                     <BpmnElementPalette
-                      groups={bpmnGroups}
-                      favourites={favourites}
-                      search={search}
-                      appliesToFilter={appliesToFilter}
-                      expanded={paletteExpanded}
-                      onToggleExpand={() => setPaletteExpanded((prev) => !prev)}
-                      onSelect={handleBpmnSelect}
+                        groups={bpmnGroups}
+                        favourites={favourites}
+                        search={search}
+                        appliesToFilter={appliesToFilter}
+                        expanded={paletteExpanded}
+                        onToggleExpand={() => setPaletteExpanded((prev) => !prev)}
+                        onSelect={handleBpmnSelect}
                     />
                 </div>
             </div>

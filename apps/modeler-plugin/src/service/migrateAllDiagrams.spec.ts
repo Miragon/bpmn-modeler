@@ -124,7 +124,9 @@ describe("migrateAllDiagrams", () => {
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
-        expect(vsUI.showInfo).toHaveBeenCalledWith("No BPMN files found in the workspace.");
+        expect(vsUI.showInfo).toHaveBeenCalledWith(
+            "No BPMN files found in the workspace.",
+        );
     });
 
     it("should show info and return false when no engine is detectable", async () => {
@@ -256,7 +258,10 @@ describe("migrateAllDiagrams", () => {
 
         await service.migrateAllDiagrams();
 
-        expect(vsDocument.write).toHaveBeenCalledWith("editor-1", expect.stringContaining("8.8.0"));
+        expect(vsDocument.write).toHaveBeenCalledWith(
+            "editor-1",
+            expect.stringContaining("8.8.0"),
+        );
         expect(vsWorkspace.writeFile).not.toHaveBeenCalled();
     });
 
@@ -270,8 +275,8 @@ describe("migrateAllDiagrams", () => {
 
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
         const writtenContent = vsWorkspace.writeFile.mock.calls[0][1] as string;
-        expect(writtenContent).toContain("modeler:executionPlatformVersion=\"8.8.0\"");
-        expect(writtenContent).toContain("modeler:executionPlatform=\"Camunda Cloud\"");
+        expect(writtenContent).toContain('modeler:executionPlatformVersion="8.8.0"');
+        expect(writtenContent).toContain('modeler:executionPlatform="Camunda Cloud"');
         expect(vsUI.logWarning).toHaveBeenCalledWith(
             expect.stringContaining("Added missing executionPlatform attribute"),
         );

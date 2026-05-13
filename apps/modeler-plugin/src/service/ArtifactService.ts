@@ -92,7 +92,12 @@ export class ArtifactService {
         workspaceRoot: string,
         configFolder: string,
     ): Promise<string[]> {
-        return this.collectSubDirs(documentDir, workspaceRoot, configFolder, "element-templates");
+        return this.collectSubDirs(
+            documentDir,
+            workspaceRoot,
+            configFolder,
+            "element-templates",
+        );
     }
 
     /**

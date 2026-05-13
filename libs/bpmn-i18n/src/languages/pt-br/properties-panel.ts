@@ -141,8 +141,10 @@ const translations: Record<string, string> = {
     "Must match pattern {pattern}": "Deve ser match com padrão {pattern}",
     "Must not be empty": "Não pode ser vazio",
     "Must provide a value": "É necessário fornecer um valor",
-    "Must provide a value for timeout task listener": "É necessário fornecer um valor de timeout para o listener de atividade",
-    "Must provide either loop cardinality or collection": "É necessário fornecer a cardinalidade do loop ou coleção",
+    "Must provide a value for timeout task listener":
+        "É necessário fornecer um valor de timeout para o listener de atividade",
+    "Must provide either loop cardinality or collection":
+        "É necessário fornecer a cardinalidade do loop ou coleção",
     "Name": "Nome",
     "Name must not contain spaces": "Nome não deve conter espaços",
     "Out Mapping": "Mapeamento de Saída",
@@ -165,9 +167,12 @@ const translations: Record<string, string> = {
     "Signal Name": "Nome do Sinal",
     "Source": "Origem",
     "Source Expression": "Expressão da Origem",
-    "Specify more than one group as a comma separated list.": "Especifique mais de um grupo numa lista separada por vírgulas.",
-    "Specify more than one user as a comma separated list.": "Especifique mais de um usuário numa lista separada por vírgulas.",
-    "Specify more than one variable change event as a comma separated list.": "Especifique mais de um evento de mudança de variável numa lista separada por vírgulas.",
+    "Specify more than one group as a comma separated list.":
+        "Especifique mais de um grupo numa lista separada por vírgulas.",
+    "Specify more than one user as a comma separated list.":
+        "Especifique mais de um usuário numa lista separada por vírgulas.",
+    "Specify more than one variable change event as a comma separated list.":
+        "Especifique mais de um evento de mudança de variável numa lista separada por vírgulas.",
     "start": "início",
     "Startable": "Iniciável",
     "String": "String",
@@ -179,7 +184,8 @@ const translations: Record<string, string> = {
     "Task Priority": "Prioridade da Atividade",
     "Tenant Id": "Id do Tenant",
     "Text": "Texto",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "A data de vencimento é uma expressão EL (por exemplo: ${someDate} ou uma data ISO (por exemplo: 2015-06-26T09:54:00)",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "A data de vencimento é uma expressão EL (por exemplo: ${someDate} ou uma data ISO (por exemplo: 2015-06-26T09:54:00)",
     "timeout": "tempo de expiração",
     "Timer Definition": "Definição de Tempo",
     "Timer Definition Type": "Tipo de Definição de Tempo",
@@ -252,7 +258,8 @@ const translations: Record<string, string> = {
     "Inline script": "Script Inline",
     "Format": "Formato",
     "External resource": "Recurso Externo",
-    "Start typing \"${}\" to create an expression.": "Comece a digitar \"${}\" para criar uma expressão.",
+    'Start typing "${}" to create an expression.':
+        'Comece a digitar "${}" para criar uma expressão.',
     "Created in": "Criado em",
     "Process variable name": "Nome da Variável do Processo",
     "Embedded or External Task Forms": "Formulários de Tarefa Incorporados ou Externos",

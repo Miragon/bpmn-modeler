@@ -104,21 +104,15 @@ export class DiffViewer {
      */
     onViewportChanged(cb: (viewport: Viewport) => void): void {
         let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-        this.viewer.get<any>("eventBus").on(
-            "canvas.viewbox.changed",
-            (event: any) => {
-                if (this.suppressNextChangeEvent) {
-                    this.suppressNextChangeEvent = false;
-                    return;
-                }
-                const { x, y, width, height } = event.viewbox;
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(
-                    () => cb({ x, y, width, height }),
-                    80,
-                );
-            },
-        );
+        this.viewer.get<any>("eventBus").on("canvas.viewbox.changed", (event: any) => {
+            if (this.suppressNextChangeEvent) {
+                this.suppressNextChangeEvent = false;
+                return;
+            }
+            const { x, y, width, height } = event.viewbox;
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => cb({ x, y, width, height }), 80);
+        });
     }
 
     /**
@@ -221,15 +215,13 @@ export class DiffViewer {
  * Returns the geometric centre of a bpmn-js element, or `undefined` when the
  * element has neither shape bounds nor waypoints to derive a position from.
  */
-function centreOf(
-    element: {
-        x?: number;
-        y?: number;
-        width?: number;
-        height?: number;
-        waypoints?: ReadonlyArray<{ x: number; y: number }>;
-    },
-): { x: number; y: number } | undefined {
+function centreOf(element: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    waypoints?: ReadonlyArray<{ x: number; y: number }>;
+}): { x: number; y: number } | undefined {
     if (typeof element.x === "number" && typeof element.y === "number") {
         return {
             x: element.x + (element.width ?? 0) / 2,

@@ -19,11 +19,13 @@
  */
 const translations: Record<string, string> = {
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ref nicht angegeben",
-    "Activate create/remove space tool": "Werkzeug zum Erstellen/Entfernen von Platz aktivieren",
+    "Activate create/remove space tool":
+        "Werkzeug zum Erstellen/Entfernen von Platz aktivieren",
     "Activate global connect tool": "Globales Verbindungswerkzeug aktivieren",
     "Activate hand tool": "Handwerkzeug aktivieren",
     "Activate lasso tool": "Lassowerkzeug aktivieren",
-    "Activate the create/remove space tool": "Space-hinzufügen/entfernen-Tool aktivieren",
+    "Activate the create/remove space tool":
+        "Space-hinzufügen/entfernen-Tool aktivieren",
     "Activate the global connect tool": "Globales Verbindungstool aktivieren",
     "Activate the hand tool": "Hand-Tool aktivieren",
     "Activate the lasso tool": "Lasso-Tool aktivieren",
@@ -37,15 +39,18 @@ const translations: Record<string, string> = {
     "already rendered {element}": "{element} wurde bereits gerendert",
     "Append {type}": "{type} anfügen",
     "Append compensation activity": "Kompensationsaktivität anfügen",
-    "Append conditional intermediate catch event": "Bedingungs-Zwischenereignis (eintretend) anfügen",
-    "Append ConditionIntermediateCatchEvent": "Bedingungs-Zwischenereignis (eintretend) anfügen",
+    "Append conditional intermediate catch event":
+        "Bedingungs-Zwischenereignis (eintretend) anfügen",
+    "Append ConditionIntermediateCatchEvent":
+        "Bedingungs-Zwischenereignis (eintretend) anfügen",
     "Append end event": "Endereignis anfügen",
     "Append EndEvent": "Endereignis anfügen",
     "Append gateway": "Gateway anfügen",
     "Append Gateway": "Gateway anfügen",
     "Append Intermediate/Boundary Event": "Zwischen-/Grenzereignis anfügen",
     "Append intermediate/boundary event": "Zwischen-/Grenzereignis anfügen",
-    "Append message intermediate catch event": "Nachrichtenerignis (eingetreten) anfügen",
+    "Append message intermediate catch event":
+        "Nachrichtenerignis (eingetreten) anfügen",
     "Append MessageIntermediateCatchEvent": "Nachrichtenerignis (eingetreten) anfügen",
     "Append receive task": "Empfangsaufgabe anfügen",
     "Append ReceiveTask": "Empfangsaufgabe anfügen",
@@ -64,22 +69,27 @@ const translations: Record<string, string> = {
     "Collection": "Sammlung",
     "Compensation boundary event": "Kompensations-Grenzereignis",
     "Compensation end event": "Kompensations-Endereignis",
-    "Compensation intermediate throw event": "Kompensations-Zwischenereignis (auslösend)",
+    "Compensation intermediate throw event":
+        "Kompensations-Zwischenereignis (auslösend)",
     "Compensation start event": "Kompensations-Startereignis",
     "Complex gateway": "Komplexes Gateway",
-    "Conditional boundary event (non-interrupting)": "Bedingungserignis-Grenzereignis (nicht unterbrechend)",
+    "Conditional boundary event (non-interrupting)":
+        "Bedingungserignis-Grenzereignis (nicht unterbrechend)",
     "Conditional boundary event": "Bedingungserignis-Grenzereignis",
     "Conditional flow": "Bedingter Fluss",
     "Conditional intermediate catch event": "Bedingungs-Zwischenereignis (fangend)",
-    "Conditional start event (non-interrupting)": "Bedingungs-Startereignis (nicht unterbrechend)",
+    "Conditional start event (non-interrupting)":
+        "Bedingungs-Startereignis (nicht unterbrechend)",
     "Conditional start event": "Bedingungs-Startereignis",
     "Connect to other element": "Mit anderem Element verbinden",
     "Connect using association": "Mit Assoziation verbinden",
     "Connect using Association": "Mit Assoziation verbinden",
     "Connect using data input association": "Verbindung über Dateneingabe-Assoziation",
     "Connect using DataInputAssociation": "Verbindung über Dateneingabe-Assoziation",
-    "Connect using Sequence/MessageFlow or Association": "Mit Sequenzfluss/Nachrichtenfluss oder Assoziation verbinden",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "Korrigiere fehlendes bpmnElement auf {plane} zu {rootElement}",
+    "Connect using Sequence/MessageFlow or Association":
+        "Mit Sequenzfluss/Nachrichtenfluss oder Assoziation verbinden",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "Korrigiere fehlendes bpmnElement auf {plane} zu {rootElement}",
     "Create {type}": "{type} erzeugen",
     "Create data object reference": "Datenobjekt-Referenz erstellen",
     "Create data store reference": "Datenspeicher-Referenz erstellen",
@@ -105,24 +115,28 @@ const translations: Record<string, string> = {
     "Data store reference": "Datenspeicher",
     "Default flow": "Standardfluss",
     "Delete": "Löschen",
-    "diagram not part of bpmn:Definitions": "Das Diagramm ist nicht Teil von bpmn:Definitions",
+    "diagram not part of bpmn:Definitions":
+        "Das Diagramm ist nicht Teil von bpmn:Definitions",
     "Distribute elements horizontally": "Elemente horizontal verteilen",
     "Distribute elements vertically": "Elemente vertikal verteilen",
     "Divide into three Lanes": "In drei Lanes aufteilen",
     "Divide into three lanes": "In drei Lanes aufteilen",
     "Divide into two Lanes": "In zwei Lanes aufteilen",
     "Divide into two lanes": "In zwei Lanes aufteilen",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "Element {element}, referenziert durch {referenced}#{property}, wurde noch nicht gezeichnet",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "Element {element}, referenziert durch {referenced}#{property}, wurde noch nicht gezeichnet",
     "element required": "Element benötigt",
     "End event": "Endereignis",
     "Error boundary event": "Fehlerereignis-Grenzereignis",
     "Error end event": "Fehlerereignis-Endereignis",
     "Error start event": "Fehlerereignis-Startereignis",
-    "Escalation boundary event (non-interrupting)": "Eskalations-Grenzereignis (nicht unterbrechend)",
+    "Escalation boundary event (non-interrupting)":
+        "Eskalations-Grenzereignis (nicht unterbrechend)",
     "Escalation boundary event": "Eskalations-Grenzereignis",
     "Escalation end event": "Eskalations-Endereignis",
     "Escalation intermediate throw event": "Eskalations-Zwischenereignis (auslösend)",
-    "Escalation start event (non-interrupting)": "Eskalations-Startereignis (nicht unterbrechend)",
+    "Escalation start event (non-interrupting)":
+        "Eskalations-Startereignis (nicht unterbrechend)",
     "Escalation start event": "Eskalations-Startereignis",
     "Event based instantiating Gateway": "Ereignisbasiertes instanziierendes Gateway",
     "Event sub-process": "Ereignis-Teilprozess",
@@ -137,23 +151,30 @@ const translations: Record<string, string> = {
     "Link intermediate throw event": "Linkereignis (auslösend)",
     "Loop": "Schleife",
     "Manual task": "Manuelle Aufgabe",
-    "Message boundary event (non-interrupting)": "Nachrichten-Grenzereignis (nicht-unterbrechend)",
+    "Message boundary event (non-interrupting)":
+        "Nachrichten-Grenzereignis (nicht-unterbrechend)",
     "Message boundary event": "Nachrichten-Grenzereignis",
     "Message end event": "Nachrichten-Endereignis",
     "Message intermediate catch event": "Nachrichten-Zwischenereignis (empfangend)",
     "Message intermediate throw event": "Nachrichten-Zwischenereignis (auslösend)",
-    "Message start event (non-interrupting)": "Nachrichtenstartereignis (nicht unterbrechend)",
+    "Message start event (non-interrupting)":
+        "Nachrichtenstartereignis (nicht unterbrechend)",
     "Message start event": "Nachrichtenstartereignis",
     "missing {semantic}#attachedToRef": "{semantic}#attachedToRef fehlt",
     "more than {count} child lanes": "mehr als {count} Kind-Lanes",
-    "multiple DI elements defined for {element}": "Mehrere DI-Elemente für {element} definiert",
-    "no bpmnElement referenced in {element}": "Kein bpmnElement in {element} referenziert",
+    "multiple DI elements defined for {element}":
+        "Mehrere DI-Elemente für {element} definiert",
+    "no bpmnElement referenced in {element}":
+        "Kein bpmnElement in {element} referenziert",
     "no diagram to display": "Kein Diagramm zum Anzeigen",
-    "no parent for {element} in {parent}": "Kein Elternelement für {element} in {parent}",
-    "no process or collaboration to display": "Kein Prozess oder Kollaboration zum Anzeigen",
+    "no parent for {element} in {parent}":
+        "Kein Elternelement für {element} in {parent}",
+    "no process or collaboration to display":
+        "Kein Prozess oder Kollaboration zum Anzeigen",
     "no shape type specified": "Kein Formtyp angegeben",
     "out of bounds release": "Außerhalb der Grenzen losgelassen",
-    "Parallel Event based instantiating Gateway": "Paralleles ereignisbasiertes instanziierendes Gateway",
+    "Parallel Event based instantiating Gateway":
+        "Paralleles ereignisbasiertes instanziierendes Gateway",
     "Parallel gateway": "Paralleles Gateway (AND)",
     "Parallel Multi Instance": "Mehrfache Instanz",
     "Parallel multi-instance": "Mehrfache Instanz",
@@ -166,12 +187,14 @@ const translations: Record<string, string> = {
     "Sequential Multi Instance": "Sequenzielle Mehrfachinstanz",
     "Sequential multi-instance": "Sequenzielle Mehrfachinstanz",
     "Service task": "Serviceaufgabe",
-    "Signal boundary event (non-interrupting)": "Signal-Grenzereignis (nicht unterbrechend)",
+    "Signal boundary event (non-interrupting)":
+        "Signal-Grenzereignis (nicht unterbrechend)",
     "Signal boundary event": "Signal-Grenzereignis",
     "Signal end event": "Signal-Endereignis",
     "Signal intermediate catch event": "Signal-Zwischenereignis (empfangend)",
     "Signal intermediate throw event": "Signal-Zwischenereignis (auslösend)",
-    "Signal start event (non-interrupting)": "Signal-Startereignis (nicht unterbrechend)",
+    "Signal start event (non-interrupting)":
+        "Signal-Startereignis (nicht unterbrechend)",
     "Signal start event": "Signal-Startereignis",
     "Start event": "Startereignis",
     "Sub-process (collapsed)": "Zugeklappter Teilprozess",
@@ -186,9 +209,12 @@ const translations: Record<string, string> = {
     "Timer start event": "Zeitstartereignis",
     "Toggle non-interrupting": "Auf nicht-unterbrechend umschalten",
     "Transaction": "Transaktion",
-    "unknown di {di} for element {semantic}": "Unbekannter DI {di} für Element {semantic}",
-    "unrecognized flowElement {element} in context {context}": "FlowElement {element} im Context {context} nicht erkannt",
-    "unsupported bpmnElement for {plane}: {rootElement}": "Nicht unterstütztes bpmnElement für {plane}: {rootElement}",
+    "unknown di {di} for element {semantic}":
+        "Unbekannter DI {di} für Element {semantic}",
+    "unrecognized flowElement {element} in context {context}":
+        "FlowElement {element} im Context {context} nicht erkannt",
+    "unsupported bpmnElement for {plane}: {rootElement}":
+        "Nicht unterstütztes bpmnElement für {plane}: {rootElement}",
     "User task": "Benutzer-Aufgabe",
 };
 

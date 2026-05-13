@@ -15,11 +15,9 @@ function createController() {
     let capturedCallback: MessageCallback | undefined;
 
     const editorStore = {
-        subscribeToMessageEvent: vi.fn(
-            (_editorId: string, cb: MessageCallback) => {
-                capturedCallback = cb;
-            },
-        ),
+        subscribeToMessageEvent: vi.fn((_editorId: string, cb: MessageCallback) => {
+            capturedCallback = cb;
+        }),
         getDocumentForEditor: vi.fn(),
     };
 
@@ -46,9 +44,11 @@ function createController() {
     // `subscribeToMessageEvent` is private — invoke it via bracket access so
     // the test exercises the real switch without driving the heavy
     // `resolveCustomTextEditor` flow (which would require artifactSvc etc.).
-    (controller as unknown as {
-        subscribeToMessageEvent(editorId: string): void;
-    }).subscribeToMessageEvent("file:///src/a.bpmn");
+    (
+        controller as unknown as {
+            subscribeToMessageEvent(editorId: string): void;
+        }
+    ).subscribeToMessageEvent("file:///src/a.bpmn");
 
     if (!capturedCallback) {
         throw new Error("subscribeToMessageEvent did not register a callback");
@@ -68,7 +68,11 @@ beforeEach(() => {
 describe("BpmnEditorController — NavigateToReferencedModelCommand dispatch", () => {
     it("forwards a process-kind command to the service with the editor's document URI", async () => {
         const { callback, editorStore, modelNavigationService } = createController();
-        const documentUri = { scheme: "file", path: "/src/a.bpmn", fsPath: "/src/a.bpmn" };
+        const documentUri = {
+            scheme: "file",
+            path: "/src/a.bpmn",
+            fsPath: "/src/a.bpmn",
+        };
         editorStore.getDocumentForEditor.mockReturnValue({ uri: documentUri });
 
         const cmd = new NavigateToReferencedModelCommand("ProcessB", "process");
@@ -86,7 +90,11 @@ describe("BpmnEditorController — NavigateToReferencedModelCommand dispatch", (
 
     it("forwards a decision-kind command unchanged", async () => {
         const { callback, editorStore, modelNavigationService } = createController();
-        const documentUri = { scheme: "file", path: "/src/a.bpmn", fsPath: "/src/a.bpmn" };
+        const documentUri = {
+            scheme: "file",
+            path: "/src/a.bpmn",
+            fsPath: "/src/a.bpmn",
+        };
         editorStore.getDocumentForEditor.mockReturnValue({ uri: documentUri });
 
         await callback(

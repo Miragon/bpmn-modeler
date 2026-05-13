@@ -71,8 +71,10 @@ const translations: Record<string, string> = {
     "This maps to the task definition key.": "映射为任务定义Key.",
     "Collapsed Pool": "折叠泳道",
     "Expanded Pool": "展开泳道",
-    "flow elements must be children of pools/participants": "流程元素必须是泳池/参与者的子元素",
-    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "跟进日期可为EL表达式（例如${someDate}或ISO日期（例如2015-06-26T09:54:00）",
+    "flow elements must be children of pools/participants":
+        "流程元素必须是泳池/参与者的子元素",
+    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "跟进日期可为EL表达式（例如${someDate}或ISO日期（例如2015-06-26T09:54:00）",
     "Message Boundary Event": "消息边界事件",
     "Timer Boundary Event": "时间边界事件",
     "Escalation Boundary Event": "升级边界事件",
@@ -86,7 +88,8 @@ const translations: Record<string, string> = {
     "Escalation Boundary Event (non-interrupting)": "升级边界事件 (非中断)",
     "Conditional Boundary Event (non-interrupting)": "条件边界事件 (非中断)",
     "Signal Boundary Event (non-interrupting)": "信号边界事件 (非中断)",
-    "Connect using Information/Knowledge/Authority Requirement or Association": "使用信息/知识/权限要求或关联进行连接",
+    "Connect using Information/Knowledge/Authority Requirement or Association":
+        "使用信息/知识/权限要求或关联进行连接",
     "Empty": "空",
     "Literal Expression": "文字表达式",
     "This maps to the decision definition key.": "映射为决策定义Key。",

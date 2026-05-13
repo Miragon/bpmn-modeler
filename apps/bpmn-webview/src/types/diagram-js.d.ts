@@ -8,9 +8,8 @@ declare module "diagram-js/lib/core/EventBus" {
         data: any,
     ) => any;
 
-    export type EventType<T extends string> = EventMap extends Record<T, infer E>
-        ? E
-        : InternalEvent;
+    export type EventType<T extends string> =
+        EventMap extends Record<T, infer E> ? E : InternalEvent;
 
     interface EventMap {
         "commandStack.changed": CommandStackChangedEvent;

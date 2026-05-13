@@ -81,10 +81,7 @@ describe("Camunda7RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        const result = await client.deploy(
-            config,
-            new Map([["proc.bpmn", "<bpmn/>"]]),
-        );
+        const result = await client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]));
 
         expect(result.success).toBe(true);
         expect(result.deploymentId).toBe("deploy-42");
@@ -122,12 +119,7 @@ describe("Camunda7RestClient (integration)", () => {
         };
 
         const client = createClient();
-        const config = new StartInstanceConfig(
-            "myProc",
-            baseUrl,
-            "c7",
-            new NoAuth(),
-        );
+        const config = new StartInstanceConfig("myProc", baseUrl, "c7", new NoAuth());
 
         const result = await client.startInstance(config);
 
@@ -142,12 +134,7 @@ describe("Camunda7RestClient (integration)", () => {
         };
 
         const client = createClient();
-        const config = new StartInstanceConfig(
-            "missing",
-            baseUrl,
-            "c7",
-            new NoAuth(),
-        );
+        const config = new StartInstanceConfig("missing", baseUrl, "c7", new NoAuth());
 
         await expect(client.startInstance(config)).rejects.toThrow(
             StartInstanceFailedError,
@@ -264,10 +251,7 @@ describe("Camunda7RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await client.deploy(
-            config,
-            new Map([["proc.bpmn", "<definitions/>"]]),
-        );
+        await client.deploy(config, new Map([["proc.bpmn", "<definitions/>"]]));
 
         expect(receivedBody).toContain("deployment-name");
         expect(receivedBody).toContain("my-deployment");
@@ -297,12 +281,9 @@ describe("Camunda7RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await client.deploy(
-            config,
-            new Map([["proc.bpmn", "<definitions/>"]]),
-        );
+        await client.deploy(config, new Map([["proc.bpmn", "<definitions/>"]]));
 
-        expect(receivedBody).toContain("name=\"proc.bpmn\"; filename=\"proc.bpmn\"");
-        expect(receivedBody).not.toContain("name=\"resources\"");
+        expect(receivedBody).toContain('name="proc.bpmn"; filename="proc.bpmn"');
+        expect(receivedBody).not.toContain('name="resources"');
     });
 });

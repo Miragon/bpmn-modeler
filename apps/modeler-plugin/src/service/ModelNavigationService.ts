@@ -41,12 +41,7 @@ export class ModelNavigationService {
                     PROGRESS_LABEL_LIMIT,
                 )}"…`,
             },
-            () =>
-                this.locator.findDeclaringFiles(
-                    referenceId,
-                    kind,
-                    sourceDocumentUri,
-                ),
+            () => this.locator.findDeclaringFiles(referenceId, kind, sourceDocumentUri),
         );
 
         if (result.kind === "no-search-scope") {
@@ -87,9 +82,7 @@ export class ModelNavigationService {
             await commands.executeCommand("vscode.open", Uri.file(chosen));
         } catch (error) {
             this.vsUI.logError(error as Error);
-            this.vsUI.showError(
-                `Could not open ${chosen}: ${(error as Error).message}`,
-            );
+            this.vsUI.showError(`Could not open ${chosen}: ${(error as Error).message}`);
         }
     }
 }

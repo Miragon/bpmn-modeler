@@ -127,9 +127,7 @@ export class DiffLegend {
 
         const showOriginAffordances = origin === "compare-files";
         this.filenameEl.style.display = showOriginAffordances ? "block" : "none";
-        this.swapButton.style.display = showOriginAffordances
-            ? "inline-flex"
-            : "none";
+        this.swapButton.style.display = showOriginAffordances ? "inline-flex" : "none";
 
         this.root.style.display = "flex";
     }

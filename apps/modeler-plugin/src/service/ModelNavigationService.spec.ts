@@ -5,10 +5,7 @@ vi.mock("vscode", () => ({
     Uri: { file: (path: string) => ({ scheme: "file", path, fsPath: path }) },
     ProgressLocation: { SourceControl: 1, Window: 10, Notification: 15 },
     window: {
-        withProgress: <T>(
-            _opts: unknown,
-            task: () => Promise<T>,
-        ): Promise<T> => task(),
+        withProgress: <T>(_opts: unknown, task: () => Promise<T>): Promise<T> => task(),
     },
 }));
 
@@ -50,9 +47,7 @@ describe("ModelNavigationService.navigate", () => {
 
         expect(progressSpy).toHaveBeenCalledTimes(1);
         const [opts] = progressSpy.mock.calls[0];
-        expect((opts as { location: number }).location).toBe(
-            ProgressLocation.Window,
-        );
+        expect((opts as { location: number }).location).toBe(ProgressLocation.Window);
         expect((opts as { title: string }).title).toContain("ProcessB");
         progressSpy.mockRestore();
     });
@@ -100,10 +95,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("Shared", "process");
 
-        expect(vsUI.pickReferencedModel).toHaveBeenCalledWith([
-            "/a.bpmn",
-            "/b.bpmn",
-        ]);
+        expect(vsUI.pickReferencedModel).toHaveBeenCalledWith(["/a.bpmn", "/b.bpmn"]);
         expect(commands.executeCommand).toHaveBeenCalledWith(
             "vscode.open",
             expect.objectContaining({ path: "/b.bpmn" }),
@@ -132,9 +124,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("Missing", "process");
 
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
-            expect.stringContaining("Missing"),
-        );
+        expect(vsUI.showInfo).toHaveBeenCalledWith(expect.stringContaining("Missing"));
         expect(commands.executeCommand).not.toHaveBeenCalled();
     });
 
@@ -174,9 +164,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.logWarning).toHaveBeenCalledWith(
-            expect.stringContaining("EACCES"),
-        );
+        expect(vsUI.logWarning).toHaveBeenCalledWith(expect.stringContaining("EACCES"));
         expect(commands.executeCommand).toHaveBeenCalledWith(
             "vscode.open",
             expect.objectContaining({ path: "/good.bpmn" }),

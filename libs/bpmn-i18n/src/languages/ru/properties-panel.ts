@@ -141,8 +141,10 @@ const translations: Record<string, string> = {
     "Must match pattern {pattern}": "Должно соответствовать образцу {pattern}",
     "Must not be empty": "Не должно быть пустым",
     "Must provide a value": "Должно быть указано значение",
-    "Must provide a value for timeout task listener": "Необходимо указать значение для тайм-аута слушиателя задачи.",
-    "Must provide either loop cardinality or collection": "Должен обеспечивать либо кардинальность цикла, либо коллекцию.",
+    "Must provide a value for timeout task listener":
+        "Необходимо указать значение для тайм-аута слушиателя задачи.",
+    "Must provide either loop cardinality or collection":
+        "Должен обеспечивать либо кардинальность цикла, либо коллекцию.",
     "Name": "Имя",
     "Name must not contain spaces": "Имя не должно содержать пробелов",
     "Out Mapping": "Соответствие на выход",
@@ -165,9 +167,12 @@ const translations: Record<string, string> = {
     "Signal Name": "Имя сигнала",
     "Source": "Источник",
     "Source Expression": "Исходное выражение",
-    "Specify more than one group as a comma separated list.": "Укажите несколько групп в виде списка, разделенного запятыми.",
-    "Specify more than one user as a comma separated list.": "Укажите более одного пользователя в виде списка, разделенного запятыми.",
-    "Specify more than one variable change event as a comma separated list.": "Укажите более одного события изменения переменной в виде списка, разделенного запятыми.",
+    "Specify more than one group as a comma separated list.":
+        "Укажите несколько групп в виде списка, разделенного запятыми.",
+    "Specify more than one user as a comma separated list.":
+        "Укажите более одного пользователя в виде списка, разделенного запятыми.",
+    "Specify more than one variable change event as a comma separated list.":
+        "Укажите более одного события изменения переменной в виде списка, разделенного запятыми.",
     "start": "старт",
     "Startable": "Запускаемый",
     "String": "String",
@@ -179,7 +184,8 @@ const translations: Record<string, string> = {
     "Task Priority": "Очередность задачи",
     "Tenant Id": "Tenant Id",
     "Text": "Текст",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "Срок выполнения в виде выражения EL (например, ${someDate} или дата в формате ISO (например, 2015-06-26T09:54:00)",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "Срок выполнения в виде выражения EL (например, ${someDate} или дата в формате ISO (например, 2015-06-26T09:54:00)",
     "timeout": "тайм-аут",
     "Timer Definition": "Определение таймера",
     "Timer Definition Type": "Тип определения таймера",
@@ -206,10 +212,12 @@ const translations: Record<string, string> = {
     "Variable Assignment Type": "Тип переменной",
     "Variable Assignment Value": "Значение переменной",
     "Process Variable Name": "Имя переменной процесса",
-    "Start typing \"${}\" to create an expression.": "Начните вводить «${}», чтобы создать выражение.",
+    'Start typing "${}" to create an expression.':
+        "Начните вводить «${}», чтобы создать выражение.",
     "String or Expression": "String или выражение",
     "No variables defined.": "Переменные не определены.",
-    "Available process variables, identified in the diagram.": "Доступные переменные процесса, указанные на диаграмме.",
+    "Available process variables, identified in the diagram.":
+        "Доступные переменные процесса, указанные на диаграмме.",
     "No variables found.": "Переменные не найдены.",
 };
 

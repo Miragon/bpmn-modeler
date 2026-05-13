@@ -9,7 +9,12 @@ import {
     window,
 } from "vscode";
 
-import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domain/deployment";
+import {
+    BasicAuth,
+    DeploymentConfigBuilder,
+    NoAuth,
+    OAuth2Auth,
+} from "../domain/deployment";
 import { InvalidDeploymentConfigError } from "../domain/errors";
 import { deploymentWebviewHtml } from "../infrastructure/DeploymentWebviewHtml";
 import { EditorStore } from "../infrastructure/EditorStore";
@@ -100,10 +105,7 @@ export class DeploymentController implements WebviewViewProvider {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
-                Uri.joinPath(
-                    getContext().extensionUri,
-                    "deployment-webview",
-                ),
+                Uri.joinPath(getContext().extensionUri, "deployment-webview"),
             ],
         };
 
@@ -155,7 +157,8 @@ export class DeploymentController implements WebviewViewProvider {
 
             // Also send the process definition key for the Start Instance tab.
             try {
-                const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
+                const key =
+                    this.startInstanceService.getProcessDefinitionKey(activeEditorId);
                 webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(key));
             } catch {
                 // Process key extraction failed — send empty key.
@@ -266,7 +269,8 @@ export class DeploymentController implements WebviewViewProvider {
     private handleProcessDefinitionKeyRequest(webviewView: WebviewView): void {
         try {
             const activeEditorId = this.editorStore.getActiveEditorId();
-            const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
+            const key =
+                this.startInstanceService.getProcessDefinitionKey(activeEditorId);
             webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(key));
         } catch (error) {
             this.vsUI.logError(
@@ -285,15 +289,14 @@ export class DeploymentController implements WebviewViewProvider {
     private async handlePayloadFilesRequest(webviewView: WebviewView): Promise<void> {
         try {
             const activeEditorId = this.editorStore.getActiveEditorId();
-            const result = await this.startInstanceService.selectPayloadFile(activeEditorId);
+            const result =
+                await this.startInstanceService.selectPayloadFile(activeEditorId);
             if (result) {
                 webviewView.webview.postMessage(
                     new SelectedPayloadFileQuery(result.filePath, result.label),
                 );
             } else {
-                webviewView.webview.postMessage(
-                    new SelectedPayloadFileQuery("", ""),
-                );
+                webviewView.webview.postMessage(new SelectedPayloadFileQuery("", ""));
             }
         } catch (error) {
             this.vsUI.logError(
@@ -318,7 +321,10 @@ export class DeploymentController implements WebviewViewProvider {
             const authPayload = configPayload.auth;
             let auth;
             if (authPayload.authType === "basic") {
-                auth = new BasicAuth(authPayload.username ?? "", authPayload.password ?? "");
+                auth = new BasicAuth(
+                    authPayload.username ?? "",
+                    authPayload.password ?? "",
+                );
             } else if (authPayload.authType === "oauth2") {
                 auth = new OAuth2Auth(
                     authPayload.clientId ?? "",
@@ -352,12 +358,15 @@ export class DeploymentController implements WebviewViewProvider {
                 ),
             );
         } catch (error) {
-            const message = "An unexpected error occurred while starting the process instance.";
+            const message =
+                "An unexpected error occurred while starting the process instance.";
             this.vsUI.logError(
                 error instanceof Error ? error : new Error(String(error)),
             );
             this.vsUI.showError(message);
-            webviewView.webview.postMessage(new StartInstanceResultQuery(false, message));
+            webviewView.webview.postMessage(
+                new StartInstanceResultQuery(false, message),
+            );
         }
     }
 
@@ -376,7 +385,10 @@ export class DeploymentController implements WebviewViewProvider {
             const authPayload = configPayload.auth;
             let auth;
             if (authPayload.authType === "basic") {
-                auth = new BasicAuth(authPayload.username ?? "", authPayload.password ?? "");
+                auth = new BasicAuth(
+                    authPayload.username ?? "",
+                    authPayload.password ?? "",
+                );
             } else if (authPayload.authType === "oauth2") {
                 auth = new OAuth2Auth(
                     authPayload.clientId ?? "",

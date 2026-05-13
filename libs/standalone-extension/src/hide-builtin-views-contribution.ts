@@ -14,7 +14,10 @@
  *   the Theia version (currently pinned to 1.70.x).
  */
 import { inject, injectable } from "@theia/core/shared/inversify";
-import { FrontendApplication, FrontendApplicationContribution } from "@theia/core/lib/browser";
+import {
+    FrontendApplication,
+    FrontendApplicationContribution,
+} from "@theia/core/lib/browser";
 import { WidgetManager } from "@theia/core/lib/browser/widget-manager";
 
 const HIDDEN_VIEW_CONTAINER_IDS = [
@@ -37,8 +40,7 @@ export class HideBuiltinViewsContribution implements FrontendApplicationContribu
 
     private async hideWidget(app: FrontendApplication, id: string): Promise<void> {
         const widget =
-            app.shell.getWidgetById(id) ??
-            (await this.widgetManager.tryGetWidget(id));
+            app.shell.getWidgetById(id) ?? (await this.widgetManager.tryGetWidget(id));
         widget?.dispose();
     }
 }

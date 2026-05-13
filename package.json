@@ -32,19 +32,27 @@
         "docs:test": "corepack yarn workspace @miragon/bpmn-modeler-docs test",
         "test": "vitest run --coverage",
         "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier \"**/*.{ts,tsx,cts,mts,js,jsx,cjs,mjs,vue}\" --write",
+        "format:check": "prettier \"**/*.{ts,tsx,cts,mts,js,jsx,cjs,mjs,vue}\" --check",
         "prepare": "git config core.hooksPath .githooks"
+    },
+    "lint-staged": {
+        "*.{ts,tsx,cts,mts,js,jsx,cjs,mjs,vue}": [
+            "eslint --fix",
+            "prettier --write"
+        ]
     },
     "devDependencies": {
         "@eslint/eslintrc": "3.3.5",
         "@eslint/js": "10.0.1",
-        "@stylistic/eslint-plugin": "5.10.0",
         "@typescript-eslint/eslint-plugin": "8.59.1",
         "@typescript-eslint/parser": "8.59.1",
         "@vitest/coverage-v8": "4.1.5",
         "eslint": "10.2.1",
         "eslint-config-prettier": "10.1.8",
-        "eslint-plugin-prettier": "5.5.5",
         "jsdom": "29.1.1",
+        "lint-staged": "17.0.4",
         "npm-run-all": "4.1.5",
         "prettier": "3.8.3",
         "typescript": "6.0.3",

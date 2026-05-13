@@ -342,8 +342,8 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
             this.devMode === "diff-before"
                 ? "before"
                 : this.devMode === "diff-after"
-                    ? "after"
-                    : undefined;
+                  ? "after"
+                  : undefined;
         if (!side) {
             // DiffReadyCommand arrived in modeler mode — ignore.
             return;
@@ -362,7 +362,8 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
 
         const slice = cached[side];
         const added = side === "after" ? (slice as { added: string[] }).added : [];
-        const removed = side === "before" ? (slice as { removed: string[] }).removed : [];
+        const removed =
+            side === "before" ? (slice as { removed: string[] }).removed : [];
 
         dispatch(
             new ApplyDiffHighlightsQuery(
@@ -395,8 +396,12 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
         // factory is exposed as a named export `BpmnModdle`, while the
         // webpack/CJS shape exposes it as `.default`.  Accept both.
         const moddleMod = (await import("bpmn-moddle")) as unknown as {
-            default?: () => { fromXML: (xml: string) => Promise<{ rootElement: unknown }> };
-            BpmnModdle?: () => { fromXML: (xml: string) => Promise<{ rootElement: unknown }> };
+            default?: () => {
+                fromXML: (xml: string) => Promise<{ rootElement: unknown }>;
+            };
+            BpmnModdle?: () => {
+                fromXML: (xml: string) => Promise<{ rootElement: unknown }>;
+            };
         };
         const createBpmnModdle = moddleMod.default ?? moddleMod.BpmnModdle;
         if (typeof createBpmnModdle !== "function") {
@@ -443,11 +448,7 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 merged.push(id);
             }
         }
-        const navigationOrder = sortIdsByOrder(
-            merged,
-            afterOrder,
-            removedAnchors,
-        );
+        const navigationOrder = sortIdsByOrder(merged, afterOrder, removedAnchors);
 
         this.cachedDiff = {
             before: {

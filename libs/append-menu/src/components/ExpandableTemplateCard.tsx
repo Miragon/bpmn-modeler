@@ -40,29 +40,31 @@ export function ExpandableTemplateCard({
 
     return (
         <div
-          class={[
+            class={[
                 "am-template-card",
                 focused ? "am-template-card--focused" : "",
                 selected ? "am-template-card--selected" : "",
             ]
                 .filter(Boolean)
                 .join(" ")}
-          onMouseEnter={() => onHoverChange(true)}
-          onMouseLeave={() => onHoverChange(false)}
-          onClick={(e) => onClick(e as unknown as Event)}
+            onMouseEnter={() => onHoverChange(true)}
+            onMouseLeave={() => onHoverChange(false)}
+            onClick={(e) => onClick(e as unknown as Event)}
         >
             <div class="am-card-header">
-                {appliesTo.length === 1
-? (
-                    <span class={`am-card-bpmn-icon ${bpmnTypeToIconClass(appliesTo[0])}`} />
-                )
-: (
+                {appliesTo.length === 1 ? (
+                    <span
+                        class={`am-card-bpmn-icon ${bpmnTypeToIconClass(appliesTo[0])}`}
+                    />
+                ) : (
                     <span class="am-card-bpmn-icon bpmn-icon-task" />
                 )}
                 <div class="am-card-text">
                     <span class="am-card-name">{entry.label}</span>
                     {template?.category && (
-                        <span class="am-badge am-badge--category">{template.category.name}</span>
+                        <span class="am-badge am-badge--category">
+                            {template.category.name}
+                        </span>
                     )}
                 </div>
                 {entry.imageUrl && (
