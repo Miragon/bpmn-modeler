@@ -126,7 +126,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download .vsix from build-vsix job
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: standalone-vsix
           path: dist/apps/modeler-plugin
