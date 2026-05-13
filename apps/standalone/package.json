@@ -102,6 +102,8 @@
     "dev:fast": "npm-run-all -s build start",
     "start": "electron scripts/theia-electron-main.js",
     "start:debug": "yarn start --log-level=debug",
+    "start:isolated": "npm-run-all -s build:repo prepare-plugin package start:isolated:run",
+    "start:isolated:run": "bash scripts/launch-isolated.sh",
     "package": "yarn clean:dist && yarn download:plugins && yarn rebuild && yarn build:prod && electron-builder -c.mac.identity=null -c.mac.notarize=false -c.mac.hardenedRuntime=false --publish never --mac dmg",
     "package:signed": "yarn clean:dist && yarn download:plugins && yarn rebuild && yarn build:prod && electron-builder --publish never --mac dmg",
     "package:release": "yarn clean:dist && yarn download:plugins && yarn rebuild && yarn build:prod && electron-builder --publish never --mac dmg"
