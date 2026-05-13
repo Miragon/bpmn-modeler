@@ -55,9 +55,7 @@ export class StartInstanceService {
      * @returns An object with `filePath` and `label`, or `null` if the user cancels
      *   or no payload files are found.
      */
-    async selectPayloadFile(
-        editorId: string,
-    ): Promise<{ filePath: string; label: string } | null> {
+    async selectPayloadFile(editorId: string): Promise<{ filePath: string; label: string } | null> {
         const filePath = this.vsDocument.getFilePath(editorId);
         const documentDir = posix.dirname(filePath);
 

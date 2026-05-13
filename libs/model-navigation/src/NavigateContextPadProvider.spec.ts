@@ -132,9 +132,7 @@ describe("NavigateContextPadProvider", () => {
         const posted = vsCodeBridge.postMessage.mock.calls[0][0];
         expect(posted).toBeInstanceOf(NavigateToReferencedModelCommand);
         expect((posted as NavigateToReferencedModelCommand).referenceId).toBe("Updated");
-        expect((posted as NavigateToReferencedModelCommand).referenceKind).toBe(
-            "process",
-        );
+        expect((posted as NavigateToReferencedModelCommand).referenceKind).toBe("process");
     });
 
     it("does nothing when the reference id was cleared between render and click", () => {

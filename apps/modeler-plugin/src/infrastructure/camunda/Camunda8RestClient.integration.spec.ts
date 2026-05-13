@@ -21,11 +21,7 @@ describe("Camunda8RestClient (integration)", () => {
     let baseUrl: string;
 
     /** Handler installed per-test; receives the raw request and body buffer. */
-    let handler: (
-        req: http.IncomingMessage,
-        body: Buffer,
-        res: http.ServerResponse,
-    ) => void;
+    let handler: (req: http.IncomingMessage, body: Buffer, res: http.ServerResponse) => void;
 
     beforeAll(async () => {
         server = http.createServer((req, res) => {
@@ -101,9 +97,9 @@ describe("Camunda8RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await expect(
-            client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
-        ).rejects.toThrow(DeploymentFailedError);
+        await expect(client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]))).rejects.toThrow(
+            DeploymentFailedError,
+        );
     });
 
     // ── Start instance ──────────────────────────────────────────────────
@@ -142,9 +138,7 @@ describe("Camunda8RestClient (integration)", () => {
         const client = createClient();
         const config = new StartInstanceConfig("missing", baseUrl, "c8", new NoAuth());
 
-        await expect(client.startInstance(config)).rejects.toThrow(
-            StartInstanceFailedError,
-        );
+        await expect(client.startInstance(config)).rejects.toThrow(StartInstanceFailedError);
     });
 
     // ── Custom C8 API version ─────────────────────────────────────────

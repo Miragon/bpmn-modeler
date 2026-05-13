@@ -75,11 +75,7 @@ export class NavigateContextPadProvider {
 
     private readonly vsCodeBridge: VsCodeBridge;
 
-    constructor(
-        contextPad: ContextPad,
-        translate: Translate,
-        vsCodeBridge: VsCodeBridge,
-    ) {
+    constructor(contextPad: ContextPad, translate: Translate, vsCodeBridge: VsCodeBridge) {
         this.translate = translate;
         this.vsCodeBridge = vsCodeBridge;
         contextPad.registerProvider(this);
@@ -117,10 +113,7 @@ export class NavigateContextPadProvider {
                     // and click (e.g. via keyboard in the properties panel)
                     // navigates to the current id, not a stale one.
                     click: (_event, clickedElement) => {
-                        const current = extractReference(
-                            clickedElement.businessObject,
-                            kind,
-                        );
+                        const current = extractReference(clickedElement.businessObject, kind);
                         if (current) {
                             postMessage(current);
                         }

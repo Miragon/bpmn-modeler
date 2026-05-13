@@ -64,11 +64,7 @@ export function activate(context: ExtensionContext): void {
     const httpClient = new FetchHttpClient();
     const authResolver = new AuthHeaderResolver(httpClient);
     const c7Client = new Camunda7RestClient(httpClient, authResolver);
-    const c8Client = new Camunda8RestClient(
-        httpClient,
-        authResolver,
-        vsSettings.getC8ApiVersion(),
-    );
+    const c8Client = new Camunda8RestClient(httpClient, authResolver, vsSettings.getC8ApiVersion());
     const restClient = new CamundaEngineRouter(c7Client, c8Client);
     const panelStateRepo = new PropertiesPanelStateRepository(context);
 
@@ -104,18 +100,10 @@ export function activate(context: ExtensionContext): void {
         artifactSvc,
     );
     const referencedModelLocator = new ReferencedModelLocator(vsWorkspace, vsUI);
-    const modelNavigationService = new ModelNavigationService(
-        referencedModelLocator,
-        vsUI,
-    );
+    const modelNavigationService = new ModelNavigationService(referencedModelLocator, vsUI);
 
     // 4. Controllers
-    const commandController = new CommandController(
-        editorStore,
-        vsDocument,
-        vsUI,
-        bpmnService,
-    );
+    const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
     new BpmnEditorController(
         editorStore,
         bpmnService,

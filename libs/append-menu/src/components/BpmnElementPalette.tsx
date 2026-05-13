@@ -61,9 +61,7 @@ function entryMatchesFilter(entry: BpmnElementEntry, filter: Set<string>): boole
  * @returns `true` if the entry label or description matches.
  */
 function entryMatchesSearch(entry: BpmnElementEntry, query: string): boolean {
-    const haystack = [entry.entry.label, entry.entry.description ?? ""]
-        .join(" ")
-        .toLowerCase();
+    const haystack = [entry.entry.label, entry.entry.description ?? ""].join(" ").toLowerCase();
     return haystack.includes(query);
 }
 
@@ -98,9 +96,7 @@ export function BpmnElementPalette({
             ...group,
             entries: group.entries.map((entry) => ({
                 ...entry,
-                disabled: appliesToFilter
-                    ? !entryMatchesFilter(entry, appliesToFilter)
-                    : false,
+                disabled: appliesToFilter ? !entryMatchesFilter(entry, appliesToFilter) : false,
                 hidden: query ? !entryMatchesSearch(entry, query) : false,
             })),
         }));
@@ -117,9 +113,7 @@ export function BpmnElementPalette({
             .map((type) => {
                 const shortName = type.split(":")[1]?.toLowerCase() ?? "";
                 return allEntries.find((e) => {
-                    const normalizedLabel = e.entry.label
-                        .toLowerCase()
-                        .replace(/[\s-]/g, "");
+                    const normalizedLabel = e.entry.label.toLowerCase().replace(/[\s-]/g, "");
                     if (normalizedLabel === shortName) return true;
                     const normalizedId = e.id.toLowerCase().replace(/[\s-]/g, "");
                     return normalizedId.includes(shortName);
@@ -152,9 +146,7 @@ export function BpmnElementPalette({
                 {favouriteEntries.length > 0 && (
                     <div class="am-bpmn-group am-bpmn-group--favourites">
                         {expanded && <h4 class="am-bpmn-group-title">Favourites</h4>}
-                        <div
-                            class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}
-                        >
+                        <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                             {favouriteEntries.map(({ id, entry, disabled, hidden }) => {
                                 if (hidden) return null;
                                 const isDisabled = disabled || !!entry.disabled;
@@ -170,14 +162,10 @@ export function BpmnElementPalette({
                                         type="button"
                                     >
                                         {entry.className && (
-                                            <span
-                                                class={`am-bpmn-icon ${entry.className}`}
-                                            />
+                                            <span class={`am-bpmn-icon ${entry.className}`} />
                                         )}
                                         {expanded && (
-                                            <span class="am-bpmn-label">
-                                                {entry.label}
-                                            </span>
+                                            <span class="am-bpmn-label">{entry.label}</span>
                                         )}
                                     </button>
                                 );
@@ -194,12 +182,8 @@ export function BpmnElementPalette({
                     }
                     return (
                         <div key={group.id} class="am-bpmn-group">
-                            {expanded && (
-                                <h4 class="am-bpmn-group-title">{group.name}</h4>
-                            )}
-                            <div
-                                class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}
-                            >
+                            {expanded && <h4 class="am-bpmn-group-title">{group.name}</h4>}
+                            <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                                 {visibleEntries.map(({ id, entry, disabled }) => {
                                     const isDisabled = disabled || !!entry.disabled;
                                     return (
@@ -208,23 +192,16 @@ export function BpmnElementPalette({
                                             class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
                                             disabled={isDisabled}
                                             onClick={(e) =>
-                                                onSelect(
-                                                    entry.action,
-                                                    e as unknown as Event,
-                                                )
+                                                onSelect(entry.action, e as unknown as Event)
                                             }
                                             title={entry.label}
                                             type="button"
                                         >
                                             {entry.className && (
-                                                <span
-                                                    class={`am-bpmn-icon ${entry.className}`}
-                                                />
+                                                <span class={`am-bpmn-icon ${entry.className}`} />
                                             )}
                                             {expanded && (
-                                                <span class="am-bpmn-label">
-                                                    {entry.label}
-                                                </span>
+                                                <span class="am-bpmn-label">{entry.label}</span>
                                             )}
                                         </button>
                                     );

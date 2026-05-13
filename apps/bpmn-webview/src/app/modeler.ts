@@ -130,10 +130,7 @@ export class BpmnModeler {
 
         // Apply default favourites immediately after creation.
         if (this.settings.favouriteBpmnElements) {
-            const appendMenuOverride = this.getModeler().get<any>(
-                "appendMenuOverride",
-                false,
-            );
+            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
             }
@@ -187,10 +184,7 @@ export class BpmnModeler {
                 .importXML(bpmn)
                 .then((result: ImportXMLResult) => {
                     // Transaction boundaries are only available for the C7 modeler.
-                    if (
-                        this.engine === "c7" &&
-                        this.settings.showTransactionBoundaries
-                    ) {
+                    if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
                         this.getModeler().get<any>("transactionBoundaries").show();
                     }
                     return result;
@@ -275,10 +269,7 @@ export class BpmnModeler {
 
         // Apply favourite BPMN elements to the append menu.
         if (settings.favouriteBpmnElements !== undefined) {
-            const appendMenuOverride = this.getModeler().get<any>(
-                "appendMenuOverride",
-                false,
-            );
+            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
             }

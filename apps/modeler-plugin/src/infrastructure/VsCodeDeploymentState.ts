@@ -26,10 +26,7 @@ export class VsCodeDeploymentState {
      * @returns The persisted endpoint, or an empty string if none has been saved.
      */
     getEndpoint(): string {
-        return getContext().workspaceState.get<string>(
-            VsCodeDeploymentState.ENDPOINT_KEY,
-            "",
-        );
+        return getContext().workspaceState.get<string>(VsCodeDeploymentState.ENDPOINT_KEY, "");
     }
 
     /**
@@ -38,10 +35,7 @@ export class VsCodeDeploymentState {
      * @returns The persisted tenant ID, or an empty string if none has been saved.
      */
     getTenantId(): string {
-        return getContext().workspaceState.get<string>(
-            VsCodeDeploymentState.TENANT_ID_KEY,
-            "",
-        );
+        return getContext().workspaceState.get<string>(VsCodeDeploymentState.TENANT_ID_KEY, "");
     }
 
     /**
@@ -62,10 +56,7 @@ export class VsCodeDeploymentState {
      * @param authType The authentication type to persist.
      */
     async saveAuthType(authType: AuthTypePayload): Promise<void> {
-        await getContext().workspaceState.update(
-            VsCodeDeploymentState.AUTH_TYPE_KEY,
-            authType,
-        );
+        await getContext().workspaceState.update(VsCodeDeploymentState.AUTH_TYPE_KEY, authType);
     }
 
     /**
@@ -93,10 +84,7 @@ export class VsCodeDeploymentState {
      * @returns The persisted audience, or an empty string if none has been saved.
      */
     getAudience(): string {
-        return getContext().workspaceState.get<string>(
-            VsCodeDeploymentState.AUDIENCE_KEY,
-            "",
-        );
+        return getContext().workspaceState.get<string>(VsCodeDeploymentState.AUDIENCE_KEY, "");
     }
 
     /**
@@ -110,20 +98,11 @@ export class VsCodeDeploymentState {
             VsCodeDeploymentState.TOKEN_ENDPOINT_KEY,
             tokenEndpoint,
         );
-        await getContext().workspaceState.update(
-            VsCodeDeploymentState.AUDIENCE_KEY,
-            audience,
-        );
+        await getContext().workspaceState.update(VsCodeDeploymentState.AUDIENCE_KEY, audience);
     }
 
     async save(endpoint: string, tenantId: string): Promise<void> {
-        await getContext().workspaceState.update(
-            VsCodeDeploymentState.ENDPOINT_KEY,
-            endpoint,
-        );
-        await getContext().workspaceState.update(
-            VsCodeDeploymentState.TENANT_ID_KEY,
-            tenantId,
-        );
+        await getContext().workspaceState.update(VsCodeDeploymentState.ENDPOINT_KEY, endpoint);
+        await getContext().workspaceState.update(VsCodeDeploymentState.TENANT_ID_KEY, tenantId);
     }
 }

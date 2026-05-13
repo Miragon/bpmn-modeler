@@ -76,18 +76,12 @@ export class DmnModelerService {
                 await this.vsDocument.save(editorId);
             }
 
-            return await this.editorStore.postMessage(
-                editorId,
-                new DmnFileQuery(dmnFile),
-            );
+            return await this.editorStore.postMessage(editorId, new DmnFileQuery(dmnFile));
         } catch (error) {
             if (error instanceof UserCancelledError) {
                 return false;
             }
-            if (
-                error instanceof Error &&
-                error.message === "The active editor is hidden."
-            ) {
+            if (error instanceof Error && error.message === "The active editor is hidden.") {
                 return false;
             }
             return this.handleError(error as Error);

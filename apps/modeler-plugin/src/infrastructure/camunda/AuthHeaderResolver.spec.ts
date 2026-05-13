@@ -56,12 +56,7 @@ describe("AuthHeaderResolver", () => {
         };
         httpClient.postForm.mockResolvedValue(tokenResponse);
 
-        const auth = new OAuth2Auth(
-            "my-client",
-            "my-secret",
-            "http://idp.local/token",
-            "",
-        );
+        const auth = new OAuth2Auth("my-client", "my-secret", "http://idp.local/token", "");
 
         const result = await resolver.resolve(auth);
 
@@ -142,8 +137,6 @@ describe("AuthHeaderResolver", () => {
         const auth = new OAuth2Auth("cid", "csec", "http://idp.local/token", "");
 
         await expect(resolver.resolve(auth)).rejects.toThrow(TokenFetchError);
-        await expect(resolver.resolve(auth)).rejects.toThrow(
-            /does not contain an access_token/,
-        );
+        await expect(resolver.resolve(auth)).rejects.toThrow(/does not contain an access_token/);
     });
 });

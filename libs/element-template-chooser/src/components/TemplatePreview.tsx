@@ -49,9 +49,7 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
 
                 {/* Collapsible details — scroll away as the user scrolls down */}
                 <div class="etc-preview-details">
-                    {template.description && (
-                        <p class="etc-preview-desc">{template.description}</p>
-                    )}
+                    {template.description && <p class="etc-preview-desc">{template.description}</p>}
                     {template.documentationRef && (
                         <a
                             class="etc-preview-docs-link"
@@ -59,12 +57,7 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 16 16"
-                                fill="currentColor"
-                            >
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.001 1.001 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z" />
                                 <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 0 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243L6.586 4.672z" />
                             </svg>
@@ -83,22 +76,18 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
 
                 {/* Parameter sections */}
                 <div class="etc-preview-params">
-                    {props.length > 0 && (
-                        <ParameterSection title="Properties" items={props} />
-                    )}
+                    {props.length > 0 && <ParameterSection title="Properties" items={props} />}
                     {inputs.length > 0 && (
                         <ParameterSection title="Input Parameters" items={inputs} />
                     )}
                     {outputs.length > 0 && (
                         <ParameterSection title="Output Parameters" items={outputs} />
                     )}
-                    {props.length === 0 &&
-                        inputs.length === 0 &&
-                        outputs.length === 0 && (
-                            <div class="etc-preview-no-params">
-                                <p>No visible parameters</p>
-                            </div>
-                        )}
+                    {props.length === 0 && inputs.length === 0 && outputs.length === 0 && (
+                        <div class="etc-preview-no-params">
+                            <p>No visible parameters</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -118,13 +107,7 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
  * @param props.title Section heading text.
  * @param props.items Property items to display.
  */
-function ParameterSection({
-    title,
-    items,
-}: {
-    title: string;
-    items: TemplateProperty[];
-}) {
+function ParameterSection({ title, items }: { title: string; items: TemplateProperty[] }) {
     return (
         <div class="etc-param-section">
             <h4 class="etc-param-title">{title}</h4>
@@ -137,19 +120,13 @@ function ParameterSection({
                             </span>
                             <div class="etc-param-badges">
                                 {p.constraints?.notEmpty && (
-                                    <span class="etc-badge etc-badge--required">
-                                        required
-                                    </span>
+                                    <span class="etc-badge etc-badge--required">required</span>
                                 )}
                                 {p.editable === false && (
-                                    <span class="etc-badge etc-badge--readonly">
-                                        read-only
-                                    </span>
+                                    <span class="etc-badge etc-badge--readonly">read-only</span>
                                 )}
                                 {p.optional && (
-                                    <span class="etc-badge etc-badge--optional">
-                                        optional
-                                    </span>
+                                    <span class="etc-badge etc-badge--optional">optional</span>
                                 )}
                             </div>
                         </div>

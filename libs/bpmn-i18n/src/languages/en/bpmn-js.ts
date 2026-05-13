@@ -70,8 +70,7 @@ const translations: Record<string, string> = {
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ref not specified",
     "already rendered {element}": "already rendered {element}",
     "failed to import {element}": "failed to import {element}",
-    "multiple DI elements defined for {element}":
-        "multiple DI elements defined for {element}",
+    "multiple DI elements defined for {element}": "multiple DI elements defined for {element}",
     "no bpmnElement referenced in {element}": "no bpmnElement referenced in {element}",
     "diagram not part of bpmn:Definitions": "diagram not part of bpmn:Definitions",
     "no diagram to display": "no diagram to display",

@@ -61,9 +61,7 @@ describe("CustomTranslator", () => {
 
         it("should fall back to the original template for untranslated keys", () => {
             translator.setLanguage("de");
-            const result = translator.translate(
-                "This key does not exist in any dictionary",
-            );
+            const result = translator.translate("This key does not exist in any dictionary");
             expect(result).toBe("This key does not exist in any dictionary");
         });
 

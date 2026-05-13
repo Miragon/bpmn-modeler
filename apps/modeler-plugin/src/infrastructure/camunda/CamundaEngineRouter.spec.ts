@@ -81,12 +81,7 @@ describe("CamundaEngineRouter", () => {
         const expectedResult = new StartInstanceResult(true, "ok", "i1");
         c7.startInstance.mockResolvedValue(expectedResult);
 
-        const config = new StartInstanceConfig(
-            "myProc",
-            "http://localhost",
-            "c7",
-            new NoAuth(),
-        );
+        const config = new StartInstanceConfig("myProc", "http://localhost", "c7", new NoAuth());
 
         const result = await router.startInstance(config);
 
@@ -99,12 +94,7 @@ describe("CamundaEngineRouter", () => {
         const expectedResult = new StartInstanceResult(true, "ok", "i2");
         c8.startInstance.mockResolvedValue(expectedResult);
 
-        const config = new StartInstanceConfig(
-            "myProc",
-            "http://localhost",
-            "c8",
-            new NoAuth(),
-        );
+        const config = new StartInstanceConfig("myProc", "http://localhost", "c8", new NoAuth());
 
         const result = await router.startInstance(config);
 

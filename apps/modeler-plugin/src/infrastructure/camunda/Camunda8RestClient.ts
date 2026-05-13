@@ -70,9 +70,7 @@ export class Camunda8RestClient implements CamundaEnginePort {
         try {
             const json = JSON.parse(responseBody);
             deploymentId =
-                json.deploymentKey !== undefined
-                    ? String(json.deploymentKey)
-                    : undefined;
+                json.deploymentKey !== undefined ? String(json.deploymentKey) : undefined;
         } catch {
             // Response was not valid JSON — deploymentId remains undefined.
         }
@@ -119,9 +117,7 @@ export class Camunda8RestClient implements CamundaEnginePort {
         try {
             const json = JSON.parse(responseBody);
             processInstanceId =
-                json.processInstanceKey !== undefined
-                    ? String(json.processInstanceKey)
-                    : undefined;
+                json.processInstanceKey !== undefined ? String(json.processInstanceKey) : undefined;
         } catch {
             // Response was not valid JSON — processInstanceId remains undefined.
         }

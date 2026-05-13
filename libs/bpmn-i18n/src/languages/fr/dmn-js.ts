@@ -76,8 +76,7 @@ const translations: Record<string, string> = {
     "Remove Output Column": "Supprimer la colonne de sortie",
     "Remove Rule": "Supprimer la règle",
     "Set Value": "Définir la valeur",
-    "Strings must be in double quotes.":
-        "Les chaînes doivent être entre guillemets doubles.",
+    "Strings must be in double quotes.": "Les chaînes doivent être entre guillemets doubles.",
     "Type": "Type",
 };
 

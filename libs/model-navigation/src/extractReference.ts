@@ -66,10 +66,7 @@ export function extractReference(
             return camunda7Reference;
         }
         // Camunda 8: <zeebe:calledElement processId="…">
-        const camunda8Reference = findExtensionElement(
-            businessObject,
-            "zeebe:CalledElement",
-        );
+        const camunda8Reference = findExtensionElement(businessObject, "zeebe:CalledElement");
         if (camunda8Reference?.processId) {
             return camunda8Reference.processId;
         }
@@ -82,10 +79,7 @@ export function extractReference(
         return camunda7Reference;
     }
     // Camunda 8: <zeebe:calledDecision decisionId="…">
-    const camunda8Reference = findExtensionElement(
-        businessObject,
-        "zeebe:CalledDecision",
-    );
+    const camunda8Reference = findExtensionElement(businessObject, "zeebe:CalledDecision");
     if (camunda8Reference?.decisionId) {
         return camunda8Reference.decisionId;
     }

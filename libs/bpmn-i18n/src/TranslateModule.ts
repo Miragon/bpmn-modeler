@@ -43,11 +43,7 @@ export class CustomTranslator {
      * @returns The translated (or original) string with placeholders resolved.
      */
     translate(template: string, replacements?: Record<string, string>): string {
-        if (
-            this.locale !== "en" &&
-            !this.dictionary[template] &&
-            !missingKeys.has(template)
-        ) {
+        if (this.locale !== "en" && !this.dictionary[template] && !missingKeys.has(template)) {
             missingKeys.add(template);
             console.log(`Missing translation [${this.locale}]: ${template}`);
         }

@@ -295,11 +295,7 @@ export type BindingDirection = "input" | "output" | "property" | "hidden";
 export function classifyBinding(binding: TemplateProperty["binding"]): BindingDirection {
     const type = binding.type;
 
-    if (
-        type === "camunda:out" ||
-        type === "camunda:outputParameter" ||
-        type === "zeebe:output"
-    ) {
+    if (type === "camunda:out" || type === "camunda:outputParameter" || type === "zeebe:output") {
         return "output";
     }
 

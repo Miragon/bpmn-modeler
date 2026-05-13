@@ -6,11 +6,7 @@
  * a collapsible BPMN element palette on the right.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
-import type {
-    EnrichedTemplateEntry,
-    BpmnElementGroup,
-    PopupMenuEntryAction,
-} from "../types";
+import type { EnrichedTemplateEntry, BpmnElementGroup, PopupMenuEntryAction } from "../types";
 import { TemplatePanel } from "./TemplatePanel";
 import { BpmnElementPalette } from "./BpmnElementPalette";
 
@@ -83,17 +79,14 @@ export function AppendMenuOverlay({
 
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
-    const [selectedTemplate, setSelectedTemplate] =
-        useState<EnrichedTemplateEntry | null>(null);
+    const [selectedTemplate, setSelectedTemplate] = useState<EnrichedTemplateEntry | null>(null);
     // When the workspace has no element templates, default to the expanded
     // palette so users see the full BPMN element list instead of an awkward
     // icon-only column next to an empty template panel.
     const [paletteExpanded, setPaletteExpanded] = useState(!hasTemplates);
     const searchRef = useRef<HTMLInputElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
-    const [panelStyle, setPanelStyle] = useState<{ left: number; top: number } | null>(
-        null,
-    );
+    const [panelStyle, setPanelStyle] = useState<{ left: number; top: number } | null>(null);
 
     // The set of BPMN types the selected multi-type template applies to.
     const appliesToFilter = useMemo<Set<string> | null>(() => {

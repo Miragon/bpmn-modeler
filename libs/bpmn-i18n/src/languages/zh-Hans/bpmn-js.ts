@@ -79,8 +79,7 @@ const translations: Record<string, string> = {
     "no process or collaboration to display": "没有要显示的流程或协作",
     "correcting missing bpmnElement on {plane} to {rootElement}":
         "正在将{plane}上缺少的bpmn元素更正为{rootElement}",
-    "unsupported bpmnElement for {plane}: {rootElement}":
-        "{plane}:{rootElement}的bpmn元素不受支持",
+    "unsupported bpmnElement for {plane}: {rootElement}": "{plane}:{rootElement}的bpmn元素不受支持",
     "unrecognized flowElement {element} in context {context}":
         "上下文{context}中无法识别的流程元素{element}",
     "HELLO {you}!": "你好 {you}!",

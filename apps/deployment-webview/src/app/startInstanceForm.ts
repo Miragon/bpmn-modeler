@@ -45,14 +45,11 @@ export class StartInstanceForm {
             engine: "c7" | "c8";
         },
     ) {
-        this.processDefinitionKeyInput = this.requireElement<HTMLInputElement>(
-            "#process-definition-key",
-        );
+        this.processDefinitionKeyInput =
+            this.requireElement<HTMLInputElement>("#process-definition-key");
         this.payloadFileInput = this.requireElement<HTMLInputElement>("#payload-file");
-        this.selectPayloadBtn =
-            this.requireElement<HTMLButtonElement>("#select-payload-btn");
-        this.startInstanceBtn =
-            this.requireElement<HTMLButtonElement>("#start-instance-btn");
+        this.selectPayloadBtn = this.requireElement<HTMLButtonElement>("#select-payload-btn");
+        this.startInstanceBtn = this.requireElement<HTMLButtonElement>("#start-instance-btn");
         this.statusBanner = this.requireElement<HTMLDivElement>("#start-status-banner");
 
         this.bindEvents();
@@ -122,8 +119,7 @@ export class StartInstanceForm {
                 this.vscode.postMessage(new StartInstanceCommand(payload));
             } catch (err) {
                 this.statusBanner.className = "status-banner error";
-                this.statusBanner.textContent =
-                    err instanceof Error ? err.message : String(err);
+                this.statusBanner.textContent = err instanceof Error ? err.message : String(err);
                 this.statusBanner.style.display = "block";
             }
         });

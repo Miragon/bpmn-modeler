@@ -138,18 +138,9 @@ export class ReferencedModelLocator {
                         .readDirectory(dir)
                         .then(
                             (entries) =>
-                                [dir, entries] as [
-                                    string,
-                                    Array<[string, "file" | "directory"]>,
-                                ],
+                                [dir, entries] as [string, Array<[string, "file" | "directory"]>],
                         )
-                        .catch(
-                            () =>
-                                [dir, []] as [
-                                    string,
-                                    Array<[string, "file" | "directory"]>,
-                                ],
-                        ),
+                        .catch(() => [dir, []] as [string, Array<[string, "file" | "directory"]>]),
                 ),
             );
             const nextLevel: string[] = [];

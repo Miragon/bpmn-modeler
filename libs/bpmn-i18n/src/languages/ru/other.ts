@@ -83,15 +83,11 @@ const translations: Record<string, string> = {
     "Cancel Boundary Event": "Граничащее событие отмена",
     "Signal Boundary Event": "Граничащее событие  сигнал",
     "Compensation Boundary Event": "Граничащее событие компенсация",
-    "Message Boundary Event (non-interrupting)":
-        "Граничащее событие сообщение (непрерывное)",
+    "Message Boundary Event (non-interrupting)": "Граничащее событие сообщение (непрерывное)",
     "Timer Boundary Event (non-interrupting)": "Граничащее событие таймер (непрерывное)",
-    "Escalation Boundary Event (non-interrupting)":
-        "Граничащее событие эскалация (непрерывное)",
-    "Conditional Boundary Event (non-interrupting)":
-        "Граничащее событие компенсация (непрерывное)",
-    "Signal Boundary Event (non-interrupting)":
-        "Граничащее событие  сигнал (непрерывное)",
+    "Escalation Boundary Event (non-interrupting)": "Граничащее событие эскалация (непрерывное)",
+    "Conditional Boundary Event (non-interrupting)": "Граничащее событие компенсация (непрерывное)",
+    "Signal Boundary Event (non-interrupting)": "Граничащее событие  сигнал (непрерывное)",
     "Connect using Information/Knowledge/Authority Requirement or Association":
         "Подключение с использованием Информации/Знаний/Авторитетных требований или Ассоциации",
     "Empty": "Пусто",
@@ -102,8 +98,7 @@ const translations: Record<string, string> = {
     "Annotation": "Аннотация",
     "Output Expression": "Выходное выражение",
     "Data Type": "Тип данных",
-    "Create new BPMN Diagram (Camunda Platform)":
-        "Создать новую BPMN диграмму (Camunda Platform)",
+    "Create new BPMN Diagram (Camunda Platform)": "Создать новую BPMN диграмму (Camunda Platform)",
     "Navigate to referenced model": "Перейти к связанной модели",
 };
 

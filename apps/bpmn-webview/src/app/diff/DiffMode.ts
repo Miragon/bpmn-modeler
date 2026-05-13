@@ -128,11 +128,7 @@ export class DiffMode {
         // waypoints as a side-effect.  The flow carries no semantic change
         // on its own, and the user already sees it highlighted when the
         // attached shape comes up in the cycle.
-        const semanticIds = new Set<string>([
-            ...query.removed,
-            ...query.added,
-            ...query.changed,
-        ]);
+        const semanticIds = new Set<string>([...query.removed, ...query.added, ...query.changed]);
         const isLayoutOnlyConnection = (id: string): boolean =>
             !semanticIds.has(id) &&
             query.layoutChanged.includes(id) &&
@@ -169,8 +165,7 @@ export class DiffMode {
         if (this.changeIds.length === 0) {
             return;
         }
-        const next =
-            (this.cursor + direction + this.changeIds.length) % this.changeIds.length;
+        const next = (this.cursor + direction + this.changeIds.length) % this.changeIds.length;
         this.applyCursor(next, true, direction);
     }
 

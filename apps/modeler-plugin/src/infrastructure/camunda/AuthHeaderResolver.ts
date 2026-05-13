@@ -31,9 +31,9 @@ export class AuthHeaderResolver {
                 return {};
 
             case "basic": {
-                const credentials = Buffer.from(
-                    `${auth.username}:${auth.password}`,
-                ).toString("base64");
+                const credentials = Buffer.from(`${auth.username}:${auth.password}`).toString(
+                    "base64",
+                );
                 return { Authorization: `Basic ${credentials}` };
             }
 
@@ -65,10 +65,7 @@ export class AuthHeaderResolver {
 
         let response;
         try {
-            response = await this.httpClient.postForm(
-                auth.tokenEndpoint,
-                params.toString(),
-            );
+            response = await this.httpClient.postForm(auth.tokenEndpoint, params.toString());
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             throw new TokenFetchError(message);

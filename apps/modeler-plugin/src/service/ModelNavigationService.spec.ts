@@ -62,11 +62,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("Id", "process", documentUri);
 
-        expect(locator.findDeclaringFiles).toHaveBeenCalledWith(
-            "Id",
-            "process",
-            documentUri,
-        );
+        expect(locator.findDeclaringFiles).toHaveBeenCalledWith("Id", "process", documentUri);
     });
 
     it("opens the file directly via vscode.open when the locator returns a single match", async () => {
@@ -133,9 +129,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
-            expect.stringContaining("Open a folder"),
-        );
+        expect(vsUI.showInfo).toHaveBeenCalledWith(expect.stringContaining("Open a folder"));
         expect(commands.executeCommand).not.toHaveBeenCalled();
     });
 
@@ -177,15 +171,11 @@ describe("ModelNavigationService.navigate", () => {
             paths: ["/a.bpmn"],
             readFailures: [],
         });
-        vi.mocked(commands.executeCommand).mockRejectedValueOnce(
-            new Error("File not found"),
-        );
+        vi.mocked(commands.executeCommand).mockRejectedValueOnce(new Error("File not found"));
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.showError).toHaveBeenCalledWith(
-            expect.stringContaining("File not found"),
-        );
+        expect(vsUI.showError).toHaveBeenCalledWith(expect.stringContaining("File not found"));
         expect(vsUI.logError).toHaveBeenCalled();
     });
 

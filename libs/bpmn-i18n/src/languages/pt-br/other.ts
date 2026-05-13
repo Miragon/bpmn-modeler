@@ -20,8 +20,7 @@
 const translations: Record<string, string> = {
     "Open minimap": "Abrir mini-mapa",
     "Open properties panel": "Abrir painel de propriedades",
-    "This maps to the process definition key.":
-        "Aponta para a chave de definição do processo.",
+    "This maps to the process definition key.": "Aponta para a chave de definição do processo.",
     "Key": "Chave",
     "Intermediate Throw Event": "Evento Intermediário de Lançamento",
     "End Event": "Evento Final",
@@ -45,14 +44,11 @@ const translations: Record<string, string> = {
     "Message Intermediate Catch Event": "Evento Intermediário de Captura de Mensagem",
     "Message Intermediate Throw Event": "Evento Intermediário de Lançamento de Mensagem",
     "Timer Intermediate Catch Event": "Evento Intermediário de Captura de Tempo",
-    "Escalation Intermediate Throw Event":
-        "Evento Intermediário de Lançamento de Escalação",
-    "Conditional Intermediate Catch Event":
-        "Evento Intermediário de Captura de Condição",
+    "Escalation Intermediate Throw Event": "Evento Intermediário de Lançamento de Escalação",
+    "Conditional Intermediate Catch Event": "Evento Intermediário de Captura de Condição",
     "Link Intermediate Catch Event": "Evento Intermediário de Captura de Link",
     "Link Intermediate Throw Event": "Evento Intermediário de Lançamento de Línk",
-    "Compensation Intermediate Throw Event":
-        "Evento Intermediário de Lançamento de Compensação",
+    "Compensation Intermediate Throw Event": "Evento Intermediário de Lançamento de Compensação",
     "Signal Intermediate Catch Event": "Evento Intermediário de Captura de Sinal",
     "Signal Intermediate Throw Event": "Evento Intermediário de Lançamento de Sinal",
     "Parallel Gateway": "Gateway Paralelo",
@@ -72,8 +68,7 @@ const translations: Record<string, string> = {
     "Sub Process": "Sub Processo",
     "Swap sides": "Inverter lados",
     "Task": "Atividade",
-    "This maps to the task definition key.":
-        "Aponta para a chave de definição da atividade.",
+    "This maps to the task definition key.": "Aponta para a chave de definição da atividade.",
     "Collapsed Pool": "Piscina Colapsada",
     "Expanded Pool": "Piscina Expandida",
     "flow elements must be children of pools/participants":
@@ -88,22 +83,18 @@ const translations: Record<string, string> = {
     "Cancel Boundary Event": "Evento de Borda de Cancelamento",
     "Signal Boundary Event": "Evento de Borda de Sinal",
     "Compensation Boundary Event": "Evento de Borda de Compensação",
-    "Message Boundary Event (non-interrupting)":
-        "Evento de Borda de Mensagem (sem interrupção)",
-    "Timer Boundary Event (non-interrupting)":
-        "Evento de Borda de Tempo (sem interrupção)",
+    "Message Boundary Event (non-interrupting)": "Evento de Borda de Mensagem (sem interrupção)",
+    "Timer Boundary Event (non-interrupting)": "Evento de Borda de Tempo (sem interrupção)",
     "Escalation Boundary Event (non-interrupting)":
         "Evento de Borda de Escalação (sem interrupção)",
     "Conditional Boundary Event (non-interrupting)":
         "Evento de Borda Condicional (sem interrupção)",
-    "Signal Boundary Event (non-interrupting)":
-        "Evento de Borda de Sinal (sem interrupção)",
+    "Signal Boundary Event (non-interrupting)": "Evento de Borda de Sinal (sem interrupção)",
     "Connect using Information/Knowledge/Authority Requirement or Association":
         "Conecte usando Requerimento de Informação/Conhecimento/Autoridade ou Associação",
     "Empty": "Vazio",
     "Literal Expression": "Expressão Literal",
-    "This maps to the decision definition key.":
-        "Aponta para a chave de definicão da decisão.",
+    "This maps to the decision definition key.": "Aponta para a chave de definicão da decisão.",
     "Decision Table": "Tabela de Decisão",
     "Output": "Saída",
     "Annotation": "Anotação",

@@ -40,9 +40,7 @@ import { VsCodeUI } from "./VsCodeUI";
 beforeEach(() => {
     showQuickPickMock.mockReset();
     asRelativePathMock.mockReset();
-    asRelativePathMock.mockImplementation((uri: { path: string }) =>
-        uri.path.replace(/^\//, ""),
-    );
+    asRelativePathMock.mockImplementation((uri: { path: string }) => uri.path.replace(/^\//, ""));
 });
 
 describe("VsCodeUI.pickReferencedModel", () => {
@@ -90,11 +88,7 @@ describe("VsCodeUI.pickReferencedModel", () => {
         // Inputs in non-alphabetical order; expect the picker to receive
         // them sorted by `description` so nearby files surface first.
         const sut = new VsCodeUI();
-        await sut.pickReferencedModel([
-            "/repo/src/z.bpmn",
-            "/repo/lib/a.bpmn",
-            "/repo/src/m.bpmn",
-        ]);
+        await sut.pickReferencedModel(["/repo/src/z.bpmn", "/repo/lib/a.bpmn", "/repo/src/m.bpmn"]);
 
         const items = showQuickPickMock.mock.calls[0][0] as { path: string }[];
         expect(items.map((i) => i.path)).toEqual([

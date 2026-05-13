@@ -53,10 +53,7 @@ describe("VsCodeWorkspace.findFiles", () => {
     });
 
     it("returns the .path of every matching Uri", async () => {
-        findFilesMock.mockResolvedValueOnce([
-            { path: "/x.bpmn" },
-            { path: "/nested/y.bpmn" },
-        ]);
+        findFilesMock.mockResolvedValueOnce([{ path: "/x.bpmn" }, { path: "/nested/y.bpmn" }]);
         const sut = new VsCodeWorkspace();
 
         const result = await sut.findFiles("**/*.bpmn");

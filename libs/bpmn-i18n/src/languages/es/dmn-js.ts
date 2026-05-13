@@ -217,10 +217,8 @@ const translations: Record<string, string> = {
     "Start time": "Hora de inicio",
     "Start value": "Valor inicial",
     "String value": "Valor de cadena de texto",
-    "Strings must be in double quotes":
-        "Las cadenas de texto deben ir entre comillas dobles",
-    "Strings must be in double quotes.":
-        "Las cadenas de texto deben ir entre comillas dobles.",
+    "Strings must be in double quotes": "Las cadenas de texto deben ir entre comillas dobles",
+    "Strings must be in double quotes.": "Las cadenas de texto deben ir entre comillas dobles.",
     "Test type": "Tipo de prueba",
     "Then": "Entonces",
     "Time value": "Valor de hora",

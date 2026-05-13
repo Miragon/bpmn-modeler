@@ -126,8 +126,7 @@ const translations: Record<string, string> = {
         "Defina una expresión de colección de entrada que determine la colección a recorrer (p. ej. ",
     "Define the decision to evaluate and how to map back the evaluation result. ":
         "Defina la decisión a evaluar y cómo mapear el resultado de la evaluación.",
-    "Define the ID of the process to call (e.g. ":
-        "Defina el ID del proceso a llamar (p. ej. ",
+    "Define the ID of the process to call (e.g. ": "Defina el ID del proceso a llamar (p. ej. ",
     "Define the name of the message (e.g. ": "Defina el nombre del mensaje (p. ej. ",
     "Define the name of the variable that will contain the error code.":
         "Defina el nombre de la variable que contendrá el código de error.",
@@ -304,8 +303,7 @@ const translations: Record<string, string> = {
     "Mapping must have a value": "El mapeo debe tener un valor",
     "Message event documentation": "Documentación de evento de mensaje",
     "Message Name": "Nombre del mensaje",
-    "Message throw event documentation":
-        "Documentación de evento de lanzamiento de mensaje",
+    "Message throw event documentation": "Documentación de evento de lanzamiento de mensaje",
     "Message variable": "Variable de mensaje",
     "Message": "Mensaje",
     "Multi Instance ": "Instancia múltiple ",
@@ -360,15 +358,12 @@ const translations: Record<string, string> = {
     "Process Name": "Nombre de proceso",
     "Process variable name": "Nombre de variable de proceso",
     "Process variables": "Variables de proceso",
-    "Propagate all child process variables":
-        "Propagar todas las variables del proceso hijo",
-    "Propagate all parent process variables":
-        "Propagar todas las variables del proceso padre",
+    "Propagate all child process variables": "Propagar todas las variables del proceso hijo",
+    "Propagate all parent process variables": "Propagar todas las variables del proceso padre",
     "Propagate all variables": "Propagar todas las variables",
     "Properties": "Propiedades",
     "Receive task documentation": "Documentación de tarea de recepción",
-    "Refers to the process variable name":
-        "Se refiere al nombre de la variable de proceso",
+    "Refers to the process variable name": "Se refiere al nombre de la variable de proceso",
     "Resource": "Recurso",
     "Result variable": "Variable de resultado",
     "Result Variable": "Variable de resultado",
@@ -421,8 +416,7 @@ const translations: Record<string, string> = {
     "String": "Cadena de texto",
     "Subscription correlation key": "Clave de correlación de suscripción",
     "take": "tomar",
-    "Target must not contain whitespace":
-        "El destino no debe contener espacios en blanco",
+    "Target must not contain whitespace": "El destino no debe contener espacios en blanco",
     "Target": "Destino",
     "Task definition": "Definición de tarea",
     "Task listener": "Listener de tarea",

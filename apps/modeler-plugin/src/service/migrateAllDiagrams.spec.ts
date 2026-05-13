@@ -124,9 +124,7 @@ describe("migrateAllDiagrams", () => {
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
-            "No BPMN files found in the workspace.",
-        );
+        expect(vsUI.showInfo).toHaveBeenCalledWith("No BPMN files found in the workspace.");
     });
 
     it("should show info and return false when no engine is detectable", async () => {
@@ -200,9 +198,7 @@ describe("migrateAllDiagrams", () => {
             .mockResolvedValueOnce(c7Bpmn("7.20.0"))
             .mockResolvedValueOnce(c8Bpmn("8.5.0"));
         vsUI.pickMigrationScope.mockResolvedValue("both");
-        vsUI.pickEngineVersion
-            .mockResolvedValueOnce("7.24.0")
-            .mockResolvedValueOnce("8.8.0");
+        vsUI.pickEngineVersion.mockResolvedValueOnce("7.24.0").mockResolvedValueOnce("8.8.0");
 
         const result = await service.migrateAllDiagrams();
 
@@ -230,9 +226,7 @@ describe("migrateAllDiagrams", () => {
         await service.migrateAllDiagrams();
 
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
-            expect.stringContaining("1 diagram(s)"),
-        );
+        expect(vsUI.showInfo).toHaveBeenCalledWith(expect.stringContaining("1 diagram(s)"));
     });
 
     it("should show 'already at version' when all files match target", async () => {
@@ -258,10 +252,7 @@ describe("migrateAllDiagrams", () => {
 
         await service.migrateAllDiagrams();
 
-        expect(vsDocument.write).toHaveBeenCalledWith(
-            "editor-1",
-            expect.stringContaining("8.8.0"),
-        );
+        expect(vsDocument.write).toHaveBeenCalledWith("editor-1", expect.stringContaining("8.8.0"));
         expect(vsWorkspace.writeFile).not.toHaveBeenCalled();
     });
 
@@ -303,8 +294,6 @@ describe("migrateAllDiagrams", () => {
 
         await service.migrateAllDiagrams();
 
-        expect(vsUI.logWarning).toHaveBeenCalledWith(
-            expect.stringContaining("Skipped 1 file(s)"),
-        );
+        expect(vsUI.logWarning).toHaveBeenCalledWith(expect.stringContaining("Skipped 1 file(s)"));
     });
 });

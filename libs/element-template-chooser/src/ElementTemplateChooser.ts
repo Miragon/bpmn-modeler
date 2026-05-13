@@ -19,12 +19,7 @@ import { getBusinessObject } from "bpmn-js/lib/util/ModelUtil";
  * overlay, and applies the chosen template when the user confirms.
  */
 class ElementTemplateChooser {
-    static $inject = [
-        "config.connectorsExtension",
-        "eventBus",
-        "elementTemplates",
-        "canvas",
-    ];
+    static $inject = ["config.connectorsExtension", "eventBus", "elementTemplates", "canvas"];
 
     constructor(config: any, eventBus: any, elementTemplates: any, canvas: any) {
         const enableChooser = !config || config.elementTemplateChooser !== false;
@@ -56,11 +51,7 @@ class ElementTemplateChooser {
      * @param canvas The bpmn-js canvas service.
      * @returns A promise that resolves with the chosen template or rejects on cancel.
      */
-    private open(
-        element: any,
-        elementTemplates: any,
-        canvas: any,
-    ): Promise<ElementTemplate> {
+    private open(element: any, elementTemplates: any, canvas: any): Promise<ElementTemplate> {
         return new Promise((resolve, reject) => {
             const templates: ElementTemplate[] = elementTemplates
                 .getLatest(element)

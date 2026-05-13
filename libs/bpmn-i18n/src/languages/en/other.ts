@@ -20,8 +20,7 @@
 const translations: Record<string, string> = {
     "Open minimap": "Open minimap",
     "Open properties panel": "Open properties panel",
-    "This maps to the process definition key.":
-        "This maps to the process definition key.",
+    "This maps to the process definition key.": "This maps to the process definition key.",
     "Key": "Key",
     "Intermediate Throw Event": "Intermediate Throw Event",
     "End Event": "End Event",
@@ -83,21 +82,17 @@ const translations: Record<string, string> = {
     "Cancel Boundary Event": "Cancel Boundary Event",
     "Signal Boundary Event": "Signal Boundary Event",
     "Compensation Boundary Event": "Compensation Boundary Event",
-    "Message Boundary Event (non-interrupting)":
-        "Message Boundary Event (non-interrupting)",
+    "Message Boundary Event (non-interrupting)": "Message Boundary Event (non-interrupting)",
     "Timer Boundary Event (non-interrupting)": "Timer Boundary Event (non-interrupting)",
-    "Escalation Boundary Event (non-interrupting)":
-        "Escalation Boundary Event (non-interrupting)",
+    "Escalation Boundary Event (non-interrupting)": "Escalation Boundary Event (non-interrupting)",
     "Conditional Boundary Event (non-interrupting)":
         "Conditional Boundary Event (non-interrupting)",
-    "Signal Boundary Event (non-interrupting)":
-        "Signal Boundary Event (non-interrupting)",
+    "Signal Boundary Event (non-interrupting)": "Signal Boundary Event (non-interrupting)",
     "Connect using Information/Knowledge/Authority Requirement or Association":
         "Connect using Information/Knowledge/Authority Requirement or Association",
     "Empty": "Empty",
     "Literal Expression": "Literal Expression",
-    "This maps to the decision definition key.":
-        "This maps to the decision definition key.",
+    "This maps to the decision definition key.": "This maps to the decision definition key.",
     "Decision Table": "Decision Table",
     "Output": "Output",
     "Annotation": "Annotation",

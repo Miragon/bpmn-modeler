@@ -21,13 +21,7 @@ const yauzl = require("yauzl");
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const standaloneDir = resolve(__dirname, "..");
 const repoRoot = resolve(standaloneDir, "..", "..");
-const vsixSrc = resolve(
-    repoRoot,
-    "dist",
-    "apps",
-    "modeler-plugin",
-    "bpmn-modeler-plugin.vsix",
-);
+const vsixSrc = resolve(repoRoot, "dist", "apps", "modeler-plugin", "bpmn-modeler-plugin.vsix");
 const pluginsDir = resolve(standaloneDir, "plugins");
 const pluginName = "bpmn-modeler-plugin";
 const unpackedDir = resolve(pluginsDir, pluginName);

@@ -43,17 +43,13 @@ const translations: Record<string, string> = {
     "Sub Process (collapsed)": "Sous-processus (réduit)",
     "Close minimap": "Fermer la mini-carte",
     "Message Intermediate Catch Event": "Événement intermédiaire de capture de message",
-    "Message Intermediate Throw Event":
-        "Événement intermédiaire de lancement de message",
+    "Message Intermediate Throw Event": "Événement intermédiaire de lancement de message",
     "Timer Intermediate Catch Event": "Événement intermédiaire de capture de minuterie",
-    "Escalation Intermediate Throw Event":
-        "Événement intermédiaire de lancement d'escalade",
-    "Conditional Intermediate Catch Event":
-        "Événement intermédiaire de capture conditionnel",
+    "Escalation Intermediate Throw Event": "Événement intermédiaire de lancement d'escalade",
+    "Conditional Intermediate Catch Event": "Événement intermédiaire de capture conditionnel",
     "Link Intermediate Catch Event": "Événement intermédiaire de capture de lien",
     "Link Intermediate Throw Event": "Événement intermédiaire de lancement de lien",
-    "Compensation Intermediate Throw Event":
-        "Événement intermédiaire de lancement de compensation",
+    "Compensation Intermediate Throw Event": "Événement intermédiaire de lancement de compensation",
     "Signal Intermediate Catch Event": "Événement intermédiaire de capture de signal",
     "Signal Intermediate Throw Event": "Événement intermédiaire de lancement de signal",
     "Parallel Gateway": "Passerelle parallèle",
@@ -73,8 +69,7 @@ const translations: Record<string, string> = {
     "Sub Process": "Sous-processus",
     "Swap sides": "Inverser les côtés",
     "Task": "Tâche",
-    "This maps to the task definition key.":
-        "Cela correspond à la clé de définition de la tâche.",
+    "This maps to the task definition key.": "Cela correspond à la clé de définition de la tâche.",
     "Collapsed Pool": "Pool réduit",
     "Expanded Pool": "Pool étendu",
     "flow elements must be children of pools/participants":
@@ -89,16 +84,12 @@ const translations: Record<string, string> = {
     "Cancel Boundary Event": "Événement limite d'annulation",
     "Signal Boundary Event": "Événement limite de signal",
     "Compensation Boundary Event": "Événement limite de compensation",
-    "Message Boundary Event (non-interrupting)":
-        "Événement limite de message (non interruptif)",
-    "Timer Boundary Event (non-interrupting)":
-        "Événement limite de minuterie (non interruptif)",
-    "Escalation Boundary Event (non-interrupting)":
-        "Événement limite d'escalade (non interruptif)",
+    "Message Boundary Event (non-interrupting)": "Événement limite de message (non interruptif)",
+    "Timer Boundary Event (non-interrupting)": "Événement limite de minuterie (non interruptif)",
+    "Escalation Boundary Event (non-interrupting)": "Événement limite d'escalade (non interruptif)",
     "Conditional Boundary Event (non-interrupting)":
         "Événement limite conditionnel (non interruptif)",
-    "Signal Boundary Event (non-interrupting)":
-        "Événement limite de signal (non interruptif)",
+    "Signal Boundary Event (non-interrupting)": "Événement limite de signal (non interruptif)",
     "Connect using Information/Knowledge/Authority Requirement or Association":
         "Connecter en utilisant une exigence d'information/connaissance/autorité ou une association",
     "Empty": "Vide",

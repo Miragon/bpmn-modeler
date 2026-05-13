@@ -102,9 +102,7 @@ export class MiragonThemeContribution implements FrontendApplicationContribution
         this.preferences.ready.then(() => this.ensureMiragonTheme());
 
         if (!window.localStorage.getItem(FIRST_RUN_KEY)) {
-            this.stateService
-                .reachedState("ready")
-                .then(() => this.promptInitialThemeChoice());
+            this.stateService.reachedState("ready").then(() => this.promptInitialThemeChoice());
         }
     }
 

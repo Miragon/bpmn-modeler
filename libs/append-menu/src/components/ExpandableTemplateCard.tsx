@@ -53,18 +53,14 @@ export function ExpandableTemplateCard({
         >
             <div class="am-card-header">
                 {appliesTo.length === 1 ? (
-                    <span
-                        class={`am-card-bpmn-icon ${bpmnTypeToIconClass(appliesTo[0])}`}
-                    />
+                    <span class={`am-card-bpmn-icon ${bpmnTypeToIconClass(appliesTo[0])}`} />
                 ) : (
                     <span class="am-card-bpmn-icon bpmn-icon-task" />
                 )}
                 <div class="am-card-text">
                     <span class="am-card-name">{entry.label}</span>
                     {template?.category && (
-                        <span class="am-badge am-badge--category">
-                            {template.category.name}
-                        </span>
+                        <span class="am-badge am-badge--category">{template.category.name}</span>
                     )}
                 </div>
                 {entry.imageUrl && (

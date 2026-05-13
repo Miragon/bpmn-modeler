@@ -74,9 +74,7 @@ async function fetchStableC8Releases() {
  * @returns {string[]} The currently listed version strings.
  */
 function parseCurrentVersions(content) {
-    const match = content.match(
-        /C8_VERSIONS:\s*readonly\s*string\[\]\s*=\s*\[([\s\S]*?)\];/,
-    );
+    const match = content.match(/C8_VERSIONS:\s*readonly\s*string\[\]\s*=\s*\[([\s\S]*?)\];/);
     if (!match) {
         throw new Error("Could not find C8_VERSIONS array in engineVersions.ts");
     }
