@@ -91,7 +91,11 @@ const IMPLEMENTATION_BINDINGS: {
 }[] = [
     // C7 bindings (binding.type === "property", identified by binding.name)
     { label: "Topic", bindingType: "property", bindingName: "camunda:topic" },
-    { label: "Delegate", bindingType: "property", bindingName: "camunda:delegateExpression" },
+    {
+        label: "Delegate",
+        bindingType: "property",
+        bindingName: "camunda:delegateExpression",
+    },
     { label: "Java Class", bindingType: "property", bindingName: "camunda:class" },
     { label: "Expression", bindingType: "property", bindingName: "camunda:expression" },
     { label: "Called Element", bindingType: "property", bindingName: "calledElement" },

@@ -61,9 +61,7 @@ function entryMatchesFilter(entry: BpmnElementEntry, filter: Set<string>): boole
  * @returns `true` if the entry label or description matches.
  */
 function entryMatchesSearch(entry: BpmnElementEntry, query: string): boolean {
-    const haystack = [entry.entry.label, entry.entry.description ?? ""]
-        .join(" ")
-        .toLowerCase();
+    const haystack = [entry.entry.label, entry.entry.description ?? ""].join(" ").toLowerCase();
     return haystack.includes(query);
 }
 
@@ -129,17 +127,15 @@ export function BpmnElementPalette({
             <div class="am-palette-header">
                 <h3 class="am-palette-title">BPMN</h3>
                 <button
-                  class="am-palette-toggle"
-                  onClick={onToggleExpand}
-                  title={expanded ? "Collapse" : "Expand"}
-                  type="button"
+                    class="am-palette-toggle"
+                    onClick={onToggleExpand}
+                    title={expanded ? "Collapse" : "Expand"}
+                    type="button"
                 >
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                        {expanded
-? (
+                        {expanded ? (
                             <path d="M11.354 8.354a.5.5 0 0 0 0-.708l-4-4a.5.5 0 1 0-.708.708L10.293 8l-3.647 3.646a.5.5 0 0 0 .708.708l4-4z" />
-                        )
-: (
+                        ) : (
                             <path d="M4.646 7.646a.5.5 0 0 1 .708 0L8 10.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708zM4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z" />
                         )}
                     </svg>
@@ -149,21 +145,21 @@ export function BpmnElementPalette({
                 {/* Favourites section — pinned at the top */}
                 {favouriteEntries.length > 0 && (
                     <div class="am-bpmn-group am-bpmn-group--favourites">
-                        {expanded && (
-                            <h4 class="am-bpmn-group-title">Favourites</h4>
-                        )}
+                        {expanded && <h4 class="am-bpmn-group-title">Favourites</h4>}
                         <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                             {favouriteEntries.map(({ id, entry, disabled, hidden }) => {
                                 if (hidden) return null;
                                 const isDisabled = disabled || !!entry.disabled;
                                 return (
                                     <button
-                                      key={`fav-${id}`}
-                                      class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
-                                      disabled={isDisabled}
-                                      onClick={(e) => onSelect(entry.action, e as unknown as Event)}
-                                      title={entry.label}
-                                      type="button"
+                                        key={`fav-${id}`}
+                                        class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
+                                        disabled={isDisabled}
+                                        onClick={(e) =>
+                                            onSelect(entry.action, e as unknown as Event)
+                                        }
+                                        title={entry.label}
+                                        type="button"
                                     >
                                         {entry.className && (
                                             <span class={`am-bpmn-icon ${entry.className}`} />
@@ -186,20 +182,20 @@ export function BpmnElementPalette({
                     }
                     return (
                         <div key={group.id} class="am-bpmn-group">
-                            {expanded && (
-                                <h4 class="am-bpmn-group-title">{group.name}</h4>
-                            )}
+                            {expanded && <h4 class="am-bpmn-group-title">{group.name}</h4>}
                             <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                                 {visibleEntries.map(({ id, entry, disabled }) => {
                                     const isDisabled = disabled || !!entry.disabled;
                                     return (
                                         <button
-                                          key={id}
-                                          class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
-                                          disabled={isDisabled}
-                                          onClick={(e) => onSelect(entry.action, e as unknown as Event)}
-                                          title={entry.label}
-                                          type="button"
+                                            key={id}
+                                            class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
+                                            disabled={isDisabled}
+                                            onClick={(e) =>
+                                                onSelect(entry.action, e as unknown as Event)
+                                            }
+                                            title={entry.label}
+                                            type="button"
                                         >
                                             {entry.className && (
                                                 <span class={`am-bpmn-icon ${entry.className}`} />

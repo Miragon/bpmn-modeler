@@ -31,10 +31,7 @@ export interface CamundaEnginePort {
      * @returns A {@link DeploymentResult} describing the outcome.
      * @throws {DeploymentFailedError} If the server returns a non-2xx status.
      */
-    deploy(
-        config: DeploymentConfig,
-        fileContents: Map<string, string>,
-    ): Promise<DeploymentResult>;
+    deploy(config: DeploymentConfig, fileContents: Map<string, string>): Promise<DeploymentResult>;
 
     /**
      * Starts a process instance on the Camunda engine.
@@ -75,11 +72,7 @@ export interface HttpClient {
      * @param headers Optional extra headers to merge into the request.
      * @returns The HTTP status code and raw response body text.
      */
-    postForm(
-        url: string,
-        body: string,
-        headers?: Record<string, string>,
-    ): Promise<HttpResponse>;
+    postForm(url: string, body: string, headers?: Record<string, string>): Promise<HttpResponse>;
 
     /**
      * Sends a POST request with a multipart/form-data body.

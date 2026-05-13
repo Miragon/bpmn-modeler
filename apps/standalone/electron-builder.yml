@@ -67,6 +67,8 @@ mac:
   notarize: true
 dmg:
   format: ULFO
+  # GitHub Releases rewrites spaces in uploaded asset names to dots.
+  artifactName: Miragon.BPMN.Modeler-${version}-${arch}.${ext}
 win:
   target:
     - nsis

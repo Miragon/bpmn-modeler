@@ -63,12 +63,7 @@ class AppendMenuOverride {
         };
 
         // --- Override popupMenu.open ---
-        popupMenu.open = (
-            target: any,
-            providerId: string,
-            position: any,
-            options?: any,
-        ) => {
+        popupMenu.open = (target: any, providerId: string, position: any, options?: any) => {
             if (!INTERCEPTED_PROVIDERS.has(providerId)) {
                 return originalOpen(target, providerId, position, options);
             }
@@ -161,14 +156,11 @@ class AppendMenuOverride {
         };
 
         // --- Auto-close on diagram events ---
-        eventBus.on(
-            ["contextPad.close", "canvas.viewbox.changing", "commandStack.changed"],
-            () => {
-                if (customMenuOpen) {
-                    destroyCustomMenu();
-                }
-            },
-        );
+        eventBus.on(["contextPad.close", "canvas.viewbox.changing", "commandStack.changed"], () => {
+            if (customMenuOpen) {
+                destroyCustomMenu();
+            }
+        });
     }
 }
 

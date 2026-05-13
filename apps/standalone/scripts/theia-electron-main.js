@@ -8,25 +8,27 @@ const { app } = require("electron");
 
 const isInsideAsar = __dirname.includes(".asar");
 const bundledPluginsDir = isInsideAsar
-  ? path.join(process.resourcesPath, "app", "plugins")
-  : path.resolve(__dirname, "..", "plugins");
+    ? path.join(process.resourcesPath, "app", "plugins")
+    : path.resolve(__dirname, "..", "plugins");
 
 process.env.THEIA_DEFAULT_PLUGINS = `local-dir:${bundledPluginsDir}`;
 
 if (app.isPackaged) {
-  const { autoUpdater } = require("electron-updater");
-  app.whenReady().then(() => {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error("Auto-update check failed:", err);
+    const { autoUpdater } = require("electron-updater");
+    app.whenReady().then(() => {
+        autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+            console.error("Auto-update check failed:", err);
+        });
     });
-  });
 }
 
 const mainEntry = path.resolve(__dirname, "../lib/backend/electron-main.js");
 if (!existsSync(mainEntry)) {
-  console.error("ERROR: lib/backend/electron-main.js not found.");
-  console.error("Run `corepack yarn workspace standalone run rebuild && corepack yarn workspace standalone build` first.");
-  process.exit(1);
+    console.error("ERROR: lib/backend/electron-main.js not found.");
+    console.error(
+        "Run `corepack yarn workspace standalone run rebuild && corepack yarn workspace standalone build` first.",
+    );
+    process.exit(1);
 }
 
 require(mainEntry);

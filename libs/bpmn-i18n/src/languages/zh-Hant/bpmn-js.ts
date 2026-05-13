@@ -65,7 +65,8 @@ const translations: Record<string, string> = {
     "Sequential Multi Instance": "串行多實例",
     "Loop": "循環",
     "Ad-hoc": "臨時的",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "由{referenced}{property}引用的元素{element}尚未繪製",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "由{referenced}{property}引用的元素{element}尚未繪製",
     "unknown di {di} for element {semantic}": "元素{semantic}的未知di{di}",
     "missing {semantic}#attachedToRef": "缺少{semantic}的附加的引用",
     "{semantic}#{side} Ref not specified": "未指定{semantic}的{side}引用",
@@ -76,9 +77,11 @@ const translations: Record<string, string> = {
     "diagram not part of bpmn:Definitions": "流程圖不屬於bpmn:Definitions",
     "no diagram to display": "沒有要顯示的流程图",
     "no process or collaboration to display": "没有要顯示的流程或協作",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "正在將{plane}上缺少的bpmn元素更正為{rootElement}",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "正在將{plane}上缺少的bpmn元素更正為{rootElement}",
     "unsupported bpmnElement for {plane}: {rootElement}": "{plane}:{rootElement}的bpmn元素不受支持",
-    "unrecognized flowElement {element} in context {context}": "上下文{context}中无法識別的流程元素{element}",
+    "unrecognized flowElement {element} in context {context}":
+        "上下文{context}中无法識別的流程元素{element}",
     "HELLO {you}!": "你好 {you}!",
 };
 

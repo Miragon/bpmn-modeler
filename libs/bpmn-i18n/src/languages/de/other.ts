@@ -57,13 +57,15 @@ const translations: Record<string, string> = {
     "Compensation Event": "Kompensationsereignis",
     "Compensation Intermediate Throw Event": "Kompensations-Zwischenauslöseereignis",
     "Complex Gateway": "Komplexes Gateway",
-    "Conditional Boundary Event (non-interrupting)": "Bedingungsgrenzereignis (nicht unterbrechend)",
+    "Conditional Boundary Event (non-interrupting)":
+        "Bedingungsgrenzereignis (nicht unterbrechend)",
     "Conditional Boundary Event": "Bedingungsgrenzereignis",
     "Conditional Event": "Bedingungsereignis",
     "Conditional Flow": "Bedingter Fluss",
     "Conditional Intermediate Catch Event": "Bedingtes Zwischeneintretendes Ereignis",
     "Conditional Start Event": "Bedingtes Startereignis",
-    "Connect using Information/Knowledge/Authority Requirement or Association": "Mit Informations-/Wissens-/Befugnisanforderung oder Assoziation verbinden",
+    "Connect using Information/Knowledge/Authority Requirement or Association":
+        "Mit Informations-/Wissens-/Befugnisanforderung oder Assoziation verbinden",
     "Copy Input Column": "Eingabespalte kopieren",
     "Copy Output Column": "Ausgabespalte kopieren",
     "Copy Rule": "Regel kopieren",
@@ -99,15 +101,18 @@ const translations: Record<string, string> = {
     "Error Boundary Event": "Fehler-Grenzereignis",
     "Error End Event": "Fehler-Endereignis",
     "Error Event": "Fehlerereignis",
-    "Escalation Boundary Event (non-interrupting)": "Eskalations-Grenzereignis (nicht unterbrechend)",
+    "Escalation Boundary Event (non-interrupting)":
+        "Eskalations-Grenzereignis (nicht unterbrechend)",
     "Escalation Boundary Event": "Eskalations-Grenzereignis",
     "Escalation End Event": "Eskalations-Endereignis",
     "Escalation Intermediate Throw Event": "Eskalations-Zwischenauslöseereignis",
-    "Event is ignored due to entry criteria": "Ereignis wird aufgrund von Eintrittsregeln ignoriert",
+    "Event is ignored due to entry criteria":
+        "Ereignis wird aufgrund von Eintrittsregeln ignoriert",
     "Event-based Exclusive Gateway": "Ereignisbasiertes exklusives Gateway (XOR)",
     "Event": "Ereignis",
     "Example Data documentation": "Beispieldaten-Dokumentation",
-    "Example data must be a JSON object literal.": "Beispieldaten müssen ein JSON-Objektliteral sein.",
+    "Example data must be a JSON object literal.":
+        "Beispieldaten müssen ein JSON-Objektliteral sein.",
     "Exception Flow": "Ausnahmefluss",
     "Exception": "Ausnahme",
     "Exklusives Gateway": "Datenbasiertes exklusives Gateway (XOR)",
@@ -116,7 +121,8 @@ const translations: Record<string, string> = {
     "Expanded Subprocess": "Aufgeklappter Teilprozess",
     "FEEL": "FEEL",
     "First": "Erste",
-    "flow elements must be children of pools/participants": "Flow-Elemente müssen innerhalb von Pools/Teilnehmern platziert werden",
+    "flow elements must be children of pools/participants":
+        "Flow-Elemente müssen innerhalb von Pools/Teilnehmern platziert werden",
     "Foo": "Foo",
     "Gateway": "Gateway",
     "Groovy": "Groovy",
@@ -138,7 +144,8 @@ const translations: Record<string, string> = {
     "Learn more": "Erfahren Sie mehr",
     "Link Intermediate Catch Event": "Verknüpftes Zwischenereignis (Empfangend)",
     "Link Intermediate Throw Event": "Verknüpftes Zwischenereignis (Sendend)",
-    "Listener is notified for all kinds of events": "Ereignis wird für alle Arten von Ereignissen benachrichtigt",
+    "Listener is notified for all kinds of events":
+        "Ereignis wird für alle Arten von Ereignissen benachrichtigt",
     "Listener": "Ereignis",
     "Literal Expression": "Literaler Ausdruck",
     "Local variable assignment": "Lokale Variablenzuweisung",
@@ -176,8 +183,10 @@ const translations: Record<string, string> = {
     "Prev change": "Vorherige Änderung",
     "Priority": "Priorität",
     "Process variable assignment": "Prozessvariablenzuweisung",
-    "Process variable name must not be empty.": "Der Name der Prozessvariable darf nicht leer sein.",
-    "Process variable name must not contain spaces.": "Der Name der Prozessvariable darf keine Leerzeichen enthalten.",
+    "Process variable name must not be empty.":
+        "Der Name der Prozessvariable darf nicht leer sein.",
+    "Process variable name must not contain spaces.":
+        "Der Name der Prozessvariable darf keine Leerzeichen enthalten.",
     "Python": "Python",
     "Question": "Frage",
     "receive messages.": "Nachrichten empfangen.",
@@ -197,7 +206,8 @@ const translations: Record<string, string> = {
     "Rule order": "Regelreihenfolge",
     "Rule": "Regel",
     "Rules": "Regeln",
-    "Scientific notation is disallowed in FEEL.": "Wissenschaftliche Notation ist in FEEL nicht erlaubt.",
+    "Scientific notation is disallowed in FEEL.":
+        "Wissenschaftliche Notation ist in FEEL nicht erlaubt.",
     "Script Task": "Skriptaufgabe",
     "Search in diagram": "Im Diagramm suchen",
     "Select": "Auswählen",
@@ -215,7 +225,8 @@ const translations: Record<string, string> = {
     "singleResult": "Einzelergebnis",
     "Standard Event": "Standardereignis",
     "Start Event": "Startereignis",
-    "Strings must be in double quotes.": "Zeichenketten müssen in doppelten Anführungszeichen stehen.",
+    "Strings must be in double quotes.":
+        "Zeichenketten müssen in doppelten Anführungszeichen stehen.",
     "Sub Process (collapsed)": "Zugeklappter Teilprozess",
     "Sub Process (expanded)": "Aufgeklappter Teilprozess",
     "Sub Process": "Teilprozess",
@@ -225,11 +236,16 @@ const translations: Record<string, string> = {
     "Template": "Vorlage",
     "Templates": "Vorlagen",
     "Terminate End Event": "Beendendes Endereignis",
-    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "Das Folgetermin als EL-Ausdruck (z.B. ${someDate}) oder als ISO-Datum (z.B. 2015-06-26T09:54:00)",
-    "The template applied was not found. Therefore, its properties cannot be shown. Unlink to access the data.": "Die angewendete Vorlage wurde nicht gefunden. Daher können ihre Eigenschaften nicht angezeigt werden. Verknüpfung aufheben, um auf die Daten zuzugreifen.",
-    "This maps to the decision definition key.": "Dies wird dem Entscheidungsdefinitionsschlüssel zugeordnet.",
-    "This maps to the process definition key.": "Dies wird dem Prozessdefinitionsschlüssel zugeordnet.",
-    "This maps to the task definition key.": "Dies wird dem Aufgabendefinitionsschlüssel zugeordnet.",
+    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "Das Folgetermin als EL-Ausdruck (z.B. ${someDate}) oder als ISO-Datum (z.B. 2015-06-26T09:54:00)",
+    "The template applied was not found. Therefore, its properties cannot be shown. Unlink to access the data.":
+        "Die angewendete Vorlage wurde nicht gefunden. Daher können ihre Eigenschaften nicht angezeigt werden. Verknüpfung aufheben, um auf die Daten zuzugreifen.",
+    "This maps to the decision definition key.":
+        "Dies wird dem Entscheidungsdefinitionsschlüssel zugeordnet.",
+    "This maps to the process definition key.":
+        "Dies wird dem Prozessdefinitionsschlüssel zugeordnet.",
+    "This maps to the task definition key.":
+        "Dies wird dem Aufgabendefinitionsschlüssel zugeordnet.",
     "This template is deprecated.": "Diese Vorlage ist veraltet.",
     "Timer Boundary Event (non-interrupting)": "Zeitgrenzereignis (nicht unterbrechend)",
     "Timer Boundary Event": "Zeitgrenzereignis",

@@ -99,12 +99,7 @@ export class DeploymentController implements WebviewViewProvider {
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [
-                Uri.joinPath(
-                    getContext().extensionUri,
-                    "deployment-webview",
-                ),
-            ],
+            localResourceRoots: [Uri.joinPath(getContext().extensionUri, "deployment-webview")],
         };
 
         webviewView.webview.html = deploymentWebviewHtml(
@@ -196,10 +191,7 @@ export class DeploymentController implements WebviewViewProvider {
                     await this.handleAdditionalFilesRequest(webviewView);
                     break;
                 case "DeployCommand":
-                    await this.handleDeploy(
-                        webviewView,
-                        (message as DeployCommand).config,
-                    );
+                    await this.handleDeploy(webviewView, (message as DeployCommand).config);
                     break;
                 case "RequestProcessDefinitionKeyCommand":
                     this.handleProcessDefinitionKeyRequest(webviewView);
@@ -223,19 +215,13 @@ export class DeploymentController implements WebviewViewProvider {
      *
      * @param webviewView The target WebviewView.
      */
-    private async handleStoredCredentialsRequest(
-        webviewView: WebviewView,
-    ): Promise<void> {
+    private async handleStoredCredentialsRequest(webviewView: WebviewView): Promise<void> {
         try {
             const auth = await this.deploymentService.getStoredCredentials();
             webviewView.webview.postMessage(new StoredCredentialsQuery(auth));
         } catch (error) {
-            this.vsUI.logError(
-                error instanceof Error ? error : new Error(String(error)),
-            );
-            webviewView.webview.postMessage(
-                new StoredCredentialsQuery({ authType: "none" }),
-            );
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+            webviewView.webview.postMessage(new StoredCredentialsQuery({ authType: "none" }));
         }
     }
 
@@ -250,9 +236,7 @@ export class DeploymentController implements WebviewViewProvider {
             const filePaths = await this.deploymentService.selectAdditionalFiles();
             webviewView.webview.postMessage(new AdditionalFilesQuery(filePaths));
         } catch (error) {
-            this.vsUI.logError(
-                error instanceof Error ? error : new Error(String(error)),
-            );
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
             webviewView.webview.postMessage(new AdditionalFilesQuery([]));
         }
     }
@@ -269,9 +253,7 @@ export class DeploymentController implements WebviewViewProvider {
             const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
             webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(key));
         } catch (error) {
-            this.vsUI.logError(
-                error instanceof Error ? error : new Error(String(error)),
-            );
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
             webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(""));
         }
     }
@@ -291,14 +273,10 @@ export class DeploymentController implements WebviewViewProvider {
                     new SelectedPayloadFileQuery(result.filePath, result.label),
                 );
             } else {
-                webviewView.webview.postMessage(
-                    new SelectedPayloadFileQuery("", ""),
-                );
+                webviewView.webview.postMessage(new SelectedPayloadFileQuery("", ""));
             }
         } catch (error) {
-            this.vsUI.logError(
-                error instanceof Error ? error : new Error(String(error)),
-            );
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
             webviewView.webview.postMessage(new SelectedPayloadFileQuery("", ""));
         }
     }
@@ -353,9 +331,7 @@ export class DeploymentController implements WebviewViewProvider {
             );
         } catch (error) {
             const message = "An unexpected error occurred while starting the process instance.";
-            this.vsUI.logError(
-                error instanceof Error ? error : new Error(String(error)),
-            );
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
             this.vsUI.showError(message);
             webviewView.webview.postMessage(new StartInstanceResultQuery(false, message));
         }
@@ -410,11 +386,7 @@ export class DeploymentController implements WebviewViewProvider {
             }
 
             webviewView.webview.postMessage(
-                new DeploymentResultQuery(
-                    result.success,
-                    result.message,
-                    result.deploymentId,
-                ),
+                new DeploymentResultQuery(result.success, result.message, result.deploymentId),
             );
         } catch (error) {
             const message =
@@ -422,9 +394,7 @@ export class DeploymentController implements WebviewViewProvider {
                     ? error.message
                     : "An unexpected error occurred during deployment.";
 
-            this.vsUI.logError(
-                error instanceof Error ? error : new Error(String(error)),
-            );
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
             this.vsUI.showError(message);
             webviewView.webview.postMessage(new DeploymentResultQuery(false, message));
         }

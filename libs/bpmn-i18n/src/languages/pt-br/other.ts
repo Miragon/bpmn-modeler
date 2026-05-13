@@ -71,8 +71,10 @@ const translations: Record<string, string> = {
     "This maps to the task definition key.": "Aponta para a chave de definição da atividade.",
     "Collapsed Pool": "Piscina Colapsada",
     "Expanded Pool": "Piscina Expandida",
-    "flow elements must be children of pools/participants": "elementos do fluxo devem ser filhos de piscina/participante",
-    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "A data de acompanhamento é uma expressão EL (por exemplo: ${someDate} ou uma data ISO (por exemplo: 2015-06-26T09:54:00)",
+    "flow elements must be children of pools/participants":
+        "elementos do fluxo devem ser filhos de piscina/participante",
+    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "A data de acompanhamento é uma expressão EL (por exemplo: ${someDate} ou uma data ISO (por exemplo: 2015-06-26T09:54:00)",
     "Message Boundary Event": "Evento de Borda de Mensagem",
     "Timer Boundary Event": "Evento de Borda de Tempo",
     "Escalation Boundary Event": "Evento de Borda de Escalação",
@@ -83,10 +85,13 @@ const translations: Record<string, string> = {
     "Compensation Boundary Event": "Evento de Borda de Compensação",
     "Message Boundary Event (non-interrupting)": "Evento de Borda de Mensagem (sem interrupção)",
     "Timer Boundary Event (non-interrupting)": "Evento de Borda de Tempo (sem interrupção)",
-    "Escalation Boundary Event (non-interrupting)": "Evento de Borda de Escalação (sem interrupção)",
-    "Conditional Boundary Event (non-interrupting)": "Evento de Borda Condicional (sem interrupção)",
+    "Escalation Boundary Event (non-interrupting)":
+        "Evento de Borda de Escalação (sem interrupção)",
+    "Conditional Boundary Event (non-interrupting)":
+        "Evento de Borda Condicional (sem interrupção)",
     "Signal Boundary Event (non-interrupting)": "Evento de Borda de Sinal (sem interrupção)",
-    "Connect using Information/Knowledge/Authority Requirement or Association": "Conecte usando Requerimento de Informação/Conhecimento/Autoridade ou Associação",
+    "Connect using Information/Knowledge/Authority Requirement or Association":
+        "Conecte usando Requerimento de Informação/Conhecimento/Autoridade ou Associação",
     "Empty": "Vazio",
     "Literal Expression": "Expressão Literal",
     "This maps to the decision definition key.": "Aponta para a chave de definicão da decisão.",

@@ -18,10 +18,12 @@ interface MutableElement {
     };
 }
 
-function build(opts: {
-    types?: string[];
-    initialAttrs?: Record<string, unknown>;
-} = {}) {
+function build(
+    opts: {
+        types?: string[];
+        initialAttrs?: Record<string, unknown>;
+    } = {},
+) {
     isMatchers.clear();
     for (const t of opts.types ?? []) isMatchers.add(t);
 
@@ -83,7 +85,7 @@ describe("NavigateContextPadProvider", () => {
         expect(Object.keys(entries)).toEqual(["navigate-to-referenced-model"]);
         const entry = entries["navigate-to-referenced-model"];
         expect(entry.group).toBe("connect");
-        expect(entry.html).toContain("<div class=\"entry\">");
+        expect(entry.html).toContain('<div class="entry">');
         expect(entry.html).toContain("<svg");
     });
 
@@ -129,12 +131,8 @@ describe("NavigateContextPadProvider", () => {
         expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
         const posted = vsCodeBridge.postMessage.mock.calls[0][0];
         expect(posted).toBeInstanceOf(NavigateToReferencedModelCommand);
-        expect((posted as NavigateToReferencedModelCommand).referenceId).toBe(
-            "Updated",
-        );
-        expect((posted as NavigateToReferencedModelCommand).referenceKind).toBe(
-            "process",
-        );
+        expect((posted as NavigateToReferencedModelCommand).referenceId).toBe("Updated");
+        expect((posted as NavigateToReferencedModelCommand).referenceKind).toBe("process");
     });
 
     it("does nothing when the reference id was cleared between render and click", () => {

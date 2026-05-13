@@ -121,7 +121,8 @@ const translations: Record<string, string> = {
     "Edit String": "Editar cadena de texto",
     "Edit time": "Editar hora",
     "Edit": "Editar",
-    "Editing not supported for set expression language": "Edición no soportada para el lenguaje de expresión establecido",
+    "Editing not supported for set expression language":
+        "Edición no soportada para el lenguaje de expresión establecido",
     "Element name": "Nombre del elemento",
     "End date and time": "Fecha y hora de fin",
     "End date": "Fecha de fin",

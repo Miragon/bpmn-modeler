@@ -26,7 +26,8 @@ const translations: Record<string, string> = {
     "Append ReceiveTask": "Adicionar Atividade de Recebimento",
     "Append MessageIntermediateCatchEvent": "Adicionar Evento Intermediário de Captura de Mensagem",
     "Append TimerIntermediateCatchEvent": "Adicionar Evento Intermediário de Captura de Tempo",
-    "Append ConditionIntermediateCatchEvent": "Adicionar Evento Intermediário de Captura de Condição",
+    "Append ConditionIntermediateCatchEvent":
+        "Adicionar Evento Intermediário de Captura de Condição",
     "Append SignalIntermediateCatchEvent": "Adicionar Evento Intermediário de Captura de Sinal",
     "Append compensation activity": "Adicionar atividade de compensação",
     "Append EndEvent": "Adicionar Evento Final",
@@ -35,7 +36,8 @@ const translations: Record<string, string> = {
     "Append Intermediate/Boundary Event": "Adicionar Evento Intermediário ou de Borda",
     "Change type": "Mudar tipo",
     "Connect using Association": "Conectar usando Associação",
-    "Connect using Sequence/MessageFlow or Association": "Conectar usando Sequência/Fluxo de Mensagem, ou Associação",
+    "Connect using Sequence/MessageFlow or Association":
+        "Conectar usando Sequência/Fluxo de Mensagem, ou Associação",
     "Connect using DataInputAssociation": "Conectar usando Associacao de Entrada de Dados",
     "Remove": "Remover",
     "no shape type specified": "nenhum tipo de forma especificado",
@@ -62,7 +64,8 @@ const translations: Record<string, string> = {
     "Sequential Multi Instance": "Múltiplas Instâncias em Sequência",
     "Loop": "Loop",
     "Ad-hoc": "Ad-hoc",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "elemento {element} referenciado por {referenced}#{property} ainda não renderizado",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "elemento {element} referenciado por {referenced}#{property} ainda não renderizado",
     "unknown di {di} for element {semantic}": "di desconhecido {di} para elemento {semantic}",
     "missing {semantic}#attachedToRef": "faltando {semantic}#attachedToRef",
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ref não especificada",
@@ -73,9 +76,12 @@ const translations: Record<string, string> = {
     "diagram not part of bpmn:Definitions": "diagrama não faz parte de bpmn:Definitions",
     "no diagram to display": "nenhum diagrama para exibir",
     "no process or collaboration to display": "nenhum processo ou colaboração para exibir",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "corrigindo bpmnElement faltando no {plane} para {rootElement}",
-    "unsupported bpmnElement for {plane}: {rootElement}": "bpmnElement não suportado para {plane}: {rootElement}",
-    "unrecognized flowElement {element} in context {context}": "flowElement não reconhecido {element} no contexto {context}",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "corrigindo bpmnElement faltando no {plane} para {rootElement}",
+    "unsupported bpmnElement for {plane}: {rootElement}":
+        "bpmnElement não suportado para {plane}: {rootElement}",
+    "unrecognized flowElement {element} in context {context}":
+        "flowElement não reconhecido {element} no contexto {context}",
     "HELLO {you}!": "OLÁ {you}!",
 };
 

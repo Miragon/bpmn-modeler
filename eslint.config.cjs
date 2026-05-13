@@ -2,7 +2,7 @@ const { FlatCompat } = require("@eslint/eslintrc");
 const js = require("@eslint/js");
 const globals = require("globals");
 const typescriptEslintEslintPlugin = require("@typescript-eslint/eslint-plugin");
-const stylisticEslintPlugin = require("@stylistic/eslint-plugin");
+const eslintConfigPrettier = require("eslint-config-prettier/flat");
 
 const compat = new FlatCompat({
     baseDirectory: __dirname,
@@ -11,12 +11,19 @@ const compat = new FlatCompat({
 
 module.exports = [
     {
-        ignores: ["**/dist", "**/lib", "**/src-gen", "**/plugins", "**/gen-webpack*.js", "docs/**"],
+        ignores: [
+            "**/dist",
+            "**/lib",
+            "**/src-gen",
+            "**/plugins",
+            "**/gen-webpack*.js",
+            "**/.browser_modules",
+            "docs/**",
+        ],
     },
     {
         plugins: {
             "@typescript-eslint": typescriptEslintEslintPlugin,
-            "@stylistic": stylisticEslintPlugin,
         },
     },
     // Node.js globals for CommonJS config and build files
@@ -44,10 +51,7 @@ module.exports = [
     },
     ...compat
         .config({
-            extends: [
-                "eslint:recommended",
-                "plugin:@typescript-eslint/recommended",
-            ],
+            extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
         })
         .map((config) => ({
             ...config,
@@ -74,47 +78,6 @@ module.exports = [
                 },
             },
         })),
-    {
-        files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.vue"],
-        rules: {
-            ...stylisticEslintPlugin.configs["recommended"].rules,
-            "@stylistic/quotes": [
-                "error",
-                "double",
-                {
-                    allowTemplateLiterals: "always",
-                },
-            ],
-            "@stylistic/lines-between-class-members": ["error", "always"],
-            "@stylistic/padded-blocks": [
-                "error",
-                {
-                    blocks: "never",
-                    classes: "never",
-                    switches: "never",
-                },
-            ],
-            "@stylistic/indent": "off",
-            "@stylistic/semi": ["error", "always"],
-            "@stylistic/operator-linebreak": "off",
-            "@stylistic/arrow-parens": ["error", "always"],
-            "@stylistic/member-delimiter-style": [
-                "error",
-                {
-                    multiline: {
-                        delimiter: "semi",
-                        requireLast: true,
-                    },
-                    singleline: {
-                        delimiter: "semi",
-                        requireLast: false,
-                    },
-                },
-            ],
-            "@stylistic/brace-style": "off",
-            "@stylistic/indent-binary-ops": "off",
-        },
-    },
     ...compat
         .config({
             extends: ["plugin:@typescript-eslint/recommended"],
@@ -145,4 +108,6 @@ module.exports = [
             "@typescript-eslint/no-require-imports": "off",
         },
     },
+    // Must come last: turns off ESLint rules that would conflict with Prettier.
+    eslintConfigPrettier,
 ];

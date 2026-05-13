@@ -31,9 +31,9 @@ export class AuthHeaderResolver {
                 return {};
 
             case "basic": {
-                const credentials = Buffer.from(
-                    `${auth.username}:${auth.password}`,
-                ).toString("base64");
+                const credentials = Buffer.from(`${auth.username}:${auth.password}`).toString(
+                    "base64",
+                );
                 return { Authorization: `Basic ${credentials}` };
             }
 
@@ -65,34 +65,25 @@ export class AuthHeaderResolver {
 
         let response;
         try {
-            response = await this.httpClient.postForm(
-                auth.tokenEndpoint,
-                params.toString(),
-            );
+            response = await this.httpClient.postForm(auth.tokenEndpoint, params.toString());
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             throw new TokenFetchError(message);
         }
 
         if (response.status < 200 || response.status >= 300) {
-            throw new TokenFetchError(
-                `HTTP ${response.status}: ${response.body}`,
-            );
+            throw new TokenFetchError(`HTTP ${response.status}: ${response.body}`);
         }
 
         let json: Record<string, unknown>;
         try {
             json = JSON.parse(response.body);
         } catch {
-            throw new TokenFetchError(
-                `Invalid JSON response: ${response.body}`,
-            );
+            throw new TokenFetchError(`Invalid JSON response: ${response.body}`);
         }
 
         if (typeof json.access_token !== "string") {
-            throw new TokenFetchError(
-                "Response does not contain an access_token.",
-            );
+            throw new TokenFetchError("Response does not contain an access_token.");
         }
 
         return json.access_token;

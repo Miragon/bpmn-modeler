@@ -173,7 +173,8 @@ const translations: Record<string, string> = {
     "Source Expression": "来源表达式",
     "Specify more than one group as a comma separated list.": "若有多个组请用逗号分隔。",
     "Specify more than one user as a comma separated list.": "若有多个用户请用逗号分隔。",
-    "Specify more than one variable change event as a comma separated list.": "若有多个变量更改事件请用逗号分隔。",
+    "Specify more than one variable change event as a comma separated list.":
+        "若有多个变量更改事件请用逗号分隔。",
     "start": "启动",
     "Startable": "可启动",
     "String": "字符串",
@@ -185,7 +186,8 @@ const translations: Record<string, string> = {
     "Task Priority": "任务优先级",
     "Tenant Id": "租户Id",
     "Text": "文本",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "截止日期可为EL表达式（例如${someDate}或ISO日期（例如2015-06-26T09:54:00）",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "截止日期可为EL表达式（例如${someDate}或ISO日期（例如2015-06-26T09:54:00）",
     "timeout": "超时",
     "Timer Definition": "定时器定义",
     "Timer Definition Type": "定时器定义类型",

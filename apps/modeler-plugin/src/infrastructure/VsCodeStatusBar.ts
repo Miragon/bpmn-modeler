@@ -95,10 +95,7 @@ export class VsCodeStatusBar {
      */
     private getOrCreateTemplateStatusItem(): StatusBarItem {
         if (!this.templateStatusItem) {
-            this.templateStatusItem = window.createStatusBarItem(
-                StatusBarAlignment.Left,
-                100,
-            );
+            this.templateStatusItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
         }
         return this.templateStatusItem;
     }

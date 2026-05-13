@@ -98,8 +98,7 @@ export function TemplatePanel({
             }
             // Build searchable text from name, description, keywords,
             // category, and appliesTo type labels.
-            const appliesToLabels = (template?.appliesTo ?? [])
-                .map(bpmnTypeToLabel);
+            const appliesToLabels = (template?.appliesTo ?? []).map(bpmnTypeToLabel);
             const haystack = [
                 entry.label,
                 entry.description ?? "",
@@ -155,10 +154,7 @@ export function TemplatePanel({
         if (hovered) {
             setHoveredIndex(index);
         } else {
-            hideTimeoutRef.current = window.setTimeout(
-                () => setHoveredIndex(-1),
-                HOVER_HIDE_DELAY,
-            );
+            hideTimeoutRef.current = window.setTimeout(() => setHoveredIndex(-1), HOVER_HIDE_DELAY);
         }
     }, []);
 
@@ -169,10 +165,7 @@ export function TemplatePanel({
 
     /** Starts the hide delay when the mouse leaves the hover card. */
     const handleHoverCardLeave = useCallback(() => {
-        hideTimeoutRef.current = window.setTimeout(
-            () => setHoveredIndex(-1),
-            HOVER_HIDE_DELAY,
-        );
+        hideTimeoutRef.current = window.setTimeout(() => setHoveredIndex(-1), HOVER_HIDE_DELAY);
     }, []);
 
     /**
@@ -210,19 +203,20 @@ export function TemplatePanel({
             {categories.length > 0 && (
                 <div class="am-filters">
                     <button
-                      class={`am-chip ${activeCategory === null ? "am-chip--active" : ""}`}
-                      onClick={() => onCategoryChange(null)}
-                      type="button"
+                        class={`am-chip ${activeCategory === null ? "am-chip--active" : ""}`}
+                        onClick={() => onCategoryChange(null)}
+                        type="button"
                     >
                         All
                     </button>
                     {categories.map((cat) => (
                         <button
-                          key={cat.id}
-                          class={`am-chip ${activeCategory === cat.id ? "am-chip--active" : ""}`}
-                          onClick={() =>
-                                onCategoryChange(activeCategory === cat.id ? null : cat.id)}
-                          type="button"
+                            key={cat.id}
+                            class={`am-chip ${activeCategory === cat.id ? "am-chip--active" : ""}`}
+                            onClick={() =>
+                                onCategoryChange(activeCategory === cat.id ? null : cat.id)
+                            }
+                            type="button"
                         >
                             {cat.name}
                         </button>
@@ -232,24 +226,20 @@ export function TemplatePanel({
 
             {/* Template list */}
             <div class="am-template-list" ref={listRef}>
-                {filtered.length === 0
-? (
+                {filtered.length === 0 ? (
                     <div class="am-empty">
                         <p class="am-empty-text">No templates found</p>
-                        {search && (
-                            <p class="am-empty-hint">Try a different search term</p>
-                        )}
+                        {search && <p class="am-empty-hint">Try a different search term</p>}
                     </div>
-                )
-: (
+                ) : (
                     filtered.map((enriched, idx) => (
                         <ExpandableTemplateCard
-                          key={enriched.id}
-                          enrichedEntry={enriched}
-                          focused={focusIndex === idx}
-                          selected={selectedTemplateId === enriched.id}
-                          onClick={(event) => onTemplateClick(enriched, event)}
-                          onHoverChange={(hovered) => handleCardHover(idx, hovered)}
+                            key={enriched.id}
+                            enrichedEntry={enriched}
+                            focused={focusIndex === idx}
+                            selected={selectedTemplateId === enriched.id}
+                            onClick={(event) => onTemplateClick(enriched, event)}
+                            onHoverChange={(hovered) => handleCardHover(idx, hovered)}
                         />
                     ))
                 )}
@@ -258,10 +248,10 @@ export function TemplatePanel({
             {/* Floating hover card */}
             {activeEntry && hoverCardStyle && (
                 <TemplateHoverCard
-                  enrichedEntry={activeEntry}
-                  style={hoverCardStyle}
-                  onMouseEnter={handleHoverCardEnter}
-                  onMouseLeave={handleHoverCardLeave}
+                    enrichedEntry={activeEntry}
+                    style={hoverCardStyle}
+                    onMouseEnter={handleHoverCardEnter}
+                    onMouseLeave={handleHoverCardLeave}
                 />
             )}
         </div>

@@ -44,15 +44,12 @@ export class ViewportManager {
      */
     onViewportChanged(cb: (viewport: ViewportData) => void): void {
         let timer: ReturnType<typeof setTimeout> | undefined;
-        this.getService<any>("eventBus").on(
-            "canvas.viewbox.changed",
-            (event: any) => {
-                clearTimeout(timer);
-                timer = setTimeout(() => {
-                    const { x, y, width, height } = event.viewbox;
-                    cb({ x, y, width, height });
-                }, 100);
-            },
-        );
+        this.getService<any>("eventBus").on("canvas.viewbox.changed", (event: any) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const { x, y, width, height } = event.viewbox;
+                cb({ x, y, width, height });
+            }, 100);
+        });
     }
 }

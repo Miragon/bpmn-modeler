@@ -2,7 +2,10 @@
  * Type definitions for popup menu entries and utilities to classify them
  * into element template entries vs. standard BPMN element entries.
  */
-import type { ElementTemplate, TemplateProperty } from "@miragon/bpmn-modeler-element-template-chooser";
+import type {
+    ElementTemplate,
+    TemplateProperty,
+} from "@miragon/bpmn-modeler-element-template-chooser";
 
 // Re-export for use in components.
 export type { TemplateProperty };
@@ -233,7 +236,11 @@ const IMPLEMENTATION_BINDINGS: {
     bindingName?: string;
 }[] = [
     { label: "Topic", bindingType: "property", bindingName: "camunda:topic" },
-    { label: "Delegate", bindingType: "property", bindingName: "camunda:delegateExpression" },
+    {
+        label: "Delegate",
+        bindingType: "property",
+        bindingName: "camunda:delegateExpression",
+    },
     { label: "Java Class", bindingType: "property", bindingName: "camunda:class" },
     { label: "Expression", bindingType: "property", bindingName: "camunda:expression" },
     { label: "Called Element", bindingType: "property", bindingName: "calledElement" },

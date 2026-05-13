@@ -184,10 +184,7 @@ export class BpmnModeler {
                 .importXML(bpmn)
                 .then((result: ImportXMLResult) => {
                     // Transaction boundaries are only available for the C7 modeler.
-                    if (
-                        this.engine === "c7" &&
-                        this.settings.showTransactionBoundaries
-                    ) {
+                    if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
                         this.getModeler().get<any>("transactionBoundaries").show();
                     }
                     return result;

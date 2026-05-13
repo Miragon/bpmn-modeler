@@ -70,8 +70,10 @@ const translations: Record<string, string> = {
     "This maps to the task definition key.": "This maps to the task definition key.",
     "Collapsed Pool": "Collapsed Pool",
     "Expanded Pool": "Expanded Pool",
-    "flow elements must be children of pools/participants": "flow elements must be children of pools/participants",
-    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)",
+    "flow elements must be children of pools/participants":
+        "flow elements must be children of pools/participants",
+    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)",
     "Message Boundary Event": "Message Boundary Event",
     "Timer Boundary Event": "Timer Boundary Event",
     "Escalation Boundary Event": "Escalation Boundary Event",
@@ -83,9 +85,11 @@ const translations: Record<string, string> = {
     "Message Boundary Event (non-interrupting)": "Message Boundary Event (non-interrupting)",
     "Timer Boundary Event (non-interrupting)": "Timer Boundary Event (non-interrupting)",
     "Escalation Boundary Event (non-interrupting)": "Escalation Boundary Event (non-interrupting)",
-    "Conditional Boundary Event (non-interrupting)": "Conditional Boundary Event (non-interrupting)",
+    "Conditional Boundary Event (non-interrupting)":
+        "Conditional Boundary Event (non-interrupting)",
     "Signal Boundary Event (non-interrupting)": "Signal Boundary Event (non-interrupting)",
-    "Connect using Information/Knowledge/Authority Requirement or Association": "Connect using Information/Knowledge/Authority Requirement or Association",
+    "Connect using Information/Knowledge/Authority Requirement or Association":
+        "Connect using Information/Knowledge/Authority Requirement or Association",
     "Empty": "Empty",
     "Literal Expression": "Literal Expression",
     "This maps to the decision definition key.": "This maps to the decision definition key.",

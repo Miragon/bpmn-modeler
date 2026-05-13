@@ -30,15 +30,11 @@ export class HideBuiltinViewsContribution implements FrontendApplicationContribu
     protected readonly widgetManager!: WidgetManager;
 
     async onDidInitializeLayout(app: FrontendApplication): Promise<void> {
-        await Promise.all(
-            HIDDEN_VIEW_CONTAINER_IDS.map((id) => this.hideWidget(app, id)),
-        );
+        await Promise.all(HIDDEN_VIEW_CONTAINER_IDS.map((id) => this.hideWidget(app, id)));
     }
 
     private async hideWidget(app: FrontendApplication, id: string): Promise<void> {
-        const widget =
-            app.shell.getWidgetById(id) ??
-            (await this.widgetManager.tryGetWidget(id));
+        const widget = app.shell.getWidgetById(id) ?? (await this.widgetManager.tryGetWidget(id));
         widget?.dispose();
     }
 }

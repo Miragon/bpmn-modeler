@@ -6,10 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FetchHttpClient } from "../FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda8RestClient } from "./Camunda8RestClient";
-import {
-    DeploymentConfig,
-    NoAuth,
-} from "../../domain/deployment";
+import { DeploymentConfig, NoAuth } from "../../domain/deployment";
 import { StartInstanceConfig } from "../../domain/startInstance";
 import { DeploymentFailedError, StartInstanceFailedError } from "../../domain/errors";
 
@@ -24,11 +21,7 @@ describe("Camunda8RestClient (integration)", () => {
     let baseUrl: string;
 
     /** Handler installed per-test; receives the raw request and body buffer. */
-    let handler: (
-        req: http.IncomingMessage,
-        body: Buffer,
-        res: http.ServerResponse,
-    ) => void;
+    let handler: (req: http.IncomingMessage, body: Buffer, res: http.ServerResponse) => void;
 
     beforeAll(async () => {
         server = http.createServer((req, res) => {
@@ -81,10 +74,7 @@ describe("Camunda8RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        const result = await client.deploy(
-            config,
-            new Map([["proc.bpmn", "<bpmn/>"]]),
-        );
+        const result = await client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]));
 
         expect(result.success).toBe(true);
         expect(result.deploymentId).toBe("key-99");
@@ -107,9 +97,9 @@ describe("Camunda8RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await expect(
-            client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]])),
-        ).rejects.toThrow(DeploymentFailedError);
+        await expect(client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]))).rejects.toThrow(
+            DeploymentFailedError,
+        );
     });
 
     // ── Start instance ──────────────────────────────────────────────────
@@ -125,13 +115,9 @@ describe("Camunda8RestClient (integration)", () => {
         };
 
         const client = createClient();
-        const config = new StartInstanceConfig(
-            "myProc",
-            baseUrl,
-            "c8",
-            new NoAuth(),
-            { foo: "bar" },
-        );
+        const config = new StartInstanceConfig("myProc", baseUrl, "c8", new NoAuth(), {
+            foo: "bar",
+        });
 
         const result = await client.startInstance(config);
 
@@ -150,16 +136,9 @@ describe("Camunda8RestClient (integration)", () => {
         };
 
         const client = createClient();
-        const config = new StartInstanceConfig(
-            "missing",
-            baseUrl,
-            "c8",
-            new NoAuth(),
-        );
+        const config = new StartInstanceConfig("missing", baseUrl, "c8", new NoAuth());
 
-        await expect(client.startInstance(config)).rejects.toThrow(
-            StartInstanceFailedError,
-        );
+        await expect(client.startInstance(config)).rejects.toThrow(StartInstanceFailedError);
     });
 
     // ── Custom C8 API version ─────────────────────────────────────────
@@ -199,12 +178,7 @@ describe("Camunda8RestClient (integration)", () => {
         };
 
         const client = createClient("v3");
-        const config = new StartInstanceConfig(
-            "myProc",
-            baseUrl,
-            "c8",
-            new NoAuth(),
-        );
+        const config = new StartInstanceConfig("myProc", baseUrl, "c8", new NoAuth());
 
         await client.startInstance(config);
 
@@ -233,14 +207,11 @@ describe("Camunda8RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await client.deploy(
-            config,
-            new Map([["proc.bpmn", "<definitions/>"]]),
-        );
+        await client.deploy(config, new Map([["proc.bpmn", "<definitions/>"]]));
 
-        expect(receivedBody).toContain("name=\"resources\"; filename=\"proc.bpmn\"");
+        expect(receivedBody).toContain('name="resources"; filename="proc.bpmn"');
         // The part name must be "resources", not the filename
-        expect(receivedBody).not.toContain("name=\"proc.bpmn\"; filename=");
+        expect(receivedBody).not.toContain('name="proc.bpmn"; filename=');
         expect(receivedBody).toContain("<definitions/>");
     });
 
@@ -264,12 +235,9 @@ describe("Camunda8RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await client.deploy(
-            config,
-            new Map([["proc.bpmn", "<definitions/>"]]),
-        );
+        await client.deploy(config, new Map([["proc.bpmn", "<definitions/>"]]));
 
-        expect(receivedBody).toContain("name=\"tenantId\"");
+        expect(receivedBody).toContain('name="tenantId"');
         expect(receivedBody).toContain("my-tenant");
         // C8 should NOT include C7-specific fields
         expect(receivedBody).not.toContain("deployment-name");
@@ -296,11 +264,8 @@ describe("Camunda8RestClient (integration)", () => {
             new NoAuth(),
         );
 
-        await client.deploy(
-            config,
-            new Map([["proc.bpmn", "<definitions/>"]]),
-        );
+        await client.deploy(config, new Map([["proc.bpmn", "<definitions/>"]]));
 
-        expect(receivedBody).not.toContain("name=\"tenantId\"");
+        expect(receivedBody).not.toContain('name="tenantId"');
     });
 });

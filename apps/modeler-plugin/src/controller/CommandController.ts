@@ -9,10 +9,7 @@ import {
     workspace,
 } from "vscode";
 
-import {
-    Command,
-    GetDiagramAsSVGCommand,
-} from "@miragon/bpmn-modeler-shared";
+import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
 import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
 
 import { EditorStore } from "../infrastructure/EditorStore";
@@ -164,11 +161,10 @@ export class CommandController {
      */
     writeToFile(): void {
         this.requestSvg((svg) => {
-            const filePath = this.vsDocument.getFilePath(this.editorStore.getActiveEditorId()).replace(/\.bpmn$/, ".svg");
-            workspace.fs.writeFile(
-                Uri.file(filePath),
-                Buffer.from(svg),
-            );
+            const filePath = this.vsDocument
+                .getFilePath(this.editorStore.getActiveEditorId())
+                .replace(/\.bpmn$/, ".svg");
+            workspace.fs.writeFile(Uri.file(filePath), Buffer.from(svg));
         });
     }
 
@@ -181,11 +177,9 @@ export class CommandController {
     private requestSvg(onSvg: (svg: string) => void): void {
         const activeId = this.editorStore.getActiveEditorId();
 
-        this.editorStore.postMessage(activeId, new GetDiagramAsSVGCommand()).catch(
-            (error) => {
-                this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
-            },
-        );
+        this.editorStore.postMessage(activeId, new GetDiagramAsSVGCommand()).catch((error) => {
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+        });
 
         // Dispose previous subscription to avoid accumulating listeners.
         this.svgSubscription?.dispose();

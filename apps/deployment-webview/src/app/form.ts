@@ -71,32 +71,21 @@ export class DeploymentForm {
      * @throws {Error} If any expected DOM element is missing.
      */
     constructor(private readonly vscode: VsCodeApi<unknown, Command | Query>) {
-        this.deploymentNameInput =
-            this.requireElement<HTMLInputElement>("#deployment-name");
+        this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
         this.tenantIdInput = this.requireElement<HTMLInputElement>("#tenant-id");
         this.endpointInput = this.requireElement<HTMLInputElement>("#endpoint");
         this.engineSelect = this.requireElement<HTMLSelectElement>("#engine");
         this.authTypeSelect = this.requireElement<HTMLSelectElement>("#auth-type");
-        this.basicAuthFields =
-            this.requireElement<HTMLDivElement>("#basic-auth-fields");
-        this.authUsernameInput =
-            this.requireElement<HTMLInputElement>("#auth-username");
-        this.authPasswordInput =
-            this.requireElement<HTMLInputElement>("#auth-password");
-        this.oauth2AuthFields =
-            this.requireElement<HTMLDivElement>("#oauth2-auth-fields");
-        this.authClientIdInput =
-            this.requireElement<HTMLInputElement>("#auth-client-id");
-        this.authClientSecretInput =
-            this.requireElement<HTMLInputElement>("#auth-client-secret");
-        this.authTokenEndpointInput =
-            this.requireElement<HTMLInputElement>("#auth-token-endpoint");
-        this.authAudienceInput =
-            this.requireElement<HTMLInputElement>("#auth-audience");
-        this.mainFilePathInput =
-            this.requireElement<HTMLInputElement>("#main-file-path");
-        this.additionalFilesBtn =
-            this.requireElement<HTMLButtonElement>("#add-files-btn");
+        this.basicAuthFields = this.requireElement<HTMLDivElement>("#basic-auth-fields");
+        this.authUsernameInput = this.requireElement<HTMLInputElement>("#auth-username");
+        this.authPasswordInput = this.requireElement<HTMLInputElement>("#auth-password");
+        this.oauth2AuthFields = this.requireElement<HTMLDivElement>("#oauth2-auth-fields");
+        this.authClientIdInput = this.requireElement<HTMLInputElement>("#auth-client-id");
+        this.authClientSecretInput = this.requireElement<HTMLInputElement>("#auth-client-secret");
+        this.authTokenEndpointInput = this.requireElement<HTMLInputElement>("#auth-token-endpoint");
+        this.authAudienceInput = this.requireElement<HTMLInputElement>("#auth-audience");
+        this.mainFilePathInput = this.requireElement<HTMLInputElement>("#main-file-path");
+        this.additionalFilesBtn = this.requireElement<HTMLButtonElement>("#add-files-btn");
         this.fileList = this.requireElement<HTMLUListElement>("#file-list");
         this.deployBtn = this.requireElement<HTMLButtonElement>("#deploy-btn");
         this.statusBanner = this.requireElement<HTMLDivElement>("#status-banner");
@@ -409,8 +398,7 @@ export class DeploymentForm {
                 this.vscode.postMessage(new DeployCommand(payload));
             } catch (err) {
                 this.statusBanner.className = "status-banner error";
-                this.statusBanner.textContent =
-                    err instanceof Error ? err.message : String(err);
+                this.statusBanner.textContent = err instanceof Error ? err.message : String(err);
                 this.statusBanner.style.display = "block";
             }
         });
@@ -467,9 +455,7 @@ export class DeploymentForm {
             removeBtn.textContent = "\u00d7";
             removeBtn.className = "remove-btn";
             removeBtn.addEventListener("click", () => {
-                this.additionalFilePaths = this.additionalFilePaths.filter(
-                    (p) => p !== filePath,
-                );
+                this.additionalFilePaths = this.additionalFilePaths.filter((p) => p !== filePath);
                 this.renderFileList();
             });
 

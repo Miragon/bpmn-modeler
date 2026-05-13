@@ -37,7 +37,8 @@ const translations: Record<string, string> = {
     "already rendered {element}": "{element} ya fue renderizado",
     "Append {type}": "Añadir {type}",
     "Append compensation activity": "Añadir actividad de compensación",
-    "Append conditional intermediate catch event": "Añadir evento intermedio de captura condicional",
+    "Append conditional intermediate catch event":
+        "Añadir evento intermedio de captura condicional",
     "Append ConditionIntermediateCatchEvent": "Añadir evento intermedio de captura condicional",
     "Append end event": "Añadir evento de fin",
     "Append EndEvent": "Añadir evento de fin",
@@ -67,7 +68,8 @@ const translations: Record<string, string> = {
     "Compensation intermediate throw event": "Evento intermedio de lanzamiento de compensación",
     "Compensation start event": "Evento de inicio de compensación",
     "Complex gateway": "Gateway complejo",
-    "Conditional boundary event (non-interrupting)": "Evento de límite condicional (no interrumpible)",
+    "Conditional boundary event (non-interrupting)":
+        "Evento de límite condicional (no interrumpible)",
     "Conditional boundary event": "Evento de límite condicional",
     "Conditional flow": "Flujo condicional",
     "Conditional intermediate catch event": "Evento intermedio de captura condicional",
@@ -78,8 +80,10 @@ const translations: Record<string, string> = {
     "Connect using Association": "Conectar usando asociación",
     "Connect using data input association": "Conectar usando asociación de entrada de datos",
     "Connect using DataInputAssociation": "Conectar usando asociación de entrada de datos",
-    "Connect using Sequence/MessageFlow or Association": "Conectar usando flujo de secuencia/mensaje o asociación",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "Corrigiendo bpmnElement faltante en {plane} a {rootElement}",
+    "Connect using Sequence/MessageFlow or Association":
+        "Conectar usando flujo de secuencia/mensaje o asociación",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "Corrigiendo bpmnElement faltante en {plane} a {rootElement}",
     "Create {type}": "Crear {type}",
     "Create data object reference": "Crear referencia de objeto de datos",
     "Create data store reference": "Crear referencia de almacén de datos",
@@ -112,17 +116,20 @@ const translations: Record<string, string> = {
     "Divide into three lanes": "Dividir en tres carriles",
     "Divide into two Lanes": "Dividir en dos carriles",
     "Divide into two lanes": "Dividir en dos carriles",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "Elemento {element} referenciado por {referenced}#{property} aún no dibujado",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "Elemento {element} referenciado por {referenced}#{property} aún no dibujado",
     "element required": "Elemento requerido",
     "End event": "Evento de fin",
     "Error boundary event": "Evento de límite de error",
     "Error end event": "Evento de fin de error",
     "Error start event": "Evento de inicio de error",
-    "Escalation boundary event (non-interrupting)": "Evento de límite de escalación (no interrumpible)",
+    "Escalation boundary event (non-interrupting)":
+        "Evento de límite de escalación (no interrumpible)",
     "Escalation boundary event": "Evento de límite de escalación",
     "Escalation end event": "Evento de fin de escalación",
     "Escalation intermediate throw event": "Evento intermedio de lanzamiento de escalación",
-    "Escalation start event (non-interrupting)": "Evento de inicio de escalación (no interrumpible)",
+    "Escalation start event (non-interrupting)":
+        "Evento de inicio de escalación (no interrumpible)",
     "Escalation start event": "Evento de inicio de escalación",
     "Event based instantiating Gateway": "Gateway instanciador basado en eventos",
     "Event sub-process": "Subproceso de evento",
@@ -179,7 +186,8 @@ const translations: Record<string, string> = {
     "Sub-process": "Subproceso",
     "Task": "Tarea",
     "Terminate end event": "Evento de fin de terminación",
-    "Timer boundary event (non-interrupting)": "Evento de límite de temporizador (no interrumpible)",
+    "Timer boundary event (non-interrupting)":
+        "Evento de límite de temporizador (no interrumpible)",
     "Timer boundary event": "Evento de límite de temporizador",
     "Timer intermediate catch event": "Evento intermedio de captura de temporizador",
     "Timer start event (non-interrupting)": "Evento de inicio de temporizador (no interrumpible)",
@@ -187,8 +195,10 @@ const translations: Record<string, string> = {
     "Toggle non-interrupting": "Alternar no interrumpible",
     "Transaction": "Transacción",
     "unknown di {di} for element {semantic}": "DI desconocido {di} para el elemento {semantic}",
-    "unrecognized flowElement {element} in context {context}": "flowElement {element} no reconocido en el contexto {context}",
-    "unsupported bpmnElement for {plane}: {rootElement}": "bpmnElement no soportado para {plane}: {rootElement}",
+    "unrecognized flowElement {element} in context {context}":
+        "flowElement {element} no reconocido en el contexto {context}",
+    "unsupported bpmnElement for {plane}: {rootElement}":
+        "bpmnElement no soportado para {plane}: {rootElement}",
     "User task": "Tarea de usuario",
 };
 

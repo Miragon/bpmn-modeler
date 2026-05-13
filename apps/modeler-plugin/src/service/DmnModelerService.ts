@@ -76,10 +76,7 @@ export class DmnModelerService {
                 await this.vsDocument.save(editorId);
             }
 
-            return await this.editorStore.postMessage(
-                editorId,
-                new DmnFileQuery(dmnFile),
-            );
+            return await this.editorStore.postMessage(editorId, new DmnFileQuery(dmnFile));
         } catch (error) {
             if (error instanceof UserCancelledError) {
                 return false;

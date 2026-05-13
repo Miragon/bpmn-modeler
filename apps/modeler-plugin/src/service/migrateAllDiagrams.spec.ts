@@ -198,9 +198,7 @@ describe("migrateAllDiagrams", () => {
             .mockResolvedValueOnce(c7Bpmn("7.20.0"))
             .mockResolvedValueOnce(c8Bpmn("8.5.0"));
         vsUI.pickMigrationScope.mockResolvedValue("both");
-        vsUI.pickEngineVersion
-            .mockResolvedValueOnce("7.24.0")
-            .mockResolvedValueOnce("8.8.0");
+        vsUI.pickEngineVersion.mockResolvedValueOnce("7.24.0").mockResolvedValueOnce("8.8.0");
 
         const result = await service.migrateAllDiagrams();
 
@@ -228,9 +226,7 @@ describe("migrateAllDiagrams", () => {
         await service.migrateAllDiagrams();
 
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
-            expect.stringContaining("1 diagram(s)"),
-        );
+        expect(vsUI.showInfo).toHaveBeenCalledWith(expect.stringContaining("1 diagram(s)"));
     });
 
     it("should show 'already at version' when all files match target", async () => {
@@ -270,8 +266,8 @@ describe("migrateAllDiagrams", () => {
 
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
         const writtenContent = vsWorkspace.writeFile.mock.calls[0][1] as string;
-        expect(writtenContent).toContain("modeler:executionPlatformVersion=\"8.8.0\"");
-        expect(writtenContent).toContain("modeler:executionPlatform=\"Camunda Cloud\"");
+        expect(writtenContent).toContain('modeler:executionPlatformVersion="8.8.0"');
+        expect(writtenContent).toContain('modeler:executionPlatform="Camunda Cloud"');
         expect(vsUI.logWarning).toHaveBeenCalledWith(
             expect.stringContaining("Added missing executionPlatform attribute"),
         );
@@ -298,8 +294,6 @@ describe("migrateAllDiagrams", () => {
 
         await service.migrateAllDiagrams();
 
-        expect(vsUI.logWarning).toHaveBeenCalledWith(
-            expect.stringContaining("Skipped 1 file(s)"),
-        );
+        expect(vsUI.logWarning).toHaveBeenCalledWith(expect.stringContaining("Skipped 1 file(s)"));
     });
 });

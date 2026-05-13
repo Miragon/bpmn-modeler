@@ -1,11 +1,4 @@
-import {
-    LogOutputChannel,
-    Tab,
-    TabInputText,
-    ViewColumn,
-    window,
-    workspace,
-} from "vscode";
+import { LogOutputChannel, Tab, TabInputText, ViewColumn, window, workspace } from "vscode";
 
 import { getContext } from "./extensionContext";
 
@@ -69,10 +62,7 @@ export class VsCodeTextEditor {
     private getTab(documentPath: string): Tab | undefined {
         for (const tabGroup of window.tabGroups.all) {
             for (const tab of tabGroup.tabs) {
-                if (
-                    tab.input instanceof TabInputText &&
-                    tab.input.uri.path === documentPath
-                ) {
+                if (tab.input instanceof TabInputText && tab.input.uri.path === documentPath) {
                     return tab;
                 }
             }

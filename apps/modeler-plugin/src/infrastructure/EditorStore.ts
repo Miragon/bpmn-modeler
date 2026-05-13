@@ -55,8 +55,7 @@ export class EditorStore implements Disposable {
     private readonly _onDidChangeActiveEditor = new EventEmitter<string>();
 
     /** Event that fires when the active editor changes. */
-    readonly onDidChangeActiveEditor: Event<string> =
-        this._onDidChangeActiveEditor.event;
+    readonly onDidChangeActiveEditor: Event<string> = this._onDidChangeActiveEditor.event;
 
     // ─── Editor lifecycle ────────────────────────────────────────────────────
 
@@ -142,10 +141,7 @@ export class EditorStore implements Disposable {
      */
     findEditorIdByPath(filePath: string): string | undefined {
         for (const [, entry] of this.editors) {
-            if (
-                entry.document.uri.scheme === "file" &&
-                entry.document.uri.path === filePath
-            ) {
+            if (entry.document.uri.scheme === "file" && entry.document.uri.path === filePath) {
                 return entry.id;
             }
         }
@@ -210,11 +206,7 @@ export class EditorStore implements Disposable {
         const id = editorId;
         const entry = this.getEditorById(id);
         const d = this.disposables.get(id);
-        entry.ui.webview.onDidReceiveMessage(
-            (e: Command) => callback(e, id),
-            null,
-            d,
-        );
+        entry.ui.webview.onDidReceiveMessage((e: Command) => callback(e, id), null, d);
     }
 
     /**
@@ -265,11 +257,7 @@ export class EditorStore implements Disposable {
     ): void {
         const id = editorId;
         const d = this.disposables.get(id);
-        workspace.onDidChangeConfiguration(
-            (e) => callback(e, id),
-            null,
-            d,
-        );
+        workspace.onDidChangeConfiguration((e) => callback(e, id), null, d);
     }
 
     /**
@@ -355,8 +343,7 @@ export class EditorStore implements Disposable {
 
         if (this.activeEditorId === editorId) {
             const remaining = [...this.editors.keys()];
-            const next =
-                remaining.length > 0 ? remaining[remaining.length - 1] : undefined;
+            const next = remaining.length > 0 ? remaining[remaining.length - 1] : undefined;
             this.activeEditorId = next;
             if (next) {
                 this._onDidChangeActiveEditor.fire(next);

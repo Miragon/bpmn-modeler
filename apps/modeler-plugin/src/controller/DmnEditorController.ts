@@ -39,10 +39,16 @@ export class DmnEditorController implements CustomTextEditorProvider {
      * Registers this provider as the custom editor for `.dmn` files and adds
      * the resulting disposable to the extension context.
      *
+     * `retainContextWhenHidden: true` keeps the live dmn-js modeler instance
+     * alive across tab hides — without it, re-show races `importXML` and
+     * occasionally paints only stale overlay markers on an empty canvas.
+     *
      * @param context The VS Code extension context.
      */
     register(context: ExtensionContext): void {
-        const provider = window.registerCustomEditorProvider(DMN_VIEW_TYPE, this);
+        const provider = window.registerCustomEditorProvider(DMN_VIEW_TYPE, this, {
+            webviewOptions: { retainContextWhenHidden: true },
+        });
         context.subscriptions.push(provider);
     }
 
@@ -84,26 +90,20 @@ export class DmnEditorController implements CustomTextEditorProvider {
      * @param editorId Document URI path of the editor whose webview to listen to.
      */
     private subscribeToMessageEvent(editorId: string): void {
-        this.editorStore.subscribeToMessageEvent(
-            editorId,
-            async (message: Command, id: string) => {
-                this.vsUI.logInfo(`Message received -> ${message.type}`);
-                switch (message.type) {
-                    case "GetDmnFileCommand":
-                        if (await this.dmnService.display(id)) {
-                            this.vsUI.logInfo("Dmn modeler is ready");
-                        }
-                        break;
-                    case "SyncDocumentCommand":
-                        await this.dmnService.sync(
-                            id,
-                            (message as SyncDocumentCommand).content,
-                        );
-                        break;
-                }
-                this.vsUI.logInfo(`Message processed -> ${message.type}`);
-            },
-        );
+        this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
+            this.vsUI.logInfo(`Message received -> ${message.type}`);
+            switch (message.type) {
+                case "GetDmnFileCommand":
+                    if (await this.dmnService.display(id)) {
+                        this.vsUI.logInfo("Dmn modeler is ready");
+                    }
+                    break;
+                case "SyncDocumentCommand":
+                    await this.dmnService.sync(id, (message as SyncDocumentCommand).content);
+                    break;
+            }
+            this.vsUI.logInfo(`Message processed -> ${message.type}`);
+        });
     }
 
     /**

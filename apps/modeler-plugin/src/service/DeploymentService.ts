@@ -70,9 +70,7 @@ export class DeploymentService {
         return {
             deploymentName,
             tenantId: this.deploymentState.getTenantId(),
-            endpoint:
-                this.deploymentState.getEndpoint() ||
-                "http://localhost:8080/engine-rest",
+            endpoint: this.deploymentState.getEndpoint() || "http://localhost:8080/engine-rest",
             engine,
             authType: this.deploymentState.getAuthType(),
             tokenEndpoint: this.deploymentState.getTokenEndpoint(),
@@ -220,9 +218,7 @@ export class DeploymentService {
      * @returns Map of filename (basename) to UTF-8 string content.
      * @throws {FileNotFound} If any referenced file cannot be read.
      */
-    private async readFileContents(
-        config: DeploymentConfig,
-    ): Promise<Map<string, string>> {
+    private async readFileContents(config: DeploymentConfig): Promise<Map<string, string>> {
         const contents = new Map<string, string>();
 
         // Read the main BPMN file.

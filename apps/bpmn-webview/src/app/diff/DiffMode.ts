@@ -128,11 +128,7 @@ export class DiffMode {
         // waypoints as a side-effect.  The flow carries no semantic change
         // on its own, and the user already sees it highlighted when the
         // attached shape comes up in the cycle.
-        const semanticIds = new Set<string>([
-            ...query.removed,
-            ...query.added,
-            ...query.changed,
-        ]);
+        const semanticIds = new Set<string>([...query.removed, ...query.added, ...query.changed]);
         const isLayoutOnlyConnection = (id: string): boolean =>
             !semanticIds.has(id) &&
             query.layoutChanged.includes(id) &&
@@ -169,9 +165,7 @@ export class DiffMode {
         if (this.changeIds.length === 0) {
             return;
         }
-        const next =
-            (this.cursor + direction + this.changeIds.length) %
-            this.changeIds.length;
+        const next = (this.cursor + direction + this.changeIds.length) % this.changeIds.length;
         this.applyCursor(next, true, direction);
     }
 
@@ -185,11 +179,7 @@ export class DiffMode {
      * when invoked from {@link step}; an incoming sync defaults to forward
      * search since the partner already chose the canonical direction.
      */
-    private applyCursor(
-        index: number,
-        emit: boolean,
-        direction: 1 | -1 = 1,
-    ): void {
+    private applyCursor(index: number, emit: boolean, direction: 1 | -1 = 1): void {
         if (this.changeIds.length === 0) {
             return;
         }
@@ -225,7 +215,7 @@ export class DiffMode {
         const len = this.changeIds.length;
         for (let i = 1; i < len; i++) {
             for (const dir of [direction, -direction] as const) {
-                const idx = ((cursor + dir * i) % len + len) % len;
+                const idx = (((cursor + dir * i) % len) + len) % len;
                 const id = this.changeIds[idx];
                 if (this.viewer.hasElement(id)) {
                     return id;

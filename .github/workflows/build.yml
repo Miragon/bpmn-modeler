@@ -71,6 +71,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn lint
+      - run: yarn format:check
 
   audit:
     runs-on: ubuntu-latest

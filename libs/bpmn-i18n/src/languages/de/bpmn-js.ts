@@ -37,7 +37,8 @@ const translations: Record<string, string> = {
     "already rendered {element}": "{element} wurde bereits gerendert",
     "Append {type}": "{type} anfügen",
     "Append compensation activity": "Kompensationsaktivität anfügen",
-    "Append conditional intermediate catch event": "Bedingungs-Zwischenereignis (eintretend) anfügen",
+    "Append conditional intermediate catch event":
+        "Bedingungs-Zwischenereignis (eintretend) anfügen",
     "Append ConditionIntermediateCatchEvent": "Bedingungs-Zwischenereignis (eintretend) anfügen",
     "Append end event": "Endereignis anfügen",
     "Append EndEvent": "Endereignis anfügen",
@@ -67,7 +68,8 @@ const translations: Record<string, string> = {
     "Compensation intermediate throw event": "Kompensations-Zwischenereignis (auslösend)",
     "Compensation start event": "Kompensations-Startereignis",
     "Complex gateway": "Komplexes Gateway",
-    "Conditional boundary event (non-interrupting)": "Bedingungserignis-Grenzereignis (nicht unterbrechend)",
+    "Conditional boundary event (non-interrupting)":
+        "Bedingungserignis-Grenzereignis (nicht unterbrechend)",
     "Conditional boundary event": "Bedingungserignis-Grenzereignis",
     "Conditional flow": "Bedingter Fluss",
     "Conditional intermediate catch event": "Bedingungs-Zwischenereignis (fangend)",
@@ -78,8 +80,10 @@ const translations: Record<string, string> = {
     "Connect using Association": "Mit Assoziation verbinden",
     "Connect using data input association": "Verbindung über Dateneingabe-Assoziation",
     "Connect using DataInputAssociation": "Verbindung über Dateneingabe-Assoziation",
-    "Connect using Sequence/MessageFlow or Association": "Mit Sequenzfluss/Nachrichtenfluss oder Assoziation verbinden",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "Korrigiere fehlendes bpmnElement auf {plane} zu {rootElement}",
+    "Connect using Sequence/MessageFlow or Association":
+        "Mit Sequenzfluss/Nachrichtenfluss oder Assoziation verbinden",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "Korrigiere fehlendes bpmnElement auf {plane} zu {rootElement}",
     "Create {type}": "{type} erzeugen",
     "Create data object reference": "Datenobjekt-Referenz erstellen",
     "Create data store reference": "Datenspeicher-Referenz erstellen",
@@ -112,13 +116,15 @@ const translations: Record<string, string> = {
     "Divide into three lanes": "In drei Lanes aufteilen",
     "Divide into two Lanes": "In zwei Lanes aufteilen",
     "Divide into two lanes": "In zwei Lanes aufteilen",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "Element {element}, referenziert durch {referenced}#{property}, wurde noch nicht gezeichnet",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "Element {element}, referenziert durch {referenced}#{property}, wurde noch nicht gezeichnet",
     "element required": "Element benötigt",
     "End event": "Endereignis",
     "Error boundary event": "Fehlerereignis-Grenzereignis",
     "Error end event": "Fehlerereignis-Endereignis",
     "Error start event": "Fehlerereignis-Startereignis",
-    "Escalation boundary event (non-interrupting)": "Eskalations-Grenzereignis (nicht unterbrechend)",
+    "Escalation boundary event (non-interrupting)":
+        "Eskalations-Grenzereignis (nicht unterbrechend)",
     "Escalation boundary event": "Eskalations-Grenzereignis",
     "Escalation end event": "Eskalations-Endereignis",
     "Escalation intermediate throw event": "Eskalations-Zwischenereignis (auslösend)",
@@ -153,7 +159,8 @@ const translations: Record<string, string> = {
     "no process or collaboration to display": "Kein Prozess oder Kollaboration zum Anzeigen",
     "no shape type specified": "Kein Formtyp angegeben",
     "out of bounds release": "Außerhalb der Grenzen losgelassen",
-    "Parallel Event based instantiating Gateway": "Paralleles ereignisbasiertes instanziierendes Gateway",
+    "Parallel Event based instantiating Gateway":
+        "Paralleles ereignisbasiertes instanziierendes Gateway",
     "Parallel gateway": "Paralleles Gateway (AND)",
     "Parallel Multi Instance": "Mehrfache Instanz",
     "Parallel multi-instance": "Mehrfache Instanz",
@@ -187,8 +194,10 @@ const translations: Record<string, string> = {
     "Toggle non-interrupting": "Auf nicht-unterbrechend umschalten",
     "Transaction": "Transaktion",
     "unknown di {di} for element {semantic}": "Unbekannter DI {di} für Element {semantic}",
-    "unrecognized flowElement {element} in context {context}": "FlowElement {element} im Context {context} nicht erkannt",
-    "unsupported bpmnElement for {plane}: {rootElement}": "Nicht unterstütztes bpmnElement für {plane}: {rootElement}",
+    "unrecognized flowElement {element} in context {context}":
+        "FlowElement {element} im Context {context} nicht erkannt",
+    "unsupported bpmnElement for {plane}: {rootElement}":
+        "Nicht unterstütztes bpmnElement für {plane}: {rootElement}",
     "User task": "Benutzer-Aufgabe",
 };
 

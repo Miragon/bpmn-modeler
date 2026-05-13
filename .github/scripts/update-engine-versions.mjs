@@ -64,9 +64,7 @@ async function fetchStableC8Releases() {
     }
 
     // Convert minor numbers to 8.X.0 strings, sorted descending.
-    return [...minorVersions]
-        .sort((a, b) => b - a)
-        .map((minor) => `8.${minor}.0`);
+    return [...minorVersions].sort((a, b) => b - a).map((minor) => `8.${minor}.0`);
 }
 
 /**
@@ -76,9 +74,7 @@ async function fetchStableC8Releases() {
  * @returns {string[]} The currently listed version strings.
  */
 function parseCurrentVersions(content) {
-    const match = content.match(
-        /C8_VERSIONS:\s*readonly\s*string\[\]\s*=\s*\[([\s\S]*?)\];/,
-    );
+    const match = content.match(/C8_VERSIONS:\s*readonly\s*string\[\]\s*=\s*\[([\s\S]*?)\];/);
     if (!match) {
         throw new Error("Could not find C8_VERSIONS array in engineVersions.ts");
     }

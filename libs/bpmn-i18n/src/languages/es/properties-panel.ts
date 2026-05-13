@@ -20,10 +20,14 @@
 const translations: Record<string, string> = {
     "[unknown template: {templateId}]": "[Plantilla desconocida: {templateId}]",
     "{label} must not contain whitespace": "{label} no debe contener espacios en blanco",
-    "A cycle defined as ISO 8601 repeating intervals format, or a cron expression.": "Un ciclo definido en formato de intervalos repetitivos ISO 8601, o una expresión cron.",
-    "A cycle defined as ISO 8601 repeating intervals format.": "Un ciclo definido en formato de intervalos repetitivos ISO 8601.",
-    "A specific point in time defined as ISO 8601 combined date and time representation.": "Un momento específico definido como representación combinada de fecha y hora ISO 8601.",
-    "A time duration defined as ISO 8601 durations format.": "Una duración de tiempo definida en formato de duraciones ISO 8601.",
+    "A cycle defined as ISO 8601 repeating intervals format, or a cron expression.":
+        "Un ciclo definido en formato de intervalos repetitivos ISO 8601, o una expresión cron.",
+    "A cycle defined as ISO 8601 repeating intervals format.":
+        "Un ciclo definido en formato de intervalos repetitivos ISO 8601.",
+    "A specific point in time defined as ISO 8601 combined date and time representation.":
+        "Un momento específico definido como representación combinada de fecha y hora ISO 8601.",
+    "A time duration defined as ISO 8601 durations format.":
+        "Una duración de tiempo definida en formato de duraciones ISO 8601.",
     "Activity Ref": "Referencia de actividad",
     "Activity reference": "Referencia de actividad",
     "Add Constraint": "Añadir restricción",
@@ -95,7 +99,8 @@ const translations: Record<string, string> = {
     "Connector outputs": "Salidas de conector",
     "Connector": "Conector",
     "Constraints": "Restricciones",
-    "Create a new local variable in the scope of this task. ": "Crear una nueva variable local en el ámbito de esta tarea.",
+    "Create a new local variable in the scope of this task. ":
+        "Crear una nueva variable local en el ámbito de esta tarea.",
     "Create new ...": "Crear nuevo ...",
     "create": "crear",
     "Created in": "Creado en",
@@ -104,7 +109,8 @@ const translations: Record<string, string> = {
     "Custom Foo Group": "Grupo Foo personalizado",
     "Custom form key": "Clave de formulario personalizada",
     "Custom type": "Tipo personalizado",
-    "Customize how result variables are merged into the global scope of the process instance. ": "Personalice cómo se fusionan las variables de resultado en el ámbito global de la instancia de proceso.",
+    "Customize how result variables are merged into the global scope of the process instance. ":
+        "Personalice cómo se fusionan las variables de resultado en el ámbito global de la instancia de proceso.",
     "Cycle": "Ciclo",
     "date": "Fecha",
     "Date": "Fecha",
@@ -113,16 +119,23 @@ const translations: Record<string, string> = {
     "Decision reference": "Referencia de decisión",
     "Default Value": "Valor predeterminado",
     "Default value": "Valor predeterminado",
-    "Define a boolean condition expression that defines when this flow is taken. ": "Defina una expresión de condición booleana que determine cuándo se toma este flujo.",
+    "Define a boolean condition expression that defines when this flow is taken. ":
+        "Defina una expresión de condición booleana que determine cuándo se toma este flujo.",
     "Define an error code (e.g. ": "Defina un código de error (p. ej. ",
-    "Define an input collection expression that defines the collection to iterate over (e.g. ": "Defina una expresión de colección de entrada que determine la colección a recorrer (p. ej. ",
-    "Define the decision to evaluate and how to map back the evaluation result. ": "Defina la decisión a evaluar y cómo mapear el resultado de la evaluación.",
+    "Define an input collection expression that defines the collection to iterate over (e.g. ":
+        "Defina una expresión de colección de entrada que determine la colección a recorrer (p. ej. ",
+    "Define the decision to evaluate and how to map back the evaluation result. ":
+        "Defina la decisión a evaluar y cómo mapear el resultado de la evaluación.",
     "Define the ID of the process to call (e.g. ": "Defina el ID del proceso a llamar (p. ej. ",
     "Define the name of the message (e.g. ": "Defina el nombre del mensaje (p. ej. ",
-    "Define the name of the variable that will contain the error code.": "Defina el nombre de la variable que contendrá el código de error.",
-    "Define the name of the variable that will contain the error message.": "Defina el nombre de la variable que contendrá el mensaje de error.",
-    "Define the name of the variable that will contain the escalation code.": "Defina el nombre de la variable que contendrá el código de escalación.",
-    "Define who the task is assigned to. One or all of the following attributes can be specified simultaneously. ": "Defina a quién se asigna la tarea. Se pueden especificar uno o todos los atributos siguientes simultáneamente.",
+    "Define the name of the variable that will contain the error code.":
+        "Defina el nombre de la variable que contendrá el código de error.",
+    "Define the name of the variable that will contain the error message.":
+        "Defina el nombre de la variable que contendrá el mensaje de error.",
+    "Define the name of the variable that will contain the escalation code.":
+        "Defina el nombre de la variable que contendrá el código de escalación.",
+    "Define who the task is assigned to. One or all of the following attributes can be specified simultaneously. ":
+        "Defina a quién se asigna la tarea. Se pueden especificar uno o todos los atributos siguientes simultáneamente.",
     "Delegate Class": "Clase delegada",
     "Delegate Expression": "Expresión delegada",
     "Delegate expression": "Expresión delegada",
@@ -159,15 +172,18 @@ const translations: Record<string, string> = {
     "Escalation Code": "Código de escalación",
     "Escalation Name": "Nombre de escalación",
     "Escalation": "Escalación",
-    "Evaluate a business rule, for example a DMN decision. To add a custom implementation, use a job worker. ": "Evalúe una regla de negocio, por ejemplo una decisión DMN. Para añadir una implementación personalizada, use un job worker.",
+    "Evaluate a business rule, for example a DMN decision. To add a custom implementation, use a job worker. ":
+        "Evalúe una regla de negocio, por ejemplo una decisión DMN. Para añadir una implementación personalizada, use un job worker.",
     "Event type": "Tipo de evento",
     "Event Type": "Tipo de evento",
     "every 10 seconds, up to 5 times": "Cada 10 segundos, hasta 5 veces",
     "every day, infinitely": "Cada día, infinitamente",
-    "every hour on the hour from 9-5 p.m. UTC Monday-Friday": "Cada hora en punto de 9-17 h UTC de lunes a viernes",
+    "every hour on the hour from 9-5 p.m. UTC Monday-Friday":
+        "Cada hora en punto de 9-17 h UTC de lunes a viernes",
     "Exclusive": "Exclusivo",
     "Executable": "Ejecutable",
-    "Execute this task for each element of a given collection. ": "Ejecute esta tarea para cada elemento de una colección dada.",
+    "Execute this task for each element of a given collection. ":
+        "Ejecute esta tarea para cada elemento de una colección dada.",
     "Execution Listener": "Listener de ejecución",
     "Execution listeners": "Listeners de ejecución",
     "Expression": "Expresión",
@@ -224,10 +240,14 @@ const translations: Record<string, string> = {
     "Id must not contain spaces.": "El ID no debe contener espacios.",
     "Id": "ID",
     "ID": "ID",
-    "If turned on, all variables from the child process instance will be propagated to the parent process instance.": "Si se activa, todas las variables de la instancia del proceso hijo se propagarán a la instancia del proceso padre.",
-    "If turned on, all variables from the parent process instance will be propagated to the child process instance.": "Si se activa, todas las variables de la instancia del proceso padre se propagarán a la instancia del proceso hijo.",
-    "Implement a script task using an inline FEEL expression. To add a custom implementation, use a job worker. ": "Implemente una tarea de script usando una expresión FEEL en línea. Para añadir una implementación personalizada, use un job worker.",
-    "Implement a user task managed by Zeebe. To add a custom implementation, use a job worker. ": "Implemente una tarea de usuario gestionada por Zeebe. Para añadir una implementación personalizada, use un job worker.",
+    "If turned on, all variables from the child process instance will be propagated to the parent process instance.":
+        "Si se activa, todas las variables de la instancia del proceso hijo se propagarán a la instancia del proceso padre.",
+    "If turned on, all variables from the parent process instance will be propagated to the child process instance.":
+        "Si se activa, todas las variables de la instancia del proceso padre se propagarán a la instancia del proceso hijo.",
+    "Implement a script task using an inline FEEL expression. To add a custom implementation, use a job worker. ":
+        "Implemente una tarea de script usando una expresión FEEL en línea. Para añadir una implementación personalizada, use un job worker.",
+    "Implement a user task managed by Zeebe. To add a custom implementation, use a job worker. ":
+        "Implemente una tarea de usuario gestionada por Zeebe. Para añadir una implementación personalizada, use un job worker.",
     "Implementation": "Implementación",
     "In mapping propagation": "Propagación de mapeo de entrada",
     "In mapping": "Mapeo de entrada",
@@ -256,9 +276,11 @@ const translations: Record<string, string> = {
     "Learn how to define conditions.": "Aprenda a definir condiciones.",
     "Learn more how to ": "Aprenda más sobre cómo ",
     "Learn more.": "Más información.",
-    "Link a form created with the Camunda Forms editor. To associate a custom form, application, or URL to the user task, specify an external reference. ": "Vincule un formulario creado con el editor de Camunda Forms. Para asociar un formulario personalizado, aplicación o URL a la tarea de usuario, especifique una referencia externa.",
+    "Link a form created with the Camunda Forms editor. To associate a custom form, application, or URL to the user task, specify an external reference. ":
+        "Vincule un formulario creado con el editor de Camunda Forms. Para asociar un formulario personalizado, aplicación o URL a la tarea de usuario, especifique una referencia externa.",
     "Link Name": "Nombre del enlace",
-    "Link or embed a form created with the Camunda Forms editor. To associate a custom form, application, or URL to the user task, specify a form key. ": "Vincule o incruste un formulario creado con el editor de Camunda Forms. Para asociar un formulario personalizado, aplicación o URL a la tarea de usuario, especifique una clave de formulario.",
+    "Link or embed a form created with the Camunda Forms editor. To associate a custom form, application, or URL to the user task, specify a form key. ":
+        "Vincule o incruste un formulario creado con el editor de Camunda Forms. Para asociar un formulario personalizado, aplicación o URL a la tarea de usuario, especifique una clave de formulario.",
     "Link": "Enlace",
     "List values": "Valores de lista",
     "List": "Lista",
@@ -288,25 +310,31 @@ const translations: Record<string, string> = {
     "Multi instance documentation": "Documentación de instancia múltiple",
     "Multi Instance": "Instancia múltiple",
     "Multi-instance": "Instancia múltiple",
-    "Multiple elements are selected. Select a single element to edit its properties.": "Hay varios elementos seleccionados. Seleccione un solo elemento para editar sus propiedades.",
+    "Multiple elements are selected. Select a single element to edit its properties.":
+        "Hay varios elementos seleccionados. Seleccione un solo elemento para editar sus propiedades.",
     "Must configure Connector": "Debe configurar Connector",
     "Must have max length {length}": "La longitud máxima debe ser {length}",
     "Must have min length {length}": "La longitud mínima debe ser {length}",
     "Must match pattern {pattern}": "Debe coincidir con el patrón {pattern}",
     "Must not be empty": "No debe estar vacío",
-    "Must provide a value for timeout task listener": "Debe proporcionar un valor para el listener de tarea de tiempo de espera",
+    "Must provide a value for timeout task listener":
+        "Debe proporcionar un valor para el listener de tarea de tiempo de espera",
     "Must provide a value": "Debe proporcionar un valor",
-    "Must provide either loop cardinality or collection": "Debe proporcionar la cardinalidad de bucle o la colección",
+    "Must provide either loop cardinality or collection":
+        "Debe proporcionar la cardinalidad de bucle o la colección",
     "Name must not contain spaces": "El nombre no debe contener espacios",
     "Name": "Nombre",
-    "Number of days before this resource is being cleaned up. If specified, takes precedence over the engine configuration.": "Número de días antes de que se limpie este recurso. Si se especifica, tiene prioridad sobre la configuración del motor.",
+    "Number of days before this resource is being cleaned up. If specified, takes precedence over the engine configuration.":
+        "Número de días antes de que se limpie este recurso. Si se especifica, tiene prioridad sobre la configuración del motor.",
     "Off": "Desactivado",
     "On": "Activado",
     "option A": "Opción A",
     "option B": "Opción B",
     "option C": "Opción C",
-    "Otherwise, only variables defined via input mappings will be propagated.": "De lo contrario, solo se propagarán las variables definidas a través de mapeos de entrada.",
-    "Otherwise, only variables defined via output mappings will be propagated.": "De lo contrario, solo se propagarán las variables definidas a través de mapeos de salida.",
+    "Otherwise, only variables defined via input mappings will be propagated.":
+        "De lo contrario, solo se propagarán las variables definidas a través de mapeos de entrada.",
+    "Otherwise, only variables defined via output mappings will be propagated.":
+        "De lo contrario, solo se propagarán las variables definidas a través de mapeos de salida.",
     "Out mapping propagation": "Propagación de mapeo de salida",
     "Out Mapping": "Mapeo de salida",
     "Out mappings": "Mapeos de salida",
@@ -348,7 +376,8 @@ const translations: Record<string, string> = {
     "Script type": "Tipo de script",
     "Script Type": "Tipo de script",
     "Script": "Script",
-    "Select an element to edit its properties.": "Seleccione un elemento para editar sus propiedades.",
+    "Select an element to edit its properties.":
+        "Seleccione un elemento para editar sus propiedades.",
     "Send task documentation": "Documentación de tarea de envío",
     "send ": "enviar ",
     "Service task documentation": "Documentación de tarea de servicio",
@@ -359,17 +388,27 @@ const translations: Record<string, string> = {
     "Source expression": "Expresión de origen",
     "Source Expression": "Expresión de origen",
     "Source": "Origen",
-    "Specify more than one group as a comma separated list. ": "Especifique más de un grupo como una lista separada por comas.",
-    "Specify more than one user as a comma separated list. ": "Especifique más de un usuario como una lista separada por comas.",
-    "Specify more than one variable change event as a comma separated list . Variable change events are:": "Especifique más de un evento de cambio de variable como una lista separada por comas. Los eventos de cambio de variable son:",
-    "Specify more than one variable change event as a comma separated list. ": "Especifique más de un evento de cambio de variable como una lista separada por comas.",
-    "Specify which job workers handle the event work. ": "Especifique qué job workers manejan el trabajo del evento.",
-    "Specify which job workers handle the task work to evaluate business rules. ": "Especifique qué job workers manejan el trabajo de evaluación de reglas de negocio.",
-    "Specify which job workers handle the task work to execute a script. ": "Especifique qué job workers manejan el trabajo de ejecución de un script.",
-    "Specify which job workers handle the task work to execute a service (e.g. ": "Especifique qué job workers manejan el trabajo de ejecución de un servicio (p. ej. ",
-    "Specify which job workers handle the task work to send a message (e.g. ": "Especifique qué job workers manejan el trabajo de envío de un mensaje (p. ej. ",
+    "Specify more than one group as a comma separated list. ":
+        "Especifique más de un grupo como una lista separada por comas.",
+    "Specify more than one user as a comma separated list. ":
+        "Especifique más de un usuario como una lista separada por comas.",
+    "Specify more than one variable change event as a comma separated list . Variable change events are:":
+        "Especifique más de un evento de cambio de variable como una lista separada por comas. Los eventos de cambio de variable son:",
+    "Specify more than one variable change event as a comma separated list. ":
+        "Especifique más de un evento de cambio de variable como una lista separada por comas.",
+    "Specify which job workers handle the event work. ":
+        "Especifique qué job workers manejan el trabajo del evento.",
+    "Specify which job workers handle the task work to evaluate business rules. ":
+        "Especifique qué job workers manejan el trabajo de evaluación de reglas de negocio.",
+    "Specify which job workers handle the task work to execute a script. ":
+        "Especifique qué job workers manejan el trabajo de ejecución de un script.",
+    "Specify which job workers handle the task work to execute a service (e.g. ":
+        "Especifique qué job workers manejan el trabajo de ejecución de un servicio (p. ej. ",
+    "Specify which job workers handle the task work to send a message (e.g. ":
+        "Especifique qué job workers manejan el trabajo de envío de un mensaje (p. ej. ",
     "Start initiator": "Iniciador de inicio",
-    "Start typing \"${}\" to create an expression.": "Comience a escribir \"${}\" para crear una expresión.",
+    'Start typing "${}" to create an expression.':
+        'Comience a escribir "${}" para crear una expresión.',
     "start": "inicio",
     "Startable": "Iniciable",
     "String or expression": "Cadena de texto o expresión",
@@ -389,10 +428,14 @@ const translations: Record<string, string> = {
     "Tenant ID": "ID de inquilino",
     "Tenant Id": "ID de inquilino",
     "Text": "Texto",
-    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "La fecha de vencimiento como expresión EL (p. ej. ${someDate}) o una fecha ISO (p. ej. 2015-06-26T09:54:00)",
-    "The due date as an EL expression (e.g. ${someDate}) or an ISO date (e.g. 2015-06-26T09:54:00).": "La fecha de vencimiento como expresión EL (p. ej. ${someDate}) o una fecha ISO (p. ej. 2015-06-26T09:54:00).",
-    "The number of times the engine tries executing this activity if a worker signals a failure. The default is three.": "El número de veces que el motor intenta ejecutar esta actividad si un worker señala un fallo. El valor predeterminado es tres.",
-    "This maps to the process definition key.": "Esto corresponde a la clave de definición de proceso.",
+    "The due date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "La fecha de vencimiento como expresión EL (p. ej. ${someDate}) o una fecha ISO (p. ej. 2015-06-26T09:54:00)",
+    "The due date as an EL expression (e.g. ${someDate}) or an ISO date (e.g. 2015-06-26T09:54:00).":
+        "La fecha de vencimiento como expresión EL (p. ej. ${someDate}) o una fecha ISO (p. ej. 2015-06-26T09:54:00).",
+    "The number of times the engine tries executing this activity if a worker signals a failure. The default is three.":
+        "El número de veces que el motor intenta ejecutar esta actividad si un worker señala un fallo. El valor predeterminado es tres.",
+    "This maps to the process definition key.":
+        "Esto corresponde a la clave de definición de proceso.",
     "Throw expression": "Expresión de lanzamiento",
     "Time to live": "Tiempo de vida",
     "timeout": "Tiempo de espera",
@@ -400,7 +443,8 @@ const translations: Record<string, string> = {
     "Timer Definition": "Definición de temporizador",
     "Timer documentation": "Documentación del temporizador",
     "Timer": "Temporizador",
-    "To collect the output define the output collection and the output element expressions. ": "Para recopilar la salida, defina la colección de salida y las expresiones de elemento de salida.",
+    "To collect the output define the output collection and the output element expressions. ":
+        "Para recopilar la salida, defina la colección de salida y las expresiones de elemento de salida.",
     "Topic": "Tema",
     "Type": "Tipo",
     "update": "actualizar",

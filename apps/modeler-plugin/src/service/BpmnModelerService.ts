@@ -111,10 +111,10 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             let bpmnFile = this.vsDocument.getContent(editorId);
 
             if (bpmnFile === "") {
-                const ep = await this.vsUI.pickExecutionPlatform(
-                    "Select the engine.",
-                    ["Camunda 7", "Camunda 8"],
-                );
+                const ep = await this.vsUI.pickExecutionPlatform("Select the engine.", [
+                    "Camunda 7",
+                    "Camunda 8",
+                ]);
 
                 const latestVersion = getLatestVersion(ep);
                 bpmnFile =
@@ -141,10 +141,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
 
                 return sent;
             } catch (error) {
-                if (
-                    error instanceof Error &&
-                    error.message === "The active editor is hidden."
-                ) {
+                if (error instanceof Error && error.message === "The active editor is hidden.") {
                     return false;
                 } else if (error instanceof ExecutionPlatformNotDetectedError) {
                     const ep = await this.vsUI.pickExecutionPlatform(
@@ -248,12 +245,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     String(a.name ?? "").localeCompare(String(b.name ?? "")),
                 );
 
-            if (
-                await this.editorStore.postMessage(
-                    editorId,
-                    new ElementTemplatesQuery(sorted),
-                )
-            ) {
+            if (await this.editorStore.postMessage(editorId, new ElementTemplatesQuery(sorted))) {
                 this.statusBar.showElementTemplatesReady(sorted.length);
                 if (artifacts.length > 0) {
                     this.vsUI.logInfo(`${artifacts.length} element templates are set.`);
@@ -261,9 +253,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 return true;
             } else {
                 this.statusBar.hideElementTemplatesStatus();
-                return this.handleError(
-                    new Error("Setting the `elementTemplates` failed."),
-                );
+                return this.handleError(new Error("Setting the `elementTemplates` failed."));
             }
         } catch (error) {
             this.statusBar.hideElementTemplatesStatus();
@@ -374,10 +364,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
     async readClipboard(editorId: string): Promise<boolean> {
         try {
             const text = await this.vsUI.readClipboard();
-            return await this.editorStore.postMessage(
-                editorId,
-                new ClipboardQuery(text),
-            );
+            return await this.editorStore.postMessage(editorId, new ClipboardQuery(text));
         } catch (error) {
             this.vsUI.logError(error as Error);
             return false;
@@ -394,10 +381,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
     async readTextClipboard(editorId: string): Promise<boolean> {
         try {
             const text = await this.vsUI.readClipboard();
-            return await this.editorStore.postMessage(
-                editorId,
-                new TextClipboardQuery(text),
-            );
+            return await this.editorStore.postMessage(editorId, new TextClipboardQuery(text));
         } catch (error) {
             this.vsUI.logError(error as Error);
             return false;
@@ -431,13 +415,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
      */
     setLanguage(editorId: string): void {
         const locale = this.vsSettings.getLanguage();
-        this.editorStore
-            .postMessage(editorId, new LanguageQuery(locale))
-            .catch((error) => {
-                this.vsUI.logError(
-                    error instanceof Error ? error : new Error(String(error)),
-                );
-            });
+        this.editorStore.postMessage(editorId, new LanguageQuery(locale)).catch((error) => {
+            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+        });
     }
 
     // ─── Change engine version ─────────────────────────────────────────────
@@ -574,7 +554,12 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             try {
                 const platform = detectExecutionPlatform(content);
                 const version = detectExecutionPlatformVersion(content);
-                const entry: BpmnFileEntry = { path: filePath, content, platform, version };
+                const entry: BpmnFileEntry = {
+                    path: filePath,
+                    content,
+                    platform,
+                    version,
+                };
                 if (platform === "c7") {
                     c7Files.push(entry);
                 } else {
@@ -619,10 +604,13 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     platform === "c7"
                         ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
                         : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
-                updatedContent = addExecutionPlatform(file.content, platformName, targetVersion, schema);
-                this.vsUI.logWarning(
-                    `Added missing executionPlatform attribute to: ${file.path}`,
+                updatedContent = addExecutionPlatform(
+                    file.content,
+                    platformName,
+                    targetVersion,
+                    schema,
                 );
+                this.vsUI.logWarning(`Added missing executionPlatform attribute to: ${file.path}`);
             } else {
                 updatedContent = updateExecutionPlatformVersion(file.content, targetVersion);
             }

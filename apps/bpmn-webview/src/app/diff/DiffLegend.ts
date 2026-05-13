@@ -119,17 +119,14 @@ export class DiffLegend {
         this.renderLabels();
 
         const { counts, origin } = context;
-        const total =
-            counts.added + counts.removed + counts.changed + counts.layoutChanged;
+        const total = counts.added + counts.removed + counts.changed + counts.layoutChanged;
         const hasChanges = total > 0;
         this.prevButton.disabled = !hasChanges;
         this.nextButton.disabled = !hasChanges;
 
         const showOriginAffordances = origin === "compare-files";
         this.filenameEl.style.display = showOriginAffordances ? "block" : "none";
-        this.swapButton.style.display = showOriginAffordances
-            ? "inline-flex"
-            : "none";
+        this.swapButton.style.display = showOriginAffordances ? "inline-flex" : "none";
 
         this.root.style.display = "flex";
     }

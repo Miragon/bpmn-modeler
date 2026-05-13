@@ -35,7 +35,8 @@ const translations: Record<string, string> = {
     "Append Intermediate/Boundary Event": "Append Intermediate/Boundary Event",
     "Change type": "Change type",
     "Connect using Association": "Connect using Association",
-    "Connect using Sequence/MessageFlow or Association": "Connect using Sequence/MessageFlow or Association",
+    "Connect using Sequence/MessageFlow or Association":
+        "Connect using Sequence/MessageFlow or Association",
     "Connect using DataInputAssociation": "Connect using DataInputAssociation",
     "Remove": "Remove",
     "no shape type specified": "no shape type specified",
@@ -62,7 +63,8 @@ const translations: Record<string, string> = {
     "Sequential Multi Instance": "Sequential Multi Instance",
     "Loop": "Loop",
     "Ad-hoc": "Ad-hoc",
-    "element {element} referenced by {referenced}#{property} not yet drawn": "element {element} referenced by {referenced}#{property} not yet drawn",
+    "element {element} referenced by {referenced}#{property} not yet drawn":
+        "element {element} referenced by {referenced}#{property} not yet drawn",
     "unknown di {di} for element {semantic}": "unknown di {di} for element {semantic}",
     "missing {semantic}#attachedToRef": "missing {semantic}#attachedToRef",
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ref not specified",
@@ -73,9 +75,12 @@ const translations: Record<string, string> = {
     "diagram not part of bpmn:Definitions": "diagram not part of bpmn:Definitions",
     "no diagram to display": "no diagram to display",
     "no process or collaboration to display": "no process or collaboration to display",
-    "correcting missing bpmnElement on {plane} to {rootElement}": "correcting missing bpmnElement on {plane} to {rootElement}",
-    "unsupported bpmnElement for {plane}: {rootElement}": "unsupported bpmnElement for {plane}: {rootElement}",
-    "unrecognized flowElement {element} in context {context}": "unrecognized flowElement {element} in context {context}",
+    "correcting missing bpmnElement on {plane} to {rootElement}":
+        "correcting missing bpmnElement on {plane} to {rootElement}",
+    "unsupported bpmnElement for {plane}: {rootElement}":
+        "unsupported bpmnElement for {plane}: {rootElement}",
+    "unrecognized flowElement {element} in context {context}":
+        "unrecognized flowElement {element} in context {context}",
     "HELLO {you}!": "HALLO {you}!",
 };
 

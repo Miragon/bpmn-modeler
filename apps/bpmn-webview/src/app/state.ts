@@ -35,9 +35,7 @@ export class WebviewStateManager {
     restoreSelection(): void {
         const saved = this.getSavedState();
         if (saved?.selectedElementIds && saved.selectedElementIds.length > 0) {
-            this.modeler.selection.selectElementsByIds(
-                saved.selectedElementIds,
-            );
+            this.modeler.selection.selectElementsByIds(saved.selectedElementIds);
         }
     }
 

@@ -109,10 +109,7 @@ export class VsCodeUI {
      * @throws {UserCancelledError} If the user dismisses the quick pick.
      * @throws {Error} If the user selects an unknown item.
      */
-    async pickExecutionPlatform(
-        placeHolder: string,
-        items: string[],
-    ): Promise<"c7" | "c8"> {
+    async pickExecutionPlatform(placeHolder: string, items: string[]): Promise<"c7" | "c8"> {
         const result = await window.showQuickPick(items, {
             placeHolder,
             onDidSelectItem: (item) => item,
@@ -168,10 +165,7 @@ export class VsCodeUI {
      * @returns The selected version string.
      * @throws {UserCancelledError} If the user dismisses the quick pick.
      */
-    async pickEngineVersion(
-        platform: "c7" | "c8",
-        versions: readonly string[],
-    ): Promise<string> {
+    async pickEngineVersion(platform: "c7" | "c8", versions: readonly string[]): Promise<string> {
         const label = platform === "c7" ? "Camunda 7" : "Camunda 8";
         const result = await window.showQuickPick([...versions], {
             placeHolder: `Select ${label} engine version`,

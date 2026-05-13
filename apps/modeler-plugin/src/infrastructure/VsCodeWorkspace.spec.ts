@@ -20,10 +20,7 @@ import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 beforeEach(() => {
     findFilesMock.mockReset();
-    findFilesMock.mockResolvedValue([
-        { path: "/a.bpmn" },
-        { path: "/b.bpmn" },
-    ]);
+    findFilesMock.mockResolvedValue([{ path: "/a.bpmn" }, { path: "/b.bpmn" }]);
 });
 
 describe("VsCodeWorkspace.findFiles", () => {
@@ -41,10 +38,7 @@ describe("VsCodeWorkspace.findFiles", () => {
 
         await sut.findFiles("**/*.bpmn", "**/dist/**");
 
-        expect(findFilesMock).toHaveBeenCalledWith(
-            "**/*.bpmn",
-            "**/dist/**",
-        );
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**");
     });
 
     it("forwards null as exclude to opt out of all default excludes", async () => {
@@ -59,10 +53,7 @@ describe("VsCodeWorkspace.findFiles", () => {
     });
 
     it("returns the .path of every matching Uri", async () => {
-        findFilesMock.mockResolvedValueOnce([
-            { path: "/x.bpmn" },
-            { path: "/nested/y.bpmn" },
-        ]);
+        findFilesMock.mockResolvedValueOnce([{ path: "/x.bpmn" }, { path: "/nested/y.bpmn" }]);
         const sut = new VsCodeWorkspace();
 
         const result = await sut.findFiles("**/*.bpmn");

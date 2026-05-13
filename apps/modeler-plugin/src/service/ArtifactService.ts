@@ -227,10 +227,7 @@ export class ArtifactService {
      * @param target Service that exposes `setElementTemplates`.
      * @returns Disposables for created watchers and any errors that occurred.
      */
-    async createWatcher(
-        editorId: string,
-        target: ArtifactChangeTarget,
-    ): Promise<WatcherResult> {
+    async createWatcher(editorId: string, target: ArtifactChangeTarget): Promise<WatcherResult> {
         const documentDir = posix.dirname(editorId);
         const configFolder = this.vsSettings.getConfigFolder();
         const workspaceRoot = await this.getWorkspaceRoot(documentDir);
@@ -270,9 +267,7 @@ export class ArtifactService {
         const files: string[] = [];
         for (const [name, type] of entries) {
             if (type === "directory") {
-                files.push(
-                    ...(await this.readDirectory(`${folder}/${name}`, extension)),
-                );
+                files.push(...(await this.readDirectory(`${folder}/${name}`, extension)));
             } else if (type === "file" && name.endsWith(extension)) {
                 files.push(`${folder}/${name}`);
             }

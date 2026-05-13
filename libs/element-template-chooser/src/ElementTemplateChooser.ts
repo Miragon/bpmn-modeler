@@ -77,10 +77,7 @@ class ElementTemplateChooser {
                 reject("user-canceled");
             };
 
-            render(
-                h(ChooserOverlay, { templates, onSelect, onCancel }),
-                container,
-            );
+            render(h(ChooserOverlay, { templates, onSelect, onCancel }), container);
         });
     }
 }

@@ -71,8 +71,10 @@ const translations: Record<string, string> = {
     "This maps to the task definition key.": "Это соответствует ключу задачи.",
     "Collapsed Pool": "Разрушенный пул",
     "Expanded Pool": "Расширенный пул",
-    "flow elements must be children of pools/participants": "элементы потока должны быть дочерними элементами пулов",
-    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "Дата последующего обновления в виде выражения EL (например, ${someDate} или дата в формате ISO (например, 2015-06-26T09:54:00)",
+    "flow elements must be children of pools/participants":
+        "элементы потока должны быть дочерними элементами пулов",
+    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "Дата последующего обновления в виде выражения EL (например, ${someDate} или дата в формате ISO (например, 2015-06-26T09:54:00)",
     "Message Boundary Event": "Граничащее событие сообщение",
     "Timer Boundary Event": "Граничащее событие таймер",
     "Escalation Boundary Event": "Граничащее событие эскалация",
@@ -86,7 +88,8 @@ const translations: Record<string, string> = {
     "Escalation Boundary Event (non-interrupting)": "Граничащее событие эскалация (непрерывное)",
     "Conditional Boundary Event (non-interrupting)": "Граничащее событие компенсация (непрерывное)",
     "Signal Boundary Event (non-interrupting)": "Граничащее событие  сигнал (непрерывное)",
-    "Connect using Information/Knowledge/Authority Requirement or Association": "Подключение с использованием Информации/Знаний/Авторитетных требований или Ассоциации",
+    "Connect using Information/Knowledge/Authority Requirement or Association":
+        "Подключение с использованием Информации/Знаний/Авторитетных требований или Ассоциации",
     "Empty": "Пусто",
     "Literal Expression": "Буквенное выражение",
     "This maps to the decision definition key.": "Это соответствует ключу решение.",

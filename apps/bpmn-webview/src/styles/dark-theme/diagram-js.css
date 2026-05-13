@@ -85,6 +85,15 @@
     stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
+/* Distinguish bpmn-js throw vs. catch (and other filled) markers in dark mode. */
+.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"]:not([style*="stroke: white"]) {
+    fill: var(--bpmn-shape-stroke-color) !important;
+}
+.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"][style*="stroke: white"] {
+    fill: var(--bpmn-shape-stroke-color) !important;
+    stroke: var(--bpmn-shape-fill-color) !important;
+}
+
 /* Text inside shapes (e.g. task labels rendered inline) */
 .djs-shape > .djs-visual > text {
     fill: var(--bpmn-label-color) !important;

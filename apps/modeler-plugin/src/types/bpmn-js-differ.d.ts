@@ -27,8 +27,5 @@ declare module "bpmn-js-differ" {
         _layoutChanged: Record<string, ModdleElement>;
     }
 
-    export function diff(
-        before: ModdleElement,
-        after: ModdleElement,
-    ): DiffResult;
+    export function diff(before: ModdleElement, after: ModdleElement): DiffResult;
 }

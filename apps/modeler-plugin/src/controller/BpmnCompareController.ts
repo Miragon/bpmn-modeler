@@ -1,9 +1,4 @@
-import {
-    commands,
-    ExtensionContext,
-    Uri,
-    window,
-} from "vscode";
+import { commands, ExtensionContext, Uri, window } from "vscode";
 
 import { CompareSelectionStore } from "../infrastructure/CompareSelectionStore";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
@@ -64,21 +59,9 @@ export class BpmnCompareController {
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
-            commands.registerCommand(
-                SELECT_FOR_COMPARE_CMD,
-                this.selectForCompare,
-                this,
-            ),
-            commands.registerCommand(
-                COMPARE_WITH_SELECTED_CMD,
-                this.compareWithSelected,
-                this,
-            ),
-            commands.registerCommand(
-                COMPARE_SELECTED_CMD,
-                this.compareSelected,
-                this,
-            ),
+            commands.registerCommand(SELECT_FOR_COMPARE_CMD, this.selectForCompare, this),
+            commands.registerCommand(COMPARE_WITH_SELECTED_CMD, this.compareWithSelected, this),
+            commands.registerCommand(COMPARE_SELECTED_CMD, this.compareSelected, this),
         );
     }
 
@@ -118,7 +101,7 @@ export class BpmnCompareController {
         const leftUri = this.selection.get();
         if (!leftUri) {
             this.vsUI.showInfo(
-                "No file selected for compare. Right-click a .bpmn file and choose \"Select for Compare\" first.",
+                'No file selected for compare. Right-click a .bpmn file and choose "Select for Compare" first.',
             );
             return;
         }
@@ -147,15 +130,10 @@ export class BpmnCompareController {
      * {@link CompareSelectionStore} — both URIs arrive in one call, so a
      * previously-stored "Select for Compare" pick is intentionally preserved.
      */
-    async compareSelected(
-        _uri: Uri | undefined,
-        uris: Uri[] | undefined,
-    ): Promise<void> {
+    async compareSelected(_uri: Uri | undefined, uris: Uri[] | undefined): Promise<void> {
         const bpmnUris = (uris ?? []).filter(isBpmnUri);
         if (bpmnUris.length !== 2) {
-            this.vsUI.showInfo(
-                "Select exactly two .bpmn files to compare.",
-            );
+            this.vsUI.showInfo("Select exactly two .bpmn files to compare.");
             return;
         }
 

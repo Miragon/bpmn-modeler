@@ -32,10 +32,7 @@ import {
     SyncDocumentCommand,
     TextClipboardQuery,
 } from "@miragon/bpmn-modeler-shared";
-import {
-    VsCodeClipboardModule,
-    LabelClipboardModule,
-} from "@miragon/bpmn-modeler-clipboard";
+import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnModeler,
@@ -160,15 +157,10 @@ window.onload = async function () {
         // The FEEL editor (CodeMirror 6) in the C8 properties panel lives outside
         // the bpmn-js DI context, so the DI clipboard modules above don't reach it.
         // This polyfill intercepts Cmd/Ctrl+C/V on contenteditable elements and
-        // bridges them through the extension host clipboard.
-        installContentEditableClipboardPolyfill(
-            requestTextClipboard,
-            writeTextClipboard,
-            () => {
-                if (!modelerIsInitialized) return;
-                bpmnModeler.getService<any>("editorActions").trigger("selectElements");
-            },
-        );
+        // bridges them through the extension host clipboard, and guards Ctrl+A
+        // in text-editing surfaces from being stolen by bpmn-js's Keyboard
+        // service (canvas Ctrl+A is owned by bpmn-js's SelectionKeyBindings).
+        installContentEditableClipboardPolyfill(requestTextClipboard, writeTextClipboard);
     }
 
     vscode.postMessage(new GetBpmnFileCommand());
@@ -195,11 +187,7 @@ window.onload = async function () {
         vsCodeBridge: ["value", { postMessage: (m: unknown) => vscode.postMessage(m as never) }],
     };
     const extraModules = [TranslateModule, vsCodeBridgeModule, ...(clipboardModules ?? [])];
-    await initializeModeler(
-        bpmnFileQuery?.content,
-        bpmnFileQuery?.engine,
-        extraModules,
-    );
+    await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
     modelerIsInitialized = true;
 
     console.debug("[DEBUG] Modeler is initialized...");
@@ -265,9 +253,7 @@ async function initializeModeler(
         } else if (error instanceof UnsupportedEngineError) {
             vscode.postMessage(new LogErrorCommand(error.message));
         } else {
-            vscode.postMessage(
-                new LogErrorCommand(`Unable to open XML\n${error.message}`),
-            );
+            vscode.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
         }
     }
 }
@@ -329,13 +315,10 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
         }
         case queryOrCommand.type === "ElementTemplatesQuery": {
             try {
-                const elementTemplates = (message.data as ElementTemplatesQuery)
-                    .elementTemplates;
+                const elementTemplates = (message.data as ElementTemplatesQuery).elementTemplates;
                 console.log("Received element templates: ", elementTemplates);
                 bpmnModeler.setElementTemplates(elementTemplates);
-                elementTemplatesResolver.done(
-                    message.data as ElementTemplatesQuery,
-                );
+                elementTemplatesResolver.done(message.data as ElementTemplatesQuery);
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

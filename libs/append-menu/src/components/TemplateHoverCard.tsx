@@ -35,31 +35,32 @@ export function TemplateHoverCard({
 }: TemplateHoverCardProps) {
     const { entry, template } = enrichedEntry;
 
-    const implDetail = template
-        ? extractImplementationDetail(template.properties)
-        : undefined;
+    const implDetail = template ? extractImplementationDetail(template.properties) : undefined;
 
-    const inputs = template?.properties.filter(
-        (p) => classifyBinding(p.binding) === "input" && p.type !== "Hidden",
-    ) ?? [];
-    const outputs = template?.properties.filter(
-        (p) => classifyBinding(p.binding) === "output" && p.type !== "Hidden",
-    ) ?? [];
-    const props = template?.properties.filter(
-        (p) => classifyBinding(p.binding) === "property" && p.type !== "Hidden",
-    ) ?? [];
+    const inputs =
+        template?.properties.filter(
+            (p) => classifyBinding(p.binding) === "input" && p.type !== "Hidden",
+        ) ?? [];
+    const outputs =
+        template?.properties.filter(
+            (p) => classifyBinding(p.binding) === "output" && p.type !== "Hidden",
+        ) ?? [];
+    const props =
+        template?.properties.filter(
+            (p) => classifyBinding(p.binding) === "property" && p.type !== "Hidden",
+        ) ?? [];
 
     return (
         <div
-          class="am-hover-card"
-          style={{
+            class="am-hover-card"
+            style={{
                 position: "fixed",
                 top: `${style.top}px`,
                 left: `${style.left}px`,
                 maxHeight: `${style.maxHeight}px`,
             }}
-          onMouseEnter={onMouseEnter}
-          onMouseLeave={onMouseLeave}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
         >
             <div class="am-hover-card-scroll">
                 {/* Header: name + implementation detail */}
@@ -75,16 +76,14 @@ export function TemplateHoverCard({
 
                 {/* Description + metadata */}
                 <div class="am-hover-card-details">
-                    {entry.description && (
-                        <p class="am-hover-card-desc">{entry.description}</p>
-                    )}
+                    {entry.description && <p class="am-hover-card-desc">{entry.description}</p>}
                     {entry.documentationRef && (
                         <a
-                          class="am-card-docs-link"
-                          href={entry.documentationRef}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
+                            class="am-card-docs-link"
+                            href={entry.documentationRef}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                         >
                             <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.001 1.001 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z" />
@@ -99,17 +98,13 @@ export function TemplateHoverCard({
                                 {template.category.name}
                             </span>
                         )}
-                        {template && (
-                            <span class="am-hover-card-id">{template.id}</span>
-                        )}
+                        {template && <span class="am-hover-card-id">{template.id}</span>}
                     </div>
                 </div>
 
                 {/* Parameter sections */}
                 <div class="am-hover-card-params">
-                    {props.length > 0 && (
-                        <ParameterSection title="Properties" items={props} />
-                    )}
+                    {props.length > 0 && <ParameterSection title="Properties" items={props} />}
                     {inputs.length > 0 && (
                         <ParameterSection title="Input Parameters" items={inputs} />
                     )}
@@ -154,12 +149,8 @@ function ParameterSection({ title, items }: { title: string; items: TemplateProp
                                 )}
                             </div>
                         </div>
-                        {p.description && (
-                            <p class="am-hover-param-desc">{p.description}</p>
-                        )}
-                        {p.value && (
-                            <code class="am-hover-param-value">{p.value}</code>
-                        )}
+                        {p.description && <p class="am-hover-param-desc">{p.description}</p>}
+                        {p.value && <code class="am-hover-param-value">{p.value}</code>}
                     </li>
                 ))}
             </ul>

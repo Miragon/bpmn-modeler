@@ -8,9 +8,7 @@ export class VsCodeSettings {
      */
     getAlignToOrigin(): boolean {
         return (
-            workspace
-                .getConfiguration("miragon.bpmnModeler")
-                .get<boolean>("alignToOrigin") ?? false
+            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("alignToOrigin") ?? false
         );
     }
 
@@ -47,9 +45,7 @@ export class VsCodeSettings {
      * @returns The API version string (e.g. `"v2"`).
      */
     getC8ApiVersion(): string {
-        return workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .get<string>("c8ApiVersion", "v2");
+        return workspace.getConfiguration("miragon.bpmnModeler").get<string>("c8ApiVersion", "v2");
     }
 
     /**
@@ -87,8 +83,6 @@ export class VsCodeSettings {
      * @returns The locale code (e.g. `"de"`, `"fr"`).
      */
     getLanguage(): string {
-        return workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .get<string>("language", "en");
+        return workspace.getConfiguration("miragon.bpmnModeler").get<string>("language", "en");
     }
 }

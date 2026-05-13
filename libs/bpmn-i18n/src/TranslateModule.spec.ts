@@ -32,10 +32,10 @@ describe("CustomTranslator", () => {
         });
 
         it("should replace multiple placeholders", () => {
-            const result = translator.translate(
-                "no parent for {element} in {parent}",
-                { element: "Task_1", parent: "Process_1" },
-            );
+            const result = translator.translate("no parent for {element} in {parent}", {
+                element: "Task_1",
+                parent: "Process_1",
+            });
             expect(result).toBe("no parent for Task_1 in Process_1");
         });
     });

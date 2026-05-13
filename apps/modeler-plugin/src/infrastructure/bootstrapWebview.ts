@@ -33,11 +33,7 @@ export function bootstrapWebview(
     webview.options = { enableScripts: true };
 
     if (viewType === BPMN_VIEW_TYPE) {
-        webview.html = bpmnEditorUi(
-            webview,
-            getContext().extensionUri,
-            initialPanelVisible,
-        );
+        webview.html = bpmnEditorUi(webview, getContext().extensionUri, initialPanelVisible);
     } else if (viewType === DMN_VIEW_TYPE) {
         webview.html = dmnModelerHtml(webview, getContext().extensionUri);
     } else {

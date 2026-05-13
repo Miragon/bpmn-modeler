@@ -53,13 +53,15 @@ const translations: Record<string, string> = {
     "Compensation Event": "Evento de compensación",
     "Compensation Intermediate Throw Event": "Evento intermedio de lanzamiento de compensación",
     "Complex Gateway": "Gateway complejo",
-    "Conditional Boundary Event (non-interrupting)": "Evento de límite condicional (no interrumpible)",
+    "Conditional Boundary Event (non-interrupting)":
+        "Evento de límite condicional (no interrumpible)",
     "Conditional Boundary Event": "Evento de límite condicional",
     "Conditional Event": "Evento condicional",
     "Conditional Flow": "Flujo condicional",
     "Conditional Intermediate Catch Event": "Evento intermedio de captura condicional",
     "Conditional Start Event": "Evento de inicio condicional",
-    "Connect using Information/Knowledge/Authority Requirement or Association": "Conectar usando requisito de información/conocimiento/autoridad o asociación",
+    "Connect using Information/Knowledge/Authority Requirement or Association":
+        "Conectar usando requisito de información/conocimiento/autoridad o asociación",
     "Copy Input Column": "Copiar columna de entrada",
     "Copy Output Column": "Copiar columna de salida",
     "Copy Rule": "Copiar regla",
@@ -94,7 +96,8 @@ const translations: Record<string, string> = {
     "Error Boundary Event": "Evento de límite de error",
     "Error End Event": "Evento de fin de error",
     "Error Event": "Evento de error",
-    "Escalation Boundary Event (non-interrupting)": "Evento de límite de escalación (no interrumpible)",
+    "Escalation Boundary Event (non-interrupting)":
+        "Evento de límite de escalación (no interrumpible)",
     "Escalation Boundary Event": "Evento de límite de escalación",
     "Escalation End Event": "Evento de fin de escalación",
     "Escalation Intermediate Throw Event": "Evento intermedio de lanzamiento de escalación",
@@ -102,7 +105,8 @@ const translations: Record<string, string> = {
     "Event-based Exclusive Gateway": "Gateway exclusivo basado en eventos (XOR)",
     "Event": "Evento",
     "Example Data documentation": "Documentación de datos de ejemplo",
-    "Example data must be a JSON object literal.": "Los datos de ejemplo deben ser un literal de objeto JSON.",
+    "Example data must be a JSON object literal.":
+        "Los datos de ejemplo deben ser un literal de objeto JSON.",
     "Exception Flow": "Flujo de excepción",
     "Exception": "Excepción",
     "Expand (not reversible)": "Expandir (no reversible)",
@@ -110,7 +114,8 @@ const translations: Record<string, string> = {
     "Expanded Subprocess": "Subproceso expandido",
     "FEEL": "FEEL",
     "First": "Primero",
-    "flow elements must be children of pools/participants": "Los elementos de flujo deben ser hijos de pools/participantes",
+    "flow elements must be children of pools/participants":
+        "Los elementos de flujo deben ser hijos de pools/participantes",
     "Foo": "Foo",
     "Gateway": "Gateway",
     "Groovy": "Groovy",
@@ -132,7 +137,8 @@ const translations: Record<string, string> = {
     "Learn more": "Más información",
     "Link Intermediate Catch Event": "Evento intermedio de captura de enlace",
     "Link Intermediate Throw Event": "Evento intermedio de lanzamiento de enlace",
-    "Listener is notified for all kinds of events": "El listener es notificado para todo tipo de eventos",
+    "Listener is notified for all kinds of events":
+        "El listener es notificado para todo tipo de eventos",
     "Listener": "Listener",
     "Literal Expression": "Expresión literal",
     "Local variable assignment": "Asignación de variable local",
@@ -167,8 +173,10 @@ const translations: Record<string, string> = {
     "Predefined Values": "Valores predefinidos",
     "Priority": "Prioridad",
     "Process variable assignment": "Asignación de variable de proceso",
-    "Process variable name must not be empty.": "El nombre de la variable de proceso no debe estar vacío.",
-    "Process variable name must not contain spaces.": "El nombre de la variable de proceso no debe contener espacios.",
+    "Process variable name must not be empty.":
+        "El nombre de la variable de proceso no debe estar vacío.",
+    "Process variable name must not contain spaces.":
+        "El nombre de la variable de proceso no debe contener espacios.",
     "Python": "Python",
     "Question": "Pregunta",
     "receive messages.": "recibir mensajes.",
@@ -187,7 +195,8 @@ const translations: Record<string, string> = {
     "Rule order": "Orden de reglas",
     "Rule": "Regla",
     "Rules": "Reglas",
-    "Scientific notation is disallowed in FEEL.": "La notación científica no está permitida en FEEL.",
+    "Scientific notation is disallowed in FEEL.":
+        "La notación científica no está permitida en FEEL.",
     "Script Task": "Tarea de script",
     "Search in diagram": "Buscar en diagrama",
     "Select": "Seleccionar",
@@ -215,13 +224,18 @@ const translations: Record<string, string> = {
     "Template": "Plantilla",
     "Templates": "Plantillas",
     "Terminate End Event": "Evento de fin de terminación",
-    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)": "La fecha de seguimiento como expresión EL (p. ej. ${someDate}) o una fecha ISO (p. ej. 2015-06-26T09:54:00)",
-    "The template applied was not found. Therefore, its properties cannot be shown. Unlink to access the data.": "La plantilla aplicada no fue encontrada. Por lo tanto, sus propiedades no se pueden mostrar. Desvincule para acceder a los datos.",
-    "This maps to the decision definition key.": "Esto corresponde a la clave de definición de decisión.",
-    "This maps to the process definition key.": "Esto corresponde a la clave de definición de proceso.",
+    "The follow up date as an EL expression (e.g. ${someDate} or an ISO date (e.g. 2015-06-26T09:54:00)":
+        "La fecha de seguimiento como expresión EL (p. ej. ${someDate}) o una fecha ISO (p. ej. 2015-06-26T09:54:00)",
+    "The template applied was not found. Therefore, its properties cannot be shown. Unlink to access the data.":
+        "La plantilla aplicada no fue encontrada. Por lo tanto, sus propiedades no se pueden mostrar. Desvincule para acceder a los datos.",
+    "This maps to the decision definition key.":
+        "Esto corresponde a la clave de definición de decisión.",
+    "This maps to the process definition key.":
+        "Esto corresponde a la clave de definición de proceso.",
     "This maps to the task definition key.": "Esto corresponde a la clave de definición de tarea.",
     "This template is deprecated.": "Esta plantilla está obsoleta.",
-    "Timer Boundary Event (non-interrupting)": "Evento de límite de temporizador (no interrumpible)",
+    "Timer Boundary Event (non-interrupting)":
+        "Evento de límite de temporizador (no interrumpible)",
     "Timer Boundary Event": "Evento de límite de temporizador",
     "Timer Intermediate Catch Event": "Evento intermedio de captura de temporizador",
     "Timer Start Event": "Evento de inicio de temporizador",

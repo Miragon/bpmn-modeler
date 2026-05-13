@@ -132,7 +132,12 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                 {/* Header */}
                 <div class="etc-header">
                     <h2 class="etc-title">Element Templates</h2>
-                    <button class="etc-close-btn" onClick={onCancel} aria-label="Close" type="button">
+                    <button
+                        class="etc-close-btn"
+                        onClick={onCancel}
+                        aria-label="Close"
+                        type="button"
+                    >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <path d="M8 8.707l3.646 3.647.708-.708L8.707 8l3.647-3.646-.708-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z" />
                         </svg>
@@ -141,26 +146,32 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
 
                 {/* Search bar */}
                 <div class="etc-search-wrapper">
-                    <svg class="etc-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <svg
+                        class="etc-search-icon"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                    >
                         <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" />
                     </svg>
                     <input
-                      ref={searchRef}
-                      class="etc-search-input"
-                      type="text"
-                      placeholder="Search templates..."
-                      value={search}
-                      onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+                        ref={searchRef}
+                        class="etc-search-input"
+                        type="text"
+                        placeholder="Search templates..."
+                        value={search}
+                        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                     />
                     {search && (
                         <button
-                          class="etc-search-clear"
-                          onClick={() => {
+                            class="etc-search-clear"
+                            onClick={() => {
                                 setSearch("");
                                 searchRef.current?.focus();
                             }}
-                          type="button"
-                          aria-label="Clear search"
+                            type="button"
+                            aria-label="Clear search"
                         >
                             ×
                         </button>
@@ -171,19 +182,20 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                 {categories.length > 0 && (
                     <div class="etc-filters">
                         <button
-                          class={`etc-chip ${activeCategory === null ? "etc-chip--active" : ""}`}
-                          onClick={() => setActiveCategory(null)}
-                          type="button"
+                            class={`etc-chip ${activeCategory === null ? "etc-chip--active" : ""}`}
+                            onClick={() => setActiveCategory(null)}
+                            type="button"
                         >
                             All
                         </button>
                         {categories.map((cat) => (
                             <button
-                              key={cat.id}
-                              class={`etc-chip ${activeCategory === cat.id ? "etc-chip--active" : ""}`}
-                              onClick={() =>
-                                    setActiveCategory(activeCategory === cat.id ? null : cat.id)}
-                              type="button"
+                                key={cat.id}
+                                class={`etc-chip ${activeCategory === cat.id ? "etc-chip--active" : ""}`}
+                                onClick={() =>
+                                    setActiveCategory(activeCategory === cat.id ? null : cat.id)
+                                }
+                                type="button"
                             >
                                 {cat.name}
                             </button>
@@ -194,46 +206,45 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                 {/* Main content: list + preview */}
                 <div class="etc-body">
                     <div class="etc-list-panel" ref={listRef}>
-                        {filtered.length === 0
-? (
+                        {filtered.length === 0 ? (
                             <div class="etc-empty">
                                 <p class="etc-empty-text">No templates found</p>
                                 {search && (
-                                    <p class="etc-empty-hint">
-                                        Try a different search term
-                                    </p>
+                                    <p class="etc-empty-hint">Try a different search term</p>
                                 )}
                             </div>
-                        )
-: (
+                        ) : (
                             filtered.map((t, idx) => (
                                 <div
-                                  key={t.id}
-                                  class={[
+                                    key={t.id}
+                                    class={[
                                         "etc-template-card",
                                         selectedId === t.id ? "etc-template-card--selected" : "",
                                         focusIndex === idx ? "etc-template-card--focused" : "",
                                     ]
                                         .filter(Boolean)
                                         .join(" ")}
-                                  onClick={() => {
+                                    onClick={() => {
                                         setSelectedId(t.id);
                                         setFocusIndex(idx);
                                     }}
-                                  onDblClick={() => onSelect(t)}
+                                    onDblClick={() => onSelect(t)}
                                 >
                                     <div class="etc-card-header">
-                                        {t.icon?.contents
-? (
+                                        {t.icon?.contents ? (
                                             <img
-                                              class="etc-card-icon"
-                                              src={t.icon.contents}
-                                              alt=""
+                                                class="etc-card-icon"
+                                                src={t.icon.contents}
+                                                alt=""
                                             />
-                                        )
-: (
+                                        ) : (
                                             <div class="etc-card-icon-placeholder">
-                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="currentColor"
+                                                >
                                                     <path d="M4 0h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4zm1 2h6v1H5V3zm0 3h6v1H5V6zm0 3h4v1H5V9z" />
                                                 </svg>
                                             </div>
@@ -241,16 +252,14 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                         <div class="etc-card-text">
                                             <span class="etc-card-name">{t.name}</span>
                                             {(() => {
-                                                const impl = extractImplementationDetail(t.properties);
-                                                return impl
-? (
+                                                const impl = extractImplementationDetail(
+                                                    t.properties,
+                                                );
+                                                return impl ? (
                                                     <span class="etc-card-impl">
-                                                        {impl.label}
-:
-<code>{impl.value}</code>
+                                                        {impl.label}:<code>{impl.value}</code>
                                                     </span>
-                                                )
-: null;
+                                                ) : null;
                                             })()}
                                             {t.description && (
                                                 <span class="etc-card-desc">{t.description}</span>
@@ -264,9 +273,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                             </span>
                                         )}
                                         <span class="etc-badge etc-badge--props">
-                                            {visiblePropertyCount(t)}
-{" "}
-properties
+                                            {visiblePropertyCount(t)} properties
                                         </span>
                                     </div>
                                 </div>
@@ -276,16 +283,20 @@ properties
 
                     {/* Preview panel */}
                     <div class="etc-preview-panel">
-                        {selectedTemplate
-? (
+                        {selectedTemplate ? (
                             <TemplatePreview
-                              template={selectedTemplate}
-                              onApply={() => onSelect(selectedTemplate)}
+                                template={selectedTemplate}
+                                onApply={() => onSelect(selectedTemplate)}
                             />
-                        )
-: (
+                        ) : (
                             <div class="etc-preview-empty">
-                                <svg width="48" height="48" viewBox="0 0 16 16" fill="currentColor" opacity="0.2">
+                                <svg
+                                    width="48"
+                                    height="48"
+                                    viewBox="0 0 16 16"
+                                    fill="currentColor"
+                                    opacity="0.2"
+                                >
                                     <path d="M4 0h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4zm1 2h6v1H5V3zm0 3h6v1H5V6zm0 3h4v1H5V9z" />
                                 </svg>
                                 <p>Select a template to see its details</p>
