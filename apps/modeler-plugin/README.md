@@ -1,15 +1,10 @@
-<div align="center">
-    <img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="140">
-    <h3>Camunda Modeler by Miragon</h3>
-    <p>BPMN 2.0 and DMN modeling for Camunda 7 and Camunda 8 — directly in VS Code.</p>
-    <p>
-        <a href="https://miragon.github.io/bpmn-modeler/">Documentation</a>
-        ·
-        <a href="https://github.com/Miragon/bpmn-modeler/issues">Report Bug</a>
-        ·
-        <a href="https://github.com/Miragon/bpmn-modeler/pulls">Request Feature</a>
-    </p>
-</div>
+<img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="140">
+
+### BPMN Modeler
+
+BPMN 2.0 and DMN modeling for Camunda 7 and Camunda 8 — directly in VS Code.
+
+[Documentation](https://miragon.github.io/bpmn-modeler/) · [Report Bug](https://github.com/Miragon/bpmn-modeler/issues) · [Request Feature](https://github.com/Miragon/bpmn-modeler/pulls)
 
 ## Why this extension
 
@@ -46,7 +41,7 @@ project.
 
 ## Getting started
 
-Install **Camunda Modeler by Miragon** from the VS Code Marketplace, then open
+Install **BPMN Modeler** from the VS Code Marketplace, then open
 any `.bpmn` or `.dmn` file — the modeler opens automatically as a custom
 editor.
 

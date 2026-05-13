@@ -6,21 +6,13 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 
-<br />
-<div align="center">
-    <a href="#">
-        <img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="160">
-    </a>
-    <h3>BPMN, where your work already happens.</h3>
-    <p>A growing family of BPMN/DMN tools built around a shared modeler core — in VS Code, on the desktop, and (soon) talking to your AI assistant.</p>
-    <p>
-        <a href="https://miragon.github.io/bpmn-modeler/">Documentation</a>
-        ·
-        <a href="https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler">Install on Marketplace</a>
-        ·
-        <a href="https://github.com/Miragon/bpmn-modeler/issues">Issues</a>
-    </p>
-</div>
+<img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="160">
+
+### BPMN, where your work already happens.
+
+A growing family of BPMN/DMN tools built around a shared modeler core — in VS Code, on the desktop, and (soon) talking to your AI assistant.
+
+[Documentation](https://miragon.github.io/bpmn-modeler/) · [Install on Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler) · [Issues](https://github.com/Miragon/bpmn-modeler/issues)
 
 ---
 
@@ -72,7 +64,7 @@ Different surfaces, one modeling engine, one repo.
 
 ### Try it in 30 seconds
 
-> Install **[Camunda Modeler by Miragon][marketplace-url]** from the VS Code
+> Install **[BPMN Modeler][marketplace-url]** from the VS Code
 > Marketplace, open any `.bpmn` or `.dmn` file — the modeler opens
 > automatically as a custom editor. That's it.
 
