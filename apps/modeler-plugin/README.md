@@ -1,3 +1,4 @@
+<div align="center">
 <img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="140">
 
 ### BPMN Modeler
@@ -5,6 +6,9 @@
 BPMN 2.0 and DMN modeling for Camunda 7 and Camunda 8 — directly in VS Code.
 
 [Documentation](https://miragon.github.io/bpmn-modeler/) · [Report Bug](https://github.com/Miragon/bpmn-modeler/issues) · [Request Feature](https://github.com/Miragon/bpmn-modeler/pulls)
+</div>
+
+---
 
 ## Why this extension
 
