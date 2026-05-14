@@ -11,6 +11,8 @@
  * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
  * - {@link PropertiesPanelStateQuery}     — deliver the global default visibility of the properties panel
  * - {@link ClipboardQuery}                — deliver clipboard text (host mediates sandboxed reads)
+ * - {@link UpdateScriptContentQuery}      — push updated script content from a virtual editor to the modeler
+ * - {@link UpdateScriptFormatQuery}       — push a script-format choice (Quick-Pick) back to the modeler
  *
  * Commands (webview → extension host):
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
@@ -22,6 +24,7 @@
  * - {@link GetClipboardCommand}               — request clipboard text from the host
  * - {@link SetClipboardCommand}               — ask the host to write text to the clipboard
  * - {@link GetDiagramAsSVGCommand}            — request an SVG export of the current diagram
+ * - {@link OpenScriptEditorCommand}           — request the host to open a script task in a VS Code editor
  *
  * @see messages.ts for the base {@link Query} and {@link Command} classes.
  */
@@ -123,6 +126,77 @@ export class TextClipboardQuery extends Query {
     constructor(text: string) {
         super("TextClipboardQuery");
         this.text = text;
+    }
+}
+
+/**
+ * Distinguishes the surface a virtual script editor was opened from so the
+ * extension host can pick the right type stubs and the webview can write the
+ * update back to the correct moddle property.
+ *
+ * - `script-task`: `bpmn:ScriptTask`'s direct `script` string property.
+ * - `execution-listener`: `camunda:ExecutionListener` at `listenerIndex`.
+ * - `task-listener`: `camunda:TaskListener` at `listenerIndex` (UserTask only).
+ */
+export type ScriptKind = "script-task" | "execution-listener" | "task-listener";
+
+/**
+ * Persists a script-format choice (e.g. picked via Quick-Pick when the
+ * BPMN model had no language set yet) back to the BPMN model so subsequent
+ * opens skip the prompt. Mirrors {@link UpdateScriptContentQuery}'s
+ * addressing scheme.
+ */
+export class UpdateScriptFormatQuery extends Query {
+    public readonly elementId: string;
+
+    public readonly kind: ScriptKind;
+
+    public readonly listenerIndex: number | undefined;
+
+    public readonly scriptFormat: string;
+
+    constructor(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        scriptFormat: string,
+    ) {
+        super("UpdateScriptFormatQuery");
+        this.elementId = elementId;
+        this.kind = kind;
+        this.listenerIndex = listenerIndex;
+        this.scriptFormat = scriptFormat;
+    }
+}
+
+/**
+ * Delivers updated script content from a virtual VS Code editor back to the
+ * BPMN modeler webview so it can write the change into the right moddle
+ * property and persist it through the bpmn-js command stack.
+ *
+ * For listener kinds, {@link listenerIndex} addresses the listener within
+ * the parent's filtered list of listeners of that specific type.
+ */
+export class UpdateScriptContentQuery extends Query {
+    public readonly elementId: string;
+
+    public readonly kind: ScriptKind;
+
+    public readonly listenerIndex: number | undefined;
+
+    public readonly content: string;
+
+    constructor(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        content: string,
+    ) {
+        super("UpdateScriptContentQuery");
+        this.elementId = elementId;
+        this.kind = kind;
+        this.listenerIndex = listenerIndex;
+        this.content = content;
     }
 }
 
@@ -244,6 +318,50 @@ export class SetTextClipboardCommand extends Command {
     constructor(text: string) {
         super("SetTextClipboardCommand");
         this.text = text;
+    }
+}
+
+/**
+ * Sent by the BPMN webview when the user activates "Edit Script" on a
+ * scriptable element (script task, execution listener, or task listener).
+ *
+ * The host opens the inline script in a virtual `bpmn-script://` editor and
+ * streams edits back via {@link UpdateScriptContentQuery}. {@link kind} and
+ * {@link listenerIndex} together address which script's content is being
+ * edited so the host can supply the correct type stubs and the webview can
+ * route updates back to the right moddle property.
+ *
+ * For listener kinds, {@link eventName} (e.g. `"start"`, `"create"`) is the
+ * listener's `event` attribute and is surfaced in the editor tab title.
+ */
+export class OpenScriptEditorCommand extends Command {
+    public readonly elementId: string;
+
+    public readonly kind: ScriptKind;
+
+    public readonly listenerIndex: number | undefined;
+
+    public readonly eventName: string | undefined;
+
+    public readonly scriptFormat: string;
+
+    public readonly content: string;
+
+    constructor(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        eventName: string | undefined,
+        scriptFormat: string,
+        content: string,
+    ) {
+        super("OpenScriptEditorCommand");
+        this.elementId = elementId;
+        this.kind = kind;
+        this.listenerIndex = listenerIndex;
+        this.eventName = eventName;
+        this.scriptFormat = scriptFormat;
+        this.content = content;
     }
 }
 

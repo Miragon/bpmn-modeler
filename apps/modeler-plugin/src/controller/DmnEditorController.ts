@@ -39,16 +39,14 @@ export class DmnEditorController implements CustomTextEditorProvider {
      * Registers this provider as the custom editor for `.dmn` files and adds
      * the resulting disposable to the extension context.
      *
-     * `retainContextWhenHidden: true` keeps the live dmn-js modeler instance
-     * alive across tab hides — without it, re-show races `importXML` and
-     * occasionally paints only stale overlay markers on an empty canvas.
+     * Webview context is intentionally not retained on hide; the webview
+     * re-fetches the document via `GetDmnFileCommand` on reload and
+     * `WebviewStateManager` round-trips panel state through `vscode.setState`.
      *
      * @param context The VS Code extension context.
      */
     register(context: ExtensionContext): void {
-        const provider = window.registerCustomEditorProvider(DMN_VIEW_TYPE, this, {
-            webviewOptions: { retainContextWhenHidden: true },
-        });
+        const provider = window.registerCustomEditorProvider(DMN_VIEW_TYPE, this);
         context.subscriptions.push(provider);
     }
 

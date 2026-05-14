@@ -30,9 +30,12 @@ import {
     getVsCodeApi,
     loadDiagram,
     onCommandStackChanged,
+    WebviewStateManager,
 } from "./app";
 
 const vscode = getVsCodeApi();
+
+const stateManager = new WebviewStateManager(vscode);
 
 /**
  * Debounce the openXML function to avoid multiple calls when the user types fast.
@@ -44,6 +47,8 @@ const debouncedUpdateXML = asyncDebounce(openXML, 100);
 
 // create resolver to wait for the response from the backend
 const dmnFileResolver = createResolver<DmnFileQuery>();
+
+let modelerIsInitialized = false;
 
 /**
  * The Main function that gets executed after the webview is fully loaded.
@@ -58,6 +63,11 @@ window.onload = async function () {
     vscode.postMessage(new GetDmnFileCommand());
     const dmnFile = await dmnFileResolver.wait();
     await initializeModeler(dmnFile?.content);
+    modelerIsInitialized = true;
+
+    stateManager.restorePanelScroll();
+    stateManager.restoreExpandedGroups();
+    stateManager.startPersisting();
 };
 
 async function initializeModeler(dmnFile: string | undefined) {
@@ -110,18 +120,18 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
         case queryOrCommand.type === "DmnFileQuery": {
             try {
                 const dmnFileQuery = message.data as DmnFileQuery;
-                await debouncedUpdateXML(dmnFileQuery.content);
-            } catch (error) {
-                if (error instanceof NoModelerError) {
-                    dmnFileResolver.done(message.data as DmnFileQuery);
+                if (modelerIsInitialized) {
+                    await debouncedUpdateXML(dmnFileQuery.content);
                 } else {
-                    const errorMessage = error instanceof Error ? error.message : `${error}`;
-                    vscode.postMessage(
-                        new LogErrorCommand(
-                            `Something went wrong when receiving the message ${errorMessage}`,
-                        ),
-                    );
+                    dmnFileResolver.done(dmnFileQuery);
                 }
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : `${error}`;
+                vscode.postMessage(
+                    new LogErrorCommand(
+                        `Something went wrong when receiving the message ${errorMessage}`,
+                    ),
+                );
             }
             break;
         }

@@ -9,7 +9,13 @@ import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anythi
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7-element-templates";
-import { BpmnModelerSetting, NoModelerError } from "@miragon/bpmn-modeler-shared";
+import { BpmnModelerSetting, NoModelerError, ScriptKind } from "@miragon/bpmn-modeler-shared";
+import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
+import {
+    OPEN_SCRIPT_EDITOR_EVENT,
+    OpenScriptEditorEvent,
+    ScriptTaskContextPadModule,
+} from "./scriptTaskContextPad";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { setColorThemeMode } from "./theme";
@@ -107,6 +113,8 @@ export class BpmnModeler {
                         CreateAppendElementTemplatesModule,
                         CreateAppendC7ElementTemplatesModule,
                         TransactionBoundariesModule,
+                        ScriptTaskContextPadModule,
+                        ScriptEditorButtonsModule,
                         ...extra,
                     ],
                 });
@@ -298,6 +306,115 @@ export class BpmnModeler {
         return this.getModeler().get<T>(name);
     }
 
+    /**
+     * Persists a chosen script format back to the BPMN model via the
+     * bpmn-js command stack. Used after the host's Quick-Pick fallback
+     * resolves an unsupported / empty `camunda:scriptFormat` so the next
+     * open of the same script skips the prompt.
+     *
+     * - `script-task`: writes to the element's `camunda:scriptFormat`.
+     * - `execution-listener` / `task-listener`: writes to the listener's
+     *   nested `camunda:Script.scriptFormat`.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    updateScriptFormat(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        scriptFormat: string,
+    ): void {
+        const modeler = this.getModeler();
+        const elementRegistry = modeler.get<any>("elementRegistry");
+        const modeling = modeler.get<any>("modeling");
+        const element = elementRegistry.get(elementId);
+        if (!element) {
+            console.warn(`Element not found: ${elementId}`);
+            return;
+        }
+
+        if (kind === "script-task") {
+            modeling.updateModdleProperties(element, element.businessObject, {
+                "camunda:scriptFormat": scriptFormat,
+            });
+            return;
+        }
+
+        const listenerType =
+            kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
+        const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
+        if (!listener || !listener.script) {
+            console.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
+            return;
+        }
+        modeling.updateModdleProperties(element, listener.script, {
+            scriptFormat,
+        });
+    }
+
+    /**
+     * Persists updated script content to the appropriate moddle property
+     * via the bpmn-js command stack so the change is undoable and serialised
+     * back to the BPMN XML.
+     *
+     * - `script-task`: writes to the element's `script` string property.
+     * - `execution-listener` / `task-listener`: locates the listener at
+     *   `listenerIndex` within the parent's filtered list of that listener
+     *   type, then writes to its nested `camunda:Script` element's `value`.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    updateScriptContent(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        content: string,
+    ): void {
+        const modeler = this.getModeler();
+        const elementRegistry = modeler.get<any>("elementRegistry");
+        const modeling = modeler.get<any>("modeling");
+        const element = elementRegistry.get(elementId);
+        if (!element) {
+            console.warn(`Element not found: ${elementId}`);
+            return;
+        }
+
+        if (kind === "script-task") {
+            modeling.updateModdleProperties(element, element.businessObject, {
+                script: content,
+            });
+            return;
+        }
+
+        const listenerType =
+            kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
+        const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
+        if (!listener || !listener.script) {
+            console.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
+            return;
+        }
+        modeling.updateModdleProperties(element, listener.script, {
+            value: content,
+        });
+    }
+
+    /**
+     * Registers a callback for the unified `scriptEditor.open` event.
+     *
+     * Three sources fire it: the canvas context pad on script tasks
+     * ({@link ScriptTaskContextPadModule}), the Script-group header icon
+     * on the properties panel for script tasks, and the per-listener icon
+     * on each script-typed listener row (both via
+     * {@link ScriptEditorButtonsModule}).
+     */
+    onOpenScriptEditor(callback: (data: OpenScriptEditorEvent) => void): void {
+        this.getModeler()
+            .get<any>("eventBus")
+            .on(OPEN_SCRIPT_EDITOR_EVENT, (event: OpenScriptEditorEvent) => {
+                callback(event);
+            });
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     /**
@@ -319,4 +436,25 @@ export class UnsupportedEngineError extends Error {
     constructor(engine: string) {
         super(`Unsupported engine: ${engine}`);
     }
+}
+
+/**
+ * Returns the `index`-th listener of `listenerType` from the element's
+ * extension elements, or undefined if not found.
+ *
+ * Mirrors the upstream filtering bpmn-js-properties-panel does in
+ * `ExecutionListenerProps` / `TaskListenerProps` so indices stay aligned
+ * with what the user sees in the properties panel.
+ */
+function findListenerAt(
+    bo: any,
+    listenerType: "camunda:ExecutionListener" | "camunda:TaskListener",
+    index: number | undefined,
+): any {
+    if (index === undefined) {
+        return undefined;
+    }
+    const values = bo?.extensionElements?.values ?? [];
+    const filtered = values.filter((v: any) => v.$type === listenerType);
+    return filtered[index];
 }

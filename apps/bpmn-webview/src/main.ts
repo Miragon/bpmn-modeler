@@ -24,6 +24,7 @@ import {
     LogErrorCommand,
     LogInfoCommand,
     NoModelerError,
+    OpenScriptEditorCommand,
     PropertiesPanelStateQuery,
     Query,
     SetClipboardCommand,
@@ -31,6 +32,8 @@ import {
     SetTextClipboardCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
+    UpdateScriptContentQuery,
+    UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
@@ -190,6 +193,25 @@ window.onload = async function () {
     await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
     modelerIsInitialized = true;
 
+    // Bridge "Edit Script" / "Open in Editor" triggers (script-task context
+    // pad + listener properties-panel buttons) into a host command so the
+    // extension can open the inline script in a virtual VS Code editor.
+    // Listeners are wired only on C7; C8 is intentionally out of scope.
+    if (bpmnFileQuery?.engine === "c7") {
+        bpmnModeler.onOpenScriptEditor((data) => {
+            vscode.postMessage(
+                new OpenScriptEditorCommand(
+                    data.elementId,
+                    data.kind,
+                    data.listenerIndex,
+                    data.eventName,
+                    data.scriptFormat,
+                    data.content,
+                ),
+            );
+        });
+    }
+
     console.debug("[DEBUG] Modeler is initialized...");
 
     stateManager = new WebviewStateManager(vscode, bpmnModeler);
@@ -219,8 +241,10 @@ window.onload = async function () {
         vscode.postMessage(new SetPropertiesPanelStateCommand(visible));
     });
 
-    // Phase 2: restore selection (safe now — side-effects done)
+    // Phase 2: restore selection + panel-side UI state (safe now — side-effects done)
     stateManager.restoreSelection();
+    stateManager.restorePanelScroll();
+    stateManager.restoreExpandedGroups();
 
     // Phase 3: begin persisting changes
     stateManager.startPersisting();
@@ -372,6 +396,35 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
+            break;
+        }
+        case queryOrCommand.type === "UpdateScriptContentQuery": {
+            try {
+                const query = message.data as UpdateScriptContentQuery;
+                bpmnModeler.updateScriptContent(
+                    query.elementId,
+                    query.kind,
+                    query.listenerIndex,
+                    query.content,
+                );
+            } catch (error: any) {
+                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
+        case queryOrCommand.type === "UpdateScriptFormatQuery": {
+            try {
+                const query = message.data as UpdateScriptFormatQuery;
+                bpmnModeler.updateScriptFormat(
+                    query.elementId,
+                    query.kind,
+                    query.listenerIndex,
+                    query.scriptFormat,
+                );
+            } catch (error: any) {
+                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
         }
     }
 }

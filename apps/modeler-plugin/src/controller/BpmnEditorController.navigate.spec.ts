@@ -35,6 +35,7 @@ function createController() {
         {} as never, // bpmnService
         {} as never, // diffService
         {} as never, // artifactSvc
+        {} as never, // scriptTaskSvc
         vsUI as never,
         {} as never, // vsDocument
         {} as never, // statusBar

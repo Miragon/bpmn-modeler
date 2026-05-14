@@ -249,6 +249,53 @@ a:link {
     min-height: 100%;
 }
 
+/* Script editor button injected into properties panel group headers. */
+.script-editor-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    height: 22px;
+    min-width: 22px;
+    margin: 5px 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--color-grey-225-10-75, #666);
+    border-radius: 2px;
+}
+
+.script-editor-button:hover {
+    background-color: var(--color-grey-225-10-90, #e1e1e1);
+}
+
+/* Compact variant injected into a listener row's collapsible-entry header.
+   `margin-right: auto` consumes the remaining flex space so the button
+   sits right after the title text and the delete icon stays at the row's
+   right edge. */
+.script-editor-button.is-list-item {
+    width: 22px;
+    height: 22px;
+    margin: 0 auto 0 0;
+    flex-shrink: 0;
+}
+
+/* Trim the title's right-padding (24px by default) so our icon sits close
+   to the title text instead of with a visible gap from the padding. */
+.bio-properties-panel-collapsible-entry-header[data-script-btn-injected="true"]
+    > .bio-properties-panel-collapsible-entry-header-title {
+    padding-right: 4px;
+}
+
+/* Center the inline VS Code SVG inside the 22x22 context-pad entry. The
+   default .entry rule centers font-icons via text-align/font-size, which
+   does not apply to a child <svg>. */
+.djs-context-pad .edit-script-entry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* see issue https://github.com/microsoft/vscode/issues/213045 */
 @supports selector(::-webkit-scrollbar) {
     html {

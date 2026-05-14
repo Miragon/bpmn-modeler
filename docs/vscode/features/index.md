@@ -11,6 +11,10 @@ Here's what you get, roughly in the order you reach for it.
 - **[Element Template Chooser](/vscode/features/element-template-chooser)** —
   browse, preview, and apply Camunda element templates from the properties
   panel. Category filters, instant search, full template preview.
+- **[Inline Script Editing](/vscode/features/inline-scripting)** — edit
+  script-task and listener scripts in real VS Code editor tabs.
+  Syntax highlighting, IntelliSense for the Camunda 7 script API,
+  per-keystroke sync back into the BPMN model.
 ## Compare
 
 - **[BPMN Diff](/vscode/features/bpmn-diff)** — swap VS Code's text diff

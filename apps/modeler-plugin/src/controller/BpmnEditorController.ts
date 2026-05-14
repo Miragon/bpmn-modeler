@@ -10,6 +10,7 @@ import {
 
 import {
     Command,
+    OpenScriptEditorCommand,
     NavigateToReferencedModelCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
@@ -23,6 +24,7 @@ import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
+import { ScriptTaskService } from "../service/ScriptTaskService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
 import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
@@ -44,6 +46,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * @param diffService Diff coordinator — queried on resolve to decide
      *   whether to take the readonly viewer branch.
      * @param artifactSvc Workspace artifact discovery and watcher creation.
+     * @param scriptTaskSvc Virtual script document management for script tasks.
      * @param vsUI User-facing message and logging helper.
      * @param vsDocument Active-document read helper (for status bar version detection).
      * @param statusBar Status bar item manager for engine version display.
@@ -54,6 +57,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly bpmnService: BpmnModelerService,
         private readonly diffService: BpmnDiffService,
         private readonly artifactSvc: ArtifactService,
+        private readonly scriptTaskSvc: ScriptTaskService,
         private readonly vsUI: VsCodeUI,
         private readonly vsDocument: VsCodeDocument,
         private readonly statusBar: VsCodeStatusBar,
@@ -64,16 +68,15 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * Registers this provider as the custom editor for `.bpmn` files and adds
      * the resulting disposable to the extension context.
      *
-     * `retainContextWhenHidden: true` keeps the live bpmn-js modeler instance
-     * alive across tab hides — without it, re-show races `importXML` and
-     * occasionally paints only token-simulation markers on an empty canvas.
+     * Webview context is intentionally not retained on hide; the webview
+     * re-fetches the document via `GetBpmnFileCommand` on reload and
+     * `WebviewStateManager` round-trips viewport / selection / panel state
+     * through `vscode.setState`.
      *
      * @param context The VS Code extension context.
      */
     register(context: ExtensionContext): void {
-        const provider = window.registerCustomEditorProvider(BPMN_VIEW_TYPE, this, {
-            webviewOptions: { retainContextWhenHidden: true },
-        });
+        const provider = window.registerCustomEditorProvider(BPMN_VIEW_TYPE, this);
         context.subscriptions.push(provider);
     }
 
@@ -128,6 +131,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             this.editorStore.subscribeToDisposeEvent(editorId, () => {
                 this.bpmnService.disposeSession(editorId);
                 this.statusBar.hideEngineVersion();
+                this.scriptTaskSvc.disposeForEditor(editorId);
             });
 
             const { disposables, errors } = await this.artifactSvc.createWatcher(
@@ -172,6 +176,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                 case "GetBpmnModelerSettingCommand":
                     this.bpmnService.setSettings(id);
                     this.bpmnService.setLanguage(id);
+                    this.scriptTaskSvc.resyncOpenDocuments(id); // (re)load for changes while webview was hidden
                     break;
                 case "GetPropertiesPanelStateCommand":
                     this.bpmnService.sendPropertiesPanelState(id);
@@ -196,6 +201,19 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                 case "SyncDocumentCommand":
                     await this.bpmnService.sync(id, (message as SyncDocumentCommand).content);
                     break;
+                case "OpenScriptEditorCommand": {
+                    const cmd = message as OpenScriptEditorCommand;
+                    await this.scriptTaskSvc.openScriptEditor(
+                        id,
+                        cmd.elementId,
+                        cmd.kind,
+                        cmd.listenerIndex,
+                        cmd.eventName,
+                        cmd.scriptFormat,
+                        cmd.content,
+                    );
+                    break;
+                }
                 case "NavigateToReferencedModelCommand": {
                     const cmd = message as NavigateToReferencedModelCommand;
                     // Defence-in-depth: reject unknown discriminants

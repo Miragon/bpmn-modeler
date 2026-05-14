@@ -1,7 +1,8 @@
-import { env, ExtensionContext, Uri, window } from "vscode";
+import { env, ExtensionContext, Uri, window, workspace } from "vscode";
 
 import { setContext } from "./infrastructure/extensionContext";
 
+import { BpmnScriptFileSystem } from "./infrastructure/BpmnScriptFileSystem";
 import { CompareSelectionStore } from "./infrastructure/CompareSelectionStore";
 import { EditorStore } from "./infrastructure/EditorStore";
 import { PropertiesPanelStateRepository } from "./infrastructure/PropertiesPanelStateRepository";
@@ -16,6 +17,8 @@ import { BpmnModelerService } from "./service/BpmnModelerService";
 import { DmnModelerService } from "./service/DmnModelerService";
 import { ModelNavigationService } from "./service/ModelNavigationService";
 import { ReferencedModelLocator } from "./service/modelNavigation/ReferencedModelLocator";
+import { ScriptCompletionProvider } from "./service/ScriptCompletionProvider";
+import { ScriptTaskService } from "./service/ScriptTaskService";
 import { BpmnCompareController } from "./controller/BpmnCompareController";
 import { CommandController } from "./controller/CommandController";
 import { BpmnEditorController } from "./controller/BpmnEditorController";
@@ -53,6 +56,12 @@ export function activate(context: ExtensionContext): void {
     // 2. Infrastructure
     const editorStore = new EditorStore();
     context.subscriptions.push(editorStore);
+    const bpmnScriptFs = new BpmnScriptFileSystem();
+    context.subscriptions.push(
+        workspace.registerFileSystemProvider("bpmn-script", bpmnScriptFs, {
+            isCaseSensitive: true,
+        }),
+    );
     const vsDocument = new VsCodeDocument(editorStore);
     const vsWorkspace = new VsCodeWorkspace();
     const vsSettings = new VsCodeSettings();
@@ -102,6 +111,11 @@ export function activate(context: ExtensionContext): void {
     const referencedModelLocator = new ReferencedModelLocator(vsWorkspace, vsUI);
     const modelNavigationService = new ModelNavigationService(referencedModelLocator, vsUI);
 
+    const scriptTaskSvc = new ScriptTaskService(editorStore, bpmnScriptFs, vsUI);
+    scriptTaskSvc.register(context);
+
+    new ScriptCompletionProvider().register(context);
+
     // 4. Controllers
     const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
     new BpmnEditorController(
@@ -109,6 +123,7 @@ export function activate(context: ExtensionContext): void {
         bpmnService,
         diffService,
         artifactSvc,
+        scriptTaskSvc,
         vsUI,
         vsDocument,
         statusBar,
