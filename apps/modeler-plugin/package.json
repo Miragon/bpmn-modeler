@@ -32,7 +32,7 @@
     "displayName": "BPMN Modeler",
     "description": "Create and edit BPMN 2.0 and DMN diagrams in VS Code. Supports Camunda 7 and Camunda 8.",
     "license": "SEE LICENSE IN LICENSE",
-    "version": "0.9.2",
+    "version": "1.0.0",
     "publisher": "miragon-gmbh",
     "homepage": "https://www.miragon.io/",
     "galleryBanner": {
