@@ -62,8 +62,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/${{ github.repository }}"
 
+      # `yarn version apply --all` triggers a full (non-focused) install, which
+      # runs postinstall scripts in the standalone Theia workspace
+      # (native-keymap, electron, @theia/ffmpeg). `native-keymap`'s `node-gyp
+      # rebuild` fails on the Linux runner. Setting YARN_ENABLE_SCRIPTS=false
+      # for this step suppresses those postinstalls; the lint/test/build steps
+      # below run in their own shell with scripts re-enabled.
       - name: Bump version
         id: version
+        env:
+          YARN_ENABLE_SCRIPTS: 'false'
         run: |
           PKG_PATH="./apps/modeler-plugin/package.json"
           PKG_NAME=$(node -e "console.log(require('$PKG_PATH').name)")
