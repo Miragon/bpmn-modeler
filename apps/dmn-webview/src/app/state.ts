@@ -1,6 +1,5 @@
 import { Command, Query, VsCodeApi } from "@miragon/bpmn-modeler-shared";
 import { WebviewState } from "./vscode";
-import { BpmnModeler } from "./modeler";
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
 const PANEL_GROUP = ".bio-properties-panel-group";
@@ -9,49 +8,18 @@ const PANEL_GROUP_HEADER = ".bio-properties-panel-group-header";
 const SCROLL_DEBOUNCE_MS = 100;
 
 /**
- * Manages webview state persistence and restoration across VS Code tab switches.
+ * Manages DMN webview state persistence and restoration across VS Code tab
+ * switches.  DMN currently persists only properties-panel UI state — viewport
+ * and selection round-tripping is not yet implemented for dmn-js.
  *
- * Lifecycle phases (call in order):
- * 1. {@link restoreViewport}        — after importXML (canvas must exist)
- * 2. {@link restoreSelection}       — after element templates + settings applied
- * 3. {@link restorePanelScroll}     — after properties panel is rendered
- * 4. {@link restoreExpandedGroups}  — after properties panel is rendered
- * 5. {@link startPersisting}        — subscribes to change events for ongoing persistence
+ * Lifecycle:
+ * 1. {@link restorePanelScroll}     — after properties panel is rendered
+ * 2. {@link restoreExpandedGroups}  — after properties panel is rendered
+ * 3. {@link startPersisting}        — installs the change listeners
  */
 export class WebviewStateManager {
-    constructor(
-        private readonly vscode: VsCodeApi<WebviewState, Command | Query>,
-        private readonly modeler: BpmnModeler,
-    ) {}
+    constructor(private readonly vscode: VsCodeApi<WebviewState, Command | Query>) {}
 
-    /**
-     * Restores the saved viewport (pan/zoom) if one exists in webview state.
-     * Must be called after importXML because the canvas does not exist before that.
-     */
-    restoreViewport(): void {
-        const saved = this.getSavedState();
-        if (saved?.viewport) {
-            this.modeler.viewport.setViewport(saved.viewport);
-        }
-    }
-
-    /**
-     * Restores the saved element selection if one exists in webview state.
-     * Must be called after element templates and settings have been applied
-     * so their side-effects do not clear the restored selection.
-     */
-    restoreSelection(): void {
-        const saved = this.getSavedState();
-        if (saved?.selectedElementIds && saved.selectedElementIds.length > 0) {
-            this.modeler.selection.selectElementsByIds(saved.selectedElementIds);
-        }
-    }
-
-    /**
-     * Restores the properties-panel scroll position.  Must be called after
-     * {@link import("./resizer").initResizer} → `setVisible(true)` so the
-     * scroll container exists in the DOM.
-     */
     restorePanelScroll(): void {
         const saved = this.getSavedState();
         if (saved?.panelScroll == null) {
@@ -64,9 +32,9 @@ export class WebviewStateManager {
     }
 
     /**
-     * Restores expanded/collapsed group state by clicking through the
-     * library's own header handlers, keeping its Preact state in sync.
-     * Deferred one frame so the panel has fully rendered.
+     * Restores expanded/collapsed group state via the library's own header
+     * click handlers so Preact's internal state stays in sync.  Deferred one
+     * frame so the panel has fully rendered.
      */
     restoreExpandedGroups(): void {
         const saved = this.getSavedState();
@@ -89,27 +57,11 @@ export class WebviewStateManager {
         });
     }
 
-    /**
-     * Subscribes to viewport, selection, scroll, and group-expansion changes
-     * and persists them to webview state so they survive the next tab switch.
-     */
     startPersisting(): void {
-        this.modeler.viewport.onViewportChanged((viewport) => {
-            this.persistPartialState({ viewport });
-        });
-
-        this.modeler.selection.onSelectionChanged((selectedElementIds) => {
-            this.persistPartialState({ selectedElementIds });
-        });
-
         this.subscribePanelScroll();
         this.subscribeGroupExpansion();
     }
 
-    /**
-     * Reads previously saved webview state, returning `undefined` when no
-     * state has been set yet (first open).
-     */
     private getSavedState(): WebviewState | undefined {
         try {
             return this.vscode.getState();
@@ -118,12 +70,6 @@ export class WebviewStateManager {
         }
     }
 
-    /**
-     * Merges a partial update into the persisted webview state.
-     * Falls back to a full `setState` when no prior state exists.
-     *
-     * @param partial The state fields to persist.
-     */
     private persistPartialState(partial: Partial<WebviewState>): void {
         try {
             this.vscode.updateState(partial);
@@ -133,9 +79,7 @@ export class WebviewStateManager {
     }
 
     /**
-     * Wires a debounced scroll listener on the properties panel.  Debounced
-     * because each pixel of mouse-wheel scroll emits an event; setState
-     * synchronously writes to VS Code's workspace storage.
+     * Wires a debounced scroll listener on the properties panel.
      */
     private subscribePanelScroll(): void {
         const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);

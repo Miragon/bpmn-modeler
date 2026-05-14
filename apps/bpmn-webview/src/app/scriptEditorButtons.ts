@@ -1,7 +1,4 @@
-import {
-    OPEN_SCRIPT_EDITOR_EVENT,
-    OpenScriptEditorEvent,
-} from "./scriptTaskContextPad";
+import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
 import { VSCODE_ICON_SVG } from "./vscodeIcon";
 
 /**
@@ -45,8 +42,7 @@ const SCRIPT_GROUP_ID = "group-CamundaPlatform__Script";
  * The element id may itself contain dashes, so we anchor on the well-known
  * listener-type tokens.
  */
-const LISTENER_ENTRY_ID_PATTERN =
-    /^(.+)-(executionListener|taskListener)-(\d+)$/;
+const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)-(\d+)$/;
 
 /** Attribute set on processed elements to avoid duplicate injection. */
 const INJECTED_MARKER = "data-script-btn-injected";
@@ -59,13 +55,7 @@ const INJECTED_MARKER = "data-script-btn-injected";
 class ScriptEditorButtons {
     private observer: MutationObserver | undefined;
 
-    static $inject = [
-        "eventBus",
-        "selection",
-        "elementRegistry",
-        "modeling",
-        "bpmnFactory",
-    ];
+    static $inject = ["eventBus", "selection", "elementRegistry", "modeling", "bpmnFactory"];
 
     constructor(
         private readonly eventBus: any,
@@ -84,9 +74,7 @@ class ScriptEditorButtons {
             return;
         }
         this.injectButtons(container);
-        this.observer = new MutationObserver(() =>
-            this.injectButtons(container),
-        );
+        this.observer = new MutationObserver(() => this.injectButtons(container));
         this.observer.observe(container, { childList: true, subtree: true });
     }
 
@@ -107,9 +95,7 @@ class ScriptEditorButtons {
      * reliable signal that the active selection has an inline script.
      */
     private injectScriptGroupHeaderButton(container: Element): void {
-        const groupEl = container.querySelector(
-            `[data-group-id="${SCRIPT_GROUP_ID}"]`,
-        );
+        const groupEl = container.querySelector(`[data-group-id="${SCRIPT_GROUP_ID}"]`);
         if (!groupEl) {
             return;
         }
@@ -140,9 +126,7 @@ class ScriptEditorButtons {
      * before opening the editor.
      */
     private injectListenerItemButtons(container: Element): void {
-        const entries = container.querySelectorAll<HTMLElement>(
-            "[data-entry-id]",
-        );
+        const entries = container.querySelectorAll<HTMLElement>("[data-entry-id]");
         for (const entry of Array.from(entries)) {
             const id = entry.getAttribute("data-entry-id");
             if (!id) {
@@ -159,9 +143,7 @@ class ScriptEditorButtons {
                 continue;
             }
 
-            const button = this.createButton(
-                "script-editor-button is-list-item",
-            );
+            const button = this.createButton("script-editor-button is-list-item");
             button.addEventListener("click", (event) => {
                 event.stopPropagation();
                 this.handleListenerItemClick(button);
@@ -171,9 +153,7 @@ class ScriptEditorButtons {
             // button when present, otherwise at the end). CSS gives this
             // button `margin-right: auto` so it hugs the title text and the
             // delete icon stays at the row's right edge.
-            const removeBtn = header.querySelector(
-                ".bio-properties-panel-remove-entry",
-            );
+            const removeBtn = header.querySelector(".bio-properties-panel-remove-entry");
             if (removeBtn) {
                 header.insertBefore(button, removeBtn);
             } else {
@@ -210,10 +190,7 @@ class ScriptEditorButtons {
         }
 
         const scriptFormat =
-            bo.get?.("camunda:scriptFormat") ||
-            bo.get?.("scriptFormat") ||
-            bo.scriptFormat ||
-            "";
+            bo.get?.("camunda:scriptFormat") || bo.get?.("scriptFormat") || bo.scriptFormat || "";
         const content = bo.script || "";
 
         this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
@@ -250,36 +227,23 @@ class ScriptEditorButtons {
         const listenerIndex = parseInt(match[3], 10);
 
         const element = this.elementRegistry.get(elementId);
-        const listener = this.lookupListener(
-            elementId,
-            listenerType,
-            listenerIndex,
-        );
+        const listener = this.lookupListener(elementId, listenerType, listenerIndex);
         if (!element || !listener) {
             return;
         }
 
         this.ensureInlineScript(element, listener);
 
-        const kind =
-            listenerType === "executionListener"
-                ? "execution-listener"
-                : "task-listener";
+        const kind = listenerType === "executionListener" ? "execution-listener" : "task-listener";
 
         this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
             elementId,
             kind,
             listenerIndex,
-            eventName:
-                listener.get?.("event") ?? listener.event ?? undefined,
+            eventName: listener.get?.("event") ?? listener.event ?? undefined,
             scriptFormat:
-                listener.script.get?.("scriptFormat") ??
-                listener.script.scriptFormat ??
-                "",
-            content:
-                listener.script.get?.("value") ??
-                listener.script.value ??
-                "",
+                listener.script.get?.("scriptFormat") ?? listener.script.scriptFormat ?? "",
+            content: listener.script.get?.("value") ?? listener.script.value ?? "",
         } as OpenScriptEditorEvent);
     }
 
@@ -299,8 +263,7 @@ class ScriptEditorButtons {
      */
     private ensureInlineScript(element: any, listener: any): void {
         const existingScript = listener.script;
-        const existingValue =
-            existingScript?.get?.("value") ?? existingScript?.value;
+        const existingValue = existingScript?.get?.("value") ?? existingScript?.value;
         if (typeof existingValue === "string") {
             return;
         }
@@ -343,9 +306,9 @@ class ScriptEditorButtons {
             listenerType === "executionListener"
                 ? "camunda:ExecutionListener"
                 : "camunda:TaskListener";
-        const listeners = (
-            element.businessObject?.extensionElements?.values || []
-        ).filter((e: any) => e.$type === extensionType);
+        const listeners = (element.businessObject?.extensionElements?.values || []).filter(
+            (e: any) => e.$type === extensionType,
+        );
         return listeners[listenerIndex];
     }
 }

@@ -90,12 +90,8 @@ export class ScriptTaskService {
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
-            workspace.onDidChangeTextDocument((event) =>
-                this.onVirtualDocumentChanged(event),
-            ),
-            window.tabGroups.onDidChangeTabs((event) =>
-                this.onTabsChanged(event),
-            ),
+            workspace.onDidChangeTextDocument((event) => this.onVirtualDocumentChanged(event)),
+            window.tabGroups.onDidChangeTabs((event) => this.onTabsChanged(event)),
         );
     }
 
@@ -135,13 +131,7 @@ export class ScriptTaskService {
                 return;
             }
             effectiveFormat = picked;
-            await this.sendFormatUpdate(
-                editorId,
-                elementId,
-                kind,
-                listenerIndex,
-                picked,
-            );
+            await this.sendFormatUpdate(editorId, elementId, kind, listenerIndex, picked);
         }
 
         const lang = new ScriptLanguage(effectiveFormat);
@@ -154,9 +144,7 @@ export class ScriptTaskService {
             eventName,
             lang.extension,
         );
-        const scriptUri = Uri.parse(
-            `bpmn-script:/${editorHash}/${elementId}/${slug}/${filename}`,
-        );
+        const scriptUri = Uri.parse(`bpmn-script:/${editorHash}/${elementId}/${slug}/${filename}`);
 
         // Already open: just reveal the existing editor.
         if (this.openDocuments.has(scriptUri.path)) {
@@ -167,10 +155,7 @@ export class ScriptTaskService {
 
         this.writingGuard.add(scriptUri.path);
         try {
-            this.scriptFs.writeFile(
-                scriptUri,
-                new TextEncoder().encode(content),
-            );
+            this.scriptFs.writeFile(scriptUri, new TextEncoder().encode(content));
         } finally {
             this.writingGuard.delete(scriptUri.path);
         }
@@ -214,9 +199,7 @@ export class ScriptTaskService {
             }
             let content: string;
             try {
-                content = new TextDecoder().decode(
-                    this.scriptFs.readFile(entry.uri),
-                );
+                content = new TextDecoder().decode(this.scriptFs.readFile(entry.uri));
             } catch {
                 continue;
             }
@@ -241,10 +224,7 @@ export class ScriptTaskService {
                 // reload signal and our replay (e.g. user clicks another
                 // tab mid-resync). Re-arm pendingResync so the next reload
                 // tries again rather than dropping the edit permanently.
-                if (
-                    error instanceof Error &&
-                    error.message === "The active editor is hidden."
-                ) {
+                if (error instanceof Error && error.message === "The active editor is hidden.") {
                     this.pendingResync.add(editorId);
                 } else {
                     this.vsUI.logError(error as Error);
@@ -316,10 +296,7 @@ export class ScriptTaskService {
      */
     private onTabsChanged(event: TabChangeEvent): void {
         for (const tab of event.closed) {
-            if (
-                tab.input instanceof TabInputText &&
-                tab.input.uri.scheme === "bpmn-script"
-            ) {
+            if (tab.input instanceof TabInputText && tab.input.uri.scheme === "bpmn-script") {
                 this.cleanupClosedScript(tab.input.uri);
             }
         }
@@ -329,10 +306,7 @@ export class ScriptTaskService {
         const target = uri.toString();
         for (const group of window.tabGroups.all) {
             for (const tab of group.tabs) {
-                if (
-                    tab.input instanceof TabInputText &&
-                    tab.input.uri.toString() === target
-                ) {
+                if (tab.input instanceof TabInputText && tab.input.uri.toString() === target) {
                     return true;
                 }
             }
@@ -377,9 +351,7 @@ export class ScriptTaskService {
         }
     }
 
-    private async onVirtualDocumentChanged(
-        event: TextDocumentChangeEvent,
-    ): Promise<void> {
+    private async onVirtualDocumentChanged(event: TextDocumentChangeEvent): Promise<void> {
         const uri = event.document.uri;
 
         if (uri.scheme !== "bpmn-script") {
@@ -404,10 +376,7 @@ export class ScriptTaskService {
         // current content rather than the original write.
         this.writingGuard.add(uri.path);
         try {
-            this.scriptFs.writeFile(
-                uri,
-                new TextEncoder().encode(updatedContent),
-            );
+            this.scriptFs.writeFile(uri, new TextEncoder().encode(updatedContent));
         } finally {
             this.writingGuard.delete(uri.path);
         }
@@ -427,10 +396,7 @@ export class ScriptTaskService {
             // webview's tab isn't visible. The user may still be typing in
             // the virtual editor, so we mark the editor and replay all
             // open documents on the next reload via `resyncOpenDocuments`.
-            if (
-                error instanceof Error &&
-                error.message === "The active editor is hidden."
-            ) {
+            if (error instanceof Error && error.message === "The active editor is hidden.") {
                 this.pendingResync.add(entry.editorId);
             } else {
                 this.vsUI.logError(error as Error);
@@ -453,12 +419,7 @@ export class ScriptTaskService {
         try {
             await this.editorStore.postMessage(
                 editorId,
-                new UpdateScriptFormatQuery(
-                    elementId,
-                    kind,
-                    listenerIndex,
-                    scriptFormat,
-                ),
+                new UpdateScriptFormatQuery(elementId, kind, listenerIndex, scriptFormat),
             );
         } catch (error) {
             this.vsUI.logError(error as Error);
@@ -473,16 +434,12 @@ export class ScriptTaskService {
      *
      * @returns The picked Camunda format string, or undefined if cancelled.
      */
-    private async promptScriptLanguage(
-        currentFormat: string,
-    ): Promise<string | undefined> {
-        const items: ScriptLanguageItem[] = ScriptLanguage.supportedFormats().map(
-            (format) => ({
-                label: format.charAt(0).toUpperCase() + format.slice(1),
-                description: `.${new ScriptLanguage(format).extension}`,
-                format,
-            }),
-        );
+    private async promptScriptLanguage(currentFormat: string): Promise<string | undefined> {
+        const items: ScriptLanguageItem[] = ScriptLanguage.supportedFormats().map((format) => ({
+            label: format.charAt(0).toUpperCase() + format.slice(1),
+            description: `.${new ScriptLanguage(format).extension}`,
+            format,
+        }));
         const normalized = currentFormat.toLowerCase().trim();
         items.sort((a, b) => {
             if (a.format === normalized) return -1;

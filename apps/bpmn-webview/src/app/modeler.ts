@@ -341,18 +341,10 @@ export class BpmnModeler {
         }
 
         const listenerType =
-            kind === "execution-listener"
-                ? "camunda:ExecutionListener"
-                : "camunda:TaskListener";
-        const listener = findListenerAt(
-            element.businessObject,
-            listenerType,
-            listenerIndex,
-        );
+            kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
+        const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
         if (!listener || !listener.script) {
-            console.warn(
-                `${listenerType} #${listenerIndex} on ${elementId} has no inline script`,
-            );
+            console.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
             return;
         }
         modeling.updateModdleProperties(element, listener.script, {
@@ -395,18 +387,10 @@ export class BpmnModeler {
         }
 
         const listenerType =
-            kind === "execution-listener"
-                ? "camunda:ExecutionListener"
-                : "camunda:TaskListener";
-        const listener = findListenerAt(
-            element.businessObject,
-            listenerType,
-            listenerIndex,
-        );
+            kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
+        const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
         if (!listener || !listener.script) {
-            console.warn(
-                `${listenerType} #${listenerIndex} on ${elementId} has no inline script`,
-            );
+            console.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
             return;
         }
         modeling.updateModdleProperties(element, listener.script, {

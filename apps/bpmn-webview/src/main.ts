@@ -241,8 +241,10 @@ window.onload = async function () {
         vscode.postMessage(new SetPropertiesPanelStateCommand(visible));
     });
 
-    // Phase 2: restore selection (safe now — side-effects done)
+    // Phase 2: restore selection + panel-side UI state (safe now — side-effects done)
     stateManager.restoreSelection();
+    stateManager.restorePanelScroll();
+    stateManager.restoreExpandedGroups();
 
     // Phase 3: begin persisting changes
     stateManager.startPersisting();

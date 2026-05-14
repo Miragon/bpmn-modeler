@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { beansFor } from "../domain/scriptApi";
-import {
-    matchMemberAccess,
-    parseKindFromUri,
-} from "./scriptCompletionHelpers";
+import { matchMemberAccess, parseKindFromUri } from "./scriptCompletionHelpers";
 
 /**
  * Pure-function tests for the helpers behind the script completion provider.
@@ -16,9 +13,7 @@ import {
  */
 describe("parseKindFromUri", () => {
     it("recognises a script-task slug", () => {
-        expect(
-            parseKindFromUri("/abc/Task_1/script-task/Task_1.groovy"),
-        ).toBe("script-task");
+        expect(parseKindFromUri("/abc/Task_1/script-task/Task_1.groovy")).toBe("script-task");
     });
 
     it("recognises an execution-listener slug with index and event", () => {
@@ -38,9 +33,7 @@ describe("parseKindFromUri", () => {
     });
 
     it("returns undefined for an unknown slug", () => {
-        expect(
-            parseKindFromUri("/abc/Task_1/unknown-kind/Task_1.groovy"),
-        ).toBeUndefined();
+        expect(parseKindFromUri("/abc/Task_1/unknown-kind/Task_1.groovy")).toBeUndefined();
     });
 
     it("returns undefined when the path is too shallow", () => {
@@ -72,9 +65,7 @@ describe("matchMemberAccess", () => {
 
 describe("beansFor", () => {
     it("exposes only execution in a script task", () => {
-        expect(beansFor("script-task").map((b) => b.name)).toEqual([
-            "execution",
-        ]);
+        expect(beansFor("script-task").map((b) => b.name)).toEqual(["execution"]);
     });
 
     it("adds eventName for execution listeners", () => {

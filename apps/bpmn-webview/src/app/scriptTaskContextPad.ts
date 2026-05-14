@@ -74,9 +74,7 @@ class ScriptTaskContextPadProvider {
                 action: {
                     click: () => {
                         const scriptFormat =
-                            bo.get("camunda:scriptFormat") ||
-                            bo.get("scriptFormat") ||
-                            "";
+                            bo.get("camunda:scriptFormat") || bo.get("scriptFormat") || "";
                         const content = bo.script || "";
 
                         this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {

@@ -112,6 +112,14 @@ export interface ViewportData {
 export interface WebviewState {
     viewport?: ViewportData;
     selectedElementIds?: string[];
+    /** Scroll position of `.bio-properties-panel-scroll-container`. */
+    panelScroll?: number;
+    /**
+     * Indexes (in render order) of `.bio-properties-panel-group` elements
+     * that are currently expanded.  Keyed by position so it survives a
+     * language switch — group labels are localised, indexes are not.
+     */
+    expandedGroupIndexes?: number[];
 }
 
 type StateType = WebviewState;

@@ -115,8 +115,7 @@ const DELEGATE_EXECUTION_METHODS: readonly MethodDef[] = [
         name: "getCurrentActivityId",
         params: [],
         returnType: "String",
-        description:
-            "Returns the id of the current activity (the BPMN element id).",
+        description: "Returns the id of the current activity (the BPMN element id).",
     },
     {
         name: "getEventName",
@@ -213,23 +212,18 @@ const DELEGATE_TASK_METHODS: readonly MethodDef[] = [
 
 const DELEGATE_EXECUTION_TYPE: TypeDef = {
     name: "DelegateExecution",
-    description:
-        "Provides access to process variables and execution metadata.",
+    description: "Provides access to process variables and execution metadata.",
     methods: DELEGATE_EXECUTION_METHODS,
 };
 
 const DELEGATE_TASK_TYPE: TypeDef = {
     name: "DelegateTask",
-    description:
-        "Provides access to user task properties during task listener execution.",
+    description: "Provides access to user task properties during task listener execution.",
     methods: DELEGATE_TASK_METHODS,
 };
 
 /** All complex (interface-typed) types referenced by any bean. */
-export const COMPLEX_TYPES: readonly TypeDef[] = [
-    DELEGATE_EXECUTION_TYPE,
-    DELEGATE_TASK_TYPE,
-];
+export const COMPLEX_TYPES: readonly TypeDef[] = [DELEGATE_EXECUTION_TYPE, DELEGATE_TASK_TYPE];
 
 const TYPES_BY_NAME: ReadonlyMap<string, TypeDef> = new Map(
     COMPLEX_TYPES.map((type) => [type.name, type]),

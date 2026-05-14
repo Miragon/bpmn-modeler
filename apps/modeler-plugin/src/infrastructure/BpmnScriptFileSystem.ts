@@ -24,8 +24,7 @@ export class BpmnScriptFileSystem implements FileSystemProvider {
     private readonly _onDidChangeFile = new EventEmitter<FileChangeEvent[]>();
 
     /** Event fired when a virtual file is created, changed, or deleted. */
-    readonly onDidChangeFile: Event<FileChangeEvent[]> =
-        this._onDidChangeFile.event;
+    readonly onDidChangeFile: Event<FileChangeEvent[]> = this._onDidChangeFile.event;
 
     /**
      * No-op watcher — the provider fires change events programmatically.
@@ -159,9 +158,7 @@ export class BpmnScriptFileSystem implements FileSystemProvider {
             if (path.startsWith(pathPrefix)) {
                 const uri = Uri.parse(`bpmn-script:${path}`);
                 this.files.delete(path);
-                this._onDidChangeFile.fire([
-                    { type: FileChangeType.Deleted, uri },
-                ]);
+                this._onDidChangeFile.fire([{ type: FileChangeType.Deleted, uri }]);
             }
         }
     }

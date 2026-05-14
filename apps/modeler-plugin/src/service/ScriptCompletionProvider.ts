@@ -11,16 +11,8 @@ import {
     TextDocument,
 } from "vscode";
 
-import {
-    BeanDef,
-    beansFor,
-    MethodDef,
-    methodsForBean,
-} from "../domain/scriptApi";
-import {
-    matchMemberAccess,
-    parseKindFromUri,
-} from "./scriptCompletionHelpers";
+import { BeanDef, beansFor, MethodDef, methodsForBean } from "../domain/scriptApi";
+import { matchMemberAccess, parseKindFromUri } from "./scriptCompletionHelpers";
 
 /**
  * VS Code language-feature provider that powers IntelliSense for inline
@@ -51,12 +43,7 @@ import {
  */
 export class ScriptCompletionProvider implements CompletionItemProvider {
     /** Languages this provider participates in. */
-    private static readonly LANGUAGES = [
-        "javascript",
-        "groovy",
-        "python",
-        "ruby",
-    ] as const;
+    private static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
 
     /**
      * Registers the completion provider for every supported language scoped
@@ -68,29 +55,18 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
                 scheme: "bpmn-script",
                 language,
             };
-            context.subscriptions.push(
-                languages.registerCompletionItemProvider(
-                    filter,
-                    this,
-                    ".",
-                ),
-            );
+            context.subscriptions.push(languages.registerCompletionItemProvider(filter, this, "."));
         }
     }
 
-    provideCompletionItems(
-        document: TextDocument,
-        position: Position,
-    ): CompletionItem[] {
+    provideCompletionItems(document: TextDocument, position: Position): CompletionItem[] {
         const kind = parseKindFromUri(document.uri.path);
         if (!kind) {
             return [];
         }
         const beans = beansFor(kind);
 
-        const linePrefix = document
-            .lineAt(position)
-            .text.slice(0, position.character);
+        const linePrefix = document.lineAt(position).text.slice(0, position.character);
 
         const memberAccess = matchMemberAccess(linePrefix);
         if (memberAccess) {
@@ -120,14 +96,10 @@ function methodToCompletion(method: MethodDef): CompletionItem {
 
     // Snippet places the cursor on the first parameter so the user can
     // type-tab through. For zero-arg methods we close the parens immediately.
-    const placeholders = method.params
-        .map((p, i) => `\${${i + 1}:${p.name}}`)
-        .join(", ");
+    const placeholders = method.params.map((p, i) => `\${${i + 1}:${p.name}}`).join(", ");
     item.insertText = new SnippetString(`${method.name}(${placeholders})`);
 
-    const paramLines = method.params.map(
-        (p) => `- \`${p.name}\` — \`${p.type}\``,
-    );
+    const paramLines = method.params.map((p) => `- \`${p.name}\` — \`${p.type}\``);
     const docs = [method.description, "", ...paramLines].join("\n");
     item.documentation = new MarkdownString(docs);
     return item;

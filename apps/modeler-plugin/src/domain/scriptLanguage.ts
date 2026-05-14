@@ -37,8 +37,7 @@ export class ScriptLanguage {
      */
     constructor(scriptFormat: string) {
         const normalized = ScriptLanguage.normalize(scriptFormat);
-        const mapping =
-            ScriptLanguage.MAPPINGS.get(normalized) ?? ScriptLanguage.FALLBACK;
+        const mapping = ScriptLanguage.MAPPINGS.get(normalized) ?? ScriptLanguage.FALLBACK;
         this.languageId = mapping.languageId;
         this.extension = mapping.extension;
     }
@@ -50,9 +49,7 @@ export class ScriptLanguage {
      * prompt the user to pick a supported language.
      */
     static isSupported(scriptFormat: string): boolean {
-        return ScriptLanguage.MAPPINGS.has(
-            ScriptLanguage.normalize(scriptFormat),
-        );
+        return ScriptLanguage.MAPPINGS.has(ScriptLanguage.normalize(scriptFormat));
     }
 
     /** Returns the canonical Camunda format strings we support, in display order. */
