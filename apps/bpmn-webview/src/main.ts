@@ -243,8 +243,7 @@ window.onload = async function () {
 
     // Phase 2: restore selection + panel-side UI state (safe now — side-effects done)
     stateManager.restoreSelection();
-    stateManager.restorePanelScroll();
-    stateManager.restoreExpandedGroups();
+    stateManager.restorePanelUiState();
 
     // Phase 3: begin persisting changes
     stateManager.startPersisting();

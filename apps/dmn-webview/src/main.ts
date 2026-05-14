@@ -65,8 +65,7 @@ window.onload = async function () {
     await initializeModeler(dmnFile?.content);
     modelerIsInitialized = true;
 
-    stateManager.restorePanelScroll();
-    stateManager.restoreExpandedGroups();
+    stateManager.restorePanelUiState();
     stateManager.startPersisting();
 };
 
