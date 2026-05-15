@@ -143,7 +143,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         });
     });
 
-    it("passes undefined as exclude — VS Code applies files.exclude automatically", async () => {
+    it("passes undefined as exclude — VS Code layers files.exclude and search.exclude", async () => {
         const { locator, vsWorkspace } = createLocator({
             fileContents: { "/a.bpmn": bpmnWithProcess("ProcessB") },
         });
@@ -152,6 +152,57 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
         // Only one positional arg → second is implicitly undefined.
         expect(vsWorkspace.findFiles).toHaveBeenCalledWith("**/*.bpmn");
+    });
+
+    it("filters out paths inside build/output dirs that VS Code defaults miss", async () => {
+        const { locator, vsWorkspace } = createLocator({
+            fileContents: {
+                "/work/wanted.bpmn": bpmnWithProcess("Wanted"),
+                "/work/dist/inner.bpmn": bpmnWithProcess("Wanted"),
+                "/work/build/inner.bpmn": bpmnWithProcess("Wanted"),
+                "/work/out/inner.bpmn": bpmnWithProcess("Wanted"),
+                "/work/target/inner.bpmn": bpmnWithProcess("Wanted"),
+                "/work/coverage/inner.bpmn": bpmnWithProcess("Wanted"),
+                "/work/node_modules/lib/inner.bpmn": bpmnWithProcess("Wanted"),
+                "/work/nested/dist/deep.bpmn": bpmnWithProcess("Wanted"),
+            },
+        });
+
+        const result = await locator.findDeclaringFiles("Wanted", "process");
+
+        expect(result.kind).toBe("matches");
+        if (result.kind === "matches") {
+            expect(result.paths).toEqual(["/work/wanted.bpmn"]);
+        }
+        // Excluded paths should not even be read.
+        expect(vsWorkspace.readFile).toHaveBeenCalledTimes(1);
+        expect(vsWorkspace.readFile).toHaveBeenCalledWith("/work/wanted.bpmn");
+    });
+
+    it("falls back to fs-walk when every findFiles result is excluded", async () => {
+        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
+        const { locator, vsWorkspace } = createLocator({
+            fileContents: {
+                "/work/dist/stale.bpmn": bpmnWithProcess("Wanted"),
+                "/work/src/real.bpmn": bpmnWithProcess("Wanted"),
+            },
+            tree: {
+                "/work": [
+                    { name: "dist", type: "directory" },
+                    { name: "src", type: "directory" },
+                ],
+                "/work/src": ["real.bpmn"],
+            },
+        });
+        vsWorkspace.findFiles.mockResolvedValue(["/work/dist/stale.bpmn"]);
+
+        const result = await locator.findDeclaringFiles("Wanted", "process");
+
+        expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");
+        expect(result.kind).toBe("matches");
+        if (result.kind === "matches") {
+            expect(result.paths).toEqual(["/work/src/real.bpmn"]);
+        }
     });
 
     it("returns kind=all-unreadable when every candidate read fails", async () => {

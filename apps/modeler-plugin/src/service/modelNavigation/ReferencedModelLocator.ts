@@ -6,9 +6,12 @@ import { VsCodeUI } from "../../infrastructure/VsCodeUI";
 import { VsCodeWorkspace } from "../../infrastructure/VsCodeWorkspace";
 
 /**
- * Directory names skipped during the fs walk.  The `workspace.findFiles`
- * path inherits the user's `files.exclude` from VS Code automatically and
- * doesn't need a parallel list.
+ * Directory names that never contain user-authored process/decision sources.
+ * Applied uniformly to both code paths: as a post-filter on the
+ * `workspace.findFiles` result, and per-directory during the fs-walk
+ * fallback.  VS Code's default `files.exclude` / `search.exclude` only
+ * cover a subset of these (notably `**\/node_modules`), so we cannot rely
+ * on the platform defaults alone.
  */
 const EXCLUDED_DIRS: ReadonlySet<string> = new Set([
     "node_modules",
@@ -100,14 +103,19 @@ export class ReferencedModelLocator {
             return undefined;
         }
 
-        // Pass undefined for excludes — VS Code applies user's `files.exclude`.
+        // Pass undefined for excludes — VS Code layers user's `files.exclude`
+        // and `search.exclude` on top.  We then post-filter with
+        // `EXCLUDED_DIRS` because the VS Code defaults do not cover all of
+        // them (e.g. `dist`, `build`, `out`, `target`, `coverage`).
         const startedAt = Date.now();
         const found = await this.vsWorkspace.findFiles(`**/*${extension}`);
+        const filtered = found.filter((path) => !pathIsInsideExcludedDir(path));
         this.vsUI.logInfo(
-            `[nav] findFiles returned ${found.length} path(s) in ${Date.now() - startedAt}ms`,
+            `[nav] findFiles returned ${found.length} path(s) ` +
+                `(${filtered.length} after exclude filter) in ${Date.now() - startedAt}ms`,
         );
-        if (found.length > 0) {
-            return found;
+        if (filtered.length > 0) {
+            return filtered;
         }
 
         // Fallback: findFiles failed silently (ripgrep missing in packaged .app).
@@ -267,6 +275,13 @@ export class ReferencedModelLocator {
 
 function escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function pathIsInsideExcludedDir(path: string): boolean {
+    for (const segment of path.split("/")) {
+        if (segment !== "" && EXCLUDED_DIRS.has(segment)) return true;
+    }
+    return false;
 }
 
 function truncate(value: string, max: number): string {
