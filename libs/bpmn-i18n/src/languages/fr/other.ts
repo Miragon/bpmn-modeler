@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * This file contains translations that were used in other components.
- */
+// This file contains translations that were used in other components.
 const translations: Record<string, string> = {
     "Open minimap": "Ouvrir la mini-carte",
     "Open properties panel": "Ouvrir le panneau de propriétés",

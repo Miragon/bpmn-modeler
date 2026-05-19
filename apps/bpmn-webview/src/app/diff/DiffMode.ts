@@ -85,8 +85,6 @@ export class DiffMode {
         await this.loadInitial(initialContent);
     }
 
-    // ─── Private ─────────────────────────────────────────────────────────────
-
     private async onMessage(message: MessageType): Promise<void> {
         switch (message.type) {
             case "ApplyDiffHighlightsQuery":

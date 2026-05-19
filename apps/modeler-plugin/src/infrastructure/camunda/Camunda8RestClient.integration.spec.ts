@@ -20,7 +20,7 @@ describe("Camunda8RestClient (integration)", () => {
     let server: http.Server;
     let baseUrl: string;
 
-    /** Handler installed per-test; receives the raw request and body buffer. */
+    // Handler installed per-test; receives the raw request and body buffer.
     let handler: (req: http.IncomingMessage, body: Buffer, res: http.ServerResponse) => void;
 
     beforeAll(async () => {
@@ -210,7 +210,9 @@ describe("Camunda8RestClient (integration)", () => {
         await client.deploy(config, new Map([["proc.bpmn", "<definitions/>"]]));
 
         expect(receivedBody).toContain('name="resources"; filename="proc.bpmn"');
-        // The part name must be "resources", not the filename
+        /**
+         * The part name must be "resources", not the filename
+         */
         expect(receivedBody).not.toContain('name="proc.bpmn"; filename=');
         expect(receivedBody).toContain("<definitions/>");
     });
@@ -239,7 +241,9 @@ describe("Camunda8RestClient (integration)", () => {
 
         expect(receivedBody).toContain('name="tenantId"');
         expect(receivedBody).toContain("my-tenant");
-        // C8 should NOT include C7-specific fields
+        /**
+         * C8 should NOT include C7-specific fields
+         */
         expect(receivedBody).not.toContain("deployment-name");
         expect(receivedBody).not.toContain("tenant-id");
     });

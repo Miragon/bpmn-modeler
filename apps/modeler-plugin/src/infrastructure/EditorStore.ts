@@ -14,64 +14,36 @@ import { Command, Query } from "@miragon/bpmn-modeler-shared";
 
 import { bootstrapWebview } from "./bootstrapWebview";
 
-/** VS Code `setContext` command key used by keybinding/menu `when` clauses. */
 const OPEN_EDITORS_COUNTER_KEY = "bpmn-modeler.openCustomEditors";
 
-/** Per-editor state entry stored in the editors map. */
 type EditorEntry = {
     id: string;
     ui: WebviewPanel;
     document: TextDocument;
 };
 
-/**
- * Central registry for all open modeler editors.
- *
- * Tracks editor state (webview panel, document, disposables) and provides all
- * subscription and messaging helpers needed by services and controllers.
- * Encapsulates the module-level globals that previously lived in
- * `adapter/out/editor.ts`.
- */
 export class EditorStore implements Disposable {
     /**
-     * All currently open editors, keyed by the stringified document URI
-     * (`document.uri.toString()`).
-     *
-     * Keying on the full URI — scheme included — is essential: VS Code opens
-     * diff editors as two independent `resolveCustomTextEditor` calls, one for
-     * a `git:` URI and one for a `file:` URI that share the same fs path.  If
-     * we keyed by path alone the second registration would clobber the first
-     * and one pane would render empty.
+     * Keyed by the stringified document URI (`document.uri.toString()`):
+     * scheme must be part of the key because VS Code opens diff editors as
+     * two independent `resolveCustomTextEditor` calls (a `git:` URI and a
+     * `file:` URI sharing the same fs path). Keying by path alone would
+     * cause the second registration to clobber the first.
      */
     private readonly editors: Map<string, EditorEntry> = new Map();
 
-    /** VS Code event-subscription disposables, keyed by editorId. */
     private readonly disposables: Map<string, Disposable[]> = new Map();
 
-    /** The document URI path of the editor that is currently focused. */
     private activeEditorId: string | undefined;
 
-    /** Fires when the active editor changes, carrying the new editor's id. */
     private readonly _onDidChangeActiveEditor = new EventEmitter<string>();
 
-    /** Event that fires when the active editor changes. */
     readonly onDidChangeActiveEditor: Event<string> = this._onDidChangeActiveEditor.event;
 
-    // ─── Editor lifecycle ────────────────────────────────────────────────────
-
     /**
-     * Registers a new editor entry, sets it as the active editor, and returns
-     * the configured WebviewPanel.
-     *
-     * @param viewType VS Code view-type identifier (e.g. `"bpmn-modeler.bpmn"`).
-     * @param editorId Document URI path used as the session key.
-     * @param webviewPanel The panel provided by VS Code.
-     * @param document The text document being edited.
-     * @param initialPanelVisible BPMN-only: the persisted properties-panel
-     *   default to pre-apply on the webview HTML so the panel never flashes
-     *   visible before the webview's JavaScript picks up the state.  Ignored
-     *   for DMN editors; defaults to `true`.
-     * @returns The configured WebviewPanel.
+     * @param initialPanelVisible BPMN-only: pre-applied on the webview HTML
+     *   so the panel never flashes visible before the webview JS picks up
+     *   the persisted state. Ignored for DMN editors.
      */
     createEditor(
         viewType: string,
@@ -88,14 +60,6 @@ export class EditorStore implements Disposable {
         return panel;
     }
 
-    // ─── Active editor ────────────────────────────────────────────────────────
-
-    /**
-     * Updates the active editor pointer.
-     * Called when the user switches to a different editor tab.
-     *
-     * @param id Document URI path of the editor that is now active.
-     */
     setActiveEditor(id: string): void {
         if (id === this.activeEditorId) {
             return;
@@ -104,11 +68,6 @@ export class EditorStore implements Disposable {
         this._onDidChangeActiveEditor.fire(id);
     }
 
-    /**
-     * Returns the document URI path of the currently focused editor.
-     *
-     * @throws {Error} If no editor is active.
-     */
     getActiveEditorId(): string {
         if (!this.activeEditorId) {
             throw new Error("No active editor.");
@@ -116,28 +75,14 @@ export class EditorStore implements Disposable {
         return this.activeEditorId;
     }
 
-    /**
-     * Returns the TextDocument associated with the given editorId.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @throws {Error} If no editor with the given id is registered.
-     */
     getDocumentForEditor(editorId: string): TextDocument {
         return this.getEditorById(editorId).document;
     }
 
     /**
-     * Finds the editor id for an editable file that is currently open,
-     * identified by its absolute URI path.
-     *
-     * Only `file:`-scheme editors are returned — callers expect a session they
-     * can write to, never the readonly `git:` counterpart that may be open
-     * alongside it in a diff view.
-     *
-     * @param filePath Absolute URI path (as produced by `Uri.file(...).path`)
-     *   to look up.
-     * @returns The editor id (stringified URI), or `undefined` if the file
-     *   is not open in an editable editor.
+     * Only `file:`-scheme editors are returned — callers expect a session
+     * they can write to, never the readonly `git:` counterpart that may be
+     * open alongside it in a diff view.
      */
     findEditorIdByPath(filePath: string): string | undefined {
         for (const [, entry] of this.editors) {
@@ -148,15 +93,6 @@ export class EditorStore implements Disposable {
         return undefined;
     }
 
-    // ─── Disposables ─────────────────────────────────────────────────────────
-
-    /**
-     * Appends a disposable to the subscription list of the given editor so
-     * it is automatically disposed when the editor is closed.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @param disposable The disposable to track.
-     */
     addToDisposals(editorId: string, disposable: Disposable): void {
         const subscriptions = this.disposables.get(editorId);
         if (subscriptions) {
@@ -166,15 +102,6 @@ export class EditorStore implements Disposable {
         }
     }
 
-    // ─── Event subscriptions ─────────────────────────────────────────────────
-
-    /**
-     * Subscribes to the panel-dispose event.  Cleans up the editor's state and
-     * optionally invokes a caller-provided callback (e.g. to dispose session state).
-     *
-     * @param editorId Document URI path of the editor to observe.
-     * @param onDispose Optional callback invoked after editor cleanup.
-     */
     subscribeToDisposeEvent(editorId: string, onDispose?: () => void): void {
         const entry = this.getEditorById(editorId);
         const d = this.disposables.get(editorId);
@@ -189,15 +116,9 @@ export class EditorStore implements Disposable {
     }
 
     /**
-     * Subscribes to messages received from the webview of the given editor.
-     *
-     * The editorId is captured at subscription time so the callback always
+     * `editorId` is captured at subscription time so the callback always
      * receives the id of the editor that owns this webview — not whatever
      * editor happens to be active when the message arrives.
-     *
-     * @param editorId Document URI path of the editor whose webview to listen to.
-     * @param callback Invoked for every incoming message with the message and
-     *   the captured editorId.
      */
     subscribeToMessageEvent(
         editorId: string,
@@ -210,14 +131,9 @@ export class EditorStore implements Disposable {
     }
 
     /**
-     * Subscribes to messages from the currently active editor's webview.
-     *
-     * Used by the SVG commands that request the diagram SVG and need to receive
-     * the response.  Unlike {@link subscribeToMessageEvent} this subscription
-     * is not scoped to a specific editor's disposable list.
-     *
-     * @param callback Invoked for every message received from the active webview.
-     * @returns A disposable that removes the subscription when disposed.
+     * Returns a free-standing disposable (not scoped to an editor's list)
+     * because SVG response handlers must outlive a single request/response
+     * exchange without being tied to editor lifecycle.
      */
     subscribeToActiveEditorMessage(callback: (message: Command) => void): Disposable {
         const id = this.getActiveEditorId();
@@ -225,13 +141,6 @@ export class EditorStore implements Disposable {
         return entry.ui.webview.onDidReceiveMessage((e: Command) => callback(e));
     }
 
-    /**
-     * Subscribes to workspace-level text-document-change events for the
-     * lifetime of the given editor.
-     *
-     * @param editorId Document URI path of the editor.
-     * @param callback Invoked for every document-change event.
-     */
     subscribeToDocumentChangeEvent(
         editorId: string,
         callback: (event: TextDocumentChangeEvent) => void,
@@ -240,17 +149,6 @@ export class EditorStore implements Disposable {
         workspace.onDidChangeTextDocument(callback, null, d);
     }
 
-    /**
-     * Subscribes to workspace configuration-change events for the lifetime of
-     * the given editor.
-     *
-     * The editorId is captured at subscription time so the callback always
-     * has the id of the editor it was created for.
-     *
-     * @param editorId Document URI path of the editor.
-     * @param callback Invoked for every configuration-change event with the
-     *   captured editorId.
-     */
     subscribeToSettingChangeEvent(
         editorId: string,
         callback: (event: ConfigurationChangeEvent, editorId: string) => void,
@@ -260,12 +158,6 @@ export class EditorStore implements Disposable {
         workspace.onDidChangeConfiguration((e) => callback(e, id), null, d);
     }
 
-    /**
-     * Subscribes to the panel-view-state-change event so that switching editor
-     * tabs updates the active editor pointer.
-     *
-     * @param editorId Document URI path of the editor.
-     */
     subscribeToTabChangeEvent(editorId: string): void {
         const id = editorId;
         const entry = this.getEditorById(id);
@@ -276,16 +168,9 @@ export class EditorStore implements Disposable {
         });
     }
 
-    // ─── Messaging ───────────────────────────────────────────────────────────
-
     /**
-     * Posts a message to the webview of the editor identified by editorId.
-     *
-     * @param editorId Target editor.
-     * @param message The message or query to send.
-     * @returns `true` if the message was delivered successfully.
-     * @throws {Error} If the editor is hidden and `retainContextWhenHidden` is not set.
-     * @throws {Error} If `postMessage` returns `false`.
+     * @throws If the editor is hidden and `retainContextWhenHidden` is not
+     *   set, or if `webview.postMessage` returns `false`.
      */
     async postMessage(editorId: string, message: Command | Query): Promise<boolean> {
         const entry = this.getEditorById(editorId);
@@ -300,22 +185,10 @@ export class EditorStore implements Disposable {
         }
     }
 
-    // ─── Disposal ──────────────────────────────────────────────────────────
-
-    /**
-     * Disposes the internal event emitter.
-     */
     dispose(): void {
         this._onDidChangeActiveEditor.dispose();
     }
 
-    // ─── Private helpers ─────────────────────────────────────────────────────
-
-    /**
-     * Returns the editor entry for the given editorId.
-     *
-     * @throws {Error} If no editor with the given id is registered.
-     */
     private getEditorById(editorId: string): EditorEntry {
         const entry = this.editors.get(editorId);
         if (!entry) {
@@ -325,12 +198,8 @@ export class EditorStore implements Disposable {
     }
 
     /**
-     * Cleans up all state associated with the given editor after its panel is
-     * disposed.  Moves the active-editor pointer to the most recently opened
-     * remaining editor, or clears it if none remain.
-     *
-     * @param editorId Document URI path of the disposed editor.
-     * @param panel The panel that was disposed.
+     * After disposal, the active-editor pointer moves to the most recently
+     * opened remaining editor, or clears if none remain.
      */
     private disposeEditor(editorId: string, panel: WebviewPanel): void {
         panel.dispose();
@@ -352,9 +221,7 @@ export class EditorStore implements Disposable {
     }
 
     /**
-     * Updates the VS Code context variable used by keybinding/menu `when` clauses.
-     *
-     * @param count Current number of open modeler editors.
+     * Updates the context variable used by keybinding/menu `when` clauses.
      */
     private updateOpenEditorCounter(count: number): void {
         commands.executeCommand("setContext", OPEN_EDITORS_COUNTER_KEY, count);

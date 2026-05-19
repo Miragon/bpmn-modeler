@@ -50,10 +50,10 @@ function dispatchPasteOrInsert(text: string): void {
 class LabelClipboard {
     static $inject = ["textClipboardBridge", "eventBus", "directEditing"];
 
-    /** Reference to the currently attached keydown handler, for cleanup. */
+    // Reference to the currently attached keydown handler, for cleanup.
     private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
-    /** The contenteditable element the handler is currently attached to. */
+    // The contenteditable element the handler is currently attached to.
     private activeElement: HTMLElement | null = null;
 
     constructor(bridge: ClipboardBridge, eventBus: any, directEditing: any) {

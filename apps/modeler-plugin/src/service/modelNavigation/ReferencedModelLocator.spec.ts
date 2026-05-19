@@ -150,7 +150,9 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
         await locator.findDeclaringFiles("ProcessB", "process");
 
-        // Only one positional arg → second is implicitly undefined.
+        /**
+         * Only one positional arg → second is implicitly undefined.
+         */
         expect(vsWorkspace.findFiles).toHaveBeenCalledWith("**/*.bpmn");
     });
 
@@ -174,7 +176,9 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/work/wanted.bpmn"]);
         }
-        // Excluded paths should not even be read.
+        /**
+         * Excluded paths should not even be read.
+         */
         expect(vsWorkspace.readFile).toHaveBeenCalledTimes(1);
         expect(vsWorkspace.readFile).toHaveBeenCalledWith("/work/wanted.bpmn");
     });

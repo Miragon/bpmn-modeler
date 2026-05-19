@@ -190,7 +190,9 @@ describe("ModelNavigationService.navigate", () => {
         await service.navigate(huge, "process");
 
         const message = vsUI.showInfo.mock.calls[0][0] as string;
-        // The 500-char id must NOT appear in full — truncation kicks in.
+        /**
+         * The 500-char id must NOT appear in full — truncation kicks in.
+         */
         expect(message).not.toContain(huge);
         expect(message).toContain("…");
     });

@@ -129,10 +129,12 @@ export function installContentEditableClipboardPolyfill(
             // running because it doesn't affect same-node listeners.
             e.stopImmediatePropagation();
 
-            // Contenteditable surfaces (BPMN label, FEEL editor) own their
-            // own selection via scoped handlers run in earlier phases.
-            // For `<input>`/`<textarea>`, the native Ctrl+A default action
-            // is unreliable inside webview iframes, so we select explicitly.
+            /**
+             * Contenteditable surfaces (BPMN label, FEEL editor) own their
+             * own selection via scoped handlers run in earlier phases.
+             * For `<input>`/`<textarea>`, the native Ctrl+A default action
+             * is unreliable inside webview iframes, so we select explicitly.
+             */
             if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
                 el.select();
             }

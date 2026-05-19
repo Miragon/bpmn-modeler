@@ -29,7 +29,9 @@
  * cycle.
  */
 
-/** Minimal subset of a parsed bpmn-moddle element used by this module. */
+/**
+ * Minimal subset of a parsed bpmn-moddle element used by this module.
+ */
 interface ModdleElement {
     $type: string;
     id?: string;
@@ -214,7 +216,9 @@ export function buildRemovedAnchors(
 
         let anchor: FlowPosition | undefined;
 
-        // 1. Removed shape: prefer the surviving predecessor.
+        /**
+         * 1. Removed shape: prefer the surviving predecessor.
+         */
         for (const flow of incomingByTarget.get(removedId) ?? []) {
             const sourceId = refId(flow.sourceRef);
             if (sourceId && afterOrder.has(sourceId)) {
@@ -226,7 +230,9 @@ export function buildRemovedAnchors(
                 break;
             }
         }
-        // 2. Otherwise the surviving successor.
+        /**
+         * 2. Otherwise the surviving successor.
+         */
         if (!anchor) {
             for (const flow of outgoingBySource.get(removedId) ?? []) {
                 const targetId = refId(flow.targetRef);
@@ -240,7 +246,9 @@ export function buildRemovedAnchors(
                 }
             }
         }
-        // 3. Removed sequence flow: anchor on its own endpoints.
+        /**
+         * 3. Removed sequence flow: anchor on its own endpoints.
+         */
         if (!anchor && node.$type === "bpmn:SequenceFlow") {
             const sourceId = refId(node.sourceRef);
             const targetId = refId(node.targetRef);
@@ -281,7 +289,9 @@ export function sortIdsByOrder(
                 pa.x - pb.x
             );
         }
-        // Unknown ids sink to the end while keeping their relative order.
+        /**
+         * Unknown ids sink to the end while keeping their relative order.
+         */
         if (pa) return -1;
         if (pb) return 1;
         return 0;
@@ -298,7 +308,9 @@ function collectContainers(root: ModdleElement): ModdleElement[] {
             containers.push(el);
             for (const child of fes) visit(child);
         }
-        // Collaboration → walk participants → processRef.
+        /**
+         * Collaboration → walk participants → processRef.
+         */
         for (const p of readArray<ModdleElement>(el.participants)) {
             const proc = p.processRef as ModdleElement | undefined;
             if (proc) visit(proc);

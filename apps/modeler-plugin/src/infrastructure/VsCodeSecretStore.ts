@@ -1,6 +1,6 @@
 import { getContext } from "./extensionContext";
 
-/** Key prefix for secrets stored in VS Code's SecretStorage. */
+// Key prefix for secrets stored in VS Code's SecretStorage.
 const SECRET_PREFIX = "bpmn-modeler.deployment";
 
 /**

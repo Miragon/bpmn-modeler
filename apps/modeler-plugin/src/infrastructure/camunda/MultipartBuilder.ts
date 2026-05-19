@@ -7,7 +7,7 @@
 export class MultipartBuilder {
     private readonly parts: Buffer[] = [];
 
-    /** The boundary string used to separate parts. */
+    // The boundary string used to separate parts.
     readonly boundary: string;
 
     constructor() {

@@ -13,10 +13,10 @@ import { classifyEntries, executeEntryAction } from "./types";
 import type { PopupMenuEntry, PopupMenuEntryAction } from "./types";
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 
-/** Provider IDs that this override intercepts. */
+// Provider IDs that this override intercepts.
 const INTERCEPTED_PROVIDERS = new Set(["bpmn-append", "bpmn-create"]);
 
-/** Maximum number of favourite BPMN elements. */
+// Maximum number of favourite BPMN elements.
 const MAX_FAVOURITES = 6;
 
 /**
@@ -51,9 +51,7 @@ class AppendMenuOverride {
         let customMenuOpen = false;
         let closeCustomMenu: (() => void) | null = null;
 
-        /**
-         * Tears down the custom overlay and resets state.
-         */
+        // Tears down the custom overlay and resets state.
         const destroyCustomMenu = () => {
             if (closeCustomMenu) {
                 closeCustomMenu();
@@ -68,7 +66,9 @@ class AppendMenuOverride {
                 return originalOpen(target, providerId, position, options);
             }
 
-            // Close any currently open menu (custom or default).
+            /**
+             * Close any currently open menu (custom or default).
+             */
             if (customMenuOpen) {
                 destroyCustomMenu();
             } else if (originalIsOpen()) {

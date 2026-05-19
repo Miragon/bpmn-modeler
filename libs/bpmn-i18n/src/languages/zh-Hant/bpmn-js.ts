@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * This file contains the strings used in the bpmn-js module.
- */
+// This file contains the strings used in the bpmn-js module.
 const translations: Record<string, string> = {
     "Append TextAnnotation": "追加文本注釋",
     "Append {type}": "追加 {type}",

@@ -83,6 +83,58 @@ build → package plugin → bundle → start chain.
 
 All VS Code settings use the `miragon.bpmnModeler` namespace (e.g. `miragon.bpmnModeler.alignToOrigin`, `miragon.bpmnModeler.language`). Do **not** use the legacy `miragon.camundaModeler` prefix.
 
+## Comment Style
+
+Write comments that explain **why**, not **what**. Identifier names and
+the code itself already say what is happening; a good comment captures
+the non-obvious reason it has to be that way — a hidden constraint, an
+invariant the type system can't express, the bug that motivated this
+shape, a surprise the next reader would otherwise re-discover.
+
+- Skip the comment if you can't articulate a non-obvious *why*. Silence
+  beats noise.
+- Be precise. Name the constraint, the failure mode, or the source. Avoid
+  hedges ("maybe", "should probably") and filler ("this function does X").
+- Don't bloat. One or two crisp sentences is almost always enough; if
+  more is needed, link to a design doc or test rather than re-deriving
+  the reasoning inline.
+- Don't reference the current PR, ticket, or caller ("added for #123",
+  "used by X"). That belongs in the commit message and rots in the
+  source.
+
+Use JSDoc (`/** ... */`) for documentation that sits above a
+**class, function, method, or module** (top-of-file docstring) —
+that's what IDE hover popups read; `//` line comments don't show up.
+Multi-line form is preferred when the doc spans more than one
+sentence or carries `@param`/`@returns` tags; a single-line
+`/** … */` is fine for a one-sentence rationale. Use `//` for
+inline notes — a tricky block, a property, the reason for one line.
+
+Good — declaration doc as JSDoc, inline rationale as `//`:
+
+```ts
+/**
+ * Persists a partial webview state without clobbering existing entries.
+ *
+ * `@bpmn-io/properties-panel` puts the `open` class on the header child,
+ * never on the group root, so the panel's body element differs between
+ * regular and list groups. The header is the only element common to
+ * both that reliably tracks expansion state.
+ */
+function isGroupOpen(group: HTMLElement): boolean {
+    // First rAF lets Preact commit the click-induced re-renders before
+    // we read scrollHeight.
+    ...
+}
+```
+
+Noise (deletes cleanly):
+
+```ts
+/** Returns true if the group is open. */   // ❌ restates the signature
+function isGroupOpen(group: HTMLElement): boolean { ... }
+```
+
 ## Deployment Webview (Dual-HTML Pattern)
 
 The deployment sidebar has **two copies** of its HTML that must stay in sync:

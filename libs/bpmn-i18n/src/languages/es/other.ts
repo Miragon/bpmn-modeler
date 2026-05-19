@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * This file contains translations that were used in other components.
- */
+// This file contains translations that were used in other components.
 const translations: Record<string, string> = {
     "About example data": "Acerca de datos de ejemplo",
     "Align elements bottom": "Alinear elementos abajo",

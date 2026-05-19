@@ -1,6 +1,6 @@
 import { commands, Uri } from "vscode";
 
-/** Context key that gates the "Compare with Selected" menu entry. */
+// Context key that gates the "Compare with Selected" menu entry.
 const CONTEXT_KEY = "bpmn-modeler.compareSelectionActive";
 
 /**
@@ -20,7 +20,9 @@ const CONTEXT_KEY = "bpmn-modeler.compareSelectionActive";
 export class CompareSelectionStore {
     private selected?: Uri;
 
-    /** Returns the currently selected URI, or `undefined` when nothing is selected. */
+    /**
+     * Returns the currently selected URI, or `undefined` when nothing is selected.
+     */
     get(): Uri | undefined {
         return this.selected;
     }

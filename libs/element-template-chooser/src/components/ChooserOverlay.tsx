@@ -68,17 +68,23 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
         [filtered, selectedId],
     );
 
-    // Auto-focus the search input on mount.
+    /**
+     * Auto-focus the search input on mount.
+     */
     useEffect(() => {
         searchRef.current?.focus();
     }, []);
 
-    // Reset focus index when filter results change.
+    /**
+     * Reset focus index when filter results change.
+     */
     useEffect(() => {
         setFocusIndex(-1);
     }, [filtered.length]);
 
-    // Close on Escape key.
+    /**
+     * Close on Escape key.
+     */
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
@@ -115,7 +121,9 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
         [filtered, selectedTemplate, onSelect],
     );
 
-    // Scroll focused item into view.
+    /**
+     * Scroll focused item into view.
+     */
     useEffect(() => {
         if (focusIndex >= 0 && listRef.current) {
             const items = listRef.current.querySelectorAll(".etc-template-card");

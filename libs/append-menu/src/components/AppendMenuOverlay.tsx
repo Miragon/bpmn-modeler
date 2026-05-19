@@ -20,7 +20,7 @@ interface AppendMenuOverlayProps {
     onCancel: () => void;
 }
 
-/** Margin from viewport edges when clamping the panel position. */
+// Margin from viewport edges when clamping the panel position.
 const VIEWPORT_MARGIN = 8;
 
 /**
@@ -96,7 +96,9 @@ export function AppendMenuOverlay({
         return new Set(selectedTemplate.template.appliesTo);
     }, [selectedTemplate]);
 
-    // Position the panel after initial render, clamped to canvas area.
+    /**
+     * Position the panel after initial render, clamped to canvas area.
+     */
     useEffect(() => {
         if (panelRef.current) {
             const rect = panelRef.current.getBoundingClientRect();
@@ -104,12 +106,16 @@ export function AppendMenuOverlay({
         }
     }, [position, canvasBounds]);
 
-    // Auto-focus the search input on mount.
+    /**
+     * Auto-focus the search input on mount.
+     */
     useEffect(() => {
         searchRef.current?.focus();
     }, []);
 
-    // Close on Escape key.
+    /**
+     * Close on Escape key.
+     */
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") {

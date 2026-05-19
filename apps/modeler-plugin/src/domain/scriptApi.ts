@@ -14,20 +14,24 @@ import { ScriptKind } from "@miragon/bpmn-modeler-shared";
  * completion provider picks up the change automatically.
  */
 
-/** Describes a single parameter of a method call. */
+/**
+ * Describes a single parameter of a method call.
+ */
 export interface MethodParam {
     readonly name: string;
-    /** Java-flavoured type label (e.g. `"String"`, `"Object"`) shown in signatures. */
+    // Java-flavoured type label (e.g. `"String"`, `"Object"`) shown in signatures.
     readonly type: string;
 }
 
-/** Describes a method on a complex type (e.g. `execution.setVariable`). */
+/**
+ * Describes a method on a complex type (e.g. `execution.setVariable`).
+ */
 export interface MethodDef {
     readonly name: string;
     readonly params: readonly MethodParam[];
-    /** Java-flavoured return type label (e.g. `"String"`, `"void"`). */
+    // Java-flavoured return type label (e.g. `"String"`, `"void"`).
     readonly returnType: string;
-    /** Human-readable description shown in the completion details. */
+    // Human-readable description shown in the completion details.
     readonly description: string;
 }
 
@@ -36,11 +40,11 @@ export interface MethodDef {
  * of methods we look up to populate `<bean>.<member>` completions.
  */
 export interface TypeDef {
-    /** Java type name (e.g. `DelegateExecution`). */
+    // Java type name (e.g. `DelegateExecution`).
     readonly name: string;
-    /** Human-readable description of the type. */
+    // Human-readable description of the type.
     readonly description: string;
-    /** Methods callable on instances of this type. */
+    // Methods callable on instances of this type.
     readonly methods: readonly MethodDef[];
 }
 
@@ -51,11 +55,11 @@ export interface TypeDef {
  * primitive Java type label (for value beans like `eventName: String`).
  */
 export interface BeanDef {
-    /** Identifier used in scripts (e.g. `"execution"`). */
+    // Identifier used in scripts (e.g. `"execution"`).
     readonly name: string;
-    /** Java-flavoured type label (e.g. `"DelegateExecution"`, `"String"`). */
+    // Java-flavoured type label (e.g. `"DelegateExecution"`, `"String"`).
     readonly type: string;
-    /** Human-readable description shown in the completion details. */
+    // Human-readable description shown in the completion details.
     readonly description: string;
 }
 
@@ -222,7 +226,7 @@ const DELEGATE_TASK_TYPE: TypeDef = {
     methods: DELEGATE_TASK_METHODS,
 };
 
-/** All complex (interface-typed) types referenced by any bean. */
+// All complex (interface-typed) types referenced by any bean.
 export const COMPLEX_TYPES: readonly TypeDef[] = [DELEGATE_EXECUTION_TYPE, DELEGATE_TASK_TYPE];
 
 const TYPES_BY_NAME: ReadonlyMap<string, TypeDef> = new Map(

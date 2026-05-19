@@ -1,6 +1,7 @@
 import {
     AuthConfigPayload,
     Command,
+    Engine,
     Query,
     RequestPayloadFilesCommand,
     StartInstanceCommand,
@@ -26,7 +27,7 @@ export class StartInstanceForm {
 
     private readonly statusBanner: HTMLDivElement;
 
-    /** Absolute path to the selected payload file, or empty string. */
+    // Absolute path to the selected payload file, or empty string.
     private payloadFilePath = "";
 
     /**
@@ -42,7 +43,7 @@ export class StartInstanceForm {
         private readonly getSharedAuth: () => AuthConfigPayload,
         private readonly getSharedConnection: () => {
             endpoint: string;
-            engine: "c7" | "c8";
+            engine: Engine;
         },
     ) {
         this.processDefinitionKeyInput =
@@ -75,7 +76,9 @@ export class StartInstanceForm {
         this.payloadFileInput.value = label || "(none)";
     }
 
-    /** Disables the Start Instance button and shows a progress indicator. */
+    /**
+     * Disables the Start Instance button and shows a progress indicator.
+     */
     showProgress(): void {
         this.startInstanceBtn.disabled = true;
         this.statusBanner.className = "status-banner progress";

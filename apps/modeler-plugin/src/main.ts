@@ -34,26 +34,11 @@ import { DeploymentService } from "./service/DeploymentService";
 import { StartInstanceService } from "./service/StartInstanceService";
 import { DeploymentController } from "./controller/DeploymentController";
 
-/**
- * VS Code extension entry point.
- *
- * Wires up all infrastructure, services, and controllers using plain
- * constructor injection — no DI framework required.
- *
- * Instantiation order:
- * 1. Infrastructure (EditorStore, VsCodeDocument, VsCodeWorkspace, VsCodeSettings, VsCodeUI,
- *    VsCodeDeploymentState, CamundaRestClient)
- * 2. Services (ArtifactService, BpmnModelerService, DmnModelerService, DeploymentService)
- * 3. Controllers (CommandController, BpmnEditorController, DmnEditorController, DeploymentController)
- */
 export function activate(context: ExtensionContext): void {
-    // 0. Notify the user of a new release (once per version).
     notifyIfNewRelease(context);
 
-    // 1. Make the extension context globally available for helpers that need it.
     setContext(context);
 
-    // 2. Infrastructure
     const editorStore = new EditorStore();
     context.subscriptions.push(editorStore);
     const bpmnScriptFs = new BpmnScriptFileSystem();
@@ -77,7 +62,6 @@ export function activate(context: ExtensionContext): void {
     const restClient = new CamundaEngineRouter(c7Client, c8Client);
     const panelStateRepo = new PropertiesPanelStateRepository(context);
 
-    // 3. Services
     const artifactSvc = new ArtifactService(vsWorkspace, vsSettings);
     const bpmnService = new BpmnModelerService(
         editorStore,
@@ -116,7 +100,6 @@ export function activate(context: ExtensionContext): void {
 
     new ScriptCompletionProvider().register(context);
 
-    // 4. Controllers
     const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
     new BpmnEditorController(
         editorStore,
@@ -144,14 +127,6 @@ export function activate(context: ExtensionContext): void {
 const RELEASES_BASE = "https://github.com/Miragon/bpmn-modeler/releases/tag";
 const LAST_NOTIFIED_KEY = "lastNotifiedVersion";
 
-/**
- * Shows a release-notes notification the first time the extension runs after
- * a version bump. Persists the current version in globalState so the message
- * is displayed exactly once per release.
- *
- * @param context - The VS Code extension context used to read the current
- *   version and persist the last notified version across restarts.
- */
 function notifyIfNewRelease(context: ExtensionContext): void {
     const current: string = context.extension.packageJSON.version;
     const last = context.globalState.get<string>(LAST_NOTIFIED_KEY);

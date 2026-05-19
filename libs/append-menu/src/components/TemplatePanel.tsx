@@ -10,7 +10,7 @@ import type { EnrichedTemplateEntry } from "../types";
 import { ExpandableTemplateCard } from "./ExpandableTemplateCard";
 import { TemplateHoverCard } from "./TemplateHoverCard";
 
-/** Delay in ms before the hover card hides after mouse leave. */
+// Delay in ms before the hover card hides after mouse leave.
 const HOVER_HIDE_DELAY = 150;
 
 /**
@@ -112,7 +112,9 @@ export function TemplatePanel({
         });
     }, [entries, search, activeCategory]);
 
-    // Reset focus and hover when filter results change.
+    /**
+     * Reset focus and hover when filter results change.
+     */
     useEffect(() => {
         setFocusIndex(-1);
         setHoveredIndex(-1);
@@ -136,7 +138,9 @@ export function TemplatePanel({
         [filtered, focusIndex, onTemplateClick],
     );
 
-    // Scroll focused item into view.
+    /**
+     * Scroll focused item into view.
+     */
     useEffect(() => {
         if (focusIndex >= 0 && listRef.current) {
             const items = listRef.current.querySelectorAll(".am-template-card");
@@ -158,12 +162,12 @@ export function TemplatePanel({
         }
     }, []);
 
-    /** Keeps the hover card visible while the mouse is over it. */
+    // Keeps the hover card visible while the mouse is over it.
     const handleHoverCardEnter = useCallback(() => {
         window.clearTimeout(hideTimeoutRef.current);
     }, []);
 
-    /** Starts the hide delay when the mouse leaves the hover card. */
+    // Starts the hide delay when the mouse leaves the hover card.
     const handleHoverCardLeave = useCallback(() => {
         hideTimeoutRef.current = window.setTimeout(() => setHoveredIndex(-1), HOVER_HIDE_DELAY);
     }, []);

@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * This file contains the strings used in the bpmn-js module.
- */
+// This file contains the strings used in the bpmn-js module.
 const translations: Record<string, string> = {
     "{semantic}#{side} Ref not specified": "{semantic}#{side} Ref no especificado",
     "Activate create/remove space tool": "Activar herramienta de crear/eliminar espacio",

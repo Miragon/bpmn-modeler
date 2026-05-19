@@ -15,7 +15,9 @@ import ru from "./ru";
 import zhHans from "./zh-Hans";
 import zhHant from "./zh-Hant";
 
-/** A locale code supported by the i18n module. */
+/**
+ * A locale code supported by the i18n module.
+ */
 export type SupportedLocale =
     | "de"
     | "en"
@@ -27,14 +29,16 @@ export type SupportedLocale =
     | "zh-Hans"
     | "zh-Hant";
 
-/** Metadata for a single supported language. */
+/**
+ * Metadata for a single supported language.
+ */
 export interface LanguageEntry {
     readonly label: string;
     readonly locale: SupportedLocale;
     readonly dictionary: Record<string, string>;
 }
 
-/** All supported languages with display names and dictionaries. */
+// All supported languages with display names and dictionaries.
 export const supportedLanguages: readonly LanguageEntry[] = [
     { label: "Deutsch", locale: "de", dictionary: de },
     { label: "English", locale: "en", dictionary: en },
@@ -47,7 +51,7 @@ export const supportedLanguages: readonly LanguageEntry[] = [
     { label: "繁体中文", locale: "zh-Hant", dictionary: zhHant },
 ] as const;
 
-/** Map from locale code to merged dictionary for fast lookup. */
+// Map from locale code to merged dictionary for fast lookup.
 export const dictionaries: Record<SupportedLocale, Record<string, string>> = {
     de,
     en,

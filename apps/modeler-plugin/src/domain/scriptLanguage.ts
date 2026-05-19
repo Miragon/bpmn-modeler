@@ -24,10 +24,10 @@ export class ScriptLanguage {
         extension: "txt",
     };
 
-    /** The VS Code language identifier (e.g. `"javascript"`). */
+    // The VS Code language identifier (e.g. `"javascript"`).
     readonly languageId: string;
 
-    /** The file extension without a leading dot (e.g. `"js"`). */
+    // The file extension without a leading dot (e.g. `"js"`).
     readonly extension: string;
 
     /**
@@ -52,7 +52,9 @@ export class ScriptLanguage {
         return ScriptLanguage.MAPPINGS.has(ScriptLanguage.normalize(scriptFormat));
     }
 
-    /** Returns the canonical Camunda format strings we support, in display order. */
+    /**
+     * Returns the canonical Camunda format strings we support, in display order.
+     */
     static supportedFormats(): readonly string[] {
         return [...ScriptLanguage.MAPPINGS.keys()];
     }

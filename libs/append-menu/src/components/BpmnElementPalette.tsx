@@ -8,13 +8,17 @@
 import { useMemo } from "preact/hooks";
 import type { BpmnElementGroup, BpmnElementEntry, PopupMenuEntryAction } from "../types";
 
-/** A palette entry with additional state for filtering. */
+/**
+ * A palette entry with additional state for filtering.
+ */
 interface ProcessedEntry extends BpmnElementEntry {
     disabled: boolean;
     hidden: boolean;
 }
 
-/** A processed group with filtering state on entries. */
+/**
+ * A processed group with filtering state on entries.
+ */
 interface ProcessedGroup {
     id: string;
     name: string;

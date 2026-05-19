@@ -124,7 +124,9 @@ export function extractImplementationDetail(
             if (p.binding.type !== bindingType) {
                 return false;
             }
-            // For "property" bindings, also match on the binding name.
+            /**
+             * For "property" bindings, also match on the binding name.
+             */
             if (bindingName && p.binding.name !== bindingName) {
                 return false;
             }
@@ -140,12 +142,16 @@ export function extractImplementationDetail(
 export function classifyBinding(binding: TemplateProperty["binding"]): BindingDirection {
     const type = binding.type;
 
-    // Output bindings (C7 + C8)
+    /**
+     * Output bindings (C7 + C8)
+     */
     if (type === "camunda:out" || type === "camunda:outputParameter" || type === "zeebe:output") {
         return "output";
     }
 
-    // Input bindings (C7 + C8)
+    /**
+     * Input bindings (C7 + C8)
+     */
     if (
         type === "camunda:in" ||
         type === "camunda:inputParameter" ||
@@ -155,12 +161,16 @@ export function classifyBinding(binding: TemplateProperty["binding"]): BindingDi
         return "input";
     }
 
-    // Property bindings (C7 + C8)
+    /**
+     * Property bindings (C7 + C8)
+     */
     if (type === "property" || type === "zeebe:property") {
         return "property";
     }
 
-    // C8 task headers are conceptually properties (key-value config on the job)
+    /**
+     * C8 task headers are conceptually properties (key-value config on the job)
+     */
     if (type === "zeebe:taskHeader") {
         return "property";
     }

@@ -31,10 +31,10 @@ import {
     StoredCredentialsQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-/** VS Code view ID for the deployment sidebar WebviewView. */
+// VS Code view ID for the deployment sidebar WebviewView.
 const DEPLOYMENT_VIEW_ID = "bpmn-modeler.deploymentView";
 
-/** VS Code command ID for triggering the deployment panel. */
+// VS Code command ID for triggering the deployment panel.
 const DEPLOY_CMD = "bpmn-modeler.deployDiagram";
 
 /**
@@ -46,7 +46,7 @@ const DEPLOY_CMD = "bpmn-modeler.deployDiagram";
  * to {@link DeploymentService} and sends results back via `postMessage`.
  */
 export class DeploymentController implements WebviewViewProvider {
-    /** The resolved webview view instance; `undefined` until first reveal. */
+    // The resolved webview view instance; `undefined` until first reveal.
     private view: WebviewView | undefined;
 
     /**
@@ -126,11 +126,8 @@ export class DeploymentController implements WebviewViewProvider {
         });
     }
 
-    // ─── Private helpers ─────────────────────────────────────────────────────
-
     /**
-     * Focuses the deployment sidebar by executing VS Code's built-in focus
-     * command, which triggers {@link resolveWebviewView} if needed.
+     * Triggers {@link resolveWebviewView} if the sidebar isn't open yet.
      */
     private async openDeploymentPanel(): Promise<void> {
         await commands.executeCommand(`${DEPLOYMENT_VIEW_ID}.focus`);

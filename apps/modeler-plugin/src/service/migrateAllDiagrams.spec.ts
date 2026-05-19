@@ -186,7 +186,9 @@ describe("migrateAllDiagrams", () => {
 
         expect(result).toBe(true);
         expect(vsUI.pickMigrationScope).toHaveBeenCalledWith(1, 1);
-        // Only C8 was selected, so only one version picker
+        /**
+         * Only C8 was selected, so only one version picker
+         */
         expect(vsUI.pickEngineVersion).toHaveBeenCalledTimes(1);
         expect(vsUI.pickEngineVersion).toHaveBeenCalledWith("c8", expect.any(Object));
     });

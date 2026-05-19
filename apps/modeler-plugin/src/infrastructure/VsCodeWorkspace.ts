@@ -54,7 +54,9 @@ export class VsCodeWorkspace {
             }
 
             const parent = posix.dirname(current);
-            // Stop at filesystem root (dirname returns the same path).
+            /**
+             * Stop at filesystem root (dirname returns the same path).
+             */
             if (parent === current) {
                 return undefined;
             }

@@ -1,6 +1,8 @@
 import { workspace } from "vscode";
 
-/** Pure VS Code workspace configuration reader for the BPMN modeler. */
+/**
+ * Pure VS Code workspace configuration reader for the BPMN modeler.
+ */
 export class VsCodeSettings {
     /**
      * Reads the alignToOrigin setting from VS Code configuration.

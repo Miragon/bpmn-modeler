@@ -2,9 +2,9 @@ import { Uri, Webview } from "vscode";
 
 import { getNonce } from "./helpers";
 
-/** Output directory name for the BPMN webview build artefacts. */
+// Output directory name for the BPMN webview build artefacts.
 const BPMN_WEBVIEW_PATH = "bpmn-webview";
-/** Output directory name for the DMN webview build artefacts. */
+// Output directory name for the DMN webview build artefacts.
 const DMN_WEBVIEW_PATH = "dmn-webview";
 
 /**

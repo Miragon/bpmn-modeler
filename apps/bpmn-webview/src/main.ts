@@ -5,14 +5,12 @@ import "./styles/default.css";
 import "./styles/diff.css";
 
 import {
-    asyncDebounce,
     BpmnFileQuery,
     BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
-    createResolver,
     ElementTemplatesQuery,
-    formatErrors,
+    Engine,
     GetBpmnFileCommand,
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
@@ -34,6 +32,9 @@ import {
     TextClipboardQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
+    asyncDebounce,
+    createResolver,
+    formatErrors,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
@@ -157,12 +158,14 @@ window.onload = async function () {
             },
         ];
 
-        // The FEEL editor (CodeMirror 6) in the C8 properties panel lives outside
-        // the bpmn-js DI context, so the DI clipboard modules above don't reach it.
-        // This polyfill intercepts Cmd/Ctrl+C/V on contenteditable elements and
-        // bridges them through the extension host clipboard, and guards Ctrl+A
-        // in text-editing surfaces from being stolen by bpmn-js's Keyboard
-        // service (canvas Ctrl+A is owned by bpmn-js's SelectionKeyBindings).
+        /**
+         * The FEEL editor (CodeMirror 6) in the C8 properties panel lives outside
+         * the bpmn-js DI context, so the DI clipboard modules above don't reach it.
+         * This polyfill intercepts Cmd/Ctrl+C/V on contenteditable elements and
+         * bridges them through the extension host clipboard, and guards Ctrl+A
+         * in text-editing surfaces from being stolen by bpmn-js's Keyboard
+         * service (canvas Ctrl+A is owned by bpmn-js's SelectionKeyBindings).
+         */
         installContentEditableClipboardPolyfill(requestTextClipboard, writeTextClipboard);
     }
 
@@ -170,8 +173,10 @@ window.onload = async function () {
 
     const bpmnFileQuery = await bpmnFileResolver.wait();
 
-    // Diff view: host told us this pane is one half of a diff, so bootstrap
-    // the readonly DiffMode and skip the editable modeler entirely.
+    /**
+     * Diff view: host told us this pane is one half of a diff, so bootstrap
+     * the readonly DiffMode and skip the editable modeler entirely.
+     */
     if (bpmnFileQuery?.viewerMode === "viewer") {
         document.body.classList.add("viewer-mode");
         const canvas = document.getElementById("js-canvas");
@@ -193,10 +198,12 @@ window.onload = async function () {
     await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
     modelerIsInitialized = true;
 
-    // Bridge "Edit Script" / "Open in Editor" triggers (script-task context
-    // pad + listener properties-panel buttons) into a host command so the
-    // extension can open the inline script in a virtual VS Code editor.
-    // Listeners are wired only on C7; C8 is intentionally out of scope.
+    /**
+     * Bridge "Edit Script" / "Open in Editor" triggers (script-task context
+     * pad + listener properties-panel buttons) into a host command so the
+     * extension can open the inline script in a virtual VS Code editor.
+     * Listeners are wired only on C7; C8 is intentionally out of scope.
+     */
     if (bpmnFileQuery?.engine === "c7") {
         bpmnModeler.onOpenScriptEditor((data) => {
             vscode.postMessage(
@@ -258,7 +265,7 @@ window.onload = async function () {
  */
 async function initializeModeler(
     bpmn: string | undefined,
-    engine: "c7" | "c8" | undefined,
+    engine: Engine | undefined,
     extraModules?: any[],
 ): Promise<void> {
     if (!engine) {

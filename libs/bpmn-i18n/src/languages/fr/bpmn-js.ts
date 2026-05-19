@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * This file contains the strings used in the bpmn-js module.
- */
+// This file contains the strings used in the bpmn-js module.
 const translations: Record<string, string> = {
     "Append {type}": "Ajouter {type}",
     "Add Lane above": "Ajouter une voie au-dessus",

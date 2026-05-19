@@ -32,7 +32,7 @@ import { VSCODE_ICON_SVG } from "./vscodeIcon";
  * reordered, which would invalidate any captured listener reference.
  */
 
-/** `data-group-id` of the script-task properties group. */
+// `data-group-id` of the script-task properties group.
 const SCRIPT_GROUP_ID = "group-CamundaPlatform__Script";
 
 /**
@@ -44,7 +44,7 @@ const SCRIPT_GROUP_ID = "group-CamundaPlatform__Script";
  */
 const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)-(\d+)$/;
 
-/** Attribute set on processed elements to avoid duplicate injection. */
+// Attribute set on processed elements to avoid duplicate injection.
 const INJECTED_MARKER = "data-script-btn-injected";
 
 /**

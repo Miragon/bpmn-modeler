@@ -5,13 +5,13 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
  * Dragging below this threshold collapses the panel entirely.
  */
 const MIN_PANEL_WIDTH = 200;
-/** Maximum width (px) the properties panel can be dragged to. */
+// Maximum width (px) the properties panel can be dragged to.
 const MAX_PANEL_WIDTH = 1600;
 
-/** CSS class applied to the panel when it is collapsed (width 0, hidden). */
+// CSS class applied to the panel when it is collapsed (width 0, hidden).
 const COLLAPSED_CLASS = "collapsed";
 
-/** English fallback label for the toggle button, used as the translation key. */
+// English fallback label for the toggle button, used as the translation key.
 const OPEN_PANEL_LABEL = "Open properties panel";
 
 /**
@@ -30,7 +30,9 @@ const CHEVRON_LEFT_SVG = `
  * properties-panel visibility without touching the DOM directly.
  */
 export interface PropertiesPanelHandle {
-    /** `true` if the panel is currently visible, `false` if collapsed. */
+    /**
+     * `true` if the panel is currently visible, `false` if collapsed.
+     */
     isVisible(): boolean;
 
     /**
@@ -112,7 +114,7 @@ export function initResizer(): PropertiesPanelHandle {
 
     let isResizing = false;
     let lastX = 0;
-    /** Tracks the intended width (px) independently of offsetWidth. */
+    // Tracks the intended width (px) independently of offsetWidth.
     let targetWidth = 0;
     /**
      * Whether the panel is currently collapsed (zero width).
@@ -125,7 +127,7 @@ export function initResizer(): PropertiesPanelHandle {
      */
     let isCollapsed = panel.classList.contains(COLLAPSED_CLASS);
 
-    /** Subscribers notified after every visibility transition. */
+    // Subscribers notified after every visibility transition.
     const visibilityListeners: Array<(visible: boolean) => void> = [];
 
     /**
@@ -250,13 +252,17 @@ export function initResizer(): PropertiesPanelHandle {
 
         if (targetWidth < MIN_PANEL_WIDTH) {
             if (isCollapsed && targetWidth > 0) {
-                // Any accumulated leftward drag from collapsed state — reveal the
-                // panel at minimum width immediately. targetWidth keeps accumulating
-                // naturally; the panel stays at MIN_PANEL_WIDTH until it catches up.
+                /**
+                 * Any accumulated leftward drag from collapsed state — reveal the
+                 * panel at minimum width immediately. targetWidth keeps accumulating
+                 * naturally; the panel stays at MIN_PANEL_WIDTH until it catches up.
+                 */
                 expand();
                 panel.style.width = `${MIN_PANEL_WIDTH}px`;
             } else if (!isCollapsed && targetWidth <= 0) {
-                // User dragged all the way back to the starting point — collapse.
+                /**
+                 * User dragged all the way back to the starting point — collapse.
+                 */
                 collapse();
             }
         } else {
@@ -267,7 +273,7 @@ export function initResizer(): PropertiesPanelHandle {
         }
     });
 
-    /** End the resize operation and restore default pointer behaviour. */
+    // End the resize operation and restore default pointer behaviour.
     document.addEventListener("mouseup", () => {
         if (!isResizing) {
             return;

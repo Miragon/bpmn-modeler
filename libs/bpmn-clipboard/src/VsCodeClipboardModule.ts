@@ -16,9 +16,9 @@ import { createReviver } from "bpmn-js-native-copy-paste/lib/PasteUtil.js";
  * extension host.
  */
 export interface ClipboardBridge {
-    /** Reads clipboard text from the extension host. */
+    // Reads clipboard text from the extension host.
     requestClipboard: () => Promise<string>;
-    /** Writes text to the system clipboard via the extension host. */
+    // Writes text to the system clipboard via the extension host.
     writeClipboard: (text: string) => void;
 }
 
@@ -91,8 +91,10 @@ class VsCodeClipboard {
             // Store for the synchronous copy-event path.
             pendingClipData = serialized;
 
-            // Also write via the async extension host postMessage path as a
-            // backup (handles cases where no copy event fires).
+            /**
+             * Also write via the async extension host postMessage path as a
+             * backup (handles cases where no copy event fires).
+             */
             writeClipboard(serialized);
 
             context.hints = context.hints || {};

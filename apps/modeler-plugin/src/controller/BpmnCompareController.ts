@@ -4,14 +4,14 @@ import { CompareSelectionStore } from "../infrastructure/CompareSelectionStore";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 
-/** VS Code command ID for the first step of a two-file BPMN compare. */
+// VS Code command ID for the first step of a two-file BPMN compare.
 const SELECT_FOR_COMPARE_CMD = "bpmn-modeler.selectForCompare";
-/** VS Code command ID for the second step — compares the given URI against the stored selection. */
+// VS Code command ID for the second step — compares the given URI against the stored selection.
 const COMPARE_WITH_SELECTED_CMD = "bpmn-modeler.compareWithSelected";
-/** VS Code command ID for the single-step compare driven by an Explorer multi-selection of exactly two files. */
+// VS Code command ID for the single-step compare driven by an Explorer multi-selection of exactly two files.
 const COMPARE_SELECTED_CMD = "bpmn-modeler.compareSelected";
 
-/** How long the status-bar acknowledgement sits before fading. */
+// How long the status-bar acknowledgement sits before fading.
 const STATUS_MESSAGE_TIMEOUT_MS = 3_000;
 
 /**
