@@ -43,6 +43,7 @@ export default withMermaid(defineConfig({
                         { text: "Overview", link: "/vscode/features/" },
                         { text: "Append Menu", link: "/vscode/features/append-menu" },
                         { text: "BPMN Diff", link: "/vscode/features/bpmn-diff" },
+                        { text: "Inline Scripting", link: "/vscode/features/inline-scripting" },
                         { text: "Deployment", link: "/vscode/features/deployment" },
                         {
                             text: "Element Template Chooser",
@@ -74,6 +75,10 @@ export default withMermaid(defineConfig({
                                 {
                                     text: "BPMN Diff",
                                     link: "/vscode/contributing/architecture/bpmn-diff",
+                                },
+                                {
+                                    text: "Inline Scripting",
+                                    link: "/vscode/contributing/architecture/inline-scripting",
                                 },
                                 {
                                     text: "Copy & Paste",
