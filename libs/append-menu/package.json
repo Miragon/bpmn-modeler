@@ -7,13 +7,13 @@
     },
     "dependencies": {
         "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
-        "preact": "10.29.1"
+        "preact": "10.29.2"
     },
     "peerDependencies": {
-        "bpmn-js": "18.15.0"
+        "bpmn-js": "18.16.1"
     },
     "devDependencies": {
-        "bpmn-js": "18.15.0",
+        "bpmn-js": "18.16.1",
         "typescript": "6.0.3"
     }
 }
