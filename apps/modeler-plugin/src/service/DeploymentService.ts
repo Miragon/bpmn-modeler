@@ -1,7 +1,7 @@
 import * as path from "path";
 import { Uri, window, workspace } from "vscode";
 
-import { AuthConfigPayload, DeploymentFormDefaults } from "@miragon/bpmn-modeler-shared";
+import { AuthConfigPayload, DeploymentFormDefaults, Engine } from "@miragon/bpmn-modeler-shared";
 
 import { DeploymentConfig, DeploymentResult } from "../domain/deployment";
 import { CamundaEnginePort } from "../domain/ports";
@@ -56,7 +56,7 @@ export class DeploymentService {
      */
     getFormDefaults(activeEditorId: string): DeploymentFormDefaults {
         let deploymentName = "";
-        let engine: "c7" | "c8" = "c7";
+        let engine: Engine = "c7";
 
         try {
             const filePath = this.vsDocument.getFilePath(activeEditorId);
@@ -195,17 +195,11 @@ export class DeploymentService {
         }
     }
 
-    // ─── Private helpers ─────────────────────────────────────────────────────
-
     /**
-     * Detects the execution platform (`"c7"` or `"c8"`) from the content of
-     * the active BPMN document by delegating to {@link detectExecutionPlatform}.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @returns `"c7"` or `"c8"`.
-     * @throws If the editor is not found or detection fails.
+     * @throws If the editor is not found or the execution platform cannot
+     *   be detected from the document content.
      */
-    private detectEngine(editorId: string): "c7" | "c8" {
+    private detectEngine(editorId: string): Engine {
         const content = this.vsDocument.getContent(editorId);
         return detectExecutionPlatform(content);
     }
@@ -225,7 +219,9 @@ export class DeploymentService {
         const mainContent = await this.vsWorkspace.readFile(config.mainFilePath);
         contents.set(path.basename(config.mainFilePath), mainContent);
 
-        // Read all additional files.
+        /**
+         * Read all additional files.
+         */
         for (const filePath of config.additionalFilePaths) {
             const content = await this.vsWorkspace.readFile(filePath);
             contents.set(path.basename(filePath), content);

@@ -23,7 +23,7 @@ export class BpmnScriptFileSystem implements FileSystemProvider {
 
     private readonly _onDidChangeFile = new EventEmitter<FileChangeEvent[]>();
 
-    /** Event fired when a virtual file is created, changed, or deleted. */
+    // Event fired when a virtual file is created, changed, or deleted.
     readonly onDidChangeFile: Event<FileChangeEvent[]> = this._onDidChangeFile.event;
 
     /**

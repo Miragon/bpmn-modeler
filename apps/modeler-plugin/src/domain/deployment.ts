@@ -1,34 +1,18 @@
 import { InvalidDeploymentConfigError } from "./errors";
 
-// ─── Auth value objects ─────────────────────────────────────────────────────
-
-/**
- * Discriminated union of supported authentication strategies.
- *
- * Designed for extension: add new variants (e.g. `OAuth2Auth`) without
- * modifying existing code.
- */
+import { Engine } from "@miragon/bpmn-modeler-shared";
 export type AuthConfig = NoAuth | BasicAuth | OAuth2Auth;
 
-/** No authentication requests are sent without an `Authorization` header. */
 export class NoAuth {
-    /** Discriminant for the {@link AuthConfig} union. */
     readonly type = "none" as const;
 }
 
 /**
- * HTTP Basic authentication.
- *
- * Credentials are sent as `Authorization: Basic base64(username:password)`.
+ * Sent as `Authorization: Basic base64(username:password)`.
  */
 export class BasicAuth {
-    /** Discriminant for the {@link AuthConfig} union. */
     readonly type = "basic" as const;
 
-    /**
-     * @param username The Basic Auth username.
-     * @param password The Basic Auth password.
-     */
     constructor(
         readonly username: string,
         readonly password: string,
@@ -36,21 +20,12 @@ export class BasicAuth {
 }
 
 /**
- * OAuth2 Client Credentials authentication.
- *
- * An access token is fetched from `tokenEndpoint` using the client credentials
- * grant and sent as `Authorization: Bearer <token>`.
+ * OAuth2 Client Credentials grant: an access token is fetched from
+ * `tokenEndpoint` and sent as `Authorization: Bearer <token>`.
  */
 export class OAuth2Auth {
-    /** Discriminant for the {@link AuthConfig} union. */
     readonly type = "oauth2" as const;
 
-    /**
-     * @param clientId The OAuth2 client identifier.
-     * @param clientSecret The OAuth2 client secret.
-     * @param tokenEndpoint URL of the token endpoint that issues access tokens.
-     * @param audience The target audience for the token (may be empty).
-     */
     constructor(
         readonly clientId: string,
         readonly clientSecret: string,
@@ -59,13 +34,8 @@ export class OAuth2Auth {
     ) {}
 }
 
-// ─── Deployment config ──────────────────────────────────────────────────────
-
 /**
- * Value object representing a validated deployment configuration.
- *
- * All fields are immutable after construction. Use {@link DeploymentConfigBuilder}
- * to construct instances with validation.
+ * Use {@link DeploymentConfigBuilder} to construct instances with validation.
  */
 export class DeploymentConfig {
     /**
@@ -82,7 +52,7 @@ export class DeploymentConfig {
         readonly deploymentName: string,
         readonly tenantId: string,
         readonly endpoint: string,
-        readonly engine: "c7" | "c8",
+        readonly engine: Engine,
         readonly mainFilePath: string,
         readonly additionalFilePaths: string[],
         readonly auth: AuthConfig = new NoAuth(),
@@ -102,7 +72,7 @@ export class DeploymentConfigBuilder {
 
     private _endpoint = "";
 
-    private _engine: "c7" | "c8" = "c7";
+    private _engine: Engine = "c7";
 
     private _mainFilePath = "";
 
@@ -149,7 +119,7 @@ export class DeploymentConfigBuilder {
      * @param engine `"c7"` for Camunda Platform 7, `"c8"` for Camunda Cloud 8.
      * @returns `this` for chaining.
      */
-    withEngine(engine: "c7" | "c8"): this {
+    withEngine(engine: Engine): this {
         this._engine = engine;
         return this;
     }

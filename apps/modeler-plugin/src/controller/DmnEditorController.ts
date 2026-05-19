@@ -14,7 +14,7 @@ import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { DmnModelerService } from "../service/DmnModelerService";
 
-/** VS Code view-type identifier for the DMN custom editor. */
+// VS Code view-type identifier for the DMN custom editor.
 const DMN_VIEW_TYPE = "bpmn-modeler.dmn";
 
 /**
@@ -80,12 +80,8 @@ export class DmnEditorController implements CustomTextEditorProvider {
         }
     }
 
-    // ─── Private subscription helpers ────────────────────────────────────────
-
     /**
      * Routes incoming DMN webview messages to the appropriate service method.
-     *
-     * @param editorId Document URI path of the editor whose webview to listen to.
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {

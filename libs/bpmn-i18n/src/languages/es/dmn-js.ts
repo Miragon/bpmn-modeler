@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * This file contains the translated strings used in the dmn-js component.
- */
+// This file contains the translated strings used in the dmn-js component.
 const translations: Record<string, string> = {
     "-": "-",
     "Activate hand tool": "Activar herramienta de mano",

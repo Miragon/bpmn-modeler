@@ -11,10 +11,14 @@ export interface DiffLegendCallbacks {
     onSwap: () => void;
 }
 
-/** Dictionary key rendered as a count slot's label. */
+/**
+ * Dictionary key rendered as a count slot's label.
+ */
 type SlotKey = "Added" | "Removed" | "Changed" | "Moved";
 
-/** Per-update info the legend needs about its host session. */
+/**
+ * Per-update info the legend needs about its host session.
+ */
 export interface DiffLegendContext {
     readonly counts: DiffCounts;
     /**
@@ -58,7 +62,7 @@ export class DiffLegend {
 
     private readonly swapButton: HTMLButtonElement;
 
-    /** Latest context passed to {@link update}, kept so {@link renderLabels} can redraw on language change. */
+    // Latest context passed to {@link update}, kept so {@link renderLabels} can redraw on language change.
     private context: DiffLegendContext = {
         counts: { added: 0, removed: 0, changed: 0, layoutChanged: 0 },
         origin: "scm",
@@ -130,8 +134,6 @@ export class DiffLegend {
 
         this.root.style.display = "flex";
     }
-
-    // ─── Private helpers ─────────────────────────────────────────────────────
 
     private makeCountSlot(parent: HTMLElement, kind: string): HTMLElement {
         const slot = document.createElement("div");

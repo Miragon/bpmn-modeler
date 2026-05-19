@@ -12,16 +12,17 @@ import { diff } from "bpmn-js-differ";
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
-    buildFlowOrder,
-    buildRemovedAnchors,
     Command,
     CursorChangedCommand,
     DiffCounts,
+    Engine,
     LanguageQuery,
-    sortIdsByOrder,
     SyncCursorQuery,
     SyncViewportQuery,
     ViewportChangedCommand,
+    buildFlowOrder,
+    buildRemovedAnchors,
+    sortIdsByOrder,
 } from "@miragon/bpmn-modeler-shared";
 
 import {
@@ -97,7 +98,7 @@ interface PendingScmPane {
  *      its partner so panning, zooming, and stepper navigation stay in sync.
  */
 export class BpmnDiffService {
-    /** Every live session, keyed by `${beforeUri}|${afterUri}`. */
+    // Every live session, keyed by `${beforeUri}|${afterUri}`.
     private readonly sessions = new Map<string, DiffSession>();
 
     /**
@@ -120,7 +121,7 @@ export class BpmnDiffService {
      */
     private readonly ttlTimers = new Map<DiffSession, ReturnType<typeof setTimeout>>();
 
-    /** Dispose handle for the language-setting change subscription. */
+    // Dispose handle for the language-setting change subscription.
     private languageSubscription?: Disposable;
 
     /**
@@ -138,7 +139,9 @@ export class BpmnDiffService {
         );
     }
 
-    /** Releases the language-setting subscription and any armed TTL timers. */
+    /**
+     * Releases the language-setting subscription and any armed TTL timers.
+     */
     dispose(): void {
         this.languageSubscription?.dispose();
         this.languageSubscription = undefined;
@@ -324,8 +327,6 @@ export class BpmnDiffService {
         bootstrapWebview(BPMN_VIEW_TYPE, panel);
     }
 
-    // ─── Private ─────────────────────────────────────────────────────────────
-
     /**
      * Either pairs `entry` with a pending SCM pane that shares its path
      * (promoting both into a full {@link DiffSession}) or stashes `entry`
@@ -401,7 +402,9 @@ export class BpmnDiffService {
     }
 
     private disposePane(entry: DiffPaneEntry): void {
-        // Drop from pending (no session ever formed)
+        /**
+         * Drop from pending (no session ever formed)
+         */
         for (const [key, pending] of this.pendingScm) {
             if (pending.entry === entry) {
                 this.pendingScm.delete(key);
@@ -478,7 +481,7 @@ export class BpmnDiffService {
     private async sendViewerFile(entry: DiffPaneEntry): Promise<void> {
         try {
             const content = entry.document.getText();
-            let engine: "c7" | "c8";
+            let engine: Engine;
             try {
                 engine = detectExecutionPlatform(content);
             } catch {

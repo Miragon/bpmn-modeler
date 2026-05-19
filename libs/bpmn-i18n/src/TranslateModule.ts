@@ -11,7 +11,7 @@
 
 import { dictionaries, type SupportedLocale } from "./languages";
 
-/** Set of template keys already reported as missing, to avoid log spam. */
+// Set of template keys already reported as missing, to avoid log spam.
 const missingKeys = new Set<string>();
 
 /**

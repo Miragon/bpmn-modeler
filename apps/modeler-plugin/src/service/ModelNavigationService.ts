@@ -4,10 +4,10 @@ import { VsCodeUI } from "../infrastructure/VsCodeUI";
 
 import { ReferencedModelLocator } from "./modelNavigation/ReferencedModelLocator";
 
-/** Maximum length of a reference id echoed back into a user-facing notification. */
+// Maximum length of a reference id echoed back into a user-facing notification.
 const REFERENCE_ID_DISPLAY_LIMIT = 100;
 
-/** Tighter cap for the status-bar progress label — it's space-constrained. */
+// Tighter cap for the status-bar progress label — it's space-constrained.
 const PROGRESS_LABEL_LIMIT = 40;
 
 /**

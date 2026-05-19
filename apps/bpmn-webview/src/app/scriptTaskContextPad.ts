@@ -29,7 +29,7 @@ export interface OpenScriptEditorEvent {
     readonly content: string;
 }
 
-/** Event-bus event name shared by the context pad and properties panel. */
+// Event-bus event name shared by the context pad and properties panel.
 export const OPEN_SCRIPT_EDITOR_EVENT = "scriptEditor.open";
 
 /**

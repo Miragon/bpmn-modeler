@@ -22,7 +22,9 @@ import { EditorStore } from "../infrastructure/EditorStore";
 import { BpmnScriptFileSystem } from "../infrastructure/BpmnScriptFileSystem";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 
-/** Tracks an open virtual script document. */
+/**
+ * Tracks an open virtual script document.
+ */
 interface OpenDocument {
     readonly editorId: string;
     readonly elementId: string;
@@ -31,7 +33,9 @@ interface OpenDocument {
     readonly uri: Uri;
 }
 
-/** Quick-Pick item for the script-language prompt. */
+/**
+ * Quick-Pick item for the script-language prompt.
+ */
 interface ScriptLanguageItem extends QuickPickItem {
     readonly format: string;
 }
@@ -57,10 +61,10 @@ interface ScriptLanguageItem extends QuickPickItem {
  * correct moddle property and persist via the bpmn-js command stack.
  */
 export class ScriptTaskService {
-    /** Open virtual documents keyed by URI path. */
+    // Open virtual documents keyed by URI path.
     private readonly openDocuments = new Map<string, OpenDocument>();
 
-    /** URI paths currently being written by us — used for echo prevention. */
+    // URI paths currently being written by us — used for echo prevention.
     private readonly writingGuard = new Set<string>();
 
     /**
@@ -146,7 +150,9 @@ export class ScriptTaskService {
         );
         const scriptUri = Uri.parse(`bpmn-script:/${editorHash}/${elementId}/${slug}/${filename}`);
 
-        // Already open: just reveal the existing editor.
+        /**
+         * Already open: just reveal the existing editor.
+         */
         if (this.openDocuments.has(scriptUri.path)) {
             const doc = await workspace.openTextDocument(scriptUri);
             await window.showTextDocument(doc, ViewColumn.Beside, true);
@@ -213,17 +219,21 @@ export class ScriptTaskService {
                         content,
                     ),
                 );
-                // The user may have closed the script tab while the BPMN
-                // webview was hidden — `cleanupClosedScript` deferred the
-                // cleanup until we replayed. Now that we have, finish it.
+                /**
+                 * The user may have closed the script tab while the BPMN
+                 * webview was hidden — `cleanupClosedScript` deferred the
+                 * cleanup until we replayed. Now that we have, finish it.
+                 */
                 if (!this.isUriOpenInAnyTab(entry.uri)) {
                     deferredCleanups.push(entry.uri);
                 }
             } catch (error) {
-                // The webview can transition back to hidden between the
-                // reload signal and our replay (e.g. user clicks another
-                // tab mid-resync). Re-arm pendingResync so the next reload
-                // tries again rather than dropping the edit permanently.
+                /**
+                 * The webview can transition back to hidden between the
+                 * reload signal and our replay (e.g. user clicks another
+                 * tab mid-resync). Re-arm pendingResync so the next reload
+                 * tries again rather than dropping the edit permanently.
+                 */
                 if (error instanceof Error && error.message === "The active editor is hidden.") {
                     this.pendingResync.add(editorId);
                 } else {
@@ -277,12 +287,8 @@ export class ScriptTaskService {
         this.scriptFs.deleteByPrefix(prefix);
     }
 
-    // ─── Private helpers ─────────────────────────────────────────────────────
-
     /**
-     * Cleans up tracking state when the user closes a virtual script tab.
-     *
-     * We listen to tab events rather than `workspace.onDidCloseTextDocument`
+     * Tab events are used instead of `workspace.onDidCloseTextDocument`
      * because the latter fires only when VS Code actually disposes the
      * `TextDocument` — disposal is debounced so the doc lingers in an
      * internal cache after the tab closes (so quick reopens are cheap).
@@ -320,17 +326,21 @@ export class ScriptTaskService {
             return;
         }
 
-        // Tab moves between groups arrive as a close + open pair for the
-        // same URI; if the URI is still open in another tab, this was a
-        // move and the entry must stay alive for keystroke tracking.
+        /**
+         * Tab moves between groups arrive as a close + open pair for the
+         * same URI; if the URI is still open in another tab, this was a
+         * move and the entry must stay alive for keystroke tracking.
+         */
         if (this.isUriOpenInAnyTab(uri)) {
             return;
         }
 
-        // Real close, but the BPMN webview was hidden when the user typed
-        // — `pendingResync` carries the buffered edit, and the only copy
-        // of its content is the virtual file. Defer cleanup until the
-        // resync runs so it can read scriptFs and replay before we delete.
+        /**
+         * Real close, but the BPMN webview was hidden when the user typed
+         * — `pendingResync` carries the buffered edit, and the only copy
+         * of its content is the virtual file. Defer cleanup until the
+         * resync runs so it can read scriptFs and replay before we delete.
+         */
         if (this.pendingResync.has(entry.editorId)) {
             return;
         }
@@ -392,10 +402,12 @@ export class ScriptTaskService {
                 ),
             );
         } catch (error) {
-            // VS Code throws "The active editor is hidden." when the
-            // webview's tab isn't visible. The user may still be typing in
-            // the virtual editor, so we mark the editor and replay all
-            // open documents on the next reload via `resyncOpenDocuments`.
+            /**
+             * VS Code throws "The active editor is hidden." when the
+             * webview's tab isn't visible. The user may still be typing in
+             * the virtual editor, so we mark the editor and replay all
+             * open documents on the next reload via `resyncOpenDocuments`.
+             */
             if (error instanceof Error && error.message === "The active editor is hidden.") {
                 this.pendingResync.add(entry.editorId);
             } else {

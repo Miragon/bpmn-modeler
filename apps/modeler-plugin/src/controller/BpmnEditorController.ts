@@ -29,7 +29,7 @@ import { ModelNavigationService } from "../service/ModelNavigationService";
 import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
-/** VS Code view-type identifier for the BPMN custom editor. */
+// VS Code view-type identifier for the BPMN custom editor.
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
 
 /**
@@ -96,14 +96,16 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         _token: CancellationToken,
     ): Promise<void> {
         try {
-            // Diff branch: the service decides whether this URI should
-            // resolve as a diff pane.  It checks, in order: a pre-registered
-            // `compare-files` session (our own command), `git:` scheme
-            // (always readonly, always SCM), or the label-based SCM diff
-            // heuristic — while also guarding against a *second* resolve
-            // for a URI that already has a pane (e.g. user opens the
-            // working-tree file in a normal editor tab while the SCM diff
-            // is still open).
+            /**
+             * Diff branch: the service decides whether this URI should
+             * resolve as a diff pane.  It checks, in order: a pre-registered
+             * `compare-files` session (our own command), `git:` scheme
+             * (always readonly, always SCM), or the label-based SCM diff
+             * heuristic — while also guarding against a *second* resolve
+             * for a URI that already has a pane (e.g. user opens the
+             * working-tree file in a normal editor tab while the SCM diff
+             * is still open).
+             */
             if (this.diffService.shouldResolveAsDiff(document.uri)) {
                 this.diffService.resolveDiffPane(webviewPanel, document);
                 return;
@@ -150,8 +152,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             this.vsUI.logError(error as Error);
         }
     }
-
-    // ─── Private subscription helpers ────────────────────────────────────────
 
     /**
      * Routes incoming webview messages to the appropriate service method.
@@ -216,9 +216,11 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                 }
                 case "NavigateToReferencedModelCommand": {
                     const cmd = message as NavigateToReferencedModelCommand;
-                    // Defence-in-depth: reject unknown discriminants
-                    // rather than letting them fall through to the
-                    // decision branch by default.
+                    /**
+                     * Defence-in-depth: reject unknown discriminants
+                     * rather than letting them fall through to the
+                     * decision branch by default.
+                     */
                     if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
                         this.vsUI.logWarning(
                             `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(

@@ -35,7 +35,9 @@ export function matchMemberAccess(linePrefix: string): string | undefined {
  */
 export function parseKindFromUri(path: string): ScriptKind | undefined {
     const segments = path.split("/").filter(Boolean);
-    // We need at least <hash>/<elementId>/<slug>/<file>.
+    /**
+     * We need at least <hash>/<elementId>/<slug>/<file>.
+     */
     if (segments.length < 4) {
         return undefined;
     }

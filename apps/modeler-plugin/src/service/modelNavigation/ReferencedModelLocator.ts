@@ -25,7 +25,7 @@ const EXCLUDED_DIRS: ReadonlySet<string> = new Set([
     ".hg",
 ]);
 
-/** Max length of a reference id echoed back into a user-facing log line. */
+// Max length of a reference id echoed back into a user-facing log line.
 const ID_DISPLAY_LIMIT = 100;
 
 /**
@@ -171,7 +171,9 @@ export class ReferencedModelLocator {
         return out;
     }
 
-    /** Where to root the walk fallback.  Best-effort. */
+    /**
+     * Where to root the walk fallback.  Best-effort.
+     */
     private pickWalkRoot(sourceDocumentUri: Uri | undefined): string | undefined {
         if (sourceDocumentUri) {
             const folder = workspace.getWorkspaceFolder(sourceDocumentUri);

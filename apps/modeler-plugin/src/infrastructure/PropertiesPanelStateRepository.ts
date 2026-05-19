@@ -1,6 +1,6 @@
 import { ExtensionContext } from "vscode";
 
-/** Key used to persist the panel visibility in `context.globalState`. */
+// Key used to persist the panel visibility in `context.globalState`.
 const PANEL_VISIBLE_KEY = "propertiesPanelVisible";
 
 /**

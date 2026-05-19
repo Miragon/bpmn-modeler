@@ -7,7 +7,9 @@ import type {
     TemplateProperty,
 } from "@miragon/bpmn-modeler-element-template-chooser";
 
-// Re-export for use in components.
+/**
+ * Re-export for use in components.
+ */
 export type { TemplateProperty };
 
 /**
@@ -280,7 +282,9 @@ export function extractImplementationDetail(
 
 // ─── Binding direction classification ─────────────────────────────────────
 
-/** Direction category for a template property binding. */
+/**
+ * Direction category for a template property binding.
+ */
 export type BindingDirection = "input" | "output" | "property" | "hidden";
 
 /**

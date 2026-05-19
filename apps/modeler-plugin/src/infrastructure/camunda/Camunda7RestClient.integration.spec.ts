@@ -20,7 +20,7 @@ describe("Camunda7RestClient (integration)", () => {
     let server: http.Server;
     let baseUrl: string;
 
-    /** Handler installed per-test; receives the raw request and body buffer. */
+    // Handler installed per-test; receives the raw request and body buffer.
     let handler: (req: http.IncomingMessage, body: Buffer, res: http.ServerResponse) => void;
 
     beforeAll(async () => {
@@ -162,7 +162,9 @@ describe("Camunda7RestClient (integration)", () => {
         let deployAuthHeader: string | undefined;
 
         handler = (req, body, res) => {
-            // Token endpoint
+            /**
+             * Token endpoint
+             */
             if (req.url === "/oauth/token") {
                 const params = new URLSearchParams(body.toString("utf-8"));
                 expect(params.get("grant_type")).toBe("client_credentials");

@@ -3,14 +3,16 @@ import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
 import { Viewport } from "@miragon/bpmn-modeler-shared";
 
-/** CSS class applied to each element category on the canvas. */
+/**
+ * CSS class applied to each element category on the canvas.
+ */
 export type DiffMarkerClass =
     | "diff-added"
     | "diff-removed"
     | "diff-changed"
     | "diff-layout-changed";
 
-/** CSS class applied to the element currently targeted by the stepper. */
+// CSS class applied to the element currently targeted by the stepper.
 const DIFF_SELECTED_CLASS = "diff-selected";
 
 /**
@@ -68,7 +70,9 @@ export class DiffViewer {
         }
     }
 
-    /** Removes all diff markers (including the stepper selection) from the canvas. */
+    /**
+     * Removes all diff markers (including the stepper selection) from the canvas.
+     */
     clearHighlights(): void {
         const canvas = this.getCanvas();
         const registry = this.viewer.get<any>("elementRegistry");
@@ -173,7 +177,9 @@ export class DiffViewer {
         return true;
     }
 
-    /** Returns `true` when `id` is present in this pane's element registry. */
+    /**
+     * Returns `true` when `id` is present in this pane's element registry.
+     */
     hasElement(id: string): boolean {
         const registry = this.viewer.get<any>("elementRegistry");
         return !!registry.get(id);

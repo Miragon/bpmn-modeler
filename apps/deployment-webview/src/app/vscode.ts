@@ -15,7 +15,9 @@ import {
 
 declare const process: { env: { NODE_ENV: string } };
 
-/** Shape of the data persisted via `vscode.setState` / `vscode.getState`. */
+/**
+ * Shape of the data persisted via `vscode.setState` / `vscode.getState`.
+ */
 export interface WebviewState {
     formData?: Record<string, string>;
     collapsedSections?: string[];

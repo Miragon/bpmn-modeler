@@ -8,7 +8,9 @@
 import { DeploymentConfig, DeploymentResult } from "./deployment";
 import { StartInstanceConfig, StartInstanceResult } from "./startInstance";
 
-/** Immutable representation of an HTTP response. */
+/**
+ * Immutable representation of an HTTP response.
+ */
 export interface HttpResponse {
     readonly status: number;
     readonly body: string;

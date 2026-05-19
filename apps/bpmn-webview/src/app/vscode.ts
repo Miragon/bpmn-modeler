@@ -100,7 +100,9 @@ const MOCK_BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-/** Canvas position and zoom level captured from diagram-js. */
+/**
+ * Canvas position and zoom level captured from diagram-js.
+ */
 export interface ViewportData {
     x: number;
     y: number;
@@ -108,11 +110,13 @@ export interface ViewportData {
     height: number;
 }
 
-/** Shape of the data persisted via `vscode.setState` / `vscode.getState`. */
+/**
+ * Shape of the data persisted via `vscode.setState` / `vscode.getState`.
+ */
 export interface WebviewState {
     viewport?: ViewportData;
     selectedElementIds?: string[];
-    /** Scroll position of `.bio-properties-panel-scroll-container`. */
+    // Scroll position of `.bio-properties-panel-scroll-container`.
     panelScroll?: number;
     /**
      * Indexes (in render order) of `.bio-properties-panel-group` elements
@@ -152,7 +156,9 @@ export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
  */
 type DevMode = "modeler" | "diff-before" | "diff-after";
 
-/** Pre-computed diff sliced per side — cached on the mock instance. */
+/**
+ * Pre-computed diff sliced per side — cached on the mock instance.
+ */
 interface CachedDiff {
     before: {
         removed: string[];
@@ -165,7 +171,7 @@ interface CachedDiff {
         layoutChanged: string[];
     };
     counts: DiffCounts;
-    /** Pre-merged sequence-flow order shared by both panes. */
+    // Pre-merged sequence-flow order shared by both panes.
     navigationOrder: string[];
 }
 
@@ -326,8 +332,6 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
             );
         }
     }
-
-    // ─── Private — mode-aware handlers ───────────────────────────────────────
 
     private handleGetBpmnFile(): void {
         switch (this.devMode) {

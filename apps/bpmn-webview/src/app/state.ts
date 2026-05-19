@@ -9,8 +9,6 @@ const PANEL_GROUP_OPEN_CLASS = "open";
 const SCROLL_DEBOUNCE_MS = 100;
 
 /**
- * Returns whether the given properties-panel group is currently expanded.
- *
  * `@bpmn-io/properties-panel` puts the `open` class on the header child,
  * never on the group root — and the body element differs between regular
  * groups (`.bio-properties-panel-group-entries`) and list groups
@@ -23,13 +21,11 @@ function isGroupOpen(group: HTMLElement): boolean {
 }
 
 /**
- * Manages webview state persistence and restoration across VS Code tab switches.
- *
  * Lifecycle phases (call in order):
  * 1. {@link restoreViewport}       — after importXML (canvas must exist)
  * 2. {@link restoreSelection}      — after element templates + settings applied
  * 3. {@link restorePanelUiState}   — after properties panel is rendered
- * 4. {@link startPersisting}       — subscribes to change events for ongoing persistence
+ * 4. {@link startPersisting}       — subscribes to change events
  */
 export class WebviewStateManager {
     constructor(
@@ -38,8 +34,7 @@ export class WebviewStateManager {
     ) {}
 
     /**
-     * Restores the saved viewport (pan/zoom) if one exists in webview state.
-     * Must be called after importXML because the canvas does not exist before that.
+     * Must be called after importXML — the canvas does not exist before that.
      */
     restoreViewport(): void {
         const saved = this.getSavedState();
@@ -49,7 +44,6 @@ export class WebviewStateManager {
     }
 
     /**
-     * Restores the saved element selection if one exists in webview state.
      * Must be called after element templates and settings have been applied
      * so their side-effects do not clear the restored selection.
      */
@@ -61,9 +55,8 @@ export class WebviewStateManager {
     }
 
     /**
-     * Restores the properties-panel UI state (expanded groups + scroll) in a
-     * single coordinated pass.  Must be called after the resizer has made
-     * the panel visible so the scroll container exists in the DOM.
+     * Must be called after the resizer has made the panel visible — the
+     * scroll container does not exist in the DOM before then.
      *
      * Order matters: groups are toggled first, then scroll is applied on a
      * follow-up frame so Preact has flushed the click-induced re-renders.
@@ -97,9 +90,11 @@ export class WebviewStateManager {
                 });
             }
             if (savedScroll != null) {
-                // Second rAF waits for Preact to commit the click-induced
-                // re-renders; only then has scrollHeight grown to fit the
-                // restored open groups so scrollTop lands where the user left it.
+                /**
+                 * Second rAF waits for Preact to commit the click-induced
+                 * re-renders; only then has scrollHeight grown to fit the
+                 * restored open groups so scrollTop lands where the user left it.
+                 */
                 requestAnimationFrame(() => {
                     container.scrollTop = savedScroll;
                 });
@@ -107,10 +102,6 @@ export class WebviewStateManager {
         });
     }
 
-    /**
-     * Subscribes to viewport, selection, scroll, and group-expansion changes
-     * and persists them to webview state so they survive the next tab switch.
-     */
     startPersisting(): void {
         this.modeler.viewport.onViewportChanged((viewport) => {
             this.persistPartialState({ viewport });
@@ -124,10 +115,6 @@ export class WebviewStateManager {
         this.subscribeGroupExpansion();
     }
 
-    /**
-     * Reads previously saved webview state, returning `undefined` when no
-     * state has been set yet (first open).
-     */
     private getSavedState(): WebviewState | undefined {
         try {
             return this.vscode.getState();
@@ -137,10 +124,7 @@ export class WebviewStateManager {
     }
 
     /**
-     * Merges a partial update into the persisted webview state.
      * Falls back to a full `setState` when no prior state exists.
-     *
-     * @param partial The state fields to persist.
      */
     private persistPartialState(partial: Partial<WebviewState>): void {
         try {
@@ -151,9 +135,8 @@ export class WebviewStateManager {
     }
 
     /**
-     * Wires a debounced scroll listener on the properties panel.  Debounced
-     * because each pixel of mouse-wheel scroll emits an event; setState
-     * synchronously writes to VS Code's workspace storage.
+     * Debounced because each pixel of mouse-wheel scroll emits an event and
+     * `setState` synchronously writes to VS Code workspace storage.
      */
     private subscribePanelScroll(): void {
         const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
@@ -170,14 +153,10 @@ export class WebviewStateManager {
     }
 
     /**
-     * Wires a MutationObserver on group `class` attributes so expand /
-     * collapse toggles (which the library does via internal Preact state, no
-     * public event) are mirrored into persisted state.
-     *
-     * The `open` class lives on the header child of each group, not on the
-     * group root, so the filter only accepts class mutations on
-     * `.bio-properties-panel-group-header` — discarding unrelated class
-     * changes elsewhere in the panel subtree (input focus, hover, etc.).
+     * The library exposes no public event for expand/collapse toggles, so a
+     * MutationObserver on the group header `class` attribute is the only
+     * reliable signal. Other class mutations (input focus, hover, …) are
+     * discarded by filtering for `.bio-properties-panel-group-header`.
      */
     private subscribeGroupExpansion(): void {
         const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);

@@ -5,6 +5,8 @@
  * and can therefore be tested in isolation.
  */
 
+import { Engine } from "@miragon/bpmn-modeler-shared";
+
 import { ExecutionPlatformNotDetectedError } from "../domain/errors";
 
 /**
@@ -60,7 +62,7 @@ export function addExecutionPlatform(
  * @throws {Error} If the execution platform version is unsupported.
  * @throws {Error} If the execution platform cannot be detected.
  */
-export function detectExecutionPlatform(bpmnFile: string): "c7" | "c8" {
+export function detectExecutionPlatform(bpmnFile: string): Engine {
     const regexExecutionPlatform = /modeler:executionPlatformVersion="([78])\.\d+\.\d+"/;
     const match = bpmnFile.match(regexExecutionPlatform);
 
@@ -176,7 +178,7 @@ export function updateExecutionPlatformVersion(bpmnFile: string, newVersion: str
     );
 }
 
-/** Empty DMN diagram used when opening a new blank `.dmn` file. */
+// Empty DMN diagram used when opening a new blank `.dmn` file.
 export const EMPTY_DMN_DIAGRAM = `
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_1y42u6n" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.8.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.18.0">

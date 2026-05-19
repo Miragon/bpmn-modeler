@@ -37,10 +37,20 @@ import { Command, Query } from "./messages";
  */
 export type BpmnViewerMode = "modeler" | "viewer";
 
+/**
+ * Camunda engine identifier used by the BPMN modeler.
+ *
+ * `"c7"` — Camunda Platform 7. `"c8"` — Camunda Cloud 8.
+ *
+ * Defined as a string union so values stay JSON-serializable across the
+ * extension-host ↔ webview message protocol.
+ */
+export type Engine = "c7" | "c8";
+
 export class BpmnFileQuery extends Query {
     public readonly content: string;
 
-    public readonly engine: "c7" | "c8";
+    public readonly engine: Engine;
 
     /**
      * Rendering mode. Defaults to `"modeler"` for backward compatibility; set
@@ -50,7 +60,7 @@ export class BpmnFileQuery extends Query {
 
     constructor(
         content: string,
-        engine: "c7" | "c8",
+        engine: Engine,
         viewerMode: BpmnViewerMode = "modeler",
     ) {
         super("BpmnFileQuery");
@@ -82,7 +92,7 @@ export interface BpmnModelerSetting {
     readonly alignToOrigin: boolean;
     readonly showTransactionBoundaries: boolean;
     readonly colorTheme: "automatic" | "light";
-    /** BPMN type strings to pin at the top of the append menu palette (max 6). */
+    // BPMN type strings to pin at the top of the append menu palette (max 6).
     readonly favouriteBpmnElements?: string[];
 }
 
@@ -200,7 +210,9 @@ export class UpdateScriptContentQuery extends Query {
     }
 }
 
-/** Delivers the user's language selection to the webview for live translation. */
+/**
+ * Delivers the user's language selection to the webview for live translation.
+ */
 export class LanguageQuery extends Query {
     public readonly locale: string;
 
@@ -210,9 +222,11 @@ export class LanguageQuery extends Query {
     }
 }
 
-// <================================== Queries ===================================
-//
-// =================================== Commands ==================================>
+/**
+ * <================================== Queries ===================================
+ *
+ * =================================== Commands ==================================>
+ */
 export class GetBpmnFileCommand extends Command {
     constructor() {
         super("GetBpmnFileCommand");
@@ -367,7 +381,9 @@ export class OpenScriptEditorCommand extends Command {
 
 // <================================== Commands ===================================
 
-// =================================== Errors ==================================>
+/**
+ * =================================== Errors ==================================>
+ */
 export class NoModelerError extends Error {
     constructor() {
         super("Modeler is not initialized!");
@@ -395,10 +411,14 @@ export function formatErrors(errors: string[]): string {
 
 // =================================== Deployment ==================================>
 
-/** Discriminant values for supported authentication types. */
+/**
+ * Discriminant values for supported authentication types.
+ */
 export type AuthTypePayload = "none" | "basic" | "oauth2";
 
-/** Serialisable auth configuration exchanged between extension host and webview. */
+/**
+ * Serialisable auth configuration exchanged between extension host and webview.
+ */
 export interface AuthConfigPayload {
     readonly authType: AuthTypePayload;
     readonly username?: string;
@@ -409,23 +429,27 @@ export interface AuthConfigPayload {
     readonly audience?: string;
 }
 
-/** Shared payload shape used in deploy commands and queries. */
+/**
+ * Shared payload shape used in deploy commands and queries.
+ */
 export interface DeploymentConfigPayload {
     readonly deploymentName: string;
     readonly tenantId: string;
     readonly endpoint: string;
-    readonly engine: "c7" | "c8";
+    readonly engine: Engine;
     readonly mainFilePath: string;
     readonly additionalFilePaths: string[];
     readonly auth: AuthConfigPayload;
 }
 
-/** Pre-populated defaults sent from the extension host to the deployment form. */
+/**
+ * Pre-populated defaults sent from the extension host to the deployment form.
+ */
 export interface DeploymentFormDefaults {
     readonly deploymentName: string;
     readonly tenantId: string;
     readonly endpoint: string;
-    readonly engine: "c7" | "c8";
+    readonly engine: Engine;
     readonly authType: AuthTypePayload;
     readonly tokenEndpoint?: string;
     readonly audience?: string;
@@ -433,14 +457,18 @@ export interface DeploymentFormDefaults {
 
 // --- Webview → Extension commands ---
 
-/** Sent by the deployment webview on load to request pre-populated form defaults. */
+/**
+ * Sent by the deployment webview on load to request pre-populated form defaults.
+ */
 export class RequestFormDefaultsCommand extends Command {
     constructor() {
         super("RequestFormDefaultsCommand");
     }
 }
 
-/** Sent by the deployment webview when the user clicks Deploy. */
+/**
+ * Sent by the deployment webview when the user clicks Deploy.
+ */
 export class DeployCommand extends Command {
     public readonly config: DeploymentConfigPayload;
 
@@ -450,14 +478,18 @@ export class DeployCommand extends Command {
     }
 }
 
-/** Sent by the deployment webview when the user clicks the + button for additional files. */
+/**
+ * Sent by the deployment webview when the user clicks the + button for additional files.
+ */
 export class RequestAdditionalFilesCommand extends Command {
     constructor() {
         super("RequestAdditionalFilesCommand");
     }
 }
 
-/** Sent by the deployment webview to request previously stored credentials. */
+/**
+ * Sent by the deployment webview to request previously stored credentials.
+ */
 export class RequestStoredCredentialsCommand extends Command {
     constructor() {
         super("RequestStoredCredentialsCommand");
@@ -466,7 +498,9 @@ export class RequestStoredCredentialsCommand extends Command {
 
 // --- Extension → Webview queries ---
 
-/** Sent by the extension host to pre-populate the deployment form. */
+/**
+ * Sent by the extension host to pre-populate the deployment form.
+ */
 export class FormDefaultsQuery extends Query {
     public readonly defaults: DeploymentFormDefaults;
 
@@ -476,7 +510,9 @@ export class FormDefaultsQuery extends Query {
     }
 }
 
-/** Sent by the extension host after a deployment attempt completes. */
+/**
+ * Sent by the extension host after a deployment attempt completes.
+ */
 export class DeploymentResultQuery extends Query {
     public readonly success: boolean;
 
@@ -492,7 +528,9 @@ export class DeploymentResultQuery extends Query {
     }
 }
 
-/** Sent by the extension host with previously stored credentials. */
+/**
+ * Sent by the extension host with previously stored credentials.
+ */
 export class StoredCredentialsQuery extends Query {
     public readonly auth: AuthConfigPayload;
 
@@ -502,7 +540,9 @@ export class StoredCredentialsQuery extends Query {
     }
 }
 
-/** Sent by the extension host with the paths selected via QuickPick. */
+/**
+ * Sent by the extension host with the paths selected via QuickPick.
+ */
 export class AdditionalFilesQuery extends Query {
     public readonly filePaths: string[];
 
@@ -516,18 +556,22 @@ export class AdditionalFilesQuery extends Query {
 
 // =================================== Start Instance ==================================>
 
-/** Serialisable start-instance configuration exchanged between extension host and webview. */
+/**
+ * Serialisable start-instance configuration exchanged between extension host and webview.
+ */
 export interface StartInstanceConfigPayload {
     readonly processDefinitionKey: string;
     readonly endpoint: string;
-    readonly engine: "c7" | "c8";
+    readonly engine: Engine;
     readonly auth: AuthConfigPayload;
     readonly payloadFilePath: string;
 }
 
 // --- Webview → Extension commands ---
 
-/** Sent by the webview when the user clicks Start Instance. */
+/**
+ * Sent by the webview when the user clicks Start Instance.
+ */
 export class StartInstanceCommand extends Command {
     public readonly config: StartInstanceConfigPayload;
 
@@ -537,14 +581,18 @@ export class StartInstanceCommand extends Command {
     }
 }
 
-/** Sent by the webview to request payload file discovery and QuickPick selection. */
+/**
+ * Sent by the webview to request payload file discovery and QuickPick selection.
+ */
 export class RequestPayloadFilesCommand extends Command {
     constructor() {
         super("RequestPayloadFilesCommand");
     }
 }
 
-/** Sent by the webview to request the process definition key from the current BPMN file. */
+/**
+ * Sent by the webview to request the process definition key from the current BPMN file.
+ */
 export class RequestProcessDefinitionKeyCommand extends Command {
     constructor() {
         super("RequestProcessDefinitionKeyCommand");
@@ -553,7 +601,9 @@ export class RequestProcessDefinitionKeyCommand extends Command {
 
 // --- Extension → Webview queries ---
 
-/** Sent by the extension host after a start-instance attempt completes. */
+/**
+ * Sent by the extension host after a start-instance attempt completes.
+ */
 export class StartInstanceResultQuery extends Query {
     public readonly success: boolean;
 
@@ -569,7 +619,9 @@ export class StartInstanceResultQuery extends Query {
     }
 }
 
-/** Sent by the extension host with the single payload file selected via QuickPick. */
+/**
+ * Sent by the extension host with the single payload file selected via QuickPick.
+ */
 export class SelectedPayloadFileQuery extends Query {
     public readonly filePath: string;
 
@@ -582,7 +634,9 @@ export class SelectedPayloadFileQuery extends Query {
     }
 }
 
-/** Sent by the extension host with the process definition key extracted from BPMN. */
+/**
+ * Sent by the extension host with the process definition key extracted from BPMN.
+ */
 export class ProcessDefinitionKeyQuery extends Query {
     public readonly processDefinitionKey: string;
 
@@ -596,7 +650,9 @@ export class ProcessDefinitionKeyQuery extends Query {
 
 // =================================== BPMN Diff ==================================>
 
-/** Which side of the diff a webview pane represents. */
+/**
+ * Which side of the diff a webview pane represents.
+ */
 export type DiffSide = "before" | "after";
 
 /**
@@ -609,7 +665,9 @@ export type DiffSide = "before" | "after";
  */
 export type DiffOrigin = "scm" | "compare-files";
 
-/** Summary counts used for the diff legend chip. */
+/**
+ * Summary counts used for the diff legend chip.
+ */
 export interface DiffCounts {
     readonly added: number;
     readonly removed: number;
@@ -617,7 +675,9 @@ export interface DiffCounts {
     readonly layoutChanged: number;
 }
 
-/** Canvas viewbox used for pan/zoom synchronisation between panes. */
+/**
+ * Canvas viewbox used for pan/zoom synchronisation between panes.
+ */
 export interface Viewport {
     readonly x: number;
     readonly y: number;

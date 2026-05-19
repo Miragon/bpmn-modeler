@@ -17,19 +17,19 @@ import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 
-/** VS Code command ID for toggling the text editor. */
+// VS Code command ID for toggling the text editor.
 const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
-/** VS Code command ID for opening the logging console. */
+// VS Code command ID for opening the logging console.
 const LOGGING_CMD = "bpmn-modeler.openLoggingConsole";
-/** VS Code command ID for copying the diagram as SVG to the clipboard. */
+// VS Code command ID for copying the diagram as SVG to the clipboard.
 const COPY_SVG_CMD = "bpmn-modeler.copyDiagramAsSvg";
-/** VS Code command ID for saving the diagram as an SVG file. */
+// VS Code command ID for saving the diagram as an SVG file.
 const SAVE_SVG_CMD = "bpmn-modeler.saveDiagramAsSvgCommand";
-/** VS Code command ID for changing the engine version. */
+// VS Code command ID for changing the engine version.
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
-/** VS Code command ID for migrating all BPMN diagrams in the workspace. */
+// VS Code command ID for migrating all BPMN diagrams in the workspace.
 const MIGRATE_ALL_CMD = "bpmn-modeler.migrateAllDiagrams";
-/** VS Code command ID for changing the modeler language. */
+// VS Code command ID for changing the modeler language.
 const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
 
 /**
@@ -40,7 +40,7 @@ const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
  * single, flat controller with no DI framework.
  */
 export class CommandController {
-    /** Tracks the active SVG response subscription so it can be disposed before creating a new one. */
+    // Tracks the active SVG response subscription so it can be disposed before creating a new one.
     private svgSubscription: Disposable | undefined;
 
     /**

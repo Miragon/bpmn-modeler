@@ -9,7 +9,12 @@ import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anythi
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7-element-templates";
-import { BpmnModelerSetting, NoModelerError, ScriptKind } from "@miragon/bpmn-modeler-shared";
+import {
+    BpmnModelerSetting,
+    Engine,
+    NoModelerError,
+    ScriptKind,
+} from "@miragon/bpmn-modeler-shared";
 import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
 import {
     OPEN_SCRIPT_EDITOR_EVENT,
@@ -54,8 +59,8 @@ export class BpmnModeler {
 
     private settings: BpmnModelerSetting = { ...DEFAULT_SETTINGS };
 
-    /** Tracks the active engine so transaction-boundary calls are gated to C7 only. */
-    private engine: "c7" | "c8" | undefined = undefined;
+    // Tracks the active engine so transaction-boundary calls are gated to C7 only.
+    private engine: Engine | undefined = undefined;
 
     private _viewport: ViewportManager | undefined;
 
@@ -93,7 +98,7 @@ export class BpmnModeler {
      * @param extraModules Optional bpmn-js DI modules (e.g. clipboard bridges).
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
-    create(engine: "c7" | "c8", extraModules?: any[]): void {
+    create(engine: Engine, extraModules?: any[]): void {
         const commonModules = [
             TokenSimulationModule,
             ElementTemplateChooserModule,
@@ -136,7 +141,9 @@ export class BpmnModeler {
         this._viewport = new ViewportManager(accessor);
         this._selection = new SelectionManager(accessor);
 
-        // Apply default favourites immediately after creation.
+        /**
+         * Apply default favourites immediately after creation.
+         */
         if (this.settings.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
@@ -191,7 +198,9 @@ export class BpmnModeler {
             return await this.getModeler()
                 .importXML(bpmn)
                 .then((result: ImportXMLResult) => {
-                    // Transaction boundaries are only available for the C7 modeler.
+                    /**
+                     * Transaction boundaries are only available for the C7 modeler.
+                     */
                     if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
                         this.getModeler().get<any>("transactionBoundaries").show();
                     }
@@ -263,19 +272,25 @@ export class BpmnModeler {
         this.getModeler();
         this.settings = { ...this.settings, ...settings };
 
-        // Apply color theme mode change immediately.
+        /**
+         * Apply color theme mode change immediately.
+         */
         if (settings.colorTheme !== undefined) {
             setColorThemeMode(this.settings.colorTheme);
         }
 
-        // Apply transaction boundary visibility change immediately for C7.
+        /**
+         * Apply transaction boundary visibility change immediately for C7.
+         */
         if (this.engine === "c7") {
             const tb = this.getModeler().get<any>("transactionBoundaries");
             // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
         }
 
-        // Apply favourite BPMN elements to the append menu.
+        /**
+         * Apply favourite BPMN elements to the append menu.
+         */
         if (settings.favouriteBpmnElements !== undefined) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
@@ -415,11 +430,7 @@ export class BpmnModeler {
             });
     }
 
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
     /**
-     * Returns the modeler instance, throwing if it has not been created yet.
-     *
      * @throws {NoModelerError} If {@link create} has not been called.
      */
     private getModeler(): Modeler {
@@ -430,9 +441,13 @@ export class BpmnModeler {
     }
 }
 
-/** Thrown by {@link BpmnModeler.create} when an unknown engine string is passed. */
+/**
+ * Thrown by {@link BpmnModeler.create} when an unknown engine string is passed.
+ */
 export class UnsupportedEngineError extends Error {
-    /** @param engine The unrecognised engine string. */
+    /**
+     * @param engine The unrecognised engine string.
+     */
     constructor(engine: string) {
         super(`Unsupported engine: ${engine}`);
     }

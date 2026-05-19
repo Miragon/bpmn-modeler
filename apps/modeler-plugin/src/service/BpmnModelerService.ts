@@ -5,6 +5,7 @@ import {
     BpmnModelerSettingQuery,
     ClipboardQuery,
     ElementTemplatesQuery,
+    Engine,
     LanguageQuery,
     PropertiesPanelStateQuery,
     TextClipboardQuery,
@@ -33,28 +34,14 @@ import {
 } from "./bpmnUtils";
 
 /**
- * Application service for the BPMN modeler.
- *
- * Owns the per-editor session map for echo-prevention and exposes the five
- * BPMN use-case methods that were previously spread across five separate
- * use-case classes.  Implements {@link ArtifactChangeTarget} so that
- * {@link ArtifactService.createWatcher} can call back into this service
- * without creating a circular module import.
+ * Owns the per-editor {@link ModelerSession} map that drives echo
+ * prevention: writes initiated by the webview acquire a guard before the
+ * extension writes back, so the resulting `onDidChangeTextDocument` event
+ * is skipped by {@link display} instead of being re-rendered.
  */
 export class BpmnModelerService implements ArtifactChangeTarget {
-    /** Per-editor echo-prevention guard state, keyed by document URI path. */
     private readonly sessions: Map<string, ModelerSession> = new Map();
 
-    /**
-     * @param editorStore Central registry for open editor panels and messaging.
-     * @param vsDocument Active-document read/write helper.
-     * @param vsSettings VS Code configuration reader.
-     * @param vsUI User-facing message, logging, and quick-pick helper.
-     * @param artifactSvc Service for locating forms and element templates.
-     * @param statusBar Status bar item manager for element templates and engine version.
-     * @param vsWorkspace Workspace filesystem helper for reading/writing files on disk.
-     * @param panelStateRepo Persistence for the global properties-panel visibility default.
-     */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly vsDocument: VsCodeDocument,
@@ -66,42 +53,16 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         private readonly panelStateRepo: PropertiesPanelStateRepository,
     ) {}
 
-    // ─── Session management ───────────────────────────────────────────────────
-
-    /**
-     * Creates and registers a new {@link ModelerSession} for the given editor.
-     *
-     * @param editorId Document URI path used as the session identifier.
-     */
     registerSession(editorId: string): void {
         this.sessions.set(editorId, new ModelerSession(editorId));
     }
 
-    /**
-     * Removes the session for the given editor, freeing guard state.
-     *
-     * @param editorId Document URI path of the editor being closed.
-     */
     disposeSession(editorId: string): void {
         this.sessions.delete(editorId);
     }
 
-    // ─── Display ──────────────────────────────────────────────────────────────
-
-    /**
-     * Sends the BPMN file to the webview for rendering.
-     *
-     * Returns `false` immediately if the session guard is active, meaning the
-     * document change was caused by the extension's own write (echo prevention).
-     *
-     * If the file is empty the user is asked to select an execution platform and
-     * an empty template is written to disk.  If the execution platform cannot be
-     * auto-detected the user is asked to select it and the file is updated.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @returns `true` on success, `false` on any failure.
-     */
     async display(editorId: string): Promise<boolean> {
+        // Skip echoed document changes caused by our own write.
         const session = this.sessions.get(editorId);
         if (session?.isGuarded()) {
             return false;
@@ -133,7 +94,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     new BpmnFileQuery(bpmnFile, ep),
                 );
 
-                // Update the status bar with the detected version.
                 const version = detectExecutionPlatformVersion(bpmnFile);
                 if (version) {
                     this.statusBar.showEngineVersion(ep, version);
@@ -183,22 +143,10 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    // ─── Document sync ────────────────────────────────────────────────────────
-
-    /**
-     * Writes the XML content received from the webview back to the VS Code
-     * text document.
-     *
-     * Acquires the per-session echo-prevention guard before writing and
-     * releases it in the `finally` block so it is always released even if the
-     * write fails.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @param content XML content received from the webview.
-     * @returns `true` if the document was changed, `false` if content was identical.
-     */
     async sync(editorId: string, content: string): Promise<boolean> {
         const session = this.sessions.get(editorId);
+        // Guard around the write so the resulting document-change event is
+        // recognised as our own echo and not re-rendered.
         session?.acquireGuard();
         try {
             return await this.vsDocument.write(editorId, content);
@@ -209,15 +157,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    // ─── Artifact injection ───────────────────────────────────────────────────
-
-    /**
-     * Reads all element-template files in the workspace and sends them to the
-     * webview.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @returns `true` on success, `false` on any failure.
-     */
     async setElementTemplates(editorId: string): Promise<boolean> {
         this.statusBar.showElementTemplatesLoading();
         try {
@@ -261,14 +200,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    // ─── Settings ─────────────────────────────────────────────────────────────
-
-    /**
-     * Reads the current BPMN modeler settings and sends them to the webview.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @returns `true` on success, `false` on any failure.
-     */
     async setSettings(editorId: string): Promise<boolean> {
         try {
             const settings = new SettingBuilder()
@@ -299,27 +230,15 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    // ─── Properties-panel visibility ───────────────────────────────────────
-
     /**
-     * Reads the globally persisted properties-panel visibility default
-     * synchronously.  Used by the editor controller at resolve time so the
-     * webview HTML can be pre-rendered with the correct collapsed state and
-     * the panel never flashes visible before {@link sendPropertiesPanelState}
-     * delivers the value over the message channel.
+     * Sync read so the webview HTML can be pre-rendered with the correct
+     * collapsed state and the panel never flashes visible before
+     * {@link sendPropertiesPanelState} delivers the value over the channel.
      */
     getPersistedPanelVisibility(): boolean {
         return this.panelStateRepo.getVisibility();
     }
 
-    /**
-     * Sends the globally persisted properties-panel visibility default to the
-     * given editor.  Called when the webview requests the initial value on
-     * startup via {@link GetPropertiesPanelStateCommand}.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @returns `true` on success, `false` on any failure.
-     */
     async sendPropertiesPanelState(editorId: string): Promise<boolean> {
         try {
             const visible = this.panelStateRepo.getVisibility();
@@ -334,12 +253,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
     }
 
     /**
-     * Persists the user's panel-visibility toggle as the new global default.
      * Intentionally does not re-broadcast to other open webviews: each
-     * running webview is authoritative over its own panel, so hiding the
-     * panel in one side-by-side editor must not close it in its neighbour.
-     *
-     * @param visible The new global default — `true` for visible, `false` for collapsed.
+     * webview is authoritative over its own panel, so hiding it in one
+     * side-by-side editor must not close it in its neighbour.
      */
     async setPropertiesPanelVisibility(visible: boolean): Promise<void> {
         try {
@@ -349,17 +265,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    // ─── Clipboard ─────────────────────────────────────────────────────────
-
     /**
-     * Reads the system clipboard and sends its text content to the webview.
-     *
-     * Used for cross-editor paste: the webview cannot read the clipboard
-     * directly because VS Code sandboxed iframes lack `clipboard-read`
-     * permission, so the extension host mediates the read.
-     *
-     * @param editorId Document URI path of the requesting editor.
-     * @returns `true` on success, `false` on any failure.
+     * The extension host mediates clipboard access: VS Code sandboxed iframes
+     * lack `clipboard-read` / `clipboard-write` permissions.
      */
     async readClipboard(editorId: string): Promise<boolean> {
         try {
@@ -371,13 +279,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    /**
-     * Reads the system clipboard and sends its text content to the webview
-     * as a {@link TextClipboardQuery}, used for label text paste operations.
-     *
-     * @param editorId Document URI path of the requesting editor.
-     * @returns `true` on success, `false` on any failure.
-     */
     async readTextClipboard(editorId: string): Promise<boolean> {
         try {
             const text = await this.vsUI.readClipboard();
@@ -388,15 +289,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    /**
-     * Writes the given text to the system clipboard via the extension host.
-     *
-     * Used for cross-editor copy: the webview cannot write to the clipboard
-     * directly because VS Code sandboxed iframes lack `clipboard-write`
-     * permission, so the extension host mediates the write.
-     *
-     * @param text The serialised BPMN clip text to write.
-     */
     async writeClipboard(text: string): Promise<void> {
         try {
             await this.vsUI.writeClipboard(text);
@@ -405,14 +297,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    // ─── Language ──────────────────────────────────────────────────────────
-
-    /**
-     * Reads the configured language from workspace settings and sends it to
-     * the webview for the given editor.
-     *
-     * @param editorId Document URI path of the target editor.
-     */
     setLanguage(editorId: string): void {
         const locale = this.vsSettings.getLanguage();
         this.editorStore.postMessage(editorId, new LanguageQuery(locale)).catch((error) => {
@@ -420,15 +304,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         });
     }
 
-    // ─── Change engine version ─────────────────────────────────────────────
-
-    /**
-     * Prompts the user to select a new engine version for the given editor and
-     * updates the BPMN XML, the webview, and the status bar accordingly.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @returns `true` on success, `false` on any failure or cancellation.
-     */
     async changeEngineVersion(editorId: string): Promise<boolean> {
         try {
             const bpmnFile = this.vsDocument.getContent(editorId);
@@ -450,15 +325,8 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    // ─── Migrate all diagrams ──────────────────────────────────────────────
-
     /**
-     * Scans all `.bpmn` files in the workspace and updates their
-     * `modeler:executionPlatformVersion` to a user-selected target version.
-     *
      * Same-engine only — no cross-platform migration (C7↔C8).
-     *
-     * @returns `true` on success, `false` on cancellation or failure.
      */
     async migrateAllDiagrams(): Promise<boolean> {
         try {
@@ -494,9 +362,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 scope = "c8";
             }
 
-            // Collect all user input before applying any writes.
-            // This prevents document-change listeners (triggered by write) from
-            // stealing focus and dismissing a subsequent QuickPick.
+            // Collect all input before any writes: document-change listeners
+            // triggered by a write would steal focus and dismiss a subsequent
+            // QuickPick.
             let c7Version: string | undefined;
             let c8Version: string | undefined;
 
@@ -507,7 +375,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 c8Version = await this.vsUI.pickEngineVersion("c8", getVersions("c8"));
             }
 
-            // Apply all writes after user input is complete
             const summaryParts: string[] = [];
 
             if (c7Version) {
@@ -539,11 +406,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
     }
 
-    /**
-     * Reads and classifies all BPMN files into a {@link MigrationPlan}.
-     *
-     * @param paths Absolute file paths of discovered `.bpmn` files.
-     */
     private async buildMigrationPlan(paths: string[]): Promise<MigrationPlan> {
         const c7Files: BpmnFileEntry[] = [];
         const c8Files: BpmnFileEntry[] = [];
@@ -574,20 +436,13 @@ export class BpmnModelerService implements ArtifactChangeTarget {
     }
 
     /**
-     * Writes the updated version to each file, skipping files already at
-     * the target version. Files open in an editor are updated via
-     * {@link VsCodeDocument.write}; files only on disk are written via
-     * {@link VsCodeWorkspace.writeFile}.
-     *
-     * @param files The files to update.
-     * @param targetVersion The new version string.
-     * @param platform The execution platform for files that need `addExecutionPlatform`.
-     * @returns The number of files actually updated.
+     * Files open in an editor are updated via {@link VsCodeDocument.write};
+     * files only on disk are written via {@link VsCodeWorkspace.writeFile}.
      */
     private async applyVersionUpdate(
         files: readonly BpmnFileEntry[],
         targetVersion: string,
-        platform: "c7" | "c8",
+        platform: Engine,
     ): Promise<number> {
         let updatedCount = 0;
 
@@ -598,7 +453,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
 
             let updatedContent: string;
             if (file.version === undefined) {
-                // File has namespace but no version attribute — inject it.
                 const platformName = platform === "c7" ? "Camunda Platform" : "Camunda Cloud";
                 const schema =
                     platform === "c7"
@@ -628,14 +482,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         return updatedCount;
     }
 
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
-    /**
-     * Logs and displays an error from `display` or `setElementTemplates`,
-     * then returns `false`.
-     *
-     * @param error The error that occurred.
-     */
     private handleError(error: Error): boolean {
         this.vsUI.logError(error);
         this.vsUI.showError(
@@ -644,11 +490,6 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         return false;
     }
 
-    /**
-     * Logs and displays an error from `sync`, then returns `false`.
-     *
-     * @param error The error that occurred during the document write.
-     */
     private handleSyncError(error: Error): boolean {
         this.vsUI.logError(error);
         this.vsUI.showError(

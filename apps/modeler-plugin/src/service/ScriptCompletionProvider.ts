@@ -42,7 +42,7 @@ import { matchMemberAccess, parseKindFromUri } from "./scriptCompletionHelpers";
  *    word is being typed at root scope.
  */
 export class ScriptCompletionProvider implements CompletionItemProvider {
-    /** Languages this provider participates in. */
+    // Languages this provider participates in.
     private static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
 
     /**

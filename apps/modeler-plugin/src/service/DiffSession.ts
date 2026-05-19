@@ -38,7 +38,7 @@ export interface DiffPaneEntry {
  * could not discriminate two `file:` URIs.
  */
 export class DiffSession {
-    /** Wall-clock ms at construction — used by the TTL sweeper in the service. */
+    // Wall-clock ms at construction — used by the TTL sweeper in the service.
     readonly createdAt: number = Date.now();
 
     private beforePane?: DiffPaneEntry;
@@ -108,7 +108,9 @@ export class DiffSession {
         return undefined;
     }
 
-    /** Returns `true` when a pane has already attached for `uri`'s side. */
+    /**
+     * Returns `true` when a pane has already attached for `uri`'s side.
+     */
     hasPaneFor(uri: Uri): boolean {
         const side = this.sideFor(uri);
         if (side === "before") {
@@ -139,7 +141,9 @@ export class DiffSession {
         return side;
     }
 
-    /** Drops `entry` from whichever slot held it (no-op if unknown). */
+    /**
+     * Drops `entry` from whichever slot held it (no-op if unknown).
+     */
     detachPane(entry: DiffPaneEntry): void {
         if (this.beforePane === entry) {
             this.beforePane = undefined;
@@ -149,7 +153,9 @@ export class DiffSession {
         }
     }
 
-    /** Returns the opposite pane, or `undefined` when unpaired. */
+    /**
+     * Returns the opposite pane, or `undefined` when unpaired.
+     */
     partnerOf(entry: DiffPaneEntry): DiffPaneEntry | undefined {
         if (this.beforePane === entry) {
             return this.afterPane;
@@ -160,17 +166,23 @@ export class DiffSession {
         return undefined;
     }
 
-    /** The before-side pane, or `undefined` when not yet attached. */
+    /**
+     * The before-side pane, or `undefined` when not yet attached.
+     */
     before(): DiffPaneEntry | undefined {
         return this.beforePane;
     }
 
-    /** The after-side pane, or `undefined` when not yet attached. */
+    /**
+     * The after-side pane, or `undefined` when not yet attached.
+     */
     after(): DiffPaneEntry | undefined {
         return this.afterPane;
     }
 
-    /** All currently-attached panes (0 to 2). */
+    /**
+     * All currently-attached panes (0 to 2).
+     */
     attachedPanes(): DiffPaneEntry[] {
         const panes: DiffPaneEntry[] = [];
         if (this.beforePane) {
@@ -182,12 +194,16 @@ export class DiffSession {
         return panes;
     }
 
-    /** Returns `true` when neither slot holds a pane. */
+    /**
+     * Returns `true` when neither slot holds a pane.
+     */
     isEmpty(): boolean {
         return this.beforePane === undefined && this.afterPane === undefined;
     }
 
-    /** Returns `true` when both panes have attached and reported ready. */
+    /**
+     * Returns `true` when both panes have attached and reported ready.
+     */
     isArmed(): boolean {
         return (
             this.beforePane !== undefined &&

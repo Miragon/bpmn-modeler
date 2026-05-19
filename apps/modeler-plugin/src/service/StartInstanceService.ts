@@ -11,6 +11,7 @@ import { VsCodeUI } from "../infrastructure/VsCodeUI";
 import { ArtifactService } from "./ArtifactService";
 import { extractProcessId } from "./bpmnUtils";
 
+import { Engine } from "@miragon/bpmn-modeler-shared";
 /**
  * Orchestrates the "Start Process Instance" workflow.
  *
@@ -103,7 +104,7 @@ export class StartInstanceService {
     async startInstance(
         processDefinitionKey: string,
         endpoint: string,
-        engine: "c7" | "c8",
+        engine: Engine,
         auth: AuthConfig,
         payloadFilePath: string,
     ): Promise<StartInstanceResult> {

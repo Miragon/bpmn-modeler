@@ -1,5 +1,6 @@
 import { AuthConfig, NoAuth } from "./deployment";
 
+import { Engine } from "@miragon/bpmn-modeler-shared";
 /**
  * Value object representing a validated configuration for starting a process instance.
  *
@@ -16,7 +17,7 @@ export class StartInstanceConfig {
     constructor(
         readonly processDefinitionKey: string,
         readonly endpoint: string,
-        readonly engine: "c7" | "c8",
+        readonly engine: Engine,
         readonly auth: AuthConfig = new NoAuth(),
         readonly payload: Record<string, unknown> | null = null,
     ) {}

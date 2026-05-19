@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-/**
- * This file contains the translations used by the bpmn-js-properties-panel component.
- */
+// This file contains the translations used by the bpmn-js-properties-panel component.
 const translations: Record<string, string> = {
     "Activity Ref": "活動參考",
     "Add Constraint": "添加約束",
