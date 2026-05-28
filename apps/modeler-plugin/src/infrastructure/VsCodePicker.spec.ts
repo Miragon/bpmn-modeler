@@ -35,7 +35,7 @@ vi.mock("./extensionContext", () => ({
     setContext: vi.fn(),
 }));
 
-import { VsCodeUI } from "./VsCodeUI";
+import { VsCodePicker } from "./VsCodePicker";
 import type { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 function stubWorkspace(findFilesResult: string[] = []): VsCodeWorkspace {
@@ -50,13 +50,13 @@ beforeEach(() => {
     asRelativePathMock.mockImplementation((uri: { path: string }) => uri.path.replace(/^\//, ""));
 });
 
-describe("VsCodeUI.pickReferencedModel", () => {
+describe("VsCodePicker.pickReferencedModel", () => {
     it("returns the chosen item's path", async () => {
         showQuickPickMock.mockImplementation((items: { path: string }[]) =>
             Promise.resolve(items[0]),
         );
 
-        const sut = new VsCodeUI(stubWorkspace());
+        const sut = new VsCodePicker(stubWorkspace());
 
         const result = await sut.pickReferencedModel(["/src/a.bpmn"]);
 
@@ -66,7 +66,7 @@ describe("VsCodeUI.pickReferencedModel", () => {
     it("returns undefined when the user dismisses the picker", async () => {
         showQuickPickMock.mockResolvedValue(undefined);
 
-        const sut = new VsCodeUI(stubWorkspace());
+        const sut = new VsCodePicker(stubWorkspace());
 
         const result = await sut.pickReferencedModel(["/src/a.bpmn"]);
 
@@ -76,7 +76,7 @@ describe("VsCodeUI.pickReferencedModel", () => {
     it("builds items with basename label + workspace-relative description", async () => {
         showQuickPickMock.mockResolvedValue(undefined);
 
-        const sut = new VsCodeUI(stubWorkspace());
+        const sut = new VsCodePicker(stubWorkspace());
         await sut.pickReferencedModel(["/repo/src/a.bpmn"]);
 
         const items = showQuickPickMock.mock.calls[0][0] as {
@@ -94,7 +94,7 @@ describe("VsCodeUI.pickReferencedModel", () => {
         showQuickPickMock.mockResolvedValue(undefined);
         // Inputs in non-alphabetical order; expect the picker to receive
         // them sorted by `description` so nearby files surface first.
-        const sut = new VsCodeUI(stubWorkspace());
+        const sut = new VsCodePicker(stubWorkspace());
         await sut.pickReferencedModel(["/repo/src/z.bpmn", "/repo/lib/a.bpmn", "/repo/src/m.bpmn"]);
 
         const items = showQuickPickMock.mock.calls[0][0] as { path: string }[];
@@ -108,7 +108,7 @@ describe("VsCodeUI.pickReferencedModel", () => {
     it("passes the placeholder to the picker", async () => {
         showQuickPickMock.mockResolvedValue(undefined);
 
-        const sut = new VsCodeUI(stubWorkspace());
+        const sut = new VsCodePicker(stubWorkspace());
         await sut.pickReferencedModel(["/a.bpmn"]);
 
         const options = showQuickPickMock.mock.calls[0][1] as {
@@ -118,13 +118,13 @@ describe("VsCodeUI.pickReferencedModel", () => {
     });
 });
 
-describe("VsCodeUI.pickWorkspaceFiles", () => {
+describe("VsCodePicker.pickWorkspaceFiles", () => {
     it("returns the file paths of the chosen items", async () => {
         showQuickPickMock.mockImplementation((items: { filePath: string }[]) =>
             Promise.resolve([items[0], items[1]]),
         );
         const workspace = stubWorkspace(["/a.form", "/b.dmn", "/c.json"]);
-        const sut = new VsCodeUI(workspace);
+        const sut = new VsCodePicker(workspace);
 
         const result = await sut.pickWorkspaceFiles({
             glob: "**/*.{form,json,dmn}",
@@ -136,7 +136,7 @@ describe("VsCodeUI.pickWorkspaceFiles", () => {
 
     it("returns [] when the user dismisses the picker", async () => {
         showQuickPickMock.mockResolvedValue(undefined);
-        const sut = new VsCodeUI(stubWorkspace(["/a.form"]));
+        const sut = new VsCodePicker(stubWorkspace(["/a.form"]));
 
         const result = await sut.pickWorkspaceFiles({
             glob: "**/*.form",
@@ -149,7 +149,7 @@ describe("VsCodeUI.pickWorkspaceFiles", () => {
     it("forwards glob, exclude and limit to the workspace search", async () => {
         showQuickPickMock.mockResolvedValue(undefined);
         const workspace = stubWorkspace([]);
-        const sut = new VsCodeUI(workspace);
+        const sut = new VsCodePicker(workspace);
 
         await sut.pickWorkspaceFiles({
             glob: "**/*.{form,json,dmn}",
@@ -167,7 +167,7 @@ describe("VsCodeUI.pickWorkspaceFiles", () => {
 
     it("passes the placeholder and multi-select option to the picker", async () => {
         showQuickPickMock.mockResolvedValue(undefined);
-        const sut = new VsCodeUI(stubWorkspace(["/a.form"]));
+        const sut = new VsCodePicker(stubWorkspace(["/a.form"]));
 
         await sut.pickWorkspaceFiles({
             glob: "**/*.form",
@@ -186,7 +186,7 @@ describe("VsCodeUI.pickWorkspaceFiles", () => {
 
     it("builds items with basename label and absolute-path description", async () => {
         showQuickPickMock.mockResolvedValue(undefined);
-        const sut = new VsCodeUI(stubWorkspace(["/repo/src/order.form"]));
+        const sut = new VsCodePicker(stubWorkspace(["/repo/src/order.form"]));
 
         await sut.pickWorkspaceFiles({
             glob: "**/*.form",

@@ -7,7 +7,7 @@ import { AuthConfig } from "../domain/deployment";
 import { CamundaEnginePort } from "../domain/ports";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { ArtifactService } from "./ArtifactService";
 import { extractProcessId } from "./bpmnUtils";
 
@@ -25,14 +25,14 @@ export class StartInstanceService {
      * @param vsDocument Active-document path and content helper.
      * @param vsWorkspace Filesystem and workspace-folder helper.
      * @param restClient HTTP client for the Camunda REST API.
-     * @param vsUI User-facing message and logging helper.
+     * @param notifier User-facing message and logging helper.
      * @param artifactService Convention-based file discovery service.
      */
     constructor(
         private readonly vsDocument: VsCodeDocument,
         private readonly vsWorkspace: VsCodeWorkspace,
         private readonly restClient: CamundaEnginePort,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
         private readonly artifactService: ArtifactService,
     ) {}
 
@@ -63,7 +63,7 @@ export class StartInstanceService {
         const payloadPaths = await this.artifactService.getPayloadPaths(documentDir);
 
         if (payloadPaths.length === 0) {
-            this.vsUI.showInfo("No payload files found in <configFolder>/payloads/.");
+            this.notifier.showInfo("No payload files found in <configFolder>/payloads/.");
             return null;
         }
 
@@ -127,7 +127,7 @@ export class StartInstanceService {
             return await this.restClient.startInstance(config);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this.vsUI.logError(error instanceof Error ? error : new Error(message));
+            this.notifier.logError(error instanceof Error ? error : new Error(message));
             return new StartInstanceResult(false, message);
         }
     }

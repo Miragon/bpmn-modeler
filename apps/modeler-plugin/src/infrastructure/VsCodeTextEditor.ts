@@ -1,7 +1,16 @@
-import { LogOutputChannel, Tab, TabInputText, ViewColumn, window, workspace } from "vscode";
+import { Tab, TabInputText, ViewColumn, window, workspace } from "vscode";
 
 import { getContext } from "./extensionContext";
 
+/**
+ * Toggles a standard VS Code text editor pane alongside the modeler webview.
+ *
+ * Holds `isOpen` and `activeDocumentPath` so a second invocation of the
+ * command closes the pane it previously opened. The tab-close listener
+ * keeps `isOpen` in sync when the user closes the companion tab manually —
+ * without it, a subsequent toggle would try to "close" an already-closed
+ * tab and leave the state inverted.
+ */
 export class VsCodeTextEditor {
     private isOpen = false;
 
@@ -9,7 +18,6 @@ export class VsCodeTextEditor {
 
     constructor() {
         const changeTab = window.tabGroups.onDidChangeTabs((tabs) => {
-            // Event when user closes the tab with the document
             tabs.closed.forEach((tab) => {
                 if (
                     tab.input instanceof TabInputText &&
@@ -68,33 +76,5 @@ export class VsCodeTextEditor {
             }
         }
         return undefined;
-    }
-}
-
-export class VsCodeLogger {
-    private readonly prefix: string;
-
-    private readonly logger: LogOutputChannel;
-
-    constructor(id: string) {
-        this.prefix = `[${id}] `;
-        this.logger = window.createOutputChannel(id, { log: true });
-        this.logger.clear();
-    }
-
-    open() {
-        this.logger.show(true);
-    }
-
-    info(message: string) {
-        this.logger.info(this.prefix + message);
-    }
-
-    warn(message: string) {
-        this.logger.warn(this.prefix + message);
-    }
-
-    error(error: Error) {
-        this.logger.error(this.prefix, error);
     }
 }

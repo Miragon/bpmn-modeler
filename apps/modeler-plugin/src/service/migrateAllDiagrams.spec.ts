@@ -58,19 +58,22 @@ function createMocks() {
         getShowTransactionBoundaries: vi.fn(),
     };
 
-    const vsUI = {
+    const notifier = {
         showInfo: vi.fn(),
         showError: vi.fn(),
         logInfo: vi.fn(),
         logWarning: vi.fn(),
         logError: vi.fn(),
+        openLoggingConsole: vi.fn(),
+    };
+    const picker = {
         pickExecutionPlatform: vi.fn(),
         pickEngineVersion: vi.fn(),
         pickMigrationScope: vi.fn(),
-        toggleTextEditor: vi.fn(),
+    };
+    const clipboard = {
         readClipboard: vi.fn(),
         writeClipboard: vi.fn(),
-        openLoggingConsole: vi.fn(),
     };
 
     const artifactSvc = {
@@ -104,113 +107,115 @@ function createMocks() {
         editorStore as any,
         vsDocument as any,
         vsSettings as any,
-        vsUI as any,
+        notifier as any,
+        picker as any,
+        clipboard as any,
         artifactSvc as any,
         statusBar as any,
         vsWorkspace as any,
         panelStateRepo as any,
     );
 
-    return { service, editorStore, vsDocument, vsUI, vsWorkspace };
+    return { service, editorStore, vsDocument, notifier, picker, vsWorkspace };
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe("migrateAllDiagrams", () => {
     it("should show info and return false when no BPMN files are found", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, notifier } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue([]);
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
-        expect(vsUI.showInfo).toHaveBeenCalledWith("No BPMN files found in the workspace.");
+        expect(notifier.showInfo).toHaveBeenCalledWith("No BPMN files found in the workspace.");
     });
 
     it("should show info and return false when no engine is detectable", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, notifier } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn"]);
         vsWorkspace.readFile.mockResolvedValue(unknownBpmn);
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(false);
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
+        expect(notifier.showInfo).toHaveBeenCalledWith(
             "Could not detect the engine for any BPMN file in the workspace.",
         );
     });
 
     it("should migrate C8-only workspace without scope picker", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, notifier, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn", "/b.bpmn"]);
         vsWorkspace.readFile
             .mockResolvedValueOnce(c8Bpmn("8.5.0"))
             .mockResolvedValueOnce(c8Bpmn("8.6.0"));
-        vsUI.pickEngineVersion.mockResolvedValue("8.8.0");
+        picker.pickEngineVersion.mockResolvedValue("8.8.0");
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(vsUI.pickMigrationScope).not.toHaveBeenCalled();
-        expect(vsUI.pickEngineVersion).toHaveBeenCalledWith("c8", expect.any(Object));
+        expect(picker.pickMigrationScope).not.toHaveBeenCalled();
+        expect(picker.pickEngineVersion).toHaveBeenCalledWith("c8", expect.any(Object));
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(2);
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
+        expect(notifier.showInfo).toHaveBeenCalledWith(
             expect.stringContaining("2 diagram(s) to Camunda 8 (8.8.0)"),
         );
     });
 
     it("should migrate C7-only workspace without scope picker", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/c7.bpmn"]);
         vsWorkspace.readFile.mockResolvedValue(c7Bpmn("7.20.0"));
-        vsUI.pickEngineVersion.mockResolvedValue("7.24.0");
+        picker.pickEngineVersion.mockResolvedValue("7.24.0");
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(vsUI.pickMigrationScope).not.toHaveBeenCalled();
-        expect(vsUI.pickEngineVersion).toHaveBeenCalledWith("c7", expect.any(Object));
+        expect(picker.pickMigrationScope).not.toHaveBeenCalled();
+        expect(picker.pickEngineVersion).toHaveBeenCalledWith("c7", expect.any(Object));
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
     });
 
     it("should show scope picker when both platforms are present", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/c7.bpmn", "/c8.bpmn"]);
         vsWorkspace.readFile
             .mockResolvedValueOnce(c7Bpmn("7.20.0"))
             .mockResolvedValueOnce(c8Bpmn("8.5.0"));
-        vsUI.pickMigrationScope.mockResolvedValue("c8");
-        vsUI.pickEngineVersion.mockResolvedValue("8.8.0");
+        picker.pickMigrationScope.mockResolvedValue("c8");
+        picker.pickEngineVersion.mockResolvedValue("8.8.0");
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(vsUI.pickMigrationScope).toHaveBeenCalledWith(1, 1);
+        expect(picker.pickMigrationScope).toHaveBeenCalledWith(1, 1);
         /**
          * Only C8 was selected, so only one version picker
          */
-        expect(vsUI.pickEngineVersion).toHaveBeenCalledTimes(1);
-        expect(vsUI.pickEngineVersion).toHaveBeenCalledWith("c8", expect.any(Object));
+        expect(picker.pickEngineVersion).toHaveBeenCalledTimes(1);
+        expect(picker.pickEngineVersion).toHaveBeenCalledWith("c8", expect.any(Object));
     });
 
     it("should pick two versions when scope is 'both'", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/c7.bpmn", "/c8.bpmn"]);
         vsWorkspace.readFile
             .mockResolvedValueOnce(c7Bpmn("7.20.0"))
             .mockResolvedValueOnce(c8Bpmn("8.5.0"));
-        vsUI.pickMigrationScope.mockResolvedValue("both");
-        vsUI.pickEngineVersion.mockResolvedValueOnce("7.24.0").mockResolvedValueOnce("8.8.0");
+        picker.pickMigrationScope.mockResolvedValue("both");
+        picker.pickEngineVersion.mockResolvedValueOnce("7.24.0").mockResolvedValueOnce("8.8.0");
 
         const result = await service.migrateAllDiagrams();
 
         expect(result).toBe(true);
-        expect(vsUI.pickEngineVersion).toHaveBeenCalledTimes(2);
+        expect(picker.pickEngineVersion).toHaveBeenCalledTimes(2);
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(2);
 
         // Both version picks must complete before any write occurs.
         // This prevents document-change listeners from dismissing the QuickPick.
-        const pickOrder = vsUI.pickEngineVersion.mock.invocationCallOrder;
+        const pickOrder = picker.pickEngineVersion.mock.invocationCallOrder;
         const writeOrder = vsWorkspace.writeFile.mock.invocationCallOrder;
         const lastPick = Math.max(...pickOrder);
         const firstWrite = Math.min(...writeOrder);
@@ -218,39 +223,39 @@ describe("migrateAllDiagrams", () => {
     });
 
     it("should skip files already at the target version", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, notifier, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn", "/b.bpmn"]);
         vsWorkspace.readFile
             .mockResolvedValueOnce(c8Bpmn("8.8.0")) // already at target
             .mockResolvedValueOnce(c8Bpmn("8.5.0")); // needs update
-        vsUI.pickEngineVersion.mockResolvedValue("8.8.0");
+        picker.pickEngineVersion.mockResolvedValue("8.8.0");
 
         await service.migrateAllDiagrams();
 
         expect(vsWorkspace.writeFile).toHaveBeenCalledTimes(1);
-        expect(vsUI.showInfo).toHaveBeenCalledWith(expect.stringContaining("1 diagram(s)"));
+        expect(notifier.showInfo).toHaveBeenCalledWith(expect.stringContaining("1 diagram(s)"));
     });
 
     it("should show 'already at version' when all files match target", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, notifier, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn"]);
         vsWorkspace.readFile.mockResolvedValue(c8Bpmn("8.8.0"));
-        vsUI.pickEngineVersion.mockResolvedValue("8.8.0");
+        picker.pickEngineVersion.mockResolvedValue("8.8.0");
 
         await service.migrateAllDiagrams();
 
         expect(vsWorkspace.writeFile).not.toHaveBeenCalled();
-        expect(vsUI.showInfo).toHaveBeenCalledWith(
+        expect(notifier.showInfo).toHaveBeenCalledWith(
             "All diagrams are already at the selected version.",
         );
     });
 
     it("should use VsCodeDocument.write for files open in an editor", async () => {
-        const { service, vsWorkspace, vsUI, vsDocument, editorStore } = createMocks();
+        const { service, vsWorkspace, picker, vsDocument, editorStore } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/open.bpmn"]);
         vsWorkspace.readFile.mockResolvedValue(c8Bpmn("8.5.0"));
         editorStore.findEditorIdByPath.mockReturnValue("editor-1");
-        vsUI.pickEngineVersion.mockResolvedValue("8.8.0");
+        picker.pickEngineVersion.mockResolvedValue("8.8.0");
 
         await service.migrateAllDiagrams();
 
@@ -259,10 +264,10 @@ describe("migrateAllDiagrams", () => {
     });
 
     it("should use addExecutionPlatform for files without version attribute", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, notifier, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/noversion.bpmn"]);
         vsWorkspace.readFile.mockResolvedValue(c8BpmnNoVersion);
-        vsUI.pickEngineVersion.mockResolvedValue("8.8.0");
+        picker.pickEngineVersion.mockResolvedValue("8.8.0");
 
         await service.migrateAllDiagrams();
 
@@ -270,16 +275,16 @@ describe("migrateAllDiagrams", () => {
         const writtenContent = vsWorkspace.writeFile.mock.calls[0][1] as string;
         expect(writtenContent).toContain('modeler:executionPlatformVersion="8.8.0"');
         expect(writtenContent).toContain('modeler:executionPlatform="Camunda Cloud"');
-        expect(vsUI.logWarning).toHaveBeenCalledWith(
+        expect(notifier.logWarning).toHaveBeenCalledWith(
             expect.stringContaining("Added missing executionPlatform attribute"),
         );
     });
 
     it("should return false when user cancels", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/a.bpmn"]);
         vsWorkspace.readFile.mockResolvedValue(c8Bpmn("8.5.0"));
-        vsUI.pickEngineVersion.mockRejectedValue(new UserCancelledError());
+        picker.pickEngineVersion.mockRejectedValue(new UserCancelledError());
 
         const result = await service.migrateAllDiagrams();
 
@@ -287,15 +292,17 @@ describe("migrateAllDiagrams", () => {
     });
 
     it("should log undetected files as warnings", async () => {
-        const { service, vsWorkspace, vsUI } = createMocks();
+        const { service, vsWorkspace, notifier, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/ok.bpmn", "/unknown.bpmn"]);
         vsWorkspace.readFile
             .mockResolvedValueOnce(c8Bpmn("8.5.0"))
             .mockResolvedValueOnce(unknownBpmn);
-        vsUI.pickEngineVersion.mockResolvedValue("8.8.0");
+        picker.pickEngineVersion.mockResolvedValue("8.8.0");
 
         await service.migrateAllDiagrams();
 
-        expect(vsUI.logWarning).toHaveBeenCalledWith(expect.stringContaining("Skipped 1 file(s)"));
+        expect(notifier.logWarning).toHaveBeenCalledWith(
+            expect.stringContaining("Skipped 1 file(s)"),
+        );
     });
 });

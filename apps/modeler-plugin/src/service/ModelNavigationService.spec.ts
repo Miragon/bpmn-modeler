@@ -18,16 +18,22 @@ function createService(result: LocateResult) {
     const locator = {
         findDeclaringFiles: vi.fn().mockResolvedValue(result),
     };
-    const vsUI = {
+    const notifier = {
         showInfo: vi.fn(),
         showError: vi.fn(),
         logInfo: vi.fn(),
         logWarning: vi.fn(),
         logError: vi.fn(),
+    };
+    const picker = {
         pickReferencedModel: vi.fn(),
     };
-    const service = new ModelNavigationService(locator as never, vsUI as never);
-    return { service, locator, vsUI };
+    const service = new ModelNavigationService(
+        locator as never,
+        notifier as never,
+        picker as never,
+    );
+    return { service, locator, notifier, picker };
 }
 
 beforeEach(() => {
@@ -66,7 +72,7 @@ describe("ModelNavigationService.navigate", () => {
     });
 
     it("opens the file directly via vscode.open when the locator returns a single match", async () => {
-        const { service, vsUI } = createService({
+        const { service, picker } = createService({
             kind: "matches",
             paths: ["/a.bpmn"],
             readFailures: [],
@@ -74,7 +80,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.pickReferencedModel).not.toHaveBeenCalled();
+        expect(picker.pickReferencedModel).not.toHaveBeenCalled();
         expect(commands.executeCommand).toHaveBeenCalledWith(
             "vscode.open",
             expect.objectContaining({ path: "/a.bpmn" }),
@@ -82,16 +88,16 @@ describe("ModelNavigationService.navigate", () => {
     });
 
     it("opens the user's QuickPick selection when the locator returns multiple matches", async () => {
-        const { service, vsUI } = createService({
+        const { service, picker } = createService({
             kind: "matches",
             paths: ["/a.bpmn", "/b.bpmn"],
             readFailures: [],
         });
-        vsUI.pickReferencedModel.mockResolvedValue("/b.bpmn");
+        picker.pickReferencedModel.mockResolvedValue("/b.bpmn");
 
         await service.navigate("Shared", "process");
 
-        expect(vsUI.pickReferencedModel).toHaveBeenCalledWith(["/a.bpmn", "/b.bpmn"]);
+        expect(picker.pickReferencedModel).toHaveBeenCalledWith(["/a.bpmn", "/b.bpmn"]);
         expect(commands.executeCommand).toHaveBeenCalledWith(
             "vscode.open",
             expect.objectContaining({ path: "/b.bpmn" }),
@@ -99,12 +105,12 @@ describe("ModelNavigationService.navigate", () => {
     });
 
     it("does not open anything when the user cancels the QuickPick", async () => {
-        const { service, vsUI } = createService({
+        const { service, picker } = createService({
             kind: "matches",
             paths: ["/a.bpmn", "/b.bpmn"],
             readFailures: [],
         });
-        vsUI.pickReferencedModel.mockResolvedValue(undefined);
+        picker.pickReferencedModel.mockResolvedValue(undefined);
 
         await service.navigate("Shared", "process");
 
@@ -112,7 +118,7 @@ describe("ModelNavigationService.navigate", () => {
     });
 
     it("shows an info notification when matches is empty", async () => {
-        const { service, vsUI } = createService({
+        const { service, notifier } = createService({
             kind: "matches",
             paths: [],
             readFailures: [],
@@ -120,21 +126,21 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("Missing", "process");
 
-        expect(vsUI.showInfo).toHaveBeenCalledWith(expect.stringContaining("Missing"));
+        expect(notifier.showInfo).toHaveBeenCalledWith(expect.stringContaining("Missing"));
         expect(commands.executeCommand).not.toHaveBeenCalled();
     });
 
     it("shows the 'open a folder' hint when the locator reports no-search-scope", async () => {
-        const { service, vsUI } = createService({ kind: "no-search-scope" });
+        const { service, notifier } = createService({ kind: "no-search-scope" });
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.showInfo).toHaveBeenCalledWith(expect.stringContaining("Open a folder"));
+        expect(notifier.showInfo).toHaveBeenCalledWith(expect.stringContaining("Open a folder"));
         expect(commands.executeCommand).not.toHaveBeenCalled();
     });
 
     it("logs each failure and shows an error when the locator reports all-unreadable", async () => {
-        const { service, vsUI } = createService({
+        const { service, notifier } = createService({
             kind: "all-unreadable",
             attempted: 2,
             failures: ["read /bad1 failed: EACCES", "read /bad2 failed: EACCES"],
@@ -142,15 +148,15 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.logWarning).toHaveBeenCalledTimes(2);
-        expect(vsUI.showError).toHaveBeenCalledWith(
+        expect(notifier.logWarning).toHaveBeenCalledTimes(2);
+        expect(notifier.showError).toHaveBeenCalledWith(
             expect.stringContaining("none of the candidate files were readable"),
         );
         expect(commands.executeCommand).not.toHaveBeenCalled();
     });
 
     it("logs partial read failures alongside a successful match", async () => {
-        const { service, vsUI } = createService({
+        const { service, notifier } = createService({
             kind: "matches",
             paths: ["/good.bpmn"],
             readFailures: ["read /bad failed: EACCES"],
@@ -158,7 +164,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.logWarning).toHaveBeenCalledWith(expect.stringContaining("EACCES"));
+        expect(notifier.logWarning).toHaveBeenCalledWith(expect.stringContaining("EACCES"));
         expect(commands.executeCommand).toHaveBeenCalledWith(
             "vscode.open",
             expect.objectContaining({ path: "/good.bpmn" }),
@@ -166,7 +172,7 @@ describe("ModelNavigationService.navigate", () => {
     });
 
     it("surfaces an error when vscode.open rejects", async () => {
-        const { service, vsUI } = createService({
+        const { service, notifier } = createService({
             kind: "matches",
             paths: ["/a.bpmn"],
             readFailures: [],
@@ -175,13 +181,13 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(vsUI.showError).toHaveBeenCalledWith(expect.stringContaining("File not found"));
-        expect(vsUI.logError).toHaveBeenCalled();
+        expect(notifier.showError).toHaveBeenCalledWith(expect.stringContaining("File not found"));
+        expect(notifier.logError).toHaveBeenCalled();
     });
 
     it("truncates very long reference ids in user-facing notifications", async () => {
         const huge = "x".repeat(500);
-        const { service, vsUI } = createService({
+        const { service, notifier } = createService({
             kind: "matches",
             paths: [],
             readFailures: [],
@@ -189,7 +195,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate(huge, "process");
 
-        const message = vsUI.showInfo.mock.calls[0][0] as string;
+        const message = notifier.showInfo.mock.calls[0][0] as string;
         /**
          * The 500-char id must NOT appear in full — truncation kicks in.
          */

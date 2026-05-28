@@ -21,7 +21,7 @@ function createController() {
         getDocumentForEditor: vi.fn(),
     };
 
-    const vsUI = {
+    const notifier = {
         logInfo: vi.fn(),
         logWarning: vi.fn(),
         logError: vi.fn(),
@@ -36,7 +36,7 @@ function createController() {
         {} as never, // diffService
         {} as never, // artifactSvc
         {} as never, // scriptTaskSvc
-        vsUI as never,
+        notifier as never,
         {} as never, // vsDocument
         {} as never, // statusBar
         modelNavigationService as never,
@@ -57,7 +57,7 @@ function createController() {
     return {
         callback: capturedCallback,
         editorStore,
-        vsUI,
+        notifier,
         modelNavigationService,
     };
 }
@@ -109,7 +109,7 @@ describe("BpmnEditorController — NavigateToReferencedModelCommand dispatch", (
     });
 
     it("rejects unknown referenceKind values with a logWarning and no service call", async () => {
-        const { callback, vsUI, modelNavigationService } = createController();
+        const { callback, notifier, modelNavigationService } = createController();
         // Bypass the constructor's type check to simulate protocol drift /
         // a hostile webview sending an unexpected discriminant.
         const malformed = {
@@ -120,7 +120,7 @@ describe("BpmnEditorController — NavigateToReferencedModelCommand dispatch", (
 
         await callback(malformed, "file:///src/a.bpmn");
 
-        expect(vsUI.logWarning).toHaveBeenCalledWith(
+        expect(notifier.logWarning).toHaveBeenCalledWith(
             expect.stringContaining("unknown kind: anything"),
         );
         expect(modelNavigationService.navigate).not.toHaveBeenCalled();

@@ -20,7 +20,7 @@ import {
 import { ScriptLanguage } from "../domain/scriptLanguage";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { BpmnScriptFileSystem } from "../infrastructure/BpmnScriptFileSystem";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 
 /**
  * Tracks an open virtual script document.
@@ -83,7 +83,7 @@ export class ScriptTaskService {
     constructor(
         private readonly editorStore: EditorStore,
         private readonly scriptFs: BpmnScriptFileSystem,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
     ) {}
 
     /**
@@ -237,7 +237,7 @@ export class ScriptTaskService {
                 if (error instanceof Error && error.message === "The active editor is hidden.") {
                     this.pendingResync.add(editorId);
                 } else {
-                    this.vsUI.logError(error as Error);
+                    this.notifier.logError(error as Error);
                 }
             }
         }
@@ -411,7 +411,7 @@ export class ScriptTaskService {
             if (error instanceof Error && error.message === "The active editor is hidden.") {
                 this.pendingResync.add(entry.editorId);
             } else {
-                this.vsUI.logError(error as Error);
+                this.notifier.logError(error as Error);
             }
         }
     }
@@ -434,7 +434,7 @@ export class ScriptTaskService {
                 new UpdateScriptFormatQuery(elementId, kind, listenerIndex, scriptFormat),
             );
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
         }
     }
 
