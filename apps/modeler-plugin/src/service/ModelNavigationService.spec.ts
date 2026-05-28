@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ModelNavigationService } from "./ModelNavigationService";
 import { LocateResult } from "./modelNavigation/ReferencedModelLocator";
@@ -26,10 +26,6 @@ function createService(result: LocateResult) {
     );
     return { service, locator, notifier, picker };
 }
-
-beforeEach(() => {
-    vi.clearAllMocks();
-});
 
 describe("ModelNavigationService.navigate", () => {
     it("wraps the search in a status-bar progress indicator", async () => {

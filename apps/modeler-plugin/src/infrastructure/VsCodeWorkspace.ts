@@ -154,14 +154,15 @@ export class VsCodeWorkspace {
     ): { dispose(): void } {
         const watcher = workspace.createFileSystemWatcher(new RelativePattern(rootPath, glob));
         const subscriptions: { dispose(): void }[] = [watcher];
-        if (handlers.onCreate) {
-            subscriptions.push(watcher.onDidCreate((uri) => handlers.onCreate!(uri.fsPath)));
+        const { onCreate, onChange, onDelete } = handlers;
+        if (onCreate) {
+            subscriptions.push(watcher.onDidCreate((uri) => onCreate(uri.fsPath)));
         }
-        if (handlers.onChange) {
-            subscriptions.push(watcher.onDidChange((uri) => handlers.onChange!(uri.fsPath)));
+        if (onChange) {
+            subscriptions.push(watcher.onDidChange((uri) => onChange(uri.fsPath)));
         }
-        if (handlers.onDelete) {
-            subscriptions.push(watcher.onDidDelete((uri) => handlers.onDelete!(uri.fsPath)));
+        if (onDelete) {
+            subscriptions.push(watcher.onDidDelete((uri) => onDelete(uri.fsPath)));
         }
         return {
             dispose(): void {
