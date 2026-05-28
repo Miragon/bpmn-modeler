@@ -26,7 +26,7 @@ export function matchMemberAccess(linePrefix: string): string | undefined {
 
 /**
  * Extracts the script kind from a `bpmn-script://` URI path written by
- * `ScriptTaskService.slugFor`.
+ * `ScriptUri.slug`.
  *
  * Path shape: `/<editorHash>/<elementId>/<slug>/script.<ext>`
  *   - `script-task`                    → `script-task`

@@ -80,10 +80,10 @@ bpmn-script:/<editorHash>/<elementId>/<slug>/<filename>
 
 | Segment | Source | Purpose |
 |---|---|---|
-| `<editorHash>` | `ScriptTaskService.hashEditorId(editorId)` — short hash of the BPMN document URI | Isolates scripts per diagram so two diagrams with overlapping element IDs do not collide |
+| `<editorHash>` | `ScriptUri.hashEditorId(editorId)` — short hash of the BPMN document URI | Isolates scripts per diagram so two diagrams with overlapping element IDs do not collide |
 | `<elementId>` | The hosting BPMN element's id (script task, or listener's parent) | Per-element namespace |
-| `<slug>` | `ScriptTaskService.slugFor()` — `script-task`, `execution-listener-<idx>[-<event>]`, `task-listener-<idx>[-<event>]` | Distinguishes multiple scripts on the same element; consumed by `parseKindFromUri` to scope completions |
-| `<filename>` | `ScriptTaskService.filenameFor()` — sanitized element id plus a short discriminator | Human-readable tab label |
+| `<slug>` | `ScriptUri.slug` — `script-task`, `execution-listener-<idx>[-<event>]`, `task-listener-<idx>[-<event>]` | Distinguishes multiple scripts on the same element; consumed by `parseKindFromUri` to scope completions |
+| `<filename>` | `ScriptUri.filename` — sanitized element id plus a short discriminator | Human-readable tab label |
 
 Filename examples:
 
