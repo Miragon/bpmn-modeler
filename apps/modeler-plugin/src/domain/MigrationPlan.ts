@@ -6,18 +6,18 @@
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
 
+import { BpmnDocument } from "./BpmnDocument";
+
 /**
  * Describes a single BPMN file discovered in the workspace.
  */
 export interface BpmnFileEntry {
     // Absolute file system path.
     readonly path: string;
-    // Raw XML content of the file.
-    readonly content: string;
+    // BPMN document wrapping the raw XML content.
+    readonly document: BpmnDocument;
     // Detected Camunda platform (`"c7"` or `"c8"`).
     readonly platform: Engine;
-    // Current `modeler:executionPlatformVersion` value, or `undefined` if absent.
-    readonly version: string | undefined;
 }
 
 /**

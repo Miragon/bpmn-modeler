@@ -15,6 +15,7 @@ import { ModelerSession } from "../domain/session";
 import { SettingBuilder } from "../domain/model";
 import { ExecutionPlatformNotDetectedError, UserCancelledError } from "../domain/errors";
 import { getLatestVersion, getVersions } from "../domain/engineVersions";
+import { BpmnDocument } from "../domain/BpmnDocument";
 import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { PropertiesPanelStateRepository } from "../infrastructure/PropertiesPanelStateRepository";
@@ -26,14 +27,6 @@ import { VsCodeClipboard } from "../infrastructure/VsCodeClipboard";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "../infrastructure/VsCodePicker";
 import { ArtifactChangeTarget, ArtifactService } from "./ArtifactService";
-import {
-    addExecutionPlatform,
-    detectExecutionPlatform,
-    detectExecutionPlatformVersion,
-    emptyC7BpmnDiagram,
-    emptyC8BpmnDiagram,
-    updateExecutionPlatformVersion,
-} from "./bpmnUtils";
 
 /**
  * Owns the per-editor {@link ModelerSession} map that drives echo
@@ -73,32 +66,27 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         }
 
         try {
-            let bpmnFile = this.vsDocument.getContent(editorId);
+            let doc = new BpmnDocument(this.vsDocument.getContent(editorId));
 
-            if (bpmnFile === "") {
+            if (doc.isEmpty()) {
                 const ep = await this.picker.pickExecutionPlatform("Select the engine.", [
                     "Camunda 7",
                     "Camunda 8",
                 ]);
 
-                const latestVersion = getLatestVersion(ep);
-                bpmnFile =
-                    ep === "c7"
-                        ? emptyC7BpmnDiagram(latestVersion)
-                        : emptyC8BpmnDiagram(latestVersion);
-
-                await this.vsDocument.write(editorId, bpmnFile);
+                doc = BpmnDocument.empty(ep, getLatestVersion(ep));
+                await this.vsDocument.write(editorId, doc.xml);
                 await this.vsDocument.save(editorId);
             }
 
             try {
-                const ep = detectExecutionPlatform(bpmnFile);
+                const ep = doc.detectPlatform();
                 const sent = await this.editorStore.postMessage(
                     editorId,
-                    new BpmnFileQuery(bpmnFile, ep),
+                    new BpmnFileQuery(doc.xml, ep),
                 );
 
-                const version = detectExecutionPlatformVersion(bpmnFile);
+                const version = doc.detectPlatformVersion();
                 if (version) {
                     this.statusBar.showEngineVersion(ep, version);
                 }
@@ -114,27 +102,22 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     );
 
                     const latestVersion = getLatestVersion(ep);
-                    const newBpmnFile =
+                    const newDoc =
                         ep === "c7"
-                            ? addExecutionPlatform(
-                                  bpmnFile,
+                            ? doc.withExecutionPlatform(
                                   "Camunda Platform",
                                   latestVersion,
                                   `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`,
                               )
-                            : addExecutionPlatform(
-                                  bpmnFile,
+                            : doc.withExecutionPlatform(
                                   "Camunda Cloud",
                                   latestVersion,
                                   `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`,
                               );
 
-                    await this.editorStore.postMessage(
-                        editorId,
-                        new BpmnFileQuery(newBpmnFile, ep),
-                    );
+                    await this.editorStore.postMessage(editorId, new BpmnFileQuery(newDoc.xml, ep));
                     this.statusBar.showEngineVersion(ep, latestVersion);
-                    return this.vsDocument.write(editorId, newBpmnFile);
+                    return this.vsDocument.write(editorId, newDoc.xml);
                 } else {
                     return this.handleError(error as Error);
                 }
@@ -310,14 +293,14 @@ export class BpmnModelerService implements ArtifactChangeTarget {
 
     async changeEngineVersion(editorId: string): Promise<boolean> {
         try {
-            const bpmnFile = this.vsDocument.getContent(editorId);
-            const platform = detectExecutionPlatform(bpmnFile);
+            const doc = new BpmnDocument(this.vsDocument.getContent(editorId));
+            const platform = doc.detectPlatform();
             const versions = getVersions(platform);
 
             const newVersion = await this.picker.pickEngineVersion(platform, versions);
 
-            const updatedBpmn = updateExecutionPlatformVersion(bpmnFile, newVersion);
-            await this.vsDocument.write(editorId, updatedBpmn);
+            const updatedDoc = doc.withVersion(newVersion);
+            await this.vsDocument.write(editorId, updatedDoc.xml);
 
             this.statusBar.showEngineVersion(platform, newVersion);
             return await this.display(editorId);
@@ -417,15 +400,10 @@ export class BpmnModelerService implements ArtifactChangeTarget {
 
         for (const filePath of paths) {
             const content = await this.vsWorkspace.readFile(filePath);
+            const doc = new BpmnDocument(content);
             try {
-                const platform = detectExecutionPlatform(content);
-                const version = detectExecutionPlatformVersion(content);
-                const entry: BpmnFileEntry = {
-                    path: filePath,
-                    content,
-                    platform,
-                    version,
-                };
+                const platform = doc.detectPlatform();
+                const entry: BpmnFileEntry = { path: filePath, document: doc, platform };
                 if (platform === "c7") {
                     c7Files.push(entry);
                 } else {
@@ -451,19 +429,19 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         let updatedCount = 0;
 
         for (const file of files) {
-            if (file.version === targetVersion) {
+            const currentVersion = file.document.detectPlatformVersion();
+            if (currentVersion === targetVersion) {
                 continue;
             }
 
-            let updatedContent: string;
-            if (file.version === undefined) {
+            let updatedDoc: BpmnDocument;
+            if (currentVersion === undefined) {
                 const platformName = platform === "c7" ? "Camunda Platform" : "Camunda Cloud";
                 const schema =
                     platform === "c7"
                         ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
                         : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`;
-                updatedContent = addExecutionPlatform(
-                    file.content,
+                updatedDoc = file.document.withExecutionPlatform(
                     platformName,
                     targetVersion,
                     schema,
@@ -472,14 +450,14 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     `Added missing executionPlatform attribute to: ${file.path}`,
                 );
             } else {
-                updatedContent = updateExecutionPlatformVersion(file.content, targetVersion);
+                updatedDoc = file.document.withVersion(targetVersion);
             }
 
             const editorId = this.editorStore.findEditorIdByPath(file.path);
             if (editorId !== undefined) {
-                await this.vsDocument.write(editorId, updatedContent);
+                await this.vsDocument.write(editorId, updatedDoc.xml);
             } else {
-                await this.vsWorkspace.writeFile(file.path, updatedContent);
+                await this.vsWorkspace.writeFile(file.path, updatedDoc.xml);
             }
 
             updatedCount++;
