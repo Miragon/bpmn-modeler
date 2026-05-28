@@ -4,6 +4,7 @@ import { env, Uri, window, workspace } from "vscode";
 
 import { UserCancelledError } from "../domain/errors";
 import { MigrationScope } from "../domain/MigrationPlan";
+import { VsCodeWorkspace } from "./VsCodeWorkspace";
 import { VsCodeLogger, VsCodeTextEditor } from "./window";
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
@@ -11,6 +12,8 @@ export class VsCodeUI {
     private readonly textEditor = new VsCodeTextEditor();
 
     private readonly logger = new VsCodeLogger("bpmn.modeler");
+
+    constructor(private readonly vsWorkspace: VsCodeWorkspace) {}
 
     showInfo(message: string): void {
         window.showInformationMessage(message);
@@ -106,6 +109,38 @@ export class VsCodeUI {
             throw new UserCancelledError();
         }
         return result;
+    }
+
+    /**
+     * Opens a multi-select quick pick over workspace files matching `glob`.
+     *
+     * Composes the workspace search and the picker so callers in `service/`
+     * don't reach into the `vscode` namespace for either step.
+     *
+     * @returns Absolute paths of the chosen files, or `[]` if the user
+     *   dismisses the picker.
+     */
+    async pickWorkspaceFiles(opts: {
+        glob: string;
+        exclude?: string | null;
+        placeholder: string;
+        limit?: number;
+    }): Promise<string[]> {
+        const paths = await this.vsWorkspace.findFiles(opts.glob, opts.exclude, opts.limit);
+
+        const items = paths.map((p) => ({
+            label: posix.basename(p),
+            description: p,
+            filePath: p,
+        }));
+
+        const picked = await window.showQuickPick(items, {
+            canPickMany: true,
+            placeHolder: opts.placeholder,
+            matchOnDescription: true,
+        });
+
+        return picked?.map((item) => item.filePath) ?? [];
     }
 
     /**
