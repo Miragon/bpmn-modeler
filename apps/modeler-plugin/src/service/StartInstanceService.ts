@@ -1,6 +1,4 @@
-import * as path from "path";
 import { posix } from "path";
-import { window } from "vscode";
 
 import { StartInstanceConfig, StartInstanceResult } from "../domain/startInstance";
 import { AuthConfig } from "../domain/deployment";
@@ -8,6 +6,7 @@ import { CamundaEnginePort } from "../domain/ports";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { VsCodePicker } from "../infrastructure/VsCodePicker";
 import { ArtifactService } from "./ArtifactService";
 import { BpmnDocument } from "../domain/BpmnDocument";
 
@@ -26,6 +25,7 @@ export class StartInstanceService {
      * @param vsWorkspace Filesystem and workspace-folder helper.
      * @param restClient HTTP client for the Camunda REST API.
      * @param notifier User-facing message and logging helper.
+     * @param picker Quick-pick adapter for the payload selection prompt.
      * @param artifactService Convention-based file discovery service.
      */
     constructor(
@@ -33,6 +33,7 @@ export class StartInstanceService {
         private readonly vsWorkspace: VsCodeWorkspace,
         private readonly restClient: CamundaEnginePort,
         private readonly notifier: VsCodeNotifier,
+        private readonly picker: VsCodePicker,
         private readonly artifactService: ArtifactService,
     ) {}
 
@@ -66,23 +67,7 @@ export class StartInstanceService {
             return null;
         }
 
-        const items = payloadPaths.map((p) => ({
-            label: path.basename(p),
-            description: p,
-            filePath: p,
-        }));
-
-        const selected = await window.showQuickPick(items, {
-            canPickMany: false,
-            placeHolder: "Select a payload file",
-            matchOnDescription: true,
-        });
-
-        if (!selected) {
-            return null;
-        }
-
-        return { filePath: selected.filePath, label: selected.label };
+        return this.picker.pickPayloadFile(payloadPaths);
     }
 
     /**

@@ -20,12 +20,12 @@ import { BpmnModelerService } from "./service/BpmnModelerService";
 import { DmnModelerService } from "./service/DmnModelerService";
 import { ModelNavigationService } from "./service/ModelNavigationService";
 import { ReferencedModelLocator } from "./service/modelNavigation/ReferencedModelLocator";
-import { ScriptCompletionProvider } from "./service/ScriptCompletionProvider";
-import { ScriptTaskService } from "./service/ScriptTaskService";
 import { BpmnCompareController } from "./controller/BpmnCompareController";
 import { CommandController } from "./controller/CommandController";
 import { BpmnEditorController } from "./controller/BpmnEditorController";
 import { DmnEditorController } from "./controller/DmnEditorController";
+import { ScriptCompletionProvider } from "./controller/ScriptCompletionProvider";
+import { ScriptTaskService } from "./controller/ScriptTaskService";
 import { VsCodeDeploymentState } from "./infrastructure/VsCodeDeploymentState";
 import { VsCodeSecretStore } from "./infrastructure/VsCodeSecretStore";
 import { FetchHttpClient } from "./infrastructure/FetchHttpClient";
@@ -99,6 +99,7 @@ export function activate(context: ExtensionContext): void {
         vsWorkspace,
         restClient,
         notifier,
+        picker,
         artifactSvc,
     );
     const referencedModelLocator = new ReferencedModelLocator(vsWorkspace, notifier);
@@ -108,7 +109,7 @@ export function activate(context: ExtensionContext): void {
         picker,
     );
 
-    const scriptTaskSvc = new ScriptTaskService(editorStore, bpmnScriptFs, notifier);
+    const scriptTaskSvc = new ScriptTaskService(editorStore, bpmnScriptFs, notifier, picker);
     scriptTaskSvc.register(context);
 
     new ScriptCompletionProvider().register(context);

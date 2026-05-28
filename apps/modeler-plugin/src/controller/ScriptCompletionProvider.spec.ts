@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { beansFor } from "../domain/scriptApi";
-import { matchMemberAccess, parseKindFromUri } from "./scriptCompletionHelpers";
+import { matchMemberAccess, parseKindFromUri } from "../domain/scriptCompletion";
 
 /**
  * Pure-function tests for the helpers behind the script completion provider.

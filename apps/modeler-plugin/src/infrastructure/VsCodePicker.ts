@@ -1,9 +1,10 @@
 import { posix } from "path";
 
-import { Uri, window, workspace } from "vscode";
+import { QuickPickItem, Uri, window, workspace } from "vscode";
 
 import { UserCancelledError } from "../domain/errors";
 import { MigrationScope } from "../domain/MigrationPlan";
+import { ScriptLanguage } from "../domain/scriptLanguage";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
@@ -109,6 +110,62 @@ export class VsCodePicker {
         });
 
         return picked?.map((item) => item.filePath) ?? [];
+    }
+
+    /**
+     * Returns `null` on cancel — start-instance is a user-initiated
+     * workflow, not a navigation prompt, so a clean dismissal is expected
+     * and must not throw. `matchOnDescription` lets users filter by the
+     * full path when several payloads share a basename.
+     */
+    async pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null> {
+        const items = paths.map((p) => ({
+            label: posix.basename(p),
+            description: p,
+            filePath: p,
+        }));
+
+        const picked = await window.showQuickPick(items, {
+            canPickMany: false,
+            placeHolder: "Select a payload file",
+            matchOnDescription: true,
+        });
+
+        if (!picked) {
+            return null;
+        }
+        return { filePath: picked.filePath, label: picked.label };
+    }
+
+    /**
+     * Returns the picked Camunda `scriptFormat` (e.g. `"javascript"`) or
+     * `undefined` on cancel — the open-script flow uses this to recover
+     * when the BPMN model's `camunda:scriptFormat` is missing or set to a
+     * language we don't ship IntelliSense for. The currently-set format
+     * (if any) is pinned to the top so it remains the default highlighted
+     * option even when unrecognised.
+     */
+    async pickScriptLanguage(currentFormat: string): Promise<string | undefined> {
+        interface ScriptLanguageItem extends QuickPickItem {
+            readonly format: string;
+        }
+        const items: ScriptLanguageItem[] = ScriptLanguage.supportedFormats().map((format) => ({
+            label: format.charAt(0).toUpperCase() + format.slice(1),
+            description: `.${new ScriptLanguage(format).extension}`,
+            format,
+        }));
+        const normalized = currentFormat.toLowerCase().trim();
+        items.sort((a, b) => {
+            if (a.format === normalized) return -1;
+            if (b.format === normalized) return 1;
+            return 0;
+        });
+
+        const picked = await window.showQuickPick<ScriptLanguageItem>(items, {
+            placeHolder: "Select the scripting language",
+            title: "Script Language",
+        });
+        return picked?.format;
     }
 
     /**
