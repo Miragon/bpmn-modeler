@@ -1,5 +1,3 @@
-import { commands, ProgressLocation, Uri, window } from "vscode";
-
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "../infrastructure/VsCodePicker";
 
@@ -30,17 +28,14 @@ export class ModelNavigationService {
     async navigate(
         referenceId: string,
         kind: "process" | "decision",
-        sourceDocumentUri?: Uri,
+        sourceDocumentPath?: string,
     ): Promise<void> {
         const display = truncate(referenceId, REFERENCE_ID_DISPLAY_LIMIT);
         // Only the search itself is wrapped — the QuickPick (multi-match) and
-        // vscode.open are user-driven and must not keep a spinner visible.
-        const result = await window.withProgress(
-            {
-                location: ProgressLocation.Window,
-                title: `Searching for ${kind} "${truncate(referenceId, PROGRESS_LABEL_LIMIT)}"…`,
-            },
-            () => this.locator.findDeclaringFiles(referenceId, kind, sourceDocumentUri),
+        // openDocument are user-driven and must not keep a spinner visible.
+        const result = await this.notifier.withProgress(
+            `Searching for ${kind} "${truncate(referenceId, PROGRESS_LABEL_LIMIT)}"…`,
+            () => this.locator.findDeclaringFiles(referenceId, kind, sourceDocumentPath),
         );
 
         if (result.kind === "no-search-scope") {
@@ -78,7 +73,7 @@ export class ModelNavigationService {
         }
 
         try {
-            await commands.executeCommand("vscode.open", Uri.file(chosen));
+            await this.notifier.openDocument(chosen);
         } catch (error) {
             this.notifier.logError(error as Error);
             this.notifier.showError(`Could not open ${chosen}: ${(error as Error).message}`);

@@ -1,29 +1,40 @@
-import { TextDocument, Uri, WebviewPanel } from "vscode";
-
 import { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-shared";
 
 export { DiffOrigin };
 
 /**
- * A single webview pane inside a diff session.
+ * Domain handle for a single diff pane.
  *
- * `ready` flips to `true` once the webview has imported its XML and emitted
- * `DiffReadyCommand`.  The session is armed — and the differ runs — when both
- * panes report ready.
+ * Wraps whatever the host gave us (in production: a `WebviewPanel` +
+ * `TextDocument` pair — see `WebviewPaneHandle` in {@link BpmnDiffService}).
+ * The session sees only this handle, which lets `DiffSession` stay free of
+ * `vscode` imports and lets tests substitute a plain object.
+ *
+ * `uri` is the canonical identity used by the session's lookups — it must
+ * be the stringified URI of the underlying document (i.e.
+ * `document.uri.toString()`).
  */
-export interface DiffPaneEntry {
-    readonly panel: WebviewPanel;
-    readonly document: TextDocument;
-    ready: boolean;
+export interface DiffPaneHandle {
+    readonly uri: string;
+    /**
+     * `true` once the webview has imported its XML and emitted
+     * `DiffReadyCommand`. The session is armed — and the differ runs —
+     * when both panes report ready.
+     */
+    isReady(): boolean;
+    setReady(): void;
+    getText(): string;
+    postMessage(msg: unknown): Promise<boolean>;
+    dispose(): void;
 }
 
 /**
- * A paired BPMN diff view — the domain object the rest of the service
- * revolves around.
+ * A paired BPMN diff view — the domain object the diff service revolves
+ * around.
  *
- * Promotes what used to be implicit pairing (mutual `partner` pointers on two
- * `DiffPaneEntry` records) into an explicit object that owns both URIs and
- * both pane slots.  A session can exist with zero, one, or two attached panes
+ * Promotes what used to be implicit pairing (mutual `partner` pointers on
+ * two pane records) into an explicit object that owns both URIs and both
+ * pane slots. A session can exist with zero, one, or two attached panes
  * — this matters because:
  *
  * - `compare-files` sessions are created up front with both URIs known but
@@ -34,75 +45,63 @@ export interface DiffPaneEntry {
  *
  * Side assignment is fixed at construction time — `before` and `after` are
  * inherent to the session, not inferred from the pane that attaches first.
- * This is the key change versus the previous scheme-based heuristic, which
- * could not discriminate two `file:` URIs.
  */
 export class DiffSession {
     // Wall-clock ms at construction — used by the TTL sweeper in the service.
     readonly createdAt: number = Date.now();
 
-    private beforePane?: DiffPaneEntry;
+    private beforePane?: DiffPaneHandle;
 
-    private afterPane?: DiffPaneEntry;
+    private afterPane?: DiffPaneHandle;
 
     /**
      * Prefer the origin-specific factories ({@link forCompareFiles},
      * {@link forScm}) over calling this directly — they encapsulate each
      * origin's side-assignment rule.
      *
-     * @param origin How this session came to be.  Surfaces in the diff-legend
+     * @param origin How this session came to be. Surfaces in the diff-legend
      *   UI so compare-files panes can show origin-specific affordances (the
      *   filename label, the swap button) that don't apply to SCM diffs.
-     * @param beforeUri URI rendered in the left pane.
-     * @param afterUri URI rendered in the right pane.
+     * @param beforeUri Stringified URI rendered in the left pane.
+     * @param afterUri Stringified URI rendered in the right pane.
      */
     constructor(
         readonly origin: DiffOrigin,
-        readonly beforeUri: Uri,
-        readonly afterUri: Uri,
+        readonly beforeUri: string,
+        readonly afterUri: string,
     ) {}
 
     /**
      * Builds a `compare-files` session with the caller's left/right order
-     * fixed as before/after.  Matches the visual order VS Code renders
+     * fixed as before/after. Matches the visual order VS Code renders
      * `vscode.diff(a, b)` in — no inference is necessary because the
      * extension itself supplied both URIs.
      */
-    static forCompareFiles(leftUri: Uri, rightUri: Uri): DiffSession {
+    static forCompareFiles(leftUri: string, rightUri: string): DiffSession {
         return new DiffSession("compare-files", leftUri, rightUri);
     }
 
     /**
-     * Builds an `scm` session from the two panes VS Code handed us, applying
-     * the SCM side-assignment rule:
-     *
-     *   - If one URI is `file:` it is the working tree → `after`.
-     *   - Otherwise (ref-vs-ref, both `git:` / both `gitfs:`) the
-     *     first-resolved pane is `before`, second is `after` — arbitrary but
-     *     matches the visual order VS Code's / Theia's SCM diff chose.
-     *
-     * The panes are returned alongside the session so the caller can attach
-     * them without re-deriving the pairing.
+     * Builds an `scm` session from the two panes the caller has already
+     * sorted into before/after roles. The SCM side-assignment rule (working
+     * tree `file:` → `after`; ref-vs-ref → resolution order) lives in the
+     * caller because it needs the URI scheme, which a string-typed handle
+     * exposes only by parsing — cleaner to do it once where vscode `Uri` is
+     * still in scope.
      */
-    static forScm(
-        first: DiffPaneEntry,
-        second: DiffPaneEntry,
-    ): { session: DiffSession; before: DiffPaneEntry; after: DiffPaneEntry } {
-        const { before, after } = resolveScmSides(first, second);
-        const session = new DiffSession("scm", before.document.uri, after.document.uri);
-        return { session, before, after };
+    static forScm(before: DiffPaneHandle, after: DiffPaneHandle): DiffSession {
+        return new DiffSession("scm", before.uri, after.uri);
     }
 
     /**
      * Returns the canonical side for the given URI, or `undefined` when the
      * URI belongs to neither slot of this session.
      */
-    sideFor(uri: Uri): DiffSide | undefined {
-        const needle = uri.toString();
-        if (needle === this.beforeUri.toString()) {
+    sideFor(uri: string): DiffSide | undefined {
+        if (uri === this.beforeUri) {
             return "before";
         }
-        if (needle === this.afterUri.toString()) {
+        if (uri === this.afterUri) {
             return "after";
         }
         return undefined;
@@ -111,7 +110,7 @@ export class DiffSession {
     /**
      * Returns `true` when a pane has already attached for `uri`'s side.
      */
-    hasPaneFor(uri: Uri): boolean {
+    hasPaneFor(uri: string): boolean {
         const side = this.sideFor(uri);
         if (side === "before") {
             return this.beforePane !== undefined;
@@ -123,32 +122,32 @@ export class DiffSession {
     }
 
     /**
-     * Attaches `entry` to the slot matching its document URI.
+     * Attaches `handle` to the slot matching its URI.
      *
-     * @returns The assigned side, or `undefined` when the entry's URI does
-     *   not belong to this session.  Callers should treat `undefined` as a
-     *   programming error — only the owning {@link BpmnDiffService} should
-     *   be attaching panes, and it should only do so after a successful
+     * @returns The assigned side, or `undefined` when the handle's URI does
+     *   not belong to this session. Callers should treat `undefined` as a
+     *   programming error — only the owning diff service should be
+     *   attaching panes, and it should only do so after a successful
      *   session lookup.
      */
-    attachPane(entry: DiffPaneEntry): DiffSide | undefined {
-        const side = this.sideFor(entry.document.uri);
+    attachPane(handle: DiffPaneHandle): DiffSide | undefined {
+        const side = this.sideFor(handle.uri);
         if (side === "before") {
-            this.beforePane = entry;
+            this.beforePane = handle;
         } else if (side === "after") {
-            this.afterPane = entry;
+            this.afterPane = handle;
         }
         return side;
     }
 
     /**
-     * Drops `entry` from whichever slot held it (no-op if unknown).
+     * Drops `handle` from whichever slot held it (no-op if unknown).
      */
-    detachPane(entry: DiffPaneEntry): void {
-        if (this.beforePane === entry) {
+    detachPane(handle: DiffPaneHandle): void {
+        if (this.beforePane === handle) {
             this.beforePane = undefined;
         }
-        if (this.afterPane === entry) {
+        if (this.afterPane === handle) {
             this.afterPane = undefined;
         }
     }
@@ -156,11 +155,11 @@ export class DiffSession {
     /**
      * Returns the opposite pane, or `undefined` when unpaired.
      */
-    partnerOf(entry: DiffPaneEntry): DiffPaneEntry | undefined {
-        if (this.beforePane === entry) {
+    partnerOf(handle: DiffPaneHandle): DiffPaneHandle | undefined {
+        if (this.beforePane === handle) {
             return this.afterPane;
         }
-        if (this.afterPane === entry) {
+        if (this.afterPane === handle) {
             return this.beforePane;
         }
         return undefined;
@@ -169,22 +168,22 @@ export class DiffSession {
     /**
      * The before-side pane, or `undefined` when not yet attached.
      */
-    before(): DiffPaneEntry | undefined {
+    before(): DiffPaneHandle | undefined {
         return this.beforePane;
     }
 
     /**
      * The after-side pane, or `undefined` when not yet attached.
      */
-    after(): DiffPaneEntry | undefined {
+    after(): DiffPaneHandle | undefined {
         return this.afterPane;
     }
 
     /**
      * All currently-attached panes (0 to 2).
      */
-    attachedPanes(): DiffPaneEntry[] {
-        const panes: DiffPaneEntry[] = [];
+    attachedPanes(): DiffPaneHandle[] {
+        const panes: DiffPaneHandle[] = [];
         if (this.beforePane) {
             panes.push(this.beforePane);
         }
@@ -208,28 +207,8 @@ export class DiffSession {
         return (
             this.beforePane !== undefined &&
             this.afterPane !== undefined &&
-            this.beforePane.ready &&
-            this.afterPane.ready
+            this.beforePane.isReady() &&
+            this.afterPane.isReady()
         );
     }
-}
-
-/**
- * Resolves SCM-diff side assignment for two panes that share a path.
- *
- * Invariant: `file:` URIs represent the working tree and must be `after`.
- * For ref-vs-ref diffs (both `git:` in VS Code, both `gitfs:` in Theia) side
- * follows resolution order, which mirrors the host's own visual ordering.
- */
-function resolveScmSides(
-    first: DiffPaneEntry,
-    second: DiffPaneEntry,
-): { before: DiffPaneEntry; after: DiffPaneEntry } {
-    if (second.document.uri.scheme === "file") {
-        return { before: first, after: second };
-    }
-    if (first.document.uri.scheme === "file") {
-        return { before: second, after: first };
-    }
-    return { before: first, after: second };
 }

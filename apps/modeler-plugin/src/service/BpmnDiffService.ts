@@ -40,7 +40,45 @@ import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { BpmnDocument } from "../domain/BpmnDocument";
-import { DiffPaneEntry, DiffSession } from "./DiffSession";
+import { DiffPaneHandle, DiffSession } from "./DiffSession";
+
+/**
+ * Infrastructure adapter that wraps a real `WebviewPanel` + `TextDocument`
+ * pair into the {@link DiffPaneHandle} the session uses. Lives next to the
+ * service so the rest of the diff machinery can stay vscode-free.
+ */
+class WebviewPaneHandle implements DiffPaneHandle {
+    private readyFlag = false;
+
+    constructor(
+        readonly panel: WebviewPanel,
+        readonly document: TextDocument,
+    ) {}
+
+    get uri(): string {
+        return this.document.uri.toString();
+    }
+
+    isReady(): boolean {
+        return this.readyFlag;
+    }
+
+    setReady(): void {
+        this.readyFlag = true;
+    }
+
+    getText(): string {
+        return this.document.getText();
+    }
+
+    postMessage(msg: unknown): Promise<boolean> {
+        return Promise.resolve(this.panel.webview.postMessage(msg));
+    }
+
+    dispose(): void {
+        this.panel.dispose();
+    }
+}
 
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
 
@@ -71,7 +109,7 @@ const COMPARE_FILES_TTL_MS = 30_000;
  * into a full {@link DiffSession} and register it.
  */
 interface PendingScmPane {
-    readonly entry: DiffPaneEntry;
+    readonly handle: WebviewPaneHandle;
 }
 
 /**
@@ -165,7 +203,7 @@ export class BpmnDiffService {
      *   ignore the return value).
      */
     registerCompareFilesSession(leftUri: Uri, rightUri: Uri): DiffSession {
-        const session = DiffSession.forCompareFiles(leftUri, rightUri);
+        const session = DiffSession.forCompareFiles(leftUri.toString(), rightUri.toString());
         this.indexSession(session);
         this.ttlTimers.set(
             session,
@@ -190,7 +228,7 @@ export class BpmnDiffService {
      */
     async openCompareFilesDiff(leftUri: Uri, rightUri: Uri): Promise<void> {
         this.registerCompareFilesSession(leftUri, rightUri);
-        const title = `${basenameOfUri(leftUri)} ↔ ${basenameOfUri(rightUri)}`;
+        const title = `${this.basenameOfUriString(leftUri.toString())} ↔ ${this.basenameOfUriString(rightUri.toString())}`;
         try {
             await commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
                 preview: false,
@@ -208,6 +246,16 @@ export class BpmnDiffService {
      */
     findSessionFor(uri: Uri): DiffSession | undefined {
         return this.sessionByUri.get(uri.toString());
+    }
+
+    private basenameOfUriString(uri: string): string {
+        // Trim query/fragment so e.g. `file:///foo.bpmn?ref=HEAD` still
+        // resolves to `foo.bpmn`. `Uri.toString()` keeps `?` / `#` for any
+        // host that uses them; the bare path is what users see in the tab.
+        const noFragment = uri.split("#")[0];
+        const noQuery = noFragment.split("?")[0];
+        const parts = noQuery.split("/");
+        return decodeURIComponent(parts[parts.length - 1] ?? "");
     }
 
     /**
@@ -254,7 +302,7 @@ export class BpmnDiffService {
      * differ.
      */
     isPartOfDiff(uri: Uri): boolean {
-        const basename = basenameOfUri(uri);
+        const basename = this.basenameOfUriString(uri.toString());
         if (!basename.endsWith(".bpmn")) {
             return false;
         }
@@ -278,11 +326,11 @@ export class BpmnDiffService {
     hasPaneForUri(uri: Uri): boolean {
         const needle = uri.toString();
         const session = this.sessionByUri.get(needle);
-        if (session?.hasPaneFor(uri)) {
+        if (session?.hasPaneFor(needle)) {
             return true;
         }
         for (const pending of this.pendingScm.values()) {
-            if (pending.entry.document.uri.toString() === needle) {
+            if (pending.handle.uri === needle) {
                 return true;
             }
         }
@@ -307,21 +355,17 @@ export class BpmnDiffService {
         // drops webview-originated messages that arrive before the extension
         // has subscribed, and bootstrapping triggers an immediate
         // `GetBpmnFileCommand` as soon as the webview's scripts run.
-        const entry: DiffPaneEntry = {
-            panel,
-            document,
-            ready: false,
-        };
+        const handle = new WebviewPaneHandle(panel, document);
 
-        panel.webview.onDidReceiveMessage((message: Command) => this.onMessage(entry, message));
-        panel.onDidDispose(() => this.disposePane(entry));
+        panel.webview.onDidReceiveMessage((message: Command) => this.onMessage(handle, message));
+        panel.onDidDispose(() => this.disposePane(handle));
 
         const session = this.findSessionFor(document.uri);
         if (session) {
-            session.attachPane(entry);
+            session.attachPane(handle);
             this.cancelTtl(session);
         } else {
-            this.attachOrPendScmPane(entry);
+            this.attachOrPendScmPane(handle);
         }
 
         bootstrapWebview(BPMN_VIEW_TYPE, panel);
@@ -338,17 +382,18 @@ export class BpmnDiffService {
      *     `before`, second is `after` — arbitrary but matches the visual
      *     order VS Code's SCM diff chose.
      */
-    private attachOrPendScmPane(entry: DiffPaneEntry): void {
-        const key = this.scmPairingKey(entry.document.uri);
+    private attachOrPendScmPane(handle: WebviewPaneHandle): void {
+        const key = this.scmPairingKey(handle.document.uri);
         const pending = this.pendingScm.get(key);
 
         if (!pending) {
-            this.pendingScm.set(key, { entry });
+            this.pendingScm.set(key, { handle });
             return;
         }
 
         this.pendingScm.delete(key);
-        const { session, before, after } = DiffSession.forScm(pending.entry, entry);
+        const { before, after } = resolveScmSides(pending.handle, handle);
+        const session = DiffSession.forScm(before, after);
         session.attachPane(before);
         session.attachPane(after);
         this.indexSession(session);
@@ -375,12 +420,12 @@ export class BpmnDiffService {
      */
     private indexSession(session: DiffSession): void {
         this.sessions.set(this.sessionIdOf(session), session);
-        this.sessionByUri.set(session.beforeUri.toString(), session);
-        this.sessionByUri.set(session.afterUri.toString(), session);
+        this.sessionByUri.set(session.beforeUri, session);
+        this.sessionByUri.set(session.afterUri, session);
     }
 
     private sessionIdOf(session: DiffSession): string {
-        return `${session.beforeUri.toString()}|${session.afterUri.toString()}`;
+        return `${session.beforeUri}|${session.afterUri}`;
     }
 
     private cancelTtl(session: DiffSession): void {
@@ -397,51 +442,51 @@ export class BpmnDiffService {
             return;
         }
         this.sessions.delete(this.sessionIdOf(session));
-        this.sessionByUri.delete(session.beforeUri.toString());
-        this.sessionByUri.delete(session.afterUri.toString());
+        this.sessionByUri.delete(session.beforeUri);
+        this.sessionByUri.delete(session.afterUri);
     }
 
-    private disposePane(entry: DiffPaneEntry): void {
+    private disposePane(handle: DiffPaneHandle): void {
         /**
          * Drop from pending (no session ever formed)
          */
         for (const [key, pending] of this.pendingScm) {
-            if (pending.entry === entry) {
+            if (pending.handle === handle) {
                 this.pendingScm.delete(key);
                 return;
             }
         }
 
         // Drop from session; retire the session if both panes are gone.
-        const session = this.sessionByUri.get(entry.document.uri.toString());
+        const session = this.sessionByUri.get(handle.uri);
         if (!session) {
             return;
         }
-        session.detachPane(entry);
+        session.detachPane(handle);
         if (session.isEmpty()) {
             this.sessions.delete(this.sessionIdOf(session));
-            this.sessionByUri.delete(session.beforeUri.toString());
-            this.sessionByUri.delete(session.afterUri.toString());
+            this.sessionByUri.delete(session.beforeUri);
+            this.sessionByUri.delete(session.afterUri);
             this.cancelTtl(session);
         }
     }
 
-    private async onMessage(entry: DiffPaneEntry, message: Command): Promise<void> {
+    private async onMessage(handle: DiffPaneHandle, message: Command): Promise<void> {
         switch (message.type) {
             case "GetBpmnFileCommand":
-                await this.sendViewerFile(entry);
+                await this.sendViewerFile(handle);
                 break;
             case "DiffReadyCommand":
-                await this.markReady(entry);
+                await this.markReady(handle);
                 break;
             case "ViewportChangedCommand":
-                await this.forwardViewport(entry, (message as ViewportChangedCommand).viewport);
+                await this.forwardViewport(handle, (message as ViewportChangedCommand).viewport);
                 break;
             case "CursorChangedCommand":
-                await this.forwardCursor(entry, (message as CursorChangedCommand).index);
+                await this.forwardCursor(handle, (message as CursorChangedCommand).index);
                 break;
             case "SwapCompareSidesCommand":
-                await this.swapCompareFilesSides(entry);
+                await this.swapCompareFilesSides(handle);
                 break;
         }
     }
@@ -460,16 +505,16 @@ export class BpmnDiffService {
      * subsequent `openCompareFilesDiff` then registers a fresh session with
      * the reversed before/after assignment.
      */
-    private async swapCompareFilesSides(entry: DiffPaneEntry): Promise<void> {
-        const session = this.sessionByUri.get(entry.document.uri.toString());
+    private async swapCompareFilesSides(handle: DiffPaneHandle): Promise<void> {
+        const session = this.sessionByUri.get(handle.uri);
         if (!session || session.origin !== "compare-files") {
             return;
         }
         const { beforeUri, afterUri } = session;
         for (const pane of session.attachedPanes()) {
-            pane.panel.dispose();
+            pane.dispose();
         }
-        await this.openCompareFilesDiff(afterUri, beforeUri);
+        await this.openCompareFilesDiff(Uri.parse(afterUri), Uri.parse(beforeUri));
     }
 
     /**
@@ -478,26 +523,26 @@ export class BpmnDiffService {
      * an execution-platform attribute fall back to `"c7"`, since viewer mode
      * does not render engine-specific extensions anyway.
      */
-    private async sendViewerFile(entry: DiffPaneEntry): Promise<void> {
+    private async sendViewerFile(handle: DiffPaneHandle): Promise<void> {
         try {
-            const content = entry.document.getText();
+            const content = handle.getText();
             let engine: Engine;
             try {
                 engine = new BpmnDocument(content).detectPlatform();
             } catch {
                 engine = "c7";
             }
-            await entry.panel.webview.postMessage(new BpmnFileQuery(content, engine, "viewer"));
+            await handle.postMessage(new BpmnFileQuery(content, engine, "viewer"));
         } catch (error) {
             this.notifier.logError(error as Error);
         }
     }
 
-    private async markReady(entry: DiffPaneEntry): Promise<void> {
-        entry.ready = true;
-        await this.sendLanguage(entry);
+    private async markReady(handle: DiffPaneHandle): Promise<void> {
+        handle.setReady();
+        await this.sendLanguage(handle);
 
-        const session = this.sessionByUri.get(entry.document.uri.toString());
+        const session = this.sessionByUri.get(handle.uri);
         if (!session || !session.isArmed()) {
             return;
         }
@@ -514,9 +559,9 @@ export class BpmnDiffService {
      * when the pane is hidden or already disposed — the pane will request the
      * language again on its next resolve.
      */
-    private async sendLanguage(entry: DiffPaneEntry): Promise<void> {
+    private async sendLanguage(handle: DiffPaneHandle): Promise<void> {
         try {
-            await entry.panel.webview.postMessage(new LanguageQuery(this.vsSettings.getLanguage()));
+            await handle.postMessage(new LanguageQuery(this.vsSettings.getLanguage()));
         } catch (error) {
             this.notifier.logInfo(`setLanguage dropped: ${(error as Error).message}`);
         }
@@ -532,9 +577,9 @@ export class BpmnDiffService {
             return;
         }
         for (const session of this.sessions.values()) {
-            for (const entry of session.attachedPanes()) {
-                if (entry.ready) {
-                    void this.sendLanguage(entry);
+            for (const handle of session.attachedPanes()) {
+                if (handle.isReady()) {
+                    void this.sendLanguage(handle);
                 }
             }
         }
@@ -545,15 +590,15 @@ export class BpmnDiffService {
      * in lockstep.  Silently drops posts when the partner is hidden or gone.
      */
     private async forwardViewport(
-        entry: DiffPaneEntry,
+        handle: DiffPaneHandle,
         viewport: ViewportChangedCommand["viewport"],
     ): Promise<void> {
-        const partner = this.partnerOf(entry);
+        const partner = this.partnerOf(handle);
         if (!partner) {
             return;
         }
         try {
-            await partner.panel.webview.postMessage(new SyncViewportQuery(viewport));
+            await partner.postMessage(new SyncViewportQuery(viewport));
         } catch (error) {
             this.notifier.logInfo(`syncViewport dropped: ${(error as Error).message}`);
         }
@@ -564,21 +609,21 @@ export class BpmnDiffService {
      * navigation stays in lockstep.  Mirrors {@link forwardViewport} — same
      * partner lookup, same drop-silently-on-failure semantics.
      */
-    private async forwardCursor(entry: DiffPaneEntry, index: number): Promise<void> {
-        const partner = this.partnerOf(entry);
+    private async forwardCursor(handle: DiffPaneHandle, index: number): Promise<void> {
+        const partner = this.partnerOf(handle);
         if (!partner) {
             return;
         }
         try {
-            await partner.panel.webview.postMessage(new SyncCursorQuery(index));
+            await partner.postMessage(new SyncCursorQuery(index));
         } catch (error) {
             this.notifier.logInfo(`syncCursor dropped: ${(error as Error).message}`);
         }
     }
 
-    private partnerOf(entry: DiffPaneEntry): DiffPaneEntry | undefined {
-        const session = this.sessionByUri.get(entry.document.uri.toString());
-        return session?.partnerOf(entry);
+    private partnerOf(handle: DiffPaneHandle): DiffPaneHandle | undefined {
+        const session = this.sessionByUri.get(handle.uri);
+        return session?.partnerOf(handle);
     }
 
     /**
@@ -591,11 +636,11 @@ export class BpmnDiffService {
      */
     private async computeAndBroadcast(
         session: DiffSession,
-        before: DiffPaneEntry,
-        after: DiffPaneEntry,
+        before: DiffPaneHandle,
+        after: DiffPaneHandle,
     ): Promise<void> {
-        const beforeXml = before.document.getText();
-        const afterXml = after.document.getText();
+        const beforeXml = before.getText();
+        const afterXml = after.getText();
 
         let beforeDefs: unknown;
         let afterDefs: unknown;
@@ -673,7 +718,7 @@ export class BpmnDiffService {
         const navigationOrder = sortIdsByOrder(merged, afterOrder, removedAnchors);
 
         await this.postHighlights(
-            before.panel,
+            before,
             new ApplyDiffHighlightsQuery(
                 "before",
                 [],
@@ -683,11 +728,11 @@ export class BpmnDiffService {
                 counts,
                 navigationOrder,
                 session.origin,
-                basenameOfUri(before.document.uri),
+                this.basenameOfUriString(before.uri),
             ),
         );
         await this.postHighlights(
-            after.panel,
+            after,
             new ApplyDiffHighlightsQuery(
                 "after",
                 sortedAdded,
@@ -697,24 +742,43 @@ export class BpmnDiffService {
                 counts,
                 navigationOrder,
                 session.origin,
-                basenameOfUri(after.document.uri),
+                this.basenameOfUriString(after.uri),
             ),
         );
     }
 
     private async postHighlights(
-        panel: WebviewPanel,
+        handle: DiffPaneHandle,
         query: ApplyDiffHighlightsQuery,
     ): Promise<void> {
         try {
-            await panel.webview.postMessage(query);
+            await handle.postMessage(query);
         } catch (error) {
             this.notifier.logInfo(`ApplyDiffHighlights dropped: ${(error as Error).message}`);
         }
     }
 }
 
-function basenameOfUri(uri: Uri): string {
-    const parts = uri.path.split("/");
-    return parts[parts.length - 1] ?? "";
+/**
+ * SCM-diff side assignment for two panes that share a path.
+ *
+ * Invariant: `file:` URIs represent the working tree and must be `after`.
+ * For ref-vs-ref diffs (both `git:` in VS Code, both `gitfs:` in Theia) side
+ * follows resolution order, which mirrors the host's own visual ordering.
+ *
+ * Lives in the infrastructure-adjacent half of this file because it reads
+ * `document.uri.scheme` from the vscode-typed handle; pushing it into the
+ * vscode-free {@link DiffSession} would require parsing the string URI.
+ */
+function resolveScmSides(
+    first: WebviewPaneHandle,
+    second: WebviewPaneHandle,
+): { before: WebviewPaneHandle; after: WebviewPaneHandle } {
+    if (second.document.uri.scheme === "file") {
+        return { before: first, after: second };
+    }
+    if (first.document.uri.scheme === "file") {
+        return { before: second, after: first };
+    }
+    return { before: first, after: second };
 }

@@ -83,7 +83,7 @@ describe("BpmnEditorController — NavigateToReferencedModelCommand dispatch", (
         expect(modelNavigationService.navigate).toHaveBeenCalledWith(
             "ProcessB",
             "process",
-            documentUri,
+            documentUri.fsPath,
         );
     });
 
@@ -104,7 +104,7 @@ describe("BpmnEditorController — NavigateToReferencedModelCommand dispatch", (
         expect(modelNavigationService.navigate).toHaveBeenCalledWith(
             "Decision_1",
             "decision",
-            documentUri,
+            documentUri.fsPath,
         );
     });
 
