@@ -17,31 +17,20 @@ export class AuthHeaderResolver {
     /**
      * Converts an {@link AuthConfig} into the corresponding HTTP headers.
      *
-     * - `NoAuth`   → empty object
-     * - `BasicAuth` → `{ Authorization: "Basic <base64>" }`
-     * - `OAuth2Auth` → fetches an access token, returns `{ Authorization: "Bearer <token>" }`
+     * OAuth2 needs an async token fetch and is therefore handled here;
+     * the pure schemes (`NoAuth`, `BasicAuth`) own their own header
+     * formatting via `toHeaders()` and are delegated to.
      *
      * @param auth Authentication configuration to resolve.
      * @returns A record of HTTP headers to merge into the outgoing request.
      * @throws {TokenFetchError} If the OAuth2 token fetch fails.
      */
     async resolve(auth: AuthConfig): Promise<Record<string, string>> {
-        switch (auth.type) {
-            case "none":
-                return {};
-
-            case "basic": {
-                const credentials = Buffer.from(`${auth.username}:${auth.password}`).toString(
-                    "base64",
-                );
-                return { Authorization: `Basic ${credentials}` };
-            }
-
-            case "oauth2": {
-                const accessToken = await this.fetchAccessToken(auth);
-                return { Authorization: `Bearer ${accessToken}` };
-            }
+        if (auth.type === "oauth2") {
+            const accessToken = await this.fetchAccessToken(auth);
+            return { Authorization: `Bearer ${accessToken}` };
         }
+        return auth.toHeaders();
     }
 
     /**
