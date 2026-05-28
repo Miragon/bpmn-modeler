@@ -121,10 +121,16 @@ export class VsCodeWorkspace {
      *   {@link workspace.findFiles}.  `undefined` keeps VS Code's default
      *   (`files.exclude` only); a glob string adds those patterns on top;
      *   `null` opts out of every default exclude.
+     * @param limit Optional cap on the number of results returned, forwarded
+     *   as `maxResults` to {@link workspace.findFiles}.
      * @returns An array of absolute file paths.
      */
-    async findFiles(pattern: GlobPattern, exclude?: GlobPattern | null): Promise<string[]> {
-        const uris = await workspace.findFiles(pattern, exclude);
+    async findFiles(
+        pattern: GlobPattern,
+        exclude?: GlobPattern | null,
+        limit?: number,
+    ): Promise<string[]> {
+        const uris = await workspace.findFiles(pattern, exclude, limit);
         return uris.map((uri) => uri.path);
     }
 

@@ -51,7 +51,7 @@ export function activate(context: ExtensionContext): void {
     const vsWorkspace = new VsCodeWorkspace();
     const vsSettings = new VsCodeSettings();
     const statusBar = new VsCodeStatusBar();
-    const vsUI = new VsCodeUI();
+    const vsUI = new VsCodeUI(vsWorkspace);
     const deploymentState = new VsCodeDeploymentState();
     const compareSelection = new CompareSelectionStore();
     const secretStore = new VsCodeSecretStore();

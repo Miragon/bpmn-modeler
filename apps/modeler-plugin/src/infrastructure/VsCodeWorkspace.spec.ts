@@ -30,7 +30,7 @@ describe("VsCodeWorkspace.findFiles", () => {
         const result = await sut.findFiles("**/*.bpmn");
 
         expect(result).toEqual(["/a.bpmn", "/b.bpmn"]);
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", undefined);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", undefined, undefined);
     });
 
     it("forwards a glob exclude pattern when supplied", async () => {
@@ -38,7 +38,7 @@ describe("VsCodeWorkspace.findFiles", () => {
 
         await sut.findFiles("**/*.bpmn", "**/dist/**");
 
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**");
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**", undefined);
     });
 
     it("forwards null as exclude to opt out of all default excludes", async () => {
@@ -49,7 +49,15 @@ describe("VsCodeWorkspace.findFiles", () => {
 
         await sut.findFiles("**/*.bpmn", null);
 
-        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", null);
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", null, undefined);
+    });
+
+    it("forwards the limit as maxResults to workspace.findFiles", async () => {
+        const sut = new VsCodeWorkspace();
+
+        await sut.findFiles("**/*.bpmn", "**/dist/**", 20);
+
+        expect(findFilesMock).toHaveBeenCalledWith("**/*.bpmn", "**/dist/**", 20);
     });
 
     it("returns the .path of every matching Uri", async () => {

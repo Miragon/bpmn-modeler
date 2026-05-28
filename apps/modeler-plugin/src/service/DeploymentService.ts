@@ -1,5 +1,4 @@
 import * as path from "path";
-import { Uri, window, workspace } from "vscode";
 
 import { AuthConfigPayload, DeploymentFormDefaults, Engine } from "@miragon/bpmn-modeler-shared";
 
@@ -113,40 +112,19 @@ export class DeploymentService {
     }
 
     /**
-     * Opens a VS Code QuickPick (multi-select) showing workspace files that
-     * are relevant for deployment (`.form`, `.json`, `.dmn`).
-     *
-     * Uses `workspace.findFiles` from the VS Code API directly to search across
-     * all workspace folders without requiring a dedicated method on
-     * {@link VsCodeWorkspace}.
+     * Opens a multi-select picker over workspace files relevant for
+     * deployment (`.form`, `.json`, `.dmn`), excluding element templates.
      *
      * @returns Absolute paths of the selected files, or an empty array if the
      *   user cancels or no files match.
      */
     async selectAdditionalFiles(): Promise<string[]> {
-        const uris: Uri[] = await workspace.findFiles(
-            "**/*.{form,json,dmn}",
-            "**/element-templates/**",
-            20,
-        );
-
-        const items = uris.map((uri) => ({
-            label: path.basename(uri.fsPath),
-            description: uri.fsPath,
-            filePath: uri.fsPath,
-        }));
-
-        const selected = await window.showQuickPick(items, {
-            canPickMany: true,
-            placeHolder: "Select additional files to include in the deployment",
-            matchOnDescription: true,
+        return this.vsUI.pickWorkspaceFiles({
+            glob: "**/*.{form,json,dmn}",
+            exclude: "**/element-templates/**",
+            placeholder: "Select additional files to include in the deployment",
+            limit: 20,
         });
-
-        if (!selected) {
-            return [];
-        }
-
-        return selected.map((item) => item.filePath);
     }
 
     /**
