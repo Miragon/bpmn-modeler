@@ -15,6 +15,7 @@ import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { VsCodeTextEditor } from "../infrastructure/VsCodeTextEditor";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 
 // VS Code command ID for toggling the text editor.
@@ -47,12 +48,14 @@ export class CommandController {
      * @param editorStore Central registry for open editor panels and messaging.
      * @param vsDocument Active-document path helper.
      * @param notifier User-facing message and logging helper.
+     * @param textEditor Toggles the companion text editor pane for the active document.
      * @param bpmnService BPMN-specific business logic for engine version changes.
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly vsDocument: VsCodeDocument,
         private readonly notifier: VsCodeNotifier,
+        private readonly textEditor: VsCodeTextEditor,
         private readonly bpmnService: BpmnModelerService,
     ) {}
 
@@ -82,7 +85,7 @@ export class CommandController {
     toggle(): Promise<boolean> {
         const activeId = this.editorStore.getActiveEditorId();
         const documentPath = this.vsDocument.getFilePath(activeId);
-        return this.notifier.toggleTextEditor(documentPath);
+        return this.textEditor.toggle(documentPath);
     }
 
     /**

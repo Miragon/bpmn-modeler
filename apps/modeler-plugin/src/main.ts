@@ -13,6 +13,7 @@ import { VsCodeStatusBar } from "./infrastructure/VsCodeStatusBar";
 import { VsCodeClipboard } from "./infrastructure/VsCodeClipboard";
 import { VsCodeNotifier } from "./infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "./infrastructure/VsCodePicker";
+import { VsCodeTextEditor } from "./infrastructure/VsCodeTextEditor";
 import { ArtifactService } from "./service/ArtifactService";
 import { BpmnDiffService } from "./service/BpmnDiffService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
@@ -56,6 +57,7 @@ export function activate(context: ExtensionContext): void {
     const notifier = new VsCodeNotifier();
     const picker = new VsCodePicker(vsWorkspace);
     const clipboard = new VsCodeClipboard();
+    const textEditor = new VsCodeTextEditor();
     const deploymentState = new VsCodeDeploymentState();
     const compareSelection = new CompareSelectionStore();
     const secretStore = new VsCodeSecretStore();
@@ -111,7 +113,13 @@ export function activate(context: ExtensionContext): void {
 
     new ScriptCompletionProvider().register(context);
 
-    const commandController = new CommandController(editorStore, vsDocument, notifier, bpmnService);
+    const commandController = new CommandController(
+        editorStore,
+        vsDocument,
+        notifier,
+        textEditor,
+        bpmnService,
+    );
     new BpmnEditorController(
         editorStore,
         bpmnService,

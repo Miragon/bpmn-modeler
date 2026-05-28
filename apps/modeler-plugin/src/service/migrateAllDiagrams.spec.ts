@@ -64,7 +64,6 @@ function createMocks() {
         logInfo: vi.fn(),
         logWarning: vi.fn(),
         logError: vi.fn(),
-        toggleTextEditor: vi.fn(),
         openLoggingConsole: vi.fn(),
     };
     const picker = {

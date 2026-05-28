@@ -1,19 +1,22 @@
-import { window } from "vscode";
+import { LogOutputChannel, window } from "vscode";
 
-import { VsCodeLogger, VsCodeTextEditor } from "./window";
+const LOG_CHANNEL_ID = "bpmn.modeler";
+const LOG_PREFIX = `[${LOG_CHANNEL_ID}] `;
 
 /**
  * Adapter for user-facing messages and diagnostic logging.
  *
- * Bundles the toast notification API, the output-channel logger, and the
- * companion text-editor toggle so services and controllers can surface
- * information to the user without importing from `vscode` directly.
- * `VsCodeLogger` remains an internal collaborator — clients never see it.
+ * Owns a single VS Code log output channel and the toast notification
+ * API so services and controllers can surface information to the user
+ * without importing from `vscode` directly.
  */
 export class VsCodeNotifier {
-    private readonly textEditor = new VsCodeTextEditor();
+    private readonly channel: LogOutputChannel;
 
-    private readonly logger = new VsCodeLogger("bpmn.modeler");
+    constructor() {
+        this.channel = window.createOutputChannel(LOG_CHANNEL_ID, { log: true });
+        this.channel.clear();
+    }
 
     showInfo(message: string): void {
         window.showInformationMessage(message);
@@ -23,23 +26,19 @@ export class VsCodeNotifier {
         window.showErrorMessage(message);
     }
 
-    toggleTextEditor(documentPath: string): Promise<boolean> {
-        return this.textEditor.toggle(documentPath);
-    }
-
     openLoggingConsole(): void {
-        this.logger.open();
+        this.channel.show(true);
     }
 
     logInfo(message: string): void {
-        this.logger.info(message);
+        this.channel.info(LOG_PREFIX + message);
     }
 
     logWarning(message: string): void {
-        this.logger.warn(message);
+        this.channel.warn(LOG_PREFIX + message);
     }
 
     logError(error: Error): void {
-        this.logger.error(error);
+        this.channel.error(LOG_PREFIX, error);
     }
 }
