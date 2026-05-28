@@ -5,6 +5,13 @@ export type AuthConfig = NoAuth | BasicAuth | OAuth2Auth;
 
 export class NoAuth {
     readonly type = "none" as const;
+
+    /**
+     * No credentials to send, so the request needs no auth headers.
+     */
+    toHeaders(): Record<string, string> {
+        return {};
+    }
 }
 
 /**
@@ -17,6 +24,16 @@ export class BasicAuth {
         readonly username: string,
         readonly password: string,
     ) {}
+
+    /**
+     * RFC 7617 mandates UTF-8 for the userid:password octet sequence before
+     * base64 — `btoa()` would Latin-1-encode and silently corrupt non-ASCII
+     * credentials, so we go through `Buffer` which encodes UTF-8 by default.
+     */
+    toHeaders(): Record<string, string> {
+        const credentials = Buffer.from(`${this.username}:${this.password}`).toString("base64");
+        return { Authorization: `Basic ${credentials}` };
+    }
 }
 
 /**
