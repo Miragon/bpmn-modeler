@@ -58,11 +58,12 @@ those listeners are what propagate edits and clean up tracking state.
 |---|---|
 | `apps/modeler-plugin/src/main.ts` | Registers `BpmnScriptFileSystem` for the `bpmn-script` scheme, instantiates `ScriptTaskService` and `ScriptCompletionProvider` |
 | `apps/modeler-plugin/src/infrastructure/BpmnScriptFileSystem.ts` | `FileSystemProvider` impl — `Map<string, Uint8Array>` keyed by URI path; fires `FileChangeEvent`s for create / change / delete |
-| `apps/modeler-plugin/src/service/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
-| `apps/modeler-plugin/src/service/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
-| `apps/modeler-plugin/src/service/scriptCompletionHelpers.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess` (testable without `vscode`) |
+| `apps/modeler-plugin/src/controller/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
+| `apps/modeler-plugin/src/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
+| `apps/modeler-plugin/src/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess` (testable without `vscode`) |
 | `apps/modeler-plugin/src/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
 | `apps/modeler-plugin/src/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
+| `apps/modeler-plugin/src/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
 | `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Routes `OpenScriptEditorCommand` and triggers `resyncOpenDocuments` on reload |
 | `libs/shared/src/lib/modeler.ts` | `OpenScriptEditorCommand`, `UpdateScriptContentQuery`, `UpdateScriptFormatQuery`, `ScriptKind` |
 | `apps/bpmn-webview/src/main.ts` | Bridges `OPEN_SCRIPT_EDITOR_EVENT` (bus) ↔ `OpenScriptEditorCommand` (host) and applies `UpdateScriptContentQuery` / `UpdateScriptFormatQuery` to the model |

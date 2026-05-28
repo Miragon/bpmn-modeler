@@ -12,7 +12,7 @@ import {
 } from "vscode";
 
 import { BeanDef, beansFor, MethodDef, methodsForBean } from "../domain/scriptApi";
-import { matchMemberAccess, parseKindFromUri } from "./scriptCompletionHelpers";
+import { matchMemberAccess, parseKindFromUri } from "../domain/scriptCompletion";
 
 /**
  * VS Code language-feature provider that powers IntelliSense for inline

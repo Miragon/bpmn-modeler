@@ -1,7 +1,6 @@
 import {
     ExtensionContext,
     languages,
-    QuickPickItem,
     TabChangeEvent,
     TabInputText,
     TextDocumentChangeEvent,
@@ -18,9 +17,11 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { ScriptLanguage } from "../domain/scriptLanguage";
+import { ScriptUri } from "../domain/ScriptUri";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { BpmnScriptFileSystem } from "../infrastructure/BpmnScriptFileSystem";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { VsCodePicker } from "../infrastructure/VsCodePicker";
 
 /**
  * Tracks an open virtual script document.
@@ -31,13 +32,6 @@ interface OpenDocument {
     readonly kind: ScriptKind;
     readonly listenerIndex: number | undefined;
     readonly uri: Uri;
-}
-
-/**
- * Quick-Pick item for the script-language prompt.
- */
-interface ScriptLanguageItem extends QuickPickItem {
-    readonly format: string;
 }
 
 /**
@@ -84,6 +78,7 @@ export class ScriptTaskService {
         private readonly editorStore: EditorStore,
         private readonly scriptFs: BpmnScriptFileSystem,
         private readonly notifier: VsCodeNotifier,
+        private readonly picker: VsCodePicker,
     ) {}
 
     /**
@@ -130,7 +125,7 @@ export class ScriptTaskService {
         // is persisted back to the model so the next open skips the prompt.
         let effectiveFormat = scriptFormat;
         if (!ScriptLanguage.isSupported(scriptFormat)) {
-            const picked = await this.promptScriptLanguage(scriptFormat);
+            const picked = await this.picker.pickScriptLanguage(scriptFormat);
             if (!picked) {
                 return;
             }
@@ -139,16 +134,16 @@ export class ScriptTaskService {
         }
 
         const lang = new ScriptLanguage(effectiveFormat);
-        const editorHash = this.hashEditorId(editorId);
-        const slug = this.slugFor(kind, listenerIndex, eventName);
-        const filename = this.filenameFor(
-            elementId,
-            kind,
-            listenerIndex,
-            eventName,
-            lang.extension,
+        const scriptUri = Uri.parse(
+            new ScriptUri(
+                editorId,
+                elementId,
+                kind,
+                listenerIndex,
+                eventName,
+                lang.extension,
+            ).toString(),
         );
-        const scriptUri = Uri.parse(`bpmn-script:/${editorHash}/${elementId}/${slug}/${filename}`);
 
         /**
          * Already open: just reveal the existing editor.
@@ -255,8 +250,7 @@ export class ScriptTaskService {
      * handler is a no-op for these URIs.
      */
     disposeForEditor(editorId: string): void {
-        const editorHash = this.hashEditorId(editorId);
-        const prefix = `/${editorHash}/`;
+        const prefix = ScriptUri.editorPathPrefix(editorId);
 
         const orphanedPaths = new Set<string>();
         for (const [path, entry] of this.openDocuments) {
@@ -436,104 +430,5 @@ export class ScriptTaskService {
         } catch (error) {
             this.notifier.logError(error as Error);
         }
-    }
-
-    /**
-     * Shows a Quick-Pick listing the languages this extension supports
-     * IntelliSense for. The currently configured format (if any) is moved
-     * to the top so it remains the default highlighted option even when
-     * unrecognised.
-     *
-     * @returns The picked Camunda format string, or undefined if cancelled.
-     */
-    private async promptScriptLanguage(currentFormat: string): Promise<string | undefined> {
-        const items: ScriptLanguageItem[] = ScriptLanguage.supportedFormats().map((format) => ({
-            label: format.charAt(0).toUpperCase() + format.slice(1),
-            description: `.${new ScriptLanguage(format).extension}`,
-            format,
-        }));
-        const normalized = currentFormat.toLowerCase().trim();
-        items.sort((a, b) => {
-            if (a.format === normalized) return -1;
-            if (b.format === normalized) return 1;
-            return 0;
-        });
-
-        const picked = await window.showQuickPick<ScriptLanguageItem>(items, {
-            placeHolder: "Select the scripting language",
-            title: "Script Language",
-        });
-        return picked?.format;
-    }
-
-    /**
-     * Builds the URI path segment that distinguishes scripts living on the
-     * same element. Listener kinds embed the index so multiple listeners of
-     * the same type (e.g. two `start` execution listeners) don't collide.
-     */
-    private slugFor(
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        eventName: string | undefined,
-    ): string {
-        if (kind === "script-task") {
-            return "script-task";
-        }
-        const event = eventName ? `-${eventName}` : "";
-        const idx = listenerIndex ?? 0;
-        return `${kind}-${idx}${event}`;
-    }
-
-    /**
-     * Builds the editor tab's filename so the user can identify a script at a
-     * glance from the tab strip. URI uniqueness is already guaranteed by the
-     * `<editorHash>/<elementId>/<slug>/` path segments — the filename is for
-     * humans, so we collapse the slug into a shorter readable form.
-     *
-     * Element IDs are XML NCNames in practice but the spec permits a wider
-     * set than POSIX-clean filenames; we replace anything outside
-     * `[A-Za-z0-9_-]` with `_` so the tab title stays well-formed across
-     * platforms.
-     *
-     * Examples:
-     *   - script task on `Task_1`            → `Task_1.js`
-     *   - exec listener (start, idx 0)       → `Task_1.execution-start.js`
-     *   - exec listener (start, idx 1)       → `Task_1.execution-start-1.js`
-     *   - task listener (create, idx 0)      → `UserTask_1.task-create.js`
-     */
-    private filenameFor(
-        elementId: string,
-        kind: ScriptKind,
-        listenerIndex: number | undefined,
-        eventName: string | undefined,
-        extension: string,
-    ): string {
-        const safeId = elementId.replace(/[^A-Za-z0-9_-]/g, "_");
-        if (kind === "script-task") {
-            return `${safeId}.${extension}`;
-        }
-        const prefix = kind === "execution-listener" ? "execution" : "task";
-        const parts = [prefix];
-        if (eventName) {
-            parts.push(eventName);
-        }
-        const idx = listenerIndex ?? 0;
-        if (idx > 0) {
-            parts.push(String(idx));
-        }
-        return `${safeId}.${parts.join("-")}.${extension}`;
-    }
-
-    /**
-     * Creates a short, filesystem-safe hash of an editor ID.
-     */
-    private hashEditorId(editorId: string): string {
-        let hash = 0;
-        for (let i = 0; i < editorId.length; i++) {
-            const char = editorId.charCodeAt(i);
-            hash = (hash << 5) - hash + char;
-            hash |= 0;
-        }
-        return Math.abs(hash).toString(16);
     }
 }

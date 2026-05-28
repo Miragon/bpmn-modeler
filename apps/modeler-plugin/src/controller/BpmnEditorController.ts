@@ -24,7 +24,7 @@ import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
-import { ScriptTaskService } from "../service/ScriptTaskService";
+import { ScriptTaskService } from "./ScriptTaskService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
 import { BpmnDocument } from "../domain/BpmnDocument";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
