@@ -1,4 +1,4 @@
-import { LogOutputChannel, window } from "vscode";
+import { commands, LogOutputChannel, ProgressLocation, Uri, window } from "vscode";
 
 const LOG_CHANNEL_ID = "bpmn.modeler";
 const LOG_PREFIX = `[${LOG_CHANNEL_ID}] `;
@@ -40,5 +40,26 @@ export class VsCodeNotifier {
 
     logError(error: Error): void {
         this.channel.error(LOG_PREFIX, error);
+    }
+
+    /**
+     * Runs `task` while showing a status-bar progress indicator titled
+     * `title`. Status-bar location (`ProgressLocation.Window`) is the only
+     * surface this adapter exposes — the modal/notification variants belong
+     * on a future Picker or modal helper if a caller ever needs them.
+     */
+    withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
+        return Promise.resolve(
+            window.withProgress({ location: ProgressLocation.Window, title }, task),
+        );
+    }
+
+    /**
+     * Opens the file at `absolutePath` in its registered (custom) editor via
+     * the built-in `vscode.open` command. Centralised here so service callers
+     * stay free of `commands` and `Uri`.
+     */
+    async openDocument(absolutePath: string): Promise<void> {
+        await commands.executeCommand("vscode.open", Uri.file(absolutePath));
     }
 }

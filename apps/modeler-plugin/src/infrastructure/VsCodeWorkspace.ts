@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { FileType, GlobPattern, Uri, workspace } from "vscode";
+import { FileType, GlobPattern, RelativePattern, Uri, workspace } from "vscode";
 
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 
@@ -132,6 +132,45 @@ export class VsCodeWorkspace {
     ): Promise<string[]> {
         const uris = await workspace.findFiles(pattern, exclude, limit);
         return uris.map((uri) => uri.path);
+    }
+
+    /**
+     * Creates a workspace-scoped filesystem watcher for `glob` rooted at
+     * `rootPath`. Hides `workspace.createFileSystemWatcher` + `RelativePattern`
+     * and the `Uri`-typed event payloads so service callers stay free of
+     * `vscode` imports — handlers receive the absolute `uri.fsPath` string.
+     *
+     * The returned handle disposes the underlying watcher and unsubscribes
+     * the wired listeners in one call.
+     */
+    createWatcher(
+        rootPath: string,
+        glob: string,
+        handlers: {
+            onChange?: (path: string) => void;
+            onCreate?: (path: string) => void;
+            onDelete?: (path: string) => void;
+        },
+    ): { dispose(): void } {
+        const watcher = workspace.createFileSystemWatcher(new RelativePattern(rootPath, glob));
+        const subscriptions: { dispose(): void }[] = [watcher];
+        const { onCreate, onChange, onDelete } = handlers;
+        if (onCreate) {
+            subscriptions.push(watcher.onDidCreate((uri) => onCreate(uri.fsPath)));
+        }
+        if (onChange) {
+            subscriptions.push(watcher.onDidChange((uri) => onChange(uri.fsPath)));
+        }
+        if (onDelete) {
+            subscriptions.push(watcher.onDidDelete((uri) => onDelete(uri.fsPath)));
+        }
+        return {
+            dispose(): void {
+                for (const s of subscriptions) {
+                    s.dispose();
+                }
+            },
+        };
     }
 
     /**

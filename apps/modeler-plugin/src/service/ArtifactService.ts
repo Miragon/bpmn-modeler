@@ -1,7 +1,5 @@
 import { posix } from "path";
 
-import { Disposable, RelativePattern, workspace } from "vscode";
-
 import { DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
@@ -15,7 +13,7 @@ export interface ArtifactChangeTarget {
 }
 
 export interface WatcherResult {
-    disposables: Disposable[];
+    disposables: { dispose(): void }[];
     errors: Error[];
 }
 
@@ -144,15 +142,13 @@ export class ArtifactService {
         const workspaceRoot = await this.getWorkspaceRoot(documentDir);
 
         const pattern = `**/${configFolder}/element-templates/**/*.json`;
-        const watcher = workspace.createFileSystemWatcher(
-            new RelativePattern(workspaceRoot, pattern),
-        );
+        const handle = this.vsWorkspace.createWatcher(workspaceRoot, pattern, {
+            onCreate: () => void target.setElementTemplates(editorId),
+            onChange: () => void target.setElementTemplates(editorId),
+            onDelete: () => void target.setElementTemplates(editorId),
+        });
 
-        watcher.onDidCreate(() => target.setElementTemplates(editorId));
-        watcher.onDidChange(() => target.setElementTemplates(editorId));
-        watcher.onDidDelete(() => target.setElementTemplates(editorId));
-
-        return { disposables: [watcher], errors: [] };
+        return { disposables: [handle], errors: [] };
     }
 
     async readDirectory(folder: string, extension: string): Promise<string[]> {

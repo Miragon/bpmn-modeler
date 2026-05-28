@@ -293,13 +293,11 @@ describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () =>
         workspaceState.folderForUri = () => ({
             uri: { scheme: "file", path: "/work", fsPath: "/work" },
         });
-        const documentUri = {
-            scheme: "file",
-            path: "/work/parent.bpmn",
-            fsPath: "/work/parent.bpmn",
-        } as never;
-
-        const result = await locator.findDeclaringFiles("ChildProcess", "process", documentUri);
+        const result = await locator.findDeclaringFiles(
+            "ChildProcess",
+            "process",
+            "/work/parent.bpmn",
+        );
 
         expect(vsWorkspace.findFiles).toHaveBeenCalledTimes(1);
         expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");
@@ -384,13 +382,11 @@ describe("findDeclaringFiles — loose file (no workspace folder)", () => {
             },
             tree: { "/work": ["parent.bpmn", "child.bpmn"] },
         });
-        const documentUri = {
-            scheme: "file",
-            path: "/work/parent.bpmn",
-            fsPath: "/work/parent.bpmn",
-        } as never;
-
-        const result = await locator.findDeclaringFiles("ChildProcess", "process", documentUri);
+        const result = await locator.findDeclaringFiles(
+            "ChildProcess",
+            "process",
+            "/work/parent.bpmn",
+        );
 
         expect(vsWorkspace.findFiles).not.toHaveBeenCalled();
         expect(vsWorkspace.readDirectory).toHaveBeenCalledWith("/work");

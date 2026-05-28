@@ -233,7 +233,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     await this.modelNavigationService.navigate(
                         cmd.referenceId,
                         cmd.referenceKind,
-                        sourceDocument.uri,
+                        sourceDocument.uri.fsPath,
                     );
                     break;
                 }

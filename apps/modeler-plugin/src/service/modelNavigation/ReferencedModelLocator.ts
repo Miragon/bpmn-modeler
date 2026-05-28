@@ -64,15 +64,15 @@ export class ReferencedModelLocator {
     async findDeclaringFiles(
         referenceId: string,
         kind: "process" | "decision",
-        sourceDocumentUri?: Uri,
+        sourceDocumentPath?: string,
     ): Promise<LocateResult> {
         const extension = kind === "process" ? ".bpmn" : ".dmn";
         const id = truncate(referenceId, ID_DISPLAY_LIMIT);
         this.notifier.logInfo(
-            `[nav] resolving ${kind} id="${id}" sourceUri=${sourceDocumentUri?.path ?? "<none>"}`,
+            `[nav] resolving ${kind} id="${id}" sourceUri=${sourceDocumentPath ?? "<none>"}`,
         );
 
-        const paths = await this.collectCandidateFiles(extension, sourceDocumentUri);
+        const paths = await this.collectCandidateFiles(extension, sourceDocumentPath);
         if (paths === undefined) {
             this.notifier.logInfo(`[nav] no search scope (no folder, no source uri)`);
             return { kind: "no-search-scope" };
@@ -82,12 +82,14 @@ export class ReferencedModelLocator {
 
     /**
      * Phase 1.  Returns `undefined` when nothing can be searched (no source
-     * URI and no workspace folder).  Otherwise returns the candidate paths.
+     * path and no workspace folder).  Otherwise returns the candidate paths.
      */
     private async collectCandidateFiles(
         extension: string,
-        sourceDocumentUri: Uri | undefined,
+        sourceDocumentPath: string | undefined,
     ): Promise<string[] | undefined> {
+        const sourceDocumentUri =
+            sourceDocumentPath !== undefined ? Uri.file(sourceDocumentPath) : undefined;
         const looseFile =
             sourceDocumentUri !== undefined &&
             workspace.getWorkspaceFolder(sourceDocumentUri) === undefined;
