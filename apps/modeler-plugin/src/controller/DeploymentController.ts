@@ -14,7 +14,7 @@ import { InvalidDeploymentConfigError } from "../domain/errors";
 import { deploymentWebviewHtml } from "../infrastructure/DeploymentWebviewHtml";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { DeploymentService } from "../service/DeploymentService";
 import { StartInstanceService } from "../service/StartInstanceService";
 import { getContext } from "../infrastructure/extensionContext";
@@ -54,14 +54,14 @@ export class DeploymentController implements WebviewViewProvider {
      * @param vsDocument Document read/write operations for resolving file paths.
      * @param deploymentService Deployment orchestration logic.
      * @param startInstanceService Start-instance orchestration logic.
-     * @param vsUI User-facing message and logging helper.
+     * @param notifier User-facing message and logging helper.
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly vsDocument: VsCodeDocument,
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
     ) {}
 
     /**
@@ -176,7 +176,7 @@ export class DeploymentController implements WebviewViewProvider {
      */
     private subscribeToMessages(webviewView: WebviewView): void {
         webviewView.webview.onDidReceiveMessage(async (message: Command) => {
-            this.vsUI.logInfo(`Deployment message received -> ${message.type}`);
+            this.notifier.logInfo(`Deployment message received -> ${message.type}`);
             switch (message.type) {
                 case "RequestFormDefaultsCommand":
                     this.sendFormDefaults(webviewView);
@@ -217,7 +217,7 @@ export class DeploymentController implements WebviewViewProvider {
             const auth = await this.deploymentService.getStoredCredentials();
             webviewView.webview.postMessage(new StoredCredentialsQuery(auth));
         } catch (error) {
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             webviewView.webview.postMessage(new StoredCredentialsQuery({ authType: "none" }));
         }
     }
@@ -233,7 +233,7 @@ export class DeploymentController implements WebviewViewProvider {
             const filePaths = await this.deploymentService.selectAdditionalFiles();
             webviewView.webview.postMessage(new AdditionalFilesQuery(filePaths));
         } catch (error) {
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             webviewView.webview.postMessage(new AdditionalFilesQuery([]));
         }
     }
@@ -250,7 +250,7 @@ export class DeploymentController implements WebviewViewProvider {
             const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
             webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(key));
         } catch (error) {
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(""));
         }
     }
@@ -273,7 +273,7 @@ export class DeploymentController implements WebviewViewProvider {
                 webviewView.webview.postMessage(new SelectedPayloadFileQuery("", ""));
             }
         } catch (error) {
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             webviewView.webview.postMessage(new SelectedPayloadFileQuery("", ""));
         }
     }
@@ -314,9 +314,9 @@ export class DeploymentController implements WebviewViewProvider {
             );
 
             if (result.success) {
-                this.vsUI.showInfo(result.message);
+                this.notifier.showInfo(result.message);
             } else {
-                this.vsUI.showError(result.message);
+                this.notifier.showError(result.message);
             }
 
             webviewView.webview.postMessage(
@@ -328,8 +328,8 @@ export class DeploymentController implements WebviewViewProvider {
             );
         } catch (error) {
             const message = "An unexpected error occurred while starting the process instance.";
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
-            this.vsUI.showError(message);
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.showError(message);
             webviewView.webview.postMessage(new StartInstanceResultQuery(false, message));
         }
     }
@@ -377,9 +377,9 @@ export class DeploymentController implements WebviewViewProvider {
             const result = await this.deploymentService.deploy(config);
 
             if (result.success) {
-                this.vsUI.showInfo(result.message);
+                this.notifier.showInfo(result.message);
             } else {
-                this.vsUI.showError(result.message);
+                this.notifier.showError(result.message);
             }
 
             webviewView.webview.postMessage(
@@ -391,8 +391,8 @@ export class DeploymentController implements WebviewViewProvider {
                     ? error.message
                     : "An unexpected error occurred during deployment.";
 
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
-            this.vsUI.showError(message);
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.showError(message);
             webviewView.webview.postMessage(new DeploymentResultQuery(false, message));
         }
     }

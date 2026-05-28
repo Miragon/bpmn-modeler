@@ -1,55 +1,23 @@
 import { posix } from "path";
 
-import { env, Uri, window, workspace } from "vscode";
+import { Uri, window, workspace } from "vscode";
 
 import { UserCancelledError } from "../domain/errors";
 import { MigrationScope } from "../domain/MigrationPlan";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
-import { VsCodeLogger, VsCodeTextEditor } from "./window";
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
-export class VsCodeUI {
-    private readonly textEditor = new VsCodeTextEditor();
 
-    private readonly logger = new VsCodeLogger("bpmn.modeler");
-
+/**
+ * Adapter around `window.showQuickPick` for the domain-aware prompts the
+ * extension exposes (engine, migration scope, referenced model, …).
+ *
+ * Centralises quick-pick handling so services stay free of `vscode`
+ * imports and the cancel-vs-throw convention is enforced in one place
+ * instead of duplicated at every callsite.
+ */
+export class VsCodePicker {
     constructor(private readonly vsWorkspace: VsCodeWorkspace) {}
-
-    showInfo(message: string): void {
-        window.showInformationMessage(message);
-    }
-
-    showError(message: string): void {
-        window.showErrorMessage(message);
-    }
-
-    toggleTextEditor(documentPath: string): Promise<boolean> {
-        return this.textEditor.toggle(documentPath);
-    }
-
-    async readClipboard(): Promise<string> {
-        return env.clipboard.readText();
-    }
-
-    async writeClipboard(text: string): Promise<void> {
-        await env.clipboard.writeText(text);
-    }
-
-    openLoggingConsole(): void {
-        this.logger.open();
-    }
-
-    logInfo(message: string): void {
-        this.logger.info(message);
-    }
-
-    logWarning(message: string): void {
-        this.logger.warn(message);
-    }
-
-    logError(error: Error): void {
-        this.logger.error(error);
-    }
 
     /**
      * @throws {UserCancelledError} If the user dismisses the quick pick.

@@ -2,7 +2,7 @@ import { posix } from "path";
 
 import { Uri, workspace } from "vscode";
 
-import { VsCodeUI } from "../../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../../infrastructure/VsCodeNotifier";
 import { VsCodeWorkspace } from "../../infrastructure/VsCodeWorkspace";
 
 /**
@@ -58,7 +58,7 @@ export type LocateResult =
 export class ReferencedModelLocator {
     constructor(
         private readonly vsWorkspace: VsCodeWorkspace,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
     ) {}
 
     async findDeclaringFiles(
@@ -68,13 +68,13 @@ export class ReferencedModelLocator {
     ): Promise<LocateResult> {
         const extension = kind === "process" ? ".bpmn" : ".dmn";
         const id = truncate(referenceId, ID_DISPLAY_LIMIT);
-        this.vsUI.logInfo(
+        this.notifier.logInfo(
             `[nav] resolving ${kind} id="${id}" sourceUri=${sourceDocumentUri?.path ?? "<none>"}`,
         );
 
         const paths = await this.collectCandidateFiles(extension, sourceDocumentUri);
         if (paths === undefined) {
-            this.vsUI.logInfo(`[nav] no search scope (no folder, no source uri)`);
+            this.notifier.logInfo(`[nav] no search scope (no folder, no source uri)`);
             return { kind: "no-search-scope" };
         }
         return this.filterByIdDeclaration(paths, referenceId, kind);
@@ -110,7 +110,7 @@ export class ReferencedModelLocator {
         const startedAt = Date.now();
         const found = await this.vsWorkspace.findFiles(`**/*${extension}`);
         const filtered = found.filter((path) => !pathIsInsideExcludedDir(path));
-        this.vsUI.logInfo(
+        this.notifier.logInfo(
             `[nav] findFiles returned ${found.length} path(s) ` +
                 `(${filtered.length} after exclude filter) in ${Date.now() - startedAt}ms`,
         );
@@ -134,7 +134,7 @@ export class ReferencedModelLocator {
         extension: string,
         reason: "walk-primary" | "walk-fallback",
     ): Promise<string[]> {
-        this.vsUI.logInfo(`[nav] ${reason}: walking ${rootDir} for ${extension}`);
+        this.notifier.logInfo(`[nav] ${reason}: walking ${rootDir} for ${extension}`);
         const startedAt = Date.now();
 
         const out: string[] = [];
@@ -165,7 +165,7 @@ export class ReferencedModelLocator {
             level = nextLevel;
         }
 
-        this.vsUI.logInfo(
+        this.notifier.logInfo(
             `[nav] ${reason} returned ${out.length} path(s) in ${Date.now() - startedAt}ms`,
         );
         return out;
@@ -215,7 +215,7 @@ export class ReferencedModelLocator {
         );
         const matches = results.filter((path): path is string => path !== undefined);
 
-        this.vsUI.logInfo(
+        this.notifier.logInfo(
             `[nav] candidates=${paths.length} matches=${matches.length} readFailures=${failures.length} reads-took=${Date.now() - startedAt}ms`,
         );
 

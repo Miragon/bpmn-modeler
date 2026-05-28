@@ -22,7 +22,9 @@ import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeClipboard } from "../infrastructure/VsCodeClipboard";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { VsCodePicker } from "../infrastructure/VsCodePicker";
 import { ArtifactChangeTarget, ArtifactService } from "./ArtifactService";
 import {
     addExecutionPlatform,
@@ -46,7 +48,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         private readonly editorStore: EditorStore,
         private readonly vsDocument: VsCodeDocument,
         private readonly vsSettings: VsCodeSettings,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
+        private readonly picker: VsCodePicker,
+        private readonly clipboard: VsCodeClipboard,
         private readonly artifactSvc: ArtifactService,
         private readonly statusBar: VsCodeStatusBar,
         private readonly vsWorkspace: VsCodeWorkspace,
@@ -72,7 +76,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             let bpmnFile = this.vsDocument.getContent(editorId);
 
             if (bpmnFile === "") {
-                const ep = await this.vsUI.pickExecutionPlatform("Select the engine.", [
+                const ep = await this.picker.pickExecutionPlatform("Select the engine.", [
                     "Camunda 7",
                     "Camunda 8",
                 ]);
@@ -104,7 +108,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 if (error instanceof Error && error.message === "The active editor is hidden.") {
                     return false;
                 } else if (error instanceof ExecutionPlatformNotDetectedError) {
-                    const ep = await this.vsUI.pickExecutionPlatform(
+                    const ep = await this.picker.pickExecutionPlatform(
                         "Select the execution platform.",
                         ["Camunda 7", "Camunda 8"],
                     );
@@ -169,7 +173,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     try {
                         return JSON.parse(await this.artifactSvc.readFile(a));
                     } catch (error) {
-                        this.vsUI.logError(
+                        this.notifier.logError(
                             new Error(
                                 `Failed to parse element template "${a}": ${(error as Error).message}`,
                             ),
@@ -187,7 +191,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             if (await this.editorStore.postMessage(editorId, new ElementTemplatesQuery(sorted))) {
                 this.statusBar.showElementTemplatesReady(sorted.length);
                 if (artifacts.length > 0) {
-                    this.vsUI.logInfo(`${artifacts.length} element templates are set.`);
+                    this.notifier.logInfo(`${artifacts.length} element templates are set.`);
                 }
                 return true;
             } else {
@@ -225,7 +229,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 return this.handleError(new Error("Unable to set preferences."));
             }
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
             return false;
         }
     }
@@ -247,7 +251,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                 new PropertiesPanelStateQuery(visible),
             );
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
             return false;
         }
     }
@@ -261,7 +265,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         try {
             await this.panelStateRepo.setVisibility(visible);
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
         }
     }
 
@@ -271,36 +275,36 @@ export class BpmnModelerService implements ArtifactChangeTarget {
      */
     async readClipboard(editorId: string): Promise<boolean> {
         try {
-            const text = await this.vsUI.readClipboard();
+            const text = await this.clipboard.readClipboard();
             return await this.editorStore.postMessage(editorId, new ClipboardQuery(text));
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
             return false;
         }
     }
 
     async readTextClipboard(editorId: string): Promise<boolean> {
         try {
-            const text = await this.vsUI.readClipboard();
+            const text = await this.clipboard.readClipboard();
             return await this.editorStore.postMessage(editorId, new TextClipboardQuery(text));
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
             return false;
         }
     }
 
     async writeClipboard(text: string): Promise<void> {
         try {
-            await this.vsUI.writeClipboard(text);
+            await this.clipboard.writeClipboard(text);
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
         }
     }
 
     setLanguage(editorId: string): void {
         const locale = this.vsSettings.getLanguage();
         this.editorStore.postMessage(editorId, new LanguageQuery(locale)).catch((error) => {
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
         });
     }
 
@@ -310,7 +314,7 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             const platform = detectExecutionPlatform(bpmnFile);
             const versions = getVersions(platform);
 
-            const newVersion = await this.vsUI.pickEngineVersion(platform, versions);
+            const newVersion = await this.picker.pickEngineVersion(platform, versions);
 
             const updatedBpmn = updateExecutionPlatformVersion(bpmnFile, newVersion);
             await this.vsDocument.write(editorId, updatedBpmn);
@@ -332,27 +336,27 @@ export class BpmnModelerService implements ArtifactChangeTarget {
         try {
             const paths = await this.vsWorkspace.findFiles("**/*.bpmn");
             if (paths.length === 0) {
-                this.vsUI.showInfo("No BPMN files found in the workspace.");
+                this.notifier.showInfo("No BPMN files found in the workspace.");
                 return false;
             }
 
             const plan = await this.buildMigrationPlan(paths);
             if (plan.isEmpty()) {
-                this.vsUI.showInfo(
+                this.notifier.showInfo(
                     "Could not detect the engine for any BPMN file in the workspace.",
                 );
                 return false;
             }
 
             if (plan.undetected.length > 0) {
-                this.vsUI.logWarning(
+                this.notifier.logWarning(
                     `Skipped ${plan.undetected.length} file(s) with undetectable engine: ${plan.undetected.join(", ")}`,
                 );
             }
 
             let scope: MigrationScope;
             if (plan.hasBothPlatforms()) {
-                scope = await this.vsUI.pickMigrationScope(
+                scope = await this.picker.pickMigrationScope(
                     plan.c7Files.length,
                     plan.c8Files.length,
                 );
@@ -369,10 +373,10 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             let c8Version: string | undefined;
 
             if (scope === "c7" || scope === "both") {
-                c7Version = await this.vsUI.pickEngineVersion("c7", getVersions("c7"));
+                c7Version = await this.picker.pickEngineVersion("c7", getVersions("c7"));
             }
             if (scope === "c8" || scope === "both") {
-                c8Version = await this.vsUI.pickEngineVersion("c8", getVersions("c8"));
+                c8Version = await this.picker.pickEngineVersion("c8", getVersions("c8"));
             }
 
             const summaryParts: string[] = [];
@@ -392,9 +396,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
             }
 
             if (summaryParts.length > 0) {
-                this.vsUI.showInfo(`Updated ${summaryParts.join(" and ")}.`);
+                this.notifier.showInfo(`Updated ${summaryParts.join(" and ")}.`);
             } else {
-                this.vsUI.showInfo("All diagrams are already at the selected version.");
+                this.notifier.showInfo("All diagrams are already at the selected version.");
             }
 
             return true;
@@ -464,7 +468,9 @@ export class BpmnModelerService implements ArtifactChangeTarget {
                     targetVersion,
                     schema,
                 );
-                this.vsUI.logWarning(`Added missing executionPlatform attribute to: ${file.path}`);
+                this.notifier.logWarning(
+                    `Added missing executionPlatform attribute to: ${file.path}`,
+                );
             } else {
                 updatedContent = updateExecutionPlatformVersion(file.content, targetVersion);
             }
@@ -483,16 +489,16 @@ export class BpmnModelerService implements ArtifactChangeTarget {
     }
 
     private handleError(error: Error): boolean {
-        this.vsUI.logError(error);
-        this.vsUI.showError(
+        this.notifier.logError(error);
+        this.notifier.showError(
             `A problem occurred while trying to display the BPMN Modeler.\n${error.message ?? error}`,
         );
         return false;
     }
 
     private handleSyncError(error: Error): boolean {
-        this.vsUI.logError(error);
-        this.vsUI.showError(
+        this.notifier.logError(error);
+        this.notifier.showError(
             `A problem occurred while trying to sync the BPMN file.\n${error.message}`,
         );
         return false;

@@ -1,7 +1,7 @@
 import { commands, ExtensionContext, Uri, window } from "vscode";
 
 import { CompareSelectionStore } from "../infrastructure/CompareSelectionStore";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 
 // VS Code command ID for the first step of a two-file BPMN compare.
@@ -45,12 +45,12 @@ export class BpmnCompareController {
      * @param diffService Owns diff-session registration; must be notified
      *   *before* `vscode.diff` is invoked so pane resolution finds the
      *   session synchronously.
-     * @param vsUI User-facing messages and logging.
+     * @param notifier User-facing messages and logging.
      */
     constructor(
         private readonly selection: CompareSelectionStore,
         private readonly diffService: BpmnDiffService,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
     ) {}
 
     /**
@@ -100,14 +100,14 @@ export class BpmnCompareController {
 
         const leftUri = this.selection.get();
         if (!leftUri) {
-            this.vsUI.showInfo(
+            this.notifier.showInfo(
                 'No file selected for compare. Right-click a .bpmn file and choose "Select for Compare" first.',
             );
             return;
         }
 
         if (leftUri.toString() === rightUri.toString()) {
-            this.vsUI.showInfo("Cannot compare a file with itself.");
+            this.notifier.showInfo("Cannot compare a file with itself.");
             return;
         }
 
@@ -133,13 +133,13 @@ export class BpmnCompareController {
     async compareSelected(_uri: Uri | undefined, uris: Uri[] | undefined): Promise<void> {
         const bpmnUris = (uris ?? []).filter(isBpmnUri);
         if (bpmnUris.length !== 2) {
-            this.vsUI.showInfo("Select exactly two .bpmn files to compare.");
+            this.notifier.showInfo("Select exactly two .bpmn files to compare.");
             return;
         }
 
         const [leftUri, rightUri] = bpmnUris;
         if (leftUri.toString() === rightUri.toString()) {
-            this.vsUI.showInfo("Cannot compare a file with itself.");
+            this.notifier.showInfo("Cannot compare a file with itself.");
             return;
         }
 

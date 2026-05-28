@@ -38,7 +38,7 @@ import {
 
 import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { detectExecutionPlatform } from "./bpmnUtils";
 import { DiffPaneEntry, DiffSession } from "./DiffSession";
 
@@ -125,13 +125,13 @@ export class BpmnDiffService {
     private languageSubscription?: Disposable;
 
     /**
-     * @param vsUI Logging helper for parse failures and dropped posts.
+     * @param notifier Logging helper for parse failures and dropped posts.
      * @param vsSettings Settings reader — provides the active UI locale so
      *   each diff pane's legend and chrome render in the user's language from
      *   the moment it opens, and re-renders on setting changes.
      */
     constructor(
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
         private readonly vsSettings: VsCodeSettings,
     ) {
         this.languageSubscription = workspace.onDidChangeConfiguration((event) =>
@@ -196,8 +196,8 @@ export class BpmnDiffService {
                 preview: false,
             });
         } catch (error) {
-            this.vsUI.logError(error as Error);
-            this.vsUI.showError(`Failed to open compare view: ${(error as Error).message}`);
+            this.notifier.logError(error as Error);
+            this.notifier.showError(`Failed to open compare view: ${(error as Error).message}`);
         }
     }
 
@@ -489,7 +489,7 @@ export class BpmnDiffService {
             }
             await entry.panel.webview.postMessage(new BpmnFileQuery(content, engine, "viewer"));
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
         }
     }
 
@@ -518,7 +518,7 @@ export class BpmnDiffService {
         try {
             await entry.panel.webview.postMessage(new LanguageQuery(this.vsSettings.getLanguage()));
         } catch (error) {
-            this.vsUI.logInfo(`setLanguage dropped: ${(error as Error).message}`);
+            this.notifier.logInfo(`setLanguage dropped: ${(error as Error).message}`);
         }
     }
 
@@ -555,7 +555,7 @@ export class BpmnDiffService {
         try {
             await partner.panel.webview.postMessage(new SyncViewportQuery(viewport));
         } catch (error) {
-            this.vsUI.logInfo(`syncViewport dropped: ${(error as Error).message}`);
+            this.notifier.logInfo(`syncViewport dropped: ${(error as Error).message}`);
         }
     }
 
@@ -572,7 +572,7 @@ export class BpmnDiffService {
         try {
             await partner.panel.webview.postMessage(new SyncCursorQuery(index));
         } catch (error) {
-            this.vsUI.logInfo(`syncCursor dropped: ${(error as Error).message}`);
+            this.notifier.logInfo(`syncCursor dropped: ${(error as Error).message}`);
         }
     }
 
@@ -622,7 +622,7 @@ export class BpmnDiffService {
             beforeDefs = (await moddle.fromXML(beforeXml)).rootElement;
             afterDefs = (await moddle.fromXML(afterXml)).rootElement;
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
             return;
         }
 
@@ -709,7 +709,7 @@ export class BpmnDiffService {
         try {
             await panel.webview.postMessage(query);
         } catch (error) {
-            this.vsUI.logInfo(`ApplyDiffHighlights dropped: ${(error as Error).message}`);
+            this.notifier.logInfo(`ApplyDiffHighlights dropped: ${(error as Error).message}`);
         }
     }
 }

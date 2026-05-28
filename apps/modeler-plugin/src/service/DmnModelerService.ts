@@ -4,7 +4,7 @@ import { ModelerSession } from "../domain/session";
 import { UserCancelledError } from "../domain/errors";
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { EMPTY_DMN_DIAGRAM } from "./bpmnUtils";
 
 export class DmnModelerService {
@@ -13,7 +13,7 @@ export class DmnModelerService {
     constructor(
         private readonly editorStore: EditorStore,
         private readonly vsDocument: VsCodeDocument,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
     ) {}
 
     registerSession(editorId: string): void {
@@ -67,16 +67,16 @@ export class DmnModelerService {
     }
 
     private handleError(error: Error): boolean {
-        this.vsUI.logError(error);
-        this.vsUI.showError(
+        this.notifier.logError(error);
+        this.notifier.showError(
             `A problem occurred while trying to display the DMN Modeler.\n${error.message ?? error}`,
         );
         return false;
     }
 
     private handleSyncError(error: Error): boolean {
-        this.vsUI.logError(error);
-        this.vsUI.showError(
+        this.notifier.logError(error);
+        this.notifier.showError(
             `A problem occurred while trying to sync the DMN file.\n${error.message}`,
         );
         return false;

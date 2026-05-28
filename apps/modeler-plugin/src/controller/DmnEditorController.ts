@@ -11,7 +11,7 @@ import {
 import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
 import { EditorStore } from "../infrastructure/EditorStore";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { DmnModelerService } from "../service/DmnModelerService";
 
 // VS Code view-type identifier for the DMN custom editor.
@@ -27,12 +27,12 @@ export class DmnEditorController implements CustomTextEditorProvider {
     /**
      * @param editorStore Central registry for open editor panels and subscriptions.
      * @param dmnService DMN-specific business logic and session management.
-     * @param vsUI User-facing message and logging helper.
+     * @param notifier User-facing message and logging helper.
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly dmnService: DmnModelerService,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
     ) {}
 
     /**
@@ -76,7 +76,7 @@ export class DmnEditorController implements CustomTextEditorProvider {
                 this.dmnService.disposeSession(editorId);
             });
         } catch (error) {
-            this.vsUI.logError(error as Error);
+            this.notifier.logError(error as Error);
         }
     }
 
@@ -85,18 +85,18 @@ export class DmnEditorController implements CustomTextEditorProvider {
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
-            this.vsUI.logInfo(`Message received -> ${message.type}`);
+            this.notifier.logInfo(`Message received -> ${message.type}`);
             switch (message.type) {
                 case "GetDmnFileCommand":
                     if (await this.dmnService.display(id)) {
-                        this.vsUI.logInfo("Dmn modeler is ready");
+                        this.notifier.logInfo("Dmn modeler is ready");
                     }
                     break;
                 case "SyncDocumentCommand":
                     await this.dmnService.sync(id, (message as SyncDocumentCommand).content);
                     break;
             }
-            this.vsUI.logInfo(`Message processed -> ${message.type}`);
+            this.notifier.logInfo(`Message processed -> ${message.type}`);
         });
     }
 
@@ -117,7 +117,7 @@ export class DmnEditorController implements CustomTextEditorProvider {
                     event.document.uri.path.endsWith(".dmn") &&
                     editorId === event.document.uri.toString()
                 ) {
-                    this.vsUI.logInfo("OnDidChangeTextDocument -> display");
+                    this.notifier.logInfo("OnDidChangeTextDocument -> display");
                     this.dmnService.display(editorId);
                 }
             },

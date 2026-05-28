@@ -8,7 +8,8 @@ import { VsCodeDeploymentState } from "../infrastructure/VsCodeDeploymentState";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeSecretStore } from "../infrastructure/VsCodeSecretStore";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { VsCodePicker } from "../infrastructure/VsCodePicker";
 import { detectExecutionPlatform } from "./bpmnUtils";
 
 /**
@@ -30,7 +31,8 @@ export class DeploymentService {
      * @param vsWorkspace Filesystem and workspace-folder helper.
      * @param deploymentState Persists/restores endpoint and tenantId.
      * @param restClient HTTP client for the Camunda REST API.
-     * @param vsUI User-facing message and logging helper.
+     * @param notifier User-facing message and logging helper.
+     * @param picker Quick-pick helper for selecting deployment resources.
      * @param secretStore Secure credential storage for Basic Auth.
      */
     constructor(
@@ -38,7 +40,8 @@ export class DeploymentService {
         private readonly vsWorkspace: VsCodeWorkspace,
         private readonly deploymentState: VsCodeDeploymentState,
         private readonly restClient: CamundaEnginePort,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
+        private readonly picker: VsCodePicker,
         private readonly secretStore: VsCodeSecretStore,
     ) {}
 
@@ -119,7 +122,7 @@ export class DeploymentService {
      *   user cancels or no files match.
      */
     async selectAdditionalFiles(): Promise<string[]> {
-        return this.vsUI.pickWorkspaceFiles({
+        return this.picker.pickWorkspaceFiles({
             glob: "**/*.{form,json,dmn}",
             exclude: "**/element-templates/**",
             placeholder: "Select additional files to include in the deployment",
@@ -168,7 +171,7 @@ export class DeploymentService {
             return result;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this.vsUI.logError(error instanceof Error ? error : new Error(message));
+            this.notifier.logError(error instanceof Error ? error : new Error(message));
             return new DeploymentResult(false, message);
         }
     }

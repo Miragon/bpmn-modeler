@@ -14,7 +14,7 @@ import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 
 // VS Code command ID for toggling the text editor.
@@ -46,13 +46,13 @@ export class CommandController {
     /**
      * @param editorStore Central registry for open editor panels and messaging.
      * @param vsDocument Active-document path helper.
-     * @param vsUI User-facing message and logging helper.
+     * @param notifier User-facing message and logging helper.
      * @param bpmnService BPMN-specific business logic for engine version changes.
      */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly vsDocument: VsCodeDocument,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
         private readonly bpmnService: BpmnModelerService,
     ) {}
 
@@ -82,14 +82,14 @@ export class CommandController {
     toggle(): Promise<boolean> {
         const activeId = this.editorStore.getActiveEditorId();
         const documentPath = this.vsDocument.getFilePath(activeId);
-        return this.vsUI.toggleTextEditor(documentPath);
+        return this.notifier.toggleTextEditor(documentPath);
     }
 
     /**
      * Reveals the extension's output channel in the VS Code UI.
      */
     showLogging(): void {
-        this.vsUI.openLoggingConsole();
+        this.notifier.openLoggingConsole();
     }
 
     /**
@@ -178,7 +178,7 @@ export class CommandController {
         const activeId = this.editorStore.getActiveEditorId();
 
         this.editorStore.postMessage(activeId, new GetDiagramAsSVGCommand()).catch((error) => {
-            this.vsUI.logError(error instanceof Error ? error : new Error(String(error)));
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
         });
 
         // Dispose previous subscription to avoid accumulating listeners.

@@ -20,7 +20,7 @@ import {
 
 import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { BpmnModelerService } from "../service/BpmnModelerService";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
@@ -47,7 +47,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      *   whether to take the readonly viewer branch.
      * @param artifactSvc Workspace artifact discovery and watcher creation.
      * @param scriptTaskSvc Virtual script document management for script tasks.
-     * @param vsUI User-facing message and logging helper.
+     * @param notifier User-facing message and logging helper.
      * @param vsDocument Active-document read helper (for status bar version detection).
      * @param statusBar Status bar item manager for engine version display.
      * @param modelNavigationService Resolves references and opens the target file.
@@ -58,7 +58,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly diffService: BpmnDiffService,
         private readonly artifactSvc: ArtifactService,
         private readonly scriptTaskSvc: ScriptTaskService,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
         private readonly vsDocument: VsCodeDocument,
         private readonly statusBar: VsCodeStatusBar,
         private readonly modelNavigationService: ModelNavigationService,
@@ -144,12 +144,12 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                 this.editorStore.addToDisposals(editorId, d);
             }
             for (const error of errors) {
-                this.vsUI.showError(error.message);
-                this.vsUI.logError(error);
+                this.notifier.showError(error.message);
+                this.notifier.logError(error);
             }
         } catch (error) {
-            this.vsUI.showError((error as Error).message);
-            this.vsUI.logError(error as Error);
+            this.notifier.showError((error as Error).message);
+            this.notifier.logError(error as Error);
         }
     }
 
@@ -163,11 +163,11 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
-            this.vsUI.logInfo(`Message received -> ${message.type}`);
+            this.notifier.logInfo(`Message received -> ${message.type}`);
             switch (message.type) {
                 case "GetBpmnFileCommand":
                     if (await this.bpmnService.display(id)) {
-                        this.vsUI.logInfo("Bpmn modeler is ready");
+                        this.notifier.logInfo("Bpmn modeler is ready");
                     }
                     break;
                 case "GetElementTemplatesCommand":
@@ -222,7 +222,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                      * decision branch by default.
                      */
                     if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
-                        this.vsUI.logWarning(
+                        this.notifier.logWarning(
                             `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
                                 cmd.referenceKind,
                             )}`,
@@ -238,7 +238,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     break;
                 }
             }
-            this.vsUI.logInfo(`Message processed -> ${message.type}`);
+            this.notifier.logInfo(`Message processed -> ${message.type}`);
         });
     }
 
@@ -259,7 +259,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     event.document.uri.path.endsWith(".bpmn") &&
                     editorId === event.document.uri.toString()
                 ) {
-                    this.vsUI.logInfo("OnDidChangeTextDocument -> display");
+                    this.notifier.logInfo("OnDidChangeTextDocument -> display");
                     this.bpmnService.display(editorId);
                 }
             },

@@ -1,6 +1,7 @@
 import { commands, ProgressLocation, Uri, window } from "vscode";
 
-import { VsCodeUI } from "../infrastructure/VsCodeUI";
+import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { VsCodePicker } from "../infrastructure/VsCodePicker";
 
 import { ReferencedModelLocator } from "./modelNavigation/ReferencedModelLocator";
 
@@ -22,7 +23,8 @@ const PROGRESS_LABEL_LIMIT = 40;
 export class ModelNavigationService {
     constructor(
         private readonly locator: ReferencedModelLocator,
-        private readonly vsUI: VsCodeUI,
+        private readonly notifier: VsCodeNotifier,
+        private readonly picker: VsCodePicker,
     ) {}
 
     async navigate(
@@ -42,25 +44,25 @@ export class ModelNavigationService {
         );
 
         if (result.kind === "no-search-scope") {
-            this.vsUI.showInfo(
+            this.notifier.showInfo(
                 `No model declaring "${display}" was found. Open a folder to enable cross-file navigation.`,
             );
             return;
         }
 
         if (result.kind === "all-unreadable") {
-            result.failures.forEach((message) => this.vsUI.logWarning(message));
-            this.vsUI.showError(
+            result.failures.forEach((message) => this.notifier.logWarning(message));
+            this.notifier.showError(
                 `Could not search for "${display}" — none of the candidate files were readable.`,
             );
             return;
         }
 
-        result.readFailures.forEach((message) => this.vsUI.logWarning(message));
+        result.readFailures.forEach((message) => this.notifier.logWarning(message));
 
         let chosen: string | undefined;
         if (result.paths.length === 0) {
-            this.vsUI.showInfo(
+            this.notifier.showInfo(
                 `No model declaring "${display}" was found in the workspace. ` +
                     `(See Output → bpmn.modeler for what was searched.)`,
             );
@@ -68,7 +70,7 @@ export class ModelNavigationService {
         } else if (result.paths.length === 1) {
             chosen = result.paths[0];
         } else {
-            chosen = await this.vsUI.pickReferencedModel(result.paths);
+            chosen = await this.picker.pickReferencedModel(result.paths);
         }
 
         if (!chosen) {
@@ -78,8 +80,8 @@ export class ModelNavigationService {
         try {
             await commands.executeCommand("vscode.open", Uri.file(chosen));
         } catch (error) {
-            this.vsUI.logError(error as Error);
-            this.vsUI.showError(`Could not open ${chosen}: ${(error as Error).message}`);
+            this.notifier.logError(error as Error);
+            this.notifier.showError(`Could not open ${chosen}: ${(error as Error).message}`);
         }
     }
 }

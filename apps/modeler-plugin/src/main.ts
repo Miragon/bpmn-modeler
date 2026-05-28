@@ -10,7 +10,9 @@ import { VsCodeDocument } from "./infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "./infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "./infrastructure/VsCodeSettings";
 import { VsCodeStatusBar } from "./infrastructure/VsCodeStatusBar";
-import { VsCodeUI } from "./infrastructure/VsCodeUI";
+import { VsCodeClipboard } from "./infrastructure/VsCodeClipboard";
+import { VsCodeNotifier } from "./infrastructure/VsCodeNotifier";
+import { VsCodePicker } from "./infrastructure/VsCodePicker";
 import { ArtifactService } from "./service/ArtifactService";
 import { BpmnDiffService } from "./service/BpmnDiffService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
@@ -51,7 +53,9 @@ export function activate(context: ExtensionContext): void {
     const vsWorkspace = new VsCodeWorkspace();
     const vsSettings = new VsCodeSettings();
     const statusBar = new VsCodeStatusBar();
-    const vsUI = new VsCodeUI(vsWorkspace);
+    const notifier = new VsCodeNotifier();
+    const picker = new VsCodePicker(vsWorkspace);
+    const clipboard = new VsCodeClipboard();
     const deploymentState = new VsCodeDeploymentState();
     const compareSelection = new CompareSelectionStore();
     const secretStore = new VsCodeSecretStore();
@@ -67,21 +71,24 @@ export function activate(context: ExtensionContext): void {
         editorStore,
         vsDocument,
         vsSettings,
-        vsUI,
+        notifier,
+        picker,
+        clipboard,
         artifactSvc,
         statusBar,
         vsWorkspace,
         panelStateRepo,
     );
-    const dmnService = new DmnModelerService(editorStore, vsDocument, vsUI);
-    const diffService = new BpmnDiffService(vsUI, vsSettings);
+    const dmnService = new DmnModelerService(editorStore, vsDocument, notifier);
+    const diffService = new BpmnDiffService(notifier, vsSettings);
     context.subscriptions.push(diffService);
     const deploymentSvc = new DeploymentService(
         vsDocument,
         vsWorkspace,
         deploymentState,
         restClient,
-        vsUI,
+        notifier,
+        picker,
         secretStore,
     );
 
@@ -89,38 +96,42 @@ export function activate(context: ExtensionContext): void {
         vsDocument,
         vsWorkspace,
         restClient,
-        vsUI,
+        notifier,
         artifactSvc,
     );
-    const referencedModelLocator = new ReferencedModelLocator(vsWorkspace, vsUI);
-    const modelNavigationService = new ModelNavigationService(referencedModelLocator, vsUI);
+    const referencedModelLocator = new ReferencedModelLocator(vsWorkspace, notifier);
+    const modelNavigationService = new ModelNavigationService(
+        referencedModelLocator,
+        notifier,
+        picker,
+    );
 
-    const scriptTaskSvc = new ScriptTaskService(editorStore, bpmnScriptFs, vsUI);
+    const scriptTaskSvc = new ScriptTaskService(editorStore, bpmnScriptFs, notifier);
     scriptTaskSvc.register(context);
 
     new ScriptCompletionProvider().register(context);
 
-    const commandController = new CommandController(editorStore, vsDocument, vsUI, bpmnService);
+    const commandController = new CommandController(editorStore, vsDocument, notifier, bpmnService);
     new BpmnEditorController(
         editorStore,
         bpmnService,
         diffService,
         artifactSvc,
         scriptTaskSvc,
-        vsUI,
+        notifier,
         vsDocument,
         statusBar,
         modelNavigationService,
     ).register(context);
-    new DmnEditorController(editorStore, dmnService, vsUI).register(context);
-    new BpmnCompareController(compareSelection, diffService, vsUI).register(context);
+    new DmnEditorController(editorStore, dmnService, notifier).register(context);
+    new BpmnCompareController(compareSelection, diffService, notifier).register(context);
     commandController.register(context);
     new DeploymentController(
         editorStore,
         vsDocument,
         deploymentSvc,
         startInstanceSvc,
-        vsUI,
+        notifier,
     ).register(context);
 }
 

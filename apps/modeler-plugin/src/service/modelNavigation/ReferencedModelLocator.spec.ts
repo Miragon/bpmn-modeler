@@ -67,9 +67,9 @@ function createLocator(opts: { fileContents: Record<string, string>; tree?: DirT
             return Promise.reject(new Error("not found"));
         }),
     };
-    const vsUI = { logInfo: vi.fn(), logWarning: vi.fn() };
-    const locator = new ReferencedModelLocator(vsWorkspace as never, vsUI as never);
-    return { locator, vsWorkspace, vsUI };
+    const notifier = { logInfo: vi.fn(), logWarning: vi.fn() };
+    const locator = new ReferencedModelLocator(vsWorkspace as never, notifier as never);
+    return { locator, vsWorkspace, notifier };
 }
 
 beforeEach(() => {
