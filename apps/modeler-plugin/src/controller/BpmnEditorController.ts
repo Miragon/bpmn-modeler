@@ -26,7 +26,7 @@ import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
 import { ScriptTaskService } from "../service/ScriptTaskService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
-import { detectExecutionPlatform, detectExecutionPlatformVersion } from "../service/bpmnUtils";
+import { BpmnDocument } from "../domain/BpmnDocument";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
 // VS Code view-type identifier for the BPMN custom editor.
@@ -320,12 +320,12 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      */
     private updateEngineVersionStatusBar(editorId: string): void {
         try {
-            const content = this.vsDocument.getContent(editorId);
-            if (content === "") {
+            const doc = new BpmnDocument(this.vsDocument.getContent(editorId));
+            if (doc.isEmpty()) {
                 return;
             }
-            const platform = detectExecutionPlatform(content);
-            const version = detectExecutionPlatformVersion(content);
+            const platform = doc.detectPlatform();
+            const version = doc.detectPlatformVersion();
             if (version) {
                 this.statusBar.showEngineVersion(platform, version);
             }

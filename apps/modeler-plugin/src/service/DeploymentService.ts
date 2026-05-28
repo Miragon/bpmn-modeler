@@ -10,7 +10,7 @@ import { VsCodeSecretStore } from "../infrastructure/VsCodeSecretStore";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "../infrastructure/VsCodePicker";
-import { detectExecutionPlatform } from "./bpmnUtils";
+import { BpmnDocument } from "../domain/BpmnDocument";
 
 /**
  * Orchestrates the full BPMN deployment workflow.
@@ -181,8 +181,7 @@ export class DeploymentService {
      *   be detected from the document content.
      */
     private detectEngine(editorId: string): Engine {
-        const content = this.vsDocument.getContent(editorId);
-        return detectExecutionPlatform(content);
+        return new BpmnDocument(this.vsDocument.getContent(editorId)).detectPlatform();
     }
 
     /**

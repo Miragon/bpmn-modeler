@@ -9,7 +9,7 @@ import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { ArtifactService } from "./ArtifactService";
-import { extractProcessId } from "./bpmnUtils";
+import { BpmnDocument } from "../domain/BpmnDocument";
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
 /**
@@ -44,8 +44,7 @@ export class StartInstanceService {
      * @throws {Error} If no process element is found or the editor is not available.
      */
     getProcessDefinitionKey(editorId: string): string {
-        const content = this.vsDocument.getContent(editorId);
-        return extractProcessId(content);
+        return new BpmnDocument(this.vsDocument.getContent(editorId)).extractProcessId();
     }
 
     /**

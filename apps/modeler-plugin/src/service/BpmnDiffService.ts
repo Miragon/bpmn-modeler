@@ -39,7 +39,7 @@ import {
 import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { detectExecutionPlatform } from "./bpmnUtils";
+import { BpmnDocument } from "../domain/BpmnDocument";
 import { DiffPaneEntry, DiffSession } from "./DiffSession";
 
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
@@ -483,7 +483,7 @@ export class BpmnDiffService {
             const content = entry.document.getText();
             let engine: Engine;
             try {
-                engine = detectExecutionPlatform(content);
+                engine = new BpmnDocument(content).detectPlatform();
             } catch {
                 engine = "c7";
             }

@@ -263,7 +263,7 @@ describe("migrateAllDiagrams", () => {
         expect(vsWorkspace.writeFile).not.toHaveBeenCalled();
     });
 
-    it("should use addExecutionPlatform for files without version attribute", async () => {
+    it("should use withExecutionPlatform for files without version attribute", async () => {
         const { service, vsWorkspace, notifier, picker } = createMocks();
         vsWorkspace.findFiles.mockResolvedValue(["/noversion.bpmn"]);
         vsWorkspace.readFile.mockResolvedValue(c8BpmnNoVersion);

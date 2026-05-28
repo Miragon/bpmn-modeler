@@ -1,27 +1,25 @@
 import { describe, expect, it } from "vitest";
 
+import { BpmnDocument } from "./BpmnDocument";
 import { BpmnFileEntry, MigrationPlan } from "./MigrationPlan";
 
 describe("MigrationPlan", () => {
     const c7Entry: BpmnFileEntry = {
         path: "/workspace/c7.bpmn",
-        content: "<xml>c7</xml>",
+        document: new BpmnDocument("<xml>c7</xml>"),
         platform: "c7",
-        version: "7.20.0",
     };
 
     const c8Entry: BpmnFileEntry = {
         path: "/workspace/c8.bpmn",
-        content: "<xml>c8</xml>",
+        document: new BpmnDocument("<xml>c8</xml>"),
         platform: "c8",
-        version: "8.5.0",
     };
 
     const c8NoVersion: BpmnFileEntry = {
         path: "/workspace/c8-noversion.bpmn",
-        content: "<xml>c8</xml>",
+        document: new BpmnDocument("<xml>c8</xml>"),
         platform: "c8",
-        version: undefined,
     };
 
     describe("isEmpty", () => {
