@@ -1,9 +1,16 @@
+import { posix } from "path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ReferencedModelLocator } from "./ReferencedModelLocator";
 
 interface FakeWorkspaceFolder {
     uri: { scheme: string; path: string; fsPath: string };
 }
 
+// The locator now reads workspace-folder state through the `VsCodeWorkspace`
+// adapter (mocked below) instead of importing `vscode` directly; this state
+// drives that mock's `findWorkspaceFolderForDocument` / `getWorkspaceFolderPaths`.
 const workspaceState: {
     folders: FakeWorkspaceFolder[];
     folderForUri: (uri: { path: string }) => FakeWorkspaceFolder | undefined;
@@ -11,18 +18,6 @@ const workspaceState: {
     folders: [{ uri: { scheme: "file", path: "/", fsPath: "/" } }],
     folderForUri: () => ({ uri: { scheme: "file", path: "/", fsPath: "/" } }),
 };
-
-vi.mock("vscode", () => ({
-    Uri: { file: (path: string) => ({ scheme: "file", path, fsPath: path }) },
-    workspace: {
-        get workspaceFolders() {
-            return workspaceState.folders;
-        },
-        getWorkspaceFolder: (uri: { path: string }) => workspaceState.folderForUri(uri),
-    },
-}));
-
-import { ReferencedModelLocator } from "./ReferencedModelLocator";
 
 const bpmnWithProcess = (id: string) =>
     `<?xml version="1.0"?>
@@ -66,6 +61,11 @@ function createLocator(opts: { fileContents: Record<string, string>; tree?: DirT
             if (path in fileContents) return Promise.resolve(fileContents[path]);
             return Promise.reject(new Error("not found"));
         }),
+        findWorkspaceFolderForDocument: vi.fn(
+            (document: string) => workspaceState.folderForUri({ path: document })?.uri.path,
+        ),
+        getWorkspaceFolderPaths: vi.fn(() => workspaceState.folders.map((f) => f.uri.path)),
+        getDocumentDirectory: vi.fn((document: string) => posix.dirname(document)),
     };
     const notifier = { logInfo: vi.fn(), logWarning: vi.fn() };
     const locator = new ReferencedModelLocator(vsWorkspace as never, notifier as never);

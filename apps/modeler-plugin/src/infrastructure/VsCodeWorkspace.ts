@@ -30,6 +30,40 @@ export class VsCodeWorkspace {
     }
 
     /**
+     * Returns the path of the workspace folder containing `document`, or
+     * `undefined` when the document lies outside every open folder.
+     *
+     * Non-throwing companion to {@link getWorkspaceFolderForDocument}: the
+     * model-navigation search treats "no containing folder" as the signal to
+     * fall back to a loose-file fs walk, so absence is an expected outcome
+     * rather than an error.
+     */
+    findWorkspaceFolderForDocument(document: string): string | undefined {
+        return workspace.getWorkspaceFolder(Uri.file(document))?.uri.path;
+    }
+
+    /**
+     * Lists the open workspace-folder root paths — empty when no folder is
+     * open (the loose-file / single-file-window case).
+     */
+    getWorkspaceFolderPaths(): string[] {
+        return (workspace.workspaceFolders ?? []).map((folder) => folder.uri.path);
+    }
+
+    /**
+     * Returns the directory containing `document` in the `uri.path` form the
+     * rest of this adapter speaks.
+     *
+     * Routing the OS path through `Uri.file(...).path` is what lets callers
+     * pass a raw `uri.fsPath` and stay free of `vscode.Uri`; the normalization
+     * matters on Windows, where `fsPath` (`c:\a\b`) and `uri.path`
+     * (`/c:/a/b`) diverge.
+     */
+    getDocumentDirectory(document: string): string {
+        return posix.dirname(Uri.file(document).path);
+    }
+
+    /**
      * Walks upward from `startDir` looking for a directory containing a `.git`
      * entry, indicating the root of a git repository.
      *

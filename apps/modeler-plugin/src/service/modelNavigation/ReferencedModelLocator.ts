@@ -1,7 +1,5 @@
 import { posix } from "path";
 
-import { Uri, workspace } from "vscode";
-
 import { VsCodeNotifier } from "../../infrastructure/VsCodeNotifier";
 import { VsCodeWorkspace } from "../../infrastructure/VsCodeWorkspace";
 
@@ -88,20 +86,20 @@ export class ReferencedModelLocator {
         extension: string,
         sourceDocumentPath: string | undefined,
     ): Promise<string[] | undefined> {
-        const sourceDocumentUri =
-            sourceDocumentPath !== undefined ? Uri.file(sourceDocumentPath) : undefined;
-        const looseFile =
-            sourceDocumentUri !== undefined &&
-            workspace.getWorkspaceFolder(sourceDocumentUri) === undefined;
+        const containingFolderPath =
+            sourceDocumentPath !== undefined
+                ? this.vsWorkspace.findWorkspaceFolderForDocument(sourceDocumentPath)
+                : undefined;
+        const looseFile = sourceDocumentPath !== undefined && containingFolderPath === undefined;
 
         if (looseFile) {
             // No workspace folder covers the document → walk from its dir.
-            const rootDir = posix.dirname(sourceDocumentUri!.path);
+            const rootDir = this.vsWorkspace.getDocumentDirectory(sourceDocumentPath!);
             return this.walkWorkspaceTree(rootDir, extension, "walk-primary");
         }
 
-        const folders = workspace.workspaceFolders;
-        if (!folders || folders.length === 0) {
+        const folderPaths = this.vsWorkspace.getWorkspaceFolderPaths();
+        if (folderPaths.length === 0) {
             return undefined;
         }
 
@@ -121,7 +119,7 @@ export class ReferencedModelLocator {
         }
 
         // Fallback: findFiles failed silently (ripgrep missing in packaged .app).
-        const root = this.pickWalkRoot(sourceDocumentUri);
+        const root = this.pickWalkRoot(sourceDocumentPath, containingFolderPath, folderPaths);
         if (!root) return [];
         return this.walkWorkspaceTree(root, extension, "walk-fallback");
     }
@@ -174,16 +172,21 @@ export class ReferencedModelLocator {
     }
 
     /**
-     * Where to root the walk fallback.  Best-effort.
+     * Where to root the walk fallback.  Best-effort: prefer the document's own
+     * workspace folder, else the first open folder, else the document's
+     * directory.  The folder lookups are reused from
+     * {@link collectCandidateFiles} to avoid re-querying the workspace.
      */
-    private pickWalkRoot(sourceDocumentUri: Uri | undefined): string | undefined {
-        if (sourceDocumentUri) {
-            const folder = workspace.getWorkspaceFolder(sourceDocumentUri);
-            if (folder) return folder.uri.path;
+    private pickWalkRoot(
+        sourceDocumentPath: string | undefined,
+        containingFolderPath: string | undefined,
+        folderPaths: string[],
+    ): string | undefined {
+        if (containingFolderPath) return containingFolderPath;
+        if (folderPaths.length > 0) return folderPaths[0];
+        if (sourceDocumentPath !== undefined) {
+            return this.vsWorkspace.getDocumentDirectory(sourceDocumentPath);
         }
-        const folders = workspace.workspaceFolders;
-        if (folders && folders.length > 0) return folders[0].uri.path;
-        if (sourceDocumentUri) return posix.dirname(sourceDocumentUri.path);
         return undefined;
     }
 
