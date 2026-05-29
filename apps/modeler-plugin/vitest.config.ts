@@ -5,6 +5,9 @@ export default defineConfig({
     test: {
         name: "modeler-plugin",
         environment: "node",
+        // archunit's vitest adapter extends `expect` on import; it needs the
+        // global `expect` to exist, so enable Vitest's globals for this project.
+        globals: true,
         include: ["src/**/*.{spec,test}.ts"],
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),

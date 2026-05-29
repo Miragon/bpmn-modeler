@@ -21,6 +21,7 @@
         "@types/uuid": "11.0.0",
         "@types/vscode": "1.93.0",
         "@vitest/coverage-v8": "4.1.8",
+        "archunit": "2.3.0",
         "copy-webpack-plugin": "14.0.0",
         "ts-loader": "9.6.0",
         "ts-node": "10.9.2",
