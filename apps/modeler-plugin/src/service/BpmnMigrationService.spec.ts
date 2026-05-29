@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { UserCancelledError } from "../domain/errors";
-import { BpmnModelerService } from "./BpmnModelerService";
+import { BpmnMigrationService } from "./BpmnMigrationService";
 
 // ─── Sample BPMN XML ────────────────────────────────────────────────────────
 
@@ -39,23 +39,21 @@ const unknownBpmn = `<?xml version="1.0" encoding="UTF-8"?>
 function createMocks() {
     const editorStore = {
         findEditorIdByPath: vi.fn().mockReturnValue(undefined),
-        postMessage: vi.fn(),
-        getActiveEditorId: vi.fn(),
-        getDocumentForEditor: vi.fn(),
-        subscribeToMessageEvent: vi.fn(),
-        subscribeToActiveEditorMessage: vi.fn(),
     };
 
     const vsDocument = {
         write: vi.fn().mockResolvedValue(true),
-        getContent: vi.fn(),
-        getFilePath: vi.fn(),
-        save: vi.fn(),
     };
 
-    const vsSettings = {
-        getAlignToOrigin: vi.fn(),
-        getShowTransactionBoundaries: vi.fn(),
+    const vsWorkspace = {
+        findFiles: vi.fn().mockResolvedValue([]),
+        readFile: vi.fn(),
+        writeFile: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const picker = {
+        pickEngineVersion: vi.fn(),
+        pickMigrationScope: vi.fn(),
     };
 
     const notifier = {
@@ -64,56 +62,14 @@ function createMocks() {
         logInfo: vi.fn(),
         logWarning: vi.fn(),
         logError: vi.fn(),
-        openLoggingConsole: vi.fn(),
-    };
-    const picker = {
-        pickExecutionPlatform: vi.fn(),
-        pickEngineVersion: vi.fn(),
-        pickMigrationScope: vi.fn(),
-    };
-    const clipboard = {
-        readClipboard: vi.fn(),
-        writeClipboard: vi.fn(),
     };
 
-    const artifactSvc = {
-        getArtifactPaths: vi.fn(),
-        readFile: vi.fn(),
-        createWatcher: vi.fn(),
-    };
-
-    const statusBar = {
-        showEngineVersion: vi.fn(),
-        showElementTemplatesLoading: vi.fn(),
-        showElementTemplatesReady: vi.fn(),
-        hideElementTemplatesStatus: vi.fn(),
-    };
-
-    const vsWorkspace = {
-        findFiles: vi.fn().mockResolvedValue([]),
-        readFile: vi.fn(),
-        writeFile: vi.fn().mockResolvedValue(undefined),
-        getWorkspaceFolderForDocument: vi.fn(),
-        readDirectory: vi.fn(),
-        findGitRoot: vi.fn(),
-    };
-
-    const panelStateRepo = {
-        getVisibility: vi.fn().mockReturnValue(true),
-        setVisibility: vi.fn().mockResolvedValue(undefined),
-    };
-
-    const service = new BpmnModelerService(
+    const service = new BpmnMigrationService(
         editorStore as any,
         vsDocument as any,
-        vsSettings as any,
-        notifier as any,
-        picker as any,
-        clipboard as any,
-        artifactSvc as any,
-        statusBar as any,
         vsWorkspace as any,
-        panelStateRepo as any,
+        picker as any,
+        notifier as any,
     );
 
     return { service, editorStore, vsDocument, notifier, picker, vsWorkspace };

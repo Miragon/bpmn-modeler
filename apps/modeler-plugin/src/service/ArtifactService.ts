@@ -5,8 +5,9 @@ import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 
 /**
- * Implemented by {@link BpmnModelerService} and accepted by
- * {@link ArtifactService.createWatcher} to avoid a circular module import.
+ * Implemented by {@link import("./BpmnElementTemplatesService").BpmnElementTemplatesService}
+ * and accepted by {@link ArtifactService.createWatcher} to avoid a circular
+ * module import.
  */
 export interface ArtifactChangeTarget {
     setElementTemplates(editorId: string): Promise<boolean>;
@@ -134,7 +135,7 @@ export class ArtifactService {
 
     /**
      * `target` is a method parameter (not a constructor argument) to break
-     * the `BpmnModelerService ↔ ArtifactService` circular dependency.
+     * the templates-service ↔ ArtifactService circular dependency.
      */
     async createWatcher(editorId: string, target: ArtifactChangeTarget): Promise<WatcherResult> {
         const documentDir = posix.dirname(editorId);

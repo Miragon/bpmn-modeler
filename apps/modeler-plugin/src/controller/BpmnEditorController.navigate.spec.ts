@@ -33,6 +33,10 @@ function createController() {
     const controller = new BpmnEditorController(
         editorStore as never,
         {} as never, // bpmnService
+        {} as never, // templatesSvc
+        {} as never, // settingsBroadcaster
+        {} as never, // panelSvc
+        {} as never, // clipboardMediator
         {} as never, // diffService
         {} as never, // artifactSvc
         {} as never, // scriptTaskSvc

@@ -17,6 +17,7 @@ import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { VsCodeTextEditor } from "../infrastructure/VsCodeTextEditor";
 import { BpmnModelerService } from "../service/BpmnModelerService";
+import { BpmnMigrationService } from "../service/BpmnMigrationService";
 
 // VS Code command ID for toggling the text editor.
 const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
@@ -50,6 +51,7 @@ export class CommandController {
      * @param notifier User-facing message and logging helper.
      * @param textEditor Toggles the companion text editor pane for the active document.
      * @param bpmnService BPMN-specific business logic for engine version changes.
+     * @param migrationSvc Workspace-wide BPMN migration orchestrator.
      */
     constructor(
         private readonly editorStore: EditorStore,
@@ -57,6 +59,7 @@ export class CommandController {
         private readonly notifier: VsCodeNotifier,
         private readonly textEditor: VsCodeTextEditor,
         private readonly bpmnService: BpmnModelerService,
+        private readonly migrationSvc: BpmnMigrationService,
     ) {}
 
     /**
@@ -108,10 +111,10 @@ export class CommandController {
     /**
      * Migrates all BPMN diagrams in the workspace to a user-selected version.
      *
-     * Delegates to {@link BpmnModelerService.migrateAllDiagrams}.
+     * Delegates to {@link BpmnMigrationService.migrateAllDiagrams}.
      */
     migrateAllDiagrams(): Promise<boolean> {
-        return this.bpmnService.migrateAllDiagrams();
+        return this.migrationSvc.migrateAllDiagrams();
     }
 
     /**
