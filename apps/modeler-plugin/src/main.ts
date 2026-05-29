@@ -30,8 +30,13 @@ import { ReferencedModelLocator } from "./service/modelNavigation/ReferencedMode
 import { BpmnCompareController } from "./controller/BpmnCompareController";
 import { BpmnDiffController } from "./controller/BpmnDiffController";
 import { CommandController } from "./controller/CommandController";
-import { BpmnEditorController } from "./controller/BpmnEditorController";
-import { DmnEditorController } from "./controller/DmnEditorController";
+import { ModelerEditorController } from "./controller/editor-session/ModelerEditorController";
+import { BpmnRenderParticipant } from "./controller/editor-participants/BpmnRenderParticipant";
+import { ElementTemplatesParticipant } from "./controller/editor-participants/ElementTemplatesParticipant";
+import { SettingsParticipant } from "./controller/editor-participants/SettingsParticipant";
+import { EngineVersionStatusBarParticipant } from "./controller/editor-participants/EngineVersionStatusBarParticipant";
+import { ScriptTaskTeardownParticipant } from "./controller/editor-participants/ScriptTaskTeardownParticipant";
+import { DmnRenderParticipant } from "./controller/editor-participants/DmnRenderParticipant";
 import {
     getBpmnFileHandler,
     getElementTemplatesHandler,
@@ -193,21 +198,32 @@ export function activate(context: ExtensionContext): void {
         .on("GetDmnFileCommand", getDmnFileHandler(dmnService, notifier))
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
 
-    new BpmnEditorController(
-        editorStore,
-        bpmnService,
-        templatesSvc,
-        settingsBroadcaster,
-        panelSvc,
-        bpmnMessageRouter,
-        diffController,
-        artifactSvc,
-        scriptTaskSvc,
-        notifier,
-        vsDocument,
-        statusBar,
-    ).register(context);
-    new DmnEditorController(editorStore, dmnService, notifier, dmnMessageRouter).register(context);
+    new ModelerEditorController(editorStore, notifier, {
+        viewType: "bpmn-modeler.bpmn",
+        messageRouter: bpmnMessageRouter,
+        participants: [
+            new BpmnRenderParticipant(bpmnService, notifier),
+            new ElementTemplatesParticipant(templatesSvc, artifactSvc, notifier),
+            new SettingsParticipant(settingsBroadcaster),
+            new EngineVersionStatusBarParticipant(statusBar, vsDocument),
+            new ScriptTaskTeardownParticipant(scriptTaskSvc),
+        ],
+        // Diff routing: when the URI resolves as a diff pane the diff controller
+        // owns it, so signal "handled" and skip editor-session creation.
+        delegateResolve: (document, panel) => {
+            if (!diffController.shouldResolveAsDiff(document.uri)) {
+                return false;
+            }
+            diffController.resolveDiffPane(panel, document);
+            return true;
+        },
+        initialPanelVisible: () => panelSvc.getPersistedPanelVisibility(),
+    }).register(context);
+    new ModelerEditorController(editorStore, notifier, {
+        viewType: "bpmn-modeler.dmn",
+        messageRouter: dmnMessageRouter,
+        participants: [new DmnRenderParticipant(dmnService, notifier)],
+    }).register(context);
     new BpmnCompareController(compareSelection, diffController, notifier).register(context);
     commandController.register(context);
     new DeploymentController(
