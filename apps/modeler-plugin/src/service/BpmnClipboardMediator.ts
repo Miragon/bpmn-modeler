@@ -1,8 +1,7 @@
 import { ClipboardQuery, TextClipboardQuery } from "@miragon/bpmn-modeler-shared";
 
-import { EditorStore } from "../infrastructure/EditorStore";
-import { VsCodeClipboard } from "../infrastructure/VsCodeClipboard";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { ClipboardPort, NotifierPort } from "../domain/hostPorts";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 
 /**
  * Mediates clipboard access between the webview and the system clipboard.
@@ -13,9 +12,9 @@ import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
  */
 export class BpmnClipboardMediator {
     constructor(
-        private readonly editorStore: EditorStore,
-        private readonly clipboard: VsCodeClipboard,
-        private readonly notifier: VsCodeNotifier,
+        private readonly editorStore: EditorSessionStore,
+        private readonly clipboard: ClipboardPort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     async readClipboard(editorId: string): Promise<boolean> {

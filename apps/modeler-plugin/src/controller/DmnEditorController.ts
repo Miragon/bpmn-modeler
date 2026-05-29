@@ -3,14 +3,14 @@ import {
     CustomTextEditorProvider,
     ExtensionContext,
     TextDocument,
-    TextDocumentChangeEvent,
     WebviewPanel,
     window,
 } from "vscode";
 
 import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
-import { EditorStore } from "../infrastructure/EditorStore";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
+import { VsCodeEditorHandle } from "../infrastructure/VsCodeEditorHandle";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { DmnModelerService } from "../service/DmnModelerService";
 
@@ -30,7 +30,7 @@ export class DmnEditorController implements CustomTextEditorProvider {
      * @param notifier User-facing message and logging helper.
      */
     constructor(
-        private readonly editorStore: EditorStore,
+        private readonly editorStore: EditorSessionStore,
         private readonly dmnService: DmnModelerService,
         private readonly notifier: VsCodeNotifier,
     ) {}
@@ -66,7 +66,9 @@ export class DmnEditorController implements CustomTextEditorProvider {
     ): void | Thenable<void> {
         try {
             const editorId = document.uri.toString();
-            this.editorStore.createEditor(DMN_VIEW_TYPE, editorId, webviewPanel, document);
+            this.editorStore.register(
+                VsCodeEditorHandle.create(DMN_VIEW_TYPE, editorId, webviewPanel, document),
+            );
             this.dmnService.registerSession(editorId);
 
             this.subscribeToMessageEvent(editorId);
@@ -109,18 +111,15 @@ export class DmnEditorController implements CustomTextEditorProvider {
      * @param editorId Document URI path of the target editor.
      */
     private subscribeToDocumentChangeEvent(editorId: string): void {
-        this.editorStore.subscribeToDocumentChangeEvent(
-            editorId,
-            (event: TextDocumentChangeEvent) => {
-                if (
-                    event.contentChanges.length !== 0 &&
-                    event.document.uri.path.endsWith(".dmn") &&
-                    editorId === event.document.uri.toString()
-                ) {
-                    this.notifier.logInfo("OnDidChangeTextDocument -> display");
-                    this.dmnService.display(editorId);
-                }
-            },
-        );
+        this.editorStore.subscribeToDocumentChangeEvent(editorId, (event) => {
+            if (
+                event.hasContentChanges() &&
+                event.documentPath().endsWith(".dmn") &&
+                editorId === event.documentUriString()
+            ) {
+                this.notifier.logInfo("OnDidChangeTextDocument -> display");
+                this.dmnService.display(editorId);
+            }
+        });
     }
 }

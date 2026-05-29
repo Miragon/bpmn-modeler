@@ -25,9 +25,8 @@ import {
 
 import { BpmnDocument } from "../domain/BpmnDocument";
 import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";
+import { NotifierPort, SettingsPort } from "../domain/hostPorts";
 import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
-import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 
 /**
  * Drives the diff *content* for already-resolved BPMN diff panes: it answers
@@ -49,8 +48,8 @@ export class BpmnDiffService {
      *   language re-broadcast fan-out.
      */
     constructor(
-        private readonly notifier: VsCodeNotifier,
-        private readonly vsSettings: VsCodeSettings,
+        private readonly notifier: NotifierPort,
+        private readonly vsSettings: SettingsPort,
         private readonly store: DiffPaneStore,
     ) {}
 

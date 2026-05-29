@@ -2,9 +2,8 @@ import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { ModelerSession } from "../domain/session";
 import { UserCancelledError } from "../domain/errors";
-import { EditorStore } from "../infrastructure/EditorStore";
-import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { DocumentPort, NotifierPort } from "../domain/hostPorts";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 
 // Minimal DMN XML used when opening a new blank `.dmn` file.
 const EMPTY_DMN_DIAGRAM = `
@@ -34,9 +33,9 @@ export class DmnModelerService {
     private readonly sessions: Map<string, ModelerSession> = new Map();
 
     constructor(
-        private readonly editorStore: EditorStore,
-        private readonly vsDocument: VsCodeDocument,
-        private readonly notifier: VsCodeNotifier,
+        private readonly editorStore: EditorSessionStore,
+        private readonly vsDocument: DocumentPort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     registerSession(editorId: string): void {

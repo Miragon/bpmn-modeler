@@ -1,5 +1,7 @@
 import { commands, LogOutputChannel, ProgressLocation, Uri, window } from "vscode";
 
+import { NotifierPort } from "../domain/hostPorts";
+
 const LOG_CHANNEL_ID = "bpmn.modeler";
 const LOG_PREFIX = `[${LOG_CHANNEL_ID}] `;
 
@@ -10,7 +12,7 @@ const LOG_PREFIX = `[${LOG_CHANNEL_ID}] `;
  * API so services and controllers can surface information to the user
  * without importing from `vscode` directly.
  */
-export class VsCodeNotifier {
+export class VsCodeNotifier implements NotifierPort {
     private readonly channel: LogOutputChannel;
 
     constructor() {

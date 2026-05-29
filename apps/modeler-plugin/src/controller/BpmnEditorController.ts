@@ -3,7 +3,6 @@ import {
     CustomTextEditorProvider,
     ExtensionContext,
     TextDocument,
-    TextDocumentChangeEvent,
     WebviewPanel,
     window,
 } from "vscode";
@@ -18,7 +17,8 @@ import {
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { EditorStore } from "../infrastructure/EditorStore";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
+import { VsCodeEditorHandle } from "../infrastructure/VsCodeEditorHandle";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { BpmnModelerService } from "../service/BpmnModelerService";
@@ -45,7 +45,7 @@ const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
  */
 export class BpmnEditorController implements CustomTextEditorProvider {
     constructor(
-        private readonly editorStore: EditorStore,
+        private readonly editorStore: EditorSessionStore,
         private readonly bpmnService: BpmnModelerService,
         private readonly templatesSvc: BpmnElementTemplatesService,
         private readonly settingsBroadcaster: BpmnSettingsBroadcaster,
@@ -106,12 +106,14 @@ export class BpmnEditorController implements CustomTextEditorProvider {
             // Pre-apply the persisted panel visibility to the webview HTML so
             // the panel never flashes open before the async GetPropertiesPanelStateCommand
             // round-trip completes.
-            this.editorStore.createEditor(
-                BPMN_VIEW_TYPE,
-                editorId,
-                webviewPanel,
-                document,
-                this.panelSvc.getPersistedPanelVisibility(),
+            this.editorStore.register(
+                VsCodeEditorHandle.create(
+                    BPMN_VIEW_TYPE,
+                    editorId,
+                    webviewPanel,
+                    document,
+                    this.panelSvc.getPersistedPanelVisibility(),
+                ),
             );
             this.bpmnService.registerSession(editorId);
 
@@ -220,11 +222,11 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                         );
                         break;
                     }
-                    const sourceDocument = this.editorStore.getDocumentForEditor(id);
+                    const sourceFsPath = this.editorStore.requireHandle(id).documentFsPath();
                     await this.modelNavigationService.navigate(
                         cmd.referenceId,
                         cmd.referenceKind,
-                        sourceDocument.uri.fsPath,
+                        sourceFsPath,
                     );
                     break;
                 }
@@ -240,19 +242,16 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * triggers display for the specific editor it was created for.
      */
     private subscribeToDocumentChangeEvent(editorId: string): void {
-        this.editorStore.subscribeToDocumentChangeEvent(
-            editorId,
-            (event: TextDocumentChangeEvent) => {
-                if (
-                    event.contentChanges.length !== 0 &&
-                    event.document.uri.path.endsWith(".bpmn") &&
-                    editorId === event.document.uri.toString()
-                ) {
-                    this.notifier.logInfo("OnDidChangeTextDocument -> display");
-                    this.bpmnService.display(editorId);
-                }
-            },
-        );
+        this.editorStore.subscribeToDocumentChangeEvent(editorId, (event) => {
+            if (
+                event.hasContentChanges() &&
+                event.documentPath().endsWith(".bpmn") &&
+                editorId === event.documentUriString()
+            ) {
+                this.notifier.logInfo("OnDidChangeTextDocument -> display");
+                this.bpmnService.display(editorId);
+            }
+        });
     }
 
     /**

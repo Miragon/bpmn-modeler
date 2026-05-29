@@ -1,8 +1,8 @@
 import { PropertiesPanelStateQuery } from "@miragon/bpmn-modeler-shared";
 
-import { EditorStore } from "../infrastructure/EditorStore";
+import { NotifierPort } from "../domain/hostPorts";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { PropertiesPanelStateRepository } from "../infrastructure/PropertiesPanelStateRepository";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 
 /**
  * Owns persisted properties-panel visibility and pushes it to the webview.
@@ -13,9 +13,9 @@ import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
  */
 export class BpmnPropertiesPanelService {
     constructor(
-        private readonly editorStore: EditorStore,
+        private readonly editorStore: EditorSessionStore,
         private readonly panelStateRepo: PropertiesPanelStateRepository,
-        private readonly notifier: VsCodeNotifier,
+        private readonly notifier: NotifierPort,
     ) {}
 
     /**

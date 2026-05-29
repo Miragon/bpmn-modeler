@@ -1,8 +1,9 @@
 import { posix } from "path";
 
-import { FileType, GlobPattern, RelativePattern, Uri, workspace } from "vscode";
+import { FileType, RelativePattern, Uri, workspace } from "vscode";
 
 import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
+import { WorkspacePort } from "../domain/hostPorts";
 
 const fs = workspace.fs;
 
@@ -13,7 +14,7 @@ const fs = workspace.fs;
  * filesystem access (formerly `VsCodeReadAdapter`) into a single infrastructure
  * class used by {@link ArtifactService}.
  */
-export class VsCodeWorkspace {
+export class VsCodeWorkspace implements WorkspacePort {
     /**
      * Returns the workspace folder path for the given document.
      *
@@ -159,11 +160,7 @@ export class VsCodeWorkspace {
      *   as `maxResults` to {@link workspace.findFiles}.
      * @returns An array of absolute file paths.
      */
-    async findFiles(
-        pattern: GlobPattern,
-        exclude?: GlobPattern | null,
-        limit?: number,
-    ): Promise<string[]> {
+    async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
         const uris = await workspace.findFiles(pattern, exclude, limit);
         return uris.map((uri) => uri.path);
     }

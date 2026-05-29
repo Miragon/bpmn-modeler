@@ -1,7 +1,6 @@
 import { posix } from "path";
 
-import { VsCodeNotifier } from "../../infrastructure/VsCodeNotifier";
-import { VsCodeWorkspace } from "../../infrastructure/VsCodeWorkspace";
+import { NotifierPort, WorkspacePort } from "../../domain/hostPorts";
 
 /**
  * Directory names that never contain user-authored process/decision sources.
@@ -55,8 +54,8 @@ export type LocateResult =
  */
 export class ReferencedModelLocator {
     constructor(
-        private readonly vsWorkspace: VsCodeWorkspace,
-        private readonly notifier: VsCodeNotifier,
+        private readonly vsWorkspace: WorkspacePort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     async findDeclaringFiles(

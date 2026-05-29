@@ -1,5 +1,7 @@
 import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
 
+import { DeploymentStatePort } from "../domain/hostPorts";
+
 import { getContext } from "./extensionContext";
 
 /**
@@ -9,7 +11,7 @@ import { getContext } from "./extensionContext";
  * Uses `getContext()` to access the `ExtensionContext` that was registered in `main.ts`
  * via `setContext()`.
  */
-export class VsCodeDeploymentState {
+export class VsCodeDeploymentState implements DeploymentStatePort {
     private static readonly ENDPOINT_KEY = "bpmn-modeler.deployment.endpoint";
 
     private static readonly TENANT_ID_KEY = "bpmn-modeler.deployment.tenantId";

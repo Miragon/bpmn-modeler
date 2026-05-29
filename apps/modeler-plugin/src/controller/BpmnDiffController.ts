@@ -141,7 +141,7 @@ export class BpmnDiffController {
      *   - First `scm` pane: stashed as pending, waits for partner.
      *   - Second `scm` pane: paired with the pending entry, session created.
      *
-     * Nothing about a diff pane flows through `EditorStore`, which keeps the
+     * Nothing about a diff pane flows through `EditorSessionStore`, which keeps the
      * two "same URI" panels (viewer + editable modeler that a user may open
      * alongside the diff) from colliding.
      */

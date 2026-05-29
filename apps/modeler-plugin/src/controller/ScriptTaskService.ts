@@ -18,7 +18,7 @@ import {
 
 import { ScriptLanguage } from "../domain/scriptLanguage";
 import { ScriptUri } from "../domain/ScriptUri";
-import { EditorStore } from "../infrastructure/EditorStore";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { BpmnScriptFileSystem } from "../infrastructure/BpmnScriptFileSystem";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "../infrastructure/VsCodePicker";
@@ -75,7 +75,7 @@ export class ScriptTaskService {
     private readonly pendingResync = new Set<string>();
 
     constructor(
-        private readonly editorStore: EditorStore,
+        private readonly editorStore: EditorSessionStore,
         private readonly scriptFs: BpmnScriptFileSystem,
         private readonly notifier: VsCodeNotifier,
         private readonly picker: VsCodePicker,
