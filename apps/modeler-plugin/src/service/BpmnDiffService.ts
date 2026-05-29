@@ -12,8 +12,6 @@ import { diff } from "bpmn-js-differ";
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
-    Command,
-    CursorChangedCommand,
     DiffCounts,
     Engine,
     LanguageQuery,
@@ -25,497 +23,36 @@ import {
     sortIdsByOrder,
 } from "@miragon/bpmn-modeler-shared";
 
-import {
-    commands,
-    ConfigurationChangeEvent,
-    Disposable,
-    TextDocument,
-    Uri,
-    WebviewPanel,
-    window,
-    workspace,
-} from "vscode";
-
-import { bootstrapWebview } from "../infrastructure/bootstrapWebview";
+import { BpmnDocument } from "../domain/BpmnDocument";
+import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";
+import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { BpmnDocument } from "../domain/BpmnDocument";
-import { DiffPaneHandle, DiffSession } from "./DiffSession";
 
 /**
- * Infrastructure adapter that wraps a real `WebviewPanel` + `TextDocument`
- * pair into the {@link DiffPaneHandle} the session uses. Lives next to the
- * service so the rest of the diff machinery can stay vscode-free.
- */
-class WebviewPaneHandle implements DiffPaneHandle {
-    private readyFlag = false;
-
-    constructor(
-        readonly panel: WebviewPanel,
-        readonly document: TextDocument,
-    ) {}
-
-    get uri(): string {
-        return this.document.uri.toString();
-    }
-
-    isReady(): boolean {
-        return this.readyFlag;
-    }
-
-    setReady(): void {
-        this.readyFlag = true;
-    }
-
-    getText(): string {
-        return this.document.getText();
-    }
-
-    postMessage(msg: unknown): Promise<boolean> {
-        return Promise.resolve(this.panel.webview.postMessage(msg));
-    }
-
-    dispose(): void {
-        this.panel.dispose();
-    }
-}
-
-const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
-
-/**
- * URI schemes used by Git-provider extensions to surface ref/index/working-tree
- * documents. VS Code's built-in Git extension uses `git:`; Theia's `@theia/git`
- * (used by the standalone desktop shell) uses `gitfs:`. Both are always
- * readonly and always belong to a diff, so the scheme alone is a sufficient
- * signal for `shouldResolveAsDiff`.
- */
-const GIT_PROVIDED_SCHEMES = new Set<string>(["git", "gitfs"]);
-
-/**
- * Milliseconds a pre-registered `compare-files` session stays alive with no
- * panes attached before it is swept.  Covers the "user triggered the command
- * but the diff tab never opened" edge case.  Longer than any realistic
- * `vscode.diff` → `resolveCustomTextEditor` latency; short enough that
- * registering the same pair again after a cancel works without collisions.
- */
-const COMPARE_FILES_TTL_MS = 30_000;
-
-/**
- * A `"scm"` pane that resolved first and is waiting for its partner.
+ * Drives the diff *content* for already-resolved BPMN diff panes: it answers
+ * the webview's initial file request, runs `bpmn-js-differ` once both sides
+ * report ready, and keeps the two panes in lockstep (viewport, cursor,
+ * language).
  *
- * SCM-initiated diffs don't let us pre-register a session — we learn about
- * each URI only when its pane resolves.  The first pane goes here; when the
- * second pane arrives with a matching `document.uri.path`, we promote both
- * into a full {@link DiffSession} and register it.
- */
-interface PendingScmPane {
-    readonly handle: WebviewPaneHandle;
-}
-
-/**
- * Owns every BPMN diff viewer pane from resolution through disposal.
- *
- * The domain moved from "pair of panes with mutual partner pointers" to
- * {@link DiffSession}: an explicit object with fixed `before` / `after` URIs
- * that any diff origin (SCM, `compare-files`) can register into.  The service
- * is now a registry of sessions plus a per-URI lookup index; pane resolution
- * is a session lookup instead of a scheme-based heuristic.
- *
- * Responsibilities:
- *   1. Register `compare-files` sessions on demand — pre-known URIs, side
- *      fixed at construction, TTL-swept if the tab never opens.
- *   2. Lazily create `scm` sessions when VS Code resolves a diff tab's second
- *      pane — URIs discovered at resolve time, paired by path equality.
- *   3. Bootstrap the webview for each resolved pane, wire up the viewer-mode
- *      message protocol (`GetBpmnFileCommand`, `DiffReadyCommand`,
- *      `ViewportChangedCommand`, `CursorChangedCommand`), and attach the pane
- *      to its session.
- *   4. Once both panes of a session report ready, run `bpmn-js-differ` on the
- *      parsed XMLs and broadcast per-side {@link ApplyDiffHighlightsQuery}.
- *   5. Forward viewport-change and cursor-change messages from one pane to
- *      its partner so panning, zooming, and stepper navigation stay in sync.
+ * Stays free of `vscode` — it works through the abstract {@link DiffPaneHandle}
+ * and reads session state from {@link DiffPaneStore}. Pane lifecycle (creation,
+ * pairing, disposal) and every VS Code call live in `BpmnDiffController`.
  */
 export class BpmnDiffService {
-    // Every live session, keyed by `${beforeUri}|${afterUri}`.
-    private readonly sessions = new Map<string, DiffSession>();
-
-    /**
-     * Lookup index: URI string → session it belongs to.  Populated as soon as
-     * a session is created, whether pre-registered (`compare-files`) or
-     * lazily formed (`scm`).
-     */
-    private readonly sessionByUri = new Map<string, DiffSession>();
-
-    /**
-     * SCM panes awaiting their partner.  Keyed by {@link scmPairingKey} so
-     * the Git-provided URI (`git:` in VS Code, `gitfs:` in Theia) and the
-     * working-tree `file:` URI meet here before being promoted into a session.
-     */
-    private readonly pendingScm = new Map<string, PendingScmPane>();
-
-    /**
-     * TTL sweepers for pre-registered `compare-files` sessions.  Cleared
-     * once the first pane attaches.
-     */
-    private readonly ttlTimers = new Map<DiffSession, ReturnType<typeof setTimeout>>();
-
-    // Dispose handle for the language-setting change subscription.
-    private languageSubscription?: Disposable;
-
     /**
      * @param notifier Logging helper for parse failures and dropped posts.
      * @param vsSettings Settings reader — provides the active UI locale so
      *   each diff pane's legend and chrome render in the user's language from
      *   the moment it opens, and re-renders on setting changes.
+     * @param store Session registry consulted for partner lookups and the
+     *   language re-broadcast fan-out.
      */
     constructor(
         private readonly notifier: VsCodeNotifier,
         private readonly vsSettings: VsCodeSettings,
-    ) {
-        this.languageSubscription = workspace.onDidChangeConfiguration((event) =>
-            this.onConfigurationChanged(event),
-        );
-    }
-
-    /**
-     * Releases the language-setting subscription and any armed TTL timers.
-     */
-    dispose(): void {
-        this.languageSubscription?.dispose();
-        this.languageSubscription = undefined;
-        for (const timer of this.ttlTimers.values()) {
-            clearTimeout(timer);
-        }
-        this.ttlTimers.clear();
-    }
-
-    /**
-     * Pre-registers a `compare-files` session before invoking `vscode.diff`.
-     *
-     * Side assignment is fixed: `leftUri` is `before`, `rightUri` is `after`
-     * — matches the visual order VS Code renders `vscode.diff(a, b)` in.
-     *
-     * A TTL sweeper drops the session if no pane attaches within
-     * {@link COMPARE_FILES_TTL_MS}.  The timer is cleared as soon as the
-     * first pane arrives.
-     *
-     * @returns The created session (useful in tests; production callers can
-     *   ignore the return value).
-     */
-    registerCompareFilesSession(leftUri: Uri, rightUri: Uri): DiffSession {
-        const session = DiffSession.forCompareFiles(leftUri.toString(), rightUri.toString());
-        this.indexSession(session);
-        this.ttlTimers.set(
-            session,
-            setTimeout(() => this.sweepOrphan(session), COMPARE_FILES_TTL_MS),
-        );
-        return session;
-    }
-
-    /**
-     * One-call `compare-files` diff-open: pre-registers the session, invokes
-     * `vscode.diff`, and constructs the tab title.
-     *
-     * Session registration must happen before `vscode.diff` so that when VS
-     * Code immediately resolves each pane through the
-     * `CustomTextEditorProvider`, pane lookup via {@link findSessionFor}
-     * succeeds synchronously — otherwise the panes would fall through to the
-     * SCM label heuristic.
-     *
-     * Errors from `vscode.diff` are surfaced to the user here so both entry
-     * points ({@link BpmnCompareController} and {@link swapCompareFilesSides})
-     * share the same failure UX.
-     */
-    async openCompareFilesDiff(leftUri: Uri, rightUri: Uri): Promise<void> {
-        this.registerCompareFilesSession(leftUri, rightUri);
-        const title = `${this.basenameOfUriString(leftUri.toString())} ↔ ${this.basenameOfUriString(rightUri.toString())}`;
-        try {
-            await commands.executeCommand("vscode.diff", leftUri, rightUri, title, {
-                preview: false,
-            });
-        } catch (error) {
-            this.notifier.logError(error as Error);
-            this.notifier.showError(`Failed to open compare view: ${(error as Error).message}`);
-        }
-    }
-
-    /**
-     * Returns the session this URI belongs to, or `undefined` when none
-     * exists yet.  Covers both pre-registered `compare-files` sessions and
-     * `scm` sessions that have already been promoted from a pending pane.
-     */
-    findSessionFor(uri: Uri): DiffSession | undefined {
-        return this.sessionByUri.get(uri.toString());
-    }
-
-    private basenameOfUriString(uri: string): string {
-        // Trim query/fragment so e.g. `file:///foo.bpmn?ref=HEAD` still
-        // resolves to `foo.bpmn`. `Uri.toString()` keeps `?` / `#` for any
-        // host that uses them; the bare path is what users see in the tab.
-        const noFragment = uri.split("#")[0];
-        const noQuery = noFragment.split("?")[0];
-        const parts = noQuery.split("/");
-        return decodeURIComponent(parts[parts.length - 1] ?? "");
-    }
-
-    /**
-     * Returns `true` when this URI should resolve as a (new) diff pane.
-     *
-     * Decision tree:
-     *   1. A pane (full session or pending SCM entry) already exists for
-     *      this URI → false.  The caller is a *second* resolve, e.g. the
-     *      user opened the working-tree file in a normal editor tab after
-     *      the SCM diff was already open — that second tab is an editable
-     *      modeler, not another diff pane.
-     *   2. A pre-registered `compare-files` session exists → true.
-     *   3. The URI uses a Git-provided scheme (see
-     *      {@link GIT_PROVIDED_SCHEMES}) → true. Covers VS Code's `git:` and
-     *      Theia's `gitfs:` — both are always readonly and always belong to a
-     *      diff.
-     *   4. The URI sits in a diff tab per the label heuristic → true.  This
-     *      is the only signal for SCM diffs when both URIs share the `file:`
-     *      scheme (uncommon but possible for some diff-to-working-tree flows).
-     */
-    shouldResolveAsDiff(uri: Uri): boolean {
-        if (this.hasPaneForUri(uri)) {
-            return false;
-        }
-        if (this.findSessionFor(uri)) {
-            return true;
-        }
-        if (GIT_PROVIDED_SCHEMES.has(uri.scheme)) {
-            return true;
-        }
-        return this.isPartOfDiff(uri);
-    }
-
-    /**
-     * Returns `true` when `uri` belongs to an open BPMN diff tab.
-     *
-     * Label-based heuristic: when a file type has a `CustomTextEditorProvider`
-     * registered as default, VS Code's diff tabs surface as `Tab` objects with
-     * `input === undefined` — there is no `TabInputTextDiff` / `TabInputCustom`
-     * variant to branch on.  The only structural signal left is the label,
-     * which every diff annotates with a parenthetical (e.g.
-     * `"my-bpmn.bpmn (Working Tree)"`, `"… (HEAD)"`, `"… (HEAD~1 ↔ HEAD)"`)
-     * or the `↔` separator used by `vscode.diff(a, b)` when the two basenames
-     * differ.
-     */
-    isPartOfDiff(uri: Uri): boolean {
-        const basename = this.basenameOfUriString(uri.toString());
-        if (!basename.endsWith(".bpmn")) {
-            return false;
-        }
-        for (const group of window.tabGroups.all) {
-            for (const tab of group.tabs) {
-                if (tab.input !== undefined) {
-                    continue;
-                }
-                if (tab.label.startsWith(`${basename} (`) || tab.label.includes(` ↔ `)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Returns `true` when any pane — attached to a session or still pending
-     * SCM pairing — currently renders `uri`.
-     */
-    hasPaneForUri(uri: Uri): boolean {
-        const needle = uri.toString();
-        const session = this.sessionByUri.get(needle);
-        if (session?.hasPaneFor(needle)) {
-            return true;
-        }
-        for (const pending of this.pendingScm.values()) {
-            if (pending.handle.uri === needle) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Bootstraps a freshly-resolved diff pane.
-     *
-     * Resolution paths:
-     *   - Pre-registered `compare-files` session: looked up via
-     *     {@link sessionByUri}, pane attaches immediately, TTL cancels.
-     *   - First `scm` pane: stashed in {@link pendingScm}, waits for partner.
-     *   - Second `scm` pane: paired with the pending entry, session created.
-     *
-     * Nothing about a diff pane flows through `EditorStore`, which keeps the
-     * two "same URI" panels (viewer + editable modeler that a user may open
-     * alongside the diff) from colliding.
-     */
-    resolveDiffPane(panel: WebviewPanel, document: TextDocument): void {
-        // Register listeners *before* we hand HTML to the webview: VS Code
-        // drops webview-originated messages that arrive before the extension
-        // has subscribed, and bootstrapping triggers an immediate
-        // `GetBpmnFileCommand` as soon as the webview's scripts run.
-        const handle = new WebviewPaneHandle(panel, document);
-
-        panel.webview.onDidReceiveMessage((message: Command) => this.onMessage(handle, message));
-        panel.onDidDispose(() => this.disposePane(handle));
-
-        const session = this.findSessionFor(document.uri);
-        if (session) {
-            session.attachPane(handle);
-            this.cancelTtl(session);
-        } else {
-            this.attachOrPendScmPane(handle);
-        }
-
-        bootstrapWebview(BPMN_VIEW_TYPE, panel);
-    }
-
-    /**
-     * Either pairs `entry` with a pending SCM pane that shares its path
-     * (promoting both into a full {@link DiffSession}) or stashes `entry`
-     * as the pending pane for later pairing.
-     *
-     * Side assignment for SCM:
-     *   - If one URI is `file:` it is the working tree → `after`.
-     *   - Otherwise (ref-vs-ref, both `git:`) the first-registered pane is
-     *     `before`, second is `after` — arbitrary but matches the visual
-     *     order VS Code's SCM diff chose.
-     */
-    private attachOrPendScmPane(handle: WebviewPaneHandle): void {
-        const key = this.scmPairingKey(handle.document.uri);
-        const pending = this.pendingScm.get(key);
-
-        if (!pending) {
-            this.pendingScm.set(key, { handle });
-            return;
-        }
-
-        this.pendingScm.delete(key);
-        const { before, after } = resolveScmSides(pending.handle, handle);
-        const session = DiffSession.forScm(before, after);
-        session.attachPane(before);
-        session.attachPane(after);
-        this.indexSession(session);
-    }
-
-    /**
-     * Pairing key for matching the two panes of an SCM diff. Both VS Code
-     * (`git:foo.bpmn` ↔ `file:foo.bpmn`) and Theia (`gitfs:foo.bpmn` ↔
-     * `file:foo.bpmn`) surface the two sides with different schemes but the
-     * same workspace-relative `uri.path`, so the raw path is the pairing key.
-     *
-     * If a future host bakes ref metadata into the path (e.g.
-     * `/foo.bpmn@HEAD`), normalize it here so the two paths still meet.
-     */
-    private scmPairingKey(uri: Uri): string {
-        return uri.path;
-    }
-
-    /**
-     * Adds `session` to the `sessions` map and the per-URI lookup index.
-     *
-     * Both session-creation paths (eager `compare-files` and lazy `scm`)
-     * funnel through here so the two maps never drift out of sync.
-     */
-    private indexSession(session: DiffSession): void {
-        this.sessions.set(this.sessionIdOf(session), session);
-        this.sessionByUri.set(session.beforeUri, session);
-        this.sessionByUri.set(session.afterUri, session);
-    }
-
-    private sessionIdOf(session: DiffSession): string {
-        return `${session.beforeUri}|${session.afterUri}`;
-    }
-
-    private cancelTtl(session: DiffSession): void {
-        const timer = this.ttlTimers.get(session);
-        if (timer) {
-            clearTimeout(timer);
-            this.ttlTimers.delete(session);
-        }
-    }
-
-    private sweepOrphan(session: DiffSession): void {
-        this.ttlTimers.delete(session);
-        if (!session.isEmpty()) {
-            return;
-        }
-        this.sessions.delete(this.sessionIdOf(session));
-        this.sessionByUri.delete(session.beforeUri);
-        this.sessionByUri.delete(session.afterUri);
-    }
-
-    private disposePane(handle: DiffPaneHandle): void {
-        /**
-         * Drop from pending (no session ever formed)
-         */
-        for (const [key, pending] of this.pendingScm) {
-            if (pending.handle === handle) {
-                this.pendingScm.delete(key);
-                return;
-            }
-        }
-
-        // Drop from session; retire the session if both panes are gone.
-        const session = this.sessionByUri.get(handle.uri);
-        if (!session) {
-            return;
-        }
-        session.detachPane(handle);
-        if (session.isEmpty()) {
-            this.sessions.delete(this.sessionIdOf(session));
-            this.sessionByUri.delete(session.beforeUri);
-            this.sessionByUri.delete(session.afterUri);
-            this.cancelTtl(session);
-        }
-    }
-
-    private async onMessage(handle: DiffPaneHandle, message: Command): Promise<void> {
-        switch (message.type) {
-            case "GetBpmnFileCommand":
-                await this.sendViewerFile(handle);
-                break;
-            case "DiffReadyCommand":
-                await this.markReady(handle);
-                break;
-            case "ViewportChangedCommand":
-                await this.forwardViewport(handle, (message as ViewportChangedCommand).viewport);
-                break;
-            case "CursorChangedCommand":
-                await this.forwardCursor(handle, (message as CursorChangedCommand).index);
-                break;
-            case "SwapCompareSidesCommand":
-                await this.swapCompareFilesSides(handle);
-                break;
-        }
-    }
-
-    /**
-     * Closes the current diff tab and reopens it with the two URIs swapped.
-     *
-     * Only applies to `compare-files` sessions: the extension owns both URIs
-     * and the tab title, so it can legitimately retire and recreate the diff.
-     * SCM panes never emit {@link SwapCompareSidesCommand} — the button is
-     * hidden there — but we still guard against misuse since message routing
-     * cannot encode origin at the type level.
-     *
-     * Disposing the webview panels triggers `disposePane` for both sides,
-     * which tears down the old session and removes it from the indexes.  The
-     * subsequent `openCompareFilesDiff` then registers a fresh session with
-     * the reversed before/after assignment.
-     */
-    private async swapCompareFilesSides(handle: DiffPaneHandle): Promise<void> {
-        const session = this.sessionByUri.get(handle.uri);
-        if (!session || session.origin !== "compare-files") {
-            return;
-        }
-        const { beforeUri, afterUri } = session;
-        for (const pane of session.attachedPanes()) {
-            pane.dispose();
-        }
-        await this.openCompareFilesDiff(Uri.parse(afterUri), Uri.parse(beforeUri));
-    }
+        private readonly store: DiffPaneStore,
+    ) {}
 
     /**
      * Replies to the webview's initial `GetBpmnFileCommand` with the pane's
@@ -523,7 +60,7 @@ export class BpmnDiffService {
      * an execution-platform attribute fall back to `"c7"`, since viewer mode
      * does not render engine-specific extensions anyway.
      */
-    private async sendViewerFile(handle: DiffPaneHandle): Promise<void> {
+    async sendViewerFile(handle: DiffPaneHandle): Promise<void> {
         try {
             const content = handle.getText();
             let engine: Engine;
@@ -538,11 +75,15 @@ export class BpmnDiffService {
         }
     }
 
-    private async markReady(handle: DiffPaneHandle): Promise<void> {
+    /**
+     * Marks the pane ready, sends it the current locale, and runs the differ
+     * once both panes of the session report ready.
+     */
+    async markReady(handle: DiffPaneHandle): Promise<void> {
         handle.setReady();
         await this.sendLanguage(handle);
 
-        const session = this.sessionByUri.get(handle.uri);
+        const session = this.store.findByUri(handle.uri);
         if (!session || !session.isArmed()) {
             return;
         }
@@ -554,29 +95,11 @@ export class BpmnDiffService {
     }
 
     /**
-     * Posts the current UI locale to the given pane so its legend and other
-     * non-bpmn-js UI render in the user's language.  Silently drops the post
-     * when the pane is hidden or already disposed — the pane will request the
-     * language again on its next resolve.
+     * Re-posts the current locale to every ready diff pane. Invoked by the
+     * controller when the user changes `miragon.bpmnModeler.language`.
      */
-    private async sendLanguage(handle: DiffPaneHandle): Promise<void> {
-        try {
-            await handle.postMessage(new LanguageQuery(this.vsSettings.getLanguage()));
-        } catch (error) {
-            this.notifier.logInfo(`setLanguage dropped: ${(error as Error).message}`);
-        }
-    }
-
-    /**
-     * Re-posts the current locale to every ready diff pane when the user
-     * changes `miragon.bpmnModeler.language`.  Ignores unrelated setting
-     * changes so panes only churn when the language actually moves.
-     */
-    private onConfigurationChanged(event: ConfigurationChangeEvent): void {
-        if (!event.affectsConfiguration("miragon.bpmnModeler.language")) {
-            return;
-        }
-        for (const session of this.sessions.values()) {
+    rebroadcastLanguage(): void {
+        for (const session of this.store.allSessions()) {
             for (const handle of session.attachedPanes()) {
                 if (handle.isReady()) {
                     void this.sendLanguage(handle);
@@ -589,7 +112,7 @@ export class BpmnDiffService {
      * Posts the partner's viewport change to this pane so panning/zoom stays
      * in lockstep.  Silently drops posts when the partner is hidden or gone.
      */
-    private async forwardViewport(
+    async forwardViewport(
         handle: DiffPaneHandle,
         viewport: ViewportChangedCommand["viewport"],
     ): Promise<void> {
@@ -609,7 +132,7 @@ export class BpmnDiffService {
      * navigation stays in lockstep.  Mirrors {@link forwardViewport} — same
      * partner lookup, same drop-silently-on-failure semantics.
      */
-    private async forwardCursor(handle: DiffPaneHandle, index: number): Promise<void> {
+    async forwardCursor(handle: DiffPaneHandle, index: number): Promise<void> {
         const partner = this.partnerOf(handle);
         if (!partner) {
             return;
@@ -621,8 +144,22 @@ export class BpmnDiffService {
         }
     }
 
+    /**
+     * Posts the current UI locale to the given pane so its legend and other
+     * non-bpmn-js UI render in the user's language.  Silently drops the post
+     * when the pane is hidden or already disposed — the pane will request the
+     * language again on its next resolve.
+     */
+    private async sendLanguage(handle: DiffPaneHandle): Promise<void> {
+        try {
+            await handle.postMessage(new LanguageQuery(this.vsSettings.getLanguage()));
+        } catch (error) {
+            this.notifier.logInfo(`setLanguage dropped: ${(error as Error).message}`);
+        }
+    }
+
     private partnerOf(handle: DiffPaneHandle): DiffPaneHandle | undefined {
-        const session = this.sessionByUri.get(handle.uri);
+        const session = this.store.findByUri(handle.uri);
         return session?.partnerOf(handle);
     }
 
@@ -728,7 +265,7 @@ export class BpmnDiffService {
                 counts,
                 navigationOrder,
                 session.origin,
-                this.basenameOfUriString(before.uri),
+                basenameOfUriString(before.uri),
             ),
         );
         await this.postHighlights(
@@ -742,7 +279,7 @@ export class BpmnDiffService {
                 counts,
                 navigationOrder,
                 session.origin,
-                this.basenameOfUriString(after.uri),
+                basenameOfUriString(after.uri),
             ),
         );
     }
@@ -757,28 +294,4 @@ export class BpmnDiffService {
             this.notifier.logInfo(`ApplyDiffHighlights dropped: ${(error as Error).message}`);
         }
     }
-}
-
-/**
- * SCM-diff side assignment for two panes that share a path.
- *
- * Invariant: `file:` URIs represent the working tree and must be `after`.
- * For ref-vs-ref diffs (both `git:` in VS Code, both `gitfs:` in Theia) side
- * follows resolution order, which mirrors the host's own visual ordering.
- *
- * Lives in the infrastructure-adjacent half of this file because it reads
- * `document.uri.scheme` from the vscode-typed handle; pushing it into the
- * vscode-free {@link DiffSession} would require parsing the string URI.
- */
-function resolveScmSides(
-    first: WebviewPaneHandle,
-    second: WebviewPaneHandle,
-): { before: WebviewPaneHandle; after: WebviewPaneHandle } {
-    if (second.document.uri.scheme === "file") {
-        return { before: first, after: second };
-    }
-    if (first.document.uri.scheme === "file") {
-        return { before: second, after: first };
-    }
-    return { before: first, after: second };
 }

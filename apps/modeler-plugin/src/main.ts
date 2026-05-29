@@ -4,6 +4,7 @@ import { setContext } from "./infrastructure/extensionContext";
 
 import { BpmnScriptFileSystem } from "./infrastructure/BpmnScriptFileSystem";
 import { CompareSelectionStore } from "./infrastructure/CompareSelectionStore";
+import { DiffPaneStore } from "./infrastructure/DiffPaneStore";
 import { EditorStore } from "./infrastructure/EditorStore";
 import { PropertiesPanelStateRepository } from "./infrastructure/PropertiesPanelStateRepository";
 import { VsCodeDocument } from "./infrastructure/VsCodeDocument";
@@ -26,6 +27,7 @@ import { DmnModelerService } from "./service/DmnModelerService";
 import { ModelNavigationService } from "./service/ModelNavigationService";
 import { ReferencedModelLocator } from "./service/modelNavigation/ReferencedModelLocator";
 import { BpmnCompareController } from "./controller/BpmnCompareController";
+import { BpmnDiffController } from "./controller/BpmnDiffController";
 import { CommandController } from "./controller/CommandController";
 import { BpmnEditorController } from "./controller/BpmnEditorController";
 import { DmnEditorController } from "./controller/DmnEditorController";
@@ -99,8 +101,11 @@ export function activate(context: ExtensionContext): void {
     const settingsBroadcaster = new BpmnSettingsBroadcaster(editorStore, vsSettings, notifier);
     const panelSvc = new BpmnPropertiesPanelService(editorStore, panelStateRepo, notifier);
     const dmnService = new DmnModelerService(editorStore, vsDocument, notifier);
-    const diffService = new BpmnDiffService(notifier, vsSettings);
-    context.subscriptions.push(diffService);
+    const diffStore = new DiffPaneStore();
+    context.subscriptions.push(diffStore);
+    const diffService = new BpmnDiffService(notifier, vsSettings, diffStore);
+    const diffController = new BpmnDiffController(diffStore, diffService, notifier);
+    diffController.register(context);
     const deploymentSvc = new DeploymentService(
         vsDocument,
         vsWorkspace,
@@ -146,7 +151,7 @@ export function activate(context: ExtensionContext): void {
         settingsBroadcaster,
         panelSvc,
         clipboardMediator,
-        diffService,
+        diffController,
         artifactSvc,
         scriptTaskSvc,
         notifier,
@@ -155,7 +160,7 @@ export function activate(context: ExtensionContext): void {
         modelNavigationService,
     ).register(context);
     new DmnEditorController(editorStore, dmnService, notifier).register(context);
-    new BpmnCompareController(compareSelection, diffService, notifier).register(context);
+    new BpmnCompareController(compareSelection, diffController, notifier).register(context);
     commandController.register(context);
     new DeploymentController(
         editorStore,

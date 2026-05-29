@@ -26,7 +26,7 @@ import { BpmnClipboardMediator } from "../service/BpmnClipboardMediator";
 import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
 import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelService";
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
-import { BpmnDiffService } from "../service/BpmnDiffService";
+import { BpmnDiffController } from "./BpmnDiffController";
 import { ArtifactService } from "../service/ArtifactService";
 import { ScriptTaskService } from "./ScriptTaskService";
 import { ModelNavigationService } from "../service/ModelNavigationService";
@@ -51,7 +51,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly settingsBroadcaster: BpmnSettingsBroadcaster,
         private readonly panelSvc: BpmnPropertiesPanelService,
         private readonly clipboardMediator: BpmnClipboardMediator,
-        private readonly diffService: BpmnDiffService,
+        private readonly diffController: BpmnDiffController,
         private readonly artifactSvc: ArtifactService,
         private readonly scriptTaskSvc: ScriptTaskService,
         private readonly notifier: VsCodeNotifier,
@@ -87,17 +87,17 @@ export class BpmnEditorController implements CustomTextEditorProvider {
     ): Promise<void> {
         try {
             /**
-             * Diff branch: the service decides whether this URI should
-             * resolve as a diff pane.  It checks, in order: a pre-registered
-             * `compare-files` session (our own command), `git:` scheme
-             * (always readonly, always SCM), or the label-based SCM diff
-             * heuristic — while also guarding against a *second* resolve
+             * Diff branch: the diff controller decides whether this URI
+             * should resolve as a diff pane.  It checks, in order: a
+             * pre-registered `compare-files` session (our own command), `git:`
+             * scheme (always readonly, always SCM), or the label-based SCM
+             * diff heuristic — while also guarding against a *second* resolve
              * for a URI that already has a pane (e.g. user opens the
              * working-tree file in a normal editor tab while the SCM diff
              * is still open).
              */
-            if (this.diffService.shouldResolveAsDiff(document.uri)) {
-                this.diffService.resolveDiffPane(webviewPanel, document);
+            if (this.diffController.shouldResolveAsDiff(document.uri)) {
+                this.diffController.resolveDiffPane(webviewPanel, document);
                 return;
             }
 

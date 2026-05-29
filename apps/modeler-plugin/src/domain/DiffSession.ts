@@ -6,9 +6,9 @@ export { DiffOrigin };
  * Domain handle for a single diff pane.
  *
  * Wraps whatever the host gave us (in production: a `WebviewPanel` +
- * `TextDocument` pair — see `WebviewPaneHandle` in {@link BpmnDiffService}).
- * The session sees only this handle, which lets `DiffSession` stay free of
- * `vscode` imports and lets tests substitute a plain object.
+ * `TextDocument` pair — see `WebviewPaneHandle`). The session sees only this
+ * handle, which lets `DiffSession` stay free of `vscode` imports and lets
+ * tests substitute a plain object.
  *
  * `uri` is the canonical identity used by the session's lookups — it must
  * be the stringified URI of the underlying document (i.e.
@@ -26,6 +26,20 @@ export interface DiffPaneHandle {
     getText(): string;
     postMessage(msg: unknown): Promise<boolean>;
     dispose(): void;
+}
+
+/**
+ * Extracts the human-visible basename from a stringified URI.
+ *
+ * Trims query/fragment so e.g. `file:///foo.bpmn?ref=HEAD` still resolves to
+ * `foo.bpmn`. `Uri.toString()` keeps `?` / `#` for any host that uses them;
+ * the bare path is what users see in the tab and in the diff legend label.
+ */
+export function basenameOfUriString(uri: string): string {
+    const noFragment = uri.split("#")[0];
+    const noQuery = noFragment.split("?")[0];
+    const parts = noQuery.split("/");
+    return decodeURIComponent(parts[parts.length - 1] ?? "");
 }
 
 /**
@@ -47,7 +61,7 @@ export interface DiffPaneHandle {
  * inherent to the session, not inferred from the pane that attaches first.
  */
 export class DiffSession {
-    // Wall-clock ms at construction — used by the TTL sweeper in the service.
+    // Wall-clock ms at construction — used by the TTL sweeper in the store.
     readonly createdAt: number = Date.now();
 
     private beforePane?: DiffPaneHandle;
@@ -126,7 +140,7 @@ export class DiffSession {
      *
      * @returns The assigned side, or `undefined` when the handle's URI does
      *   not belong to this session. Callers should treat `undefined` as a
-     *   programming error — only the owning diff service should be
+     *   programming error — only the owning diff machinery should be
      *   attaching panes, and it should only do so after a successful
      *   session lookup.
      */

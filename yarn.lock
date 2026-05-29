@@ -7869,7 +7869,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-moddle@npm:^10.0.0":
+"bpmn-moddle@npm:10.0.0, bpmn-moddle@npm:^10.0.0":
   version: 10.0.0
   resolution: "bpmn-moddle@npm:10.0.0"
   dependencies:
@@ -20164,6 +20164,7 @@ __metadata:
     "@types/vscode": "npm:1.93.0"
     "@vitest/coverage-v8": "npm:4.1.5"
     bpmn-js-differ: "npm:3.2.0"
+    bpmn-moddle: "npm:10.0.0"
     copy-webpack-plugin: "npm:14.0.0"
     lodash: "npm:4.18.1"
     min-dash: "npm:5.0.0"
