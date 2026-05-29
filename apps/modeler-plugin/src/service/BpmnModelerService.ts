@@ -143,18 +143,15 @@ export class BpmnModelerService {
     }
 
     private handleError(error: Error): boolean {
-        this.notifier.logError(error);
-        this.notifier.showError(
-            `A problem occurred while trying to display the BPMN Modeler.\n${error.message ?? error}`,
+        this.notifier.notifyError(
+            "A problem occurred while trying to display the BPMN Modeler.",
+            error,
         );
         return false;
     }
 
     private handleSyncError(error: Error): boolean {
-        this.notifier.logError(error);
-        this.notifier.showError(
-            `A problem occurred while trying to sync the BPMN file.\n${error.message}`,
-        );
+        this.notifier.notifyError("A problem occurred while trying to sync the BPMN file.", error);
         return false;
     }
 }

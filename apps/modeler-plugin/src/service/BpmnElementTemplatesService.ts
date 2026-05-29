@@ -67,10 +67,7 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     }
 
     private handleError(error: Error): boolean {
-        this.notifier.logError(error);
-        this.notifier.showError(
-            `A problem occurred while trying to display the BPMN Modeler.\n${error.message ?? error}`,
-        );
+        this.notifier.notifyError("A problem occurred while loading element templates.", error);
         return false;
     }
 }
