@@ -7,8 +7,8 @@ const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
 const DMN_VIEW_TYPE = "bpmn-modeler.dmn";
 
 /**
- * Pure helper with no persistent state, so both `EditorStore` (editable
- * editors) and `BpmnDiffService` (readonly diff panes) can invoke it
+ * Pure helper with no persistent state, so both `VsCodeEditorHandle` (editable
+ * editors) and `BpmnDiffController` (readonly diff panes) can invoke it
  * independently without going through each other.
  *
  * @param initialPanelVisible BPMN-only: when `false`, HTML renders the

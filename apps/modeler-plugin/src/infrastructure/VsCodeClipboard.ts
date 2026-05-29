@@ -1,5 +1,7 @@
 import { env } from "vscode";
 
+import { ClipboardPort } from "../domain/hostPorts";
+
 /**
  * Adapter around the VS Code clipboard API.
  *
@@ -7,7 +9,7 @@ import { env } from "vscode";
  * mediator pattern (host-side read/write on behalf of the webview) confined
  * to infrastructure and lets services depend only on what they actually use.
  */
-export class VsCodeClipboard {
+export class VsCodeClipboard implements ClipboardPort {
     async readClipboard(): Promise<string> {
         return env.clipboard.readText();
     }

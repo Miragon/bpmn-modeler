@@ -2,10 +2,8 @@ import { posix } from "path";
 
 import { ElementTemplatesQuery } from "@miragon/bpmn-modeler-shared";
 
-import { EditorStore } from "../infrastructure/EditorStore";
-import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
+import { DocumentPort, NotifierPort, StatusBarPort } from "../domain/hostPorts";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { ArtifactChangeTarget, ArtifactService } from "./ArtifactService";
 
 /**
@@ -16,11 +14,11 @@ import { ArtifactChangeTarget, ArtifactService } from "./ArtifactService";
  */
 export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     constructor(
-        private readonly editorStore: EditorStore,
-        private readonly vsDocument: VsCodeDocument,
+        private readonly editorStore: EditorSessionStore,
+        private readonly vsDocument: DocumentPort,
         private readonly artifactSvc: ArtifactService,
-        private readonly statusBar: VsCodeStatusBar,
-        private readonly notifier: VsCodeNotifier,
+        private readonly statusBar: StatusBarPort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     async setElementTemplates(editorId: string): Promise<boolean> {

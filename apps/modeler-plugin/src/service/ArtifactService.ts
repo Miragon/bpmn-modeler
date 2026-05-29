@@ -1,8 +1,7 @@
 import { posix } from "path";
 
 import { DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
-import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
-import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
+import { SettingsPort, WorkspacePort } from "../domain/hostPorts";
 
 /**
  * Implemented by {@link import("./BpmnElementTemplatesService").BpmnElementTemplatesService}
@@ -28,8 +27,8 @@ export interface WatcherResult {
  */
 export class ArtifactService {
     constructor(
-        private readonly vsWorkspace: VsCodeWorkspace,
-        private readonly vsSettings: VsCodeSettings,
+        private readonly vsWorkspace: WorkspacePort,
+        private readonly vsSettings: SettingsPort,
     ) {}
 
     /**

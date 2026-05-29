@@ -4,11 +4,8 @@ import { BpmnDocument } from "../domain/BpmnDocument";
 import { UserCancelledError } from "../domain/errors";
 import { getVersions } from "../domain/engineVersions";
 import { BpmnFileEntry, MigrationPlan, MigrationScope } from "../domain/MigrationPlan";
-import { EditorStore } from "../infrastructure/EditorStore";
-import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { VsCodePicker } from "../infrastructure/VsCodePicker";
-import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
+import { DocumentPort, NotifierPort, PickerPort, WorkspacePort } from "../domain/hostPorts";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 
 /**
  * Workspace-wide migration of BPMN diagrams to a user-selected engine
@@ -20,11 +17,11 @@ import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
  */
 export class BpmnMigrationService {
     constructor(
-        private readonly editorStore: EditorStore,
-        private readonly vsDocument: VsCodeDocument,
-        private readonly vsWorkspace: VsCodeWorkspace,
-        private readonly picker: VsCodePicker,
-        private readonly notifier: VsCodeNotifier,
+        private readonly editorStore: EditorSessionStore,
+        private readonly vsDocument: DocumentPort,
+        private readonly vsWorkspace: WorkspacePort,
+        private readonly picker: PickerPort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     async migrateAllDiagrams(): Promise<boolean> {

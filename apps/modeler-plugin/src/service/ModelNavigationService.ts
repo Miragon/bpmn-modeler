@@ -1,5 +1,4 @@
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { VsCodePicker } from "../infrastructure/VsCodePicker";
+import { NotifierPort, PickerPort } from "../domain/hostPorts";
 
 import { ReferencedModelLocator } from "./modelNavigation/ReferencedModelLocator";
 
@@ -21,8 +20,8 @@ const PROGRESS_LABEL_LIMIT = 40;
 export class ModelNavigationService {
     constructor(
         private readonly locator: ReferencedModelLocator,
-        private readonly notifier: VsCodeNotifier,
-        private readonly picker: VsCodePicker,
+        private readonly notifier: NotifierPort,
+        private readonly picker: PickerPort,
     ) {}
 
     async navigate(

@@ -1,7 +1,6 @@
 import {
     commands,
     ConfigurationTarget,
-    Disposable,
     env,
     ExtensionContext,
     Uri,
@@ -12,7 +11,8 @@ import {
 import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
 import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
 
-import { EditorStore } from "../infrastructure/EditorStore";
+import { EditorSubscription } from "../domain/EditorSession";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { VsCodeTextEditor } from "../infrastructure/VsCodeTextEditor";
@@ -43,7 +43,7 @@ const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
  */
 export class CommandController {
     // Tracks the active SVG response subscription so it can be disposed before creating a new one.
-    private svgSubscription: Disposable | undefined;
+    private svgSubscription: EditorSubscription | undefined;
 
     /**
      * @param editorStore Central registry for open editor panels and messaging.
@@ -54,7 +54,7 @@ export class CommandController {
      * @param migrationSvc Workspace-wide BPMN migration orchestrator.
      */
     constructor(
-        private readonly editorStore: EditorStore,
+        private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: VsCodeDocument,
         private readonly notifier: VsCodeNotifier,
         private readonly textEditor: VsCodeTextEditor,

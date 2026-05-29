@@ -4,11 +4,8 @@ import { ModelerSession } from "../domain/session";
 import { ExecutionPlatformNotDetectedError, UserCancelledError } from "../domain/errors";
 import { getLatestVersion, getVersions } from "../domain/engineVersions";
 import { BpmnDocument } from "../domain/BpmnDocument";
-import { EditorStore } from "../infrastructure/EditorStore";
-import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { VsCodePicker } from "../infrastructure/VsCodePicker";
+import { DocumentPort, NotifierPort, PickerPort, StatusBarPort } from "../domain/hostPorts";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 
 /**
  * Owns the per-editor {@link ModelerSession} map that drives echo
@@ -20,11 +17,11 @@ export class BpmnModelerService {
     private readonly sessions: Map<string, ModelerSession> = new Map();
 
     constructor(
-        private readonly editorStore: EditorStore,
-        private readonly vsDocument: VsCodeDocument,
-        private readonly picker: VsCodePicker,
-        private readonly statusBar: VsCodeStatusBar,
-        private readonly notifier: VsCodeNotifier,
+        private readonly editorStore: EditorSessionStore,
+        private readonly vsDocument: DocumentPort,
+        private readonly picker: PickerPort,
+        private readonly statusBar: StatusBarPort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     registerSession(editorId: string): void {

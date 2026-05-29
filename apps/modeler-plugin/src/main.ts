@@ -1,11 +1,11 @@
-import { env, ExtensionContext, Uri, window, workspace } from "vscode";
+import { commands, env, ExtensionContext, Uri, window, workspace } from "vscode";
 
 import { setContext } from "./infrastructure/extensionContext";
 
 import { BpmnScriptFileSystem } from "./infrastructure/BpmnScriptFileSystem";
 import { CompareSelectionStore } from "./infrastructure/CompareSelectionStore";
 import { DiffPaneStore } from "./infrastructure/DiffPaneStore";
-import { EditorStore } from "./infrastructure/EditorStore";
+import { EditorSessionStore } from "./infrastructure/EditorSessionStore";
 import { PropertiesPanelStateRepository } from "./infrastructure/PropertiesPanelStateRepository";
 import { VsCodeDocument } from "./infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "./infrastructure/VsCodeWorkspace";
@@ -49,7 +49,11 @@ export function activate(context: ExtensionContext): void {
 
     setContext(context);
 
-    const editorStore = new EditorStore();
+    // The open-editor count drives the `when`-clause context key for
+    // keybindings/menus. Injected here so the store names no `vscode` API.
+    const editorStore = new EditorSessionStore((count) =>
+        commands.executeCommand("setContext", "bpmn-modeler.openCustomEditors", count),
+    );
     context.subscriptions.push(editorStore);
     const bpmnScriptFs = new BpmnScriptFileSystem();
     context.subscriptions.push(

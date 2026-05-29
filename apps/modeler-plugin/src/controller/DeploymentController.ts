@@ -12,7 +12,7 @@ import {
 import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domain/deployment";
 import { InvalidDeploymentConfigError } from "../domain/errors";
 import { deploymentWebviewHtml } from "../infrastructure/DeploymentWebviewHtml";
-import { EditorStore } from "../infrastructure/EditorStore";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { DeploymentService } from "../service/DeploymentService";
@@ -57,7 +57,7 @@ export class DeploymentController implements WebviewViewProvider {
      * @param notifier User-facing message and logging helper.
      */
     constructor(
-        private readonly editorStore: EditorStore,
+        private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: VsCodeDocument,
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,

@@ -1,9 +1,11 @@
 import { workspace } from "vscode";
 
+import { SettingsPort } from "../domain/hostPorts";
+
 /**
  * Pure VS Code workspace configuration reader for the BPMN modeler.
  */
-export class VsCodeSettings {
+export class VsCodeSettings implements SettingsPort {
     /**
      * Reads the alignToOrigin setting from VS Code configuration.
      * @returns `true` if align-to-origin is enabled, `false` otherwise.

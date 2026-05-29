@@ -1,3 +1,5 @@
+import { SecretStorePort } from "../domain/hostPorts";
+
 import { getContext } from "./extensionContext";
 
 // Key prefix for secrets stored in VS Code's SecretStorage.
@@ -10,7 +12,7 @@ const SECRET_PREFIX = "bpmn-modeler.deployment";
  * Secrets are encrypted at rest by VS Code and are never written to
  * workspace state or settings files.
  */
-export class VsCodeSecretStore {
+export class VsCodeSecretStore implements SecretStorePort {
     /**
      * Persists Basic Auth credentials in VS Code's secret storage.
      *

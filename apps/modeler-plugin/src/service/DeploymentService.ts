@@ -3,13 +3,15 @@ import * as path from "path";
 import { AuthConfigPayload, DeploymentFormDefaults, Engine } from "@miragon/bpmn-modeler-shared";
 
 import { DeploymentConfig, DeploymentResult } from "../domain/deployment";
+import {
+    DeploymentStatePort,
+    DocumentPort,
+    NotifierPort,
+    PickerPort,
+    SecretStorePort,
+    WorkspacePort,
+} from "../domain/hostPorts";
 import { CamundaEnginePort } from "../domain/ports";
-import { VsCodeDeploymentState } from "../infrastructure/VsCodeDeploymentState";
-import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeSecretStore } from "../infrastructure/VsCodeSecretStore";
-import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { VsCodePicker } from "../infrastructure/VsCodePicker";
 import { BpmnDocument } from "../domain/BpmnDocument";
 
 /**
@@ -36,13 +38,13 @@ export class DeploymentService {
      * @param secretStore Secure credential storage for Basic Auth.
      */
     constructor(
-        private readonly vsDocument: VsCodeDocument,
-        private readonly vsWorkspace: VsCodeWorkspace,
-        private readonly deploymentState: VsCodeDeploymentState,
+        private readonly vsDocument: DocumentPort,
+        private readonly vsWorkspace: WorkspacePort,
+        private readonly deploymentState: DeploymentStatePort,
         private readonly restClient: CamundaEnginePort,
-        private readonly notifier: VsCodeNotifier,
-        private readonly picker: VsCodePicker,
-        private readonly secretStore: VsCodeSecretStore,
+        private readonly notifier: NotifierPort,
+        private readonly picker: PickerPort,
+        private readonly secretStore: SecretStorePort,
     ) {}
 
     /**

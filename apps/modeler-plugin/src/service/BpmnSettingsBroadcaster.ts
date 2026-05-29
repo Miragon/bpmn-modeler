@@ -1,7 +1,7 @@
 import { BpmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
 import { SettingBuilder } from "../domain/model";
-import { EditorStore } from "../infrastructure/EditorStore";
+import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
 
@@ -13,12 +13,12 @@ import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
  * Owns its own subscription rather than letting the controller dispatch
  * setting branches: every setting routed through here belongs to *this*
  * service, so the fan-out logic lives next to the methods it triggers.
- * {@link EditorStore} is infrastructure, so the subscription does not
- * leak `vscode` into the service layer.
+ * The subscription is delivered through {@link EditorSessionStore} as a
+ * host-agnostic {@link SettingChange}, so no `vscode` leaks into the service.
  */
 export class BpmnSettingsBroadcaster {
     constructor(
-        private readonly editorStore: EditorStore,
+        private readonly editorStore: EditorSessionStore,
         private readonly vsSettings: VsCodeSettings,
         private readonly notifier: VsCodeNotifier,
     ) {}
@@ -68,7 +68,7 @@ export class BpmnSettingsBroadcaster {
     /**
      * Subscribes to configuration-change events for the editor and forwards
      * relevant setting updates to the webview. Disposal is owned by the
-     * editor's disposable bag inside {@link EditorStore}.
+     * editor's disposable bag inside {@link EditorSessionStore}.
      */
     subscribe(editorId: string): void {
         this.editorStore.subscribeToSettingChangeEvent(editorId, (event, id) => {
