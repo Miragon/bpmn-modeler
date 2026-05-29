@@ -29,12 +29,13 @@ diff tab. Sessions come from two origins:
 - **`compare-files`** — the extension opened the diff via its own Explorer
   commands (`bpmn-modeler.compareSelected` or the two-step
   `selectForCompare` / `compareWithSelected`). Both URIs are known up front,
-  so the session is **pre-registered** by `BpmnDiffService.openCompareFilesDiff`
-  (which delegates to `DiffSession.forCompareFiles(…)`) before `vscode.diff`
-  fires, and a 30 s TTL sweeper evicts it if no pane ever attaches.
+  so the session is **pre-registered** by `BpmnDiffController.openCompareFilesDiff`
+  (which delegates to `DiffPaneStore.registerCompareFiles(…)`, in turn calling
+  `DiffSession.forCompareFiles(…)`) before `vscode.diff` fires, and a 30 s TTL
+  sweeper in the store evicts it if no pane ever attaches.
 
 `BpmnEditorController.resolveCustomTextEditor` asks
-`BpmnDiffService.shouldResolveAsDiff(uri)` for each resolving pane. That
+`BpmnDiffController.shouldResolveAsDiff(uri)` for each resolving pane. That
 method runs an ordered decision tree: already-has-a-pane → no (the caller is
 a second resolve for a file already open elsewhere); pre-registered session →
 yes; Git-provided scheme (`git:` or `gitfs:`) → yes; label heuristic matches a
@@ -44,56 +45,67 @@ diff tab → yes; otherwise → no.
 sequenceDiagram
     participant VSCode as VS Code
     participant Ctrl as BpmnCompareController
-    participant Diff as BpmnDiffService
+    participant DiffCtrl as BpmnDiffController
+    participant Store as DiffPaneStore
+    participant Svc as BpmnDiffService
     participant Editor as BpmnEditorController
     participant BeforePane as Before Webview
     participant AfterPane as After Webview
 
-    Note over Ctrl,Diff: compare-files origin (pre-registered)
-    Ctrl->>Diff: registerCompareFilesSession(left, right)
-    Ctrl->>VSCode: executeCommand("vscode.diff", left, right)
+    Note over Ctrl,Store: compare-files origin (pre-registered)
+    Ctrl->>DiffCtrl: openCompareFilesDiff(left, right)
+    DiffCtrl->>Store: registerCompareFiles(left, right)
+    DiffCtrl->>VSCode: executeCommand("vscode.diff", left, right)
 
     Note over VSCode,Editor: scm origin (lazy) skips the two calls above
     VSCode->>Editor: resolveCustomTextEditor (before URI)
-    Editor->>Diff: shouldResolveAsDiff → resolveDiffPane
-    Diff->>Diff: findSessionFor(uri) — attach or stash pending SCM
+    Editor->>DiffCtrl: shouldResolveAsDiff → resolveDiffPane
+    DiffCtrl->>Store: findByUri(uri) — attach or stash pending SCM
 
     VSCode->>Editor: resolveCustomTextEditor (after URI)
-    Editor->>Diff: shouldResolveAsDiff → resolveDiffPane
-    Diff->>Diff: promote pending → DiffSession / attach
+    Editor->>DiffCtrl: shouldResolveAsDiff → resolveDiffPane
+    DiffCtrl->>Store: promote pending → DiffSession / attach
 
-    BeforePane->>Diff: DiffReadyCommand
-    AfterPane->>Diff: DiffReadyCommand
-    Diff->>Diff: session.isArmed() — run bpmn-moddle + bpmn-js-differ
-    Diff->>BeforePane: ApplyDiffHighlightsQuery(removed, changed, moved, counts, origin, paneFilename)
-    Diff->>AfterPane: ApplyDiffHighlightsQuery(added, changed, moved, counts, origin, paneFilename)
+    BeforePane->>DiffCtrl: DiffReadyCommand
+    AfterPane->>DiffCtrl: DiffReadyCommand
+    DiffCtrl->>Svc: markReady(handle)
+    Svc->>Store: session.isArmed() — run bpmn-moddle + bpmn-js-differ
+    Svc->>BeforePane: ApplyDiffHighlightsQuery(removed, changed, moved, counts, origin, paneFilename)
+    Svc->>AfterPane: ApplyDiffHighlightsQuery(added, changed, moved, counts, origin, paneFilename)
 
-    BeforePane->>Diff: ViewportChangedCommand (pan/zoom)
-    Diff->>AfterPane: SyncViewportQuery
-    AfterPane->>Diff: CursorChangedCommand (Next/Prev)
-    Diff->>BeforePane: SyncCursorQuery
+    BeforePane->>DiffCtrl: ViewportChangedCommand (pan/zoom)
+    DiffCtrl->>Svc: forwardViewport → SyncViewportQuery
+    Svc->>AfterPane: SyncViewportQuery
+    AfterPane->>DiffCtrl: CursorChangedCommand (Next/Prev)
+    DiffCtrl->>Svc: forwardCursor → SyncCursorQuery
+    Svc->>BeforePane: SyncCursorQuery
 ```
 
 ## Entry points
 
 - **`BpmnCompareController`** (extension host) — registers the three Explorer
   commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and
-  dispatches each to `BpmnDiffService.openCompareFilesDiff`, which owns the
+  dispatches each to `BpmnDiffController.openCompareFilesDiff`, which owns the
   session-register + `vscode.diff` + tab-title construction.
 - **`CompareSelectionStore`** (extension host) — ephemeral single-URI store
   that bridges the two-step flow. Toggles the
   `bpmn-modeler.compareSelectionActive` context key so "Compare with Selected"
   only appears in the menu when a pick is pending.
-- **`BpmnDiffService`** (extension host) — owns every session, runs the
-  differ, broadcasts highlights, forwards viewport/cursor sync messages, and
-  handles the compare-files-only swap-sides operation.
+- **`BpmnDiffController`** (extension host) — VS Code-facing surface:
+  `shouldResolveAsDiff`, `resolveDiffPane`, `openCompareFilesDiff`, SCM
+  pairing, webview message routing, the compare-files-only swap-sides
+  operation, and the language-setting subscription.
+- **`BpmnDiffService`** (extension host, vscode-free) — runs the differ,
+  broadcasts highlights, and forwards viewport/cursor/language sync messages.
+- **`DiffPaneStore`** (extension host) — registry of every session, the
+  per-URI lookup index, pending SCM panes, and the compare-files TTL timers.
 - **`DiffSession`** (extension host) — domain object for one diff: `origin`,
   fixed `before`/`after` URIs, attached panes, armed flag. Exposes two
   origin-specific factories (`forCompareFiles`, `forScm`) that each
   encapsulate their own side-assignment rule.
 - **`BpmnEditorController`** (extension host) — branches resolving custom
   editors between editable modeler and readonly viewer via
-  `BpmnDiffService.shouldResolveAsDiff(uri)`.
+  `BpmnDiffController.shouldResolveAsDiff(uri)`.
 - **`DiffMode`** (webview) — webview entry point for viewer mode, wires the
   viewer + legend + message handlers.
 
@@ -101,9 +113,12 @@ sequenceDiagram
 
 | File | Purpose |
 |---|---|
-| `apps/modeler-plugin/src/service/BpmnDiffService.ts` | Session registry, differ runner, highlight broadcaster, viewport/cursor forwarder. Hosts `shouldResolveAsDiff` and `registerCompareFilesSession`. |
-| `apps/modeler-plugin/src/service/DiffSession.ts` | Domain object for one diff: origin, fixed before/after URIs, pane slots, armed flag. |
-| `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Branches between editable modeler and readonly viewer via `BpmnDiffService.shouldResolveAsDiff`. |
+| `apps/modeler-plugin/src/controller/BpmnDiffController.ts` | VS Code-facing surface: `shouldResolveAsDiff`, `resolveDiffPane`, `openCompareFilesDiff` (`vscode.diff`), SCM pairing, webview message routing, swap-sides, language-setting subscription. |
+| `apps/modeler-plugin/src/service/BpmnDiffService.ts` | vscode-free diff content: differ runner, highlight broadcaster, viewport/cursor forwarder, language broadcast. |
+| `apps/modeler-plugin/src/infrastructure/DiffPaneStore.ts` | Session registry: `sessions`, `sessionByUri`, pending SCM panes, `compare-files` TTL timers. |
+| `apps/modeler-plugin/src/infrastructure/WebviewPaneHandle.ts` | Infra adapter wrapping a `WebviewPanel` + `TextDocument` into the abstract `DiffPaneHandle`. |
+| `apps/modeler-plugin/src/domain/DiffSession.ts` | Domain object for one diff: origin, fixed before/after URIs, pane slots, armed flag. Also exports `basenameOfUriString`. |
+| `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Branches between editable modeler and readonly viewer via `BpmnDiffController.shouldResolveAsDiff`. |
 | `apps/modeler-plugin/src/controller/BpmnCompareController.ts` | Explorer commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and the shared `openBpmnDiff` dispatch. |
 | `apps/modeler-plugin/src/infrastructure/CompareSelectionStore.ts` | In-memory store for the pending "Select for Compare" URI; toggles the `bpmn-modeler.compareSelectionActive` context key. |
 | `apps/modeler-plugin/src/types/bpmn-js-differ.d.ts` | Ambient shim for the untyped `bpmn-js-differ` package. |
@@ -171,7 +186,7 @@ echoing back and creating a feedback loop.
 Compare-files diff panes render a swap button on the legend. When clicked, the
 webview posts `SwapCompareSidesCommand` to the host, which looks up the
 sending pane's session, confirms the origin is `compare-files`, disposes both
-webview panels, and re-invokes `BpmnDiffService.openCompareFilesDiff` with the
+webview panels, and re-invokes `BpmnDiffController.openCompareFilesDiff` with the
 two URIs reversed. Disposing the panels cascades through `disposePane` and
 cleans up the old session's index entries before the fresh session registers,
 so the two sessions never collide.
@@ -206,7 +221,7 @@ the differ is upgraded.
   by side without collision.
 - **Dual-host Git scheme handling.** `shouldResolveAsDiff` recognises both
   VS Code's `git:` and Theia's `gitfs:` schemes via the
-  `GIT_PROVIDED_SCHEMES` set in `BpmnDiffService.ts`. Add new schemes there
+  `GIT_PROVIDED_SCHEMES` set in `BpmnDiffController.ts`. Add new schemes there
   if porting to another host; do not branch on a single hardcoded scheme.
 - **SCM pairing is keyed by `uri.path`, not by the full URI.** That is the
   only thing `git:foo.bpmn` / `gitfs:foo.bpmn` and `file:foo.bpmn` share.

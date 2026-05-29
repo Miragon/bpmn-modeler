@@ -2,7 +2,7 @@ import { commands, ExtensionContext, Uri, window } from "vscode";
 
 import { CompareSelectionStore } from "../infrastructure/CompareSelectionStore";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { BpmnDiffService } from "../service/BpmnDiffService";
+import { BpmnDiffController } from "./BpmnDiffController";
 
 // VS Code command ID for the first step of a two-file BPMN compare.
 const SELECT_FOR_COMPARE_CMD = "bpmn-modeler.selectForCompare";
@@ -22,14 +22,14 @@ const STATUS_MESSAGE_TIMEOUT_MS = 3_000;
  * - **Two-step** (single right-click at a time): "Select for Compare" stores
  *   the URI in {@link CompareSelectionStore} and activates a context key so
  *   "Compare with Selected" appears on the next right-click.  The second
- *   step opens the diff via {@link BpmnDiffService.openCompareFilesDiff} and
+ *   step opens the diff via {@link BpmnDiffController.openCompareFilesDiff} and
  *   clears the selection (one-shot).
  * - **Single-step** (multi-selection of exactly two files): "Compare Selected"
  *   receives both URIs at once via the Explorer's `(uri, uris)` callback
  *   signature, skips the store entirely, and dispatches the same diff-open
  *   path.
  *
- * Both paths funnel through {@link BpmnDiffService.openCompareFilesDiff} so
+ * Both paths funnel through {@link BpmnDiffController.openCompareFilesDiff} so
  * session registration, tab-title construction, and error reporting stay in
  * one place — and the swap-sides flow can re-use the exact same entry point.
  *
@@ -42,14 +42,14 @@ export class BpmnCompareController {
     /**
      * @param selection Cross-command store holding the URI picked by the
      *   first step of the workflow.
-     * @param diffService Owns diff-session registration; must be notified
+     * @param diffController Owns diff-session registration; must be notified
      *   *before* `vscode.diff` is invoked so pane resolution finds the
      *   session synchronously.
      * @param notifier User-facing messages and logging.
      */
     constructor(
         private readonly selection: CompareSelectionStore,
-        private readonly diffService: BpmnDiffService,
+        private readonly diffController: BpmnDiffController,
         private readonly notifier: VsCodeNotifier,
     ) {}
 
@@ -111,7 +111,7 @@ export class BpmnCompareController {
             return;
         }
 
-        await this.diffService.openCompareFilesDiff(leftUri, rightUri);
+        await this.diffController.openCompareFilesDiff(leftUri, rightUri);
         await this.selection.clear();
     }
 
@@ -143,7 +143,7 @@ export class BpmnCompareController {
             return;
         }
 
-        await this.diffService.openCompareFilesDiff(leftUri, rightUri);
+        await this.diffController.openCompareFilesDiff(leftUri, rightUri);
     }
 }
 
