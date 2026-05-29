@@ -17,6 +17,11 @@ import { VsCodeTextEditor } from "./infrastructure/VsCodeTextEditor";
 import { ArtifactService } from "./service/ArtifactService";
 import { BpmnDiffService } from "./service/BpmnDiffService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
+import { BpmnClipboardMediator } from "./service/BpmnClipboardMediator";
+import { BpmnElementTemplatesService } from "./service/BpmnElementTemplatesService";
+import { BpmnMigrationService } from "./service/BpmnMigrationService";
+import { BpmnPropertiesPanelService } from "./service/BpmnPropertiesPanelService";
+import { BpmnSettingsBroadcaster } from "./service/BpmnSettingsBroadcaster";
 import { DmnModelerService } from "./service/DmnModelerService";
 import { ModelNavigationService } from "./service/ModelNavigationService";
 import { ReferencedModelLocator } from "./service/modelNavigation/ReferencedModelLocator";
@@ -72,15 +77,27 @@ export function activate(context: ExtensionContext): void {
     const bpmnService = new BpmnModelerService(
         editorStore,
         vsDocument,
-        vsSettings,
-        notifier,
         picker,
-        clipboard,
+        statusBar,
+        notifier,
+    );
+    const templatesSvc = new BpmnElementTemplatesService(
+        editorStore,
+        vsDocument,
         artifactSvc,
         statusBar,
-        vsWorkspace,
-        panelStateRepo,
+        notifier,
     );
+    const migrationSvc = new BpmnMigrationService(
+        editorStore,
+        vsDocument,
+        vsWorkspace,
+        picker,
+        notifier,
+    );
+    const clipboardMediator = new BpmnClipboardMediator(editorStore, clipboard, notifier);
+    const settingsBroadcaster = new BpmnSettingsBroadcaster(editorStore, vsSettings, notifier);
+    const panelSvc = new BpmnPropertiesPanelService(editorStore, panelStateRepo, notifier);
     const dmnService = new DmnModelerService(editorStore, vsDocument, notifier);
     const diffService = new BpmnDiffService(notifier, vsSettings);
     context.subscriptions.push(diffService);
@@ -120,10 +137,15 @@ export function activate(context: ExtensionContext): void {
         notifier,
         textEditor,
         bpmnService,
+        migrationSvc,
     );
     new BpmnEditorController(
         editorStore,
         bpmnService,
+        templatesSvc,
+        settingsBroadcaster,
+        panelSvc,
+        clipboardMediator,
         diffService,
         artifactSvc,
         scriptTaskSvc,

@@ -26,6 +26,17 @@ export class VsCodeNotifier {
         window.showErrorMessage(message);
     }
 
+    /**
+     * Logs `error` and surfaces a toast that pairs a caller-supplied
+     * `context` line with the error's own message. Centralises the
+     * log-then-show pattern so each service only specifies what it was
+     * doing rather than re-deriving the message format.
+     */
+    notifyError(context: string, error: Error): void {
+        this.logError(error);
+        this.showError(`${context}\n${error.message ?? error}`);
+    }
+
     openLoggingConsole(): void {
         this.channel.show(true);
     }

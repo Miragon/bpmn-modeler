@@ -22,6 +22,10 @@ import { EditorStore } from "../infrastructure/EditorStore";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
 import { BpmnModelerService } from "../service/BpmnModelerService";
+import { BpmnClipboardMediator } from "../service/BpmnClipboardMediator";
+import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
+import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelService";
+import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
 import { BpmnDiffService } from "../service/BpmnDiffService";
 import { ArtifactService } from "../service/ArtifactService";
 import { ScriptTaskService } from "./ScriptTaskService";
@@ -36,25 +40,17 @@ const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
  * VS Code `CustomTextEditorProvider` for `.bpmn` files.
  *
  * Thin wiring layer: creates the editor session, sets up all VS Code event
- * subscriptions, and delegates all business logic to {@link BpmnModelerService}
- * and {@link ArtifactService}.
+ * subscriptions, and fans webview messages out to the focused BPMN
+ * services (modeler, templates, settings, panel, clipboard).
  */
 export class BpmnEditorController implements CustomTextEditorProvider {
-    /**
-     * @param editorStore Central registry for open editor panels and subscriptions.
-     * @param bpmnService BPMN-specific business logic and session management.
-     * @param diffService Diff coordinator — queried on resolve to decide
-     *   whether to take the readonly viewer branch.
-     * @param artifactSvc Workspace artifact discovery and watcher creation.
-     * @param scriptTaskSvc Virtual script document management for script tasks.
-     * @param notifier User-facing message and logging helper.
-     * @param vsDocument Active-document read helper (for status bar version detection).
-     * @param statusBar Status bar item manager for engine version display.
-     * @param modelNavigationService Resolves references and opens the target file.
-     */
     constructor(
         private readonly editorStore: EditorStore,
         private readonly bpmnService: BpmnModelerService,
+        private readonly templatesSvc: BpmnElementTemplatesService,
+        private readonly settingsBroadcaster: BpmnSettingsBroadcaster,
+        private readonly panelSvc: BpmnPropertiesPanelService,
+        private readonly clipboardMediator: BpmnClipboardMediator,
         private readonly diffService: BpmnDiffService,
         private readonly artifactSvc: ArtifactService,
         private readonly scriptTaskSvc: ScriptTaskService,
@@ -72,8 +68,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      * re-fetches the document via `GetBpmnFileCommand` on reload and
      * `WebviewStateManager` round-trips viewport / selection / panel state
      * through `vscode.setState`.
-     *
-     * @param context The VS Code extension context.
      */
     register(context: ExtensionContext): void {
         const provider = window.registerCustomEditorProvider(BPMN_VIEW_TYPE, this);
@@ -85,10 +79,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      *
      * Creates the editor session, registers all event subscriptions, and starts
      * filesystem watchers for artifact directories (forms, element templates).
-     *
-     * @param document The text document being edited.
-     * @param webviewPanel The webview panel provided by VS Code.
-     * @param _token Cancellation token (unused).
      */
     async resolveCustomTextEditor(
         document: TextDocument,
@@ -121,13 +111,14 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                 editorId,
                 webviewPanel,
                 document,
-                this.bpmnService.getPersistedPanelVisibility(),
+                this.panelSvc.getPersistedPanelVisibility(),
             );
             this.bpmnService.registerSession(editorId);
 
             this.subscribeToMessageEvent(editorId);
             this.subscribeToDocumentChangeEvent(editorId);
-            this.subscribeToSettingChangeEvent(editorId);
+            this.settingsBroadcaster.subscribe(editorId);
+            this.subscribeToConfigFolderChangeEvent(editorId);
             this.subscribeToViewStateChangeEvent(editorId, webviewPanel);
             this.editorStore.subscribeToTabChangeEvent(editorId);
             this.editorStore.subscribeToDisposeEvent(editorId, () => {
@@ -138,7 +129,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
 
             const { disposables, errors } = await this.artifactSvc.createWatcher(
                 editorId,
-                this.bpmnService,
+                this.templatesSvc,
             );
             for (const d of disposables) {
                 this.editorStore.addToDisposals(editorId, d);
@@ -158,8 +149,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      *
      * The session guard for `SyncDocumentCommand` is managed inside
      * {@link BpmnModelerService.sync}, keeping this controller free of guard logic.
-     *
-     * @param editorId Document URI path of the editor whose webview to listen to.
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
@@ -171,32 +160,34 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     }
                     break;
                 case "GetElementTemplatesCommand":
-                    this.bpmnService.setElementTemplates(id);
+                    this.templatesSvc.setElementTemplates(id);
                     break;
                 case "GetBpmnModelerSettingCommand":
-                    this.bpmnService.setSettings(id);
-                    this.bpmnService.setLanguage(id);
+                    this.settingsBroadcaster.setSettings(id);
+                    this.settingsBroadcaster.setLanguage(id);
                     this.scriptTaskSvc.resyncOpenDocuments(id); // (re)load for changes while webview was hidden
                     break;
                 case "GetPropertiesPanelStateCommand":
-                    this.bpmnService.sendPropertiesPanelState(id);
+                    this.panelSvc.sendPropertiesPanelState(id);
                     break;
                 case "SetPropertiesPanelStateCommand":
-                    this.bpmnService.setPropertiesPanelVisibility(
+                    this.panelSvc.setPropertiesPanelVisibility(
                         (message as SetPropertiesPanelStateCommand).visible,
                     );
                     break;
                 case "GetClipboardCommand":
-                    this.bpmnService.readClipboard(id);
+                    this.clipboardMediator.readClipboard(id);
                     break;
                 case "SetClipboardCommand":
-                    this.bpmnService.writeClipboard((message as SetClipboardCommand).text);
+                    this.clipboardMediator.writeClipboard((message as SetClipboardCommand).text);
                     break;
                 case "GetTextClipboardCommand":
-                    this.bpmnService.readTextClipboard(id);
+                    this.clipboardMediator.readTextClipboard(id);
                     break;
                 case "SetTextClipboardCommand":
-                    this.bpmnService.writeClipboard((message as SetTextClipboardCommand).text);
+                    this.clipboardMediator.writeClipboard(
+                        (message as SetTextClipboardCommand).text,
+                    );
                     break;
                 case "SyncDocumentCommand":
                     await this.bpmnService.sync(id, (message as SyncDocumentCommand).content);
@@ -247,8 +238,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
      *
      * The editorId is captured at subscription time so the callback only
      * triggers display for the specific editor it was created for.
-     *
-     * @param editorId Document URI path of the target editor.
      */
     private subscribeToDocumentChangeEvent(editorId: string): void {
         this.editorStore.subscribeToDocumentChangeEvent(
@@ -267,30 +256,15 @@ export class BpmnEditorController implements CustomTextEditorProvider {
     }
 
     /**
-     * Subscribes to VS Code configuration changes and forwards relevant
-     * setting updates to the webview.
-     *
-     * @param editorId Document URI path of the target editor.
+     * Re-loads element templates when the `configFolder` setting changes.
+     * Other modeler settings are owned by
+     * {@link BpmnSettingsBroadcaster.subscribe}; only the templates branch
+     * stays here because it lives in a different service.
      */
-    private subscribeToSettingChangeEvent(editorId: string): void {
+    private subscribeToConfigFolderChangeEvent(editorId: string): void {
         this.editorStore.subscribeToSettingChangeEvent(editorId, (event, id) => {
-            if (event.affectsConfiguration("miragon.bpmnModeler.alignToOrigin")) {
-                this.bpmnService.setSettings(id);
-            }
-            if (event.affectsConfiguration("miragon.bpmnModeler.showTransactionBoundaries")) {
-                this.bpmnService.setSettings(id);
-            }
-            if (event.affectsConfiguration("miragon.bpmnModeler.colorTheme")) {
-                this.bpmnService.setSettings(id);
-            }
-            if (event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")) {
-                this.bpmnService.setSettings(id);
-            }
             if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
-                this.bpmnService.setElementTemplates(id);
-            }
-            if (event.affectsConfiguration("miragon.bpmnModeler.language")) {
-                this.bpmnService.setLanguage(id);
+                this.templatesSvc.setElementTemplates(id);
             }
         });
     }
@@ -298,9 +272,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
     /**
      * Subscribes to webview panel view-state changes to show or hide the
      * engine version status bar item when the BPMN editor gains or loses focus.
-     *
-     * @param editorId Document URI path of the target editor.
-     * @param webviewPanel The webview panel to observe.
      */
     private subscribeToViewStateChangeEvent(editorId: string, webviewPanel: WebviewPanel): void {
         webviewPanel.onDidChangeViewState(() => {
@@ -315,8 +286,6 @@ export class BpmnEditorController implements CustomTextEditorProvider {
     /**
      * Reads the current document content and updates the engine-version status
      * bar with the detected platform and version.
-     *
-     * @param editorId Document URI path of the target editor.
      */
     private updateEngineVersionStatusBar(editorId: string): void {
         try {
