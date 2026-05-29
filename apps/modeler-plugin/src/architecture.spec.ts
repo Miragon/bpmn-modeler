@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
-import { projectFiles } from "archunit";
+import { beforeAll, describe, expect, it } from "vitest";
+import { extractGraph, projectFiles } from "archunit";
 import type { FileInfo } from "archunit";
 
 /**
@@ -80,6 +80,14 @@ function importsNothingMatching(isForbidden: (specifier: string) => boolean) {
 }
 
 describe("architecture", () => {
+    // archunit builds the TS import graph on the first rule check and caches it
+    // by tsconfig path; the cold build is ~5s on CI and would blow the 5s
+    // per-test timeout of whichever test happens to run first. Warm the shared
+    // cache once here so every test below reads the memoised graph in ~1ms.
+    beforeAll(async () => {
+        await extractGraph(TSCONFIG);
+    }, 60_000);
+
     // ─── A. Layer purity — regression locks, must stay GREEN ─────────────────
     //
     // Inner layers must not reach outward. The issue's "only `controller/**`
