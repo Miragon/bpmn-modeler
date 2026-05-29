@@ -1,8 +1,8 @@
 import { ExtensionContext } from "vscode";
 
-import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
-import { BpmnDiffService } from "../service/BpmnDiffService";
-import { BpmnDiffController } from "../controller/BpmnDiffController";
+import { DiffPaneStore } from "../diff/infrastructure/DiffPaneStore";
+import { BpmnDiffService } from "../diff/service/BpmnDiffService";
+import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { SharedDeps } from "./sharedDeps";
 
 /**

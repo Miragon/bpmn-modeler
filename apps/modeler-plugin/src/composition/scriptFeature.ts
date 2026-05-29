@@ -1,8 +1,8 @@
 import { ExtensionContext, workspace } from "vscode";
 
-import { BpmnScriptFileSystem } from "../infrastructure/BpmnScriptFileSystem";
-import { ScriptCompletionProvider } from "../controller/ScriptCompletionProvider";
-import { ScriptTaskService } from "../controller/ScriptTaskService";
+import { BpmnScriptFileSystem } from "../scriptTask/infrastructure/BpmnScriptFileSystem";
+import { ScriptCompletionProvider } from "../scriptTask/controller/ScriptCompletionProvider";
+import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
 import { SharedDeps } from "./sharedDeps";
 
 /**

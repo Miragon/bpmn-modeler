@@ -1,6 +1,6 @@
 import { env, ExtensionContext, Uri, window } from "vscode";
 
-import { setContext } from "./infrastructure/extensionContext";
+import { setContext } from "./shared/infrastructure/extensionContext";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";

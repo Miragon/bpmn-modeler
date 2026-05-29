@@ -1,22 +1,22 @@
 import { ExtensionContext } from "vscode";
 
-import { PropertiesPanelStateRepository } from "../infrastructure/PropertiesPanelStateRepository";
-import { WebviewMessageRouter } from "../infrastructure/WebviewMessageRouter";
-import { BpmnModelerService } from "../service/BpmnModelerService";
-import { BpmnClipboardMediator } from "../service/BpmnClipboardMediator";
-import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
-import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelService";
-import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
-import { DmnModelerService } from "../service/DmnModelerService";
-import { ModelNavigationService } from "../service/ModelNavigationService";
-import { ReferencedModelLocator } from "../service/modelNavigation/ReferencedModelLocator";
-import { ModelerEditorController } from "../controller/editor-session/ModelerEditorController";
-import { BpmnRenderParticipant } from "../controller/editor-participants/BpmnRenderParticipant";
-import { ElementTemplatesParticipant } from "../controller/editor-participants/ElementTemplatesParticipant";
-import { SettingsParticipant } from "../controller/editor-participants/SettingsParticipant";
-import { EngineVersionStatusBarParticipant } from "../controller/editor-participants/EngineVersionStatusBarParticipant";
-import { ScriptTaskTeardownParticipant } from "../controller/editor-participants/ScriptTaskTeardownParticipant";
-import { DmnRenderParticipant } from "../controller/editor-participants/DmnRenderParticipant";
+import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/PropertiesPanelStateRepository";
+import { WebviewMessageRouter } from "../shared/infrastructure/WebviewMessageRouter";
+import { BpmnModelerService } from "../modeler/bpmn/service/BpmnModelerService";
+import { BpmnClipboardMediator } from "../modeler/bpmn/service/BpmnClipboardMediator";
+import { BpmnElementTemplatesService } from "../modeler/bpmn/service/BpmnElementTemplatesService";
+import { BpmnPropertiesPanelService } from "../modeler/bpmn/service/BpmnPropertiesPanelService";
+import { BpmnSettingsBroadcaster } from "../modeler/bpmn/service/BpmnSettingsBroadcaster";
+import { DmnModelerService } from "../modeler/dmn/service/DmnModelerService";
+import { ModelNavigationService } from "../navigation/service/ModelNavigationService";
+import { ReferencedModelLocator } from "../navigation/service/ReferencedModelLocator";
+import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
+import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
+import { ElementTemplatesParticipant } from "../modeler/bpmn/controller/editor-participants/ElementTemplatesParticipant";
+import { SettingsParticipant } from "../modeler/bpmn/controller/editor-participants/SettingsParticipant";
+import { EngineVersionStatusBarParticipant } from "../modeler/bpmn/controller/editor-participants/EngineVersionStatusBarParticipant";
+import { ScriptTaskTeardownParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant";
+import { DmnRenderParticipant } from "../modeler/dmn/controller/editor-participants/DmnRenderParticipant";
 import {
     getBpmnFileHandler,
     getElementTemplatesHandler,
@@ -31,13 +31,13 @@ import {
     syncDocumentHandler,
     openScriptEditorHandler,
     navigateToReferencedModelHandler,
-} from "../controller/webview-handlers/bpmnMessageHandlers";
+} from "../modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers";
 import {
     getDmnFileHandler,
     syncDmnDocumentHandler,
-} from "../controller/webview-handlers/dmnMessageHandlers";
-import { BpmnDiffController } from "../controller/BpmnDiffController";
-import { ScriptTaskService } from "../controller/ScriptTaskService";
+} from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
+import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
+import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
 import { SharedDeps } from "./sharedDeps";
 
 /**

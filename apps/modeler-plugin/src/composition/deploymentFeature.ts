@@ -1,15 +1,15 @@
 import { ExtensionContext } from "vscode";
 
-import { VsCodeDeploymentState } from "../infrastructure/VsCodeDeploymentState";
-import { VsCodeSecretStore } from "../infrastructure/VsCodeSecretStore";
-import { FetchHttpClient } from "../infrastructure/FetchHttpClient";
-import { AuthHeaderResolver } from "../infrastructure/camunda/AuthHeaderResolver";
-import { Camunda7RestClient } from "../infrastructure/camunda/Camunda7RestClient";
-import { Camunda8RestClient } from "../infrastructure/camunda/Camunda8RestClient";
-import { CamundaEngineRouter } from "../infrastructure/camunda/CamundaEngineRouter";
-import { DeploymentService } from "../service/DeploymentService";
-import { StartInstanceService } from "../service/StartInstanceService";
-import { DeploymentController } from "../controller/DeploymentController";
+import { VsCodeDeploymentState } from "../deployment/infrastructure/VsCodeDeploymentState";
+import { VsCodeSecretStore } from "../deployment/infrastructure/VsCodeSecretStore";
+import { FetchHttpClient } from "../deployment/infrastructure/FetchHttpClient";
+import { AuthHeaderResolver } from "../deployment/infrastructure/camunda/AuthHeaderResolver";
+import { Camunda7RestClient } from "../deployment/infrastructure/camunda/Camunda7RestClient";
+import { Camunda8RestClient } from "../deployment/infrastructure/camunda/Camunda8RestClient";
+import { CamundaEngineRouter } from "../deployment/infrastructure/camunda/CamundaEngineRouter";
+import { DeploymentService } from "../deployment/service/DeploymentService";
+import { StartInstanceService } from "../deployment/service/StartInstanceService";
+import { DeploymentController } from "../deployment/controller/DeploymentController";
 import { SharedDeps } from "./sharedDeps";
 
 /**

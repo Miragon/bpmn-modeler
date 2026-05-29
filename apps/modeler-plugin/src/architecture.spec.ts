@@ -9,17 +9,18 @@ import type { FileInfo } from "archunit";
  * feature-folder design — until now held by discipline alone — into CI gates so
  * regressions break the build instead of rotting silently.
  *
- * Two of the three blocks are **regression locks that must stay green**: layer
- * purity (no inward layer reaches outward, no `vscode`/host modules leak into
- * `domain`/`service`) and the no-cycle rule. The third block (feature
- * isolation) is **intentionally RED until #1039 lands** — see its `describe`.
+ * All three blocks are **regression locks that must stay green**: layer purity
+ * (no inward layer reaches outward, no `vscode`/host modules leak into
+ * `domain`/`service`), the no-cycle rule, and feature isolation (a feature may
+ * reach a sibling only through its `index.ts` barrel).
  *
  * archunit resolves the import graph from a TypeScript project. The config is
  * pinned explicitly because the AC runs this via the *root* `vitest run`, whose
  * cwd is the repo root where archunit's auto-detect (walk up for a
  * `tsconfig.json`) finds none. Pinning the workspace config also fixes the
- * `rootDir`, so every folder glob below is written relative to the workspace
- * (`src/<layer>/**`).
+ * `rootDir`. Layer globs are written as recursive `<layer>` matchers (rather
+ * than anchored at `src/<layer>`) because each layer subfolder now lives under
+ * a feature prefix (`src/<feature>/<layer>/…`) after the Stage-3 reorg.
  */
 const WORKSPACE_ROOT = resolve(__dirname, "..");
 const TSCONFIG = resolve(WORKSPACE_ROOT, "tsconfig.json");
@@ -85,16 +86,17 @@ describe("architecture", () => {
     // (plus `main.ts`/`shared/`) may import `vscode`" is encoded as the two
     // host-module bans on `domain` and `service` below: `infrastructure/**` is
     // the adapter layer and legitimately imports `vscode`, so it is deliberately
-    // unrestricted; `shared/` does not exist until #1039.
+    // unrestricted. Globs are `**/<layer>/**` so they match each layer folder
+    // under every feature prefix (and under `shared/`).
     describe("layer purity (regression lock — green)", () => {
         for (const outerLayer of ["service", "infrastructure", "controller"]) {
             it(`domain does not depend on ${outerLayer}`, async () => {
                 await expect(
                     projectFiles(TSCONFIG)
-                        .inFolder("src/domain/**")
+                        .inFolder("**/domain/**")
                         .shouldNot()
                         .dependOnFiles()
-                        .inFolder(`src/${outerLayer}/**`),
+                        .inFolder(`**/${outerLayer}/**`),
                 ).toPassAsync();
             });
         }
@@ -102,7 +104,7 @@ describe("architecture", () => {
         it("domain does not import vscode or Node host modules", async () => {
             await expect(
                 projectFiles(TSCONFIG)
-                    .inFolder("src/domain/**")
+                    .inFolder("**/domain/**")
                     .should()
                     .adhereTo(
                         importsNothingMatching(isHostModule),
@@ -114,17 +116,17 @@ describe("architecture", () => {
         it("service does not depend on controller", async () => {
             await expect(
                 projectFiles(TSCONFIG)
-                    .inFolder("src/service/**")
+                    .inFolder("**/service/**")
                     .shouldNot()
                     .dependOnFiles()
-                    .inFolder("src/controller/**"),
+                    .inFolder("**/controller/**"),
             ).toPassAsync();
         });
 
         it("service does not import vscode", async () => {
             await expect(
                 projectFiles(TSCONFIG)
-                    .inFolder("src/service/**")
+                    .inFolder("**/service/**")
                     .should()
                     .adhereTo(
                         importsNothingMatching((specifier) => specifier === "vscode"),
@@ -143,23 +145,17 @@ describe("architecture", () => {
         });
     });
 
-    // ─── C. Feature isolation — SKIPPED until the Stage-3 feature-folder reorg ─
+    // ─── C. Feature isolation — regression lock, must stay GREEN ─────────────
     //
-    // These rules are authored test-first against the future feature-folder
-    // layout (the `git mv` reorg is Stage 3 of epic #1031, NOT this PR). The
-    // folders below match ZERO files today, so archunit's empty-match protection
-    // (`allowEmptyTests` left false) makes every rule fail non-vacuously —
-    // "structure not in place yet". 42 such failures would keep the suite red
-    // throughout the Stage-2 wiring refactor (#1052), so this block is skipped
-    // for now. The Stage-3 reorg that creates these folders MUST re-enable it
-    // (flip `describe.skip` back to `describe`). Do NOT relax the rules
-    // themselves to make CI green; that defeats the gate.
-    //
-    // Contract: a feature may import a sibling feature only through that
-    // sibling's `index.ts`; reaching into its internals is forbidden. Encoded
+    // A feature may import a sibling feature only through that sibling's
+    // `index.ts` barrel; reaching into its internals is forbidden. Encoded
     // pairwise — source = feature A, target = feature B's files except its
-    // `index.ts`.
-    describe.skip("feature isolation (re-enable in Stage-3 feature-folder reorg)", () => {
+    // `index.ts`. `composition/` and `shared/` (and the generic
+    // `modeler/editor-session/` host) are intentionally absent from
+    // FEATURE_FOLDERS: the composition root wires features together and the
+    // others are common substrate, so none is subject to isolation. Do NOT relax
+    // the rules to make CI green; that defeats the gate.
+    describe("feature isolation (regression lock — green)", () => {
         const FEATURE_FOLDERS = [
             "diff",
             "deployment",

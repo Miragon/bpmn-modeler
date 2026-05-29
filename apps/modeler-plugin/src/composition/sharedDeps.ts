@@ -1,15 +1,15 @@
 import { commands, ExtensionContext } from "vscode";
 
-import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
-import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
-import { VsCodeWorkspace } from "../infrastructure/VsCodeWorkspace";
-import { VsCodeSettings } from "../infrastructure/VsCodeSettings";
-import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
-import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
-import { VsCodePicker } from "../infrastructure/VsCodePicker";
-import { VsCodeClipboard } from "../infrastructure/VsCodeClipboard";
-import { VsCodeTextEditor } from "../infrastructure/VsCodeTextEditor";
-import { ArtifactService } from "../service/ArtifactService";
+import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
+import { VsCodeDocument } from "../shared/infrastructure/VsCodeDocument";
+import { VsCodeWorkspace } from "../shared/infrastructure/VsCodeWorkspace";
+import { VsCodeSettings } from "../shared/infrastructure/VsCodeSettings";
+import { VsCodeStatusBar } from "../shared/infrastructure/VsCodeStatusBar";
+import { VsCodeNotifier } from "../shared/infrastructure/VsCodeNotifier";
+import { VsCodePicker } from "../shared/infrastructure/VsCodePicker";
+import { VsCodeClipboard } from "../shared/infrastructure/VsCodeClipboard";
+import { VsCodeTextEditor } from "../shared/infrastructure/VsCodeTextEditor";
+import { ArtifactService } from "../shared/service/ArtifactService";
 
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability

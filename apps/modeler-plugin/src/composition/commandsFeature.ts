@@ -1,8 +1,8 @@
 import { ExtensionContext } from "vscode";
 
-import { BpmnMigrationService } from "../service/BpmnMigrationService";
-import { BpmnModelerService } from "../service/BpmnModelerService";
-import { CommandController } from "../controller/CommandController";
+import { BpmnMigrationService } from "../migration/service/BpmnMigrationService";
+import { BpmnModelerService } from "../modeler/bpmn/service/BpmnModelerService";
+import { CommandController } from "../modeler/bpmn/controller/CommandController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
