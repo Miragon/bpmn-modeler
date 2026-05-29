@@ -15,6 +15,7 @@ import { VsCodeClipboard } from "./infrastructure/VsCodeClipboard";
 import { VsCodeNotifier } from "./infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "./infrastructure/VsCodePicker";
 import { VsCodeTextEditor } from "./infrastructure/VsCodeTextEditor";
+import { WebviewMessageRouter } from "./infrastructure/WebviewMessageRouter";
 import { ArtifactService } from "./service/ArtifactService";
 import { BpmnDiffService } from "./service/BpmnDiffService";
 import { BpmnModelerService } from "./service/BpmnModelerService";
@@ -31,6 +32,25 @@ import { BpmnDiffController } from "./controller/BpmnDiffController";
 import { CommandController } from "./controller/CommandController";
 import { BpmnEditorController } from "./controller/BpmnEditorController";
 import { DmnEditorController } from "./controller/DmnEditorController";
+import {
+    getBpmnFileHandler,
+    getElementTemplatesHandler,
+    getBpmnModelerSettingHandler,
+    resyncScriptTasksHandler,
+    getPropertiesPanelStateHandler,
+    setPropertiesPanelStateHandler,
+    getClipboardHandler,
+    setClipboardHandler,
+    getTextClipboardHandler,
+    setTextClipboardHandler,
+    syncDocumentHandler,
+    openScriptEditorHandler,
+    navigateToReferencedModelHandler,
+} from "./controller/webview-handlers/bpmnMessageHandlers";
+import {
+    getDmnFileHandler,
+    syncDmnDocumentHandler,
+} from "./controller/webview-handlers/dmnMessageHandlers";
 import { ScriptCompletionProvider } from "./controller/ScriptCompletionProvider";
 import { ScriptTaskService } from "./controller/ScriptTaskService";
 import { VsCodeDeploymentState } from "./infrastructure/VsCodeDeploymentState";
@@ -148,22 +168,46 @@ export function activate(context: ExtensionContext): void {
         bpmnService,
         migrationSvc,
     );
+    // One router per editor: both protocols carry `SyncDocumentCommand` but
+    // route it to a different service, so they cannot share a dispatch table.
+    // `GetBpmnModelerSettingCommand` registers two handlers, run in order:
+    // broadcast settings/language, then resync scripts edited while hidden.
+    const bpmnMessageRouter = new WebviewMessageRouter()
+        .on("GetBpmnFileCommand", getBpmnFileHandler(bpmnService, notifier))
+        .on("GetElementTemplatesCommand", getElementTemplatesHandler(templatesSvc))
+        .on("GetBpmnModelerSettingCommand", getBpmnModelerSettingHandler(settingsBroadcaster))
+        .on("GetBpmnModelerSettingCommand", resyncScriptTasksHandler(scriptTaskSvc))
+        .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(panelSvc))
+        .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(panelSvc))
+        .on("GetClipboardCommand", getClipboardHandler(clipboardMediator))
+        .on("SetClipboardCommand", setClipboardHandler(clipboardMediator))
+        .on("GetTextClipboardCommand", getTextClipboardHandler(clipboardMediator))
+        .on("SetTextClipboardCommand", setTextClipboardHandler(clipboardMediator))
+        .on("SyncDocumentCommand", syncDocumentHandler(bpmnService))
+        .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc))
+        .on(
+            "NavigateToReferencedModelCommand",
+            navigateToReferencedModelHandler(editorStore, modelNavigationService, notifier),
+        );
+    const dmnMessageRouter = new WebviewMessageRouter()
+        .on("GetDmnFileCommand", getDmnFileHandler(dmnService, notifier))
+        .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
+
     new BpmnEditorController(
         editorStore,
         bpmnService,
         templatesSvc,
         settingsBroadcaster,
         panelSvc,
-        clipboardMediator,
+        bpmnMessageRouter,
         diffController,
         artifactSvc,
         scriptTaskSvc,
         notifier,
         vsDocument,
         statusBar,
-        modelNavigationService,
     ).register(context);
-    new DmnEditorController(editorStore, dmnService, notifier).register(context);
+    new DmnEditorController(editorStore, dmnService, notifier, dmnMessageRouter).register(context);
     new BpmnCompareController(compareSelection, diffController, notifier).register(context);
     commandController.register(context);
     new DeploymentController(

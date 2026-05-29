@@ -7,29 +7,20 @@ import {
     window,
 } from "vscode";
 
-import {
-    Command,
-    OpenScriptEditorCommand,
-    NavigateToReferencedModelCommand,
-    SetClipboardCommand,
-    SetPropertiesPanelStateCommand,
-    SetTextClipboardCommand,
-    SyncDocumentCommand,
-} from "@miragon/bpmn-modeler-shared";
+import { Command } from "@miragon/bpmn-modeler-shared";
 
 import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { VsCodeEditorHandle } from "../infrastructure/VsCodeEditorHandle";
 import { VsCodeStatusBar } from "../infrastructure/VsCodeStatusBar";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { WebviewMessageRouter } from "../infrastructure/WebviewMessageRouter";
 import { BpmnModelerService } from "../service/BpmnModelerService";
-import { BpmnClipboardMediator } from "../service/BpmnClipboardMediator";
 import { BpmnElementTemplatesService } from "../service/BpmnElementTemplatesService";
-import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelService";
 import { BpmnSettingsBroadcaster } from "../service/BpmnSettingsBroadcaster";
+import { BpmnPropertiesPanelService } from "../service/BpmnPropertiesPanelService";
 import { BpmnDiffController } from "./BpmnDiffController";
 import { ArtifactService } from "../service/ArtifactService";
 import { ScriptTaskService } from "./ScriptTaskService";
-import { ModelNavigationService } from "../service/ModelNavigationService";
 import { BpmnDocument } from "../domain/BpmnDocument";
 import { VsCodeDocument } from "../infrastructure/VsCodeDocument";
 
@@ -40,8 +31,8 @@ const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";
  * VS Code `CustomTextEditorProvider` for `.bpmn` files.
  *
  * Thin wiring layer: creates the editor session, sets up all VS Code event
- * subscriptions, and fans webview messages out to the focused BPMN
- * services (modeler, templates, settings, panel, clipboard).
+ * subscriptions, and forwards webview messages to the {@link WebviewMessageRouter}
+ * whose handlers are wired in `main.ts`.
  */
 export class BpmnEditorController implements CustomTextEditorProvider {
     constructor(
@@ -50,14 +41,13 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly templatesSvc: BpmnElementTemplatesService,
         private readonly settingsBroadcaster: BpmnSettingsBroadcaster,
         private readonly panelSvc: BpmnPropertiesPanelService,
-        private readonly clipboardMediator: BpmnClipboardMediator,
+        private readonly messageRouter: WebviewMessageRouter,
         private readonly diffController: BpmnDiffController,
         private readonly artifactSvc: ArtifactService,
         private readonly scriptTaskSvc: ScriptTaskService,
         private readonly notifier: VsCodeNotifier,
         private readonly vsDocument: VsCodeDocument,
         private readonly statusBar: VsCodeStatusBar,
-        private readonly modelNavigationService: ModelNavigationService,
     ) {}
 
     /**
@@ -147,90 +137,16 @@ export class BpmnEditorController implements CustomTextEditorProvider {
     }
 
     /**
-     * Routes incoming webview messages to the appropriate service method.
+     * Forwards incoming webview messages to the {@link WebviewMessageRouter}.
      *
-     * The session guard for `SyncDocumentCommand` is managed inside
-     * {@link BpmnModelerService.sync}, keeping this controller free of guard logic.
+     * The router's handlers (wired in `main.ts`) own the transport → service
+     * translation; this method only brackets dispatch with the received/processed
+     * log lines that the output channel relies on.
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
             this.notifier.logInfo(`Message received -> ${message.type}`);
-            switch (message.type) {
-                case "GetBpmnFileCommand":
-                    if (await this.bpmnService.display(id)) {
-                        this.notifier.logInfo("Bpmn modeler is ready");
-                    }
-                    break;
-                case "GetElementTemplatesCommand":
-                    this.templatesSvc.setElementTemplates(id);
-                    break;
-                case "GetBpmnModelerSettingCommand":
-                    this.settingsBroadcaster.setSettings(id);
-                    this.settingsBroadcaster.setLanguage(id);
-                    this.scriptTaskSvc.resyncOpenDocuments(id); // (re)load for changes while webview was hidden
-                    break;
-                case "GetPropertiesPanelStateCommand":
-                    this.panelSvc.sendPropertiesPanelState(id);
-                    break;
-                case "SetPropertiesPanelStateCommand":
-                    this.panelSvc.setPropertiesPanelVisibility(
-                        (message as SetPropertiesPanelStateCommand).visible,
-                    );
-                    break;
-                case "GetClipboardCommand":
-                    this.clipboardMediator.readClipboard(id);
-                    break;
-                case "SetClipboardCommand":
-                    this.clipboardMediator.writeClipboard((message as SetClipboardCommand).text);
-                    break;
-                case "GetTextClipboardCommand":
-                    this.clipboardMediator.readTextClipboard(id);
-                    break;
-                case "SetTextClipboardCommand":
-                    this.clipboardMediator.writeClipboard(
-                        (message as SetTextClipboardCommand).text,
-                    );
-                    break;
-                case "SyncDocumentCommand":
-                    await this.bpmnService.sync(id, (message as SyncDocumentCommand).content);
-                    break;
-                case "OpenScriptEditorCommand": {
-                    const cmd = message as OpenScriptEditorCommand;
-                    await this.scriptTaskSvc.openScriptEditor(
-                        id,
-                        cmd.elementId,
-                        cmd.kind,
-                        cmd.listenerIndex,
-                        cmd.eventName,
-                        cmd.scriptFormat,
-                        cmd.content,
-                    );
-                    break;
-                }
-                case "NavigateToReferencedModelCommand": {
-                    const cmd = message as NavigateToReferencedModelCommand;
-                    /**
-                     * Defence-in-depth: reject unknown discriminants
-                     * rather than letting them fall through to the
-                     * decision branch by default.
-                     */
-                    if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
-                        this.notifier.logWarning(
-                            `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
-                                cmd.referenceKind,
-                            )}`,
-                        );
-                        break;
-                    }
-                    const sourceFsPath = this.editorStore.requireHandle(id).documentFsPath();
-                    await this.modelNavigationService.navigate(
-                        cmd.referenceId,
-                        cmd.referenceKind,
-                        sourceFsPath,
-                    );
-                    break;
-                }
-            }
+            await this.messageRouter.dispatch(message, id);
             this.notifier.logInfo(`Message processed -> ${message.type}`);
         });
     }

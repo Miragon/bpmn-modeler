@@ -7,11 +7,12 @@ import {
     window,
 } from "vscode";
 
-import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
+import { Command } from "@miragon/bpmn-modeler-shared";
 
 import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { VsCodeEditorHandle } from "../infrastructure/VsCodeEditorHandle";
 import { VsCodeNotifier } from "../infrastructure/VsCodeNotifier";
+import { WebviewMessageRouter } from "../infrastructure/WebviewMessageRouter";
 import { DmnModelerService } from "../service/DmnModelerService";
 
 // VS Code view-type identifier for the DMN custom editor.
@@ -28,11 +29,13 @@ export class DmnEditorController implements CustomTextEditorProvider {
      * @param editorStore Central registry for open editor panels and subscriptions.
      * @param dmnService DMN-specific business logic and session management.
      * @param notifier User-facing message and logging helper.
+     * @param messageRouter Dispatch table for DMN webview messages (handlers wired in `main.ts`).
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly dmnService: DmnModelerService,
         private readonly notifier: VsCodeNotifier,
+        private readonly messageRouter: WebviewMessageRouter,
     ) {}
 
     /**
@@ -83,21 +86,13 @@ export class DmnEditorController implements CustomTextEditorProvider {
     }
 
     /**
-     * Routes incoming DMN webview messages to the appropriate service method.
+     * Forwards incoming DMN webview messages to the {@link WebviewMessageRouter},
+     * bracketed by the received/processed log lines.
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
             this.notifier.logInfo(`Message received -> ${message.type}`);
-            switch (message.type) {
-                case "GetDmnFileCommand":
-                    if (await this.dmnService.display(id)) {
-                        this.notifier.logInfo("Dmn modeler is ready");
-                    }
-                    break;
-                case "SyncDocumentCommand":
-                    await this.dmnService.sync(id, (message as SyncDocumentCommand).content);
-                    break;
-            }
+            await this.messageRouter.dispatch(message, id);
             this.notifier.logInfo(`Message processed -> ${message.type}`);
         });
     }
