@@ -74,20 +74,48 @@ published to npm as a standalone artefact).
 | `vscode.env.clipboard` | yes | no (bridged) |
 | bpmn-js / dmn-js modeler | no | yes |
 | Preact overlays | no | yes |
-| Long-lived services | yes (`EditorStore`, `BpmnModelerService`, …) | no |
+| Long-lived services | yes (`EditorSessionStore`, `BpmnModelerService`, …) | no |
 | Per-editor lifecycle | yes (`ModelerSession` per editor) | one per open `.bpmn`/`.dmn` tab |
 
-The extension host uses a **flat service architecture** with plain constructor
-wiring — no DI framework. Layers:
+The extension host is organised **by feature**, with plain constructor wiring —
+no DI framework. Each feature folder owns the four classic layers as
+subfolders; cross-feature use is funnelled through the feature's `index.ts`
+barrel.
 
 ```
 apps/modeler-plugin/src/
-  domain/         Pure types — no external deps
-  infrastructure/ VS Code API adapters (EditorStore, VsCodeDocument, …)
-  service/        Business logic (BpmnModelerService, ArtifactService, …)
-  controller/     VS Code events → service calls
-  main.ts         Wiring root: builds the dependency graph
+  main.ts            Activation: build shared deps, then call each feature's register()
+  composition/       One register(context, deps) per feature — the wiring root
+  shared/            Cross-feature substrate — no feature owns it
+    domain/          Pure types (BpmnDocument, ModelerSession, ports) — no external deps
+    service/         Stateless shared services (ArtifactService)
+    infrastructure/  VS Code adapters (EditorSessionStore, VsCode*, WebviewMessageRouter, …)
+  modeler/
+    editor-session/  Generic custom-editor host (ModelerEditorController + participants)
+    bpmn/  dmn/       { domain/ service/ controller/ infrastructure/  index.ts }
+  diff/  deployment/  scriptTask/  navigation/  migration/
+                     each: { domain/ service/ controller/ infrastructure/  index.ts }
 ```
+
+The four layers still hold *within* each feature, and are now enforced in CI by
+`apps/modeler-plugin/src/architecture.spec.ts` (ArchUnitTS): `domain` imports no
+outer layer and no `vscode`/Node host modules; `service` never imports `vscode`
+or `controller`; the tree is cycle-free; and a feature reaches a sibling only
+through its `index.ts`. Three pieces are deliberately exempt from the
+feature-isolation rule because they are not features: `shared/`, `composition/`,
+and `modeler/editor-session/`.
+
+Two patterns keep the controllers thin and constant-size as features grow:
+
+- **`WebviewMessageRouter`** — an open/closed dispatch table. A webview command
+  is handled by registering one more handler factory (see
+  `modeler/bpmn/controller/webview-handlers/`), not by editing a central
+  `switch`.
+- **`EditorSessionParticipant`** — each per-editor lifecycle concern (render,
+  element templates, settings, status bar, script-task teardown) is an
+  independent participant the generic `ModelerEditorController` runs on resolve.
+  Adding a concern is "write a participant + register it", with no controller
+  edit. Both `.bpmn` and `.dmn` share this one controller.
 
 A webview module (`apps/bpmn-webview`) wires up bpmn-js via `BpmnModeler.create()`
 and passes additional DI modules (clipboard, i18n, append-menu, template-chooser).

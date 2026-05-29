@@ -17,7 +17,7 @@ for the list of supported locales and how to switch at runtime.
 |---|---|
 | `libs/bpmn-i18n/` | Translation library — dictionaries, `CustomTranslator`, `TranslateModule` |
 | `libs/bpmn-i18n/src/languages/{locale}/` | Per-locale dictionary files (bpmn-js, dmn-js, properties-panel, other) |
-| `apps/modeler-plugin/src/infrastructure/VsCodeSettings.ts` | Reads the `miragon.bpmnModeler.language` setting |
+| `apps/modeler-plugin/src/shared/infrastructure/VsCodeSettings.ts` | Reads the `miragon.bpmnModeler.language` setting |
 | `apps/bpmn-webview/src/main.ts` | Handles `LanguageQuery`, triggers `refreshDiagram()` |
 
 `CustomTranslator` looks up UI strings in per-locale dictionaries and supports
@@ -29,9 +29,11 @@ exposes it under the `customTranslator` and `translate` DI keys.
 
 ## Entry points
 
-- **Host side** — `BpmnEditorController` subscribes to configuration changes
-  for `miragon.bpmnModeler.language`. On change, it pushes a `LanguageQuery`
-  to each open BPMN webview via `BpmnModelerService.setLanguage()`.
+- **Host side** — `SettingsParticipant` subscribes `BpmnSettingsBroadcaster`
+  for each opened BPMN editor. The broadcaster watches configuration changes
+  for `miragon.bpmnModeler.language` and pushes a `LanguageQuery` to that
+  webview via its own `setLanguage()`. The initial locale is pushed when the
+  webview requests settings on load (`GetBpmnModelerSettingCommand`).
 - **Webview side** — `apps/bpmn-webview/src/main.ts` handles `LanguageQuery`,
   calls `CustomTranslator.setLanguage(locale)`, and triggers `refreshDiagram()`.
 
@@ -44,10 +46,10 @@ exposes it under the `customTranslator` and `translate` DI keys.
 | `libs/bpmn-i18n/src/languages/{locale}/` | Per-locale translation dictionaries (four files each) |
 | `libs/shared/src/lib/modeler.ts` | `LanguageQuery` message type |
 | `apps/modeler-plugin/package.json` | Setting and command definitions |
-| `apps/modeler-plugin/src/infrastructure/VsCodeSettings.ts` | `getLanguage()` setting reader |
-| `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Setting change subscription, initial language push |
-| `apps/modeler-plugin/src/controller/CommandController.ts` | `changeLanguage` command handler (QuickPick) |
-| `apps/modeler-plugin/src/service/BpmnModelerService.ts` | `setLanguage()` sends `LanguageQuery` to webview |
+| `apps/modeler-plugin/src/shared/infrastructure/VsCodeSettings.ts` | `getLanguage()` setting reader |
+| `apps/modeler-plugin/src/modeler/bpmn/controller/editor-participants/SettingsParticipant.ts` | Subscribes the settings broadcaster per opened BPMN editor |
+| `apps/modeler-plugin/src/modeler/bpmn/service/BpmnSettingsBroadcaster.ts` | Watches the language setting; `setLanguage()` sends `LanguageQuery` to the webview |
+| `apps/modeler-plugin/src/modeler/bpmn/controller/CommandController.ts` | `changeLanguage` command handler (QuickPick) |
 | `apps/bpmn-webview/src/main.ts` | `LanguageQuery` handler, `refreshDiagram()` |
 | `apps/bpmn-webview/src/app/modeler.ts` | `BpmnModeler.create()` accepts `TranslateModule` |
 

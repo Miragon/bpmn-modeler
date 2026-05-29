@@ -81,7 +81,7 @@ Each message has a `type` string discriminator used for routing.
 
 **Host → Webview** (Query):
 ```typescript
-// EditorStore wraps this
+// EditorSessionStore wraps this (postMessage to the active editor's webview)
 webviewPanel.webview.postMessage(query);
 ```
 
@@ -94,23 +94,24 @@ vscode.postMessage(command);
 
 ### Receiving Messages
 
-**Host receives Commands** (in controller):
+**Host receives Commands** — the host side uses an open/closed `WebviewMessageRouter` (one per editor) instead of a `switch`. The generic `ModelerEditorController` forwards every message into the router; handlers are small factories registered in `composition/editorFeature.ts`:
 ```typescript
-editorStore.onMessage(webviewPanel, (message) => {
-  switch (message.type) {
-    case 'SyncDocumentCommand':
-      service.sync(message.content);
-      break;
-    case 'GetClipboardCommand':
-      service.readClipboard(id);
-      break;
-    case 'SetClipboardCommand':
-      service.writeClipboard((message as SetClipboardCommand).text);
-      break;
-    // ...
-  }
-});
+// handler factory (modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts)
+export function syncDocumentHandler(bpmnService: BpmnModelerService): MessageHandler {
+  return async (message, editorId) =>
+    bpmnService.sync(editorId, (message as SyncDocumentCommand).content);
+}
+
+// wiring (composition/editorFeature.ts)
+const router = new WebviewMessageRouter()
+  .on('SyncDocumentCommand', syncDocumentHandler(bpmnService))
+  .on('GetClipboardCommand', getClipboardHandler(clipboardMediator))
+  .on('SetClipboardCommand', setClipboardHandler(clipboardMediator));
+
+// dispatch (ModelerEditorController) — bracketed by received/processed log lines
+editorStore.subscribeToMessageEvent(editorId, (message, id) => router.dispatch(message, id));
 ```
+Adding a webview command is "register one more handler" — no shared `switch` to edit. Multiple handlers can register for the same type and run in registration order.
 
 **Webview receives Queries** (in main.ts):
 ```typescript
@@ -231,8 +232,9 @@ This converts `file://` paths to `vscode-resource:` URIs that pass the webview's
 
 ## Key Files
 
-- **BPMN/DMN HTML**: `apps/modeler-plugin/src/infrastructure/WebviewHtml.ts`
-- **Deployment HTML**: `apps/modeler-plugin/src/infrastructure/DeploymentWebviewHtml.ts`
+- **BPMN/DMN HTML**: `apps/modeler-plugin/src/shared/infrastructure/WebviewHtml.ts`
+- **Deployment HTML**: `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`
+- **Message router**: `apps/modeler-plugin/src/shared/infrastructure/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`
 - **VS Code API interface + implementations**: `libs/shared/src/lib/vscode.ts`

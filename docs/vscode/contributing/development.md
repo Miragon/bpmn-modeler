@@ -155,7 +155,7 @@ bundle.
 yarn test
 
 # Run a single test file
-yarn test --testPathPattern=apps/modeler-plugin/src/service/bpmnUtils.spec.ts
+yarn test apps/modeler-plugin/src/shared/domain/BpmnDocument.spec.ts
 
 # Lint
 yarn lint
@@ -231,17 +231,25 @@ pipeline flow diagram.
 
 ## Architecture Overview
 
-The extension uses a **flat service architecture** with plain constructor wiring — no DI
-framework.
+The extension is organised **by feature** with plain constructor wiring — no DI
+framework. Each feature folder owns the four classic layers as subfolders, and
+cross-feature use goes through the feature's `index.ts` barrel.
 
 ```
 apps/modeler-plugin/src/
-  domain/         # Pure domain types — no external dependencies
-  infrastructure/ # VS Code API adapters (EditorStore, VsCodeDocument, …)
-  service/        # Business logic (BpmnModelerService, ArtifactService, …)
-  controller/     # VS Code events → service calls
-  main.ts         # Wiring: EditorStore → VsCode* → Services → Controllers
+  main.ts          # Activation: build shared deps, then call each feature's register()
+  composition/     # One register(context, deps) per feature — the wiring root
+  shared/          # Cross-feature substrate: domain/ service/ infrastructure/
+                   #   (EditorSessionStore, VsCode* adapters, WebviewMessageRouter, …)
+  modeler/
+    editor-session/  # Generic ModelerEditorController + EditorSessionParticipant
+    bpmn/ dmn/       # domain/ service/ controller/ infrastructure/  index.ts
+  diff/ deployment/ scriptTask/ navigation/ migration/   # same per-feature layout
 ```
+
+The layer + feature-isolation boundaries are enforced in CI by
+`apps/modeler-plugin/src/architecture.spec.ts` (ArchUnitTS). See the
+[Architecture overview](./architecture-overview) for the full model.
 
 Key design decisions:
 

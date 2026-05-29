@@ -21,8 +21,8 @@ Two services share a single controller:
   `<configFolder>/payloads/`, resolves the process definition key, calls
   start-instance.
 
-The `CamundaEngineRouter` dispatches to either `C7RestClient` or `C8RestClient`
-based on the `engine` field in the form config.
+The `CamundaEngineRouter` dispatches to either `Camunda7RestClient` or
+`Camunda8RestClient` based on the `engine` field in the form config.
 
 ## Entry points
 
@@ -38,14 +38,14 @@ based on the `engine` field in the form config.
 | File | Purpose |
 |---|---|
 | `apps/deployment-webview/` | Sidebar UI (Vite dev) — forms for Deploy and Start Instance |
-| `apps/modeler-plugin/src/infrastructure/DeploymentWebviewHtml.ts` | Runtime HTML shipped inside the extension — must stay in sync with `apps/deployment-webview/index.html` |
-| `apps/modeler-plugin/src/controller/DeploymentController.ts` | Routes webview commands to the two services |
-| `apps/modeler-plugin/src/service/DeploymentService.ts` | Deploy orchestration, credential persistence |
-| `apps/modeler-plugin/src/service/StartInstanceService.ts` | Start-instance orchestration, payload file discovery |
-| `apps/modeler-plugin/src/service/ArtifactService.ts` | Hierarchical payload/config-folder discovery |
-| `apps/modeler-plugin/src/service/CamundaEngineRouter.ts` | Dispatches to C7 vs C8 REST client |
-| `apps/modeler-plugin/src/infrastructure/C7RestClient.ts` | Camunda 7 REST calls + auth |
-| `apps/modeler-plugin/src/infrastructure/C8RestClient.ts` | Camunda 8 REST calls + auth |
+| `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` | Runtime HTML shipped inside the extension — must stay in sync with `apps/deployment-webview/index.html` |
+| `apps/modeler-plugin/src/deployment/controller/DeploymentController.ts` | Routes webview commands to the two services |
+| `apps/modeler-plugin/src/deployment/service/DeploymentService.ts` | Deploy orchestration, credential persistence |
+| `apps/modeler-plugin/src/deployment/service/StartInstanceService.ts` | Start-instance orchestration, payload file discovery |
+| `apps/modeler-plugin/src/shared/service/ArtifactService.ts` | Hierarchical payload/config-folder discovery (shared with the editor feature) |
+| `apps/modeler-plugin/src/deployment/infrastructure/camunda/CamundaEngineRouter.ts` | Dispatches to C7 vs C8 REST client |
+| `apps/modeler-plugin/src/deployment/infrastructure/camunda/Camunda7RestClient.ts` | Camunda 7 REST calls + auth |
+| `apps/modeler-plugin/src/deployment/infrastructure/camunda/Camunda8RestClient.ts` | Camunda 8 REST calls + auth |
 | `libs/shared/src/lib/modeler.ts` | Deployment message types |
 
 ## Message protocol
@@ -74,7 +74,7 @@ sequenceDiagram
     participant DeploymentController
     participant DeploymentService
     participant CamundaEngineRouter
-    participant RestClient as C7/C8 RestClient
+    participant RestClient as Camunda7/8 RestClient
 
     User->>Webview: Opens deployment sidebar
     Webview->>DeploymentController: RequestFormDefaultsCommand
@@ -105,7 +105,7 @@ sequenceDiagram
     participant DeploymentController
     participant StartInstanceService
     participant CamundaEngineRouter
-    participant RestClient as C7/C8 RestClient
+    participant RestClient as Camunda7/8 RestClient
 
     User->>Webview: Switches to Start Instance tab
     Webview->>DeploymentController: RequestProcessDefinitionKeyCommand
@@ -134,8 +134,8 @@ sequenceDiagram
 
 - **The deployment webview has two copies of its HTML that must stay in sync:**
   `apps/deployment-webview/index.html` (Vite dev) and
-  `apps/modeler-plugin/src/infrastructure/DeploymentWebviewHtml.ts` (runtime in
-  VS Code). When you change the form markup, update both.
+  `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`
+  (runtime in VS Code). When you change the form markup, update both.
 - **Credentials are stored via `SecretStorage`**, not `globalState`. Don't
   persist passwords or OAuth2 tokens in any other location.
 - **C7 and C8 payload formats differ** — C7 wraps each variable in

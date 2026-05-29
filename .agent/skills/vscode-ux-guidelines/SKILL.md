@@ -24,12 +24,12 @@ Pick the lightest channel that gets the job done — heavier channels interrupt 
 
 ## Notifications
 
-`VsCodeUI` (`apps/modeler-plugin/src/infrastructure/VsCodeUI.ts`) wraps notification calls with fire-and-forget methods:
+`VsCodeNotifier` (`apps/modeler-plugin/src/shared/infrastructure/VsCodeNotifier.ts`) wraps notification calls with fire-and-forget methods:
 
 ```typescript
 // Simple notifications — no action buttons, returns void
-ui.showInfo('Diagram saved successfully');
-ui.showError('Failed to deploy process');
+notifier.showInfo('Diagram saved successfully');
+notifier.showError('Failed to deploy process');
 ```
 
 When you need **action buttons**, use the raw VS Code API directly (as `apps/modeler-plugin/src/main.ts` does for the release notification):
@@ -51,26 +51,23 @@ window
 
 ## Status Bar
 
-`VsCodeSettings` (`apps/modeler-plugin/src/infrastructure/VsCodeSettings.ts`) manages status bar items for element template feedback:
+`VsCodeStatusBar` (`apps/modeler-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) manages status bar items for element-template and engine-version feedback:
 
 ```typescript
-settings.showElementTemplatesLoading();      // "$(loading~spin) Loading element templates…"
-settings.showElementTemplatesReady(count);   // "$(check) Element templates (N)" — auto-hides after 3s
-settings.hideElementTemplatesStatus();       // Hide explicitly (used on error paths)
+statusBar.showElementTemplatesLoading();      // "$(loading~spin) Loading element templates…"
+statusBar.showElementTemplatesReady(count);   // "$(check) Element templates (N)" — auto-hides after 3s
+statusBar.hideElementTemplatesStatus();       // Hide explicitly (used on error paths)
+statusBar.showEngineVersion(platform, ver);   // Engine version of the focused BPMN editor
 ```
 
 The status bar item is lazily created. Use the **right side** for transient status and progress. Keep items concise — icon + short text, with tooltips for detail.
 
 ## Quick Picks
 
-`VsCodeSettings.getExecutionPlatformVersion()` presents a quick pick when the execution platform cannot be auto-detected from the BPMN XML:
+`VsCodePicker` (`apps/modeler-plugin/src/shared/infrastructure/VsCodePicker.ts`) owns every quick pick — e.g. `pickExecutionPlatform()` when the execution platform cannot be auto-detected from the BPMN XML, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `pickReferencedModel`:
 
 ```typescript
-const items = [
-  { label: 'Camunda 7', value: 'camunda7' },
-  { label: 'Camunda 8', value: 'camunda8' },
-];
-const selected = await vscode.window.showQuickPick(items, {
+const result = await window.showQuickPick(items, {
   placeHolder: 'Select the execution platform',
 });
 ```
@@ -79,12 +76,12 @@ If the user cancels (Escape), a `UserCancelledError` is thrown and handled grace
 
 ## Output Channel
 
-`VsCodeUI` delegates to `VsCodeLogger`, which wraps a `LogOutputChannel`:
+`VsCodeNotifier` wraps a `LogOutputChannel` directly (there is no separate logger class):
 
 ```typescript
-ui.logInfo('Element templates loaded from: /path/to/templates');
-ui.logWarning('No element templates found in workspace');
-ui.logError(new Error('Failed to parse element template: invalid JSON'));  // Error object, not string
+notifier.logInfo('Element templates loaded from: /path/to/templates');
+notifier.logWarning('No element templates found in workspace');
+notifier.logError(new Error('Failed to parse element template: invalid JSON'));  // Error object, not string
 ```
 
 The webview sends `LogInfoCommand` / `LogErrorCommand` messages to the host, which writes them to the output channel. This project uses a single channel for the modeler.
@@ -105,14 +102,14 @@ Defined in `libs/shared/src/lib/modeler.ts`:
 
 ### Extension Host Side
 
-`VsCodeUI` exposes async clipboard methods:
+`VsCodeClipboard` (`apps/modeler-plugin/src/shared/infrastructure/VsCodeClipboard.ts`) exposes async clipboard methods:
 
 ```typescript
 async readClipboard(): Promise<string>   // vscode.env.clipboard.readText()
 async writeClipboard(text: string): Promise<void>  // vscode.env.clipboard.writeText()
 ```
 
-`BpmnEditorController` routes incoming `GetClipboardCommand` / `SetClipboardCommand` to `BpmnModelerService`, which calls `VsCodeUI`.
+The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
 
 ### Webview Side — Two Polyfills
 
@@ -175,9 +172,10 @@ Webviews **must** respect the user's VS Code theme:
 
 ### `setContext` for Keybinding Visibility
 
-`EditorStore` uses `commands.executeCommand('setContext', key, value)` to control when-clause visibility:
+The (`vscode`-free) `EditorSessionStore` reports its open-editor count through a callback; the host wires that callback in `composition/sharedDeps.ts` to a `setContext` call, controlling when-clause visibility:
 
 ```typescript
+// composition/sharedDeps.ts — invoked by the store whenever the open count changes
 commands.executeCommand("setContext", "bpmn-modeler.openCustomEditors", count);
 ```
 
@@ -185,7 +183,7 @@ This allows `package.json` keybinding entries to use `"when": "bpmn-modeler.open
 
 ## Toggle Text Editor
 
-`VsCodeUI.toggleTextEditor()` opens the standard text editor alongside a custom editor:
+`VsCodeTextEditor.toggle(documentPath)` opens the standard text editor alongside a custom editor:
 
 ```typescript
 await vscode.commands.executeCommand('vscode.openWith', document.uri, 'default');
