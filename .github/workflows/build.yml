@@ -210,6 +210,11 @@ jobs:
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
+    # `pull-requests: write` lets the coverage-report step post/update its
+    # sticky PR comment; job-level scope keeps the broader workflow read-only.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - run: corepack enable
@@ -226,6 +231,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler test
+      # Post the coverage table as a sticky PR comment. `if: always()` so it
+      # still reports when the per-layer thresholds fail the test step above —
+      # that is exactly when you want to see which layer dropped.
+      # `continue-on-error` so a read-only token on fork PRs can't fail CI.
+      - name: Report coverage on the PR
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          # Paths resolve relative to working-directory; vitest writes the
+          # reports to the repo-root coverage/ dir, two levels up.
+          working-directory: apps/modeler-plugin
+          json-summary-path: ../../coverage/apps/modeler-plugin/coverage-summary.json
+          json-final-path: ../../coverage/apps/modeler-plugin/coverage-final.json
+          name: modeler-plugin
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:

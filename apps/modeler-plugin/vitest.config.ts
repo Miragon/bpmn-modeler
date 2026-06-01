@@ -15,7 +15,10 @@ export default defineConfig({
         coverage: {
             provider: "v8",
             reportsDirectory: "../../coverage/apps/modeler-plugin",
-            reporter: ["text", "html", "lcov", "clover", "json"],
+            // `json-summary` + `json` feed the PR coverage-comment action
+            // (totals + per-file deltas); `lcov` feeds Codecov; `html`/`text`
+            // are for local inspection.
+            reporter: ["text", "html", "lcov", "clover", "json", "json-summary"],
             // Per-layer gates, tiered by how much logic each layer carries and
             // how cheaply it can be tested. domain/service hold the host-agnostic
             // core and must stay near-total; controllers mix routing with vscode
