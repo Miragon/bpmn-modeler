@@ -1,0 +1,81 @@
+name: Build Miragon BPMN-IQ (Standalone)
+
+# Pre-merge compile-verify for the Theia/Electron standalone variant of
+# the Miragon BPMN-IQ.  Runs on ubuntu — only steps that produce a real
+# signal that the wiring compiles.  No native rebuild, no electron-builder,
+# no .dmg upload.  Those are release-shaped steps that belong to a future
+# release workflow, not to pre-merge gating.
+
+on:
+  push:
+    paths:
+      - 'apps/bpmn-iq-standalone/**'
+      - 'apps/bpmn-iq-vscode/**'
+      - 'apps/modeler-plugin/**'
+      - 'apps/bpmn-webview/**'
+      - 'apps/dmn-webview/**'
+      - 'apps/deployment-webview/**'
+      - 'libs/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+      - '.github/workflows/build-bpmn-iq-standalone.yml'
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'apps/bpmn-iq-standalone/**'
+      - 'apps/bpmn-iq-vscode/**'
+      - 'apps/modeler-plugin/**'
+      - 'apps/bpmn-webview/**'
+      - 'apps/dmn-webview/**'
+      - 'apps/deployment-webview/**'
+      - 'libs/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+      - '.github/workflows/build-bpmn-iq-standalone.yml'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    name: Compile-verify (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: corepack enable
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the bundled .vsix (libs → webviews → bpmn-iq-vscode)
+        run: yarn build
+        env:
+          MIRAGON_CLOUD_DAEMON_URL: ${{ secrets.MIRAGON_CLOUD_DAEMON_URL }}
+
+      - name: Download Theia builtin plugins (vscode.git etc.)
+        run: yarn workspace @miragon/bpmn-iq-standalone download:plugins
+
+      - name: Package the bundled extension as .vsix
+        run: yarn workspace @miragon/bpmn-iq-standalone package-plugin
+
+      - name: Unpack .vsix into plugins/
+        run: yarn workspace @miragon/bpmn-iq-standalone bundle
+
+      - name: Theia frontend build (development target)
+        run: yarn workspace @miragon/bpmn-iq-standalone build

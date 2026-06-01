@@ -1,8 +1,10 @@
 import {
     CancellationToken,
     CustomTextEditorProvider,
+    EventEmitter,
     ExtensionContext,
     TextDocument,
+    Uri,
     WebviewPanel,
     window,
 } from "vscode";
@@ -11,6 +13,7 @@ import {
     Command,
     OpenScriptEditorCommand,
     NavigateToReferencedModelCommand,
+    SelectionChangedCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
@@ -58,6 +61,7 @@ export class BpmnEditorController implements CustomTextEditorProvider {
         private readonly vsDocument: VsCodeDocument,
         private readonly statusBar: VsCodeStatusBar,
         private readonly modelNavigationService: ModelNavigationService,
+        private readonly selectionEmitter: EventEmitter<{ uri: Uri; elementId?: string }>,
     ) {}
 
     /**
@@ -230,8 +234,30 @@ export class BpmnEditorController implements CustomTextEditorProvider {
                     );
                     break;
                 }
+                case "SelectionChangedCommand":
+                    this.handleSelectionChanged(
+                        id,
+                        (message as SelectionChangedCommand).elementIds,
+                    );
+                    break;
             }
             this.notifier.logInfo(`Message processed -> ${message.type}`);
+        });
+    }
+
+    /**
+     * Forwards a webview selection change to extension-API subscribers
+     * (e.g. the bundled bpmn-iq plugin). Fires regardless of whether anyone
+     * is listening — VS Code's EventEmitter handles the no-subscriber case.
+     *
+     * The {@link EditorHandle} is vscode-free, so we rebuild a `Uri` from its
+     * URI string to satisfy the public {@link BpmnModelerApi} contract.
+     */
+    private handleSelectionChanged(editorId: string, elementIds: string[]): void {
+        const handle = this.editorStore.requireHandle(editorId);
+        this.selectionEmitter.fire({
+            uri: Uri.parse(handle.documentUriString()),
+            elementId: elementIds[0],
         });
     }
 

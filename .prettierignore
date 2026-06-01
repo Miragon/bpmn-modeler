@@ -19,6 +19,10 @@
 apps/standalone/plugins
 apps/standalone/configs/builtins.json
 
+# Theia plugin downloads (apps/bpmn-iq-standalone)
+apps/bpmn-iq-standalone/plugins
+apps/bpmn-iq-standalone/configs/builtins.json
+
 # Docs site (handled by its own workspace if needed)
 docs
 

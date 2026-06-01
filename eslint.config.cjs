@@ -28,7 +28,12 @@ module.exports = [
     },
     // Node.js globals for CommonJS config and build files
     {
-        files: ["**/*.cjs", "**/webpack.config.js", "apps/standalone/scripts/**/*.js"],
+        files: [
+            "**/*.cjs",
+            "**/webpack.config.js",
+            "apps/standalone/scripts/**/*.js",
+            "apps/bpmn-iq-standalone/scripts/**/*.js",
+        ],
         languageOptions: {
             sourceType: "commonjs",
             globals: {
@@ -41,6 +46,7 @@ module.exports = [
         files: [
             ".github/scripts/**/*.mjs",
             "apps/standalone/scripts/**/*.mjs",
+            "apps/bpmn-iq-standalone/scripts/**/*.mjs",
             "libs/standalone-extension/scripts/**/*.mjs",
         ],
         languageOptions: {
@@ -103,7 +109,12 @@ module.exports = [
         })),
     // Disable TS-specific rules that don't apply to CommonJS build/config files
     {
-        files: ["**/*.cjs", "**/webpack.config.js", "apps/standalone/scripts/**/*.js"],
+        files: [
+            "**/*.cjs",
+            "**/webpack.config.js",
+            "apps/standalone/scripts/**/*.js",
+            "apps/bpmn-iq-standalone/scripts/**/*.js",
+        ],
         rules: {
             "@typescript-eslint/no-require-imports": "off",
         },

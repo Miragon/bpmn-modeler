@@ -1,0 +1,73 @@
+name: Build Miragon BPMN-IQ (VS Code)
+
+# Pre-merge compile-verify for the bundled VS Code extension that ships
+# the modeler + cloud-only bpmn-iq sync.  No publishing, no uploaded
+# artifact — the `vsce package` step is kept solely as a manifest-shape
+# check (it would fail loudly on a malformed merged `contributes`).
+
+on:
+  push:
+    paths:
+      - 'apps/bpmn-iq-vscode/**'
+      - 'apps/modeler-plugin/**'
+      - 'apps/bpmn-webview/**'
+      - 'apps/dmn-webview/**'
+      - 'apps/deployment-webview/**'
+      - 'libs/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+      - '.github/workflows/build-bpmn-iq-vscode.yml'
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'apps/bpmn-iq-vscode/**'
+      - 'apps/modeler-plugin/**'
+      - 'apps/bpmn-webview/**'
+      - 'apps/dmn-webview/**'
+      - 'apps/deployment-webview/**'
+      - 'libs/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.yarnrc.yml'
+      - '.github/workflows/build-bpmn-iq-vscode.yml'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    name: Build & package .vsix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: corepack enable
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build everything (libs → webviews → bpmn-iq-vscode)
+        run: yarn build
+        env:
+          MIRAGON_CLOUD_DAEMON_URL: ${{ secrets.MIRAGON_CLOUD_DAEMON_URL }}
+
+      - name: Run tests
+        run: yarn workspace bpmn-iq-vscode test
+
+      - name: Package .vsix (manifest validation only — not uploaded)
+        working-directory: dist/apps/bpmn-iq-vscode
+        run: npx @vscode/vsce package --out bpmn-iq-vscode.vsix --yarn --no-dependencies

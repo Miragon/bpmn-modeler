@@ -1,7 +1,8 @@
-import { commands, env, ExtensionContext, Uri, window, workspace } from "vscode";
+import { commands, env, EventEmitter, ExtensionContext, Uri, window, workspace } from "vscode";
 
 import { setContext } from "./infrastructure/extensionContext";
 
+import type { BpmnModelerApi } from "./api";
 import { BpmnScriptFileSystem } from "./infrastructure/BpmnScriptFileSystem";
 import { CompareSelectionStore } from "./infrastructure/CompareSelectionStore";
 import { DiffPaneStore } from "./infrastructure/DiffPaneStore";
@@ -44,7 +45,21 @@ import { DeploymentService } from "./service/DeploymentService";
 import { StartInstanceService } from "./service/StartInstanceService";
 import { DeploymentController } from "./controller/DeploymentController";
 
-export function activate(context: ExtensionContext): void {
+/**
+ * Wires up all infrastructure, services, and controllers using plain
+ * constructor injection — no DI framework required.
+ *
+ * Returns a {@link BpmnModelerApi} so other extensions (e.g. the bpmn-iq
+ * plugin) can subscribe to selection-changed events without importing
+ * extension-internal types.
+ *
+ * The exported `activate` symbol below is the VS Code entry point; this
+ * `activateModeler` function is the same logic exposed under a more
+ * descriptive name so a bundled extension that combines the modeler with
+ * other features can call it directly without going through the
+ * `extensions.getExtension(...)` indirection.
+ */
+export function activateModeler(context: ExtensionContext): BpmnModelerApi {
     notifyIfNewRelease(context);
 
     setContext(context);
@@ -140,6 +155,11 @@ export function activate(context: ExtensionContext): void {
 
     new ScriptCompletionProvider().register(context);
 
+    // Public API: selection-change emitter exposed to other extensions
+    // (e.g. the bundled bpmn-iq plugin) through the returned BpmnModelerApi.
+    const selectionEmitter = new EventEmitter<{ uri: Uri; elementId?: string }>();
+    context.subscriptions.push(selectionEmitter);
+
     const commandController = new CommandController(
         editorStore,
         vsDocument,
@@ -162,6 +182,7 @@ export function activate(context: ExtensionContext): void {
         vsDocument,
         statusBar,
         modelNavigationService,
+        selectionEmitter,
     ).register(context);
     new DmnEditorController(editorStore, dmnService, notifier).register(context);
     new BpmnCompareController(compareSelection, diffController, notifier).register(context);
@@ -173,7 +194,21 @@ export function activate(context: ExtensionContext): void {
         startInstanceSvc,
         notifier,
     ).register(context);
+
+    return {
+        onDidChangeSelection: selectionEmitter.event,
+    };
 }
+
+/**
+ * VS Code extension entry point — thin re-export of {@link activateModeler}.
+ *
+ * Kept as a separate named export so that the symbol VS Code looks for
+ * (`activate`) stays clearly visible at the bottom of the file, while the
+ * actual wiring lives under the more descriptive `activateModeler` name
+ * that bundled extensions can import directly.
+ */
+export const activate = activateModeler;
 
 const RELEASES_BASE = "https://github.com/Miragon/bpmn-modeler/releases/tag";
 const LAST_NOTIFIED_KEY = "lastNotifiedVersion";

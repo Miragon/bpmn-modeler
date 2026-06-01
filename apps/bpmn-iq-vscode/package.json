@@ -1,0 +1,382 @@
+{
+    "name": "bpmn-iq-vscode",
+    "scripts": {
+        "build": "webpack --mode production",
+        "dev": "webpack --mode development --watch",
+        "test": "vitest run --coverage"
+    },
+    "displayName": "Miragon BPMN-IQ",
+    "description": "Cloud-only BPMN/DMN modeler with built-in bpmn-iq live collaboration. Pairs with a hosted Miragon Cloud bpmn-iq daemon.",
+    "license": "SEE LICENSE IN LICENSE",
+    "version": "0.1.0",
+    "publisher": "miragon-gmbh",
+    "homepage": "https://www.miragon.io/",
+    "galleryBanner": {
+        "color": "#F0F8FF",
+        "theme": "light"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Miragon/bpmn-modeler.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Miragon/bpmn-modeler/issues"
+    },
+    "engines": {
+        "vscode": "^1.76.0"
+    },
+    "icon": "assets/miragon-logo.png",
+    "categories": [
+        "Visualization",
+        "Other"
+    ],
+    "keywords": [
+        "BPMN",
+        "DMN",
+        "bpmn.io",
+        "Modeler",
+        "Camunda",
+        "collaboration",
+        "AI",
+        "MCP"
+    ],
+    "main": "main.js",
+    "activationEvents": [
+        "workspaceContains:**/*.bpmn",
+        "workspaceContains:**/.bpmn-iq/workspace.json"
+    ],
+    "contributes": {
+        "themes": [
+            {
+                "id": "miragon-light",
+                "label": "Miragon Light",
+                "uiTheme": "vs",
+                "path": "./themes/miragon-light.json"
+            },
+            {
+                "id": "miragon-dark",
+                "label": "Miragon Dark",
+                "uiTheme": "vs-dark",
+                "path": "./themes/miragon-dark.json"
+            }
+        ],
+        "customEditors": [
+            {
+                "id": "bpmn-modeler.bpmn",
+                "viewType": "bpmn-modeler.bpmn",
+                "displayName": "BPMN Modeler",
+                "selector": [
+                    {
+                        "filenamePattern": "*.bpmn"
+                    }
+                ],
+                "priority": "default"
+            },
+            {
+                "id": "bpmn-modeler.dmn",
+                "viewType": "bpmn-modeler.dmn",
+                "displayName": "DMN Modeler",
+                "selector": [
+                    {
+                        "filenamePattern": "*.dmn"
+                    }
+                ],
+                "priority": "default"
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "bpmn-modeler-deploy",
+                    "title": "Deploy Diagram",
+                    "icon": "$(rocket)"
+                }
+            ]
+        },
+        "views": {
+            "bpmn-modeler-deploy": [
+                {
+                    "type": "webview",
+                    "id": "bpmn-modeler.deploymentView",
+                    "name": "Deploy Diagram",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "bpmn-modeler.toggleTextEditor",
+                "title": "BPMN Modeler: Toggle Standard Text Editor",
+                "icon": "$(notebook-mimetype)"
+            },
+            {
+                "command": "bpmn-modeler.openLoggingConsole",
+                "title": "BPMN Modeler: Display Logging Information",
+                "icon": "$(callstack-view-session)"
+            },
+            {
+                "command": "bpmn-modeler.copyDiagramAsSvg",
+                "title": "BPMN Modeler: Copy Diagram as SVG"
+            },
+            {
+                "command": "bpmn-modeler.saveDiagramAsSvgCommand",
+                "title": "BPMN Modeler: Save Diagram as SVG"
+            },
+            {
+                "command": "bpmn-modeler.deployDiagram",
+                "title": "BPMN Modeler: Deploy Diagram",
+                "icon": "$(rocket)"
+            },
+            {
+                "command": "bpmn-modeler.changeEngineVersion",
+                "title": "BPMN Modeler: Change Engine Version"
+            },
+            {
+                "command": "bpmn-modeler.migrateAllDiagrams",
+                "title": "BPMN Modeler: Migrate All BPMN Diagrams"
+            },
+            {
+                "command": "bpmn-modeler.changeLanguage",
+                "title": "BPMN Modeler: Change Modeler Language"
+            },
+            {
+                "command": "bpmn-modeler.selectForCompare",
+                "title": "BPMN Modeler: Select for Compare"
+            },
+            {
+                "command": "bpmn-modeler.compareWithSelected",
+                "title": "BPMN Modeler: Compare with Selected"
+            },
+            {
+                "command": "bpmn-modeler.compareSelected",
+                "title": "BPMN Modeler: Compare Selected"
+            },
+            {
+                "command": "miragon.bpmnIq.toggle",
+                "title": "BPMN-IQ: Toggle Sync"
+            },
+            {
+                "command": "miragon.bpmnIq.showMenu",
+                "title": "BPMN-IQ: Show Status Menu"
+            },
+            {
+                "command": "miragon.bpmnIq.start",
+                "title": "BPMN-IQ: Start Sync"
+            },
+            {
+                "command": "miragon.bpmnIq.stop",
+                "title": "BPMN-IQ: Stop Sync"
+            },
+            {
+                "command": "miragon.bpmnIq.pull",
+                "title": "BPMN-IQ: Join Workspace…"
+            },
+            {
+                "command": "miragon.bpmnIq.openWebUi",
+                "title": "BPMN-IQ: Open Web UI"
+            },
+            {
+                "command": "miragon.bpmnIq.copyWebUiUrl",
+                "title": "BPMN-IQ: Copy Web UI Link"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "bpmn-modeler.toggleTextEditor",
+                "key": "ctrl+shift+e",
+                "when": "bpmn-modeler.openCustomEditors > 0"
+            }
+        ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "bpmn-modeler.toggleTextEditor",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.openLoggingConsole",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.copyDiagramAsSvg",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.saveDiagramAsSvgCommand",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.deployDiagram",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.changeEngineVersion",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.migrateAllDiagrams",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "bpmn-modeler.changeLanguage",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.selectForCompare",
+                    "when": "false"
+                },
+                {
+                    "command": "bpmn-modeler.compareWithSelected",
+                    "when": "false"
+                },
+                {
+                    "command": "bpmn-modeler.compareSelected",
+                    "when": "false"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "bpmn-modeler.selectForCompare",
+                    "group": "3_compare",
+                    "when": "resourceExtname == .bpmn && !listMultiSelection"
+                },
+                {
+                    "command": "bpmn-modeler.compareWithSelected",
+                    "group": "3_compare",
+                    "when": "resourceExtname == .bpmn && bpmn-modeler.compareSelectionActive && !listMultiSelection"
+                },
+                {
+                    "command": "bpmn-modeler.compareSelected",
+                    "group": "3_compare",
+                    "when": "resourceExtname == .bpmn && listDoubleSelection"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "bpmn-modeler.toggleTextEditor",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' || activeWebviewPanelId == 'bpmn-modeler.dmn'"
+                },
+                {
+                    "command": "bpmn-modeler.deployDiagram",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "Miragon BPMN-IQ",
+            "properties": {
+                "miragon.bpmnModeler.alignToOrigin": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Align the diagram to the origin when opening a new diagram. Click [here](https://github.com/bpmn-io/align-to-origin) to see the behaviour when enabled."
+                },
+                "miragon.bpmnModeler.configFolder": {
+                    "type": "string",
+                    "default": ".camunda",
+                    "markdownDescription": "Name of the config folder searched at each directory level from the BPMN file up to the workspace root. **Element templates must be placed under `<config>/element-templates/`** (e.g. `.camunda/element-templates/my-template.json`)."
+                },
+                "miragon.bpmnModeler.c8ApiVersion": {
+                    "type": "string",
+                    "default": "v2",
+                    "markdownDescription": "REST API version prefix for Camunda 8 endpoints (e.g. `v2`). Change this if your Camunda 8 cluster uses a different API version."
+                },
+                "miragon.bpmnModeler.showTransactionBoundaries": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Show transaction boundaries in the BPMN diagram (Camunda 7 only). Click [here](https://docs.camunda.io/docs/8.7/components/best-practices/development/understanding-transaction-handling-c7/) to learn more."
+                },
+                "miragon.bpmnModeler.colorTheme": {
+                    "type": "string",
+                    "default": "automatic",
+                    "enum": [
+                        "automatic",
+                        "light"
+                    ],
+                    "enumItemLabels": [
+                        "Automatic (follow VS Code theme)",
+                        "Light"
+                    ],
+                    "markdownDescription": "Controls the color theme of the BPMN modeler canvas. `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme."
+                },
+                "miragon.bpmnModeler.favouriteBpmnElements": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bpmn:ServiceTask",
+                        "bpmn:UserTask",
+                        "bpmn:CallActivity",
+                        "bpmn:ExclusiveGateway"
+                    ],
+                    "maxItems": 6,
+                    "markdownDescription": "BPMN element types to pin at the top of the append menu palette (max 6). Use BPMN type names like `bpmn:ServiceTask`, `bpmn:UserTask`, `bpmn:CallActivity`, `bpmn:ExclusiveGateway`."
+                },
+                "miragon.bpmnModeler.language": {
+                    "type": "string",
+                    "default": "en",
+                    "enum": [
+                        "de",
+                        "en",
+                        "es",
+                        "fr",
+                        "nl-nl",
+                        "pt-br",
+                        "ru",
+                        "zh-Hans",
+                        "zh-Hant"
+                    ],
+                    "enumItemLabels": [
+                        "Deutsch",
+                        "English",
+                        "Español",
+                        "Français",
+                        "Nederlands",
+                        "Português (Brasil)",
+                        "Русский",
+                        "简体中文",
+                        "繁体中文"
+                    ],
+                    "markdownDescription": "UI language for the BPMN/DMN modeler (palette, context pad, properties panel)."
+                },
+                "miragon.bpmnIq.hydrateOnStart": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "When starting BPMN-IQ sync, pull every model from the daemon and overwrite local files. Turn this off if you want your local files to be the source of truth on startup."
+                },
+                "miragon.bpmnIq.workspaceName": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Display name for this workspace on the daemon. Leave empty to use the folder's basename."
+                }
+            }
+        }
+    },
+    "dependencies": {
+        "@miragon/bpmn-iq-daemon-client": "0.5.0",
+        "@miragon/bpmn-modeler-i18n": "workspace:*",
+        "@miragon/bpmn-modeler-shared": "workspace:*",
+        "bpmn-js-differ": "3.2.0",
+        "lodash": "4.18.1",
+        "min-dash": "5.0.0",
+        "tslib": "2.8.1",
+        "uuid": "14.0.0"
+    },
+    "devDependencies": {
+        "@types/lodash": "4.17.24",
+        "@types/node": "25.6.0",
+        "@types/uuid": "11.0.0",
+        "@types/vscode": "1.93.0",
+        "@vitest/coverage-v8": "4.1.5",
+        "copy-webpack-plugin": "14.0.0",
+        "dotenv": "17.4.2",
+        "ts-loader": "9.5.7",
+        "tsconfig-paths-webpack-plugin": "4.2.0",
+        "typescript": "6.0.3",
+        "vitest": "4.1.5",
+        "webpack": "5.106.2",
+        "webpack-cli": "7.0.2"
+    }
+}

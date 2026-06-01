@@ -58,3 +58,7 @@ docs/.vitepress/cache
 .gstack/
 .agent/
 .claude/logs/
+
+# Build-time secrets baked into the BPMN IQ Modeler bundle via webpack
+# DefinePlugin.  See .env.example for the documented variables.
+/.env

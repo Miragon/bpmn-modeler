@@ -1,0 +1,9 @@
+node_modules/
+lib/
+src-gen/
+dist/
+plugins/
+gen-webpack*.js
+*.log
+.theia-ide/
+.miragon-bpmn-iq/
