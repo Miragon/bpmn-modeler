@@ -35,7 +35,7 @@ import {
 const DEPLOYMENT_VIEW_ID = "bpmn-modeler.deploymentView";
 
 // VS Code command ID for triggering the deployment panel.
-const DEPLOY_CMD = "bpmn-modeler.deployDiagram";
+export const DEPLOY_CMD = "bpmn-modeler.deployDiagram";
 
 /**
  * Registers and manages the deployment sidebar WebviewView and the

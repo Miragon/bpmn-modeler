@@ -38,6 +38,7 @@ import {
 } from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
+import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "../shared/domain/viewTypes";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -132,7 +133,7 @@ export function register(
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
 
     new ModelerEditorController(deps.editorStore, deps.notifier, {
-        viewType: "bpmn-modeler.bpmn",
+        viewType: BPMN_VIEW_TYPE,
         messageRouter: bpmnMessageRouter,
         participants: [
             new BpmnRenderParticipant(bpmnService, deps.notifier),
@@ -153,7 +154,7 @@ export function register(
         initialPanelVisible: () => panelSvc.getPersistedPanelVisibility(),
     }).register(context);
     new ModelerEditorController(deps.editorStore, deps.notifier, {
-        viewType: "bpmn-modeler.dmn",
+        viewType: DMN_VIEW_TYPE,
         messageRouter: dmnMessageRouter,
         participants: [new DmnRenderParticipant(dmnService, deps.notifier)],
     }).register(context);

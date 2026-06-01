@@ -236,6 +236,58 @@ jobs:
           name: modeler-plugin
           verbose: true
 
+  # Extension-Host smoke test: the only job that runs the composition root
+  # (`activate()` + custom-editor registration) end-to-end in a real VS Code.
+  # Kept separate from lint/unit so their fast feedback is never delayed by
+  # the heavy Electron launch.
+  e2e-modeler-plugin:
+    needs: detect-changes
+    # Gate PRs (catch a dead extension before it lands) and back-stop pushes to
+    # `main` only — the workflow's unfiltered `push:` trigger would otherwise run
+    # this heavy job a second time on every PR branch. Path-filtered to anything
+    # that can change the bundle or activation.
+    if: >-
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      (needs.detect-changes.outputs.modeler-plugin == 'true' ||
+       needs.detect-changes.outputs.bpmn-webview == 'true' ||
+       needs.detect-changes.outputs.dmn-webview == 'true' ||
+       needs.detect-changes.outputs.deployment-webview == 'true' ||
+       needs.detect-changes.outputs.shared == 'true')
+    runs-on: ubuntu-latest
+    # Cancel a superseded run on the same ref so repeated pushes don't queue up
+    # multiple Electron launches.
+    concurrency:
+      group: e2e-modeler-plugin-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install xvfb and Linux build deps for native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libx11-dev libxkbfile-dev libsecret-1-dev
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The test points at dist/apps/modeler-plugin, which only exists after a
+      # full build (libs → webviews + plugin); `main: "main.js"` won't resolve
+      # against the source tree.
+      - name: Build the extension
+        run: corepack yarn build
+      # Cache the downloaded VS Code/Electron so reruns skip the ~150 MB fetch.
+      - name: Cache VS Code download
+        uses: actions/cache@v4
+        with:
+          path: apps/modeler-plugin/.vscode-test
+          key: vscode-test-${{ runner.os }}
+      - name: Run Extension-Host smoke test
+        run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:e2e
+
   test-bpmn-webview:
     needs: detect-changes
     if: >-

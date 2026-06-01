@@ -10,6 +10,8 @@
 **/.nx/workspace-data
 **/.theia
 **/.browser_modules
+# @vscode/test-electron download (the whole VS Code app) created by `test:e2e`
+**/.vscode-test
 
 # Generated code
 **/src-gen
