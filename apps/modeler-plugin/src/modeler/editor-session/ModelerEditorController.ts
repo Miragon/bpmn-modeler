@@ -112,6 +112,9 @@ export class ModelerEditorController implements CustomTextEditorProvider {
             // on load; a participant may then `await` (ElementTemplatesParticipant
             // does a filesystem lookup), so attaching the listener after the loop
             // would open a window where that first message arrives unobserved.
+            // Participant order still matters for behaviour: the render
+            // participant must run first so the diagram is mounted before later
+            // participants broadcast settings/engine state against it.
             this.subscribeToMessageEvent(editorId);
             this.editorStore.subscribeToTabChangeEvent(editorId);
             // Single dispose subscription, not one per participant: a second
@@ -122,8 +125,19 @@ export class ModelerEditorController implements CustomTextEditorProvider {
             // during a participant's await is still cleaned up.
             this.editorStore.subscribeToDisposeEvent(editorId, () => context.runDisposeCallbacks());
 
+            // Isolate each participant: a throw in one must not skip the rest.
+            // ElementTemplatesParticipant awaits a workspace-root lookup that
+            // rethrows on a missing git root, and a single outer catch would then
+            // drop every later participant — no settings broadcast, no engine
+            // status bar, and (worst) the inline-script teardown never registers,
+            // leaking on editor close. Order-independent and future-proof.
             for (const participant of this.options.participants) {
-                await participant.onResolve(context);
+                try {
+                    await participant.onResolve(context);
+                } catch (error) {
+                    this.notifier.showError((error as Error).message);
+                    this.notifier.logError(error as Error);
+                }
             }
         } catch (error) {
             this.notifier.showError((error as Error).message);

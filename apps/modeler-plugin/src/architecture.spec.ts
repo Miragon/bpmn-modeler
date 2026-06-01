@@ -42,9 +42,11 @@ function readSource(file: FileInfo): string {
 /**
  * Module specifiers a file imports, drawn from every import/require form. Read
  * from source text because archunit's `FileInfo` exposes no structured imports
- * field. Comments mentioning a module (e.g. JSDoc that says `vscode.Disposable`)
- * are not matched, since the patterns anchor on the `from`/`import`/`require`
- * keyword and a quoted specifier.
+ * field. Prose mentions (e.g. JSDoc `vscode.Disposable`) don't match — the
+ * patterns require the `from`/`import`/`require` keyword next to a quoted
+ * specifier. A *commented-out* import (`// import … from "vscode"`) still would,
+ * since the scan is over raw text with no comment stripping; harmless today
+ * because no banned import is left commented in the tree.
  */
 const SPECIFIER_PATTERNS: readonly RegExp[] = [
     /\bfrom\s*["']([^"']+)["']/g, // import … from "x";  export … from "x"

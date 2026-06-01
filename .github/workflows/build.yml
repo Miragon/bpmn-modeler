@@ -8,6 +8,16 @@ on:
 permissions:
   contents: read
 
+# Workflow-level so a superseded PR run is cancelled as a single unit: the `ci`
+# rollup then resolves to `cancelled` (not `failure`), and branch protection only
+# evaluates the latest SHA's run — no spurious gate failure. `main` pushes are
+# never cancelled (the expression is false on `refs/heads/main`), so back-stop
+# runs always complete. Also frees CI minutes by cancelling every superseded job,
+# not just the e2e smoke test.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -274,13 +284,9 @@ jobs:
        needs.detect-changes.outputs.deployment-webview == 'true' ||
        needs.detect-changes.outputs.shared == 'true')
     runs-on: ubuntu-latest
-    # Cancel a superseded run on the same ref so repeated pushes don't queue up
-    # multiple Electron launches.
-    concurrency:
-      group: e2e-modeler-plugin-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v6
+      - uses: Miragon/pin-npm-dependencies@v1
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -448,6 +454,7 @@ jobs:
       - build-create-append-c7
       - build-modeler-plugin
       - test-modeler-plugin
+      - e2e-modeler-plugin
       - test-bpmn-webview
       - test-bpmn-i18n
       - build-bpmn-webview

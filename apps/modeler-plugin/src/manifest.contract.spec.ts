@@ -112,6 +112,9 @@ describe("package.json ↔ code contract", () => {
             .filter((key) => key.startsWith(`${CONFIG_NAMESPACE}.`))
             .map((key) => key.slice(CONFIG_NAMESPACE.length + 1));
 
+        // This check assumes all config access is centralized in
+        // `VsCodeSettings.ts` with string-literal keys — a key read elsewhere, or
+        // built from a computed expression, would silently drift past this regex.
         // All keys read in the one class that owns config access. The `<T>`
         // generic is always present on these calls but kept optional for safety.
         const settingsSource = readFileSync(

@@ -6211,7 +6211,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/mocha@npm:10.0.10, @types/mocha@npm:^10.0.0, @types/mocha@npm:^10.0.10":
+"@types/mocha@npm:10.0.10, @types/mocha@npm:^10.0.10":
   version: 10.0.10
   resolution: "@types/mocha@npm:10.0.10"
   checksum: 10c0/d2b8c48138cde6923493e42b38e839695eb42edd04629abe480a8f34c0e3f50dd82a55832c2e8d2b6e6f9e4deb492d7d733e600fbbdd5a0ceccbcfc6844ff9d5
@@ -9353,7 +9353,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:^5.4.1":
+"chalk@npm:^5.3.0, chalk@npm:^5.4.1":
   version: 5.6.2
   resolution: "chalk@npm:5.6.2"
   checksum: 10c0/99a4b0f0e7991796b1e7e3f52dceb9137cae2a9dfc8fc0784a550dc4c558e15ab32ed70b14b21b52beb2679b4892b41a0aa44249bcb996f01e125d58477c6976
@@ -11605,7 +11605,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"enhanced-resolve@npm:^5.22.0":
+"enhanced-resolve@npm:^5.18.3, enhanced-resolve@npm:^5.22.0":
   version: 5.22.1
   resolution: "enhanced-resolve@npm:5.22.1"
   dependencies:
@@ -12510,7 +12510,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-glob@npm:^3.2.5, fast-glob@npm:^3.2.9, fast-glob@npm:^3.3.3":
+"fast-glob@npm:^3.2.4, fast-glob@npm:^3.2.5, fast-glob@npm:^3.2.9, fast-glob@npm:^3.3.3":
   version: 3.3.3
   resolution: "fast-glob@npm:3.3.3"
   dependencies:
@@ -13685,7 +13685,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"http-proxy-agent@npm:^7.0.0, http-proxy-agent@npm:^7.0.1, http-proxy-agent@npm:^7.0.2":
+"http-proxy-agent@npm:^7.0.0, http-proxy-agent@npm:^7.0.2":
   version: 7.0.2
   resolution: "http-proxy-agent@npm:7.0.2"
   dependencies:
@@ -13756,7 +13756,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"https-proxy-agent@npm:^7.0.0":
+"https-proxy-agent@npm:^7.0.0, https-proxy-agent@npm:^7.0.5":
   version: 7.0.6
   resolution: "https-proxy-agent@npm:7.0.6"
   dependencies:
@@ -15395,7 +15395,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash@npm:4.18.1, lodash@npm:^4.17.15, lodash@npm:^4.18.1":
+"lodash@npm:4.18.1, lodash@npm:^4.17.15, lodash@npm:^4.17.2, lodash@npm:^4.18.1":
   version: 4.18.1
   resolution: "lodash@npm:4.18.1"
   checksum: 10c0/757228fc68805c59789e82185135cf85f05d0b2d3d54631d680ca79ec21944ec8314d4533639a14b8bcfbd97a517e78960933041a5af17ecb693ec6eecb99a27
@@ -15990,7 +15990,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^10.0.3, minimatch@npm:^10.1.1, minimatch@npm:^10.2.5":
+"minimatch@npm:^10.0.1, minimatch@npm:^10.0.3, minimatch@npm:^10.1.1, minimatch@npm:^10.2.5":
   version: 10.2.5
   resolution: "minimatch@npm:10.2.5"
   dependencies:
@@ -16652,6 +16652,19 @@ __metadata:
     "@types/sarif": "npm:^2.1.7"
     fs-extra: "npm:^11.1.1"
   checksum: 10c0/dd7bb44d87f4abe70ae8d724b5cb8ee79c4605659b834ab9dc77040be96664c6a3daa4a8a580a9bb84dfa276defd7fc9cc381d0b8917fef780c88cd57168e706
+  languageName: node
+  linkType: hard
+
+"node-stream@npm:^1.5.0":
+  version: 1.7.0
+  resolution: "node-stream@npm:1.7.0"
+  dependencies:
+    lodash: "npm:^4.17.2"
+    readable-stream: "npm:^2.3.3"
+    split2: "npm:^2.1.0"
+    stream-combiner2: "npm:^1.1.1"
+    through2: "npm:^2.0.1"
+  checksum: 10c0/3ecbad38b6f37270bf800fa1e36db18584cde950589187a462291dfd6d979b6661e38aba1fa69466dd0603d905c24d23e5bffdbaa154d6438f7f670a2c05e0e7
   languageName: node
   linkType: hard
 
@@ -20410,16 +20423,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"through2@npm:^2.0.1, through2@npm:^2.0.2":
-  version: 2.0.5
-  resolution: "through2@npm:2.0.5"
-  dependencies:
-    readable-stream: "npm:~2.3.6"
-    xtend: "npm:~4.0.1"
-  checksum: 10c0/cbfe5b57943fa12b4f8c043658c2a00476216d79c014895cef1ac7a1d9a8b31f6b438d0e53eecbb81054b93128324a82ecd59ec1a4f91f01f7ac113dcb14eade
-  languageName: node
-  linkType: hard
-
 "text-table@npm:^0.2.0":
   version: 0.2.0
   resolution: "text-table@npm:0.2.0"
@@ -20433,6 +20436,16 @@ __metadata:
   dependencies:
     editions: "npm:^6.21.0"
   checksum: 10c0/6077ca91af65d8067007973635d9e22c712c08cc06004cf2fa91f221239f0a833ededa18bf977131b45649be4a34fe44a7d1cb7b3f6c6c49d5677a197a10b0e0
+  languageName: node
+  linkType: hard
+
+"through2@npm:^2.0.1, through2@npm:^2.0.2":
+  version: 2.0.5
+  resolution: "through2@npm:2.0.5"
+  dependencies:
+    readable-stream: "npm:~2.3.6"
+    xtend: "npm:~4.0.1"
+  checksum: 10c0/cbfe5b57943fa12b4f8c043658c2a00476216d79c014895cef1ac7a1d9a8b31f6b438d0e53eecbb81054b93128324a82ecd59ec1a4f91f01f7ac113dcb14eade
   languageName: node
   linkType: hard
 
@@ -21834,8 +21847,8 @@ __metadata:
     "@miragon/bpmn-modeler-i18n": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/lodash": "npm:4.17.24"
-    "@types/node": "npm:25.9.1"
     "@types/mocha": "npm:10.0.10"
+    "@types/node": "npm:25.9.1"
     "@types/uuid": "npm:11.0.0"
     "@types/vscode": "npm:1.93.0"
     "@vitest/coverage-v8": "npm:4.1.8"

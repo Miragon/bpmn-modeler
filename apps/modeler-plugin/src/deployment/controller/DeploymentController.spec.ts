@@ -36,8 +36,10 @@ function createController() {
         getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
         onDidChangeActiveEditor: vi.fn(),
     };
+    // Deliberately distinct from the payload's `mainFilePath` so a regression
+    // that trusts the webview payload instead of the document path is caught.
     const vsDocument = {
-        getFilePath: vi.fn().mockReturnValue("/work/order-process.bpmn"),
+        getFilePath: vi.fn().mockReturnValue("/work/trusted/order-process.bpmn"),
     };
     const deploymentService = {
         deploy: vi.fn(),
@@ -178,6 +180,21 @@ describe("DeploymentController.handleDeploy auth construction", () => {
 
         const config = c.deploymentService.deploy.mock.calls[0][0];
         expect(config.auth).toBeInstanceOf(NoAuth);
+    });
+
+    it("deploys the trusted document path, never the webview payload's mainFilePath", async () => {
+        const c = createController();
+        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        // The payload carries `/work/order-process.bpmn`; the document resolves to
+        // a different trusted path. The controller must use the latter so a
+        // tampered payload can't redirect which file is deployed.
+        await callHandleDeploy(c, { authType: "none" });
+
+        const config = c.deploymentService.deploy.mock.calls[0][0];
+        expect(c.vsDocument.getFilePath).toHaveBeenCalledWith("editor-1");
+        expect(config.mainFilePath).toBe("/work/trusted/order-process.bpmn");
+        expect(config.mainFilePath).not.toBe("/work/order-process.bpmn");
     });
 });
 

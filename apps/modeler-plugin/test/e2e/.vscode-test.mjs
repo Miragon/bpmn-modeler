@@ -1,6 +1,9 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+// Imported rather than used as a global: the shared flat ESLint config grants no
+// Node globals to this ESM config (same reason `import.meta.dirname` is used below).
+import process from "node:process";
 
 import { defineConfig } from "@vscode/test-cli";
 
@@ -19,6 +22,11 @@ const extensionDevelopmentPath = resolve(repoRoot, "dist/apps/modeler-plugin");
 // A throwaway folder so the host opens a real (empty) workspace without
 // inheriting any user/project settings that could perturb activation.
 const workspace = mkdtempSync(resolve(tmpdir(), "bpmn-modeler-e2e-"));
+
+// `@vscode/test-cli` has no teardown hook, so the temp workspace would otherwise
+// accumulate one orphaned dir per local run. Remove it when the test process
+// exits (any cause); `force` swallows the already-gone case.
+process.on("exit", () => rmSync(workspace, { recursive: true, force: true }));
 
 export default defineConfig({
     label: "modeler-plugin-smoke",
