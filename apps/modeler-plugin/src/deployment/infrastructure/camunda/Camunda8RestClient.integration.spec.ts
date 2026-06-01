@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FetchHttpClient } from "../FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda8RestClient } from "./Camunda8RestClient";
-import { DeploymentConfig, NoAuth } from "../../domain/deployment";
+import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/deployment";
 import { StartInstanceConfig } from "../../domain/startInstance";
 import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
 
@@ -271,5 +271,175 @@ describe("Camunda8RestClient (integration)", () => {
         await client.deploy(config, new Map([["proc.bpmn", "<definitions/>"]]));
 
         expect(receivedBody).not.toContain('name="tenantId"');
+    });
+
+    // ── Non-JSON response handling ──────────────────────────────────────
+
+    it("should yield undefined deploymentId when the deploy response is not JSON", async () => {
+        handler = (_req, _body, res) => {
+            // A 2xx with a non-JSON body must still succeed but with no id.
+            res.writeHead(200, { "Content-Type": "text/plain" });
+            res.end("Created");
+        };
+
+        const client = createClient();
+        const config = new DeploymentConfig(
+            "my-deploy",
+            "",
+            baseUrl,
+            "c8",
+            "/tmp/proc.bpmn",
+            [],
+            new NoAuth(),
+        );
+
+        const result = await client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]));
+
+        expect(result.success).toBe(true);
+        expect(result.deploymentId).toBeUndefined();
+    });
+
+    it("should yield undefined processInstanceId when the start response is not JSON", async () => {
+        handler = (_req, _body, res) => {
+            res.writeHead(200, { "Content-Type": "text/plain" });
+            res.end("Started");
+        };
+
+        const client = createClient();
+        const config = new StartInstanceConfig("myProc", baseUrl, "c8", new NoAuth());
+
+        const result = await client.startInstance(config);
+
+        expect(result.success).toBe(true);
+        expect(result.processInstanceId).toBeUndefined();
+    });
+
+    // ── Endpoint normalization ──────────────────────────────────────────
+
+    it("should hit the same deploy path whether the endpoint has a trailing slash or not", async () => {
+        const seenPaths: string[] = [];
+
+        handler = (req, _body, res) => {
+            seenPaths.push(req.url ?? "");
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ deploymentKey: "k" }));
+        };
+
+        const client = createClient();
+        const files = new Map([["p.bpmn", "<b/>"]]);
+
+        const withSlash = new DeploymentConfig(
+            "d",
+            "",
+            `${baseUrl}/`,
+            "c8",
+            "/tmp/p.bpmn",
+            [],
+            new NoAuth(),
+        );
+        const withoutSlash = new DeploymentConfig(
+            "d",
+            "",
+            baseUrl,
+            "c8",
+            "/tmp/p.bpmn",
+            [],
+            new NoAuth(),
+        );
+
+        await client.deploy(withSlash, files);
+        await client.deploy(withoutSlash, files);
+
+        expect(seenPaths).toEqual(["/v2/deployments", "/v2/deployments"]);
+    });
+
+    // ── Auth headers ────────────────────────────────────────────────────
+
+    it("should send BasicAuth header to the server", async () => {
+        let authHeader: string | undefined;
+
+        handler = (req, _body, res) => {
+            authHeader = req.headers["authorization"] as string | undefined;
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ deploymentKey: "1" }));
+        };
+
+        const client = createClient();
+        const config = new DeploymentConfig(
+            "deploy",
+            "",
+            baseUrl,
+            "c8",
+            "/tmp/p.bpmn",
+            [],
+            new BasicAuth("admin", "secret"),
+        );
+
+        await client.deploy(config, new Map([["p.bpmn", "<b/>"]]));
+
+        const expected = Buffer.from("admin:secret").toString("base64");
+        expect(authHeader).toBe(`Basic ${expected}`);
+    });
+
+    it("should complete OAuth2 flow end-to-end", async () => {
+        let deployAuthHeader: string | undefined;
+
+        handler = (req, body, res) => {
+            /**
+             * Token endpoint
+             */
+            if (req.url === "/oauth/token") {
+                const params = new URLSearchParams(body.toString("utf-8"));
+                expect(params.get("grant_type")).toBe("client_credentials");
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ access_token: "my-token" }));
+                return;
+            }
+
+            // Deploy endpoint
+            deployAuthHeader = req.headers["authorization"] as string | undefined;
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ deploymentKey: "d1" }));
+        };
+
+        const client = createClient();
+        const config = new DeploymentConfig(
+            "deploy",
+            "",
+            baseUrl,
+            "c8",
+            "/tmp/p.bpmn",
+            [],
+            new OAuth2Auth("cid", "csec", `${baseUrl}/oauth/token`, ""),
+        );
+
+        await client.deploy(config, new Map([["p.bpmn", "<b/>"]]));
+
+        expect(deployAuthHeader).toBe("Bearer my-token");
+    });
+
+    it("should send no Authorization header for NoAuth", async () => {
+        let authHeader: string | undefined;
+
+        handler = (req, _body, res) => {
+            authHeader = req.headers["authorization"] as string | undefined;
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ deploymentKey: "1" }));
+        };
+
+        const client = createClient();
+        const config = new DeploymentConfig(
+            "deploy",
+            "",
+            baseUrl,
+            "c8",
+            "/tmp/p.bpmn",
+            [],
+            new NoAuth(),
+        );
+
+        await client.deploy(config, new Map([["p.bpmn", "<b/>"]]));
+
+        expect(authHeader).toBeUndefined();
     });
 });

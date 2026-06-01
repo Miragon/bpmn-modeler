@@ -1,0 +1,275 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
+
+// The i18n package declares no `main`/`exports`, so Vite cannot resolve its
+// real entry under vitest. A small fixture keeps the language list deterministic
+// while letting the subject's module-level import resolve. The literal is inlined
+// because the mock factory is hoisted above any top-level binding it might close over.
+vi.mock("@miragon/bpmn-modeler-i18n", () => ({
+    supportedLanguages: [
+        { label: "Deutsch", locale: "de" },
+        { label: "English", locale: "en" },
+    ],
+}));
+
+// Hoisted because `vi.mock` is hoisted above imports; the factory closes over
+// these so each test can drive the vscode surface the controller touches.
+const showQuickPickMock = vi.fn();
+const clipboardWriteTextMock = vi.fn();
+const configUpdateMock = vi.fn();
+const getConfigurationMock = vi.fn((_section: string) => ({ update: configUpdateMock }));
+const fsWriteFileMock = vi.fn();
+const uriFileMock = vi.fn((path: string) => ({ scheme: "file", path, fsPath: path }));
+
+vi.mock("vscode", () => ({
+    commands: { registerCommand: vi.fn() },
+    window: { showQuickPick: (...args: unknown[]) => showQuickPickMock(...args) },
+    workspace: {
+        getConfiguration: (...args: unknown[]) => getConfigurationMock(...(args as [string])),
+        fs: { writeFile: (...args: unknown[]) => fsWriteFileMock(...args) },
+    },
+    env: { clipboard: { writeText: (...args: unknown[]) => clipboardWriteTextMock(...args) } },
+    Uri: { file: (path: string) => uriFileMock(path) },
+    ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
+}));
+
+import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
+
+import { CommandController } from "./CommandController";
+
+/**
+ * Assembles the controller over bare port doubles. `subscribeToActiveEditorMessage`
+ * captures the live callback into `captured.onMessage` and hands back a disposable
+ * spy, so tests can both drive a simulated webview reply and assert the
+ * subscription's dispose lifecycle.
+ */
+function createController() {
+    const captured: { onMessage?: (message: unknown) => void } = {};
+    const subscriptionDisposes: ReturnType<typeof vi.fn>[] = [];
+
+    const editorStore = {
+        getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
+        postMessage: vi.fn().mockResolvedValue(true),
+        subscribeToActiveEditorMessage: vi.fn((cb: (message: unknown) => void) => {
+            captured.onMessage = cb;
+            const dispose = vi.fn();
+            subscriptionDisposes.push(dispose);
+            return { dispose };
+        }),
+    };
+    const vsDocument = { getFilePath: vi.fn().mockReturnValue("/work/diagram.bpmn") };
+    const notifier = { openLoggingConsole: vi.fn(), logError: vi.fn() };
+    const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
+    const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
+    const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
+
+    const controller = new CommandController(
+        editorStore as never,
+        vsDocument as never,
+        notifier as never,
+        textEditor as never,
+        bpmnService as never,
+        migrationSvc as never,
+    );
+
+    return {
+        controller,
+        editorStore,
+        vsDocument,
+        notifier,
+        textEditor,
+        bpmnService,
+        migrationSvc,
+        captured,
+        subscriptionDisposes,
+    };
+}
+
+// Builds the SVG reply the webview posts back through the subscription.
+function svgReply(svg?: string): GetDiagramAsSVGCommand {
+    const cmd = new GetDiagramAsSVGCommand();
+    cmd.svg = svg;
+    return cmd;
+}
+
+beforeEach(() => {
+    vi.clearAllMocks();
+});
+
+describe("CommandController.toggle", () => {
+    it("toggles the text editor for the active document's path", async () => {
+        const { controller, editorStore, vsDocument, textEditor } = createController();
+
+        await controller.toggle();
+
+        expect(vsDocument.getFilePath).toHaveBeenCalledWith("editor-1");
+        expect(textEditor.toggle).toHaveBeenCalledWith("/work/diagram.bpmn");
+        expect(editorStore.getActiveEditorId).toHaveBeenCalled();
+    });
+});
+
+describe("CommandController.showLogging", () => {
+    it("opens the logging console", () => {
+        const { controller, notifier } = createController();
+
+        controller.showLogging();
+
+        expect(notifier.openLoggingConsole).toHaveBeenCalledOnce();
+    });
+});
+
+describe("CommandController.changeEngineVersion", () => {
+    it("delegates to the bpmn service for the active editor", async () => {
+        const { controller, bpmnService } = createController();
+
+        await controller.changeEngineVersion();
+
+        expect(bpmnService.changeEngineVersion).toHaveBeenCalledWith("editor-1");
+    });
+});
+
+describe("CommandController.migrateAllDiagrams", () => {
+    it("delegates to the migration service", async () => {
+        const { controller, migrationSvc } = createController();
+
+        await controller.migrateAllDiagrams();
+
+        expect(migrationSvc.migrateAllDiagrams).toHaveBeenCalledOnce();
+    });
+});
+
+describe("CommandController.changeLanguage", () => {
+    it("offers every supported language as a label/locale pick", async () => {
+        const { controller } = createController();
+        showQuickPickMock.mockResolvedValue(undefined);
+
+        await controller.changeLanguage();
+
+        const items = showQuickPickMock.mock.calls[0][0] as {
+            label: string;
+            description: string;
+        }[];
+        expect(items).toHaveLength(supportedLanguages.length);
+        expect(items[0]).toEqual({
+            label: supportedLanguages[0].label,
+            description: supportedLanguages[0].locale,
+        });
+    });
+
+    it("writes nothing when the user dismisses the pick", async () => {
+        const { controller } = createController();
+        showQuickPickMock.mockResolvedValue(undefined);
+
+        await controller.changeLanguage();
+
+        expect(getConfigurationMock).not.toHaveBeenCalled();
+        expect(configUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("persists the picked locale at the Global target", async () => {
+        const { controller } = createController();
+        showQuickPickMock.mockResolvedValue({ label: "English", description: "en" });
+
+        await controller.changeLanguage();
+
+        expect(getConfigurationMock).toHaveBeenCalledWith("miragon.bpmnModeler");
+        // ConfigurationTarget.Global === 1 in the mock; language is a personal
+        // preference and must not be pinned to a shared workspace file.
+        expect(configUpdateMock).toHaveBeenCalledWith("language", "en", 1);
+    });
+});
+
+describe("CommandController SVG request lifecycle", () => {
+    it("posts a GetDiagramAsSVGCommand and subscribes to the active editor", () => {
+        const { controller, editorStore } = createController();
+
+        controller.writeToClipboard();
+
+        const posted = editorStore.postMessage.mock.calls[0][1] as GetDiagramAsSVGCommand;
+        expect(editorStore.postMessage).toHaveBeenCalledWith("editor-1", posted);
+        expect(posted.type).toBe("GetDiagramAsSVGCommand");
+        expect(editorStore.subscribeToActiveEditorMessage).toHaveBeenCalledOnce();
+    });
+
+    it("logs an error when posting the SVG request rejects", async () => {
+        const { controller, editorStore, notifier } = createController();
+        const failure = new Error("hidden editor");
+        editorStore.postMessage.mockRejectedValueOnce(failure);
+
+        controller.writeToClipboard();
+        await Promise.resolve();
+
+        expect(notifier.logError).toHaveBeenCalledWith(failure);
+    });
+
+    it("disposes the prior subscription before re-subscribing", () => {
+        const { controller, subscriptionDisposes } = createController();
+
+        controller.writeToClipboard();
+        controller.writeToClipboard();
+
+        // The first subscription must be torn down so listeners do not accumulate.
+        expect(subscriptionDisposes[0]).toHaveBeenCalledOnce();
+        expect(subscriptionDisposes).toHaveLength(2);
+    });
+
+    it("ignores messages that are not a GetDiagramAsSVGCommand", () => {
+        const { controller, captured, subscriptionDisposes } = createController();
+        controller.writeToClipboard();
+
+        captured.onMessage?.({ type: "SomeOtherCommand" });
+
+        expect(clipboardWriteTextMock).not.toHaveBeenCalled();
+        // Still subscribed: the matching reply has not arrived yet.
+        expect(subscriptionDisposes[0]).not.toHaveBeenCalled();
+    });
+
+    it("ignores a GetDiagramAsSVGCommand carrying an empty svg but still disposes", () => {
+        const { controller, captured, subscriptionDisposes } = createController();
+        controller.writeToClipboard();
+
+        captured.onMessage?.(svgReply(""));
+
+        expect(clipboardWriteTextMock).not.toHaveBeenCalled();
+        // The response arrived, so the subscription is torn down regardless of payload.
+        expect(subscriptionDisposes[0]).toHaveBeenCalledOnce();
+    });
+});
+
+describe("CommandController.writeToClipboard", () => {
+    it("writes the received svg to the clipboard and disposes the subscription", () => {
+        const { controller, captured, subscriptionDisposes } = createController();
+        controller.writeToClipboard();
+
+        captured.onMessage?.(svgReply("<svg/>"));
+
+        expect(clipboardWriteTextMock).toHaveBeenCalledWith("<svg/>");
+        expect(subscriptionDisposes[0]).toHaveBeenCalledOnce();
+    });
+});
+
+describe("CommandController.writeToFile", () => {
+    it("writes the svg to a sibling .svg file, rewriting the .bpmn extension", () => {
+        const { controller, captured, vsDocument } = createController();
+        vsDocument.getFilePath.mockReturnValue("/work/diagram.bpmn");
+        controller.writeToFile();
+
+        captured.onMessage?.(svgReply("<svg/>"));
+
+        expect(uriFileMock).toHaveBeenCalledWith("/work/diagram.svg");
+        const [uriArg, bufferArg] = fsWriteFileMock.mock.calls[0];
+        expect((uriArg as { path: string }).path).toBe("/work/diagram.svg");
+        expect(Buffer.isBuffer(bufferArg)).toBe(true);
+        expect((bufferArg as Buffer).toString()).toBe("<svg/>");
+    });
+
+    it("does not write a file when the svg payload is empty", () => {
+        const { controller, captured } = createController();
+        controller.writeToFile();
+
+        captured.onMessage?.(svgReply(""));
+
+        expect(fsWriteFileMock).not.toHaveBeenCalled();
+    });
+});
