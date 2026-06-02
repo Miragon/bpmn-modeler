@@ -83,6 +83,38 @@ build → package plugin → bundle → start chain.
 
 All VS Code settings use the `miragon.bpmnModeler` namespace (e.g. `miragon.bpmnModeler.alignToOrigin`, `miragon.bpmnModeler.language`). Do **not** use the legacy `miragon.camundaModeler` prefix.
 
+## Commit Conventions
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
+There is no commitlint/husky enforcement — the convention is upheld by
+discipline, so match the existing history. Use `/commit` to generate a
+conforming message.
+
+**Format:** `<type>(<scope>): <subject>`
+
+- **Subject:** imperative present tense, lowercase, no trailing period
+  (e.g. `add`, not `added`/`adds`). Keep the header under ~72 characters.
+- **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`,
+  `build`, `ci`, `perf`, `revert`.
+- **Scope:** the affected workspace or feature, matching existing history —
+  e.g. `bpmn-webview`, `dmn-webview`, `deployment-webview`, `modeler-plugin`,
+  `editor`, `diff`, `domain`, `infrastructure`, `service`, `deps`, `release`.
+  Omit the scope only when a change is genuinely repo-wide.
+- **Body/footer:** optional. Explain the *why* in the body when the subject
+  isn't self-explanatory; reference PRs/issues in the footer as the history
+  does (e.g. `(#1056)`). Mark breaking changes with `!` after the
+  type/scope (`feat(editor)!: …`) or a `BREAKING CHANGE:` footer.
+- **No Claude attribution.** Do not add `Co-Authored-By` or
+  "Generated with Claude Code" trailers (also enforced via `.claude/settings.json`).
+
+Examples (from this repo's history):
+
+```
+fix(bpmn-webview): keep bpmn:Group transparent in dark mode (#1056)
+refactor(editor): introduce EditorHandle port and split EditorStore
+chore(release): bump version to 1.0.1
+```
+
 ## Comment Style
 
 Write comments that explain **why**, not **what**. Identifier names and
