@@ -3,7 +3,9 @@
     "scripts": {
         "build": "webpack --mode production",
         "dev": "webpack --mode development --watch",
-        "test": "vitest run --coverage"
+        "test": "vitest run --coverage",
+        "compile:e2e": "tsc -p test/e2e/tsconfig.json",
+        "test:e2e": "tsc -p test/e2e/tsconfig.json && vscode-test --config test/e2e/.vscode-test.mjs"
     },
     "dependencies": {
         "@miragon/bpmn-modeler-i18n": "workspace:*",
@@ -17,10 +19,14 @@
     },
     "devDependencies": {
         "@types/lodash": "4.17.24",
+        "@types/mocha": "10.0.10",
         "@types/node": "25.9.1",
         "@types/uuid": "11.0.0",
         "@types/vscode": "1.93.0",
         "@vitest/coverage-v8": "4.1.8",
+        "@vscode/test-cli": "0.0.12",
+        "@vscode/test-electron": "2.5.2",
+        "archunit": "2.3.0",
         "copy-webpack-plugin": "14.0.0",
         "ts-loader": "9.6.0",
         "ts-node": "10.9.2",

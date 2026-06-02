@@ -27,8 +27,9 @@ event that the webview translates into an `OpenScriptEditorCommand`.
 | `scriptTaskContextPad` (webview) | Adds "Edit Script" entry to the script-task context pad |
 
 `ScriptTaskService`, `BpmnScriptFileSystem`, and `ScriptCompletionProvider`
-are constructed in `apps/modeler-plugin/src/main.ts` and registered before
-any editor controller resolves. `ScriptTaskService.register()` subscribes to
+are constructed in `apps/modeler-plugin/src/composition/scriptFeature.ts` and
+registered before any editor controller resolves. `ScriptTaskService.register()`
+subscribes to
 `workspace.onDidChangeTextDocument` and `window.tabGroups.onDidChangeTabs` —
 those listeners are what propagate edits and clean up tracking state.
 
@@ -47,24 +48,27 @@ those listeners are what propagate edits and clean up tracking state.
   `BpmnModeler.onOpenScriptEditor()` (which wraps the bpmn-js event bus) and
   forwards the event as `OpenScriptEditorCommand` over the webview message
   channel.
-- **Host side** — `BpmnEditorController` routes `OpenScriptEditorCommand` to
-  `ScriptTaskService.openScriptEditor()`. It also calls
-  `ScriptTaskService.resyncOpenDocuments(editorId)` whenever the webview
-  sends `GetBpmnModelerSettingCommand` (which fires on every webview reload).
+- **Host side** — the BPMN `WebviewMessageRouter` dispatches
+  `OpenScriptEditorCommand` to `openScriptEditorHandler`
+  (`bpmnMessageHandlers.ts`), which calls `ScriptTaskService.openScriptEditor()`.
+  A second handler on `GetBpmnModelerSettingCommand` (`resyncScriptTasksHandler`)
+  calls `ScriptTaskService.resyncOpenDocuments(editorId)` on every webview
+  reload.
 
 ## Key files
 
 | File | Purpose |
 |---|---|
-| `apps/modeler-plugin/src/main.ts` | Registers `BpmnScriptFileSystem` for the `bpmn-script` scheme, instantiates `ScriptTaskService` and `ScriptCompletionProvider` |
-| `apps/modeler-plugin/src/infrastructure/BpmnScriptFileSystem.ts` | `FileSystemProvider` impl — `Map<string, Uint8Array>` keyed by URI path; fires `FileChangeEvent`s for create / change / delete |
-| `apps/modeler-plugin/src/controller/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
-| `apps/modeler-plugin/src/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
-| `apps/modeler-plugin/src/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess` (testable without `vscode`) |
-| `apps/modeler-plugin/src/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
-| `apps/modeler-plugin/src/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
-| `apps/modeler-plugin/src/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
-| `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Routes `OpenScriptEditorCommand` and triggers `resyncOpenDocuments` on reload |
+| `apps/modeler-plugin/src/composition/scriptFeature.ts` | Registers `BpmnScriptFileSystem` for the `bpmn-script` scheme, constructs `ScriptTaskService` and `ScriptCompletionProvider` |
+| `apps/modeler-plugin/src/scriptTask/infrastructure/BpmnScriptFileSystem.ts` | `FileSystemProvider` impl — `Map<string, Uint8Array>` keyed by URI path; fires `FileChangeEvent`s for create / change / delete |
+| `apps/modeler-plugin/src/scriptTask/controller/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
+| `apps/modeler-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
+| `apps/modeler-plugin/src/scriptTask/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess` (testable without `vscode`) |
+| `apps/modeler-plugin/src/scriptTask/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
+| `apps/modeler-plugin/src/scriptTask/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
+| `apps/modeler-plugin/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
+| `apps/modeler-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | `openScriptEditorHandler` + `resyncScriptTasksHandler`, dispatched by the BPMN `WebviewMessageRouter` |
+| `apps/modeler-plugin/src/modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant.ts` | Calls `disposeForEditor` when the BPMN editor closes |
 | `libs/shared/src/lib/modeler.ts` | `OpenScriptEditorCommand`, `UpdateScriptContentQuery`, `UpdateScriptFormatQuery`, `ScriptKind` |
 | `apps/bpmn-webview/src/main.ts` | Bridges `OPEN_SCRIPT_EDITOR_EVENT` (bus) ↔ `OpenScriptEditorCommand` (host) and applies `UpdateScriptContentQuery` / `UpdateScriptFormatQuery` to the model |
 | `apps/bpmn-webview/src/app/scriptEditorButtons.ts` | Listener-row "Edit Script" buttons in the properties panel |
@@ -164,7 +168,7 @@ sequenceDiagram
     participant Editor as Script Editor
     participant ScriptSvc as ScriptTaskService
     participant Webview as BPMN Webview (hidden → visible)
-    participant Controller as BpmnEditorController
+    participant Router as BPMN WebviewMessageRouter
 
     User->>Editor: Types while BPMN tab is hidden
     Editor->>ScriptSvc: onDidChangeTextDocument
@@ -173,8 +177,8 @@ sequenceDiagram
     ScriptSvc->>ScriptSvc: pendingResync.add(editorId)
 
     Note over Webview: User switches back — VS Code re-shows the webview
-    Webview->>Controller: GetBpmnModelerSettingCommand
-    Controller->>ScriptSvc: resyncOpenDocuments(editorId)
+    Webview->>Router: GetBpmnModelerSettingCommand
+    Router->>ScriptSvc: resyncOpenDocuments(editorId)
     ScriptSvc->>ScriptSvc: For each tracked doc — read scriptFs, postMessage
     ScriptSvc->>Webview: UpdateScriptContentQuery (replay)
 ```

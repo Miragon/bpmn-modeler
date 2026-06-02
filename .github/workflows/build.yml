@@ -8,6 +8,16 @@ on:
 permissions:
   contents: read
 
+# Workflow-level so a superseded PR run is cancelled as a single unit: the `ci`
+# rollup then resolves to `cancelled` (not `failure`), and branch protection only
+# evaluates the latest SHA's run — no spurious gate failure. `main` pushes are
+# never cancelled (the expression is false on `refs/heads/main`), so back-stop
+# runs always complete. Also frees CI minutes by cancelling every superseded job,
+# not just the e2e smoke test.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -210,6 +220,11 @@ jobs:
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
+    # `pull-requests: write` lets the coverage-report step post/update its
+    # sticky PR comment; job-level scope keeps the broader workflow read-only.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - run: corepack enable
@@ -226,6 +241,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler test
+      # Post the coverage table as a sticky PR comment. `if: always()` so it
+      # still reports when the per-layer thresholds fail the test step above —
+      # that is exactly when you want to see which layer dropped.
+      # `continue-on-error` so a read-only token on fork PRs can't fail CI.
+      - name: Report coverage on the PR
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          # Paths resolve relative to working-directory; vitest writes the
+          # reports to the repo-root coverage/ dir, two levels up.
+          working-directory: apps/modeler-plugin
+          json-summary-path: ../../coverage/apps/modeler-plugin/coverage-summary.json
+          json-final-path: ../../coverage/apps/modeler-plugin/coverage-final.json
+          name: modeler-plugin
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
@@ -235,6 +265,54 @@ jobs:
           flags: modeler-plugin
           name: modeler-plugin
           verbose: true
+
+  # Extension-Host smoke test: the only job that runs the composition root
+  # (`activate()` + custom-editor registration) end-to-end in a real VS Code.
+  # Kept separate from lint/unit so their fast feedback is never delayed by
+  # the heavy Electron launch.
+  e2e-modeler-plugin:
+    needs: detect-changes
+    # Gate PRs (catch a dead extension before it lands) and back-stop pushes to
+    # `main` only — the workflow's unfiltered `push:` trigger would otherwise run
+    # this heavy job a second time on every PR branch. Path-filtered to anything
+    # that can change the bundle or activation.
+    if: >-
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
+      (needs.detect-changes.outputs.modeler-plugin == 'true' ||
+       needs.detect-changes.outputs.bpmn-webview == 'true' ||
+       needs.detect-changes.outputs.dmn-webview == 'true' ||
+       needs.detect-changes.outputs.deployment-webview == 'true' ||
+       needs.detect-changes.outputs.shared == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: Miragon/pin-npm-dependencies@v1
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install xvfb and Linux build deps for native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libx11-dev libxkbfile-dev libsecret-1-dev
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The test points at dist/apps/modeler-plugin, which only exists after a
+      # full build (libs → webviews + plugin); `main: "main.js"` won't resolve
+      # against the source tree.
+      - name: Build the extension
+        run: corepack yarn build
+      # Cache the downloaded VS Code/Electron so reruns skip the ~150 MB fetch.
+      - name: Cache VS Code download
+        uses: actions/cache@v4
+        with:
+          path: apps/modeler-plugin/.vscode-test
+          key: vscode-test-${{ runner.os }}
+      - name: Run Extension-Host smoke test
+        run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:e2e
 
   test-bpmn-webview:
     needs: detect-changes
@@ -376,6 +454,7 @@ jobs:
       - build-create-append-c7
       - build-modeler-plugin
       - test-modeler-plugin
+      - e2e-modeler-plugin
       - test-bpmn-webview
       - test-bpmn-i18n
       - build-bpmn-webview

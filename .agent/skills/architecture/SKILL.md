@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Internal architecture of the modeler-plugin extension host (Node.js) — flat four-layer design (domain, infrastructure, service, controller), hexagonal ports pattern for engine abstraction, deployment subsystem (Camunda 7 & 8), constructor wiring in main.ts, echo-prevention session guards, webview message protocol (Query/Command), and EditorStore lifecycle. Use this skill when working on extension-host code — implementing features, fixing bugs, reviewing PRs, refactoring services, adding message types, understanding editor tracking, tracing webview message flow, integrating external systems, or modifying constructor wiring. See also bpmn-js, vscode-webviews, vscode-custom-editors, and vscode-ux-guidelines for adjacent concerns.
+description: Internal architecture of the modeler-plugin extension host (Node.js) — feature-folder layout with a four-layer split (domain, infrastructure, service, controller) inside each feature, host-capability ports + hexagonal engine ports, deployment subsystem (Camunda 7 & 8), per-feature register() composition root, WebviewMessageRouter dispatch, EditorSessionParticipant lifecycle, EditorSessionStore + VsCodeEditorHandle, echo-prevention session guards, webview message protocol (Query/Command), and the ArchUnitTS architecture tests. Use this skill when working on extension-host code — implementing features, fixing bugs, reviewing PRs, refactoring services, adding message types, understanding editor tracking, tracing webview message flow, integrating external systems, or modifying feature wiring. See also bpmn-js, vscode-webviews, vscode-custom-editors, and vscode-ux-guidelines for adjacent concerns.
 ---
 
 # Extension Architecture
@@ -9,176 +9,201 @@ This skill describes the internal architecture of the `modeler-plugin` VS Code e
 
 All paths below are relative to `apps/modeler-plugin/` unless stated otherwise. For webview-side architecture, see the `bpmn-js` and `vscode-webviews` skills.
 
-## Layer Responsibilities
+## Organising principle: feature folders
 
-The extension follows a flat, four-layer architecture with **no DI framework**. All wiring happens via plain constructor calls in `main.ts`.
+`src/` is organised **by feature**, not by layer. Each feature folder owns the four classic layers as subfolders (`domain/ service/ controller/ infrastructure/`), and any cross-feature use goes only through that feature's `index.ts` barrel. There is **no DI framework** — wiring is plain constructor calls, grouped into one `register(context, deps)` per feature under `src/composition/`.
 
-### Domain (`src/domain/`)
+```
+src/
+  main.ts            Activation: build shared deps, then call each feature's register()
+  architecture.spec.ts  Executable architecture rules (ArchUnitTS) — see below
+  composition/       One register(context, deps) per feature — the wiring root
+  shared/            Cross-feature substrate (not a feature): domain/ service/ infrastructure/
+  modeler/
+    editor-session/  Generic custom-editor host: ModelerEditorController + EditorSessionParticipant
+    bpmn/  dmn/       feature folders: { domain/ service/ controller/ infrastructure/  index.ts }
+  diff/  deployment/  scriptTask/  navigation/  migration/
+                     feature folders, same per-feature layout
+```
 
-Pure domain types with **zero external dependencies** — no VS Code API, no Node.js modules.
+The four layers still hold *within* each feature: `domain` is pure (no `vscode`/Node host modules, no outer layer); `service` orchestrates domain + infrastructure and never imports `vscode` or `controller`; `infrastructure` is the only adapter layer that imports `vscode`; `controller` is thin VS Code-event → service wiring. `shared/`, `composition/`, and `modeler/editor-session/` are deliberately **not** features (so they are exempt from the feature-isolation rule).
 
-| File              | Purpose                                                                                                                                                              |
-|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `session.ts`      | `ModelerSession` — per-editor echo-prevention guard counter                                                                                                          |
-| `model.ts`        | `BpmnModelerSetting` (immutable value object) + `SettingBuilder` (fluent builder)                                                                                    |
-| `errors.ts`       | Domain error types: `NoWorkspaceFolderFoundError`, `FileNotFound`, `DirectoryNotFound`, `ExecutionPlatformNotDetectedError`, `UserCancelledError`, deployment errors |
-| `ports.ts`        | Hexagonal port interfaces: `HttpClient` (transport abstraction) and `CamundaEnginePort` (deploy + start-instance contract)                                           |
-| `deployment.ts`   | `DeploymentConfig` + `DeploymentConfigBuilder` (fluent, validated), `DeploymentResult`, `AuthConfig` discriminated union (`NoAuth`, `BasicAuth`, `OAuth2Auth`)       |
-| `startInstance.ts` | `StartInstanceConfig`, `StartInstanceResult` — value objects for starting a process instance                                                                        |
+## `shared/` — cross-feature substrate
 
-### Infrastructure (`src/infrastructure/`)
+### `shared/domain/` (pure types, zero external deps)
 
-Adapters that wrap VS Code APIs and external systems. Each adapter has a single responsibility.
+| File | Purpose |
+|---|---|
+| `session.ts` | `ModelerSession` — per-editor echo-prevention guard counter |
+| `BpmnDocument.ts` | Value object wrapping BPMN XML — execution-platform detection, empty checks, process-definition key |
+| `EditorSession.ts` | Per-session event/subscription types (`DocumentChangeEvent`, `SettingChange`, `EditorSubscription`) |
+| `engineVersions.ts` | Supported Camunda engine-version constants/helpers |
+| `errors.ts` | Domain error types (`NoWorkspaceFolderFoundError`, `FileNotFound`, `UserCancelledError`, deployment errors, …) |
+| `hostPorts.ts` | **Host-capability ports** — one interface per host facility (notifications, pickers, clipboard, settings, workspace fs, documents, status bar, secrets, deployment state). Services depend on these interfaces, not the concrete `VsCode*` adapters. |
 
-#### Core Adapters
+### `shared/service/`
 
-| File                       | Purpose                                                                                                                                                        |
-|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `EditorStore.ts`           | Central registry of open editors. Tracks webview panels, documents, disposables. Manages active-editor pointer. Provides subscription helpers and postMessage. |
-| `VsCodeDocument.ts`        | Document read/write via `WorkspaceEdit.replace()`                                                                                                              |
-| `VsCodeWorkspace.ts`       | Workspace folder resolution, file system watchers                                                                                                              |
-| `VsCodeSettings.ts`        | Configuration reads (`miragon.bpmnModeler.*`), execution-platform quick-pick, status bar feedback                                                              |
-| `VsCodeUI.ts`              | Notifications, clipboard access (`env.clipboard`), output channel logging, toggle text editor                                                                  |
-| `WebviewHtml.ts`           | HTML generation with nonce-based CSP for BPMN and DMN webviews                                                                                                 |
-| `DeploymentWebviewHtml.ts` | Inline HTML for deployment sidebar (dual-HTML pattern — see CLAUDE.md)                                                                                         |
-| `VsCodeDeploymentState.ts` | Persists deployment form state (endpoint, name, auth) in VS Code `workspaceState`                                                                              |
-| `VsCodeSecretStore.ts`     | Encrypted credential storage via VS Code `SecretStorage` API                                                                                                   |
-| `FetchHttpClient.ts`       | `HttpClient` port implementation using `globalThis.fetch`                                                                                                      |
-| `Logger.ts`                | Static singleton wrapper around `LogOutputChannel` for structured logging                                                                                      |
+| File | Purpose |
+|---|---|
+| `ArtifactService.ts` | Convention-based element-template / payload discovery — walks from the file's directory up to the workspace root looking for `<configFolder>/…`. Shared by the editor and deployment features. |
 
-#### Camunda Engine Adapters (`src/infrastructure/camunda/`)
+### `shared/infrastructure/` (the only place that imports `vscode`)
 
-| File                     | Purpose                                                                                               |
-|--------------------------|-------------------------------------------------------------------------------------------------------|
-| `CamundaEngineRouter.ts` | `CamundaEnginePort` facade — dispatches `deploy()` and `startInstance()` to C7 or C8 client by config |
-| `Camunda7RestClient.ts`  | `CamundaEnginePort` implementation for Camunda Platform 7 REST API                                    |
-| `Camunda8RestClient.ts`  | `CamundaEnginePort` implementation for Camunda Cloud 8 REST API                                       |
-| `AuthHeaderResolver.ts`  | Converts `AuthConfig` discriminated union into HTTP `Authorization` headers                            |
-| `MultipartBuilder.ts`    | Builds `multipart/form-data` request bodies for deployment file uploads                               |
+| File | Purpose |
+|---|---|
+| `EditorSessionStore.ts` | `vscode`-free registry of open editors, parameterised over the `EditorHandle` port. Active-editor pointer, per-editor disposables, subscription helpers, `postMessage`. |
+| `VsCodeEditorHandle.ts` | Concrete `EditorHandle` wrapping one `WebviewPanel` + `TextDocument` |
+| `VsCodeNotifier.ts` | Notifications + output-channel logging (`logInfo`/`logWarning`/`logError`/`showError`) |
+| `VsCodePicker.ts` | Quick-pick prompts |
+| `VsCodeClipboard.ts` | `env.clipboard` access |
+| `VsCodeDocument.ts` | Document read/write via `WorkspaceEdit.replace()` |
+| `VsCodeWorkspace.ts` | Workspace folder resolution, file watchers |
+| `VsCodeSettings.ts` | Configuration reads (`miragon.bpmnModeler.*`) |
+| `VsCodeStatusBar.ts` | Status-bar items (engine version, element-template feedback) |
+| `VsCodeTextEditor.ts` | Toggle/reveal the underlying text editor |
+| `WebviewMessageRouter.ts` | Open/closed dispatch table for webview → host messages (see Message Protocol) |
+| `WebviewHtml.ts` / `bootstrapWebview.ts` | Nonce-CSP HTML for BPMN/DMN webviews + the shared bootstrap |
+| `extensionContext.ts` / `editor.ts` / `helpers.ts` | `setContext`, editor utilities, misc helpers |
 
-### Service (`src/service/`)
+> The old `VsCodeUI.ts` god-adapter was split into `VsCodeNotifier` / `VsCodePicker` / `VsCodeClipboard`. There is no `Logger.ts` — logging lives on `VsCodeNotifier`.
 
-Business logic that orchestrates domain and infrastructure. Each service owns its state (e.g., session maps).
+## Feature folders
 
-| File                      | Purpose                                                                                                                                                                    |
-|---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `BpmnModelerService.ts`   | BPMN use cases: display, sync, artifact injection, settings, clipboard mediation. Owns `Map<string, ModelerSession>`. Implements `ArtifactChangeTarget`.                   |
-| `DmnModelerService.ts`    | DMN use cases (similar pattern, simpler)                                                                                                                                   |
-| `ArtifactService.ts`      | Convention-based element-template discovery. Walks directory tree from BPMN file to workspace root looking for `<configFolder>/element-templates/`. Sets up file watchers. |
-| `DeploymentService.ts`    | Orchestrates deployment workflow: reads files, builds config via `DeploymentConfigBuilder`, delegates to `CamundaEnginePort`, manages secret storage for credentials        |
-| `StartInstanceService.ts` | Orchestrates start-instance workflow: reads process definition key from BPMN XML, collects payload, delegates to `CamundaEnginePort`                                       |
-| `bpmnUtils.ts`            | Shared BPMN XML helpers (execution platform detection, empty-file checks)                                                                                                  |
+| Feature | Key files (layer) |
+|---|---|
+| `modeler/editor-session/` | `ModelerEditorController.ts`, `EditorSessionParticipant.ts` (generic host, shared by `.bpmn` + `.dmn`) |
+| `modeler/bpmn/` | domain `model.ts` (`BpmnModelerSetting`); service `BpmnModelerService`, `BpmnClipboardMediator`, `BpmnElementTemplatesService`, `BpmnPropertiesPanelService`, `BpmnSettingsBroadcaster`; infrastructure `PropertiesPanelStateRepository`; controller `CommandController`, `webview-handlers/bpmnMessageHandlers`, `editor-participants/*Participant` |
+| `modeler/dmn/` | service `DmnModelerService`; controller `webview-handlers/dmnMessageHandlers`, `editor-participants/DmnRenderParticipant` |
+| `diff/` | domain `DiffSession`; service `BpmnDiffService`; infrastructure `DiffPaneStore`, `CompareSelectionStore`, `WebviewPaneHandle`; controller `BpmnDiffController`, `BpmnCompareController` |
+| `deployment/` | domain `deployment`, `ports`, `startInstance`; service `DeploymentService`, `StartInstanceService`; infrastructure `FetchHttpClient`, `VsCodeDeploymentState`, `VsCodeSecretStore`, `DeploymentWebviewHtml`, `camunda/*`; controller `DeploymentController` |
+| `scriptTask/` | domain `ScriptUri`, `scriptApi`, `scriptCompletion`, `scriptLanguage`; infrastructure `BpmnScriptFileSystem`; controller `ScriptTaskService`, `ScriptCompletionProvider` |
+| `navigation/` | service `ModelNavigationService`, `ReferencedModelLocator` |
+| `migration/` | domain `MigrationPlan`; service `BpmnMigrationService` |
 
-### Controller (`src/controller/`)
+Each feature exposes a public-API barrel `index.ts`; a sibling feature imports only that barrel (enforced by the arch tests).
 
-Thin wiring layer that connects VS Code events to service calls. Most controllers implement `CustomTextEditorProvider`; the deployment controller implements `WebviewViewProvider` for the sidebar panel.
+## Hexagonal Ports (deployment engine)
 
-| File                       | Purpose                                                                                                                                                 |
-|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `BpmnEditorController.ts`  | `CustomTextEditorProvider` for `.bpmn` files. Routes webview messages to `BpmnModelerService`, sets up document-change and config-change subscriptions. |
-| `DmnEditorController.ts`   | Same pattern for `.dmn` files                                                                                                                           |
-| `CommandController.ts`     | VS Code command registrations (palette commands)                                                                                                        |
-| `DeploymentController.ts`  | `WebviewViewProvider` for the deployment sidebar. Routes deploy/start-instance commands to their respective services.                                    |
+The deployment subsystem uses ports & adapters to decouple business logic from engine-specific protocols.
 
-## Hexagonal Ports
-
-The deployment subsystem uses a hexagonal (ports & adapters) pattern to decouple business logic from engine-specific protocols.
-
-**Domain ports** (`src/domain/ports.ts`) define two interfaces:
+**Domain ports** (`deployment/domain/ports.ts`):
 - `HttpClient` — transport abstraction (`postJson`, `postForm`, `postMultipart`)
 - `CamundaEnginePort` — engine contract (`deploy`, `startInstance`)
 
-**Infrastructure adapters** implement these ports:
+**Infrastructure adapters** (`deployment/infrastructure/`):
 - `FetchHttpClient` implements `HttpClient` using `globalThis.fetch`
-- `Camunda7RestClient` and `Camunda8RestClient` each implement `CamundaEnginePort`
-- `CamundaEngineRouter` implements `CamundaEnginePort` by dispatching to the C7 or C8 client based on `config.engine`
+- `camunda/Camunda7RestClient` and `camunda/Camunda8RestClient` each implement `CamundaEnginePort`
+- `camunda/CamundaEngineRouter` implements `CamundaEnginePort` by dispatching to the C7 or C8 client based on `config.engine`
+- `camunda/AuthHeaderResolver` converts the `AuthConfig` union into `Authorization` headers; `camunda/MultipartBuilder` builds upload bodies
 
-**Benefit**: Services (`DeploymentService`, `StartInstanceService`) depend only on `CamundaEnginePort`. All engine-specific concerns — URL paths, multipart field names, response shapes, auth header assembly — are fully encapsulated in infrastructure. Adding a new engine version requires only a new adapter, no service changes.
+**Benefit**: `DeploymentService` / `StartInstanceService` depend only on `CamundaEnginePort`. Adding a new engine version is a new adapter, no service change.
 
-## Constructor Wiring (`main.ts`)
+> Note the two distinct port families: `shared/domain/hostPorts.ts` abstracts the *host* (VS Code) facilities; `deployment/domain/ports.ts` abstracts the *Camunda engine*.
 
-The `activate()` function instantiates layers bottom-up in a single function — no container, no factory:
+## Composition wiring (`main.ts` + `composition/`)
+
+`activate()` is pure composition — build the shared collaborators once, then call each feature's `register()`:
 
 ```
-1. Infrastructure: EditorStore, VsCodeDocument, VsCodeWorkspace, VsCodeSettings, VsCodeUI,
-                   VsCodeDeploymentState, VsCodeSecretStore, FetchHttpClient,
-                   AuthHeaderResolver, Camunda7RestClient, Camunda8RestClient, CamundaEngineRouter
-2. Services:       ArtifactService, BpmnModelerService, DmnModelerService,
-                   DeploymentService, StartInstanceService
-3. Controllers:    CommandController, BpmnEditorController, DmnEditorController,
-                   DeploymentController
-4. Registration:   .register(context) on each controller
+const deps = buildSharedDeps(context);                 // sharedDeps.ts: host adapters + EditorSessionStore + ArtifactService
+const { diffController }  = diffFeature.register(context, deps);
+const { scriptTaskSvc }  = scriptFeature.register(context, deps);
+const { bpmnService }    = editorFeature.register(context, deps, { diffController, scriptTaskSvc });
+compareFeature.register(context, deps, { diffController });
+commandsFeature.register(context, deps, { bpmnService });
+deploymentFeature.register(context, deps);
 ```
 
-Order matters: infrastructure adapters are created first, then injected into services, then services into controllers. All disposables are pushed to `context.subscriptions` for cleanup.
+Each `composition/<feature>Feature.ts` constructs that feature's own services/controllers from `deps`, registers its webview handlers / commands / providers, and returns only the lifecycle-bearing handles a later feature needs. Register order is observable and preserved: diff → script → editor → compare → commands → deployment. All disposables go to `context.subscriptions`.
+
+## Webview message dispatch (`WebviewMessageRouter`)
+
+Webview → host messages are routed by a `WebviewMessageRouter`, not a central `switch`:
+
+- `router.on(type, handler)` registers a handler factory; multiple handlers per type run in registration order.
+- `router.dispatch(message, editorId)` awaits each handler sequentially.
+- Handlers are small factories in `<feature>/controller/webview-handlers/` (e.g. `bpmnMessageHandlers.ts`), each taking only the service(s) it needs, so they unit-test without a controller.
+
+One router is built **per editor** (BPMN and DMN both carry `SyncDocumentCommand` but route it to different services). Routers are constructed in `editorFeature.ts`. The router is `vscode`-free and does no logging; the received/processed log lines live at the controller call site.
+
+**Naming convention** (`libs/shared/src/lib/`): base `Query`/`Command` abstractions + cross-cutting commands (`SyncDocumentCommand`, log commands) live in `messages.ts`; modeler-specific message classes live in `modeler.ts`.
+- **Query** = host → webview (data to display / settings to apply)
+- **Command** = webview → host (request an action / report state)
+
+## Editor lifecycle (`ModelerEditorController` + participants)
+
+Both `.bpmn` and `.dmn` are served by one generic `ModelerEditorController` (`modeler/editor-session/`). Its `resolveCustomTextEditor` reduces to: optional diff delegation → create session → run participants → wire dispatch/tab/dispose. Constructor is constant-size: `(editorStore, notifier, options)`.
+
+Each per-editor lifecycle concern is an **`EditorSessionParticipant`** (`onResolve(session)`), so adding a concern needs no controller edit. BPMN participants: `BpmnRenderParticipant`, `ElementTemplatesParticipant`, `SettingsParticipant`, `EngineVersionStatusBarParticipant`, `ScriptTaskTeardownParticipant`; DMN: `DmnRenderParticipant`. The controller aggregates all participants' `onDispose` callbacks into a single dispose subscription (so `disposeEditor` runs once, after the store's own bookkeeping).
+
+`options.delegateResolve` is the BPMN-only diff branch: when `BpmnDiffController.shouldResolveAsDiff(uri)` is true the diff controller owns the pane and no editor session is created.
+
+### `EditorSessionStore`
+
+`EditorSessionStore` (`shared/infrastructure/`) is the `vscode`-free registry of open editors, parameterised over the `EditorHandle` port (`VsCodeEditorHandle` is the concrete handle):
+
+1. **register(handle)** — stores the handle, sets it active, bumps the open-count context key.
+2. **Subscriptions** — message / document-change / setting-change / tab-change / dispose helpers, each adding disposables to the per-editor bag.
+3. **postMessage** — sends a Query to the active editor's webview (throws if the webview is hidden — see the scriptTask resync path).
+4. **disposeEditor** — disposes the per-editor bag, removes the entry, reassigns the active pointer to the most-recently-registered remaining editor (or clears it).
+5. **findEditorIdByPath** — returns only the `file:`-scheme handle, never the `git:` counterpart sharing the same fs path (diff dual-registration).
 
 ## Session Management (Echo Prevention)
 
-**Problem**: When the webview sends edited XML back to the host, the host writes it to the VS Code document. This triggers `onDidChangeTextDocument`, which would normally send the document back to the webview — creating an infinite loop.
+**Problem**: the host writes webview-edited XML to the document, which fires `onDidChangeTextDocument`, which would echo back to the webview — an infinite loop.
 
-**Solution**: `ModelerSession` maintains a guard counter per editor.
+**Solution**: `ModelerSession` (`shared/domain/session.ts`) keeps a per-editor guard counter.
 
 ```
 1. Webview → SyncDocumentCommand → BpmnModelerService.sync()
-2. sync() calls session.acquireGuard() → counter++
-3. sync() writes XML to document via VsCodeDocument
-4. Write triggers onDidChangeTextDocument → BpmnModelerService.display()
-5. display() checks session.isGuarded() → counter > 0 → returns early (no echo)
-6. sync()'s finally block calls session.releaseGuard() → counter--
+2. sync() acquires the guard → counter++
+3. sync() writes XML via VsCodeDocument
+4. write fires onDidChangeTextDocument → BpmnModelerService.display()
+5. display() sees the guard (counter > 0) → returns early (no echo)
+6. sync()'s finally releases the guard → counter--
 ```
 
-A counter (not a boolean) is used because multiple async sync operations can overlap. The guard is only released in the `finally` block to prevent leaks on error.
+A counter (not a boolean) handles overlapping async syncs; release in `finally` prevents leaks on error.
 
-## Message Protocol
+## Architecture tests (`src/architecture.spec.ts`)
 
-All webview ↔ extension communication uses structured message types defined in `libs/shared/src/lib/messages.ts`.
+The layer + feature boundaries are enforced in CI via ArchUnitTS (runs under Vitest):
 
-**Naming convention**:
-- **Query** = extension host → webview (carries data to display or settings to apply)
-- **Command** = webview → extension host (requests an action or reports a state change)
+- **Layer purity** — `domain` imports no outer layer and no `vscode`/`node:*`/`fs`/`http`; `service` imports no `vscode` and no `controller`.
+- **No cycles** — the whole `src/**` tree is acyclic.
+- **Feature isolation** — a feature reaches a sibling only through its `index.ts` (internals are off-limits). `shared/`, `composition/`, and `modeler/editor-session/` are exempt.
 
-Base types provide a `type` discriminator string. Concrete messages extend `Query` or `Command`. The controller's message handler uses a `switch` on `message.type` to route to the appropriate service method.
-
-## EditorStore Lifecycle
-
-`EditorStore` is the central state holder for all open editors:
-
-1. **createEditor()** — Called by controller when VS Code opens a new editor. Stores webview panel reference, document reference, and per-editor disposable list. Sets as active editor.
-2. **Subscriptions** — `onMessage()`, `onDocumentChanged()`, `onConfigurationChanged()`, `onTabChanged()`, `onDispose()` — all register per-editor listeners and add their disposables to the editor's disposable list.
-3. **postMessage()** — Sends a Query to the active editor's webview.
-4. **dispose()** — When an editor tab is closed, all per-editor disposables are disposed, and the editor entry is removed from the map.
-5. **Active editor tracking** — `onTabChanged()` updates the active editor pointer when the user switches tabs. Services always operate on the active editor.
+A violation (e.g. `import "vscode"` in a service, or one feature importing another's internals) fails the build. Don't relax a rule to make CI green — that defeats the gate.
 
 ## Adding a New Feature (Checklist)
 
-1. If the feature needs new data, add a domain type to `src/domain/`
-2. If the feature calls an external system, define a port interface in `src/domain/ports.ts` and implement it in `src/infrastructure/`
-3. Add infrastructure adapters if you need new VS Code API access
-4. Add a new message type (Query or Command) in `libs/shared/src/lib/messages.ts`
-5. Add service logic in the appropriate `*Service.ts`
-6. Wire the message routing in the controller's message handler (`switch` case)
-7. Wire constructor dependencies in `main.ts`
-8. Add webview-side handling in the webview app
+1. Create `src/<feature>/` with the layer subfolders you need and an `index.ts` barrel exporting the public surface.
+2. Pure data → a `domain/` type. External system → a port in `domain/` implemented in `infrastructure/`.
+3. New host capability → add a method to the relevant `VsCode*` adapter (+ its `hostPorts.ts` interface); never reach for `vscode.*` from a service.
+4. New message → add the class in `libs/shared/src/lib/modeler.ts` (or `messages.ts` for cross-cutting), consume on both ends.
+5. Service logic in `service/`; webview-command handlers as factories in `controller/webview-handlers/`; per-editor lifecycle as an `EditorSessionParticipant`.
+6. Add a `composition/<feature>Feature.ts` `register(context, deps)` and one call in `main.ts`.
+7. Cross-feature use only through the other feature's `index.ts` — the arch tests will fail otherwise.
 
 ## Related Skills
 
-| Skill                    | When to use                                                                                     |
-|--------------------------|-------------------------------------------------------------------------------------------------|
-| `bpmn-js`                | Working on the BPMN webview, diagram interactions, copy-paste, clipboard, element templates      |
-| `vscode-webviews`        | Webview HTML, CSP, postMessage protocol, state persistence, theming, `acquireVsCodeApi`          |
-| `vscode-custom-editors`  | `CustomTextEditorProvider` registration, document sync lifecycle, editor controller patterns     |
-| `vscode-ux-guidelines`   | Choosing notification vs status bar vs quick pick, clipboard access, theming, accessibility      |
+| Skill | When to use |
+|---|---|
+| `bpmn-js` | BPMN webview, diagram interactions, copy-paste, clipboard, element templates |
+| `vscode-webviews` | Webview HTML, CSP, postMessage protocol, state persistence, theming, `acquireVsCodeApi` |
+| `vscode-custom-editors` | `CustomTextEditorProvider` registration, document sync lifecycle, editor controller patterns |
+| `vscode-ux-guidelines` | Notification vs status bar vs quick pick, clipboard access, theming, accessibility |
 
 ## Key Files for Quick Reference
 
-- **Entry point**: `src/main.ts`
-- **Editor registry**: `src/infrastructure/EditorStore.ts`
-- **Domain ports**: `src/domain/ports.ts`
-- **BPMN service**: `src/service/BpmnModelerService.ts`
-- **Deployment service**: `src/service/DeploymentService.ts`
-- **BPMN controller**: `src/controller/BpmnEditorController.ts`
-- **Deployment controller**: `src/controller/DeploymentController.ts`
-- **Engine router**: `src/infrastructure/camunda/CamundaEngineRouter.ts`
-- **Session guard**: `src/domain/session.ts`
-- **Message types**: `libs/shared/src/lib/messages.ts` (repo root)
-- **Path aliases**: `tsconfig.base.json` (repo root, `@miragon/bpmn-modeler-shared` → `libs/shared/src/index.ts`)
+- **Entry point**: `src/main.ts`; **wiring**: `src/composition/*.ts`
+- **Editor registry**: `src/shared/infrastructure/EditorSessionStore.ts` (+ `VsCodeEditorHandle.ts`)
+- **Generic editor host**: `src/modeler/editor-session/ModelerEditorController.ts`
+- **Message router**: `src/shared/infrastructure/WebviewMessageRouter.ts`; BPMN handlers: `src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts`
+- **Host-capability ports**: `src/shared/domain/hostPorts.ts`; **engine ports**: `src/deployment/domain/ports.ts`
+- **BPMN service**: `src/modeler/bpmn/service/BpmnModelerService.ts`
+- **Deployment service**: `src/deployment/service/DeploymentService.ts`; **engine router**: `src/deployment/infrastructure/camunda/CamundaEngineRouter.ts`
+- **Session guard**: `src/shared/domain/session.ts`
+- **Arch tests**: `src/architecture.spec.ts`
+- **Message types**: `libs/shared/src/lib/messages.ts` (base) + `libs/shared/src/lib/modeler.ts` (modeler) — repo root
+- **Path aliases**: `tsconfig.base.json` (`@miragon/bpmn-modeler-shared` → `libs/shared/src/index.ts`)

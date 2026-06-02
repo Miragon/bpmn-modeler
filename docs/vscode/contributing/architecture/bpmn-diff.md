@@ -34,9 +34,10 @@ diff tab. Sessions come from two origins:
   `DiffSession.forCompareFiles(…)`) before `vscode.diff` fires, and a 30 s TTL
   sweeper in the store evicts it if no pane ever attaches.
 
-`BpmnEditorController.resolveCustomTextEditor` asks
-`BpmnDiffController.shouldResolveAsDiff(uri)` for each resolving pane. That
-method runs an ordered decision tree: already-has-a-pane → no (the caller is
+`ModelerEditorController.resolveCustomTextEditor` runs its `delegateResolve`
+hook for each resolving pane; for the BPMN editor that hook (wired in
+`composition/editorFeature.ts`) asks `BpmnDiffController.shouldResolveAsDiff(uri)`.
+That method runs an ordered decision tree: already-has-a-pane → no (the caller is
 a second resolve for a file already open elsewhere); pre-registered session →
 yes; Git-provided scheme (`git:` or `gitfs:`) → yes; label heuristic matches a
 diff tab → yes; otherwise → no.
@@ -48,7 +49,7 @@ sequenceDiagram
     participant DiffCtrl as BpmnDiffController
     participant Store as DiffPaneStore
     participant Svc as BpmnDiffService
-    participant Editor as BpmnEditorController
+    participant Editor as ModelerEditorController
     participant BeforePane as Before Webview
     participant AfterPane as After Webview
 
@@ -103,9 +104,10 @@ sequenceDiagram
   fixed `before`/`after` URIs, attached panes, armed flag. Exposes two
   origin-specific factories (`forCompareFiles`, `forScm`) that each
   encapsulate their own side-assignment rule.
-- **`BpmnEditorController`** (extension host) — branches resolving custom
-  editors between editable modeler and readonly viewer via
-  `BpmnDiffController.shouldResolveAsDiff(uri)`.
+- **`ModelerEditorController`** (extension host) — the generic custom-editor
+  host. Its `delegateResolve` hook (wired for BPMN in
+  `composition/editorFeature.ts`) branches a resolving pane between editable
+  modeler and readonly viewer via `BpmnDiffController.shouldResolveAsDiff(uri)`.
 - **`DiffMode`** (webview) — webview entry point for viewer mode, wires the
   viewer + legend + message handlers.
 
@@ -113,14 +115,14 @@ sequenceDiagram
 
 | File | Purpose |
 |---|---|
-| `apps/modeler-plugin/src/controller/BpmnDiffController.ts` | VS Code-facing surface: `shouldResolveAsDiff`, `resolveDiffPane`, `openCompareFilesDiff` (`vscode.diff`), SCM pairing, webview message routing, swap-sides, language-setting subscription. |
-| `apps/modeler-plugin/src/service/BpmnDiffService.ts` | vscode-free diff content: differ runner, highlight broadcaster, viewport/cursor forwarder, language broadcast. |
-| `apps/modeler-plugin/src/infrastructure/DiffPaneStore.ts` | Session registry: `sessions`, `sessionByUri`, pending SCM panes, `compare-files` TTL timers. |
-| `apps/modeler-plugin/src/infrastructure/WebviewPaneHandle.ts` | Infra adapter wrapping a `WebviewPanel` + `TextDocument` into the abstract `DiffPaneHandle`. |
-| `apps/modeler-plugin/src/domain/DiffSession.ts` | Domain object for one diff: origin, fixed before/after URIs, pane slots, armed flag. Also exports `basenameOfUriString`. |
-| `apps/modeler-plugin/src/controller/BpmnEditorController.ts` | Branches between editable modeler and readonly viewer via `BpmnDiffController.shouldResolveAsDiff`. |
-| `apps/modeler-plugin/src/controller/BpmnCompareController.ts` | Explorer commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and the shared `openBpmnDiff` dispatch. |
-| `apps/modeler-plugin/src/infrastructure/CompareSelectionStore.ts` | In-memory store for the pending "Select for Compare" URI; toggles the `bpmn-modeler.compareSelectionActive` context key. |
+| `apps/modeler-plugin/src/diff/controller/BpmnDiffController.ts` | VS Code-facing surface: `shouldResolveAsDiff`, `resolveDiffPane`, `openCompareFilesDiff` (`vscode.diff`), SCM pairing, webview message routing, swap-sides, language-setting subscription. |
+| `apps/modeler-plugin/src/diff/service/BpmnDiffService.ts` | vscode-free diff content: differ runner, highlight broadcaster, viewport/cursor forwarder, language broadcast. |
+| `apps/modeler-plugin/src/diff/infrastructure/DiffPaneStore.ts` | Session registry: `sessions`, `sessionByUri`, pending SCM panes, `compare-files` TTL timers. |
+| `apps/modeler-plugin/src/diff/infrastructure/WebviewPaneHandle.ts` | Infra adapter wrapping a `WebviewPanel` + `TextDocument` into the abstract `DiffPaneHandle`. |
+| `apps/modeler-plugin/src/diff/domain/DiffSession.ts` | Domain object for one diff: origin, fixed before/after URIs, pane slots, armed flag. Also exports `basenameOfUriString`. |
+| `apps/modeler-plugin/src/modeler/editor-session/ModelerEditorController.ts` | Generic custom-editor host; its `delegateResolve` hook (wired for BPMN in `composition/editorFeature.ts`) branches between editable modeler and readonly viewer via `BpmnDiffController.shouldResolveAsDiff`. |
+| `apps/modeler-plugin/src/diff/controller/BpmnCompareController.ts` | Explorer commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and the shared `openBpmnDiff` dispatch. |
+| `apps/modeler-plugin/src/diff/infrastructure/CompareSelectionStore.ts` | In-memory store for the pending "Select for Compare" URI; toggles the `bpmn-modeler.compareSelectionActive` context key. |
 | `apps/modeler-plugin/src/types/bpmn-js-differ.d.ts` | Ambient shim for the untyped `bpmn-js-differ` package. |
 | `apps/modeler-plugin/src/types/bpmn-moddle.d.ts` | Ambient shim for `bpmn-moddle` (factory function, not a class). |
 | `apps/bpmn-webview/src/app/diff/DiffMode.ts` | Webview entry point for viewer mode — wires viewer + legend + message handlers. |
@@ -217,8 +219,8 @@ the differ is upgraded.
 
 - **Editor id is the full URI string**, not just the path. Git-provided URIs
   (`git:` in VS Code, `gitfs:` in Theia) and `file:` URIs for the same file
-  produce different editor ids, so the `EditorStore` can hold both panes side
-  by side without collision.
+  produce different editor ids, so the `EditorSessionStore` can hold both panes
+  side by side without collision.
 - **Dual-host Git scheme handling.** `shouldResolveAsDiff` recognises both
   VS Code's `git:` and Theia's `gitfs:` schemes via the
   `GIT_PROVIDED_SCHEMES` set in `BpmnDiffController.ts`. Add new schemes there

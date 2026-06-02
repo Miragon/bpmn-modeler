@@ -1,0 +1,24 @@
+{
+  // Standalone, NOT extending the repo base: the base targets esnext/bundler
+  // for the webpacked extension and webviews, but the Extension-Host test runner
+  // (@vscode/test-cli → mocha) loads plain CommonJS at runtime, so these specs
+  // must compile to commonjs/node-resolution independently.
+  "compilerOptions": {
+    // node16 emits CommonJS here (the nearest package.json has no
+    // `"type": "module"`), which is what the Extension-Host runner loads, while
+    // avoiding the legacy `node`/`node10` resolution deprecated in TypeScript 6.
+    "module": "node16",
+    "moduleResolution": "node16",
+    "target": "ES2021",
+    "lib": ["ES2021"],
+    "types": ["node", "mocha", "vscode"],
+    "outDir": "out",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["out"]
+}

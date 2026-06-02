@@ -25,7 +25,7 @@ corepack yarn workspace vs-code-bpmn-modeler build
 corepack yarn workspace @miragon/bpmn-modeler-webview build
 
 # Run a single test file
-corepack yarn test apps/modeler-plugin/src/service/bpmnUtils.spec.ts
+corepack yarn test apps/modeler-plugin/src/shared/domain/BpmnDocument.spec.ts
 ```
 
 ### Webview scripts (bpmn-webview, dmn-webview, deployment-webview)
@@ -140,6 +140,6 @@ function isGroupOpen(group: HTMLElement): boolean { ... }
 The deployment sidebar has **two copies** of its HTML that must stay in sync:
 
 - `apps/deployment-webview/index.html` — Vite development
-- `apps/modeler-plugin/src/infrastructure/DeploymentWebviewHtml.ts` — runtime in VS Code
+- `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` — runtime in VS Code
 
 When modifying deployment form markup, update **both** files.
