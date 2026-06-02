@@ -1,0 +1,126 @@
+package io.miragon.intellij.bpmn
+
+import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileEditor
+import com.intellij.openapi.fileEditor.FileEditorState
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.UserDataHolderBase
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ui.jcef.JBCefApp
+import com.intellij.ui.jcef.JBCefBrowser
+import com.intellij.ui.jcef.JBCefJSQuery
+import org.cef.browser.CefBrowser
+import org.cef.browser.CefFrame
+import org.cef.handler.CefLoadHandlerAdapter
+import java.beans.PropertyChangeListener
+import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.SwingConstants
+
+/**
+ * JCEF-backed editor that renders a `.bpmn` file with the real bpmn-js webview,
+ * driven by the **out-of-process modeler core** ([CoreProcess]).
+ *
+ * This editor is deliberately dumb: it owns the browser and the message pipes,
+ * but no protocol logic. Every webview message is forwarded verbatim to the
+ * core, and every core→webview message is pushed straight into the page. The
+ * actual BPMN handling (engine detection, render, document sync) happens in the
+ * shared TypeScript core, proving it needs no Kotlin reimplementation.
+ *
+ * Pipes:
+ *  - assets are served by the shared [WebviewServer] over loopback HTTP;
+ *  - JS → JVM uses a [JBCefJSQuery]; the page's shim buffers outgoing messages
+ *    and flushes once the sink is injected on load end;
+ *  - JVM → JS uses `window.postMessage`, the channel the webview listens on.
+ */
+class BpmnFileEditor(
+    project: Project,
+    private val file: VirtualFile,
+) : UserDataHolderBase(), FileEditor {
+    private val component: JComponent
+
+    private val coreProcess: CoreProcess? = if (JBCefApp.isSupported()) service<CoreProcess>() else null
+    private val session: CoreSession?
+
+    init {
+        if (!JBCefApp.isSupported()) {
+            session = null
+            component =
+                JLabel(
+                    "<html><center>JCEF (embedded Chromium) is not available in this IDE.<br>" +
+                        "Use an IntelliJ 2024.2+ build that bundles JCEF.</center></html>",
+                    SwingConstants.CENTER,
+                )
+        } else {
+            val cefBrowser = JBCefBrowser()
+            component = cefBrowser.component
+            Disposer.register(this, cefBrowser)
+
+            // The editor id must match the core's session key (scheme-qualified URI).
+            val editorId = file.url
+            val coreSession =
+                CoreSession(editorId, file, project) { json ->
+                    // JSON is a valid JS object-literal expression; embed it directly.
+                    cefBrowser.cefBrowser.executeJavaScript(
+                        "window.postMessage($json, '*');",
+                        cefBrowser.cefBrowser.url,
+                        0,
+                    )
+                }
+            session = coreSession
+
+            // Register before the page loads so the core has the session ready by
+            // the time the webview's first (buffered) message is forwarded.
+            coreProcess!!.registerSession(coreSession)
+
+            // JS → JVM channel: forward every webview message to the core untouched.
+            val jsQuery = JBCefJSQuery.create(cefBrowser as com.intellij.ui.jcef.JBCefBrowserBase)
+            Disposer.register(cefBrowser, jsQuery)
+            jsQuery.addHandler { request ->
+                coreProcess.forwardWebviewMessage(editorId, request)
+                null
+            }
+
+            // Install the JVM sink only after the document is parsed; the shim's
+            // buffered messages then flush. inject("p") emits the JS that ships the
+            // string argument `p` back to the jsQuery handler.
+            cefBrowser.jbCefClient.addLoadHandler(
+                object : CefLoadHandlerAdapter() {
+                    override fun onLoadEnd(b: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
+                        b.executeJavaScript(
+                            "window.__miranumSetSink(function (p) { ${jsQuery.inject("p")} });",
+                            b.url,
+                            0,
+                        )
+                    }
+                },
+                cefBrowser.cefBrowser,
+            )
+
+            cefBrowser.loadURL(service<WebviewServer>().ensureStarted())
+        }
+    }
+
+    override fun getComponent(): JComponent = component
+
+    override fun getPreferredFocusedComponent(): JComponent = component
+
+    override fun getName(): String = "BPMN Modeler"
+
+    override fun getFile(): VirtualFile = file
+
+    override fun setState(state: FileEditorState) = Unit
+
+    override fun isModified(): Boolean = false
+
+    override fun isValid(): Boolean = true
+
+    override fun addPropertyChangeListener(listener: PropertyChangeListener) = Unit
+
+    override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
+
+    override fun dispose() {
+        session?.let { coreProcess?.disposeSession(it.editorId) }
+    }
+}

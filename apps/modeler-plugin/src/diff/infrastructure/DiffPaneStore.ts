@@ -1,4 +1,7 @@
-import { Disposable } from "vscode";
+// Type-only: `Disposable` is used solely in the `implements` clause. Importing
+// it as a value would make the out-of-process Node bridge bundle (esbuild) try
+// to resolve the `vscode` module, which does not exist there.
+import type { Disposable } from "vscode";
 
 import { DiffPaneHandle, DiffSession } from "../domain/DiffSession";
 

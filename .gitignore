@@ -7,6 +7,13 @@
 /tmp
 /out-tsc
 
+# IntelliJ plugin spike (Gradle subproject — not a yarn workspace)
+apps/intellij-plugin/build/
+apps/intellij-plugin/.gradle/
+apps/intellij-plugin/.idea/
+apps/intellij-plugin/.kotlin/
+apps/intellij-plugin/.intellijPlatform/
+
 # Extension-Host e2e test build output (@vscode/test-cli runs the compiled JS)
 # and the cached VS Code/Electron download.
 apps/modeler-plugin/test/e2e/out

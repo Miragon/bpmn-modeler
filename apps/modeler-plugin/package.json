@@ -2,6 +2,7 @@
     "name": "vs-code-bpmn-modeler",
     "scripts": {
         "build": "webpack --mode production",
+        "build:bridge": "node esbuild.bridge.mjs",
         "dev": "webpack --mode development --watch",
         "test": "vitest run --coverage",
         "compile:e2e": "tsc -p test/e2e/tsconfig.json",

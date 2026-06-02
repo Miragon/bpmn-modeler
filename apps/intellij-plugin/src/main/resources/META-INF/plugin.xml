@@ -1,0 +1,25 @@
+<idea-plugin>
+    <id>io.miragon.bpmn-modeler</id>
+    <name>Miranum BPMN Modeler (Spike)</name>
+    <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
+
+    <description><![CDATA[
+        Spike: opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor
+        that renders the existing Miranum bpmn-js webview and round-trips edits
+        back to disk. Also renders a two-pane diagram diff for VCS "Show Diff" and
+        "Compare Files". Proof-of-concept only — see the plugin README for scope.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
+        <!--
+          A registered DiffTool participates in DiffManager, which serves both
+          Compare Files and VCS "Show Diff" — so this one registration covers
+          both diff entry points. SuppressiveDiffTool (on the impl) hides the
+          built-in text tools for .bpmn so the diagram viewer is the default.
+        -->
+        <diff.DiffTool implementation="io.miragon.intellij.bpmn.BpmnDiffTool"/>
+    </extensions>
+</idea-plugin>
