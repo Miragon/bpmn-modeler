@@ -85,6 +85,16 @@
     stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
+/*
+ * bpmn-js marks deliberately transparent shapes (bpmn:Group, text
+ * annotations) with an inline `fill: none`. The blanket fill override above
+ * would paint them opaque, hiding any elements the group encloses (#1056).
+ * Honor bpmn-js's transparency instead.
+ */
+.djs-shape > .djs-visual > [style*="fill: none"] {
+    fill: none !important;
+}
+
 /* Distinguish bpmn-js throw vs. catch (and other filled) markers in dark mode. */
 .djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"]:not([style*="stroke: white"]) {
     fill: var(--bpmn-shape-stroke-color) !important;
