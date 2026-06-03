@@ -19,7 +19,7 @@
         "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
-        "@miragon/create-append-c7-element-templates": "workspace:*",
+        "@miragon/create-append-c7": "0.1.0",
         "bpmn-js": "18.16.1",
         "bpmn-js-create-append-anything": "1.2.0",
         "bpmn-js-properties-panel": "5.58.0",

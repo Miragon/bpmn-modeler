@@ -15,7 +15,6 @@ import {
     standalonePrevious,
     vscodeRelease,
     draftStandalone,
-    createAppendRelease,
 } from "./releases.fixture";
 
 describe("parseStandaloneRelease", () => {
@@ -34,10 +33,6 @@ describe("parseStandaloneRelease", () => {
 
     it("disqualifies a VS Code release (wrong tag prefix)", () => {
         expect(parseStandaloneRelease(vscodeRelease)).toBeNull();
-    });
-
-    it("disqualifies a create-append release (wrong tag prefix)", () => {
-        expect(parseStandaloneRelease(createAppendRelease)).toBeNull();
     });
 
     it("disqualifies a draft release", () => {
@@ -113,7 +108,6 @@ describe("pickLatestStandaloneRelease", () => {
         expect(
             pickLatestStandaloneRelease([
                 vscodeRelease,
-                createAppendRelease,
                 draftStandalone,
             ]),
         ).toBeNull();

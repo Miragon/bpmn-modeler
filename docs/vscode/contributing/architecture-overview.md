@@ -41,7 +41,6 @@ libs/
   bpmn-i18n/                     # bpmn-js DI module (translations)
   append-menu/                   # bpmn-js DI module (custom append UI)
   element-template-chooser/      # bpmn-js DI module (template picker)
-  create-append-c7-element-templates/ # bpmn-js polyfill for C7 template creation (npm-published)
 ```
 
 | Workspace | Lives at | What it does |
@@ -56,14 +55,16 @@ libs/
 | `@miragon/bpmn-modeler-i18n` | `libs/bpmn-i18n` | bpmn-js DI module for translations |
 | `@miragon/bpmn-modeler-append-menu` | `libs/append-menu` | Preact-based append menu overlay |
 | `@miragon/bpmn-modeler-element-template-chooser` | `libs/element-template-chooser` | Preact-based template chooser overlay |
-| `@miragon/create-append-c7-element-templates` | `libs/create-append-c7-element-templates` | Standalone npm-publishable bpmn-js polyfill for Camunda 7 template creation |
 
 Most `libs/*` are source-only — the consuming Vite/webpack build compiles the
 TypeScript and TSX files directly via the `@miragon/bpmn-modeler-<lib>` path alias.
-Two libs have their own `tsc` build step:
-`@miragon/bpmn-modeler-shared` (compiled because it's also consumed by the extension host),
-and `@miragon/create-append-c7-element-templates` (compiled because it's
-published to npm as a standalone artefact).
+Only `@miragon/bpmn-modeler-shared` has its own `tsc` build step, compiled
+because it's also consumed by the extension host.
+
+The BPMN webview additionally depends on
+[`@miragon/create-append-c7`](https://github.com/Miragon/create-append-c7)
+— a bpmn-js polyfill for Camunda 7 template creation that lives in its own
+repository and is pulled in as a published npm dependency, not a workspace.
 
 ## Extension host vs webview
 
@@ -189,7 +190,6 @@ method rather than adding a new service — e.g. `AppendMenuOverride` wraps
 | Deployment webview | Vite | `apps/deployment-webview/vite.config.mts` |
 | Standalone macOS DMG | `@theia/cli` + electron-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml` |
 | Shared lib (`@miragon/bpmn-modeler-shared`) | tsc | `libs/shared/tsconfig.lib.json` |
-| c7 npm lib | tsc | `libs/create-append-c7-element-templates/tsconfig.lib.json` |
 | Tests | Vitest | `apps/modeler-plugin/vitest.config.ts` |
 | Path alias resolution | `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) | `tsconfig.base.json` |
 

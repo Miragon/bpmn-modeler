@@ -3611,7 +3611,7 @@ __metadata:
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
-    "@miragon/create-append-c7-element-templates": "workspace:*"
+    "@miragon/create-append-c7": "npm:0.1.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.8"
     bpmn-js: "npm:18.16.1"
@@ -3636,14 +3636,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/create-append-c7-element-templates@workspace:*, @miragon/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates":
-  version: 0.0.0-use.local
-  resolution: "@miragon/create-append-c7-element-templates@workspace:libs/create-append-c7-element-templates"
+"@miragon/create-append-c7@npm:0.1.0":
+  version: 0.1.0
+  resolution: "@miragon/create-append-c7@npm:0.1.0"
   peerDependencies:
-    bpmn-js: 18.15.0
-    bpmn-js-create-append-anything: 1.2.0
-  languageName: unknown
-  linkType: soft
+    bpmn-js: ^18.0.0
+    bpmn-js-create-append-anything: ^1.2.0
+  checksum: 10c0/d3a5e84e969bc2cd3f9d9438cff470f70fe1727dd4d2b4d6d9fb60f89173ccb5c1b01f0266291170af278aa73af581a726ad86e0facbbee073ec2ea428b7a615
+  languageName: node
+  linkType: hard
 
 "@miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
   version: 0.0.0-use.local
