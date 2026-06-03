@@ -13,7 +13,7 @@ for debugging.
 - **`prepare-*`** — bumps the version, runs the sanity checks, commits the
   bump, pushes the tag, creates a GitHub Release. Does **not** publish.
 - **`publish-*`** — builds the artefact, attaches it to the existing
-  release, and pushes it to the relevant registry (Marketplace / npm /
+  release, and pushes it to the relevant registry (Marketplace /
   GitHub Release assets / Homebrew). Runnable manually with `dry-run: true`
   to produce an artefact without uploading.
 
@@ -40,10 +40,10 @@ flowchart LR
         orchestrator --> s_prepare --> s_publish --> s_brew --> s_assets
     end
 
-    subgraph Other[VS Code extension / c7 npm lib]
+    subgraph Other[VS Code extension]
         o_prepare[prepare-release-*.yml<br/>workflow_dispatch]
         o_publish[publish-*.yml<br/>workflow_dispatch]
-        o_assets[(Marketplace / npm)]
+        o_assets[(Marketplace)]
 
         o_prepare --> o_publish --> o_assets
     end
@@ -68,18 +68,11 @@ then commits, tags `vX.Y.Z`, and creates a GitHub Release. `publish` packages
 the `.vsix`, attaches it to the release, and runs `vsce publish` against the
 VS Code Marketplace. Both steps are launched separately by the maintainer.
 
-### create-append-c7-element-templates (npm lib)
-
-Published to [npm](https://www.npmjs.com/package/@miragon/create-append-c7-element-templates).
-
-| File | Trigger | Tag prefix |
-|---|---|---|
-| `prepare-release-create-append-c7.yml` | `workflow_dispatch` | — |
-| `publish-create-append-c7.yml` | `workflow_dispatch` | `create-append-c7-element-templates/v*` |
-
-`prepare` bumps `libs/create-append-c7-element-templates/package.json` and
-builds the library; `publish` runs `npm publish --access public`. Both
-steps are launched separately by the maintainer.
+> The `@miragon/create-append-c7` polyfill that the BPMN
+> webview depends on now lives in its
+> [own repository](https://github.com/Miragon/create-append-c7)
+> and is consumed here as a published npm dependency — its release is cut there,
+> not in this repo.
 
 ### Standalone macOS app
 
@@ -102,7 +95,7 @@ in-app auto-update), and the Cask formula is updated in `homebrew-tap`.
 
 ## How to release
 
-### VS Code extension and c7 npm lib
+### VS Code extension
 
 1. Go to **Actions** → **Prepare Release …** → **Run workflow**.
 2. Pick the **release type** (`patch` / `minor` / `major`) and decide

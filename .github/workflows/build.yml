@@ -27,7 +27,6 @@ jobs:
       element-template-chooser: ${{ steps.filter.outputs.element-template-chooser }}
       append-menu: ${{ steps.filter.outputs.append-menu }}
       bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
-      create-append-c7: ${{ steps.filter.outputs.create-append-c7 }}
       modeler-plugin: ${{ steps.filter.outputs.modeler-plugin }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
@@ -49,8 +48,6 @@ jobs:
               - 'libs/append-menu/**'
             bpmn-clipboard:
               - 'libs/bpmn-clipboard/**'
-            create-append-c7:
-              - 'libs/create-append-c7-element-templates/**'
             modeler-plugin:
               - 'apps/modeler-plugin/**'
             bpmn-webview:
@@ -174,20 +171,6 @@ jobs:
           cache: yarn
       - run: yarn workspaces focus @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-clipboard build
-
-  build-create-append-c7:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.create-append-c7 == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - run: corepack enable
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: yarn
-      - run: yarn workspaces focus @miragon/create-append-c7-element-templates
-      - run: yarn workspace @miragon/create-append-c7-element-templates build
 
   build-modeler-plugin:
     needs: detect-changes
@@ -322,8 +305,7 @@ jobs:
       needs.detect-changes.outputs.bpmn-i18n == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
       needs.detect-changes.outputs.element-template-chooser == 'true' ||
-      needs.detect-changes.outputs.bpmn-clipboard == 'true' ||
-      needs.detect-changes.outputs.create-append-c7 == 'true'
+      needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -333,7 +315,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard @miragon/create-append-c7-element-templates
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
@@ -377,8 +359,7 @@ jobs:
       needs.detect-changes.outputs.bpmn-i18n == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
       needs.detect-changes.outputs.element-template-chooser == 'true' ||
-      needs.detect-changes.outputs.bpmn-clipboard == 'true' ||
-      needs.detect-changes.outputs.create-append-c7 == 'true'
+      needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -388,7 +369,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard @miragon/create-append-c7-element-templates
+        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview build
 
   build-dmn-webview:
@@ -451,7 +432,6 @@ jobs:
       - build-element-template-chooser
       - build-append-menu
       - build-bpmn-clipboard
-      - build-create-append-c7
       - build-modeler-plugin
       - test-modeler-plugin
       - e2e-modeler-plugin

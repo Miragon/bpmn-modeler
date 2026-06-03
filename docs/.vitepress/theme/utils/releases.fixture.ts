@@ -71,10 +71,4 @@ export const draftStandalone: GitHubRelease = {
     ],
 };
 
-export const createAppendRelease: GitHubRelease = {
-    tag_name: "create-append-c7-element-templates/v1.0.0",
-    published_at: "2026-04-15T08:00:00Z",
-    assets: [],
-};
-
 export { ARM64_URL, INTEL_URL };

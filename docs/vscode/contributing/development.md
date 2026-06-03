@@ -60,11 +60,7 @@ just the tree it needs via `yarn workspaces focus`:
 yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-webview \
   @miragon/dmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-append-menu \
   @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n \
-  @miragon/bpmn-modeler-element-template-chooser \
-  @miragon/create-append-c7-element-templates
-
-# Just the c7 npm lib
-yarn workspaces focus bpmn-modeler @miragon/create-append-c7-element-templates
+  @miragon/bpmn-modeler-element-template-chooser
 
 # Just the docs site
 yarn workspaces focus bpmn-modeler docs
@@ -221,11 +217,11 @@ Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
 | **Build**           | every push / PR                                          | lint → test → build, full install (apt-step for Theia native modules)         |
 | **PR Labeler**      | PR opened / updated                                      | auto-labels PRs by changed workspace                                          |
 | **Prepare Release ***| manual (`workflow_dispatch`)                            | bump version, sanity build, commit, tag, create GitHub Release                |
-| **Publish ***       | `release: published` (or `workflow_dispatch` + dry-run)  | build artefact, attach to release, push to Marketplace / npm / GitHub Release |
+| **Publish ***       | `release: published` (or `workflow_dispatch` + dry-run)  | build artefact, attach to release, push to Marketplace / GitHub Release        |
 | **Deploy Docs**     | `release: published` / manual                            | VitePress build + GitHub Pages deploy                                         |
 
-There are three `prepare-*` and three `publish-*` workflows — one pair
-per artefact (VS Code extension, c7 npm lib, standalone macOS app). See
+There are two `prepare-*` and two `publish-*` workflows — one pair
+per artefact (VS Code extension, standalone macOS app). See
 [Release process](./release-process) for the operational guide and the
 pipeline flow diagram.
 

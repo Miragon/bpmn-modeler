@@ -17,7 +17,7 @@ Two libraries cooperate:
 | Library | Role |
 |---|---|
 | `libs/append-menu/` | UI overlay — decorates the diagram-js popup menu and renders the Preact panel. |
-| `libs/create-append-c7-element-templates/` | Polyfills `elementTemplates.createElement()` for Camunda 7, so `bpmn-js-create-append-anything` can instantiate template-preconfigured elements. |
+| `@miragon/create-append-c7` (external npm package) | Polyfills `elementTemplates.createElement()` for Camunda 7, so `bpmn-js-create-append-anything` can instantiate template-preconfigured elements. |
 
 Both are registered as `additionalModules` when the modeler is constructed in
 `apps/bpmn-webview/src/app/modeler.ts`.
@@ -44,9 +44,7 @@ Both are registered as `additionalModules` when the modeler is constructed in
 | `libs/append-menu/src/components/BpmnElementPalette.tsx` | Collapsible BPMN element palette with favourites |
 | `libs/append-menu/src/components/ExpandableTemplateCard.tsx` | Template card with hover-to-expand detail |
 | `libs/append-menu/src/append-menu.css` | All styles (prefixed with `am-`) |
-| `libs/create-append-c7-element-templates/src/index.ts` | C7 createElement polyfill module |
-| `libs/create-append-c7-element-templates/src/TemplateElementFactory.ts` | Creates shapes with templates applied via command stack |
-| `libs/create-append-c7-element-templates/src/ExtendElementTemplates.ts` | Patches `createElement` onto the C7 element templates service |
+| `@miragon/create-append-c7` (external npm package) | C7 `createElement` polyfill — ships from its [own repository](https://github.com/Miragon/create-append-c7); creates template-applied shapes and patches `createElement` onto the C7 element templates service. |
 
 ## Interaction flow
 
