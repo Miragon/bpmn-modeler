@@ -3499,10 +3499,12 @@ __metadata:
   dependencies:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/node": "npm:25.9.1"
+    "@vitest/coverage-v8": "npm:4.1.8"
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.0.0"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
+    vitest: "npm:4.1.8"
   languageName: unknown
   linkType: soft
 

@@ -27,6 +27,7 @@ jobs:
       element-template-chooser: ${{ steps.filter.outputs.element-template-chooser }}
       append-menu: ${{ steps.filter.outputs.append-menu }}
       bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
+      modeler-core: ${{ steps.filter.outputs.modeler-core }}
       modeler-plugin: ${{ steps.filter.outputs.modeler-plugin }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
@@ -48,6 +49,8 @@ jobs:
               - 'libs/append-menu/**'
             bpmn-clipboard:
               - 'libs/bpmn-clipboard/**'
+            modeler-core:
+              - 'libs/modeler-core/**'
             modeler-plugin:
               - 'apps/modeler-plugin/**'
             bpmn-webview:
@@ -176,6 +179,7 @@ jobs:
     needs: detect-changes
     if: >-
       needs.detect-changes.outputs.modeler-plugin == 'true' ||
+      needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
@@ -191,7 +195,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
+        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler build
@@ -200,6 +204,7 @@ jobs:
     needs: detect-changes
     if: >-
       needs.detect-changes.outputs.modeler-plugin == 'true' ||
+      needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
@@ -220,16 +225,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler test
-      # Post the coverage table as a sticky PR comment. `if: always()` so it
-      # still reports when the per-layer thresholds fail the test step above —
-      # that is exactly when you want to see which layer dropped.
-      # `continue-on-error` so a read-only token on fork PRs can't fail CI.
+      # Post the coverage table as a sticky PR comment, but only when this
+      # project's own files changed — a core/shared-only PR still runs these
+      # tests (the plugin depends on them) yet should not surface a plugin
+      # coverage comment. `if: always()` so it still reports when the per-layer
+      # thresholds fail the test step above — that is exactly when you want to
+      # see which layer dropped. `continue-on-error` so a read-only token on
+      # fork PRs can't fail CI.
       - name: Report coverage on the PR
-        if: always() && github.event_name == 'pull_request'
+        if: >-
+          always() && github.event_name == 'pull_request' &&
+          needs.detect-changes.outputs.modeler-plugin == 'true'
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@v2
         with:
@@ -240,6 +250,7 @@ jobs:
           json-final-path: ../../coverage/apps/modeler-plugin/coverage-final.json
           name: modeler-plugin
       - name: Upload coverage to Codecov
+        if: needs.detect-changes.outputs.modeler-plugin == 'true'
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -247,6 +258,58 @@ jobs:
           fail_ci_if_error: false
           flags: modeler-plugin
           name: modeler-plugin
+          verbose: true
+
+  test-modeler-core:
+    needs: detect-changes
+    # Runs on its own changes and on shared (the engine depends on it). The
+    # coverage report below is gated to this project's own files so a
+    # shared-only PR doesn't surface a modeler-core coverage comment.
+    if: >-
+      needs.detect-changes.outputs.modeler-core == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    # `pull-requests: write` lets the coverage-report step post/update its
+    # sticky PR comment; job-level scope keeps the broader workflow read-only.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn workspace @miragon/bpmn-modeler-core test
+      # Sticky PR comment, only when this package's own files changed (see the
+      # plugin job for the rationale). `if: always()` so a failed threshold
+      # still reports which layer dropped; `continue-on-error` so a read-only
+      # fork token can't fail CI.
+      - name: Report coverage on the PR
+        if: >-
+          always() && github.event_name == 'pull_request' &&
+          needs.detect-changes.outputs.modeler-core == 'true'
+        continue-on-error: true
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: libs/modeler-core
+          json-summary-path: ../../coverage/libs/modeler-core/coverage-summary.json
+          json-final-path: ../../coverage/libs/modeler-core/coverage-final.json
+          name: modeler-core
+      - name: Upload coverage to Codecov
+        if: needs.detect-changes.outputs.modeler-core == 'true'
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/libs/modeler-core"
+          fail_ci_if_error: false
+          flags: modeler-core
+          name: modeler-core
           verbose: true
 
   # Extension-Host smoke test: the only job that runs the composition root
@@ -262,6 +325,7 @@ jobs:
     if: >-
       (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
       (needs.detect-changes.outputs.modeler-plugin == 'true' ||
+       needs.detect-changes.outputs.modeler-core == 'true' ||
        needs.detect-changes.outputs.bpmn-webview == 'true' ||
        needs.detect-changes.outputs.dmn-webview == 'true' ||
        needs.detect-changes.outputs.deployment-webview == 'true' ||
@@ -434,6 +498,7 @@ jobs:
       - build-bpmn-clipboard
       - build-modeler-plugin
       - test-modeler-plugin
+      - test-modeler-core
       - e2e-modeler-plugin
       - test-bpmn-webview
       - test-bpmn-i18n
