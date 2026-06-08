@@ -290,4 +290,125 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });
+
+    /** Counts the render frames (BpmnFileQuery) emitted for a given editor so far. */
+    function renders(frames: any[], editorId: string): any[] {
+        return frames.filter(
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "BpmnFileQuery" &&
+                f.params.editorId === editorId,
+        );
+    }
+
+    /** Registers an editor and drives the initial GetBpmnFileCommand render. */
+    async function open(rpc: Rpc, editorId: string, root: string, fsPath: string): Promise<void> {
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, fsPath, C7_XML),
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "GetBpmnFileCommand" } },
+            }),
+        );
+        await settle();
+    }
+
+    it("re-renders the diagram on an external document/didChange", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+        await open(rpc, editorId, root, bpmnPath);
+        const before = renders(frames, editorId).length;
+
+        // A genuine external edit (git revert, the plain-text tab) carries content
+        // the bridge has never seen, so it must be pushed back to the webview.
+        const external = C7_XML.replace("Process_1", "Process_externally_edited");
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "document/didChange",
+                params: { editorId, content: external },
+            }),
+        );
+        await settle();
+
+        const after = renders(frames, editorId);
+        expect(after).toHaveLength(before + 1);
+        expect(after[after.length - 1].params.message.content).toContain(
+            "Process_externally_edited",
+        );
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
+    it("suppresses the echo of its own write — no re-render loop", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+        await open(rpc, editorId, root, bpmnPath);
+        const before = renders(frames, editorId).length;
+
+        // The webview edits the diagram → the core writes it back to the host…
+        const edited = C7_XML.replace("Process_1", "Process_synced");
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "SyncDocumentCommand", content: edited } },
+            }),
+        );
+        await settle();
+        expect(frames.some((f) => f.method === "document/write")).toBe(true);
+
+        // …and the dumb host faithfully echoes that change back. Re-rendering it
+        // would loop; the bridge recognises the mirror already holds this content.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "document/didChange",
+                params: { editorId, content: edited },
+            }),
+        );
+        await settle();
+
+        expect(renders(frames, editorId)).toHaveLength(before);
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
+    it("tracks the active editor without disturbing per-editor routing", async () => {
+        const { rpc, frames, root } = await setup();
+        const a = join(root, "a.bpmn");
+        const b = join(root, "b.bpmn");
+        await fs.writeFile(a, C7_XML, "utf8");
+        await fs.writeFile(b, C7_XML, "utf8");
+        const idA = `file://${a}`;
+        const idB = `file://${b}`;
+        await open(rpc, idA, root, a);
+        await open(rpc, idB, root, b);
+
+        // Focus moves back to A. The frame must be accepted, and an external edit
+        // to A still re-renders A specifically — active tracking is orthogonal to
+        // which editor a document change addresses.
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/setActive", params: { editorId: idA } }),
+        );
+        const before = renders(frames, idA).length;
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "document/didChange",
+                params: { editorId: idA, content: C7_XML.replace("Process_1", "Process_a_edited") },
+            }),
+        );
+        await settle();
+
+        expect(renders(frames, idA)).toHaveLength(before + 1);
+
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/dispose", params: { editorId: idA } }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({ method: "session/dispose", params: { editorId: idB } }),
+        );
+    });
 });

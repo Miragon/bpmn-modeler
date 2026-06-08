@@ -21,7 +21,8 @@ isn't talking to VS Code.
 | Direction | Method(s) | Port / handle |
 |---|---|---|
 | host → core | `session/register`, `session/dispose` | editor lifecycle (seeds the `DocumentPort` mirror) |
-| host → core | `document/didChange` | host edit → mirror update |
+| host → core | `document/didChange` | document change → re-render (external edits) or no-op (own-write echo) |
+| host → core | `session/setActive` | focused tab → `EditorSessionStore` active-editor pointer |
 | host → core | `webview/message` | inbound `Command` → `WebviewMessageRouter` |
 | core → host | `document/write`, `document/save` | `DocumentPort.write` / `.save` |
 | core → host | `editor/postMessage` | `EditorHandle.postMessage` (Query/Command → webview) |
@@ -33,6 +34,15 @@ The **synchronous-read mismatch** — `BpmnModelerService.display()` reads
 `DocumentPort.getContent()` synchronously, impossible over async RPC — is solved
 by a local `DocumentMirror` the host seeds on `session/register` and keeps
 current with `document/didChange`, so reads hit a cache instead of blocking.
+
+**Echo prevention.** The host stays dumb: it reports *every* document change,
+including the echo of the core's own `document/write`. The bridge tells the two
+apart by content — `RpcDocumentPort.write` updates the mirror before the RPC, so
+a `document/didChange` whose content already equals the mirror is the host's echo
+and is dropped; only a genuinely different text (a git revert, the plain-text tab,
+another tool) re-renders. The core's `ModelerSession` guard stays wired as a
+second line of defence. This keeps echo prevention in TypeScript — host-agnostic,
+with no cross-process timing assumptions — so every future host inherits it.
 
 > **Why not the `window.__WS_BRIDGE__` / `WebSocketChannelImpl` seam?** That seam
 > (from #1061) is the right tool for the browser/CLI host, where the webview
