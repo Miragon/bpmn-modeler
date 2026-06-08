@@ -15,7 +15,7 @@ import java.awt.event.MouseEvent
  *
  * The core stays the single source of truth — it computes the platform/version
  * from the XML and the template count from the filesystem — and pushes updates
- * over `statusBar/*` RPC. This widget only renders the latest values it was
+ * over the `statusBar/…` RPC methods. This widget only renders the latest values it was
  * handed. Mirrors the VS Code `VsCodeStatusBar`'s two items, collapsed into one
  * widget because IntelliJ's status bar is denser.
  */

@@ -8,7 +8,7 @@ import com.intellij.openapi.wm.StatusBarWidgetFactory
 
 /**
  * Registers the {@link EngineStatusBarWidget} per project. Always available; the
- * widget simply renders empty until the core sends the first `statusBar/*`
+ * widget simply renders empty until the core sends the first `statusBar/…`
  * update for an open BPMN editor.
  */
 class EngineStatusBarWidgetFactory : StatusBarWidgetFactory {

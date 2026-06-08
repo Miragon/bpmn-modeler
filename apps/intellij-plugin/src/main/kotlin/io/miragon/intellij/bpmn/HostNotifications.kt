@@ -15,7 +15,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
  *
  * Scoped to a [project] so balloons attach to the originating window and
  * `openDocument` opens in the right editor manager. The core decides *what* to
- * say (over `notifier/*` RPC); this decides *how* IntelliJ shows it — the same
+ * say (over the `notifier/…` RPC methods); this decides *how* IntelliJ shows it — the same
  * split the VS Code `VsCodeNotifier` makes against `window.show*Message`.
  */
 class HostNotifications(private val project: Project) {
