@@ -15,6 +15,31 @@
     <extensions defaultExtensionNs="com.intellij">
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
 
+        <!--
+            JCEF two-pane diagram diff. Both targeted entry points — Git "Show
+            Diff" (VCS/SCM) and "Compare Files" — build a two-content
+            ContentDiffRequest and route it through DiffManager, which selects
+            among registered DiffTools; the VCS changes/log/commit diff previews
+            use the same DiffRequestProcessor → DiffManager path. So this single
+            registration makes the diagram diff the default for `.bpmn` across all
+            of them. BpmnDiffTool is a SuppressiveDiffTool, hiding the text diff
+            for `.bpmn`. (The platform diff framework lives under
+            com.intellij.modules.platform, so no extra <depends> is needed.)
+        -->
+        <diff.DiffTool implementation="io.miragon.intellij.bpmn.BpmnDiffTool"/>
+        <!--
+            On the changes view (commit / Local Changes / Log diff preview): the
+            EP `openapi.vcs.changes.actions.diff.ChangeDiffViewerWrapperProvider`
+            (in com.intellij.modules.vcs) does NOT replace the viewer — its
+            `process(...)` returns a DiffViewerWrapper that *decorates* a base
+            viewer with VCS line-staging/revert gutters. That chrome is
+            meaningless for a diagram diff, so we deliberately do not register it;
+            the diagram viewer reaches the changes view through the same
+            DiffManager → diff.DiffTool selection above. If a future change needs
+            changes-view-specific decoration, that is the hook (verified present
+            in 2024.2's intellij.platform.vcs.impl).
+        -->
+
         <!-- Engine version + element-template count, driven by the core's StatusBarPort. -->
         <statusBarWidgetFactory
             id="MiranumBpmnEngineWidget"

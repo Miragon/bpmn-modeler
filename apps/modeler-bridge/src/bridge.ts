@@ -14,17 +14,23 @@
  *
  * Protocol (see {@link Rpc} for framing):
  *   Host → Core (notifications): session/register, webview/message,
- *                                document/didChange, session/setActive,
- *                                session/dispose
+ *                                document/didChange, settings/didChange,
+ *                                session/setActive, session/dispose,
+ *                                diff/open, diff/webviewMessage, diff/dispose
  *   Core → Host (requests):      document/write, document/save, picker/show
- *   Core → Host (notifications): editor/postMessage, notifier/*, statusBar/*
+ *   Core → Host (notifications): editor/postMessage, diff/postMessage,
+ *                                notifier/*, statusBar/*
  *
- * Diff, DMN, and deployment are deliberately out of scope here — they are their
- * own follow-up issues (#1067–#1069+); this is the BPMN-editor foundation.
+ * DMN and deployment are deliberately out of scope here — they are their own
+ * follow-up issues; this covers the BPMN editor (#1067) and diff (#1069). The
+ * diff path reuses the production diff brain verbatim (`DiffPaneStore` +
+ * `BpmnDiffService` + `bpmn-js-differ`), driven by host-originated `diff/*` RPC
+ * instead of VS Code's `vscode.diff` + custom-editor resolution.
  */
 
 import {
     Command,
+    DiffOrigin,
     Query,
     SetClipboardCommand,
     SetTextClipboardCommand,
@@ -33,9 +39,12 @@ import {
 import {
     ArtifactService,
     BpmnClipboardMediator,
+    BpmnDiffService,
     BpmnElementTemplatesService,
     BpmnModelerService,
     BpmnSettingsBroadcaster,
+    DiffPaneStore,
+    DiffSession,
     EditorSessionStore,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
@@ -50,6 +59,7 @@ import {
     RpcStatusBar,
     SessionMeta,
 } from "./adapters";
+import { RpcDiffPaneHandle, dispatchDiffMessage } from "./diffAdapters";
 import { BridgeSettings, NodeWorkspace, SettingsSnapshot } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 
@@ -116,8 +126,22 @@ export function createBridge(
     const clipboard = new RpcClipboard(rpc);
     const clipboardMediator = new BpmnClipboardMediator(store, clipboard, notifier);
 
+    // The diff feature reuses the production diff brain verbatim: the same store
+    // and service VS Code wires up. `settings` supplies the locale; diff panes are
+    // not editor sessions, so they don't ride the per-session settings hub — the
+    // locale is pushed on open via the service's `markReady` and re-pushed on
+    // `settings/didChange` via `rebroadcastLanguage` (see the handler below).
+    const diffStore = new DiffPaneStore();
+    const diffService = new BpmnDiffService(notifier, settings, diffStore);
+
     const handles = new Map<string, RpcEditorHandle>();
     const watchers = new Map<string, { dispose(): void }[]>();
+
+    // Diff panes route by `paneUri` (a diff has two browsers, indexed
+    // independently of editor sessions); `diffSessions` maps each `diffId` to
+    // its session so `diff/dispose` can detach and drop both panes at once.
+    const diffPanes = new Map<string, RpcDiffPaneHandle>();
+    const diffSessions = new Map<string, DiffSession>();
 
     // The real webview-message dispatch table. The file/sync/settings/templates/
     // clipboard handlers call the genuine services; the remaining handshake reply
@@ -207,8 +231,10 @@ export function createBridge(
 
     // One host frame updates every open editor: `apply` fires a SettingChange that
     // each session's broadcaster + configFolder listener turn into webview pushes.
+    // Diff panes aren't editor sessions, so they need an explicit locale re-push.
     rpc.on("settings/didChange", (params: { settings: Partial<SettingsSnapshot> }) => {
         settings.apply(params.settings);
+        diffService.rebroadcastLanguage();
     });
 
     rpc.on("webview/message", (params: { editorId: string; message: Command }) => {
@@ -252,5 +278,69 @@ export function createBridge(
         log(`session disposed: ${params.editorId}`);
     });
 
+    /**
+     * Host-originated diff start. Unlike VS Code — where the two panes resolve
+     * independently and the controller has to pair them — IntelliJ hands us both
+     * sides up front (it knows HEAD vs working tree), so we build the fully-armed
+     * session in one shot: two handles seeded with cached XML, both attached,
+     * indexed. Each pane's webview then boots, asks for its file, reports ready,
+     * and `markReady` runs the differ once both sides are in. Sides are already
+     * assigned by the host, so the `forScm`/`forCompareFiles` choice is made by
+     * origin alone — only so the legend's origin-specific chrome stays correct.
+     */
+    rpc.on("diff/open", (params: DiffOpenParams) => {
+        const beforeHandle = new RpcDiffPaneHandle(params.before.uri, params.before.content, rpc);
+        const afterHandle = new RpcDiffPaneHandle(params.after.uri, params.after.content, rpc);
+
+        const session =
+            params.origin === "scm"
+                ? DiffSession.forScm(beforeHandle, afterHandle)
+                : DiffSession.forCompareFiles(params.before.uri, params.after.uri);
+        session.attachPane(beforeHandle);
+        session.attachPane(afterHandle);
+        diffStore.index(session);
+
+        diffPanes.set(beforeHandle.uri, beforeHandle);
+        diffPanes.set(afterHandle.uri, afterHandle);
+        diffSessions.set(params.diffId, session);
+
+        log(`diff opened: ${params.diffId} (${params.origin})`);
+    });
+
+    rpc.on("diff/webviewMessage", (params: { paneUri: string; message: Command }) => {
+        const handle = diffPanes.get(params.paneUri);
+        if (handle) {
+            void dispatchDiffMessage(diffService, handle, params.message);
+        }
+    });
+
+    rpc.on("diff/dispose", (params: { diffId: string }) => {
+        const session = diffSessions.get(params.diffId);
+        if (!session) {
+            return;
+        }
+        for (const pane of session.attachedPanes()) {
+            diffPanes.delete(pane.uri);
+            session.detachPane(pane);
+            pane.dispose();
+        }
+        diffStore.remove(session);
+        diffSessions.delete(params.diffId);
+        log(`diff disposed: ${params.diffId}`);
+    });
+
     return { rpc };
+}
+
+interface DiffPaneInput {
+    /** Stable, diff-scoped pane identity (host appends `#<diffId>-<role>`). */
+    uri: string;
+    content: string;
+}
+
+interface DiffOpenParams {
+    diffId: string;
+    origin: DiffOrigin;
+    before: DiffPaneInput;
+    after: DiffPaneInput;
 }

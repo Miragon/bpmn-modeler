@@ -67,6 +67,12 @@ class CoreProcess(private val project: Project) : Disposable {
 
     private val sessions = ConcurrentHashMap<String, CoreSession>()
 
+    // Diff panes route by `paneUri`, not editor id: a diff has two browsers and
+    // is host-originated. `diffPanes` maps each pane's URI to its core→webview
+    // sink; `diffPaneUris` lets `disposeDiff` drop both panes of a diff at once.
+    private val diffPanes = ConcurrentHashMap<String, (String) -> Unit>()
+    private val diffPaneUris = ConcurrentHashMap<String, List<String>>()
+
     private val writeLock = Any()
     private var process: Process? = null
     private var writer: BufferedWriter? = null
@@ -280,6 +286,61 @@ class CoreProcess(private val project: Project) : Disposable {
         notify("session/dispose", linkedMapOf("editorId" to editorId))
     }
 
+    /**
+     * Starts a host-originated diff session in the core. Both sides are known up
+     * front (IntelliJ resolves the diff with HEAD and working-tree contents in
+     * hand), so the core arms a fully-paired diff session immediately — no
+     * VS Code-style out-of-order pane resolution. `postToBefore`/`postToAfter`
+     * sink core→webview messages into each side's JCEF browser; `beforeUri`/
+     * `afterUri` are the diff-scoped pane identities the core routes replies by.
+     */
+    fun openDiff(
+        diffId: String,
+        origin: String,
+        beforeUri: String,
+        beforeContent: String,
+        postToBefore: (String) -> Unit,
+        afterUri: String,
+        afterContent: String,
+        postToAfter: (String) -> Unit,
+    ) {
+        ensureStarted()
+        diffPanes[beforeUri] = postToBefore
+        diffPanes[afterUri] = postToAfter
+        diffPaneUris[diffId] = listOf(beforeUri, afterUri)
+        notify(
+            "diff/open",
+            linkedMapOf(
+                "diffId" to diffId,
+                "origin" to origin,
+                "before" to linkedMapOf("uri" to beforeUri, "content" to beforeContent),
+                "after" to linkedMapOf("uri" to afterUri, "content" to afterContent),
+            ),
+        )
+    }
+
+    /** Forwards one raw diff-pane webview message (already JSON) to the core. */
+    fun forwardDiffMessage(paneUri: String, rawMessage: String) {
+        val message =
+            try {
+                JsonParser.parseString(rawMessage)
+            } catch (e: Exception) {
+                log.warn("Discarding malformed diff message: $rawMessage", e)
+                return
+            }
+        notify("diff/webviewMessage", linkedMapOf("paneUri" to paneUri, "message" to message))
+    }
+
+    /**
+     * Tears a diff down: drops both panes' sinks (so a stray late reply can't
+     * resurrect a closed pane) and tells the core to retire the session. Called
+     * on tab close and, with an immediate re-`openDiff`, on swap.
+     */
+    fun disposeDiff(diffId: String) {
+        diffPaneUris.remove(diffId)?.forEach { diffPanes.remove(it) }
+        notify("diff/dispose", linkedMapOf("diffId" to diffId))
+    }
+
     // ── core → host ──────────────────────────────────────────────────────────
 
     /** Dispatches one line received from the core's stdout. */
@@ -303,6 +364,11 @@ class CoreProcess(private val project: Project) : Disposable {
                 // `message` is a JSON object; re-serialise it as the postMessage payload.
                 val payload = gson.toJson(params.get("message"))
                 sessions[editorId]?.postToWebview(payload)
+            }
+            "diff/postMessage" -> {
+                val paneUri = params.get("paneUri").asString
+                val payload = gson.toJson(params.get("message"))
+                diffPanes[paneUri]?.invoke(payload)
             }
             "document/write" -> handleWrite(params, id)
             "document/save" -> handleSave(params, id)
@@ -607,6 +673,8 @@ class CoreProcess(private val project: Project) : Disposable {
             if (!dying.waitFor(2, TimeUnit.SECONDS)) dying.destroyForcibly()
         }
         sessions.clear()
+        diffPanes.clear()
+        diffPaneUris.clear()
     }
 
     private companion object {
