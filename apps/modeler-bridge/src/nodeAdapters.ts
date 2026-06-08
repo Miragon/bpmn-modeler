@@ -63,7 +63,11 @@ function globToRegExp(glob: string): RegExp {
         } else if (c === "?") {
             re += "[^/]";
         } else {
-            re += c.replace(/[.+^${}()|[\]\\]/, "\\$&");
+            // `c` is a single character; backslash-escape it when it carries
+            // regex meaning. (A non-global `.replace` here would only escape the
+            // first match — fine for one char, but the explicit test is clearer
+            // and side-steps the incomplete-sanitization trap.)
+            re += /[.*+?^${}()|[\]\\]/.test(c) ? `\\${c}` : c;
         }
     }
     return new RegExp(`^${re}$`);
