@@ -41,16 +41,16 @@ export async function startServer(options: StartServerOptions): Promise<StartedS
     });
 
     // The bpmn/dmn icon-font CSS lives under `css/…/css/` and references its
-    // glyphs via `url(../font/…)`, which resolves to `css/…/font/…`. But the
-    // webview's vite static-copy places the fonts under `font/…/font/…`
-    // instead, so those requests 404 and palette/context-pad icons render as
-    // boxes. Rewrite the `/css/…/font/<file>` requests to the real `/font/…`
-    // location. (The proper fix belongs in the webview build's copy globs.)
-    app.get(/^\/css\/(.+\/font\/[^/]+)$/, (req, res, next) => {
-        res.sendFile(path.join(webviewRoot, "font", req.params[0]), (err) => {
-            if (err) next();
-        });
-    });
+    // glyphs via `url(../font/…)`, which resolves to `css/node_modules/…/font/…`.
+    // But the webview's vite static-copy places the fonts under
+    // `font/node_modules/…/font/…`, so those requests would 404 and
+    // palette/context-pad icons render as boxes. Mounting the font tree under
+    // the `/css/node_modules` prefix too lets the glyph requests resolve;
+    // non-font requests (the CSS files themselves) miss here and fall through
+    // to the main static mount below. `express.static` is used rather than a
+    // custom filesystem route so its built-in `..`-traversal protection
+    // applies. (The proper fix belongs in the webview build's copy globs.)
+    app.use("/css/node_modules", express.static(path.join(webviewRoot, "font", "node_modules")));
 
     app.use(express.static(webviewRoot));
 
