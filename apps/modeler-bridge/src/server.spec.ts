@@ -19,7 +19,13 @@ async function settle(): Promise<void> {
 }
 
 /** Frames the host would send to register an open `.bpmn` editor. */
-function registerParams(editorId: string, root: string, fsPath: string, content: string) {
+function registerParams(
+    editorId: string,
+    root: string,
+    fsPath: string,
+    content: string,
+    settings?: Record<string, unknown>,
+) {
     return {
         editorId,
         uriString: editorId,
@@ -28,6 +34,7 @@ function registerParams(editorId: string, root: string, fsPath: string, content:
         scheme: "file",
         workspaceRoot: root,
         content,
+        ...(settings ? { settings } : {}),
     };
 }
 
@@ -162,5 +169,125 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
         expect(writeResponder).toHaveBeenCalled();
+    });
+
+    it("seeds host-pushed settings so GetBpmnModelerSettingCommand reflects them", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, bpmnPath, C7_XML, {
+                    alignToOrigin: true,
+                    colorTheme: "light",
+                    favouriteBpmnElements: ["bpmn:UserTask"],
+                    language: "de",
+                }),
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "GetBpmnModelerSettingCommand" } },
+            }),
+        );
+        await settle();
+
+        const setting = frames.find(
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "BpmnModelerSettingQuery",
+        );
+        expect(setting?.params.message.setting).toMatchObject({
+            alignToOrigin: true,
+            colorTheme: "light",
+            favouriteBpmnElements: ["bpmn:UserTask"],
+        });
+        const language = frames.find(
+            (f) => f.method === "editor/postMessage" && f.params.message.type === "LanguageQuery",
+        );
+        expect(language?.params.message.locale).toBe("de");
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
+    it("re-pushes the language to a live editor on settings/didChange", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, bpmnPath, C7_XML, { language: "en" }),
+            }),
+        );
+        const before = frames.length;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "settings/didChange",
+                params: { settings: { language: "fr" } },
+            }),
+        );
+        await settle();
+
+        const language = frames
+            .slice(before)
+            .find(
+                (f) =>
+                    f.method === "editor/postMessage" && f.params.message.type === "LanguageQuery",
+            );
+        expect(language?.params.message.locale).toBe("fr");
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
+    it("reloads element templates from the new folder on a configFolder change", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+
+        // A template only discoverable under the *new* config folder, proving the
+        // reload re-reads the freshly configured directory rather than a cache.
+        const templateDir = join(root, ".camunda-next", "element-templates");
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(
+            join(templateDir, "t.json"),
+            JSON.stringify([{ name: "Next Template", id: "next", appliesTo: ["bpmn:Task"] }]),
+            "utf8",
+        );
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, bpmnPath, C7_XML, {
+                    configFolder: ".camunda",
+                }),
+            }),
+        );
+        const before = frames.length;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "settings/didChange",
+                params: { settings: { configFolder: ".camunda-next" } },
+            }),
+        );
+        await settle();
+        await settle();
+
+        const templates = frames
+            .slice(before)
+            .find(
+                (f) =>
+                    f.method === "editor/postMessage" &&
+                    f.params.message.type === "ElementTemplatesQuery",
+            );
+        expect(templates).toBeDefined();
+        expect(templates.params.message.elementTemplates).toContainEqual(
+            expect.objectContaining({ name: "Next Template" }),
+        );
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });
 });

@@ -21,9 +21,11 @@ import {
     EditorSubscription,
     NotifierPort,
     PickerPort,
+    SettingChange,
     StatusBarPort,
 } from "@miragon/bpmn-modeler-core";
 
+import { BridgeSettings } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 
 /** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
@@ -99,6 +101,7 @@ export class RpcEditorHandle implements EditorHandle {
         private readonly meta: SessionMeta,
         private readonly mirror: DocumentMirror,
         private readonly rpc: Rpc,
+        private readonly settings: BridgeSettings,
     ) {
         this.id = meta.editorId;
     }
@@ -189,8 +192,14 @@ export class RpcEditorHandle implements EditorHandle {
         return { dispose: () => {} };
     }
 
-    onDidChangeSetting(): EditorSubscription {
-        return { dispose: () => {} };
+    /**
+     * Bridges the host's pushed settings changes into this session. The shared
+     * {@link BridgeSettings} is the event hub (one snapshot fans out to every open
+     * editor), so each handle simply forwards its subscription — the same seam
+     * `EditorSessionStore.subscribeToSettingChangeEvent` drives on VS Code.
+     */
+    onDidChangeSetting(callback: (event: SettingChange) => void): EditorSubscription {
+        return this.settings.onDidChange(callback);
     }
 
     /** Delivers a host-forwarded webview command into the core's dispatch path. */

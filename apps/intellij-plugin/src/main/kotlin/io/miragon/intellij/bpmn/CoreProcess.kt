@@ -201,9 +201,22 @@ class CoreProcess(private val project: Project) : Disposable {
                 // discovery; falls back to the file's dir for light-edit
                 // projects where basePath is null.
                 "workspaceRoot" to (project.basePath ?: session.file.parent?.path),
+                // Seed the core's SettingsPort before it scans templates, so the
+                // very first discovery uses the configured folder, not the default.
+                "settings" to MiranumSettings.getInstance().snapshotMap(),
                 "content" to content,
             ),
         )
+    }
+
+    /**
+     * Pushes the current settings snapshot to the running core so an open editor
+     * reacts live (language re-render, configFolder template reload). No-ops when
+     * no bridge is alive: the snapshot is re-seeded on the next [sendRegister].
+     */
+    fun pushSettings() {
+        if (process?.isAlive != true) return
+        notify("settings/didChange", linkedMapOf("settings" to MiranumSettings.getInstance().snapshotMap()))
     }
 
     /** Forwards one raw webview message (already JSON) to the core untouched. */

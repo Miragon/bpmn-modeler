@@ -27,6 +27,7 @@ import {
     ArtifactService,
     BpmnElementTemplatesService,
     BpmnModelerService,
+    BpmnSettingsBroadcaster,
     EditorSessionStore,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
@@ -40,7 +41,7 @@ import {
     SessionMeta,
     StubPicker,
 } from "./adapters";
-import { NodeSettings, NodeWorkspace } from "./nodeAdapters";
+import { BridgeSettings, NodeWorkspace, SettingsSnapshot } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 
 /** Builds a typed-but-stub host reply. The webview only reads `.type`, so a plain object is enough. */
@@ -50,6 +51,8 @@ function query(type: string, fields: Record<string, unknown>): Query {
 
 interface RegisterParams extends SessionMeta {
     content: string;
+    /** Full `miragon.bpmnModeler.*` snapshot; seeds settings before template discovery. */
+    settings?: Partial<SettingsSnapshot>;
 }
 
 /**
@@ -77,11 +80,11 @@ export function createBridge(
     const bpmnService = new BpmnModelerService(store, documentPort, picker, statusBar, notifier);
 
     // The element-templates pipeline is the *real* production stack: the only new
-    // code is the two pure-fs port adapters (NodeWorkspace/NodeSettings). This is
-    // what makes the status-bar template count genuine rather than a placeholder.
+    // code is the two pure-fs/host-fed port adapters (NodeWorkspace/BridgeSettings).
+    // This is what makes the status-bar template count genuine rather than a placeholder.
     const nodeWorkspace = new NodeWorkspace();
-    const nodeSettings = new NodeSettings();
-    const artifactSvc = new ArtifactService(nodeWorkspace, nodeSettings);
+    const settings = new BridgeSettings();
+    const artifactSvc = new ArtifactService(nodeWorkspace, settings);
     const templatesSvc = new BpmnElementTemplatesService(
         store,
         documentPort,
@@ -90,15 +93,21 @@ export function createBridge(
         notifier,
     );
 
+    // The same broadcaster the VS Code host uses: on a settings change it re-pushes
+    // modeler settings + language to the webview. It is `vscode`-free, so it runs
+    // here unmodified — the only difference is the change events come from the
+    // host's RPC snapshots rather than `workspace.onDidChangeConfiguration`.
+    const settingsBroadcaster = new BpmnSettingsBroadcaster(store, settings, notifier);
+
     const handles = new Map<string, RpcEditorHandle>();
     const watchers = new Map<string, { dispose(): void }[]>();
 
-    // The real webview-message dispatch table. The file/sync handlers call the
-    // genuine service; the remaining handshake replies are bridge-level stubs
-    // because their real services (settings, properties panel, clipboard) pull in
-    // host ports that are later issues (#1063–#1066). They must still answer, or
-    // the webview's `Promise.all` over templates+settings+panel-state never
-    // resolves and bootstrap stalls.
+    // The real webview-message dispatch table. The file/sync/settings/templates
+    // handlers call the genuine services; the remaining handshake replies are
+    // bridge-level stubs because their real services (properties panel, clipboard)
+    // pull in host ports that are later issues (#1065–#1066). They must still
+    // answer, or the webview's `Promise.all` over templates+settings+panel-state
+    // never resolves and bootstrap stalls.
     const router = new WebviewMessageRouter();
     router
         .on("GetBpmnFileCommand", async (_message: Command, editorId: string) => {
@@ -114,18 +123,11 @@ export function createBridge(
         .on("GetElementTemplatesCommand", (_m: Command, editorId: string) => {
             void templatesSvc.setElementTemplates(editorId);
         })
+        // The webview re-requests settings on every (re)load; push the live snapshot
+        // and language, mirroring the VS Code `getBpmnModelerSettingHandler`.
         .on("GetBpmnModelerSettingCommand", (_m: Command, editorId: string) => {
-            store.postMessage(
-                editorId,
-                query("BpmnModelerSettingQuery", {
-                    setting: {
-                        alignToOrigin: true,
-                        showTransactionBoundaries: true,
-                        // "light" avoids the "automatic" path that probes VS Code theme classes.
-                        colorTheme: "light",
-                    },
-                }),
-            );
+            void settingsBroadcaster.setSettings(editorId);
+            settingsBroadcaster.setLanguage(editorId);
         })
         .on("GetPropertiesPanelStateCommand", (_m: Command, editorId: string) => {
             store.postMessage(editorId, query("PropertiesPanelStateQuery", { visible: true }));
@@ -138,8 +140,15 @@ export function createBridge(
         });
 
     rpc.on("session/register", async (params: RegisterParams) => {
+        // Seed settings before any discovery so `getConfigFolder()` is correct on
+        // the first template scan/watcher. Snapshots are host-global; applying the
+        // same one on each register is idempotent.
+        if (params.settings) {
+            settings.apply(params.settings);
+        }
+
         mirror.register(params, params.content);
-        const handle = new RpcEditorHandle(params, mirror, rpc);
+        const handle = new RpcEditorHandle(params, mirror, rpc, settings);
         handles.set(params.editorId, handle);
 
         // Same wiring the VS Code controller does: route incoming webview
@@ -151,6 +160,17 @@ export function createBridge(
         );
         bpmnService.registerSession(params.editorId);
 
+        // Mirrors SettingsParticipant + ElementTemplatesParticipant: re-push
+        // modeler/language settings on change, and reload templates when the
+        // config folder moves. Both ride the BridgeSettings change hub via the
+        // handle's onDidChangeSetting; disposed with the session by the store.
+        settingsBroadcaster.subscribe(params.editorId);
+        store.subscribeToSettingChangeEvent(params.editorId, (event, editorId) => {
+            if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
+                void templatesSvc.setElementTemplates(editorId);
+            }
+        });
+
         // Seed discovery with the host's authoritative root, then arm the live-
         // reload watcher (the production `ArtifactService` wiring, reused verbatim).
         if (params.workspaceRoot) {
@@ -160,6 +180,12 @@ export function createBridge(
         watchers.set(params.editorId, disposables);
 
         log(`session registered: ${params.editorId}`);
+    });
+
+    // One host frame updates every open editor: `apply` fires a SettingChange that
+    // each session's broadcaster + configFolder listener turn into webview pushes.
+    rpc.on("settings/didChange", (params: { settings: Partial<SettingsSnapshot> }) => {
+        settings.apply(params.settings);
     });
 
     rpc.on("webview/message", (params: { editorId: string; message: Command }) => {

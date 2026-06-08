@@ -28,7 +28,9 @@ import { posix } from "node:path";
 
 import {
     DirectoryNotFound,
+    EditorSubscription,
     NoWorkspaceFolderFoundError,
+    SettingChange,
     SettingsPort,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
@@ -207,31 +209,124 @@ export class NodeWorkspace implements WorkspacePort {
 }
 
 /**
- * Minimal {@link SettingsPort}. Only `getConfigFolder` is exercised by the
- * templates path; the rest return sane, render-safe defaults so the bridge
- * never probes a VS Code-specific code path. Real settings are #1063.
+ * The full set of `miragon.bpmnModeler.*` values the core reads through
+ * {@link SettingsPort}, as one host-pushed snapshot. The host (IntelliJ) is the
+ * single source of truth and sends this on `session/register` and whenever the
+ * user edits the Settings page; the bridge never reads configuration itself.
  */
-export class NodeSettings implements SettingsPort {
+export interface SettingsSnapshot {
+    alignToOrigin: boolean;
+    showTransactionBoundaries: boolean;
+    configFolder: string;
+    c8ApiVersion: string;
+    colorTheme: "automatic" | "light";
+    favouriteBpmnElements: string[];
+    language: string;
+}
+
+/** Mirrors the VS Code config prefix so `affectsConfiguration` keys line up across hosts. */
+const SETTINGS_PREFIX = "miragon.bpmnModeler";
+
+/**
+ * Defaults matching `apps/modeler-plugin/package.json` so a session is render-safe
+ * before the host's first snapshot arrives (e.g. the CLI bridge, or a host that
+ * omits `settings`). In the IntelliJ host these are immediately overwritten by the
+ * `MiranumSettings` snapshot seeded on register.
+ */
+const DEFAULT_SETTINGS: SettingsSnapshot = {
+    alignToOrigin: false,
+    showTransactionBoundaries: true,
+    configFolder: ".camunda",
+    c8ApiVersion: "v2",
+    colorTheme: "automatic",
+    favouriteBpmnElements: [
+        "bpmn:ServiceTask",
+        "bpmn:UserTask",
+        "bpmn:CallActivity",
+        "bpmn:ExclusiveGateway",
+    ],
+    language: "en",
+};
+
+/**
+ * Mutable {@link SettingsPort} fed by the host over RPC, plus the change-event hub
+ * the core's settings subscriptions ride on.
+ *
+ * The VS Code host reads configuration synchronously and emits
+ * `onDidChangeConfiguration`; out-of-process there is no such API, so the host
+ * instead pushes whole snapshots. {@link apply} diffs the incoming snapshot
+ * against the current one and fires a host-agnostic {@link SettingChange} naming
+ * only the keys that actually changed — exactly the contract
+ * `BpmnSettingsBroadcaster` and the templates reload branch expect, which is what
+ * lets the unmodified core react identically on both hosts.
+ */
+export class BridgeSettings implements SettingsPort {
+    private snapshot: SettingsSnapshot = { ...DEFAULT_SETTINGS };
+    private readonly listeners = new Set<(event: SettingChange) => void>();
+
+    /**
+     * Replaces the snapshot and notifies listeners for each changed key. Listeners
+     * are registered per open editor via {@link onDidChange}, so one host frame
+     * fans out to every session — mirroring VS Code's global config event.
+     */
+    apply(next: Partial<SettingsSnapshot>): void {
+        const merged: SettingsSnapshot = { ...this.snapshot, ...next };
+        const changed = new Set<string>();
+        for (const key of Object.keys(merged) as (keyof SettingsSnapshot)[]) {
+            if (!valuesEqual(this.snapshot[key], merged[key])) {
+                changed.add(`${SETTINGS_PREFIX}.${key}`);
+            }
+        }
+        this.snapshot = merged;
+        if (changed.size === 0) {
+            return;
+        }
+        const event: SettingChange = {
+            affectsConfiguration: (section) => changed.has(section),
+        };
+        // Copy before iterating: a listener may dispose itself on fire.
+        for (const listener of [...this.listeners]) {
+            listener(event);
+        }
+    }
+
+    /** Registers a settings-change listener; the returned subscription unregisters it. */
+    onDidChange(listener: (event: SettingChange) => void): EditorSubscription {
+        this.listeners.add(listener);
+        return {
+            dispose: () => {
+                this.listeners.delete(listener);
+            },
+        };
+    }
+
     getConfigFolder(): string {
-        return ".camunda";
+        return this.snapshot.configFolder;
     }
     getAlignToOrigin(): boolean {
-        return true;
+        return this.snapshot.alignToOrigin;
     }
     getShowTransactionBoundaries(): boolean {
-        return true;
+        return this.snapshot.showTransactionBoundaries;
     }
     getC8ApiVersion(): string {
-        return "";
+        return this.snapshot.c8ApiVersion;
     }
-    // "light" avoids the "automatic" path that probes VS Code theme classes.
     getColorTheme(): "automatic" | "light" {
-        return "light";
+        return this.snapshot.colorTheme;
     }
     getFavouriteBpmnElements(): string[] {
-        return [];
+        return this.snapshot.favouriteBpmnElements;
     }
     getLanguage(): string {
-        return "en";
+        return this.snapshot.language;
     }
+}
+
+/** Order-sensitive equality covering the snapshot's primitives and the string-array field. */
+function valuesEqual(a: unknown, b: unknown): boolean {
+    if (Array.isArray(a) && Array.isArray(b)) {
+        return a.length === b.length && a.every((value, index) => value === b[index]);
+    }
+    return a === b;
 }
