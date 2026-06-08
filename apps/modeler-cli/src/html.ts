@@ -1,10 +1,10 @@
 import { WebviewKind } from "./server";
 
-// Icon-font stylesheets live at the deep path the webview's vite static-copy
-// glob produces (`css/**` preserves the matched node_modules path). Mirrored
-// here so the served HTML links the file that actually exists on disk.
-const BPMN_FONT_CSS = "/css/node_modules/camunda-bpmn-js/dist/assets/bpmn-font/css/bpmn.css";
-const DMN_FONT_CSS = "/css/node_modules/dmn-js/dist/assets/dmn-font/css/dmn.css";
+// Icon-font stylesheets. The CLI's copy-webviews step flattens these out of
+// the webview build's nested `css/node_modules/…` path into a plain `css/`
+// directory (see `flattenVendorDir`), so the served URL is flat.
+const BPMN_FONT_CSS = "/css/bpmn.css";
+const DMN_FONT_CSS = "/css/dmn.css";
 
 /**
  * Returns the HTML served at `/`. Mirrors the extension-host `bpmnEditorUi` /

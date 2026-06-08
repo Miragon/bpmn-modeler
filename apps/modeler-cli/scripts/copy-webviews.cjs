@@ -34,6 +34,45 @@ async function copyDir(src, dest) {
     }
 }
 
+/** Collects absolute paths of every file under `dir`, recursively. */
+async function collectFiles(dir) {
+    const out = [];
+    const entries = await fsp.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            out.push(...(await collectFiles(full)));
+        } else if (entry.isFile()) {
+            out.push(full);
+        }
+    }
+    return out;
+}
+
+/**
+ * Hoists the icon-font assets out of the `node_modules/…` directory that the
+ * webview's vite static-copy glob produces, then removes that directory.
+ *
+ * Two reasons: (1) the served tree must not contain a folder named
+ * `node_modules`, which CodeQL flags as `js/exposure-of-private-files`; and
+ * (2) flattening lets the font CSS's `url(../font/…)` resolve directly under
+ * the main static mount, so no path-rewriting route is needed. Filenames in
+ * each leaf (`bpmn.css`/`bpmn.woff2`/…) are distinct, so a flat move is
+ * collision-free. The proper fix belongs in the webview build's copy globs.
+ */
+async function flattenVendorDir(dir) {
+    const nested = path.join(dir, "node_modules");
+    try {
+        await fsp.access(nested);
+    } catch {
+        return; // nothing copied under node_modules for this webview kind
+    }
+    for (const file of await collectFiles(nested)) {
+        await fsp.copyFile(file, path.join(dir, path.basename(file)));
+    }
+    await fsp.rm(nested, { recursive: true, force: true });
+}
+
 async function main() {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");
@@ -52,6 +91,8 @@ async function main() {
             );
         }
         await copyDir(src, dest);
+        await flattenVendorDir(path.join(dest, "css"));
+        await flattenVendorDir(path.join(dest, "font"));
         console.log(`[copy-webviews] ${name} -> ${path.relative(cliRoot, dest)}`);
     }
 }
