@@ -38,7 +38,7 @@ vi.mock("../infrastructure/WebviewPaneHandle", () => ({
 import { commands, workspace } from "vscode";
 
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
-import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
+import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { BpmnDiffController } from "./BpmnDiffController";
 
 /** Minimal vscode `Uri` stand-in carrying the two fields the controller reads. */

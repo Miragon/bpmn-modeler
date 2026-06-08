@@ -1,6 +1,6 @@
 import { commands, ExtensionContext } from "vscode";
 
-import { EditorSessionStore } from "../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeDocument } from "../shared/infrastructure/VsCodeDocument";
 import { VsCodeWorkspace } from "../shared/infrastructure/VsCodeWorkspace";
 import { VsCodeSettings } from "../shared/infrastructure/VsCodeSettings";
@@ -9,7 +9,7 @@ import { VsCodeNotifier } from "../shared/infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "../shared/infrastructure/VsCodePicker";
 import { VsCodeClipboard } from "../shared/infrastructure/VsCodeClipboard";
 import { VsCodeTextEditor } from "../shared/infrastructure/VsCodeTextEditor";
-import { ArtifactService } from "../shared/service/ArtifactService";
+import { ArtifactService } from "@miragon/bpmn-modeler-core";
 
 /**
  * The cross-cutting collaborators every feature draws from: the host-capability

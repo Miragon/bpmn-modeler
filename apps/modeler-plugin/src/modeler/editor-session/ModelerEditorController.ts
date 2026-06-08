@@ -9,15 +9,11 @@ import {
 
 import { Command } from "@miragon/bpmn-modeler-shared";
 
-import {
-    DocumentChangeEvent,
-    EditorSubscription,
-    SettingChange,
-} from "../../shared/domain/EditorSession";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { DocumentChangeEvent, EditorSubscription, SettingChange } from "@miragon/bpmn-modeler-core";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeEditorHandle } from "../../shared/infrastructure/VsCodeEditorHandle";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
-import { WebviewMessageRouter } from "../../shared/infrastructure/WebviewMessageRouter";
+import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { EditorSessionContext, EditorSessionParticipant } from "./EditorSessionParticipant";
 
 /**

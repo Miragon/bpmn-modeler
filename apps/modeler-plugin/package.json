@@ -8,6 +8,7 @@
         "test:e2e": "tsc -p test/e2e/tsconfig.json && vscode-test --config test/e2e/.vscode-test.mjs"
     },
     "dependencies": {
+        "@miragon/bpmn-modeler-core": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "bpmn-js-differ": "3.2.0",

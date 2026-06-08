@@ -2,8 +2,12 @@ import { posix } from "path";
 
 import { FileType, RelativePattern, Uri, workspace } from "vscode";
 
-import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
-import { WorkspacePort } from "../domain/hostPorts";
+import {
+    DirectoryNotFound,
+    FileNotFound,
+    NoWorkspaceFolderFoundError,
+} from "@miragon/bpmn-modeler-core";
+import { WorkspacePort } from "@miragon/bpmn-modeler-core";
 
 const fs = workspace.fs;
 

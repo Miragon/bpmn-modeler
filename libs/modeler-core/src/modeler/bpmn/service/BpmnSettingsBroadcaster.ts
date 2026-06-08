@@ -1,9 +1,8 @@
 import { BpmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
 import { SettingBuilder } from "../domain/model";
+import { NotifierPort, SettingsPort } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
-import { VsCodeNotifier } from "../../../shared/infrastructure/VsCodeNotifier";
-import { VsCodeSettings } from "../../../shared/infrastructure/VsCodeSettings";
 
 /**
  * Pushes user-facing modeler settings (toolbar layout, theme, language, …)
@@ -19,17 +18,17 @@ import { VsCodeSettings } from "../../../shared/infrastructure/VsCodeSettings";
 export class BpmnSettingsBroadcaster {
     constructor(
         private readonly editorStore: EditorSessionStore,
-        private readonly vsSettings: VsCodeSettings,
-        private readonly notifier: VsCodeNotifier,
+        private readonly settings: SettingsPort,
+        private readonly notifier: NotifierPort,
     ) {}
 
     async setSettings(editorId: string): Promise<boolean> {
         try {
             const settings = new SettingBuilder()
-                .alignToOrigin(this.vsSettings.getAlignToOrigin())
-                .showTransactionBoundaries(this.vsSettings.getShowTransactionBoundaries())
-                .colorTheme(this.vsSettings.getColorTheme())
-                .favouriteBpmnElements(this.vsSettings.getFavouriteBpmnElements())
+                .alignToOrigin(this.settings.getAlignToOrigin())
+                .showTransactionBoundaries(this.settings.getShowTransactionBoundaries())
+                .colorTheme(this.settings.getColorTheme())
+                .favouriteBpmnElements(this.settings.getFavouriteBpmnElements())
                 .buildBpmnModeler();
 
             if (
@@ -59,7 +58,7 @@ export class BpmnSettingsBroadcaster {
     }
 
     setLanguage(editorId: string): void {
-        const locale = this.vsSettings.getLanguage();
+        const locale = this.settings.getLanguage();
         this.editorStore.postMessage(editorId, new LanguageQuery(locale)).catch((error) => {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
         });

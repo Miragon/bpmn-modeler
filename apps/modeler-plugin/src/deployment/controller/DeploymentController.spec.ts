@@ -19,9 +19,9 @@ import {
     type DeployCommand,
     type StartInstanceCommand,
 } from "@miragon/bpmn-modeler-shared";
-import { BasicAuth, DeploymentResult, NoAuth, OAuth2Auth } from "../domain/deployment";
-import { StartInstanceResult } from "../domain/startInstance";
-import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { BasicAuth, DeploymentResult, NoAuth, OAuth2Auth } from "@miragon/bpmn-modeler-core";
+import { StartInstanceResult } from "@miragon/bpmn-modeler-core";
+import { InvalidDeploymentConfigError } from "@miragon/bpmn-modeler-core";
 import { DeploymentController } from "./DeploymentController";
 
 /**

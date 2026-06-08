@@ -60,8 +60,8 @@ vi.mock("vscode", () => {
 import { TabInputText, Uri } from "vscode";
 
 import { ScriptTaskService } from "./ScriptTaskService";
-import { ScriptLanguage } from "../domain/scriptLanguage";
-import { ScriptUri } from "../domain/ScriptUri";
+import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
+import { ScriptUri } from "@miragon/bpmn-modeler-core";
 
 const EDITOR_ID = "file:///repo/process.bpmn";
 const ELEMENT_ID = "Task_1";

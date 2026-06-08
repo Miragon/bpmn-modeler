@@ -7,7 +7,7 @@ import {
     EditorHandle,
     EditorSubscription,
     SettingChange,
-} from "../domain/EditorSession";
+} from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "./bootstrapWebview";
 
 /**

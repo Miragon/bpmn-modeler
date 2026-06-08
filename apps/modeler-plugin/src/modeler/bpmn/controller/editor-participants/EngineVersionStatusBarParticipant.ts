@@ -1,4 +1,4 @@
-import { BpmnDocument } from "../../../../shared/domain/BpmnDocument";
+import { BpmnDocument } from "@miragon/bpmn-modeler-core";
 import { VsCodeDocument } from "../../../../shared/infrastructure/VsCodeDocument";
 import { VsCodeStatusBar } from "../../../../shared/infrastructure/VsCodeStatusBar";
 import {

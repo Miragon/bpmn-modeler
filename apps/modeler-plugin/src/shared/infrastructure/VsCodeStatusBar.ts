@@ -2,7 +2,7 @@ import { StatusBarAlignment, StatusBarItem, window } from "vscode";
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
 
-import { StatusBarPort } from "../domain/hostPorts";
+import { StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 
 export class VsCodeStatusBar implements StatusBarPort {

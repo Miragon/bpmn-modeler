@@ -1,8 +1,8 @@
 import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
-import { MessageHandler } from "../../../../shared/infrastructure/WebviewMessageRouter";
-import { DmnModelerService } from "../../service/DmnModelerService";
+import { MessageHandler } from "@miragon/bpmn-modeler-core";
+import { DmnModelerService } from "@miragon/bpmn-modeler-core";
 
 /**
  * Factories that translate DMN webview commands into {@link DmnModelerService}

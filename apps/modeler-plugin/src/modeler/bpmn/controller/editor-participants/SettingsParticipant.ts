@@ -1,4 +1,4 @@
-import { BpmnSettingsBroadcaster } from "../../service/BpmnSettingsBroadcaster";
+import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import {
     EditorSessionContext,
     EditorSessionParticipant,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { BpmnSettingsBroadcaster } from "../../service/BpmnSettingsBroadcaster";
+import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { EditorSessionContext } from "../../../editor-session/EditorSessionParticipant";
 import { SettingsParticipant } from "./SettingsParticipant";
 

@@ -16,9 +16,9 @@ import {
     UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
 
-import { ScriptLanguage } from "../domain/scriptLanguage";
-import { ScriptUri } from "../domain/ScriptUri";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
+import { ScriptUri } from "@miragon/bpmn-modeler-core";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { BpmnScriptFileSystem } from "../infrastructure/BpmnScriptFileSystem";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { VsCodePicker } from "../../shared/infrastructure/VsCodePicker";

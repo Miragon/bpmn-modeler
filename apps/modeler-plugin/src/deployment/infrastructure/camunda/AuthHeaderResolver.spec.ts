@@ -1,9 +1,9 @@
 import { Mocked, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
-import { BasicAuth, NoAuth, OAuth2Auth } from "../../domain/deployment";
-import { TokenFetchError } from "../../../shared/domain/errors";
-import { HttpClient, HttpResponse } from "../../domain/ports";
+import { BasicAuth, NoAuth, OAuth2Auth } from "@miragon/bpmn-modeler-core";
+import { TokenFetchError } from "@miragon/bpmn-modeler-core";
+import { HttpClient, HttpResponse } from "@miragon/bpmn-modeler-core";
 
 function mockHttpClient(): Mocked<HttpClient> {
     return {

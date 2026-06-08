@@ -3,4 +3,4 @@
  * navigate-to-referenced-model only through this barrel; reaching into the
  * feature's internals is rejected by the feature-isolation architecture test.
  */
-export { ModelNavigationService } from "./service/ModelNavigationService";
+export { ModelNavigationService } from "@miragon/bpmn-modeler-core";

@@ -1,5 +1,5 @@
-import { DocumentPort } from "../domain/hostPorts";
-import { EditorSessionStore } from "./EditorSessionStore";
+import { DocumentPort } from "@miragon/bpmn-modeler-core";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 
 /**
  * {@link DocumentPort} adapter: routes an `editorId` to the owning

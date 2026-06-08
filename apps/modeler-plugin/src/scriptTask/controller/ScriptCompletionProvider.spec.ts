@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { beansFor } from "../domain/scriptApi";
-import { matchMemberAccess, parseKindFromUri } from "../domain/scriptCompletion";
+import { beansFor } from "@miragon/bpmn-modeler-core";
+import { matchMemberAccess, parseKindFromUri } from "@miragon/bpmn-modeler-core";
 
 /**
  * Pure-function tests for the helpers behind the script completion provider.

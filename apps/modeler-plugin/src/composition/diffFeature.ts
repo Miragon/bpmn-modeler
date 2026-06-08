@@ -1,7 +1,7 @@
 import { ExtensionContext } from "vscode";
 
-import { DiffPaneStore } from "../diff/infrastructure/DiffPaneStore";
-import { BpmnDiffService } from "../diff/service/BpmnDiffService";
+import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
+import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { SharedDeps } from "./sharedDeps";
 

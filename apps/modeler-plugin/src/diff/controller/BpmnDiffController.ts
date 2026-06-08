@@ -15,12 +15,12 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";
+import { DiffPaneHandle, DiffSession, basenameOfUriString } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
-import { DiffPaneStore } from "../infrastructure/DiffPaneStore";
+import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { WebviewPaneHandle } from "../infrastructure/WebviewPaneHandle";
-import { BpmnDiffService } from "../service/BpmnDiffService";
+import { BpmnDiffService } from "@miragon/bpmn-modeler-core";
 
 // VS Code view-type identifier for the BPMN custom editor.
 const BPMN_VIEW_TYPE = "bpmn-modeler.bpmn";

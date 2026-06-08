@@ -1,6 +1,6 @@
 import { env } from "vscode";
 
-import { ClipboardPort } from "../domain/hostPorts";
+import { ClipboardPort } from "@miragon/bpmn-modeler-core";
 
 /**
  * Adapter around the VS Code clipboard API.

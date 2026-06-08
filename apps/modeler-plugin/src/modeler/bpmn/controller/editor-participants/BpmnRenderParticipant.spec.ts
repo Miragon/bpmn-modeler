@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DocumentChangeEvent } from "../../../../shared/domain/EditorSession";
-import { BpmnModelerService } from "../../service/BpmnModelerService";
+import { DocumentChangeEvent } from "@miragon/bpmn-modeler-core";
+import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
 import { EditorSessionContext } from "../../../editor-session/EditorSessionParticipant";
 import { BpmnRenderParticipant } from "./BpmnRenderParticipant";

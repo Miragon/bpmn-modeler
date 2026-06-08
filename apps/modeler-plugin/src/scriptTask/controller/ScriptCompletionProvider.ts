@@ -11,8 +11,8 @@ import {
     TextDocument,
 } from "vscode";
 
-import { BeanDef, beansFor, MethodDef, methodsForBean } from "../domain/scriptApi";
-import { matchMemberAccess, parseKindFromUri } from "../domain/scriptCompletion";
+import { BeanDef, beansFor, MethodDef, methodsForBean } from "@miragon/bpmn-modeler-core";
+import { matchMemberAccess, parseKindFromUri } from "@miragon/bpmn-modeler-core";
 
 /**
  * VS Code language-feature provider that powers IntelliSense for inline
