@@ -23,7 +23,8 @@
  * both paths.
  */
 
-import { promises as fs, watch } from "node:fs";
+import { watch } from "chokidar";
+import { promises as fs } from "node:fs";
 import { posix, sep } from "node:path";
 
 import {
@@ -176,12 +177,20 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Recursive {@link watch} over the workspace root, firing `onChange`
-     * whenever an element-template JSON changes. Debounced ~50ms to coalesce
-     * the editor's multi-event save bursts into a single re-load.
+     * Watches the workspace root for element-template JSON changes via chokidar,
+     * firing the matching handler debounced ~50ms to coalesce the editor's
+     * multi-event save bursts into a single re-load.
      *
-     * Recursive `fs.watch` is macOS/Windows only — Linux would need chokidar or
-     * per-directory watches (tracked for the Linux release target).
+     * chokidar replaces `fs.watch({ recursive: true })`: the latter's recursive
+     * mode is unreliable across platforms — under Bun on Linux it only tracks
+     * subdirectories that existed when the watch began (fixed only in Bun
+     * ≥1.3.14), so a freshly-created `element-templates/` folder would go
+     * unnoticed. chokidar gives version-independent recursive watching on
+     * macOS/Windows/Linux, matching VS Code's `FileSystemWatcher` behaviour.
+     *
+     * `node_modules`/`.git` are pruned so arming the recursive watch on a large
+     * repo stays within the OS watch-descriptor budget (inotify on Linux).
+     * Dot-dirs in general must stay watched — templates live under `.camunda/`.
      */
     createWatcher(
         rootPath: string,
@@ -193,31 +202,50 @@ export class NodeWorkspace implements WorkspacePort {
         },
     ): { dispose(): void } {
         const root = toFsPath(rootPath);
-        const fire = handlers.onChange ?? handlers.onCreate ?? handlers.onDelete;
         let timer: NodeJS.Timeout | undefined;
 
-        const watcher = watch(root, { recursive: true }, (_event, filename) => {
-            if (!filename) {
-                return;
-            }
-            const name = filename.toString();
-            // The glob targets `<configFolder>/element-templates/**/*.json`;
-            // match its intent against the changed path's relative form.
-            if (!name.includes("/element-templates/") || !name.endsWith(".json")) {
+        // The glob targets `<configFolder>/element-templates/**/*.json`; match
+        // its intent against the changed path. chokidar emits OS-native paths,
+        // so normalise separators before the substring check.
+        const isTemplate = (changed: string): boolean => {
+            const normalized = changed.replace(/\\/g, "/");
+            return normalized.includes("/element-templates/") && normalized.endsWith(".json");
+        };
+
+        // One shared timer across add/change/unlink: every event resolves to the
+        // same template re-load downstream, so coalescing a burst into the last
+        // event's handler is correct and avoids redundant reloads.
+        const fireDebounced = (
+            handler: ((path: string) => void) | undefined,
+            changed: string,
+        ): void => {
+            if (!handler || !isTemplate(changed)) {
                 return;
             }
             if (timer) {
                 clearTimeout(timer);
             }
-            timer = setTimeout(() => fire?.(posix.join(root, name)), 50);
+            timer = setTimeout(() => handler(changed), 50);
+        };
+
+        const watcher = watch(root, {
+            // The initial load runs via the webview's `GetElementTemplatesCommand`;
+            // skip the synthetic `add` storm chokidar emits for existing files.
+            ignoreInitial: true,
+            ignored: /(^|[/\\])(node_modules|\.git)([/\\]|$)/,
         });
+        watcher
+            .on("add", (p) => fireDebounced(handlers.onCreate, p))
+            .on("change", (p) => fireDebounced(handlers.onChange, p))
+            .on("unlink", (p) => fireDebounced(handlers.onDelete, p));
 
         return {
             dispose(): void {
                 if (timer) {
                     clearTimeout(timer);
                 }
-                watcher.close();
+                // chokidar's close() is async; nothing awaits teardown here.
+                void watcher.close();
             },
         };
     }
