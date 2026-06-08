@@ -1,0 +1,2 @@
+# Build output: the compiled Bun binary + copied webview assets (~68 MB).
+dist/
