@@ -4,6 +4,7 @@ export default defineConfig({
     test: {
         projects: [
             "apps/modeler-plugin",
+            "apps/modeler-bridge",
             "apps/bpmn-webview",
             "libs/bpmn-i18n",
             "libs/modeler-core",

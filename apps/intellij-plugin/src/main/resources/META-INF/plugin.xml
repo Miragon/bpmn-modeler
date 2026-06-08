@@ -1,0 +1,26 @@
+<idea-plugin>
+    <id>io.miragon.bpmn-modeler</id>
+    <name>Miranum BPMN Modeler</name>
+    <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
+
+    <description><![CDATA[
+        Opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor that
+        renders the Miranum bpmn-js modeler and round-trips edits back to disk.
+        The modeling engine is the unmodified TypeScript core, run out-of-process
+        as a supervised, self-contained binary — no Node.js install required.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
+
+        <!-- Engine version + element-template count, driven by the core's StatusBarPort. -->
+        <statusBarWidgetFactory
+            id="MiranumBpmnEngineWidget"
+            implementation="io.miragon.intellij.bpmn.EngineStatusBarWidgetFactory"/>
+
+        <!-- Balloons for the core's NotifierPort (showInfo / showError / notifyError). -->
+        <notificationGroup id="Miranum BPMN Modeler" displayType="BALLOON"/>
+    </extensions>
+</idea-plugin>
