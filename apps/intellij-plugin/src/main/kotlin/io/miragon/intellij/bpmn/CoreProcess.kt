@@ -10,8 +10,11 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.StringSelection
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.InputStream
@@ -269,6 +272,8 @@ class CoreProcess(private val project: Project) : Disposable {
             "document/write" -> handleWrite(params, id)
             "document/save" -> handleSave(params, id)
             "picker/show" -> handlePick(params, id)
+            "clipboard/read" -> handleClipboardRead(id)
+            "clipboard/write" -> handleClipboardWrite(params)
             "statusBar/showEngineVersion" -> {
                 val label = if (params.get("platform")?.asString == "c7") "Camunda 7" else "Camunda 8"
                 EngineStatusBarWidget.updateEngine(project, "$label ${params.get("version")?.asString}")
@@ -402,6 +407,31 @@ class CoreProcess(private val project: Project) : Disposable {
             HostPicker.show(project, title, placeholder, canPickMany, items) { selected ->
                 reply(id, mapOf("selected" to selected))
             }
+        }
+    }
+
+    /**
+     * Reads the system clipboard for the webview's copy/paste mediator. The
+     * sandboxed JCEF page can't touch the clipboard and the core is a separate
+     * process, so the host reads on their behalf and replies with the text.
+     * `runCatching` → `""` keeps a denied/empty/non-text clipboard from breaking
+     * paste — an empty string is a valid "nothing to paste" answer.
+     */
+    private fun handleClipboardRead(id: Int?) {
+        ApplicationManager.getApplication().invokeLater {
+            val text =
+                runCatching {
+                    CopyPasteManager.getInstance().getContents<String>(DataFlavor.stringFlavor)
+                }.getOrNull().orEmpty()
+            id?.let { reply(it, mapOf("text" to text)) }
+        }
+    }
+
+    /** Writes the webview's copied text onto the system clipboard (fire-and-forget). */
+    private fun handleClipboardWrite(params: JsonObject) {
+        val text = params.get("text")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+        ApplicationManager.getApplication().invokeLater {
+            CopyPasteManager.getInstance().setContents(StringSelection(text))
         }
     }
 

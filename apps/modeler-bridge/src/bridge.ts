@@ -22,9 +22,16 @@
  * own follow-up issues (#1067–#1069+); this is the BPMN-editor foundation.
  */
 
-import { Command, Query, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    Command,
+    Query,
+    SetClipboardCommand,
+    SetTextClipboardCommand,
+    SyncDocumentCommand,
+} from "@miragon/bpmn-modeler-shared";
 import {
     ArtifactService,
+    BpmnClipboardMediator,
     BpmnElementTemplatesService,
     BpmnModelerService,
     BpmnSettingsBroadcaster,
@@ -34,6 +41,7 @@ import {
 
 import {
     DocumentMirror,
+    RpcClipboard,
     RpcDocumentPort,
     RpcEditorHandle,
     RpcNotifier,
@@ -102,15 +110,20 @@ export function createBridge(
     // host's RPC snapshots rather than `workspace.onDidChangeConfiguration`.
     const settingsBroadcaster = new BpmnSettingsBroadcaster(store, settings, notifier);
 
+    // Real clipboard mediator (sandboxed-iframe pattern): the host reads/writes
+    // the system clipboard on the webview's behalf over RPC.
+    const clipboard = new RpcClipboard(rpc);
+    const clipboardMediator = new BpmnClipboardMediator(store, clipboard, notifier);
+
     const handles = new Map<string, RpcEditorHandle>();
     const watchers = new Map<string, { dispose(): void }[]>();
 
-    // The real webview-message dispatch table. The file/sync/settings/templates
-    // handlers call the genuine services; the remaining handshake replies are
-    // bridge-level stubs because their real services (properties panel, clipboard)
-    // pull in host ports that are later issues (#1065–#1066). They must still
-    // answer, or the webview's `Promise.all` over templates+settings+panel-state
-    // never resolves and bootstrap stalls.
+    // The real webview-message dispatch table. The file/sync/settings/templates/
+    // clipboard handlers call the genuine services; the remaining handshake reply
+    // is a bridge-level stub because its real service (properties panel) pulls in a
+    // host port that is a later issue (#1065). It must still answer, or the
+    // webview's `Promise.all` over templates+settings+panel-state never resolves
+    // and bootstrap stalls.
     const router = new WebviewMessageRouter();
     router
         .on("GetBpmnFileCommand", async (_message: Command, editorId: string) => {
@@ -136,10 +149,16 @@ export function createBridge(
             store.postMessage(editorId, query("PropertiesPanelStateQuery", { visible: true }));
         })
         .on("GetClipboardCommand", (_m: Command, editorId: string) => {
-            store.postMessage(editorId, query("ClipboardQuery", { text: "" }));
+            void clipboardMediator.readClipboard(editorId);
+        })
+        .on("SetClipboardCommand", (message: Command) => {
+            void clipboardMediator.writeClipboard((message as SetClipboardCommand).text);
         })
         .on("GetTextClipboardCommand", (_m: Command, editorId: string) => {
-            store.postMessage(editorId, query("TextClipboardQuery", { text: "" }));
+            void clipboardMediator.readTextClipboard(editorId);
+        })
+        .on("SetTextClipboardCommand", (message: Command) => {
+            void clipboardMediator.writeClipboard((message as SetTextClipboardCommand).text);
         });
 
     rpc.on("session/register", async (params: RegisterParams) => {
