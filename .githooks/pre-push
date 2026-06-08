@@ -7,14 +7,9 @@ corepack yarn install --immutable
 echo "▶ Pre-push: lint"
 corepack yarn lint
 
-echo "▶ Pre-push: test"
-corepack yarn test
-
-echo "▶ Pre-push: compile libs"
-corepack yarn workspace @miragon/bpmn-modeler-shared build
-corepack yarn workspace @miragon/bpmn-modeler-i18n build
-corepack yarn workspace @miragon/bpmn-modeler-clipboard build
-corepack yarn workspace @miragon/bpmn-modeler-element-template-chooser build
-corepack yarn workspace @miragon/bpmn-modeler-append-menu build
-
-echo "✓ All pre-push checks passed."
+# Tests and library/plugin builds are intentionally NOT run here: the Build CI
+# workflow (.github/workflows/build.yml) already runs `yarn lint`, every lib
+# compile, the plugin build, and `yarn test` on every PR. Re-running them on
+# each push only added minutes of redundant local work, so pre-push is kept to
+# the cheap, fast-feedback gate (lockfile drift + lint).
+echo "✓ Pre-push checks passed (tests + builds run in CI)."
