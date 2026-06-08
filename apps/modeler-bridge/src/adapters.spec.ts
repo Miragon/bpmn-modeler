@@ -8,6 +8,7 @@ import {
     RpcEditorHandle,
     RpcNotifier,
     RpcPicker,
+    RpcSecretStore,
     RpcStatusBar,
     SessionMeta,
 } from "./adapters";
@@ -298,6 +299,52 @@ describe("RpcNotifier", () => {
             "notifier/progressStart",
             "notifier/progressEnd",
         ]);
+    });
+});
+
+describe("RpcSecretStore", () => {
+    it("routes saves and reads over secretStore/* request frames", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const store = new RpcSecretStore(rpc);
+
+        const saveBasic = store.saveBasicAuth("user", "pw");
+        expect(last(frames)).toMatchObject({
+            method: "secretStore/saveBasicAuth",
+            params: { username: "user", password: "pw" },
+        });
+        await answerLast(null);
+        await expect(saveBasic).resolves.toBeUndefined();
+
+        const getBasic = store.getBasicAuth();
+        expect(last(frames)).toMatchObject({ method: "secretStore/getBasicAuth", params: {} });
+        await answerLast({ username: "user", password: "pw" });
+        await expect(getBasic).resolves.toEqual({ username: "user", password: "pw" });
+
+        const saveOauth = store.saveOAuth2("client", "secret");
+        expect(last(frames)).toMatchObject({
+            method: "secretStore/saveOAuth2",
+            params: { clientId: "client", clientSecret: "secret" },
+        });
+        await answerLast(null);
+        await expect(saveOauth).resolves.toBeUndefined();
+
+        const getOauth = store.getOAuth2();
+        expect(last(frames)).toMatchObject({ method: "secretStore/getOAuth2", params: {} });
+        await answerLast({ clientId: "client", clientSecret: "secret" });
+        await expect(getOauth).resolves.toEqual({ clientId: "client", clientSecret: "secret" });
+    });
+
+    it("resolves undefined when the host has no stored credentials", async () => {
+        const { rpc, answerLast } = harness();
+        const store = new RpcSecretStore(rpc);
+
+        const getBasic = store.getBasicAuth();
+        await answerLast(null);
+        await expect(getBasic).resolves.toBeUndefined();
+
+        const getOauth = store.getOAuth2();
+        await answerLast(null);
+        await expect(getOauth).resolves.toBeUndefined();
     });
 });
 

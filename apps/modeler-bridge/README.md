@@ -27,6 +27,7 @@ isn't talking to VS Code.
 | core → host | `editor/postMessage` | `EditorHandle.postMessage` (Query/Command → webview) |
 | core → host | `notifier/*` | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log |
 | core → host | `statusBar/*` | `StatusBarPort` → `StatusBarWidget` (engine version + template count) |
+| core → host | `secretStore/*` | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted at rest) |
 
 The **synchronous-read mismatch** — `BpmnModelerService.display()` reads
 `DocumentPort.getContent()` synchronously, impossible over async RPC — is solved
@@ -71,7 +72,7 @@ it by writing NDJSON frames to its stdin and reading frames from its stdout.
 - `src/rpc.ts` — the bidirectional NDJSON JSON-RPC peer.
 - `src/adapters.ts` — `DocumentMirror` + the RPC-backed ports
   (`RpcEditorHandle`, `RpcDocumentPort`, `RpcNotifier`, `RpcStatusBar`,
-  `RpcPicker`).
+  `RpcSecretStore`, `RpcPicker`).
 - `src/nodeAdapters.ts` — pure-`fs` `WorkspacePort` / `SettingsPort` for the
   element-templates pipeline.
 - `src/server.ts` — the entrypoint that wires the real core to the adapters.
