@@ -54,6 +54,7 @@ libs/
 | `@miragon/dmn-modeler-webview` | `apps/dmn-webview` | DMN editor UI |
 | `@miragon/bpmn-modeler-deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
 | `@miragon/bpmn-modeler-standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into a signed macOS DMG |
+| `@miragon/bpmn-modeler-bridge` | `apps/modeler-bridge` | Out-of-process stdio JSON-RPC bridge running `modeler-core` for the IntelliJ host; ships as a Node-free Bun binary |
 | `@miragon/bpmn-modeler-shared` | `libs/shared` | Message types, cross-process utilities |
 | `@miragon/bpmn-modeler-core` | `libs/modeler-core` | Host-agnostic modeling engine (domain + services + ports), consumed by the VS Code plugin and the IntelliJ bridge |
 | `@miragon/bpmn-modeler-clipboard` | `libs/bpmn-clipboard` | bpmn-js DI module for clipboard integration |

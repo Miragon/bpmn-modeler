@@ -14,6 +14,11 @@ module.exports = [
         ignores: [
             "**/dist",
             "**/lib",
+            // Gradle output (e.g. the IntelliJ plugin). Stages minified webview
+            // bundles under `build/**/webview/`; linting those one-line files
+            // emits tens of thousands of spurious errors. Flat config ignores
+            // `.gitignore`, so it must be excluded here explicitly.
+            "**/build",
             "**/src-gen",
             "**/plugins",
             "**/gen-webpack*.js",

@@ -1,0 +1,6 @@
+# Gradle / IntelliJ-plugin build output. This is a Gradle subproject (no
+# package.json), so the root /dist + yarn ignores don't cover it.
+build/
+.gradle/
+.kotlin/
+.idea/

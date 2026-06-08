@@ -1,0 +1,2 @@
+# Build output: the compiled Node-free Bun binary (~58 MB).
+dist/

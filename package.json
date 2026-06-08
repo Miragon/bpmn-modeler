@@ -17,6 +17,7 @@
         "build:dmn-webview": "corepack yarn workspace @miragon/dmn-modeler-webview build",
         "build:deployment-webview": "corepack yarn workspace @miragon/bpmn-modeler-deployment-webview build",
         "build:plugin": "corepack yarn workspace vs-code-bpmn-modeler build",
+        "build:bridge": "corepack yarn workspace @miragon/bpmn-modeler-bridge build",
         "dev:libs": "npm-run-all dev:lib:shared dev:lib:modeler-core",
         "dev:lib:shared": "corepack yarn workspace @miragon/bpmn-modeler-shared dev",
         "dev:lib:modeler-core": "corepack yarn workspace @miragon/bpmn-modeler-core dev",
