@@ -10,6 +10,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefJSQuery
+import com.intellij.ui.jcef.JcefShortcutProvider
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
 import org.cef.handler.CefLoadHandlerAdapter
@@ -59,6 +60,22 @@ class BpmnFileEditor(
             val cefBrowser = JBCefBrowser()
             component = cefBrowser.component
             Disposer.register(this, cefBrowser)
+
+            // macOS only: JBCefBrowser registers IDE actions ($SelectAll/$Undo/
+            // $Redo/$Copy/$Paste/$Cut) on this component that hijack ⌘-shortcuts
+            // and route them to *native* CEF frame commands (CefFrame.selectAll/
+            // undo/…), which only act on focused text fields. bpmn-js is a canvas
+            // app, so ⌘A/⌘Z silently no-op there — while Ctrl+A/Ctrl+Z work,
+            // because Ctrl isn't bound in the macOS keymap so its keydown reaches
+            // the page and bpmn-js's own keyboard bindings (isCmd = ctrl||meta)
+            // fire. Unregistering the forwarders lets ⌘-keystrokes fall through to
+            // the webview exactly like Ctrl, restoring select-all/undo/redo/copy/
+            // paste. No-op off macOS, where the forwarders are never registered.
+            runCatching {
+                JcefShortcutProvider.getActions().forEach {
+                    it.second.unregisterCustomShortcutSet(cefBrowser.component)
+                }
+            }
 
             // The editor id must match the core's session key (scheme-qualified URI).
             val editorId = file.url
