@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { UserCancelledError } from "@miragon/bpmn-modeler-core";
+
 import {
     DocumentMirror,
     RpcDocumentPort,
     RpcEditorHandle,
     RpcNotifier,
+    RpcPicker,
     RpcStatusBar,
     SessionMeta,
 } from "./adapters";
@@ -320,5 +323,158 @@ describe("RpcStatusBar", () => {
 
         statusBar.hideEngineVersion();
         expect(last(frames)).toEqual({ method: "statusBar/hideEngineVersion", params: {} });
+    });
+});
+
+describe("RpcPicker", () => {
+    /** Lets a `findFiles`-then-`show` chain settle before the frame is asserted. */
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    function setup() {
+        const h = harness();
+        const finder = { findFiles: vi.fn() };
+        return { ...h, finder, picker: new RpcPicker(h.rpc, finder) };
+    }
+
+    it("pickExecutionPlatform maps the chosen label to an engine", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickExecutionPlatform("Pick a platform", ["Camunda 7", "Camunda 8"]);
+        expect(last(frames)).toMatchObject({
+            method: "picker/show",
+            params: {
+                placeholder: "Pick a platform",
+                canPickMany: false,
+                items: [{ label: "Camunda 7" }, { label: "Camunda 8" }],
+            },
+        });
+        await answerLast({ selected: [1] });
+        await expect(pending).resolves.toBe("c8");
+    });
+
+    it("pickExecutionPlatform throws UserCancelledError on dismissal", async () => {
+        const { picker, answerLast } = setup();
+        const pending = picker.pickExecutionPlatform("Pick", ["Camunda 7"]);
+        await answerLast({ selected: null });
+        await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
+    });
+
+    it("pickMigrationScope labels the counts and maps the selection", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickMigrationScope(1, 3);
+        expect(last(frames).params.items.map((item: { label: string }) => item.label)).toEqual([
+            "Camunda 7 only (1 diagram)",
+            "Camunda 8 only (3 diagrams)",
+            "Both (4 diagrams)",
+        ]);
+        await answerLast({ selected: [2] });
+        await expect(pending).resolves.toBe("both");
+    });
+
+    it("pickMigrationScope throws on dismissal", async () => {
+        const { picker, answerLast } = setup();
+        const pending = picker.pickMigrationScope(2, 2);
+        await answerLast({ selected: null });
+        await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
+    });
+
+    it("pickEngineVersion returns the chosen version", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickEngineVersion("c7", ["7.19", "7.20"]);
+        expect(last(frames)).toMatchObject({
+            method: "picker/show",
+            params: { placeholder: "Select Camunda 7 engine version", canPickMany: false },
+        });
+        await answerLast({ selected: [1] });
+        await expect(pending).resolves.toBe("7.20");
+    });
+
+    it("pickEngineVersion throws on dismissal", async () => {
+        const { picker, answerLast } = setup();
+        const pending = picker.pickEngineVersion("c8", ["8.5"]);
+        await answerLast({ selected: null });
+        await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
+    });
+
+    it("pickPayloadFile returns the chosen path with a basename label", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickPayloadFile(["/w/a.json", "/w/sub/b.json"]);
+        expect(last(frames).params.items).toEqual([
+            { label: "a.json", description: "/w/a.json" },
+            { label: "b.json", description: "/w/sub/b.json" },
+        ]);
+        await answerLast({ selected: [1] });
+        await expect(pending).resolves.toEqual({ filePath: "/w/sub/b.json", label: "b.json" });
+    });
+
+    it("pickPayloadFile returns null on dismissal", async () => {
+        const { picker, answerLast } = setup();
+        const pending = picker.pickPayloadFile(["/w/a.json"]);
+        await answerLast({ selected: null });
+        await expect(pending).resolves.toBeNull();
+    });
+
+    it("pickReferencedModel sorts by path and returns the chosen one", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickReferencedModel(["/w/b.bpmn", "/w/a.bpmn"]);
+        expect(
+            last(frames).params.items.map((item: { description: string }) => item.description),
+        ).toEqual(["/w/a.bpmn", "/w/b.bpmn"]);
+        await answerLast({ selected: [0] });
+        await expect(pending).resolves.toBe("/w/a.bpmn");
+    });
+
+    it("pickReferencedModel returns undefined on dismissal", async () => {
+        const { picker, answerLast } = setup();
+        const pending = picker.pickReferencedModel(["/w/a.bpmn"]);
+        await answerLast({ selected: null });
+        await expect(pending).resolves.toBeUndefined();
+    });
+
+    it("pickScriptLanguage pins the current format first and returns it", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickScriptLanguage("groovy");
+        expect(last(frames).params.title).toBe("Script Language");
+        expect(last(frames).params.items[0]).toEqual({ label: "Groovy", description: ".groovy" });
+        await answerLast({ selected: [0] });
+        await expect(pending).resolves.toBe("groovy");
+    });
+
+    it("pickScriptLanguage returns undefined on dismissal", async () => {
+        const { picker, answerLast } = setup();
+        const pending = picker.pickScriptLanguage("javascript");
+        await answerLast({ selected: null });
+        await expect(pending).resolves.toBeUndefined();
+    });
+
+    it("pickWorkspaceFiles globs then maps the multi-selection", async () => {
+        const { frames, picker, answerLast, finder } = setup();
+        finder.findFiles.mockResolvedValue(["/w/a.form", "/w/b.json", "/w/c.dmn"]);
+        const pending = picker.pickWorkspaceFiles({
+            glob: "**/*.{form,json,dmn}",
+            exclude: "**/element-templates/**",
+            placeholder: "Pick files",
+        });
+        await flush();
+
+        expect(finder.findFiles).toHaveBeenCalledWith(
+            "**/*.{form,json,dmn}",
+            "**/element-templates/**",
+            undefined,
+        );
+        expect(last(frames)).toMatchObject({
+            method: "picker/show",
+            params: { canPickMany: true, placeholder: "Pick files" },
+        });
+        await answerLast({ selected: [0, 2] });
+        await expect(pending).resolves.toEqual(["/w/a.form", "/w/c.dmn"]);
+    });
+
+    it("pickWorkspaceFiles returns [] on dismissal", async () => {
+        const { picker, answerLast, finder } = setup();
+        finder.findFiles.mockResolvedValue(["/w/a.form"]);
+        const pending = picker.pickWorkspaceFiles({ glob: "**/*.form", placeholder: "Pick" });
+        await flush();
+        await answerLast({ selected: null });
+        await expect(pending).resolves.toEqual([]);
     });
 });

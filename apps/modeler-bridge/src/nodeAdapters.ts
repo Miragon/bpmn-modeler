@@ -24,7 +24,7 @@
  */
 
 import { promises as fs, watch } from "node:fs";
-import { posix } from "node:path";
+import { posix, sep } from "node:path";
 
 import {
     DirectoryNotFound,
@@ -38,6 +38,35 @@ import {
 /** Strips a leading `file://` so the string is a real OS path Node `fs` accepts. */
 function toFsPath(path: string): string {
     return path.replace(/^file:\/\//, "");
+}
+
+/**
+ * Compiles a glob into a path-matching `RegExp`. Used only to honour the
+ * `exclude` argument of {@link NodeWorkspace.findFiles}: Node's `fs.glob`
+ * accepts the positive pattern natively, but its `exclude` option shape differs
+ * across Node and Bun, so we match excluded paths ourselves to stay portable.
+ *
+ * Supports the operators the callers use: a double-star (across path segments,
+ * with a trailing slash swallowed so a leading double-star also matches at the
+ * root), and single `*` / `?` within one segment.
+ */
+function globToRegExp(glob: string): RegExp {
+    let re = "";
+    for (let i = 0; i < glob.length; i++) {
+        const c = glob[i];
+        if (c === "*" && glob[i + 1] === "*") {
+            re += ".*";
+            i++;
+            if (glob[i + 1] === "/") i++;
+        } else if (c === "*") {
+            re += "[^/]*";
+        } else if (c === "?") {
+            re += "[^/]";
+        } else {
+            re += c.replace(/[.+^${}()|[\]\\]/, "\\$&");
+        }
+    }
+    return new RegExp(`^${re}$`);
 }
 
 /**
@@ -203,8 +232,34 @@ export class NodeWorkspace implements WorkspacePort {
     writeFile(): Promise<void> {
         throw new Error("not implemented in bridge");
     }
-    findFiles(): Promise<string[]> {
-        throw new Error("not implemented in bridge");
+
+    /**
+     * Globs `pattern` across every registered workspace root, returning absolute
+     * paths. Mirrors `VsCodeWorkspace.findFiles` for the picker's workspace-file
+     * prompt: `exclude` drops matches, `limit` caps the result count.
+     *
+     * `fs.glob` is the Node/Bun built-in (no extra dependency); excluded paths
+     * are filtered via {@link globToRegExp} for cross-runtime stability.
+     */
+    async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
+        const excludeRe = exclude ? globToRegExp(exclude) : undefined;
+        const results: string[] = [];
+        for (const root of this.roots) {
+            const cwd = toFsPath(root);
+            for await (const match of fs.glob(pattern, { cwd })) {
+                // fs.glob yields paths relative to cwd using the OS separator;
+                // normalise to posix so the exclude matcher and join are stable.
+                const relative = match.split(sep).join("/");
+                if (excludeRe?.test(relative)) {
+                    continue;
+                }
+                results.push(posix.join(cwd, relative));
+                if (limit !== undefined && results.length >= limit) {
+                    return results;
+                }
+            }
+        }
+        return results;
     }
 }
 

@@ -14,15 +14,20 @@
  * hit a local cache instead of blocking on a round-trip.
  */
 
+import { posix } from "node:path";
+
 import { Command, Engine, Query } from "@miragon/bpmn-modeler-shared";
 import {
     DocumentPort,
     EditorHandle,
     EditorSubscription,
+    MigrationScope,
     NotifierPort,
     PickerPort,
+    ScriptLanguage,
     SettingChange,
     StatusBarPort,
+    UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
 
 import { BridgeSettings } from "./nodeAdapters";
@@ -336,31 +341,161 @@ export class RpcStatusBar implements StatusBarPort {
 }
 
 /**
- * Stub {@link PickerPort}: the BPMN-render foundation never reaches a picker for
- * a non-empty diagram. Domain-aware pickers (engine, migration scope, …) are a
- * later host port (#1064); until then the unreachable prompts throw and the two
- * render-safe defaults keep an empty/undetectable diagram from blocking.
+ * Narrow file-discovery dependency for {@link RpcPicker.pickWorkspaceFiles} —
+ * the one picker that searches the workspace rather than receiving its
+ * candidates. Typed as a slice of `WorkspacePort` so it is trivially satisfied
+ * by `NodeWorkspace` and stubbable in tests.
  */
-export class StubPicker implements PickerPort {
-    async pickExecutionPlatform(): Promise<Engine> {
-        return "c7";
+export interface FileFinder {
+    findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
+}
+
+/** One row offered to the host popup: a label plus optional greyed detail. */
+interface PickItem {
+    label: string;
+    description?: string;
+}
+
+/**
+ * Real {@link PickerPort} over RPC: the host shows a native `JBPopup` list and
+ * replies with the chosen indices (or `null` on dismissal); this class keeps
+ * each prompt's item array and re-applies the cancel-vs-throw convention.
+ *
+ * The convention lives here, not in Kotlin, so it stays byte-for-byte identical
+ * to `VsCodePicker` (the contract's reference) and the host carries no
+ * per-picker logic — it only renders a generic chooser.
+ */
+export class RpcPicker implements PickerPort {
+    constructor(
+        private readonly rpc: Rpc,
+        private readonly fileFinder: FileFinder,
+    ) {}
+
+    /** Round-trips one popup; returns the chosen indices or `null` on cancel. */
+    private async show(opts: {
+        title?: string;
+        placeholder: string;
+        canPickMany: boolean;
+        items: PickItem[];
+    }): Promise<number[] | null> {
+        const result = (await this.rpc.request("picker/show", opts)) as {
+            selected?: number[] | null;
+        } | null;
+        return result?.selected ?? null;
     }
-    async pickMigrationScope(): Promise<never> {
-        throw new Error("Picker not available in the IntelliJ host yet (#1064)");
+
+    async pickExecutionPlatform(placeHolder: string, items: string[]): Promise<Engine> {
+        const selected = await this.show({
+            placeholder: placeHolder,
+            canPickMany: false,
+            items: items.map((label) => ({ label })),
+        });
+        if (selected === null) {
+            throw new UserCancelledError();
+        }
+        const result = items[selected[0]];
+        if (result === "Camunda 7") {
+            return "c7";
+        } else if (result === "Camunda 8") {
+            return "c8";
+        }
+        throw new Error(`Unknown execution platform version: "${result}"`);
     }
-    async pickEngineVersion(): Promise<never> {
-        throw new Error("Picker not available in the IntelliJ host yet (#1064)");
+
+    async pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope> {
+        const items = [
+            `Camunda 7 only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
+            `Camunda 8 only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
+            `Both (${c7Count + c8Count} diagram${c7Count + c8Count !== 1 ? "s" : ""})`,
+        ];
+        const selected = await this.show({
+            placeholder: "Which diagrams do you want to migrate?",
+            canPickMany: false,
+            items: items.map((label) => ({ label })),
+        });
+        if (selected === null) {
+            throw new UserCancelledError();
+        }
+        const result = items[selected[0]];
+        if (result.startsWith("Camunda 7")) {
+            return "c7";
+        } else if (result.startsWith("Camunda 8")) {
+            return "c8";
+        }
+        return "both";
     }
-    async pickWorkspaceFiles(): Promise<string[]> {
-        return [];
+
+    async pickEngineVersion(platform: Engine, versions: readonly string[]): Promise<string> {
+        const label = platform === "c7" ? "Camunda 7" : "Camunda 8";
+        const selected = await this.show({
+            placeholder: `Select ${label} engine version`,
+            canPickMany: false,
+            items: versions.map((version) => ({ label: version })),
+        });
+        if (selected === null) {
+            throw new UserCancelledError();
+        }
+        return versions[selected[0]];
     }
-    async pickPayloadFile(): Promise<null> {
-        return null;
+
+    async pickWorkspaceFiles(opts: {
+        glob: string;
+        exclude?: string | null;
+        placeholder: string;
+        limit?: number;
+    }): Promise<string[]> {
+        const paths = await this.fileFinder.findFiles(opts.glob, opts.exclude, opts.limit);
+        const selected = await this.show({
+            placeholder: opts.placeholder,
+            canPickMany: true,
+            items: paths.map((path) => ({ label: posix.basename(path), description: path })),
+        });
+        return selected?.map((index) => paths[index]) ?? [];
     }
-    async pickScriptLanguage(): Promise<undefined> {
-        return undefined;
+
+    async pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null> {
+        const selected = await this.show({
+            placeholder: "Select a payload file",
+            canPickMany: false,
+            items: paths.map((path) => ({ label: posix.basename(path), description: path })),
+        });
+        if (selected === null) {
+            return null;
+        }
+        const filePath = paths[selected[0]];
+        return { filePath, label: posix.basename(filePath) };
     }
-    async pickReferencedModel(): Promise<undefined> {
-        return undefined;
+
+    async pickScriptLanguage(currentFormat: string): Promise<string | undefined> {
+        const normalized = currentFormat.toLowerCase().trim();
+        // Pin the current format to the top so it stays the default highlighted
+        // option even when unrecognised (mirrors VsCodePicker).
+        const formats = [...ScriptLanguage.supportedFormats()].sort((a, b) => {
+            if (a === normalized) return -1;
+            if (b === normalized) return 1;
+            return 0;
+        });
+        const selected = await this.show({
+            title: "Script Language",
+            placeholder: "Select the scripting language",
+            canPickMany: false,
+            items: formats.map((format) => ({
+                label: format.charAt(0).toUpperCase() + format.slice(1),
+                description: `.${new ScriptLanguage(format).extension}`,
+            })),
+        });
+        return selected === null ? undefined : formats[selected[0]];
+    }
+
+    async pickReferencedModel(paths: string[]): Promise<string | undefined> {
+        // Sort by path so nearby files surface first. The bridge has no VS Code
+        // `asRelativePath`, so the absolute path is both the detail and sort key.
+        const sorted = [...paths].sort((a, b) => a.localeCompare(b));
+        const selected = await this.show({
+            placeholder: "Select the referenced model to open",
+            canPickMany: false,
+            items: sorted.map((path) => ({ label: posix.basename(path), description: path })),
+        });
+        return selected === null ? undefined : sorted[selected[0]];
     }
 }
