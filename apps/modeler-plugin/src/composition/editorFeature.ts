@@ -1,15 +1,15 @@
 import { ExtensionContext } from "vscode";
 
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/PropertiesPanelStateRepository";
-import { WebviewMessageRouter } from "../shared/infrastructure/WebviewMessageRouter";
-import { BpmnModelerService } from "../modeler/bpmn/service/BpmnModelerService";
-import { BpmnClipboardMediator } from "../modeler/bpmn/service/BpmnClipboardMediator";
-import { BpmnElementTemplatesService } from "../modeler/bpmn/service/BpmnElementTemplatesService";
-import { BpmnPropertiesPanelService } from "../modeler/bpmn/service/BpmnPropertiesPanelService";
-import { BpmnSettingsBroadcaster } from "../modeler/bpmn/service/BpmnSettingsBroadcaster";
-import { DmnModelerService } from "../modeler/dmn/service/DmnModelerService";
-import { ModelNavigationService } from "../navigation/service/ModelNavigationService";
-import { ReferencedModelLocator } from "../navigation/service/ReferencedModelLocator";
+import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
+import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
+import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
+import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
+import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
+import { DmnModelerService } from "@miragon/bpmn-modeler-core";
+import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
+import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
 import { ElementTemplatesParticipant } from "../modeler/bpmn/controller/editor-participants/ElementTemplatesParticipant";
@@ -38,7 +38,7 @@ import {
 } from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "../shared/domain/viewTypes";
+import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 import { SharedDeps } from "./sharedDeps";
 
 /**

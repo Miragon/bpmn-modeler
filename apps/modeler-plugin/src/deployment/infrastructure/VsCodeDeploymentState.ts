@@ -1,6 +1,6 @@
 import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
 
-import { DeploymentStatePort } from "../../shared/domain/hostPorts";
+import { DeploymentStatePort } from "@miragon/bpmn-modeler-core";
 
 import { getContext } from "../../shared/infrastructure/extensionContext";
 

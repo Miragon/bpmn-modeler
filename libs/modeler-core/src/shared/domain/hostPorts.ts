@@ -151,6 +151,16 @@ export interface SecretStorePort {
 }
 
 /**
+ * Persists the global default visibility of the BPMN properties panel across
+ * sessions. {@link getVisibility} is synchronous so the webview HTML can be
+ * pre-rendered with the correct collapsed state before the webview boots.
+ */
+export interface PropertiesPanelStatePort {
+    getVisibility(): boolean;
+    setVisibility(visible: boolean): Promise<void>;
+}
+
+/**
  * Persists non-secret deployment-form state (endpoint, tenant, auth type, …)
  * across sessions so the form can be pre-filled on next use.
  */

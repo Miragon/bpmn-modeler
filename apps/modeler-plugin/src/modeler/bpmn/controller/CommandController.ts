@@ -11,12 +11,12 @@ import {
 import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
 import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
 
-import { EditorSubscription } from "../../../shared/domain/EditorSession";
-import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
+import { EditorSubscription } from "@miragon/bpmn-modeler-core";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeDocument } from "../../../shared/infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../../../shared/infrastructure/VsCodeNotifier";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
-import { BpmnModelerService } from "../service/BpmnModelerService";
+import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
 
 // VS Code command ID for toggling the text editor.

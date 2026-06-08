@@ -7,8 +7,8 @@ import { AuthHeaderResolver } from "../deployment/infrastructure/camunda/AuthHea
 import { Camunda7RestClient } from "../deployment/infrastructure/camunda/Camunda7RestClient";
 import { Camunda8RestClient } from "../deployment/infrastructure/camunda/Camunda8RestClient";
 import { CamundaEngineRouter } from "../deployment/infrastructure/camunda/CamundaEngineRouter";
-import { DeploymentService } from "../deployment/service/DeploymentService";
-import { StartInstanceService } from "../deployment/service/StartInstanceService";
+import { DeploymentService } from "@miragon/bpmn-modeler-core";
+import { StartInstanceService } from "@miragon/bpmn-modeler-core";
 import { DeploymentController } from "../deployment/controller/DeploymentController";
 import { SharedDeps } from "./sharedDeps";
 

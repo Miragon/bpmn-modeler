@@ -1,6 +1,6 @@
 import { TextDocument, WebviewPanel } from "vscode";
 
-import { DiffPaneHandle } from "../domain/DiffSession";
+import { DiffPaneHandle } from "@miragon/bpmn-modeler-core";
 
 /**
  * Infrastructure adapter that wraps a real `WebviewPanel` + `TextDocument`

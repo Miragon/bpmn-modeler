@@ -1,6 +1,6 @@
 import { commands, LogOutputChannel, ProgressLocation, Uri, window } from "vscode";
 
-import { NotifierPort } from "../domain/hostPorts";
+import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
 const LOG_CHANNEL_ID = "bpmn.modeler";
 const LOG_PREFIX = `[${LOG_CHANNEL_ID}] `;

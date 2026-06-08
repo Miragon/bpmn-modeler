@@ -3,4 +3,4 @@
  * service only through this barrel; reaching into the feature's internals is
  * rejected by the feature-isolation architecture test.
  */
-export { DmnModelerService } from "./service/DmnModelerService";
+export { DmnModelerService } from "@miragon/bpmn-modeler-core";

@@ -9,8 +9,11 @@ Read this once, then dive into a specific feature.
 A Miragon BPMN Modeler session is two cooperating processes:
 
 - The **extension host** (Node, built with webpack) runs inside VS Code. It
-  owns the filesystem, VS Code APIs, the deployment sidebar backend, and all
-  long-lived domain services.
+  owns the filesystem, VS Code APIs, and the deployment sidebar backend, and it
+  wires the host-agnostic modeling engine (`@miragon/bpmn-modeler-core`) to VS
+  Code through port adapters. The engine itself — the long-lived domain services
+  — lives in that `vscode`-free package; see
+  [`architecture/modeler-core-extraction.md`](./architecture/modeler-core-extraction.md).
 - A **webview** (browser iframe, built with Vite) runs the bpmn-js / dmn-js
   modeler itself. Each open `.bpmn` or `.dmn` file has its own webview. A diff
   produces two webviews for one file.
@@ -37,6 +40,7 @@ apps/
   standalone/         # Theia/Electron shell — bundles the .vsix into a desktop app
 libs/
   shared/                        # Message contracts, cross-process utils
+  modeler-core/                  # Host-agnostic modeling engine (vscode-free)
   bpmn-clipboard/                # bpmn-js DI module (copy/paste)
   bpmn-i18n/                     # bpmn-js DI module (translations)
   append-menu/                   # bpmn-js DI module (custom append UI)
@@ -51,6 +55,7 @@ libs/
 | `@miragon/bpmn-modeler-deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
 | `@miragon/bpmn-modeler-standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into a signed macOS DMG |
 | `@miragon/bpmn-modeler-shared` | `libs/shared` | Message types, cross-process utilities |
+| `@miragon/bpmn-modeler-core` | `libs/modeler-core` | Host-agnostic modeling engine (domain + services + ports), consumed by the VS Code plugin and the IntelliJ bridge |
 | `@miragon/bpmn-modeler-clipboard` | `libs/bpmn-clipboard` | bpmn-js DI module for clipboard integration |
 | `@miragon/bpmn-modeler-i18n` | `libs/bpmn-i18n` | bpmn-js DI module for translations |
 | `@miragon/bpmn-modeler-append-menu` | `libs/append-menu` | Preact-based append menu overlay |

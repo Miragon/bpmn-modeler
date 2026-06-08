@@ -1,5 +1,5 @@
-import { ArtifactService } from "../../../../shared/service/ArtifactService";
-import { BpmnElementTemplatesService } from "../../service/BpmnElementTemplatesService";
+import { ArtifactService } from "@miragon/bpmn-modeler-core";
+import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
 import {
     EditorSessionContext,

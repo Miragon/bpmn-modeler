@@ -28,7 +28,7 @@ import {
     SELECT_FOR_COMPARE_CMD,
 } from "./diff/controller/BpmnCompareController";
 import { DEPLOY_CMD } from "./deployment/controller/DeploymentController";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "./shared/domain/viewTypes";
+import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 const SRC_DIR = __dirname;
 

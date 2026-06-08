@@ -14,9 +14,9 @@ vi.mock("../../shared/infrastructure/VsCodeEditorHandle", () => ({
     VsCodeEditorHandle: { create: createSpy },
 }));
 
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
-import { WebviewMessageRouter } from "../../shared/infrastructure/WebviewMessageRouter";
+import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { EditorSessionContext, EditorSessionParticipant } from "./EditorSessionParticipant";
 import { ModelerEditorController, ModelerEditorOptions } from "./ModelerEditorController";
 

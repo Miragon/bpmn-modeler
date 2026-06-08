@@ -2,7 +2,7 @@ import { WebviewPanel } from "vscode";
 
 import { getContext } from "./extensionContext";
 import { bpmnEditorUi, dmnModelerHtml } from "./WebviewHtml";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "../domain/viewTypes";
+import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 /**
  * Pure helper with no persistent state, so both `VsCodeEditorHandle` (editable

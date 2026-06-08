@@ -3,4 +3,4 @@
  * migration only through this barrel; reaching into the feature's internals is
  * rejected by the feature-isolation architecture test.
  */
-export { BpmnMigrationService } from "./service/BpmnMigrationService";
+export { BpmnMigrationService } from "@miragon/bpmn-modeler-core";

@@ -1,10 +1,6 @@
 import { WebviewPanel } from "vscode";
 
-import {
-    DocumentChangeEvent,
-    EditorSubscription,
-    SettingChange,
-} from "../../shared/domain/EditorSession";
+import { DocumentChangeEvent, EditorSubscription, SettingChange } from "@miragon/bpmn-modeler-core";
 
 /**
  * A single participant's view of one freshly-opened editor session: its identity

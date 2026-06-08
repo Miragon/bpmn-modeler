@@ -1,4 +1,4 @@
-import { BpmnModelerService } from "../../service/BpmnModelerService";
+import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
 import {
     EditorSessionContext,

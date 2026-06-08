@@ -1,4 +1,4 @@
-import { SecretStorePort } from "../../shared/domain/hostPorts";
+import { SecretStorePort } from "@miragon/bpmn-modeler-core";
 
 import { getContext } from "../../shared/infrastructure/extensionContext";
 

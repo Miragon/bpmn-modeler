@@ -9,14 +9,14 @@ import {
     window,
 } from "vscode";
 
-import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domain/deployment";
-import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "@miragon/bpmn-modeler-core";
+import { InvalidDeploymentConfigError } from "@miragon/bpmn-modeler-core";
 import { deploymentWebviewHtml } from "../infrastructure/DeploymentWebviewHtml";
-import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeDocument } from "../../shared/infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
-import { DeploymentService } from "../service/DeploymentService";
-import { StartInstanceService } from "../service/StartInstanceService";
+import { DeploymentService } from "@miragon/bpmn-modeler-core";
+import { StartInstanceService } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../../shared/infrastructure/extensionContext";
 import {
     AdditionalFilesQuery,

@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, normalize, resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { extractGraph, projectFiles } from "archunit";
 import type { FileInfo } from "archunit";
@@ -73,12 +73,95 @@ function isHostModule(specifier: string): boolean {
     );
 }
 
+// ─── Transitive host-reachability ────────────────────────────────────────────
+//
+// The plain `isHostModule` ban above is a *text scan of each file's own
+// imports* — it never follows the import graph. That is exactly how a `service`
+// file importing a concrete `Vs*` adapter (which in turn imports `vscode`)
+// slips through: the service's own source never names `vscode`. We close that
+// hole by following relative imports transitively and tainting any file that
+// can *reach* a host-importing file.
+//
+// The graph is built from source text rather than archunit's `extractGraph`,
+// because under this workspace's `moduleResolution: "bundler"` tsconfig that
+// resolver yields no cross-file edges (every edge is a self-edge) — so the
+// dependency-based archunit rules cannot see indirection. Only relative
+// specifiers are followed; bare/aliased packages are external and (for the
+// engine) never reach `vscode`.
+
+/** All non-spec `.ts` files under `src/`, as `src/…`-relative POSIX-ish paths. */
+function listSourceFiles(): string[] {
+    const root = resolve(WORKSPACE_ROOT, "src");
+    const out: string[] = [];
+    const walk = (absDir: string): void => {
+        for (const entry of readdirSync(absDir)) {
+            const abs = join(absDir, entry);
+            if (statSync(abs).isDirectory()) {
+                walk(abs);
+            } else if (entry.endsWith(".ts") && !/\.(spec|test)\.ts$/.test(entry)) {
+                out.push(
+                    `src/${normalize(abs.slice(root.length + 1))
+                        .split("\\")
+                        .join("/")}`,
+                );
+            }
+        }
+    };
+    walk(root);
+    return out;
+}
+
+/** Resolves a relative import specifier from `fromFile` to a known source path. */
+function resolveRelative(
+    fromFile: string,
+    specifier: string,
+    known: Set<string>,
+): string | undefined {
+    const base = normalize(join(dirname(fromFile), specifier))
+        .split("\\")
+        .join("/");
+    for (const candidate of [`${base}.ts`, `${base}/index.ts`, base]) {
+        if (known.has(candidate)) {
+            return candidate;
+        }
+    }
+    return undefined;
+}
+
 /**
- * Builds an archunit custom rule that passes when a file imports none of the
- * specifiers rejected by `isForbidden`.
+ * Files that transitively reach a host module: seeded with every file whose own
+ * source imports one (the reliable text scan, which also catches type-only
+ * imports), then propagated backwards along relative-import edges.
  */
-function importsNothingMatching(isForbidden: (specifier: string) => boolean) {
-    return (file: FileInfo): boolean => !importedModules(readSource(file)).some(isForbidden);
+function hostReachingFiles(files: string[]): Set<string> {
+    const known = new Set(files);
+    const importers = new Map<string, string[]>(); // target → files that import it
+    const tainted = new Set<string>();
+    for (const file of files) {
+        const specifiers = importedModules(readSource({ path: file } as FileInfo));
+        if (specifiers.some(isHostModule)) {
+            tainted.add(file); // directly imports a host module
+        }
+        for (const specifier of specifiers) {
+            if (!specifier.startsWith(".")) {
+                continue; // bare/aliased — external, never reaches vscode in the engine
+            }
+            const target = resolveRelative(file, specifier, known);
+            if (target) {
+                (importers.get(target) ?? importers.set(target, []).get(target)!).push(file);
+            }
+        }
+    }
+    const queue = [...tainted];
+    while (queue.length > 0) {
+        for (const importer of importers.get(queue.pop()!) ?? []) {
+            if (!tainted.has(importer)) {
+                tainted.add(importer);
+                queue.push(importer);
+            }
+        }
+    }
+    return tainted;
 }
 
 describe("architecture", () => {
@@ -90,59 +173,34 @@ describe("architecture", () => {
         await extractGraph(TSCONFIG);
     }, 60_000);
 
-    // ─── A. Layer purity — regression locks, must stay GREEN ─────────────────
+    // ─── A. Host isolation — regression lock, must stay GREEN ────────────────
     //
-    // Inner layers must not reach outward. The issue's "only `controller/**`
-    // (plus `main.ts`/`shared/`) may import `vscode`" is encoded as the two
-    // host-module bans on `domain` and `service` below: `infrastructure/**` is
-    // the adapter layer and legitimately imports `vscode`, so it is deliberately
-    // unrestricted. Globs are `**/<layer>/**` so they match each layer folder
-    // under every feature prefix (and under `shared/`).
-    describe("layer purity (regression lock — green)", () => {
-        for (const outerLayer of ["service", "infrastructure", "controller"]) {
-            it(`domain does not depend on ${outerLayer}`, async () => {
-                await expect(
-                    projectFiles(TSCONFIG)
-                        .inFolder("**/domain/**")
-                        .shouldNot()
-                        .dependOnFiles()
-                        .inFolder(`**/${outerLayer}/**`),
-                ).toPassAsync();
-            });
-        }
-
-        it("domain does not import vscode or Node host modules", async () => {
-            await expect(
-                projectFiles(TSCONFIG)
-                    .inFolder("**/domain/**")
-                    .should()
-                    .adhereTo(
-                        importsNothingMatching(isHostModule),
-                        "domain must not import vscode / node:* / fs / http",
-                    ),
-            ).toPassAsync();
-        });
-
-        it("service does not depend on controller", async () => {
-            await expect(
-                projectFiles(TSCONFIG)
-                    .inFolder("**/service/**")
-                    .shouldNot()
-                    .dependOnFiles()
-                    .inFolder("**/controller/**"),
-            ).toPassAsync();
-        });
-
-        it("service does not import vscode", async () => {
-            await expect(
-                projectFiles(TSCONFIG)
-                    .inFolder("**/service/**")
-                    .should()
-                    .adhereTo(
-                        importsNothingMatching((specifier) => specifier === "vscode"),
-                        "service must not import vscode (goes through ports)",
-                    ),
-            ).toPassAsync();
+    // The host-agnostic engine (every `domain/`/`service/` layer plus the
+    // vscode-free registries) now lives in `@miragon/bpmn-modeler-core`, gated
+    // by that package's own `architecture.spec.ts`. What remains here is VS Code
+    // host code (`Vs*` adapters, controllers, participants, composition root),
+    // which legitimately imports `vscode`.
+    //
+    // This guard is the regression lock against the engine creeping back into
+    // the plugin: if a `domain/`/`service/` file is ever (re)introduced here, it
+    // must reach the host only through ports — never by importing a concrete
+    // `Vs*` adapter, directly or transitively. The check follows relative
+    // imports through source text because archunit resolves no cross-file edges
+    // under this workspace's `moduleResolution: "bundler"` tsconfig.
+    describe("host isolation (regression lock — green)", () => {
+        it("any domain/service code does not transitively reach a host module", () => {
+            const files = listSourceFiles();
+            const tainted = hostReachingFiles(files);
+            const offenders = files.filter(
+                (file) =>
+                    (file.includes("/domain/") || file.includes("/service/")) && tainted.has(file),
+            );
+            expect(
+                offenders,
+                `domain/service must reach the host only through ports, but these ` +
+                    `transitively import a host module (e.g. a service importing a ` +
+                    `concrete Vs* adapter):\n${offenders.join("\n")}`,
+            ).toEqual([]);
         });
     });
 
@@ -166,15 +224,11 @@ describe("architecture", () => {
     // others are common substrate, so none is subject to isolation. Do NOT relax
     // the rules to make CI green; that defeats the gate.
     describe("feature isolation (regression lock — green)", () => {
-        const FEATURE_FOLDERS = [
-            "diff",
-            "deployment",
-            "scriptTask",
-            "navigation",
-            "migration",
-            "modeler/bpmn",
-            "modeler/dmn",
-        ];
+        // `navigation` and `migration` are intentionally absent: after the
+        // engine extraction their only plugin-side file is an `index.ts` barrel
+        // that re-exports the service from `@miragon/bpmn-modeler-core`, so they
+        // have no internals left to protect.
+        const FEATURE_FOLDERS = ["diff", "deployment", "scriptTask", "modeler/bpmn", "modeler/dmn"];
 
         for (const sourceFeature of FEATURE_FOLDERS) {
             for (const targetFeature of FEATURE_FOLDERS) {

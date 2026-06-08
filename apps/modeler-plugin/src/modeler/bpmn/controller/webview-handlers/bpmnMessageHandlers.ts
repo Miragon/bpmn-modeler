@@ -8,14 +8,14 @@ import {
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { EditorSessionStore } from "../../../../shared/infrastructure/EditorSessionStore";
+import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
-import { MessageHandler } from "../../../../shared/infrastructure/WebviewMessageRouter";
-import { BpmnModelerService } from "../../service/BpmnModelerService";
-import { BpmnClipboardMediator } from "../../service/BpmnClipboardMediator";
-import { BpmnElementTemplatesService } from "../../service/BpmnElementTemplatesService";
-import { BpmnPropertiesPanelService } from "../../service/BpmnPropertiesPanelService";
-import { BpmnSettingsBroadcaster } from "../../service/BpmnSettingsBroadcaster";
+import { MessageHandler } from "@miragon/bpmn-modeler-core";
+import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
+import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
+import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
+import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
+import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { ModelNavigationService } from "../../../../navigation/index";
 import { ScriptTaskService } from "../../../../scriptTask/index";
 

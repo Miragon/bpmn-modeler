@@ -1,5 +1,4 @@
-import { Disposable } from "vscode";
-
+import { EditorSubscription } from "../../shared/domain/EditorSession";
 import { DiffPaneHandle, DiffSession } from "../domain/DiffSession";
 
 /**
@@ -19,10 +18,11 @@ const COMPARE_FILES_TTL_MS = 30_000;
  * TTL sweeper that drops orphaned `compare-files` sessions. Deciding *when*
  * to pair, broadcast, or open a diff lives in the controller and service.
  *
- * Implements {@link Disposable} so the extension host can clear any armed TTL
- * timers on deactivate.
+ * Implements {@link EditorSubscription} (the host-agnostic `{ dispose(): void }`
+ * shape, structurally compatible with `vscode.Disposable`) so the extension
+ * host can clear any armed TTL timers on deactivate.
  */
-export class DiffPaneStore implements Disposable {
+export class DiffPaneStore implements EditorSubscription {
     // Every live session, keyed by `${beforeUri}|${afterUri}`.
     private readonly sessions = new Map<string, DiffSession>();
 

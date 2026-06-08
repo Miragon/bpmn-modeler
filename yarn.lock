@@ -3493,6 +3493,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-core@workspace:*, @miragon/bpmn-modeler-core@workspace:libs/modeler-core":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-core@workspace:libs/modeler-core"
+  dependencies:
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@types/node": "npm:25.9.1"
+    bpmn-js-differ: "npm:3.2.0"
+    bpmn-moddle: "npm:10.0.0"
+    tslib: "npm:2.8.1"
+    typescript: "npm:6.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview"
@@ -21845,6 +21858,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "vs-code-bpmn-modeler@workspace:apps/modeler-plugin"
   dependencies:
+    "@miragon/bpmn-modeler-core": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/lodash": "npm:4.17.24"

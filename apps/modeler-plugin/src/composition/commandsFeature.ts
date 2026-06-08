@@ -1,7 +1,7 @@
 import { ExtensionContext } from "vscode";
 
-import { BpmnMigrationService } from "../migration/service/BpmnMigrationService";
-import { BpmnModelerService } from "../modeler/bpmn/service/BpmnModelerService";
+import { BpmnMigrationService } from "@miragon/bpmn-modeler-core";
+import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { CommandController } from "../modeler/bpmn/controller/CommandController";
 import { SharedDeps } from "./sharedDeps";
 

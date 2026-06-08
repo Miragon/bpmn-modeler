@@ -1,4 +1,4 @@
-import { HttpClient, HttpResponse } from "../domain/ports";
+import { HttpClient, HttpResponse } from "@miragon/bpmn-modeler-core";
 
 /**
  * {@link HttpClient} implementation backed by `globalThis.fetch`.

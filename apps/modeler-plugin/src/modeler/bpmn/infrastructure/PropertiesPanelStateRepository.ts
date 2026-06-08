@@ -1,5 +1,7 @@
 import { ExtensionContext } from "vscode";
 
+import { PropertiesPanelStatePort } from "@miragon/bpmn-modeler-core";
+
 // Key used to persist the panel visibility in `context.globalState`.
 const PANEL_VISIBLE_KEY = "propertiesPanelVisible";
 
@@ -13,7 +15,7 @@ const PANEL_VISIBLE_KEY = "propertiesPanelVisible";
  * independent visibility while still honouring the user's last preference
  * for newly opened diagrams.
  */
-export class PropertiesPanelStateRepository {
+export class PropertiesPanelStateRepository implements PropertiesPanelStatePort {
     /**
      * @param context The VS Code extension context whose `globalState` backs
      *   the persisted value.
@@ -30,13 +32,15 @@ export class PropertiesPanelStateRepository {
     }
 
     /**
-     * Persists `visible` as the new global default.  Returns the underlying
-     * `Thenable` so callers can await the write when needed.
+     * Persists `visible` as the new global default. Wraps VS Code's `Thenable`
+     * in a real `Promise` so the return type satisfies the host-agnostic
+     * {@link PropertiesPanelStatePort} (the port deliberately avoids the
+     * vscode-ambient `Thenable`).
      *
      * @param visible `true` to make the panel visible by default, `false` to
      *   collapse it by default.
      */
-    setVisibility(visible: boolean): Thenable<void> {
-        return this.context.globalState.update(PANEL_VISIBLE_KEY, visible);
+    setVisibility(visible: boolean): Promise<void> {
+        return Promise.resolve(this.context.globalState.update(PANEL_VISIBLE_KEY, visible));
     }
 }

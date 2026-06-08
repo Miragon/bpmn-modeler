@@ -1,6 +1,6 @@
 import { Uri, Webview } from "vscode";
 
-import { getNonce } from "./helpers";
+import { getNonce } from "@miragon/bpmn-modeler-core";
 
 // Output directory name for the BPMN webview build artefacts.
 const BPMN_WEBVIEW_PATH = "bpmn-webview";

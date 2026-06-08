@@ -1,6 +1,6 @@
 import { workspace } from "vscode";
 
-import { SettingsPort } from "../domain/hostPorts";
+import { SettingsPort } from "@miragon/bpmn-modeler-core";
 
 /**
  * Pure VS Code workspace configuration reader for the BPMN modeler.

@@ -1,7 +1,7 @@
-import { DeploymentConfig, DeploymentResult } from "../../domain/deployment";
-import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
-import { CamundaEnginePort, HttpClient } from "../../domain/ports";
-import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
+import { DeploymentConfig, DeploymentResult } from "@miragon/bpmn-modeler-core";
+import { DeploymentFailedError, StartInstanceFailedError } from "@miragon/bpmn-modeler-core";
+import { CamundaEnginePort, HttpClient } from "@miragon/bpmn-modeler-core";
+import { StartInstanceConfig, StartInstanceResult } from "@miragon/bpmn-modeler-core";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { MultipartBuilder } from "./MultipartBuilder";
 

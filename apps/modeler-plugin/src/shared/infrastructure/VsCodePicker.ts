@@ -2,10 +2,10 @@ import { posix } from "path";
 
 import { QuickPickItem, Uri, window, workspace } from "vscode";
 
-import { UserCancelledError } from "../domain/errors";
-import { PickerPort } from "../domain/hostPorts";
-import { MigrationScope } from "../../migration/domain/MigrationPlan";
-import { ScriptLanguage } from "../../scriptTask/domain/scriptLanguage";
+import { UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { PickerPort } from "@miragon/bpmn-modeler-core";
+import { MigrationScope } from "@miragon/bpmn-modeler-core";
+import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
