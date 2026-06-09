@@ -14,7 +14,8 @@
  *
  * Protocol (see {@link Rpc} for framing):
  *   Host → Core (notifications): session/register, webview/message,
- *                                document/didChange, session/dispose
+ *                                document/didChange, session/setActive,
+ *                                session/dispose
  *   Core → Host (requests):      document/write, document/save, picker/show
  *   Core → Host (notifications): editor/postMessage, notifier/*, statusBar/*
  *
@@ -214,8 +215,26 @@ export function createBridge(
         handles.get(params.editorId)?.receive(params.message);
     });
 
-    rpc.on("document/didChange", (params: { editorId: string; content: string }) => {
+    // External edits (git revert/checkout, the IDE's plain-text tab, another
+    // tool) must re-render the open diagram. The host stays dumb and forwards
+    // *every* document change — including the echo of our own `document/write` —
+    // so the bridge classifies them here: `RpcDocumentPort.write` updates the
+    // mirror to the core-originated content before the RPC round-trip, so an
+    // unchanged compare means this is that echo and re-rendering would loop.
+    // Only a genuinely different text is an external edit worth displaying.
+    rpc.on("document/didChange", async (params: { editorId: string; content: string }) => {
+        if (mirror.content(params.editorId) === params.content) {
+            return;
+        }
         mirror.setContent(params.editorId, params.content);
+        await bpmnService.display(params.editorId);
+    });
+
+    // The host reports which editor tab is focused so the store's active-editor
+    // pointer stays correct with several `.bpmn` files open (commands/diff that
+    // target "the active editor" depend on it).
+    rpc.on("session/setActive", (params: { editorId: string }) => {
+        store.setActiveEditor(params.editorId);
     });
 
     rpc.on("session/dispose", (params: { editorId: string }) => {

@@ -10,6 +10,8 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
@@ -87,6 +89,21 @@ class CoreProcess(private val project: Project) : Disposable {
     private val outbound = ArrayDeque<OutFrame>()
     private val outboundMonitor = Object()
     private var writerThread: Thread? = null
+
+    init {
+        // Keep the core's active-editor pointer in sync with the focused tab so
+        // operations that target "the active editor" address the right session
+        // when several `.bpmn` files are open. Parented to this service, so the
+        // subscription dies with the project.
+        project.messageBus.connect(this).subscribe(
+            FileEditorManagerListener.FILE_EDITOR_MANAGER,
+            object : FileEditorManagerListener {
+                override fun selectionChanged(event: FileEditorManagerEvent) {
+                    event.newFile?.url?.let { setActiveEditor(it) }
+                }
+            },
+        )
+    }
 
     // ── lifecycle ────────────────────────────────────────────────────────────
 
@@ -238,6 +255,24 @@ class CoreProcess(private val project: Project) : Disposable {
         // only the latest XML matters for write-back — so collapse queued ones.
         val coalesceKey = if (type == "SyncDocumentCommand") "sync:$editorId" else null
         notify("webview/message", linkedMapOf("editorId" to editorId, "message" to parsed), coalesceKey)
+    }
+
+    /**
+     * Forwards a document change to the core so external edits (git revert/
+     * checkout, the plain-text tab, another tool) re-render the diagram. The host
+     * stays dumb: it reports *every* change, including the echo of its own
+     * `document/write`. The bridge tells the two apart — re-rendering our own
+     * write would loop, so it is filtered there, not here.
+     */
+    fun notifyDocumentChanged(editorId: String, content: String) {
+        if (!sessions.containsKey(editorId)) return
+        notify("document/didChange", linkedMapOf("editorId" to editorId, "content" to content))
+    }
+
+    /** Tells the core which open editor is focused (drives its active-editor pointer). */
+    private fun setActiveEditor(editorId: String) {
+        if (!sessions.containsKey(editorId)) return
+        notify("session/setActive", linkedMapOf("editorId" to editorId))
     }
 
     fun disposeSession(editorId: String) {

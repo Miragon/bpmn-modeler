@@ -1,6 +1,9 @@
 package io.miragon.intellij.bpmn
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.editor.event.DocumentEvent
+import com.intellij.openapi.editor.event.DocumentListener
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorState
 import com.intellij.openapi.project.Project
@@ -93,6 +96,20 @@ class BpmnFileEditor(
             // Register before the page loads so the core has the session ready by
             // the time the webview's first (buffered) message is forwarded.
             coreProcess!!.registerSession(coreSession)
+
+            // Mirror the live IntelliJ Document into the core so external edits
+            // (git revert/checkout, the plain-text tab, another tool) re-render the
+            // diagram. The core's own write-backs also fire this — that echo is
+            // filtered in the bridge, not here. Parented to this editor, so the
+            // listener is removed when the tab closes.
+            FileDocumentManager.getInstance().getDocument(file)?.addDocumentListener(
+                object : DocumentListener {
+                    override fun documentChanged(event: DocumentEvent) {
+                        coreProcess.notifyDocumentChanged(editorId, event.document.text)
+                    }
+                },
+                this,
+            )
 
             // JS → JVM channel: forward every webview message to the core untouched.
             val jsQuery = JBCefJSQuery.create(cefBrowser as com.intellij.ui.jcef.JBCefBrowserBase)
