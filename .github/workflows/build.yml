@@ -251,7 +251,7 @@ jobs:
           name: modeler-plugin
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.modeler-plugin == 'true'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/modeler-plugin"
@@ -303,7 +303,7 @@ jobs:
           name: modeler-core
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.modeler-core == 'true'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/libs/modeler-core"
@@ -382,7 +382,7 @@ jobs:
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/bpmn-webview"
@@ -406,7 +406,7 @@ jobs:
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-i18n
       - run: yarn workspace @miragon/bpmn-modeler-i18n test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/libs/bpmn-i18n"
