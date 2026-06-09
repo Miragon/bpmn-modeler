@@ -455,11 +455,14 @@ class CoreProcess(private val project: Project) : Disposable {
                     params.get("tenantId").asString,
                 )
             // Inline-script editor: the host is a dumb surface keyed by scriptId.
+            // `completion` is optional and carries the kind-scoped catalog the
+            // bridge already resolved; fromJson tolerates a missing/null member.
             "script/open" ->
                 scriptEditors.openScript(
                     params.get("scriptId").asString,
                     params.get("fileName").asString,
                     params.get("content").asString,
+                    gson.fromJson(params.get("completion"), ScriptCompletionModel::class.java),
                 )
             "script/close" -> scriptEditors.closeScript(params.get("scriptId").asString)
             "document/write" -> handleWrite(params, id)

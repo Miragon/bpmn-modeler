@@ -56,6 +56,14 @@
             displayName="Miranum BPMN Modeler"
             instance="io.miragon.intellij.bpmn.MiranumSettingsConfigurable"/>
 
+        <!-- Camunda IntelliSense for the inline "Edit Script" editor. `language="any"`
+             fires the contributor for every file type (the script tab may be
+             PLAIN_TEXT when no JS/Python plugin is installed); it scopes itself to
+             Miranum script tabs via the SCRIPT_COMPLETION_KEY UserData. -->
+        <completion.contributor
+            language="any"
+            implementationClass="io.miragon.intellij.bpmn.ScriptCompletionContributor"/>
+
         <!-- Camunda 7/8 deployment panel: a JCEF tool window hosting the deployment
              webview, driven by the shared core over the bridge (the IntelliJ
              counterpart of the VS Code deployment sidebar). -->

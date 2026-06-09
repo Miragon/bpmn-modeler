@@ -17,7 +17,9 @@
  */
 
 import {
+    beansFor,
     EditorSessionStore,
+    methodsForBean,
     NotifierPort,
     PickerPort,
     ScriptLanguage,
@@ -96,11 +98,26 @@ export class BridgeScriptEditor {
 
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
+        // `completion` ships the kind-scoped bean/method catalog resolved *here*
+        // so the thin Kotlin host never needs to know which beans belong to which
+        // kind — it just renders what it is handed (VS Code's
+        // `registerCompletionItemProvider` has no PSI-based analogue, so the host
+        // drives a `CompletionContributor` off this payload instead).
         this.rpc.notify("script/open", {
             scriptId,
             fileName: uri.filename,
             languageId: lang.languageId,
             content: cmd.content,
+            completion: {
+                beans: beansFor(cmd.kind).map((bean) => ({
+                    name: bean.name,
+                    type: bean.type,
+                    description: bean.description,
+                    // Empty for value beans (e.g. `eventName: String`) — correct,
+                    // they have no member completion.
+                    methods: methodsForBean(bean),
+                })),
+            },
         });
     }
 
