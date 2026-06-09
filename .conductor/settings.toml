@@ -1,0 +1,8 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "git -C \"$CONDUCTOR_ROOT_PATH\" fetch --prune origin && git -C \"$CONDUCTOR_ROOT_PATH\" pull --ff-only || true ; corepack yarn install"
+run = "corepack yarn workspace @miragon/bpmn-modeler-webview serve --port $CONDUCTOR_PORT"
+archive = "rm -rf dist node_modules"
+run_mode = "concurrent"
+auto_run_after_setup = true
