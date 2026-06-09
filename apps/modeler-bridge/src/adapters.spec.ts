@@ -4,6 +4,7 @@ import { UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import {
     DocumentMirror,
+    RpcClipboard,
     RpcDocumentPort,
     RpcEditorHandle,
     RpcNotifier,
@@ -345,6 +346,37 @@ describe("RpcSecretStore", () => {
         const getOauth = store.getOAuth2();
         await answerLast(null);
         await expect(getOauth).resolves.toBeUndefined();
+    });
+});
+
+describe("RpcClipboard", () => {
+    it("reads via a clipboard/read request and resolves with the host's text", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const clipboard = new RpcClipboard(rpc);
+
+        const pending = clipboard.readClipboard();
+        expect(last(frames)).toMatchObject({ method: "clipboard/read", params: {} });
+        await answerLast({ text: "copied" });
+
+        await expect(pending).resolves.toBe("copied");
+    });
+
+    it("resolves to an empty string when the host reports no clipboard text", async () => {
+        const { rpc, answerLast } = harness();
+        const clipboard = new RpcClipboard(rpc);
+
+        const pending = clipboard.readClipboard();
+        await answerLast({});
+
+        await expect(pending).resolves.toBe("");
+    });
+
+    it("writes via a fire-and-forget clipboard/write notification", () => {
+        const { frames, rpc } = harness();
+
+        new RpcClipboard(rpc).writeClipboard("payload");
+
+        expect(last(frames)).toEqual({ method: "clipboard/write", params: { text: "payload" } });
     });
 });
 

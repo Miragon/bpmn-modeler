@@ -18,6 +18,7 @@ import { posix } from "node:path";
 
 import { Command, Engine, Query } from "@miragon/bpmn-modeler-shared";
 import {
+    ClipboardPort,
     DocumentPort,
     EditorHandle,
     EditorSubscription,
@@ -338,6 +339,31 @@ export class RpcStatusBar implements StatusBarPort {
 
     disposeEngineVersionStatus(): void {
         this.rpc.notify("statusBar/disposeEngineVersion", {});
+    }
+}
+
+/**
+ * Routes {@link ClipboardPort} calls to the host's system clipboard so the
+ * sandboxed-iframe mediator pattern works out-of-process: the webview can't
+ * reach the clipboard, the core can't either (it's a subprocess), so the host
+ * does the real read/write on their behalf.
+ *
+ * Read is a request — the core needs the value back to satisfy a paste — while
+ * write is fire-and-forget, matching the notifier/status-bar split (a copy needs
+ * no confirmation, and the mediator already swallows/logs failures).
+ */
+export class RpcClipboard implements ClipboardPort {
+    constructor(private readonly rpc: Rpc) {}
+
+    async readClipboard(): Promise<string> {
+        const result = (await this.rpc.request("clipboard/read", {})) as {
+            text?: string;
+        } | null;
+        return result?.text ?? "";
+    }
+
+    async writeClipboard(text: string): Promise<void> {
+        this.rpc.notify("clipboard/write", { text });
     }
 }
 
