@@ -1,0 +1,7 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "corepack yarn install"
+run = "corepack yarn dev"
+archive = "rm -rf dist node_modules"
+run_mode = "nonconcurrent"
