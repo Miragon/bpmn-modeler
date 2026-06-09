@@ -66,6 +66,22 @@ class CoreProcess(private val project: Project) : Disposable {
     private val secretStore by lazy { IntellijSecretStore() }
     private val deploymentState by lazy { IntellijDeploymentState.getInstance(project) }
 
+    // Owns the inline-script editor tabs. Edits stream back as `script/didChange`;
+    // a user closing a tab reports `script/didClose`. Parented to this service so
+    // its listeners die with the project. The core addresses scripts by opaque id.
+    private val scriptEditors by lazy {
+        ScriptEditorManager(
+            project,
+            this,
+            onChange = { scriptId, content ->
+                notify("script/didChange", linkedMapOf("scriptId" to scriptId, "content" to content))
+            },
+            onUserClose = { scriptId ->
+                notify("script/didClose", linkedMapOf("scriptId" to scriptId))
+            },
+        )
+    }
+
     private val sessions = ConcurrentHashMap<String, CoreSession>()
 
     // The deployment tool window's core→webview sink. One tool window per project,
@@ -438,6 +454,14 @@ class CoreProcess(private val project: Project) : Disposable {
                     params.get("endpoint").asString,
                     params.get("tenantId").asString,
                 )
+            // Inline-script editor: the host is a dumb surface keyed by scriptId.
+            "script/open" ->
+                scriptEditors.openScript(
+                    params.get("scriptId").asString,
+                    params.get("fileName").asString,
+                    params.get("content").asString,
+                )
+            "script/close" -> scriptEditors.closeScript(params.get("scriptId").asString)
             "document/write" -> handleWrite(params, id)
             "document/save" -> handleSave(params, id)
             "picker/show" -> handlePick(params, id)

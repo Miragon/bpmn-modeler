@@ -18,12 +18,12 @@
  *                                session/setActive, session/dispose,
  *                                diff/open, diff/webviewMessage, diff/dispose,
  *                                deploymentState/seed, deployment/webviewMessage,
- *                                deployment/open
+ *                                deployment/open, script/didChange, script/didClose
  *   Core → Host (requests):      document/write, document/save, picker/show,
  *                                secretStore/*
  *   Core → Host (notifications): editor/postMessage, diff/postMessage,
  *                                deployment/postMessage, deploymentState/save*,
- *                                notifier/*, statusBar/*
+ *                                notifier/*, statusBar/*, script/open, script/close
  *
  * DMN is deliberately out of scope here — it is its own follow-up issue; this
  * covers the BPMN editor (#1067), diff (#1069) and deployment (#1071). The
@@ -36,6 +36,7 @@ import {
     Command,
     DiffOrigin,
     NavigateToReferencedModelCommand,
+    OpenScriptEditorCommand,
     Query,
     SetClipboardCommand,
     SetTextClipboardCommand,
@@ -80,6 +81,7 @@ import {
 import { RpcDiffPaneHandle, dispatchDiffMessage } from "./diffAdapters";
 import { BridgeSettings, NodeWorkspace, SettingsSnapshot } from "./nodeAdapters";
 import { Rpc } from "./rpc";
+import { BridgeScriptEditor } from "./scriptAdapters";
 
 /** Builds a typed-but-stub host reply. The webview only reads `.type`, so a plain object is enough. */
 function query(type: string, fields: Record<string, unknown>): Query {
@@ -162,6 +164,12 @@ export function createBridge(
         notifier,
         picker,
     );
+
+    // "Edit Script" orchestrator. Unlike the other features this one has no
+    // in-core service — the VS Code original was never extracted (its guts are
+    // VS Code-specific accidental complexity) — so the portable slice lives here
+    // and the Kotlin host is a dumb editor surface keyed by an opaque scriptId.
+    const scriptEditor = new BridgeScriptEditor(store, picker, rpc, notifier);
 
     // Deployment reuses the production deployment brain verbatim: the same
     // services + dispatcher the VS Code host wires, now fed by the host-fed
@@ -280,6 +288,9 @@ export function createBridge(
             }
             const sourceFsPath = store.requireHandle(editorId).documentFsPath();
             await modelNavigationService.navigate(cmd.referenceId, cmd.referenceKind, sourceFsPath);
+        })
+        .on("OpenScriptEditorCommand", (message: Command, editorId: string) => {
+            void scriptEditor.open(message as OpenScriptEditorCommand, editorId);
         });
 
     rpc.on("session/register", async (params: RegisterParams) => {
@@ -361,6 +372,8 @@ export function createBridge(
 
     rpc.on("session/dispose", (params: { editorId: string }) => {
         bpmnService.disposeSession(params.editorId);
+        // Close any script tabs this editor opened before its handle is dropped.
+        scriptEditor.disposeEditor(params.editorId);
         watchers.get(params.editorId)?.forEach((d) => d.dispose());
         watchers.delete(params.editorId);
         // Read the root before removing the mirror entry that holds it.
@@ -423,6 +436,18 @@ export function createBridge(
         diffStore.remove(session);
         diffSessions.delete(params.diffId);
         log(`diff disposed: ${params.diffId}`);
+    });
+
+    // The host edited an open script tab → push the new content into the owning
+    // BPMN webview, which writes it to the moddle property via bpmn-js.
+    rpc.on("script/didChange", (params: { scriptId: string; content: string }) => {
+        void scriptEditor.didChange(params.scriptId, params.content);
+    });
+
+    // The user closed a script tab on the host → drop tracking so a re-open
+    // re-reads the current BPMN content rather than revealing a stale tab.
+    rpc.on("script/didClose", (params: { scriptId: string }) => {
+        scriptEditor.didClose(params.scriptId);
     });
 
     // Seed the deployment-state mirror once at startup (and after a persisted

@@ -287,7 +287,7 @@ a:link {
     padding-right: 4px;
 }
 
-/* Center the inline VS Code SVG inside the 22x22 context-pad entry. The
+/* Center the inline editor SVG inside the 22x22 context-pad entry. The
    default .entry rule centers font-icons via text-align/font-size, which
    does not apply to a child <svg>. */
 .djs-context-pad .edit-script-entry {

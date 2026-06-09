@@ -1,8 +1,8 @@
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
-import { VSCODE_ICON_SVG } from "./vscodeIcon";
+import { EDITOR_ICON_SVG } from "./editorIcon";
 
 /**
- * bpmn-js DI module that injects "Open in VS Code Editor" icon buttons into
+ * bpmn-js DI module that injects "Open script in editor" icon buttons into
  * the Camunda 7 properties panel:
  *
  *   - One button on the **Script** group header for `bpmn:ScriptTask`
@@ -166,9 +166,9 @@ class ScriptEditorButtons {
     private createButton(className: string): HTMLButtonElement {
         const button = document.createElement("button");
         button.type = "button";
-        button.title = "Open in VS Code Editor";
+        button.title = "Open script in editor";
         button.className = className;
-        button.innerHTML = VSCODE_ICON_SVG;
+        button.innerHTML = EDITOR_ICON_SVG;
         return button;
     }
 
