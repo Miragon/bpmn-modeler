@@ -12,7 +12,7 @@
         "test": "vitest run --coverage"
     },
     "dependencies": {
-        "@bpmn-io/properties-panel": "3.44.0",
+        "@bpmn-io/properties-panel": "3.44.1",
         "@miragon/bpmn-model-navigation": "workspace:*",
         "@miragon/bpmn-modeler-append-menu": "workspace:*",
         "@miragon/bpmn-modeler-clipboard": "workspace:*",
@@ -40,7 +40,7 @@
         "jsdom": "29.1.1",
         "typescript": "6.0.3",
         "vite": "8.0.16",
-        "vite-plugin-static-copy": "4.1.0",
+        "vite-plugin-static-copy": "4.1.1",
         "vite-tsconfig-paths": "6.1.1",
         "vitest": "4.1.8"
     }
