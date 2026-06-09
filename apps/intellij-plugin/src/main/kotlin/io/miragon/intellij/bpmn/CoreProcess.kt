@@ -640,7 +640,20 @@ class CoreProcess(private val project: Project) : Disposable {
 
     private fun ensureShutdownHook() {
         if (shutdownHook != null) return
-        val hook = Thread { runCatching { process?.destroyForcibly() } }
+        // On JVM exit the service's own dispose() may not run, so this hook is the
+        // only teardown. Mark `disposed` first so the process-exit handler treats
+        // the kill as intentional shutdown (not a crash to restart from), then
+        // close stdin so the bridge exits cleanly on EOF; destroyForcibly is the
+        // bounded fallback for a bridge that ignores the EOF.
+        val hook =
+            Thread {
+                disposed.set(true)
+                synchronized(writeLock) { runCatching { writer?.close() } }
+                val dying = process
+                if (dying != null && !dying.waitFor(500, TimeUnit.MILLISECONDS)) {
+                    runCatching { dying.destroyForcibly() }
+                }
+            }
         shutdownHook = hook
         runCatching { Runtime.getRuntime().addShutdownHook(hook) }
     }
