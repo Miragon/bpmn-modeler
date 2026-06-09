@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { NoWorkspaceFolderFoundError } from "@miragon/bpmn-modeler-core";
+
 import { NodeWorkspace } from "./nodeAdapters";
 
 /**
@@ -58,6 +60,83 @@ describe("NodeWorkspace.findFiles", () => {
 
     it("returns [] when no root is registered", async () => {
         expect(await new NodeWorkspace().findFiles("**/*.json")).toEqual([]);
+    });
+});
+
+/**
+ * The three workspace-folder methods the navigation locator depends on. Until
+ * #1070 these were unimplemented stubs that threw — the path that runs
+ * `findWorkspaceFolderForDocument` (loose-file detection) and
+ * `getDocumentDirectory` (fs-walk root) must work even when the host registers
+ * a workspace root, since the locator queries them up front. The
+ * `getWorkspaceFolderForDocument` throw-variant is still load-bearing for
+ * `ArtifactService.getWorkspaceRoot`, so its behaviour is pinned here too.
+ */
+describe("NodeWorkspace folder lookups", () => {
+    let root: string;
+
+    beforeAll(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "miranum-folder-"));
+    });
+
+    afterAll(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    function workspace(rootPath = root): NodeWorkspace {
+        const ws = new NodeWorkspace();
+        ws.registerRoot(rootPath);
+        return ws;
+    }
+
+    it("getWorkspaceFolderPaths reflects every registered root", () => {
+        const ws = new NodeWorkspace();
+        ws.registerRoot("/tmp/a");
+        ws.registerRoot("/tmp/b");
+        expect(ws.getWorkspaceFolderPaths().sort()).toEqual(["/tmp/a", "/tmp/b"]);
+    });
+
+    it("getWorkspaceFolderPaths is empty when nothing is registered", () => {
+        expect(new NodeWorkspace().getWorkspaceFolderPaths()).toEqual([]);
+    });
+
+    it("findWorkspaceFolderForDocument returns the enclosing root for an inside path", () => {
+        const ws = workspace();
+        expect(ws.findWorkspaceFolderForDocument(join(root, "sub/file.bpmn"))).toBe(root);
+    });
+
+    it("findWorkspaceFolderForDocument returns undefined for an outside path", () => {
+        const ws = workspace();
+        // A sibling temp dir guarantees no prefix overlap with `root`.
+        expect(ws.findWorkspaceFolderForDocument("/var/empty/file.bpmn")).toBeUndefined();
+    });
+
+    it("findWorkspaceFolderForDocument preserves the file:// scheme of the input", () => {
+        const ws = workspace();
+        expect(ws.findWorkspaceFolderForDocument(`file://${root}/file.bpmn`)).toBe(
+            `file://${root}`,
+        );
+    });
+
+    it("getWorkspaceFolderForDocument still throws when no root encloses the document", () => {
+        const ws = workspace();
+        // ArtifactService relies on this exact error class to trigger its git-root
+        // → doc-dir fallback chain; loosening the throw would silently break it.
+        expect(() => ws.getWorkspaceFolderForDocument("/var/empty/file.bpmn")).toThrow(
+            NoWorkspaceFolderFoundError,
+        );
+    });
+
+    it("getDocumentDirectory returns the parent of a clean path", () => {
+        const ws = new NodeWorkspace();
+        expect(ws.getDocumentDirectory("/tmp/proj/sub/file.bpmn")).toBe("/tmp/proj/sub");
+    });
+
+    it("getDocumentDirectory preserves the file:// scheme of the input", () => {
+        const ws = new NodeWorkspace();
+        expect(ws.getDocumentDirectory("file:///tmp/proj/sub/file.bpmn")).toBe(
+            "file:///tmp/proj/sub",
+        );
     });
 });
 

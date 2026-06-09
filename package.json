@@ -66,5 +66,5 @@
         "preact": "10.28.4",
         "webpack-cli": "4.10.0"
     },
-    "packageManager": "yarn@4.15.0"
+    "packageManager": "yarn@4.16.0"
 }

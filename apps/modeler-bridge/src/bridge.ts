@@ -31,6 +31,7 @@
 import {
     Command,
     DiffOrigin,
+    NavigateToReferencedModelCommand,
     Query,
     SetClipboardCommand,
     SetTextClipboardCommand,
@@ -46,6 +47,8 @@ import {
     DiffPaneStore,
     DiffSession,
     EditorSessionStore,
+    ModelNavigationService,
+    ReferencedModelLocator,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 
@@ -134,6 +137,17 @@ export function createBridge(
     const diffStore = new DiffPaneStore();
     const diffService = new BpmnDiffService(notifier, settings, diffStore);
 
+    // The model-navigation brain is `vscode`-free, so it runs unmodified here:
+    // the locator searches via NodeWorkspace's findFiles/readFile/readDirectory,
+    // and the service surfaces results through the same notifier/picker the host
+    // already implements over RPC (notifier/openDocument + picker/show).
+    const referencedModelLocator = new ReferencedModelLocator(nodeWorkspace, notifier);
+    const modelNavigationService = new ModelNavigationService(
+        referencedModelLocator,
+        notifier,
+        picker,
+    );
+
     const handles = new Map<string, RpcEditorHandle>();
     const watchers = new Map<string, { dispose(): void }[]>();
 
@@ -144,11 +158,11 @@ export function createBridge(
     const diffSessions = new Map<string, DiffSession>();
 
     // The real webview-message dispatch table. The file/sync/settings/templates/
-    // clipboard handlers call the genuine services; the remaining handshake reply
-    // is a bridge-level stub because its real service (properties panel) pulls in a
-    // host port that is a later issue (#1065). It must still answer, or the
-    // webview's `Promise.all` over templates+settings+panel-state never resolves
-    // and bootstrap stalls.
+    // clipboard/navigation handlers call the genuine services; the remaining
+    // handshake reply is a bridge-level stub because its real service (properties
+    // panel) pulls in a host port that is a later issue (#1065). It must still
+    // answer, or the webview's `Promise.all` over templates+settings+panel-state
+    // never resolves and bootstrap stalls.
     const router = new WebviewMessageRouter();
     router
         .on("GetBpmnFileCommand", async (_message: Command, editorId: string) => {
@@ -184,6 +198,23 @@ export function createBridge(
         })
         .on("SetTextClipboardCommand", (message: Command) => {
             void clipboardMediator.writeClipboard((message as SetTextClipboardCommand).text);
+        })
+        // Mirrors `navigateToReferencedModelHandler` on the VS Code host: an
+        // unknown discriminant is rejected with a warning rather than falling
+        // through to "decision" by default — defence in depth against a
+        // malformed webview message ever opening the wrong kind of file.
+        .on("NavigateToReferencedModelCommand", async (message: Command, editorId: string) => {
+            const cmd = message as NavigateToReferencedModelCommand;
+            if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
+                notifier.logWarning(
+                    `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
+                        cmd.referenceKind,
+                    )}`,
+                );
+                return;
+            }
+            const sourceFsPath = store.requireHandle(editorId).documentFsPath();
+            await modelNavigationService.navigate(cmd.referenceId, cmd.referenceKind, sourceFsPath);
         });
 
     rpc.on("session/register", async (params: RegisterParams) => {
