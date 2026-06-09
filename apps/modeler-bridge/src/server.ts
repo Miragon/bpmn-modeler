@@ -33,4 +33,10 @@ process.stdin.on("data", (chunk: string) => {
 });
 process.stdin.on("end", () => process.exit(0));
 
+// stdin EOF is the normal teardown, but the host also sends SIGTERM (its
+// graceful `Process.destroy()` before a force-kill fallback). Exit promptly on
+// it so a slow EOF can't leave the process to be SIGKILL'd after the host's
+// grace window.
+process.on("SIGTERM", () => process.exit(0));
+
 process.stderr.write("[core] modeler-core bridge ready\n");
