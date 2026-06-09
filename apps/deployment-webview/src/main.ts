@@ -14,6 +14,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { DeploymentForm } from "./app/form";
+import { FORM_TEMPLATE } from "./app/formTemplate";
 import { StartInstanceForm } from "./app/startInstanceForm";
 import { getVsCodeApi } from "./app/vscode";
 
@@ -26,6 +27,13 @@ const vscode = getVsCodeApi();
 window.onload = function () {
     let form: DeploymentForm;
     let startForm: StartInstanceForm;
+
+    // Render the single-sourced form markup before constructing the forms, which
+    // query their elements by id. Every host shell ships only `<div id="app">`.
+    const app = document.getElementById("app");
+    if (app) {
+        app.innerHTML = FORM_TEMPLATE;
+    }
 
     try {
         form = new DeploymentForm(vscode);

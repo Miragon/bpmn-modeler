@@ -167,11 +167,17 @@ Noise (deletes cleanly):
 function isGroupOpen(group: HTMLElement): boolean { ... }
 ```
 
-## Deployment Webview (Dual-HTML Pattern)
+## Deployment Webview (Single-Source Markup)
 
-The deployment sidebar has **two copies** of its HTML that must stay in sync:
+The deployment form's DOM lives in **one** place:
+`apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`), which
+`main.ts` injects into `#app` at runtime. Every host shell ships only an empty
+`<div id="app"></div>` and lets the bundle render the body:
 
-- `apps/deployment-webview/index.html` — Vite development
-- `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` — runtime in VS Code
+- `apps/deployment-webview/index.html` — Vite dev shell.
+- `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` —
+  VS Code runtime shell (keeps the CSP nonce + asset-URI injection).
+- IntelliJ deployment tool-window shell (`WebviewServer.kt`).
 
-When modifying deployment form markup, update **both** files.
+When changing the form markup, edit **only** `formTemplate.ts` — the shells no
+longer carry a copy to keep in sync.

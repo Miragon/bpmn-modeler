@@ -9,27 +9,15 @@ import {
     window,
 } from "vscode";
 
-import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "@miragon/bpmn-modeler-core";
-import { InvalidDeploymentConfigError } from "@miragon/bpmn-modeler-core";
-import { deploymentWebviewHtml } from "../infrastructure/DeploymentWebviewHtml";
+import { DeploymentMessageDispatcher } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
-import { VsCodeDocument } from "../../shared/infrastructure/VsCodeDocument";
-import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { DeploymentService } from "@miragon/bpmn-modeler-core";
 import { StartInstanceService } from "@miragon/bpmn-modeler-core";
+import { Command, Query } from "@miragon/bpmn-modeler-shared";
+import { deploymentWebviewHtml } from "../infrastructure/DeploymentWebviewHtml";
+import { VsCodeDocument } from "../../shared/infrastructure/VsCodeDocument";
+import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { getContext } from "../../shared/infrastructure/extensionContext";
-import {
-    AdditionalFilesQuery,
-    Command,
-    DeployCommand,
-    DeploymentResultQuery,
-    FormDefaultsQuery,
-    ProcessDefinitionKeyQuery,
-    SelectedPayloadFileQuery,
-    StartInstanceCommand,
-    StartInstanceResultQuery,
-    StoredCredentialsQuery,
-} from "@miragon/bpmn-modeler-shared";
 
 // VS Code view ID for the deployment sidebar WebviewView.
 const DEPLOYMENT_VIEW_ID = "bpmn-modeler.deploymentView";
@@ -41,14 +29,13 @@ export const DEPLOY_CMD = "bpmn-modeler.deployDiagram";
  * Registers and manages the deployment sidebar WebviewView and the
  * `bpmn-modeler.deployDiagram` command.
  *
- * Implements `WebviewViewProvider` so VS Code calls {@link resolveWebviewView}
- * when the sidebar panel becomes visible.  Bridges incoming webview messages
- * to {@link DeploymentService} and sends results back via `postMessage`.
+ * Host glue only: it owns the VS Code `WebviewView` lifecycle and forwards the
+ * deployment message protocol to the host-agnostic
+ * {@link DeploymentMessageDispatcher}, which carries all the deploy/start-instance
+ * logic shared with the IntelliJ bridge. The only VS Code-specific seam is the
+ * `post` callback (`webview.postMessage`) and the visibility/active-editor wiring.
  */
 export class DeploymentController implements WebviewViewProvider {
-    // The resolved webview view instance; `undefined` until first reveal.
-    private view: WebviewView | undefined;
-
     /**
      * @param editorStore Central registry for active editor state.
      * @param vsDocument Document read/write operations for resolving file paths.
@@ -82,9 +69,9 @@ export class DeploymentController implements WebviewViewProvider {
     /**
      * Called by VS Code when the deployment sidebar panel becomes visible.
      *
-     * Sets up the webview HTML, configures message routing, and subscribes to
-     * visibility changes so the form is always refreshed with the current
-     * editor's defaults when the panel is re-shown.
+     * Builds the per-view dispatcher (its `post` targets this view's webview),
+     * routes incoming messages to it, and re-pushes form defaults whenever the
+     * panel is re-shown or the active editor changes.
      *
      * @param webviewView The WebviewView provided by VS Code.
      * @param _context Resolve context (unused).
@@ -95,8 +82,6 @@ export class DeploymentController implements WebviewViewProvider {
         _context: WebviewViewResolveContext,
         _token: CancellationToken,
     ): void {
-        this.view = webviewView;
-
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [Uri.joinPath(getContext().extensionUri, "deployment-webview")],
@@ -107,13 +92,24 @@ export class DeploymentController implements WebviewViewProvider {
             getContext().extensionUri,
         );
 
-        this.subscribeToMessages(webviewView);
+        const dispatcher = new DeploymentMessageDispatcher(
+            this.editorStore,
+            this.vsDocument,
+            this.deploymentService,
+            this.startInstanceService,
+            this.notifier,
+            (message: Query) => void webviewView.webview.postMessage(message),
+        );
+
+        // The dispatcher catches every handler error internally, so returning its
+        // promise here is safe (no floating rejection) and lets the host await it.
+        webviewView.webview.onDidReceiveMessage((message: Command) => dispatcher.handle(message));
 
         // Re-send defaults whenever the panel becomes visible again (e.g. user
         // switches back to the activity-bar tab).
         webviewView.onDidChangeVisibility(() => {
             if (webviewView.visible) {
-                this.sendFormDefaults(webviewView);
+                dispatcher.sendFormDefaults();
             }
         });
 
@@ -121,7 +117,7 @@ export class DeploymentController implements WebviewViewProvider {
         // deployment panel is already visible.
         this.editorStore.onDidChangeActiveEditor(() => {
             if (webviewView.visible) {
-                this.sendFormDefaults(webviewView);
+                dispatcher.sendFormDefaults();
             }
         });
     }
@@ -131,269 +127,5 @@ export class DeploymentController implements WebviewViewProvider {
      */
     private async openDeploymentPanel(): Promise<void> {
         await commands.executeCommand(`${DEPLOYMENT_VIEW_ID}.focus`);
-    }
-
-    /**
-     * Sends pre-populated form defaults for the currently active editor to
-     * the deployment webview.
-     *
-     * @param webviewView The target WebviewView.
-     */
-    private sendFormDefaults(webviewView: WebviewView): void {
-        try {
-            const activeEditorId = this.editorStore.getActiveEditorId();
-            const defaults = this.deploymentService.getFormDefaults(activeEditorId);
-            webviewView.webview.postMessage(new FormDefaultsQuery(defaults));
-
-            // Also send the process definition key for the Start Instance tab.
-            try {
-                const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
-                webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(key));
-            } catch {
-                // Process key extraction failed — send empty key.
-                webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(""));
-            }
-        } catch {
-            // No active editor — send empty defaults.
-            webviewView.webview.postMessage(
-                new FormDefaultsQuery({
-                    deploymentName: "",
-                    tenantId: "",
-                    endpoint: "http://localhost:8080/engine-rest",
-                    engine: "c7",
-                    authType: "none",
-                }),
-            );
-            webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(""));
-        }
-    }
-
-    /**
-     * Subscribes to messages received from the deployment webview and routes
-     * them to the appropriate handler.
-     *
-     * @param webviewView The WebviewView whose messages to listen to.
-     */
-    private subscribeToMessages(webviewView: WebviewView): void {
-        webviewView.webview.onDidReceiveMessage(async (message: Command) => {
-            this.notifier.logInfo(`Deployment message received -> ${message.type}`);
-            switch (message.type) {
-                case "RequestFormDefaultsCommand":
-                    this.sendFormDefaults(webviewView);
-                    break;
-                case "RequestStoredCredentialsCommand":
-                    await this.handleStoredCredentialsRequest(webviewView);
-                    break;
-                case "RequestAdditionalFilesCommand":
-                    await this.handleAdditionalFilesRequest(webviewView);
-                    break;
-                case "DeployCommand":
-                    await this.handleDeploy(webviewView, (message as DeployCommand).config);
-                    break;
-                case "RequestProcessDefinitionKeyCommand":
-                    this.handleProcessDefinitionKeyRequest(webviewView);
-                    break;
-                case "RequestPayloadFilesCommand":
-                    await this.handlePayloadFilesRequest(webviewView);
-                    break;
-                case "StartInstanceCommand":
-                    await this.handleStartInstance(
-                        webviewView,
-                        (message as StartInstanceCommand).config,
-                    );
-                    break;
-            }
-        });
-    }
-
-    /**
-     * Retrieves stored credentials from the secret store and sends them
-     * to the webview so it can pre-fill the auth fields.
-     *
-     * @param webviewView The target WebviewView.
-     */
-    private async handleStoredCredentialsRequest(webviewView: WebviewView): Promise<void> {
-        try {
-            const auth = await this.deploymentService.getStoredCredentials();
-            webviewView.webview.postMessage(new StoredCredentialsQuery(auth));
-        } catch (error) {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            webviewView.webview.postMessage(new StoredCredentialsQuery({ authType: "none" }));
-        }
-    }
-
-    /**
-     * Opens the VS Code QuickPick for selecting additional deployment files
-     * and sends the selected paths back to the webview.
-     *
-     * @param webviewView The target WebviewView.
-     */
-    private async handleAdditionalFilesRequest(webviewView: WebviewView): Promise<void> {
-        try {
-            const filePaths = await this.deploymentService.selectAdditionalFiles();
-            webviewView.webview.postMessage(new AdditionalFilesQuery(filePaths));
-        } catch (error) {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            webviewView.webview.postMessage(new AdditionalFilesQuery([]));
-        }
-    }
-
-    /**
-     * Extracts the process definition key from the active BPMN file and sends
-     * it to the webview.
-     *
-     * @param webviewView The target WebviewView.
-     */
-    private handleProcessDefinitionKeyRequest(webviewView: WebviewView): void {
-        try {
-            const activeEditorId = this.editorStore.getActiveEditorId();
-            const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
-            webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(key));
-        } catch (error) {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            webviewView.webview.postMessage(new ProcessDefinitionKeyQuery(""));
-        }
-    }
-
-    /**
-     * Opens the VS Code QuickPick for selecting a payload file and sends
-     * the result back to the webview.
-     *
-     * @param webviewView The target WebviewView.
-     */
-    private async handlePayloadFilesRequest(webviewView: WebviewView): Promise<void> {
-        try {
-            const activeEditorId = this.editorStore.getActiveEditorId();
-            const result = await this.startInstanceService.selectPayloadFile(activeEditorId);
-            if (result) {
-                webviewView.webview.postMessage(
-                    new SelectedPayloadFileQuery(result.filePath, result.label),
-                );
-            } else {
-                webviewView.webview.postMessage(new SelectedPayloadFileQuery("", ""));
-            }
-        } catch (error) {
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            webviewView.webview.postMessage(new SelectedPayloadFileQuery("", ""));
-        }
-    }
-
-    /**
-     * Builds the start-instance config from the webview payload, runs the request,
-     * shows a VS Code notification, and sends the result back to the webview.
-     *
-     * @param webviewView The target WebviewView.
-     * @param configPayload Raw start-instance config from the webview form.
-     */
-    private async handleStartInstance(
-        webviewView: WebviewView,
-        configPayload: StartInstanceCommand["config"],
-    ): Promise<void> {
-        try {
-            const authPayload = configPayload.auth;
-            let auth;
-            if (authPayload.authType === "basic") {
-                auth = new BasicAuth(authPayload.username ?? "", authPayload.password ?? "");
-            } else if (authPayload.authType === "oauth2") {
-                auth = new OAuth2Auth(
-                    authPayload.clientId ?? "",
-                    authPayload.clientSecret ?? "",
-                    authPayload.tokenEndpoint ?? "",
-                    authPayload.audience ?? "",
-                );
-            } else {
-                auth = new NoAuth();
-            }
-
-            const result = await this.startInstanceService.startInstance(
-                configPayload.processDefinitionKey,
-                configPayload.endpoint,
-                configPayload.engine,
-                auth,
-                configPayload.payloadFilePath,
-            );
-
-            if (result.success) {
-                this.notifier.showInfo(result.message);
-            } else {
-                this.notifier.showError(result.message);
-            }
-
-            webviewView.webview.postMessage(
-                new StartInstanceResultQuery(
-                    result.success,
-                    result.message,
-                    result.processInstanceId,
-                ),
-            );
-        } catch (error) {
-            const message = "An unexpected error occurred while starting the process instance.";
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            this.notifier.showError(message);
-            webviewView.webview.postMessage(new StartInstanceResultQuery(false, message));
-        }
-    }
-
-    /**
-     * Validates the incoming payload, runs the deployment, shows a VS Code
-     * notification, and sends the result back to the webview.
-     *
-     * @param webviewView The target WebviewView.
-     * @param configPayload Raw deployment config from the webview form.
-     */
-    private async handleDeploy(
-        webviewView: WebviewView,
-        configPayload: DeployCommand["config"],
-    ): Promise<void> {
-        try {
-            const authPayload = configPayload.auth;
-            let auth;
-            if (authPayload.authType === "basic") {
-                auth = new BasicAuth(authPayload.username ?? "", authPayload.password ?? "");
-            } else if (authPayload.authType === "oauth2") {
-                auth = new OAuth2Auth(
-                    authPayload.clientId ?? "",
-                    authPayload.clientSecret ?? "",
-                    authPayload.tokenEndpoint ?? "",
-                    authPayload.audience ?? "",
-                );
-            } else {
-                auth = new NoAuth();
-            }
-
-            const activeEditorId = this.editorStore.getActiveEditorId();
-            const mainFilePath = this.vsDocument.getFilePath(activeEditorId);
-
-            const config = new DeploymentConfigBuilder()
-                .withDeploymentName(configPayload.deploymentName)
-                .withTenantId(configPayload.tenantId)
-                .withEndpoint(configPayload.endpoint)
-                .withEngine(configPayload.engine)
-                .withMainFilePath(mainFilePath)
-                .withAdditionalFilePaths(configPayload.additionalFilePaths)
-                .withAuth(auth)
-                .build();
-
-            const result = await this.deploymentService.deploy(config);
-
-            if (result.success) {
-                this.notifier.showInfo(result.message);
-            } else {
-                this.notifier.showError(result.message);
-            }
-
-            webviewView.webview.postMessage(
-                new DeploymentResultQuery(result.success, result.message, result.deploymentId),
-            );
-        } catch (error) {
-            const message =
-                error instanceof InvalidDeploymentConfigError
-                    ? error.message
-                    : "An unexpected error occurred during deployment.";
-
-            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            this.notifier.showError(message);
-            webviewView.webview.postMessage(new DeploymentResultQuery(false, message));
-        }
     }
 }

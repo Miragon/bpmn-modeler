@@ -6,9 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FetchHttpClient } from "../FetchHttpClient";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda8RestClient } from "./Camunda8RestClient";
-import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "@miragon/bpmn-modeler-core";
-import { StartInstanceConfig } from "@miragon/bpmn-modeler-core";
-import { DeploymentFailedError, StartInstanceFailedError } from "@miragon/bpmn-modeler-core";
+import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/deployment";
+import { StartInstanceConfig } from "../../domain/startInstance";
+import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
 
 /**
  * Integration tests for {@link Camunda8RestClient}.

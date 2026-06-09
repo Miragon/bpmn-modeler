@@ -50,6 +50,13 @@ export * from "./deployment/domain/ports";
 export * from "./deployment/domain/startInstance";
 export * from "./deployment/service/DeploymentService";
 export * from "./deployment/service/StartInstanceService";
+export * from "./deployment/service/DeploymentMessageDispatcher";
+export * from "./deployment/infrastructure/FetchHttpClient";
+export * from "./deployment/infrastructure/camunda/AuthHeaderResolver";
+export * from "./deployment/infrastructure/camunda/Camunda7RestClient";
+export * from "./deployment/infrastructure/camunda/Camunda8RestClient";
+export * from "./deployment/infrastructure/camunda/CamundaEngineRouter";
+export * from "./deployment/infrastructure/camunda/MultipartBuilder";
 
 // ── scriptTask: domain ───────────────────────────────────────────────────────
 export * from "./scriptTask/domain/ScriptUri";

@@ -29,6 +29,11 @@ isn't talking to VS Code.
 | core → host | `notifier/*` | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log |
 | core → host | `statusBar/*` | `StatusBarPort` → `StatusBarWidget` (engine version + template count) |
 | core → host | `secretStore/*` | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted at rest) |
+| host → core | `deploymentState/seed` | seeds the `DeploymentStatePort` mirror (synchronous getters; see BridgeSettings) |
+| host → core | `deployment/open` | deployment tool-window visibility → refresh form defaults on open |
+| host → core | `deployment/webviewMessage` | inbound deployment `Command` → `DeploymentMessageDispatcher` |
+| core → host | `deployment/postMessage` | deployment `Query` → tool-window webview (`window.postMessage`) |
+| core → host | `deploymentState/save*` | `DeploymentStatePort` persist → `PropertiesComponent` (non-secret form state) |
 
 The **synchronous-read mismatch** — `BpmnModelerService.display()` reads
 `DocumentPort.getContent()` synchronously, impossible over async RPC — is solved
@@ -56,8 +61,10 @@ with no cross-process timing assumptions — so every future host inherits it.
 ## Scope
 
 BPMN editor render + `Ctrl+S` write-back + element templates (real, filesystem-
-backed) + the Notifier/StatusBar display ports. DMN, diff, deployment, and
-scriptTask are their own follow-up issues and are intentionally not wired here.
+backed) + the Notifier/StatusBar display ports + diff + Camunda 7/8 deployment
+(the shared `DeploymentMessageDispatcher` + REST stack, driven by the IntelliJ
+deployment tool window). DMN and scriptTask are their own follow-up issues and
+are intentionally not wired here.
 
 ## Build & run
 
@@ -82,7 +89,7 @@ it by writing NDJSON frames to its stdin and reading frames from its stdout.
 - `src/rpc.ts` — the bidirectional NDJSON JSON-RPC peer.
 - `src/adapters.ts` — `DocumentMirror` + the RPC-backed ports
   (`RpcEditorHandle`, `RpcDocumentPort`, `RpcNotifier`, `RpcStatusBar`,
-  `RpcSecretStore`, `RpcPicker`).
+  `RpcClipboard`, `RpcSecretStore`, `RpcDeploymentState`, `RpcPicker`).
 - `src/nodeAdapters.ts` — pure-`fs` `WorkspacePort` / `SettingsPort` for the
   element-templates pipeline.
 - `src/server.ts` — the entrypoint that wires the real core to the adapters.

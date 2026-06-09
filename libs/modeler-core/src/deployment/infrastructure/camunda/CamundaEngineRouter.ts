@@ -1,6 +1,6 @@
-import { DeploymentConfig, DeploymentResult } from "@miragon/bpmn-modeler-core";
-import { CamundaEnginePort } from "@miragon/bpmn-modeler-core";
-import { StartInstanceConfig, StartInstanceResult } from "@miragon/bpmn-modeler-core";
+import { DeploymentConfig, DeploymentResult } from "../../domain/deployment";
+import { CamundaEnginePort } from "../../domain/ports";
+import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
 
 /**
  * Dispatches {@link CamundaEnginePort} calls to the correct engine-specific

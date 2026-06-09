@@ -38,9 +38,14 @@ class WebviewServer : Disposable {
     @Volatile
     private var baseUrl: String? = null
 
+    // Loopback origin (scheme + host + port) without a path, so per-shell URLs
+    // (bpmn `/index.html`, deployment `/deployment.html`) can be derived from it.
+    @Volatile
+    private var origin: String? = null
+
     /**
      * Starts the server on first call and returns the URL of the synthesised
-     * shell. Idempotent — later calls return the already-bound URL.
+     * bpmn editor shell. Idempotent — later calls return the already-bound URL.
      */
     @Synchronized
     fun ensureStarted(): String {
@@ -55,11 +60,23 @@ class WebviewServer : Disposable {
             }
         httpServer.start()
 
-        val url = "http://127.0.0.1:${httpServer.address.port}/index.html"
+        val base = "http://127.0.0.1:${httpServer.address.port}"
+        val url = "$base/index.html"
         server = httpServer
+        origin = base
         baseUrl = url
         log.info("Miranum webview server started at $url")
         return url
+    }
+
+    /**
+     * Ensures the server is running and returns the deployment tool-window shell
+     * URL. Same static bundle pipeline as the bpmn shell, served from a separate
+     * classpath root (`/webview-deployment/...`).
+     */
+    fun deploymentUrl(): String {
+        ensureStarted()
+        return "${origin}/deployment.html"
     }
 
     private fun handle(exchange: HttpExchange) {
@@ -69,8 +86,21 @@ class WebviewServer : Disposable {
                 respond(exchange, 200, "text/html; charset=utf-8", INDEX_HTML.toByteArray(StandardCharsets.UTF_8))
                 return
             }
+            if (path == "/deployment.html") {
+                respond(exchange, 200, "text/html; charset=utf-8", DEPLOYMENT_HTML.toByteArray(StandardCharsets.UTF_8))
+                return
+            }
 
-            val resourcePath = "/webview" + URLDecoder.decode(path, StandardCharsets.UTF_8)
+            // The two bundles live under distinct classpath roots; the
+            // `/deployment/...` request prefix maps to `/webview-deployment/...`,
+            // everything else to the bpmn bundle's `/webview/...`.
+            val decoded = URLDecoder.decode(path, StandardCharsets.UTF_8)
+            val resourcePath =
+                if (decoded.startsWith("/deployment/")) {
+                    "/webview-deployment" + decoded.removePrefix("/deployment")
+                } else {
+                    "/webview$decoded"
+                }
             val bytes = javaClass.getResourceAsStream(resourcePath)?.use { it.readBytes() }
             if (bytes == null) {
                 respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
@@ -111,6 +141,7 @@ class WebviewServer : Disposable {
         server?.stop(0)
         server = null
         baseUrl = null
+        origin = null
     }
 
     private companion object {
@@ -181,6 +212,74 @@ class WebviewServer : Disposable {
                 "    </div>",
                 "  </div>",
                 "  <script type=\"module\" src=\"/index.js\"></script>",
+                "</body>",
+                "</html>",
+            ).joinToString("\n")
+
+        /**
+         * Maps the `--vscode-*` CSS variables the deployment form's stylesheet
+         * reads onto CSS *system colors*, so the form stays readable in both light
+         * and dark IDE themes without a VS Code host. `color-scheme: light dark`
+         * lets Chromium (JCEF) resolve `Canvas`/`CanvasText`/`Field`/… to the
+         * embedding theme; this is the IntelliJ counterpart of VS Code injecting
+         * its theme variables into the webview. (Visual parity should be confirmed
+         * live against a dark IDE theme — see #1071 notes.)
+         */
+        val DEPLOYMENT_THEME =
+            listOf(
+                ":root {",
+                "  color-scheme: light dark;",
+                "  --vscode-foreground: CanvasText;",
+                "  --vscode-descriptionForeground: GrayText;",
+                "  --vscode-icon-foreground: CanvasText;",
+                "  --vscode-editor-background: Canvas;",
+                "  --vscode-sideBar-background: Canvas;",
+                "  --vscode-sideBarSectionHeader-background: ButtonFace;",
+                "  --vscode-sideBarSectionHeader-foreground: CanvasText;",
+                "  --vscode-panel-border: GrayText;",
+                "  --vscode-list-hoverBackground: Highlight;",
+                "  --vscode-focusBorder: Highlight;",
+                "  --vscode-input-background: Field;",
+                "  --vscode-input-foreground: FieldText;",
+                "  --vscode-input-border: GrayText;",
+                "  --vscode-button-background: AccentColor;",
+                "  --vscode-button-foreground: AccentColorText;",
+                "  --vscode-button-hoverBackground: AccentColor;",
+                "  --vscode-button-secondaryBackground: ButtonFace;",
+                "  --vscode-button-secondaryForeground: ButtonText;",
+                "  --vscode-button-secondaryHoverBackground: ButtonFace;",
+                "  --vscode-errorForeground: #e51400;",
+                "  --vscode-notifications-background: Canvas;",
+                "  --vscode-inputValidation-errorBackground: #5a1d1d;",
+                "  --vscode-inputValidation-errorBorder: #be1100;",
+                "  --vscode-inputValidation-errorForeground: CanvasText;",
+                "  --vscode-inputValidation-infoBackground: #063b49;",
+                "  --vscode-inputValidation-infoBorder: #007acc;",
+                "  --vscode-inputValidation-infoForeground: CanvasText;",
+                "}",
+            ).joinToString("\n")
+
+        /**
+         * Deployment tool-window shell. Same shim + asset-tag pattern as
+         * [INDEX_HTML]; the body is just `<div id="app"></div>` because the
+         * deployment bundle (`src/app/formTemplate.ts`) renders the form itself.
+         * Assets resolve under `/deployment/...` → classpath `/webview-deployment`.
+         */
+        val DEPLOYMENT_HTML =
+            listOf(
+                "<!DOCTYPE html>",
+                "<html lang=\"en\">",
+                "<head>",
+                "  <meta charset=\"UTF-8\"/>",
+                "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
+                "  <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
+                "  <title>Deploy Diagram</title>",
+                "  <style>$DEPLOYMENT_THEME</style>",
+                "  <script>$SHIM</script>",
+                "</head>",
+                "<body>",
+                "  <div id=\"app\"></div>",
+                "  <script type=\"module\" src=\"/deployment/index.js\"></script>",
                 "</body>",
                 "</html>",
             ).joinToString("\n")

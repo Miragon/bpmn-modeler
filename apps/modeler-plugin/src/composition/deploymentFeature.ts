@@ -2,13 +2,15 @@ import { ExtensionContext } from "vscode";
 
 import { VsCodeDeploymentState } from "../deployment/infrastructure/VsCodeDeploymentState";
 import { VsCodeSecretStore } from "../deployment/infrastructure/VsCodeSecretStore";
-import { FetchHttpClient } from "../deployment/infrastructure/FetchHttpClient";
-import { AuthHeaderResolver } from "../deployment/infrastructure/camunda/AuthHeaderResolver";
-import { Camunda7RestClient } from "../deployment/infrastructure/camunda/Camunda7RestClient";
-import { Camunda8RestClient } from "../deployment/infrastructure/camunda/Camunda8RestClient";
-import { CamundaEngineRouter } from "../deployment/infrastructure/camunda/CamundaEngineRouter";
-import { DeploymentService } from "@miragon/bpmn-modeler-core";
-import { StartInstanceService } from "@miragon/bpmn-modeler-core";
+import {
+    AuthHeaderResolver,
+    Camunda7RestClient,
+    Camunda8RestClient,
+    CamundaEngineRouter,
+    DeploymentService,
+    FetchHttpClient,
+    StartInstanceService,
+} from "@miragon/bpmn-modeler-core";
 import { DeploymentController } from "../deployment/controller/DeploymentController";
 import { SharedDeps } from "./sharedDeps";
 
