@@ -45,7 +45,7 @@ class BpmnDiffTool : FrameDiffTool, SuppressiveDiffTool {
     }
 
     override fun createComponent(context: DiffContext, request: DiffRequest): FrameDiffTool.DiffViewer =
-        BpmnDiffViewer(request as ContentDiffRequest)
+        BpmnDiffViewer(context.project, request as ContentDiffRequest)
 
     override fun getSuppressedTools(): List<Class<out DiffTool>> =
         listOf(SimpleDiffTool::class.java, UnifiedDiffTool::class.java)

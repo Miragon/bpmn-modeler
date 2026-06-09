@@ -8,6 +8,7 @@ import com.intellij.diff.contents.FileContent
 import com.intellij.diff.requests.ContentDiffRequest
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBSplitter
 import com.intellij.ui.jcef.JBCefApp
@@ -50,9 +51,17 @@ import javax.swing.SwingConstants
  * accepted limitation rather than a silent gap.
  */
 class BpmnDiffViewer(
+    project: Project?,
     private val request: ContentDiffRequest,
 ) : FrameDiffTool.DiffViewer {
-    private val coreProcess: CoreProcess? = if (JBCefApp.isSupported()) service<CoreProcess>() else null
+    // CoreProcess is a PROJECT-level service, so it must be resolved from the
+    // project container (`project.service`), not the application one — the
+    // app-level `service<CoreProcess>()` accessor would send IntelliJ looking for
+    // an app service whose `(Project)` constructor matches no light-service
+    // signature, throwing InstantiationException. A null project (rare for a real
+    // diff) is treated as "unavailable" and falls back to the message below.
+    private val coreProcess: CoreProcess? =
+        if (JBCefApp.isSupported()) project?.service<CoreProcess>() else null
 
     // Matches the core's diff session key across open/dispose. Process-unique is
     // enough — it never leaves this host.
