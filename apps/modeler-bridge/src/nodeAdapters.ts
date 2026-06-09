@@ -97,14 +97,12 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Returns the registered root that encloses `documentDir`, re-prefixed into
-     * `documentDir`'s own scheme space so the caller's downstream string
-     * comparisons (e.g. `ArtifactService`'s containment check) stay consistent.
-     *
-     * @throws {NoWorkspaceFolderFoundError} when no root encloses the document,
-     *   so `ArtifactService.getWorkspaceRoot` falls back to git-root then doc-dir.
+     * Scheme-tolerant root match, shared by the throwing and non-throwing
+     * variants below: returns the enclosing registered root re-prefixed into
+     * `document`'s own scheme space (URI in → URI out, clean in → clean out),
+     * or `undefined` when no root covers it.
      */
-    getWorkspaceFolderForDocument(document: string): string {
+    private enclosingRoot(document: string): string | undefined {
         const hadScheme = document.startsWith("file://");
         const normDoc = toFsPath(document);
         for (const root of this.roots) {
@@ -113,7 +111,19 @@ export class NodeWorkspace implements WorkspacePort {
                 return hadScheme ? "file://" + normRoot : normRoot;
             }
         }
-        throw new NoWorkspaceFolderFoundError();
+        return undefined;
+    }
+
+    /**
+     * @throws {NoWorkspaceFolderFoundError} when no root encloses the document,
+     *   so `ArtifactService.getWorkspaceRoot` falls back to git-root then doc-dir.
+     */
+    getWorkspaceFolderForDocument(document: string): string {
+        const match = this.enclosingRoot(document);
+        if (match === undefined) {
+            throw new NoWorkspaceFolderFoundError();
+        }
+        return match;
     }
 
     /**
@@ -250,17 +260,30 @@ export class NodeWorkspace implements WorkspacePort {
         };
     }
 
-    // Never reached on the element-templates path; the bridge type-checks
-    // `src/**`, so the full interface must be present.
-    findWorkspaceFolderForDocument(): string | undefined {
-        throw new Error("not implemented in bridge");
+    /**
+     * Non-throwing variant of {@link getWorkspaceFolderForDocument} —
+     * `ReferencedModelLocator` uses it to distinguish a workspace-rooted
+     * document (use `findFiles`) from a loose file (walk from its directory).
+     */
+    findWorkspaceFolderForDocument(document: string): string | undefined {
+        return this.enclosingRoot(document);
     }
+
     getWorkspaceFolderPaths(): string[] {
-        throw new Error("not implemented in bridge");
+        return [...this.roots];
     }
-    getDocumentDirectory(): string {
-        throw new Error("not implemented in bridge");
+
+    /**
+     * Returns `posix.dirname` of the document, preserving the input's scheme
+     * space so the locator's loose-file walk root and its candidate paths
+     * compare consistently downstream.
+     */
+    getDocumentDirectory(document: string): string {
+        const hadScheme = document.startsWith("file://");
+        const parent = posix.dirname(toFsPath(document));
+        return hadScheme ? "file://" + parent : parent;
     }
+
     writeFile(): Promise<void> {
         throw new Error("not implemented in bridge");
     }
