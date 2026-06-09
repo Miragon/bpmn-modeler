@@ -16,9 +16,10 @@
 
 import { posix } from "node:path";
 
-import { Command, Engine, Query } from "@miragon/bpmn-modeler-shared";
+import { AuthTypePayload, Command, Engine, Query } from "@miragon/bpmn-modeler-shared";
 import {
     ClipboardPort,
+    DeploymentStatePort,
     DocumentPort,
     EditorHandle,
     EditorSubscription,
@@ -400,6 +401,81 @@ export class RpcSecretStore implements SecretStorePort {
             clientSecret: string;
         } | null;
         return result ?? undefined;
+    }
+}
+
+/** Snapshot of the non-secret deployment-form state the host persists across sessions. */
+export interface DeploymentStateSnapshot {
+    endpoint: string;
+    tenantId: string;
+    authType: AuthTypePayload;
+    tokenEndpoint: string;
+    audience: string;
+}
+
+/** Render-safe defaults before the host's first seed arrives. */
+const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
+    endpoint: "",
+    tenantId: "",
+    authType: "none",
+    tokenEndpoint: "",
+    audience: "",
+};
+
+/**
+ * RPC-backed {@link DeploymentStatePort} with a local mirror.
+ *
+ * The port's getters are **synchronous** (`getEndpoint(): string`, …), so the
+ * bridge cannot await an RPC per read. Mirroring the {@link BridgeSettings}
+ * pattern: the host seeds a snapshot once on startup (`deploymentState/seed`);
+ * getters read the mirror; the `save*` methods update it optimistically and fire
+ * a host notification to persist, so the value survives a restart (the host
+ * re-seeds from its persisted store). Secrets are out of scope here — they ride
+ * {@link RpcSecretStore} / PasswordSafe.
+ */
+export class RpcDeploymentState implements DeploymentStatePort {
+    private snapshot: DeploymentStateSnapshot = { ...EMPTY_DEPLOYMENT_STATE };
+
+    constructor(private readonly rpc: Rpc) {}
+
+    /** Replaces the mirror from the host's seed (sent once on startup / after persist). */
+    seed(next: Partial<DeploymentStateSnapshot>): void {
+        this.snapshot = { ...this.snapshot, ...next };
+    }
+
+    getEndpoint(): string {
+        return this.snapshot.endpoint;
+    }
+
+    getTenantId(): string {
+        return this.snapshot.tenantId;
+    }
+
+    getAuthType(): AuthTypePayload {
+        return this.snapshot.authType;
+    }
+
+    getTokenEndpoint(): string {
+        return this.snapshot.tokenEndpoint;
+    }
+
+    getAudience(): string {
+        return this.snapshot.audience;
+    }
+
+    async saveAuthType(authType: AuthTypePayload): Promise<void> {
+        this.snapshot = { ...this.snapshot, authType };
+        this.rpc.notify("deploymentState/saveAuthType", { authType });
+    }
+
+    async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
+        this.snapshot = { ...this.snapshot, tokenEndpoint, audience };
+        this.rpc.notify("deploymentState/saveOAuth2Config", { tokenEndpoint, audience });
+    }
+
+    async save(endpoint: string, tenantId: string): Promise<void> {
+        this.snapshot = { ...this.snapshot, endpoint, tenantId };
+        this.rpc.notify("deploymentState/save", { endpoint, tenantId });
     }
 }
 

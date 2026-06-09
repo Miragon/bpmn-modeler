@@ -64,8 +64,14 @@ class CoreProcess(private val project: Project) : Disposable {
     private val gson = Gson()
     private val notifications by lazy { HostNotifications(project) }
     private val secretStore by lazy { IntellijSecretStore() }
+    private val deploymentState by lazy { IntellijDeploymentState.getInstance(project) }
 
     private val sessions = ConcurrentHashMap<String, CoreSession>()
+
+    // The deployment tool window's core→webview sink. One tool window per project,
+    // so a later register replaces the previous sink (null when closed).
+    @Volatile
+    private var deploymentSink: ((String) -> Unit)? = null
 
     // Diff panes route by `paneUri`, not editor id: a diff has two browsers and
     // is host-originated. `diffPanes` maps each pane's URI to its core→webview
@@ -141,6 +147,9 @@ class CoreProcess(private val project: Project) : Disposable {
             started.onExit().thenAccept { handleExit(started) }
             ensureWriterThread()
             ensureShutdownHook()
+            // Seed the deployment-state mirror up front so the bridge's synchronous
+            // getters are correct; re-runs on every (re)spawn, rebuilding the mirror.
+            sendDeploymentSeed()
             log.info("Miranum modeler bridge started: $binary")
         } catch (e: Exception) {
             log.error("Failed to start the modeler bridge", e)
@@ -286,6 +295,47 @@ class CoreProcess(private val project: Project) : Disposable {
         notify("session/dispose", linkedMapOf("editorId" to editorId))
     }
 
+    // ── deployment tool window ─────────────────────────────────────────────────
+
+    /**
+     * Registers the deployment tool window's core→webview sink and (re-)seeds the
+     * deployment-state mirror. One tool window per project, so a later register
+     * replaces the previous sink.
+     */
+    fun registerDeploymentWindow(sink: (String) -> Unit) {
+        ensureStarted()
+        deploymentSink = sink
+        sendDeploymentSeed()
+    }
+
+    /** Drops the deployment sink and marks the panel closed (stops default refreshes). */
+    fun unregisterDeploymentWindow() {
+        deploymentSink = null
+        notify("deployment/open", linkedMapOf("open" to false))
+    }
+
+    /** Forwards one raw deployment-webview message (already JSON) to the core untouched. */
+    fun forwardDeploymentMessage(rawMessage: String) {
+        val parsed =
+            try {
+                JsonParser.parseString(rawMessage)
+            } catch (e: Exception) {
+                log.warn("Discarding malformed deployment message: $rawMessage", e)
+                return
+            }
+        notify("deployment/webviewMessage", linkedMapOf("message" to parsed))
+    }
+
+    /** Tells the core whether the deployment panel is visible (drives form-default refresh). */
+    fun setDeploymentOpen(open: Boolean) {
+        notify("deployment/open", linkedMapOf("open" to open))
+    }
+
+    private fun sendDeploymentSeed() {
+        if (process?.isAlive != true) return
+        notify("deploymentState/seed", linkedMapOf("state" to deploymentState.snapshotMap()))
+    }
+
     /**
      * Starts a host-originated diff session in the core. Both sides are known up
      * front (IntelliJ resolves the diff with HEAD and working-tree contents in
@@ -370,6 +420,24 @@ class CoreProcess(private val project: Project) : Disposable {
                 val payload = gson.toJson(params.get("message"))
                 diffPanes[paneUri]?.invoke(payload)
             }
+            "deployment/postMessage" -> {
+                val payload = gson.toJson(params.get("message"))
+                deploymentSink?.invoke(payload)
+            }
+            // PropertiesComponent writes are thread-safe and run on the reader
+            // thread here (same as the secretStore handlers below).
+            "deploymentState/saveAuthType" ->
+                deploymentState.saveAuthType(params.get("authType").asString)
+            "deploymentState/saveOAuth2Config" ->
+                deploymentState.saveOAuth2Config(
+                    params.get("tokenEndpoint").asString,
+                    params.get("audience").asString,
+                )
+            "deploymentState/save" ->
+                deploymentState.save(
+                    params.get("endpoint").asString,
+                    params.get("tenantId").asString,
+                )
             "document/write" -> handleWrite(params, id)
             "document/save" -> handleSave(params, id)
             "picker/show" -> handlePick(params, id)
@@ -688,6 +756,7 @@ class CoreProcess(private val project: Project) : Disposable {
         sessions.clear()
         diffPanes.clear()
         diffPaneUris.clear()
+        deploymentSink = null
     }
 
     private companion object {

@@ -1,6 +1,6 @@
-import { AuthConfig, OAuth2Auth } from "@miragon/bpmn-modeler-core";
-import { TokenFetchError } from "@miragon/bpmn-modeler-core";
-import { HttpClient } from "@miragon/bpmn-modeler-core";
+import { AuthConfig, OAuth2Auth } from "../../domain/deployment";
+import { TokenFetchError } from "../../../shared/domain/errors";
+import { HttpClient } from "../../domain/ports";
 
 /**
  * Resolves an {@link AuthConfig} into concrete HTTP headers.

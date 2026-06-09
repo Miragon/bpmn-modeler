@@ -16,13 +16,17 @@
  *   Host → Core (notifications): session/register, webview/message,
  *                                document/didChange, settings/didChange,
  *                                session/setActive, session/dispose,
- *                                diff/open, diff/webviewMessage, diff/dispose
- *   Core → Host (requests):      document/write, document/save, picker/show
+ *                                diff/open, diff/webviewMessage, diff/dispose,
+ *                                deploymentState/seed, deployment/webviewMessage,
+ *                                deployment/open
+ *   Core → Host (requests):      document/write, document/save, picker/show,
+ *                                secretStore/*
  *   Core → Host (notifications): editor/postMessage, diff/postMessage,
+ *                                deployment/postMessage, deploymentState/save*,
  *                                notifier/*, statusBar/*
  *
- * DMN and deployment are deliberately out of scope here — they are their own
- * follow-up issues; this covers the BPMN editor (#1067) and diff (#1069). The
+ * DMN is deliberately out of scope here — it is its own follow-up issue; this
+ * covers the BPMN editor (#1067), diff (#1069) and deployment (#1071). The
  * diff path reuses the production diff brain verbatim (`DiffPaneStore` +
  * `BpmnDiffService` + `bpmn-js-differ`), driven by host-originated `diff/*` RPC
  * instead of VS Code's `vscode.diff` + custom-editor resolution.
@@ -39,26 +43,37 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import {
     ArtifactService,
+    AuthHeaderResolver,
     BpmnClipboardMediator,
     BpmnDiffService,
     BpmnElementTemplatesService,
     BpmnModelerService,
     BpmnSettingsBroadcaster,
+    Camunda7RestClient,
+    Camunda8RestClient,
+    CamundaEngineRouter,
+    DeploymentMessageDispatcher,
+    DeploymentService,
     DiffPaneStore,
     DiffSession,
     EditorSessionStore,
+    FetchHttpClient,
     ModelNavigationService,
     ReferencedModelLocator,
+    StartInstanceService,
     WebviewMessageRouter,
 } from "@miragon/bpmn-modeler-core";
 
 import {
+    DeploymentStateSnapshot,
     DocumentMirror,
     RpcClipboard,
+    RpcDeploymentState,
     RpcDocumentPort,
     RpcEditorHandle,
     RpcNotifier,
     RpcPicker,
+    RpcSecretStore,
     RpcStatusBar,
     SessionMeta,
 } from "./adapters";
@@ -147,6 +162,56 @@ export function createBridge(
         notifier,
         picker,
     );
+
+    // Deployment reuses the production deployment brain verbatim: the same
+    // services + dispatcher the VS Code host wires, now fed by the host-fed
+    // deployment-state mirror and the PasswordSafe-backed secret store over RPC.
+    // The Camunda REST stack is pure Node (Buffer/fetch/multipart), so it runs
+    // unmodified under Bun. `post` notifies the host, which pushes the Query into
+    // the deployment tool-window's JCEF browser.
+    const httpClient = new FetchHttpClient();
+    const authResolver = new AuthHeaderResolver(httpClient);
+    const camundaRouter = new CamundaEngineRouter(
+        new Camunda7RestClient(httpClient, authResolver),
+        new Camunda8RestClient(httpClient, authResolver, settings.getC8ApiVersion()),
+    );
+    const deploymentState = new RpcDeploymentState(rpc);
+    const secretStore = new RpcSecretStore(rpc);
+    const deploymentService = new DeploymentService(
+        documentPort,
+        nodeWorkspace,
+        deploymentState,
+        camundaRouter,
+        notifier,
+        picker,
+        secretStore,
+    );
+    const startInstanceService = new StartInstanceService(
+        documentPort,
+        nodeWorkspace,
+        camundaRouter,
+        notifier,
+        picker,
+        artifactSvc,
+    );
+    const deploymentDispatcher = new DeploymentMessageDispatcher(
+        store,
+        documentPort,
+        deploymentService,
+        startInstanceService,
+        notifier,
+        (message) => rpc.notify("deployment/postMessage", { message }),
+    );
+
+    // The form's defaults track the active editor, but only while the panel is
+    // open — refreshing a hidden panel would be wasted RPC. The host reports
+    // open/close via `deployment/open`.
+    let deploymentPanelOpen = false;
+    store.onDidChangeActiveEditor(() => {
+        if (deploymentPanelOpen) {
+            deploymentDispatcher.sendFormDefaults();
+        }
+    });
 
     const handles = new Map<string, RpcEditorHandle>();
     const watchers = new Map<string, { dispose(): void }[]>();
@@ -358,6 +423,27 @@ export function createBridge(
         diffStore.remove(session);
         diffSessions.delete(params.diffId);
         log(`diff disposed: ${params.diffId}`);
+    });
+
+    // Seed the deployment-state mirror once at startup (and after a persisted
+    // save, if the host chooses to re-seed); getters then read it synchronously.
+    rpc.on("deploymentState/seed", (params: { state: Partial<DeploymentStateSnapshot> }) => {
+        deploymentState.seed(params.state);
+    });
+
+    // Inbound deployment-webview message → the shared dispatch core. Errors are
+    // caught inside each handler, so this never rejects.
+    rpc.on("deployment/webviewMessage", (params: { message: Command }) => {
+        void deploymentDispatcher.handle(params.message);
+    });
+
+    // The host reports the tool window's visibility; on open, push the current
+    // form defaults so the panel reflects the active diagram immediately.
+    rpc.on("deployment/open", (params: { open: boolean }) => {
+        deploymentPanelOpen = params.open;
+        if (params.open) {
+            deploymentDispatcher.sendFormDefaults();
+        }
     });
 
     return { rpc };

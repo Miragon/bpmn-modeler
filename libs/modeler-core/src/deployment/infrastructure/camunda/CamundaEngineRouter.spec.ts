@@ -1,9 +1,9 @@
 import { Mocked, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CamundaEngineRouter } from "./CamundaEngineRouter";
-import { CamundaEnginePort } from "@miragon/bpmn-modeler-core";
-import { DeploymentConfig, DeploymentResult, NoAuth } from "@miragon/bpmn-modeler-core";
-import { StartInstanceConfig, StartInstanceResult } from "@miragon/bpmn-modeler-core";
+import { CamundaEnginePort } from "../../domain/ports";
+import { DeploymentConfig, DeploymentResult, NoAuth } from "../../domain/deployment";
+import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
 
 function mockEnginePort(): Mocked<CamundaEnginePort> {
     return {
