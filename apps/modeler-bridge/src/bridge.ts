@@ -15,7 +15,7 @@
  * Protocol (see {@link Rpc} for framing):
  *   Host → Core (notifications): session/register, webview/message,
  *                                document/didChange, session/dispose
- *   Core → Host (requests):      document/write, document/save
+ *   Core → Host (requests):      document/write, document/save, picker/show
  *   Core → Host (notifications): editor/postMessage, notifier/*, statusBar/*
  *
  * Diff, DMN, and deployment are deliberately out of scope here — they are their
@@ -37,9 +37,9 @@ import {
     RpcDocumentPort,
     RpcEditorHandle,
     RpcNotifier,
+    RpcPicker,
     RpcStatusBar,
     SessionMeta,
-    StubPicker,
 } from "./adapters";
 import { BridgeSettings, NodeWorkspace, SettingsSnapshot } from "./nodeAdapters";
 import { Rpc } from "./rpc";
@@ -71,19 +71,22 @@ export function createBridge(
 
     const mirror = new DocumentMirror();
     const notifier = new RpcNotifier(rpc);
-    const picker = new StubPicker();
     const statusBar = new RpcStatusBar(rpc);
     const documentPort = new RpcDocumentPort(rpc, mirror);
-
-    // onOpenCountChanged is the VS Code setContext hook; irrelevant out-of-process.
-    const store = new EditorSessionStore(() => {});
-    const bpmnService = new BpmnModelerService(store, documentPort, picker, statusBar, notifier);
 
     // The element-templates pipeline is the *real* production stack: the only new
     // code is the two pure-fs/host-fed port adapters (NodeWorkspace/BridgeSettings).
     // This is what makes the status-bar template count genuine rather than a placeholder.
     const nodeWorkspace = new NodeWorkspace();
     const settings = new BridgeSettings();
+
+    // The picker reuses NodeWorkspace for its one filesystem-backed prompt
+    // (pickWorkspaceFiles); every other prompt receives its candidates inline.
+    const picker = new RpcPicker(rpc, nodeWorkspace);
+
+    // onOpenCountChanged is the VS Code setContext hook; irrelevant out-of-process.
+    const store = new EditorSessionStore(() => {});
+    const bpmnService = new BpmnModelerService(store, documentPort, picker, statusBar, notifier);
     const artifactSvc = new ArtifactService(nodeWorkspace, settings);
     const templatesSvc = new BpmnElementTemplatesService(
         store,

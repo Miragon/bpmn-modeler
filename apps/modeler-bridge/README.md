@@ -71,7 +71,7 @@ it by writing NDJSON frames to its stdin and reading frames from its stdout.
 - `src/rpc.ts` — the bidirectional NDJSON JSON-RPC peer.
 - `src/adapters.ts` — `DocumentMirror` + the RPC-backed ports
   (`RpcEditorHandle`, `RpcDocumentPort`, `RpcNotifier`, `RpcStatusBar`,
-  `StubPicker`).
+  `RpcPicker`).
 - `src/nodeAdapters.ts` — pure-`fs` `WorkspacePort` / `SettingsPort` for the
   element-templates pipeline.
 - `src/server.ts` — the entrypoint that wires the real core to the adapters.

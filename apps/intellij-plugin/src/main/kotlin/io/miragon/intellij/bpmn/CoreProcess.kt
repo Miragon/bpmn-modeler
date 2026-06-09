@@ -37,7 +37,8 @@ import java.util.concurrent.atomic.AtomicInteger
  *  - push core→webview messages into the right JCEF browser (`editor/postMessage`);
  *  - satisfy the document port (`document/write` / `document/save`) against the
  *    real IntelliJ `Document`;
- *  - render the core's `NotifierPort` / `StatusBarPort` as IntelliJ UI.
+ *  - render the core's `NotifierPort` / `StatusBarPort` as IntelliJ UI, and its
+ *    `PickerPort` (`picker/show`) as a native `JBPopup` chooser.
  *
  * **Topology.** A project-level service: one supervised bridge per project
  * window, lazily spawned on the first editor and torn down with the project.
@@ -266,6 +267,7 @@ class CoreProcess(private val project: Project) : Disposable {
             }
             "document/write" -> handleWrite(params, id)
             "document/save" -> handleSave(params, id)
+            "picker/show" -> handlePick(params, id)
             "statusBar/showEngineVersion" -> {
                 val label = if (params.get("platform")?.asString == "c7") "Camunda 7" else "Camunda 8"
                 EngineStatusBarWidget.updateEngine(project, "$label ${params.get("version")?.asString}")
@@ -327,6 +329,38 @@ class CoreProcess(private val project: Project) : Disposable {
                 if (document != null) FileDocumentManager.getInstance().saveDocument(document)
             }
             id?.let { reply(it, mapOf("saved" to true)) }
+        }
+    }
+
+    /**
+     * Shows a native list popup for the core's `PickerPort` and replies with the
+     * chosen item indices, or `null` on dismissal. The host renders only the
+     * chooser; the cancel-vs-throw convention is applied core-side.
+     */
+    private fun handlePick(params: JsonObject, id: Int?) {
+        // A picker prompt is always a request expecting a reply; a missing id
+        // would mean nothing to answer, so there is nothing to do.
+        if (id == null) return
+        val title = params.get("title")?.takeIf { !it.isJsonNull }?.asString
+        val placeholder = params.get("placeholder")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+        val canPickMany = params.get("canPickMany")?.takeIf { !it.isJsonNull }?.asBoolean ?: false
+        val items =
+            params.getAsJsonArray("items").mapIndexed { index, element ->
+                val obj = element.asJsonObject
+                HostPicker.PickItem(
+                    index,
+                    obj.get("label").asString,
+                    obj.get("description")?.takeIf { !it.isJsonNull }?.asString,
+                )
+            }
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) {
+                reply(id, mapOf("selected" to null))
+                return@invokeLater
+            }
+            HostPicker.show(project, title, placeholder, canPickMany, items) { selected ->
+                reply(id, mapOf("selected" to selected))
+            }
         }
     }
 
