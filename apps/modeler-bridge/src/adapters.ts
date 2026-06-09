@@ -25,6 +25,7 @@ import {
     NotifierPort,
     PickerPort,
     ScriptLanguage,
+    SecretStorePort,
     SettingChange,
     StatusBarPort,
     UserCancelledError,
@@ -337,6 +338,42 @@ export class RpcStatusBar implements StatusBarPort {
 
     disposeEngineVersionStatus(): void {
         this.rpc.notify("statusBar/disposeEngineVersion", {});
+    }
+}
+
+/**
+ * Routes the core's {@link SecretStorePort} to the host's PasswordSafe-backed
+ * credential store. Unlike the fire-and-forget Notifier/StatusBar ports, all four
+ * calls are **requests**: the deployment service awaits a save before reporting
+ * success and awaits a read before pre-filling the form, so each must resolve only
+ * once the host has actually persisted/fetched the secret. A read maps a `null`
+ * host result to `undefined` to satisfy the port's `| undefined` contract.
+ */
+export class RpcSecretStore implements SecretStorePort {
+    constructor(private readonly rpc: Rpc) {}
+
+    async saveBasicAuth(username: string, password: string): Promise<void> {
+        await this.rpc.request("secretStore/saveBasicAuth", { username, password });
+    }
+
+    async getBasicAuth(): Promise<{ username: string; password: string } | undefined> {
+        const result = (await this.rpc.request("secretStore/getBasicAuth", {})) as {
+            username: string;
+            password: string;
+        } | null;
+        return result ?? undefined;
+    }
+
+    async saveOAuth2(clientId: string, clientSecret: string): Promise<void> {
+        await this.rpc.request("secretStore/saveOAuth2", { clientId, clientSecret });
+    }
+
+    async getOAuth2(): Promise<{ clientId: string; clientSecret: string } | undefined> {
+        const result = (await this.rpc.request("secretStore/getOAuth2", {})) as {
+            clientId: string;
+            clientSecret: string;
+        } | null;
+        return result ?? undefined;
     }
 }
 

@@ -92,6 +92,17 @@ the host: **Notifier → `Notifications.Bus`** balloons + IDE log
 element-template count). The template count is genuine: the bridge wires the real
 `ArtifactService` + `BpmnElementTemplatesService` over pure-`fs` adapters.
 
+## Secret store
+
+Deployment credentials (basic-auth / OAuth2) route through `secretStore/*` to
+`IntellijSecretStore` → **`PasswordSafe`** — the host equivalent of VS Code's
+`context.secrets`. `PasswordSafe` is an *application*-level service (not
+project-scoped): secrets are keyed only by `CredentialAttributes`, shared across
+project windows and IDE restarts, and encrypted at rest in the OS keychain — the
+same scope the core assumes. The port adapter (`RpcSecretStore`) is shipped and
+unit-tested but not yet wired into a service; the deployment feature consumes it
+when it lands.
+
 ## Consequences
 
 - A second host exists as a thin Kotlin glue layer + a 58 MB Node-free binary;

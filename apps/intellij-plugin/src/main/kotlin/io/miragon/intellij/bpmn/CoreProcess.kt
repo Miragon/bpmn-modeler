@@ -58,6 +58,7 @@ class CoreProcess(private val project: Project) : Disposable {
     private val log = Logger.getInstance(CoreProcess::class.java)
     private val gson = Gson()
     private val notifications by lazy { HostNotifications(project) }
+    private val secretStore by lazy { IntellijSecretStore() }
 
     private val sessions = ConcurrentHashMap<String, CoreSession>()
 
@@ -288,6 +289,46 @@ class CoreProcess(private val project: Project) : Disposable {
                 notifications.log(params.get("level")?.asString, params.get("message")?.asString.orEmpty())
             "notifier/progressStart", "notifier/progressEnd" ->
                 log.debug("$method: ${params.get("title")?.asString}")
+            // PasswordSafe get/set block and must stay off the EDT; onLine runs on
+            // the background reader thread, so calling them inline here is safe.
+            "secretStore/saveBasicAuth" -> {
+                secretStore.saveBasicAuth(params.get("username").asString, params.get("password").asString)
+                id?.let { reply(it, null) }
+            }
+            "secretStore/getBasicAuth" -> {
+                val creds = secretStore.getBasicAuth()
+                val username = creds?.userName
+                val password = creds?.getPasswordAsString()
+                id?.let {
+                    reply(
+                        it,
+                        if (username != null && password != null) {
+                            mapOf("username" to username, "password" to password)
+                        } else {
+                            null
+                        },
+                    )
+                }
+            }
+            "secretStore/saveOAuth2" -> {
+                secretStore.saveOAuth2(params.get("clientId").asString, params.get("clientSecret").asString)
+                id?.let { reply(it, null) }
+            }
+            "secretStore/getOAuth2" -> {
+                val creds = secretStore.getOAuth2()
+                val clientId = creds?.userName
+                val clientSecret = creds?.getPasswordAsString()
+                id?.let {
+                    reply(
+                        it,
+                        if (clientId != null && clientSecret != null) {
+                            mapOf("clientId" to clientId, "clientSecret" to clientSecret)
+                        } else {
+                            null
+                        },
+                    )
+                }
+            }
             else -> log.debug("Unhandled core method: $method")
         }
     }
