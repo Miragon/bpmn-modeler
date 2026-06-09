@@ -22,5 +22,13 @@
 
         <!-- Balloons for the core's NotifierPort (showInfo / showError / notifyError). -->
         <notificationGroup id="Miranum BPMN Modeler" displayType="BALLOON"/>
+
+        <!-- Settings ▸ Tools ▸ Miranum BPMN Modeler; persisted via PropertiesComponent
+             and pushed to the core so open editors react live. -->
+        <applicationConfigurable
+            parentId="tools"
+            id="io.miragon.bpmn-modeler.settings"
+            displayName="Miranum BPMN Modeler"
+            instance="io.miragon.intellij.bpmn.MiranumSettingsConfigurable"/>
     </extensions>
 </idea-plugin>

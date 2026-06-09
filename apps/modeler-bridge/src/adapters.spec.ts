@@ -8,6 +8,7 @@ import {
     RpcStatusBar,
     SessionMeta,
 } from "./adapters";
+import { BridgeSettings } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 
 const META: SessionMeta = {
@@ -64,7 +65,12 @@ describe("DocumentMirror", () => {
 
 describe("RpcEditorHandle", () => {
     it("exposes the session identity from its metadata", () => {
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}));
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            new BridgeSettings(),
+        );
         expect(handle.id).toBe(META.editorId);
         expect(handle.documentUriString()).toBe(META.uriString);
         expect(handle.documentPath()).toBe(META.path);
@@ -75,7 +81,7 @@ describe("RpcEditorHandle", () => {
 
     it("postMessage forwards an editor/postMessage notification", async () => {
         const { frames, rpc } = harness();
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), rpc);
+        const handle = new RpcEditorHandle(META, new DocumentMirror(), rpc, new BridgeSettings());
 
         await handle.postMessage({ type: "BpmnFileQuery" } as never);
 
@@ -89,7 +95,7 @@ describe("RpcEditorHandle", () => {
         const { frames, rpc, answerLast } = harness();
         const mirror = new DocumentMirror();
         mirror.register(META, "old");
-        const handle = new RpcEditorHandle(META, mirror, rpc);
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
 
         const pending = handle.writeContent("new");
         expect(last(frames)).toMatchObject({
@@ -104,7 +110,7 @@ describe("RpcEditorHandle", () => {
 
     it("save requests document/save and returns the saved flag", async () => {
         const { frames, rpc, answerLast } = harness();
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), rpc);
+        const handle = new RpcEditorHandle(META, new DocumentMirror(), rpc, new BridgeSettings());
 
         const pending = handle.save();
         expect(last(frames)).toMatchObject({ method: "document/save" });
@@ -114,7 +120,12 @@ describe("RpcEditorHandle", () => {
     });
 
     it("receive fires the onDidReceiveMessage callback and the disposer detaches it", () => {
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}));
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            new BridgeSettings(),
+        );
         const received: unknown[] = [];
         const sub = handle.onDidReceiveMessage((m) => received.push(m));
 
@@ -126,13 +137,75 @@ describe("RpcEditorHandle", () => {
     });
 
     it("dispose runs onDidDispose callbacks", () => {
-        const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}));
+        const handle = new RpcEditorHandle(
+            META,
+            new DocumentMirror(),
+            new Rpc(() => {}),
+            new BridgeSettings(),
+        );
         const onDispose = vi.fn();
         handle.onDidDispose(onDispose);
 
         handle.dispose();
 
         expect(onDispose).toHaveBeenCalledOnce();
+    });
+
+    it("onDidChangeSetting relays the shared settings hub and detaches on dispose", () => {
+        const settings = new BridgeSettings();
+        const handle = new RpcEditorHandle(META, new DocumentMirror(), new Rpc(() => {}), settings);
+        const seen: boolean[] = [];
+        const sub = handle.onDidChangeSetting((event) =>
+            seen.push(event.affectsConfiguration("miragon.bpmnModeler.language")),
+        );
+
+        settings.apply({ language: "de" });
+        sub.dispose();
+        settings.apply({ language: "fr" });
+
+        expect(seen).toEqual([true]);
+    });
+});
+
+describe("BridgeSettings", () => {
+    it("exposes the host snapshot through the SettingsPort getters", () => {
+        const settings = new BridgeSettings();
+        settings.apply({
+            alignToOrigin: true,
+            configFolder: ".config",
+            colorTheme: "light",
+            favouriteBpmnElements: ["bpmn:Task"],
+            language: "de",
+        });
+
+        expect(settings.getAlignToOrigin()).toBe(true);
+        expect(settings.getConfigFolder()).toBe(".config");
+        expect(settings.getColorTheme()).toBe("light");
+        expect(settings.getFavouriteBpmnElements()).toEqual(["bpmn:Task"]);
+        expect(settings.getLanguage()).toBe("de");
+    });
+
+    it("fires affectsConfiguration only for the keys that actually changed", () => {
+        const settings = new BridgeSettings();
+        const events: ((section: string) => boolean)[] = [];
+        settings.onDidChange((event) => events.push(event.affectsConfiguration));
+
+        settings.apply({ language: "de", alignToOrigin: false }); // alignToOrigin already false
+
+        expect(events).toHaveLength(1);
+        expect(events[0]("miragon.bpmnModeler.language")).toBe(true);
+        expect(events[0]("miragon.bpmnModeler.alignToOrigin")).toBe(false);
+        expect(events[0]("miragon.bpmnModeler.configFolder")).toBe(false);
+    });
+
+    it("does not fire when the snapshot is unchanged", () => {
+        const settings = new BridgeSettings();
+        const listener = vi.fn();
+        settings.onDidChange(listener);
+
+        settings.apply({ language: "en" }); // matches the default
+
+        expect(listener).not.toHaveBeenCalled();
     });
 });
 

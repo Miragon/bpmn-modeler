@@ -4,3 +4,8 @@ build/
 .gradle/
 .kotlin/
 .idea/
+
+# Runtime/cache state written by the IntelliJ Platform Gradle Plugin (lock files
+# with a last-checked date, local artifact cache). Regenerated on every build, so
+# it only ever shows up as noise in diffs.
+.intellijPlatform/
