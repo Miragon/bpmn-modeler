@@ -327,7 +327,7 @@ export class BpmnModeler {
      * resolves an unsupported / empty `camunda:scriptFormat` so the next
      * open of the same script skips the prompt.
      *
-     * - `script-task`: writes to the element's `camunda:scriptFormat`.
+     * - `script-task`: writes to the element's `scriptFormat`.
      * - `execution-listener` / `task-listener`: writes to the listener's
      *   nested `camunda:Script.scriptFormat`.
      *
@@ -349,8 +349,12 @@ export class BpmnModeler {
         }
 
         if (kind === "script-task") {
+            // `scriptFormat` is a plain BPMN attribute on the script task, not a
+            // Camunda-namespaced one — it is the exact property the panel's
+            // "Format" field reads/writes, so a `camunda:` prefix would persist
+            // an attribute the field never displays (leaving it blank).
             modeling.updateModdleProperties(element, element.businessObject, {
-                "camunda:scriptFormat": scriptFormat,
+                scriptFormat,
             });
             return;
         }
