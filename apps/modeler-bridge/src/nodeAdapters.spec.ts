@@ -17,7 +17,7 @@ describe("NodeWorkspace.findFiles", () => {
     let root: string;
 
     beforeAll(async () => {
-        root = await fs.mkdtemp(join(tmpdir(), "miranum-find-"));
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-find-"));
         await fs.mkdir(join(root, "forms"), { recursive: true });
         // A non-dot directory so the `**/element-templates/**` exclude is actually
         // exercised — fs.glob skips dot-directories by default.
@@ -76,7 +76,7 @@ describe("NodeWorkspace folder lookups", () => {
     let root: string;
 
     beforeAll(async () => {
-        root = await fs.mkdtemp(join(tmpdir(), "miranum-folder-"));
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-folder-"));
     });
 
     afterAll(async () => {
@@ -179,7 +179,7 @@ describe("NodeWorkspace.createWatcher", () => {
     let handle: { dispose(): void } | undefined;
 
     beforeEach(async () => {
-        root = await fs.mkdtemp(join(tmpdir(), "miranum-watch-"));
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-watch-"));
         templatesDir = join(root, ".camunda", "element-templates");
         workspace = new NodeWorkspace();
     });

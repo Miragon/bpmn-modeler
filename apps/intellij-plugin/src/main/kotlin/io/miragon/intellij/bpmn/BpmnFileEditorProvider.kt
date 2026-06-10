@@ -23,7 +23,7 @@ class BpmnFileEditorProvider : FileEditorProvider, DumbAware {
     override fun createEditor(project: Project, file: VirtualFile): FileEditor =
         BpmnFileEditor(project, file)
 
-    override fun getEditorTypeId(): String = "miranum-bpmn-editor"
+    override fun getEditorTypeId(): String = "bpmn-modeler-editor"
 
     override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.PLACE_BEFORE_DEFAULT_EDITOR
 }

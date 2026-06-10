@@ -59,7 +59,7 @@ class WebviewServer : Disposable {
         httpServer.createContext("/") { exchange -> handle(exchange) }
         httpServer.executor =
             Executors.newCachedThreadPool { runnable ->
-                Thread(runnable, "miranum-webview-http").apply { isDaemon = true }
+                Thread(runnable, "modeler-webview-http").apply { isDaemon = true }
             }
         httpServer.start()
 
@@ -68,7 +68,7 @@ class WebviewServer : Disposable {
         server = httpServer
         origin = base
         baseUrl = url
-        log.info("Miranum webview server started at $url")
+        log.info("Miragon webview server started at $url")
         return url
     }
 
@@ -162,7 +162,7 @@ class WebviewServer : Disposable {
          * The `acquireVsCodeApi()` shim. Runs as a classic (non-module) script so
          * the global exists before the deferred ES module calls `getVsCodeApi()` at
          * top level. Outgoing messages are buffered until the JVM installs its sink
-         * via `__miranumSetSink`, because the module may post before the host
+         * via `__modelerSetSink`, because the module may post before the host
          * callback is injected (which only happens on `onLoadEnd`).
          */
         val SHIM =
@@ -175,7 +175,7 @@ class WebviewServer : Disposable {
                 "    if (!sink) return;",
                 "    while (outbox.length) { sink(outbox.shift()); }",
                 "  }",
-                "  window.__miranumSetSink = function (fn) { sink = fn; flush(); };",
+                "  window.__modelerSetSink = function (fn) { sink = fn; flush(); };",
                 "  window.acquireVsCodeApi = function () {",
                 "    return {",
                 "      postMessage: function (msg) { outbox.push(JSON.stringify(msg)); flush(); },",

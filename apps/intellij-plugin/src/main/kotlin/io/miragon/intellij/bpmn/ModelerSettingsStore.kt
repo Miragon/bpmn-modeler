@@ -32,7 +32,7 @@ data class ModelerSettings(
  * matching names across hosts; defaults track `apps/modeler-plugin/package.json`.
  */
 @Service(Service.Level.APP)
-class MiranumSettings {
+class ModelerSettingsStore {
     private val props get() = PropertiesComponent.getInstance()
 
     /** Reads the current persisted values, falling back to the package.json defaults. */
@@ -82,8 +82,8 @@ class MiranumSettings {
     private fun normalizeColorTheme(value: String): String = if (value == "light") "light" else "automatic"
 
     companion object {
-        fun getInstance(): MiranumSettings =
-            ApplicationManager.getApplication().getService(MiranumSettings::class.java)
+        fun getInstance(): ModelerSettingsStore =
+            ApplicationManager.getApplication().getService(ModelerSettingsStore::class.java)
 
         const val MAX_FAVOURITES = 6
 

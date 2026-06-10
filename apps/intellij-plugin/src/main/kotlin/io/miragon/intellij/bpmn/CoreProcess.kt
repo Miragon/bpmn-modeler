@@ -171,7 +171,7 @@ class CoreProcess(private val project: Project) : Disposable {
             // Seed the deployment-state mirror up front so the bridge's synchronous
             // getters are correct; re-runs on every (re)spawn, rebuilding the mirror.
             sendDeploymentSeed()
-            log.info("Miranum modeler bridge started: $binary")
+            log.info("Miragon modeler bridge started: $binary")
         } catch (e: Exception) {
             log.error("Failed to start the modeler bridge", e)
             notifications.showError("Could not start the BPMN modeler engine. See idea.log.")
@@ -265,7 +265,7 @@ class CoreProcess(private val project: Project) : Disposable {
                 "workspaceRoot" to (project.basePath ?: session.file.parent?.path),
                 // Seed the core's SettingsPort before it scans templates, so the
                 // very first discovery uses the configured folder, not the default.
-                "settings" to MiranumSettings.getInstance().snapshotMap(),
+                "settings" to ModelerSettingsStore.getInstance().snapshotMap(),
                 "content" to content,
             ),
         )
@@ -278,7 +278,7 @@ class CoreProcess(private val project: Project) : Disposable {
      */
     fun pushSettings() {
         if (process?.isAlive != true) return
-        notify("settings/didChange", linkedMapOf("settings" to MiranumSettings.getInstance().snapshotMap()))
+        notify("settings/didChange", linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap()))
     }
 
     /** Forwards one raw webview message (already JSON) to the core untouched. */
@@ -691,7 +691,7 @@ class CoreProcess(private val project: Project) : Disposable {
     private fun ensureWriterThread() {
         if (writerThread != null) return
         writerThread =
-            Thread({ writerLoop() }, "miranum-bridge-writer").apply {
+            Thread({ writerLoop() }, "modeler-bridge-writer").apply {
                 isDaemon = true
                 start()
             }
@@ -731,7 +731,7 @@ class CoreProcess(private val project: Project) : Disposable {
      * executable, and cached for the service's lifetime.
      */
     private fun resolveBridgeBinary(): Path {
-        (System.getProperty("miranum.bridge") ?: System.getenv("MIRANUM_BRIDGE"))?.let {
+        (System.getProperty("miragon.bridge") ?: System.getenv("MIRAGON_BRIDGE"))?.let {
             return Path.of(it)
         }
         cachedBinary?.let { return it }
@@ -744,7 +744,7 @@ class CoreProcess(private val project: Project) : Disposable {
                     "No bundled modeler bridge for platform '$platform' ($resource). " +
                         "Build it with `corepack yarn workspace @miragon/bpmn-modeler-bridge compile`.",
                 )
-        val temp = Files.createTempFile("miranum-modeler-bridge", "")
+        val temp = Files.createTempFile("modeler-bridge", "")
         stream.use { Files.copy(it, temp, StandardCopyOption.REPLACE_EXISTING) }
         temp.toFile().setExecutable(true, true)
         temp.toFile().deleteOnExit()
@@ -789,7 +789,7 @@ class CoreProcess(private val project: Project) : Disposable {
         val reader = BufferedReader(InputStreamReader(input, StandardCharsets.UTF_8))
         Thread({
             reader.useLines { lines -> lines.forEach(onLine) }
-        }, "miranum-bridge-reader").apply {
+        }, "modeler-bridge-reader").apply {
             isDaemon = true
             start()
         }

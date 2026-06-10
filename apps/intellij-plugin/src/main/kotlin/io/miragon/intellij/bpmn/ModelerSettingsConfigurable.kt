@@ -12,20 +12,20 @@ import com.intellij.ui.dsl.builder.panel
 import javax.swing.JComponent
 
 /**
- * Settings ▸ Tools ▸ Miranum BPMN Modeler — the IntelliJ analogue of the VS Code
+ * Settings ▸ Tools ▸ Miragon BPMN Modeler — the IntelliJ analogue of the VS Code
  * `miragon.bpmnModeler.*` configuration.
  *
- * On [apply] the edited values are persisted via [MiranumSettings] and then pushed
+ * On [apply] the edited values are persisted via [ModelerSettingsStore] and then pushed
  * to every project that already has a running bridge, so an open `.bpmn` editor
  * updates live (language re-renders, a configFolder change reloads element
  * templates) without reopening the file. Projects with no bridge yet are skipped —
  * they pick the new values up from the snapshot seeded on their next register.
  */
-class MiranumSettingsConfigurable : Configurable {
+class ModelerSettingsConfigurable : Configurable {
     /**
      * UI-bound mutable mirror of the persisted settings. The Kotlin UI DSL binds
      * components to these fields; [reset]/[apply] move values between this state
-     * and [MiranumSettings]. `favouritesText` is the textarea form (one BPMN type
+     * and [ModelerSettingsStore]. `favouritesText` is the textarea form (one BPMN type
      * per line) of the persisted list.
      */
     private class UiState(
@@ -41,7 +41,7 @@ class MiranumSettingsConfigurable : Configurable {
     private val state = loadState()
     private var dialogPanel: DialogPanel? = null
 
-    override fun getDisplayName(): String = "Miranum BPMN Modeler"
+    override fun getDisplayName(): String = "Miragon BPMN Modeler"
 
     override fun createComponent(): JComponent {
         val builtPanel =
@@ -86,7 +86,7 @@ class MiranumSettingsConfigurable : Configurable {
                             .applyToComponent { rows = FAVOURITES_ROWS }
                             .comment(
                                 "BPMN element types pinned at the top of the append menu (max " +
-                                    "${MiranumSettings.MAX_FAVOURITES}), one per line — e.g. " +
+                                    "${ModelerSettingsStore.MAX_FAVOURITES}), one per line — e.g. " +
                                     "<code>bpmn:ServiceTask</code>.",
                             )
                     }
@@ -101,7 +101,7 @@ class MiranumSettingsConfigurable : Configurable {
     override fun apply() {
         // Push UI → state, persist, then propagate to live bridges.
         dialogPanel?.apply()
-        MiranumSettings.getInstance().update(state.toSettings())
+        ModelerSettingsStore.getInstance().update(state.toSettings())
         pushToRunningBridges()
     }
 
@@ -150,7 +150,7 @@ class MiranumSettingsConfigurable : Configurable {
     }
 
     private fun loadState(): UiState {
-        val settings = MiranumSettings.getInstance().current()
+        val settings = ModelerSettingsStore.getInstance().current()
         return UiState(
             alignToOrigin = settings.alignToOrigin,
             showTransactionBoundaries = settings.showTransactionBoundaries,

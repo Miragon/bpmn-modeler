@@ -1,6 +1,6 @@
-# Miranum BPMN Modeler — IntelliJ plugin
+# Miragon BPMN Modeler — IntelliJ plugin
 
-A third host for the Miranum BPMN modeler (after VS Code and Theia). It opens
+A third host for the Miragon BPMN modeler (after VS Code and Theia). It opens
 `.bpmn` files in a **JCEF** (embedded Chromium) editor, renders them with the
 **existing** bpmn-js webview bundle, and round-trips edits back to disk — while
 running the **unmodified TypeScript core out-of-process**, as a supervised,
@@ -46,7 +46,7 @@ bridge (`apps/modeler-bridge/`), never reimplemented in Kotlin.
 
 - **Spawns the bundled Bun binary** (`/bin/<os>-<arch>/modeler-bridge`, extracted
   from the plugin classpath), not `node` from `PATH`. Dev override:
-  `-Dmiranum.bridge=/abs/path` or `MIRANUM_BRIDGE`.
+  `-Dmiragon.bridge=/abs/path` or `MIRAGON_BRIDGE`.
 - **Crash recovery:** detects process exit, respawns with linear backoff (giving
   up after repeated rapid crashes), re-registers every live session from the
   authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open

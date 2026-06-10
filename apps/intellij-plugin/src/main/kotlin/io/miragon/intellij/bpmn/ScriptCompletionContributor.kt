@@ -31,7 +31,7 @@ class ScriptCompletionContributor : CompletionContributor() {
         // `language="any"` in plugin.xml + this catch-all pattern means we fire
         // regardless of the script's inferred FileType (it may even be
         // PLAIN_TEXT when no JS/Python plugin is installed); the UserData check
-        // below is what actually scopes us to Miranum script tabs.
+        // below is what actually scopes us to modeler script tabs.
         extend(CompletionType.BASIC, PlatformPatterns.psiElement(), ScriptCompletionProvider())
     }
 

@@ -37,7 +37,7 @@ class IntellijSecretStore {
     private companion object {
         // generateServiceName namespaces the keychain entry under the IDE +
         // subsystem so it never collides with other plugins' stored secrets.
-        const val SUBSYSTEM = "Miranum BPMN Modeler Deployment"
+        const val SUBSYSTEM = "Miragon BPMN Modeler Deployment"
         val basicAuthAttributes = CredentialAttributes(generateServiceName(SUBSYSTEM, "basicAuth"))
         val oauth2Attributes = CredentialAttributes(generateServiceName(SUBSYSTEM, "oauth2"))
     }

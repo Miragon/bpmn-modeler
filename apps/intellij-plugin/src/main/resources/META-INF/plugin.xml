@@ -1,11 +1,11 @@
 <idea-plugin>
     <id>io.miragon.bpmn-modeler</id>
-    <name>Miranum BPMN Modeler</name>
+    <name>Miragon BPMN Modeler</name>
     <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
 
     <description><![CDATA[
         Opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor that
-        renders the Miranum bpmn-js modeler and round-trips edits back to disk.
+        renders the Miragon bpmn-js modeler and round-trips edits back to disk.
         The modeling engine is the unmodified TypeScript core, run out-of-process
         as a supervised, self-contained binary — no Node.js install required.
     ]]></description>
@@ -14,12 +14,12 @@
 
     <!--
         Optional: when the Groovy plugin is present, load the Groovy-only script-tab
-        support (miranum-groovy.xml) — the binding resolver, the semantic-colour
+        support (modeler-groovy.xml) — the binding resolver, the semantic-colour
         annotator, and the inspection suppressor for our inline "Edit Script" tabs.
         Absent Groovy, the config file is skipped and the rest of the plugin is
         unaffected.
     -->
-    <depends optional="true" config-file="miranum-groovy.xml">org.intellij.groovy</depends>
+    <depends optional="true" config-file="modeler-groovy.xml">org.intellij.groovy</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
@@ -51,24 +51,24 @@
 
         <!-- Engine version + element-template count, driven by the core's StatusBarPort. -->
         <statusBarWidgetFactory
-            id="MiranumBpmnEngineWidget"
+            id="BpmnEngineWidget"
             implementation="io.miragon.intellij.bpmn.EngineStatusBarWidgetFactory"/>
 
         <!-- Balloons for the core's NotifierPort (showInfo / showError / notifyError). -->
-        <notificationGroup id="Miranum BPMN Modeler" displayType="BALLOON"/>
+        <notificationGroup id="Miragon BPMN Modeler" displayType="BALLOON"/>
 
-        <!-- Settings ▸ Tools ▸ Miranum BPMN Modeler; persisted via PropertiesComponent
+        <!-- Settings ▸ Tools ▸ Miragon BPMN Modeler; persisted via PropertiesComponent
              and pushed to the core so open editors react live. -->
         <applicationConfigurable
             parentId="tools"
             id="io.miragon.bpmn-modeler.settings"
-            displayName="Miranum BPMN Modeler"
-            instance="io.miragon.intellij.bpmn.MiranumSettingsConfigurable"/>
+            displayName="Miragon BPMN Modeler"
+            instance="io.miragon.intellij.bpmn.ModelerSettingsConfigurable"/>
 
         <!-- Camunda IntelliSense for the inline "Edit Script" editor. `language="any"`
              fires the contributor for every file type (the script tab may be
              PLAIN_TEXT when no JS/Python plugin is installed); it scopes itself to
-             Miranum script tabs via the SCRIPT_COMPLETION_KEY UserData. -->
+             modeler script tabs via the SCRIPT_COMPLETION_KEY UserData. -->
         <completion.contributor
             language="any"
             implementationClass="io.miragon.intellij.bpmn.ScriptCompletionContributor"/>
@@ -76,7 +76,7 @@
         <!-- Drops the Groovy annotator's "Cannot resolve symbol" greying on our
              inline script tabs for anything still unresolved. The bindings/script
              methods are resolved by the Groovy membersContributor in
-             miranum-groovy.xml; this is the highlight safety net. -->
+             modeler-groovy.xml; this is the highlight safety net. -->
         <daemon.highlightInfoFilter
             implementation="io.miragon.intellij.bpmn.ScriptHighlightFilter"/>
 
@@ -84,7 +84,7 @@
              webview, driven by the shared core over the bridge (the IntelliJ
              counterpart of the VS Code deployment sidebar). -->
         <toolWindow
-            id="Miranum Deployment"
+            id="Miragon Deployment"
             anchor="right"
             factoryClass="io.miragon.intellij.bpmn.DeploymentToolWindowFactory"/>
     </extensions>

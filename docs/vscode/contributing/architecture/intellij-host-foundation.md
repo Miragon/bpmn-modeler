@@ -71,7 +71,7 @@ per-file data flows over the JCEF message bridge, never over HTTP.
 
 - **Bun binary, not `node`.** Spawns the bundled, self-contained binary
   (`/bin/<os>-<arch>/modeler-bridge`, extracted from the classpath and made
-  executable). Dev override: `-Dmiranum.bridge=…` / `MIRANUM_BRIDGE`.
+  executable). Dev override: `-Dmiragon.bridge=…` / `MIRAGON_BRIDGE`.
 - **Crash recovery.** Detects process exit; respawns with linear backoff (giving
   up after repeated *rapid* crashes — a stable run resets the counter);
   re-registers every live session from the authoritative IntelliJ `Document` and

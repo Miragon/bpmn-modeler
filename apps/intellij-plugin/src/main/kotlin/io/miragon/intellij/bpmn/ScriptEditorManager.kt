@@ -104,7 +104,7 @@ class ScriptEditorManager(
                 return@invokeLater
             }
 
-            val listenerDisposable = Disposer.newDisposable(parentDisposable, "miranum-script-$scriptId")
+            val listenerDisposable = Disposer.newDisposable(parentDisposable, "modeler-script-$scriptId")
             document.addDocumentListener(
                 object : DocumentListener {
                     override fun documentChanged(event: DocumentEvent) {

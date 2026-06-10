@@ -47,7 +47,7 @@ class EngineStatusBarWidget(private val project: Project) :
     override fun getAlignment(): Float = Component.LEFT_ALIGNMENT
 
     override fun getTooltipText(): String =
-        "Miranum BPMN modeler — engine version and element-template count"
+        "Miragon BPMN modeler — engine version and element-template count"
 
     override fun getClickConsumer(): Consumer<MouseEvent>? = null
 
@@ -71,7 +71,7 @@ class EngineStatusBarWidget(private val project: Project) :
 
     companion object {
         /** Must match the `<statusBarWidgetFactory id="…">` in plugin.xml. */
-        const val WIDGET_ID = "MiranumBpmnEngineWidget"
+        const val WIDGET_ID = "BpmnEngineWidget"
 
         /** Sets the engine label (e.g. "Camunda 7 7.20.0"), or clears it, on the EDT. */
         fun updateEngine(project: Project, label: String?) =

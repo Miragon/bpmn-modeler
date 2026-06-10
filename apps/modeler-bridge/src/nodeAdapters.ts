@@ -344,9 +344,9 @@ const SETTINGS_PREFIX = "miragon.bpmnModeler";
 
 /**
  * Defaults matching `apps/modeler-plugin/package.json` so a session is render-safe
- * before the host's first snapshot arrives (e.g. the CLI bridge, or a host that
- * omits `settings`). In the IntelliJ host these are immediately overwritten by the
- * `MiranumSettings` snapshot seeded on register.
+ * before the host's first snapshot arrives (a host that omits `settings`). In the
+ * IntelliJ host these are immediately overwritten by the `ModelerSettingsStore`
+ * snapshot seeded on register.
  */
 const DEFAULT_SETTINGS: SettingsSnapshot = {
     alignToOrigin: false,
