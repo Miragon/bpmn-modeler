@@ -12,6 +12,15 @@
 
     <depends>com.intellij.modules.platform</depends>
 
+    <!--
+        Optional: when the bundled Groovy plugin is present, load the Groovy-only
+        binding resolver (miranum-groovy.xml) that makes injected script bindings
+        (execution/task/eventName) genuinely resolve in a Groovy "Edit Script" tab,
+        clearing Groovy's type-check warnings. Absent Groovy, the config file is
+        skipped and the existing language="any" completion is unaffected.
+    -->
+    <depends optional="true" config-file="miranum-groovy.xml">org.intellij.groovy</depends>
+
     <extensions defaultExtensionNs="com.intellij">
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
 

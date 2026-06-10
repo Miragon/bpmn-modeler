@@ -1,0 +1,7 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="org.intellij.groovy">
+        <!-- Resolves runtime-injected Camunda bindings in our Groovy script tabs. -->
+        <membersContributor
+            implementation="io.miragon.intellij.bpmn.ScriptBindingMembersContributor"/>
+    </extensions>
+</idea-plugin>
