@@ -1,7 +1,24 @@
 <idea-plugin>
     <extensions defaultExtensionNs="org.intellij.groovy">
-        <!-- Resolves runtime-injected Camunda bindings in our Groovy script tabs. -->
+        <!-- Resolves the runtime-injected Camunda bindings and common script
+             methods in our inline script tabs (clears the "No candidates"
+             quick-doc on hover). See ScriptBindingMembersContributor. -->
         <membersContributor
             implementation="io.miragon.intellij.bpmn.ScriptBindingMembersContributor"/>
+    </extensions>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Belt-and-braces: suppresses Groovy's assignability/unresolved
+             inspections on our tabs for anything left unresolved (they bypass
+             HighlightInfoFilter). See ScriptInspectionSuppressor. -->
+        <lang.inspectionSuppressor
+            language="Groovy"
+            implementationClass="io.miragon.intellij.bpmn.ScriptInspectionSuppressor"/>
+
+        <!-- Semantic colouring for our script tabs: Groovy's native reference
+             highlighter is gated off for in-memory files, so we tint resolved
+             bindings/methods ourselves. See ScriptSemanticHighlighter. -->
+        <annotator
+            language="Groovy"
+            implementationClass="io.miragon.intellij.bpmn.ScriptSemanticHighlighter"/>
     </extensions>
 </idea-plugin>

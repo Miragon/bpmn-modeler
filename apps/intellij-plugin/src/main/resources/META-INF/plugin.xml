@@ -13,11 +13,11 @@
     <depends>com.intellij.modules.platform</depends>
 
     <!--
-        Optional: when the bundled Groovy plugin is present, load the Groovy-only
-        binding resolver (miranum-groovy.xml) that makes injected script bindings
-        (execution/task/eventName) genuinely resolve in a Groovy "Edit Script" tab,
-        clearing Groovy's type-check warnings. Absent Groovy, the config file is
-        skipped and the existing language="any" completion is unaffected.
+        Optional: when the Groovy plugin is present, load the Groovy-only script-tab
+        support (miranum-groovy.xml) — the binding resolver, the semantic-colour
+        annotator, and the inspection suppressor for our inline "Edit Script" tabs.
+        Absent Groovy, the config file is skipped and the rest of the plugin is
+        unaffected.
     -->
     <depends optional="true" config-file="miranum-groovy.xml">org.intellij.groovy</depends>
 
@@ -72,6 +72,13 @@
         <completion.contributor
             language="any"
             implementationClass="io.miragon.intellij.bpmn.ScriptCompletionContributor"/>
+
+        <!-- Drops the Groovy annotator's "Cannot resolve symbol" greying on our
+             inline script tabs for anything still unresolved. The bindings/script
+             methods are resolved by the Groovy membersContributor in
+             miranum-groovy.xml; this is the highlight safety net. -->
+        <daemon.highlightInfoFilter
+            implementation="io.miragon.intellij.bpmn.ScriptHighlightFilter"/>
 
         <!-- Camunda 7/8 deployment panel: a JCEF tool window hosting the deployment
              webview, driven by the shared core over the bridge (the IntelliJ

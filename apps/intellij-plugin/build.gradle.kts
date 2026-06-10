@@ -19,9 +19,9 @@ dependencies {
     intellijPlatform {
         // 2024.2+ ships JCEF, which the JCEF-backed editor needs.
         intellijIdeaCommunity(providers.gradleProperty("ideaVersion").get())
-        // Groovy PSI for the "Edit Script" binding resolver (see
-        // ScriptBindingMembersContributor). The bundled Groovy plugin transitively
-        // brings the Java plugin that provides LightPsiClassBuilder/PsiElementFactory.
+        // Groovy PSI for the "Edit Script" binding resolver
+        // (ScriptBindingMembersContributor). The Groovy plugin transitively brings
+        // the Java plugin that provides LightPsiClassBuilder/PsiElementFactory.
         bundledPlugin("org.intellij.groovy")
         bundledPlugin("com.intellij.java")
     }
