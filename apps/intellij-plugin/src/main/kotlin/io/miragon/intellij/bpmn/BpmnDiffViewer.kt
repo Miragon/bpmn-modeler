@@ -223,7 +223,7 @@ class BpmnDiffViewer(
             object : CefLoadHandlerAdapter() {
                 override fun onLoadEnd(b: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
                     b.executeJavaScript(
-                        "window.__miranumSetSink(function (p) { ${jsQuery.inject("p")} });",
+                        "window.__modelerSetSink(function (p) { ${jsQuery.inject("p")} });",
                         b.url,
                         0,
                     )

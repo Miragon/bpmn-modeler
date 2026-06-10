@@ -29,10 +29,10 @@ data class ModelerSettings(
  * single Settings ▸ apply writes here once and then fans the same snapshot out to
  * every open project's [CoreProcess]. Keys are namespaced exactly like the VS Code
  * configuration so a future shared-config layer (or a user reading idea.log) sees
- * matching names across hosts; defaults track `apps/modeler-plugin/package.json`.
+ * matching names across hosts; defaults track `apps/vscode-plugin/package.json`.
  */
 @Service(Service.Level.APP)
-class MiranumSettings {
+class ModelerSettingsStore {
     private val props get() = PropertiesComponent.getInstance()
 
     /** Reads the current persisted values, falling back to the package.json defaults. */
@@ -82,8 +82,8 @@ class MiranumSettings {
     private fun normalizeColorTheme(value: String): String = if (value == "light") "light" else "automatic"
 
     companion object {
-        fun getInstance(): MiranumSettings =
-            ApplicationManager.getApplication().getService(MiranumSettings::class.java)
+        fun getInstance(): ModelerSettingsStore =
+            ApplicationManager.getApplication().getService(ModelerSettingsStore::class.java)
 
         const val MAX_FAVOURITES = 6
 
@@ -96,7 +96,7 @@ class MiranumSettings {
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
 
-        // Defaults track apps/modeler-plugin/package.json.
+        // Defaults track apps/vscode-plugin/package.json.
         private const val DEFAULT_ALIGN_TO_ORIGIN = false
         private const val DEFAULT_SHOW_TX_BOUNDARIES = true
         private const val DEFAULT_CONFIG_FOLDER = ".camunda"

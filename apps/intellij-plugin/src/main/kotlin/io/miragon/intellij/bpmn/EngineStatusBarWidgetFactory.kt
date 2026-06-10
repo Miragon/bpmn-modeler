@@ -14,7 +14,7 @@ import com.intellij.openapi.wm.StatusBarWidgetFactory
 class EngineStatusBarWidgetFactory : StatusBarWidgetFactory {
     override fun getId(): String = EngineStatusBarWidget.WIDGET_ID
 
-    override fun getDisplayName(): String = "Miranum BPMN Modeler"
+    override fun getDisplayName(): String = "Miragon BPMN Modeler"
 
     override fun isAvailable(project: Project): Boolean = true
 

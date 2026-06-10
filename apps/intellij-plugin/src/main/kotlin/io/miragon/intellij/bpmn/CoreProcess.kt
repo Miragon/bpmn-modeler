@@ -15,6 +15,7 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.util.concurrency.AppExecutorUtil
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.io.BufferedReader
@@ -96,6 +97,10 @@ class CoreProcess(private val project: Project) : Disposable {
     private val diffPaneUris = ConcurrentHashMap<String, List<String>>()
 
     private val writeLock = Any()
+
+    // Read unsynchronized from pushSettings/reregisterLiveSessions/dispose and the
+    // shutdown hook, so its writes must publish safely across threads.
+    @Volatile
     private var process: Process? = null
     private var writer: BufferedWriter? = null
 
@@ -166,7 +171,7 @@ class CoreProcess(private val project: Project) : Disposable {
             // Seed the deployment-state mirror up front so the bridge's synchronous
             // getters are correct; re-runs on every (re)spawn, rebuilding the mirror.
             sendDeploymentSeed()
-            log.info("Miranum modeler bridge started: $binary")
+            log.info("Miragon modeler bridge started: $binary")
         } catch (e: Exception) {
             log.error("Failed to start the modeler bridge", e)
             notifications.showError("Could not start the BPMN modeler engine. See idea.log.")
@@ -203,15 +208,19 @@ class CoreProcess(private val project: Project) : Disposable {
                 "restart attempt $attempt/$MAX_RESTARTS",
         )
 
-        try {
-            Thread.sleep(RESTART_BACKOFF_MS * attempt)
-        } catch (_: InterruptedException) {
-            return
-        }
-        if (disposed.get()) return
-
-        synchronized(this) { if (process?.isAlive != true) spawn() }
-        reregisterLiveSessions()
+        // Respawn off this thread, not via Thread.sleep: handleExit runs on the
+        // Process.onExit() CompletableFuture callback (ForkJoinPool.commonPool),
+        // and blocking it for the backoff would hold a shared platform pool
+        // thread for up to seconds. Re-check disposed/liveness at fire time.
+        AppExecutorUtil.getAppScheduledExecutorService().schedule(
+            {
+                if (disposed.get()) return@schedule
+                synchronized(this) { if (process?.isAlive != true) spawn() }
+                reregisterLiveSessions()
+            },
+            RESTART_BACKOFF_MS * attempt,
+            TimeUnit.MILLISECONDS,
+        )
     }
 
     /**
@@ -256,7 +265,7 @@ class CoreProcess(private val project: Project) : Disposable {
                 "workspaceRoot" to (project.basePath ?: session.file.parent?.path),
                 // Seed the core's SettingsPort before it scans templates, so the
                 // very first discovery uses the configured folder, not the default.
-                "settings" to MiranumSettings.getInstance().snapshotMap(),
+                "settings" to ModelerSettingsStore.getInstance().snapshotMap(),
                 "content" to content,
             ),
         )
@@ -269,7 +278,7 @@ class CoreProcess(private val project: Project) : Disposable {
      */
     fun pushSettings() {
         if (process?.isAlive != true) return
-        notify("settings/didChange", linkedMapOf("settings" to MiranumSettings.getInstance().snapshotMap()))
+        notify("settings/didChange", linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap()))
     }
 
     /** Forwards one raw webview message (already JSON) to the core untouched. */
@@ -424,6 +433,23 @@ class CoreProcess(private val project: Project) : Disposable {
         val params = message.getAsJsonObject("params")
         val id = message.get("id")?.takeIf { !it.isJsonNull }?.asInt
 
+        // A malformed/unexpected frame (missing member, wrong type, a throwing
+        // handler such as a failing PasswordSafe call) must not escape: this runs
+        // on the daemon reader thread, and an escaped exception would kill the
+        // pump — core→host traffic stops forever, and once the stdout pipe fills
+        // the bridge wedges without exiting, so the crash supervisor never fires.
+        // If the frame was a request, also answer it: an unanswered request would
+        // otherwise leak the core's awaiting promise.
+        try {
+            dispatch(method, params, id)
+        } catch (e: Exception) {
+            log.warn("Failed to handle core message ($method): $line", e)
+            id?.let { replyError(it, e.message ?: "host handler failed") }
+        }
+    }
+
+    /** Routes one decoded core frame to its handler. See [onLine] for failure handling. */
+    private fun dispatch(method: String, params: JsonObject, id: Int?) {
         when (method) {
             "editor/postMessage" -> {
                 val editorId = params.get("editorId").asString
@@ -639,6 +665,12 @@ class CoreProcess(private val project: Project) : Disposable {
     private fun reply(id: Int, result: Any?) =
         enqueue(gson.toJson(linkedMapOf("id" to id, "result" to result)), null)
 
+    // The bridge's `rpc.ts` turns `{id, error}` into a rejected promise, so a
+    // handler that throws still settles the core's awaiting request instead of
+    // leaking it.
+    private fun replyError(id: Int, message: String) =
+        enqueue(gson.toJson(linkedMapOf("id" to id, "error" to message)), null)
+
     private fun enqueue(line: String, coalesceKey: String?) {
         synchronized(outboundMonitor) {
             if (coalesceKey != null) {
@@ -659,7 +691,7 @@ class CoreProcess(private val project: Project) : Disposable {
     private fun ensureWriterThread() {
         if (writerThread != null) return
         writerThread =
-            Thread({ writerLoop() }, "miranum-bridge-writer").apply {
+            Thread({ writerLoop() }, "modeler-bridge-writer").apply {
                 isDaemon = true
                 start()
             }
@@ -699,7 +731,7 @@ class CoreProcess(private val project: Project) : Disposable {
      * executable, and cached for the service's lifetime.
      */
     private fun resolveBridgeBinary(): Path {
-        (System.getProperty("miranum.bridge") ?: System.getenv("MIRANUM_BRIDGE"))?.let {
+        (System.getProperty("miragon.bridge") ?: System.getenv("MIRAGON_BRIDGE"))?.let {
             return Path.of(it)
         }
         cachedBinary?.let { return it }
@@ -712,7 +744,7 @@ class CoreProcess(private val project: Project) : Disposable {
                     "No bundled modeler bridge for platform '$platform' ($resource). " +
                         "Build it with `corepack yarn workspace @miragon/bpmn-modeler-bridge compile`.",
                 )
-        val temp = Files.createTempFile("miranum-modeler-bridge", "")
+        val temp = Files.createTempFile("modeler-bridge", "")
         stream.use { Files.copy(it, temp, StandardCopyOption.REPLACE_EXISTING) }
         temp.toFile().setExecutable(true, true)
         temp.toFile().deleteOnExit()
@@ -757,7 +789,7 @@ class CoreProcess(private val project: Project) : Disposable {
         val reader = BufferedReader(InputStreamReader(input, StandardCharsets.UTF_8))
         Thread({
             reader.useLines { lines -> lines.forEach(onLine) }
-        }, "miranum-bridge-reader").apply {
+        }, "modeler-bridge-reader").apply {
             isDaemon = true
             start()
         }

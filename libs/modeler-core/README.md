@@ -14,7 +14,7 @@ directly by services and are not considered host capabilities.
 
 ## Consumers
 
-- `apps/modeler-plugin` — the VS Code host, in-process, wires the engine through
+- `apps/vscode-plugin` — the VS Code host, in-process, wires the engine through
   `Vs*` port adapters.
 - The IntelliJ host bridge (on the `issue-920` branch) — out-of-process, wires
   the same engine through RPC-backed port adapters.

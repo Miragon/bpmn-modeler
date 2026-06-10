@@ -5,8 +5,8 @@
 Accepted (#1062). Parent: epic #920 (IntelliJ host parity). Builds on
 [`modeler-core-extraction.md`](./modeler-core-extraction.md) (#1060, the engine
 package + host-protocol seam) and [`runtime-distribution.md`](./runtime-distribution.md)
-(#1061, the Node-free Bun binary). Foundation for the per-feature host work
-(#1063–#1073).
+(#1061, the Node-free Bun binary). It is the foundation the per-feature host work
+(editor, navigation, diff, deployment, scriptTask) builds on.
 
 ## Context
 
@@ -45,9 +45,9 @@ Rationale:
   double-hop, since the JVM already owns the browser.
 - **Latency is a non-issue** for BPMN editing; the direct-WS win does not apply.
 
-The `WebSocketChannelImpl` seam remains the right tool for the browser/CLI host
-(`apps/modeler-cli`) and a documented future option if the JS-injection relay
-ever proves a bottleneck.
+A WebSocket seam between the webview and the server would be the right tool for a
+plain browser host, and remains a documented future option if the JS-injection
+relay ever proves a bottleneck.
 
 ## Decision 2 — topology: one core per project
 
@@ -71,7 +71,7 @@ per-file data flows over the JCEF message bridge, never over HTTP.
 
 - **Bun binary, not `node`.** Spawns the bundled, self-contained binary
   (`/bin/<os>-<arch>/modeler-bridge`, extracted from the classpath and made
-  executable). Dev override: `-Dmiranum.bridge=…` / `MIRANUM_BRIDGE`.
+  executable). Dev override: `-Dmiragon.bridge=…` / `MIRAGON_BRIDGE`.
 - **Crash recovery.** Detects process exit; respawns with linear backoff (giving
   up after repeated *rapid* crashes — a stable run resets the counter);
   re-registers every live session from the authoritative IntelliJ `Document` and
@@ -99,18 +99,16 @@ Deployment credentials (basic-auth / OAuth2) route through `secretStore/*` to
 `context.secrets`. `PasswordSafe` is an *application*-level service (not
 project-scoped): secrets are keyed only by `CredentialAttributes`, shared across
 project windows and IDE restarts, and encrypted at rest in the OS keychain — the
-same scope the core assumes. The port adapter (`RpcSecretStore`) is shipped and
-unit-tested but not yet wired into a service; the deployment feature consumes it
-when it lands.
+same scope the core assumes. The port adapter (`RpcSecretStore`) is wired into
+the deployment feature, which stores basic-auth / OAuth2 credentials through it.
 
 ## Consequences
 
 - A second host exists as a thin Kotlin glue layer + a 58 MB Node-free binary;
   no modeling logic crosses the language line.
-- `apps/modeler-bridge` is the production stdio bridge (distinct from the
-  `apps/modeler-cli` browser prototype): `server.ts` (stdio entry) → `bridge.ts`
-  (wiring) → `rpc.ts` / `adapters.ts` / `nodeAdapters.ts`, consuming only the
-  `@miragon/bpmn-modeler-core` public entrypoint.
+- `apps/modeler-bridge` is the production stdio bridge: `server.ts` (stdio entry)
+  → `bridge.ts` (wiring) → `rpc.ts` / `adapters.ts` / `nodeAdapters.ts`, consuming
+  only the `@miragon/bpmn-modeler-core` public entrypoint.
 - DMN, diff, deployment, and scriptTask stay out of scope (their own issues);
   the bridge structure does not preclude them.
 

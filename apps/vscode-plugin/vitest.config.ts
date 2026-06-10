@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 export default defineConfig({
     test: {
-        name: "modeler-plugin",
+        name: "vscode-plugin",
         environment: "node",
         // archunit's vitest adapter extends `expect` on import; it needs the
         // global `expect` to exist, so enable Vitest's globals for this project.
@@ -18,7 +18,7 @@ export default defineConfig({
         },
         coverage: {
             provider: "v8",
-            reportsDirectory: "../../coverage/apps/modeler-plugin",
+            reportsDirectory: "../../coverage/apps/vscode-plugin",
             // `json-summary` + `json` feed the PR coverage-comment action
             // (totals + per-file deltas); `lcov` feeds Codecov; `html`/`text`
             // are for local inspection.

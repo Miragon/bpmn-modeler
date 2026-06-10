@@ -10,14 +10,14 @@ import { defineConfig } from "@vscode/test-cli";
 // `import.meta.dirname` (Node 20.11+) avoids pulling `URL`/`fileURLToPath` into
 // this ESM config, which the shared flat ESLint config does not grant globals to.
 const here = import.meta.dirname;
-// repo root: apps/modeler-plugin/test/e2e → ../../../..
+// repo root: apps/vscode-plugin/test/e2e → ../../../..
 const repoRoot = resolve(here, "../../../..");
 
 // webpack assembles the runnable extension (compiled main.js + a copied
 // package.json + themes + the three webview bundles) here; pointing at the
-// source `apps/modeler-plugin` would fail because `main: "main.js"` only
+// source `apps/vscode-plugin` would fail because `main: "main.js"` only
 // resolves in the dist dir. So `corepack yarn build` is a prerequisite.
-const extensionDevelopmentPath = resolve(repoRoot, "dist/apps/modeler-plugin");
+const extensionDevelopmentPath = resolve(repoRoot, "dist/apps/vscode-plugin");
 
 // A throwaway folder so the host opens a real (empty) workspace without
 // inheriting any user/project settings that could perturb activation.
@@ -29,7 +29,7 @@ const workspace = mkdtempSync(resolve(tmpdir(), "bpmn-modeler-e2e-"));
 process.on("exit", () => rmSync(workspace, { recursive: true, force: true }));
 
 export default defineConfig({
-    label: "modeler-plugin-smoke",
+    label: "vscode-plugin-smoke",
     // Must stay relative: @vscode/test-cli only glob-expands relative `files`
     // (against this config's directory); an absolute path is taken literally.
     files: "out/**/*.test.js",

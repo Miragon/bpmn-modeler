@@ -7,7 +7,7 @@ form that collects engine type, endpoint, auth credentials, and an optional
 payload, then asks the extension host to deploy and (optionally) start a
 process instance against Camunda 7 or Camunda 8.
 
-Hosted by [`apps/modeler-plugin`](../modeler-plugin/README.md). Talks to the
+Hosted by [`apps/vscode-plugin`](../vscode-plugin/README.md). Talks to the
 extension host via the typed Query/Command protocol from
 [`libs/shared`](../../libs/shared/README.md).
 
@@ -17,7 +17,7 @@ The deployment sidebar has **two copies** of its HTML that must stay in
 sync:
 
 - `apps/deployment-webview/index.html` — Vite development.
-- `apps/modeler-plugin/src/infrastructure/DeploymentWebviewHtml.ts` —
+- `apps/vscode-plugin/src/infrastructure/DeploymentWebviewHtml.ts` —
   runtime in VS Code (CSP nonce, theme variables).
 
 When modifying deployment form markup, update **both**.

@@ -3,7 +3,7 @@
 Internal module. **Not published separately.**
 
 The BPMN modeling surface that runs inside the VS Code webview hosted by
-[`apps/modeler-plugin`](../modeler-plugin/README.md). Built with Vite and
+[`apps/vscode-plugin`](../vscode-plugin/README.md). Built with Vite and
 [bpmn-js](https://github.com/bpmn-io/bpmn-js); communicates with the
 extension host via a typed Query/Command message protocol from
 [`libs/shared`](../../libs/shared/README.md).
@@ -30,7 +30,7 @@ isolated UI work without launching VS Code.
 ## Build output
 
 `vite build` writes to `dist/webview-staging/bpmn-webview/`. The
-`modeler-plugin` webpack config copies that folder into the VSIX.
+`vscode-plugin` webpack config copies that folder into the VSIX.
 
 ## Further reading
 

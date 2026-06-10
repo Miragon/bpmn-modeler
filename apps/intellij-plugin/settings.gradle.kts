@@ -1,1 +1,1 @@
-rootProject.name = "miranum-intellij-plugin"
+rootProject.name = "bpmn-modeler-intellij-plugin"

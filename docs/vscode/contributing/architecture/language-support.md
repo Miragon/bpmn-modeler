@@ -17,7 +17,7 @@ for the list of supported locales and how to switch at runtime.
 |---|---|
 | `libs/bpmn-i18n/` | Translation library — dictionaries, `CustomTranslator`, `TranslateModule` |
 | `libs/bpmn-i18n/src/languages/{locale}/` | Per-locale dictionary files (bpmn-js, dmn-js, properties-panel, other) |
-| `apps/modeler-plugin/src/shared/infrastructure/VsCodeSettings.ts` | Reads the `miragon.bpmnModeler.language` setting |
+| `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts` | Reads the `miragon.bpmnModeler.language` setting |
 | `apps/bpmn-webview/src/main.ts` | Handles `LanguageQuery`, triggers `refreshDiagram()` |
 
 `CustomTranslator` looks up UI strings in per-locale dictionaries and supports
@@ -45,11 +45,11 @@ exposes it under the `customTranslator` and `translate` DI keys.
 | `libs/bpmn-i18n/src/languages/index.ts` | Locale registry, `supportedLanguages` array, `dictionaries` map |
 | `libs/bpmn-i18n/src/languages/{locale}/` | Per-locale translation dictionaries (four files each) |
 | `libs/shared/src/lib/modeler.ts` | `LanguageQuery` message type |
-| `apps/modeler-plugin/package.json` | Setting and command definitions |
-| `apps/modeler-plugin/src/shared/infrastructure/VsCodeSettings.ts` | `getLanguage()` setting reader |
-| `apps/modeler-plugin/src/modeler/bpmn/controller/editor-participants/SettingsParticipant.ts` | Subscribes the settings broadcaster per opened BPMN editor |
-| `apps/modeler-plugin/src/modeler/bpmn/service/BpmnSettingsBroadcaster.ts` | Watches the language setting; `setLanguage()` sends `LanguageQuery` to the webview |
-| `apps/modeler-plugin/src/modeler/bpmn/controller/CommandController.ts` | `changeLanguage` command handler (QuickPick) |
+| `apps/vscode-plugin/package.json` | Setting and command definitions |
+| `apps/vscode-plugin/src/shared/infrastructure/VsCodeSettings.ts` | `getLanguage()` setting reader |
+| `apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/SettingsParticipant.ts` | Subscribes the settings broadcaster per opened BPMN editor |
+| `apps/vscode-plugin/src/modeler/bpmn/service/BpmnSettingsBroadcaster.ts` | Watches the language setting; `setLanguage()` sends `LanguageQuery` to the webview |
+| `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts` | `changeLanguage` command handler (QuickPick) |
 | `apps/bpmn-webview/src/main.ts` | `LanguageQuery` handler, `refreshDiagram()` |
 | `apps/bpmn-webview/src/app/modeler.ts` | `BpmnModeler.create()` accepts `TranslateModule` |
 
@@ -112,7 +112,7 @@ lookup.
      display label.
    - Add it to the `dictionaries` map.
 4. Add the locale to the `enum` and `enumItemLabels` arrays in
-   `apps/modeler-plugin/package.json` under the `miragon.bpmnModeler.language`
+   `apps/vscode-plugin/package.json` under the `miragon.bpmnModeler.language`
    setting definition.
 
 ## Gotchas

@@ -33,7 +33,7 @@ The same extension is shipped two ways:
 
 ```
 apps/
-  modeler-plugin/     # Extension host (Node, webpack) — produces the .vsix
+  vscode-plugin/     # Extension host (Node, webpack) — produces the .vsix
   bpmn-webview/       # BPMN webview (browser, Vite)
   dmn-webview/        # DMN webview (browser, Vite)
   deployment-webview/ # Deployment sidebar UI (Vite)
@@ -49,7 +49,7 @@ libs/
 
 | Workspace | Lives at | What it does |
 |---|---|---|
-| `vs-code-bpmn-modeler` | `apps/modeler-plugin` | VS Code extension host entry; produces the `.vsix` |
+| `vs-code-bpmn-modeler` | `apps/vscode-plugin` | VS Code extension host entry; produces the `.vsix` |
 | `@miragon/bpmn-modeler-webview` | `apps/bpmn-webview` | BPMN editor UI + diff viewer |
 | `@miragon/dmn-modeler-webview` | `apps/dmn-webview` | DMN editor UI |
 | `@miragon/bpmn-modeler-deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
@@ -90,7 +90,7 @@ subfolders; cross-feature use is funnelled through the feature's `index.ts`
 barrel.
 
 ```
-apps/modeler-plugin/src/
+apps/vscode-plugin/src/
   main.ts            Activation: build shared deps, then call each feature's register()
   composition/       One register(context, deps) per feature — the wiring root
   shared/            Cross-feature substrate — no feature owns it
@@ -105,7 +105,7 @@ apps/modeler-plugin/src/
 ```
 
 The four layers still hold *within* each feature, and are now enforced in CI by
-`apps/modeler-plugin/src/architecture.spec.ts` (ArchUnitTS): `domain` imports no
+`apps/vscode-plugin/src/architecture.spec.ts` (ArchUnitTS): `domain` imports no
 outer layer and no `vscode`/Node host modules; `service` never imports `vscode`
 or `controller`; the tree is cycle-free; and a feature reaches a sibling only
 through its `index.ts`. Three pieces are deliberately exempt from the
@@ -190,13 +190,13 @@ method rather than adding a new service — e.g. `AppendMenuOverride` wraps
 
 | Target | Tool | Config |
 |---|---|---|
-| Extension host (`.vsix`) | webpack + ts-loader | `apps/modeler-plugin/webpack.config.js` |
+| Extension host (`.vsix`) | webpack + ts-loader | `apps/vscode-plugin/webpack.config.js` |
 | BPMN webview | Vite | `apps/bpmn-webview/vite.config.mts` |
 | DMN webview | Vite | `apps/dmn-webview/vite.config.mts` |
 | Deployment webview | Vite | `apps/deployment-webview/vite.config.mts` |
 | Standalone macOS DMG | `@theia/cli` + electron-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml` |
 | Shared lib (`@miragon/bpmn-modeler-shared`) | tsc | `libs/shared/tsconfig.lib.json` |
-| Tests | Vitest | `apps/modeler-plugin/vitest.config.ts` |
+| Tests | Vitest | `apps/vscode-plugin/vitest.config.ts` |
 | Path alias resolution | `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) | `tsconfig.base.json` |
 
 `yarn build` in the repo root uses `npm-run-all` to build libs first, then the
@@ -209,10 +209,10 @@ the watch build.
 | Task | Start here |
 |---|---|
 | Run the extension locally | [Development](./development) — Setup + F5 workflow |
-| Add a new VS Code setting | `apps/modeler-plugin/package.json` → `contributes.configuration` + `VsCodeSettings` reader |
+| Add a new VS Code setting | `apps/vscode-plugin/package.json` → `contributes.configuration` + `VsCodeSettings` reader |
 | Add a new webview message type | `libs/shared/src/lib/modeler.ts` — add the class, re-export, consume in both ends |
 | Wire a new bpmn-js DI module | Create `libs/<name>/src/index.ts`, export the module, pass to `BpmnModeler.create({ additionalModules: [...] })` in `apps/bpmn-webview/src/app/modeler.ts` |
-| Debug extension code | VS Code Debug → "Run modeler-plugin" → F5, breakpoints work in `apps/modeler-plugin/src/**` |
+| Debug extension code | VS Code Debug → "Run vscode-plugin" → F5, breakpoints work in `apps/vscode-plugin/src/**` |
 | Debug webview code | Reload extension host, open the webview, use Developer: Open Webview Developer Tools |
 | Understand a specific feature | See Feature internals below |
 

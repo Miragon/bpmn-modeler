@@ -6,7 +6,7 @@
 //
 // Run AFTER the main repo has produced the .vsix:
 //   corepack yarn build
-//   (cd dist/apps/modeler-plugin && npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies)
+//   (cd dist/apps/vscode-plugin && npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies)
 //   corepack yarn workspace standalone bundle
 
 import { createWriteStream, existsSync, mkdirSync, rmSync } from "node:fs";
@@ -21,7 +21,7 @@ const yauzl = require("yauzl");
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const standaloneDir = resolve(__dirname, "..");
 const repoRoot = resolve(standaloneDir, "..", "..");
-const vsixSrc = resolve(repoRoot, "dist", "apps", "modeler-plugin", "bpmn-modeler-plugin.vsix");
+const vsixSrc = resolve(repoRoot, "dist", "apps", "vscode-plugin", "bpmn-modeler-plugin.vsix");
 const pluginsDir = resolve(standaloneDir, "plugins");
 const pluginName = "bpmn-modeler-plugin";
 const unpackedDir = resolve(pluginsDir, pluginName);
@@ -31,7 +31,7 @@ if (!existsSync(vsixSrc)) {
     console.error("Run the main repo build + vsce package first:");
     console.error("  corepack yarn build");
     console.error(
-        "  cd dist/apps/modeler-plugin && npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies",
+        "  cd dist/apps/vscode-plugin && npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies",
     );
     process.exit(1);
 }

@@ -84,7 +84,7 @@ class DeploymentToolWindowFactory : ToolWindowFactory {
             object : CefLoadHandlerAdapter() {
                 override fun onLoadEnd(b: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
                     b.executeJavaScript(
-                        "window.__miranumSetSink(function (p) { ${jsQuery.inject("p")} });",
+                        "window.__modelerSetSink(function (p) { ${jsQuery.inject("p")} });",
                         b.url,
                         0,
                     )
@@ -129,6 +129,6 @@ class DeploymentToolWindowFactory : ToolWindowFactory {
     }
 
     companion object {
-        const val TOOL_WINDOW_ID = "Miranum Deployment"
+        const val TOOL_WINDOW_ID = "Miragon Deployment"
     }
 }

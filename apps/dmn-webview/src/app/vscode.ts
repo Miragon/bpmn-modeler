@@ -5,7 +5,6 @@ import {
     VsCodeApi,
     VsCodeImpl,
     VsCodeMock,
-    WebSocketChannelImpl,
 } from "@miragon/bpmn-modeler-shared";
 
 declare const process: { env: { NODE_ENV: string } };
@@ -29,19 +28,12 @@ type StateType = WebviewState;
 type MessageType = Command | Query;
 
 /**
- * Returns the appropriate host-channel implementation.
- *
- * The `window.__WS_BRIDGE__` global (injected by `apps/modeler-cli`'s served
- * HTML into the production bundle) is checked first, before the `NODE_ENV`
- * branch — otherwise a CLI-served webview would fall through to
- * {@link VsCodeImpl} and call `acquireVsCodeApi()`, which is unavailable
- * outside a VS Code host.
+ * Returns the appropriate host-channel implementation. In `development` mode a
+ * {@link MockedVsCodeApi} is returned for standalone browser runs; otherwise
+ * the real {@link VsCodeImpl} is used (the IntelliJ host injects the same
+ * `acquireVsCodeApi()` shim, so it takes this path too).
  */
 export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
-    const bridgeUrl = (window as { __WS_BRIDGE__?: string }).__WS_BRIDGE__;
-    if (bridgeUrl) {
-        return new WebSocketChannelImpl<StateType, MessageType>(bridgeUrl);
-    }
     if (process.env.NODE_ENV === "development") {
         return new MockedVsCodeApi();
     }

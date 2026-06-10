@@ -38,14 +38,14 @@ The `CamundaEngineRouter` dispatches to either `Camunda7RestClient` or
 | File | Purpose |
 |---|---|
 | `apps/deployment-webview/` | Sidebar UI (Vite dev) — forms for Deploy and Start Instance |
-| `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` | Runtime HTML shipped inside the extension — must stay in sync with `apps/deployment-webview/index.html` |
-| `apps/modeler-plugin/src/deployment/controller/DeploymentController.ts` | Routes webview commands to the two services |
-| `apps/modeler-plugin/src/deployment/service/DeploymentService.ts` | Deploy orchestration, credential persistence |
-| `apps/modeler-plugin/src/deployment/service/StartInstanceService.ts` | Start-instance orchestration, payload file discovery |
-| `apps/modeler-plugin/src/shared/service/ArtifactService.ts` | Hierarchical payload/config-folder discovery (shared with the editor feature) |
-| `apps/modeler-plugin/src/deployment/infrastructure/camunda/CamundaEngineRouter.ts` | Dispatches to C7 vs C8 REST client |
-| `apps/modeler-plugin/src/deployment/infrastructure/camunda/Camunda7RestClient.ts` | Camunda 7 REST calls + auth |
-| `apps/modeler-plugin/src/deployment/infrastructure/camunda/Camunda8RestClient.ts` | Camunda 8 REST calls + auth |
+| `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` | Runtime HTML shipped inside the extension — must stay in sync with `apps/deployment-webview/index.html` |
+| `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts` | Routes webview commands to the two services |
+| `apps/vscode-plugin/src/deployment/service/DeploymentService.ts` | Deploy orchestration, credential persistence |
+| `apps/vscode-plugin/src/deployment/service/StartInstanceService.ts` | Start-instance orchestration, payload file discovery |
+| `apps/vscode-plugin/src/shared/service/ArtifactService.ts` | Hierarchical payload/config-folder discovery (shared with the editor feature) |
+| `apps/vscode-plugin/src/deployment/infrastructure/camunda/CamundaEngineRouter.ts` | Dispatches to C7 vs C8 REST client |
+| `apps/vscode-plugin/src/deployment/infrastructure/camunda/Camunda7RestClient.ts` | Camunda 7 REST calls + auth |
+| `apps/vscode-plugin/src/deployment/infrastructure/camunda/Camunda8RestClient.ts` | Camunda 8 REST calls + auth |
 | `libs/shared/src/lib/modeler.ts` | Deployment message types |
 
 ## Message protocol
@@ -134,7 +134,7 @@ sequenceDiagram
 
 - **The deployment webview has two copies of its HTML that must stay in sync:**
   `apps/deployment-webview/index.html` (Vite dev) and
-  `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`
+  `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`
   (runtime in VS Code). When you change the form markup, update both.
 - **Credentials are stored via `SecretStorage`**, not `globalState`. Don't
   persist passwords or OAuth2 tokens in any other location.

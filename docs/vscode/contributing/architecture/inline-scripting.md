@@ -27,7 +27,7 @@ event that the webview translates into an `OpenScriptEditorCommand`.
 | `scriptTaskContextPad` (webview) | Adds "Edit Script" entry to the script-task context pad |
 
 `ScriptTaskService`, `BpmnScriptFileSystem`, and `ScriptCompletionProvider`
-are constructed in `apps/modeler-plugin/src/composition/scriptFeature.ts` and
+are constructed in `apps/vscode-plugin/src/composition/scriptFeature.ts` and
 registered before any editor controller resolves. `ScriptTaskService.register()`
 subscribes to
 `workspace.onDidChangeTextDocument` and `window.tabGroups.onDidChangeTabs` —
@@ -59,16 +59,16 @@ those listeners are what propagate edits and clean up tracking state.
 
 | File | Purpose |
 |---|---|
-| `apps/modeler-plugin/src/composition/scriptFeature.ts` | Registers `BpmnScriptFileSystem` for the `bpmn-script` scheme, constructs `ScriptTaskService` and `ScriptCompletionProvider` |
-| `apps/modeler-plugin/src/scriptTask/infrastructure/BpmnScriptFileSystem.ts` | `FileSystemProvider` impl — `Map<string, Uint8Array>` keyed by URI path; fires `FileChangeEvent`s for create / change / delete |
-| `apps/modeler-plugin/src/scriptTask/controller/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
-| `apps/modeler-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
-| `apps/modeler-plugin/src/scriptTask/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess` (testable without `vscode`) |
-| `apps/modeler-plugin/src/scriptTask/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
-| `apps/modeler-plugin/src/scriptTask/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
-| `apps/modeler-plugin/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
-| `apps/modeler-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | `openScriptEditorHandler` + `resyncScriptTasksHandler`, dispatched by the BPMN `WebviewMessageRouter` |
-| `apps/modeler-plugin/src/modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant.ts` | Calls `disposeForEditor` when the BPMN editor closes |
+| `apps/vscode-plugin/src/composition/scriptFeature.ts` | Registers `BpmnScriptFileSystem` for the `bpmn-script` scheme, constructs `ScriptTaskService` and `ScriptCompletionProvider` |
+| `apps/vscode-plugin/src/scriptTask/infrastructure/BpmnScriptFileSystem.ts` | `FileSystemProvider` impl — `Map<string, Uint8Array>` keyed by URI path; fires `FileChangeEvent`s for create / change / delete |
+| `apps/vscode-plugin/src/scriptTask/controller/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
+| `apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
+| `apps/vscode-plugin/src/scriptTask/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess` (testable without `vscode`) |
+| `apps/vscode-plugin/src/scriptTask/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
+| `apps/vscode-plugin/src/scriptTask/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
+| `apps/vscode-plugin/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
+| `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | `openScriptEditorHandler` + `resyncScriptTasksHandler`, dispatched by the BPMN `WebviewMessageRouter` |
+| `apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant.ts` | Calls `disposeForEditor` when the BPMN editor closes |
 | `libs/shared/src/lib/modeler.ts` | `OpenScriptEditorCommand`, `UpdateScriptContentQuery`, `UpdateScriptFormatQuery`, `ScriptKind` |
 | `apps/bpmn-webview/src/main.ts` | Bridges `OPEN_SCRIPT_EDITOR_EVENT` (bus) ↔ `OpenScriptEditorCommand` (host) and applies `UpdateScriptContentQuery` / `UpdateScriptFormatQuery` to the model |
 | `apps/bpmn-webview/src/app/scriptEditorButtons.ts` | Listener-row "Edit Script" buttons in the properties panel |

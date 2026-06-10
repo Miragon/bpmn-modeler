@@ -35,14 +35,16 @@ download-and-stage pipeline.
 
 ### Prototype
 
-`apps/modeler-cli/` is the throwaway proof: a `commander` CLI that boots an
-`express` + `ws` server, serves the **unmodified production** webview bundle,
-and bridges its `Query`/`Command` protocol to the file over a WebSocket. The
-*same* `getVsCodeApi()` selector that returns the VS Code API in the extension
-returns the new `WebSocketChannelImpl` (in `libs/shared`) when the served HTML
-injects `window.__WS_BRIDGE__` — so no webview code forks for this host.
-Execution-platform detection reuses `BpmnDocument` from `modeler-core` rather
-than duplicating it.
+The throwaway proof was `apps/modeler-cli/` (since removed): a `commander` CLI
+that booted an `express` + `ws` server, served the **unmodified production**
+webview bundle, and bridged its `Query`/`Command` protocol to the file over a
+WebSocket. The *same* `getVsCodeApi()` selector that returns the VS Code API in
+the extension returned a `WebSocketChannelImpl` when the served HTML injected
+`window.__WS_BRIDGE__` — so no webview code forked for this host.
+Execution-platform detection reused `BpmnDocument` from `modeler-core` rather
+than duplicating it. The prototype validated the approach; the production
+IntelliJ host then relays webview messages over the stdio bridge instead, so the
+CLI and its WebSocket seam were dropped.
 
 ### Measurements (macOS arm64, Bun 1.3.10)
 

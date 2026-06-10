@@ -25,7 +25,7 @@ module.exports = [
             "**/.browser_modules",
             "docs/**",
             // Compiled Extension-Host e2e tests — generated CommonJS, not source.
-            "apps/modeler-plugin/test/e2e/out/**",
+            "apps/vscode-plugin/test/e2e/out/**",
             // The @vscode/test-electron download — the entire VS Code app. Lives
             // here after a local `test:e2e` run; linting it explodes the heap and
             // emits 500k+ spurious errors. Flat config ignores `.gitignore`, so

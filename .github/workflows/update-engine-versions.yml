@@ -38,7 +38,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -B "$BRANCH"
-          git add apps/modeler-plugin/src/domain/engineVersions.ts
+          git add apps/vscode-plugin/src/domain/engineVersions.ts
           git commit -m "$(cat <<'EOF'
           chore: update Camunda engine versions
 

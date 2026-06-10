@@ -69,6 +69,6 @@ class HostNotifications(private val project: Project) {
 
     private companion object {
         // Must match the <notificationGroup id="…"> registered in plugin.xml.
-        const val GROUP_ID = "Miranum BPMN Modeler"
+        const val GROUP_ID = "Miragon BPMN Modeler"
     }
 }

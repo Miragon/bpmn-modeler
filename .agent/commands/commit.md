@@ -28,7 +28,7 @@ Run these in parallel and read the output:
 Format: `<type>(<scope>): <subject>`
 
 - Infer `type` and `scope` from the changed paths and the diff. Scope is the
-  affected workspace/feature (`bpmn-webview`, `modeler-plugin`, `editor`,
+  affected workspace/feature (`bpmn-webview`, `vscode-plugin`, `editor`,
   `diff`, `deployment`, `domain`, `deps`, `release`, …). Omit the scope only
   for genuinely repo-wide changes.
 - Subject: imperative present tense, lowercase, no trailing period, ≤ ~72 chars.

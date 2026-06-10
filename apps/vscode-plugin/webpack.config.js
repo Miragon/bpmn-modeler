@@ -9,7 +9,7 @@ const { TsconfigPathsPlugin } = require("tsconfig-paths-webpack-plugin");
  * Key characteristics:
  * - Target: Node (VS Code extension host)
  * - Entry: src/main.ts
- * - Output: ../../dist/apps/modeler-plugin/
+ * - Output: ../../dist/apps/vscode-plugin/
  * - Externalises the `vscode` module (provided by VS Code at runtime)
  * - Resolves @bpmn-modeler/* path aliases via TsconfigPathsPlugin
  * - Copies package.json (without devDependencies/scripts), assets, and webview dist folders
@@ -26,7 +26,7 @@ module.exports = (env, argv) => {
         mode: isProd ? "production" : "development",
         entry: "./src/main.ts",
         output: {
-            path: path.resolve(__dirname, "../../dist/apps/modeler-plugin"),
+            path: path.resolve(__dirname, "../../dist/apps/vscode-plugin"),
             filename: "main.js",
             libraryTarget: "commonjs2",
         },
@@ -140,7 +140,7 @@ module.exports = (env, argv) => {
             // pattern covering all files inside the directory, not just the path itself.
             ignored: [
                 "**/node_modules/**",
-                path.resolve(__dirname, "../../dist/apps/modeler-plugin/**"),
+                path.resolve(__dirname, "../../dist/apps/vscode-plugin/**"),
             ],
         },
     };

@@ -51,12 +51,15 @@ class WebviewServer : Disposable {
     fun ensureStarted(): String {
         baseUrl?.let { return it }
 
-        // Port 0 → the OS assigns a free ephemeral port; bind to loopback only.
-        val httpServer = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0)
+        // Port 0 → the OS assigns a free ephemeral port. Bind to the IPv4 literal
+        // `127.0.0.1` (no DNS), not getLoopbackAddress(): the latter returns `::1`
+        // under -Djava.net.preferIPv6Addresses, but the base URL below advertises
+        // `127.0.0.1`, and the mismatch makes JCEF load a blank editor.
+        val httpServer = HttpServer.create(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0)
         httpServer.createContext("/") { exchange -> handle(exchange) }
         httpServer.executor =
             Executors.newCachedThreadPool { runnable ->
-                Thread(runnable, "miranum-webview-http").apply { isDaemon = true }
+                Thread(runnable, "modeler-webview-http").apply { isDaemon = true }
             }
         httpServer.start()
 
@@ -65,7 +68,7 @@ class WebviewServer : Disposable {
         server = httpServer
         origin = base
         baseUrl = url
-        log.info("Miranum webview server started at $url")
+        log.info("Miragon webview server started at $url")
         return url
     }
 
@@ -159,7 +162,7 @@ class WebviewServer : Disposable {
          * The `acquireVsCodeApi()` shim. Runs as a classic (non-module) script so
          * the global exists before the deferred ES module calls `getVsCodeApi()` at
          * top level. Outgoing messages are buffered until the JVM installs its sink
-         * via `__miranumSetSink`, because the module may post before the host
+         * via `__modelerSetSink`, because the module may post before the host
          * callback is injected (which only happens on `onLoadEnd`).
          */
         val SHIM =
@@ -172,7 +175,7 @@ class WebviewServer : Disposable {
                 "    if (!sink) return;",
                 "    while (outbox.length) { sink(outbox.shift()); }",
                 "  }",
-                "  window.__miranumSetSink = function (fn) { sink = fn; flush(); };",
+                "  window.__modelerSetSink = function (fn) { sink = fn; flush(); };",
                 "  window.acquireVsCodeApi = function () {",
                 "    return {",
                 "      postMessage: function (msg) { outbox.push(JSON.stringify(msg)); flush(); },",
@@ -223,7 +226,7 @@ class WebviewServer : Disposable {
          * lets Chromium (JCEF) resolve `Canvas`/`CanvasText`/`Field`/… to the
          * embedding theme; this is the IntelliJ counterpart of VS Code injecting
          * its theme variables into the webview. (Visual parity should be confirmed
-         * live against a dark IDE theme — see #1071 notes.)
+         * live against a dark IDE theme.)
          */
         val DEPLOYMENT_THEME =
             listOf(

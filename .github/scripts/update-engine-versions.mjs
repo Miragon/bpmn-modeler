@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const GITHUB_REPO = "camunda/camunda";
-const VERSION_FILE = "apps/modeler-plugin/src/domain/engineVersions.ts";
+const VERSION_FILE = "apps/vscode-plugin/src/domain/engineVersions.ts";
 
 /**
  * Fetches all stable Camunda 8 minor versions from the GitHub Releases API.

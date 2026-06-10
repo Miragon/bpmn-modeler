@@ -1,6 +1,6 @@
-# Miranum BPMN Modeler — IntelliJ plugin
+# Miragon BPMN Modeler — IntelliJ plugin
 
-A third host for the Miranum BPMN modeler (after VS Code and Theia). It opens
+A third host for the Miragon BPMN modeler (after VS Code and Theia). It opens
 `.bpmn` files in a **JCEF** (embedded Chromium) editor, renders them with the
 **existing** bpmn-js webview bundle, and round-trips edits back to disk — while
 running the **unmodified TypeScript core out-of-process**, as a supervised,
@@ -35,7 +35,7 @@ bridge (`apps/modeler-bridge/`), never reimplemented in Kotlin.
 `docs/vscode/contributing/architecture/intellij-host-foundation.md` records:
 
 - **Transport — one stdio JSON-RPC pipe.** Core↔host *and* the webview-message
-  relay ride a single supervised NDJSON pipe (not the `window.__WS_BRIDGE__` WS
+  relay ride a single supervised NDJSON pipe (not a webview↔server WebSocket
   seam). Single transport ⇒ simplest crash detection/recovery, smallest attack
   surface, leanest binary (no embedded HTTP/WS server, no open port).
 - **Topology — one core per project.** `CoreProcess` is a project-level service,
@@ -46,7 +46,7 @@ bridge (`apps/modeler-bridge/`), never reimplemented in Kotlin.
 
 - **Spawns the bundled Bun binary** (`/bin/<os>-<arch>/modeler-bridge`, extracted
   from the plugin classpath), not `node` from `PATH`. Dev override:
-  `-Dmiranum.bridge=/abs/path` or `MIRANUM_BRIDGE`.
+  `-Dmiragon.bridge=/abs/path` or `MIRAGON_BRIDGE`.
 - **Crash recovery:** detects process exit, respawns with linear backoff (giving
   up after repeated rapid crashes), re-registers every live session from the
   authoritative IntelliJ `Document`, and replays `GetBpmnFileCommand` so open
@@ -94,8 +94,8 @@ process remains. Closing the IDE leaves no `modeler-bridge` process behind.
 
 ## Scope
 
-BPMN editor + element templates + Notifier/StatusBar. DMN, diff, deployment, and
-scriptTask are their own follow-up issues (#1067–#1073).
+BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, and
+the inline "Edit Script" tab. DMN has no IntelliJ editor yet.
 
 ## Monorepo hygiene
 

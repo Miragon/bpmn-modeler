@@ -9,7 +9,7 @@
 
 # Extension-Host e2e test build output (@vscode/test-cli runs the compiled JS)
 # and the cached VS Code/Electron download.
-apps/modeler-plugin/test/e2e/out
+apps/vscode-plugin/test/e2e/out
 .vscode-test/
 
 # dependencies

@@ -21,6 +21,11 @@
  * the *same* space as the queried document (URI in → URI out; clean in → clean
  * out). That invariant is what lets `ArtifactService` be reused verbatim across
  * both paths.
+ *
+ * Both hosts send system-independent, forward-slash paths (VS Code URIs and
+ * IntelliJ's `VirtualFile.path`/`url`, which is always `/`-separated even on
+ * Windows), so `posix.*` is the correct path algebra here — never the
+ * platform-dependent `path.*`.
  */
 
 import { watch } from "chokidar";
@@ -338,10 +343,10 @@ export interface SettingsSnapshot {
 const SETTINGS_PREFIX = "miragon.bpmnModeler";
 
 /**
- * Defaults matching `apps/modeler-plugin/package.json` so a session is render-safe
- * before the host's first snapshot arrives (e.g. the CLI bridge, or a host that
- * omits `settings`). In the IntelliJ host these are immediately overwritten by the
- * `MiranumSettings` snapshot seeded on register.
+ * Defaults matching `apps/vscode-plugin/package.json` so a session is render-safe
+ * before the host's first snapshot arrives (a host that omits `settings`). In the
+ * IntelliJ host these are immediately overwritten by the `ModelerSettingsStore`
+ * snapshot seeded on register.
  */
 const DEFAULT_SETTINGS: SettingsSnapshot = {
     alignToOrigin: false,

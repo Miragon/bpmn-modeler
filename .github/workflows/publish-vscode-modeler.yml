@@ -2,7 +2,7 @@ name: Publish VS Code Modeler
 
 # Builds and publishes the VS Code extension. Manual workflow_dispatch only;
 # dry-run uploads a vsix artifact, non-dry-run publishes to the VS Code
-# Marketplace using the version in apps/modeler-plugin/package.json.
+# Marketplace using the version in apps/vscode-plugin/package.json.
 
 on:
   workflow_dispatch:
@@ -50,7 +50,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          VERSION=$(node -e "console.log(require('./apps/modeler-plugin/package.json').version)")
+          VERSION=$(node -e "console.log(require('./apps/vscode-plugin/package.json').version)")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build
@@ -60,7 +60,7 @@ jobs:
         run: npm install -g @vscode/vsce@3.2.2
 
       - name: Package vsix
-        working-directory: dist/apps/modeler-plugin
+        working-directory: dist/apps/vscode-plugin
         run: vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
 
       - name: Upload vsix artifact (dry-run)
@@ -68,12 +68,12 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: bpmn-modeler-plugin-v${{ steps.version.outputs.version }}
-          path: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
+          path: dist/apps/vscode-plugin/bpmn-modeler-plugin.vsix
           retention-days: 7
 
       - name: Publish to VS Code Marketplace
         if: inputs.dry-run == false
-        working-directory: dist/apps/modeler-plugin
+        working-directory: dist/apps/vscode-plugin
         run: vsce publish --yarn --no-dependencies
         env:
           VSCE_PAT: ${{ secrets.VSCE_PUBLISH }}

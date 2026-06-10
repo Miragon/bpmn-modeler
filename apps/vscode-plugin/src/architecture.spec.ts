@@ -5,7 +5,7 @@ import { extractGraph, projectFiles } from "archunit";
 import type { FileInfo } from "archunit";
 
 /**
- * Executable architecture tests (#1050). They turn the four-layer +
+ * Executable architecture tests. They turn the four-layer +
  * feature-folder design — until now held by discipline alone — into CI gates so
  * regressions break the build instead of rotting silently.
  *

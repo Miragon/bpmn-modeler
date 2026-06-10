@@ -10,7 +10,7 @@ import com.intellij.ide.passwordSafe.PasswordSafe
  * equivalent of VS Code's `context.secrets` for deployment basic-auth / OAuth2
  * credentials.
  *
- * **Scope (re-verified for #1065).** [PasswordSafe] is an *application*-level
+ * **Scope.** [PasswordSafe] is an *application*-level
  * service (`PasswordSafe.instance` == `service<PasswordSafe>()`), **not**
  * project-scoped: secrets are keyed only by [CredentialAttributes] and shared
  * across every project window and IDE restart, encrypted at rest in the OS
@@ -37,7 +37,7 @@ class IntellijSecretStore {
     private companion object {
         // generateServiceName namespaces the keychain entry under the IDE +
         // subsystem so it never collides with other plugins' stored secrets.
-        const val SUBSYSTEM = "Miranum BPMN Modeler Deployment"
+        const val SUBSYSTEM = "Miragon BPMN Modeler Deployment"
         val basicAuthAttributes = CredentialAttributes(generateServiceName(SUBSYSTEM, "basicAuth"))
         val oauth2Attributes = CredentialAttributes(generateServiceName(SUBSYSTEM, "oauth2"))
     }

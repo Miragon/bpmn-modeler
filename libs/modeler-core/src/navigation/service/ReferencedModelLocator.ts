@@ -236,7 +236,7 @@ export class ReferencedModelLocator {
      *
      * Edge-case alternative: `bpmn-moddle` / `dmn-moddle` parse the XML into
      * a typed AST so we could read `process.id` directly.  Not used here
-     * because (1) it isn't a `modeler-plugin` dep yet, (2) per-file parse is
+     * because (1) it isn't a `vscode-plugin` dep yet, (2) per-file parse is
      * 50-100× slower than this regex, which matters across a 100-file
      * workspace.
      */

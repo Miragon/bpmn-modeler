@@ -46,7 +46,7 @@ data class ParamInfo(val name: String, val type: String)
  * contributor tells *our* inline-script tabs apart from any other open
  * `.js`/`.groovy` file — absence of the key means "not our tab, stay silent".
  */
-val SCRIPT_COMPLETION_KEY: Key<ScriptCompletionModel> = Key.create("miranum.script.completion")
+val SCRIPT_COMPLETION_KEY: Key<ScriptCompletionModel> = Key.create("modeler.script.completion")
 
 private val MEMBER_ACCESS = Regex("([A-Za-z_][A-Za-z0-9_]*)\\.\\s*$")
 

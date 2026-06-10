@@ -73,7 +73,7 @@ jobs:
         env:
           YARN_ENABLE_SCRIPTS: 'false'
         run: |
-          PKG_PATH="./apps/modeler-plugin/package.json"
+          PKG_PATH="./apps/vscode-plugin/package.json"
           PKG_NAME=$(node -e "console.log(require('$PKG_PATH').name)")
           yarn workspace "$PKG_NAME" version "${{ inputs.release-type }}"
           yarn version apply --all
@@ -100,7 +100,7 @@ jobs:
         if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
         run: |
           NEW_VERSION="${{ steps.version.outputs.version }}"
-          git add apps/modeler-plugin/package.json
+          git add apps/vscode-plugin/package.json
           git commit -m "chore(release): bump version to ${NEW_VERSION}"
           git push origin HEAD
           git tag -a "v${NEW_VERSION}" -m "release v${NEW_VERSION}"
