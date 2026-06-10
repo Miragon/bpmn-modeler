@@ -43,7 +43,7 @@ Modeler) and its supporting packages:
 
 | Workspace              | Path                  | Description                           |
 |------------------------|-----------------------|---------------------------------------|
-| `vs-code-bpmn-modeler` | `apps/modeler-plugin` | VS Code extension host (Node/Webpack) |
+| `vs-code-bpmn-modeler` | `apps/vscode-plugin` | VS Code extension host (Node/Webpack) |
 | `@miragon/bpmn-modeler-webview` | `apps/bpmn-webview`   | BPMN editor UI (Vite/browser)         |
 | `@miragon/dmn-modeler-webview`  | `apps/dmn-webview`    | DMN editor UI (Vite/browser)          |
 | `@miragon/bpmn-modeler-shared` | `libs/shared`         | Shared message types and utilities    |
@@ -105,7 +105,7 @@ Opens the VitePress docs site in your browser.
 
 1. Open the repository root in VS Code.
 2. Run `yarn watch` to start watch mode.
-3. Open the **Run and Debug** panel and select **"Run modeler-plugin"**.
+3. Open the **Run and Debug** panel and select **"Run vscode-plugin"**.
 4. Press **F5** to launch the Extension Development Host.
 
 To reload the extension host after a change, press **Cmd+R** (macOS) or **Ctrl+R** (
@@ -151,7 +151,7 @@ bundle.
 yarn test
 
 # Run a single test file
-yarn test apps/modeler-plugin/src/shared/domain/BpmnDocument.spec.ts
+yarn test apps/vscode-plugin/src/shared/domain/BpmnDocument.spec.ts
 
 # Lint
 yarn lint
@@ -232,7 +232,7 @@ framework. Each feature folder owns the four classic layers as subfolders, and
 cross-feature use goes through the feature's `index.ts` barrel.
 
 ```
-apps/modeler-plugin/src/
+apps/vscode-plugin/src/
   main.ts          # Activation: build shared deps, then call each feature's register()
   composition/     # One register(context, deps) per feature — the wiring root
   shared/          # Cross-feature substrate: domain/ service/ infrastructure/
@@ -244,7 +244,7 @@ apps/modeler-plugin/src/
 ```
 
 The layer + feature-isolation boundaries are enforced in CI by
-`apps/modeler-plugin/src/architecture.spec.ts` (ArchUnitTS). See the
+`apps/vscode-plugin/src/architecture.spec.ts` (ArchUnitTS). See the
 [Architecture overview](./architecture-overview) for the full model.
 
 Key design decisions:

@@ -63,7 +63,7 @@ Published to the [VS Code Marketplace](https://marketplace.visualstudio.com/item
 | `prepare-release-vscode-modeler.yml` | `workflow_dispatch` | — |
 | `publish-vscode-modeler.yml` | `workflow_dispatch` | `v*` (e.g. `v0.9.3`) |
 
-`prepare` bumps `apps/modeler-plugin/package.json`, runs lint + test + build,
+`prepare` bumps `apps/vscode-plugin/package.json`, runs lint + test + build,
 then commits, tags `vX.Y.Z`, and creates a GitHub Release. `publish` packages
 the `.vsix`, attaches it to the release, and runs `vsce publish` against the
 VS Code Marketplace. Both steps are launched separately by the maintainer.

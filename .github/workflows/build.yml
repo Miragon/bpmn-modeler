@@ -29,7 +29,7 @@ jobs:
       bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
       modeler-core: ${{ steps.filter.outputs.modeler-core }}
       modeler-bridge: ${{ steps.filter.outputs.modeler-bridge }}
-      modeler-plugin: ${{ steps.filter.outputs.modeler-plugin }}
+      vscode-plugin: ${{ steps.filter.outputs.vscode-plugin }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
@@ -54,8 +54,8 @@ jobs:
               - 'libs/modeler-core/**'
             modeler-bridge:
               - 'apps/modeler-bridge/**'
-            modeler-plugin:
-              - 'apps/modeler-plugin/**'
+            vscode-plugin:
+              - 'apps/vscode-plugin/**'
             bpmn-webview:
               - 'apps/bpmn-webview/**'
             dmn-webview:
@@ -178,10 +178,10 @@ jobs:
       - run: yarn workspaces focus @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-clipboard build
 
-  build-modeler-plugin:
+  build-vscode-plugin:
     needs: detect-changes
     if: >-
-      needs.detect-changes.outputs.modeler-plugin == 'true' ||
+      needs.detect-changes.outputs.vscode-plugin == 'true' ||
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n == 'true'
@@ -203,10 +203,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler build
 
-  test-modeler-plugin:
+  test-vscode-plugin:
     needs: detect-changes
     if: >-
-      needs.detect-changes.outputs.modeler-plugin == 'true' ||
+      needs.detect-changes.outputs.vscode-plugin == 'true' ||
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n == 'true'
@@ -242,25 +242,25 @@ jobs:
       - name: Report coverage on the PR
         if: >-
           always() && github.event_name == 'pull_request' &&
-          needs.detect-changes.outputs.modeler-plugin == 'true'
+          needs.detect-changes.outputs.vscode-plugin == 'true'
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@v2
         with:
           # Paths resolve relative to working-directory; vitest writes the
           # reports to the repo-root coverage/ dir, two levels up.
-          working-directory: apps/modeler-plugin
-          json-summary-path: ../../coverage/apps/modeler-plugin/coverage-summary.json
-          json-final-path: ../../coverage/apps/modeler-plugin/coverage-final.json
-          name: modeler-plugin
+          working-directory: apps/vscode-plugin
+          json-summary-path: ../../coverage/apps/vscode-plugin/coverage-summary.json
+          json-final-path: ../../coverage/apps/vscode-plugin/coverage-final.json
+          name: vscode-plugin
       - name: Upload coverage to Codecov
-        if: needs.detect-changes.outputs.modeler-plugin == 'true'
+        if: needs.detect-changes.outputs.vscode-plugin == 'true'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: "./coverage/apps/modeler-plugin"
+          directory: "./coverage/apps/vscode-plugin"
           fail_ci_if_error: false
-          flags: modeler-plugin
-          name: modeler-plugin
+          flags: vscode-plugin
+          name: vscode-plugin
           verbose: true
 
   test-modeler-core:
@@ -371,7 +371,7 @@ jobs:
   # (`activate()` + custom-editor registration) end-to-end in a real VS Code.
   # Kept separate from lint/unit so their fast feedback is never delayed by
   # the heavy Electron launch.
-  e2e-modeler-plugin:
+  e2e-vscode-plugin:
     needs: detect-changes
     # Gate PRs (catch a dead extension before it lands) and back-stop pushes to
     # `main` only — the workflow's unfiltered `push:` trigger would otherwise run
@@ -379,7 +379,7 @@ jobs:
     # that can change the bundle or activation.
     if: >-
       (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
-      (needs.detect-changes.outputs.modeler-plugin == 'true' ||
+      (needs.detect-changes.outputs.vscode-plugin == 'true' ||
        needs.detect-changes.outputs.modeler-core == 'true' ||
        needs.detect-changes.outputs.bpmn-webview == 'true' ||
        needs.detect-changes.outputs.dmn-webview == 'true' ||
@@ -402,7 +402,7 @@ jobs:
         run: yarn install --immutable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # The test points at dist/apps/modeler-plugin, which only exists after a
+      # The test points at dist/apps/vscode-plugin, which only exists after a
       # full build (libs → webviews + plugin); `main: "main.js"` won't resolve
       # against the source tree.
       - name: Build the extension
@@ -411,7 +411,7 @@ jobs:
       - name: Cache VS Code download
         uses: actions/cache@v5
         with:
-          path: apps/modeler-plugin/.vscode-test
+          path: apps/vscode-plugin/.vscode-test
           key: vscode-test-${{ runner.os }}
       - name: Run Extension-Host smoke test
         run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:e2e
@@ -551,11 +551,11 @@ jobs:
       - build-element-template-chooser
       - build-append-menu
       - build-bpmn-clipboard
-      - build-modeler-plugin
-      - test-modeler-plugin
+      - build-vscode-plugin
+      - test-vscode-plugin
       - test-modeler-core
       - test-modeler-bridge
-      - e2e-modeler-plugin
+      - e2e-vscode-plugin
       - test-bpmn-webview
       - test-bpmn-i18n
       - build-bpmn-webview

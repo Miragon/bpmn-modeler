@@ -10,7 +10,7 @@ host-parity track (#920).
 The host-agnostic modeling engine — domain models, services, the
 host-capability ports, and the `vscode`-free registries (`EditorSessionStore`,
 `WebviewMessageRouter`, `DiffPaneStore`) — used to live inside
-`apps/modeler-plugin/`. The #920 spike proved that this same engine can drive an
+`apps/vscode-plugin/`. The #920 spike proved that this same engine can drive an
 **out-of-process** host (IntelliJ, over a stdio bridge): editor render +
 `Ctrl+S` write-back, element templates with live reload, and Git **Show Diff**
 all worked against a Node subprocess. But the bridge had to reach into the
@@ -25,7 +25,7 @@ Extract the engine into its own package, **`@miragon/bpmn-modeler-core`**
 - **Moves to the package:** every `domain/` and `service/` layer across features,
   plus the `vscode`-free infrastructure registries `EditorSessionStore`,
   `WebviewMessageRouter`, `DiffPaneStore`, and `helpers`.
-- **Stays in `apps/modeler-plugin/`:** VS Code host code only — the `Vs*` port
+- **Stays in `apps/vscode-plugin/`:** VS Code host code only — the `Vs*` port
   adapters, controllers, editor-session participants, the composition roots, the
   webview HTML/bootstrap, and `main.ts`.
 

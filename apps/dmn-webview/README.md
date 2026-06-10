@@ -4,7 +4,7 @@ Internal module. **Not published separately.**
 
 The DMN modeling surface (decision tables, decision requirements diagrams,
 literal expressions) that runs inside the VS Code webview hosted by
-[`apps/modeler-plugin`](../modeler-plugin/README.md). Built with Vite and
+[`apps/vscode-plugin`](../vscode-plugin/README.md). Built with Vite and
 [dmn-js](https://github.com/bpmn-io/dmn-js); communicates with the extension
 host via the typed Query/Command protocol from
 [`libs/shared`](../../libs/shared/README.md).
@@ -21,7 +21,7 @@ corepack yarn workspace @miragon/dmn-modeler-webview serve  # standalone Vite de
 ## Build output
 
 `vite build` writes to `dist/webview-staging/dmn-webview/`. The
-`modeler-plugin` webpack config copies that folder into the VSIX.
+`vscode-plugin` webpack config copies that folder into the VSIX.
 
 ## Further reading
 

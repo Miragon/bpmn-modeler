@@ -82,18 +82,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build (libs → webviews → modeler-plugin)
+      - name: Build (libs → webviews → vscode-plugin)
         run: yarn build
 
       - name: Package .vsix
-        working-directory: dist/apps/modeler-plugin
+        working-directory: dist/apps/vscode-plugin
         run: npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
 
       - name: Upload .vsix artifact
         uses: actions/upload-artifact@v7
         with:
           name: standalone-vsix
-          path: dist/apps/modeler-plugin/bpmn-modeler-plugin.vsix
+          path: dist/apps/vscode-plugin/bpmn-modeler-plugin.vsix
           retention-days: 1
           if-no-files-found: error
 
@@ -129,7 +129,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: standalone-vsix
-          path: dist/apps/modeler-plugin
+          path: dist/apps/vscode-plugin
 
       - name: Bundle extension into standalone plugins/
         run: yarn workspace @miragon/bpmn-modeler-standalone bundle

@@ -1,7 +1,7 @@
 # `@miragon/bpmn-modeler-shared`
 
 Shared message types and utilities used by both the VS Code extension host
-(`apps/modeler-plugin`) and the webviews (`apps/bpmn-webview`,
+(`apps/vscode-plugin`) and the webviews (`apps/bpmn-webview`,
 `apps/dmn-webview`, `apps/deployment-webview`).
 
 ## Usage

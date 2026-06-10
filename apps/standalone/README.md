@@ -31,7 +31,7 @@ This workspace is **opt-in**. It is intentionally *not* included in the root
 # 1. Build the extension .vsix from the repo root
 corepack yarn install
 corepack yarn build
-(cd dist/apps/modeler-plugin && \
+(cd dist/apps/vscode-plugin && \
  npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies)
 
 # 2. Unpack the .vsix into this workspace's plugins/ directory
@@ -60,7 +60,7 @@ End-to-end recipe — start from a clean `apps/standalone/` and run from the
 # 1. Build the .vsix
 corepack yarn install
 corepack yarn build
-(cd dist/apps/modeler-plugin && \
+(cd dist/apps/vscode-plugin && \
  npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies)
 
 # 2. Unpack it into apps/standalone/plugins/
@@ -167,7 +167,7 @@ apps/standalone/
 ├── tsconfig.json
 ├── electron-builder.yml    macOS / Windows / Linux build targets (unsigned)
 ├── scripts/
-│   ├── bundle-extension.mjs   Copy .vsix from dist/apps/modeler-plugin
+│   ├── bundle-extension.mjs   Copy .vsix from dist/apps/vscode-plugin
 │   └── theia-electron-main.js Electron main entry (points at ./plugins)
 ├── resources/
 │   └── icon.png            Placeholder icon (production needs .icns/.ico)

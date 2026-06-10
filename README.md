@@ -71,7 +71,7 @@ Different surfaces, one modeling engine, one repo.
 > automatically as a custom editor. That's it.
 
 For settings, commands, and the full feature tour see
-**[`apps/modeler-plugin/README.md`](apps/modeler-plugin/README.md)** — the
+**[`apps/vscode-plugin/README.md`](apps/vscode-plugin/README.md)** — the
 same page that's published as the Marketplace listing.
 
 ## Modules in this repo
@@ -81,7 +81,7 @@ surfaces; each one has its own README with its own pitch.
 
 | Module | What it is | Status |
 |---|---|---|
-| [`apps/modeler-plugin`](apps/modeler-plugin/README.md) | The VS Code extension — the public BPMN/DMN modeler. | Published on the [Marketplace][marketplace-url] |
+| [`apps/vscode-plugin`](apps/vscode-plugin/README.md) | The VS Code extension — the public BPMN/DMN modeler. | Published on the [Marketplace][marketplace-url] |
 | [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler — same features, no VS Code required. | Build-from-source, unreleased |
 | [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
 | [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
@@ -99,7 +99,7 @@ We love PRs. Whether you fix a typo or land a feature, the path is the same:
 corepack enable
 corepack yarn install
 corepack yarn build      # build everything
-corepack yarn watch      # F5 in VS Code → "Run modeler-plugin"
+corepack yarn watch      # F5 in VS Code → "Run vscode-plugin"
 ```
 
 > Working on a single workspace only? `yarn workspaces focus <name>` installs just

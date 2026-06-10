@@ -97,7 +97,7 @@ corepack yarn install
    corepack yarn watch
    ```
 2. Open the **Run and Debug** panel in VS Code.
-3. Select **"Run modeler-plugin"** and press **F5**.
+3. Select **"Run vscode-plugin"** and press **F5**.
 
 Reload the host after a change with `Cmd+R` (macOS) or `Ctrl+R` (Windows/Linux).
 
@@ -141,7 +141,7 @@ Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`.
 ## Updating a Marketplace Listing
 
 A VS Code Marketplace listing is composed from two sources inside the
-extension's workspace (e.g. `apps/modeler-plugin/`):
+extension's workspace (e.g. `apps/vscode-plugin/`):
 
 1. **`README.md`** — rendered as the listing's main content. The
    workspace-local README is bundled into the VSIX by
@@ -156,7 +156,7 @@ To preview a listing locally before publishing:
 
 ```bash
 corepack yarn build
-cd dist/apps/modeler-plugin
+cd dist/apps/vscode-plugin
 npx @vscode/vsce package --no-dependencies --out preview.vsix
 ```
 

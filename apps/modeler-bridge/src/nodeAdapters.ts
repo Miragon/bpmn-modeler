@@ -343,7 +343,7 @@ export interface SettingsSnapshot {
 const SETTINGS_PREFIX = "miragon.bpmnModeler";
 
 /**
- * Defaults matching `apps/modeler-plugin/package.json` so a session is render-safe
+ * Defaults matching `apps/vscode-plugin/package.json` so a session is render-safe
  * before the host's first snapshot arrives (a host that omits `settings`). In the
  * IntelliJ host these are immediately overwritten by the `ModelerSettingsStore`
  * snapshot seeded on register.

@@ -2,21 +2,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run modeler-plugin",
+            "name": "Run vscode-plugin",
             "type": "extensionHost",
             "request": "launch",
             "args": [
                 "--disable-extensions",
-                "--extensionDevelopmentPath=${workspaceFolder}/dist/apps/modeler-plugin"
+                "--extensionDevelopmentPath=${workspaceFolder}/dist/apps/vscode-plugin"
             ],
-            "outFiles": ["${workspaceFolder}/dist/apps/modeler-plugin/**/*.js"],
+            "outFiles": ["${workspaceFolder}/dist/apps/vscode-plugin/**/*.js"],
             "resolveSourceMapLocations": [
-                "${workspaceFolder}/dist/apps/modeler-plugin/**",
+                "${workspaceFolder}/dist/apps/vscode-plugin/**",
                 "!**/node_modules/**"
             ],
             "sourceMapPathOverrides": {
                 "webpack:///./~/*": "${workspaceFolder}/node_modules/*",
-                "webpack://?:*/*": "${workspaceFolder}/apps/modeler-plugin/*"
+                "webpack://?:*/*": "${workspaceFolder}/apps/vscode-plugin/*"
             }
         }
     ]

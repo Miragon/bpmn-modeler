@@ -21873,9 +21873,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vs-code-bpmn-modeler@workspace:apps/modeler-plugin":
+"vs-code-bpmn-modeler@workspace:apps/vscode-plugin":
   version: 0.0.0-use.local
-  resolution: "vs-code-bpmn-modeler@workspace:apps/modeler-plugin"
+  resolution: "vs-code-bpmn-modeler@workspace:apps/vscode-plugin"
   dependencies:
     "@miragon/bpmn-modeler-core": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "workspace:*"

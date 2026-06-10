@@ -46,8 +46,8 @@ respectively.
 | `libs/shared/src/lib/modeler.ts` | Message types (Query/Command classes) |
 | `apps/bpmn-webview/src/main.ts` | Wires resolvers and passes modules to modeler |
 | `apps/bpmn-webview/src/app/modeler.ts` | `BpmnModeler.create()` accepts extra DI modules |
-| `apps/modeler-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | Clipboard command handlers (get/set element + text), dispatched by the BPMN `WebviewMessageRouter` |
-| `apps/modeler-plugin/src/modeler/bpmn/service/BpmnClipboardMediator.ts` | Mediates the structured + text clipboard via the `VsCodeClipboard` adapter |
+| `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | Clipboard command handlers (get/set element + text), dispatched by the BPMN `WebviewMessageRouter` |
+| `apps/vscode-plugin/src/modeler/bpmn/service/BpmnClipboardMediator.ts` | Mediates the structured + text clipboard via the `VsCodeClipboard` adapter |
 
 ## Message protocol
 

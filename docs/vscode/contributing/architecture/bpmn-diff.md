@@ -115,16 +115,16 @@ sequenceDiagram
 
 | File | Purpose |
 |---|---|
-| `apps/modeler-plugin/src/diff/controller/BpmnDiffController.ts` | VS Code-facing surface: `shouldResolveAsDiff`, `resolveDiffPane`, `openCompareFilesDiff` (`vscode.diff`), SCM pairing, webview message routing, swap-sides, language-setting subscription. |
-| `apps/modeler-plugin/src/diff/service/BpmnDiffService.ts` | vscode-free diff content: differ runner, highlight broadcaster, viewport/cursor forwarder, language broadcast. |
-| `apps/modeler-plugin/src/diff/infrastructure/DiffPaneStore.ts` | Session registry: `sessions`, `sessionByUri`, pending SCM panes, `compare-files` TTL timers. |
-| `apps/modeler-plugin/src/diff/infrastructure/WebviewPaneHandle.ts` | Infra adapter wrapping a `WebviewPanel` + `TextDocument` into the abstract `DiffPaneHandle`. |
-| `apps/modeler-plugin/src/diff/domain/DiffSession.ts` | Domain object for one diff: origin, fixed before/after URIs, pane slots, armed flag. Also exports `basenameOfUriString`. |
-| `apps/modeler-plugin/src/modeler/editor-session/ModelerEditorController.ts` | Generic custom-editor host; its `delegateResolve` hook (wired for BPMN in `composition/editorFeature.ts`) branches between editable modeler and readonly viewer via `BpmnDiffController.shouldResolveAsDiff`. |
-| `apps/modeler-plugin/src/diff/controller/BpmnCompareController.ts` | Explorer commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and the shared `openBpmnDiff` dispatch. |
-| `apps/modeler-plugin/src/diff/infrastructure/CompareSelectionStore.ts` | In-memory store for the pending "Select for Compare" URI; toggles the `bpmn-modeler.compareSelectionActive` context key. |
-| `apps/modeler-plugin/src/types/bpmn-js-differ.d.ts` | Ambient shim for the untyped `bpmn-js-differ` package. |
-| `apps/modeler-plugin/src/types/bpmn-moddle.d.ts` | Ambient shim for `bpmn-moddle` (factory function, not a class). |
+| `apps/vscode-plugin/src/diff/controller/BpmnDiffController.ts` | VS Code-facing surface: `shouldResolveAsDiff`, `resolveDiffPane`, `openCompareFilesDiff` (`vscode.diff`), SCM pairing, webview message routing, swap-sides, language-setting subscription. |
+| `apps/vscode-plugin/src/diff/service/BpmnDiffService.ts` | vscode-free diff content: differ runner, highlight broadcaster, viewport/cursor forwarder, language broadcast. |
+| `apps/vscode-plugin/src/diff/infrastructure/DiffPaneStore.ts` | Session registry: `sessions`, `sessionByUri`, pending SCM panes, `compare-files` TTL timers. |
+| `apps/vscode-plugin/src/diff/infrastructure/WebviewPaneHandle.ts` | Infra adapter wrapping a `WebviewPanel` + `TextDocument` into the abstract `DiffPaneHandle`. |
+| `apps/vscode-plugin/src/diff/domain/DiffSession.ts` | Domain object for one diff: origin, fixed before/after URIs, pane slots, armed flag. Also exports `basenameOfUriString`. |
+| `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts` | Generic custom-editor host; its `delegateResolve` hook (wired for BPMN in `composition/editorFeature.ts`) branches between editable modeler and readonly viewer via `BpmnDiffController.shouldResolveAsDiff`. |
+| `apps/vscode-plugin/src/diff/controller/BpmnCompareController.ts` | Explorer commands (`selectForCompare`, `compareWithSelected`, `compareSelected`) and the shared `openBpmnDiff` dispatch. |
+| `apps/vscode-plugin/src/diff/infrastructure/CompareSelectionStore.ts` | In-memory store for the pending "Select for Compare" URI; toggles the `bpmn-modeler.compareSelectionActive` context key. |
+| `apps/vscode-plugin/src/types/bpmn-js-differ.d.ts` | Ambient shim for the untyped `bpmn-js-differ` package. |
+| `apps/vscode-plugin/src/types/bpmn-moddle.d.ts` | Ambient shim for `bpmn-moddle` (factory function, not a class). |
 | `apps/bpmn-webview/src/app/diff/DiffMode.ts` | Webview entry point for viewer mode — wires viewer + legend + message handlers. |
 | `apps/bpmn-webview/src/app/diff/DiffViewer.ts` | Thin wrapper over `NavigatedViewer` adding marker helpers and viewport sync guard. |
 | `apps/bpmn-webview/src/app/diff/DiffLegend.ts` | Floating chip with per-category counts and prev/next nav. |

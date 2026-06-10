@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
     test: {
         projects: [
-            "apps/modeler-plugin",
+            "apps/vscode-plugin",
             "apps/modeler-bridge",
             "apps/bpmn-webview",
             "libs/bpmn-i18n",

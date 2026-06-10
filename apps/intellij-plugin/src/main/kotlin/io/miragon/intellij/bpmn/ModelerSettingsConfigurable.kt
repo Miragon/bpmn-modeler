@@ -173,7 +173,7 @@ class ModelerSettingsConfigurable : Configurable {
 
         val COLOR_THEMES = listOf("automatic", "light")
 
-        // Locale codes + labels mirror apps/modeler-plugin/package.json.
+        // Locale codes + labels mirror apps/vscode-plugin/package.json.
         val LOCALE_CODES = listOf("de", "en", "es", "fr", "nl-nl", "pt-br", "ru", "zh-Hans", "zh-Hant")
         val LOCALE_LABELS =
             mapOf(
