@@ -377,6 +377,10 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
                 slice.layoutChanged,
                 cached.counts,
                 cached.navigationOrder,
+                // Dev preview mimics the "Compare Files" entry point so the legend
+                // renders its filename, the branch that exercises the most chrome.
+                "compare-files",
+                side === "before" ? "before.bpmn" : "after.bpmn",
             ),
         );
     }
