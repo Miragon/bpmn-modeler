@@ -24,7 +24,7 @@ Pick the lightest channel that gets the job done — heavier channels interrupt 
 
 ## Notifications
 
-`VsCodeNotifier` (`apps/modeler-plugin/src/shared/infrastructure/VsCodeNotifier.ts`) wraps notification calls with fire-and-forget methods:
+`VsCodeNotifier` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeNotifier.ts`) wraps notification calls with fire-and-forget methods:
 
 ```typescript
 // Simple notifications — no action buttons, returns void
@@ -32,7 +32,7 @@ notifier.showInfo('Diagram saved successfully');
 notifier.showError('Failed to deploy process');
 ```
 
-When you need **action buttons**, use the raw VS Code API directly (as `apps/modeler-plugin/src/main.ts` does for the release notification):
+When you need **action buttons**, use the raw VS Code API directly (as `apps/vscode-plugin/src/main.ts` does for the release notification):
 
 ```typescript
 window
@@ -51,7 +51,7 @@ window
 
 ## Status Bar
 
-`VsCodeStatusBar` (`apps/modeler-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) manages status bar items for element-template and engine-version feedback:
+`VsCodeStatusBar` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeStatusBar.ts`) manages status bar items for element-template and engine-version feedback:
 
 ```typescript
 statusBar.showElementTemplatesLoading();      // "$(loading~spin) Loading element templates…"
@@ -64,7 +64,7 @@ The status bar item is lazily created. Use the **right side** for transient stat
 
 ## Quick Picks
 
-`VsCodePicker` (`apps/modeler-plugin/src/shared/infrastructure/VsCodePicker.ts`) owns every quick pick — e.g. `pickExecutionPlatform()` when the execution platform cannot be auto-detected from the BPMN XML, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `pickReferencedModel`:
+`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) owns every quick pick — e.g. `pickExecutionPlatform()` when the execution platform cannot be auto-detected from the BPMN XML, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `pickReferencedModel`:
 
 ```typescript
 const result = await window.showQuickPick(items, {
@@ -102,7 +102,7 @@ Defined in `libs/shared/src/lib/modeler.ts`:
 
 ### Extension Host Side
 
-`VsCodeClipboard` (`apps/modeler-plugin/src/shared/infrastructure/VsCodeClipboard.ts`) exposes async clipboard methods:
+`VsCodeClipboard` (`apps/vscode-plugin/src/shared/infrastructure/VsCodeClipboard.ts`) exposes async clipboard methods:
 
 ```typescript
 async readClipboard(): Promise<string>   // vscode.env.clipboard.readText()

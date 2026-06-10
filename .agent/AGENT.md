@@ -25,7 +25,7 @@ corepack yarn workspace vs-code-bpmn-modeler build
 corepack yarn workspace @miragon/bpmn-modeler-webview build
 
 # Run a single test file
-corepack yarn test apps/modeler-plugin/src/shared/domain/BpmnDocument.spec.ts
+corepack yarn test apps/vscode-plugin/src/shared/domain/BpmnDocument.spec.ts
 ```
 
 ### Webview scripts (bpmn-webview, dmn-webview, deployment-webview)
@@ -47,7 +47,7 @@ launch the per-webview dev server.
 
 ```
 apps/
-  modeler-plugin/        # VS Code extension (Node/Webpack)
+  vscode-plugin/         # VS Code extension (Node/Webpack)
   bpmn-webview/          # BPMN webview frontend (Vite/browser)
   dmn-webview/           # DMN webview frontend (Vite/browser)
   deployment-webview/    # Deployment sidebar webview (Vite/browser)
@@ -69,10 +69,10 @@ build → package plugin → bundle → start chain.
 
 ## Build System
 
-- **Extension host**: Webpack + `ts-loader` — `apps/modeler-plugin/webpack.config.js`
+- **Extension host**: Webpack + `ts-loader` — `apps/vscode-plugin/webpack.config.js`
 - **Webviews**: Vite — `apps/{bpmn,dmn}-webview/vite.config.mts`
-- **Tests**: Vitest — `apps/modeler-plugin/vitest.config.ts`
-- **Output**: `dist/apps/modeler-plugin/`
+- **Tests**: Vitest — `apps/vscode-plugin/vitest.config.ts`
+- **Output**: `dist/apps/vscode-plugin/`
 
 ## Path Aliases (`tsconfig.base.json`)
 
@@ -97,7 +97,7 @@ conforming message.
 - **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`,
   `build`, `ci`, `perf`, `revert`.
 - **Scope:** the affected workspace or feature, matching existing history —
-  e.g. `bpmn-webview`, `dmn-webview`, `deployment-webview`, `modeler-plugin`,
+  e.g. `bpmn-webview`, `dmn-webview`, `deployment-webview`, `vscode-plugin`,
   `editor`, `diff`, `domain`, `infrastructure`, `service`, `deps`, `release`.
   Omit the scope only when a change is genuinely repo-wide.
 - **Body/footer:** optional. Explain the *why* in the body when the subject
@@ -175,7 +175,7 @@ The deployment form's DOM lives in **one** place:
 `<div id="app"></div>` and lets the bundle render the body:
 
 - `apps/deployment-webview/index.html` — Vite dev shell.
-- `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` —
+- `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` —
   VS Code runtime shell (keeps the CSP nonce + asset-URI injection).
 - IntelliJ deployment tool-window shell (`WebviewServer.kt`).
 

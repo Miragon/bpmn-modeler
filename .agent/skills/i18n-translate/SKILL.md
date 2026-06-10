@@ -131,7 +131,7 @@ Skip this step if the language already exists in the registry.
    - Add an entry to the `supportedLanguages` array with the native display label
    - Add the locale to the `dictionaries` map
 
-2. **`apps/modeler-plugin/package.json`** — Under `miragon.bpmnModeler.language`:
+2. **`apps/vscode-plugin/package.json`** — Under `miragon.bpmnModeler.language`:
    - Add the locale code to the `enum` array
    - Add the native display label to the `enumItemLabels` array
    - Both arrays must stay in the same order

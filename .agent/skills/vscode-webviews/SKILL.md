@@ -15,7 +15,7 @@ Webview HTML is generated at runtime by functions in the infrastructure layer, n
 
 `bpmnEditorUi()` and `dmnModelerHtml()` generate complete HTML documents:
 
-1. **Asset URI resolution** — Webview files are built by Vite and bundled into `dist/apps/modeler-plugin/<webview-name>/`. At runtime, `webview.asWebviewUri()` converts these file-system paths into special `vscode-resource:` URIs that the webview sandbox can load.
+1. **Asset URI resolution** — Webview files are built by Vite and bundled into `dist/apps/vscode-plugin/<webview-name>/`. At runtime, `webview.asWebviewUri()` converts these file-system paths into special `vscode-resource:` URIs that the webview sandbox can load.
 
 2. **Nonce generation** — A random nonce is generated per HTML render and embedded in both the CSP meta tag and script tags. Only scripts with the matching nonce can execute.
 
@@ -232,9 +232,9 @@ This converts `file://` paths to `vscode-resource:` URIs that pass the webview's
 
 ## Key Files
 
-- **BPMN/DMN HTML**: `apps/modeler-plugin/src/shared/infrastructure/WebviewHtml.ts`
-- **Deployment HTML**: `apps/modeler-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`
-- **Message router**: `apps/modeler-plugin/src/shared/infrastructure/WebviewMessageRouter.ts`
+- **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`
+- **Deployment HTML**: `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`
+- **Message router**: `apps/vscode-plugin/src/shared/infrastructure/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`
 - **VS Code API interface + implementations**: `libs/shared/src/lib/vscode.ts`

@@ -1,13 +1,13 @@
 ---
 name: architecture
-description: Internal architecture of the modeler-plugin extension host (Node.js) — feature-folder layout with a four-layer split (domain, infrastructure, service, controller) inside each feature, host-capability ports + hexagonal engine ports, deployment subsystem (Camunda 7 & 8), per-feature register() composition root, WebviewMessageRouter dispatch, EditorSessionParticipant lifecycle, EditorSessionStore + VsCodeEditorHandle, echo-prevention session guards, webview message protocol (Query/Command), and the ArchUnitTS architecture tests. Use this skill when working on extension-host code — implementing features, fixing bugs, reviewing PRs, refactoring services, adding message types, understanding editor tracking, tracing webview message flow, integrating external systems, or modifying feature wiring. See also bpmn-js, vscode-webviews, vscode-custom-editors, and vscode-ux-guidelines for adjacent concerns.
+description: Internal architecture of the vscode-plugin extension host (Node.js) — feature-folder layout with a four-layer split (domain, infrastructure, service, controller) inside each feature, host-capability ports + hexagonal engine ports, deployment subsystem (Camunda 7 & 8), per-feature register() composition root, WebviewMessageRouter dispatch, EditorSessionParticipant lifecycle, EditorSessionStore + VsCodeEditorHandle, echo-prevention session guards, webview message protocol (Query/Command), and the ArchUnitTS architecture tests. Use this skill when working on extension-host code — implementing features, fixing bugs, reviewing PRs, refactoring services, adding message types, understanding editor tracking, tracing webview message flow, integrating external systems, or modifying feature wiring. See also bpmn-js, vscode-webviews, vscode-custom-editors, and vscode-ux-guidelines for adjacent concerns.
 ---
 
 # Extension Architecture
 
-This skill describes the internal architecture of the `modeler-plugin` VS Code extension — the Node.js host process that manages editors, documents, and communication with browser-based webviews.
+This skill describes the internal architecture of the `vscode-plugin` VS Code extension — the Node.js host process that manages editors, documents, and communication with browser-based webviews.
 
-All paths below are relative to `apps/modeler-plugin/` unless stated otherwise. For webview-side architecture, see the `bpmn-js` and `vscode-webviews` skills.
+All paths below are relative to `apps/vscode-plugin/` unless stated otherwise. For webview-side architecture, see the `bpmn-js` and `vscode-webviews` skills.
 
 ## Organising principle: feature folders
 

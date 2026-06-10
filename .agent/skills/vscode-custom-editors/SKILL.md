@@ -17,7 +17,7 @@ VS Code's `CustomTextEditorProvider` allows extensions to replace the default te
 
 ### Registration (`package.json`)
 
-Custom editors are registered in `apps/modeler-plugin/package.json` under `contributes.customEditors`:
+Custom editors are registered in `apps/vscode-plugin/package.json` under `contributes.customEditors`:
 
 - `"bpmn-modeler.bpmn"` — opens by default for `*.bpmn` files
 - `"bpmn-modeler.dmn"` — opens by default for `*.dmn` files
@@ -123,17 +123,17 @@ Services operate on the active editor by default. The echo-prevention guard is p
 
 ## Key Files
 
-- **Generic editor controller**: `apps/modeler-plugin/src/modeler/editor-session/ModelerEditorController.ts`
-- **Session participant interface**: `apps/modeler-plugin/src/modeler/editor-session/EditorSessionParticipant.ts`
-- **BPMN participants / handlers**: `apps/modeler-plugin/src/modeler/bpmn/controller/editor-participants/`, `…/webview-handlers/bpmnMessageHandlers.ts`
-- **Message router**: `apps/modeler-plugin/src/shared/infrastructure/WebviewMessageRouter.ts`
-- **Command Controller**: `apps/modeler-plugin/src/modeler/bpmn/controller/CommandController.ts`
-- **Deployment Controller**: `apps/modeler-plugin/src/deployment/controller/DeploymentController.ts`
-- **Editor session store / handle**: `apps/modeler-plugin/src/shared/infrastructure/EditorSessionStore.ts`, `…/VsCodeEditorHandle.ts`
-- **Document Adapter**: `apps/modeler-plugin/src/shared/infrastructure/VsCodeDocument.ts`
+- **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts`
+- **Session participant interface**: `apps/vscode-plugin/src/modeler/editor-session/EditorSessionParticipant.ts`
+- **BPMN participants / handlers**: `apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/`, `…/webview-handlers/bpmnMessageHandlers.ts`
+- **Message router**: `apps/vscode-plugin/src/shared/infrastructure/WebviewMessageRouter.ts`
+- **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts`
+- **Deployment Controller**: `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts`
+- **Editor session store / handle**: `apps/vscode-plugin/src/shared/infrastructure/EditorSessionStore.ts`, `…/VsCodeEditorHandle.ts`
+- **Document Adapter**: `apps/vscode-plugin/src/shared/infrastructure/VsCodeDocument.ts`
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
-- **Registration**: `apps/modeler-plugin/package.json` → `contributes.customEditors`
-- **Editor wiring**: `apps/modeler-plugin/src/composition/editorFeature.ts`; **activation**: `apps/modeler-plugin/src/main.ts`
+- **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`
+- **Editor wiring**: `apps/vscode-plugin/src/composition/editorFeature.ts`; **activation**: `apps/vscode-plugin/src/main.ts`
 
 ## Related Skills
 
