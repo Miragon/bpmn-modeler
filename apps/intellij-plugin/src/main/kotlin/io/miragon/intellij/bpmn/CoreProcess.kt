@@ -15,6 +15,7 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.util.concurrency.AppExecutorUtil
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.io.BufferedReader
@@ -96,6 +97,10 @@ class CoreProcess(private val project: Project) : Disposable {
     private val diffPaneUris = ConcurrentHashMap<String, List<String>>()
 
     private val writeLock = Any()
+
+    // Read unsynchronized from pushSettings/reregisterLiveSessions/dispose and the
+    // shutdown hook, so its writes must publish safely across threads.
+    @Volatile
     private var process: Process? = null
     private var writer: BufferedWriter? = null
 
@@ -203,15 +208,19 @@ class CoreProcess(private val project: Project) : Disposable {
                 "restart attempt $attempt/$MAX_RESTARTS",
         )
 
-        try {
-            Thread.sleep(RESTART_BACKOFF_MS * attempt)
-        } catch (_: InterruptedException) {
-            return
-        }
-        if (disposed.get()) return
-
-        synchronized(this) { if (process?.isAlive != true) spawn() }
-        reregisterLiveSessions()
+        // Respawn off this thread, not via Thread.sleep: handleExit runs on the
+        // Process.onExit() CompletableFuture callback (ForkJoinPool.commonPool),
+        // and blocking it for the backoff would hold a shared platform pool
+        // thread for up to seconds. Re-check disposed/liveness at fire time.
+        AppExecutorUtil.getAppScheduledExecutorService().schedule(
+            {
+                if (disposed.get()) return@schedule
+                synchronized(this) { if (process?.isAlive != true) spawn() }
+                reregisterLiveSessions()
+            },
+            RESTART_BACKOFF_MS * attempt,
+            TimeUnit.MILLISECONDS,
+        )
     }
 
     /**
