@@ -21,6 +21,11 @@
  * the *same* space as the queried document (URI in → URI out; clean in → clean
  * out). That invariant is what lets `ArtifactService` be reused verbatim across
  * both paths.
+ *
+ * Both hosts send system-independent, forward-slash paths (VS Code URIs and
+ * IntelliJ's `VirtualFile.path`/`url`, which is always `/`-separated even on
+ * Windows), so `posix.*` is the correct path algebra here — never the
+ * platform-dependent `path.*`.
  */
 
 import { watch } from "chokidar";

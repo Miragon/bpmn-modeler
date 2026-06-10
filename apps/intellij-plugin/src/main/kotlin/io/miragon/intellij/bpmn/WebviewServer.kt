@@ -51,8 +51,11 @@ class WebviewServer : Disposable {
     fun ensureStarted(): String {
         baseUrl?.let { return it }
 
-        // Port 0 → the OS assigns a free ephemeral port; bind to loopback only.
-        val httpServer = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0)
+        // Port 0 → the OS assigns a free ephemeral port. Bind to the IPv4 literal
+        // `127.0.0.1` (no DNS), not getLoopbackAddress(): the latter returns `::1`
+        // under -Djava.net.preferIPv6Addresses, but the base URL below advertises
+        // `127.0.0.1`, and the mismatch makes JCEF load a blank editor.
+        val httpServer = HttpServer.create(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0)
         httpServer.createContext("/") { exchange -> handle(exchange) }
         httpServer.executor =
             Executors.newCachedThreadPool { runnable ->
