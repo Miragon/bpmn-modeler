@@ -94,8 +94,8 @@ process remains. Closing the IDE leaves no `modeler-bridge` process behind.
 
 ## Scope
 
-BPMN editor + element templates + Notifier/StatusBar. DMN, diff, deployment, and
-scriptTask are their own follow-up issues (#1067–#1073).
+BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, and
+the inline "Edit Script" tab. DMN has no IntelliJ editor yet.
 
 ## Monorepo hygiene
 

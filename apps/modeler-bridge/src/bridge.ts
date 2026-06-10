@@ -25,8 +25,8 @@
  *                                deployment/postMessage, deploymentState/save*,
  *                                notifier/*, statusBar/*, script/open, script/close
  *
- * DMN is deliberately out of scope here — it is its own follow-up issue; this
- * covers the BPMN editor (#1067), diff (#1069) and deployment (#1071). The
+ * DMN is deliberately out of scope here — it has no IntelliJ editor yet; this
+ * covers the BPMN editor, diff and deployment. The
  * diff path reuses the production diff brain verbatim (`DiffPaneStore` +
  * `BpmnDiffService` + `bpmn-js-differ`), driven by host-originated `diff/*` RPC
  * instead of VS Code's `vscode.diff` + custom-editor resolution.
@@ -233,9 +233,9 @@ export function createBridge(
     // The real webview-message dispatch table. The file/sync/settings/templates/
     // clipboard/navigation handlers call the genuine services; the remaining
     // handshake reply is a bridge-level stub because its real service (properties
-    // panel) pulls in a host port that is a later issue (#1065). It must still
-    // answer, or the webview's `Promise.all` over templates+settings+panel-state
-    // never resolves and bootstrap stalls.
+    // panel) is not wired on this host path. It must still answer, or the
+    // webview's `Promise.all` over templates+settings+panel-state never resolves
+    // and bootstrap stalls.
     const router = new WebviewMessageRouter();
     router
         .on("GetBpmnFileCommand", async (_message: Command, editorId: string) => {

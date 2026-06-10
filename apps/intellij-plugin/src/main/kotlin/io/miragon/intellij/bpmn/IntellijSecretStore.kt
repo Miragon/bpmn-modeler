@@ -10,7 +10,7 @@ import com.intellij.ide.passwordSafe.PasswordSafe
  * equivalent of VS Code's `context.secrets` for deployment basic-auth / OAuth2
  * credentials.
  *
- * **Scope (re-verified for #1065).** [PasswordSafe] is an *application*-level
+ * **Scope.** [PasswordSafe] is an *application*-level
  * service (`PasswordSafe.instance` == `service<PasswordSafe>()`), **not**
  * project-scoped: secrets are keyed only by [CredentialAttributes] and shared
  * across every project window and IDE restart, encrypted at rest in the OS

@@ -69,10 +69,10 @@ build → package plugin → bundle → start chain.
 
 ## Build System
 
-- **Extension host**: Webpack + `ts-loader` — `apps/bpmn-modeler/webpack.config.js`
+- **Extension host**: Webpack + `ts-loader` — `apps/modeler-plugin/webpack.config.js`
 - **Webviews**: Vite — `apps/{bpmn,dmn}-webview/vite.config.mts`
 - **Tests**: Vitest — `apps/modeler-plugin/vitest.config.ts`
-- **Output**: `dist/apps/bpmn-modeler/`
+- **Output**: `dist/apps/modeler-plugin/`
 
 ## Path Aliases (`tsconfig.base.json`)
 

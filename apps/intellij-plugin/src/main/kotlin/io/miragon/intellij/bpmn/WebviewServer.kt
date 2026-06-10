@@ -226,7 +226,7 @@ class WebviewServer : Disposable {
          * lets Chromium (JCEF) resolve `Canvas`/`CanvasText`/`Field`/… to the
          * embedding theme; this is the IntelliJ counterpart of VS Code injecting
          * its theme variables into the webview. (Visual parity should be confirmed
-         * live against a dark IDE theme — see #1071 notes.)
+         * live against a dark IDE theme.)
          */
         val DEPLOYMENT_THEME =
             listOf(

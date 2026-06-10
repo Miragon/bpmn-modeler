@@ -15,7 +15,7 @@ Webview HTML is generated at runtime by functions in the infrastructure layer, n
 
 `bpmnEditorUi()` and `dmnModelerHtml()` generate complete HTML documents:
 
-1. **Asset URI resolution** — Webview files are built by Vite into `dist/apps/bpmn-modeler/<webview-name>/`. At runtime, `webview.asWebviewUri()` converts these file-system paths into special `vscode-resource:` URIs that the webview sandbox can load.
+1. **Asset URI resolution** — Webview files are built by Vite and bundled into `dist/apps/modeler-plugin/<webview-name>/`. At runtime, `webview.asWebviewUri()` converts these file-system paths into special `vscode-resource:` URIs that the webview sandbox can load.
 
 2. **Nonce generation** — A random nonce is generated per HTML render and embedded in both the CSP meta tag and script tags. Only scripts with the matching nonce can execute.
 

@@ -5,8 +5,8 @@
 Accepted (#1062). Parent: epic #920 (IntelliJ host parity). Builds on
 [`modeler-core-extraction.md`](./modeler-core-extraction.md) (#1060, the engine
 package + host-protocol seam) and [`runtime-distribution.md`](./runtime-distribution.md)
-(#1061, the Node-free Bun binary). Foundation for the per-feature host work
-(#1063–#1073).
+(#1061, the Node-free Bun binary). It is the foundation the per-feature host work
+(editor, navigation, diff, deployment, scriptTask) builds on.
 
 ## Context
 
@@ -99,9 +99,8 @@ Deployment credentials (basic-auth / OAuth2) route through `secretStore/*` to
 `context.secrets`. `PasswordSafe` is an *application*-level service (not
 project-scoped): secrets are keyed only by `CredentialAttributes`, shared across
 project windows and IDE restarts, and encrypted at rest in the OS keychain — the
-same scope the core assumes. The port adapter (`RpcSecretStore`) is shipped and
-unit-tested but not yet wired into a service; the deployment feature consumes it
-when it lands.
+same scope the core assumes. The port adapter (`RpcSecretStore`) is wired into
+the deployment feature, which stores basic-auth / OAuth2 credentials through it.
 
 ## Consequences
 

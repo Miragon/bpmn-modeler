@@ -64,8 +64,8 @@ describe("NodeWorkspace.findFiles", () => {
 });
 
 /**
- * The three workspace-folder methods the navigation locator depends on. Until
- * #1070 these were unimplemented stubs that threw — the path that runs
+ * The three workspace-folder methods the navigation locator depends on. These
+ * were once unimplemented stubs that threw — the path that runs
  * `findWorkspaceFolderForDocument` (loose-file detection) and
  * `getDocumentDirectory` (fs-walk root) must work even when the host registers
  * a workspace root, since the locator queries them up front. The
