@@ -424,6 +424,23 @@ class CoreProcess(private val project: Project) : Disposable {
         val params = message.getAsJsonObject("params")
         val id = message.get("id")?.takeIf { !it.isJsonNull }?.asInt
 
+        // A malformed/unexpected frame (missing member, wrong type, a throwing
+        // handler such as a failing PasswordSafe call) must not escape: this runs
+        // on the daemon reader thread, and an escaped exception would kill the
+        // pump — core→host traffic stops forever, and once the stdout pipe fills
+        // the bridge wedges without exiting, so the crash supervisor never fires.
+        // If the frame was a request, also answer it: an unanswered request would
+        // otherwise leak the core's awaiting promise.
+        try {
+            dispatch(method, params, id)
+        } catch (e: Exception) {
+            log.warn("Failed to handle core message ($method): $line", e)
+            id?.let { replyError(it, e.message ?: "host handler failed") }
+        }
+    }
+
+    /** Routes one decoded core frame to its handler. See [onLine] for failure handling. */
+    private fun dispatch(method: String, params: JsonObject, id: Int?) {
         when (method) {
             "editor/postMessage" -> {
                 val editorId = params.get("editorId").asString
@@ -638,6 +655,12 @@ class CoreProcess(private val project: Project) : Disposable {
 
     private fun reply(id: Int, result: Any?) =
         enqueue(gson.toJson(linkedMapOf("id" to id, "result" to result)), null)
+
+    // The bridge's `rpc.ts` turns `{id, error}` into a rejected promise, so a
+    // handler that throws still settles the core's awaiting request instead of
+    // leaking it.
+    private fun replyError(id: Int, message: String) =
+        enqueue(gson.toJson(linkedMapOf("id" to id, "error" to message)), null)
 
     private fun enqueue(line: String, coalesceKey: String?) {
         synchronized(outboundMonitor) {
