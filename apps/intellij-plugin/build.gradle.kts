@@ -54,14 +54,39 @@ val webviewDist = layout.projectDirectory.dir("../../dist/webview-staging/bpmn-w
 val deploymentWebviewDist =
     layout.projectDirectory.dir("../../dist/webview-staging/deployment-webview")
 val bridgeBinary = layout.projectDirectory.file("../../apps/modeler-bridge/dist/modeler-bridge")
+val bridgeDistRoot = layout.projectDirectory.dir("../../apps/modeler-bridge/dist")
 val stagedResourcesRoot = layout.buildDirectory.dir("modeler-resources")
+
+/**
+ * Release distribution mode: when set, stage every per-platform bridge binary
+ * under `bin/<os>-<arch>/` so the published ZIP runs on any host. Default
+ * (host-only) keeps `runIde` and local dev cycles fast — they only need the
+ * one binary that matches the developer's machine.
+ */
+val bundleAllPlatforms = providers.gradleProperty("bundleAllPlatforms").isPresent
+
+/**
+ * The 5 platforms shipped in a release ZIP. Tuples are
+ * (`<os>-<arch>` resource dir, source binary filename produced by Bun).
+ * Bun appends `.exe` to the windows-x64 target; the runtime resolver
+ * (CoreProcess.resolveBridgeBinary) mirrors this — see step 3 of the
+ * distribution plan.
+ */
+val releaseBridgeTargets =
+    listOf(
+        "darwin-arm64" to "modeler-bridge",
+        "darwin-x64" to "modeler-bridge",
+        "linux-x64" to "modeler-bridge",
+        "linux-arm64" to "modeler-bridge",
+        "windows-x64" to "modeler-bridge.exe",
+    )
 
 /**
  * The `<os>-<arch>` directory the bridge binary is staged under and the runtime
  * (CoreProcess) resolves at launch. The Bun `--compile --target` flag decides
- * the binary's real platform; this PR stages only the host target, so the build
- * machine must match the publish target. A release pipeline loops `--target` and
- * stages each platform under its own directory.
+ * the binary's real platform; default (host-only) build stages the host target,
+ * so the build machine must match the publish target. The release pipeline sets
+ * `-PbundleAllPlatforms` to stage every platform under its own directory.
  */
 fun hostPlatformDir(): String {
     val os = System.getProperty("os.name").lowercase()
@@ -110,18 +135,43 @@ val copyDeploymentWebview =
 
 val copyBridge =
     tasks.register<Copy>("copyBridge") {
-        description = "Stages the pre-built Node-free modeler-core bridge binary into plugin resources (extracted and spawned at runtime)."
-        doFirst {
-            if (!bridgeBinary.asFile.exists()) {
-                throw GradleException(
-                    "Modeler bridge binary not found at ${bridgeBinary.asFile}.\n" +
-                        "Run `corepack yarn workspace @miragon/bpmn-modeler-bridge compile` from the repo root first.",
-                )
+        description = "Stages the pre-built Node-free modeler-core bridge binary(ies) into plugin resources (extracted and spawned at runtime)."
+        if (bundleAllPlatforms) {
+            // Release mode: every per-platform binary must exist, otherwise the
+            // shipped ZIP would silently lack a platform.
+            doFirst {
+                val missing =
+                    releaseBridgeTargets.filter { (dir, name) ->
+                        !bridgeDistRoot.file("$dir/$name").asFile.exists()
+                    }
+                if (missing.isNotEmpty()) {
+                    throw GradleException(
+                        "Missing bridge binaries for: ${missing.joinToString { it.first }}.\n" +
+                            "Run `corepack yarn workspace @miragon/bpmn-modeler-bridge compile:all` from the repo root first.",
+                    )
+                }
             }
+            releaseBridgeTargets.forEach { (platformDir, binaryName) ->
+                from(bridgeDistRoot.file("$platformDir/$binaryName")) {
+                    // Preserve the source filename (`.exe` for windows) so the
+                    // runtime resolver finds the right artefact per platform.
+                    into("bin/$platformDir")
+                }
+            }
+            into(stagedResourcesRoot)
+        } else {
+            doFirst {
+                if (!bridgeBinary.asFile.exists()) {
+                    throw GradleException(
+                        "Modeler bridge binary not found at ${bridgeBinary.asFile}.\n" +
+                            "Run `corepack yarn workspace @miragon/bpmn-modeler-bridge compile` from the repo root first.",
+                    )
+                }
+            }
+            from(bridgeBinary)
+            // Lands at `/bin/<os>-<arch>/modeler-bridge` on the classpath (CoreProcess reads it there).
+            into(stagedResourcesRoot.map { it.dir("bin/${hostPlatformDir()}") })
         }
-        from(bridgeBinary)
-        // Lands at `/bin/<os>-<arch>/modeler-bridge` on the classpath (CoreProcess reads it there).
-        into(stagedResourcesRoot.map { it.dir("bin/${hostPlatformDir()}") })
     }
 
 sourceSets.named("main") {

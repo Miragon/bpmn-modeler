@@ -737,14 +737,21 @@ class CoreProcess(private val project: Project) : Disposable {
         cachedBinary?.let { return it }
 
         val platform = platformDir()
-        val resource = "/bin/$platform/$BRIDGE_BINARY_NAME"
+        // Windows refuses to launch an executable without the `.exe` suffix on
+        // both the staged resource and the extracted temp file. Bun's
+        // `--target=bun-windows-x64` produces `modeler-bridge.exe` and Gradle
+        // stages it under the same name, so we mirror that here.
+        val isWindows = platform.startsWith("windows")
+        val binaryName = if (isWindows) "$BRIDGE_BINARY_NAME.exe" else BRIDGE_BINARY_NAME
+        val resource = "/bin/$platform/$binaryName"
         val stream =
             javaClass.getResourceAsStream(resource)
                 ?: error(
                     "No bundled modeler bridge for platform '$platform' ($resource). " +
                         "Build it with `corepack yarn workspace @miragon/bpmn-modeler-bridge compile`.",
                 )
-        val temp = Files.createTempFile("modeler-bridge", "")
+        val tempSuffix = if (isWindows) ".exe" else ""
+        val temp = Files.createTempFile("modeler-bridge", tempSuffix)
         stream.use { Files.copy(it, temp, StandardCopyOption.REPLACE_EXISTING) }
         temp.toFile().setExecutable(true, true)
         temp.toFile().deleteOnExit()
