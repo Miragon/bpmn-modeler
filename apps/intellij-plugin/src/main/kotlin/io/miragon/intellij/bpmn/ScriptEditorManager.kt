@@ -68,8 +68,18 @@ class ScriptEditorManager(
      * Opens a script tab, or reveals the existing one. A re-open never rewrites
      * content: the same [scriptId] maps to the live tab, so in-flight edits the
      * user hasn't synced yet are preserved.
+     *
+     * @param completion Kind-scoped bean/method catalog, attached to the file as
+     *   UserData so [ScriptCompletionContributor] can drive autocomplete and tell
+     *   our script tabs apart from other open files. A re-open keeps the catalog
+     *   already on the tracked file (UserData persists across the reveal).
      */
-    fun openScript(scriptId: String, fileName: String, content: String) {
+    fun openScript(
+        scriptId: String,
+        fileName: String,
+        content: String,
+        completion: ScriptCompletionModel?,
+    ) {
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
             val manager = FileEditorManager.getInstance(project)
@@ -82,6 +92,8 @@ class ScriptEditorManager(
             // The filename's extension is what drives FileType inference (hence
             // highlighting); the content is fixed here, before the listener below.
             val file = LightVirtualFile(fileName, content)
+            // Attach before opening so the contributor sees it on the first keystroke.
+            file.putUserData(SCRIPT_COMPLETION_KEY, completion)
             manager.openFile(file, true)
 
             val document = FileDocumentManager.getInstance().getDocument(file)
