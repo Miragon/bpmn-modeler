@@ -6,10 +6,8 @@ plugin). A stdio JSON-RPC server that runs the **unmodified**
 and the webview, shipped as a **Node-free Bun binary**.
 
 This is the production bridge promised by the #920 spike and the #1060 / #1061
-ADRs — not the `apps/modeler-cli/` browser server (that is a throwaway
-HTTP+WebSocket _External-Tool_ prototype, with a stubbed message router). This
-package imports only the `@miragon/bpmn-modeler-core` public entrypoint, never
-deep plugin paths.
+ADRs. This package imports only the `@miragon/bpmn-modeler-core` public
+entrypoint, never deep plugin paths.
 
 ## Transport — one stdio NDJSON JSON-RPC pipe
 
@@ -49,14 +47,13 @@ another tool) re-renders. The core's `ModelerSession` guard stays wired as a
 second line of defence. This keeps echo prevention in TypeScript — host-agnostic,
 with no cross-process timing assumptions — so every future host inherits it.
 
-> **Why not the `window.__WS_BRIDGE__` / `WebSocketChannelImpl` seam?** That seam
-> (from #1061) is the right tool for the browser/CLI host, where the webview
-> talks to the server directly. In the JCEF host the JVM already owns the
-> browser, so relaying webview messages over the *same* stdio pipe keeps the
-> transport single and supervised (one crash signal, no WS-reconnect ↔
-> stdio-restart reconciliation) and keeps this binary free of a bundled HTTP/WS
-> server and any open TCP port. See
-> `docs/vscode/contributing/architecture/intellij-host-foundation.md`.
+> **Why not a WebSocket seam between the webview and the server?** That would be
+> the right tool for a plain browser host, where the webview talks to the server
+> directly. In the JCEF host the JVM already owns the browser, so relaying
+> webview messages over the *same* stdio pipe keeps the transport single and
+> supervised (one crash signal, no WS-reconnect ↔ stdio-restart reconciliation)
+> and keeps this binary free of a bundled HTTP/WS server and any open TCP port.
+> See `docs/vscode/contributing/architecture/intellij-host-foundation.md`.
 
 ## Scope
 

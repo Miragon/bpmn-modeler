@@ -35,7 +35,7 @@ bridge (`apps/modeler-bridge/`), never reimplemented in Kotlin.
 `docs/vscode/contributing/architecture/intellij-host-foundation.md` records:
 
 - **Transport — one stdio JSON-RPC pipe.** Core↔host *and* the webview-message
-  relay ride a single supervised NDJSON pipe (not the `window.__WS_BRIDGE__` WS
+  relay ride a single supervised NDJSON pipe (not a webview↔server WebSocket
   seam). Single transport ⇒ simplest crash detection/recovery, smallest attack
   surface, leanest binary (no embedded HTTP/WS server, no open port).
 - **Topology — one core per project.** `CoreProcess` is a project-level service,

@@ -45,9 +45,9 @@ Rationale:
   double-hop, since the JVM already owns the browser.
 - **Latency is a non-issue** for BPMN editing; the direct-WS win does not apply.
 
-The `WebSocketChannelImpl` seam remains the right tool for the browser/CLI host
-(`apps/modeler-cli`) and a documented future option if the JS-injection relay
-ever proves a bottleneck.
+A WebSocket seam between the webview and the server would be the right tool for a
+plain browser host, and remains a documented future option if the JS-injection
+relay ever proves a bottleneck.
 
 ## Decision 2 — topology: one core per project
 
@@ -107,10 +107,9 @@ when it lands.
 
 - A second host exists as a thin Kotlin glue layer + a 58 MB Node-free binary;
   no modeling logic crosses the language line.
-- `apps/modeler-bridge` is the production stdio bridge (distinct from the
-  `apps/modeler-cli` browser prototype): `server.ts` (stdio entry) → `bridge.ts`
-  (wiring) → `rpc.ts` / `adapters.ts` / `nodeAdapters.ts`, consuming only the
-  `@miragon/bpmn-modeler-core` public entrypoint.
+- `apps/modeler-bridge` is the production stdio bridge: `server.ts` (stdio entry)
+  → `bridge.ts` (wiring) → `rpc.ts` / `adapters.ts` / `nodeAdapters.ts`, consuming
+  only the `@miragon/bpmn-modeler-core` public entrypoint.
 - DMN, diff, deployment, and scriptTask stay out of scope (their own issues);
   the bridge structure does not preclude them.
 
