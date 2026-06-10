@@ -28,6 +28,7 @@ jobs:
       append-menu: ${{ steps.filter.outputs.append-menu }}
       bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
       modeler-core: ${{ steps.filter.outputs.modeler-core }}
+      modeler-bridge: ${{ steps.filter.outputs.modeler-bridge }}
       modeler-plugin: ${{ steps.filter.outputs.modeler-plugin }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
@@ -51,6 +52,8 @@ jobs:
               - 'libs/bpmn-clipboard/**'
             modeler-core:
               - 'libs/modeler-core/**'
+            modeler-bridge:
+              - 'apps/modeler-bridge/**'
             modeler-plugin:
               - 'apps/modeler-plugin/**'
             bpmn-webview:
@@ -312,6 +315,58 @@ jobs:
           name: modeler-core
           verbose: true
 
+  test-modeler-bridge:
+    needs: detect-changes
+    # Runs when the bridge, core, or shared changes — the bridge specs alias
+    # both @miragon/bpmn-modeler-core and @miragon/bpmn-modeler-shared to their
+    # TS sources, so a core/shared change can break the bridge tests too.
+    if: >-
+      needs.detect-changes.outputs.modeler-bridge == 'true' ||
+      needs.detect-changes.outputs.modeler-core == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    # `pull-requests: write` lets the coverage-report step post/update its
+    # sticky PR comment; job-level scope keeps the broader workflow read-only.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-bridge @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn workspace @miragon/bpmn-modeler-bridge test
+      # Post the coverage table as a sticky PR comment, but only when the
+      # bridge's own files changed — a core/shared-only PR still runs these
+      # tests yet should not surface a bridge coverage comment.
+      - name: Report coverage on the PR
+        if: >-
+          always() && github.event_name == 'pull_request' &&
+          needs.detect-changes.outputs.modeler-bridge == 'true'
+        continue-on-error: true
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: apps/modeler-bridge
+          json-summary-path: ../../coverage/apps/modeler-bridge/coverage-summary.json
+          json-final-path: ../../coverage/apps/modeler-bridge/coverage-final.json
+          name: modeler-bridge
+      - name: Upload coverage to Codecov
+        if: needs.detect-changes.outputs.modeler-bridge == 'true'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/apps/modeler-bridge"
+          fail_ci_if_error: false
+          flags: modeler-bridge
+          name: modeler-bridge
+          verbose: true
+
   # Extension-Host smoke test: the only job that runs the composition root
   # (`activate()` + custom-editor registration) end-to-end in a real VS Code.
   # Kept separate from lint/unit so their fast feedback is never delayed by
@@ -499,6 +554,7 @@ jobs:
       - build-modeler-plugin
       - test-modeler-plugin
       - test-modeler-core
+      - test-modeler-bridge
       - e2e-modeler-plugin
       - test-bpmn-webview
       - test-bpmn-i18n

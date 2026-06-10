@@ -19,6 +19,14 @@ export default defineConfig({
             provider: "v8",
             reportsDirectory: "../../coverage/apps/modeler-bridge",
             reporter: ["text", "html", "lcov", "clover", "json", "json-summary"],
+            // Measured baseline: stmts 87, branches 77, funcs 81, lines 86.
+            // Thresholds set ~4 pts below to leave room for minor drift.
+            thresholds: {
+                statements: 83,
+                branches: 73,
+                functions: 77,
+                lines: 82,
+            },
         },
     },
 });
