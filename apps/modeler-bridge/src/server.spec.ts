@@ -18,6 +18,29 @@ async function settle(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/**
+ * Polls captured frames until `predicate` matches, instead of guessing a fixed
+ * number of `settle()` ticks. A filesystem-backed reload (e.g. re-reading the
+ * element-template folder on a configFolder change) takes an unbounded number of
+ * event-loop turns under load, so a fixed wait races and flakes; polling waits
+ * exactly as long as needed and fails fast with a clear message otherwise.
+ */
+async function waitForFrame(
+    frames: any[],
+    predicate: (frame: any) => boolean,
+    timeoutMs = 5000,
+): Promise<any> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+        const match = frames.find(predicate);
+        if (match) return match;
+        if (Date.now() >= deadline) {
+            throw new Error("Timed out waiting for a matching frame");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+}
+
 /** Frames the host would send to register an open `.bpmn` editor. */
 function registerParams(
     editorId: string,
@@ -265,25 +288,25 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
                 }),
             }),
         );
-        const before = frames.length;
-
         await rpc.handleLine(
             JSON.stringify({
                 method: "settings/didChange",
                 params: { settings: { configFolder: ".camunda-next" } },
             }),
         );
-        await settle();
-        await settle();
 
-        const templates = frames
-            .slice(before)
-            .find(
-                (f) =>
-                    f.method === "editor/postMessage" &&
-                    f.params.message.type === "ElementTemplatesQuery",
-            );
-        expect(templates).toBeDefined();
+        // Only the post-change reload reads `.camunda-next`, so the "Next Template"
+        // payload uniquely identifies the frame we are waiting for — no need to
+        // slice by index or guess the settling time.
+        const templates = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "ElementTemplatesQuery" &&
+                f.params.message.elementTemplates?.some(
+                    (t: { name?: string }) => t?.name === "Next Template",
+                ),
+        );
         expect(templates.params.message.elementTemplates).toContainEqual(
             expect.objectContaining({ name: "Next Template" }),
         );
