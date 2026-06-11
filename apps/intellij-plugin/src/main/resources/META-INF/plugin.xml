@@ -4,13 +4,62 @@
     <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
 
     <description><![CDATA[
-        Opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor that
+        <p>Edit BPMN 2.0 process diagrams visually inside IntelliJ-based IDEs.</p>
+
+        <p>Opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor that
         renders the Miragon bpmn-js modeler and round-trips edits back to disk.
         The modeling engine is the unmodified TypeScript core, run out-of-process
-        as a supervised, self-contained binary — no Node.js install required.
+        as a supervised, self-contained binary — no Node.js install required.</p>
+
+        <h4>Features</h4>
+        <ul>
+            <li>Visual BPMN 2.0 modeler powered by bpmn-js, with a secondary
+                XML tab for source-level inspection and edits.</li>
+            <li>Two-pane diagram diff for Git "Show Diff", "Compare Files",
+                and the Local Changes / commit / log diff previews.</li>
+            <li>Inline "Edit Script" editor for <code>scriptTask</code> bodies
+                with Camunda code completion.</li>
+            <li>Camunda 7 &amp; Camunda 8 deployment tool window for shipping
+                diagrams to a running engine.</li>
+            <li>Status-bar widget showing the engine version and the number of
+                loaded element templates.</li>
+        </ul>
+
+        <p><b>Documentation:</b>
+           <a href="https://miragon.github.io/bpmn-modeler/">miragon.github.io/bpmn-modeler</a></p>
+        <p><b>Source &amp; issues:</b>
+           <a href="https://github.com/Miragon/bpmn-modeler">github.com/Miragon/bpmn-modeler</a></p>
     ]]></description>
 
+    <change-notes><![CDATA[
+        <h4>0.1.2</h4>
+        <ul>
+            <li>Remove the <code>until-build</code> upper bound so the plugin
+                installs on IDE versions newer than 2024.2.</li>
+        </ul>
+
+        <h4>0.1.1</h4>
+        <ul>
+            <li>Distribute the plugin via GitHub Releases and a GitHub Pages
+                custom plugin repository.</li>
+        </ul>
+
+        <h4>0.1.0</h4>
+        <ul>
+            <li>Initial release: JCEF BPMN editor, diagram diff, "Edit Script"
+                with Camunda completion, Camunda 7 &amp; 8 deployment tool
+                window, settings, status-bar widget.</li>
+        </ul>
+    ]]></change-notes>
+
     <depends>com.intellij.modules.platform</depends>
+    <!--
+        XMLLanguage (BpmnFileType's base language) lives in the bundled XML
+        module. The plugin already depends on com.intellij.java, which pulls
+        XML transitively, but declaring it explicitly documents the intent
+        and protects against a future drop of the java dependency.
+    -->
+    <depends>com.intellij.modules.xml</depends>
 
     <!--
         Optional: when the Groovy plugin is present, load the Groovy-only script-tab
@@ -22,6 +71,24 @@
     <depends optional="true" config-file="modeler-groovy.xml">org.intellij.groovy</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <!--
+            Registers `.bpmn` as a real file type so (a) JetBrains Marketplace's
+            Feature Extractor (static bytecode analysis of the `extensions`
+            attribute) can index this plugin as a handler for `.bpmn`, enabling
+            the "Plugins supporting *.bpmn files found" editor banner once
+            published, and (b) `.bpmn` files render with the BPMN icon in the
+            project tree and the secondary text tab keeps XML highlighting.
+            `.bpmn20.xml` is intentionally not listed here — `extensions` only
+            matches the final segment; that variant stays handled by
+            `BpmnFileEditorProvider.accept()` and the platform's plain XML.
+        -->
+        <fileType
+            name="BPMN"
+            implementationClass="io.miragon.intellij.bpmn.BpmnFileType"
+            fieldName="INSTANCE"
+            language="XML"
+            extensions="bpmn"/>
+
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
 
         <!--
