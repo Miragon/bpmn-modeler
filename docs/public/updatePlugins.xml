@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugins>
+  <plugin id="io.miragon.bpmn-modeler"
+          url="https://github.com/Miragon/bpmn-modeler/releases/download/intellij-v0.1.1/bpmn-modeler-intellij-plugin-0.1.1.zip"
+          version="0.1.1">
+    <idea-version since-build="242"/>
+    <name>Miragon BPMN Modeler</name>
+    <vendor>Miragon</vendor>
+    <description><![CDATA[
+Opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor that
+        renders the Miragon bpmn-js modeler and round-trips edits back to disk.
+        The modeling engine is the unmodified TypeScript core, run out-of-process
+        as a supervised, self-contained binary — no Node.js install required.
+    ]]></description>
+  </plugin>
+</plugins>
