@@ -1,11 +1,5 @@
 name: Deploy Docs
 
-# Releases must NOT trigger this workflow: release events run from the tag ref,
-# which the github-pages environment rejects (only branches main/issue-918 are
-# allowed) and which would deploy docs built from the tag commit — missing the
-# updatePlugins.xml that the publish workflows regenerate and push to main
-# afterwards. Those pushes land in docs/** and trigger this workflow via the
-# path filter, so the push-to-main path already covers every docs change.
 on:
   push:
     branches: [main]
