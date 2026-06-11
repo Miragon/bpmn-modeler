@@ -4,6 +4,9 @@ build/
 .gradle/
 .kotlin/
 .idea/
+# Eclipse/Buildship-style classes output — regenerated whenever the project
+# is imported through Eclipse or some IntelliJ run configurations.
+bin/
 
 # Runtime/cache state written by the IntelliJ Platform Gradle Plugin (lock files
 # with a last-checked date, local artifact cache). Regenerated on every build, so
