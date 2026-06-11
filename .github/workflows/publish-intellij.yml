@@ -1,0 +1,191 @@
+name: Publish IntelliJ Plugin
+
+# Triggered by prepare-release-intellij.yml when it publishes an
+# `intellij-v*` GitHub Release. Cross-compiles the modeler-bridge for all
+# 5 supported platforms, builds the plugin ZIP with every binary staged,
+# uploads it to the release, then regenerates docs/public/updatePlugins.xml
+# so the JetBrains custom-repository descriptor served via GitHub Pages
+# advertises the new version. Pushing the regenerated XML to main triggers
+# deploy-docs.yml automatically.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. intellij-v0.1.1) — workflow_dispatch only'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bpmn-modeler-intellij-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    # `release: published` fires for every release in this repo; gate on the
+    # intellij-v* prefix so the VS Code / standalone releases don't trigger
+    # an IntelliJ build.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'intellij-v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+          if [[ "$TAG" != intellij-v* ]]; then
+            echo "Tag '$TAG' is not an intellij-v* tag; aborting." && exit 1
+          fi
+          VERSION="${TAG#intellij-v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Check pinned dependencies
+        uses: Miragon/pin-npm-dependencies@v1
+
+      - name: Corepack enable
+        run: corepack enable
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: yarn
+
+      # JDK 21 matches kotlin.jvmToolchain(21) in build.gradle.kts — otherwise
+      # Gradle downloads its own toolchain on every run.
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Bun is needed for cross-compiling the bridge to all 5 targets. The
+      # `latest` channel tracks releases ≥ 1.1.5 which supports `--target`.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-core @miragon/bpmn-modeler-bridge @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-element-template-chooser
+
+      # The Gradle build only stages already-built artefacts; the JS/Bun side
+      # produces them. Build order: shared libs → webview bundles → bridge.
+      - name: Build shared libraries
+        run: yarn build:libs
+
+      - name: Build bpmn-webview
+        run: yarn build:bpmn-webview
+
+      - name: Build deployment-webview
+        run: yarn build:deployment-webview
+
+      - name: Cross-compile bridge for all platforms
+        run: yarn workspace @miragon/bpmn-modeler-bridge compile:all
+
+      - name: Build plugin ZIP (all platforms)
+        working-directory: apps/intellij-plugin
+        run: ./gradlew buildPlugin -PbundleAllPlatforms --no-daemon
+
+      - name: Locate plugin ZIP
+        id: zip
+        run: |
+          ZIP=$(ls apps/intellij-plugin/build/distributions/*.zip | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "No plugin ZIP produced by buildPlugin." && exit 1
+          fi
+          echo "path=${ZIP}" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$ZIP")" >> "$GITHUB_OUTPUT"
+
+      # #1093 acceptance criterion: log per-platform binary size and total
+      # ZIP size so we can spot if Bun's runtime bloats the artefact.
+      - name: Record artefact sizes
+        run: |
+          {
+            echo "## IntelliJ plugin ZIP"
+            echo
+            echo "- Tag: \`${{ steps.tag.outputs.tag }}\`"
+            echo "- Version: \`${{ steps.tag.outputs.version }}\`"
+            ZIP="${{ steps.zip.outputs.path }}"
+            ZIP_SIZE=$(du -h "$ZIP" | awk '{print $1}')
+            echo "- ZIP: \`$(basename "$ZIP")\` ($ZIP_SIZE)"
+            echo
+            echo "### Per-platform bridge binary sizes"
+            echo
+            echo "| Platform | Binary | Size |"
+            echo "|----------|--------|------|"
+            for d in apps/modeler-bridge/dist/*/; do
+              platform=$(basename "$d")
+              for f in "$d"modeler-bridge*; do
+                if [ -f "$f" ]; then
+                  size=$(du -h "$f" | awk '{print $1}')
+                  echo "| $platform | $(basename "$f") | $size |"
+                fi
+              done
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload ZIP to release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.zip.outputs.path }}" --clobber
+
+      # Regenerate the custom-repository descriptor. The download URL is
+      # composed from the tag and the ZIP filename so the IDE polls the
+      # exact asset we just uploaded.
+      - name: Regenerate updatePlugins.xml
+        run: |
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.zip.outputs.name }}"
+          node .github/scripts/generate-update-plugins-xml.mjs \
+            --version "${{ steps.tag.outputs.version }}" \
+            --download-url "$DOWNLOAD_URL"
+
+      # Push the regenerated XML to main so deploy-docs.yml picks it up and
+      # republishes Pages. The IDE polls the Pages URL — no XML refresh, no
+      # update notification. We stash the generated file across the branch
+      # switch because the working tree is currently on the release tag.
+      - name: Commit updatePlugins.xml to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/${{ github.repository }}"
+          cp -f docs/public/updatePlugins.xml /tmp/updatePlugins.xml
+          git fetch origin main
+          # The regenerated XML differs from the tag's tracked copy, so a plain
+          # `git checkout main` aborts with "local changes would be
+          # overwritten" on any re-publish of an older tag. The file is already
+          # stashed to /tmp, so discarding the worktree change with -f is safe.
+          git checkout -f main
+          git pull --ff-only origin main
+          mkdir -p docs/public
+          cp -f /tmp/updatePlugins.xml docs/public/updatePlugins.xml
+          git add docs/public/updatePlugins.xml
+          if git diff --cached --quiet; then
+            echo "updatePlugins.xml is unchanged on main; nothing to commit."
+          else
+            git commit -m "chore(release): refresh updatePlugins.xml for intellij-v${{ steps.tag.outputs.version }}"
+            git push origin main
+          fi

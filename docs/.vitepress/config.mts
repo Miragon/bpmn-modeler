@@ -19,6 +19,7 @@ export default withMermaid(defineConfig({
         logo: "/miragon-favicon.png",
         nav: [
             { text: "VS Code", link: "/vscode/getting-started" },
+            { text: "IntelliJ", link: "/intellij/getting-started" },
             { text: "Standalone", link: "/standalone/getting-started" },
             { text: "Features", link: "/vscode/features/" },
         ],
@@ -29,6 +30,12 @@ export default withMermaid(defineConfig({
                     items: [
                         { text: "Installation & Quick Start", link: "/vscode/getting-started" },
                         { text: "Configuration", link: "/vscode/configuration" },
+                    ],
+                },
+                {
+                    text: "IntelliJ (Preview)",
+                    items: [
+                        { text: "Getting Started", link: "/intellij/getting-started" },
                     ],
                 },
                 {

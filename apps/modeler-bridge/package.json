@@ -13,6 +13,12 @@
     "scripts": {
         "typecheck": "tsc -p tsconfig.app.json --noEmit",
         "compile": "bun build --compile --target=bun-darwin-arm64 src/server.ts --outfile dist/modeler-bridge",
+        "compile:darwin-arm64": "bun build --compile --target=bun-darwin-arm64 src/server.ts --outfile dist/darwin-arm64/modeler-bridge",
+        "compile:darwin-x64": "bun build --compile --target=bun-darwin-x64 src/server.ts --outfile dist/darwin-x64/modeler-bridge",
+        "compile:linux-x64": "bun build --compile --target=bun-linux-x64 src/server.ts --outfile dist/linux-x64/modeler-bridge",
+        "compile:linux-arm64": "bun build --compile --target=bun-linux-arm64 src/server.ts --outfile dist/linux-arm64/modeler-bridge",
+        "compile:windows-x64": "bun build --compile --target=bun-windows-x64 src/server.ts --outfile dist/windows-x64/modeler-bridge.exe",
+        "compile:all": "npm-run-all -p compile:darwin-arm64 compile:darwin-x64 compile:linux-x64 compile:linux-arm64 compile:windows-x64",
         "build": "npm-run-all -s typecheck compile",
         "start": "bun run src/server.ts",
         "test": "vitest run --coverage"
