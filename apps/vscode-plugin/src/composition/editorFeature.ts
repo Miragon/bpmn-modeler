@@ -30,6 +30,7 @@ import {
     setTextClipboardHandler,
     syncDocumentHandler,
     openScriptEditorHandler,
+    updateScriptVariablesHandler,
     navigateToReferencedModelHandler,
 } from "../modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers";
 import {
@@ -38,17 +39,19 @@ import {
 } from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
+import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { SharedDeps } from "./sharedDeps";
 
 /**
  * Lifecycle-bearing collaborators owned by sibling features that the editor
  * routes into: the diff controller decides whether a resolved pane is a diff
- * view, and the script-task service handles inline-editor messages and teardown.
+ * view, the script-task service handles inline-editor messages and teardown,
+ * and the variable store feeds script completion.
  */
 interface EditorHandles {
     diffController: BpmnDiffController;
     scriptTaskSvc: ScriptTaskService;
+    scriptVariableStore: ScriptVariableStore;
 }
 
 /**
@@ -63,7 +66,7 @@ export function register(
     deps: SharedDeps,
     handles: EditorHandles,
 ): { bpmnService: BpmnModelerService } {
-    const { diffController, scriptTaskSvc } = handles;
+    const { diffController, scriptTaskSvc, scriptVariableStore } = handles;
 
     const panelStateRepo = new PropertiesPanelStateRepository(context);
     const bpmnService = new BpmnModelerService(
@@ -119,7 +122,8 @@ export function register(
         .on("GetTextClipboardCommand", getTextClipboardHandler(clipboardMediator))
         .on("SetTextClipboardCommand", setTextClipboardHandler(clipboardMediator))
         .on("SyncDocumentCommand", syncDocumentHandler(bpmnService))
-        .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc))
+        .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc, scriptVariableStore))
+        .on("UpdateScriptVariablesCommand", updateScriptVariablesHandler(scriptVariableStore))
         .on(
             "NavigateToReferencedModelCommand",
             navigateToReferencedModelHandler(
@@ -140,7 +144,7 @@ export function register(
             new ElementTemplatesParticipant(templatesSvc, deps.artifactSvc, deps.notifier),
             new SettingsParticipant(settingsBroadcaster),
             new EngineVersionStatusBarParticipant(deps.statusBar, deps.vsDocument),
-            new ScriptTaskTeardownParticipant(scriptTaskSvc),
+            new ScriptTaskTeardownParticipant(scriptTaskSvc, scriptVariableStore),
         ],
         // Diff routing: when the URI resolves as a diff pane the diff controller
         // owns it, so signal "handled" and skip editor-session creation.

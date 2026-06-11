@@ -1,0 +1,270 @@
+/**
+ * Pure, bpmn-js-free extraction of process-variable evidence from a moddle
+ * definitions tree.
+ *
+ * Process variables are a *runtime* concept with no design-time declaration in
+ * BPMN, so design-time IntelliSense has to assemble a best-effort model from
+ * static evidence: parameter mappings, form fields, result variables,
+ * call-activity mappings, and `setVariable(...)` / `${...}` occurrences inside
+ * script and expression strings. We deliberately never touch XML text — only
+ * the `$type`-discriminated plain objects bpmn-js hands us via
+ * `getDefinitions()` — so the same code runs in the webview and against
+ * object-literal fixtures in tests.
+ *
+ * Two confidence tiers drive how aggressively a name is surfaced: a `declared`
+ * variable has a concrete producer (an output mapping, a result variable, a
+ * form field, a `setVariable` call) and outranks a merely `referenced` one
+ * (seen only inside a `${...}` read), which might be a typo or a variable
+ * injected from outside the model.
+ */
+
+export type VariableConfidence = "declared" | "referenced";
+
+/**
+ * A single process variable discovered from static model evidence.
+ *
+ * {@link origin} is human-facing (shown in completion docs) and names the
+ * element + evidence kind so the author can trace where a suggestion came from.
+ */
+export interface VariableDef {
+    readonly name: string;
+    readonly origin: string;
+    readonly typeHint?: string;
+    readonly confidence: VariableConfidence;
+}
+
+/**
+ * Names that look like variable references inside `${...}` but are reserved
+ * Camunda/expression-language identifiers, never process variables. Filtering
+ * them keeps `referenced` evidence from polluting completion with `execution`,
+ * `true`, etc.
+ */
+const RESERVED_EXPRESSION_NAMES: ReadonlySet<string> = new Set([
+    "execution",
+    "task",
+    "eventName",
+    "true",
+    "false",
+    "null",
+    "empty",
+]);
+
+// `setVariable("x")` / `setVariableLocal('x')` literals. Group 2 is the name;
+// the back-reference \1 forces matching quote styles. A `\\`-free char class
+// keeps the match to a single, un-escaped string literal.
+const SET_VARIABLE_RE = /setVariable(?:Local)?\s*\(\s*(["'])([^"'\\]+)\1/g;
+
+// `${var}` / `#{var}` — the leading identifier of a JUEL/EL expression. Only
+// the first identifier is captured: `${a.b}` yields `a`, the variable in scope.
+const EXPRESSION_REF_RE = /[$#]\{\s*([A-Za-z_$][A-Za-z0-9_$]*)/g;
+
+/**
+ * Returns the variable names written by `setVariable`/`setVariableLocal` string
+ * literals in a script body. Exported for unit testing the regex in isolation.
+ */
+export function collectSetVariableNames(script: string): string[] {
+    const names: string[] = [];
+    for (const match of script.matchAll(SET_VARIABLE_RE)) {
+        names.push(match[2]);
+    }
+    return names;
+}
+
+/**
+ * Returns the leading identifiers referenced by `${...}` / `#{...}` expressions,
+ * minus reserved names. Exported for unit testing the regex in isolation.
+ */
+export function collectExpressionRefs(expression: string): string[] {
+    const names: string[] = [];
+    for (const match of expression.matchAll(EXPRESSION_REF_RE)) {
+        const name = match[1];
+        if (!RESERVED_EXPRESSION_NAMES.has(name)) {
+            names.push(name);
+        }
+    }
+    return names;
+}
+
+/**
+ * Collapses duplicate names to one entry each, with `declared` evidence winning
+ * over `referenced` (a concrete producer beats a bare read), and — among equal
+ * confidence — a typed entry winning over an untyped one. Order of first
+ * appearance is otherwise preserved so the completion list stays stable.
+ */
+export function dedupeVariables(vars: VariableDef[]): VariableDef[] {
+    const byName = new Map<string, VariableDef>();
+    for (const candidate of vars) {
+        const existing = byName.get(candidate.name);
+        byName.set(candidate.name, existing ? preferred(existing, candidate) : candidate);
+    }
+    return [...byName.values()];
+}
+
+/** Picks the stronger of two same-named variable definitions. */
+function preferred(a: VariableDef, b: VariableDef): VariableDef {
+    if (a.confidence !== b.confidence) {
+        return a.confidence === "declared" ? a : b;
+    }
+    if (a.typeHint && !b.typeHint) {
+        return a;
+    }
+    if (b.typeHint && !a.typeHint) {
+        return b;
+    }
+    return a;
+}
+
+/**
+ * Walks every `bpmn:Process` root (recursing into sub-process `flowElements`)
+ * and assembles the deduplicated process-variable model.
+ *
+ * Scope is process-wide for Phase 1: input-parameter names are technically
+ * element-local, but per-element scoping is cheap to add later because the
+ * script URI already carries the `elementId`.
+ */
+export function extractProcessVariables(definitions: any): VariableDef[] {
+    const out: VariableDef[] = [];
+    const rootElements: any[] = definitions?.rootElements ?? [];
+    for (const root of rootElements) {
+        if (root?.$type === "bpmn:Process") {
+            collectFromFlowElements(root.flowElements ?? [], out);
+        }
+    }
+    return dedupeVariables(out);
+}
+
+/** Recurses the flow-element tree, collecting evidence from each element. */
+function collectFromFlowElements(flowElements: any[], out: VariableDef[]): void {
+    for (const element of flowElements) {
+        collectFromElement(element, out);
+        // Sub-processes (`bpmn:SubProcess`, `bpmn:Transaction`, …) nest their
+        // own flow elements; variables they produce are visible process-wide.
+        if (Array.isArray(element?.flowElements)) {
+            collectFromFlowElements(element.flowElements, out);
+        }
+    }
+}
+
+/** Collects every evidence kind carried directly on a single flow element. */
+function collectFromElement(element: any, out: VariableDef[]): void {
+    const label = elementLabel(element);
+
+    // `camunda:resultVariable` on Script/Service/BusinessRule tasks.
+    if (typeof element?.resultVariable === "string" && element.resultVariable) {
+        out.push({
+            name: element.resultVariable,
+            origin: `result variable of ${label}`,
+            confidence: "declared",
+        });
+    }
+
+    // Inline script-task body: `setVariable(...)` literals.
+    if (element?.$type === "bpmn:ScriptTask" && typeof element.script === "string") {
+        for (const name of collectSetVariableNames(element.script)) {
+            out.push({ name, origin: `script of ${label}`, confidence: "declared" });
+        }
+    }
+
+    // Sequence-flow condition expression: `${var}` reads.
+    const condition = element?.conditionExpression;
+    if (condition && typeof condition.body === "string") {
+        for (const name of collectExpressionRefs(condition.body)) {
+            out.push({ name, origin: `condition on ${label}`, confidence: "referenced" });
+        }
+    }
+
+    for (const extension of element?.extensionElements?.values ?? []) {
+        collectFromExtension(extension, label, out);
+    }
+}
+
+/** Collects evidence from one `extensionElements` child. */
+function collectFromExtension(extension: any, label: string, out: VariableDef[]): void {
+    switch (extension?.$type) {
+        case "camunda:InputOutput": {
+            for (const param of extension.inputParameters ?? []) {
+                pushParameterName(param, `input mapping of ${label}`, out);
+                pushParameterValueRefs(param, `input mapping of ${label}`, out);
+            }
+            for (const param of extension.outputParameters ?? []) {
+                pushParameterName(param, `output mapping of ${label}`, out);
+                pushParameterValueRefs(param, `output mapping of ${label}`, out);
+            }
+            break;
+        }
+        case "camunda:FormData": {
+            for (const field of extension.fields ?? []) {
+                if (typeof field?.id === "string" && field.id) {
+                    out.push({
+                        name: field.id,
+                        origin: `form field of ${label}`,
+                        typeHint: typeof field.type === "string" ? field.type : undefined,
+                        confidence: "declared",
+                    });
+                }
+            }
+            break;
+        }
+        // `camunda:In.source` reads a variable from the *calling* process.
+        case "camunda:In": {
+            if (typeof extension.source === "string" && extension.source) {
+                out.push({
+                    name: extension.source,
+                    origin: `in mapping of ${label}`,
+                    confidence: "referenced",
+                });
+            }
+            if (typeof extension.sourceExpression === "string") {
+                for (const name of collectExpressionRefs(extension.sourceExpression)) {
+                    out.push({ name, origin: `in mapping of ${label}`, confidence: "referenced" });
+                }
+            }
+            break;
+        }
+        // `camunda:Out.target` writes a variable back into the calling process.
+        case "camunda:Out": {
+            if (typeof extension.target === "string" && extension.target) {
+                out.push({
+                    name: extension.target,
+                    origin: `out mapping of ${label}`,
+                    confidence: "declared",
+                });
+            }
+            break;
+        }
+        case "camunda:ExecutionListener":
+        case "camunda:TaskListener": {
+            if (extension.script && typeof extension.script.value === "string") {
+                for (const name of collectSetVariableNames(extension.script.value)) {
+                    out.push({
+                        name,
+                        origin: `listener script of ${label}`,
+                        confidence: "declared",
+                    });
+                }
+            }
+            break;
+        }
+    }
+}
+
+/** A mapped parameter's `name` is a declared variable (output) or local (input). */
+function pushParameterName(param: any, origin: string, out: VariableDef[]): void {
+    if (typeof param?.name === "string" && param.name) {
+        out.push({ name: param.name, origin, confidence: "declared" });
+    }
+}
+
+/** A mapped parameter's `value` may read other variables via `${...}`. */
+function pushParameterValueRefs(param: any, origin: string, out: VariableDef[]): void {
+    if (typeof param?.value === "string") {
+        for (const name of collectExpressionRefs(param.value)) {
+            out.push({ name, origin, confidence: "referenced" });
+        }
+    }
+}
+
+/** Quoted element id for an origin string, falling back when no id is present. */
+function elementLabel(element: any): string {
+    return typeof element?.id === "string" && element.id ? `"${element.id}"` : "an element";
+}

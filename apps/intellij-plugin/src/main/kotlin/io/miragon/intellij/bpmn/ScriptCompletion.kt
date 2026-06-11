@@ -14,8 +14,30 @@ import com.intellij.openapi.vfs.VirtualFile
  * BPMN/Camunda knowledge — only the rendering of an opaque, pre-scoped catalog.
  */
 
-/** Root of the `script/open.completion` payload: the beans in scope for this script's kind. */
-data class ScriptCompletionModel(val beans: List<BeanInfo>)
+/**
+ * Root of the `script/open.completion` payload: the beans in scope for this
+ * script's kind, plus the process variables extracted from the model.
+ *
+ * [variables] **must** be nullable: Gson instantiates this class via Unsafe and
+ * leaves a missing JSON member null even on a non-null Kotlin type, so an open
+ * payload from an older bridge (no `variables` key) would otherwise carry a
+ * deceptive non-null default. A nullable field makes the absence explicit.
+ */
+data class ScriptCompletionModel(
+    val beans: List<BeanInfo>,
+    val variables: List<VariableInfo>? = null,
+)
+
+/**
+ * A process variable surfaced by the model's static extraction. [origin] and
+ * [typeHint] are nullable for the same Gson reason as above and because the
+ * core only sets `typeHint` when it knows one (e.g. a form field's type).
+ */
+data class VariableInfo(
+    val name: String,
+    val origin: String?,
+    val typeHint: String?,
+)
 
 /**
  * A global bean injected into the script context (e.g. `execution`). [methods]
@@ -60,3 +82,23 @@ private val MEMBER_ACCESS = Regex("([A-Za-z_][A-Za-z0-9_]*)\\.\\s*$")
  */
 fun matchMemberAccess(linePrefix: String): String? =
     MEMBER_ACCESS.find(linePrefix)?.groupValues?.get(1)
+
+// `getVariable("…` / `setVariableLocal('…` with an unterminated string argument
+// at the end of the line — the `$` anchor scopes the match to the cursor.
+private val VARIABLE_STRING_ARG =
+    Regex("""((?:get|set|has|remove)Variable(?:Local)?)\s*\(\s*["']([^"'\\]*)$""")
+
+/** The method name + partial variable name when the cursor sits inside a `getVariable("…` argument. */
+data class VariableStringArg(val methodName: String, val partial: String)
+
+/**
+ * Returns the method name and partial variable name when [linePrefix] ends
+ * inside the string argument of a `getVariable`/`setVariable`/… call, else null.
+ *
+ * Port of `matchVariableStringArg` in core's `scriptCompletion.ts`; drives the
+ * host's variable-name completion mode.
+ */
+fun matchVariableStringArg(linePrefix: String): VariableStringArg? {
+    val match = VARIABLE_STRING_ARG.find(linePrefix) ?: return null
+    return VariableStringArg(match.groupValues[1], match.groupValues[2])
+}

@@ -49,6 +49,16 @@ class ScriptCompletionContributor : CompletionContributor() {
             val lineStart = document.getLineStartOffset(document.getLineNumber(offset))
             val linePrefix = document.getText(TextRange(lineStart, offset))
 
+            // Variable mode: the cursor is inside a `getVariable("…` argument.
+            // Re-anchor the prefix matcher to the partial typed since the quote
+            // (IntelliJ's default prefix would be empty at a non-identifier caret).
+            val variableArg = matchVariableStringArg(linePrefix)
+            if (variableArg != null) {
+                val prefixed = result.withPrefixMatcher(variableArg.partial)
+                model.variables.orEmpty().forEach { prefixed.addElement(variableLookup(it)) }
+                return
+            }
+
             val bean = matchMemberAccess(linePrefix)
             if (bean != null) {
                 // Member mode: only the matched bean's methods. An unknown bean
@@ -59,8 +69,13 @@ class ScriptCompletionContributor : CompletionContributor() {
                 return
             }
 
-            // Root mode: the in-scope bean names.
+            // Root mode: in-scope bean names, then process variables (beans win
+            // any name clash, matching the VS Code provider).
             model.beans.forEach { result.addElement(beanLookup(it)) }
+            val beanNames = model.beans.map { it.name }.toSet()
+            model.variables.orEmpty()
+                .filter { it.name !in beanNames }
+                .forEach { result.addElement(variableLookup(it)) }
         }
 
         /** Bean as a variable-icon lookup: `name`, type on the right, description greyed. */
@@ -69,6 +84,13 @@ class ScriptCompletionContributor : CompletionContributor() {
                 .withIcon(AllIcons.Nodes.Variable)
                 .withTypeText(bean.type)
                 .appendTailText("  ${bean.description}", true)
+
+        /** Process variable as a variable-icon lookup: typeHint (or a generic label) right, origin greyed. */
+        private fun variableLookup(variable: VariableInfo) =
+            LookupElementBuilder.create(variable.name)
+                .withIcon(AllIcons.Nodes.Variable)
+                .withTypeText(variable.typeHint ?: "process variable")
+                .appendTailText(variable.origin?.let { "  $it" }.orEmpty(), true)
 
         /**
          * Method as a method-icon lookup: `name`, `(params)` tail, return type on

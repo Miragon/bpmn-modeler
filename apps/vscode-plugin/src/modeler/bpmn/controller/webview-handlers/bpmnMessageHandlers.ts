@@ -6,9 +6,10 @@ import {
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
+    UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
+import { EditorSessionStore, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
 import { MessageHandler } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
@@ -125,10 +126,20 @@ export function syncDocumentHandler(bpmnService: BpmnModelerService): MessageHan
     };
 }
 
-/** `OpenScriptEditorCommand` → open the inline script in a virtual editor. */
-export function openScriptEditorHandler(scriptTaskSvc: ScriptTaskService): MessageHandler {
+/**
+ * `OpenScriptEditorCommand` → open the inline script in a virtual editor.
+ *
+ * Seeds the variable store from the command's `variables` first so completion
+ * is accurate before the very first keystroke, even if no live
+ * `UpdateScriptVariablesCommand` has arrived yet.
+ */
+export function openScriptEditorHandler(
+    scriptTaskSvc: ScriptTaskService,
+    variableStore: ScriptVariableStore,
+): MessageHandler {
     return async (message: Command, editorId: string) => {
         const cmd = message as OpenScriptEditorCommand;
+        variableStore.set(editorId, cmd.variables ?? []);
         await scriptTaskSvc.openScriptEditor(
             editorId,
             cmd.elementId,
@@ -138,6 +149,13 @@ export function openScriptEditorHandler(scriptTaskSvc: ScriptTaskService): Messa
             cmd.scriptFormat,
             cmd.content,
         );
+    };
+}
+
+/** `UpdateScriptVariablesCommand` → replace the editor's variable model for live completion. */
+export function updateScriptVariablesHandler(variableStore: ScriptVariableStore): MessageHandler {
+    return (message: Command, editorId: string) => {
+        variableStore.set(editorId, (message as UpdateScriptVariablesCommand).variables);
     };
 }
 

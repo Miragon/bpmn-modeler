@@ -30,6 +30,7 @@ import {
     ScriptKind,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
+    VariableDef,
 } from "@miragon/bpmn-modeler-shared";
 
 import { Rpc } from "./rpc";
@@ -50,6 +51,11 @@ interface TrackedScript {
  */
 export class BridgeScriptEditor {
     private readonly scripts = new Map<string, TrackedScript>();
+
+    // Latest process-variable model per editor. Seeded on open and replaced on
+    // every `UpdateScriptVariablesCommand`; read both into the `script/open`
+    // payload and the per-script `script/updateVariables` push.
+    private readonly variablesByEditor = new Map<string, VariableDef[]>();
 
     constructor(
         private readonly store: EditorSessionStore,
@@ -96,13 +102,18 @@ export class BridgeScriptEditor {
             listenerIndex: cmd.listenerIndex,
         });
 
+        // Seed the editor's variable model from the open command so the host has
+        // variable completion before the first live update arrives.
+        this.variablesByEditor.set(editorId, cmd.variables ?? []);
+
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
         // `completion` ships the kind-scoped bean/method catalog resolved *here*
         // so the thin Kotlin host never needs to know which beans belong to which
         // kind — it just renders what it is handed (VS Code's
         // `registerCompletionItemProvider` has no PSI-based analogue, so the host
-        // drives a `CompletionContributor` off this payload instead).
+        // drives a `CompletionContributor` off this payload instead). `variables`
+        // rides alongside so the host can complete process-variable names too.
         this.rpc.notify("script/open", {
             scriptId,
             fileName: uri.filename,
@@ -117,8 +128,23 @@ export class BridgeScriptEditor {
                     // they have no member completion.
                     methods: methodsForBean(bean),
                 })),
+                variables: this.variablesByEditor.get(editorId) ?? [],
             },
         });
+    }
+
+    /**
+     * Replaces an editor's process-variable model and pushes it to every open
+     * script tab of that editor via `script/updateVariables`, so completion goes
+     * live without reopening. Scoped to the originating editor's scripts only.
+     */
+    updateVariables(editorId: string, variables: VariableDef[]): void {
+        this.variablesByEditor.set(editorId, variables);
+        for (const [scriptId, entry] of this.scripts) {
+            if (entry.editorId === editorId) {
+                this.rpc.notify("script/updateVariables", { scriptId, variables });
+            }
+        }
     }
 
     /** Host reported an edit in the script editor → push it into the owning webview. */
@@ -159,6 +185,7 @@ export class BridgeScriptEditor {
                 this.scripts.delete(scriptId);
             }
         }
+        this.variablesByEditor.delete(editorId);
     }
 
     /**

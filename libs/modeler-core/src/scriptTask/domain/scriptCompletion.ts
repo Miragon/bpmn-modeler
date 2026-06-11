@@ -24,6 +24,38 @@ export function matchMemberAccess(linePrefix: string): string | undefined {
     return match ? match[1] : undefined;
 }
 
+// `getVariable("…` / `setVariableLocal('…` etc. with an *unterminated* string
+// argument at the end of the line. Group 1 is the method name (Local suffix
+// included), group 2 the partial variable name typed so far (possibly empty,
+// right after the opening quote). The absence of a closing quote is what scopes
+// this to "the cursor is inside the variable-name argument".
+const VARIABLE_STRING_ARG = /((?:get|set|has|remove)Variable(?:Local)?)\s*\(\s*["']([^"'\\]*)$/;
+
+/**
+ * When the cursor sits inside the string argument of a
+ * `getVariable`/`setVariable`/`hasVariable`/`removeVariable` (`Local`) call,
+ * returns the method name and the partial variable name typed so far. Drives
+ * variable-name completion; `undefined` for any other position so the provider
+ * falls through to its bean/root modes.
+ */
+export function matchVariableStringArg(
+    linePrefix: string,
+): { methodName: string; partial: string } | undefined {
+    const match = VARIABLE_STRING_ARG.exec(linePrefix);
+    return match ? { methodName: match[1], partial: match[2] } : undefined;
+}
+
+/**
+ * Extracts the editor hash (first path segment) from a `bpmn-script://` URI
+ * path. The hash keys the host-side variable store, which the completion
+ * provider reads to scope suggestions to the BPMN editor the script belongs to.
+ *
+ * Path shape: `/<editorHash>/<elementId>/<slug>/<filename>`.
+ */
+export function parseEditorHashFromUri(path: string): string | undefined {
+    return path.split("/").filter(Boolean)[0];
+}
+
 /**
  * Extracts the script kind from a `bpmn-script://` URI path written by
  * `ScriptUri.slug`.
