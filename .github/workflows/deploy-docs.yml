@@ -6,8 +6,6 @@ on:
     paths:
       - 'docs/**'
       - '.github/workflows/deploy-docs.yml'
-  release:
-    types: [published]
   workflow_dispatch:
 
 permissions:
