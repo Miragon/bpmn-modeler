@@ -4,13 +4,43 @@
     <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
 
     <description><![CDATA[
-        Opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor that
-        renders the Miragon bpmn-js modeler and round-trips edits back to disk.
-        The modeling engine is the unmodified TypeScript core, run out-of-process
-        as a supervised, self-contained binary — no Node.js install required.
+        <p>Model BPMN 2.0 process diagrams visually, right inside your JetBrains IDE —
+        no need to switch to a separate modeling tool.</p>
+
+        <p>Open any <code>.bpmn</code> file on a drag-and-drop canvas and edit it like a
+        diagram; your changes are saved straight back to the file, ready to commit
+        alongside your code.</p>
+
+        <h4>Highlights</h4>
+        <ul>
+            <li>Draw and edit BPMN 2.0 diagrams on a visual canvas, with a source view
+                for when you need it.</li>
+            <li>Compare two versions of a diagram side by side in your IDE's diff and
+                version-control views.</li>
+            <li>Write task scripts with context-aware suggestions.</li>
+            <li>Deploy diagrams to a running Camunda 7 or Camunda 8 engine without
+                leaving the IDE.</li>
+        </ul>
+
+        <p>For the complete feature list and documentation, visit
+           <a href="https://miragon.github.io/bpmn-modeler/">miragon.github.io/bpmn-modeler</a>.</p>
+        <p><b>Source &amp; issues:</b>
+           <a href="https://github.com/Miragon/bpmn-modeler">github.com/Miragon/bpmn-modeler</a></p>
     ]]></description>
 
+    <change-notes><![CDATA[
+        <p>See the full changelog and release notes on
+           <a href="https://github.com/Miragon/bpmn-modeler/releases">GitHub Releases</a>.</p>
+    ]]></change-notes>
+
     <depends>com.intellij.modules.platform</depends>
+    <!--
+        XMLLanguage (BpmnFileType's base language) lives in the bundled XML
+        module. The plugin already depends on com.intellij.java, which pulls
+        XML transitively, but declaring it explicitly documents the intent
+        and protects against a future drop of the java dependency.
+    -->
+    <depends>com.intellij.modules.xml</depends>
 
     <!--
         Optional: when the Groovy plugin is present, load the Groovy-only script-tab
@@ -22,6 +52,24 @@
     <depends optional="true" config-file="modeler-groovy.xml">org.intellij.groovy</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <!--
+            Registers `.bpmn` as a real file type so (a) JetBrains Marketplace's
+            Feature Extractor (static bytecode analysis of the `extensions`
+            attribute) can index this plugin as a handler for `.bpmn`, enabling
+            the "Plugins supporting *.bpmn files found" editor banner once
+            published, and (b) `.bpmn` files render with the BPMN icon in the
+            project tree and the secondary text tab keeps XML highlighting.
+            `.bpmn20.xml` is intentionally not listed here — `extensions` only
+            matches the final segment; that variant stays handled by
+            `BpmnFileEditorProvider.accept()` and the platform's plain XML.
+        -->
+        <fileType
+            name="BPMN"
+            implementationClass="io.miragon.intellij.bpmn.BpmnFileType"
+            fieldName="INSTANCE"
+            language="XML"
+            extensions="bpmn"/>
+
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
 
         <!--
