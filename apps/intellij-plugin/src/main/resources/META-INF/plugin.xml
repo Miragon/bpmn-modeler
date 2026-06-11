@@ -4,52 +4,34 @@
     <vendor email="info@miragon.io" url="https://miragon.io">Miragon</vendor>
 
     <description><![CDATA[
-        <p>Edit BPMN 2.0 process diagrams visually inside IntelliJ-based IDEs.</p>
+        <p>Model BPMN 2.0 process diagrams visually, right inside your JetBrains IDE —
+        no need to switch to a separate modeling tool.</p>
 
-        <p>Opens <code>.bpmn</code> files in a JCEF (embedded Chromium) editor that
-        renders the Miragon bpmn-js modeler and round-trips edits back to disk.
-        The modeling engine is the unmodified TypeScript core, run out-of-process
-        as a supervised, self-contained binary — no Node.js install required.</p>
+        <p>Open any <code>.bpmn</code> file on a drag-and-drop canvas and edit it like a
+        diagram; your changes are saved straight back to the file, ready to commit
+        alongside your code.</p>
 
-        <h4>Features</h4>
+        <h4>Highlights</h4>
         <ul>
-            <li>Visual BPMN 2.0 modeler powered by bpmn-js, with a secondary
-                XML tab for source-level inspection and edits.</li>
-            <li>Two-pane diagram diff for Git "Show Diff", "Compare Files",
-                and the Local Changes / commit / log diff previews.</li>
-            <li>Inline "Edit Script" editor for <code>scriptTask</code> bodies
-                with Camunda code completion.</li>
-            <li>Camunda 7 &amp; Camunda 8 deployment tool window for shipping
-                diagrams to a running engine.</li>
-            <li>Status-bar widget showing the engine version and the number of
-                loaded element templates.</li>
+            <li>Draw and edit BPMN 2.0 diagrams on a visual canvas, with a source view
+                for when you need it.</li>
+            <li>Compare two versions of a diagram side by side in your IDE's diff and
+                version-control views.</li>
+            <li>Write task scripts with context-aware suggestions.</li>
+            <li>Deploy diagrams to a running Camunda 7 or Camunda 8 engine without
+                leaving the IDE.</li>
+            <li>Keep an eye on engine and template status from the status bar.</li>
         </ul>
 
-        <p><b>Documentation:</b>
-           <a href="https://miragon.github.io/bpmn-modeler/">miragon.github.io/bpmn-modeler</a></p>
+        <p>For the complete feature list and documentation, visit
+           <a href="https://miragon.github.io/bpmn-modeler/">miragon.github.io/bpmn-modeler</a>.</p>
         <p><b>Source &amp; issues:</b>
            <a href="https://github.com/Miragon/bpmn-modeler">github.com/Miragon/bpmn-modeler</a></p>
     ]]></description>
 
     <change-notes><![CDATA[
-        <h4>0.1.2</h4>
-        <ul>
-            <li>Remove the <code>until-build</code> upper bound so the plugin
-                installs on IDE versions newer than 2024.2.</li>
-        </ul>
-
-        <h4>0.1.1</h4>
-        <ul>
-            <li>Distribute the plugin via GitHub Releases and a GitHub Pages
-                custom plugin repository.</li>
-        </ul>
-
-        <h4>0.1.0</h4>
-        <ul>
-            <li>Initial release: JCEF BPMN editor, diagram diff, "Edit Script"
-                with Camunda completion, Camunda 7 &amp; 8 deployment tool
-                window, settings, status-bar widget.</li>
-        </ul>
+        <p>See the full changelog and release notes on
+           <a href="https://github.com/Miragon/bpmn-modeler/releases">GitHub Releases</a>.</p>
     ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
