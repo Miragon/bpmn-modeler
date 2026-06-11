@@ -1,26 +1,9 @@
-import { posix } from "path";
-
 import { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
-
-/**
- * Directory names that never contain user-authored process/decision sources.
- * Applied uniformly to both code paths: as a post-filter on the
- * `workspace.findFiles` result, and per-directory during the fs-walk
- * fallback.  VS Code's default `files.exclude` / `search.exclude` only
- * cover a subset of these (notably `**\/node_modules`), so we cannot rely
- * on the platform defaults alone.
- */
-const EXCLUDED_DIRS: ReadonlySet<string> = new Set([
-    "node_modules",
-    "dist",
-    "build",
-    "out",
-    "target",
-    "coverage",
-    ".git",
-    ".svn",
-    ".hg",
-]);
+import {
+    escapeRegex,
+    findFilesExcluding,
+    searchFilesContent,
+} from "../../shared/service/workspaceFileSearch";
 
 // Max length of a reference id echoed back into a user-facing log line.
 const ID_DISPLAY_LIMIT = 100;
@@ -43,14 +26,9 @@ export type LocateResult =
  * Locates BPMN/DMN files that declare a given `<process id="…">` or
  * `<decision id="…">`.
  *
- * Strategy, in order:
- *   1. `workspace.findFiles("**\/*.bpmn"|.dmn)` — fast (ripgrep-backed in
- *      Theia/VS Code) and respects the user's `files.exclude` setting.
- *   2. fs-walk fallback — kicks in when (1) returns `[]` despite a workspace
- *      folder being open, which happens in the unsigned electron-builder
- *      package where the bundled ripgrep is missing or unexecutable.  No
- *      ripgrep dependency.
- *   3. fs-walk primary — for loose-file scenarios (no workspace folder).
+ * The workspace search itself (findFiles + fs-walk fallback, parallel content
+ * search) lives in {@link findFilesExcluding} / {@link searchFilesContent}
+ * under `shared/`; this class only owns the BPMN/DMN-specific glob and id regex.
  */
 export class ReferencedModelLocator {
     constructor(
@@ -69,164 +47,27 @@ export class ReferencedModelLocator {
             `[nav] resolving ${kind} id="${id}" sourceUri=${sourceDocumentPath ?? "<none>"}`,
         );
 
-        const paths = await this.collectCandidateFiles(extension, sourceDocumentPath);
+        const paths = await findFilesExcluding(this.vsWorkspace, `**/*${extension}`, {
+            sourceDocumentPath,
+            logger: this.notifier,
+            matchesWalkedFile: (path) => path.endsWith(extension),
+        });
         if (paths === undefined) {
             this.notifier.logInfo(`[nav] no search scope (no folder, no source uri)`);
             return { kind: "no-search-scope" };
         }
-        return this.filterByIdDeclaration(paths, referenceId, kind);
-    }
 
-    /**
-     * Phase 1.  Returns `undefined` when nothing can be searched (no source
-     * path and no workspace folder).  Otherwise returns the candidate paths.
-     */
-    private async collectCandidateFiles(
-        extension: string,
-        sourceDocumentPath: string | undefined,
-    ): Promise<string[] | undefined> {
-        const containingFolderPath =
-            sourceDocumentPath !== undefined
-                ? this.vsWorkspace.findWorkspaceFolderForDocument(sourceDocumentPath)
-                : undefined;
-        const looseFile = sourceDocumentPath !== undefined && containingFolderPath === undefined;
-
-        if (looseFile) {
-            // No workspace folder covers the document → walk from its dir.
-            const rootDir = this.vsWorkspace.getDocumentDirectory(sourceDocumentPath!);
-            return this.walkWorkspaceTree(rootDir, extension, "walk-primary");
-        }
-
-        const folderPaths = this.vsWorkspace.getWorkspaceFolderPaths();
-        if (folderPaths.length === 0) {
-            return undefined;
-        }
-
-        // Pass undefined for excludes — VS Code layers user's `files.exclude`
-        // and `search.exclude` on top.  We then post-filter with
-        // `EXCLUDED_DIRS` because the VS Code defaults do not cover all of
-        // them (e.g. `dist`, `build`, `out`, `target`, `coverage`).
-        const startedAt = Date.now();
-        const found = await this.vsWorkspace.findFiles(`**/*${extension}`);
-        const filtered = found.filter((path) => !pathIsInsideExcludedDir(path));
-        this.notifier.logInfo(
-            `[nav] findFiles returned ${found.length} path(s) ` +
-                `(${filtered.length} after exclude filter) in ${Date.now() - startedAt}ms`,
-        );
-        if (filtered.length > 0) {
-            return filtered;
-        }
-
-        // Fallback: findFiles failed silently (ripgrep missing in packaged .app).
-        const root = this.pickWalkRoot(sourceDocumentPath, containingFolderPath, folderPaths);
-        if (!root) return [];
-        return this.walkWorkspaceTree(root, extension, "walk-fallback");
-    }
-
-    /**
-     * Parallel BFS.  All directories at the same depth are read concurrently
-     * via `Promise.all` — sequential per-directory awaits cost several
-     * seconds on deep workspaces.  Unreadable subdirectories are swallowed.
-     */
-    private async walkWorkspaceTree(
-        rootDir: string,
-        extension: string,
-        reason: "walk-primary" | "walk-fallback",
-    ): Promise<string[]> {
-        this.notifier.logInfo(`[nav] ${reason}: walking ${rootDir} for ${extension}`);
-        const startedAt = Date.now();
-
-        const out: string[] = [];
-        let level: string[] = [rootDir];
-        while (level.length > 0) {
-            const reads = await Promise.all(
-                level.map((dir) =>
-                    this.vsWorkspace
-                        .readDirectory(dir)
-                        .then(
-                            (entries) =>
-                                [dir, entries] as [string, Array<[string, "file" | "directory"]>],
-                        )
-                        .catch(() => [dir, []] as [string, Array<[string, "file" | "directory"]>]),
-                ),
-            );
-            const nextLevel: string[] = [];
-            for (const [dir, entries] of reads) {
-                for (const [name, type] of entries) {
-                    const full = posix.join(dir, name);
-                    if (type === "directory") {
-                        if (!EXCLUDED_DIRS.has(name)) nextLevel.push(full);
-                    } else if (name.endsWith(extension)) {
-                        out.push(full);
-                    }
-                }
-            }
-            level = nextLevel;
-        }
-
-        this.notifier.logInfo(
-            `[nav] ${reason} returned ${out.length} path(s) in ${Date.now() - startedAt}ms`,
-        );
-        return out;
-    }
-
-    /**
-     * Where to root the walk fallback.  Best-effort: prefer the document's own
-     * workspace folder, else the first open folder, else the document's
-     * directory.  The folder lookups are reused from
-     * {@link collectCandidateFiles} to avoid re-querying the workspace.
-     */
-    private pickWalkRoot(
-        sourceDocumentPath: string | undefined,
-        containingFolderPath: string | undefined,
-        folderPaths: string[],
-    ): string | undefined {
-        if (containingFolderPath) return containingFolderPath;
-        if (folderPaths.length > 0) return folderPaths[0];
-        if (sourceDocumentPath !== undefined) {
-            return this.vsWorkspace.getDocumentDirectory(sourceDocumentPath);
-        }
-        return undefined;
-    }
-
-    /**
-     * Phase 2.  Reads each candidate file in parallel and tests the id regex
-     * against its content (ignoring XML comments and CDATA sections).
-     */
-    private async filterByIdDeclaration(
-        paths: string[],
-        referenceId: string,
-        kind: "process" | "decision",
-    ): Promise<LocateResult> {
         const pattern = this.buildIdPattern(referenceId, kind);
-        const startedAt = Date.now();
-
-        const failures: string[] = [];
-        const results = await Promise.all(
-            paths.map(async (path) => {
-                try {
-                    const xml = await this.vsWorkspace.readFile(path);
-                    return this.matchesDeclaration(xml, pattern) ? path : undefined;
-                } catch (error) {
-                    failures.push(
-                        `Could not read ${path} while resolving reference "${referenceId}": ${
-                            (error as Error).message
-                        }`,
-                    );
-                    return undefined;
-                }
-            }),
+        const { matches, readFailures, allUnreadable } = await searchFilesContent(
+            this.vsWorkspace,
+            paths,
+            pattern,
+            this.notifier,
         );
-        const matches = results.filter((path): path is string => path !== undefined);
-
-        this.notifier.logInfo(
-            `[nav] candidates=${paths.length} matches=${matches.length} readFailures=${failures.length} reads-took=${Date.now() - startedAt}ms`,
-        );
-
-        if (paths.length > 0 && failures.length === paths.length) {
-            return { kind: "all-unreadable", attempted: paths.length, failures };
+        if (allUnreadable) {
+            return { kind: "all-unreadable", attempted: paths.length, failures: readFailures };
         }
-        return { kind: "matches", paths: matches, readFailures: failures };
+        return { kind: "matches", paths: matches, readFailures };
     }
 
     /**
@@ -246,48 +87,6 @@ export class ReferencedModelLocator {
             `<(?:[\\w-]+:)?${tag}\\b[^>]*\\bid\\s*=\\s*["']${escapeRegex(referenceId)}["']`,
         );
     }
-
-    /**
-     * Returns true if `pattern` matches at least one position in `xml` that
-     * is not inside an XML comment or CDATA section — a commented-out
-     * `<!-- <bpmn:process id="X"/> -->` is not a real declaration.
-     *
-     * We enumerate comment/CDATA ranges via regex rather than `.replace()`
-     * them away to avoid CodeQL's `js/incomplete-multi-character-sanitization`
-     * rule (this is filtering, not sanitisation, so the lint is a false
-     * positive but easier to dodge than appease).
-     */
-    private matchesDeclaration(xml: string, pattern: RegExp): boolean {
-        const excluded: Array<[number, number]> = [];
-        for (const re of [/<!--[\s\S]*?-->/g, /<!\[CDATA\[[\s\S]*?\]\]>/g]) {
-            let m;
-            while ((m = re.exec(xml)) !== null) {
-                excluded.push([m.index, m.index + m[0].length]);
-            }
-        }
-        const global = new RegExp(
-            pattern.source,
-            pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
-        );
-        let match;
-        while ((match = global.exec(xml)) !== null) {
-            if (!excluded.some(([s, e]) => match!.index >= s && match!.index < e)) {
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-function escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function pathIsInsideExcludedDir(path: string): boolean {
-    for (const segment of path.split("/")) {
-        if (segment !== "" && EXCLUDED_DIRS.has(segment)) return true;
-    }
-    return false;
 }
 
 function truncate(value: string, max: number): string {

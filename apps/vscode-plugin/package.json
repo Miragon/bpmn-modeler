@@ -290,6 +290,11 @@
                     "default": ".camunda",
                     "markdownDescription": "Name of the config folder searched at each directory level from the BPMN file up to the workspace root. **Element templates must be placed under `<config>/element-templates/`** (e.g. `.camunda/element-templates/my-template.json`)."
                 },
+                "miragon.bpmnModeler.persistCodeLinkMap": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Persist the activity→code map to `<configFolder>/code-link/<file>.json` (e.g. `.camunda/code-link/order-process.bpmn.json`). The map drives the **Go to implementation** context-pad entry's visibility and works in memory regardless of this setting; the on-disk file is an opt-in warm cache (faster re-open) and a machine-readable artifact for external/AI tooling. Off by default."
+                },
                 "miragon.bpmnModeler.c8ApiVersion": {
                     "type": "string",
                     "default": "v2",

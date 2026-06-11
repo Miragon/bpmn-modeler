@@ -333,6 +333,7 @@ export interface SettingsSnapshot {
     alignToOrigin: boolean;
     showTransactionBoundaries: boolean;
     configFolder: string;
+    persistCodeLinkMap: boolean;
     c8ApiVersion: string;
     colorTheme: "automatic" | "light";
     favouriteBpmnElements: string[];
@@ -352,6 +353,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
     alignToOrigin: false,
     showTransactionBoundaries: true,
     configFolder: ".camunda",
+    persistCodeLinkMap: false,
     c8ApiVersion: "v2",
     colorTheme: "automatic",
     favouriteBpmnElements: [
@@ -417,6 +419,9 @@ export class BridgeSettings implements SettingsPort {
 
     getConfigFolder(): string {
         return this.snapshot.configFolder;
+    }
+    getPersistCodeLinkMap(): boolean {
+        return this.snapshot.persistCodeLinkMap;
     }
     getAlignToOrigin(): boolean {
         return this.snapshot.alignToOrigin;

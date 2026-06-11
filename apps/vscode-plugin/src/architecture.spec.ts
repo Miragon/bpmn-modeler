@@ -228,7 +228,14 @@ describe("architecture", () => {
         // engine extraction their only plugin-side file is an `index.ts` barrel
         // that re-exports the service from `@miragon/bpmn-modeler-core`, so they
         // have no internals left to protect.
-        const FEATURE_FOLDERS = ["diff", "deployment", "scriptTask", "modeler/bpmn", "modeler/dmn"];
+        const FEATURE_FOLDERS = [
+            "diff",
+            "deployment",
+            "scriptTask",
+            "codeLink",
+            "modeler/bpmn",
+            "modeler/dmn",
+        ];
 
         for (const sourceFeature of FEATURE_FOLDERS) {
             for (const targetFeature of FEATURE_FOLDERS) {

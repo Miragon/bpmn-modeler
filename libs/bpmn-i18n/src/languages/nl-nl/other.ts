@@ -100,6 +100,7 @@ const translations: Record<string, string> = {
     "Output Expression": "Output-Expression",
     "Data Type": "Data-Type",
     "Navigate to referenced model": "Naar gerefereerd model navigeren",
+    "Go to implementation": "Naar implementatie navigeren",
 };
 
 export default translations;

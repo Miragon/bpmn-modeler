@@ -151,8 +151,16 @@ export class ModelerEditorController implements CustomTextEditorProvider {
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
             this.notifier.logInfo(`Message received -> ${message.type}`);
-            await this.options.messageRouter.dispatch(message, id);
-            this.notifier.logInfo(`Message processed -> ${message.type}`);
+            try {
+                await this.options.messageRouter.dispatch(message, id);
+                this.notifier.logInfo(`Message processed -> ${message.type}`);
+            } catch (error) {
+                // VS Code's event emitter does not await this async listener, so
+                // a rejected dispatch would otherwise surface as an unhandled
+                // promise rejection. Log it — one handler's failure must never
+                // crash the host.
+                this.notifier.logError(error as Error);
+            }
         });
     }
 }

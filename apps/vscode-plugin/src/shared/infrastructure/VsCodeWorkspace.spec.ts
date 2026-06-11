@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFilesMock = vi.fn();
+const createDirectoryMock = vi.fn();
+const writeFileMock = vi.fn();
 
 vi.mock("vscode", () => ({
     workspace: {
         fs: {
             readDirectory: vi.fn(),
             readFile: vi.fn(),
-            writeFile: vi.fn(),
+            writeFile: (...args: unknown[]) => writeFileMock(...args),
+            createDirectory: (...args: unknown[]) => createDirectoryMock(...args),
         },
         findFiles: (...args: unknown[]) => findFilesMock(...args),
         getWorkspaceFolder: vi.fn(),
@@ -21,6 +24,10 @@ import { VsCodeWorkspace } from "./VsCodeWorkspace";
 beforeEach(() => {
     findFilesMock.mockReset();
     findFilesMock.mockResolvedValue([{ path: "/a.bpmn" }, { path: "/b.bpmn" }]);
+    createDirectoryMock.mockReset();
+    createDirectoryMock.mockResolvedValue(undefined);
+    writeFileMock.mockReset();
+    writeFileMock.mockResolvedValue(undefined);
 });
 
 describe("VsCodeWorkspace.findFiles", () => {
@@ -67,5 +74,25 @@ describe("VsCodeWorkspace.findFiles", () => {
         const result = await sut.findFiles("**/*.bpmn");
 
         expect(result).toEqual(["/x.bpmn", "/nested/y.bpmn"]);
+    });
+});
+
+describe("VsCodeWorkspace.writeFile", () => {
+    it("creates the parent directory before writing (nested artifact paths)", async () => {
+        const sut = new VsCodeWorkspace();
+
+        await sut.writeFile("/work/proj/.camunda/code-link/src/order.bpmn.json", "{}");
+
+        expect(createDirectoryMock).toHaveBeenCalledWith(
+            expect.objectContaining({ path: "/work/proj/.camunda/code-link/src" }),
+        );
+        expect(writeFileMock).toHaveBeenCalledWith(
+            expect.objectContaining({ path: "/work/proj/.camunda/code-link/src/order.bpmn.json" }),
+            expect.anything(),
+        );
+        // The directory must exist before the write is attempted.
+        expect(createDirectoryMock.mock.invocationCallOrder[0]).toBeLessThan(
+            writeFileMock.mock.invocationCallOrder[0],
+        );
     });
 });

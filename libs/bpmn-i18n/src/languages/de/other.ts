@@ -259,6 +259,7 @@ const translations: Record<string, string> = {
     "Variable Listener": "Variablen-Ereignis",
     "Variable Listeners": "Variablen-Ereignisse",
     "Navigate to referenced model": "Zum referenzierten Modell springen",
+    "Go to implementation": "Zur Implementierung springen",
 };
 
 export default translations;

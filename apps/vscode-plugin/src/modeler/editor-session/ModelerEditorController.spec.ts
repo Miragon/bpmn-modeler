@@ -132,6 +132,22 @@ describe("ModelerEditorController.resolveCustomTextEditor", () => {
         expect(dispatch).toHaveBeenCalledWith({ type: "GetBpmnFileCommand" }, EDITOR_ID);
     });
 
+    it("logs a rejected dispatch instead of leaving it unhandled", async () => {
+        const messageRouter = new WebviewMessageRouter();
+        const error = new Error("handler boom");
+        vi.spyOn(messageRouter, "dispatch").mockRejectedValue(error);
+        const notifier = createNotifier();
+        const { controller, captured } = resolve({ messageRouter }, notifier);
+
+        await controller.resolveCustomTextEditor(document, panel, token);
+        // VS Code does not await this async listener, so the callback itself must
+        // resolve (the rejection is caught) and the error logged, not thrown.
+        await expect(
+            captured.message?.({ type: "SyncActivitiesCommand" }, EDITOR_ID),
+        ).resolves.toBeUndefined();
+        expect(notifier.logError).toHaveBeenCalledWith(error);
+    });
+
     it("aggregates participant teardown into the single dispose subscription", async () => {
         const teardown = vi.fn();
         const participant: EditorSessionParticipant = {

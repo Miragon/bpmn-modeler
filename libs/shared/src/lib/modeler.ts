@@ -13,6 +13,7 @@
  * - {@link ClipboardQuery}                — deliver clipboard text (host mediates sandboxed reads)
  * - {@link UpdateScriptContentQuery}      — push updated script content from a virtual editor to the modeler
  * - {@link UpdateScriptFormatQuery}       — push a script-format choice (Quick-Pick) back to the modeler
+ * - {@link ImplementationStatusQuery}     — push the per-activity implementation-resolution map for context-pad visibility
  *
  * Commands (webview → extension host):
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
@@ -26,6 +27,9 @@
  * - {@link GetDiagramAsSVGCommand}            — request an SVG export of the current diagram
  * - {@link OpenScriptEditorCommand}           — request the host to open a script task in a VS Code editor
  * - {@link UpdateScriptVariablesCommand}      — push the re-extracted process-variable model to the host
+ * - {@link NavigateToReferencedModelCommand}  — jump to the referenced BPMN/DMN file
+ * - {@link NavigateToImplementationCommand}   — jump to the source file implementing a task
+ * - {@link SyncActivitiesCommand}             — push the diagram's task implementation references so the host maintains the activity→code map
  *
  * @see messages.ts for the base {@link Query} and {@link Command} classes.
  */
@@ -225,6 +229,31 @@ export class LanguageQuery extends Query {
 }
 
 /**
+ * Pushes the host's maintained activity→code map down to the webview as a flat
+ * `key → resolved` lookup so the "Go to implementation" context-pad entry can
+ * hide for tasks whose implementation does not exist in the workspace.
+ *
+ * Keys are built with {@link implementationStatusKey} — `${activityId}::${reference}`,
+ * not the bare activity id. Folding the reference into the key makes a reference
+ * edit self-invalidating: the new reference produces a key the webview has not
+ * seen yet, so the entry shows optimistically until the host's next push lands,
+ * instead of briefly reusing the stale resolution of the old reference.
+ *
+ * A missing key means "unknown" — the webview shows the entry optimistically.
+ * Only an explicit `false` hides it. That is what keeps a cold first open
+ * flash-free (show, never flash-to-hidden) while still hiding once the host has
+ * confirmed there is nothing to navigate to.
+ */
+export class ImplementationStatusQuery extends Query {
+    public readonly resolved: Record<string, boolean>;
+
+    constructor(resolved: Record<string, boolean>) {
+        super("ImplementationStatusQuery");
+        this.resolved = resolved;
+    }
+}
+
+/**
  * <================================== Queries ===================================
  *
  * =================================== Commands ==================================>
@@ -310,6 +339,89 @@ export class NavigateToReferencedModelCommand extends Command {
         super("NavigateToReferencedModelCommand");
         this.referenceId = referenceId;
         this.referenceKind = referenceKind;
+    }
+}
+
+/**
+ * Discriminates how a task's Camunda implementation reference must be resolved
+ * to a workspace source file. The webview classifies the selected element's
+ * reference; the host picks the matching resolution strategy per kind.
+ *
+ * - `javaClass` — `camunda:class` FQCN → deterministic class-file glob.
+ * - `delegateExpression` — `camunda:delegateExpression="${bean}"` → bean id → class.
+ * - `expression` — `camunda:expression="${svc.run()}"` → leading id → class (lowest confidence).
+ * - `externalTopic` — C7 external-task `camunda:topic` → content search for the literal.
+ * - `jobType` — C8 `zeebe:taskDefinition type` → content search for the literal.
+ */
+export type ImplementationKind =
+    | "javaClass"
+    | "delegateExpression"
+    | "expression"
+    | "externalTopic"
+    | "jobType";
+
+/**
+ * One task's implementation binding as the webview reads it from the bpmn-js
+ * model: the activity's id plus the {@link ImplementationKind} / reference the
+ * host needs to resolve it to a source file.
+ *
+ * The host never parses the BPMN XML — bpmn-js has already parsed it for
+ * rendering, so the webview extracts these cheap strings and ships the list,
+ * keeping the (possibly huge) XML out of the host entirely.
+ */
+export interface ImplementationEntry {
+    readonly activityId: string;
+    readonly kind: ImplementationKind;
+    readonly reference: string;
+}
+
+/**
+ * Composite key for {@link ImplementationStatusQuery}'s lookup, shared by both
+ * sides of the protocol so they agree byte-for-byte. The reference is part of
+ * the key on purpose — see {@link ImplementationStatusQuery} for why a bare
+ * activity id would briefly reuse a stale resolution after a reference edit.
+ */
+export function implementationStatusKey(activityId: string, reference: string): string {
+    return `${activityId}::${reference}`;
+}
+
+/**
+ * Sent by the BPMN webview when the user clicks "Go to implementation" on a
+ * service / send / business-rule task that carries a Camunda implementation
+ * reference. The host resolves the {@link reference} according to {@link kind}
+ * and opens the unique source file, shows a QuickPick on multiple matches, or
+ * an info notification when nothing resolves.
+ *
+ * Only the reference string and its kind cross the boundary — workspace file
+ * paths never leave the host. Resolution happens on click, on demand.
+ */
+export class NavigateToImplementationCommand extends Command {
+    public readonly reference: string;
+
+    public readonly kind: ImplementationKind;
+
+    constructor(reference: string, kind: ImplementationKind) {
+        super("NavigateToImplementationCommand");
+        this.reference = reference;
+        this.kind = kind;
+    }
+}
+
+/**
+ * Sent by the BPMN webview whenever the diagram's set of task implementation
+ * references may have changed (on import and after edits, debounced). Carries
+ * the full current list so the host can diff it against the activity→code map
+ * it already holds and do filesystem work only for the delta.
+ *
+ * This is intentionally a cheap list of id/kind/reference strings, never
+ * resolved paths — resolution is the host's job and stays on the host.
+ */
+export class SyncActivitiesCommand extends Command {
+    public readonly entries: ImplementationEntry[];
+
+    constructor(entries: ImplementationEntry[]) {
+        super("SyncActivitiesCommand");
+        this.entries = entries;
     }
 }
 
