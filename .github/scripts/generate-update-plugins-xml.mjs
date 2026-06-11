@@ -18,8 +18,11 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = resolve(new URL("../..", import.meta.url).pathname);
+// fileURLToPath decodes percent-encoding and handles Windows drive paths;
+// `new URL(...).pathname` mangles spaces and prepends a slash on Windows.
+const REPO_ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const PLUGIN_XML = resolve(
     REPO_ROOT,
     "apps/intellij-plugin/src/main/resources/META-INF/plugin.xml",

@@ -97,6 +97,11 @@ jobs:
         if: success() && inputs.dry-run == false && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v3
         with:
+          # Default GITHUB_TOKEN-created releases do NOT emit a
+          # `release: published` event, so the publish-intellij.yml chain would
+          # never fire. The PAT makes the release look user-authored, restoring
+          # the trigger.
+          token: ${{ secrets.RELEASE_PAT }}
           tag_name: intellij-v${{ steps.version.outputs.version }}
           name: IntelliJ Plugin v${{ steps.version.outputs.version }}
           generate_release_notes: true

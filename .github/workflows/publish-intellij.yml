@@ -174,7 +174,11 @@ jobs:
           git remote set-url origin "https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/${{ github.repository }}"
           cp -f docs/public/updatePlugins.xml /tmp/updatePlugins.xml
           git fetch origin main
-          git checkout main
+          # The regenerated XML differs from the tag's tracked copy, so a plain
+          # `git checkout main` aborts with "local changes would be
+          # overwritten" on any re-publish of an older tag. The file is already
+          # stashed to /tmp, so discarding the worktree change with -f is safe.
+          git checkout -f main
           git pull --ff-only origin main
           mkdir -p docs/public
           cp -f /tmp/updatePlugins.xml docs/public/updatePlugins.xml
