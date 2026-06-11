@@ -20,7 +20,6 @@
             <li>Write task scripts with context-aware suggestions.</li>
             <li>Deploy diagrams to a running Camunda 7 or Camunda 8 engine without
                 leaving the IDE.</li>
-            <li>Keep an eye on engine and template status from the status bar.</li>
         </ul>
 
         <p>For the complete feature list and documentation, visit
