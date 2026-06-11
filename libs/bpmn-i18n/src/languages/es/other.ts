@@ -247,6 +247,7 @@ const translations: Record<string, string> = {
     "Variable Listener": "Listener de variable",
     "Variable Listeners": "Listeners de variable",
     "Navigate to referenced model": "Ir al modelo referenciado",
+    "Go to implementation": "Ir a la implementación",
 };
 
 export default translations;

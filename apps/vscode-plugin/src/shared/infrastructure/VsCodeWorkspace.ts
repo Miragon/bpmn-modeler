@@ -149,6 +149,10 @@ export class VsCodeWorkspace implements WorkspacePort {
      * @param content The string content to write.
      */
     async writeFile(path: string, content: string): Promise<void> {
+        // Create the parent directory first (idempotent). `fs.writeFile` already
+        // mkdirps via FileService, so this is platform-proof insurance for the
+        // code-link artifact's nested target paths rather than a hard requirement.
+        await fs.createDirectory(Uri.file(posix.dirname(path)));
         await fs.writeFile(Uri.file(path), Buffer.from(content));
     }
 
@@ -173,7 +177,12 @@ export class VsCodeWorkspace implements WorkspacePort {
      * Creates a workspace-scoped filesystem watcher for `glob` rooted at
      * `rootPath`. Hides `workspace.createFileSystemWatcher` + `RelativePattern`
      * and the `Uri`-typed event payloads so service callers stay free of
-     * `vscode` imports — handlers receive the absolute `uri.fsPath` string.
+     * `vscode` imports.
+     *
+     * Handlers receive the `uri.path` (POSIX) form, deliberately matching what
+     * {@link findFiles} returns: the code-link watcher compares changed-file
+     * paths against locator results, and `fsPath` (back-slashed, drive-prefixed
+     * on Windows) would never compare equal to a `uri.path`-style match.
      *
      * The returned handle disposes the underlying watcher and unsubscribes
      * the wired listeners in one call.
@@ -191,13 +200,13 @@ export class VsCodeWorkspace implements WorkspacePort {
         const subscriptions: { dispose(): void }[] = [watcher];
         const { onCreate, onChange, onDelete } = handlers;
         if (onCreate) {
-            subscriptions.push(watcher.onDidCreate((uri) => onCreate(uri.fsPath)));
+            subscriptions.push(watcher.onDidCreate((uri) => onCreate(uri.path)));
         }
         if (onChange) {
-            subscriptions.push(watcher.onDidChange((uri) => onChange(uri.fsPath)));
+            subscriptions.push(watcher.onDidChange((uri) => onChange(uri.path)));
         }
         if (onDelete) {
-            subscriptions.push(watcher.onDidDelete((uri) => onDelete(uri.fsPath)));
+            subscriptions.push(watcher.onDidDelete((uri) => onDelete(uri.path)));
         }
         return {
             dispose(): void {

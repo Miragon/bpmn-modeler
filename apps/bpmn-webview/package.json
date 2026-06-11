@@ -16,6 +16,7 @@
         "@miragon/bpmn-model-navigation": "workspace:*",
         "@miragon/bpmn-modeler-append-menu": "workspace:*",
         "@miragon/bpmn-modeler-clipboard": "workspace:*",
+        "@miragon/bpmn-modeler-code-link": "workspace:*",
         "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",

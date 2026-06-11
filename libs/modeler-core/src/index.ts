@@ -40,6 +40,11 @@ export * from "./diff/infrastructure/DiffPaneStore";
 export * from "./navigation/service/ModelNavigationService";
 export * from "./navigation/service/ReferencedModelLocator";
 
+// ── codeLink ─────────────────────────────────────────────────────────────────
+export * from "./codeLink/service/ImplementationLocator";
+export * from "./codeLink/service/ImplementationNavigationService";
+export * from "./codeLink/service/CodeLinkMapService";
+
 // ── migration ────────────────────────────────────────────────────────────────
 export * from "./migration/domain/MigrationPlan";
 export * from "./migration/service/BpmnMigrationService";

@@ -32,6 +32,8 @@ import {
     openScriptEditorHandler,
     updateScriptVariablesHandler,
     navigateToReferencedModelHandler,
+    navigateToImplementationHandler,
+    syncActivitiesHandler,
 } from "../modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers";
 import {
     getDmnFileHandler,
@@ -40,33 +42,39 @@ import {
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
+import { CodeLinkHandles } from "./codeLinkFeature";
 import { SharedDeps } from "./sharedDeps";
 
 /**
  * Lifecycle-bearing collaborators owned by sibling features that the editor
  * routes into: the diff controller decides whether a resolved pane is a diff
  * view, the script-task service handles inline-editor messages and teardown,
- * and the variable store feeds script completion.
+ * the variable store feeds script completion, and the code-link handles carry
+ * go-to-implementation navigation, the always-on activity→code map, and its
+ * teardown participant.
  */
 interface EditorHandles {
     diffController: BpmnDiffController;
     scriptTaskSvc: ScriptTaskService;
     scriptVariableStore: ScriptVariableStore;
+    codeLink: CodeLinkHandles;
 }
 
 /**
  * The editor feature owns both custom-editor controllers (BPMN and DMN) and all
- * the per-document services and message routers behind them. `modelNavigation`
- * and `referencedModelLocator` live here — not in a separate feature — because
- * only the BPMN router consumes them. `bpmnService` is returned because the
- * command feature reuses it for batch operations.
+ * the per-document services and message routers behind them. Model-navigation
+ * is constructed here because only the BPMN router consumes it; go-to-
+ * implementation and the activity→code map arrive as code-link handles so the
+ * locator is shared and the source-file watcher's lifetime is owned in one
+ * place. `bpmnService` is returned because the command feature reuses it for
+ * batch operations.
  */
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
     handles: EditorHandles,
 ): { bpmnService: BpmnModelerService } {
-    const { diffController, scriptTaskSvc, scriptVariableStore } = handles;
+    const { diffController, scriptTaskSvc, scriptVariableStore, codeLink } = handles;
 
     const panelStateRepo = new PropertiesPanelStateRepository(context);
     const bpmnService = new BpmnModelerService(
@@ -131,7 +139,16 @@ export function register(
                 modelNavigationService,
                 deps.notifier,
             ),
-        );
+        )
+        .on(
+            "NavigateToImplementationCommand",
+            navigateToImplementationHandler(
+                deps.editorStore,
+                codeLink.implementationNavigation,
+                deps.notifier,
+            ),
+        )
+        .on("SyncActivitiesCommand", syncActivitiesHandler(codeLink.codeLinkMap));
     const dmnMessageRouter = new WebviewMessageRouter()
         .on("GetDmnFileCommand", getDmnFileHandler(dmnService, deps.notifier))
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
@@ -145,6 +162,7 @@ export function register(
             new SettingsParticipant(settingsBroadcaster),
             new EngineVersionStatusBarParticipant(deps.statusBar, deps.vsDocument),
             new ScriptTaskTeardownParticipant(scriptTaskSvc, scriptVariableStore),
+            codeLink.codeLinkParticipant,
         ],
         // Diff routing: when the URI resolves as a diff pane the diff controller
         // owns it, so signal "handled" and skip editor-session creation.

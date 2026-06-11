@@ -36,11 +36,14 @@
 import {
     Command,
     DiffOrigin,
+    ImplementationKind,
+    NavigateToImplementationCommand,
     NavigateToReferencedModelCommand,
     OpenScriptEditorCommand,
     Query,
     SetClipboardCommand,
     SetTextClipboardCommand,
+    SyncActivitiesCommand,
     SyncDocumentCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -55,12 +58,15 @@ import {
     Camunda7RestClient,
     Camunda8RestClient,
     CamundaEngineRouter,
+    CodeLinkMapService,
     DeploymentMessageDispatcher,
     DeploymentService,
     DiffPaneStore,
     DiffSession,
     EditorSessionStore,
     FetchHttpClient,
+    ImplementationLocator,
+    ImplementationNavigationService,
     ModelNavigationService,
     ReferencedModelLocator,
     StartInstanceService,
@@ -89,6 +95,15 @@ import { BridgeScriptEditor } from "./scriptAdapters";
 function query(type: string, fields: Record<string, unknown>): Query {
     return { type, ...fields } as unknown as Query;
 }
+
+/** Implementation kinds the locator can resolve; a guard against a malformed webview message. */
+const KNOWN_IMPLEMENTATION_KINDS: ReadonlySet<ImplementationKind> = new Set<ImplementationKind>([
+    "javaClass",
+    "delegateExpression",
+    "expression",
+    "externalTopic",
+    "jobType",
+]);
 
 interface RegisterParams extends SessionMeta {
     content: string;
@@ -165,6 +180,26 @@ export function createBridge(
         referencedModelLocator,
         notifier,
         picker,
+    );
+
+    // The code-link brain is `vscode`-free too: the locator/navigation service
+    // mirror the model-navigation pair (search via NodeWorkspace, surface via the
+    // RPC notifier/picker), while the always-on map service maintains context-pad
+    // visibility and live linking off the source-file watcher. Mirrors
+    // `composition/codeLinkFeature.ts` — the locator is shared by both consumers.
+    const implementationLocator = new ImplementationLocator(nodeWorkspace, notifier);
+    const implementationNavigationService = new ImplementationNavigationService(
+        implementationLocator,
+        notifier,
+        picker,
+    );
+    const codeLinkMapService = new CodeLinkMapService(
+        store,
+        implementationLocator,
+        artifactSvc,
+        nodeWorkspace,
+        settings,
+        notifier,
     );
 
     // "Edit Script" orchestrator. Unlike the other features this one has no
@@ -291,6 +326,30 @@ export function createBridge(
             const sourceFsPath = store.requireHandle(editorId).documentFsPath();
             await modelNavigationService.navigate(cmd.referenceId, cmd.referenceKind, sourceFsPath);
         })
+        // Mirrors `navigateToImplementationHandler` on the VS Code host: the same
+        // defence-in-depth guard rejects an unknown/empty `kind` so a malformed
+        // message can't be resolved as an arbitrary kind.
+        .on("NavigateToImplementationCommand", async (message: Command, editorId: string) => {
+            const cmd = message as NavigateToImplementationCommand;
+            if (!KNOWN_IMPLEMENTATION_KINDS.has(cmd.kind)) {
+                notifier.logWarning(
+                    `Ignoring NavigateToImplementationCommand with unknown kind: ${String(
+                        cmd.kind,
+                    )}`,
+                );
+                return;
+            }
+            const sourceFsPath = store.requireHandle(editorId).documentFsPath();
+            await implementationNavigationService.navigate(cmd.reference, cmd.kind, sourceFsPath);
+        })
+        // Always-on activity→code reconciliation; the map service filters invalid
+        // entries internally, so this stays a thin pass-through.
+        .on("SyncActivitiesCommand", async (message: Command, editorId: string) => {
+            await codeLinkMapService.syncActivities(
+                editorId,
+                (message as SyncActivitiesCommand).entries,
+            );
+        })
         .on("OpenScriptEditorCommand", (message: Command, editorId: string) => {
             void scriptEditor.open(message as OpenScriptEditorCommand, editorId);
         })
@@ -384,6 +443,9 @@ export function createBridge(
         bpmnService.disposeSession(params.editorId);
         // Close any script tabs this editor opened before its handle is dropped.
         scriptEditor.disposeEditor(params.editorId);
+        // Release this editor's code-link map state + its share of the source
+        // watcher; mirrors `CodeLinkParticipant` (the bridge has no participants).
+        codeLinkMapService.disposeEditor(params.editorId);
         watchers.get(params.editorId)?.forEach((d) => d.dispose());
         watchers.delete(params.editorId);
         // Read the root before removing the mirror entry that holds it.

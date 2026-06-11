@@ -18,6 +18,7 @@ import {
     GetElementTemplatesCommand,
     GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
+    ImplementationStatusQuery,
     LanguageQuery,
     LogErrorCommand,
     LogInfoCommand,
@@ -451,6 +452,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     query.listenerIndex,
                     query.scriptFormat,
                 );
+            } catch (error: any) {
+                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
+        case queryOrCommand.type === "ImplementationStatusQuery": {
+            try {
+                const query = message.data as ImplementationStatusQuery;
+                bpmnModeler.applyImplementationStatus(query.resolved);
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

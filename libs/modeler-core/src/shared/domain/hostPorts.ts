@@ -85,6 +85,8 @@ export interface SettingsPort {
     getColorTheme(): "automatic" | "light";
     getFavouriteBpmnElements(): string[];
     getLanguage(): string;
+    /** Whether the activity→code map is persisted under `<configFolder>/code-link/`. */
+    getPersistCodeLinkMap(): boolean;
 }
 
 /**

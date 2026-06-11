@@ -3510,6 +3510,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-code-link@workspace:*, @miragon/bpmn-modeler-code-link@workspace:libs/code-link":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-code-link@workspace:libs/code-link"
+  dependencies:
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    bpmn-js: "npm:18.16.1"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.8"
+  peerDependencies:
+    bpmn-js: 18.16.1
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-core@workspace:*, @miragon/bpmn-modeler-core@workspace:libs/modeler-core":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-core@workspace:libs/modeler-core"
@@ -3642,6 +3655,7 @@ __metadata:
     "@miragon/bpmn-model-navigation": "workspace:*"
     "@miragon/bpmn-modeler-append-menu": "workspace:*"
     "@miragon/bpmn-modeler-clipboard": "workspace:*"
+    "@miragon/bpmn-modeler-code-link": "workspace:*"
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"

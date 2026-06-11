@@ -8,6 +8,7 @@ import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
+import { CodeLinkModule, type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import {
     BpmnModelerSetting,
@@ -104,6 +105,7 @@ export class BpmnModeler {
             ElementTemplateChooserModule,
             AppendMenuModule,
             NavigateToReferencedModelModule,
+            CodeLinkModule,
         ];
         const extra = extraModules ?? [];
 
@@ -443,6 +445,18 @@ export class BpmnModeler {
             .on(OPEN_SCRIPT_EDITOR_EVENT, (event: OpenScriptEditorEvent) => {
                 callback(event);
             });
+    }
+
+    /**
+     * Hands the host's per-activity implementation-resolution map to the
+     * code-link DI service, which caches it and refreshes the context pad so the
+     * "Go to implementation" entry hides for tasks whose implementation does not
+     * exist in the workspace.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    applyImplementationStatus(resolved: Record<string, boolean>): void {
+        this.getService<CodeLinkMapClient>("codeLinkMapClient").applyStatus(resolved);
     }
 
     /**

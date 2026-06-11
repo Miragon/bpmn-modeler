@@ -89,4 +89,19 @@ export class VsCodeSettings implements SettingsPort {
     getLanguage(): string {
         return workspace.getConfiguration("miragon.bpmnModeler").get<string>("language", "en");
     }
+
+    /**
+     * Whether to persist the activity→code map to disk under
+     * `<configFolder>/code-link/`.
+     *
+     * Defaults to `false`: the in-memory map (context-pad visibility + live
+     * linking) works regardless; the on-disk file is an opt-in warm cache and
+     * external-tooling artifact.
+     */
+    getPersistCodeLinkMap(): boolean {
+        return (
+            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("persistCodeLinkMap") ??
+            false
+        );
+    }
 }

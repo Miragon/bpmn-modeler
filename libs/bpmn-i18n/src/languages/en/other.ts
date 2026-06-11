@@ -98,6 +98,8 @@ const translations: Record<string, string> = {
     "Data Type": "Data Type",
     // Context pad — Navigate to referenced model
     "Navigate to referenced model": "Navigate to referenced model",
+    // Context pad — Go to implementation (code link)
+    "Go to implementation": "Go to implementation",
     // Diff legend (bpmn diff view)
     "Added": "Added",
     "Removed": "Removed",

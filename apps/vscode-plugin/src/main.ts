@@ -4,6 +4,7 @@ import { setContext } from "./shared/infrastructure/extensionContext";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
 import * as scriptFeature from "./composition/scriptFeature";
+import * as codeLinkFeature from "./composition/codeLinkFeature";
 import * as editorFeature from "./composition/editorFeature";
 import * as compareFeature from "./composition/compareFeature";
 import * as commandsFeature from "./composition/commandsFeature";
@@ -16,9 +17,10 @@ import * as deploymentFeature from "./composition/deploymentFeature";
  *
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available) and is preserved exactly: diff → script →
- * editor → compare → commands → deployment. Handles flow forward only:
- * the editor routes into diff's controller and script's service; compare and
- * commands reuse handles the earlier features returned.
+ * codeLink → editor → compare → commands → deployment. Handles flow forward
+ * only: the editor routes into diff's controller, script's service, and
+ * code-link's handles; compare and commands reuse handles the earlier features
+ * returned.
  */
 export function activate(context: ExtensionContext): void {
     notifyIfNewRelease(context);
@@ -28,10 +30,12 @@ export function activate(context: ExtensionContext): void {
     const deps = buildSharedDeps(context);
     const { diffController } = diffFeature.register(context, deps);
     const { scriptTaskSvc, scriptVariableStore } = scriptFeature.register(context, deps);
+    const codeLink = codeLinkFeature.register(context, deps);
     const { bpmnService } = editorFeature.register(context, deps, {
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
+        codeLink,
     });
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, { bpmnService });

@@ -46,15 +46,22 @@ function toFsPath(path: string): string {
     return path.replace(/^file:\/\//, "");
 }
 
+/** Backslash-escapes every regex-special character in a literal glob run. */
+function escapeRegExpLiteral(literal: string): string {
+    return literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * Compiles a glob into a path-matching `RegExp`. Used only to honour the
- * `exclude` argument of {@link NodeWorkspace.findFiles}: Node's `fs.glob`
- * accepts the positive pattern natively, but its `exclude` option shape differs
- * across Node and Bun, so we match excluded paths ourselves to stay portable.
+ * Compiles a glob into a path-matching `RegExp`. Two callers rely on it: the
+ * `exclude` argument of {@link NodeWorkspace.findFiles} (Node's `fs.glob` accepts
+ * the positive pattern natively, but its `exclude` option shape differs across
+ * Node and Bun, so we match excluded paths ourselves to stay portable) and
+ * {@link NodeWorkspace.createWatcher}, which honours its `glob` param this way.
  *
  * Supports the operators the callers use: a double-star (across path segments,
  * with a trailing slash swallowed so a leading double-star also matches at the
- * root), and single `*` / `?` within one segment.
+ * root), single `*` / `?` within one segment, and `{a,b,c}` brace alternation —
+ * the code-link source glob (extensions `{java,kt,…}`) needs the last one.
  */
 function globToRegExp(glob: string): RegExp {
     let re = "";
@@ -68,12 +75,19 @@ function globToRegExp(glob: string): RegExp {
             re += "[^/]*";
         } else if (c === "?") {
             re += "[^/]";
+        } else if (c === "{") {
+            // `{a,b,c}` → `(?:a|b|c)`. An unterminated brace degrades to a literal
+            // so a stray `{` can't produce an invalid regex.
+            const end = glob.indexOf("}", i);
+            if (end === -1) {
+                re += "\\{";
+            } else {
+                const alternatives = glob.slice(i + 1, end).split(",");
+                re += `(?:${alternatives.map(escapeRegExpLiteral).join("|")})`;
+                i = end;
+            }
         } else {
-            // `c` is a single character; backslash-escape it when it carries
-            // regex meaning. (A non-global `.replace` here would only escape the
-            // first match — fine for one char, but the explicit test is clearer
-            // and side-steps the incomplete-sanitization trap.)
-            re += /[.*+?^${}()|[\]\\]/.test(c) ? `\\${c}` : c;
+            re += escapeRegExpLiteral(c);
         }
     }
     return new RegExp(`^${re}$`);
@@ -192,16 +206,22 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Watches the workspace root for element-template JSON changes via chokidar,
-     * firing the matching handler debounced ~50ms to coalesce the editor's
-     * multi-event save bursts into a single re-load.
+     * Watches the workspace root via chokidar, firing the matching handler for
+     * every changed path that matches `glob`, debounced ~50ms to coalesce an
+     * editor's multi-event save burst into one notification per file.
+     *
+     * Both watch consumers ride this one adapter: `ArtifactService` arms it with
+     * the element-templates glob, and `CodeLinkMapService` with the source glob
+     * (extensions `{java,kt,…}`). The `glob` argument is honoured — an earlier
+     * version hardcoded the template pattern, which silently dropped every
+     * code-link event.
      *
      * chokidar replaces `fs.watch({ recursive: true })`: the latter's recursive
      * mode is unreliable across platforms — under Bun on Linux it only tracks
      * subdirectories that existed when the watch began (fixed only in Bun
-     * ≥1.3.14), so a freshly-created `element-templates/` folder would go
-     * unnoticed. chokidar gives version-independent recursive watching on
-     * macOS/Windows/Linux, matching VS Code's `FileSystemWatcher` behaviour.
+     * ≥1.3.14), so a freshly-created folder would go unnoticed. chokidar gives
+     * version-independent recursive watching on macOS/Windows/Linux, matching
+     * VS Code's `FileSystemWatcher` behaviour.
      *
      * `node_modules`/`.git` are pruned so arming the recursive watch on a large
      * repo stays within the OS watch-descriptor budget (inotify on Linux).
@@ -209,7 +229,7 @@ export class NodeWorkspace implements WorkspacePort {
      */
     createWatcher(
         rootPath: string,
-        _glob: string,
+        glob: string,
         handlers: {
             onChange?: (path: string) => void;
             onCreate?: (path: string) => void;
@@ -217,30 +237,36 @@ export class NodeWorkspace implements WorkspacePort {
         },
     ): { dispose(): void } {
         const root = toFsPath(rootPath);
-        let timer: NodeJS.Timeout | undefined;
+        const matcher = globToRegExp(glob);
 
-        // The glob targets `<configFolder>/element-templates/**/*.json`; match
-        // its intent against the changed path. chokidar emits OS-native paths,
-        // so normalise separators before the substring check.
-        const isTemplate = (changed: string): boolean => {
-            const normalized = changed.replace(/\\/g, "/");
-            return normalized.includes("/element-templates/") && normalized.endsWith(".json");
-        };
+        // chokidar emits OS-native paths; normalise separators before matching
+        // the glob, which is always forward-slash.
+        const matches = (changed: string): boolean => matcher.test(changed.replace(/\\/g, "/"));
 
-        // One shared timer across add/change/unlink: every event resolves to the
-        // same template re-load downstream, so coalescing a burst into the last
-        // event's handler is correct and avoids redundant reloads.
+        // Per-path timers, not one shared timer: the template handler reloads
+        // everything on any event, so coalescing its burst is harmless — but code
+        // link needs every distinct changed file. A single timer would drop all
+        // but the last file of a multi-file burst (e.g. a branch checkout).
+        const timers = new Map<string, NodeJS.Timeout>();
+
         const fireDebounced = (
             handler: ((path: string) => void) | undefined,
             changed: string,
         ): void => {
-            if (!handler || !isTemplate(changed)) {
+            if (!handler || !matches(changed)) {
                 return;
             }
-            if (timer) {
-                clearTimeout(timer);
+            const pending = timers.get(changed);
+            if (pending) {
+                clearTimeout(pending);
             }
-            timer = setTimeout(() => handler(changed), 50);
+            timers.set(
+                changed,
+                setTimeout(() => {
+                    timers.delete(changed);
+                    handler(changed);
+                }, 50),
+            );
         };
 
         const watcher = watch(root, {
@@ -256,9 +282,10 @@ export class NodeWorkspace implements WorkspacePort {
 
         return {
             dispose(): void {
-                if (timer) {
+                for (const timer of timers.values()) {
                     clearTimeout(timer);
                 }
+                timers.clear();
                 // chokidar's close() is async; nothing awaits teardown here.
                 void watcher.close();
             },
@@ -289,8 +316,15 @@ export class NodeWorkspace implements WorkspacePort {
         return hadScheme ? "file://" + parent : parent;
     }
 
-    writeFile(): Promise<void> {
-        throw new Error("not implemented in bridge");
+    /**
+     * Writes `content`, creating missing parent directories first. The mkdirp
+     * mirrors `VsCodeWorkspace.writeFile`: the code-link artifact lands under a
+     * nested `<configFolder>/code-link/<dir>/…` path that need not exist yet.
+     */
+    async writeFile(path: string, content: string): Promise<void> {
+        const fsPath = toFsPath(path);
+        await fs.mkdir(posix.dirname(fsPath), { recursive: true });
+        await fs.writeFile(fsPath, content, "utf8");
     }
 
     /**
@@ -333,6 +367,7 @@ export interface SettingsSnapshot {
     alignToOrigin: boolean;
     showTransactionBoundaries: boolean;
     configFolder: string;
+    persistCodeLinkMap: boolean;
     c8ApiVersion: string;
     colorTheme: "automatic" | "light";
     favouriteBpmnElements: string[];
@@ -352,6 +387,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
     alignToOrigin: false,
     showTransactionBoundaries: true,
     configFolder: ".camunda",
+    persistCodeLinkMap: false,
     c8ApiVersion: "v2",
     colorTheme: "automatic",
     favouriteBpmnElements: [
@@ -417,6 +453,9 @@ export class BridgeSettings implements SettingsPort {
 
     getConfigFolder(): string {
         return this.snapshot.configFolder;
+    }
+    getPersistCodeLinkMap(): boolean {
+        return this.snapshot.persistCodeLinkMap;
     }
     getAlignToOrigin(): boolean {
         return this.snapshot.alignToOrigin;
