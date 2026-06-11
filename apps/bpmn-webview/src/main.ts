@@ -32,8 +32,10 @@ import {
     TextClipboardQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
+    UpdateScriptVariablesCommand,
     asyncDebounce,
     createResolver,
+    extractProcessVariables,
     formatErrors,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
@@ -214,9 +216,31 @@ window.onload = async function () {
                     data.eventName,
                     data.scriptFormat,
                     data.content,
+                    extractProcessVariables(bpmnModeler.getDefinitions()),
                 ),
             );
         });
+
+        // Publish the process-variable model to the host so open script editors
+        // get live variable completion. The chain is a feedback loop, not an echo
+        // loop — a keystroke in a script edits the moddle, which fires
+        // commandStack.changed, which re-extracts — so it is gated twice: the
+        // 300ms debounce collapses per-keystroke bursts, and the JSON compare
+        // suppresses re-publishes when the extracted model is unchanged.
+        let lastVariablesJson = "";
+        const sendVariables = asyncDebounce(async () => {
+            const variables = extractProcessVariables(bpmnModeler.getDefinitions());
+            const json = JSON.stringify(variables);
+            if (json === lastVariablesJson) {
+                return;
+            }
+            lastVariablesJson = json;
+            vscode.postMessage(new UpdateScriptVariablesCommand(variables));
+        }, 300);
+        bpmnModeler.onCommandStackChanged(() => void sendVariables());
+        // commandStack.changed doesn't fire on import, and a webview reload starts
+        // with an empty host-side store, so seed it unconditionally on every load.
+        void sendVariables();
     }
 
     console.debug("[DEBUG] Modeler is initialized...");

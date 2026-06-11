@@ -117,6 +117,18 @@ class ScriptEditorManager(
         }
     }
 
+    /**
+     * Replaces the process-variable model on a tracked script tab so completion
+     * goes live without reopening. The contributor reads [SCRIPT_COMPLETION_KEY]
+     * fresh on every invocation, so swapping the UserData here is immediately
+     * effective. No-op for an untracked script or one opened without a catalog.
+     */
+    fun updateVariables(scriptId: String, variables: List<VariableInfo>) {
+        val tracked = scripts[scriptId] ?: return
+        val current = tracked.file.getUserData(SCRIPT_COMPLETION_KEY) ?: return
+        tracked.file.putUserData(SCRIPT_COMPLETION_KEY, current.copy(variables = variables))
+    }
+
     /** Closes a script tab on the core's behalf (BPMN editor disposed); no user-close echo. */
     fun closeScript(scriptId: String) {
         val tracked = scripts[scriptId] ?: return

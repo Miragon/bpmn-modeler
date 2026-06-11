@@ -14,6 +14,7 @@ import {
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
+    UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import {
@@ -29,6 +30,7 @@ import {
     setPropertiesPanelStateHandler,
     setTextClipboardHandler,
     syncDocumentHandler,
+    updateScriptVariablesHandler,
 } from "./bpmnMessageHandlers";
 
 const EDITOR = "file:///work/diagram.bpmn";
@@ -137,8 +139,9 @@ describe("set-style handlers forward the command payload", () => {
 describe("openScriptEditorHandler", () => {
     it("maps every command field to the script-task service, in order", async () => {
         const scriptTaskSvc = { openScriptEditor: vi.fn().mockResolvedValue(undefined) };
+        const variableStore = { set: vi.fn() };
 
-        await openScriptEditorHandler(scriptTaskSvc as never)(
+        await openScriptEditorHandler(scriptTaskSvc as never, variableStore as never)(
             new OpenScriptEditorCommand(
                 "Element_1",
                 "execution-listener",
@@ -159,5 +162,40 @@ describe("openScriptEditorHandler", () => {
             "javascript",
             "x=1",
         );
+    });
+
+    it("seeds the variable store from the command before opening", async () => {
+        const scriptTaskSvc = { openScriptEditor: vi.fn().mockResolvedValue(undefined) };
+        const variableStore = { set: vi.fn() };
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+
+        await openScriptEditorHandler(scriptTaskSvc as never, variableStore as never)(
+            new OpenScriptEditorCommand(
+                "Element_1",
+                "script-task",
+                undefined,
+                undefined,
+                "groovy",
+                "",
+                variables as never,
+            ),
+            EDITOR,
+        );
+
+        expect(variableStore.set).toHaveBeenCalledWith(EDITOR, variables);
+    });
+});
+
+describe("updateScriptVariablesHandler", () => {
+    it("replaces the editor's variable model in the store", () => {
+        const variableStore = { set: vi.fn() };
+        const variables = [{ name: "total", origin: "output mapping", confidence: "declared" }];
+
+        updateScriptVariablesHandler(variableStore as never)(
+            new UpdateScriptVariablesCommand(variables as never),
+            EDITOR,
+        );
+
+        expect(variableStore.set).toHaveBeenCalledWith(EDITOR, variables);
     });
 });

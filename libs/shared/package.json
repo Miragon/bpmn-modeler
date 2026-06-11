@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
-    "dev": "tsc -p tsconfig.lib.json --watch"
+    "dev": "tsc -p tsconfig.lib.json --watch",
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "lodash": "4.18.1",
@@ -14,6 +15,8 @@
     "@types/lodash": "4.17.24",
     "@types/node": "25.9.1",
     "@types/vscode-webview": "1.57.5",
-    "typescript": "6.0.3"
+    "@vitest/coverage-v8": "4.1.8",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
   }
 }

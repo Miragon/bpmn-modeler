@@ -75,6 +75,22 @@ class ScriptBindingMembersContributor : NonCodeMembersContributor() {
                 val binding = GrLightVariable(psiManager, bean.name, type, groovyFile)
                 if (!processor.execute(binding, state)) return
             }
+
+            // Process variables resolve as untyped Object bindings: enough to stop
+            // Groovy flagging a completed variable name as unresolved, without
+            // claiming member knowledge we don't have yet (typed bindings are a
+            // later phase). Bean names already contributed above take precedence.
+            val beanNames = model.beans.map { it.name }.toSet()
+            val objectType =
+                elementFactory.createTypeByFQClassName(
+                    CommonClassNames.JAVA_LANG_OBJECT,
+                    resolveScope,
+                )
+            for (variable in model.variables.orEmpty()) {
+                if (variable.name in beanNames) continue
+                val binding = GrLightVariable(psiManager, variable.name, objectType, groovyFile)
+                if (!processor.execute(binding, state)) return
+            }
         }
 
         // A processor resolving an unqualified method call (e.g. `println hello`).

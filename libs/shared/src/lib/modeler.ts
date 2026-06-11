@@ -25,10 +25,12 @@
  * - {@link SetClipboardCommand}               — ask the host to write text to the clipboard
  * - {@link GetDiagramAsSVGCommand}            — request an SVG export of the current diagram
  * - {@link OpenScriptEditorCommand}           — request the host to open a script task in a VS Code editor
+ * - {@link UpdateScriptVariablesCommand}      — push the re-extracted process-variable model to the host
  *
  * @see messages.ts for the base {@link Query} and {@link Command} classes.
  */
 import { Command, Query } from "./messages";
+import { VariableDef } from "./processVariables";
 
 // =================================== Queries ==================================>
 /**
@@ -347,6 +349,10 @@ export class SetTextClipboardCommand extends Command {
  *
  * For listener kinds, {@link eventName} (e.g. `"start"`, `"create"`) is the
  * listener's `event` attribute and is surfaced in the editor tab title.
+ *
+ * {@link variables} seeds the host's process-variable model so completion is
+ * accurate from the first keystroke; it is an optional trailing parameter so
+ * older webview/host pairs that don't send it stay compatible.
  */
 export class OpenScriptEditorCommand extends Command {
     public readonly elementId: string;
@@ -361,6 +367,8 @@ export class OpenScriptEditorCommand extends Command {
 
     public readonly content: string;
 
+    public readonly variables: VariableDef[];
+
     constructor(
         elementId: string,
         kind: ScriptKind,
@@ -368,6 +376,7 @@ export class OpenScriptEditorCommand extends Command {
         eventName: string | undefined,
         scriptFormat: string,
         content: string,
+        variables: VariableDef[] = [],
     ) {
         super("OpenScriptEditorCommand");
         this.elementId = elementId;
@@ -376,6 +385,22 @@ export class OpenScriptEditorCommand extends Command {
         this.eventName = eventName;
         this.scriptFormat = scriptFormat;
         this.content = content;
+        this.variables = variables;
+    }
+}
+
+/**
+ * Sent by the BPMN webview whenever the process-variable model changes (debounced
+ * + change-gated on the webview side) so open script editors get live variable
+ * completion without reopening. Carries the full re-extracted model — the host
+ * replaces, never merges.
+ */
+export class UpdateScriptVariablesCommand extends Command {
+    public readonly variables: VariableDef[];
+
+    constructor(variables: VariableDef[]) {
+        super("UpdateScriptVariablesCommand");
+        this.variables = variables;
     }
 }
 

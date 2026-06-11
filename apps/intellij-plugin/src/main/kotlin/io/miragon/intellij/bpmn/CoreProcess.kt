@@ -491,6 +491,16 @@ class CoreProcess(private val project: Project) : Disposable {
                     gson.fromJson(params.get("completion"), ScriptCompletionModel::class.java),
                 )
             "script/close" -> scriptEditors.closeScript(params.get("scriptId").asString)
+            // Live variable model push: swap the script tab's completion catalog
+            // so the next completion invocation sees the current variables.
+            "script/updateVariables" ->
+                scriptEditors.updateVariables(
+                    params.get("scriptId").asString,
+                    gson.fromJson(
+                        params.get("variables"),
+                        Array<VariableInfo>::class.java,
+                    ).orEmpty().toList(),
+                )
             "document/write" -> handleWrite(params, id)
             "document/save" -> handleSave(params, id)
             "picker/show" -> handlePick(params, id)

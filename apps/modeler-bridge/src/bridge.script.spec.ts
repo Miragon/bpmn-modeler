@@ -62,6 +62,7 @@ interface OpenCommand {
     eventName: string | undefined;
     scriptFormat: string;
     content: string;
+    variables?: { name: string; origin: string; confidence: string }[];
 }
 
 describe("bridge script editor (real core over a fake transport)", () => {
@@ -195,6 +196,53 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(update.params.message.kind).toBe("execution-listener");
         expect(update.params.message.listenerIndex).toBe(0);
         expect(update.params.message.content).toBe("console.log('hi')");
+    });
+
+    it("carries the seeded variables in the script/open completion payload", async () => {
+        const { rpc, frames, editorId } = await setup();
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+            variables,
+        });
+
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        expect(open.params.completion.variables).toEqual(variables);
+    });
+
+    it("pushes script/updateVariables for that editor's open scripts only", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const scriptId = open.params.scriptId;
+
+        const variables = [{ name: "total", origin: "output mapping", confidence: "declared" }];
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: { type: "UpdateScriptVariablesCommand", variables },
+                },
+            }),
+        );
+
+        const update = await waitForFrame(frames, (f) => f.method === "script/updateVariables");
+        expect(update.params.scriptId).toBe(scriptId);
+        expect(update.params.variables).toEqual(variables);
     });
 
     it("closes the editor's open script tabs on session/dispose", async () => {

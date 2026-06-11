@@ -23,7 +23,8 @@
  *                                secretStore/*
  *   Core → Host (notifications): editor/postMessage, diff/postMessage,
  *                                deployment/postMessage, deploymentState/save*,
- *                                notifier/*, statusBar/*, script/open, script/close
+ *                                notifier/*, statusBar/*, script/open, script/close,
+ *                                script/updateVariables
  *
  * DMN is deliberately out of scope here — it has no IntelliJ editor yet; this
  * covers the BPMN editor, diff and deployment. The
@@ -41,6 +42,7 @@ import {
     SetClipboardCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
+    UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 import {
     ArtifactService,
@@ -291,6 +293,14 @@ export function createBridge(
         })
         .on("OpenScriptEditorCommand", (message: Command, editorId: string) => {
             void scriptEditor.open(message as OpenScriptEditorCommand, editorId);
+        })
+        // Live process-variable model update → push to every open script tab of
+        // this editor so completion stays current without reopening.
+        .on("UpdateScriptVariablesCommand", (message: Command, editorId: string) => {
+            scriptEditor.updateVariables(
+                editorId,
+                (message as UpdateScriptVariablesCommand).variables,
+            );
         });
 
     rpc.on("session/register", async (params: RegisterParams) => {

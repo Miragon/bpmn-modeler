@@ -60,6 +60,7 @@ export * from "./deployment/infrastructure/camunda/MultipartBuilder";
 
 // ── scriptTask: domain ───────────────────────────────────────────────────────
 export * from "./scriptTask/domain/ScriptUri";
+export * from "./scriptTask/domain/ScriptVariableStore";
 export * from "./scriptTask/domain/scriptApi";
 export * from "./scriptTask/domain/scriptCompletion";
 export * from "./scriptTask/domain/scriptLanguage";

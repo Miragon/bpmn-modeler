@@ -8,6 +8,7 @@ export default defineConfig({
             "apps/bpmn-webview",
             "libs/bpmn-i18n",
             "libs/modeler-core",
+            "libs/shared",
         ],
         coverage: {
             provider: "v8",

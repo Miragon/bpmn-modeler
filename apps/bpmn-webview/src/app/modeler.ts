@@ -176,6 +176,17 @@ export class BpmnModeler {
     }
 
     /**
+     * Returns the live moddle definitions tree (`bpmn:Definitions` root) so
+     * callers can walk the in-memory model — e.g. to extract process variables
+     * for script IntelliSense — without round-tripping through XML.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    getDefinitions(): any {
+        return this.getModeler().getDefinitions();
+    }
+
+    /**
      * Creates a new, empty BPMN diagram in the modeler.
      *
      * @returns {@link ImportXMLResult} with any warnings produced during import.
