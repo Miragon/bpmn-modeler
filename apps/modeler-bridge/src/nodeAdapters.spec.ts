@@ -149,7 +149,7 @@ describe("NodeWorkspace folder lookups", () => {
  * recursive `fs.watch`.
  */
 
-/** chokidar is ignored by the adapter (`_glob`); any constant documents intent. */
+/** The element-templates glob the adapter compiles to match changed paths against. */
 const PATTERN = "**/.camunda/element-templates/**/*.json";
 
 // chokidar needs a moment to arm its watchers; the adapter debounces ~50ms on
@@ -266,4 +266,79 @@ describe("NodeWorkspace.createWatcher", () => {
         await sleep(SETTLE_MS);
         expect(onCreate).not.toHaveBeenCalled();
     }, 15000);
+
+    // The source glob (extensions `{java,kt,…}`) is the code-link watcher's
+    // pattern. An earlier version hardcoded the template matcher and ignored the
+    // glob, so a saved `.java` file never reached the handler — these pin the fix.
+    const SOURCE_GLOB = "**/*.{java,kt,groovy,scala,js,ts}";
+
+    it("honours the source glob: fires onCreate for a created .java file", async () => {
+        const onCreate = vi.fn();
+        handle = workspace.createWatcher(root, SOURCE_GLOB, { onCreate });
+        await sleep(SETTLE_MS);
+
+        await fs.mkdir(join(root, "src", "main", "java"), { recursive: true });
+        await fs.writeFile(
+            join(root, "src", "main", "java", "Worker.java"),
+            "class Worker {}",
+            "utf8",
+        );
+
+        await waitForCall(onCreate);
+        expect(onCreate).toHaveBeenCalled();
+    }, 15000);
+
+    it("honours the source glob: ignores a non-matching .json file", async () => {
+        const onCreate = vi.fn();
+        handle = workspace.createWatcher(root, SOURCE_GLOB, { onCreate });
+        await sleep(SETTLE_MS);
+
+        await fs.writeFile(join(root, "config.json"), "{}", "utf8");
+
+        await sleep(SETTLE_MS);
+        expect(onCreate).not.toHaveBeenCalled();
+    }, 15000);
+
+    it("still fires for a template under the template glob", async () => {
+        const onCreate = vi.fn();
+        handle = workspace.createWatcher(root, PATTERN, { onCreate });
+        await sleep(SETTLE_MS);
+
+        await fs.mkdir(templatesDir, { recursive: true });
+        await fs.writeFile(join(templatesDir, "task.json"), "[]", "utf8");
+
+        await waitForCall(onCreate);
+        expect(onCreate).toHaveBeenCalled();
+    }, 15000);
+});
+
+/**
+ * `writeFile` backs the code-link artifact persistence. It must mkdirp the
+ * nested `<config>/code-link/…` target — the directory rarely exists yet — which
+ * the prior stub (a hard throw) never did.
+ */
+describe("NodeWorkspace.writeFile", () => {
+    let root: string;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-write-"));
+    });
+
+    afterEach(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    it("creates missing parent directories", async () => {
+        const target = join(root, ".camunda", "code-link", "sub", "order.bpmn.json");
+        await new NodeWorkspace().writeFile(target, '{"ok":true}');
+        expect(await fs.readFile(target, "utf8")).toBe('{"ok":true}');
+    });
+
+    it("overwrites an existing file", async () => {
+        const target = join(root, "out.json");
+        const ws = new NodeWorkspace();
+        await ws.writeFile(target, "first");
+        await ws.writeFile(target, "second");
+        expect(await fs.readFile(target, "utf8")).toBe("second");
+    });
 });

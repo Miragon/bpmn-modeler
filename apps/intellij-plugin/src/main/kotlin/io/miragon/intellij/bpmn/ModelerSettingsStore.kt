@@ -15,6 +15,7 @@ data class ModelerSettings(
     val alignToOrigin: Boolean,
     val showTransactionBoundaries: Boolean,
     val configFolder: String,
+    val persistCodeLinkMap: Boolean,
     val c8ApiVersion: String,
     val colorTheme: String,
     val favouriteBpmnElements: List<String>,
@@ -41,6 +42,7 @@ class ModelerSettingsStore {
             alignToOrigin = props.getBoolean(ALIGN_TO_ORIGIN, DEFAULT_ALIGN_TO_ORIGIN),
             showTransactionBoundaries = props.getBoolean(SHOW_TX_BOUNDARIES, DEFAULT_SHOW_TX_BOUNDARIES),
             configFolder = props.getValue(CONFIG_FOLDER, DEFAULT_CONFIG_FOLDER),
+            persistCodeLinkMap = props.getBoolean(PERSIST_CODE_LINK_MAP, DEFAULT_PERSIST_CODE_LINK_MAP),
             c8ApiVersion = props.getValue(C8_API_VERSION, DEFAULT_C8_API_VERSION),
             colorTheme = normalizeColorTheme(props.getValue(COLOR_THEME, DEFAULT_COLOR_THEME)),
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
@@ -53,6 +55,7 @@ class ModelerSettingsStore {
         props.setValue(SHOW_TX_BOUNDARIES, settings.showTransactionBoundaries, DEFAULT_SHOW_TX_BOUNDARIES)
         // An empty config folder would make discovery scan the whole tree; keep the default instead.
         props.setValue(CONFIG_FOLDER, settings.configFolder.ifBlank { DEFAULT_CONFIG_FOLDER }, DEFAULT_CONFIG_FOLDER)
+        props.setValue(PERSIST_CODE_LINK_MAP, settings.persistCodeLinkMap, DEFAULT_PERSIST_CODE_LINK_MAP)
         props.setValue(C8_API_VERSION, settings.c8ApiVersion, DEFAULT_C8_API_VERSION)
         props.setValue(COLOR_THEME, normalizeColorTheme(settings.colorTheme), DEFAULT_COLOR_THEME)
         // Cap matches the webview append-menu palette (max 6 pinned elements).
@@ -71,6 +74,7 @@ class ModelerSettingsStore {
             "alignToOrigin" to current.alignToOrigin,
             "showTransactionBoundaries" to current.showTransactionBoundaries,
             "configFolder" to current.configFolder,
+            "persistCodeLinkMap" to current.persistCodeLinkMap,
             "c8ApiVersion" to current.c8ApiVersion,
             "colorTheme" to current.colorTheme,
             "favouriteBpmnElements" to current.favouriteBpmnElements,
@@ -91,6 +95,7 @@ class ModelerSettingsStore {
         private const val ALIGN_TO_ORIGIN = "miragon.bpmnModeler.alignToOrigin"
         private const val SHOW_TX_BOUNDARIES = "miragon.bpmnModeler.showTransactionBoundaries"
         private const val CONFIG_FOLDER = "miragon.bpmnModeler.configFolder"
+        private const val PERSIST_CODE_LINK_MAP = "miragon.bpmnModeler.persistCodeLinkMap"
         private const val C8_API_VERSION = "miragon.bpmnModeler.c8ApiVersion"
         private const val COLOR_THEME = "miragon.bpmnModeler.colorTheme"
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
@@ -100,6 +105,7 @@ class ModelerSettingsStore {
         private const val DEFAULT_ALIGN_TO_ORIGIN = false
         private const val DEFAULT_SHOW_TX_BOUNDARIES = true
         private const val DEFAULT_CONFIG_FOLDER = ".camunda"
+        private const val DEFAULT_PERSIST_CODE_LINK_MAP = false
         private const val DEFAULT_C8_API_VERSION = "v2"
         private const val DEFAULT_COLOR_THEME = "automatic"
         private const val DEFAULT_LANGUAGE = "en"

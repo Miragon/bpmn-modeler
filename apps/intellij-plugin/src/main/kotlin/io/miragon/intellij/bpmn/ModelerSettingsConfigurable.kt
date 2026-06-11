@@ -32,6 +32,7 @@ class ModelerSettingsConfigurable : Configurable {
         var alignToOrigin: Boolean,
         var showTransactionBoundaries: Boolean,
         var configFolder: String,
+        var persistCodeLinkMap: Boolean,
         var c8ApiVersion: String,
         var colorTheme: String,
         var favouritesText: String,
@@ -63,6 +64,19 @@ class ModelerSettingsConfigurable : Configurable {
                         .comment(
                             "Folder searched at each level from the BPMN file up to the project root. " +
                                 "Element templates live under <code>&lt;config&gt;/element-templates/</code>.",
+                        )
+                }
+                row {
+                    checkBox("Persist activity→code map to disk")
+                        .bindSelected(
+                            { state.persistCodeLinkMap },
+                            { state.persistCodeLinkMap = it },
+                        )
+                        .comment(
+                            "Writes the activity→code map to " +
+                                "<code>&lt;config&gt;/code-link/&lt;file&gt;.json</code> as an opt-in warm " +
+                                "cache (faster re-open) and a machine-readable artifact for external/AI " +
+                                "tooling. The <b>Go to implementation</b> entry works in memory either way.",
                         )
                 }
                 row("Camunda 8 API version:") {
@@ -133,6 +147,7 @@ class ModelerSettingsConfigurable : Configurable {
             alignToOrigin = alignToOrigin,
             showTransactionBoundaries = showTransactionBoundaries,
             configFolder = configFolder.trim(),
+            persistCodeLinkMap = persistCodeLinkMap,
             c8ApiVersion = c8ApiVersion.trim(),
             colorTheme = colorTheme,
             favouriteBpmnElements = parseFavourites(favouritesText),
@@ -143,6 +158,7 @@ class ModelerSettingsConfigurable : Configurable {
         alignToOrigin = other.alignToOrigin
         showTransactionBoundaries = other.showTransactionBoundaries
         configFolder = other.configFolder
+        persistCodeLinkMap = other.persistCodeLinkMap
         c8ApiVersion = other.c8ApiVersion
         colorTheme = other.colorTheme
         favouritesText = other.favouritesText
@@ -155,6 +171,7 @@ class ModelerSettingsConfigurable : Configurable {
             alignToOrigin = settings.alignToOrigin,
             showTransactionBoundaries = settings.showTransactionBoundaries,
             configFolder = settings.configFolder,
+            persistCodeLinkMap = settings.persistCodeLinkMap,
             c8ApiVersion = settings.c8ApiVersion,
             colorTheme = settings.colorTheme,
             favouritesText = settings.favouriteBpmnElements.joinToString("\n"),
