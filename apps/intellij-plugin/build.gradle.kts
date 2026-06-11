@@ -40,6 +40,10 @@ intellijPlatform {
         ideaVersion {
             // 242 == 2024.2; the editor API and bundled JCEF used here are stable from here on.
             sinceBuild = "242"
+            // The Gradle plugin defaults untilBuild to "242.*" when unset, which
+            // rejects every IDE newer than 2024.2 at install time. Null removes
+            // the upper bound entirely (the documented opt-out).
+            untilBuild = provider { null }
         }
     }
 }
