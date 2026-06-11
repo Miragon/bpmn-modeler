@@ -119,6 +119,13 @@ class BpmnFileEditor(
                 null
             }
 
+            // Follow the IDE color theme: push a theme update into the page on
+            // every LaF / editor-scheme change so `automatic` colorTheme tracks
+            // the IDE live. Parented to this editor, so the callback is removed
+            // when the tab closes.
+            val themeSignal = service<IdeThemeSignal>()
+            themeSignal.follow(this, cefBrowser.cefBrowser)
+
             // Install the JVM sink only after the document is parsed; the shim's
             // buffered messages then flush. inject("p") emits the JS that ships the
             // string argument `p` back to the jsQuery handler.
@@ -130,6 +137,9 @@ class BpmnFileEditor(
                             b.url,
                             0,
                         )
+                        // Re-apply on (re)load so a theme change racing the load is
+                        // not lost; indexHtml() already bakes in the initial theme.
+                        b.executeJavaScript(themeSignal.applyJs(), b.url, 0)
                     }
                 },
                 cefBrowser.cefBrowser,
