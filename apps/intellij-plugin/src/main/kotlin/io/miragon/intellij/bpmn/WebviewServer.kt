@@ -2,6 +2,7 @@ package io.miragon.intellij.bpmn
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
@@ -86,7 +87,7 @@ class WebviewServer : Disposable {
         try {
             val path = exchange.requestURI.path
             if (path == "/" || path == "/index.html") {
-                respond(exchange, 200, "text/html; charset=utf-8", INDEX_HTML.toByteArray(StandardCharsets.UTF_8))
+                respond(exchange, 200, "text/html; charset=utf-8", indexHtml().toByteArray(StandardCharsets.UTF_8))
                 return
             }
             if (path == "/deployment.html") {
@@ -116,6 +117,47 @@ class WebviewServer : Disposable {
         } finally {
             exchange.close()
         }
+    }
+
+    /**
+     * Synthesises the bpmn editor shell with the IDE theme baked in: the
+     * [IdeThemeSignal.bodyClass] on `<body>` and an `#ide-theme-vars` style block
+     * carrying the mapped `--vscode-*` colors. Computing this per request (rather
+     * than caching a constant) means the page paints in the correct theme on the
+     * very first frame — no light flash, no race with `onLoadEnd`.
+     *
+     * Note the deliberate off-EDT UIManager read: `handle()` runs on the HTTP
+     * pool thread, but the color lookups [IdeThemeSignal] performs are plain
+     * UIDefaults reads with no EDT affinity, and nothing here is cached.
+     */
+    private fun indexHtml(): String {
+        val signal = service<IdeThemeSignal>()
+        return listOf(
+            "<!DOCTYPE html>",
+            "<html lang=\"en\">",
+            "<head>",
+            "  <meta charset=\"UTF-8\"/>",
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
+            "  <link href=\"/index.css\" rel=\"stylesheet\"/>",
+            "  <link href=\"/lightTheme.css\" rel=\"stylesheet\" id=\"theme-link\"/>",
+            "  <link href=\"$FONT_CSS\" rel=\"stylesheet\"/>",
+            "  <title>BPMN Modeler</title>",
+            "  <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
+            "  <style id=\"ide-theme-vars\">${signal.themeVarsCss()}</style>",
+            "  <script>$SHIM</script>",
+            "</head>",
+            "<body class=\"${signal.bodyClass()}\">",
+            "  <div id=\"app\">",
+            "    <div class=\"content with-diagram\" id=\"js-drop-zone\">",
+            "      <div class=\"canvas\" id=\"js-canvas\"></div>",
+            "      <div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>",
+            "      <div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>",
+            "    </div>",
+            "  </div>",
+            "  <script type=\"module\" src=\"/index.js\"></script>",
+            "</body>",
+            "</html>",
+        ).joinToString("\n")
     }
 
     private fun respond(exchange: HttpExchange, code: Int, contentType: String, body: ByteArray) {
@@ -186,38 +228,9 @@ class WebviewServer : Disposable {
                 "})();",
             ).joinToString("\n")
 
-        /**
-         * Mirrors the `#js-canvas` / `#js-panel-resizer` / `#js-properties-panel`
-         * skeleton the webview queries by id, plus the asset tags from the VS Code
-         * host's `WebviewHtml.ts`. The `#app { height: 100vh }` wrapper gives the
-         * canvas a height that the VS Code host gets from its own body styling.
-         */
-        val INDEX_HTML =
-            listOf(
-                "<!DOCTYPE html>",
-                "<html lang=\"en\">",
-                "<head>",
-                "  <meta charset=\"UTF-8\"/>",
-                "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-                "  <link href=\"/index.css\" rel=\"stylesheet\"/>",
-                "  <link href=\"/lightTheme.css\" rel=\"stylesheet\" id=\"theme-link\"/>",
-                "  <link href=\"$FONT_CSS\" rel=\"stylesheet\"/>",
-                "  <title>BPMN Modeler</title>",
-                "  <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
-                "  <script>$SHIM</script>",
-                "</head>",
-                "<body>",
-                "  <div id=\"app\">",
-                "    <div class=\"content with-diagram\" id=\"js-drop-zone\">",
-                "      <div class=\"canvas\" id=\"js-canvas\"></div>",
-                "      <div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>",
-                "      <div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>",
-                "    </div>",
-                "  </div>",
-                "  <script type=\"module\" src=\"/index.js\"></script>",
-                "</body>",
-                "</html>",
-            ).joinToString("\n")
+        // The bpmn editor shell is emitted by the instance method `indexHtml()`,
+        // not a constant: its `<body>` class and `#ide-theme-vars` block are
+        // computed per request from the live IDE theme (see IdeThemeSignal).
 
         /**
          * Maps the `--vscode-*` CSS variables the deployment form's stylesheet

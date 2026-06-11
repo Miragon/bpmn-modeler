@@ -216,6 +216,12 @@ class BpmnDiffViewer(
             null
         }
 
+        // Follow the IDE color theme for this pane; the diff.css `body.vscode-dark`
+        // legend styling then activates in dark IDEs. Parented to the viewer's own
+        // disposable so the callback is removed when the diff tab closes.
+        val themeSignal = service<IdeThemeSignal>()
+        themeSignal.follow(ownDisposable, browser.cefBrowser)
+
         // Install the JVM sink only after the page parses, so the shim's buffered
         // messages flush into a handler that exists. Re-runs on every (re)load,
         // including the reload swap triggers.
@@ -227,6 +233,9 @@ class BpmnDiffViewer(
                         b.url,
                         0,
                     )
+                    // Re-apply on every (re)load, including swap reloads, so a
+                    // theme change racing the load is not lost.
+                    b.executeJavaScript(themeSignal.applyJs(), b.url, 0)
                 }
             },
             browser.cefBrowser,
