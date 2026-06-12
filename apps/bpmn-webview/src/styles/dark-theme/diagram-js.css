@@ -77,53 +77,49 @@
 }
 
 /**
- * BPMN shapes — override fill and stroke set by bpmn-js.
- * Some renderers use inline styles, so !important is required.
+ * Recolour ONLY bpmn-js's default paint (`fill: white`, `stroke: rgb(34, 36, 42)`),
+ * scoping each rule to the known value. A blanket `*` override would beat — via
+ * `!important` — the inline style bpmn-js writes for a user's "Set color" choice.
+ * Value-scoping also handles two cases for free: `fill: none` (bpmn:Group, text
+ * annotations) matches nothing and stays transparent (#1056), and filled throw
+ * markers are covered by the rules below (#1017).
  */
-.djs-shape > .djs-visual > *:not(text) {
+
+/* defaultFillColor (white) → dark surface */
+.djs-shape > .djs-visual > [style*="fill: white"] {
     fill: var(--bpmn-shape-fill-color) !important;
+}
+
+/* defaultStrokeColor used as a fill (filled throw markers, arrowheads) → light */
+.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"],
+defs marker > [style*="fill: rgb(34, 36, 42)"] {
+    fill: var(--bpmn-shape-stroke-color) !important;
+}
+
+/* defaultStrokeColor (rgb(34, 36, 42)) → light stroke */
+.djs-shape > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+.djs-connection > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+defs marker > [style*="stroke: rgb(34, 36, 42)"] {
     stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
-/*
- * bpmn-js marks deliberately transparent shapes (bpmn:Group, text
- * annotations) with an inline `fill: none`. The blanket fill override above
- * would paint them opaque, hiding any elements the group encloses (#1056).
- * Honor bpmn-js's transparency instead.
- */
-.djs-shape > .djs-visual > [style*="fill: none"] {
-    fill: none !important;
-}
-
-/* Distinguish bpmn-js throw vs. catch (and other filled) markers in dark mode. */
-.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"]:not([style*="stroke: white"]) {
-    fill: var(--bpmn-shape-stroke-color) !important;
-}
+/* Throw markers pair a filled body with a white outline → dark-surface outline. */
 .djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"][style*="stroke: white"] {
-    fill: var(--bpmn-shape-stroke-color) !important;
     stroke: var(--bpmn-shape-fill-color) !important;
 }
 
-/* Text inside shapes (e.g. task labels rendered inline) */
-.djs-shape > .djs-visual > text {
+/*
+ * Embedded labels — recolour only the default. bpmn-js paints a label with the
+ * element's stroke colour (no `defaultLabelColor` configured), so a coloured
+ * shape's dark label already reads against its light fill; don't force it light.
+ */
+.djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-label-color) !important;
 }
 
-.djs-connection > .djs-visual > path {
-    stroke: var(--bpmn-shape-stroke-color) !important;
-    fill: none !important;
-}
-
-/* Labels (text elements) */
+/* External labels sit on the dark canvas, so always light — even when coloured. */
 .djs-label .djs-visual text {
     fill: var(--bpmn-label-color) !important;
-}
-
-/* SVG markers (arrows on connections) in <defs> */
-defs marker > path,
-defs marker > circle {
-    fill: var(--bpmn-shape-stroke-color) !important;
-    stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
 /* Grid — the element has class="layer djs-grid" (two classes) */
