@@ -117,12 +117,23 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
     stroke: var(--bpmn-shape-fill-color) !important;
 }
 
-/* Text inside shapes (e.g. task labels rendered inline) */
-.djs-shape > .djs-visual > text {
+/*
+ * Embedded labels (task names rendered inside the shape). Recolour ONLY the
+ * default label colour. With no `defaultLabelColor` configured, bpmn-js paints
+ * a label with the element's stroke colour (BpmnRenderUtil#getLabelColor), so a
+ * user-coloured shape already gets a dark label that reads against its light
+ * palette fill — forcing it light here would make it illegible.
+ */
+.djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-label-color) !important;
 }
 
-/* Labels (text elements) */
+/*
+ * External labels (event/flow names) sit on the dark canvas, not on a shape, so
+ * they always need the light colour — including the stroke-coloured labels of
+ * user-coloured elements, which would otherwise be unreadable against the
+ * canvas.
+ */
 .djs-label .djs-visual text {
     fill: var(--bpmn-label-color) !important;
 }
