@@ -110,6 +110,15 @@ a:link {
     border-left-color: rgba(0, 120, 212, 0.6);
 }
 
+/* When the pointer is over the toggle button the button supplies its own hover
+ * styling. Suppress the resizer's hover tint so the two do not stack into a
+ * halo around the protruding pill. The collapsed state has a more specific
+ * variant of this rule below. */
+.panel-resizer:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+    border-left-color: #e0e0e0;
+}
+
 .panel-resizer.collapsed {
     width: 8px;
     /* The blue accent line is drawn by the `::before` / `::after`
@@ -177,12 +186,13 @@ a:link {
     background-color: var(--panel-resizer-accent-color);
 }
 
-/* Toggle button shown only when the panel is collapsed.
- * The button sits in the middle of the collapsed resizer bar and protrudes
- * slightly to the left over the canvas, mirroring the Camunda Modeler pattern
- * so users have an obvious affordance to reopen the panel. */
+/* Toggle button shown in both panel states: it offers a one-click "open"
+ * affordance while the panel is collapsed and a "close" affordance while it is
+ * open (the chevron direction is flipped from JavaScript). The button sits in
+ * the middle of the resizer bar and protrudes slightly to the left over the
+ * canvas, mirroring the Camunda Modeler pattern. */
 .panel-resizer-toggle {
-    display: none;
+    display: flex;
     position: absolute;
     /* Vertical centering via top + margin instead of `transform: translateY(-50%)`.
      * A transform places the button in its own compositor layer, which in
@@ -206,10 +216,6 @@ a:link {
     justify-content: center;
     z-index: 1;
     transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.panel-resizer.collapsed .panel-resizer-toggle {
-    display: flex;
 }
 
 .panel-resizer-toggle:hover {

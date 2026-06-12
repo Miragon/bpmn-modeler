@@ -162,6 +162,7 @@ const translations: Record<string, string> = {
     "Not found": "Nicht gefunden",
     "Open minimap": "Minikarte öffnen",
     "Open properties panel": "Eigenschaften-Panel öffnen",
+    "Close properties panel": "Eigenschaften-Panel schließen",
     "Output Expression": "Ausgangsausdruck",
     "Output Label": "Ausgabebezeichnung",
     "Output Name": "Ausgabename",

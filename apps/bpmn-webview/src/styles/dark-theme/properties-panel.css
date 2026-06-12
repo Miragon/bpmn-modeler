@@ -229,6 +229,13 @@ body {
     border-left-color: var(--dt-primary-a10);
 }
 
+/* Dark-theme counterpart of the open-state halo suppression in default.css:
+ * restore the resting divider colour while the button is hovered. */
+.panel-resizer:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+    border-left-color: var(--dt-surface-a20);
+}
+
 /* Override the accent colors used by the collapsed resizer's pseudo-element
  * line segments. default.css exposes `--panel-resizer-accent-color` and
  * `--panel-resizer-accent-hover-color`, so overriding the custom properties

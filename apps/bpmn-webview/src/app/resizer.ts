@@ -11,16 +11,28 @@ const MAX_PANEL_WIDTH = 1600;
 // CSS class applied to the panel when it is collapsed (width 0, hidden).
 const COLLAPSED_CLASS = "collapsed";
 
-// English fallback label for the toggle button, used as the translation key.
+/**
+ * English fallback labels for the toggle button, used as translation keys.
+ * Which one applies depends on the panel's current state (see
+ * {@link applyToggleButtonState}).
+ */
 const OPEN_PANEL_LABEL = "Open properties panel";
+const CLOSE_PANEL_LABEL = "Close properties panel";
 
 /**
- * Chevron-left SVG used as the toggle button icon.
- * Inline so no additional icon dependency is required.
+ * Chevron SVGs used as the toggle button icon. Inline so no additional icon
+ * dependency is required. Left points the way the panel slides out (shown
+ * while collapsed → "open"); right points the way it slides away (shown while
+ * visible → "close").
  */
 const CHEVRON_LEFT_SVG = `
     <svg xmlns="http://www.w3.org/2000/svg" width="10" height="14" viewBox="0 0 10 14" aria-hidden="true" focusable="false">
     <path d="M7.5 2 2 7l5.5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+`;
+const CHEVRON_RIGHT_SVG = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="14" viewBox="0 0 10 14" aria-hidden="true" focusable="false">
+    <path d="M2.5 2 8 7l-5.5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
 `;
 
@@ -52,16 +64,6 @@ export interface PropertiesPanelHandle {
      * consumer lives for the webview's entire lifetime.
      */
     onVisibilityChanged(callback: (visible: boolean) => void): void;
-}
-
-/**
- * Applies the current translation of {@link OPEN_PANEL_LABEL} to the given
- * toggle button's `aria-label` and `title` attributes.
- */
-function applyToggleButtonTranslation(button: HTMLButtonElement): void {
-    const label = i18n.translate(OPEN_PANEL_LABEL);
-    button.setAttribute("aria-label", label);
-    button.title = label;
 }
 
 /**
@@ -136,6 +138,8 @@ export function initResizer(): PropertiesPanelHandle {
      * with real state transitions.
      */
     function notifyVisibilityChange(): void {
+        // Single path that keeps the button's icon/label aligned with the state.
+        applyToggleButtonState();
         const visible = !isCollapsed;
         for (const cb of visibilityListeners) {
             try {
@@ -148,33 +152,43 @@ export function initResizer(): PropertiesPanelHandle {
 
     /**
      * Create the toggle button and append it to the resizer. The button is
-     * hidden via CSS (`.panel-resizer-toggle` is only shown while the resizer
-     * carries the `collapsed` class) so we do not need to toggle its
-     * visibility from JavaScript.
+     * always visible: it offers an "open" affordance while the panel is
+     * collapsed and a "close" affordance while it is open (see
+     * {@link applyToggleButtonState}).
      */
     const button = document.createElement("button");
     button.type = "button";
     button.className = "panel-resizer-toggle";
-    button.innerHTML = CHEVRON_LEFT_SVG;
+
+    /**
+     * Point the button's icon and label at whichever action is currently
+     * available: open the panel while collapsed, close it while open.
+     */
+    function applyToggleButtonState(): void {
+        button.innerHTML = isCollapsed ? CHEVRON_LEFT_SVG : CHEVRON_RIGHT_SVG;
+        const label = i18n.translate(isCollapsed ? OPEN_PANEL_LABEL : CLOSE_PANEL_LABEL);
+        button.setAttribute("aria-label", label);
+        button.title = label;
+    }
+
     // Prevent the click from starting a resize drag on the surrounding resizer.
     button.addEventListener("mousedown", (e: MouseEvent) => {
         e.stopPropagation();
     });
     button.addEventListener("click", (e: MouseEvent) => {
         e.stopPropagation();
-        if (!isCollapsed) {
-            return;
+        if (isCollapsed) {
+            expand();
+            const openWidth = MIN_PANEL_WIDTH * 2;
+            targetWidth = openWidth;
+            panel.style.width = `${openWidth}px`;
+        } else {
+            collapse();
         }
-        expand();
-        // Open to twice the drag-to-collapse threshold so the panel appears
-        // with enough room to read its contents without immediate resizing.
-        const openWidth = MIN_PANEL_WIDTH * 2;
-        targetWidth = openWidth;
-        panel.style.width = `${openWidth}px`;
     });
     resizer.appendChild(button);
-    applyToggleButtonTranslation(button);
-    i18n.onChange(() => applyToggleButtonTranslation(button));
+    applyToggleButtonState();
+    i18n.onChange(() => applyToggleButtonState());
 
     /**
      * Collapse the panel to zero width and mark both the panel and the resizer

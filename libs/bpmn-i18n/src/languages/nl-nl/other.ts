@@ -18,6 +18,7 @@
 const translations: Record<string, string> = {
     "Open minimap": "Open minimap",
     "Open properties panel": "Eigenschappenpaneel openen",
+    "Close properties panel": "Eigenschappenpaneel sluiten",
     "This maps to the process definition key.":
         "Dit wordt vertaald naar de process definition key.",
     "Key": "Key",

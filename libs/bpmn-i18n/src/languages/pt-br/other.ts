@@ -18,6 +18,7 @@
 const translations: Record<string, string> = {
     "Open minimap": "Abrir mini-mapa",
     "Open properties panel": "Abrir painel de propriedades",
+    "Close properties panel": "Fechar painel de propriedades",
     "This maps to the process definition key.": "Aponta para a chave de definição do processo.",
     "Key": "Chave",
     "Intermediate Throw Event": "Evento Intermediário de Lançamento",

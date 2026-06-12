@@ -153,6 +153,7 @@ const translations: Record<string, string> = {
     "Not found": "No encontrado",
     "Open minimap": "Abrir minimapa",
     "Open properties panel": "Abrir panel de propiedades",
+    "Close properties panel": "Cerrar panel de propiedades",
     "Output Expression": "Expresión de salida",
     "Output Label": "Etiqueta de salida",
     "Output Name": "Nombre de salida",
