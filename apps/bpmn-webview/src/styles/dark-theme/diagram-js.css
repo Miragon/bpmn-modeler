@@ -77,21 +77,12 @@
 }
 
 /**
- * BPMN shapes — recolour bpmn-js's DEFAULT paint for dark mode, and ONLY the
- * default paint. bpmn-js emits two paint constants as inline SVG styles:
- * `fill: white` and `stroke: rgb(34, 36, 42)` (hsl(225, 10%, 15%), its
- * `defaultStrokeColor`). A blanket `*` override would also clobber palette
- * colours the user picks via the context pad's "Set color", because a
- * stylesheet `!important` beats a non-important inline style. Scoping every
- * rule to the known default value lets any user-chosen colour pass through
- * untouched.
- *
- * Two special cases fall out of value-scoping for free:
- *   - `fill: none` (bpmn:Group, text annotations) matches no rule and stays
- *     transparent, so groups never hide the elements they enclose (#1056).
- *   - filled throw markers paint their body with the stroke constant
- *     (`fill: rgb(34, 36, 42)`) and their fold lines `stroke: white`; both are
- *     covered by the value rules below, keeping them legible (#1017).
+ * Recolour ONLY bpmn-js's default paint (`fill: white`, `stroke: rgb(34, 36, 42)`),
+ * scoping each rule to the known value. A blanket `*` override would beat — via
+ * `!important` — the inline style bpmn-js writes for a user's "Set color" choice.
+ * Value-scoping also handles two cases for free: `fill: none` (bpmn:Group, text
+ * annotations) matches nothing and stays transparent (#1056), and filled throw
+ * markers are covered by the rules below (#1017).
  */
 
 /* defaultFillColor (white) → dark surface */
@@ -118,22 +109,15 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
 }
 
 /*
- * Embedded labels (task names rendered inside the shape). Recolour ONLY the
- * default label colour. With no `defaultLabelColor` configured, bpmn-js paints
- * a label with the element's stroke colour (BpmnRenderUtil#getLabelColor), so a
- * user-coloured shape already gets a dark label that reads against its light
- * palette fill — forcing it light here would make it illegible.
+ * Embedded labels — recolour only the default. bpmn-js paints a label with the
+ * element's stroke colour (no `defaultLabelColor` configured), so a coloured
+ * shape's dark label already reads against its light fill; don't force it light.
  */
 .djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-label-color) !important;
 }
 
-/*
- * External labels (event/flow names) sit on the dark canvas, not on a shape, so
- * they always need the light colour — including the stroke-coloured labels of
- * user-coloured elements, which would otherwise be unreadable against the
- * canvas.
- */
+/* External labels sit on the dark canvas, so always light — even when coloured. */
 .djs-label .djs-visual text {
     fill: var(--bpmn-label-color) !important;
 }
