@@ -46,7 +46,7 @@ import javax.swing.SwingConstants
  *
  * **Crash recovery note:** diff panes are host-originated and their XML is held
  * here (not in the core's document mirror), so a mid-diff bridge respawn does
- * **not** auto-recover the diff — `CoreProcess.reregisterLiveSessions` covers
+ * **not** auto-recover the diff — `EditorSessionRouter.reregisterLiveSessions` covers
  * editor sessions only. A diff tab is transient and re-openable, so this is an
  * accepted limitation rather than a silent gap.
  */
