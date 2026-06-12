@@ -13,8 +13,23 @@ updates:
       prefix: chore
       prefix-development: chore
       include: scope
+    cooldown:
+      default-days: 5
+      semver-major-days: 14
+      semver-minor-days: 5
+      semver-patch-days: 3
     groups:
-      npm-all:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        patterns:
+          - "*"
+      npm-major:
+        applies-to: version-updates
+        update-types:
+          - major
         patterns:
           - "*"
   # Fetch and update latest `github-actions` packages
@@ -32,5 +47,37 @@ updates:
       include: scope
     groups:
       github-actions-all:
+        patterns:
+          - "*"
+  # Fetch and update latest `gradle` packages (IntelliJ plugin module).
+  - package-ecosystem: gradle
+    directory: "/apps/intellij-plugin"
+    target-branch: "main"
+    labels:
+      - "Technical Dept"
+    schedule:
+      interval: weekly
+      time: "05:00"
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    cooldown:
+      default-days: 5
+      semver-major-days: 14
+      semver-minor-days: 5
+      semver-patch-days: 3
+    groups:
+      gradle-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+        patterns:
+          - "*"
+      gradle-major:
+        applies-to: version-updates
+        update-types:
+          - major
         patterns:
           - "*"

@@ -1,8 +1,8 @@
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 
 plugins {
-    kotlin("jvm") version "2.0.20"
-    id("org.jetbrains.intellij.platform") version "2.5.0"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.intellij.platform)
 }
 
 group = "io.miragon"
@@ -28,7 +28,7 @@ dependencies {
     // Gson does the JSON encode/decode for the host ↔ bridge ↔ webview messages.
     // Hand-built strings are unsafe here: SyncDocumentCommand carries the full
     // BPMN XML, which must round-trip through proper escaping.
-    implementation("com.google.code.gson:gson:2.11.0")
+    implementation(libs.gson)
 }
 
 kotlin {
