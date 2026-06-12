@@ -1,7 +1,7 @@
 [versions]
-kotlin = "2.0.20"
-intellijPlatform = "2.5.0"
-gson = "2.11.0"
+kotlin = "2.4.0"
+intellijPlatform = "2.16.0"
+gson = "2.14.0"
 
 [libraries]
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
