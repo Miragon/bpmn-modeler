@@ -38,13 +38,13 @@ import {
     createResolver,
     extractProcessVariables,
     formatErrors,
+    initResizer,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnModeler,
     getVsCodeApi,
-    initResizer,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
     initTheme,
