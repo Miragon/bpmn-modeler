@@ -1,6 +1,7 @@
 import {
     Command,
     DmnFileQuery,
+    PropertiesPanelStateQuery,
     Query,
     VsCodeApi,
     VsCodeImpl,
@@ -40,6 +41,23 @@ export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
     return new VsCodeImpl<StateType, MessageType>();
 }
 
+// Minimal DRD for standalone browser runs, so the palette and an element's
+// context pad are visible for manual testing.
+const SAMPLE_DMN = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="sample" name="Sample" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="decision_1" name="Decision 1">
+    <decisionTable id="decisionTable_1">
+      <input id="input_1"><inputExpression id="inputExpression_1" typeRef="string"><text></text></inputExpression></input>
+      <output id="output_1" typeRef="string" />
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="decision_1"><dc:Bounds height="80" width="180" x="160" y="100" /></dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>`;
+
 class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
     /**
      * Merges `state` into the current mock state, initialising it when no
@@ -58,7 +76,15 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
     override postMessage(message: MessageType): void {
         switch (true) {
             case message.type === "GetDmnFileCommand": {
-                dispatchEvent(new DmnFileQuery(""));
+                dispatchEvent(new DmnFileQuery(SAMPLE_DMN));
+                break;
+            }
+            case message.type === "GetPropertiesPanelStateCommand": {
+                dispatchEvent(new PropertiesPanelStateQuery(true));
+                break;
+            }
+            case message.type === "SetPropertiesPanelStateCommand": {
+                // No host to persist to in standalone browser runs.
                 break;
             }
             default: {

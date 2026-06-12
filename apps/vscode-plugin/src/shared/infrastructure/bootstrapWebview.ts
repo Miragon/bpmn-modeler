@@ -9,9 +9,9 @@ import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
  * editors) and `BpmnDiffController` (readonly diff panes) can invoke it
  * independently without going through each other.
  *
- * @param initialPanelVisible BPMN-only: when `false`, HTML renders the
- *   properties panel pre-collapsed so it never flashes visible on first
- *   paint. Ignored for DMN; defaults to `true` (safe for diff panes).
+ * @param initialPanelVisible When `false`, HTML renders the properties panel
+ *   pre-collapsed so it never flashes visible on first paint. Honoured by both
+ *   the BPMN and DMN editors; defaults to `true` (safe for diff panes).
  * @throws {Error} if `viewType` is unknown.
  */
 export function bootstrapWebview(
@@ -25,7 +25,7 @@ export function bootstrapWebview(
     if (viewType === BPMN_VIEW_TYPE) {
         webview.html = bpmnEditorUi(webview, getContext().extensionUri, initialPanelVisible);
     } else if (viewType === DMN_VIEW_TYPE) {
-        webview.html = dmnModelerHtml(webview, getContext().extensionUri);
+        webview.html = dmnModelerHtml(webview, getContext().extensionUri, initialPanelVisible);
     } else {
         throw new Error(`Unsupported view type: ${viewType}`);
     }

@@ -38,13 +38,13 @@ import {
     createResolver,
     extractProcessVariables,
     formatErrors,
+    initResizer,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnModeler,
     getVsCodeApi,
-    initResizer,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
     initTheme,
@@ -193,7 +193,13 @@ window.onload = async function () {
         return;
     }
 
-    const propertiesPanelHandle = initResizer();
+    const propertiesPanelHandle = initResizer({
+        getToggleLabel: (state) =>
+            i18n.translate(
+                state === "collapsed" ? "Open properties panel" : "Close properties panel",
+            ),
+        onLabelChange: (apply) => i18n.onChange(apply),
+    });
     const vsCodeBridgeModule = {
         vsCodeBridge: ["value", { postMessage: (m: unknown) => vscode.postMessage(m as never) }],
     };

@@ -8,6 +8,7 @@ import "dmn-js/dist/assets/dmn-js-decision-table-controls.css";
 import "dmn-js/dist/assets/dmn-js-drd.css";
 import "dmn-js/dist/assets/dmn-js-literal-expression.css";
 import "dmn-js/dist/assets/dmn-js-shared.css";
+import "dmn-js/dist/assets/dmn-font/css/dmn-embedded.css";
 import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";
 
 import {
@@ -17,12 +18,17 @@ import {
     DmnFileQuery,
     formatErrors,
     GetDmnFileCommand,
+    GetPropertiesPanelStateCommand,
+    initResizer,
     LogErrorCommand,
     LogInfoCommand,
     NoModelerError,
+    PropertiesPanelStateQuery,
     Query,
+    SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 import {
     createModeler,
@@ -47,6 +53,8 @@ const debouncedUpdateXML = asyncDebounce(openXML, 100);
 
 // create resolver to wait for the response from the backend
 const dmnFileResolver = createResolver<DmnFileQuery>();
+// Resolves once the host replies with the persisted properties-panel default.
+const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
 
 let modelerIsInitialized = false;
 
@@ -60,10 +68,28 @@ let modelerIsInitialized = false;
 window.onload = async function () {
     window.addEventListener("message", onReceiveMessage);
 
+    // Labels reuse the BPMN i18n keys; DMN has no language wiring yet, so they
+    // render the English fallback until that lands.
+    const propertiesPanelHandle = initResizer({
+        getToggleLabel: (state) =>
+            i18n.translate(
+                state === "collapsed" ? "Open properties panel" : "Close properties panel",
+            ),
+        onLabelChange: (apply) => i18n.onChange(apply),
+    });
+
     vscode.postMessage(new GetDmnFileCommand());
+    vscode.postMessage(new GetPropertiesPanelStateCommand());
     const dmnFile = await dmnFileResolver.wait();
     await initializeModeler(dmnFile?.content);
     modelerIsInitialized = true;
+
+    // Apply the host's global default, then report toggles back to persist it.
+    const panelState = await panelStateResolver.wait();
+    propertiesPanelHandle.setVisible(panelState?.visible ?? true);
+    propertiesPanelHandle.onVisibilityChanged((visible) => {
+        vscode.postMessage(new SetPropertiesPanelStateCommand(visible));
+    });
 
     stateManager.restorePanelUiState();
     stateManager.startPersisting();
@@ -132,6 +158,10 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
                     ),
                 );
             }
+            break;
+        }
+        case queryOrCommand.type === "PropertiesPanelStateQuery": {
+            panelStateResolver.done(message.data as PropertiesPanelStateQuery);
             break;
         }
     }
