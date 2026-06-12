@@ -1,5 +1,3 @@
-import { i18n } from "@miragon/bpmn-modeler-i18n";
-
 /**
  * Minimum width (px) the properties panel can be resized to.
  * Dragging below this threshold collapses the panel entirely.
@@ -10,14 +8,6 @@ const MAX_PANEL_WIDTH = 1600;
 
 // CSS class applied to the panel when it is collapsed (width 0, hidden).
 const COLLAPSED_CLASS = "collapsed";
-
-/**
- * English fallback labels for the toggle button, used as translation keys.
- * Which one applies depends on the panel's current state (see
- * {@link applyToggleButtonState}).
- */
-const OPEN_PANEL_LABEL = "Open properties panel";
-const CLOSE_PANEL_LABEL = "Close properties panel";
 
 /**
  * Chevron SVGs used as the toggle button icon. Inline so no additional icon
@@ -35,6 +25,29 @@ const CHEVRON_RIGHT_SVG = `
     <path d="M2.5 2 8 7l-5.5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
 `;
+
+/**
+ * Injected dependencies for the toggle button's accessible label. Keeping the
+ * label source out of this module is what lets it live in `libs/shared` without
+ * depending on any i18n package: each webview passes its own label provider
+ * (the BPMN and DMN webviews both back it with `@miragon/bpmn-modeler-i18n`,
+ * but the resizer itself stays framework- and i18n-agnostic).
+ */
+export interface PropertiesPanelResizerOptions {
+    /**
+     * Returns the toggle button's label for the given panel state: the "open"
+     * affordance while the panel is collapsed, the "close" affordance while it
+     * is open. Applied to both `aria-label` and `title`.
+     */
+    getToggleLabel: (state: "open" | "collapsed") => string;
+
+    /**
+     * Optional hook to re-apply the label when it changes at runtime (e.g. a
+     * language switch). The passed callback re-reads {@link getToggleLabel} and
+     * updates the button; wire it to your i18n change event.
+     */
+    onLabelChange?: (apply: () => void) => void;
+}
 
 /**
  * Public API surface exposed by {@link initResizer}.  Lets higher layers
@@ -101,7 +114,7 @@ const NOOP_HANDLE: PropertiesPanelHandle = {
  * `lastX` resets every frame to ensure reversing at a clamp boundary is
  * immediately visible with no dead zone.
  */
-export function initResizer(): PropertiesPanelHandle {
+export function initResizer(opts: PropertiesPanelResizerOptions): PropertiesPanelHandle {
     const resizerEl = document.getElementById("js-panel-resizer");
     const panelEl = document.getElementById("js-properties-panel");
 
@@ -125,7 +138,7 @@ export function initResizer(): PropertiesPanelHandle {
      * `collapsed` class (to avoid a flash of the visible panel while waiting
      * for the persisted-state round-trip), the resizer's in-memory state
      * matches the rendered state and the subsequent `setVisible(false)` call
-     * from {@link main.ts} becomes a no-op.
+     * from the webview entry point becomes a no-op.
      */
     let isCollapsed = panel.classList.contains(COLLAPSED_CLASS);
 
@@ -166,7 +179,7 @@ export function initResizer(): PropertiesPanelHandle {
      */
     function applyToggleButtonState(): void {
         button.innerHTML = isCollapsed ? CHEVRON_LEFT_SVG : CHEVRON_RIGHT_SVG;
-        const label = i18n.translate(isCollapsed ? OPEN_PANEL_LABEL : CLOSE_PANEL_LABEL);
+        const label = opts.getToggleLabel(isCollapsed ? "collapsed" : "open");
         button.setAttribute("aria-label", label);
         button.title = label;
     }
@@ -188,7 +201,7 @@ export function initResizer(): PropertiesPanelHandle {
     });
     resizer.appendChild(button);
     applyToggleButtonState();
-    i18n.onChange(() => applyToggleButtonState());
+    opts.onLabelChange?.(applyToggleButtonState);
 
     /**
      * Collapse the panel to zero width and mark both the panel and the resizer

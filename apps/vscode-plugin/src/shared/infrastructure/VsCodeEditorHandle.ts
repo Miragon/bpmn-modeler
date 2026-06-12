@@ -36,7 +36,7 @@ export class VsCodeEditorHandle implements EditorHandle {
      * configured before the session is registered so the first paint already
      * carries the persisted panel state.
      *
-     * @param initialPanelVisible BPMN-only: pre-applied to the HTML so the
+     * @param initialPanelVisible Pre-applied to the HTML (BPMN and DMN) so the
      *   properties panel never flashes open before the async state round-trip.
      */
     static create(

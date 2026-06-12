@@ -193,7 +193,13 @@ window.onload = async function () {
         return;
     }
 
-    const propertiesPanelHandle = initResizer();
+    const propertiesPanelHandle = initResizer({
+        getToggleLabel: (state) =>
+            i18n.translate(
+                state === "collapsed" ? "Open properties panel" : "Close properties panel",
+            ),
+        onLabelChange: (apply) => i18n.onChange(apply),
+    });
     const vsCodeBridgeModule = {
         vsCodeBridge: ["value", { postMessage: (m: unknown) => vscode.postMessage(m as never) }],
     };

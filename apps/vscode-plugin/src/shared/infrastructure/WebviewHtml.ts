@@ -77,17 +77,35 @@ export function bpmnEditorUi(
  *
  * @param webview The VS Code Webview instance.
  * @param extensionUri URI of the extension's install directory.
+ * @param initialPanelVisible The globally persisted properties-panel default.
+ *   When `false`, the panel and its resizer are rendered with the `collapsed`
+ *   class (and `width: 0` on the panel) so the panel never flashes visible
+ *   before the webview's JavaScript requests and applies the persisted state.
+ *   Defaults to `true` for safety.
  * @returns HTML string to set as `webview.html`.
  */
-export function dmnModelerHtml(webview: Webview, extensionUri: Uri): string {
+export function dmnModelerHtml(
+    webview: Webview,
+    extensionUri: Uri,
+    initialPanelVisible: boolean = true,
+): string {
     const baseUri = Uri.joinPath(extensionUri, DMN_WEBVIEW_PATH);
 
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleResetUri = webview.asWebviewUri(Uri.joinPath(extensionUri, "assets", "reset.css"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
-    const frontUri = webview.asWebviewUri(Uri.joinPath(baseUri, "css", "dmn.css"));
 
     const nonce = getNonce();
+
+    // Pre-apply the collapsed class + zero width so the panel never appears for
+    // a frame before initResizer() picks up the persisted state.  The resizer
+    // reads its `collapsed` class at startup so its in-memory state stays in
+    // sync with this pre-rendered DOM.
+    const panelClass = initialPanelVisible
+        ? "properties-panel-parent"
+        : "properties-panel-parent collapsed";
+    const resizerClass = initialPanelVisible ? "panel-resizer" : "panel-resizer collapsed";
+    const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
 
     return `
             <!DOCTYPE html>
@@ -98,14 +116,14 @@ export function dmnModelerHtml(webview: Webview, extensionUri: Uri): string {
 
                 <link href="${styleResetUri}" rel="stylesheet">
                 <link href="${styleUri}" rel="stylesheet" type="text/css" />
-                <link href="${frontUri}" rel="stylesheet" type="text/css" />
 
                 <title>DMN Modeler</title>
             </head>
             <body>
                 <div class="content with-diagram" id="js-drop-zone">
                     <div class="canvas" id="js-canvas"></div>
-                    <div class="properties-panel-parent" id="js-properties-panel"></div>
+                    <div id="js-panel-resizer" class="${resizerClass}"></div>
+                    <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>
                 </div>
                 <script type="text/javascript" src="${scriptUri}" nonce="${nonce}"></script>
             </body>

@@ -106,6 +106,18 @@ export function register(
         panelStateRepo,
         deps.notifier,
     );
+    // DMN keeps its own panel default under a distinct globalState key, so the
+    // BPMN and DMN editors don't move each other's default. The panel service
+    // itself is engine-agnostic, so the BPMN implementation is reused.
+    const dmnPanelStateRepo = new PropertiesPanelStateRepository(
+        context,
+        "dmnPropertiesPanelVisible",
+    );
+    const dmnPanelSvc = new BpmnPropertiesPanelService(
+        deps.editorStore,
+        dmnPanelStateRepo,
+        deps.notifier,
+    );
     const dmnService = new DmnModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
     const referencedModelLocator = new ReferencedModelLocator(deps.vsWorkspace, deps.notifier);
     const modelNavigationService = new ModelNavigationService(
@@ -151,6 +163,8 @@ export function register(
         .on("SyncActivitiesCommand", syncActivitiesHandler(codeLink.codeLinkMap));
     const dmnMessageRouter = new WebviewMessageRouter()
         .on("GetDmnFileCommand", getDmnFileHandler(dmnService, deps.notifier))
+        .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(dmnPanelSvc))
+        .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
 
     new ModelerEditorController(deps.editorStore, deps.notifier, {
@@ -179,6 +193,7 @@ export function register(
         viewType: DMN_VIEW_TYPE,
         messageRouter: dmnMessageRouter,
         participants: [new DmnRenderParticipant(dmnService, deps.notifier)],
+        initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
 
     return { bpmnService };

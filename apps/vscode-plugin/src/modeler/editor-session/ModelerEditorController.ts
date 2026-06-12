@@ -32,7 +32,7 @@ export interface ModelerEditorOptions {
      */
     delegateResolve?: (document: TextDocument, panel: WebviewPanel) => boolean;
 
-    /** BPMN-only persisted properties-panel visibility, pre-applied to the HTML. */
+    /** Persisted properties-panel visibility, pre-applied to the HTML (BPMN & DMN). */
     initialPanelVisible?: () => boolean;
 }
 

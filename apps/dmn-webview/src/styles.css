@@ -70,18 +70,145 @@ a:link {
 }
 
 .content .canvas,
+.content .panel-resizer,
 .content .properties-panel-parent {
     display: none;
 }
 
 .content.with-diagram .canvas,
+.content.with-diagram .panel-resizer,
 .content.with-diagram .properties-panel-parent {
     display: block;
 }
 
+.panel-resizer {
+    width: 4px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background-color: transparent;
+    border-left: 1px solid #e0e0e0;
+    transition: background-color 0.15s ease, width 0.15s ease;
+    position: relative;
+    /* Default accent colors for the collapsed-state line segments. Declared
+     * at `.panel-resizer` (specificity 0,1,0) so a future theme override on
+     * `.panel-resizer.collapsed` (0,2,0) always wins regardless of load order. */
+    --panel-resizer-accent-color: rgba(0, 120, 212, 0.4);
+    --panel-resizer-accent-hover-color: rgba(0, 120, 212, 0.8);
+}
+
+.panel-resizer:hover {
+    background-color: rgba(0, 120, 212, 0.15);
+    border-left-color: rgba(0, 120, 212, 0.6);
+}
+
+/* When the pointer is over the toggle button the button supplies its own hover
+ * styling. Suppress the resizer's hover tint so the two do not stack into a
+ * halo around the protruding pill. */
+.panel-resizer:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+    border-left-color: #e0e0e0;
+}
+
+.panel-resizer.collapsed {
+    width: 8px;
+    /* The accent line is drawn by the `::before` / `::after` pseudo-elements
+     * below instead of `border-left`: a real border is painted at the border-box
+     * edge and the absolutely-positioned toggle button does not reliably cover
+     * it (Chromium paints the border above the button background in some layer
+     * configurations). Two segments that stop above and resume below the button
+     * guarantee a clean interruption. Zero the border width outright so the
+     * `:hover` rule cannot recolor a still-present 1 px border back to visible. */
+    border-left-width: 0;
+}
+
+/* Two segments of the accent line: one above the toggle button, one below.
+ * The gap is computed from the button's fixed 40 px height (20 px half-height
+ * + 2 px breathing room). */
+.panel-resizer.collapsed::before,
+.panel-resizer.collapsed::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 1px;
+    background-color: var(--panel-resizer-accent-color);
+    pointer-events: none;
+}
+
+.panel-resizer.collapsed::before {
+    top: 0;
+    bottom: calc(50% + 22px);
+}
+
+.panel-resizer.collapsed::after {
+    top: calc(50% + 22px);
+    bottom: 0;
+}
+
+.panel-resizer.collapsed:hover {
+    background-color: rgba(0, 120, 212, 0.2);
+}
+
+.panel-resizer.collapsed:hover::before,
+.panel-resizer.collapsed:hover::after {
+    background-color: var(--panel-resizer-accent-hover-color);
+}
+
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+}
+
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover)::before,
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover)::after {
+    background-color: var(--panel-resizer-accent-color);
+}
+
+/* Toggle button shown in both panel states: a one-click "open" affordance while
+ * collapsed and a "close" affordance while open (chevron flipped from JS). It
+ * sits mid-resizer and protrudes slightly left over the canvas. */
+.panel-resizer-toggle {
+    display: flex;
+    position: absolute;
+    /* Vertical centering via top + margin instead of `transform: translateY(-50%)`:
+     * a transform places the button in its own compositor layer, which in
+     * Chromium lets the resizer's `border-left` bleed through the opaque
+     * background. Plain top + negative margin keeps it in the parent paint layer. */
+    top: 50%;
+    margin-top: -20px;
+    right: 0;
+    width: 14px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid rgba(0, 120, 212, 0.4);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    background-color: #f5f5f5;
+    color: #555;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.panel-resizer-toggle:hover {
+    background-color: rgba(0, 120, 212, 0.15);
+    color: rgba(0, 120, 212, 0.9);
+}
+
+.panel-resizer-toggle:focus-visible {
+    outline: 2px solid rgba(0, 120, 212, 0.8);
+    outline-offset: 1px;
+}
+
 .properties-panel-parent {
+    flex-shrink: 0;
     border-left: 1px solid #ccc;
     overflow: auto;
+}
+
+.properties-panel-parent.collapsed {
+    overflow: hidden;
+    border-left-width: 0;
 }
 
 .properties-panel-parent:empty {
