@@ -89,9 +89,8 @@ a:link {
     border-left: 1px solid #e0e0e0;
     transition: background-color 0.15s ease, width 0.15s ease;
     position: relative;
-    /* Default accent colors for the collapsed-state line segments. Declared
-     * at `.panel-resizer` (specificity 0,1,0) so a future theme override on
-     * `.panel-resizer.collapsed` (0,2,0) always wins regardless of load order. */
+    /* Declared here (0,1,0) so a future `.collapsed` theme override (0,2,0)
+     * wins regardless of stylesheet load order. */
     --panel-resizer-accent-color: rgba(0, 120, 212, 0.4);
     --panel-resizer-accent-hover-color: rgba(0, 120, 212, 0.8);
 }
@@ -101,9 +100,8 @@ a:link {
     border-left-color: rgba(0, 120, 212, 0.6);
 }
 
-/* When the pointer is over the toggle button the button supplies its own hover
- * styling. Suppress the resizer's hover tint so the two do not stack into a
- * halo around the protruding pill. */
+/* The button supplies its own hover styling; suppress the resizer's tint so
+ * the two don't stack into a halo around the pill. */
 .panel-resizer:has(.panel-resizer-toggle:hover) {
     background-color: transparent;
     border-left-color: #e0e0e0;
@@ -111,19 +109,14 @@ a:link {
 
 .panel-resizer.collapsed {
     width: 8px;
-    /* The accent line is drawn by the `::before` / `::after` pseudo-elements
-     * below instead of `border-left`: a real border is painted at the border-box
-     * edge and the absolutely-positioned toggle button does not reliably cover
-     * it (Chromium paints the border above the button background in some layer
-     * configurations). Two segments that stop above and resume below the button
-     * guarantee a clean interruption. Zero the border width outright so the
-     * `:hover` rule cannot recolor a still-present 1 px border back to visible. */
+    /* Draw the accent line via `::before`/`::after` instead of `border-left`:
+     * the toggle button can't reliably cover a real border (Chromium layer
+     * paint order), so two segments stop above and resume below it. Zero the
+     * border width so `:hover` can't recolor a leftover 1px border. */
     border-left-width: 0;
 }
 
-/* Two segments of the accent line: one above the toggle button, one below.
- * The gap is computed from the button's fixed 40 px height (20 px half-height
- * + 2 px breathing room). */
+/* Two segments around the button; gap from its 40px height (20px half + 2px). */
 .panel-resizer.collapsed::before,
 .panel-resizer.collapsed::after {
     content: "";
@@ -162,16 +155,13 @@ a:link {
     background-color: var(--panel-resizer-accent-color);
 }
 
-/* Toggle button shown in both panel states: a one-click "open" affordance while
- * collapsed and a "close" affordance while open (chevron flipped from JS). It
- * sits mid-resizer and protrudes slightly left over the canvas. */
+/* Always visible: "open" affordance while collapsed, "close" while open
+ * (chevron flipped from JS). Protrudes slightly left over the canvas. */
 .panel-resizer-toggle {
     display: flex;
     position: absolute;
-    /* Vertical centering via top + margin instead of `transform: translateY(-50%)`:
-     * a transform places the button in its own compositor layer, which in
-     * Chromium lets the resizer's `border-left` bleed through the opaque
-     * background. Plain top + negative margin keeps it in the parent paint layer. */
+    /* Center via top + margin, not `transform: translateY(-50%)`: a transform
+     * isolates a layer that lets the resizer border bleed through the button. */
     top: 50%;
     margin-top: -20px;
     right: 0;

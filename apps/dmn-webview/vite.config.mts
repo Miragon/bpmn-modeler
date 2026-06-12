@@ -5,11 +5,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/dmn-webview",
-
-    // The dmn-js icon font is bundled via the `dmn-font` CSS imported in
-    // `main.ts`, so no static copy of the font assets is needed.
     plugins: [tsconfigPaths()],
-
     build: {
         target: "es2021",
         chunkSizeWarningLimit: 1200,
@@ -23,7 +19,6 @@ export default defineConfig({
             },
         },
     },
-
     define: {
         "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
     },

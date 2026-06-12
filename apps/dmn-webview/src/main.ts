@@ -8,11 +8,6 @@ import "dmn-js/dist/assets/dmn-js-decision-table-controls.css";
 import "dmn-js/dist/assets/dmn-js-drd.css";
 import "dmn-js/dist/assets/dmn-js-literal-expression.css";
 import "dmn-js/dist/assets/dmn-js-shared.css";
-// The dmn-js icon font (palette tools, context-pad wrench, DRD element icons).
-// Unlike the other dmn-js stylesheets it is not pulled in transitively, so it
-// must be imported explicitly — otherwise Vite never bundles the `@font-face`
-// and every icon renders blank. The `-embedded` variant inlines the font as
-// base64, which also sidesteps webview CSP/font-path issues.
 import "dmn-js/dist/assets/dmn-font/css/dmn-embedded.css";
 import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";
 
@@ -73,10 +68,8 @@ let modelerIsInitialized = false;
 window.onload = async function () {
     window.addEventListener("message", onReceiveMessage);
 
-    // The resizer's DOM targets (#js-panel-resizer / #js-properties-panel) are
-    // pre-rendered by the host, so it can be wired before the modeler mounts.
-    // Labels are reused from the BPMN i18n package; DMN has no language wiring
-    // yet, so they render the English fallback until that lands.
+    // Labels reuse the BPMN i18n keys; DMN has no language wiring yet, so they
+    // render the English fallback until that lands.
     const propertiesPanelHandle = initResizer({
         getToggleLabel: (state) =>
             i18n.translate(
@@ -91,9 +84,7 @@ window.onload = async function () {
     await initializeModeler(dmnFile?.content);
     modelerIsInitialized = true;
 
-    // Apply the host's global default, then report user toggles back so the
-    // default tracks the latest preference across DMN editors. A missing query
-    // falls back to a visible panel so the user is never stranded.
+    // Apply the host's global default, then report toggles back to persist it.
     const panelState = await panelStateResolver.wait();
     propertiesPanelHandle.setVisible(panelState?.visible ?? true);
     propertiesPanelHandle.onVisibilityChanged((visible) => {

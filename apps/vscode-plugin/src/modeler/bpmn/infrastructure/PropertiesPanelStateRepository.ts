@@ -15,17 +15,15 @@ const DEFAULT_PANEL_VISIBLE_KEY = "propertiesPanelVisible";
  * visibility while still honouring the user's last preference for newly opened
  * diagrams.
  *
- * The BPMN and DMN editors each keep their own default under a distinct
- * `globalState` key (see {@link constructor}), so toggling one does not move
- * the other.
+ * BPMN and DMN each pass a distinct `key`, so toggling one does not move the
+ * other's default.
  */
 export class PropertiesPanelStateRepository implements PropertiesPanelStatePort {
     /**
      * @param context The VS Code extension context whose `globalState` backs
      *   the persisted value.
-     * @param key The `globalState` key under which the default is stored.
-     *   Defaults to the historical BPMN key so existing BPMN preferences are
-     *   preserved; the DMN editor passes its own key.
+     * @param key `globalState` key for the default. Defaults to the historical
+     *   BPMN key for back-compat; the DMN editor passes its own.
      */
     constructor(
         private readonly context: ExtensionContext,

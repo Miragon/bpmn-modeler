@@ -106,9 +106,8 @@ export function register(
         panelStateRepo,
         deps.notifier,
     );
-    // DMN keeps its own panel default under a distinct globalState key, so the
-    // BPMN and DMN editors don't move each other's default. The panel service
-    // itself is engine-agnostic, so the BPMN implementation is reused.
+    // DMN keeps its own default under a distinct key; the panel service is
+    // engine-agnostic, so the BPMN implementation is reused.
     const dmnPanelStateRepo = new PropertiesPanelStateRepository(
         context,
         "dmnPropertiesPanelVisible",

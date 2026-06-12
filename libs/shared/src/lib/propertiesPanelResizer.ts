@@ -27,25 +27,15 @@ const CHEVRON_RIGHT_SVG = `
 `;
 
 /**
- * Injected dependencies for the toggle button's accessible label. Keeping the
- * label source out of this module is what lets it live in `libs/shared` without
- * depending on any i18n package: each webview passes its own label provider
- * (the BPMN and DMN webviews both back it with `@miragon/bpmn-modeler-i18n`,
- * but the resizer itself stays framework- and i18n-agnostic).
+ * Injected label source for the toggle button. Keeping it out of this module is
+ * what lets the resizer live in `libs/shared` i18n-agnostic — each webview backs
+ * it with its own i18n.
  */
 export interface PropertiesPanelResizerOptions {
-    /**
-     * Returns the toggle button's label for the given panel state: the "open"
-     * affordance while the panel is collapsed, the "close" affordance while it
-     * is open. Applied to both `aria-label` and `title`.
-     */
+    /** Toggle-button label per state. Applied to both `aria-label` and `title`. */
     getToggleLabel: (state: "open" | "collapsed") => string;
 
-    /**
-     * Optional hook to re-apply the label when it changes at runtime (e.g. a
-     * language switch). The passed callback re-reads {@link getToggleLabel} and
-     * updates the button; wire it to your i18n change event.
-     */
+    /** Re-apply the label on change (e.g. language switch); wire to i18n. */
     onLabelChange?: (apply: () => void) => void;
 }
 

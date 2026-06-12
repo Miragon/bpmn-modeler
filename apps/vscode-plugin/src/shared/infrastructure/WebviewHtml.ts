@@ -38,11 +38,6 @@ export function bpmnEditorUi(
     const themeUri = webview.asWebviewUri(Uri.joinPath(baseUri, "lightTheme.css"));
 
     const nonce = getNonce();
-
-    // Pre-apply the collapsed class + zero width so the panel never appears
-    // for a frame before initResizer() picks up the persisted state.  The
-    // resizer reads its `collapsed` class at startup so its in-memory state
-    // stays in sync with this pre-rendered DOM.
     const panelClass = initialPanelVisible
         ? "properties-panel-parent"
         : "properties-panel-parent collapsed";
@@ -77,11 +72,7 @@ export function bpmnEditorUi(
  *
  * @param webview The VS Code Webview instance.
  * @param extensionUri URI of the extension's install directory.
- * @param initialPanelVisible The globally persisted properties-panel default.
- *   When `false`, the panel and its resizer are rendered with the `collapsed`
- *   class (and `width: 0` on the panel) so the panel never flashes visible
- *   before the webview's JavaScript requests and applies the persisted state.
- *   Defaults to `true` for safety.
+ * @param initialPanelVisible determines if the panel is visible initially
  * @returns HTML string to set as `webview.html`.
  */
 export function dmnModelerHtml(
@@ -96,11 +87,6 @@ export function dmnModelerHtml(
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
 
     const nonce = getNonce();
-
-    // Pre-apply the collapsed class + zero width so the panel never appears for
-    // a frame before initResizer() picks up the persisted state.  The resizer
-    // reads its `collapsed` class at startup so its in-memory state stays in
-    // sync with this pre-rendered DOM.
     const panelClass = initialPanelVisible
         ? "properties-panel-parent"
         : "properties-panel-parent collapsed";

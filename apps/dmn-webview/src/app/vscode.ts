@@ -41,8 +41,8 @@ export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
     return new VsCodeImpl<StateType, MessageType>();
 }
 
-// Minimal DRD served to standalone browser runs so the palette, an element and
-// its context pad are visible for manual/visual testing.
+// Minimal DRD for standalone browser runs, so the palette and an element's
+// context pad are visible for manual testing.
 const SAMPLE_DMN = `<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="sample" name="Sample" namespace="http://camunda.org/schema/1.0/dmn">
   <decision id="decision_1" name="Decision 1">
