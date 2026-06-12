@@ -73,6 +73,14 @@
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
 
         <!--
+            Pre-warms the out-of-process bridge + asset server off the EDT after a
+            project opens, so the first `.bpmn` tab renders against a live process
+            instead of a cold spawn. The spawn itself is already moved off the EDT
+            in CoreProcess; this just gets ahead of the first open.
+        -->
+        <postStartupActivity implementation="io.miragon.intellij.bpmn.BridgeWarmupActivity"/>
+
+        <!--
             JCEF two-pane diagram diff. Both targeted entry points — Git "Show
             Diff" (VCS/SCM) and "Compare Files" — build a two-content
             ContentDiffRequest and route it through DiffManager, which selects

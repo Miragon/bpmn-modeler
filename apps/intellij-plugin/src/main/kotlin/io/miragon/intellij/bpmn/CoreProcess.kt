@@ -3,8 +3,10 @@ package io.miragon.intellij.bpmn
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
@@ -24,6 +26,7 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -146,6 +149,31 @@ class CoreProcess(private val project: Project) : Disposable {
         spawn()
     }
 
+    /**
+     * Brings the bridge up **off the EDT** when it isn't already running.
+     *
+     * `spawn()` does blocking process I/O — `ProcessBuilder.start()` can stall for
+     * seconds on Windows while Defender scans the freshly materialised binary — so
+     * it must never run on the caller's thread when that caller is the EDT (editor,
+     * diff, or tool-window construction). Callers enqueue their first frame
+     * synchronously instead; the writer thread drains it once the process is up, so
+     * nothing is lost by deferring the spawn.
+     */
+    private fun ensureStartedAsync() {
+        if (process?.isAlive == true) return
+        AppExecutorUtil.getAppScheduledExecutorService().execute {
+            if (disposed.get()) return@execute
+            ensureStarted()
+        }
+    }
+
+    /**
+     * Pre-warms the bridge at project open so the first `.bpmn` tab, diff, or
+     * deployment panel renders against an already-running process instead of
+     * waiting on a cold spawn. Safe to call repeatedly — no-ops once alive.
+     */
+    fun prewarm() = ensureStartedAsync()
+
     private fun spawn() {
         val binary =
             try {
@@ -241,9 +269,12 @@ class CoreProcess(private val project: Project) : Disposable {
 
     /** Registers an editor and tells the core to open it (seeding the document mirror). */
     fun registerSession(session: CoreSession) {
-        ensureStarted()
         sessions[session.editorId] = session
+        // Enqueue the register frame now and spawn off the EDT: the outbound queue
+        // buffers it until the writer exists, so editor construction never blocks on
+        // the (occasionally seconds-long) process start.
         sendRegister(session)
+        ensureStartedAsync()
     }
 
     private fun sendRegister(session: CoreSession) {
@@ -328,9 +359,11 @@ class CoreProcess(private val project: Project) : Disposable {
      * replaces the previous sink.
      */
     fun registerDeploymentWindow(sink: (String) -> Unit) {
-        ensureStarted()
         deploymentSink = sink
+        // Seed now if the bridge is already up; otherwise spawn() re-seeds on start.
+        // Spawning runs off the EDT so the tool window opens without blocking.
         sendDeploymentSeed()
+        ensureStartedAsync()
     }
 
     /** Drops the deployment sink and marks the panel closed (stops default refreshes). */
@@ -379,10 +412,11 @@ class CoreProcess(private val project: Project) : Disposable {
         afterContent: String,
         postToAfter: (String) -> Unit,
     ) {
-        ensureStarted()
         diffPanes[beforeUri] = postToBefore
         diffPanes[afterUri] = postToAfter
         diffPaneUris[diffId] = listOf(beforeUri, afterUri)
+        // Route the panes, enqueue diff/open, then spawn off the EDT (the queue
+        // holds the frame until the writer exists), so opening a diff never blocks.
         notify(
             "diff/open",
             linkedMapOf(
@@ -392,6 +426,7 @@ class CoreProcess(private val project: Project) : Disposable {
                 "after" to linkedMapOf("uri" to afterUri, "content" to afterContent),
             ),
         )
+        ensureStartedAsync()
     }
 
     /** Forwards one raw diff-pane webview message (already JSON) to the core. */
@@ -737,8 +772,16 @@ class CoreProcess(private val project: Project) : Disposable {
 
     /**
      * Returns the path to a runnable bridge binary: a dev override if set, else
-     * the bundled per-platform binary extracted from the classpath, made
-     * executable, and cached for the service's lifetime.
+     * the bundled per-platform binary extracted to a stable, version-keyed cache
+     * under the IDE system dir, made executable, and cached for this service's
+     * lifetime.
+     *
+     * The stable path is load-bearing on Windows. Extracting to a brand-new
+     * `%TEMP%` file every session (the old behaviour) defeats Defender's scan
+     * cache: launching a never-before-seen executable triggers a synchronous
+     * on-execution scan *inside* `CreateProcess` that can freeze the caller for
+     * seconds. Keying the path by plugin version means Defender re-scans only on
+     * the first launch after an install/upgrade, then reuses its verdict.
      */
     private fun resolveBridgeBinary(): Path {
         (System.getProperty("miragon.bridge") ?: System.getenv("MIRAGON_BRIDGE"))?.let {
@@ -747,26 +790,89 @@ class CoreProcess(private val project: Project) : Disposable {
         cachedBinary?.let { return it }
 
         val platform = platformDir()
-        // Windows refuses to launch an executable without the `.exe` suffix on
-        // both the staged resource and the extracted temp file. Bun's
+        // Windows refuses to launch an executable without the `.exe` suffix. Bun's
         // `--target=bun-windows-x64` produces `modeler-bridge.exe` and Gradle
         // stages it under the same name, so we mirror that here.
         val isWindows = platform.startsWith("windows")
         val binaryName = if (isWindows) "$BRIDGE_BINARY_NAME.exe" else BRIDGE_BINARY_NAME
         val resource = "/bin/$platform/$binaryName"
+
+        val cacheDir = Path.of(PathManager.getSystemPath(), CACHE_SUBDIR, bridgeCacheKey())
+        val target = cacheDir.resolve(binaryName)
+        if (!Files.isRegularFile(target)) {
+            extractBridge(resource, cacheDir, target)
+            pruneStaleCaches(cacheDir)
+        }
+        // Re-assert the exec bit cheaply in case a prior session extracted the file
+        // but failed to set it (or the bit was cleared out from under us).
+        target.toFile().setExecutable(true, true)
+        cachedBinary = target
+        return target
+    }
+
+    /**
+     * Materialises the bundled bridge at [target] atomically: extraction goes to a
+     * sibling temp file, then an atomic move into place, so a crash mid-copy never
+     * leaves a truncated binary that would fail to launch. Two IDE windows (each
+     * with its own project-level service) can race here; the loser's move fails
+     * with [FileAlreadyExistsException] and simply reuses the winner's file.
+     */
+    private fun extractBridge(resource: String, cacheDir: Path, target: Path) {
         val stream =
             javaClass.getResourceAsStream(resource)
                 ?: error(
-                    "No bundled modeler bridge for platform '$platform' ($resource). " +
+                    "No bundled modeler bridge ($resource). " +
                         "Build it with `corepack yarn workspace @miragon/bpmn-modeler-bridge compile`.",
                 )
-        val tempSuffix = if (isWindows) ".exe" else ""
-        val temp = Files.createTempFile("modeler-bridge", tempSuffix)
-        stream.use { Files.copy(it, temp, StandardCopyOption.REPLACE_EXISTING) }
-        temp.toFile().setExecutable(true, true)
-        temp.toFile().deleteOnExit()
-        cachedBinary = temp
-        return temp
+        Files.createDirectories(cacheDir)
+        val temp = Files.createTempFile(cacheDir, BRIDGE_BINARY_NAME, ".tmp")
+        try {
+            stream.use { Files.copy(it, temp, StandardCopyOption.REPLACE_EXISTING) }
+            temp.toFile().setExecutable(true, true)
+            try {
+                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE)
+            } catch (e: FileAlreadyExistsException) {
+                // Another IDE window extracted it first; its copy is authoritative.
+                log.debug("Bridge already extracted by a concurrent window: ${e.message}")
+            }
+        } finally {
+            Files.deleteIfExists(temp)
+        }
+    }
+
+    /**
+     * Cache-directory segment that changes whenever the shipped binary might
+     * differ. Keyed by plugin version so an upgrade re-extracts (and Defender
+     * re-scans once); falls back to `"dev"` when the version is unavailable — fine
+     * because dev runs use the `MIRAGON_BRIDGE` override checked above.
+     */
+    private fun bridgeCacheKey(): String = PluginManager.getPluginByClass(javaClass)?.version ?: "dev"
+
+    /**
+     * Best-effort removal of *other* version dirs so extracted binaries don't
+     * accumulate (~tens of MB each) across plugin upgrades. Runs only right after a
+     * fresh extraction — i.e. once per new version. Deleting a binary another IDE
+     * window (running an older plugin version) is currently executing is safe:
+     * POSIX keeps the running inode alive after unlink, and Windows locks the file
+     * so the delete simply fails and is retried on the next upgrade. Hence all
+     * failures are swallowed.
+     */
+    private fun pruneStaleCaches(currentVersionDir: Path) {
+        val root = currentVersionDir.parent ?: return
+        runCatching {
+            Files.list(root).use { entries ->
+                entries
+                    .filter { Files.isDirectory(it) && it != currentVersionDir }
+                    .forEach { stale ->
+                        runCatching {
+                            Files.walk(stale).use { paths ->
+                                // Deepest-first so directories are emptied before removal.
+                                paths.sorted(Comparator.reverseOrder()).forEach { Files.deleteIfExists(it) }
+                            }
+                        }
+                    }
+            }
+        }
     }
 
     private fun platformDir(): String {
@@ -841,6 +947,10 @@ class CoreProcess(private val project: Project) : Disposable {
         const val RESTART_BACKOFF_MS = 500L
         const val STABLE_RUN_MS = 15_000L
         const val BRIDGE_BINARY_NAME = "modeler-bridge"
+
+        // Version-keyed extraction root under PathManager.getSystemPath(); the
+        // version segment is appended per [bridgeCacheKey].
+        const val CACHE_SUBDIR = "miragon-bpmn-modeler/bridge"
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
     }
 }
