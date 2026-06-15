@@ -63,22 +63,36 @@ class IdeThemeSignal : Disposable {
     fun bodyClass(): String = if (isDark()) "vscode-dark" else "vscode-light"
 
     /**
-     * The `:root { … }` block mapping the eight `--vscode-*` custom properties
-     * the webview's dark stylesheet actually reads onto live IDE colors. Safe to
-     * inject under a light LaF too: the light stylesheet references none of them,
-     * so the values are simply unused.
+     * The injected stylesheet: a `:root { … }` block mapping the eight
+     * `--vscode-*` custom properties the webview's dark stylesheet reads onto
+     * live IDE colors, plus a `.bio-properties-panel { … }` block forcing a
+     * contrasting input fill. The `:root` vars are safe under a light LaF (the
+     * light stylesheet references none of them); the input-fill block applies to
+     * both stylesheets, which is why it must be a direct, `!important` override
+     * rather than relying on the dark-only `--vscode-*` mapping.
      */
     fun themeVarsCss(): String {
         val scheme = EditorColorsManager.getInstance().globalScheme
         val editorBackground = ColorUtil.toHtmlColor(scheme.defaultBackground)
         val editorForeground = ColorUtil.toHtmlColor(scheme.defaultForeground)
-        val widgetBackground = ColorUtil.toHtmlColor(UIUtil.getPanelBackground())
+        val panelBg = UIUtil.getPanelBackground()
+        val widgetBackground = ColorUtil.toHtmlColor(panelBg)
         val inputBackground =
-            ColorUtil.toHtmlColor(JBColor.namedColor("TextField.background", UIUtil.getPanelBackground()))
+            ColorUtil.toHtmlColor(JBColor.namedColor("TextField.background", panelBg))
         val groupBorder = ColorUtil.toHtmlColor(JBColor.border())
         val errorForeground = ColorUtil.toHtmlColor(NamedColorUtil.getErrorForeground())
         val linkForeground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Link.Foreground.ENABLED)
         val disabledForeground = ColorUtil.toHtmlColor(NamedColorUtil.getInactiveTextColor())
+        // IntelliJ's New UI sets `TextField.background` to (almost) the panel
+        // background — native inputs are told apart by a border, not a fill — so
+        // the bpmn-js inputs, which rely on fill contrast (their border is mapped
+        // to the panel colour), visually merge into the panel. Force a fill
+        // derived from the live panel colour: lighter under a dark LaF, darker
+        // under a light one. `!important` beats both the dark stylesheet's
+        // `:root .bio-properties-panel` rule and the light stylesheet's stock
+        // bpmn-js definition regardless of selector specificity.
+        val inputContrast =
+            ColorUtil.toHtmlColor(if (isDark()) ColorUtil.brighter(panelBg, 2) else ColorUtil.darker(panelBg, 1))
         return listOf(
             ":root {",
             "  --vscode-editor-background: $editorBackground;",
@@ -89,6 +103,10 @@ class IdeThemeSignal : Disposable {
             "  --vscode-errorForeground: $errorForeground;",
             "  --vscode-textLink-foreground: $linkForeground;",
             "  --vscode-disabledForeground: $disabledForeground;",
+            "}",
+            ".bio-properties-panel {",
+            "  --input-background-color: $inputContrast !important;",
+            "  --input-focus-background-color: $inputContrast !important;",
             "}",
         ).joinToString("\n")
     }
