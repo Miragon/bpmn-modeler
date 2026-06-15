@@ -1,20 +1,17 @@
 <div id="top"></div>
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
+# BPMN Modeler
 
-<div align="center">
-  <img src="https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/miragon-logo.png" alt="Miragon" height="160">
+[![VS Marketplace][marketplace-shield]][marketplace-url]
+[![Installs][installs-shield]][marketplace-url]
+[![Build][build-shield]][build-url]
+[![License: Apache 2.0][license-shield]][license-url]
 
-### BPMN, where your work already happens.
+**BPMN, where your work already happens.**
 
 A growing family of BPMN/DMN tools built around a shared modeler core — in VS Code, on the desktop, and (soon) talking to your AI assistant.
 
 [Documentation](https://miragon.github.io/bpmn-modeler/) · [Install on Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler) · [Issues](https://github.com/Miragon/bpmn-modeler/issues)
-</div>
 
 ---
 
@@ -123,14 +120,10 @@ Distributed under the [Apache License 2.0](LICENSE).
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/Miragon/bpmn-modeler.svg?style=for-the-badge
-[contributors-url]: https://github.com/Miragon/bpmn-modeler/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Miragon/bpmn-modeler.svg?style=for-the-badge
-[forks-url]: https://github.com/Miragon/bpmn-modeler/network/members
-[stars-shield]: https://img.shields.io/github/stars/Miragon/bpmn-modeler.svg?style=for-the-badge
-[stars-url]: https://github.com/Miragon/bpmn-modeler/stargazers
-[issues-shield]: https://img.shields.io/github/issues/Miragon/bpmn-modeler.svg?style=for-the-badge
-[issues-url]: https://github.com/Miragon/bpmn-modeler/issues
-[license-shield]: https://img.shields.io/github/license/Miragon/bpmn-modeler.svg?style=for-the-badge
+[marketplace-shield]: https://vsmarketplacebadges.dev/version-short/miragon-gmbh.vs-code-bpmn-modeler.svg?label=VS%20Marketplace
+[installs-shield]: https://vsmarketplacebadges.dev/installs-short/miragon-gmbh.vs-code-bpmn-modeler.svg?label=Installs
+[build-shield]: https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml/badge.svg?branch=main
+[build-url]: https://github.com/Miragon/bpmn-modeler/actions/workflows/build.yml
+[license-shield]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: https://github.com/Miragon/bpmn-modeler/blob/main/LICENSE
 [marketplace-url]: https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler
