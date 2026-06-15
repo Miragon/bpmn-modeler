@@ -1,15 +1,18 @@
-name: Publish Standalone (macOS)
+name: Publish Standalone
 
-# Builds the VS Code extension on Linux, then signs, notarizes and uploads
-# the macOS DMG. Split into two jobs so the expensive macOS runner only
-# handles what genuinely needs macOS (codesign + notarytool + electron-builder).
+# Builds the VS Code extension once on Linux, then packages installers on
+# each target OS (macOS DMG, Windows NSIS .exe). Native modules must be
+# compiled against each platform's Node ABI, so every packaging job runs on
+# its own runner — no cross-compilation.
 #
 # Callable two ways:
 #   - workflow_dispatch (manual single-step run; dry-run defaults to true)
 #   - workflow_call (from release-standalone.yml orchestrator)
 #
 # In workflow_call mode the workflow exposes the DMG's sha256 and filename
-# so the homebrew job can skip re-downloading the ~150 MB DMG.
+# so the homebrew job can skip re-downloading the ~150 MB DMG. The Windows
+# artifact ships to the GitHub Release directly and feeds electron-updater
+# (latest.yml) on next launch.
 
 on:
   workflow_dispatch:
@@ -195,6 +198,82 @@ jobs:
           fi
           shopt -s nullglob
           FILES=(apps/standalone/dist/*.dmg apps/standalone/dist/*.dmg.blockmap apps/standalone/dist/latest-mac.yml)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No artifacts found in apps/standalone/dist/." && exit 1
+          fi
+          gh release upload "$TAG" "${FILES[@]}" --clobber
+
+  package-windows:
+    name: Package NSIS installer (Windows)
+    runs-on: windows-latest
+    needs: build-vsix
+    defaults:
+      run:
+        # windows-latest defaults to PowerShell; use Git Bash to keep glob /
+        # release-upload logic identical to the macOS job.
+        shell: bash
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node 22
+        # No `cache: yarn` on Windows: setup-node would run `yarn --version`
+        # against the pre-installed Yarn 1 (which sits ahead of corepack's
+        # shim on PATH), and Yarn 1 aborts on `packageManager: yarn@4`.
+        # `corepack enable` runs below to create the Yarn 4 shim against
+        # this Node install.
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download .vsix from build-vsix job
+        uses: actions/download-artifact@v8
+        with:
+          name: standalone-vsix
+          path: dist/apps/vscode-plugin
+
+      - name: Bundle extension into standalone plugins/
+        run: yarn workspace @miragon/bpmn-modeler-standalone bundle
+
+      - name: Build NSIS installer
+        run: yarn workspace @miragon/bpmn-modeler-standalone run package
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Upload NSIS artifact (dry-run)
+        if: inputs.dry-run == true
+        uses: actions/upload-artifact@v7
+        with:
+          name: standalone-nsis-dry-run
+          path: |
+            apps/standalone/dist/*.exe
+            apps/standalone/dist/*.exe.blockmap
+            apps/standalone/dist/latest.yml
+          retention-days: 7
+
+      - name: Upload artifacts to release
+        if: inputs.dry-run == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
+          TAG="standalone-v${VERSION}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG does not exist. Create it first (tag + 'gh release create $TAG')." && exit 1
+          fi
+          shopt -s nullglob
+          FILES=(apps/standalone/dist/*.exe apps/standalone/dist/*.exe.blockmap apps/standalone/dist/latest.yml)
           if [ "${#FILES[@]}" -eq 0 ]; then
             echo "No artifacts found in apps/standalone/dist/." && exit 1
           fi

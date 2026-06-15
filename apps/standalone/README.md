@@ -51,7 +51,11 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone start
 > rebuild` — Yarn 4 reserves `rebuild` as a built-in command and won't dispatch
 > to our script otherwise.
 
-## Building the macOS `.dmg`
+## Building installers
+
+The packaging scripts produce a platform-appropriate installer for whichever
+OS you run them on — DMG on macOS, NSIS `.exe` on Windows. electron-builder
+defaults to the host OS; no cross-compilation.
 
 End-to-end recipe — start from a clean `apps/standalone/` and run from the
 **repo root**:
@@ -70,23 +74,38 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone bundle
 corepack yarn workspace @miragon/bpmn-modeler-standalone run rebuild
 
 # 4. Pick one packaging script:
-corepack yarn workspace @miragon/bpmn-modeler-standalone run package          # unsigned (Gatekeeper warning)
-corepack yarn workspace @miragon/bpmn-modeler-standalone run package:signed   # signed + notarized (no warning)
+corepack yarn workspace @miragon/bpmn-modeler-standalone run package          # unsigned (Gatekeeper warning on macOS, SmartScreen on Windows)
+corepack yarn workspace @miragon/bpmn-modeler-standalone run package:signed   # macOS only: signed + notarized (no warning)
 ```
 
 | Script | Use it for | Apple secrets needed |
 |---|---|---|
-| `package` | Local smoke testing | None |
-| `package:signed` | Building a release-quality DMG locally | Yes (see Releasing) |
+| `package` | Local smoke testing on any OS | None |
+| `package:signed` | Building a release-quality DMG locally (macOS) | Yes (see Releasing) |
 | `package:release` | CI only — signs, notarizes, **publishes** to GitHub Releases | Yes |
 
-**Output:** `apps/standalone/dist/Miragon BPMN Modeler-<version>-arm64.dmg`
-(~150 MB on Apple Silicon). The `<version>` comes from
-`apps/standalone/package.json`.
+**Output by platform:**
+
+| Host OS | Artifact | Path |
+|---|---|---|
+| macOS | DMG | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-arm64.dmg` |
+| Windows | NSIS installer | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x64.exe` |
+
+The `<version>` comes from `apps/standalone/package.json`.
 
 `package:signed` needs `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`,
 `APPLE_TEAM_ID` as env variables and a Developer ID Application cert in
 the login keychain. See [Releasing](#releasing) below for the full setup.
+
+### Windows notes
+
+- **Build toolchain:** install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/) with the "Desktop development with C++" workload, plus Python 3 (required by `node-gyp` for native module rebuilds).
+- **Install the app:** double-click the `.exe`; NSIS walks through the usual install flow and registers the `.bpmn` / `.dmn` file associations.
+- **SmartScreen warning:** the build is unsigned, so Windows will show "Windows protected your PC" on first launch. Click *More info → Run anyway*. Production code signing is on the roadmap.
+
+### Auto-update on Windows
+
+Auto-update is wired via `electron-updater` on both platforms. The CI pipeline uploads `latest-mac.yml` and `latest.yml` to each GitHub Release, so existing installs find the new version on next launch. The first release that ships the Windows yml file is the starting point — anything installed from an earlier release has to be upgraded manually once.
 
 ## Releasing
 
@@ -99,10 +118,13 @@ sub-workflows. Each sub-workflow remains independently runnable for reruns.
 - `.github/workflows/prepare-release-standalone.yml` — bumps
   `apps/standalone/package.json` + `libs/standalone-extension/package.json`,
   commits, tags `standalone-vX.Y.Z`, creates the GitHub Release.
-- `.github/workflows/publish-standalone.yml` — two-job pipeline:
-  builds the `.vsix` on `ubuntu-latest`, then signs/notarizes the DMG on
-  `macos-latest` and uploads `.dmg` + `latest-mac.yml` to the release.
-  Existing installs pick up updates via `electron-updater` on next launch.
+- `.github/workflows/publish-standalone.yml` — three-job pipeline:
+  builds the `.vsix` on `ubuntu-latest`, then fans out to two packaging
+  jobs that run on their native runners (`macos-latest` for the signed +
+  notarized DMG, `windows-latest` for the NSIS installer). Each job uploads
+  its platform artifact plus its `electron-updater` manifest
+  (`latest-mac.yml` / `latest.yml`) to the release. Existing installs pick
+  up updates on next launch.
 - `.github/workflows/publish-standalone-homebrew.yml` — updates the Cask
   formula in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap)
   so `brew upgrade --cask miragon-bpmn-modeler` picks up the new version.
@@ -165,12 +187,13 @@ chain runs through without a gate; dry-run remains the only safety net.
 apps/standalone/
 ├── package.json            Theia deps + scripts
 ├── tsconfig.json
-├── electron-builder.yml    macOS / Windows / Linux build targets (unsigned)
+├── electron-builder.yml    macOS / Windows build targets (unsigned)
 ├── scripts/
 │   ├── bundle-extension.mjs   Copy .vsix from dist/apps/vscode-plugin
 │   └── theia-electron-main.js Electron main entry (points at ./plugins)
 ├── resources/
-│   └── icon.png            Placeholder icon (production needs .icns/.ico)
+│   ├── icon.png            App icon (macOS auto-derives .icns)
+│   └── icon.ico            Windows icon (16/32/48/256, multi-resolution)
 ├── plugins/                Gitignored — populated by `yarn bundle`
 ├── src-gen/                Gitignored — Theia generates this
 ├── lib/                    Gitignored — Theia build output
