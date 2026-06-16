@@ -35,12 +35,19 @@ export class ViewportManager {
     }
 
     /**
-     * Fits the whole diagram into the viewport, centering it. Used on a fresh
-     * file open (no saved viewbox) so a diagram authored far from the origin is
-     * not rendered off-screen. bpmn-js does not auto-fit on importXML.
+     * Fits the diagram into the viewport anchored at its top-left corner. Used
+     * on a fresh file open (no saved viewbox) so a diagram authored far from
+     * the origin is not rendered off-screen — bpmn-js does not auto-fit on
+     * importXML.
+     *
+     * Deliberately omits the `"auto"` center argument: centering pulls the left
+     * of larger diagrams behind the palette/properties-panel overlays (which
+     * sit on top of the canvas, not beside it). Top-left anchoring keeps the
+     * natural reading start in view and only zooms out when the diagram is
+     * larger than the viewport — it never zooms in past 1.0.
      */
     fitViewport(): void {
-        this.getService<any>("canvas").zoom("fit-viewport", "auto");
+        this.getService<any>("canvas").zoom("fit-viewport");
     }
 
     /**
