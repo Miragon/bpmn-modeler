@@ -30,6 +30,9 @@ jobs:
       modeler-core: ${{ steps.filter.outputs.modeler-core }}
       modeler-bridge: ${{ steps.filter.outputs.modeler-bridge }}
       vscode-plugin: ${{ steps.filter.outputs.vscode-plugin }}
+      vscode-plugin-src: ${{ steps.filter.outputs.vscode-plugin-src }}
+      modeler-core-src: ${{ steps.filter.outputs.modeler-core-src }}
+      modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
@@ -39,6 +42,11 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
+          # `every` makes the `!`-negation patterns in the `*-src` filters below
+          # actually exclude — without it negations are inert. Safe globally
+          # because every other filter is a single positive pattern, for which
+          # `every` is identical to the default `any`.
+          predicate-quantifier: 'every'
           filters: |
             shared:
               - 'libs/shared/**'
@@ -56,6 +64,19 @@ jobs:
               - 'apps/modeler-bridge/**'
             vscode-plugin:
               - 'apps/vscode-plugin/**'
+            # `*-src` mirror the package filters above but drop package.json, so a
+            # version-bump-only PR (release-please) skips the Codecov coverage
+            # report while build+test still run via the broad filters. Relies on
+            # `predicate-quantifier: every` to honour the negation.
+            vscode-plugin-src:
+              - 'apps/vscode-plugin/**'
+              - '!apps/vscode-plugin/package.json'
+            modeler-core-src:
+              - 'libs/modeler-core/**'
+              - '!libs/modeler-core/package.json'
+            modeler-bridge-src:
+              - 'apps/modeler-bridge/**'
+              - '!apps/modeler-bridge/package.json'
             bpmn-webview:
               - 'apps/bpmn-webview/**'
             dmn-webview:
@@ -242,7 +263,7 @@ jobs:
       - name: Report coverage on the PR
         if: >-
           always() && github.event_name == 'pull_request' &&
-          needs.detect-changes.outputs.vscode-plugin == 'true'
+          needs.detect-changes.outputs.vscode-plugin-src == 'true'
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@v2
         with:
@@ -253,7 +274,7 @@ jobs:
           json-final-path: ../../coverage/apps/vscode-plugin/coverage-final.json
           name: vscode-plugin
       - name: Upload coverage to Codecov
-        if: needs.detect-changes.outputs.vscode-plugin == 'true'
+        if: needs.detect-changes.outputs.vscode-plugin-src == 'true'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -296,7 +317,7 @@ jobs:
       - name: Report coverage on the PR
         if: >-
           always() && github.event_name == 'pull_request' &&
-          needs.detect-changes.outputs.modeler-core == 'true'
+          needs.detect-changes.outputs.modeler-core-src == 'true'
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@v2
         with:
@@ -305,7 +326,7 @@ jobs:
           json-final-path: ../../coverage/libs/modeler-core/coverage-final.json
           name: modeler-core
       - name: Upload coverage to Codecov
-        if: needs.detect-changes.outputs.modeler-core == 'true'
+        if: needs.detect-changes.outputs.modeler-core-src == 'true'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -348,7 +369,7 @@ jobs:
       - name: Report coverage on the PR
         if: >-
           always() && github.event_name == 'pull_request' &&
-          needs.detect-changes.outputs.modeler-bridge == 'true'
+          needs.detect-changes.outputs.modeler-bridge-src == 'true'
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@v2
         with:
@@ -357,7 +378,7 @@ jobs:
           json-final-path: ../../coverage/apps/modeler-bridge/coverage-final.json
           name: modeler-bridge
       - name: Upload coverage to Codecov
-        if: needs.detect-changes.outputs.modeler-bridge == 'true'
+        if: needs.detect-changes.outputs.modeler-bridge-src == 'true'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
