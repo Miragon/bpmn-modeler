@@ -1,19 +1,16 @@
 name: Lint PR Title
 
-# Squash-merge is the norm here, so the PR *title* — not individual commit
-# messages — becomes the commit that lands on `main`. release-please reads those
-# squashed commits to decide the version bump and build the changelog, so a
-# malformed title silently means "no bump / missing changelog entry". This gate
-# makes that failure loud at PR time instead.
+# Squash-merge makes the PR *title* the commit that lands on `main`, and
+# release-please reads it to pick the version bump and changelog entry — so a
+# malformed title silently yields no bump / no changelog line. This gate fails
+# loud at PR time instead.
 #
-# `edited` is included on purpose: the fix for a bad title is editing the title,
-# which fires only `edited` (not `synchronize`). Without it the failing check
-# would stick until an unrelated push. This is why the check lives here and not
-# in build.yml's `ci` rollup, whose triggers don't include title edits.
+# `edited` is required: fixing a bad title fires only `edited` (not
+# `synchronize`), so without it a failing check sticks until an unrelated push.
+# That's also why this isn't folded into build.yml's `ci` rollup.
 #
-# The release-please PR is deliberately NOT exempt: it is opened with RELEASE_PAT
-# (not the default GITHUB_TOKEN), so this workflow runs on it too. Its generated
-# `chore(main): release X.Y.Z` title passes, but a broken title pattern is caught.
+# Not exempting the release-please PR: it's opened with RELEASE_PAT, so this runs
+# on it too (its `chore(main): release X.Y.Z` title passes).
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -34,22 +31,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Mirror the type set documented in CLAUDE.md / Conventional Commits.
-          # Keep in sync with the bump rules release-please derives from them.
+          # The only types release-please acts on here: feat/fix bump the
+          # version, and these five are the changelog-sections in
+          # release-please-config.json. Any other type would pass lint but bump
+          # nothing and never reach the changelog — fold those into `chore`.
           types: |
             feat
             fix
-            docs
-            style
             refactor
-            perf
-            test
+            docs
             chore
-            build
-            ci
-            revert
-          # Scope is intentionally unconstrained. Host attribution in the
-          # changelog is a cosmetic scope prefix, and one webview scope can map
-          # to several hosts — "what's live per host" is answered by the
-          # Deployments page, not by enforcing a fixed scope taxonomy here.
+          # Scope unconstrained: host attribution in the changelog is a cosmetic
+          # prefix, and one webview scope can map to several hosts.
           requireScope: false
