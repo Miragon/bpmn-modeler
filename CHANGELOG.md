@@ -36,13 +36,13 @@
 * **intellij:** give properties-panel inputs a contrasting fill in JCEF ([#1142](https://github.com/Miragon/bpmn-modeler/issues/1142)) ([637c9b2](https://github.com/Miragon/bpmn-modeler/commit/637c9b2bea79acf41a06a3b4dc2a6a4b7acc7002))
 * **intellij:** remove until-build upper bound so plugin installs on newer IDEs ([#1111](https://github.com/Miragon/bpmn-modeler/issues/1111)) ([294943e](https://github.com/Miragon/bpmn-modeler/commit/294943eafa91df9112f2bcc0ecc848d199aabb3c))
 * **intellij:** spawn the modeler bridge off the EDT to stop IDE freezes ([#1138](https://github.com/Miragon/bpmn-modeler/issues/1138)) ([9fa6a54](https://github.com/Miragon/bpmn-modeler/commit/9fa6a54467be937069540358f2e62e2ad0bc203e))
-* **modeler-bridge:** poll on Windows so chokidar stops locking element-templates ([#1148](https://github.com/Miragon/bpmn-modeler/issues/1148)) ([#1153](https://github.com/Miragon/bpmn-modeler/issues/1153)) ([80bdb71](https://github.com/Miragon/bpmn-modeler/commit/80bdb7194579a67321ee70868b7047a821e3dcbb))
+* **modeler-bridge:** poll on Windows so chokidar stops locking element-templates ([#1153](https://github.com/Miragon/bpmn-modeler/issues/1153)) ([80bdb71](https://github.com/Miragon/bpmn-modeler/commit/80bdb7194579a67321ee70868b7047a821e3dcbb))
 
 
 ### 🔨 Refactoring
 
 * **bridge:** decompose createBridge() into per-feature composition modules ([#1137](https://github.com/Miragon/bpmn-modeler/issues/1137)) ([6ee94c1](https://github.com/Miragon/bpmn-modeler/commit/6ee94c1e003284c6137158d600ec4a604ed7e413))
-* **intellij:** split CoreProcess into supervisor, RPC channel, and feature routers ([#1103](https://github.com/Miragon/bpmn-modeler/issues/1103)) ([#1140](https://github.com/Miragon/bpmn-modeler/issues/1140)) ([e9f8fc5](https://github.com/Miragon/bpmn-modeler/commit/e9f8fc50c96061f8a3838859ff3d0ef18e7dfb89))
+* **intellij:** split CoreProcess into supervisor, RPC channel, and feature routers ([#1140](https://github.com/Miragon/bpmn-modeler/issues/1140)) ([e9f8fc5](https://github.com/Miragon/bpmn-modeler/commit/e9f8fc50c96061f8a3838859ff3d0ef18e7dfb89))
 * **modeler-core:** extract vscode-free engine package ([#1080](https://github.com/Miragon/bpmn-modeler/issues/1080)) ([92467dc](https://github.com/Miragon/bpmn-modeler/commit/92467dcb76bb6ea3ffc3214f8506adc6d7999a5c))
 
 
