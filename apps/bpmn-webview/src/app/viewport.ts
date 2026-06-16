@@ -35,6 +35,15 @@ export class ViewportManager {
     }
 
     /**
+     * Fits the whole diagram into the viewport, centering it. Used on a fresh
+     * file open (no saved viewbox) so a diagram authored far from the origin is
+     * not rendered off-screen. bpmn-js does not auto-fit on importXML.
+     */
+    fitViewport(): void {
+        this.getService<any>("canvas").zoom("fit-viewport", "auto");
+    }
+
+    /**
      * Subscribes to canvas viewbox changes with a 100 ms debounce.
      *
      * The debounce prevents a flood of state writes while the user is actively
