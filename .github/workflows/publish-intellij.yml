@@ -29,9 +29,12 @@ jobs:
     name: Publish
     runs-on: ubuntu-latest
     # Gate the production publish behind the jetbrains-marketplace environment
-    # so RELEASE_PAT is only readable after the environment's protection rules
-    # (required reviewers / branch restrictions) pass. No dry-run input — every
-    # run publishes — so the gate applies unconditionally.
+    # so the publish action itself only proceeds after the environment's
+    # protection rules (required reviewers / branch restrictions) pass. The
+    # credential is now the miragon-release-please App key (a repo/org secret,
+    # readable by env-gated jobs), so the gate protects the act of publishing,
+    # not a PAT-scoped secret. No dry-run input — every run publishes — so the
+    # gate applies unconditionally.
     environment: jetbrains-marketplace
 
     steps:
@@ -52,7 +55,6 @@ jobs:
           ref: ${{ steps.tag.outputs.tag }}
           fetch-depth: 0
           persist-credentials: false
-          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Check pinned dependencies
         uses: Miragon/pin-npm-dependencies@v1
@@ -143,9 +145,22 @@ jobs:
             done
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Mint the App token here, after the long cross-compile + Gradle build,
+      # rather than at job start: installation tokens expire after 1 hour and
+      # the build alone could approach that window. A late token gives a fresh
+      # ~1h for the quick tail (release upload + push to main). The push needs a
+      # non-GITHUB_TOKEN credential so the resulting commit triggers
+      # deploy-docs.yml — same reason release-please uses this App.
+      - name: Generate App token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
       - name: Upload ZIP to release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.zip.outputs.path }}" --clobber
 
@@ -167,7 +182,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/${{ github.repository }}"
+          git remote set-url origin "https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}"
           cp -f docs/public/updatePlugins.xml /tmp/updatePlugins.xml
           git fetch origin main
           # The regenerated XML differs from the tag's tracked copy, so a plain
