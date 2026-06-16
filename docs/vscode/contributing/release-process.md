@@ -85,8 +85,8 @@ release-please is driven by two checked-in files:
 
 1. Merge your feature/fix PRs into `main` with Conventional-Commit messages.
    Use a host scope for host-only fixes (`fix(intellij): …`).
-2. release-please opens/updates a **Release PR** titled `chore(main): release
-   <version>`. Review the proposed version and changelog.
+2. release-please opens/updates a **Release PR** titled
+   `chore(main): release <version>`. Review the proposed version and changelog.
 3. **Merge the Release PR.** This pushes the version-file bumps, tags
    `v<version>`, and creates the GitHub Release. No publish fires.
 
