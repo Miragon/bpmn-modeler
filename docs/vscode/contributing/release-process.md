@@ -6,120 +6,132 @@ version history lives on
 
 ## Overview
 
-Each shippable artefact has a `prepare-*` and a `publish-*` workflow. The
-split keeps each file short, single-purpose, and individually rerunnable
-for debugging.
+All hosts (VS Code extension, IntelliJ plugin, standalone app) share **one
+version** and **one GitHub Release**. The version is the *repository's*
+version — when any host changes, every host's number advances. Publishing is
+chosen **manually, per host**, so an unpublished host simply lags at its prior
+version (shown truthfully on the
+[Environments](https://github.com/Miragon/bpmn-modeler/deployments) page).
 
-- **`prepare-*`** — bumps the version, runs the sanity checks, commits the
-  bump, pushes the tag, creates a GitHub Release. Does **not** publish.
-- **`publish-*`** — builds the artefact, attaches it to the existing
-  release, and pushes it to the relevant registry (Marketplace /
-  GitHub Release assets / Homebrew). Runnable manually with `dry-run: true`
-  to produce an artefact without uploading.
+The flow has two distinct phases:
 
-All workflows accept a `dry-run` input for safe local validation.
+1. **Prepare (automated)** — [release-please](https://github.com/googleapis/release-please)
+   watches `main`. From the Conventional-Commit history it maintains a single
+   **Release PR** that bumps every host's version file in lockstep, updates the
+   root `CHANGELOG.md`, and — when merged — cuts one `v<version>` tag + one
+   GitHub Release. **Nothing is published at this point.**
+2. **Publish (manual, per host)** — for each host you want to ship, dispatch
+   its `publish-*` workflow against the new `v<version>` tag. Each attaches its
+   artefact to the shared release and records a per-host **deployment** so the
+   Environments page reflects what is actually live.
 
-The **standalone** app additionally has an orchestrator
-(`release-standalone.yml`) that chains `prepare` → `publish` → `homebrew`
-via `workflow_call`. Other artefacts are launched with separate
-`workflow_dispatch` calls per phase.
+### Why a single shared version
+
+- Features almost always touch shared code (`libs/shared` feeds every host),
+  so they ship to everyone as a `minor`/`major` bump — always coupled.
+- Host-specific divergence is confined to **`patch`** bumps (per-host
+  keybinding/theme quirks). Patch gaps between hosts are cosmetic, never a
+  feature-level jump.
+
+Per-host attribution in the single changelog comes for free from the commit
+**scope** (`fix(intellij): …` renders as `**intellij:** …`). Each marketplace
+only ever shows the changelog sections for the versions it actually shipped.
 
 ## Pipeline flow
 
 ```mermaid
 flowchart LR
+    commits([Conventional commits on main])
+    rp[release-please.yml<br/>maintains Release PR]
+    pr{{Release PR}}
+    tag[(v&lt;version&gt; tag<br/>+ GitHub Release)]
+
+    commits --> rp --> pr
+    pr -->|maintainer merges| tag
+
     user([Maintainer])
-
-    subgraph Standalone[Standalone macOS app]
-        orchestrator[release-standalone.yml<br/>workflow_dispatch]
-        s_prepare[prepare-release-standalone.yml<br/>workflow_call]
-        s_publish[publish-standalone.yml<br/>workflow_call<br/>Linux + macOS jobs]
-        s_brew[publish-standalone-homebrew.yml<br/>workflow_call<br/>env: homebrew-tap]
-        s_assets[(GitHub Release DMG<br/>+ Homebrew Cask)]
-
-        orchestrator --> s_prepare --> s_publish --> s_brew --> s_assets
+    subgraph Publish[Manual publish · per host]
+        p_vscode[publish-vscode-modeler.yml]
+        p_intellij[publish-intellij.yml]
+        p_standalone[release-standalone.yml<br/>→ publish-standalone<br/>→ homebrew]
     end
 
-    subgraph Other[VS Code extension]
-        o_prepare[prepare-release-*.yml<br/>workflow_dispatch]
-        o_publish[publish-*.yml<br/>workflow_dispatch]
-        o_assets[(Marketplace)]
-
-        o_prepare --> o_publish --> o_assets
-    end
-
-    user -->|1 click| orchestrator
-    user -->|2 clicks| o_prepare
+    tag -. dispatch against tag .-> Publish
+    user -->|per host| Publish
+    p_vscode --> a_vscode[(VS Code Marketplace<br/>+ deployment)]
+    p_intellij --> a_intellij[(updatePlugins.xml + ZIP<br/>+ deployment)]
+    p_standalone --> a_standalone[(DMG / NSIS + Homebrew<br/>+ deployment)]
 ```
 
-## Releases per artefact
+## Configuration
 
-### VS Code extension
+release-please is driven by two checked-in files:
 
-Published to the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler).
+- **`release-please-config.json`** — the whole repo is one package (`"."`,
+  `release-type: node`). `extra-files` stamp the four host version files
+  (`apps/vscode-plugin/package.json`, `apps/standalone/package.json`,
+  `libs/standalone-extension/package.json` via the `json` updater; the
+  `version = "…"` literal in `apps/intellij-plugin/build.gradle.kts` via the
+  `generic` updater, anchored by its `// x-release-please-version` comment).
+  `include-component-in-tag: false` keeps the tag as plain `v<version>`.
+  `changelog-sections` map commit **types** (`feat`/`fix`/`refactor`/`docs`/
+  `chore`) to changelog headings.
+- **`.release-please-manifest.json`** — `{ ".": "1.0.1" }`, the current shared
+  version. release-please updates this on each release.
 
-| File | Trigger | Tag prefix |
+## Releasing
+
+### 1. Cut the release (prepare)
+
+1. Merge your feature/fix PRs into `main` with Conventional-Commit messages.
+   Use a host scope for host-only fixes (`fix(intellij): …`).
+2. release-please opens/updates a **Release PR** titled `chore(main): release
+   <version>`. Review the proposed version and changelog.
+3. **Merge the Release PR.** This pushes the version-file bumps, tags
+   `v<version>`, and creates the GitHub Release. No publish fires.
+
+### 2. Publish each host (manual)
+
+For every host you want to ship at this version:
+
+| Host | Workflow | How |
 |---|---|---|
-| `prepare-release-vscode-modeler.yml` | `workflow_dispatch` | — |
-| `publish-vscode-modeler.yml` | `workflow_dispatch` | `v*` (e.g. `v0.9.3`) |
+| VS Code | `publish-vscode-modeler.yml` | Run with `tag: v<version>`, `dry-run: false`. Packages the `.vsix` and runs `vsce publish`. |
+| IntelliJ | `publish-intellij.yml` | Run with `tag: v<version>`. Builds the multi-platform ZIP, uploads it to the release, and refreshes `docs/public/updatePlugins.xml`. |
+| Standalone | `release-standalone.yml` | Run with `version: <version>`. Chains `publish-standalone` (DMG + NSIS) → homebrew. Each sub-workflow is also runnable on its own. |
 
-`prepare` bumps `apps/vscode-plugin/package.json`, runs lint + test + build,
-then commits, tags `vX.Y.Z`, and creates a GitHub Release. `publish` packages
-the `.vsix`, attaches it to the release, and runs `vsce publish` against the
-VS Code Marketplace. Both steps are launched separately by the maintainer.
+All publish workflows support `dry-run` (build/package without uploading or
+pushing). A host you skip stays live at its previous version.
 
-> The `@miragon/create-append-c7` polyfill that the BPMN
-> webview depends on now lives in its
-> [own repository](https://github.com/Miragon/create-append-c7)
-> and is consumed here as a published npm dependency — its release is cut there,
-> not in this repo.
+> The `@miragon/create-append-c7` polyfill that the BPMN webview depends on
+> lives in its [own repository](https://github.com/Miragon/create-append-c7)
+> and is consumed here as a published npm dependency — its release is cut
+> there, not in this repo.
 
-### Standalone macOS app
+## Per-host "what's live" overview
 
-Published as DMG assets on [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases?q=standalone-v)
-and as a Cask in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap).
+Each publish workflow records a GitHub **deployment** on success, to a per-host
+environment:
 
-| File | Trigger | Tag prefix |
-|---|---|---|
-| `release-standalone.yml` (orchestrator) | `workflow_dispatch` | — |
-| `prepare-release-standalone.yml` | `workflow_dispatch` + `workflow_call` | — |
-| `publish-standalone.yml` | `workflow_dispatch` + `workflow_call` | `standalone-v*` |
-| `publish-standalone-homebrew.yml` | `workflow_dispatch` + `workflow_call` | — |
+| Host | Environment |
+|---|---|
+| VS Code | `vscode-marketplace` |
+| IntelliJ | `jetbrains-marketplace` |
+| Standalone | `standalone` |
 
-The standalone orchestrator chains prepare → publish → homebrew in one
-click. `publish-standalone.yml` is split across two jobs: the `.vsix` is
-built on `ubuntu-latest`, then the DMG is signed and notarized with the
-Apple Developer ID cert on `macos-latest`. The DMG + `latest-mac.yml`
-manifest are attached to the release (consumed by `electron-updater` for
-in-app auto-update), and the Cask formula is updated in `homebrew-tap`.
+The repo
+[Environments / Deployments page](https://github.com/Miragon/bpmn-modeler/deployments)
+then shows the last-published version per host — the source of truth for which
+hosts have shipped a given shared version and which are still lagging.
 
-## How to release
+## Artefact distribution
 
-### VS Code extension
-
-1. Go to **Actions** → **Prepare Release …** → **Run workflow**.
-2. Pick the **release type** (`patch` / `minor` / `major`) and decide
-   whether to enable **Dry run**.
-3. Once the prepare workflow finishes, go to **Actions** → **Publish …**
-   → **Run workflow** and decide whether to dry-run.
-
-### Standalone macOS app
-
-1. Go to **Actions** → **Release Standalone** → **Run workflow**.
-2. Pick `release-type`, toggle `dry-run`/`skip-homebrew`.
-3. Watch the chain run prepare → publish → homebrew. If the
-   `homebrew-tap` environment has a required reviewer, the run pauses
-   on the homebrew job until the reviewer approves.
-
-> Dry-run on prepare skips commit/tag/release. Dry-run on publish builds
-> the artefact and uploads it as a workflow artifact instead of pushing
-> to the release. Dry-run on homebrew generates the Cask formula and
-> only logs it.
-
-## Tag/version drift safeguard
-
-Each `publish-*` workflow checks that the tagged release matches the version
-in `package.json` before doing anything publishable. If the prepare workflow
-created the release, the versions match by construction. If a maintainer
-creates a release manually with a tag that doesn't match `package.json`,
-the publish workflow aborts with a clear error.
+- **VS Code** → [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler).
+- **IntelliJ** → the plugin ZIP attaches to the `v<version>` release;
+  `docs/public/updatePlugins.xml` (served via GitHub Pages) points the IDE's
+  custom-repository updater at it.
+- **Standalone** → DMG / NSIS installers + the `electron-updater` manifests
+  (`latest-mac.yml` / `latest.yml`) attach to the `v<version>` release; the
+  Homebrew Cask in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap)
+  is updated for `brew upgrade --cask miragon-bpmn-modeler`. The docs download
+  page resolves the latest `v*` release that carries an arm64 DMG.

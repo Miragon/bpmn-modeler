@@ -1,25 +1,24 @@
 name: Publish IntelliJ Plugin
 
-# Triggered by prepare-release-intellij.yml when it publishes an
-# `intellij-v*` GitHub Release. Cross-compiles the modeler-bridge for all
-# 5 supported platforms, builds the plugin ZIP with every binary staged,
-# uploads it to the release, then regenerates docs/public/updatePlugins.xml
-# so the JetBrains custom-repository descriptor served via GitHub Pages
-# advertises the new version. Pushing the regenerated XML to main triggers
-# deploy-docs.yml automatically.
+# Manual publish for the IntelliJ plugin. Dispatched against a unified
+# `v<version>` release tag (cut by release-please). Cross-compiles the
+# modeler-bridge for all 5 supported platforms, builds the plugin ZIP with
+# every binary staged, uploads it to that release, then regenerates
+# docs/public/updatePlugins.xml so the JetBrains custom-repository descriptor
+# served via GitHub Pages advertises the new version. Pushing the
+# regenerated XML to main triggers deploy-docs.yml automatically.
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. intellij-v0.1.1) — workflow_dispatch only'
+        description: 'Release tag (e.g. v1.2.3)'
         required: true
         type: string
 
 permissions:
   contents: write
+  deployments: write
 
 concurrency:
   group: bpmn-modeler-intellij-publish
@@ -28,25 +27,17 @@ concurrency:
 jobs:
   publish:
     name: Publish
-    # `release: published` fires for every release in this repo; gate on the
-    # intellij-v* prefix so the VS Code / standalone releases don't trigger
-    # an IntelliJ build.
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'intellij-v')
     runs-on: ubuntu-latest
 
     steps:
       - name: Resolve tag
         id: tag
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
-            TAG="${{ inputs.tag }}"
+          TAG="${{ inputs.tag }}"
+          if [[ "$TAG" != v* ]]; then
+            echo "Tag '$TAG' is not a v* tag; aborting." && exit 1
           fi
-          if [[ "$TAG" != intellij-v* ]]; then
-            echo "Tag '$TAG' is not an intellij-v* tag; aborting." && exit 1
-          fi
-          VERSION="${TAG#intellij-v}"
+          VERSION="${TAG#v}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -186,6 +177,34 @@ jobs:
           if git diff --cached --quiet; then
             echo "updatePlugins.xml is unchanged on main; nothing to commit."
           else
-            git commit -m "chore(release): refresh updatePlugins.xml for intellij-v${{ steps.tag.outputs.version }}"
+            git commit -m "chore(release): refresh updatePlugins.xml for v${{ steps.tag.outputs.version }}"
             git push origin main
           fi
+
+      # Record a per-host deployment so the repo Environments page shows the
+      # IntelliJ plugin's last-published version. The environment auto-creates
+      # on first deployment.
+      - name: Record deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = "${{ steps.tag.outputs.version }}";
+            const tag = "${{ steps.tag.outputs.tag }}";
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: tag,
+              environment: "jetbrains-marketplace",
+              description: `IntelliJ plugin v${version}`,
+              required_contexts: [],
+              auto_merge: false,
+              production_environment: true,
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: "success",
+              environment_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag}`,
+              description: `IntelliJ plugin v${version} published`,
+            });

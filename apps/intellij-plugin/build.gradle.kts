@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "io.miragon"
-version = "0.1.2"
+version = "1.0.1" // x-release-please-version
 
 repositories {
     mavenCentral()

@@ -109,35 +109,40 @@ Auto-update is wired via `electron-updater` on both platforms. The CI pipeline u
 
 ## Releasing
 
-CI handles releases via a single orchestrator workflow that chains three
-sub-workflows. Each sub-workflow remains independently runnable for reruns.
+The standalone shares **one version and one `v<version>` GitHub Release** with
+all other hosts. release-please cuts the tag + release from `main`; the
+standalone is then **published manually** against that tag — it does not have
+its own version bump or tag anymore. See
+[Release process](../../docs/vscode/contributing/release-process.md) for the
+shared model.
+
+Publishing is a single orchestrator that chains two sub-workflows, each
+independently runnable for reruns:
 
 - `.github/workflows/release-standalone.yml` — **single entry point**
-  (`workflow_dispatch`). Runs prepare → publish → homebrew in sequence,
-  propagating `dry-run` to every step.
-- `.github/workflows/prepare-release-standalone.yml` — bumps
-  `apps/standalone/package.json` + `libs/standalone-extension/package.json`,
-  commits, tags `standalone-vX.Y.Z`, creates the GitHub Release.
-- `.github/workflows/publish-standalone.yml` — three-job pipeline:
-  builds the `.vsix` on `ubuntu-latest`, then fans out to two packaging
-  jobs that run on their native runners (`macos-latest` for the signed +
-  notarized DMG, `windows-latest` for the NSIS installer). Each job uploads
-  its platform artifact plus its `electron-updater` manifest
-  (`latest-mac.yml` / `latest.yml`) to the release. Existing installs pick
-  up updates on next launch.
+  (`workflow_dispatch`). Takes the `version` to publish (the release tag is
+  `v<version>`) and runs publish → homebrew in sequence, propagating `dry-run`.
+- `.github/workflows/publish-standalone.yml` — builds the `.vsix` on
+  `ubuntu-latest`, then fans out to two packaging jobs on their native runners
+  (`macos-latest` for the signed + notarized DMG, `windows-latest` for the NSIS
+  installer). Each job uploads its platform artifact plus its `electron-updater`
+  manifest (`latest-mac.yml` / `latest.yml`) to the `v<version>` release, and a
+  final job records a `standalone` deployment. Existing installs pick up updates
+  on next launch.
 - `.github/workflows/publish-standalone-homebrew.yml` — updates the Cask
   formula in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap)
   so `brew upgrade --cask miragon-bpmn-modeler` picks up the new version.
 
-To cut a release:
+To publish a release:
 
-1. Go to **Actions** → **Release Standalone** → **Run workflow**.
-2. Pick `release-type` (`patch` / `minor` / `major`), toggle `dry-run`
-   on/off (defaults to off), optionally tick `skip-homebrew` if you only
-   want the DMG.
-3. The orchestrator runs `prepare` → `publish` → `homebrew` automatically.
-   In dry-run mode nothing is committed, tagged, uploaded, or pushed; the
-   DMG lands as a workflow artifact and the cask formula is only logged.
+1. Make sure release-please's Release PR is merged, so the `v<version>` tag and
+   GitHub Release exist.
+2. Go to **Actions** → **Release Standalone** → **Run workflow**.
+3. Enter the `version` (e.g. `1.2.3`), toggle `dry-run` on/off (defaults to
+   off), optionally tick `skip-homebrew` if you only want the installers.
+4. The orchestrator runs `publish` → `homebrew` automatically. In dry-run mode
+   nothing is uploaded or pushed; the installers land as workflow artifacts and
+   the cask formula is only logged.
 
 The orchestrator pauses before the Homebrew step if the `homebrew-tap`
 environment has a required reviewer configured (see *Approval gate* below).
@@ -145,10 +150,6 @@ environment has a required reviewer configured (see *Approval gate* below).
 **Single-step reruns:** Each sub-workflow keeps its own `workflow_dispatch`
 trigger. Use these for debugging a single phase without re-running the
 whole chain.
-
-See [Release process](../../docs/vscode/contributing/release-process.md)
-for the equivalent flow for the VS Code extension and the c7 npm lib
-(which use a different `workflow_dispatch`-based pattern).
 
 **Required GitHub repo secrets** (one-time setup):
 

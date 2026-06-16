@@ -1,18 +1,20 @@
 // Resolves the latest standalone-app GitHub release for the download page.
 //
 // Why not /releases/latest? It returns whichever tag was published most recently
-// across the whole repo (VS Code, standalone, create-append, …). After the next
-// VS Code release it returns one with no DMG attached, breaking the page.
+// across the whole repo, and under the unified release model every host shares
+// the same `v<version>` tag. A release cut for a VS Code-only or IntelliJ-only
+// publish carries no DMG, so /releases/latest would break the page.
 //
-// We list /releases and pick the most recently *published* release whose tag
-// starts with the standalone prefix AND actually has the arm64 DMG uploaded.
-// The prefix tells us a release was *meant* to be a standalone build; the asset
-// check confirms the upload step finished. We sort client-side by published_at
-// desc — GitHub's default order is created_at desc, which can drift from
-// published order if a release was drafted long before being published.
+// All hosts now share the `v` tag prefix, so the prefix no longer signals a
+// standalone build — the **arm64 DMG asset is the real discriminator**. We list
+// /releases and pick the most recently *published* `v*` release that actually
+// has the arm64 DMG uploaded; a `v*` release without a DMG means the standalone
+// wasn't shipped at that version and is correctly skipped. We sort client-side
+// by published_at desc — GitHub's default order is created_at desc, which can
+// drift from published order if a release was drafted long before publishing.
 
 const REPO = "Miragon/bpmn-modeler";
-const STANDALONE_TAG_PREFIX = "standalone-v";
+const STANDALONE_TAG_PREFIX = "v";
 const RELEASES_LIST_URL = `https://api.github.com/repos/${REPO}/releases?per_page=100`;
 const RELEASES_PAGE_BASE = `https://github.com/${REPO}/releases/tag`;
 
@@ -62,7 +64,7 @@ export function parseStandaloneRelease(r: GitHubRelease): StandaloneRelease | nu
     if (!r.tag_name?.startsWith(STANDALONE_TAG_PREFIX)) return null;
 
     const version = r.tag_name.slice(STANDALONE_TAG_PREFIX.length);
-    if (!version) return null; // Reject the prefix-only edge case "standalone-v".
+    if (!version) return null; // Reject the prefix-only edge case "v".
 
     const dmgArm64Url = findAssetUrl(r.assets, ARM64_DMG);
     if (!dmgArm64Url) return null;

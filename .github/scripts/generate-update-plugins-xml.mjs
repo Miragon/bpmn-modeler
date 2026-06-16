@@ -12,8 +12,8 @@
  *
  * Usage:
  *   node .github/scripts/generate-update-plugins-xml.mjs \
- *     --version 0.1.1 \
- *     --download-url https://github.com/Miragon/bpmn-modeler/releases/download/intellij-v0.1.1/bpmn-modeler-intellij-plugin-0.1.1.zip
+ *     --version 1.2.3 \
+ *     --download-url https://github.com/Miragon/bpmn-modeler/releases/download/v1.2.3/bpmn-modeler-intellij-plugin-1.2.3.zip
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
