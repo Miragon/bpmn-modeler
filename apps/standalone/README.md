@@ -160,7 +160,6 @@ whole chain.
 | `APPLE_ID` | Apple ID email of a Miragon team member |
 | `APPLE_APP_SPECIFIC_PASSWORD` | generated at appleid.apple.com |
 | `APPLE_TEAM_ID` | `G5JZQ328LJ` |
-| `RELEASE_PAT` | PAT with `repo` scope, used by `prepare` to push commits/tags |
 | `HOMEBREW_TAP_TOKEN` | PAT with `repo` scope on `Miragon/homebrew-tap` (recommended: scope to the `homebrew-tap` environment, see below) |
 
 ### Approval gate / environment setup
