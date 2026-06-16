@@ -1,0 +1,41 @@
+name: Release Please
+
+# Maintains a single Release PR for the whole repository. Merging it bumps
+# every host's version file in lockstep (release-please-config.json
+# `extra-files`), writes the root CHANGELOG.md, and cuts one `v<version>`
+# tag + GitHub Release. It does NOT publish anything — each host is shipped
+# manually afterwards via its publish-*.yml workflow against this tag.
+#
+# A token from the `miragon-release-please` GitHub App is used so the action
+# can open/maintain the PR; the default GITHUB_TOKEN cannot trigger downstream
+# workflows and is more restricted for cross-workflow PR maintenance. The App
+# token is org-owned, repo-scoped, and short-lived — unlike a personal PAT.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Maintain release PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

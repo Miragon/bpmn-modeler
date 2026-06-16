@@ -1,22 +1,21 @@
 name: Release Standalone
 
-# Single-click orchestrator: prepare → publish → homebrew.
+# Manual publish orchestrator for the standalone app. The shared version and
+# `v<version>` tag are produced by release-please (release-please.yml); this
+# workflow only *publishes* against an existing release. It chains
+# publish-standalone.yml (DMG + Windows installer) → publish-standalone-homebrew.yml.
 # Each sub-workflow is also runnable on its own via workflow_dispatch for
-# debugging or partial reruns. Dry-run propagates to all three steps.
+# debugging or partial reruns. Dry-run propagates to both steps.
 
 on:
   workflow_dispatch:
     inputs:
-      release-type:
-        description: 'Release type'
+      version:
+        description: 'Version to publish, without prefix (e.g. 1.2.3). The release tag is v<version>.'
         required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+        type: string
       dry-run:
-        description: 'Dry run (no commit, tag, release, upload, or tap push)'
+        description: 'Dry run (no upload or tap push)'
         required: false
         type: boolean
         default: false
@@ -28,36 +27,30 @@ on:
 
 permissions:
   contents: write
+  deployments: write
 
 concurrency:
   group: standalone-release
   cancel-in-progress: false
 
 jobs:
-  prepare:
-    name: Prepare release
-    uses: ./.github/workflows/prepare-release-standalone.yml
-    with:
-      release-type: ${{ inputs.release-type }}
-      dry-run: ${{ inputs.dry-run }}
-    secrets: inherit
-
   publish:
-    name: Publish DMG
-    needs: prepare
+    name: Publish installers
     uses: ./.github/workflows/publish-standalone.yml
     with:
       dry-run: ${{ inputs.dry-run }}
-      ref: ${{ inputs.dry-run && '' || format('standalone-v{0}', needs.prepare.outputs.version) }}
+      # Real runs check out the release tag so the bundled version matches the
+      # release; dry-runs build from the triggering SHA (no tag required).
+      ref: ${{ inputs.dry-run && '' || format('v{0}', inputs.version) }}
     secrets: inherit
 
   homebrew:
     name: Update Homebrew tap
-    needs: [prepare, publish]
+    needs: publish
     if: ${{ !inputs.skip-homebrew }}
     uses: ./.github/workflows/publish-standalone-homebrew.yml
     with:
-      version: ${{ needs.prepare.outputs.version }}
+      version: ${{ inputs.version }}
       dmg-sha256: ${{ needs.publish.outputs.dmg-sha256 }}
       dmg-filename: ${{ needs.publish.outputs.dmg-filename }}
       dry-run: ${{ inputs.dry-run }}

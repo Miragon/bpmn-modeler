@@ -30,7 +30,7 @@ on:
         type: boolean
         default: true
       ref:
-        description: 'Git ref to check out (e.g. the bump tag from prepare-release). Defaults to the triggering SHA.'
+        description: 'Git ref to check out (e.g. the v<version> release tag). Defaults to the triggering SHA.'
         required: false
         type: string
         default: ''
@@ -55,6 +55,7 @@ on:
 
 permissions:
   contents: write
+  deployments: write
 
 concurrency:
   group: standalone-publish
@@ -104,6 +105,11 @@ jobs:
     name: Sign, notarize, publish DMG (macOS)
     runs-on: macos-latest
     needs: build-vsix
+    # Gate behind the standalone environment so CSC_*/APPLE_* signing secrets
+    # are only readable after the environment's protection rules pass. Applies
+    # to dry-runs too: signing + notarization run in dry-run mode, so the real
+    # Apple certs are read regardless of dry-run.
+    environment: standalone
     outputs:
       dmg-sha256: ${{ steps.dmg-meta.outputs.sha256 }}
       dmg-filename: ${{ steps.dmg-meta.outputs.filename }}
@@ -192,7 +198,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
-          TAG="standalone-v${VERSION}"
+          TAG="v${VERSION}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG does not exist. Create it first (tag + 'gh release create $TAG')." && exit 1
           fi
@@ -268,7 +274,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
-          TAG="standalone-v${VERSION}"
+          TAG="v${VERSION}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG does not exist. Create it first (tag + 'gh release create $TAG')." && exit 1
           fi
@@ -278,3 +284,48 @@ jobs:
             echo "No artifacts found in apps/standalone/dist/." && exit 1
           fi
           gh release upload "$TAG" "${FILES[@]}" --clobber
+
+  record-deployment:
+    name: Record deployment
+    runs-on: ubuntu-latest
+    needs: [package-dmg, package-windows]
+    if: inputs.dry-run == false
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # Record a per-host deployment so the repo Environments page shows the
+      # standalone app's last-published version. The environment auto-creates
+      # on first deployment.
+      - name: Record deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = "${{ steps.version.outputs.version }}";
+            const tag = `v${version}`;
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: tag,
+              environment: "standalone",
+              description: `Standalone app v${version}`,
+              required_contexts: [],
+              auto_merge: false,
+              production_environment: true,
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: "success",
+              environment_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag}`,
+              description: `Standalone app v${version} published`,
+            });

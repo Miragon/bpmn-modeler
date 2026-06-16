@@ -38,21 +38,35 @@ body:
     validations:
       required: false
 
-  - type: input
-    id: extension-version
+  - type: dropdown
+    id: host
     attributes:
-      label: Extension Version
+      label: Host
+      description: Where you are running the modeler.
+      options:
+        - VS Code extension
+        - IntelliJ / JetBrains plugin
+        - Standalone app
+    validations:
+      required: true
+
+  - type: input
+    id: modeler-version
+    attributes:
+      label: Modeler Version
+      description: The extension, plugin, or standalone app version.
       placeholder: e.g. 0.8.3
     validations:
       required: true
 
   - type: input
-    id: vscode-version
+    id: host-version
     attributes:
-      label: VS Code Version
+      label: Host Version
+      description: Version of VS Code or the JetBrains IDE. Leave blank for the standalone app.
       placeholder: e.g. 1.96.0
     validations:
-      required: true
+      required: false
 
   - type: dropdown
     id: os

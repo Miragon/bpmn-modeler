@@ -86,16 +86,22 @@ All VS Code settings use the `miragon.bpmnModeler` namespace (e.g. `miragon.bpmn
 ## Commit Conventions
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
-There is no commitlint/husky enforcement — the convention is upheld by
-discipline, so match the existing history. Use `/commit` to generate a
+There is no local commitlint/husky hook, but CI validates the **PR title**
+(`lint-pr-title.yml`). PRs are squash-merged, so the PR title is the commit
+that lands on `main` and the line release-please reads to cut a release — it
+must use one of the five types below. Intermediate commits on a branch are
+upheld by discipline; match the existing history. Use `/commit` to generate a
 conforming message.
 
 **Format:** `<type>(<scope>): <subject>`
 
 - **Subject:** imperative present tense, lowercase, no trailing period
   (e.g. `add`, not `added`/`adds`). Keep the header under ~72 characters.
-- **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`,
-  `build`, `ci`, `perf`, `revert`.
+- **Types:** the PR title must use one of the five release-please acts on:
+  `feat` (minor bump), `fix` (patch bump), `refactor`, `docs`, `chore`. The
+  other Conventional-Commit types (`style`, `test`, `build`, `ci`, `perf`,
+  `revert`) are fine on intermediate branch commits, but fold them into `chore`
+  for the PR title — they bump nothing and never reach the changelog.
 - **Scope:** the affected workspace or feature, matching existing history —
   e.g. `bpmn-webview`, `dmn-webview`, `deployment-webview`, `vscode-plugin`,
   `editor`, `diff`, `domain`, `infrastructure`, `service`, `deps`, `release`.

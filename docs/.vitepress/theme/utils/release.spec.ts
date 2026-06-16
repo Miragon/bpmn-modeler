@@ -21,17 +21,17 @@ describe("parseStandaloneRelease", () => {
     it("qualifies a full standalone release", () => {
         const out = parseStandaloneRelease(standaloneFull);
         expect(out).toEqual({
-            tagName: "standalone-v0.9.2",
+            tagName: "v0.9.2",
             version: "0.9.2",
             publishedAt: "2026-04-30T09:18:25Z",
             dmgArm64Url: ARM64_URL,
             dmgIntelUrl: INTEL_URL,
             releasePageUrl:
-                "https://github.com/Miragon/bpmn-modeler/releases/tag/standalone-v0.9.2",
+                "https://github.com/Miragon/bpmn-modeler/releases/tag/v0.9.2",
         });
     });
 
-    it("disqualifies a VS Code release (wrong tag prefix)", () => {
+    it("disqualifies a v* release with no DMG (e.g. a VS Code-only publish)", () => {
         expect(parseStandaloneRelease(vscodeRelease)).toBeNull();
     });
 
@@ -50,14 +50,14 @@ describe("parseStandaloneRelease", () => {
         expect(out!.dmgIntelUrl).toBeNull();
     });
 
-    it("strips the standalone-v prefix to derive version", () => {
+    it("strips the v prefix to derive version", () => {
         expect(parseStandaloneRelease(standaloneFull)!.version).toBe("0.9.2");
     });
 
     it("rejects an empty version (tag is just the prefix)", () => {
         expect(
             parseStandaloneRelease({
-                tag_name: "standalone-v",
+                tag_name: "v",
                 published_at: "2026-04-30T00:00:00Z",
                 assets: [
                     {
@@ -71,7 +71,7 @@ describe("parseStandaloneRelease", () => {
 
     it("falls back to a constructed releasePageUrl when html_url is missing", () => {
         const out = parseStandaloneRelease({
-            tag_name: "standalone-v0.9.2",
+            tag_name: "v0.9.2",
             published_at: "2026-04-30T00:00:00Z",
             assets: [
                 {
@@ -81,19 +81,19 @@ describe("parseStandaloneRelease", () => {
             ],
         });
         expect(out?.releasePageUrl).toBe(
-            "https://github.com/Miragon/bpmn-modeler/releases/tag/standalone-v0.9.2",
+            "https://github.com/Miragon/bpmn-modeler/releases/tag/v0.9.2",
         );
     });
 });
 
 describe("pickLatestStandaloneRelease", () => {
-    it("preserves API order: skips VS Code, picks first standalone", () => {
+    it("skips a no-DMG v* release (VS Code-only), picks the standalone one", () => {
         const out = pickLatestStandaloneRelease([
             vscodeRelease,
             standaloneFull,
             standalonePrevious,
         ]);
-        expect(out?.tagName).toBe("standalone-v0.9.2");
+        expect(out?.tagName).toBe("v0.9.2");
     });
 
     it("skips a half-failed standalone release in favour of the next full one", () => {
@@ -101,7 +101,7 @@ describe("pickLatestStandaloneRelease", () => {
             standaloneHalfFailed,
             standalonePrevious,
         ]);
-        expect(out?.tagName).toBe("standalone-v0.9.1");
+        expect(out?.tagName).toBe("v0.9.1");
     });
 
     it("returns null when no qualifying release exists", () => {
@@ -123,7 +123,7 @@ describe("pickLatestStandaloneRelease", () => {
             standalonePrevious, // 2026-04-12
             standaloneFull,     // 2026-04-30
         ]);
-        expect(out?.tagName).toBe("standalone-v0.9.2");
+        expect(out?.tagName).toBe("v0.9.2");
     });
 });
 
@@ -141,7 +141,7 @@ describe("fetchLatestStandaloneRelease", () => {
         const out = await fetchLatestStandaloneRelease(stub as unknown as typeof fetch);
 
         expect(stub).toHaveBeenCalledWith(RELEASES_API_URL);
-        expect(out?.tagName).toBe("standalone-v0.9.2");
+        expect(out?.tagName).toBe("v0.9.2");
         expect(out?.dmgArm64Url).toBe(ARM64_URL);
     });
 
@@ -177,7 +177,7 @@ describe("fetchLatestStandaloneRelease", () => {
         ]);
         const c = await fetchLatestStandaloneRelease(stub as unknown as typeof fetch);
         expect(stub).toHaveBeenCalledTimes(1);
-        expect(a?.tagName).toBe("standalone-v0.9.2");
+        expect(a?.tagName).toBe("v0.9.2");
         expect(b).toBe(a);
         expect(c).toBe(a);
     });
