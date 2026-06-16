@@ -63,22 +63,28 @@ class IdeThemeSignal : Disposable {
     fun bodyClass(): String = if (isDark()) "vscode-dark" else "vscode-light"
 
     /**
-     * The `:root { … }` block mapping the eight `--vscode-*` custom properties
-     * the webview's dark stylesheet actually reads onto live IDE colors. Safe to
-     * inject under a light LaF too: the light stylesheet references none of them,
-     * so the values are simply unused.
+     * The `:root` vars are read only by the webview's dark stylesheet, so
+     * they're inert under a light LaF. The `.bio-properties-panel` block applies
+     * to both stylesheets, which is why it overrides directly with `!important`
+     * instead of riding the dark-only `--vscode-*` mapping.
      */
     fun themeVarsCss(): String {
         val scheme = EditorColorsManager.getInstance().globalScheme
         val editorBackground = ColorUtil.toHtmlColor(scheme.defaultBackground)
         val editorForeground = ColorUtil.toHtmlColor(scheme.defaultForeground)
-        val widgetBackground = ColorUtil.toHtmlColor(UIUtil.getPanelBackground())
+        val panelBg = UIUtil.getPanelBackground()
+        val widgetBackground = ColorUtil.toHtmlColor(panelBg)
         val inputBackground =
-            ColorUtil.toHtmlColor(JBColor.namedColor("TextField.background", UIUtil.getPanelBackground()))
+            ColorUtil.toHtmlColor(JBColor.namedColor("TextField.background", panelBg))
         val groupBorder = ColorUtil.toHtmlColor(JBColor.border())
         val errorForeground = ColorUtil.toHtmlColor(NamedColorUtil.getErrorForeground())
         val linkForeground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Link.Foreground.ENABLED)
         val disabledForeground = ColorUtil.toHtmlColor(NamedColorUtil.getInactiveTextColor())
+        // The New UI sets `TextField.background` to ~the panel background, so
+        // bpmn-js inputs (which rely on fill contrast) merge into the panel.
+        // Derive a contrasting fill: lighter under a dark LaF, darker under light.
+        val inputContrast =
+            ColorUtil.toHtmlColor(if (isDark()) ColorUtil.brighter(panelBg, 2) else ColorUtil.darker(panelBg, 1))
         return listOf(
             ":root {",
             "  --vscode-editor-background: $editorBackground;",
@@ -89,6 +95,10 @@ class IdeThemeSignal : Disposable {
             "  --vscode-errorForeground: $errorForeground;",
             "  --vscode-textLink-foreground: $linkForeground;",
             "  --vscode-disabledForeground: $disabledForeground;",
+            "}",
+            ".bio-properties-panel {",
+            "  --input-background-color: $inputContrast !important;",
+            "  --input-focus-background-color: $inputContrast !important;",
             "}",
         ).joinToString("\n")
     }
