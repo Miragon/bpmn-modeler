@@ -174,32 +174,72 @@ jobs:
             --version "${{ steps.tag.outputs.version }}" \
             --download-url "$DOWNLOAD_URL"
 
-      # Push the regenerated XML to main so deploy-docs.yml picks it up and
-      # republishes Pages. The IDE polls the Pages URL — no XML refresh, no
-      # update notification. We stash the generated file across the branch
-      # switch because the working tree is currently on the release tag.
+      # Commit the regenerated XML to main via the GraphQL
+      # createCommitOnBranch mutation instead of a local `git push`. A pushed
+      # local commit is unsigned and would only land by punching through the
+      # branch ruleset's required_signatures rule; an API-created commit is
+      # signed with GitHub's key (verified), so it satisfies that rule honestly.
+      # The App installation token (not GITHUB_TOKEN) authors it, so the
+      # resulting push to main still triggers deploy-docs.yml. No working-tree
+      # branch switch is needed — we send the file the previous step generated.
       - name: Commit updatePlugins.xml to main
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}"
-          cp -f docs/public/updatePlugins.xml /tmp/updatePlugins.xml
-          git fetch origin main
-          # The regenerated XML differs from the tag's tracked copy, so a plain
-          # `git checkout main` aborts with "local changes would be
-          # overwritten" on any re-publish of an older tag. The file is already
-          # stashed to /tmp, so discarding the worktree change with -f is safe.
-          git checkout -f main
-          git pull --ff-only origin main
-          mkdir -p docs/public
-          cp -f /tmp/updatePlugins.xml docs/public/updatePlugins.xml
-          git add docs/public/updatePlugins.xml
-          if git diff --cached --quiet; then
-            echo "updatePlugins.xml is unchanged on main; nothing to commit."
-          else
-            git commit -m "chore(release): refresh updatePlugins.xml for v${{ steps.tag.outputs.version }}"
-            git push origin main
-          fi
+          set -euo pipefail
+          XML_PATH="docs/public/updatePlugins.xml"
+          NEW_B64=$(base64 -w0 "$XML_PATH")
+
+          commit_xml() {
+            # expectedHeadOid makes this an optimistic-concurrency write: the
+            # mutation is rejected if main moved since we read its head. gh
+            # exits 0 on a GraphQL-level error (HTTP 200 with an `errors`
+            # array), so we must inspect the body, not just the exit code.
+            local head_oid="$1" resp
+            resp=$(jq -n \
+              --arg repo "${{ github.repository }}" \
+              --arg oid "$head_oid" \
+              --arg path "$XML_PATH" \
+              --arg contents "$NEW_B64" \
+              --arg headline "chore(release): refresh updatePlugins.xml for v${{ steps.tag.outputs.version }}" \
+              '{query: "mutation($i: CreateCommitOnBranchInput!){createCommitOnBranch(input:$i){commit{oid}}}",
+                variables: {i: {
+                  branch: {repositoryNameWithOwner: $repo, branchName: "main"},
+                  expectedHeadOid: $oid,
+                  message: {headline: $headline},
+                  fileChanges: {additions: [{path: $path, contents: $contents}]}
+                }}}' \
+              | gh api graphql --input - 2>&1) || { echo "$resp" >&2; return 1; }
+            if printf '%s' "$resp" | grep -q '"errors"'; then
+              echo "$resp" >&2
+              return 1
+            fi
+          }
+
+          for attempt in 1 2 3; do
+            HEAD_OID=$(gh api "repos/${{ github.repository }}/branches/main" --jq .commit.sha)
+
+            # Skip when main already carries this exact XML so re-publishing an
+            # unchanged descriptor doesn't create a no-op commit (and an
+            # unnecessary deploy-docs run). A 404 (file absent) leaves
+            # CURRENT_B64 empty and falls through to the commit.
+            CURRENT_B64=$(gh api "repos/${{ github.repository }}/contents/${XML_PATH}?ref=main" --jq .content 2>/dev/null | tr -d '\n' || true)
+            if [ -n "$CURRENT_B64" ] && [ "$(printf '%s' "$CURRENT_B64" | base64 -d | base64 -w0)" = "$NEW_B64" ]; then
+              echo "updatePlugins.xml is unchanged on main; nothing to commit."
+              exit 0
+            fi
+
+            if commit_xml "$HEAD_OID"; then
+              echo "Committed updatePlugins.xml to main (was head ${HEAD_OID})."
+              exit 0
+            fi
+
+            echo "createCommitOnBranch attempt ${attempt} failed (main head may have moved); retrying." >&2
+            sleep 3
+          done
+
+          echo "Failed to commit updatePlugins.xml to main after 3 attempts." >&2
+          exit 1
 
       # Record a per-host deployment so the repo Environments page shows the
       # IntelliJ plugin's last-published version. The environment auto-creates
