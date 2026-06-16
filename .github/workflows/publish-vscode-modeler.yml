@@ -30,6 +30,12 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
+    # Gate only real publishes behind the vscode-marketplace environment so
+    # VSCE_PUBLISH stays behind the environment's protection rules. VSCE_PUBLISH
+    # is read solely in the dry-run == false publish step, so an empty
+    # environment name leaves dry-runs ungated (no approval wait).
+    environment:
+      name: ${{ inputs.dry-run == false && 'vscode-marketplace' || '' }}
 
     steps:
       - name: Checkout

@@ -28,6 +28,11 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
+    # Gate the production publish behind the jetbrains-marketplace environment
+    # so RELEASE_PAT is only readable after the environment's protection rules
+    # (required reviewers / branch restrictions) pass. No dry-run input — every
+    # run publishes — so the gate applies unconditionally.
+    environment: jetbrains-marketplace
 
     steps:
       - name: Resolve tag

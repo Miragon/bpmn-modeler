@@ -105,6 +105,11 @@ jobs:
     name: Sign, notarize, publish DMG (macOS)
     runs-on: macos-latest
     needs: build-vsix
+    # Gate behind the standalone environment so CSC_*/APPLE_* signing secrets
+    # are only readable after the environment's protection rules pass. Applies
+    # to dry-runs too: signing + notarization run in dry-run mode, so the real
+    # Apple certs are read regardless of dry-run.
+    environment: standalone
     outputs:
       dmg-sha256: ${{ steps.dmg-meta.outputs.sha256 }}
       dmg-filename: ${{ steps.dmg-meta.outputs.filename }}
