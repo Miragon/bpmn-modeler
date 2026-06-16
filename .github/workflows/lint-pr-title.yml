@@ -1,0 +1,55 @@
+name: Lint PR Title
+
+# Squash-merge is the norm here, so the PR *title* — not individual commit
+# messages — becomes the commit that lands on `main`. release-please reads those
+# squashed commits to decide the version bump and build the changelog, so a
+# malformed title silently means "no bump / missing changelog entry". This gate
+# makes that failure loud at PR time instead.
+#
+# `edited` is included on purpose: the fix for a bad title is editing the title,
+# which fires only `edited` (not `synchronize`). Without it the failing check
+# would stick until an unrelated push. This is why the check lives here and not
+# in build.yml's `ci` rollup, whose triggers don't include title edits.
+#
+# The release-please PR is deliberately NOT exempt: it is opened with RELEASE_PAT
+# (not the default GITHUB_TOKEN), so this workflow runs on it too. Its generated
+# `chore(main): release X.Y.Z` title passes, but a broken title pattern is caught.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Conventional Commit title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Mirror the type set documented in CLAUDE.md / Conventional Commits.
+          # Keep in sync with the bump rules release-please derives from them.
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            chore
+            build
+            ci
+            revert
+          # Scope is intentionally unconstrained. Host attribution in the
+          # changelog is a cosmetic scope prefix, and one webview scope can map
+          # to several hosts — "what's live per host" is answered by the
+          # Deployments page, not by enforcing a fixed scope taxonomy here.
+          requireScope: false
