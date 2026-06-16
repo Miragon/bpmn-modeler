@@ -35,11 +35,19 @@ export class WebviewStateManager {
 
     /**
      * Must be called after importXML — the canvas does not exist before that.
+     *
+     * A saved viewbox only exists after a tab-switch rebuild (VS Code retains
+     * `getState()`); a fresh open/reopen starts with empty state. So the
+     * absence of a saved viewport discriminates a genuine fresh open, where we
+     * fit the diagram — bpmn-js leaves the canvas at the origin on importXML,
+     * which renders a diagram moved far from the origin off-screen (#1149).
      */
     restoreViewport(): void {
         const saved = this.getSavedState();
         if (saved?.viewport) {
             this.modeler.viewport.setViewport(saved.viewport);
+        } else {
+            this.modeler.viewport.fitViewport();
         }
     }
 
