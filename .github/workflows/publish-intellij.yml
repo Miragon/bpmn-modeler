@@ -217,7 +217,15 @@ jobs:
           }
 
           for attempt in 1 2 3; do
-            HEAD_OID=$(gh api "repos/${{ github.repository }}/branches/main" --jq .commit.sha)
+            # Guard the head read so a transient API error (5xx / secondary
+            # rate limit) retries instead of aborting the step via `set -e` —
+            # the retry loop must cover the read it depends on, not just the
+            # commit mutation below.
+            HEAD_OID=$(gh api "repos/${{ github.repository }}/branches/main" --jq .commit.sha) || {
+              echo "Reading main head failed on attempt ${attempt}; retrying." >&2
+              sleep 3
+              continue
+            }
 
             # Skip when main already carries this exact XML so re-publishing an
             # unchanged descriptor doesn't create a no-op commit (and an
