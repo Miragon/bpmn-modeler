@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugins>
   <plugin id="io.miragon.bpmn-modeler"
-          url="https://github.com/Miragon/bpmn-modeler/releases/download/intellij-v0.1.2/bpmn-modeler-intellij-plugin-0.1.2.zip"
-          version="0.1.2">
+          url="https://github.com/Miragon/bpmn-modeler/releases/download/v1.1.0/bpmn-modeler-intellij-plugin-1.1.0.zip"
+          version="1.1.0">
     <idea-version since-build="242"/>
     <name>Miragon BPMN Modeler</name>
     <vendor>Miragon</vendor>
@@ -23,7 +23,6 @@
             <li>Write task scripts with context-aware suggestions.</li>
             <li>Deploy diagrams to a running Camunda 7 or Camunda 8 engine without
                 leaving the IDE.</li>
-            <li>Keep an eye on engine and template status from the status bar.</li>
         </ul>
 
         <p>For the complete feature list and documentation, visit
