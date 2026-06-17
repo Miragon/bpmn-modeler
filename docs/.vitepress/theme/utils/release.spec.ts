@@ -9,6 +9,7 @@ import {
 import {
     ARM64_URL,
     INTEL_URL,
+    WIN_EXE_URL,
     standaloneFull,
     standaloneArm64Only,
     standaloneHalfFailed,
@@ -26,6 +27,7 @@ describe("parseStandaloneRelease", () => {
             publishedAt: "2026-04-30T09:18:25Z",
             dmgArm64Url: ARM64_URL,
             dmgIntelUrl: INTEL_URL,
+            exeX64Url: WIN_EXE_URL,
             releasePageUrl:
                 "https://github.com/Miragon/bpmn-modeler/releases/tag/v0.9.2",
         });
@@ -48,6 +50,11 @@ describe("parseStandaloneRelease", () => {
         expect(out).not.toBeNull();
         expect(out!.dmgArm64Url).toBe(ARM64_URL);
         expect(out!.dmgIntelUrl).toBeNull();
+    });
+
+    it("exposes the Windows exe when present, null otherwise", () => {
+        expect(parseStandaloneRelease(standaloneFull)!.exeX64Url).toBe(WIN_EXE_URL);
+        expect(parseStandaloneRelease(standaloneArm64Only)!.exeX64Url).toBeNull();
     });
 
     it("strips the v prefix to derive version", () => {

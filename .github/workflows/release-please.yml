@@ -1,15 +1,6 @@
 name: Release Please
 
-# Maintains a single Release PR for the whole repository. Merging it bumps
-# every host's version file in lockstep (release-please-config.json
-# `extra-files`), writes the root CHANGELOG.md, and cuts one `v<version>`
-# tag + GitHub Release. It does NOT publish anything — each host is shipped
-# manually afterwards via its publish-*.yml workflow against this tag.
-#
-# A token from the `miragon-release-please` GitHub App is used so the action
-# can open/maintain the PR; the default GITHUB_TOKEN cannot trigger downstream
-# workflows and is more restricted for cross-workflow PR maintenance. The App
-# token is org-owned, repo-scoped, and short-lived — unlike a personal PAT.
+# Maintains the repo-wide Release PR.
 
 on:
   push:
@@ -18,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  deployments: write
 
 concurrency:
   group: release-please
@@ -27,6 +19,10 @@ jobs:
   release-please:
     name: Maintain release PR
     runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.release.outputs.releases_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: actions/create-github-app-token@v3
         id: app-token
@@ -35,7 +31,34 @@ jobs:
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  vscode:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    uses: ./.github/workflows/publish-vscode-modeler.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+      dry-run: false
+    secrets: inherit
+
+  intellij:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    uses: ./.github/workflows/publish-intellij.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+    secrets: inherit
+
+  standalone:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    uses: ./.github/workflows/release-standalone.yml
+    with:
+      version: ${{ needs.release-please.outputs.version }}
+      dry-run: false
+    secrets: inherit

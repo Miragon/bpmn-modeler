@@ -1,4 +1,3 @@
-# .github/workflows/cleanup-runs.yml
 name: Cleanup old workflow runs
 
 on:

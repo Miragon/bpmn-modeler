@@ -17,6 +17,18 @@ on:
         required: false
         type: boolean
         default: true
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to check out (e.g. v1.2.3). Empty = current branch.'
+        required: false
+        type: string
+        default: ''
+      dry-run:
+        description: 'Dry run (build + package, do not publish)'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write

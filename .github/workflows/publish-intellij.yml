@@ -15,6 +15,12 @@ on:
         description: 'Release tag (e.g. v1.2.3)'
         required: true
         type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.2.3)'
+        required: true
+        type: string
 
 permissions:
   contents: write

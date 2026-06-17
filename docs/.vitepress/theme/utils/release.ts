@@ -24,6 +24,7 @@ const RELEASES_PAGE_BASE = `https://github.com/${REPO}/releases/tag`;
 // debug-symbols or sidecar artefacts that happen to mention an arch.
 const ARM64_DMG = /-arm64\.dmg$/i;
 const INTEL_DMG = /-(x64|intel)\.dmg$/i;
+const WIN_EXE = /-x64\.exe$/i;
 
 export interface GitHubReleaseAsset {
     name?: string;
@@ -44,6 +45,7 @@ export interface StandaloneRelease {
     publishedAt: string;
     dmgArm64Url: string;
     dmgIntelUrl: string | null;
+    exeX64Url: string | null;
     releasePageUrl: string;
 }
 
@@ -75,6 +77,7 @@ export function parseStandaloneRelease(r: GitHubRelease): StandaloneRelease | nu
         publishedAt: r.published_at ?? "",
         dmgArm64Url,
         dmgIntelUrl: findAssetUrl(r.assets, INTEL_DMG),
+        exeX64Url: findAssetUrl(r.assets, WIN_EXE),
         releasePageUrl: r.html_url ?? `${RELEASES_PAGE_BASE}/${r.tag_name}`,
     };
 }
