@@ -1,0 +1,406 @@
+[
+    {
+        "method": "session/register",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "content",
+            "editorId",
+            "fsPath",
+            "path",
+            "scheme",
+            "settings",
+            "uriString",
+            "workspaceRoot"
+        ]
+    },
+    {
+        "method": "webview/message",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "editorId",
+            "message"
+        ]
+    },
+    {
+        "method": "document/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "content",
+            "editorId"
+        ]
+    },
+    {
+        "method": "session/setActive",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "editorId"
+        ]
+    },
+    {
+        "method": "session/dispose",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "editorId"
+        ]
+    },
+    {
+        "method": "settings/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "settings"
+        ]
+    },
+    {
+        "method": "diff/open",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "after",
+            "before",
+            "diffId",
+            "origin"
+        ]
+    },
+    {
+        "method": "diff/webviewMessage",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "message",
+            "paneUri"
+        ]
+    },
+    {
+        "method": "diff/dispose",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "diffId"
+        ]
+    },
+    {
+        "method": "deploymentState/seed",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "state"
+        ]
+    },
+    {
+        "method": "deployment/webviewMessage",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "message"
+        ]
+    },
+    {
+        "method": "deployment/open",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "open"
+        ]
+    },
+    {
+        "method": "script/didChange",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "content",
+            "scriptId"
+        ]
+    },
+    {
+        "method": "script/didClose",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "scriptId"
+        ]
+    },
+    {
+        "method": "document/write",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "content",
+            "editorId"
+        ],
+        "resultKeys": [
+            "changed"
+        ]
+    },
+    {
+        "method": "document/save",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "editorId"
+        ],
+        "resultKeys": [
+            "saved"
+        ]
+    },
+    {
+        "method": "picker/show",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "canPickMany",
+            "items",
+            "placeholder",
+            "title"
+        ],
+        "resultKeys": [
+            "selected"
+        ]
+    },
+    {
+        "method": "clipboard/read",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": [
+            "text"
+        ]
+    },
+    {
+        "method": "secretStore/saveBasicAuth",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "password",
+            "username"
+        ]
+    },
+    {
+        "method": "secretStore/getBasicAuth",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": [
+            "password",
+            "username"
+        ]
+    },
+    {
+        "method": "secretStore/saveOAuth2",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "clientId",
+            "clientSecret"
+        ]
+    },
+    {
+        "method": "secretStore/getOAuth2",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [],
+        "resultKeys": [
+            "clientId",
+            "clientSecret"
+        ]
+    },
+    {
+        "method": "editor/postMessage",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "editorId",
+            "message"
+        ]
+    },
+    {
+        "method": "clipboard/write",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "text"
+        ]
+    },
+    {
+        "method": "notifier/showInfo",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "message"
+        ]
+    },
+    {
+        "method": "notifier/showError",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "message"
+        ]
+    },
+    {
+        "method": "notifier/notifyError",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "context",
+            "message"
+        ]
+    },
+    {
+        "method": "notifier/openConsole",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "notifier/openDocument",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "path"
+        ]
+    },
+    {
+        "method": "notifier/log",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "level",
+            "message"
+        ]
+    },
+    {
+        "method": "notifier/progressStart",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "title"
+        ]
+    },
+    {
+        "method": "notifier/progressEnd",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "title"
+        ]
+    },
+    {
+        "method": "statusBar/templatesLoading",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "statusBar/templatesReady",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "count"
+        ]
+    },
+    {
+        "method": "statusBar/templatesHide",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "statusBar/showEngineVersion",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "platform",
+            "version"
+        ]
+    },
+    {
+        "method": "statusBar/hideEngineVersion",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "statusBar/disposeEngineVersion",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "diff/postMessage",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "message",
+            "paneUri"
+        ]
+    },
+    {
+        "method": "deploymentState/saveAuthType",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "authType"
+        ]
+    },
+    {
+        "method": "deploymentState/saveOAuth2Config",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "audience",
+            "tokenEndpoint"
+        ]
+    },
+    {
+        "method": "deploymentState/save",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "endpoint",
+            "tenantId"
+        ]
+    },
+    {
+        "method": "deployment/postMessage",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "message"
+        ]
+    },
+    {
+        "method": "script/open",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "completion",
+            "content",
+            "fileName",
+            "languageId",
+            "scriptId"
+        ]
+    },
+    {
+        "method": "script/updateVariables",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "scriptId",
+            "variables"
+        ]
+    },
+    {
+        "method": "script/close",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "scriptId"
+        ]
+    }
+]
