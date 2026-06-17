@@ -5,6 +5,8 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { BridgeScriptEditor } from "../scriptAdapters";
+import { METHODS } from "../protocol/descriptor";
+import { ScriptCloseParams, ScriptDidChangeParams } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
 import { SessionHooks } from "./sessionHooks";
 
@@ -38,13 +40,13 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
 
     // The host edited an open script tab → push the new content into the owning
     // BPMN webview, which writes it to the moddle property via bpmn-js.
-    deps.rpc.on("script/didChange", (params: { scriptId: string; content: string }) => {
+    deps.rpc.on(METHODS.scriptDidChange, (params: ScriptDidChangeParams) => {
         void scriptEditor.didChange(params.scriptId, params.content);
     });
 
     // The user closed a script tab on the host → drop tracking so a re-open
     // re-reads the current BPMN content rather than revealing a stale tab.
-    deps.rpc.on("script/didClose", (params: { scriptId: string }) => {
+    deps.rpc.on(METHODS.scriptDidClose, (params: ScriptCloseParams) => {
         scriptEditor.didClose(params.scriptId);
     });
 

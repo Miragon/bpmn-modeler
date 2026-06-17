@@ -1,21 +1,9 @@
-import { Command, DiffOrigin } from "@miragon/bpmn-modeler-shared";
 import { BpmnDiffService, DiffPaneStore, DiffSession } from "@miragon/bpmn-modeler-core";
 
 import { RpcDiffPaneHandle, dispatchDiffMessage } from "../diffAdapters";
+import { METHODS } from "../protocol/descriptor";
+import { DiffDisposeParams, DiffOpenParams, DiffWebviewMessageParams } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
-
-interface DiffPaneInput {
-    /** Stable, diff-scoped pane identity (host appends `#<diffId>-<role>`). */
-    uri: string;
-    content: string;
-}
-
-interface DiffOpenParams {
-    diffId: string;
-    origin: DiffOrigin;
-    before: DiffPaneInput;
-    after: DiffPaneInput;
-}
 
 /**
  * The diff feature owns the production diff brain (`DiffPaneStore` +
@@ -47,7 +35,7 @@ export function register(deps: BridgeSharedDeps): { rebroadcastLanguage: () => v
      * assigned by the host, so the `forScm`/`forCompareFiles` choice is made by
      * origin alone — only so the legend's origin-specific chrome stays correct.
      */
-    deps.rpc.on("diff/open", (params: DiffOpenParams) => {
+    deps.rpc.on(METHODS.diffOpen, (params: DiffOpenParams) => {
         const beforeHandle = new RpcDiffPaneHandle(
             params.before.uri,
             params.before.content,
@@ -70,14 +58,14 @@ export function register(deps: BridgeSharedDeps): { rebroadcastLanguage: () => v
         deps.log(`diff opened: ${params.diffId} (${params.origin})`);
     });
 
-    deps.rpc.on("diff/webviewMessage", (params: { paneUri: string; message: Command }) => {
+    deps.rpc.on(METHODS.diffWebviewMessage, (params: DiffWebviewMessageParams) => {
         const handle = diffPanes.get(params.paneUri);
         if (handle) {
             void dispatchDiffMessage(diffService, handle, params.message);
         }
     });
 
-    deps.rpc.on("diff/dispose", (params: { diffId: string }) => {
+    deps.rpc.on(METHODS.diffDispose, (params: DiffDisposeParams) => {
         const session = diffSessions.get(params.diffId);
         if (!session) {
             return;

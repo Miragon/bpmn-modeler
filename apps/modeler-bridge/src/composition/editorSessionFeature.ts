@@ -2,8 +2,15 @@ import { Command, Query, SyncDocumentCommand } from "@miragon/bpmn-modeler-share
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 
 import { RpcEditorHandle } from "../adapters";
+import { METHODS } from "../protocol/descriptor";
+import {
+    DocumentDidChangeParams,
+    EditorRefParams,
+    RegisterParams,
+    WebviewMessageParams,
+} from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
-import { RegisterParams, SessionHooks } from "./sessionHooks";
+import { SessionHooks } from "./sessionHooks";
 
 /** Builds a typed-but-stub host reply. The webview only reads `.type`, so a plain object is enough. */
 function query(type: string, fields: Record<string, unknown>): Query {
@@ -51,7 +58,7 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
             deps.store.postMessage(editorId, query("PropertiesPanelStateQuery", { visible: true }));
         });
 
-    deps.rpc.on("session/register", async (params: RegisterParams) => {
+    deps.rpc.on(METHODS.sessionRegister, async (params: RegisterParams) => {
         // Seed settings before any discovery so `getConfigFolder()` is correct on
         // the first template scan/watcher. Snapshots are host-global; applying the
         // same one on each register is idempotent. Kept inline (settings is a
@@ -90,7 +97,7 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
         deps.log(`session registered: ${params.editorId}`);
     });
 
-    deps.rpc.on("webview/message", (params: { editorId: string; message: Command }) => {
+    deps.rpc.on(METHODS.webviewMessage, (params: WebviewMessageParams) => {
         handles.get(params.editorId)?.receive(params.message);
     });
 
@@ -101,7 +108,7 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
     // mirror to the core-originated content before the RPC round-trip, so an
     // unchanged compare means this is that echo and re-rendering would loop.
     // Only a genuinely different text is an external edit worth displaying.
-    deps.rpc.on("document/didChange", async (params: { editorId: string; content: string }) => {
+    deps.rpc.on(METHODS.documentDidChange, async (params: DocumentDidChangeParams) => {
         if (deps.mirror.content(params.editorId) === params.content) {
             return;
         }
@@ -112,11 +119,11 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
     // The host reports which editor tab is focused so the store's active-editor
     // pointer stays correct with several `.bpmn` files open (commands/diff that
     // target "the active editor" depend on it).
-    deps.rpc.on("session/setActive", (params: { editorId: string }) => {
+    deps.rpc.on(METHODS.sessionSetActive, (params: EditorRefParams) => {
         deps.store.setActiveEditor(params.editorId);
     });
 
-    deps.rpc.on("session/dispose", (params: { editorId: string }) => {
+    deps.rpc.on(METHODS.sessionDispose, (params: EditorRefParams) => {
         bpmnService.disposeSession(params.editorId);
 
         // Per-session teardown owned by sibling features (script tabs, code-link
