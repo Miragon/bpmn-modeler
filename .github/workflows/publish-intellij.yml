@@ -188,6 +188,14 @@ jobs:
       # The App installation token (not GITHUB_TOKEN) authors it, so the
       # resulting push to main still triggers deploy-docs.yml. No working-tree
       # branch switch is needed — we send the file the previous step generated.
+      #
+      # The headline uses the `ci` type (not `chore`): `chore` is a visible
+      # entry in release-please-config.json's changelog-sections, so a
+      # `chore(...)` commit on main is treated as releasable and opens a fresh
+      # release PR — every release would spawn a follow-up release PR in a
+      # self-perpetuating loop. `ci` is hidden by default and absent from our
+      # changelog-sections, so release-please ignores it while deploy-docs
+      # (path-triggered, type-agnostic) still runs.
       - name: Commit updatePlugins.xml to main
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -207,7 +215,7 @@ jobs:
               --arg oid "$head_oid" \
               --arg path "$XML_PATH" \
               --arg contents "$NEW_B64" \
-              --arg headline "chore(release): refresh updatePlugins.xml for v${{ steps.tag.outputs.version }}" \
+              --arg headline "ci(release): refresh updatePlugins.xml for v${{ steps.tag.outputs.version }}" \
               '{query: "mutation($i: CreateCommitOnBranchInput!){createCommitOnBranch(input:$i){commit{oid}}}",
                 variables: {i: {
                   branch: {repositoryNameWithOwner: $repo, branchName: "main"},

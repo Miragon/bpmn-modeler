@@ -211,7 +211,13 @@ jobs:
 
   package-windows:
     name: Package NSIS installer (Windows)
-    runs-on: windows-latest
+    # Pinned to windows-2022 (VS 2022 / v17). windows-latest now ships Visual
+    # Studio v18 (2026), which the pinned node-gyp 10.2.0 cannot detect
+    # ("unknown version 'undefined'"), so native modules (native-keymap,
+    # @theia/ffmpeg) fail to compile during `yarn install`. node-gyp >= 11
+    # supports VS 18 — once that resolves transitively, this can return to
+    # windows-latest.
+    runs-on: windows-2022
     needs: build-vsix
     defaults:
       run:
