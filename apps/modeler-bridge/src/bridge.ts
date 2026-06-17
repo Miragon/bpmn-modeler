@@ -15,22 +15,13 @@
  * `createBridge` is a pure composition root: it builds the shared collaborators
  * once ({@link buildSharedDeps}) and lets each `composition/*Feature.ts` module
  * wire its own services and register its own slice of the protocol. Each
- * Host→Core method group below is implemented by the matching feature module;
- * this table is the index (a seed for a later protocol-typing effort).
+ * Host→Core method group is implemented by the matching feature module.
  *
- * Protocol (see {@link Rpc} for framing):
- *   Host → Core (notifications): session/register, webview/message,
- *                                document/didChange, settings/didChange,
- *                                session/setActive, session/dispose,
- *                                diff/open, diff/webviewMessage, diff/dispose,
- *                                deploymentState/seed, deployment/webviewMessage,
- *                                deployment/open, script/didChange, script/didClose
- *   Core → Host (requests):      document/write, document/save, picker/show,
- *                                secretStore/*
- *   Core → Host (notifications): editor/postMessage, diff/postMessage,
- *                                deployment/postMessage, deploymentState/save*,
- *                                notifier/*, statusBar/*, script/open, script/close,
- *                                script/updateVariables
+ * The full RPC surface — method names, direction, and param/result shapes — is
+ * the single source of truth in `protocol/descriptor.ts` (with `METHODS.*`
+ * constants consumed at every call-site), kept honest by `protocol.spec.ts` and
+ * the checked-in `protocol/protocol.json` snapshot. `protocolTable()` renders
+ * the canonical, un-rottable method index that used to live in this comment.
  *
  * DMN is deliberately out of scope here — it has no IntelliJ editor yet; this
  * covers the BPMN editor, diff and deployment. The
