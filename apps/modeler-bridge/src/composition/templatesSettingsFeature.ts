@@ -1,9 +1,10 @@
 import { Command } from "@miragon/bpmn-modeler-shared";
 import { BpmnElementTemplatesService, BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 
-import { SettingsSnapshot } from "../nodeAdapters";
+import { METHODS } from "../protocol/descriptor";
+import { RegisterParams, SettingsDidChangeParams } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
-import { RegisterParams, SessionHooks } from "./sessionHooks";
+import { SessionHooks } from "./sessionHooks";
 
 /**
  * The templates/settings feature owns element-template discovery
@@ -57,7 +58,7 @@ export function register(
     // each session's broadcaster + configFolder listener turn into webview pushes.
     // Diff panes aren't editor sessions, so they need an explicit locale re-push,
     // delivered via the diff feature's `rebroadcastLanguage` callback.
-    deps.rpc.on("settings/didChange", (params: { settings: Partial<SettingsSnapshot> }) => {
+    deps.rpc.on(METHODS.settingsDidChange, (params: SettingsDidChangeParams) => {
         deps.settings.apply(params.settings);
         handles.onSettingsApplied();
     });

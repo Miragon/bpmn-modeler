@@ -35,6 +35,16 @@ import {
 
 import { BridgeSettings } from "./nodeAdapters";
 import { Rpc } from "./rpc";
+import { METHODS } from "./protocol/descriptor";
+import {
+    BasicAuthCredentials,
+    ClipboardReadResult,
+    DocumentSaveResult,
+    DocumentWriteResult,
+    OAuth2Credentials,
+    PickerShowParams,
+    PickerShowResult,
+} from "./protocol/types";
 
 /** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
 export interface SessionMeta {
@@ -135,18 +145,18 @@ export class RpcEditorHandle implements EditorHandle {
     }
 
     async writeContent(content: string): Promise<boolean> {
-        const result = (await this.rpc.request("document/write", {
+        const result = (await this.rpc.request(METHODS.documentWrite, {
             editorId: this.id,
             content,
-        })) as { changed?: boolean } | null;
+        })) as DocumentWriteResult | null;
         this.mirror.setContent(this.id, content);
         return result?.changed ?? false;
     }
 
     async save(): Promise<boolean> {
-        const result = (await this.rpc.request("document/save", { editorId: this.id })) as {
-            saved?: boolean;
-        } | null;
+        const result = (await this.rpc.request(METHODS.documentSave, {
+            editorId: this.id,
+        })) as DocumentSaveResult | null;
         return result?.saved ?? false;
     }
 
@@ -157,7 +167,7 @@ export class RpcEditorHandle implements EditorHandle {
      * (the VS Code handle returns webview visibility here).
      */
     async postMessage(message: Command | Query): Promise<boolean> {
-        this.rpc.notify("editor/postMessage", { editorId: this.id, message });
+        this.rpc.notify(METHODS.editorPostMessage, { editorId: this.id, message });
         return true;
     }
 
@@ -232,18 +242,19 @@ export class RpcDocumentPort implements DocumentPort {
     }
 
     async write(editorId: string, content: string): Promise<boolean> {
-        const result = (await this.rpc.request("document/write", { editorId, content })) as {
-            changed?: boolean;
-        } | null;
+        const result = (await this.rpc.request(METHODS.documentWrite, {
+            editorId,
+            content,
+        })) as DocumentWriteResult | null;
         // Keep the mirror current so a later synchronous getContent() is correct.
         this.mirror.setContent(editorId, content);
         return result?.changed ?? false;
     }
 
     async save(editorId: string): Promise<boolean> {
-        const result = (await this.rpc.request("document/save", { editorId })) as {
-            saved?: boolean;
-        } | null;
+        const result = (await this.rpc.request(METHODS.documentSave, {
+            editorId,
+        })) as DocumentSaveResult | null;
         return result?.saved ?? false;
     }
 }
@@ -258,37 +269,37 @@ export class RpcNotifier implements NotifierPort {
     constructor(private readonly rpc: Rpc) {}
 
     showInfo(message: string): void {
-        this.rpc.notify("notifier/showInfo", { message });
+        this.rpc.notify(METHODS.notifierShowInfo, { message });
     }
 
     showError(message: string): void {
-        this.rpc.notify("notifier/showError", { message });
+        this.rpc.notify(METHODS.notifierShowError, { message });
     }
 
     notifyError(context: string, error: Error): void {
         // Preserve the log-then-toast convention: the host logs the detail and
         // shows a balloon pairing the caller's context with the error message.
-        this.rpc.notify("notifier/log", {
+        this.rpc.notify(METHODS.notifierLog, {
             level: "error",
             message: `${context}: ${error.message}`,
         });
-        this.rpc.notify("notifier/notifyError", { context, message: error.message });
+        this.rpc.notify(METHODS.notifierNotifyError, { context, message: error.message });
     }
 
     openLoggingConsole(): void {
-        this.rpc.notify("notifier/openConsole", {});
+        this.rpc.notify(METHODS.notifierOpenConsole, {});
     }
 
     logInfo(message: string): void {
-        this.rpc.notify("notifier/log", { level: "info", message });
+        this.rpc.notify(METHODS.notifierLog, { level: "info", message });
     }
 
     logWarning(message: string): void {
-        this.rpc.notify("notifier/log", { level: "warn", message });
+        this.rpc.notify(METHODS.notifierLog, { level: "warn", message });
     }
 
     logError(error: Error): void {
-        this.rpc.notify("notifier/log", { level: "error", message: error.message });
+        this.rpc.notify(METHODS.notifierLog, { level: "error", message: error.message });
     }
 
     /**
@@ -297,16 +308,16 @@ export class RpcNotifier implements NotifierPort {
      * notifications and `finally` guarantees the spinner clears even on throw.
      */
     async withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
-        this.rpc.notify("notifier/progressStart", { title });
+        this.rpc.notify(METHODS.notifierProgressStart, { title });
         try {
             return await task();
         } finally {
-            this.rpc.notify("notifier/progressEnd", { title });
+            this.rpc.notify(METHODS.notifierProgressEnd, { title });
         }
     }
 
     async openDocument(absolutePath: string): Promise<void> {
-        this.rpc.notify("notifier/openDocument", { path: absolutePath });
+        this.rpc.notify(METHODS.notifierOpenDocument, { path: absolutePath });
     }
 }
 
@@ -319,27 +330,27 @@ export class RpcStatusBar implements StatusBarPort {
     constructor(private readonly rpc: Rpc) {}
 
     showElementTemplatesLoading(): void {
-        this.rpc.notify("statusBar/templatesLoading", {});
+        this.rpc.notify(METHODS.statusBarTemplatesLoading, {});
     }
 
     showElementTemplatesReady(count: number): void {
-        this.rpc.notify("statusBar/templatesReady", { count });
+        this.rpc.notify(METHODS.statusBarTemplatesReady, { count });
     }
 
     hideElementTemplatesStatus(): void {
-        this.rpc.notify("statusBar/templatesHide", {});
+        this.rpc.notify(METHODS.statusBarTemplatesHide, {});
     }
 
     showEngineVersion(platform: Engine, version: string): void {
-        this.rpc.notify("statusBar/showEngineVersion", { platform, version });
+        this.rpc.notify(METHODS.statusBarShowEngineVersion, { platform, version });
     }
 
     hideEngineVersion(): void {
-        this.rpc.notify("statusBar/hideEngineVersion", {});
+        this.rpc.notify(METHODS.statusBarHideEngineVersion, {});
     }
 
     disposeEngineVersionStatus(): void {
-        this.rpc.notify("statusBar/disposeEngineVersion", {});
+        this.rpc.notify(METHODS.statusBarDisposeEngineVersion, {});
     }
 }
 
@@ -357,14 +368,15 @@ export class RpcClipboard implements ClipboardPort {
     constructor(private readonly rpc: Rpc) {}
 
     async readClipboard(): Promise<string> {
-        const result = (await this.rpc.request("clipboard/read", {})) as {
-            text?: string;
-        } | null;
+        const result = (await this.rpc.request(
+            METHODS.clipboardRead,
+            {},
+        )) as ClipboardReadResult | null;
         return result?.text ?? "";
     }
 
     async writeClipboard(text: string): Promise<void> {
-        this.rpc.notify("clipboard/write", { text });
+        this.rpc.notify(METHODS.clipboardWrite, { text });
     }
 }
 
@@ -380,26 +392,26 @@ export class RpcSecretStore implements SecretStorePort {
     constructor(private readonly rpc: Rpc) {}
 
     async saveBasicAuth(username: string, password: string): Promise<void> {
-        await this.rpc.request("secretStore/saveBasicAuth", { username, password });
+        await this.rpc.request(METHODS.secretStoreSaveBasicAuth, { username, password });
     }
 
-    async getBasicAuth(): Promise<{ username: string; password: string } | undefined> {
-        const result = (await this.rpc.request("secretStore/getBasicAuth", {})) as {
-            username: string;
-            password: string;
-        } | null;
+    async getBasicAuth(): Promise<BasicAuthCredentials | undefined> {
+        const result = (await this.rpc.request(
+            METHODS.secretStoreGetBasicAuth,
+            {},
+        )) as BasicAuthCredentials | null;
         return result ?? undefined;
     }
 
     async saveOAuth2(clientId: string, clientSecret: string): Promise<void> {
-        await this.rpc.request("secretStore/saveOAuth2", { clientId, clientSecret });
+        await this.rpc.request(METHODS.secretStoreSaveOAuth2, { clientId, clientSecret });
     }
 
-    async getOAuth2(): Promise<{ clientId: string; clientSecret: string } | undefined> {
-        const result = (await this.rpc.request("secretStore/getOAuth2", {})) as {
-            clientId: string;
-            clientSecret: string;
-        } | null;
+    async getOAuth2(): Promise<OAuth2Credentials | undefined> {
+        const result = (await this.rpc.request(
+            METHODS.secretStoreGetOAuth2,
+            {},
+        )) as OAuth2Credentials | null;
         return result ?? undefined;
     }
 }
@@ -465,17 +477,17 @@ export class RpcDeploymentState implements DeploymentStatePort {
 
     async saveAuthType(authType: AuthTypePayload): Promise<void> {
         this.snapshot = { ...this.snapshot, authType };
-        this.rpc.notify("deploymentState/saveAuthType", { authType });
+        this.rpc.notify(METHODS.deploymentStateSaveAuthType, { authType });
     }
 
     async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
         this.snapshot = { ...this.snapshot, tokenEndpoint, audience };
-        this.rpc.notify("deploymentState/saveOAuth2Config", { tokenEndpoint, audience });
+        this.rpc.notify(METHODS.deploymentStateSaveOAuth2Config, { tokenEndpoint, audience });
     }
 
     async save(endpoint: string, tenantId: string): Promise<void> {
         this.snapshot = { ...this.snapshot, endpoint, tenantId };
-        this.rpc.notify("deploymentState/save", { endpoint, tenantId });
+        this.rpc.notify(METHODS.deploymentStateSave, { endpoint, tenantId });
     }
 }
 
@@ -487,12 +499,6 @@ export class RpcDeploymentState implements DeploymentStatePort {
  */
 export interface FileFinder {
     findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
-}
-
-/** One row offered to the host popup: a label plus optional greyed detail. */
-interface PickItem {
-    label: string;
-    description?: string;
 }
 
 /**
@@ -511,15 +517,11 @@ export class RpcPicker implements PickerPort {
     ) {}
 
     /** Round-trips one popup; returns the chosen indices or `null` on cancel. */
-    private async show(opts: {
-        title?: string;
-        placeholder: string;
-        canPickMany: boolean;
-        items: PickItem[];
-    }): Promise<number[] | null> {
-        const result = (await this.rpc.request("picker/show", opts)) as {
-            selected?: number[] | null;
-        } | null;
+    private async show(opts: PickerShowParams): Promise<number[] | null> {
+        const result = (await this.rpc.request(
+            METHODS.pickerShow,
+            opts,
+        )) as PickerShowResult | null;
         return result?.selected ?? null;
     }
 

@@ -23,6 +23,7 @@ import {
 import { BpmnDiffService, DiffPaneHandle } from "@miragon/bpmn-modeler-core";
 
 import { Rpc } from "./rpc";
+import { METHODS } from "./protocol/descriptor";
 
 /**
  * One diff pane as the core sees it. `getText()` reads a content cache seeded by
@@ -57,7 +58,7 @@ export class RpcDiffPaneHandle implements DiffPaneHandle {
     }
 
     async postMessage(message: unknown): Promise<boolean> {
-        this.rpc.notify("diff/postMessage", { paneUri: this.uri, message });
+        this.rpc.notify(METHODS.diffPostMessage, { paneUri: this.uri, message });
         return true;
     }
 

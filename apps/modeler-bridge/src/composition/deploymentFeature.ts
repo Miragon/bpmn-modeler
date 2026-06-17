@@ -1,4 +1,3 @@
-import { Command } from "@miragon/bpmn-modeler-shared";
 import {
     AuthHeaderResolver,
     Camunda7RestClient,
@@ -10,7 +9,13 @@ import {
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
 
-import { DeploymentStateSnapshot, RpcDeploymentState, RpcSecretStore } from "../adapters";
+import { RpcDeploymentState, RpcSecretStore } from "../adapters";
+import { METHODS } from "../protocol/descriptor";
+import {
+    DeploymentOpenParams,
+    DeploymentSeedParams,
+    DeploymentWebviewMessageParams,
+} from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
@@ -61,7 +66,7 @@ export function register(deps: BridgeSharedDeps): void {
         deploymentService,
         startInstanceService,
         deps.notifier,
-        (message) => deps.rpc.notify("deployment/postMessage", { message }),
+        (message) => deps.rpc.notify(METHODS.deploymentPostMessage, { message }),
     );
 
     // The form's defaults track the active editor, but only while the panel is
@@ -76,19 +81,19 @@ export function register(deps: BridgeSharedDeps): void {
 
     // Seed the deployment-state mirror once at startup (and after a persisted
     // save, if the host chooses to re-seed); getters then read it synchronously.
-    deps.rpc.on("deploymentState/seed", (params: { state: Partial<DeploymentStateSnapshot> }) => {
+    deps.rpc.on(METHODS.deploymentStateSeed, (params: DeploymentSeedParams) => {
         deploymentState.seed(params.state);
     });
 
     // Inbound deployment-webview message → the shared dispatch core. Errors are
     // caught inside each handler, so this never rejects.
-    deps.rpc.on("deployment/webviewMessage", (params: { message: Command }) => {
+    deps.rpc.on(METHODS.deploymentWebviewMessage, (params: DeploymentWebviewMessageParams) => {
         void deploymentDispatcher.handle(params.message);
     });
 
     // The host reports the tool window's visibility; on open, push the current
     // form defaults so the panel reflects the active diagram immediately.
-    deps.rpc.on("deployment/open", (params: { open: boolean }) => {
+    deps.rpc.on(METHODS.deploymentOpen, (params: DeploymentOpenParams) => {
         deploymentPanelOpen = params.open;
         if (params.open) {
             deploymentDispatcher.sendFormDefaults();

@@ -34,6 +34,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { Rpc } from "./rpc";
+import { METHODS } from "./protocol/descriptor";
 
 /** The element-addressing fields needed to route a host edit back to the webview. */
 interface TrackedScript {
@@ -114,7 +115,7 @@ export class BridgeScriptEditor {
         // `registerCompletionItemProvider` has no PSI-based analogue, so the host
         // drives a `CompletionContributor` off this payload instead). `variables`
         // rides alongside so the host can complete process-variable names too.
-        this.rpc.notify("script/open", {
+        this.rpc.notify(METHODS.scriptOpen, {
             scriptId,
             fileName: uri.filename,
             languageId: lang.languageId,
@@ -142,7 +143,7 @@ export class BridgeScriptEditor {
         this.variablesByEditor.set(editorId, variables);
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
-                this.rpc.notify("script/updateVariables", { scriptId, variables });
+                this.rpc.notify(METHODS.scriptUpdateVariables, { scriptId, variables });
             }
         }
     }
@@ -181,7 +182,7 @@ export class BridgeScriptEditor {
     disposeEditor(editorId: string): void {
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
-                this.rpc.notify("script/close", { scriptId });
+                this.rpc.notify(METHODS.scriptClose, { scriptId });
                 this.scripts.delete(scriptId);
             }
         }
