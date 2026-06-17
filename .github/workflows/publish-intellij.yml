@@ -34,13 +34,6 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    # Gate the production publish behind the jetbrains-marketplace environment
-    # so the publish action itself only proceeds after the environment's
-    # protection rules (required reviewers / branch restrictions) pass. The
-    # credential is now the miragon-release-please App key (a repo/org secret,
-    # readable by env-gated jobs), so the gate protects the act of publishing,
-    # not a PAT-scoped secret. No dry-run input — every run publishes — so the
-    # gate applies unconditionally.
     environment: jetbrains-marketplace
 
     steps:
@@ -74,8 +67,6 @@ jobs:
           node-version: '22'
           cache: yarn
 
-      # JDK 21 matches kotlin.jvmToolchain(21) in build.gradle.kts — otherwise
-      # Gradle downloads its own toolchain on every run.
       - name: Setup JDK 21
         uses: actions/setup-java@v5
         with:
@@ -85,8 +76,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # Bun is needed for cross-compiling the bridge to all 5 targets. The
-      # `latest` channel tracks releases ≥ 1.1.5 which supports `--target`.
+      # Bun is needed for cross-compiling the bridge to all 5 targets.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -95,8 +85,6 @@ jobs:
       - name: Install dependencies (focused)
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-core @miragon/bpmn-modeler-bridge @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-element-template-chooser
 
-      # The Gradle build only stages already-built artefacts; the JS/Bun side
-      # produces them. Build order: shared libs → webview bundles → bridge.
       - name: Build shared libraries
         run: yarn build:libs
 
@@ -123,8 +111,6 @@ jobs:
           echo "path=${ZIP}" >> "$GITHUB_OUTPUT"
           echo "name=$(basename "$ZIP")" >> "$GITHUB_OUTPUT"
 
-      # #1093 acceptance criterion: log per-platform binary size and total
-      # ZIP size so we can spot if Bun's runtime bloats the artefact.
       - name: Record artefact sizes
         run: |
           {
@@ -151,12 +137,6 @@ jobs:
             done
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Mint the App token here, after the long cross-compile + Gradle build,
-      # rather than at job start: installation tokens expire after 1 hour and
-      # the build alone could approach that window. A late token gives a fresh
-      # ~1h for the quick tail (release upload + push to main). The push needs a
-      # non-GITHUB_TOKEN credential so the resulting commit triggers
-      # deploy-docs.yml — same reason release-please uses this App.
       - name: Generate App token
         uses: actions/create-github-app-token@v3
         id: app-token
@@ -170,9 +150,8 @@ jobs:
         run: |
           gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.zip.outputs.path }}" --clobber
 
-      # Regenerate the custom-repository descriptor. The download URL is
-      # composed from the tag and the ZIP filename so the IDE polls the
-      # exact asset we just uploaded.
+      # Regenerate the custom-repository descriptor.
+      # IntellIJ Marketplace requires this
       - name: Regenerate updatePlugins.xml
         run: |
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.zip.outputs.name }}"
@@ -180,22 +159,6 @@ jobs:
             --version "${{ steps.tag.outputs.version }}" \
             --download-url "$DOWNLOAD_URL"
 
-      # Commit the regenerated XML to main via the GraphQL
-      # createCommitOnBranch mutation instead of a local `git push`. A pushed
-      # local commit is unsigned and would only land by punching through the
-      # branch ruleset's required_signatures rule; an API-created commit is
-      # signed with GitHub's key (verified), so it satisfies that rule honestly.
-      # The App installation token (not GITHUB_TOKEN) authors it, so the
-      # resulting push to main still triggers deploy-docs.yml. No working-tree
-      # branch switch is needed — we send the file the previous step generated.
-      #
-      # The headline uses the `ci` type (not `chore`): `chore` is a visible
-      # entry in release-please-config.json's changelog-sections, so a
-      # `chore(...)` commit on main is treated as releasable and opens a fresh
-      # release PR — every release would spawn a follow-up release PR in a
-      # self-perpetuating loop. `ci` is hidden by default and absent from our
-      # changelog-sections, so release-please ignores it while deploy-docs
-      # (path-triggered, type-agnostic) still runs.
       - name: Commit updatePlugins.xml to main
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -263,9 +226,6 @@ jobs:
           echo "Failed to commit updatePlugins.xml to main after 3 attempts." >&2
           exit 1
 
-      # Record a per-host deployment so the repo Environments page shows the
-      # IntelliJ plugin's last-published version. The environment auto-creates
-      # on first deployment.
       - name: Record deployment
         uses: actions/github-script@v7
         with:
