@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.2](https://github.com/Miragon/bpmn-modeler/compare/v1.1.1...v1.1.2) (2026-06-17)
+
+
+### 🐞 Bug Fixes
+
+* **standalone:** restore installer builds and stop release-please loop ([#1158](https://github.com/Miragon/bpmn-modeler/issues/1158)) ([9115cd8](https://github.com/Miragon/bpmn-modeler/commit/9115cd8c59f899691be9afc0f88a8f1c709e6487))
+
+
+### 🛠️ Misc
+
+* **ci:** add cost-tuned CodeQL advanced-setup workflow ([#1159](https://github.com/Miragon/bpmn-modeler/issues/1159)) ([bbd017a](https://github.com/Miragon/bpmn-modeler/commit/bbd017ab71b36bc8eab926c347e7c9b54a92f2e0))
+* **release:** refresh updatePlugins.xml for v1.1.1 ([f67831f](https://github.com/Miragon/bpmn-modeler/commit/f67831fa9e878ce6060addf5828121e24e851733))
+
 ## [1.1.1](https://github.com/Miragon/bpmn-modeler/compare/v1.1.0...v1.1.1) (2026-06-17)
 
 
