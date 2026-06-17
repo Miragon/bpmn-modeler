@@ -8,8 +8,10 @@ name: Publish Standalone (Homebrew)
 #   - workflow_dispatch (manual rerun) — sha256 and filename are recomputed
 #     by downloading the DMG from the release.
 #
-# Required GitHub repo secret (or homebrew-tap environment secret):
+# Required GitHub repo (or org) secret:
 #   HOMEBREW_TAP_TOKEN   PAT with repo scope on Miragon/homebrew-tap
+#   This job is intentionally ungated (see update-tap below), so the token must
+#   be readable without the homebrew-tap environment.
 
 on:
   workflow_dispatch:
@@ -53,7 +55,11 @@ jobs:
   update-tap:
     name: Update Cask formula
     runs-on: ubuntu-latest
-    environment: homebrew-tap
+    # No environment gate: in the release chain this job runs after
+    # publish-standalone.yml, which is already approved via the `standalone`
+    # environment. A second `homebrew-tap` gate here would force a redundant
+    # approval (GitHub requires one approval per job that targets a protected
+    # environment). HOMEBREW_TAP_TOKEN must therefore be a repo/org secret.
     permissions:
       contents: read
     steps:
