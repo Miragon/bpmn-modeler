@@ -211,12 +211,10 @@ jobs:
 
   package-windows:
     name: Package NSIS installer (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: build-vsix
     defaults:
       run:
-        # windows-latest defaults to PowerShell; use Git Bash to keep glob /
-        # release-upload logic identical to the macOS job.
         shell: bash
 
     steps:
@@ -226,11 +224,6 @@ jobs:
           ref: ${{ inputs.ref }}
 
       - name: Setup Node 22
-        # No `cache: yarn` on Windows: setup-node would run `yarn --version`
-        # against the pre-installed Yarn 1 (which sits ahead of corepack's
-        # shim on PATH), and Yarn 1 aborts on `packageManager: yarn@4`.
-        # `corepack enable` runs below to create the Yarn 4 shim against
-        # this Node install.
         uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -302,9 +295,6 @@ jobs:
           VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      # Record a per-host deployment so the repo Environments page shows the
-      # standalone app's last-published version. The environment auto-creates
-      # on first deployment.
       - name: Record deployment
         uses: actions/github-script@v7
         with:
