@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/Miragon/bpmn-modeler/compare/v1.1.0...v1.1.1) (2026-06-17)
+
+
+### 🛠️ Misc
+
+* **release:** fan out host publishing and fix download page ([#1156](https://github.com/Miragon/bpmn-modeler/issues/1156)) ([3a85ac1](https://github.com/Miragon/bpmn-modeler/commit/3a85ac1359a18495e7cd1fdcee41197b55f8657f))
+* **release:** refresh updatePlugins.xml for v1.1.0 ([ae6c980](https://github.com/Miragon/bpmn-modeler/commit/ae6c9805667f505606173147da9c6ff41b1f557e))
+
 ## [1.1.0](https://github.com/Miragon/bpmn-modeler/compare/v1.0.1...v1.1.0) (2026-06-16)
 
 
