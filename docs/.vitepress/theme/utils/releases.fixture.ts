@@ -9,6 +9,8 @@ const ARM64_URL =
     "https://github.com/Miragon/bpmn-modeler/releases/download/v0.9.2/Miragon.BPMN.Modeler-0.9.2-arm64.dmg";
 const INTEL_URL =
     "https://github.com/Miragon/bpmn-modeler/releases/download/v0.9.2/Miragon.BPMN.Modeler-0.9.2-x64.dmg";
+const WIN_EXE_URL =
+    "https://github.com/Miragon/bpmn-modeler/releases/download/v0.9.2/Miragon.BPMN.Modeler-0.9.2-x64.exe";
 const LATEST_MAC_YML_URL =
     "https://github.com/Miragon/bpmn-modeler/releases/download/v0.9.2/latest-mac.yml";
 
@@ -20,6 +22,7 @@ export const standaloneFull: GitHubRelease = {
         { name: "latest-mac.yml", browser_download_url: LATEST_MAC_YML_URL },
         { name: "Miragon.BPMN.Modeler-0.9.2-arm64.dmg", browser_download_url: ARM64_URL },
         { name: "Miragon.BPMN.Modeler-0.9.2-x64.dmg", browser_download_url: INTEL_URL },
+        { name: "Miragon.BPMN.Modeler-0.9.2-x64.exe", browser_download_url: WIN_EXE_URL },
     ],
 };
 
@@ -78,4 +81,4 @@ export const draftStandalone: GitHubRelease = {
     ],
 };
 
-export { ARM64_URL, INTEL_URL };
+export { ARM64_URL, INTEL_URL, WIN_EXE_URL };

@@ -3,8 +3,8 @@ import { ref, computed, onMounted } from "vue";
 import { withBase } from "vitepress";
 import AppleIcon from "../icons/AppleIcon.vue";
 import WindowsIcon from "../icons/WindowsIcon.vue";
-import LinuxIcon from "../icons/LinuxIcon.vue";
 import VSCodeIcon from "../icons/VSCodeIcon.vue";
+import IntelliJIcon from "../icons/IntelliJIcon.vue";
 import {
     fetchLatestStandaloneRelease,
     type StandaloneRelease,
@@ -21,13 +21,12 @@ const HOMEBREW_FULL_CMD = `${HOMEBREW_TAP_CMD}\n${HOMEBREW_INSTALL_CMD}`;
 const release = ref<StandaloneRelease | null>(null);
 const copyState = ref<"idle" | "copied">("idle");
 
-// UA cannot reliably distinguish Apple Silicon from Intel (Intel-emulated Chrome
-// on M-series still reports "Intel"). We always default the primary download to
-// arm64 — it's the common case — and offer Intel as an alternative when the
-// release also ships an x64 DMG.
 const macPrimaryUrl = computed(() => release.value?.dmgArm64Url ?? RELEASES_URL);
 const macAltUrl = computed(() => release.value?.dmgIntelUrl ?? null);
 const macPrimaryLabel = "↓ Download for macOS";
+
+// Windows installer rides along with the macOS DMG on the same release.
+const winUrl = computed(() => release.value?.exeX64Url ?? RELEASES_URL);
 
 onMounted(async () => {
     release.value = await fetchLatestStandaloneRelease();
@@ -121,21 +120,9 @@ async function copyHomebrew() {
                                 Windows
                             </span>
                         </td>
-                        <td>MSI</td>
+                        <td>Installer (.exe)</td>
                         <td class="dl-right">
-                            <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled" disabled aria-disabled="true">Coming Soon</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="dl-platform-cell">
-                            <span class="dl-ico">
-                                <span class="dl-icon-sq"><LinuxIcon /></span>
-                                Linux
-                            </span>
-                        </td>
-                        <td>AppImage</td>
-                        <td class="dl-right">
-                            <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled" disabled aria-disabled="true">Coming Soon</button>
+                            <a class="dl-btn dl-btn-primary" :href="winUrl">↓ Download</a>
                         </td>
                     </tr>
                     <tr>
@@ -153,6 +140,18 @@ async function copyHomebrew() {
                                 target="_blank"
                                 rel="noopener"
                             >↗ Install</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="dl-platform-cell">
+                            <span class="dl-ico">
+                                <span class="dl-icon-sq"><IntelliJIcon /></span>
+                                IntelliJ IDEA
+                            </span>
+                        </td>
+                        <td>JetBrains Marketplace</td>
+                        <td class="dl-right">
+                            <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled" disabled aria-disabled="true">Coming Soon</button>
                         </td>
                     </tr>
                 </tbody>
@@ -174,20 +173,10 @@ async function copyHomebrew() {
                         <span class="dl-icon-sq"><WindowsIcon /></span>
                         <div>
                             <div class="dl-card-name">Windows</div>
-                            <div class="dl-card-format">MSI</div>
+                            <div class="dl-card-format">Installer (.exe)</div>
                         </div>
                     </div>
-                    <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled dl-btn-block" disabled aria-disabled="true">Coming Soon</button>
-                </div>
-                <div class="dl-card-platform">
-                    <div class="dl-card-row1">
-                        <span class="dl-icon-sq"><LinuxIcon /></span>
-                        <div>
-                            <div class="dl-card-name">Linux</div>
-                            <div class="dl-card-format">AppImage</div>
-                        </div>
-                    </div>
-                    <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled dl-btn-block" disabled aria-disabled="true">Coming Soon</button>
+                    <a class="dl-btn dl-btn-primary dl-btn-block" :href="winUrl">↓ Download</a>
                 </div>
                 <div class="dl-card-platform">
                     <div class="dl-card-row1">
@@ -203,6 +192,16 @@ async function copyHomebrew() {
                         target="_blank"
                         rel="noopener"
                     >↗ Install</a>
+                </div>
+                <div class="dl-card-platform">
+                    <div class="dl-card-row1">
+                        <span class="dl-icon-sq"><IntelliJIcon /></span>
+                        <div>
+                            <div class="dl-card-name">IntelliJ IDEA</div>
+                            <div class="dl-card-format">JetBrains Marketplace</div>
+                        </div>
+                    </div>
+                    <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled dl-btn-block" disabled aria-disabled="true">Coming Soon</button>
                 </div>
             </div>
 

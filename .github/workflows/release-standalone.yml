@@ -24,6 +24,22 @@ on:
         required: false
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to publish, without prefix (e.g. 1.2.3). The release tag is v<version>.'
+        required: true
+        type: string
+      dry-run:
+        description: 'Dry run (no upload or tap push)'
+        required: false
+        type: boolean
+        default: false
+      skip-homebrew:
+        description: 'Skip the Homebrew tap update'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
