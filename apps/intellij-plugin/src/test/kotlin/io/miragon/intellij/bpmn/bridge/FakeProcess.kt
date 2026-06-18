@@ -11,8 +11,8 @@ import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 /**
  * A scripted [Process] standing in for the real Bun bridge so the supervisor and
@@ -37,6 +37,15 @@ internal class FakeProcess : Process() {
     private val stdinView = PipedInputStream(stdinSink, pipeBuffer)
     private val stdinReader = BufferedReader(InputStreamReader(stdinView, StandardCharsets.UTF_8))
 
+    // One daemon pump per fake drains every host→core line into this queue, so
+    // tests read frames with a plain blocking poll. This deliberately avoids both
+    // a per-read thread (the back-pressure test would spawn 512) and any shared
+    // executor: an `expectNoFrame` poll that times out by design must not leave a
+    // blocked `readLine()` task on `ForkJoinPool.commonPool()`, whose parallelism
+    // is 1 on a 2-core CI runner — one such leak starves the pool and a later
+    // test's `nextFrame` times out even though its frame is already in the pipe.
+    private val inboundFrames = LinkedBlockingQueue<String>()
+
     // Core stdout: core → host. Tests write here; the host's reader pump consumes.
     private val stdoutSource = PipedOutputStream()
     private val stdoutView = PipedInputStream(stdoutSource, pipeBuffer)
@@ -52,6 +61,17 @@ internal class FakeProcess : Process() {
 
     @Volatile
     private var exitCode = 0
+
+    init {
+        Thread({
+            // forEachLine ends on EOF/close; runCatching swallows the interrupt
+            // when the test JVM tears the fake down.
+            runCatching { stdinReader.forEachLine(inboundFrames::add) }
+        }, "fake-bridge-stdin-pump").apply {
+            isDaemon = true
+            start()
+        }
+    }
 
     override fun getOutputStream(): OutputStream = stdinSink
 
@@ -83,24 +103,16 @@ internal class FakeProcess : Process() {
 
     /**
      * Returns the next frame the host wrote to stdin, failing fast on timeout so a
-     * never-arriving frame surfaces as an error instead of hanging the suite. The
-     * read runs on a pooled daemon thread, so a timeout leaks no test thread.
+     * never-arriving frame surfaces as an error instead of hanging the suite.
      */
-    fun nextFrame(timeoutMillis: Long = 2_000): String {
-        val read = CompletableFuture.supplyAsync { stdinReader.readLine() }
-        val line = read.get(timeoutMillis, TimeUnit.MILLISECONDS)
-        return line ?: error("bridge stdin reached EOF; no frame")
-    }
+    fun nextFrame(timeoutMillis: Long = 2_000): String =
+        inboundFrames.poll(timeoutMillis, TimeUnit.MILLISECONDS)
+            ?: error("no frame on bridge stdin within ${timeoutMillis}ms")
 
     /** Asserts no frame is written within [timeoutMillis] (e.g. after detach). */
     fun expectNoFrame(timeoutMillis: Long = 250) {
-        val read = CompletableFuture.supplyAsync { stdinReader.readLine() }
-        try {
-            val line = read.get(timeoutMillis, TimeUnit.MILLISECONDS)
-            error("expected no frame, but got: $line")
-        } catch (_: TimeoutException) {
-            // Expected: nothing was written.
-        }
+        val line = inboundFrames.poll(timeoutMillis, TimeUnit.MILLISECONDS)
+        if (line != null) error("expected no frame, but got: $line")
     }
 
     /**
