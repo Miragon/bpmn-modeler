@@ -31,6 +31,7 @@ jobs:
       modeler-bridge: ${{ steps.filter.outputs.modeler-bridge }}
       vscode-plugin: ${{ steps.filter.outputs.vscode-plugin }}
       vscode-plugin-src: ${{ steps.filter.outputs.vscode-plugin-src }}
+      intellij-plugin: ${{ steps.filter.outputs.intellij-plugin }}
       modeler-core-src: ${{ steps.filter.outputs.modeler-core-src }}
       modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
@@ -64,6 +65,12 @@ jobs:
               - 'apps/modeler-bridge/**'
             vscode-plugin:
               - 'apps/vscode-plugin/**'
+            # No `*-src` split: release-please bumps the version inside
+            # build.gradle.kts (not a dedicated file), so there is no clean way to
+            # exclude a version-only change — a redundant coverage upload on a
+            # version-bump PR is harmless (Codecov dedups by commit).
+            intellij-plugin:
+              - 'apps/intellij-plugin/**'
             # `*-src` mirror the package filters above but drop package.json, so a
             # version-bump-only PR (release-please) skips the Codecov coverage
             # report while build+test still run via the broad filters. Relies on
@@ -388,6 +395,40 @@ jobs:
           name: modeler-bridge
           verbose: true
 
+  test-intellij-plugin:
+    needs: detect-changes
+    # The IntelliJ plugin is a standalone Gradle/Kotlin build whose unit tests are
+    # pure-JVM and depend only on its own sources (it bundles the pre-built bridge
+    # and webviews at packaging time, not at test time), so trigger solely on its
+    # own files — unlike the VS Code plugin it shares no TS deps with core/shared.
+    if: needs.detect-changes.outputs.intellij-plugin == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      # `jacocoTestReport` depends on `test`, so this runs the JUnit 5 suite and
+      # then writes the coverage XML. Resources (bridge binary, webview bundles)
+      # are absent on a clean checkout, so their Copy tasks are NO-SOURCE and the
+      # pure-JVM tests run without the JS/Bun toolchain.
+      - name: Run unit tests with coverage
+        working-directory: apps/intellij-plugin
+        run: ./gradlew jacocoTestReport --no-daemon
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/intellij-plugin/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: false
+          flags: intellij-plugin
+          name: intellij-plugin
+          verbose: true
+
   # Extension-Host smoke test: the only job that runs the composition root
   # (`activate()` + custom-editor registration) end-to-end in a real VS Code.
   # Kept separate from lint/unit so their fast feedback is never delayed by
@@ -576,6 +617,7 @@ jobs:
       - test-vscode-plugin
       - test-modeler-core
       - test-modeler-bridge
+      - test-intellij-plugin
       - e2e-vscode-plugin
       - test-bpmn-webview
       - test-bpmn-i18n

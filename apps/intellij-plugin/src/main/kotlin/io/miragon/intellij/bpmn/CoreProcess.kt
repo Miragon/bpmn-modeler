@@ -5,8 +5,9 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
-import io.miragon.intellij.bpmn.bridge.BridgeBinaryResolver
 import io.miragon.intellij.bpmn.bridge.BridgeDeps
+import io.miragon.intellij.bpmn.bridge.BridgeErrorNotifier
+import io.miragon.intellij.bpmn.bridge.DefaultBridgeProcessLauncher
 import io.miragon.intellij.bpmn.bridge.DeploymentRouter
 import io.miragon.intellij.bpmn.bridge.DiffRouter
 import io.miragon.intellij.bpmn.bridge.EditorSessionRouter
@@ -61,8 +62,10 @@ class CoreProcess(private val project: Project) : Disposable {
     private val supervisor: ProcessSupervisor =
         ProcessSupervisor(
             channel = channel,
-            binaryResolver = BridgeBinaryResolver(),
-            notifications = { notifications.value },
+            launcher = DefaultBridgeProcessLauncher(),
+            // Adapt the host notifier behind the narrow port; `notifications` is
+            // lazy, so the UI surface is still built only on the first error.
+            notifier = BridgeErrorNotifier { message -> notifications.value.showError(message) },
             // Declared after the supervisor; safe because both lambdas only fire
             // post-construction, on the first (re)spawn.
             onSpawned = { deploymentRouter.sendSeed() },

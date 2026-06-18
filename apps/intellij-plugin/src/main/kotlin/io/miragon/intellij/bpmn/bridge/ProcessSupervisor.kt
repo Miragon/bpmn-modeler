@@ -2,7 +2,7 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.util.concurrency.AppExecutorUtil
-import io.miragon.intellij.bpmn.HostNotifications
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -22,17 +22,27 @@ import java.util.concurrent.atomic.AtomicInteger
  * share this instance's monitor (as they shared the `CoreProcess` instance's
  * before); no external code synchronises on the supervisor.
  *
- * @param notifications Lazy provider so a spawn failure surfaces UI without
- *   forcing [HostNotifications] construction on the happy path.
+ * @param launcher Creates the bridge subprocess. Injectable so tests drive a
+ *   scripted fake process; production resolves and starts the bundled binary.
+ * @param notifier Surfaces a fatal spawn/give-up error to the user. The
+ *   production adapter defers `HostNotifications` construction so the happy path
+ *   never builds the UI surface; tests pass a recording fake.
  * @param onSpawned Runs after every (re)spawn — seeds the deployment mirror.
  * @param onRespawned Runs after a *crash* respawn — re-registers live sessions.
+ * @param scheduler Runs the async pre-warm spawn and the backoff respawn.
+ *   Injectable so tests step time deterministically instead of waiting on the
+ *   shared platform pool.
+ * @param clock Wall-clock source for the stable-run window. Injectable so tests
+ *   cross [STABLE_RUN_MS] without sleeping.
  */
 internal class ProcessSupervisor(
     private val channel: RpcChannel,
-    private val binaryResolver: BridgeBinaryResolver,
-    private val notifications: () -> HostNotifications,
+    private val launcher: BridgeProcessLauncher,
+    private val notifier: BridgeErrorNotifier,
     private val onSpawned: () -> Unit,
     private val onRespawned: () -> Unit,
+    private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val log = Logger.getInstance(ProcessSupervisor::class.java)
 
@@ -73,7 +83,7 @@ internal class ProcessSupervisor(
      */
     fun ensureStartedAsync() {
         if (process?.isAlive == true) return
-        AppExecutorUtil.getAppScheduledExecutorService().execute {
+        scheduler.execute {
             if (disposed.get()) return@execute
             ensureStarted()
         }
@@ -87,21 +97,13 @@ internal class ProcessSupervisor(
     fun prewarm() = ensureStartedAsync()
 
     private fun spawn() {
-        val binary =
-            try {
-                binaryResolver.resolve()
-            } catch (e: Exception) {
-                log.error("Failed to resolve the bundled modeler bridge binary", e)
-                notifications().showError("Could not start the BPMN modeler engine: ${e.message}")
-                return
-            }
         try {
-            val started = ProcessBuilder(binary.toString()).redirectErrorStream(false).start()
+            val started = launcher.launch()
             synchronized(stateLock) {
                 process = started
                 channel.attach(started.outputStream, started.inputStream)
             }
-            lastSpawnAt = System.currentTimeMillis()
+            lastSpawnAt = clock()
             // stderr is the core's diagnostic channel (stdout is reserved for RPC).
             channel.pump(started.errorStream, "modeler-bridge-stderr") { log.info("[bridge stderr] $it") }
             started.onExit().thenAccept { handleExit(started) }
@@ -109,10 +111,10 @@ internal class ProcessSupervisor(
             // Seed the deployment-state mirror up front so the bridge's synchronous
             // getters are correct; re-runs on every (re)spawn, rebuilding the mirror.
             onSpawned()
-            log.info("Miragon modeler bridge started: $binary")
+            log.info("Miragon modeler bridge started")
         } catch (e: Exception) {
             log.error("Failed to start the modeler bridge", e)
-            notifications().showError("Could not start the BPMN modeler engine. See idea.log.")
+            notifier.showError("Could not start the BPMN modeler engine. See idea.log.")
         }
     }
 
@@ -129,13 +131,13 @@ internal class ProcessSupervisor(
             channel.detach()
         }
 
-        if (System.currentTimeMillis() - lastSpawnAt > STABLE_RUN_MS) {
+        if (clock() - lastSpawnAt > STABLE_RUN_MS) {
             restartAttempts.set(0)
         }
         val attempt = restartAttempts.incrementAndGet()
         if (attempt > MAX_RESTARTS) {
             log.error("Modeler bridge exited $attempt times in quick succession; giving up.")
-            notifications().showError(
+            notifier.showError(
                 "The BPMN modeler engine crashed repeatedly and will not be restarted. " +
                     "Reopen the file or restart the IDE. See idea.log.",
             )
@@ -150,7 +152,7 @@ internal class ProcessSupervisor(
         // Process.onExit() CompletableFuture callback (ForkJoinPool.commonPool),
         // and blocking it for the backoff would hold a shared platform pool
         // thread for up to seconds. Re-check disposed/liveness at fire time.
-        AppExecutorUtil.getAppScheduledExecutorService().schedule(
+        scheduler.schedule(
             {
                 if (disposed.get()) return@schedule
                 synchronized(this) { if (process?.isAlive != true) spawn() }
