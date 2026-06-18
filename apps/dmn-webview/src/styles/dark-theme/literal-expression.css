@@ -1,0 +1,25 @@
+/* Dark theme for the dmn-js literal-expression editor (decision name header,
+ * the FEEL textarea, and the variables table).
+ *
+ * Same approach as the decision table: remap the semantic component variables
+ * declared on `.dmn-literal-expression-container` to the `--dt-*` scale. */
+@import "./colors.css";
+
+.dmn-literal-expression-container {
+    --decision-properties-background-color: var(--dt-surface-a10);
+    --decision-properties-border-color: var(--dt-surface-a30);
+    --decision-properties-color: var(--dt-surface-a70);
+    --literal-expression-color: var(--dt-surface-a70);
+    --literal-expression-properties-border-color: var(--dt-surface-a30);
+    --literal-expression-properties-color: var(--dt-surface-a70);
+    --powered-by-overlay-background-color: var(--dt-surface-a0);
+    --powered-by-overlay-content-background-color: var(--dt-surface-a10);
+    --powered-by-overlay-content-border-color: var(--dt-surface-a30);
+    --powered-by-overlay-content-color: var(--dt-surface-a70);
+    --textarea-border-color: var(--dt-surface-a30);
+    --textarea-color: var(--dt-surface-a70);
+    --view-drd-button-background-color: var(--dt-surface-a20);
+    --view-drd-button-border-color: var(--dt-surface-a30);
+    --view-drd-button-color: var(--dt-surface-a70);
+    --view-drd-button-hover-background-color: var(--dt-surface-a30);
+}

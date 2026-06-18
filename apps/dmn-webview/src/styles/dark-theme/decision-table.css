@@ -1,0 +1,87 @@
+/* Dark theme for the dmn-js decision-table editor (grid, header, hit-policy,
+ * controls, context menus).
+ *
+ * Every colour the table paints derives from the semantic component variables
+ * declared on `.dmn-decision-table-container`. Remapping them to the `--dt-*`
+ * scale re-themes the whole surface without touching the structural rules, and
+ * keeps single-meaning semantics intact (e.g. white-on-blue affordances stay
+ * light). The grid lines are the one judgement call: their light-mode value is
+ * near-black `grey-15`; on dark that becomes a soft `--dt-surface-a30` so the
+ * grid reads without the harsh bright lines a literal inversion would give. */
+@import "./colors.css";
+
+.dmn-decision-table-container {
+    --action-icon-color: var(--dt-color-blue-a50);
+    --action-icon-background-color: transparent;
+    --action-icon-hover-background-color: var(--dt-color-blue-a50);
+    --action-icon-hover-color: var(--dt-surface-a70);
+    --add-column-icon-color: var(--dt-surface-a70);
+    --add-column-icon-background-color: var(--dt-surface-a40);
+    --decision-table-color: var(--dt-surface-a70);
+    --decision-table-background-color: var(--dt-surface-a10);
+    --decision-table-properties-color: var(--dt-surface-a70);
+    --dmn-expression-language-background-color: var(--dt-primary-a0-opacity-30);
+    --dmn-expression-language-color: var(--dt-surface-a70);
+    --dmn-expression-language-hover-background-color: var(--dt-color-blue-a50);
+    --drag-and-drop-drag-color: var(--dt-surface-a50);
+    --drag-and-drop-drop-marker-color: var(--dt-primary-a20);
+    --hit-policy-explanation-color: var(--dt-surface-a60);
+    --powered-by-overlay-background-color: var(--dt-surface-a0);
+    --powered-by-overlay-content-background-color: var(--dt-surface-a10);
+    --powered-by-overlay-content-color: var(--dt-surface-a70);
+    --powered-by-overlay-content-border-color: var(--dt-surface-a30);
+    --simple-mode-button-color: var(--dt-surface-a70);
+    --simple-mode-button-background-color: var(--dt-surface-a20);
+    --simple-mode-button-border-color: var(--dt-surface-a30);
+    --simple-mode-button-box-shadow-color: var(--dt-surface-a0);
+    --simple-mode-button-disabled-color: var(--dt-surface-a40);
+    --table-cell-color: var(--dt-surface-a70);
+    --table-cell-border-color: var(--dt-surface-a30);
+    --table-cell-selected-outline-color: var(--dt-color-blue-a50);
+    --table-foot-add-rule-border-color: var(--dt-surface-a30);
+    --table-foot-add-rule-color: var(--dt-surface-a50);
+    --table-foot-add-rule-hover-border-color: var(--dt-surface-a60);
+    --table-foot-add-rule-hover-color: var(--dt-surface-a70);
+    --table-head-border-color: var(--dt-surface-a40);
+    --table-head-clause-color: var(--dt-surface-a60);
+    --table-head-separator-color: var(--dt-surface-a30);
+    --table-head-variable-color: var(--dt-surface-a60);
+    --table-row-alternative-background-color: var(--dt-surface-tonal-a10);
+    --view-drd-button-background-color: var(--dt-surface-a20);
+    --view-drd-button-border-color: var(--dt-surface-a30);
+    --view-drd-button-color: var(--dt-surface-a70);
+    --view-drd-button-hover-background-color: var(--dt-surface-a30);
+
+    /* decision-table-controls.css */
+    --allowed-values-placeholder-color: var(--dt-surface-a60);
+    --cell-description-editor-border-color: var(--dt-primary-a20);
+    --create-inputs-border-color: var(--dt-surface-a30);
+    --create-inputs-color: var(--dt-surface-a60);
+    --create-inputs-hover-color: var(--dt-surface-a70);
+    --context-menu-background-color: var(--dt-surface-a10);
+    --context-menu-border-color: var(--dt-surface-a30);
+    --context-menu-color: var(--dt-surface-a70);
+    --context-menu-box-shadow-color: var(--dt-surface-a0);
+    --context-menu-group-entry-border-color: var(--dt-surface-a30);
+    --context-menu-group-entry-disabled-color: var(--dt-surface-a50);
+    --context-menu-group-entry-hover-background-color: var(--dt-surface-a20);
+    --drag-and-drop-handle-color: var(--dt-surface-a50);
+    --drag-and-drop-handle-hover-color: var(--dt-surface-a70);
+    --form-control-label-color: var(--dt-surface-a70);
+    --hint-color: var(--dt-surface-a70);
+    --edit-button-color: var(--dt-surface-a70);
+    --edit-button-background-color: var(--dt-surface-a20);
+    --edit-button-border-color: var(--dt-surface-a30);
+    --edit-button-box-shadow-color: var(--dt-surface-a0);
+    --edit-button-disabled-color: var(--dt-surface-a40);
+}
+
+/* The focused context-menu entry hardcodes `--color-grey-225-10-95`. */
+.dmn-decision-table-container .context-menu-group-entry.focused {
+    background-color: var(--dt-surface-a20);
+}
+
+/* The cell-description corner triangle hardcodes `--color-black`. */
+.dmn-decision-table-container .description-indicator {
+    border-bottom-color: var(--dt-surface-a60);
+}

@@ -1,0 +1,12 @@
+/* dmn-js light theme — the modeler's stock stylesheets, unmodified.
+ *
+ * These imports live here (not in main.ts) so the bundle can swap the whole
+ * sheet for the dark variant at runtime via the `#theme-link` element. */
+@import "dmn-js/dist/assets/diagram-js.css";
+@import "dmn-js/dist/assets/dmn-js-decision-table.css";
+@import "dmn-js/dist/assets/dmn-js-decision-table-controls.css";
+@import "dmn-js/dist/assets/dmn-js-drd.css";
+@import "dmn-js/dist/assets/dmn-js-literal-expression.css";
+@import "dmn-js/dist/assets/dmn-js-shared.css";
+@import "dmn-js/dist/assets/dmn-font/css/dmn-embedded.css";
+@import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";

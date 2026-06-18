@@ -3,6 +3,7 @@ import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
 import { MessageHandler } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
+import { DmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 
 /**
  * Factories that translate DMN webview commands into {@link DmnModelerService}
@@ -26,5 +27,14 @@ export function getDmnFileHandler(
 export function syncDmnDocumentHandler(dmnService: DmnModelerService): MessageHandler {
     return async (message: Command, editorId: string) => {
         await dmnService.sync(editorId, (message as SyncDocumentCommand).content);
+    };
+}
+
+/** `GetDmnModelerSettingCommand` → broadcast the current color theme to the webview. */
+export function getDmnModelerSettingHandler(
+    settingsBroadcaster: DmnSettingsBroadcaster,
+): MessageHandler {
+    return (_message: Command, editorId: string) => {
+        settingsBroadcaster.setSettings(editorId);
     };
 }

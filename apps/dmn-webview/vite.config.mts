@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { resolve } from "path";
 
 export default defineConfig({
     root: __dirname,
@@ -12,6 +13,13 @@ export default defineConfig({
         outDir: "../../dist/webview-staging/dmn-webview",
         emptyOutDir: true,
         rollupOptions: {
+            // Separate CSS entries so the light/dark stylesheets emit fixed
+            // filenames the webview can hot-swap via the `#theme-link` element.
+            input: {
+                index: resolve(__dirname, "src/main.ts"),
+                lightTheme: resolve(__dirname, "src/styles/light-theme/index.css"),
+                darkTheme: resolve(__dirname, "src/styles/dark-theme/index.css"),
+            },
             output: {
                 // don"t hash the name of the output file (index.js)
                 entryFileNames: `[name].js`,

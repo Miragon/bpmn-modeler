@@ -1,0 +1,186 @@
+/* Dark theme for the DRD (Decision Requirements Diagram) canvas.
+ *
+ * The DRD is a diagram-js surface, so the generic diagram-js custom properties
+ * (canvas, palette, context-pad, popup, search, selection) are driven from the
+ * same `--dt-*` scale the BPMN dark theme uses. dmn-js's DrdRenderer paints
+ * shapes with the same inline `style` defaults as bpmn-js (`fill: white`,
+ * `stroke: rgb(34, 36, 42)`), so the value-scoped recolour rules below mirror
+ * the BPMN theme exactly. */
+@import "./colors.css";
+
+:root .djs-parent {
+    --canvas-fill-color: var(--dt-surface-a10);
+
+    --bpmn-shape-fill-color: var(--dt-surface-a10);
+    --bpmn-shape-stroke-color: var(--dt-surface-a60);
+    --bpmn-label-color: var(--dt-surface-a70);
+
+    --bendpoint-fill-color: var(--dt-primary-a30);
+    --bendpoint-stroke-color: var(--canvas-fill-color);
+
+    --context-pad-entry-background-color: var(--dt-surface-a0);
+    --context-pad-entry-hover-background-color: var(--dt-surface-a30);
+
+    --element-dragger-color: var(--dt-primary-a0);
+    --element-hover-outline-fill-color: var(--dt-primary-a20);
+    --element-selected-outline-stroke-color: var(--dt-primary-a0);
+    --element-selected-outline-secondary-stroke-color: var(--dt-primary-a20);
+
+    --lasso-fill-color: var(--dt-primary-a0-opacity-30);
+    --lasso-stroke-color: var(--element-selected-outline-stroke-color);
+
+    --palette-entry-color: var(--dt-primary-a40);
+    --palette-entry-hover-color: var(--dt-primary-a50);
+    --palette-entry-selected-color: var(--dt-primary-a0);
+    --palette-separator-color: var(--dt-surface-a30);
+    --palette-toggle-hover-background-color: var(--dt-surface-a60);
+    --palette-background-color: var(--dt-surface-a10);
+    --palette-border-color: var(--dt-surface-tonal-a40);
+
+    --popup-header-entry-selected-color: var(--dt-primary-a40);
+    --popup-header-group-divider-color: var(--dt-surface-tonal-a20);
+    --popup-background-color: var(--dt-surface-a0);
+    --popup-border-color: transparent;
+    --popup-shadow-color: var(--dt-surface-a30);
+    --popup-description-color: var(--dt-surface-a60);
+    --popup-no-results-color: var(--dt-surface-a70);
+    --popup-entry-title-color: var(--dt-surface-a70);
+    --popup-entry-hover-color: var(--dt-surface-a20);
+    --popup-search-border-color: var(--dt-surface-a60);
+    --popup-search-focus-border-color: var(--dt-primary-a20);
+    --popup-search-focus-background-color: var(--dt-primary-a40);
+
+    --resizer-fill-color: var(--dt-primary-a50);
+    --resizer-stroke-color: var(--canvas-fill-color);
+
+    --search-container-background-color: var(--dt-surface-a0);
+    --search-shadow-color: var(--dt-surface-a20);
+    --search-input-border-color: var(--dt-surface-a20);
+    --search-input-focus-border-color: var(--dt-primary-a20);
+    --search-input-focus-background-color: var(--dt-primary-a40);
+    --search-result-hover-background-color: var(--dt-surface-a10);
+    --search-result-secondary-color: var(--dt-surface-a60);
+    --search-preselected-background-color: var(--dt-primary-a0-opacity-30);
+
+    --shape-attach-allowed-stroke-color: var(--dt-primary-a40);
+    --shape-connect-allowed-fill-color: var(--dt-surface-a10);
+    --shape-drop-allowed-fill-color: var(--dt-surface-a10);
+    --shape-drop-not-allowed-fill-color: var(--dt-color-red-a10-invert-opacity-60);
+    --shape-resize-preview-stroke-color: var(--dt-primary-a30);
+
+    --snap-line-stroke-color: var(--dt-primary-a40-opacity-15);
+
+    --space-tool-crosshair-stroke-color: var(--dt-light-a0);
+
+    --tooltip-error-background-color: var(--dt-color-red-a10);
+    --tooltip-error-border-color: var(--dt-color-red-a20);
+    --tooltip-error-color: var(--dt-color-red-a20);
+}
+
+/**
+ * The canvas
+ */
+.djs-container {
+    background-color: var(--canvas-fill-color) !important;
+}
+
+/*
+ * Recolour ONLY dmn-js's default paint (`fill: white`, `stroke: rgb(34, 36, 42)`),
+ * scoping each rule to the known value so a user's "Set color" choice (a
+ * different inline value) survives. `fill: none` shapes match nothing and stay
+ * transparent.
+ */
+
+/* defaultFillColor (white) → dark surface */
+.djs-shape > .djs-visual > [style*="fill: white"] {
+    fill: var(--bpmn-shape-fill-color) !important;
+}
+
+/* defaultStrokeColor used as a fill (filled markers, decision icons) → light */
+.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"],
+defs marker > [style*="fill: rgb(34, 36, 42)"] {
+    fill: var(--bpmn-shape-stroke-color) !important;
+}
+
+/* defaultStrokeColor (rgb(34, 36, 42)) → light stroke */
+.djs-shape > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+.djs-connection > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+defs marker > [style*="stroke: rgb(34, 36, 42)"] {
+    stroke: var(--bpmn-shape-stroke-color) !important;
+}
+
+/* Embedded labels — recolour only the default black text. */
+.djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
+    fill: var(--bpmn-label-color) !important;
+}
+
+/* External labels sit on the dark canvas, so always light. */
+.djs-label .djs-visual text {
+    fill: var(--bpmn-label-color) !important;
+}
+
+.djs-direct-editing-parent {
+    color: var(--dt-primary-a20) !important;
+}
+
+.djs-direct-editing-content {
+    background-color: var(--dt-surface-a10) !important;
+}
+
+/**
+ * Context pad
+ */
+.djs-context-pad {
+    color: var(--dt-primary-a50) !important;
+}
+
+/**
+ * Search box
+ */
+.djs-search-container .djs-search-result {
+    color: var(--dt-surface-a40) !important;
+    background-color: var(--dt-surface-a10) !important;
+}
+
+.djs-search-icon {
+    filter: invert(0.7);
+}
+
+/**
+ * Popup
+ */
+.djs-popup-title {
+    color: var(--dt-surface-a70) !important;
+}
+
+.djs-popup-header-group > li > button {
+    color: var(--dt-primary-a50) !important;
+}
+
+/**
+ * "Powered by dmn.io" attribution logo — hardcoded `color: #404040` is nearly
+ * invisible on dark; lift it to a muted light grey.
+ */
+.bjs-powered-by {
+    color: var(--dt-surface-a50) !important;
+}
+
+/**
+ * DRD definitions box (top-left name/id panel) — drives off the dmn-js grey
+ * palette, which we leave light, so override the semantic variables here.
+ */
+.dmn-drd-container {
+    --dmn-definitions-background-color: var(--dt-surface-a10);
+    --dmn-definitions-border-color: var(--dt-surface-a30);
+    --dmn-definitions-focus-border-color: var(--dt-primary-a10);
+    --dmn-definitions-error-color: var(--dt-color-red-a10);
+    --dmn-definitions-error-border-color: var(--dt-color-red-a10);
+    --dmn-definitions-error-background-color: var(--dt-color-red-a20);
+}
+
+/* The definitions box uses --color-white for the focused/hover edit field. */
+.dmn-drd-container .dmn-definitions > [contenteditable]:hover,
+.dmn-drd-container .dmn-definitions > [contenteditable]:focus {
+    background-color: var(--dt-surface-a20);
+    color: var(--dt-surface-a70);
+}

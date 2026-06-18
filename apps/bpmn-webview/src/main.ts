@@ -39,6 +39,7 @@ import {
     extractProcessVariables,
     formatErrors,
     initResizer,
+    initTheme,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
@@ -47,7 +48,6 @@ import {
     getVsCodeApi,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
-    initTheme,
 } from "./app";
 import { DiffMode } from "./app/diff/DiffMode";
 import { WebviewStateManager } from "./app/state";

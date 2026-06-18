@@ -8,6 +8,7 @@ import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
+import { DmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
 import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
@@ -17,6 +18,7 @@ import { SettingsParticipant } from "../modeler/bpmn/controller/editor-participa
 import { EngineVersionStatusBarParticipant } from "../modeler/bpmn/controller/editor-participants/EngineVersionStatusBarParticipant";
 import { ScriptTaskTeardownParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant";
 import { DmnRenderParticipant } from "../modeler/dmn/controller/editor-participants/DmnRenderParticipant";
+import { DmnSettingsParticipant } from "../modeler/dmn/controller/editor-participants/DmnSettingsParticipant";
 import {
     getBpmnFileHandler,
     getElementTemplatesHandler,
@@ -37,6 +39,7 @@ import {
 } from "../modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers";
 import {
     getDmnFileHandler,
+    getDmnModelerSettingHandler,
     syncDmnDocumentHandler,
 } from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
@@ -118,6 +121,11 @@ export function register(
         deps.notifier,
     );
     const dmnService = new DmnModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
+    const dmnSettingsBroadcaster = new DmnSettingsBroadcaster(
+        deps.editorStore,
+        deps.vsSettings,
+        deps.notifier,
+    );
     const referencedModelLocator = new ReferencedModelLocator(deps.vsWorkspace, deps.notifier);
     const modelNavigationService = new ModelNavigationService(
         referencedModelLocator,
@@ -162,6 +170,7 @@ export function register(
         .on("SyncActivitiesCommand", syncActivitiesHandler(codeLink.codeLinkMap));
     const dmnMessageRouter = new WebviewMessageRouter()
         .on("GetDmnFileCommand", getDmnFileHandler(dmnService, deps.notifier))
+        .on("GetDmnModelerSettingCommand", getDmnModelerSettingHandler(dmnSettingsBroadcaster))
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
@@ -191,7 +200,10 @@ export function register(
     new ModelerEditorController(deps.editorStore, deps.notifier, {
         viewType: DMN_VIEW_TYPE,
         messageRouter: dmnMessageRouter,
-        participants: [new DmnRenderParticipant(dmnService, deps.notifier)],
+        participants: [
+            new DmnRenderParticipant(dmnService, deps.notifier),
+            new DmnSettingsParticipant(dmnSettingsBroadcaster),
+        ],
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
 

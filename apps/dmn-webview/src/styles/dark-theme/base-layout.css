@@ -1,0 +1,70 @@
+/* Dark-theme overrides for the host page layout.
+ *
+ * `styles.css` hardcodes a light body, light panel dividers and a blue resizer
+ * accent. Any 1-px rounding gap in the flex layout (e.g. a collapsed panel at
+ * width 0) lets the white body show through as a bright strip, so the surfaces
+ * are repainted from the same `--dt-*` scale the diagram and panel use. */
+@import "./colors.css";
+
+html,
+body {
+    background-color: var(--dt-surface-a0);
+    color: var(--dt-surface-a70);
+}
+
+.content > .message {
+    color: var(--dt-surface-a70);
+}
+
+/* Properties-panel divider. */
+.properties-panel-parent {
+    border-left-color: var(--dt-surface-a30);
+}
+
+/* Resizer handle between canvas and panel. */
+.panel-resizer {
+    border-left-color: var(--dt-surface-a20);
+}
+
+.panel-resizer:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+    border-left-color: var(--dt-primary-a10);
+}
+
+/* Restore the resting divider colour while the toggle button is hovered, so the
+ * button's own hover styling doesn't stack into a halo. */
+.panel-resizer:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+    border-left-color: var(--dt-surface-a20);
+}
+
+/* Override the accent custom properties the collapsed resizer's pseudo-element
+ * line segments read, so the swap wins regardless of stylesheet load order. */
+.panel-resizer.collapsed {
+    --panel-resizer-accent-color: var(--dt-surface-a30);
+    --panel-resizer-accent-hover-color: var(--dt-primary-a10);
+}
+
+.panel-resizer.collapsed:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+}
+
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+}
+
+.panel-resizer-toggle {
+    background-color: var(--dt-surface-a10);
+    border-color: var(--dt-surface-a30);
+    color: var(--dt-surface-a70);
+}
+
+.panel-resizer-toggle:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+    border-color: var(--dt-primary-a10);
+    color: var(--dt-primary-a10);
+}
+
+.panel-resizer-toggle:focus-visible {
+    outline-color: var(--dt-primary-a10);
+}

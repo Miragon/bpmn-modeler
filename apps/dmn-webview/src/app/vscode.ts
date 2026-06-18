@@ -1,6 +1,7 @@
 import {
     Command,
     DmnFileQuery,
+    DmnModelerSettingQuery,
     PropertiesPanelStateQuery,
     Query,
     VsCodeApi,
@@ -81,6 +82,12 @@ class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
             }
             case message.type === "GetPropertiesPanelStateCommand": {
                 dispatchEvent(new PropertiesPanelStateQuery(true));
+                break;
+            }
+            case message.type === "GetDmnModelerSettingCommand": {
+                // Follow the (mock) VS Code theme so the browser preview themes
+                // off the `vscode-dark`/`vscode-light` body class.
+                dispatchEvent(new DmnModelerSettingQuery({ colorTheme: "automatic" }));
                 break;
             }
             case message.type === "SetPropertiesPanelStateCommand": {

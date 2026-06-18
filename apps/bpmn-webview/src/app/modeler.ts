@@ -24,7 +24,7 @@ import {
 } from "./scriptTaskContextPad";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
-import { setColorThemeMode } from "./theme";
+import { setColorThemeMode } from "@miragon/bpmn-modeler-shared";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
