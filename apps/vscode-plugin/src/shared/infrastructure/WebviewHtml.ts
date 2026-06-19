@@ -85,6 +85,9 @@ export function dmnModelerHtml(
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleResetUri = webview.asWebviewUri(Uri.joinPath(extensionUri, "assets", "reset.css"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
+    // Initial stylesheet is always light; the webview's `initTheme()` swaps it
+    // to `darkTheme.css` at runtime via the `#theme-link` element.
+    const themeUri = webview.asWebviewUri(Uri.joinPath(baseUri, "lightTheme.css"));
 
     const nonce = getNonce();
     const panelClass = initialPanelVisible
@@ -102,6 +105,7 @@ export function dmnModelerHtml(
 
                 <link href="${styleResetUri}" rel="stylesheet">
                 <link href="${styleUri}" rel="stylesheet" type="text/css" />
+                <link href="${themeUri}" rel="stylesheet" type="text/css" id="theme-link" />
 
                 <title>DMN Modeler</title>
             </head>

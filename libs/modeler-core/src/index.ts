@@ -30,6 +30,7 @@ export * from "./modeler/bpmn/service/BpmnClipboardMediator";
 export * from "./modeler/bpmn/service/BpmnPropertiesPanelService";
 export * from "./modeler/bpmn/service/BpmnSettingsBroadcaster";
 export * from "./modeler/dmn/service/DmnModelerService";
+export * from "./modeler/dmn/service/DmnSettingsBroadcaster";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/DiffSession";

@@ -1,0 +1,34 @@
+/* Dark overrides for the dmn-js shared form controls (`.dms-input`,
+ * `.dms-select`, hints, separators, badges).
+ *
+ * dmn-js derives these from a light grey/blue/red `--color-*` palette declared
+ * on `.dmn-js-parent`. That base palette is deliberately left intact —
+ * `--color-white` and `--color-grey-225-10-15` are each used both as a surface
+ * *and* as text/icon-on-coloured-background, so inverting them wholesale breaks
+ * the latter. Instead the single-meaning *semantic* variables are remapped to
+ * the `--dt-*` scale, which is safe. */
+@import "./colors.css";
+
+.dmn-js-parent {
+    --separator-color: var(--dt-surface-a30);
+
+    --input-border-color: var(--dt-surface-a40);
+    --input-color: var(--dt-surface-a70);
+    --input-focus-border-color: var(--dt-color-blue-a50);
+    --input-focus-box-shadow-color: var(--dt-primary-a40);
+    --input-focus-box-shadow-inset-color: var(--dt-surface-a30);
+    --input-invalid-color: var(--dt-color-red-a10);
+    --input-invalid-border-color: var(--dt-color-red-a10);
+    --input-focus-invalid-border-color: var(--dt-color-red-a10);
+
+    --select-option-selected-color: var(--dt-color-blue-a50);
+    --select-option-hover-background-color: var(--dt-primary-a0-opacity-30);
+    --select-options-background-color: var(--dt-surface-a10);
+    --select-options-border-color: var(--dt-surface-a30);
+    --select-options-box-shadow-color: var(--dt-surface-a0);
+    --select-options-color: var(--dt-surface-a70);
+
+    --hint-color: var(--dt-surface-a70);
+    --hint-button-color: var(--dt-color-blue-a50);
+    --hint-invalid-color: var(--dt-color-red-a10);
+}

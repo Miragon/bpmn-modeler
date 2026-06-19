@@ -7,7 +7,11 @@ vi.mock("vscode", () => ({}));
 
 import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
-import { getDmnFileHandler, syncDmnDocumentHandler } from "./dmnMessageHandlers";
+import {
+    getDmnFileHandler,
+    getDmnModelerSettingHandler,
+    syncDmnDocumentHandler,
+} from "./dmnMessageHandlers";
 
 const EDITOR = "file:///work/decision.dmn";
 // A command the read-style handler ignores; a typed placeholder keeps signatures honest.
@@ -35,6 +39,16 @@ describe("getDmnFileHandler", () => {
         await getDmnFileHandler(dmnService as never, notifier as never)(ANY, EDITOR);
 
         expect(notifier.logInfo).not.toHaveBeenCalled();
+    });
+});
+
+describe("getDmnModelerSettingHandler", () => {
+    it("asks the broadcaster to push settings for the editor", () => {
+        const settingsBroadcaster = { setSettings: vi.fn() };
+
+        getDmnModelerSettingHandler(settingsBroadcaster as never)(ANY, EDITOR);
+
+        expect(settingsBroadcaster.setSettings).toHaveBeenCalledWith(EDITOR);
     });
 });
 

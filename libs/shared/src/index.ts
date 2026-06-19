@@ -4,6 +4,7 @@ export * from "./lib/asyncDebounce";
 export * from "./lib/utils";
 export * from "./lib/messages";
 export * from "./lib/modeler";
+export * from "./lib/theme";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/processVariables";
 export * from "./lib/bpmnFlowOrder";

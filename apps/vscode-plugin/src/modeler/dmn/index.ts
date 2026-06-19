@@ -4,3 +4,4 @@
  * rejected by the feature-isolation architecture test.
  */
 export { DmnModelerService } from "@miragon/bpmn-modeler-core";
+export { DmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";

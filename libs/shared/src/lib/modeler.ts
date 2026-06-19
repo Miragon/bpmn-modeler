@@ -9,6 +9,7 @@
  * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
  * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
+ * - {@link DmnModelerSettingQuery}         — deliver DMN modeler settings (colorTheme only)
  * - {@link PropertiesPanelStateQuery}     — deliver the global default visibility of the properties panel
  * - {@link ClipboardQuery}                — deliver clipboard text (host mediates sandboxed reads)
  * - {@link UpdateScriptContentQuery}      — push updated script content from a virtual editor to the modeler
@@ -20,6 +21,7 @@
  * - {@link GetDmnFileCommand}                 — webview is ready; request the DMN file
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
+ * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
  * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
  * - {@link SetPropertiesPanelStateCommand}    — report a user toggle so the host can update the global default
  * - {@link GetClipboardCommand}               — request clipboard text from the host
@@ -107,6 +109,25 @@ export class BpmnModelerSettingQuery extends Query {
 
     constructor(setting: BpmnModelerSetting) {
         super("BpmnModelerSettingQuery");
+        this.setting = setting;
+    }
+}
+
+/**
+ * Settings the DMN modeler honours. Deliberately leaner than
+ * {@link BpmnModelerSetting}: the decision-table/DRD surfaces only react to the
+ * shared `colorTheme` preference, so BPMN-only fields (alignToOrigin,
+ * favouriteBpmnElements, …) are omitted rather than carried unused.
+ */
+export interface DmnModelerSetting {
+    readonly colorTheme: "automatic" | "light";
+}
+
+export class DmnModelerSettingQuery extends Query {
+    public readonly setting: DmnModelerSetting;
+
+    constructor(setting: DmnModelerSetting) {
+        super("DmnModelerSettingQuery");
         this.setting = setting;
     }
 }
@@ -287,6 +308,12 @@ export class GetElementTemplatesCommand extends Command {
 export class GetBpmnModelerSettingCommand extends Command {
     constructor() {
         super("GetBpmnModelerSettingCommand");
+    }
+}
+
+export class GetDmnModelerSettingCommand extends Command {
+    constructor() {
+        super("GetDmnModelerSettingCommand");
     }
 }
 
