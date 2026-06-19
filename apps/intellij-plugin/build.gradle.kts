@@ -3,6 +3,7 @@ import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.intellij.platform)
+    jacoco
 }
 
 group = "io.miragon"
@@ -29,10 +30,33 @@ dependencies {
     // Hand-built strings are unsafe here: SyncDocumentCommand carries the full
     // BPMN XML, which must round-trip through proper escaping.
     implementation(libs.gson)
+
+    // Pure-JVM unit tests for the concurrency-critical bridge transport and
+    // process supervision. No IntelliJ platform test fixtures: the
+    // intellijPlatform compile dependency already supplies Logger + Gson on the
+    // test classpath, and the seams let tests inject a fake process/clock.
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 kotlin {
     jvmToolchain(21)
+}
+
+tasks.test {
+    useJUnitPlatform()
+    // Always refresh the coverage data so `jacocoTestReport` reflects the latest run.
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    // Codecov ingests the XML; the HTML report is dead weight in CI.
+    reports {
+        xml.required.set(true)
+        html.required.set(false)
+    }
 }
 
 intellijPlatform {
