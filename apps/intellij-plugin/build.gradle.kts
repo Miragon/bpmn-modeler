@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.miragon"
-version = "1.1.2" // x-release-please-version
+version = providers.gradleProperty("pluginVersion").get()
 
 repositories {
     mavenCentral()
