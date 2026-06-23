@@ -3505,7 +3505,7 @@ __metadata:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/node": "npm:25.9.1"
     "@vitest/coverage-v8": "npm:4.1.9"
-    chokidar: "npm:3.6.0"
+    chokidar: "npm:5.0.0"
     npm-run-all: "npm:4.1.5"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"
@@ -7133,16 +7133,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vscode/test-electron@npm:2.5.2":
-  version: 2.5.2
-  resolution: "@vscode/test-electron@npm:2.5.2"
+"@vscode/test-electron@npm:3.0.0":
+  version: 3.0.0
+  resolution: "@vscode/test-electron@npm:3.0.0"
   dependencies:
     http-proxy-agent: "npm:^7.0.2"
     https-proxy-agent: "npm:^7.0.5"
     jszip: "npm:^3.10.1"
     ora: "npm:^8.1.0"
     semver: "npm:^7.6.2"
-  checksum: 10c0/30b1a30e56e14a90de9288a79e9dd71477534cda9f68dfc66f11446822c67324d8e49dbd2bfa0049a8cc9a4ddb3cafc1bae27ea6920795070fe7ae63a512ac03
+  checksum: 10c0/8672a6a1496e41cd7ae1675f3d1894f20895fc72eba66d4a9547c7bc5887c8e726f6972a8852df2598ed3a50f3bd9d6d762e99dd1a1c5ae2cb485f21e69c9f81
   languageName: node
   linkType: hard
 
@@ -9564,7 +9564,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chokidar@npm:3.6.0, chokidar@npm:^3.5.3, chokidar@npm:^3.6.0":
+"chokidar@npm:5.0.0, chokidar@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "chokidar@npm:5.0.0"
+  dependencies:
+    readdirp: "npm:^5.0.0"
+  checksum: 10c0/42fc907cb2a7ff5c9e220f84dae75380a77997f851c2a5e7865a2cf9ae45dd407a23557208cdcdbf3ac8c93341135a1748e4c48c31855f3bfa095e5159b6bdec
+  languageName: node
+  linkType: hard
+
+"chokidar@npm:^3.5.3, chokidar@npm:^3.6.0":
   version: 3.6.0
   resolution: "chokidar@npm:3.6.0"
   dependencies:
@@ -9589,15 +9598,6 @@ __metadata:
   dependencies:
     readdirp: "npm:^4.0.1"
   checksum: 10c0/a58b9df05bb452f7d105d9e7229ac82fa873741c0c40ddcc7bb82f8a909fbe3f7814c9ebe9bc9a2bef9b737c0ec6e2d699d179048ef06ad3ec46315df0ebe6ad
-  languageName: node
-  linkType: hard
-
-"chokidar@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "chokidar@npm:5.0.0"
-  dependencies:
-    readdirp: "npm:^5.0.0"
-  checksum: 10c0/42fc907cb2a7ff5c9e220f84dae75380a77997f851c2a5e7865a2cf9ae45dd407a23557208cdcdbf3ac8c93341135a1748e4c48c31855f3bfa095e5159b6bdec
   languageName: node
   linkType: hard
 
@@ -22025,7 +22025,7 @@ __metadata:
     "@types/vscode": "npm:1.93.0"
     "@vitest/coverage-v8": "npm:4.1.9"
     "@vscode/test-cli": "npm:0.0.15"
-    "@vscode/test-electron": "npm:2.5.2"
+    "@vscode/test-electron": "npm:3.0.0"
     archunit: "npm:2.3.0"
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.0.0"
