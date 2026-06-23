@@ -39,7 +39,7 @@ jobs:
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
       docs: ${{ steps.filter.outputs.docs }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -96,7 +96,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: Miragon/pin-npm-dependencies@v1
       - run: corepack enable
       - uses: actions/setup-node@v6
@@ -117,7 +117,7 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: Miragon/pin-npm-dependencies@v1
       - run: corepack enable
       - uses: actions/setup-node@v6
@@ -139,7 +139,7 @@ jobs:
     if: needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -153,7 +153,7 @@ jobs:
     if: needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -167,7 +167,7 @@ jobs:
     if: needs.detect-changes.outputs.element-template-chooser == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -183,7 +183,7 @@ jobs:
       needs.detect-changes.outputs.element-template-chooser == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -197,7 +197,7 @@ jobs:
     if: needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -215,7 +215,7 @@ jobs:
       needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -245,7 +245,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -306,7 +306,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -359,7 +359,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -404,7 +404,7 @@ jobs:
     if: needs.detect-changes.outputs.intellij-plugin == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup JDK 21
         uses: actions/setup-java@v5
         with:
@@ -449,7 +449,7 @@ jobs:
        needs.detect-changes.outputs.shared == 'true')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: Miragon/pin-npm-dependencies@v1
       - run: corepack enable
       - uses: actions/setup-node@v6
@@ -489,7 +489,7 @@ jobs:
       needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -513,7 +513,7 @@ jobs:
     if: needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -543,7 +543,7 @@ jobs:
       needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -560,7 +560,7 @@ jobs:
       needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -577,7 +577,7 @@ jobs:
       needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - run: corepack enable
       - uses: actions/setup-node@v6
         with:
@@ -592,7 +592,7 @@ jobs:
     if: needs.detect-changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: Miragon/pin-npm-dependencies@v1
       - run: corepack enable
       - uses: actions/setup-node@v6
