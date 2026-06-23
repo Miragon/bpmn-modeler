@@ -39,8 +39,8 @@ jobs:
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
       docs: ${{ steps.filter.outputs.docs }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
+      - uses: actions/checkout@v7.0.0
+      - uses: dorny/paths-filter@v4.0.1
         id: filter
         with:
           # `every` makes the `!`-negation patterns in the `*-src` filters below
@@ -96,10 +96,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: Miragon/pin-npm-dependencies@v1
+      - uses: actions/checkout@v7.0.0
+      - uses: Miragon/pin-npm-dependencies@v1.2.1
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -117,10 +117,10 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: Miragon/pin-npm-dependencies@v1
+      - uses: actions/checkout@v7.0.0
+      - uses: Miragon/pin-npm-dependencies@v1.2.1
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -139,9 +139,9 @@ jobs:
     if: needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -153,9 +153,9 @@ jobs:
     if: needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -167,9 +167,9 @@ jobs:
     if: needs.detect-changes.outputs.element-template-chooser == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -183,9 +183,9 @@ jobs:
       needs.detect-changes.outputs.element-template-chooser == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -197,9 +197,9 @@ jobs:
     if: needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -215,9 +215,9 @@ jobs:
       needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -245,9 +245,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -272,7 +272,7 @@ jobs:
           always() && github.event_name == 'pull_request' &&
           needs.detect-changes.outputs.vscode-plugin-src == 'true'
         continue-on-error: true
-        uses: davelosert/vitest-coverage-report-action@v2
+        uses: davelosert/vitest-coverage-report-action@v2.12.1
         with:
           # Paths resolve relative to working-directory; vitest writes the
           # reports to the repo-root coverage/ dir, two levels up.
@@ -282,7 +282,7 @@ jobs:
           name: vscode-plugin
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.vscode-plugin-src == 'true'
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/vscode-plugin"
@@ -306,9 +306,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -326,7 +326,7 @@ jobs:
           always() && github.event_name == 'pull_request' &&
           needs.detect-changes.outputs.modeler-core-src == 'true'
         continue-on-error: true
-        uses: davelosert/vitest-coverage-report-action@v2
+        uses: davelosert/vitest-coverage-report-action@v2.12.1
         with:
           working-directory: libs/modeler-core
           json-summary-path: ../../coverage/libs/modeler-core/coverage-summary.json
@@ -334,7 +334,7 @@ jobs:
           name: modeler-core
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.modeler-core-src == 'true'
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/libs/modeler-core"
@@ -359,9 +359,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -378,7 +378,7 @@ jobs:
           always() && github.event_name == 'pull_request' &&
           needs.detect-changes.outputs.modeler-bridge-src == 'true'
         continue-on-error: true
-        uses: davelosert/vitest-coverage-report-action@v2
+        uses: davelosert/vitest-coverage-report-action@v2.12.1
         with:
           working-directory: apps/modeler-bridge
           json-summary-path: ../../coverage/apps/modeler-bridge/coverage-summary.json
@@ -386,7 +386,7 @@ jobs:
           name: modeler-bridge
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.modeler-bridge-src == 'true'
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/modeler-bridge"
@@ -404,14 +404,14 @@ jobs:
     if: needs.detect-changes.outputs.intellij-plugin == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - name: Setup JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.3.0
         with:
           distribution: temurin
           java-version: '21'
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
       # `jacocoTestReport` depends on `test`, so this runs the JUnit 5 suite and
       # then writes the coverage XML. Resources (bridge binary, webview bundles)
       # are absent on a clean checkout, so their Copy tasks are NO-SOURCE and the
@@ -420,7 +420,7 @@ jobs:
         working-directory: apps/intellij-plugin
         run: ./gradlew jacocoTestReport --no-daemon
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/intellij-plugin/build/reports/jacoco/test/jacocoTestReport.xml
@@ -449,10 +449,10 @@ jobs:
        needs.detect-changes.outputs.shared == 'true')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: Miragon/pin-npm-dependencies@v1
+      - uses: actions/checkout@v7.0.0
+      - uses: Miragon/pin-npm-dependencies@v1.2.1
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -471,7 +471,7 @@ jobs:
         run: corepack yarn build
       # Cache the downloaded VS Code/Electron so reruns skip the ~150 MB fetch.
       - name: Cache VS Code download
-        uses: actions/cache@v5
+        uses: actions/cache@v5.0.5
         with:
           path: apps/vscode-plugin/.vscode-test
           key: vscode-test-${{ runner.os }}
@@ -489,9 +489,9 @@ jobs:
       needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -499,7 +499,7 @@ jobs:
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/bpmn-webview"
@@ -513,9 +513,9 @@ jobs:
     if: needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -523,7 +523,7 @@ jobs:
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-i18n
       - run: yarn workspace @miragon/bpmn-modeler-i18n test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/libs/bpmn-i18n"
@@ -543,9 +543,9 @@ jobs:
       needs.detect-changes.outputs.bpmn-clipboard == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -560,9 +560,9 @@ jobs:
       needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -577,9 +577,9 @@ jobs:
       needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -592,10 +592,10 @@ jobs:
     if: needs.detect-changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: Miragon/pin-npm-dependencies@v1
+      - uses: actions/checkout@v7.0.0
+      - uses: Miragon/pin-npm-dependencies@v1.2.1
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn

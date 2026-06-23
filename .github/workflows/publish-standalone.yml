@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.0
         with:
           ref: ${{ inputs.ref }}
 
@@ -76,7 +76,7 @@ jobs:
         run: corepack enable
 
       - name: Setup Node 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -94,7 +94,7 @@ jobs:
         run: npx @vscode/vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
 
       - name: Upload .vsix artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: standalone-vsix
           path: dist/apps/vscode-plugin/bpmn-modeler-plugin.vsix
@@ -116,7 +116,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.0
         with:
           ref: ${{ inputs.ref }}
 
@@ -124,7 +124,7 @@ jobs:
         run: corepack enable
 
       - name: Setup Node 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -135,7 +135,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download .vsix from build-vsix job
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           name: standalone-vsix
           path: dist/apps/vscode-plugin
@@ -183,7 +183,7 @@ jobs:
 
       - name: Upload DMG artifact (dry-run)
         if: inputs.dry-run == true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: standalone-dmg-dry-run
           path: |
@@ -219,12 +219,12 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.0
         with:
           ref: ${{ inputs.ref }}
 
       - name: Setup Node 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.4.0
         with:
           node-version: '22'
 
@@ -237,7 +237,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download .vsix from build-vsix job
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           name: standalone-vsix
           path: dist/apps/vscode-plugin
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload NSIS artifact (dry-run)
         if: inputs.dry-run == true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: standalone-nsis-dry-run
           path: |
@@ -285,7 +285,7 @@ jobs:
     if: inputs.dry-run == false
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.0
         with:
           ref: ${{ inputs.ref }}
 
@@ -296,7 +296,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Record deployment
-        uses: actions/github-script@v9
+        uses: actions/github-script@v9.0.0
         with:
           script: |
             const version = "${{ steps.version.outputs.version }}";
