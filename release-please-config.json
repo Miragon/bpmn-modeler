@@ -29,7 +29,7 @@
         },
         {
           "type": "generic",
-          "path": "apps/intellij-plugin/build.gradle.kts"
+          "path": "apps/intellij-plugin/gradle.properties"
         }
       ]
     }
