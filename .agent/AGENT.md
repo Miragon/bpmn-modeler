@@ -30,7 +30,7 @@ corepack yarn test apps/vscode-plugin/src/shared/domain/BpmnDocument.spec.ts
 
 ### Webview scripts (bpmn-webview, dmn-webview, deployment-webview)
 
-Each webview workspace has three scripts, one per workflow:
+Each webview workspace has these scripts, one per workflow:
 
 - `build` — one-shot bundle to `dist/webview-staging/<name>/`.
 - `watch` — `vite build --watch`; rebuilds the bundle to disk. Used by the
@@ -38,6 +38,12 @@ Each webview workspace has three scripts, one per workflow:
   from disk via `webview.asWebviewUri`, so a dev HTTP server would not work
   here).
 - `serve` — Vite HTTP dev server via for standalone browser preview.
+- `dev` / `dev:app` — `dev` is only the [`portless`](https://portless.sh)
+  entrypoint; the real Vite command lives in `dev:app`
+  (`vite --port $PORT --host 127.0.0.1`). portless (a pinned dev dependency)
+  serves the app under a stable `<worktree>.<app>.localhost` URL, with
+  `portless.json` naming the app and pointing `dev` at `dev:app`. One-time
+  per machine: `npx portless service install`.
 
 At the root level: `yarn watch` runs the F5 orchestrator;
 `yarn workspace @miragon/bpmn-modeler-webview serve` / `yarn workspace @miragon/dmn-modeler-webview serve` / `yarn workspace @miragon/bpmn-modeler-deployment-webview serve`

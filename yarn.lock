@@ -8847,6 +8847,7 @@ __metadata:
     jsdom: "npm:29.1.1"
     lint-staged: "npm:17.0.7"
     npm-run-all: "npm:4.1.5"
+    portless: "npm:0.14.0"
     prettier: "npm:3.8.3"
     typescript: "npm:6.0.3"
     typescript-eslint: "npm:8.60.1"
@@ -17644,6 +17645,16 @@ __metadata:
     async: "npm:^3.2.6"
     debug: "npm:^4.3.6"
   checksum: 10c0/59b2f2aa0b620c90ce0d477241e62c277f38bfd4fb6074106c23560248dd5e5c2c629dd048ef721f32b19df4213d09b77234880e4f0ab04abf1ab70b6d8048fa
+  languageName: node
+  linkType: hard
+
+"portless@npm:0.14.0":
+  version: 0.14.0
+  resolution: "portless@npm:0.14.0"
+  bin:
+    portless: dist/cli.js
+  checksum: 10c0/c7483926d0ae73d3933a141f822b81b341b0aca2fcc5daba33dfc27e99e0e2d82f4b22814ccd18861b6bc2fcf4f98253484594092a15b6d53c345f380bd2a7b9
+  conditions: (os=darwin | os=linux | os=win32)
   languageName: node
   linkType: hard
 

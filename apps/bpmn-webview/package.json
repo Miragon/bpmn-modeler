@@ -6,7 +6,8 @@
     "description": "Webview frontend for the BPMN modeler.",
     "scripts": {
         "build": "vite build",
-        "dev": "portless run sh -c 'vite --port $PORT'",
+        "dev": "portless",
+        "dev:app": "vite --port $PORT --host 127.0.0.1",
         "watch": "vite build --watch",
         "serve": "vite",
         "test": "vitest run --coverage"
