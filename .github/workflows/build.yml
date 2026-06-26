@@ -32,6 +32,7 @@ jobs:
       vscode-plugin: ${{ steps.filter.outputs.vscode-plugin }}
       vscode-plugin-src: ${{ steps.filter.outputs.vscode-plugin-src }}
       intellij-plugin: ${{ steps.filter.outputs.intellij-plugin }}
+      intellij-plugin-src: ${{ steps.filter.outputs.intellij-plugin-src }}
       modeler-core-src: ${{ steps.filter.outputs.modeler-core-src }}
       modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
@@ -65,19 +66,19 @@ jobs:
               - 'apps/modeler-bridge/**'
             vscode-plugin:
               - 'apps/vscode-plugin/**'
-            # No `*-src` split: release-please bumps the version inside
-            # build.gradle.kts (not a dedicated file), so there is no clean way to
-            # exclude a version-only change — a redundant coverage upload on a
-            # version-bump PR is harmless (Codecov dedups by commit).
             intellij-plugin:
               - 'apps/intellij-plugin/**'
-            # `*-src` mirror the package filters above but drop package.json, so a
-            # version-bump-only PR (release-please) skips the Codecov coverage
-            # report while build+test still run via the broad filters. Relies on
-            # `predicate-quantifier: every` to honour the negation.
+            # `*-src` mirror the package filters above but drop the file
+            # release-please bumps (package.json, or gradle.properties for the
+            # IntelliJ plugin), so a version-bump-only PR skips the Codecov
+            # coverage report while build+test still run via the broad filters.
+            # Relies on `predicate-quantifier: every` to honour the negation.
             vscode-plugin-src:
               - 'apps/vscode-plugin/**'
               - '!apps/vscode-plugin/package.json'
+            intellij-plugin-src:
+              - 'apps/intellij-plugin/**'
+              - '!apps/intellij-plugin/gradle.properties'
             modeler-core-src:
               - 'libs/modeler-core/**'
               - '!libs/modeler-core/package.json'
@@ -419,7 +420,11 @@ jobs:
       - name: Run unit tests with coverage
         working-directory: apps/intellij-plugin
         run: ./gradlew jacocoTestReport --no-daemon
+      # Gate the upload on the plugin's own sources so a release-please
+      # version-bump PR (gradle.properties only) skips the redundant report
+      # while the build+test step above still runs via the broad filter.
       - name: Upload coverage to Codecov
+        if: needs.detect-changes.outputs.intellij-plugin-src == 'true'
         uses: codecov/codecov-action@v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
