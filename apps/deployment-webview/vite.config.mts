@@ -6,9 +6,7 @@ import { resolve } from "path";
 export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/modeler-plugin-deployment-webview",
-
     plugins: [tsconfigPaths()],
-
     build: {
         target: "es2021",
         chunkSizeWarningLimit: 1200,
@@ -24,11 +22,9 @@ export default defineConfig({
             },
         },
     },
-
     define: {
         "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
     },
-
     server: {
         // portless proxies the dev server behind a `<name>.localhost` host; Vite
         // rejects unknown Host headers unless the suffix is allow-listed.
