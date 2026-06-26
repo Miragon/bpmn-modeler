@@ -19,8 +19,8 @@
     "clean": "rimraf lib"
   },
   "dependencies": {
-    "@theia/core": "1.72.1",
-    "@theia/monaco": "1.72.1"
+    "@theia/core": "1.72.3",
+    "@theia/monaco": "1.72.3"
   },
   "devDependencies": {
     "rimraf": "6.1.3",

@@ -15,8 +15,8 @@
     "@types/lodash": "4.17.24",
     "@types/node": "25.9.1",
     "@types/vscode-webview": "1.57.5",
-    "@vitest/coverage-v8": "4.1.8",
+    "@vitest/coverage-v8": "4.1.9",
     "typescript": "6.0.3",
-    "vitest": "4.1.8"
+    "vitest": "4.1.9"
   }
 }
