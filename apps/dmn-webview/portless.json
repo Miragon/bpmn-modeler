@@ -1,0 +1,4 @@
+{
+    "name": "dmn-modeler-webview",
+    "script": "dev:app"
+}

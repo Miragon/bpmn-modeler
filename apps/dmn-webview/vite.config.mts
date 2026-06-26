@@ -54,4 +54,9 @@ export default defineConfig({
     define: {
         "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
     },
+    server: {
+        // portless proxies the dev server behind a `<name>.localhost` host; Vite
+        // rejects unknown Host headers unless the suffix is allow-listed.
+        allowedHosts: [".localhost"],
+    },
 });

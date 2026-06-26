@@ -1,0 +1,4 @@
+{
+    "name": "bpmn-modeler-docs",
+    "script": "dev:app"
+}

@@ -25,10 +25,23 @@
   enough.
 - **VS Code**
 
-The webview `dev:*` scripts (standalone browser preview) use
-[`portless`](https://www.npmjs.com/package/portless), which is installed
-automatically as a dev dependency by `yarn install` — no global install
-required.
+The webview and docs `dev` scripts (standalone browser preview) use
+[`portless`](https://www.npmjs.com/package/portless) to serve each app under a
+stable, worktree-aware `https://<worktree>.<app>.localhost` URL — no port
+numbers to remember or collide. portless is a pinned dev dependency installed
+by `yarn install`, so no global install is required. The slug is derived by
+portless from the git worktree; never hand-build it.
+
+Its HTTPS proxy daemon is a one-time per-machine step (needs `sudo` once):
+
+```bash
+npx portless service install
+```
+
+Each app keeps the split `dev` / `dev:app` scripts: `dev` is just the portless
+entrypoint, and `dev:app` is the real Vite/VitePress command (which non-portless
+users can run directly). `portless.json` names the app and points `dev` at
+`dev:app` so it doesn't recurse.
 
 ## Setup
 

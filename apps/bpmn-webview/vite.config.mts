@@ -7,7 +7,6 @@ import { resolve } from "path";
 export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/bpmn-webview",
-
     plugins: [
         tsconfigPaths(),
         viteStaticCopy({
@@ -23,12 +22,10 @@ export default defineConfig({
             ],
         }),
     ],
-
     esbuild: {
         jsx: "automatic",
         jsxImportSource: "preact",
     },
-
     resolve: {
         dedupe: [
             "preact",
@@ -45,7 +42,6 @@ export default defineConfig({
             "@lezer/lr",
         ],
     },
-
     build: {
         target: "es2021",
         commonjsOptions: { transformMixedEsModules: true },
@@ -65,8 +61,10 @@ export default defineConfig({
             },
         },
     },
-
     define: {
         "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
+    },
+    server: {
+        allowedHosts: [".localhost"],
     },
 });

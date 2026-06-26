@@ -5,6 +5,13 @@ export default withMermaid(defineConfig({
     title: "Miragon BPMN Modeler",
     description: "Professional BPMN/DMN process modeling — as a VS Code extension or a standalone desktop app",
     base: "/bpmn-modeler/",
+    vite: {
+        server: {
+            // portless proxies the dev server behind a `<name>.localhost` host;
+            // Vite rejects unknown Host headers unless the suffix is allow-listed.
+            allowedHosts: [".localhost"],
+        },
+    },
     head: [
         [
             "link",
