@@ -15,12 +15,19 @@ import java.util.concurrent.TimeUnit
  * and free of wall-clock waits. [execute] runs inline, since the supervisor only
  * uses it to hop the spawn off the EDT, which is irrelevant under test.
  *
- * Only the two methods the supervisor calls are implemented; the rest of the
+ * Cancellation is modelled: the returned handle removes its task from the queue,
+ * so [runPending] skips it — needed by the editor router's debounce, where a newer
+ * frame cancels and reschedules the previous timer (only the last must fire).
+ *
+ * Only the methods the code under test calls are implemented; the rest of the
  * interface throws, so an unexpected new dependency on the scheduler is loud
  * rather than silently mis-tested.
  */
 internal class DeterministicScheduler : ScheduledExecutorService {
-    private data class Pending(val task: Runnable, val delayMillis: Long)
+    private class Pending(val task: Runnable) {
+        @Volatile
+        var cancelled = false
+    }
 
     private val pending = ArrayDeque<Pending>()
 
@@ -30,21 +37,24 @@ internal class DeterministicScheduler : ScheduledExecutorService {
     override fun execute(command: Runnable) = command.run()
 
     override fun schedule(command: Runnable, delay: Long, unit: TimeUnit): ScheduledFuture<*> {
-        val millis = unit.toMillis(delay)
-        recordedDelays += millis
-        pending.addLast(Pending(command, millis))
-        return NoopScheduledFuture
+        recordedDelays += unit.toMillis(delay)
+        val entry = Pending(command)
+        pending.addLast(entry)
+        return CancellableScheduledFuture {
+            entry.cancelled = true
+            pending.remove(entry)
+        }
     }
 
     /**
-     * Fires every currently-pending task in FIFO order. Tasks are drained before
-     * running so a task that schedules another (a respawn that crashes again)
-     * queues for the *next* [runPending] rather than looping here.
+     * Fires every currently-pending, non-cancelled task in FIFO order. Tasks are
+     * drained before running so a task that schedules another (a respawn that
+     * crashes again) queues for the *next* [runPending] rather than looping here.
      */
     fun runPending() {
         val due = pending.toList()
         pending.clear()
-        due.forEach { it.task.run() }
+        due.forEach { if (!it.cancelled) it.task.run() }
     }
 
     // ── unused surface ──────────────────────────────────────────────────────────
@@ -88,17 +98,29 @@ internal class DeterministicScheduler : ScheduledExecutorService {
     private fun unsupported(): Nothing = throw UnsupportedOperationException("DeterministicScheduler: not needed by the code under test")
 }
 
-/** The supervisor ignores the returned handle, so a do-nothing future suffices. */
-private object NoopScheduledFuture : ScheduledFuture<Any?> {
+/**
+ * A handle whose [cancel] marks its parked task cancelled and unlinks it from the
+ * scheduler's queue (via the [onCancel] closure), so a later
+ * [DeterministicScheduler.runPending] skips it. The supervisor ignores the handle
+ * entirely; the editor router's debounce relies on it to drop superseded timers.
+ */
+private class CancellableScheduledFuture(private val onCancel: () -> Unit) : ScheduledFuture<Any?> {
+    private var cancelled = false
+
+    override fun cancel(mayInterruptIfRunning: Boolean): Boolean {
+        if (cancelled) return false
+        cancelled = true
+        onCancel()
+        return true
+    }
+
     override fun getDelay(unit: TimeUnit): Long = 0
 
     override fun compareTo(other: Delayed): Int = 0
 
-    override fun cancel(mayInterruptIfRunning: Boolean): Boolean = false
+    override fun isCancelled(): Boolean = cancelled
 
-    override fun isCancelled(): Boolean = false
-
-    override fun isDone(): Boolean = true
+    override fun isDone(): Boolean = cancelled
 
     override fun get(): Any? = null
 

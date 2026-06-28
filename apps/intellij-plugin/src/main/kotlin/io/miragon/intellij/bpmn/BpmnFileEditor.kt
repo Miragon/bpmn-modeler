@@ -11,12 +11,6 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.jcef.JBCefApp
-import com.intellij.ui.jcef.JBCefBrowser
-import com.intellij.ui.jcef.JBCefJSQuery
-import com.intellij.ui.jcef.JcefShortcutProvider
-import org.cef.browser.CefBrowser
-import org.cef.browser.CefFrame
-import org.cef.handler.CefLoadHandlerAdapter
 import java.beans.PropertyChangeListener
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -32,10 +26,14 @@ import javax.swing.SwingConstants
  * actual BPMN handling (engine detection, render, document sync) happens in the
  * shared TypeScript core, which needs no Kotlin reimplementation.
  *
+ * The browser comes pre-loaded from [BrowserPrewarmService] so the open path
+ * skips the cold spawn + bundle fetch + bpmn-js init; this editor only binds it
+ * to the core session ([WarmBrowser.bind]).
+ *
  * Pipes:
  *  - assets are served by the shared [WebviewServer] over loopback HTTP;
- *  - JS → JVM uses a [JBCefJSQuery]; the page's shim buffers outgoing messages
- *    and flushes once the sink is injected on load end;
+ *  - JS → JVM uses the [WarmBrowser]'s `JBCefJSQuery`; the page's shim buffers
+ *    outgoing messages and flushes once the sink is injected at bind;
  *  - JVM → JS uses `window.postMessage`, the channel the webview listens on.
  */
 class BpmnFileEditor(
@@ -60,41 +58,28 @@ class BpmnFileEditor(
                     SwingConstants.CENTER,
                 )
         } else {
-            val cefBrowser = JBCefBrowser()
-            component = cefBrowser.component
-            Disposer.register(this, cefBrowser)
-
-            // macOS only: JBCefBrowser registers IDE actions ($SelectAll/$Undo/
-            // $Redo/$Copy/$Paste/$Cut) on this component that hijack ⌘-shortcuts
-            // and route them to *native* CEF frame commands (CefFrame.selectAll/
-            // undo/…), which only act on focused text fields. bpmn-js is a canvas
-            // app, so ⌘A/⌘Z silently no-op there — while Ctrl+A/Ctrl+Z work,
-            // because Ctrl isn't bound in the macOS keymap so its keydown reaches
-            // the page and bpmn-js's own keyboard bindings (isCmd = ctrl||meta)
-            // fire. Unregistering the forwarders lets ⌘-keystrokes fall through to
-            // the webview exactly like Ctrl, restoring select-all/undo/redo/copy/
-            // paste. No-op off macOS, where the forwarders are never registered.
-            runCatching {
-                JcefShortcutProvider.getActions().forEach {
-                    it.second.unregisterCustomShortcutSet(cefBrowser.component)
-                }
-            }
+            // Take a pre-warmed browser (already loaded with the bpmn-js page) so
+            // the open path skips the cold spawn + bundle fetch + bpmn-js init.
+            // Ownership transfers here: parented to this editor, disposed on close.
+            val warm = project.service<BrowserPrewarmService>().take()
+            component = warm.browser.component
+            Disposer.register(this, warm)
 
             // The editor id must match the core's session key (scheme-qualified URI).
             val editorId = file.url
             val coreSession =
                 CoreSession(editorId, file, project) { json ->
                     // JSON is a valid JS object-literal expression; embed it directly.
-                    cefBrowser.cefBrowser.executeJavaScript(
+                    warm.browser.cefBrowser.executeJavaScript(
                         "window.postMessage($json, '*');",
-                        cefBrowser.cefBrowser.url,
+                        warm.browser.cefBrowser.url,
                         0,
                     )
                 }
             session = coreSession
 
-            // Register before the page loads so the core has the session ready by
-            // the time the webview's first (buffered) message is forwarded.
+            // Register before binding the browser so the core has the session ready
+            // when bind() flushes the webview's first (buffered) GetBpmnFileCommand.
             coreProcess!!.registerSession(coreSession)
 
             // Mirror the live IntelliJ Document into the core so external edits
@@ -111,41 +96,15 @@ class BpmnFileEditor(
                 this,
             )
 
-            // JS → JVM channel: forward every webview message to the core untouched.
-            val jsQuery = JBCefJSQuery.create(cefBrowser as com.intellij.ui.jcef.JBCefBrowserBase)
-            Disposer.register(cefBrowser, jsQuery)
-            jsQuery.addHandler { request ->
-                coreProcess.forwardWebviewMessage(editorId, request)
-                null
-            }
-
             // Follow the IDE color theme: push a theme update into the page on
             // every LaF / editor-scheme change so `automatic` colorTheme tracks
             // the IDE live. Parented to this editor, so the callback is removed
             // when the tab closes.
-            val themeSignal = service<IdeThemeSignal>()
-            themeSignal.follow(this, cefBrowser.cefBrowser)
+            service<IdeThemeSignal>().follow(this, warm.browser.cefBrowser)
 
-            // Install the JVM sink only after the document is parsed; the shim's
-            // buffered messages then flush. inject("p") emits the JS that ships the
-            // string argument `p` back to the jsQuery handler.
-            cefBrowser.jbCefClient.addLoadHandler(
-                object : CefLoadHandlerAdapter() {
-                    override fun onLoadEnd(b: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
-                        b.executeJavaScript(
-                            "window.__modelerSetSink(function (p) { ${jsQuery.inject("p")} });",
-                            b.url,
-                            0,
-                        )
-                        // Re-apply on (re)load so a theme change racing the load is
-                        // not lost; indexHtml() already bakes in the initial theme.
-                        b.executeJavaScript(themeSignal.applyJs(), b.url, 0)
-                    }
-                },
-                cefBrowser.cefBrowser,
-            )
-
-            cefBrowser.loadURL(service<WebviewServer>().ensureStarted())
+            // Wire the JS→JVM forwarder and inject the sink; this flushes the
+            // buffered GetBpmnFileCommand, which now reaches the registered session.
+            warm.bind { request -> coreProcess.forwardWebviewMessage(editorId, request) }
         }
     }
 

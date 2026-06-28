@@ -6,10 +6,11 @@ import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.ui.jcef.JBCefApp
 
 /**
- * Pre-warms the modeler bridge (and its asset HTTP server) shortly after a
- * project opens, so the first `.bpmn` tab — diff, or deployment panel — renders
- * against an already-running process instead of paying a cold spawn when the user
- * opens it.
+ * Pre-warms the modeler bridge (and its asset HTTP server), plus one JCEF browser
+ * with the bpmn-js page already loaded, shortly after a project opens — so the
+ * first `.bpmn` tab, diff, or deployment panel renders against an already-running
+ * process and a ready browser instead of paying a cold spawn + bundle fetch +
+ * bpmn-js init when the user opens it.
  *
  * The cold spawn is the freeze culprit behind the slow-plugin banner: launching
  * the bundled binary can stall for seconds on Windows (Defender scanning a
@@ -28,5 +29,9 @@ class BridgeWarmupActivity : ProjectActivity {
         // then hit the already-bound URL instantly.
         service<WebviewServer>().ensureStarted()
         project.service<CoreProcess>().prewarm()
+        // Stage a ready JCEF browser too: the browser spawn + bundle fetch +
+        // bpmn-js init is the most perceptible first-open latency. Marshals its
+        // own EDT creation; the heavy load runs async in the CEF render process.
+        project.service<BrowserPrewarmService>().warmUp()
     }
 }

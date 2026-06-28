@@ -104,13 +104,15 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
     // External edits (git revert/checkout, the IDE's plain-text tab, another
     // tool) must re-render the open diagram. The host stays dumb and forwards
     // *every* document change — including the echo of our own `document/write` —
-    // so the bridge classifies them here: `RpcDocumentPort.write` updates the
-    // mirror to the core-originated content before the RPC round-trip, so an
-    // unchanged compare means this is that echo and re-rendering would loop.
-    // Only a genuinely different text is an external edit worth displaying.
+    // so the bridge classifies them here by explicit causation (LSP-style
+    // versioned `didChange`): each `document/write` mints a per-editor revision
+    // the host echoes back as `causedBy`, so an echo carries a revision the
+    // mirror still holds as pending and is dropped. An external edit carries no
+    // `causedBy` (or a stale/unknown one) and renders. The core's
+    // `ModelerSession` guard stays as a second line of defence.
     deps.rpc.on(METHODS.documentDidChange, async (params: DocumentDidChangeParams) => {
-        if (deps.mirror.content(params.editorId) === params.content) {
-            return;
+        if (params.causedBy != null && deps.mirror.isOwnEcho(params.editorId, params.causedBy)) {
+            return; // our own write echoed back — re-rendering would loop
         }
         deps.mirror.setContent(params.editorId, params.content);
         await bpmnService.display(params.editorId);

@@ -41,7 +41,7 @@ export function register(deps: BridgeSharedDeps): void {
         new Camunda7RestClient(httpClient, authResolver),
         new Camunda8RestClient(httpClient, authResolver, deps.settings.getC8ApiVersion()),
     );
-    const deploymentState = new RpcDeploymentState(deps.rpc);
+    const deploymentState = new RpcDeploymentState(deps.rpc, deps.notifier);
     const secretStore = new RpcSecretStore(deps.rpc);
     const deploymentService = new DeploymentService(
         deps.documentPort,

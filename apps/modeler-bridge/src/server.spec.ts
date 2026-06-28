@@ -382,19 +382,48 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
             }),
         );
         await settle();
-        expect(frames.some((f) => f.method === "document/write")).toBe(true);
+        const write = frames.find((f) => f.method === "document/write");
+        expect(write).toBeDefined();
+        // The write carries the per-editor revision the host must echo back.
+        expect(write.params.revision).toBeTypeOf("number");
 
-        // …and the dumb host faithfully echoes that change back. Re-rendering it
-        // would loop; the bridge recognises the mirror already holds this content.
+        // …and the host echoes that change back, stamped with the write's
+        // revision as `causedBy`. Re-rendering it would loop; the bridge drops it
+        // by explicit causation, not by comparing content.
         await rpc.handleLine(
             JSON.stringify({
                 method: "document/didChange",
-                params: { editorId, content: edited },
+                params: { editorId, content: edited, causedBy: write.params.revision },
             }),
         );
         await settle();
 
         expect(renders(frames, editorId)).toHaveLength(before);
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
+    it("re-renders on a document/didChange carrying a stale/unknown causedBy", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+        await open(rpc, editorId, root, bpmnPath);
+        const before = renders(frames, editorId).length;
+
+        // A `causedBy` the bridge never minted (e.g. a revision already consumed,
+        // or one from a different host quirk) must not be mistaken for an echo —
+        // the change still renders.
+        const external = C7_XML.replace("Process_1", "Process_stale_cause");
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "document/didChange",
+                params: { editorId, content: external, causedBy: 9999 },
+            }),
+        );
+        await settle();
+
+        const after = renders(frames, editorId);
+        expect(after).toHaveLength(before + 1);
+        expect(after[after.length - 1].params.message.content).toContain("Process_stale_cause");
 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });

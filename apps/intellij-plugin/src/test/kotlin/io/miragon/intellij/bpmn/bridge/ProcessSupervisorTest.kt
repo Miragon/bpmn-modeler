@@ -1,5 +1,6 @@
 package io.miragon.intellij.bpmn.bridge
 
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
@@ -32,6 +33,21 @@ class ProcessSupervisorTest {
     /** A notifier that fails the test if invoked — used on happy paths that must surface no error. */
     private val failOnError = BridgeErrorNotifier { fail("unexpected error notification: $it") }
 
+    // Every fake the launcher hands the supervisor, closed in teardown so no
+    // stdin/stdout pump survives the test — the JUnit5 platform fixtures bundle a
+    // ThreadLeakTracker that auto-registers for every test in the module. The
+    // supervisor only ever kills the *current* process, so respawned fakes would
+    // otherwise leak their pumps.
+    private val spawnedFakes = mutableListOf<FakeProcess>()
+
+    /** A fake registered for teardown — used as the supervisor's launcher result. */
+    private fun spawnFake(): FakeProcess = FakeProcess().also { spawnedFakes += it }
+
+    @AfterEach
+    fun closeSpawnedFakes() {
+        spawnedFakes.forEach { it.close() }
+    }
+
     /**
      * Each crash within the stable window respawns at `500ms × attempt`; once the
      * attempts exceed `MAX_RESTARTS` the supervisor gives up — no further spawn —
@@ -45,7 +61,7 @@ class ProcessSupervisorTest {
         val supervisor =
             ProcessSupervisor(
                 channel = RpcChannel { _, _, _ -> },
-                launcher = { FakeProcess().also { processes += it } },
+                launcher = { spawnFake().also { processes += it } },
                 notifier = notifier,
                 onSpawned = {},
                 onRespawned = {},
@@ -83,7 +99,7 @@ class ProcessSupervisorTest {
         val supervisor =
             ProcessSupervisor(
                 channel = RpcChannel { _, _, _ -> },
-                launcher = { FakeProcess().also { processes += it } },
+                launcher = { spawnFake().also { processes += it } },
                 notifier = failOnError,
                 onSpawned = {},
                 onRespawned = {},
@@ -118,7 +134,7 @@ class ProcessSupervisorTest {
         val supervisor =
             ProcessSupervisor(
                 channel = RpcChannel { _, _, _ -> },
-                launcher = { FakeProcess().also { processes += it } },
+                launcher = { spawnFake().also { processes += it } },
                 notifier = failOnError,
                 onSpawned = {},
                 onRespawned = { respawnCount++ },
@@ -149,7 +165,7 @@ class ProcessSupervisorTest {
         val supervisor =
             ProcessSupervisor(
                 channel = RpcChannel { _, _, _ -> },
-                launcher = { FakeProcess().also { processes += it } },
+                launcher = { spawnFake().also { processes += it } },
                 notifier = failOnError,
                 onSpawned = { spawnCount++ },
                 onRespawned = { respawnCount++ },

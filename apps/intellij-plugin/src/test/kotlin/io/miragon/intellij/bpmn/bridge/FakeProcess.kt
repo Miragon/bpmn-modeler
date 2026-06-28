@@ -28,8 +28,12 @@ import java.util.concurrent.TimeUnit
  *
  * Pipe buffers are oversized so a flood of outbound frames never blocks the
  * writer waiting on a reader (the back-pressure/coalescing tests enqueue many).
+ *
+ * [AutoCloseable] so a test can shut the fake's daemon pumps down in teardown —
+ * the JUnit5 platform fixtures bundle a `ThreadLeakTracker` that auto-registers for
+ * every test in the module and fails any that leaves a thread running.
  */
-internal class FakeProcess : Process() {
+internal class FakeProcess : Process(), AutoCloseable {
     private val pipeBuffer = 1 shl 20
 
     // Core stdin: host → core. The writer thread writes here; tests read it back.
@@ -127,6 +131,17 @@ internal class FakeProcess : Process() {
         exitCode = code
         runCatching { stdoutWriter.close() }
         exit.complete(this)
+    }
+
+    /**
+     * Full teardown for tests: [kill] EOFs the host's reader pump (via the stdout
+     * close), and closing the stdin sink EOFs this fake's own stdin pump — so both
+     * daemon threads exit and the leak tracker stays quiet. Idempotent: safe on an
+     * already-killed fake.
+     */
+    override fun close() {
+        kill()
+        runCatching { stdinSink.close() }
     }
 
     private companion object {

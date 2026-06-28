@@ -62,10 +62,24 @@ export interface SessionMeta {
  * `session/register` and refreshed on `document/didChange`. Exists solely to
  * make the core's synchronous `getContent()` work without a blocking RPC
  * round-trip.
+ *
+ * It also owns the per-editor **write-revision** state behind echo suppression:
+ * every core-originated `document/write` mints a monotonic revision, and the
+ * host echoes it back on the resulting `document/didChange` as `causedBy`, so
+ * the bridge drops its own write by explicit causation rather than by comparing
+ * content (LSP-style versioned `didChange`).
  */
 export class DocumentMirror {
     private readonly meta = new Map<string, SessionMeta>();
     private readonly text = new Map<string, string>();
+
+    // Per-editor monotonic write counter and the set of revisions still awaiting
+    // their host echo. The set stays bounded: a changing write is consumed by
+    // `isOwnEcho` when its echo arrives, and a no-op write (which the host never
+    // echoes) is dropped via `forgetWriteRevision`, so an editor that round-trips
+    // cleanly holds nothing here between writes.
+    private readonly nextRevision = new Map<string, number>();
+    private readonly pendingOwnRevisions = new Map<string, Set<number>>();
 
     register(meta: SessionMeta, content: string): void {
         this.meta.set(meta.editorId, meta);
@@ -78,6 +92,44 @@ export class DocumentMirror {
 
     content(editorId: string): string {
         return this.text.get(editorId) ?? "";
+    }
+
+    /**
+     * Mints the next write revision for an editor and records it as a pending own
+     * revision, so the host's echo of this write can be recognised by
+     * {@link isOwnEcho}. Starts at 1 (0 would be ambiguous with an absent
+     * `causedBy` on the wire).
+     */
+    nextWriteRevision(editorId: string): number {
+        const revision = (this.nextRevision.get(editorId) ?? 0) + 1;
+        this.nextRevision.set(editorId, revision);
+        let pending = this.pendingOwnRevisions.get(editorId);
+        if (!pending) {
+            pending = new Set();
+            this.pendingOwnRevisions.set(editorId, pending);
+        }
+        pending.add(revision);
+        return revision;
+    }
+
+    /**
+     * True iff `causedBy` is one of this editor's pending own revisions; consumes
+     * it so the set stays bounded. A stale/unknown `causedBy` (or one already
+     * consumed) returns false — that change still renders, never mistaken for an
+     * echo.
+     */
+    isOwnEcho(editorId: string, causedBy: number): boolean {
+        return this.pendingOwnRevisions.get(editorId)?.delete(causedBy) ?? false;
+    }
+
+    /**
+     * Drops a pending own revision that will never be echoed. A no-op write (the
+     * host's `Document` already holds the content, e.g. after `\r\n`→`\n`
+     * normalisation) fires no `document/didChange`, so its minted revision would
+     * otherwise linger forever; the caller forgets it to keep the set bounded.
+     */
+    forgetWriteRevision(editorId: string, revision: number): void {
+        this.pendingOwnRevisions.get(editorId)?.delete(revision);
     }
 
     require(editorId: string): SessionMeta {
@@ -96,6 +148,8 @@ export class DocumentMirror {
     remove(editorId: string): void {
         this.meta.delete(editorId);
         this.text.delete(editorId);
+        this.nextRevision.delete(editorId);
+        this.pendingOwnRevisions.delete(editorId);
     }
 }
 
@@ -145,12 +199,20 @@ export class RpcEditorHandle implements EditorHandle {
     }
 
     async writeContent(content: string): Promise<boolean> {
+        // Tag the write so the host's echoed `document/didChange` carries this
+        // revision as `causedBy`; the mirror update keeps sync `getContent` correct.
+        const revision = this.mirror.nextWriteRevision(this.id);
         const result = (await this.rpc.request(METHODS.documentWrite, {
             editorId: this.id,
             content,
+            revision,
         })) as DocumentWriteResult | null;
         this.mirror.setContent(this.id, content);
-        return result?.changed ?? false;
+        const changed = result?.changed ?? false;
+        // A no-op write echoes nothing back, so its revision would never be
+        // consumed by isOwnEcho — drop it now to keep pendingOwnRevisions bounded.
+        if (!changed) this.mirror.forgetWriteRevision(this.id, revision);
+        return changed;
     }
 
     async save(): Promise<boolean> {
@@ -242,13 +304,21 @@ export class RpcDocumentPort implements DocumentPort {
     }
 
     async write(editorId: string, content: string): Promise<boolean> {
+        // Tag the write so the host's echoed `document/didChange` carries this
+        // revision as `causedBy` (see DocumentMirror.isOwnEcho).
+        const revision = this.mirror.nextWriteRevision(editorId);
         const result = (await this.rpc.request(METHODS.documentWrite, {
             editorId,
             content,
+            revision,
         })) as DocumentWriteResult | null;
         // Keep the mirror current so a later synchronous getContent() is correct.
         this.mirror.setContent(editorId, content);
-        return result?.changed ?? false;
+        const changed = result?.changed ?? false;
+        // A no-op write echoes nothing back, so its revision would never be
+        // consumed by isOwnEcho — drop it now to keep pendingOwnRevisions bounded.
+        if (!changed) this.mirror.forgetWriteRevision(editorId, revision);
+        return changed;
     }
 
     async save(editorId: string): Promise<boolean> {
@@ -440,19 +510,48 @@ const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
  * The port's getters are **synchronous** (`getEndpoint(): string`, …), so the
  * bridge cannot await an RPC per read. Mirroring the {@link BridgeSettings}
  * pattern: the host seeds a snapshot once on startup (`deploymentState/seed`);
- * getters read the mirror; the `save*` methods update it optimistically and fire
- * a host notification to persist, so the value survives a restart (the host
- * re-seeds from its persisted store). Secrets are out of scope here — they ride
- * {@link RpcSecretStore} / PasswordSafe.
+ * getters read the mirror.
+ *
+ * Ownership is single-writer: the in-process **snapshot is authoritative** for
+ * reads, and the host is a persisted replica reconciled on the next re-seed. The
+ * `save*` methods update the snapshot optimistically (so in-process reads and
+ * the form UX stay correct), then send an **acknowledged** request to persist.
+ * A persist failure is *logged* via the notifier rather than left to diverge
+ * silently — but it is not rethrown: a failed persist must not fail an otherwise
+ * successful deploy (`DeploymentService.deploy` awaits these post-success).
+ * The snapshot is deliberately *not* rolled back on failure — reverting
+ * mid-session would surface stale form values; the next seed reconciles.
+ * Secrets are out of scope here — they ride {@link RpcSecretStore} / PasswordSafe.
  */
 export class RpcDeploymentState implements DeploymentStatePort {
     private snapshot: DeploymentStateSnapshot = { ...EMPTY_DEPLOYMENT_STATE };
 
-    constructor(private readonly rpc: Rpc) {}
+    constructor(
+        private readonly rpc: Rpc,
+        private readonly notifier: NotifierPort,
+    ) {}
 
     /** Replaces the mirror from the host's seed (sent once on startup / after persist). */
     seed(next: Partial<DeploymentStateSnapshot>): void {
         this.snapshot = { ...this.snapshot, ...next };
+    }
+
+    /**
+     * Persists via an acknowledged host request; on failure logs (does not throw)
+     * so a persist error never fails the surrounding deploy. The optimistic
+     * snapshot update has already happened, so the divergence is bounded to the
+     * host's persisted copy until the next re-seed.
+     */
+    private async persist(method: string, params: Record<string, unknown>): Promise<void> {
+        try {
+            await this.rpc.request(method, params);
+        } catch (error) {
+            this.notifier.logError(
+                error instanceof Error
+                    ? new Error(`Failed to persist deployment state (${method}): ${error.message}`)
+                    : new Error(`Failed to persist deployment state (${method})`),
+            );
+        }
     }
 
     getEndpoint(): string {
@@ -477,17 +576,17 @@ export class RpcDeploymentState implements DeploymentStatePort {
 
     async saveAuthType(authType: AuthTypePayload): Promise<void> {
         this.snapshot = { ...this.snapshot, authType };
-        this.rpc.notify(METHODS.deploymentStateSaveAuthType, { authType });
+        await this.persist(METHODS.deploymentStateSaveAuthType, { authType });
     }
 
     async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
         this.snapshot = { ...this.snapshot, tokenEndpoint, audience };
-        this.rpc.notify(METHODS.deploymentStateSaveOAuth2Config, { tokenEndpoint, audience });
+        await this.persist(METHODS.deploymentStateSaveOAuth2Config, { tokenEndpoint, audience });
     }
 
     async save(endpoint: string, tenantId: string): Promise<void> {
         this.snapshot = { ...this.snapshot, endpoint, tenantId };
-        this.rpc.notify(METHODS.deploymentStateSave, { endpoint, tenantId });
+        await this.persist(METHODS.deploymentStateSave, { endpoint, tenantId });
     }
 }
 

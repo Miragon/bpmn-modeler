@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
 
 plugins {
@@ -25,16 +26,25 @@ dependencies {
         // the Java plugin that provides LightPsiClassBuilder/PsiElementFactory.
         bundledPlugin("org.intellij.groovy")
         bundledPlugin("com.intellij.java")
+        // JUnit5 IntelliJ test fixtures for the router tests: JUnit5 carries the
+        // @TestApplication / @RunInEdt annotations + projectFixture/tempPathFixture
+        // (the `…junit5` artefact), Platform carries PlatformTestUtil and the headless
+        // application support they boot on. Only the router tests need them — they
+        // drive a real Document/PropertiesComponent — so the version tracks the IDE
+        // (no version-catalog entry) and the jars download on the first test run.
+        testFramework(TestFrameworkType.JUnit5)
+        testFramework(TestFrameworkType.Platform)
     }
     // Gson does the JSON encode/decode for the host ↔ bridge ↔ webview messages.
     // Hand-built strings are unsafe here: SyncDocumentCommand carries the full
     // BPMN XML, which must round-trip through proper escaping.
     implementation(libs.gson)
 
-    // Pure-JVM unit tests for the concurrency-critical bridge transport and
-    // process supervision. No IntelliJ platform test fixtures: the
-    // intellijPlatform compile dependency already supplies Logger + Gson on the
-    // test classpath, and the seams let tests inject a fake process/clock.
+    // The transport/supervisor tests stay pure-JVM: the intellijPlatform compile
+    // dependency already supplies Logger + Gson on the test classpath, and the
+    // seams let them inject a fake process/clock. The router tests, by contrast,
+    // use the JUnit5 platform fixtures (@TestApplication) because they drive a real
+    // Document/PropertiesComponent — see the testFramework dependency above.
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
