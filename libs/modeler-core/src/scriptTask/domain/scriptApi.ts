@@ -36,6 +36,15 @@ export interface MethodDef {
 }
 
 /**
+ * A global function callable at script root with no receiver (e.g. Camunda
+ * SPIN's `S(…)` / `JSON(…)`). Structurally identical to {@link MethodDef} —
+ * the distinction is purely positional: a {@link MethodDef} is reached through
+ * `<receiver>.method(…)`, a `GlobalFunctionDef` is reached bare. Sharing the
+ * shape keeps a single renderer and one snippet convention.
+ */
+export type GlobalFunctionDef = MethodDef;
+
+/**
  * Describes a complex Camunda type (e.g. `DelegateExecution`) — the bag
  * of methods we look up to populate `<bean>.<member>` completions.
  */
@@ -214,6 +223,118 @@ const DELEGATE_TASK_METHODS: readonly MethodDef[] = [
     },
 ];
 
+/**
+ * Camunda SPIN's JSON node — the wrapper returned by `S(json)` / `JSON(json)`
+ * for reading and writing JSON process variables. Read-focused subset of the
+ * official Javadoc (7.22/7.23): overloaded setters are collapsed to their
+ * getter form (`prop(name)`) so completion shows one label per concept rather
+ * than duplicate `prop` entries.
+ */
+const SPIN_JSON_NODE_METHODS: readonly MethodDef[] = [
+    {
+        name: "prop",
+        params: [{ name: "name", type: "String" }],
+        returnType: "SpinJsonNode",
+        description: "Returns the child node stored under the given property name.",
+    },
+    {
+        name: "hasProp",
+        params: [{ name: "name", type: "String" }],
+        returnType: "Boolean",
+        description: "Returns whether a property with the given name exists.",
+    },
+    {
+        name: "elements",
+        params: [],
+        returnType: "SpinList<SpinJsonNode>",
+        description: "Returns the elements of this array node.",
+    },
+    {
+        name: "fieldNames",
+        params: [],
+        returnType: "List<String>",
+        description: "Returns the property names of this object node.",
+    },
+    {
+        name: "stringValue",
+        params: [],
+        returnType: "String",
+        description: "Returns this node's value as a string.",
+    },
+    {
+        name: "numberValue",
+        params: [],
+        returnType: "Number",
+        description: "Returns this node's value as a number.",
+    },
+    {
+        name: "boolValue",
+        params: [],
+        returnType: "Boolean",
+        description: "Returns this node's value as a boolean.",
+    },
+    {
+        name: "isObject",
+        params: [],
+        returnType: "Boolean",
+        description: "Returns whether this node is a JSON object.",
+    },
+    {
+        name: "isArray",
+        params: [],
+        returnType: "Boolean",
+        description: "Returns whether this node is a JSON array.",
+    },
+    {
+        name: "isValue",
+        params: [],
+        returnType: "Boolean",
+        description: "Returns whether this node is a scalar value.",
+    },
+    {
+        name: "isNull",
+        params: [],
+        returnType: "Boolean",
+        description: "Returns whether this node is JSON null.",
+    },
+    {
+        name: "value",
+        params: [],
+        returnType: "Object",
+        description: "Returns this node's value as a plain Java object.",
+    },
+    {
+        name: "mapTo",
+        params: [{ name: "type", type: "String" }],
+        returnType: "Object",
+        description: "Deserialises this node into an instance of the given Java type.",
+    },
+    {
+        name: "append",
+        params: [{ name: "property", type: "Object" }],
+        returnType: "SpinJsonNode",
+        description: "Appends a value to this array node.",
+    },
+    {
+        name: "deleteProp",
+        params: [{ name: "name", type: "String" }],
+        returnType: "SpinJsonNode",
+        description: "Removes the property with the given name from this object node.",
+    },
+    {
+        name: "toString",
+        params: [],
+        returnType: "String",
+        description: "Serialises this node back to its JSON string representation.",
+    },
+];
+
+const SPIN_JSON_NODE_TYPE: TypeDef = {
+    name: "SpinJsonNode",
+    description: "Camunda SPIN wrapper for reading and writing JSON variables.",
+    methods: SPIN_JSON_NODE_METHODS,
+};
+
 const DELEGATE_EXECUTION_TYPE: TypeDef = {
     name: "DelegateExecution",
     description: "Provides access to process variables and execution metadata.",
@@ -226,8 +347,15 @@ const DELEGATE_TASK_TYPE: TypeDef = {
     methods: DELEGATE_TASK_METHODS,
 };
 
-// All complex (interface-typed) types referenced by any bean.
-export const COMPLEX_TYPES: readonly TypeDef[] = [DELEGATE_EXECUTION_TYPE, DELEGATE_TASK_TYPE];
+// All complex (interface-typed) types referenced by any bean, global function
+// return type, or (from 2c) variable `typeHint`. `SpinJsonNode` has no bean of
+// its type in 2a — it is registered here so `TYPES_BY_NAME` can resolve it once
+// the producer heuristic stamps `typeHint: "SpinJsonNode"` on variables.
+export const COMPLEX_TYPES: readonly TypeDef[] = [
+    DELEGATE_EXECUTION_TYPE,
+    DELEGATE_TASK_TYPE,
+    SPIN_JSON_NODE_TYPE,
+];
 
 const TYPES_BY_NAME: ReadonlyMap<string, TypeDef> = new Map(
     COMPLEX_TYPES.map((type) => [type.name, type]),
@@ -278,4 +406,37 @@ const BEANS_BY_KIND: Record<ScriptKind, readonly BeanDef[]> = {
  */
 export function beansFor(kind: ScriptKind): readonly BeanDef[] {
     return BEANS_BY_KIND[kind];
+}
+
+/**
+ * Camunda SPIN global functions available at script root. `S(input)` really
+ * returns `Spin<T>` and auto-detects JSON vs. XML; we type it as
+ * {@link SPIN_JSON_NODE_TYPE} because JSON is the dominant use and the only one
+ * in scope here. `JSON(input)` is the JSON-only constructor.
+ */
+const SPIN_GLOBAL_FUNCTIONS: readonly GlobalFunctionDef[] = [
+    {
+        name: "S",
+        params: [{ name: "input", type: "Object" }],
+        returnType: "SpinJsonNode",
+        description: "Camunda SPIN: wraps a JSON string or value as a SpinJsonNode.",
+    },
+    {
+        name: "JSON",
+        params: [{ name: "input", type: "Object" }],
+        returnType: "SpinJsonNode",
+        description: "Camunda SPIN: parses a JSON string or value into a SpinJsonNode.",
+    },
+];
+
+/**
+ * Returns the global functions in scope for a script kind. The SPIN globals are
+ * available in all three Camunda 7 kinds, so this currently ignores `kind` —
+ * the parameter parallels {@link beansFor} and gives a single seam for future
+ * per-kind differences. Kept unconditional: whether to *offer* the globals is
+ * the host's decision (VS Code gates them behind `miragon.bpmnModeler.scripting.spin`),
+ * so the core stays pure and IntelliJ can apply its own setting in 2d.
+ */
+export function globalFunctionsFor(_kind: ScriptKind): readonly GlobalFunctionDef[] {
+    return SPIN_GLOBAL_FUNCTIONS;
 }

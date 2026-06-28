@@ -491,6 +491,15 @@ export class BridgeSettings implements SettingsPort {
     getLanguage(): string {
         return this.snapshot.language;
     }
+    /**
+     * The host frame does not carry a SPIN toggle yet — globals and typed-member
+     * resolution only reach IntelliJ in sub-phase 2d, where the bridge gains a
+     * dedicated config. Until then the bridge mirrors the core's unconditional
+     * default so no caller observes globals being silently suppressed.
+     */
+    getScriptingSpin(): boolean {
+        return true;
+    }
 }
 
 /** Order-sensitive equality covering the snapshot's primitives and the string-array field. */

@@ -104,4 +104,18 @@ export class VsCodeSettings implements SettingsPort {
             false
         );
     }
+
+    /**
+     * Whether to offer Camunda SPIN globals (`S(…)`, `JSON(…)`) and SpinJsonNode
+     * member completion in inline Camunda 7 scripts.
+     *
+     * Defaults to `true`: SPIN ships with Camunda 7 and JSON variables are
+     * common, so the globals are useful out of the box. Disable when the
+     * project does not have camunda-spin on the classpath.
+     */
+    getScriptingSpin(): boolean {
+        return (
+            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("scripting.spin") ?? true
+        );
+    }
 }

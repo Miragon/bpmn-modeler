@@ -12,13 +12,21 @@ import {
     TextDocument,
 } from "vscode";
 
-import { BeanDef, beansFor, MethodDef, methodsForBean } from "@miragon/bpmn-modeler-core";
+import {
+    BeanDef,
+    beansFor,
+    GlobalFunctionDef,
+    globalFunctionsFor,
+    MethodDef,
+    methodsForBean,
+} from "@miragon/bpmn-modeler-core";
 import {
     matchMemberAccess,
     matchVariableStringArg,
     parseEditorHashFromUri,
     parseKindFromUri,
     ScriptVariableStore,
+    SettingsPort,
 } from "@miragon/bpmn-modeler-core";
 import { VariableDef } from "@miragon/bpmn-modeler-shared";
 
@@ -49,8 +57,9 @@ import { VariableDef } from "@miragon/bpmn-modeler-shared";
  * 2. **Member completion**: triggered after a `.` following a known bean.
  *    Returns the bean's methods rendered as snippets so the cursor lands
  *    inside the parentheses with parameter placeholders.
- * 3. **Root completion**: returns the bean names plus the process variables
- *    whenever a word is being typed at root scope.
+ * 3. **Root completion**: returns the SPIN global functions (`S`/`JSON`, when
+ *    the `scripting.spin` setting is on), the bean names, and the process
+ *    variables whenever a word is being typed at root scope.
  *
  * The provider depends on a {@link ScriptVariableStore} (populated by the
  * webview's live variable extraction) so suggestions reflect the current model
@@ -60,7 +69,10 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
     // Languages this provider participates in.
     private static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
 
-    constructor(private readonly store: ScriptVariableStore) {}
+    constructor(
+        private readonly store: ScriptVariableStore,
+        private readonly settings: SettingsPort,
+    ) {}
 
     /**
      * Registers the completion provider for every supported language scoped
@@ -112,13 +124,20 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
             return bean ? methodsForBean(bean).map(methodToCompletion) : [];
         }
 
-        // Mode 3: root — beans first, then process variables, beans winning any
-        // name clash (a variable named `execution` would be shadowed anyway).
+        // Mode 3: root — globals first, then beans, then process variables, with
+        // beans winning any name clash (a variable named `execution` would be
+        // shadowed anyway). The setting is read live on every invocation, so a
+        // toggle takes effect on the next completion request with no reload.
+        const globals = this.settings.getScriptingSpin() ? globalFunctionsFor(kind) : [];
         const beanNames = new Set(beans.map((b) => b.name));
         const variableItems = this.variableItems(document).filter(
             (item) => !beanNames.has(item.label as string),
         );
-        return [...beans.map(beanToCompletion), ...variableItems];
+        return [
+            ...globals.map(globalToCompletion),
+            ...beans.map(beanToCompletion),
+            ...variableItems,
+        ];
     }
 
     /** Process-variable completions for the editor the script URI belongs to. */
@@ -139,6 +158,23 @@ function beanToCompletion(bean: BeanDef): CompletionItem {
     const item = new CompletionItem(bean.name, CompletionItemKind.Variable);
     item.detail = `${bean.name}: ${bean.type}`;
     item.documentation = new MarkdownString(bean.description);
+    return item;
+}
+
+function globalToCompletion(fn: GlobalFunctionDef): CompletionItem {
+    const item = new CompletionItem(fn.name, CompletionItemKind.Function);
+    item.detail = `${fn.name}(${fn.params
+        .map((p) => `${p.name}: ${p.type}`)
+        .join(", ")}): ${fn.returnType}`;
+
+    // Same snippet convention as methods: drop the cursor on the first
+    // parameter, or inside empty parens for zero-arg calls.
+    const placeholders = fn.params.map((p, i) => `\${${i + 1}:${p.name}}`).join(", ");
+    item.insertText = new SnippetString(`${fn.name}(${placeholders})`);
+
+    const paramLines = fn.params.map((p) => `- \`${p.name}\` — \`${p.type}\``);
+    const docs = [fn.description, "", ...paramLines].join("\n");
+    item.documentation = new MarkdownString(docs);
     return item;
 }
 

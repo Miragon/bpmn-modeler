@@ -34,7 +34,7 @@ export function register(
     scriptTaskSvc.register(context);
 
     const scriptVariableStore = new ScriptVariableStore();
-    new ScriptCompletionProvider(scriptVariableStore).register(context);
+    new ScriptCompletionProvider(scriptVariableStore, deps.vsSettings).register(context);
 
     return { scriptTaskSvc, scriptVariableStore };
 }
