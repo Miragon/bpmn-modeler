@@ -96,6 +96,9 @@ export const METHODS = {
     secretStoreGetBasicAuth: "secretStore/getBasicAuth",
     secretStoreSaveOAuth2: "secretStore/saveOAuth2",
     secretStoreGetOAuth2: "secretStore/getOAuth2",
+    deploymentStateSaveAuthType: "deploymentState/saveAuthType",
+    deploymentStateSaveOAuth2Config: "deploymentState/saveOAuth2Config",
+    deploymentStateSave: "deploymentState/save",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -115,9 +118,6 @@ export const METHODS = {
     statusBarHideEngineVersion: "statusBar/hideEngineVersion",
     statusBarDisposeEngineVersion: "statusBar/disposeEngineVersion",
     diffPostMessage: "diff/postMessage",
-    deploymentStateSaveAuthType: "deploymentState/saveAuthType",
-    deploymentStateSaveOAuth2Config: "deploymentState/saveOAuth2Config",
-    deploymentStateSave: "deploymentState/save",
     deploymentPostMessage: "deployment/postMessage",
     scriptOpen: "script/open",
     scriptUpdateVariables: "script/updateVariables",
@@ -164,7 +164,11 @@ export const PROTOCOL = [
         method: METHODS.documentDidChange,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { editorId: "e1", content: "<bpmn/>" } satisfies DocumentDidChangeParams,
+        paramsFixture: {
+            editorId: "e1",
+            content: "<bpmn/>",
+            causedBy: 1,
+        } satisfies DocumentDidChangeParams,
     },
     {
         method: METHODS.sessionSetActive,
@@ -246,7 +250,11 @@ export const PROTOCOL = [
         method: METHODS.documentWrite,
         direction: "coreToHost",
         kind: "request",
-        paramsFixture: { editorId: "e1", content: "<bpmn/>" } satisfies DocumentWriteParams,
+        paramsFixture: {
+            editorId: "e1",
+            content: "<bpmn/>",
+            revision: 1,
+        } satisfies DocumentWriteParams,
         resultFixture: { changed: true } satisfies DocumentWriteResult,
     },
     {
@@ -301,6 +309,33 @@ export const PROTOCOL = [
         kind: "request",
         paramsFixture: {} satisfies EmptyParams,
         resultFixture: { clientId: "id", clientSecret: "secret" } satisfies OAuth2Credentials,
+    },
+    // Acknowledged persists (requests, not notifications): the bridge awaits the
+    // host's empty ack so a persist failure is logged instead of diverging
+    // silently. No resultFixture (empty ack).
+    {
+        method: METHODS.deploymentStateSaveAuthType,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: { authType: "basic" } satisfies DeploymentSaveAuthTypeParams,
+    },
+    {
+        method: METHODS.deploymentStateSaveOAuth2Config,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            tokenEndpoint: "https://token",
+            audience: "aud",
+        } satisfies DeploymentSaveOAuth2ConfigParams,
+    },
+    {
+        method: METHODS.deploymentStateSave,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            endpoint: "https://engine",
+            tenantId: "t1",
+        } satisfies DeploymentSaveParams,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────
@@ -408,30 +443,6 @@ export const PROTOCOL = [
             paneUri: "u#d1-before",
             message: SAMPLE_COMMAND,
         } satisfies DiffPostMessageParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveAuthType,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: { authType: "basic" } satisfies DeploymentSaveAuthTypeParams,
-    },
-    {
-        method: METHODS.deploymentStateSaveOAuth2Config,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {
-            tokenEndpoint: "https://token",
-            audience: "aud",
-        } satisfies DeploymentSaveOAuth2ConfigParams,
-    },
-    {
-        method: METHODS.deploymentStateSave,
-        direction: "coreToHost",
-        kind: "notification",
-        paramsFixture: {
-            endpoint: "https://engine",
-            tenantId: "t1",
-        } satisfies DeploymentSaveParams,
     },
     {
         method: METHODS.deploymentPostMessage,

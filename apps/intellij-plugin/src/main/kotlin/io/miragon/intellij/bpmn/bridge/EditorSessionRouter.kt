@@ -23,6 +23,13 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
 
     private val sessions = ConcurrentHashMap<String, CoreSession>()
 
+    // Per-editor causation token bridging [handleWrite] to [notifyDocumentChanged]:
+    // a `document/write` records its revision here right before mutating the
+    // Document, so the synchronous `DocumentListener` echo it triggers can stamp
+    // the outgoing `document/didChange` with `causedBy`. The bridge then drops its
+    // own write by causation instead of comparing content.
+    private val pendingCausation = ConcurrentHashMap<String, Long>()
+
     fun register() {
         deps.handlers
             .on("editor/postMessage") { params, _ ->
@@ -101,13 +108,16 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
     /**
      * Forwards a document change to the core so external edits (git revert/
      * checkout, the plain-text tab, another tool) re-render the diagram. The host
-     * stays dumb: it reports *every* change, including the echo of its own
-     * `document/write`. The bridge tells the two apart — re-rendering our own
-     * write would loop, so it is filtered there, not here.
+     * stays dumb otherwise, but it does tag the echo of its own `document/write`:
+     * if [handleWrite] left a pending causation token for this editor, the change
+     * carries it as `causedBy` so the bridge can drop its own write by explicit
+     * causation. A genuine external edit has no pending token and omits `causedBy`.
      */
     fun notifyDocumentChanged(editorId: String, content: String) {
         if (!sessions.containsKey(editorId)) return
-        deps.channel.notify("document/didChange", linkedMapOf("editorId" to editorId, "content" to content))
+        val params = linkedMapOf<String, Any>("editorId" to editorId, "content" to content)
+        pendingCausation.remove(editorId)?.let { params["causedBy"] = it }
+        deps.channel.notify("document/didChange", params)
     }
 
     /** Tells the core which open editor is focused (drives its active-editor pointer). */
@@ -118,6 +128,7 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
 
     fun disposeSession(editorId: String) {
         sessions.remove(editorId)
+        pendingCausation.remove(editorId)
         deps.channel.notify("session/dispose", linkedMapOf("editorId" to editorId))
     }
 
@@ -147,6 +158,7 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
     private fun handleWrite(params: JsonObject, id: Int?) {
         val editorId = params.get("editorId").asString
         val content = StringUtil.convertLineSeparators(params.get("content").asString)
+        val revision = params.get("revision").asLong
         val session = sessions[editorId]
         if (session == null) {
             id?.let { deps.channel.reply(it, mapOf("changed" to false)) }
@@ -157,8 +169,18 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
             if (!session.project.isDisposed) {
                 val document = FileDocumentManager.getInstance().getDocument(session.file)
                 if (document != null && document.text != content) {
-                    WriteCommandAction.runWriteCommandAction(session.project) {
-                        document.setText(content)
+                    // setText synchronously fires the editor's DocumentListener, which
+                    // calls notifyDocumentChanged on this thread. Stamp the causation
+                    // token first so that echo carries `causedBy`; the listener
+                    // removes it, and the finally clears any stray entry if no echo
+                    // fired (e.g. a write barren of an actual change).
+                    pendingCausation[editorId] = revision
+                    try {
+                        WriteCommandAction.runWriteCommandAction(session.project) {
+                            document.setText(content)
+                        }
+                    } finally {
+                        pendingCausation.remove(editorId)
                     }
                     changed = true
                 }

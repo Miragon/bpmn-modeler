@@ -25,22 +25,27 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
                 val payload = deps.gson.toJson(params.get("message"))
                 deploymentSink?.invoke(payload)
             }
-            // PropertiesComponent writes are thread-safe and run on the reader
-            // thread here (same as the secretStore handlers).
-            .on("deploymentState/saveAuthType") { params, _ ->
+            // Acknowledged requests (not notifications): the bridge awaits the
+            // persist so a failure is logged, not silently dropped. PropertiesComponent
+            // writes are thread-safe and run on the reader thread here (same as the
+            // secretStore handlers); the empty `reply` mirrors `secretStore/save*`.
+            .on("deploymentState/saveAuthType") { params, id ->
                 deploymentState.saveAuthType(params.get("authType").asString)
+                id?.let { deps.channel.reply(it, null) }
             }
-            .on("deploymentState/saveOAuth2Config") { params, _ ->
+            .on("deploymentState/saveOAuth2Config") { params, id ->
                 deploymentState.saveOAuth2Config(
                     params.get("tokenEndpoint").asString,
                     params.get("audience").asString,
                 )
+                id?.let { deps.channel.reply(it, null) }
             }
-            .on("deploymentState/save") { params, _ ->
+            .on("deploymentState/save") { params, id ->
                 deploymentState.save(
                     params.get("endpoint").asString,
                     params.get("tenantId").asString,
                 )
+                id?.let { deps.channel.reply(it, null) }
             }
     }
 

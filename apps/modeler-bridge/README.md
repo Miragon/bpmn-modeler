@@ -38,14 +38,20 @@ The **synchronous-read mismatch** — `BpmnModelerService.display()` reads
 by a local `DocumentMirror` the host seeds on `session/register` and keeps
 current with `document/didChange`, so reads hit a cache instead of blocking.
 
-**Echo prevention.** The host stays dumb: it reports *every* document change,
-including the echo of the core's own `document/write`. The bridge tells the two
-apart by content — `RpcDocumentPort.write` updates the mirror before the RPC, so
-a `document/didChange` whose content already equals the mirror is the host's echo
-and is dropped; only a genuinely different text (a git revert, the plain-text tab,
-another tool) re-renders. The core's `ModelerSession` guard stays wired as a
-second line of defence. This keeps echo prevention in TypeScript — host-agnostic,
-with no cross-process timing assumptions — so every future host inherits it.
+**Echo prevention.** The host reports *every* document change, including the echo
+of the core's own `document/write`. The bridge tells the two apart by **explicit
+causation** (LSP-style versioned `didChange`): every `document/write` mints a
+per-editor revision the host echoes back as `causedBy`, so a `document/didChange`
+whose `causedBy` matches a pending own write is the host's echo and is dropped;
+an external edit (a git revert, the plain-text tab, another tool) carries no
+`causedBy` (or a stale one) and re-renders. The core's `ModelerSession` guard
+stays wired as a second line of defence. This keeps echo prevention in
+TypeScript — host-agnostic, with no content-comparison or cross-process timing
+assumptions — so every future host inherits it.
+
+The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
+checklist for adding the next synchronous port) is written up once in
+`docs/vscode/contributing/architecture/host-replicated-state.md`.
 
 > **Why not a WebSocket seam between the webview and the server?** That would be
 > the right tool for a plain browser host, where the webview talks to the server

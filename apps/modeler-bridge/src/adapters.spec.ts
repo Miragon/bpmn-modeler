@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { NotifierPort, UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import {
     DocumentMirror,
     RpcClipboard,
+    RpcDeploymentState,
     RpcDocumentPort,
     RpcEditorHandle,
     RpcNotifier,
@@ -66,6 +67,46 @@ describe("DocumentMirror", () => {
         expect(mirror.peek(META.editorId)).toBeUndefined();
         expect(mirror.content(META.editorId)).toBe("");
     });
+
+    it("mints monotonic per-editor revisions and recognises its own echo once", () => {
+        const mirror = new DocumentMirror();
+        const r1 = mirror.nextWriteRevision("a");
+        const r2 = mirror.nextWriteRevision("a");
+        const other = mirror.nextWriteRevision("b");
+        expect([r1, r2]).toEqual([1, 2]);
+        expect(other).toBe(1); // counter is per-editor
+
+        // A pending own revision is recognised exactly once, then consumed.
+        expect(mirror.isOwnEcho("a", r1)).toBe(true);
+        expect(mirror.isOwnEcho("a", r1)).toBe(false);
+        // An unknown/stale causation is never an echo.
+        expect(mirror.isOwnEcho("a", 9999)).toBe(false);
+        // Editors don't share pending revisions.
+        expect(mirror.isOwnEcho("b", r2)).toBe(false);
+    });
+
+    it("forgetWriteRevision drops a pending revision that will never be echoed", () => {
+        const mirror = new DocumentMirror();
+        const r1 = mirror.nextWriteRevision("a");
+        const r2 = mirror.nextWriteRevision("a");
+        mirror.forgetWriteRevision("a", r1);
+        // The forgotten revision is gone; an unrelated pending one is untouched.
+        expect(mirror.isOwnEcho("a", r1)).toBe(false);
+        expect(mirror.isOwnEcho("a", r2)).toBe(true);
+        // Forgetting an unknown revision (or editor) is a harmless no-op.
+        mirror.forgetWriteRevision("a", 9999);
+        mirror.forgetWriteRevision("unknown", 1);
+    });
+
+    it("remove also clears revision state for the editor", () => {
+        const mirror = new DocumentMirror();
+        const r1 = mirror.nextWriteRevision("a");
+        mirror.remove("a");
+        // The pending own revision is gone, so the echo would re-render.
+        expect(mirror.isOwnEcho("a", r1)).toBe(false);
+        // The counter resets, so a re-registered editor starts fresh.
+        expect(mirror.nextWriteRevision("a")).toBe(1);
+    });
 });
 
 describe("RpcEditorHandle", () => {
@@ -107,10 +148,29 @@ describe("RpcEditorHandle", () => {
             method: "document/write",
             params: { editorId: META.editorId, content: "new" },
         });
+        // The write is tagged with a revision the host echoes back as `causedBy`.
+        expect(last(frames).params.revision).toBeTypeOf("number");
         await answerLast({ changed: true });
 
         await expect(pending).resolves.toBe(true);
         expect(mirror.content(META.editorId)).toBe("new");
+    });
+
+    it("forgets the revision of a no-op write so it cannot linger as pending", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "same");
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+
+        const pending = handle.writeContent("same");
+        const revision = last(frames).params.revision as number;
+        // The host reports no change, so it never echoes a `document/didChange`.
+        await answerLast({ changed: false });
+        await expect(pending).resolves.toBe(false);
+
+        // The minted revision was dropped, so a (hypothetical) later echo of it
+        // would re-render rather than being swallowed, and the set stays bounded.
+        expect(mirror.isOwnEcho(META.editorId, revision)).toBe(false);
     });
 
     it("save requests document/save and returns the saved flag", async () => {
@@ -232,6 +292,83 @@ describe("RpcDocumentPort", () => {
         const save = port.save(META.editorId);
         await answerLast({ saved: true });
         await expect(save).resolves.toBe(true);
+    });
+});
+
+describe("RpcDeploymentState", () => {
+    /** Minimal NotifierPort stub; only logError is exercised here. */
+    function fakeNotifier() {
+        return { logError: vi.fn() } as unknown as NotifierPort & {
+            logError: ReturnType<typeof vi.fn>;
+        };
+    }
+
+    it("seeds the snapshot and serves it through the synchronous getters", () => {
+        const state = new RpcDeploymentState(new Rpc(() => {}), fakeNotifier());
+        state.seed({ endpoint: "https://engine", tenantId: "t1", authType: "basic" });
+
+        expect(state.getEndpoint()).toBe("https://engine");
+        expect(state.getTenantId()).toBe("t1");
+        expect(state.getAuthType()).toBe("basic");
+    });
+
+    it("save* emits an acknowledged request and updates the snapshot optimistically", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const state = new RpcDeploymentState(rpc, fakeNotifier());
+
+        const pending = state.save("https://engine", "t1");
+        // The persist is a request (has an id), not a fire-and-forget notification.
+        expect(last(frames)).toMatchObject({
+            method: "deploymentState/save",
+            params: { endpoint: "https://engine", tenantId: "t1" },
+        });
+        expect(last(frames).id).toBeTypeOf("number");
+        // Reads are correct before the host even acks (optimistic update).
+        expect(state.getEndpoint()).toBe("https://engine");
+
+        await answerLast(null);
+        await expect(pending).resolves.toBeUndefined();
+    });
+
+    it("saveAuthType / saveOAuth2Config also round-trip as requests", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const state = new RpcDeploymentState(rpc, fakeNotifier());
+
+        const auth = state.saveAuthType("oauth2");
+        expect(last(frames)).toMatchObject({
+            method: "deploymentState/saveAuthType",
+            params: { authType: "oauth2" },
+        });
+        await answerLast(null);
+        await expect(auth).resolves.toBeUndefined();
+        expect(state.getAuthType()).toBe("oauth2");
+
+        const oauth = state.saveOAuth2Config("https://token", "aud");
+        expect(last(frames)).toMatchObject({
+            method: "deploymentState/saveOAuth2Config",
+            params: { tokenEndpoint: "https://token", audience: "aud" },
+        });
+        await answerLast(null);
+        await expect(oauth).resolves.toBeUndefined();
+        expect(state.getTokenEndpoint()).toBe("https://token");
+        expect(state.getAudience()).toBe("aud");
+    });
+
+    it("logs and does not reject when the host's persist fails", async () => {
+        const { frames, rpc } = harness();
+        const notifier = fakeNotifier();
+        const state = new RpcDeploymentState(rpc, notifier);
+
+        const pending = state.save("https://engine", "t1");
+        // The host rejects the persist; the deploy must still succeed.
+        await rpc.handleLine(JSON.stringify({ id: last(frames).id, error: "disk full" }));
+
+        await expect(pending).resolves.toBeUndefined();
+        expect(notifier.logError).toHaveBeenCalledOnce();
+        expect(notifier.logError.mock.calls[0][0]).toBeInstanceOf(Error);
+        expect((notifier.logError.mock.calls[0][0] as Error).message).toContain("disk full");
+        // The optimistic snapshot is intentionally not rolled back; the next seed reconciles.
+        expect(state.getEndpoint()).toBe("https://engine");
     });
 });
 

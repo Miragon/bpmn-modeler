@@ -2,6 +2,7 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -19,6 +20,22 @@ import java.util.concurrent.TimeUnit
 class RpcChannelTest {
     private val gson = Gson()
 
+    // Tracked so teardown stops their daemon threads: the platform JUnit5 fixtures
+    // bundle a ThreadLeakTracker that auto-registers for every test in the module.
+    private val openChannels = mutableListOf<RpcChannel>()
+    private val openFakes = mutableListOf<FakeProcess>()
+
+    @AfterEach
+    fun closeTransports() {
+        openChannels.forEach { it.close() }
+        openFakes.forEach { it.close() }
+    }
+
+    private fun rpcChannel(dispatch: (method: String, params: JsonObject, id: Int?) -> Unit): RpcChannel =
+        RpcChannel(dispatch).also { openChannels += it }
+
+    private fun fakeProcess(): FakeProcess = FakeProcess().also { openFakes += it }
+
     private fun parse(line: String): JsonObject = gson.fromJson(line, JsonObject::class.java)
 
     /**
@@ -29,8 +46,8 @@ class RpcChannelTest {
      */
     @Test
     fun `coalescing keeps only the latest keyed frame and preserves the rest in order`() {
-        val fake = FakeProcess()
-        val channel = RpcChannel { _, _, _ -> }
+        val fake = fakeProcess()
+        val channel = rpcChannel { _, _, _ -> }
 
         channel.notify("sync", mapOf("v" to 1), coalesceKey = "sync:x")
         channel.notify("sync", mapOf("v" to 2), coalesceKey = "sync:x")
@@ -56,8 +73,8 @@ class RpcChannelTest {
     @Test
     fun `backpressure drops the oldest frame and retains the newest`() {
         val capacity = 512
-        val fake = FakeProcess()
-        val channel = RpcChannel { _, _, _ -> }
+        val fake = fakeProcess()
+        val channel = rpcChannel { _, _, _ -> }
 
         for (i in 0..capacity) channel.notify("m", i) // capacity + 1 frames
 
@@ -74,8 +91,8 @@ class RpcChannelTest {
     @Test
     fun `malformed inbound frame does not kill the pump`() {
         val dispatched = LinkedBlockingQueue<String>()
-        val channel = RpcChannel { method, _, _ -> dispatched.add(method) }
-        val fake = FakeProcess()
+        val channel = rpcChannel { method, _, _ -> dispatched.add(method) }
+        val fake = fakeProcess()
         channel.attach(fake.outputStream, fake.inputStream)
 
         fake.emit("this is not json {{{")
@@ -92,14 +109,14 @@ class RpcChannelTest {
     @Test
     fun `inbound request is always answered even when the handler throws`() {
         var channelRef: RpcChannel? = null
-        val channel = RpcChannel { method, _, id ->
+        val channel = rpcChannel { method, _, id ->
             when (method) {
                 "boom" -> throw RuntimeException("handler blew up")
                 "echo" -> channelRef!!.reply(id!!, "ok")
             }
         }
         channelRef = channel
-        val fake = FakeProcess()
+        val fake = fakeProcess()
         channel.attach(fake.outputStream, fake.inputStream)
 
         fake.emit("""{"method":"boom","params":{},"id":7}""")
@@ -123,8 +140,8 @@ class RpcChannelTest {
      */
     @Test
     fun `detach drops frames but the writer survives and resumes`() {
-        val first = FakeProcess()
-        val channel = RpcChannel { _, _, _ -> }
+        val first = fakeProcess()
+        val channel = rpcChannel { _, _, _ -> }
         channel.attach(first.outputStream, first.inputStream)
 
         channel.notify("before", 1)
@@ -134,7 +151,7 @@ class RpcChannelTest {
         channel.notify("dropped", 2)
         first.expectNoFrame() // the writer wakes, sees no target, and drops the frame
 
-        val second = FakeProcess()
+        val second = fakeProcess()
         channel.attach(second.outputStream, second.inputStream)
         channel.notify("after", 3)
 

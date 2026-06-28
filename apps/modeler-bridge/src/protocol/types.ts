@@ -43,6 +43,12 @@ export interface WebviewMessageParams {
 export interface DocumentDidChangeParams {
     editorId: string;
     content: string;
+    /**
+     * Set iff this change is the host's echo of a core-originated
+     * `document/write`, carrying that write's {@link DocumentWriteParams.revision}
+     * so the bridge can drop its own causation. Absent on genuine external edits.
+     */
+    causedBy?: number;
 }
 
 /** `session/setActive`, `session/dispose` — address an editor by id alone. */
@@ -113,6 +119,13 @@ export interface ScriptCloseParams {
 export interface DocumentWriteParams {
     editorId: string;
     content: string;
+    /**
+     * Per-editor monotonic id the host echoes back as
+     * {@link DocumentDidChangeParams.causedBy}, letting the bridge recognise the
+     * resulting `document/didChange` as its own write (LSP-style causation)
+     * rather than inferring it by content comparison.
+     */
+    revision: number;
 }
 export interface DocumentWriteResult {
     changed?: boolean;

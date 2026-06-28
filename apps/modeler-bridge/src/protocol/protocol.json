@@ -28,6 +28,7 @@
         "direction": "hostToCore",
         "kind": "notification",
         "paramKeys": [
+            "causedBy",
             "content",
             "editorId"
         ]
@@ -131,7 +132,8 @@
         "kind": "request",
         "paramKeys": [
             "content",
-            "editorId"
+            "editorId",
+            "revision"
         ],
         "resultKeys": [
             "changed"
@@ -207,6 +209,32 @@
         "resultKeys": [
             "clientId",
             "clientSecret"
+        ]
+    },
+    {
+        "method": "deploymentState/saveAuthType",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "authType"
+        ]
+    },
+    {
+        "method": "deploymentState/saveOAuth2Config",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "audience",
+            "tokenEndpoint"
+        ]
+    },
+    {
+        "method": "deploymentState/save",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "endpoint",
+            "tenantId"
         ]
     },
     {
@@ -338,32 +366,6 @@
         "paramKeys": [
             "message",
             "paneUri"
-        ]
-    },
-    {
-        "method": "deploymentState/saveAuthType",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "authType"
-        ]
-    },
-    {
-        "method": "deploymentState/saveOAuth2Config",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "audience",
-            "tokenEndpoint"
-        ]
-    },
-    {
-        "method": "deploymentState/save",
-        "direction": "coreToHost",
-        "kind": "notification",
-        "paramKeys": [
-            "endpoint",
-            "tenantId"
         ]
     },
     {
