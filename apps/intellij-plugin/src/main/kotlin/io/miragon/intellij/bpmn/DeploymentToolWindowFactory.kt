@@ -58,6 +58,12 @@ class DeploymentToolWindowFactory : ToolWindowFactory {
         val browser = JBCefBrowser()
         Disposer.register(toolWindow.disposable, browser)
 
+        // Follow the IDE color theme: push a deployment-form theme update into the
+        // page on every LaF / editor-scheme change so the form tracks the IDE live.
+        // Parented to the tool window, so the callback is removed when it closes.
+        val themeSignal = service<IdeThemeSignal>()
+        themeSignal.follow(toolWindow.disposable, browser.cefBrowser) { themeSignal.deploymentApplyJs() }
+
         // JS → JVM: forward every deployment-webview message to the core untouched.
         val jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
         Disposer.register(browser, jsQuery)
@@ -88,6 +94,9 @@ class DeploymentToolWindowFactory : ToolWindowFactory {
                         b.url,
                         0,
                     )
+                    // Re-apply on (re)load so a theme change racing the load is
+                    // not lost; deploymentHtml() already bakes in the initial theme.
+                    b.executeJavaScript(themeSignal.deploymentApplyJs(), b.url, 0)
                 }
             },
             browser.cefBrowser,

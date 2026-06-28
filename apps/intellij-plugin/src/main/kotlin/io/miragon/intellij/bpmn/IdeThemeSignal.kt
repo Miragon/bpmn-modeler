@@ -104,15 +104,92 @@ class IdeThemeSignal : Disposable {
     }
 
     /**
+     * The `--vscode-*` set the deployment form's stylesheet reads, mapped onto the
+     * live IDE palette — the IDE-color counterpart of [WebviewServer]'s old
+     * system-color block, so the form tracks the IDE theme, not the OS.
+     *
+     * The deployment form reads a different, larger variable set than the bpmn
+     * webview, so it needs its own mapping. Every source below is a plain
+     * UIDefaults/scheme read with no EDT affinity (callable off the EDT from the
+     * HTTP pool thread, like [themeVarsCss]). The two `JBColor.namedColor` LaF keys
+     * each carry a fallback, so an absent key degrades gracefully.
+     */
+    fun deploymentThemeVarsCss(): String {
+        val scheme = EditorColorsManager.getInstance().globalScheme
+        val panelBg = UIUtil.getPanelBackground()
+
+        val foreground = ColorUtil.toHtmlColor(UIUtil.getLabelForeground())
+        val descriptionForeground = ColorUtil.toHtmlColor(UIUtil.getContextHelpForeground())
+        val editorBackground = ColorUtil.toHtmlColor(scheme.defaultBackground)
+        val panelBackground = ColorUtil.toHtmlColor(panelBg)
+        val border = ColorUtil.toHtmlColor(JBColor.border())
+        val listHover = ColorUtil.toHtmlColor(UIUtil.getListSelectionBackground(false))
+        val focusBorder = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Focus.focusColor())
+        val inputBackground = ColorUtil.toHtmlColor(JBColor.namedColor("TextField.background", panelBg))
+        val inputForeground = ColorUtil.toHtmlColor(UIUtil.getTextFieldForeground())
+        val buttonBackground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Button.defaultButtonColorStart())
+        val buttonForeground = ColorUtil.toHtmlColor(JBColor.namedColor("Button.default.foreground", JBColor.WHITE))
+        val buttonHoverBackground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Button.defaultButtonColorEnd())
+        val buttonSecondaryBackground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Button.buttonColorStart())
+        val buttonSecondaryForeground =
+            ColorUtil.toHtmlColor(JBColor.namedColor("Button.foreground", UIUtil.getLabelForeground()))
+        val buttonSecondaryHoverBackground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Button.buttonColorEnd())
+        val errorForeground = ColorUtil.toHtmlColor(NamedColorUtil.getErrorForeground())
+        val notificationsBackground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.NotificationInfo.backgroundColor())
+        val infoBackground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Banner.INFO_BACKGROUND)
+        val infoBorder = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Banner.INFO_BORDER_COLOR)
+        val bannerForeground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Banner.FOREGROUND)
+        val errorBackground = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Banner.ERROR_BACKGROUND)
+        val errorBorder = ColorUtil.toHtmlColor(JBUI.CurrentTheme.Banner.ERROR_BORDER_COLOR)
+
+        return listOf(
+            ":root {",
+            "  --vscode-foreground: $foreground;",
+            "  --vscode-descriptionForeground: $descriptionForeground;",
+            "  --vscode-icon-foreground: $foreground;",
+            "  --vscode-editor-background: $editorBackground;",
+            "  --vscode-sideBar-background: $panelBackground;",
+            "  --vscode-sideBarSectionHeader-background: $panelBackground;",
+            "  --vscode-sideBarSectionHeader-foreground: $foreground;",
+            "  --vscode-panel-border: $border;",
+            "  --vscode-list-hoverBackground: $listHover;",
+            "  --vscode-focusBorder: $focusBorder;",
+            "  --vscode-input-background: $inputBackground;",
+            "  --vscode-input-foreground: $inputForeground;",
+            "  --vscode-input-border: $border;",
+            "  --vscode-button-background: $buttonBackground;",
+            "  --vscode-button-foreground: $buttonForeground;",
+            "  --vscode-button-hoverBackground: $buttonHoverBackground;",
+            "  --vscode-button-secondaryBackground: $buttonSecondaryBackground;",
+            "  --vscode-button-secondaryForeground: $buttonSecondaryForeground;",
+            "  --vscode-button-secondaryHoverBackground: $buttonSecondaryHoverBackground;",
+            "  --vscode-errorForeground: $errorForeground;",
+            "  --vscode-notifications-background: $notificationsBackground;",
+            "  --vscode-inputValidation-infoBackground: $infoBackground;",
+            "  --vscode-inputValidation-infoBorder: $infoBorder;",
+            "  --vscode-inputValidation-infoForeground: $bannerForeground;",
+            "  --vscode-inputValidation-errorBackground: $errorBackground;",
+            "  --vscode-inputValidation-errorBorder: $errorBorder;",
+            "  --vscode-inputValidation-errorForeground: $bannerForeground;",
+            "}",
+        ).joinToString("\n")
+    }
+
+    /**
      * The JS that re-applies the current theme to an already-loaded page. It
      * toggles both body classes (one is always present, matching VS Code, so the
      * webview's MutationObserver fires and swaps the stylesheet) and replaces the
      * `#ide-theme-vars` style block's text with freshly mapped colors. The CSS is
      * embedded as a Gson-encoded string literal so any characters stay JS-safe.
+     *
+     * [varsCss] defaults to the bpmn mapping; pass [deploymentThemeVarsCss] (via
+     * [deploymentApplyJs]) for the deployment form. The body-class toggle is inert
+     * for the deployment form — its CSS doesn't read the class — so the same JS
+     * shape serves both pages.
      */
-    fun applyJs(): String {
+    fun applyJs(varsCss: String = themeVarsCss()): String {
         val dark = isDark()
-        val cssLiteral = gson.toJson(themeVarsCss())
+        val cssLiteral = gson.toJson(varsCss)
         return buildString {
             append("(function(){")
             append("var c=document.body.classList;")
@@ -124,16 +201,26 @@ class IdeThemeSignal : Disposable {
         }
     }
 
+    /** [applyJs] specialised for the deployment form's variable set. */
+    fun deploymentApplyJs(): String = applyJs(deploymentThemeVarsCss())
+
     /**
      * Registers [browser] to receive live theme updates until [parentDisposable]
-     * is disposed. The callback pushes [applyJs] into the page on every LaF or
-     * editor-scheme change; CEF marshals `executeJavaScript` internally, so it is
-     * safe to invoke from the EDT delivery thread (same pattern as CoreSession's
-     * off-EDT pushes).
+     * is disposed. The callback pushes the [applyJsProducer] output into the page
+     * on every LaF or editor-scheme change; CEF marshals `executeJavaScript`
+     * internally, so it is safe to invoke from the EDT delivery thread (same
+     * pattern as CoreSession's off-EDT pushes).
+     *
+     * [applyJsProducer] defaults to the bpmn [applyJs]; the deployment tool window
+     * passes [deploymentApplyJs] so the form gets its own variable set.
      */
-    fun follow(parentDisposable: Disposable, browser: CefBrowser) {
+    fun follow(
+        parentDisposable: Disposable,
+        browser: CefBrowser,
+        applyJsProducer: () -> String = { applyJs() },
+    ) {
         val callback: () -> Unit = {
-            runCatching { browser.executeJavaScript(applyJs(), browser.url, 0) }
+            runCatching { browser.executeJavaScript(applyJsProducer(), browser.url, 0) }
         }
         listeners.add(callback)
         Disposer.register(parentDisposable) { listeners.remove(callback) }
