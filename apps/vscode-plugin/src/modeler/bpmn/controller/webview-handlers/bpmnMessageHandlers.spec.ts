@@ -139,7 +139,7 @@ describe("set-style handlers forward the command payload", () => {
 describe("openScriptEditorHandler", () => {
     it("maps every command field to the script-task service, in order", async () => {
         const scriptTaskSvc = { openScriptEditor: vi.fn().mockResolvedValue(undefined) };
-        const variableStore = { set: vi.fn() };
+        const variableStore = { setExtracted: vi.fn() };
 
         await openScriptEditorHandler(scriptTaskSvc as never, variableStore as never)(
             new OpenScriptEditorCommand(
@@ -166,7 +166,7 @@ describe("openScriptEditorHandler", () => {
 
     it("seeds the variable store from the command before opening", async () => {
         const scriptTaskSvc = { openScriptEditor: vi.fn().mockResolvedValue(undefined) };
-        const variableStore = { set: vi.fn() };
+        const variableStore = { setExtracted: vi.fn() };
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
         await openScriptEditorHandler(scriptTaskSvc as never, variableStore as never)(
@@ -182,13 +182,13 @@ describe("openScriptEditorHandler", () => {
             EDITOR,
         );
 
-        expect(variableStore.set).toHaveBeenCalledWith(EDITOR, variables);
+        expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
     });
 });
 
 describe("updateScriptVariablesHandler", () => {
     it("replaces the editor's variable model in the store", () => {
-        const variableStore = { set: vi.fn() };
+        const variableStore = { setExtracted: vi.fn() };
         const variables = [{ name: "total", origin: "output mapping", confidence: "declared" }];
 
         updateScriptVariablesHandler(variableStore as never)(
@@ -196,6 +196,6 @@ describe("updateScriptVariablesHandler", () => {
             EDITOR,
         );
 
-        expect(variableStore.set).toHaveBeenCalledWith(EDITOR, variables);
+        expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
     });
 });

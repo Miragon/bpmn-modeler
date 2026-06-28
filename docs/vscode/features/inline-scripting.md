@@ -129,6 +129,46 @@ scope.
      `setVariable`, `getVariable`, `getProcessBusinessKey`, etc. with their
      signatures visible. -->
 
+### Process-variable completions
+
+Inside a `getVariable("…")` / `setVariable("…")` string argument — and at
+the start of a line — you also get completions for the **process
+variables** the modeler discovered in the diagram. These are inferred
+heuristically from input/output mappings, form fields, result variables,
+call-activity mappings, and `setVariable(…)` / `${…}` occurrences.
+
+### Declaring variables with a `*.bpmn.vars.json` manifest
+
+Heuristic discovery cannot see variables injected from outside the model
+(a REST start payload, a correlated message, a parent process), and it
+cannot carry author-supplied types or documentation. To declare those
+explicitly, drop a manifest next to the diagram named after it with a
+`.vars.json` suffix:
+
+```
+order-process.bpmn
+order-process.bpmn.vars.json
+```
+
+```json
+{
+  "variables": [
+    { "name": "orderId", "type": "String", "description": "Set by the REST start request" },
+    { "name": "amount", "type": "Long" },
+    { "name": "approved" }
+  ]
+}
+```
+
+- `name` is required; `type` and `description` are optional.
+- The `description` is shown in the completion documentation popup.
+- Manifest entries **merge with** the discovered variables and **win** on a
+  name clash, so a declared `type` overrides whatever the heuristic
+  guessed.
+- The manifest is watched: edits, creation, and deletion update completion
+  live while the script editor is open. A malformed manifest is ignored
+  (it never breaks completion for the rest of the diagram).
+
 ## Pair with an AI Assistant
 
 Because the script editor is a real VS Code document, AI assistants that

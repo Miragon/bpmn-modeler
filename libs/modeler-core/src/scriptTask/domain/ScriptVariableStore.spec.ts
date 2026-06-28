@@ -8,14 +8,18 @@ import { ScriptVariableStore } from "./ScriptVariableStore";
 const EDITOR = "file:///work/diagram.bpmn";
 const HASH = ScriptUri.hashEditorId(EDITOR);
 
-function variable(name: string): VariableDef {
-    return { name, origin: "test", confidence: "declared" };
+function extracted(name: string): VariableDef {
+    return { name, origin: "extracted", confidence: "declared" };
+}
+
+function authored(name: string, typeHint?: string): VariableDef {
+    return { name, origin: "manifest", typeHint, confidence: "authored" };
 }
 
 describe("ScriptVariableStore", () => {
-    it("stores variables keyed by the editor hash", () => {
+    it("returns extracted variables keyed by the editor hash", () => {
         const store = new ScriptVariableStore();
-        store.set(EDITOR, [variable("a")]);
+        store.setExtracted(EDITOR, [extracted("a")]);
         expect(store.getByEditorHash(HASH).map((v) => v.name)).toEqual(["a"]);
     });
 
@@ -23,16 +27,45 @@ describe("ScriptVariableStore", () => {
         expect(new ScriptVariableStore().getByEditorHash("unknown")).toEqual([]);
     });
 
-    it("replaces the previous model on set", () => {
+    it("replaces only the extracted source on setExtracted", () => {
         const store = new ScriptVariableStore();
-        store.set(EDITOR, [variable("a")]);
-        store.set(EDITOR, [variable("b")]);
-        expect(store.getByEditorHash(HASH).map((v) => v.name)).toEqual(["b"]);
+        store.setManifest(EDITOR, [authored("m")]);
+        store.setExtracted(EDITOR, [extracted("a")]);
+        store.setExtracted(EDITOR, [extracted("b")]);
+        expect(
+            store
+                .getByEditorHash(HASH)
+                .map((v) => v.name)
+                .sort(),
+        ).toEqual(["b", "m"]);
     });
 
-    it("clears an editor's variables", () => {
+    it("merges manifest and extracted sources", () => {
         const store = new ScriptVariableStore();
-        store.set(EDITOR, [variable("a")]);
+        store.setExtracted(EDITOR, [extracted("a")]);
+        store.setManifest(EDITOR, [authored("b")]);
+        expect(
+            store
+                .getByEditorHash(HASH)
+                .map((v) => v.name)
+                .sort(),
+        ).toEqual(["a", "b"]);
+    });
+
+    it("lets a manifest entry win a name clash with an extracted one", () => {
+        const store = new ScriptVariableStore();
+        store.setExtracted(EDITOR, [extracted("shared")]);
+        store.setManifest(EDITOR, [authored("shared", "Boolean")]);
+        const result = store.getByEditorHash(HASH);
+        expect(result).toHaveLength(1);
+        expect(result[0].typeHint).toBe("Boolean");
+        expect(result[0].confidence).toBe("authored");
+    });
+
+    it("clears both sources", () => {
+        const store = new ScriptVariableStore();
+        store.setExtracted(EDITOR, [extracted("a")]);
+        store.setManifest(EDITOR, [authored("b")]);
         store.clear(EDITOR);
         expect(store.getByEditorHash(HASH)).toEqual([]);
     });

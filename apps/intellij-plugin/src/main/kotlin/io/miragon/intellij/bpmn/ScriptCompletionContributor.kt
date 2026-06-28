@@ -98,12 +98,20 @@ class ScriptCompletionContributor : CompletionContributor() {
                 .withTypeText(bean.type)
                 .appendTailText("  ${bean.description}", true)
 
-        /** Process variable as a variable-icon lookup: typeHint (or a generic label) right, origin greyed. */
+        /**
+         * Process variable as a variable-icon lookup: typeHint (or a generic
+         * label) right, doc greyed. An authored manifest variable leads with its
+         * [VariableInfo.description]; otherwise the heuristic [VariableInfo.origin]
+         * is shown.
+         */
         private fun variableLookup(variable: VariableInfo) =
             LookupElementBuilder.create(variable.name)
                 .withIcon(AllIcons.Nodes.Variable)
                 .withTypeText(variable.typeHint ?: "process variable")
-                .appendTailText(variable.origin?.let { "  $it" }.orEmpty(), true)
+                .appendTailText(
+                    (variable.description ?: variable.origin)?.let { "  $it" }.orEmpty(),
+                    true,
+                )
 
         /**
          * Method as a method-icon lookup: `name`, `(params)` tail, return type on

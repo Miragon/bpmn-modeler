@@ -74,10 +74,17 @@ describe("bridge script editor (real core over a fake transport)", () => {
         }
     });
 
-    async function setup(): Promise<{ rpc: Rpc; frames: any[]; editorId: string }> {
+    async function setup(options?: {
+        manifest?: string;
+    }): Promise<{ rpc: Rpc; frames: any[]; editorId: string }> {
         const root = await fs.mkdtemp(join(tmpdir(), "modeler-bridge-script-"));
         const sourcePath = join(root, "source.bpmn");
         await fs.writeFile(sourcePath, C7_XML, "utf8");
+        // Written before session/register so the script feature's onSessionRegistered
+        // hook reads it into the editor's manifest source.
+        if (options?.manifest !== undefined) {
+            await fs.writeFile(`${sourcePath}.vars.json`, options.manifest, "utf8");
+        }
 
         const frames: any[] = [];
         const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
@@ -265,6 +272,44 @@ describe("bridge script editor (real core over a fake transport)", () => {
 
         const open = await waitForFrame(frames, (f) => f.method === "script/open");
         expect(open.params.completion.variables).toEqual(variables);
+    });
+
+    it("merges the *.bpmn.vars.json manifest into the script/open payload, manifest winning a clash", async () => {
+        const { rpc, frames, editorId } = await setup({
+            manifest: JSON.stringify({
+                variables: [
+                    { name: "orderId", type: "String", description: "Set by REST start" },
+                    { name: "amount", type: "Long" },
+                ],
+            }),
+        });
+
+        // `amount` also arrives as an extracted (heuristic) variable — the
+        // manifest's authored entry must win the clash.
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+            variables,
+        });
+
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const byName: Record<string, any> = Object.fromEntries(
+            open.params.completion.variables.map((v: { name: string }) => [v.name, v]),
+        );
+
+        expect(byName.orderId).toMatchObject({
+            typeHint: "String",
+            description: "Set by REST start",
+            confidence: "authored",
+        });
+        // The authored `amount` (type Long) wins over the extracted form field.
+        expect(byName.amount).toMatchObject({ typeHint: "Long", confidence: "authored" });
+        expect(open.params.completion.variables).toHaveLength(2);
     });
 
     it("pushes script/updateVariables for that editor's open scripts only", async () => {

@@ -7,4 +7,5 @@ export * from "./lib/modeler";
 export * from "./lib/theme";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/processVariables";
+export * from "./lib/variableManifest";
 export * from "./lib/bpmnFlowOrder";

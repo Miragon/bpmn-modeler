@@ -142,7 +142,7 @@ export function openScriptEditorHandler(
 ): MessageHandler {
     return async (message: Command, editorId: string) => {
         const cmd = message as OpenScriptEditorCommand;
-        variableStore.set(editorId, cmd.variables ?? []);
+        variableStore.setExtracted(editorId, cmd.variables ?? []);
         await scriptTaskSvc.openScriptEditor(
             editorId,
             cmd.elementId,
@@ -158,7 +158,7 @@ export function openScriptEditorHandler(
 /** `UpdateScriptVariablesCommand` → replace the editor's variable model for live completion. */
 export function updateScriptVariablesHandler(variableStore: ScriptVariableStore): MessageHandler {
     return (message: Command, editorId: string) => {
-        variableStore.set(editorId, (message as UpdateScriptVariablesCommand).variables);
+        variableStore.setExtracted(editorId, (message as UpdateScriptVariablesCommand).variables);
     };
 }
 

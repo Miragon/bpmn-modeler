@@ -42,7 +42,7 @@ const SCRIPT_PATH = `/${HASH}/Task_1/script-task/Task_1.groovy`;
 
 function storeWith(...variables: VariableDef[]): ScriptVariableStore {
     const store = new ScriptVariableStore();
-    store.set(EDITOR, variables);
+    store.setExtracted(EDITOR, variables);
     return store;
 }
 

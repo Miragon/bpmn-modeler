@@ -29,12 +29,14 @@ export function activate(context: ExtensionContext): void {
 
     const deps = buildSharedDeps(context);
     const { diffController } = diffFeature.register(context, deps);
-    const { scriptTaskSvc, scriptVariableStore } = scriptFeature.register(context, deps);
+    const { scriptTaskSvc, scriptVariableStore, scriptManifestParticipant } =
+        scriptFeature.register(context, deps);
     const codeLink = codeLinkFeature.register(context, deps);
     const { bpmnService } = editorFeature.register(context, deps, {
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
+        scriptManifestParticipant,
         codeLink,
     });
     compareFeature.register(context, deps, { diffController });

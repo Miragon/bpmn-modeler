@@ -17,6 +17,7 @@ import { ElementTemplatesParticipant } from "../modeler/bpmn/controller/editor-p
 import { SettingsParticipant } from "../modeler/bpmn/controller/editor-participants/SettingsParticipant";
 import { EngineVersionStatusBarParticipant } from "../modeler/bpmn/controller/editor-participants/EngineVersionStatusBarParticipant";
 import { ScriptTaskTeardownParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant";
+import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptManifestParticipant";
 import { DmnRenderParticipant } from "../modeler/dmn/controller/editor-participants/DmnRenderParticipant";
 import { DmnSettingsParticipant } from "../modeler/dmn/controller/editor-participants/DmnSettingsParticipant";
 import {
@@ -60,6 +61,7 @@ interface EditorHandles {
     diffController: BpmnDiffController;
     scriptTaskSvc: ScriptTaskService;
     scriptVariableStore: ScriptVariableStore;
+    scriptManifestParticipant: ScriptManifestParticipant;
     codeLink: CodeLinkHandles;
 }
 
@@ -77,7 +79,13 @@ export function register(
     deps: SharedDeps,
     handles: EditorHandles,
 ): { bpmnService: BpmnModelerService } {
-    const { diffController, scriptTaskSvc, scriptVariableStore, codeLink } = handles;
+    const {
+        diffController,
+        scriptTaskSvc,
+        scriptVariableStore,
+        scriptManifestParticipant,
+        codeLink,
+    } = handles;
 
     const panelStateRepo = new PropertiesPanelStateRepository(context);
     const bpmnService = new BpmnModelerService(
@@ -184,6 +192,7 @@ export function register(
             new SettingsParticipant(settingsBroadcaster),
             new EngineVersionStatusBarParticipant(deps.statusBar, deps.vsDocument),
             new ScriptTaskTeardownParticipant(scriptTaskSvc, scriptVariableStore),
+            scriptManifestParticipant,
             codeLink.codeLinkParticipant,
         ],
         // Diff routing: when the URI resolves as a diff pane the diff controller

@@ -38,14 +38,17 @@ data class ScriptCompletionModel(
 )
 
 /**
- * A process variable surfaced by the model's static extraction. [origin] and
- * [typeHint] are nullable for the same Gson reason as above and because the
- * core only sets `typeHint` when it knows one (e.g. a form field's type).
+ * A process variable surfaced by the model's static extraction or declared in a
+ * `*.bpmn.vars.json` manifest. [origin], [typeHint], and [description] are
+ * nullable for the same Gson reason as above and because the core only sets each
+ * when it knows one — [description] rides along only for manifest (`authored`)
+ * entries.
  */
 data class VariableInfo(
     val name: String,
     val origin: String?,
     val typeHint: String?,
+    val description: String?,
 )
 
 /**
