@@ -91,7 +91,7 @@ class WebviewServer : Disposable {
                 return
             }
             if (path == "/deployment.html") {
-                respond(exchange, 200, "text/html; charset=utf-8", DEPLOYMENT_HTML.toByteArray(StandardCharsets.UTF_8))
+                respond(exchange, 200, "text/html; charset=utf-8", deploymentHtml().toByteArray(StandardCharsets.UTF_8))
                 return
             }
 
@@ -155,6 +155,40 @@ class WebviewServer : Disposable {
             "    </div>",
             "  </div>",
             "  <script type=\"module\" src=\"/index.js\"></script>",
+            "</body>",
+            "</html>",
+        ).joinToString("\n")
+    }
+
+    /**
+     * Synthesises the deployment tool-window shell with the IDE theme baked in,
+     * mirroring [indexHtml]: the [IdeThemeSignal.bodyClass] on `<body>` and an
+     * `#ide-theme-vars` block carrying the deployment form's mapped `--vscode-*`
+     * colors (the id `applyJs` rewrites live). Replaces the former static
+     * system-color block so the form follows the IDE theme, not the OS. The body
+     * is just `<div id="app"></div>` because the deployment bundle
+     * (`src/app/formTemplate.ts`) renders the form itself. Assets resolve under
+     * `/deployment/...` → classpath `/webview-deployment`.
+     *
+     * The off-EDT palette read on the HTTP pool thread is safe for the same reason
+     * documented on [indexHtml].
+     */
+    private fun deploymentHtml(): String {
+        val signal = service<IdeThemeSignal>()
+        return listOf(
+            "<!DOCTYPE html>",
+            "<html lang=\"en\">",
+            "<head>",
+            "  <meta charset=\"UTF-8\"/>",
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
+            "  <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
+            "  <title>Deploy Diagram</title>",
+            "  <style id=\"ide-theme-vars\">${signal.deploymentThemeVarsCss()}</style>",
+            "  <script>$SHIM</script>",
+            "</head>",
+            "<body class=\"${signal.bodyClass()}\">",
+            "  <div id=\"app\"></div>",
+            "  <script type=\"module\" src=\"/deployment/index.js\"></script>",
             "</body>",
             "</html>",
         ).joinToString("\n")
@@ -228,76 +262,9 @@ class WebviewServer : Disposable {
                 "})();",
             ).joinToString("\n")
 
-        // The bpmn editor shell is emitted by the instance method `indexHtml()`,
-        // not a constant: its `<body>` class and `#ide-theme-vars` block are
-        // computed per request from the live IDE theme (see IdeThemeSignal).
-
-        /**
-         * Maps the `--vscode-*` CSS variables the deployment form's stylesheet
-         * reads onto CSS *system colors*, so the form stays readable in both light
-         * and dark IDE themes without a VS Code host. `color-scheme: light dark`
-         * lets Chromium (JCEF) resolve `Canvas`/`CanvasText`/`Field`/… to the
-         * embedding theme; this is the IntelliJ counterpart of VS Code injecting
-         * its theme variables into the webview. (Visual parity should be confirmed
-         * live against a dark IDE theme.)
-         */
-        val DEPLOYMENT_THEME =
-            listOf(
-                ":root {",
-                "  color-scheme: light dark;",
-                "  --vscode-foreground: CanvasText;",
-                "  --vscode-descriptionForeground: GrayText;",
-                "  --vscode-icon-foreground: CanvasText;",
-                "  --vscode-editor-background: Canvas;",
-                "  --vscode-sideBar-background: Canvas;",
-                "  --vscode-sideBarSectionHeader-background: ButtonFace;",
-                "  --vscode-sideBarSectionHeader-foreground: CanvasText;",
-                "  --vscode-panel-border: GrayText;",
-                "  --vscode-list-hoverBackground: Highlight;",
-                "  --vscode-focusBorder: Highlight;",
-                "  --vscode-input-background: Field;",
-                "  --vscode-input-foreground: FieldText;",
-                "  --vscode-input-border: GrayText;",
-                "  --vscode-button-background: AccentColor;",
-                "  --vscode-button-foreground: AccentColorText;",
-                "  --vscode-button-hoverBackground: AccentColor;",
-                "  --vscode-button-secondaryBackground: ButtonFace;",
-                "  --vscode-button-secondaryForeground: ButtonText;",
-                "  --vscode-button-secondaryHoverBackground: ButtonFace;",
-                "  --vscode-errorForeground: #e51400;",
-                "  --vscode-notifications-background: Canvas;",
-                "  --vscode-inputValidation-errorBackground: #5a1d1d;",
-                "  --vscode-inputValidation-errorBorder: #be1100;",
-                "  --vscode-inputValidation-errorForeground: CanvasText;",
-                "  --vscode-inputValidation-infoBackground: #063b49;",
-                "  --vscode-inputValidation-infoBorder: #007acc;",
-                "  --vscode-inputValidation-infoForeground: CanvasText;",
-                "}",
-            ).joinToString("\n")
-
-        /**
-         * Deployment tool-window shell. Same shim + asset-tag pattern as
-         * [INDEX_HTML]; the body is just `<div id="app"></div>` because the
-         * deployment bundle (`src/app/formTemplate.ts`) renders the form itself.
-         * Assets resolve under `/deployment/...` → classpath `/webview-deployment`.
-         */
-        val DEPLOYMENT_HTML =
-            listOf(
-                "<!DOCTYPE html>",
-                "<html lang=\"en\">",
-                "<head>",
-                "  <meta charset=\"UTF-8\"/>",
-                "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
-                "  <link href=\"/deployment/index.css\" rel=\"stylesheet\"/>",
-                "  <title>Deploy Diagram</title>",
-                "  <style>$DEPLOYMENT_THEME</style>",
-                "  <script>$SHIM</script>",
-                "</head>",
-                "<body>",
-                "  <div id=\"app\"></div>",
-                "  <script type=\"module\" src=\"/deployment/index.js\"></script>",
-                "</body>",
-                "</html>",
-            ).joinToString("\n")
+        // The bpmn and deployment shells are emitted by the instance methods
+        // `indexHtml()` / `deploymentHtml()`, not constants: their `<body>` class
+        // and `#ide-theme-vars` block are computed per request from the live IDE
+        // theme (see IdeThemeSignal).
     }
 }

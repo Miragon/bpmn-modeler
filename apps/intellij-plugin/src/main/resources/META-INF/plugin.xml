@@ -142,6 +142,7 @@
         <toolWindow
             id="Miragon Deployment"
             anchor="right"
+            icon="/icons/rocket.svg"
             factoryClass="io.miragon.intellij.bpmn.DeploymentToolWindowFactory"/>
     </extensions>
 </idea-plugin>
