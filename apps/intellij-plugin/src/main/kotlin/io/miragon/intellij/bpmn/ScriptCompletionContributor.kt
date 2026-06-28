@@ -59,19 +59,32 @@ class ScriptCompletionContributor : CompletionContributor() {
                 return
             }
 
-            val bean = matchMemberAccess(linePrefix)
-            if (bean != null) {
-                // Member mode: only the matched bean's methods. An unknown bean
-                // (e.g. a user's own variable) yields nothing, never the root beans.
-                model.beans.firstOrNull { it.name == bean }
-                    ?.methods
+            val qualifier = matchMemberAccess(linePrefix)
+            if (qualifier != null) {
+                // Member mode: the matched bean's methods win. Failing that, fall
+                // back to the typed-variable path — resolve the qualifier's
+                // `typeHint` against the shipped `types` table (e.g. a SPIN-typed
+                // variable's `node.` → SpinJsonNode methods). An unknown qualifier
+                // yields nothing, never the root beans.
+                val beanMethods = model.beans.firstOrNull { it.name == qualifier }?.methods
+                if (beanMethods != null) {
+                    beanMethods.forEach { result.addElement(methodLookup(it)) }
+                    return
+                }
+                val typeHint =
+                    model.variables.orEmpty().firstOrNull { it.name == qualifier }?.typeHint
+                typeHint?.let { model.types?.get(it) }
                     ?.forEach { result.addElement(methodLookup(it)) }
                 return
             }
 
-            // Root mode: in-scope bean names, then process variables (beans win
-            // any name clash, matching the VS Code provider).
+            // Root mode: in-scope bean names, then SPIN globals (`S`/`JSON`), then
+            // process variables. Globals render via `methodLookup` so accepting `S`
+            // inserts `S(…)` with the tab-through parameter template — the analogue
+            // of VS Code's snippet. Beans win any name clash with variables,
+            // matching the VS Code provider.
             model.beans.forEach { result.addElement(beanLookup(it)) }
+            model.globals.orEmpty().forEach { result.addElement(methodLookup(it)) }
             val beanNames = model.beans.map { it.name }.toSet()
             model.variables.orEmpty()
                 .filter { it.name !in beanNames }

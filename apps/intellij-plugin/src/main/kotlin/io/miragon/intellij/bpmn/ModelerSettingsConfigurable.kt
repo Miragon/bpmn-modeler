@@ -37,6 +37,7 @@ class ModelerSettingsConfigurable : Configurable {
         var colorTheme: String,
         var favouritesText: String,
         var language: String,
+        var scriptingSpin: Boolean,
     )
 
     private val state = loadState()
@@ -91,6 +92,15 @@ class ModelerSettingsConfigurable : Configurable {
                         LOCALE_CODES,
                         SimpleListCellRenderer.create("") { code -> LOCALE_LABELS[code] ?: code },
                     ).bindItem({ state.language }, { state.language = it ?: DEFAULT_LOCALE })
+                }
+                row {
+                    checkBox("Enable Camunda SPIN script completion")
+                        .bindSelected({ state.scriptingSpin }, { state.scriptingSpin = it })
+                        .comment(
+                            "Offer Camunda SPIN globals (<code>S(…)</code>, <code>JSON(…)</code>) and " +
+                                "SpinJsonNode member completion in inline Camunda 7 scripts. Disable if " +
+                                "your project does not have camunda-spin on the classpath.",
+                        )
                 }
                 group("Favourite Elements") {
                     row {
@@ -152,6 +162,7 @@ class ModelerSettingsConfigurable : Configurable {
             colorTheme = colorTheme,
             favouriteBpmnElements = parseFavourites(favouritesText),
             language = language,
+            scriptingSpin = scriptingSpin,
         )
 
     private fun UiState.copyFrom(other: UiState) {
@@ -163,6 +174,7 @@ class ModelerSettingsConfigurable : Configurable {
         colorTheme = other.colorTheme
         favouritesText = other.favouritesText
         language = other.language
+        scriptingSpin = other.scriptingSpin
     }
 
     private fun loadState(): UiState {
@@ -176,6 +188,7 @@ class ModelerSettingsConfigurable : Configurable {
             colorTheme = settings.colorTheme,
             favouritesText = settings.favouriteBpmnElements.joinToString("\n"),
             language = settings.language,
+            scriptingSpin = settings.scriptingSpin,
         )
     }
 

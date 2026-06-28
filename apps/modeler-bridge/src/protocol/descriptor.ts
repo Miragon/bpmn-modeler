@@ -459,7 +459,7 @@ export const PROTOCOL = [
             fileName: "script.js",
             languageId: "javascript",
             content: "x",
-            completion: { beans: [], variables: [] },
+            completion: { beans: [], variables: [], globals: [], types: {} },
         } satisfies ScriptOpenParams,
     },
     {

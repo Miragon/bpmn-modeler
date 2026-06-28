@@ -23,7 +23,13 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     // in-core service — the VS Code original was never extracted (its guts are
     // VS Code-specific accidental complexity) — so the portable slice lives here
     // and the Kotlin host is a dumb editor surface keyed by an opaque scriptId.
-    const scriptEditor = new BridgeScriptEditor(deps.store, deps.picker, deps.rpc, deps.notifier);
+    const scriptEditor = new BridgeScriptEditor(
+        deps.store,
+        deps.picker,
+        deps.rpc,
+        deps.notifier,
+        deps.settings,
+    );
 
     deps.router
         .on("OpenScriptEditorCommand", (message: Command, editorId: string) => {

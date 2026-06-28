@@ -87,6 +87,8 @@ export interface SettingsPort {
     getLanguage(): string;
     /** Whether the activity→code map is persisted under `<configFolder>/code-link/`. */
     getPersistCodeLinkMap(): boolean;
+    /** Whether Camunda SPIN globals (`S`/`JSON`) and SpinJsonNode members are offered in C7 scripts. */
+    getScriptingSpin(): boolean;
 }
 
 /**

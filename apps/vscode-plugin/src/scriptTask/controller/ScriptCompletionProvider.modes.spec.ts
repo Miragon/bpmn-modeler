@@ -29,7 +29,7 @@ vi.mock("vscode", () => {
     };
 });
 
-import { ScriptUri, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
+import { ScriptUri, ScriptVariableStore, SettingsPort } from "@miragon/bpmn-modeler-core";
 import { VariableDef } from "@miragon/bpmn-modeler-shared";
 
 import { ScriptCompletionProvider } from "./ScriptCompletionProvider";
@@ -44,6 +44,13 @@ function storeWith(...variables: VariableDef[]): ScriptVariableStore {
     const store = new ScriptVariableStore();
     store.set(EDITOR, variables);
     return store;
+}
+
+// Only `getScriptingSpin` is exercised by the provider; a partial stub keeps the
+// test focused on the SPIN gate without standing up the full settings surface.
+function buildProvider(store: ScriptVariableStore, spinEnabled = true): ScriptCompletionProvider {
+    const settings = { getScriptingSpin: () => spinEnabled } as SettingsPort;
+    return new ScriptCompletionProvider(store, settings);
 }
 
 function complete(
@@ -67,26 +74,38 @@ const variable = (name: string, typeHint?: string): VariableDef => ({
 });
 
 describe("ScriptCompletionProvider modes", () => {
-    it("root mode offers beans and process variables", () => {
-        const provider = new ScriptCompletionProvider(storeWith(variable("amount")));
+    it("root mode offers SPIN globals, beans and process variables", () => {
+        const provider = buildProvider(storeWith(variable("amount")));
         const labels = complete(provider, "am");
+        expect(labels).toContain("S");
+        expect(labels).toContain("JSON");
+        expect(labels).toContain("execution");
+        expect(labels).toContain("amount");
+    });
+
+    it("root mode omits SPIN globals when the setting is off", () => {
+        const provider = buildProvider(storeWith(variable("amount")), false);
+        const labels = complete(provider, "am");
+        expect(labels).not.toContain("S");
+        expect(labels).not.toContain("JSON");
+        // Beans and variables are unaffected by the SPIN gate.
         expect(labels).toContain("execution");
         expect(labels).toContain("amount");
     });
 
     it("variable-string-arg mode offers only process variables", () => {
-        const provider = new ScriptCompletionProvider(storeWith(variable("amount")));
+        const provider = buildProvider(storeWith(variable("amount")));
         const labels = complete(provider, `execution.getVariable("am`);
         expect(labels).toEqual(["amount"]);
     });
 
     it("a quote trigger outside a variable argument returns nothing", () => {
-        const provider = new ScriptCompletionProvider(storeWith(variable("amount")));
+        const provider = buildProvider(storeWith(variable("amount")));
         expect(complete(provider, `def label = "am`, { triggerCharacter: '"' })).toEqual([]);
     });
 
     it("an unknown editor hash yields beans only, no variables", () => {
-        const provider = new ScriptCompletionProvider(storeWith(variable("amount")));
+        const provider = buildProvider(storeWith(variable("amount")));
         const labels = complete(provider, "am", {
             path: "/unknownhash/Task_1/script-task/Task_1.groovy",
         });
@@ -95,14 +114,40 @@ describe("ScriptCompletionProvider modes", () => {
     });
 
     it("member access on a known bean returns its methods, not variables", () => {
-        const provider = new ScriptCompletionProvider(storeWith(variable("amount")));
+        const provider = buildProvider(storeWith(variable("amount")));
         const labels = complete(provider, "execution.");
         expect(labels).toContain("getVariable");
         expect(labels).not.toContain("amount");
     });
 
+    it("member access on a SPIN-typed variable returns SpinJsonNode methods", () => {
+        const provider = buildProvider(storeWith(variable("node", "SpinJsonNode")));
+        const labels = complete(provider, "node.");
+        expect(labels).toContain("prop");
+        expect(labels).toContain("stringValue");
+        expect(labels).toContain("mapTo");
+        // Neither bean methods nor variable names leak into a typed-member list.
+        expect(labels).not.toContain("amount");
+        expect(labels).not.toContain("execution");
+    });
+
+    it("member access on a typed variable returns nothing when SPIN is off", () => {
+        const provider = buildProvider(storeWith(variable("node", "SpinJsonNode")), false);
+        expect(complete(provider, "node.")).toEqual([]);
+    });
+
+    it("member access on a variable without a typeHint returns nothing", () => {
+        const provider = buildProvider(storeWith(variable("node")));
+        expect(complete(provider, "node.")).toEqual([]);
+    });
+
+    it("member access on a primitive-typed variable returns nothing", () => {
+        const provider = buildProvider(storeWith(variable("node", "long")));
+        expect(complete(provider, "node.")).toEqual([]);
+    });
+
     it("carries the typeHint as the completion detail", () => {
-        const provider = new ScriptCompletionProvider(storeWith(variable("amount", "long")));
+        const provider = buildProvider(storeWith(variable("amount", "long")));
         const document = {
             uri: { path: SCRIPT_PATH },
             lineAt: () => ({ text: `execution.getVariable("` }),

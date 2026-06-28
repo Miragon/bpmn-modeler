@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     collectExpressionRefs,
     collectSetVariableNames,
+    collectSpinTypedNames,
     dedupeVariables,
     extractProcessVariables,
     VariableDef,
@@ -38,6 +39,26 @@ describe("collectSetVariableNames", () => {
 
     it("ignores method calls that are not setVariable", () => {
         expect(collectSetVariableNames(`execution.getVariable("a")`)).toEqual([]);
+    });
+});
+
+describe("collectSpinTypedNames", () => {
+    it("captures setVariable/setVariableLocal whose value is a SPIN call", () => {
+        expect(collectSpinTypedNames(`execution.setVariable("a", S(x))`)).toEqual(["a"]);
+        expect(collectSpinTypedNames(`execution.setVariableLocal('a', JSON(x))`)).toEqual(["a"]);
+    });
+
+    it("captures bare/var/def assignments whose value is a SPIN call", () => {
+        expect(collectSpinTypedNames(`b = JSON(x)`)).toEqual(["b"]);
+        expect(collectSpinTypedNames(`var c = S(x)`)).toEqual(["c"]);
+        expect(collectSpinTypedNames(`def c = S(x)`)).toEqual(["c"]);
+    });
+
+    it("ignores a field write, comparison, or non-SPIN call", () => {
+        expect(collectSpinTypedNames(`obj.d = S(x)`)).toEqual([]);
+        expect(collectSpinTypedNames(`e == S(x)`)).toEqual([]);
+        expect(collectSpinTypedNames(`e = myParse(x)`)).toEqual([]);
+        expect(collectSpinTypedNames(`e = foo.S(x)`)).toEqual([]);
     });
 });
 
@@ -144,6 +165,71 @@ describe("extractProcessVariables", () => {
         );
         expect(names(vars)).toEqual(["listened", "scripted"]);
         expect(byName(vars, "scripted")?.confidence).toBe("declared");
+    });
+
+    it("types a setVariable SPIN value as SpinJsonNode", () => {
+        const vars = extractProcessVariables(
+            definitionsOf({
+                $type: "bpmn:ScriptTask",
+                id: "Task_1",
+                script: `execution.setVariable("out", S(execution.getVariable("p")))`,
+            }),
+        );
+        expect(byName(vars, "out")?.typeHint).toBe("SpinJsonNode");
+        expect(byName(vars, "out")?.confidence).toBe("declared");
+    });
+
+    it("types a var-assigned SPIN value as SpinJsonNode", () => {
+        const vars = extractProcessVariables(
+            definitionsOf({
+                $type: "bpmn:ScriptTask",
+                id: "Task_1",
+                script: `var node = JSON(execution.getVariable("p"))`,
+            }),
+        );
+        expect(byName(vars, "node")?.typeHint).toBe("SpinJsonNode");
+    });
+
+    it("types a SPIN value assigned in a listener script", () => {
+        const vars = extractProcessVariables(
+            definitionsOf({
+                $type: "bpmn:ScriptTask",
+                id: "Task_1",
+                extensionElements: {
+                    values: [
+                        {
+                            $type: "camunda:ExecutionListener",
+                            script: { value: `var node = S(execution.getVariable("p"))` },
+                        },
+                    ],
+                },
+            }),
+        );
+        expect(byName(vars, "node")?.typeHint).toBe("SpinJsonNode");
+    });
+
+    it("keeps the typed entry when a name is seen as plain setVariable and SPIN value", () => {
+        const vars = extractProcessVariables(
+            definitionsOf({
+                $type: "bpmn:ScriptTask",
+                id: "Task_1",
+                script: `execution.setVariable("x", S(execution.getVariable("p")))`,
+            }),
+        );
+        const x = vars.filter((v) => v.name === "x");
+        expect(x).toHaveLength(1);
+        expect(x[0].typeHint).toBe("SpinJsonNode");
+    });
+
+    it("leaves an ordinary setVariable value untyped", () => {
+        const vars = extractProcessVariables(
+            definitionsOf({
+                $type: "bpmn:ScriptTask",
+                id: "Task_1",
+                script: `execution.setVariable("plain", 1)`,
+            }),
+        );
+        expect(byName(vars, "plain")?.typeHint).toBeUndefined();
     });
 
     it("reads ${var} from sequence-flow condition expressions as referenced", () => {
