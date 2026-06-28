@@ -8,17 +8,27 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * Routes the BPMN-editor feature: open-session registration, document-port
  * fulfilment (`document/write` / `document/save`) against the real IntelliJ
  * `Document`, and core→webview message delivery. Sessions are keyed by editor id
  * so messages reach the right JCEF browser when several `.bpmn` files are open.
+ *
+ * @param scheduler Debounces external `document/didChange` frames. Injectable so
+ *   tests step time deterministically instead of waiting on the shared pool.
  */
-internal class EditorSessionRouter(private val deps: BridgeDeps) {
+internal class EditorSessionRouter(
+    private val deps: BridgeDeps,
+    private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
+) {
     private val log = Logger.getInstance(EditorSessionRouter::class.java)
 
     private val sessions = ConcurrentHashMap<String, CoreSession>()
@@ -29,6 +39,18 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
     // the outgoing `document/didChange` with `causedBy`. The bridge then drops its
     // own write by causation instead of comparing content.
     private val pendingCausation = ConcurrentHashMap<String, Long>()
+
+    // Per-editor debounce timer for *external* edits only (raw-text tab, git
+    // checkout, another tool). A newer keystroke cancels and reschedules, so the
+    // per-keystroke full-XML round trip + re-render collapses to one send per pause.
+    private val debounceTimers = ConcurrentHashMap<String, ScheduledFuture<*>>()
+
+    // Monotonic per-editor change counter. Every change (host write or external)
+    // bumps it; a debounced external send captures the value at schedule time and
+    // sends only if still current at fire time, so a change that superseded it —
+    // crucially a host write, whose echo the bridge drops by causation — never gets
+    // re-rendered as a stale external edit. Bumped and read only on the EDT.
+    private val changeSeq = ConcurrentHashMap<String, Long>()
 
     fun register() {
         deps.handlers
@@ -112,11 +134,55 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
      * if [handleWrite] left a pending causation token for this editor, the change
      * carries it as `causedBy` so the bridge can drop its own write by explicit
      * causation. A genuine external edit has no pending token and omits `causedBy`.
+     *
+     * **The host's own write-echo must stay synchronous.** [handleWrite] sets the
+     * causation token, calls `setText` (which fires the listener → here on the same
+     * thread), then clears the token in its `finally`. Deferring this send past that
+     * `finally` would lose `causedBy` and break echo suppression — the bridge would
+     * re-render its own write. So only the *external* path (no pending token) is
+     * debounced; the causation path always sends immediately.
+     *
+     * Called only on the EDT (document mutations require a write action there). The
+     * debounced external send is marshalled back to the EDT and guarded by
+     * [changeSeq] so it never races, nor reorders against, a host write: if anything
+     * superseded it, it aborts rather than re-rendering stale XML.
      */
     fun notifyDocumentChanged(editorId: String, content: String) {
         if (!sessions.containsKey(editorId)) return
+        val seq = (changeSeq[editorId] ?: 0L) + 1L
+        changeSeq[editorId] = seq
+
+        val causedBy = pendingCausation.remove(editorId)
+        if (causedBy != null) {
+            debounceTimers.remove(editorId)?.cancel(false)
+            sendDidChange(editorId, content, causedBy)
+            return
+        }
+        // External edit: a newer frame resets the timer so only the latest content
+        // is sent. The notify itself is non-blocking; debounce just drops frames.
+        debounceTimers.remove(editorId)?.cancel(false)
+        debounceTimers[editorId] =
+            scheduler.schedule(
+                {
+                    // Send on the EDT so the supersede check and the send are atomic
+                    // w.r.t. host writes (also EDT): no write can interleave between
+                    // them, and stale frames are dropped rather than reordered after a
+                    // dropped causation echo.
+                    ApplicationManager.getApplication().invokeLater {
+                        debounceTimers.remove(editorId)
+                        if (changeSeq[editorId] == seq && sessions.containsKey(editorId)) {
+                            sendDidChange(editorId, content, null)
+                        }
+                    }
+                },
+                EXTERNAL_DEBOUNCE_MS,
+                TimeUnit.MILLISECONDS,
+            )
+    }
+
+    private fun sendDidChange(editorId: String, content: String, causedBy: Long?) {
         val params = linkedMapOf<String, Any>("editorId" to editorId, "content" to content)
-        pendingCausation.remove(editorId)?.let { params["causedBy"] = it }
+        causedBy?.let { params["causedBy"] = it }
         deps.channel.notify("document/didChange", params)
     }
 
@@ -129,6 +195,8 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
     fun disposeSession(editorId: String) {
         sessions.remove(editorId)
         pendingCausation.remove(editorId)
+        debounceTimers.remove(editorId)?.cancel(false)
+        changeSeq.remove(editorId)
         deps.channel.notify("session/dispose", linkedMapOf("editorId" to editorId))
     }
 
@@ -203,5 +271,9 @@ internal class EditorSessionRouter(private val deps: BridgeDeps) {
 
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
+
+        // Long enough to collapse a typing burst into one re-render, short enough
+        // that an external edit (git checkout) feels immediate.
+        const val EXTERNAL_DEBOUNCE_MS = 150L
     }
 }

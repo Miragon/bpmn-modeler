@@ -61,7 +61,8 @@ class EditorSessionRouterTest {
         val project = projectFixture.get()
         val bpmn = createBpmnFile(tempDirFixture.get(), "process.bpmn", initialXml)
         val wired = wireChannel()
-        val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers))
+        val scheduler = DeterministicScheduler()
+        val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler)
         router.register()
 
         val session = CoreSession(bpmn.file.url, bpmn.file, project) {}
@@ -71,7 +72,7 @@ class EditorSessionRouterTest {
             parse(wired.fake.nextFrame()).get("method").asString,
             "registerSession seeds the core before any document traffic",
         )
-        return Fixture(router, session, bpmn, wired).also { fixture = it }
+        return Fixture(router, session, bpmn, wired, scheduler).also { fixture = it }
     }
 
     private class Fixture(
@@ -79,6 +80,7 @@ class EditorSessionRouterTest {
         val session: CoreSession,
         val bpmn: BpmnTestFile,
         val wired: WiredBridge,
+        val scheduler: DeterministicScheduler,
     )
 
     /**
@@ -134,17 +136,90 @@ class EditorSessionRouterTest {
         // no pending causation token, so the echo must not be tagged as the host's own.
         WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
 
+        // The external path is debounced, so nothing is sent until the timer fires;
+        // step it deterministically rather than waiting on the wall clock. The timer
+        // marshals its send onto the EDT, so pump the queue too.
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
         val didChange = parse(f.wired.fake.nextFrame())
         assertEquals("document/didChange", didChange.get("method").asString)
+        assertEquals(
+            EDITED_XML,
+            didChange.getAsJsonObject("params").get("content").asString,
+            "the debounced send carries the latest external content",
+        )
         assertFalse(
             didChange.getAsJsonObject("params").has("causedBy"),
             "an edit the host did not originate carries no causation token",
         )
     }
 
+    @Test
+    fun `a burst of external edits collapses to a single send of the latest content`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.attachEditorEcho()
+
+        // Three rapid external edits: each reschedules the debounce, so only the
+        // final content should reach the core once the timer fires.
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(SECOND_EDIT_XML) }
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(THIRD_EDIT_XML) }
+
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val didChange = parse(f.wired.fake.nextFrame())
+        assertEquals("document/didChange", didChange.get("method").asString)
+        assertEquals(
+            THIRD_EDIT_XML,
+            didChange.getAsJsonObject("params").get("content").asString,
+            "only the latest content of a typing burst is sent",
+        )
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a host write supersedes a pending external edit, leaving no stale frame`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.attachEditorEcho()
+
+        // An external edit arrives and parks a debounced send...
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
+
+        // ...then the core writes back before that debounce fires. The write echo
+        // must go out synchronously with causedBy, and the now-stale external send
+        // must be dropped — otherwise the bridge would re-render the old XML after
+        // dropping its own write by causation.
+        val params =
+            f.wired.channel.gson
+                .toJsonTree(mapOf("editorId" to f.session.editorId, "content" to SECOND_EDIT_XML, "revision" to REVISION))
+                .asJsonObject
+        f.wired.handlers.dispatch("document/write", params, 1)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val didChange = parse(f.wired.fake.nextFrame())
+        assertEquals("document/didChange", didChange.get("method").asString)
+        assertEquals(SECOND_EDIT_XML, didChange.getAsJsonObject("params").get("content").asString)
+        assertEquals(
+            REVISION,
+            didChange.getAsJsonObject("params").get("causedBy").asLong,
+            "the host write echo carries causation",
+        )
+        val reply = parse(f.wired.fake.nextFrame())
+        assertEquals(1, reply.get("id").asInt)
+
+        // Fire the parked external timer: its sequence is now stale, so it must abort.
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        f.wired.fake.expectNoFrame()
+    }
+
     private companion object {
         const val REVISION = 7L
         const val INITIAL_XML = "<bpmn:definitions id=\"a\"/>\n"
         const val EDITED_XML = "<bpmn:definitions id=\"b\"/>\n"
+        const val SECOND_EDIT_XML = "<bpmn:definitions id=\"c\"/>\n"
+        const val THIRD_EDIT_XML = "<bpmn:definitions id=\"d\"/>\n"
     }
 }
