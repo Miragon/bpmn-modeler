@@ -19,6 +19,7 @@ import {
     globalFunctionsFor,
     MethodDef,
     methodsForBean,
+    methodsForType,
 } from "@miragon/bpmn-modeler-core";
 import {
     matchMemberAccess,
@@ -54,9 +55,11 @@ import { VariableDef } from "@miragon/bpmn-modeler-shared";
  * 1. **Variable-name completion**: triggered inside the string argument of a
  *    `getVariable`/`setVariable`/… call. Returns the editor's process
  *    variables (from {@link ScriptVariableStore}).
- * 2. **Member completion**: triggered after a `.` following a known bean.
- *    Returns the bean's methods rendered as snippets so the cursor lands
- *    inside the parentheses with parameter placeholders.
+ * 2. **Member completion**: triggered after a `.` following a known bean, or
+ *    a process variable carrying a `typeHint` whose catalog type exposes
+ *    methods (e.g. a SPIN-typed `var node = S(…)`, gated by `scripting.spin`).
+ *    Returns the methods rendered as snippets so the cursor lands inside the
+ *    parentheses with parameter placeholders.
  * 3. **Root completion**: returns the SPIN global functions (`S`/`JSON`, when
  *    the `scripting.spin` setting is on), the bean names, and the process
  *    variables whenever a word is being typed at root scope.
@@ -115,13 +118,26 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
             return [];
         }
 
-        // Mode 2: member access on a known bean. An unknown qualifier (e.g. a
-        // user's own variable `myVar.`) stays empty — no type info until later
-        // phases; never fall back to root items here.
+        // Mode 2: member access on a known bean, or on a typed process variable.
+        // An unknown qualifier with no resolvable type stays empty; never fall
+        // back to root items here.
         const memberAccess = matchMemberAccess(linePrefix);
         if (memberAccess) {
             const bean = beans.find((b) => b.name === memberAccess);
-            return bean ? methodsForBean(bean).map(methodToCompletion) : [];
+            if (bean) {
+                return methodsForBean(bean).map(methodToCompletion);
+            }
+            // Not a bean: a producer-heuristic typeHint (e.g. SpinJsonNode) may
+            // resolve. Gated by the same setting as the SPIN globals —
+            // SpinJsonNode is the only type-method surface today, so the flag
+            // governs it end to end.
+            if (this.settings.getScriptingSpin()) {
+                const variable = this.variablesFor(document).find((v) => v.name === memberAccess);
+                if (variable?.typeHint) {
+                    return methodsForType(variable.typeHint).map(methodToCompletion);
+                }
+            }
+            return [];
         }
 
         // Mode 3: root — globals first, then beans, then process variables, with
@@ -142,8 +158,17 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
 
     /** Process-variable completions for the editor the script URI belongs to. */
     private variableItems(document: TextDocument): CompletionItem[] {
+        return this.variablesFor(document).map(variableToCompletion);
+    }
+
+    /**
+     * Raw process variables for the editor the script URI belongs to. The
+     * member path needs the `typeHint` carried on {@link VariableDef}, which the
+     * pre-mapped {@link variableItems} completions discard.
+     */
+    private variablesFor(document: TextDocument): VariableDef[] {
         const editorHash = parseEditorHashFromUri(document.uri.path) ?? "";
-        return this.store.getByEditorHash(editorHash).map(variableToCompletion);
+        return this.store.getByEditorHash(editorHash);
     }
 }
 

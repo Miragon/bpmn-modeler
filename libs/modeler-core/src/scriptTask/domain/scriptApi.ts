@@ -362,12 +362,23 @@ const TYPES_BY_NAME: ReadonlyMap<string, TypeDef> = new Map(
 );
 
 /**
+ * Returns the methods callable on a value of the given catalog type. Empty for a
+ * primitive/unknown type name (e.g. a form-field `typeHint: "long"`), which keeps
+ * member completion silent rather than wrong. Drives typed-variable member
+ * resolution (a variable's `typeHint`) the same way {@link methodsForBean} drives
+ * beans.
+ */
+export function methodsForType(typeName: string): readonly MethodDef[] {
+    return TYPES_BY_NAME.get(typeName)?.methods ?? [];
+}
+
+/**
  * Returns the methods callable on a bean. Empty when the bean's type is a
  * primitive Java label not registered in {@link COMPLEX_TYPES} (e.g.
  * `eventName: String`).
  */
 export function methodsForBean(bean: BeanDef): readonly MethodDef[] {
-    return TYPES_BY_NAME.get(bean.type)?.methods ?? [];
+    return methodsForType(bean.type);
 }
 
 const EXECUTION_BEAN: BeanDef = {

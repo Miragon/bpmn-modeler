@@ -1,7 +1,13 @@
 import { ScriptKind } from "@miragon/bpmn-modeler-shared";
 import { describe, expect, it } from "vitest";
 
-import { BeanDef, COMPLEX_TYPES, globalFunctionsFor, methodsForBean } from "./scriptApi";
+import {
+    BeanDef,
+    COMPLEX_TYPES,
+    globalFunctionsFor,
+    methodsForBean,
+    methodsForType,
+} from "./scriptApi";
 
 const ALL_KINDS: readonly ScriptKind[] = ["script-task", "execution-listener", "task-listener"];
 
@@ -37,5 +43,19 @@ describe("SpinJsonNode catalog entry", () => {
         expect(methodNames).toContain("prop");
         expect(methodNames).toContain("elements");
         expect(methodNames).toContain("mapTo");
+    });
+});
+
+describe("methodsForType", () => {
+    it("resolves the SpinJsonNode methods by type name", () => {
+        const methodNames = methodsForType("SpinJsonNode").map((m) => m.name);
+        expect(methodNames).toContain("prop");
+        expect(methodNames).toContain("stringValue");
+        expect(methodNames).toContain("mapTo");
+    });
+
+    it("returns no methods for a primitive or unknown type name", () => {
+        expect(methodsForType("long")).toEqual([]);
+        expect(methodsForType("Nonexistent")).toEqual([]);
     });
 });

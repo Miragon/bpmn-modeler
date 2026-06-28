@@ -120,6 +120,32 @@ describe("ScriptCompletionProvider modes", () => {
         expect(labels).not.toContain("amount");
     });
 
+    it("member access on a SPIN-typed variable returns SpinJsonNode methods", () => {
+        const provider = buildProvider(storeWith(variable("node", "SpinJsonNode")));
+        const labels = complete(provider, "node.");
+        expect(labels).toContain("prop");
+        expect(labels).toContain("stringValue");
+        expect(labels).toContain("mapTo");
+        // Neither bean methods nor variable names leak into a typed-member list.
+        expect(labels).not.toContain("amount");
+        expect(labels).not.toContain("execution");
+    });
+
+    it("member access on a typed variable returns nothing when SPIN is off", () => {
+        const provider = buildProvider(storeWith(variable("node", "SpinJsonNode")), false);
+        expect(complete(provider, "node.")).toEqual([]);
+    });
+
+    it("member access on a variable without a typeHint returns nothing", () => {
+        const provider = buildProvider(storeWith(variable("node")));
+        expect(complete(provider, "node.")).toEqual([]);
+    });
+
+    it("member access on a primitive-typed variable returns nothing", () => {
+        const provider = buildProvider(storeWith(variable("node", "long")));
+        expect(complete(provider, "node.")).toEqual([]);
+    });
+
     it("carries the typeHint as the completion detail", () => {
         const provider = buildProvider(storeWith(variable("amount", "long")));
         const document = {
