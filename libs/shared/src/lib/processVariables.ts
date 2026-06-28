@@ -58,6 +58,28 @@ const SET_VARIABLE_RE = /setVariable(?:Local)?\s*\(\s*(["'])([^"'\\]+)\1/g;
 // the first identifier is captured: `${a.b}` yields `a`, the variable in scope.
 const EXPRESSION_REF_RE = /[$#]\{\s*([A-Za-z_$][A-Za-z0-9_$]*)/g;
 
+// `setVariable("x", S(...))` / `setVariableLocal('x', JSON(...))` — same shape
+// as SET_VARIABLE_RE but the trailing `(?:S|JSON)\s*\(` guard requires the value
+// arg to be a SPIN call, marking the variable as a `SpinJsonNode`. Group 2 is
+// the name.
+const SPIN_SET_VARIABLE_RE =
+    /setVariable(?:Local)?\s*\(\s*(["'])([^"'\\]+)\1\s*,\s*(?:S|JSON)\s*\(/g;
+
+// `x = S(...)` / `var x = JSON(...)` / `def x = S(...)` — a free identifier
+// assigned a SPIN call. Group 1 is the name.
+//
+// The `(?<![.\w$])` lookbehind rejects `obj.x = S(...)` (field write) and
+// keyword glue, capturing only a free identifier. `\s*=\s*(?:S|JSON)\s*\(`
+// rejects `==`/`!=`/`>=` (a second operator char is neither whitespace nor the
+// SPIN call) and `x = myParse(` / `x = foo.S(` (the SPIN call must immediately
+// follow `=`).
+//
+// Known accepted over-approximation: `x = S(j).stringValue()` types `x` as
+// `SpinJsonNode` though the terminal call returns `String`. Completion offers
+// generously — a false positive costs only a glance — so we don't chase chain
+// return-types here.
+const SPIN_ASSIGNMENT_RE = /(?<![.\w$])([A-Za-z_$][\w$]*)\s*=\s*(?:S|JSON)\s*\(/g;
+
 /**
  * Returns the variable names written by `setVariable`/`setVariableLocal` string
  * literals in a script body. Exported for unit testing the regex in isolation.
@@ -66,6 +88,22 @@ export function collectSetVariableNames(script: string): string[] {
     const names: string[] = [];
     for (const match of script.matchAll(SET_VARIABLE_RE)) {
         names.push(match[2]);
+    }
+    return names;
+}
+
+/**
+ * Returns variable names whose value is a SPIN call (`S(...)`/`JSON(...)`), from
+ * either `setVariable("x", S(...))` or `x = S(...)`. These resolve to the
+ * `SpinJsonNode` TypeDef. Exported for unit testing the regexes in isolation.
+ */
+export function collectSpinTypedNames(script: string): string[] {
+    const names: string[] = [];
+    for (const match of script.matchAll(SPIN_SET_VARIABLE_RE)) {
+        names.push(match[2]);
+    }
+    for (const match of script.matchAll(SPIN_ASSIGNMENT_RE)) {
+        names.push(match[1]);
     }
     return names;
 }
@@ -163,6 +201,17 @@ function collectFromElement(element: any, out: VariableDef[]): void {
         for (const name of collectSetVariableNames(element.script)) {
             out.push({ name, origin: `script of ${label}`, confidence: "declared" });
         }
+        // A SPIN-valued name yields a second, typed entry; `dedupeVariables`
+        // keeps it over the untyped one at equal confidence, so each collector
+        // stays single-purpose rather than threading type state through names.
+        for (const name of collectSpinTypedNames(element.script)) {
+            out.push({
+                name,
+                origin: `SPIN value in script of ${label}`,
+                typeHint: "SpinJsonNode",
+                confidence: "declared",
+            });
+        }
     }
 
     // Sequence-flow condition expression: `${var}` reads.
@@ -239,6 +288,14 @@ function collectFromExtension(extension: any, label: string, out: VariableDef[])
                     out.push({
                         name,
                         origin: `listener script of ${label}`,
+                        confidence: "declared",
+                    });
+                }
+                for (const name of collectSpinTypedNames(extension.script.value)) {
+                    out.push({
+                        name,
+                        origin: `SPIN value in listener script of ${label}`,
+                        typeHint: "SpinJsonNode",
                         confidence: "declared",
                     });
                 }
