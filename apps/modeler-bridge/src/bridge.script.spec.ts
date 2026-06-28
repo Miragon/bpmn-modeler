@@ -198,6 +198,57 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(update.params.message.content).toBe("console.log('hi')");
     });
 
+    it("ships SPIN globals and the SpinJsonNode type table when the setting is on", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+        });
+
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const globalNames = open.params.completion.globals.map((g: { name: string }) => g.name);
+        expect(globalNames).toEqual(["S", "JSON"]);
+        // The full COMPLEX_TYPES map ships; the host only consults it on a
+        // `typeHint` lookup, and SpinJsonNode is the only hint 2b stamps.
+        expect(Object.keys(open.params.completion.types)).toContain("SpinJsonNode");
+        const methodNames = open.params.completion.types.SpinJsonNode.map(
+            (m: { name: string }) => m.name,
+        );
+        expect(methodNames).toContain("prop");
+        expect(methodNames).toContain("stringValue");
+    });
+
+    it("ships empty SPIN globals/types when the scripting.spin setting is off", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        // Host pushes the SPIN gate off; the bridge is the single source of the
+        // gate, so the payload must carry nothing rather than the host filtering.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "settings/didChange",
+                params: { settings: { scriptingSpin: false } },
+            }),
+        );
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+        });
+
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        expect(open.params.completion.globals).toEqual([]);
+        expect(open.params.completion.types).toEqual({});
+    });
+
     it("carries the seeded variables in the script/open completion payload", async () => {
         const { rpc, frames, editorId } = await setup();
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];

@@ -18,14 +18,23 @@ import com.intellij.openapi.vfs.VirtualFile
  * Root of the `script/open.completion` payload: the beans in scope for this
  * script's kind, plus the process variables extracted from the model.
  *
- * [variables] **must** be nullable: Gson instantiates this class via Unsafe and
- * leaves a missing JSON member null even on a non-null Kotlin type, so an open
- * payload from an older bridge (no `variables` key) would otherwise carry a
- * deceptive non-null default. A nullable field makes the absence explicit.
+ * [variables], [globals], and [types] **must** be nullable: Gson instantiates
+ * this class via Unsafe and leaves a missing JSON member null even on a non-null
+ * Kotlin type, so an open payload from an older bridge (no `globals`/`types`
+ * keys) would otherwise carry a deceptive non-null default. A nullable field
+ * makes the absence explicit.
+ *
+ * [globals] are the Camunda SPIN root functions (`S`/`JSON`); [types] maps a Java
+ * type name to its callable methods, consulted when a variable carries a
+ * `typeHint` (e.g. `SpinJsonNode`). Both arrive empty when the bridge's SPIN
+ * setting is off — the gate lives in the bridge, so this host stays a pure
+ * renderer.
  */
 data class ScriptCompletionModel(
     val beans: List<BeanInfo>,
     val variables: List<VariableInfo>? = null,
+    val globals: List<MethodInfo>? = null,
+    val types: Map<String, List<MethodInfo>>? = null,
 )
 
 /**

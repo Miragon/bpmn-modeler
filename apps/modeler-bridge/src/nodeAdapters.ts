@@ -388,6 +388,7 @@ export interface SettingsSnapshot {
     colorTheme: "automatic" | "light";
     favouriteBpmnElements: string[];
     language: string;
+    scriptingSpin: boolean;
 }
 
 /** Mirrors the VS Code config prefix so `affectsConfiguration` keys line up across hosts. */
@@ -413,6 +414,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
         "bpmn:ExclusiveGateway",
     ],
     language: "en",
+    scriptingSpin: true,
 };
 
 /**
@@ -492,13 +494,14 @@ export class BridgeSettings implements SettingsPort {
         return this.snapshot.language;
     }
     /**
-     * The host frame does not carry a SPIN toggle yet — globals and typed-member
-     * resolution only reach IntelliJ in sub-phase 2d, where the bridge gains a
-     * dedicated config. Until then the bridge mirrors the core's unconditional
-     * default so no caller observes globals being silently suppressed.
+     * Whether to ship the Camunda SPIN globals (`S`/`JSON`) and the
+     * `SpinJsonNode` member table to the host. The gate lives here in the bridge
+     * (single source) so the thin Kotlin completion contributor needs no toggle
+     * of its own — an off setting simply makes the `script/open` payload carry
+     * empty `globals`/`types`.
      */
     getScriptingSpin(): boolean {
-        return true;
+        return this.snapshot.scriptingSpin;
     }
 }
 

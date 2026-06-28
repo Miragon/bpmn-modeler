@@ -10,6 +10,7 @@
  * the `Rpc.request` call-sites used to carry.
  */
 
+import { GlobalFunctionDef, MethodDef } from "@miragon/bpmn-modeler-core";
 import {
     AuthTypePayload,
     Command,
@@ -267,6 +268,14 @@ export interface ScriptOpenParams {
     completion: {
         beans: readonly ScriptCompletionBean[];
         variables: VariableDef[];
+        /** Camunda SPIN globals (`S`/`JSON`) offered at script root; empty when the SPIN setting is off. */
+        globals: readonly GlobalFunctionDef[];
+        /**
+         * Type name → callable methods, for resolving a typed variable's members
+         * (e.g. a `typeHint: "SpinJsonNode"` variable's `node.` completion).
+         * Empty when the SPIN setting is off.
+         */
+        types: Record<string, readonly MethodDef[]>;
     };
 }
 

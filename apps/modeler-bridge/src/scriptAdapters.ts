@@ -18,7 +18,9 @@
 
 import {
     beansFor,
+    COMPLEX_TYPES,
     EditorSessionStore,
+    globalFunctionsFor,
     methodsForBean,
     NotifierPort,
     PickerPort,
@@ -33,6 +35,7 @@ import {
     VariableDef,
 } from "@miragon/bpmn-modeler-shared";
 
+import { BridgeSettings } from "./nodeAdapters";
 import { Rpc } from "./rpc";
 import { METHODS } from "./protocol/descriptor";
 
@@ -63,6 +66,7 @@ export class BridgeScriptEditor {
         private readonly picker: PickerPort,
         private readonly rpc: Rpc,
         private readonly notifier: NotifierPort,
+        private readonly settings: BridgeSettings,
     ) {}
 
     /**
@@ -107,6 +111,14 @@ export class BridgeScriptEditor {
         // variable completion before the first live update arrives.
         this.variablesByEditor.set(editorId, cmd.variables ?? []);
 
+        // The SPIN globals (`S`/`JSON`) and the type→methods table are gated here
+        // in the bridge (single source): off → empty, so the Kotlin contributor
+        // renders nothing and needs no gate of its own. Shipping the full
+        // `COMPLEX_TYPES` map when on is harmless — the host only consults `types`
+        // on a variable's `typeHint` lookup, and `SpinJsonNode` is the only hint
+        // the producer heuristic currently stamps.
+        const spinOn = this.settings.getScriptingSpin();
+
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
         // `completion` ships the kind-scoped bean/method catalog resolved *here*
@@ -130,6 +142,10 @@ export class BridgeScriptEditor {
                     methods: methodsForBean(bean),
                 })),
                 variables: this.variablesByEditor.get(editorId) ?? [],
+                globals: spinOn ? globalFunctionsFor(cmd.kind) : [],
+                types: spinOn
+                    ? Object.fromEntries(COMPLEX_TYPES.map((type) => [type.name, type.methods]))
+                    : {},
             },
         });
     }

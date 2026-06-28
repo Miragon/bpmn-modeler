@@ -20,6 +20,7 @@ data class ModelerSettings(
     val colorTheme: String,
     val favouriteBpmnElements: List<String>,
     val language: String,
+    val scriptingSpin: Boolean,
 )
 
 /**
@@ -47,6 +48,7 @@ class ModelerSettingsStore {
             colorTheme = normalizeColorTheme(props.getValue(COLOR_THEME, DEFAULT_COLOR_THEME)),
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
+            scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
         )
 
     /** Persists the snapshot, normalising the two constrained fields so stored values stay valid. */
@@ -61,6 +63,7 @@ class ModelerSettingsStore {
         // Cap matches the webview append-menu palette (max 6 pinned elements).
         props.setList(FAVOURITE_ELEMENTS, settings.favouriteBpmnElements.take(MAX_FAVOURITES))
         props.setValue(LANGUAGE, settings.language, DEFAULT_LANGUAGE)
+        props.setValue(SCRIPTING_SPIN, settings.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
     }
 
     /**
@@ -79,6 +82,10 @@ class ModelerSettingsStore {
             "colorTheme" to current.colorTheme,
             "favouriteBpmnElements" to current.favouriteBpmnElements,
             "language" to current.language,
+            // The RPC key is the camelCase field name matching the bridge's
+            // `SettingsSnapshot`, NOT the dotted persisted key — a mismatch here
+            // would make the gate a silent no-op.
+            "scriptingSpin" to current.scriptingSpin,
         )
     }
 
@@ -100,6 +107,7 @@ class ModelerSettingsStore {
         private const val COLOR_THEME = "miragon.bpmnModeler.colorTheme"
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
+        private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
 
         // Defaults track apps/vscode-plugin/package.json.
         private const val DEFAULT_ALIGN_TO_ORIGIN = false
@@ -109,6 +117,7 @@ class ModelerSettingsStore {
         private const val DEFAULT_C8_API_VERSION = "v2"
         private const val DEFAULT_COLOR_THEME = "automatic"
         private const val DEFAULT_LANGUAGE = "en"
+        private const val DEFAULT_SCRIPTING_SPIN = true
         private val DEFAULT_FAVOURITE_ELEMENTS =
             listOf("bpmn:ServiceTask", "bpmn:UserTask", "bpmn:CallActivity", "bpmn:ExclusiveGateway")
     }
