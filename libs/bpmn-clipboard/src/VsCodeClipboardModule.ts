@@ -134,8 +134,19 @@ class VsCodeClipboard {
         // element.mousedown. After keyboard-triggered selection changes
         // (e.g. Cmd+A), the properties panel re-render can steal focus,
         // causing subsequent Cmd+C to silently fail.
+        //
+        // The `hasFocus()` guard prevents cross-pane focus theft: every
+        // external XML edit (e.g. typing in a side-by-side text editor)
+        // re-imports the diagram, and importXML fires `selection.changed`
+        // unconditionally. Without the guard, canvas.focus() would yank the
+        // caret out of that separate editor pane on every keystroke. A
+        // webview iframe's document.hasFocus() is false while another VS Code
+        // pane is focused, so this runs only when the webview truly has focus.
         eventBus.on("selection.changed", () => {
             requestAnimationFrame(() => {
+                if (!document.hasFocus()) {
+                    return;
+                }
                 const active = document.activeElement;
                 if (
                     active instanceof HTMLInputElement ||
