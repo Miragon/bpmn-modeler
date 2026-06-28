@@ -124,10 +124,22 @@
         <!-- Camunda IntelliSense for the inline "Edit Script" editor. `language="any"`
              fires the contributor for every file type (the script tab may be
              PLAIN_TEXT when no JS/Python plugin is installed); it scopes itself to
-             modeler script tabs via the SCRIPT_COMPLETION_KEY UserData. -->
+             modeler script tabs via the SCRIPT_COMPLETION_KEY UserData.
+             `order="first"`: the Groovy binding resolver injects each catalog
+             symbol as synthetic PSI so it resolves, which makes Groovy's native
+             completion re-emit it as a duplicate. Running first lets the
+             contributor treat Groovy as a "remaining" contributor and filter those
+             duplicates while keeping its keywords/stdlib. -->
         <completion.contributor
             language="any"
+            order="first"
             implementationClass="io.miragon.intellij.bpmn.ScriptCompletionContributor"/>
+
+        <!-- Quick-doc (Ctrl-Q) for the script completions above. Application-level
+             and language-agnostic (NOT lang.documentationProvider) so it also fires
+             on PLAIN_TEXT script tabs where no per-language provider would. -->
+        <documentationProvider
+            implementation="io.miragon.intellij.bpmn.ScriptDocumentationProvider"/>
 
         <!-- Drops the Groovy annotator's "Cannot resolve symbol" greying on our
              inline script tabs for anything still unresolved. The bindings/script

@@ -100,4 +100,44 @@ describe("ScriptVariableManifestService", () => {
         handle.dispose();
         expect(ws.dispose).toHaveBeenCalledOnce();
     });
+
+    // On Windows the host fs path uses backslashes; getDocumentDirectory already
+    // normalizes to posix, so the manifest basename must not be derived from a raw
+    // posix.basename of the backslash path (which would return the whole string).
+    describe("with a Windows-style backslash document path", () => {
+        const WINDOWS_DOCUMENT = "C:\\work\\diagram.bpmn";
+        const WINDOWS_MANIFEST_PATH = "C:/work/diagram.bpmn.vars.json";
+
+        beforeEach(() => {
+            // getDocumentDirectory is robust (normalizes to posix) — only the
+            // basename split regressed, so model the realistic posix directory.
+            ws.getDocumentDirectory = () => "C:/work";
+        });
+
+        it("computes the manifest filename from the normalized path", async () => {
+            ws.files.set(
+                WINDOWS_MANIFEST_PATH,
+                JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
+            );
+
+            const vars = await service(ws).load(WINDOWS_DOCUMENT);
+
+            expect(vars).toEqual([
+                {
+                    name: "orderId",
+                    origin: "declared in diagram.bpmn.vars.json",
+                    typeHint: "String",
+                    description: undefined,
+                    confidence: "authored",
+                },
+            ]);
+        });
+
+        it("scopes the watcher glob to the bare manifest filename", () => {
+            service(ws).createWatcher(WINDOWS_DOCUMENT, vi.fn());
+
+            expect(ws.lastWatch?.rootPath).toBe("C:/work");
+            expect(ws.lastWatch?.glob).toBe("diagram.bpmn.vars.json");
+        });
+    });
 });

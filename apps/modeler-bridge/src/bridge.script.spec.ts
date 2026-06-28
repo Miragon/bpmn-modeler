@@ -312,6 +312,36 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(open.params.completion.variables).toHaveLength(2);
     });
 
+    it("opens a diagram without a sibling manifest without logging an error", async () => {
+        // Exercises the real NodeWorkspace.readFile ENOENT path: a missing
+        // manifest must read as "absent" (FileNotFound), not rethrow and get
+        // logged at error level on every editor open. `setup()` writes no
+        // `.vars.json`, so session/register hits the absent-manifest branch.
+        const { rpc, frames, editorId } = await setup();
+        await settle();
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+            variables: [{ name: "amount", origin: "form field", confidence: "declared" }],
+        });
+
+        const errorLog = frames.find(
+            (f) => f.method === "notifier/log" && f.params?.level === "error",
+        );
+        expect(errorLog).toBeUndefined();
+
+        // With no manifest the payload carries only the extracted variables.
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        expect(open.params.completion.variables).toEqual([
+            { name: "amount", origin: "form field", confidence: "declared" },
+        ]);
+    });
+
     it("pushes script/updateVariables for that editor's open scripts only", async () => {
         const { rpc, frames, editorId } = await setup();
         await feedOpen(rpc, editorId, {

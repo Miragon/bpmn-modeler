@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn
 import com.intellij.codeInsight.completion.CompletionContributor
 import com.intellij.codeInsight.completion.CompletionParameters
 import com.intellij.codeInsight.completion.CompletionProvider
+import com.intellij.codeInsight.completion.CompletionResult
 import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.lookup.LookupElementBuilder
@@ -11,6 +12,7 @@ import com.intellij.codeInsight.template.impl.ConstantNode
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.util.TextRange
 import com.intellij.patterns.PlatformPatterns
+import com.intellij.util.Consumer
 import com.intellij.util.ProcessingContext
 
 /**
@@ -69,6 +71,11 @@ class ScriptCompletionContributor : CompletionContributor() {
                 val beanMethods = model.beans.firstOrNull { it.name == qualifier }?.methods
                 if (beanMethods != null) {
                     beanMethods.forEach { result.addElement(methodLookup(it)) }
+                    // ScriptBindingMembersContributor injects these same methods as
+                    // synthetic GrLightMethodBuilders so they *resolve*; Groovy's
+                    // native completion would then re-emit each as a bare duplicate.
+                    // Filter those by name while letting unrelated members through.
+                    passThroughExcept(parameters, result, beanMethods.mapTo(HashSet()) { it.name })
                     return
                 }
                 val typeHint =
@@ -89,11 +96,52 @@ class ScriptCompletionContributor : CompletionContributor() {
             model.variables.orEmpty()
                 .filter { it.name !in beanNames }
                 .forEach { result.addElement(variableLookup(it)) }
+
+            // Every bean/global/variable name above is also a synthetic
+            // GrLightVariable/GrLightMethod injected by
+            // ScriptBindingMembersContributor so the bare name *resolves*; Groovy's
+            // native contributor then re-emits each as a second, untyped, doc-less
+            // lookup (the duplicate row). Run the remaining contributors ourselves
+            // and drop only the names we already rendered — keywords, `println`,
+            // and stdlib still pass through, which is the point of `language="any"`.
+            val ourNames = HashSet<String>(beanNames)
+            model.globals.orEmpty().mapTo(ourNames) { it.name }
+            model.variables.orEmpty().mapTo(ourNames) { it.name }
+            passThroughExcept(parameters, result, ourNames)
         }
 
-        /** Bean as a variable-icon lookup: `name`, type on the right, description greyed. */
+        /**
+         * Hands the remaining (lower-priority) completion contributors a chance to
+         * run, forwarding only the lookups whose string we did **not** already
+         * contribute. Replaces the default "run remaining automatically" so we can
+         * suppress the native Groovy duplicate of every bean/variable/method that
+         * [ScriptBindingMembersContributor] injects for resolution — see the call
+         * sites. Requires `order="first"` in plugin.xml so Groovy counts as
+         * "remaining" relative to us.
+         */
+        private fun passThroughExcept(
+            parameters: CompletionParameters,
+            result: CompletionResultSet,
+            ourNames: Set<String>,
+        ) {
+            result.runRemainingContributors(
+                parameters,
+                Consumer { completionResult: CompletionResult ->
+                    if (completionResult.lookupElement.lookupString !in ourNames) {
+                        result.passResult(completionResult)
+                    }
+                },
+            )
+        }
+
+        /**
+         * Bean as a variable-icon lookup: `name`, type on the right, description
+         * greyed. Seeded via `create(bean, bean.name)` so `LookupElement.getObject()`
+         * returns the [BeanInfo] — [ScriptDocumentationProvider] reads it to fill the
+         * quick-doc pane.
+         */
         private fun beanLookup(bean: BeanInfo) =
-            LookupElementBuilder.create(bean.name)
+            LookupElementBuilder.create(bean, bean.name)
                 .withIcon(AllIcons.Nodes.Variable)
                 .withTypeText(bean.type)
                 .appendTailText("  ${bean.description}", true)
@@ -102,10 +150,12 @@ class ScriptCompletionContributor : CompletionContributor() {
          * Process variable as a variable-icon lookup: typeHint (or a generic
          * label) right, doc greyed. An authored manifest variable leads with its
          * [VariableInfo.description]; otherwise the heuristic [VariableInfo.origin]
-         * is shown.
+         * is shown. Seeded via `create(variable, variable.name)` so
+         * `LookupElement.getObject()` returns the [VariableInfo] for
+         * [ScriptDocumentationProvider]'s quick-doc pane.
          */
         private fun variableLookup(variable: VariableInfo) =
-            LookupElementBuilder.create(variable.name)
+            LookupElementBuilder.create(variable, variable.name)
                 .withIcon(AllIcons.Nodes.Variable)
                 .withTypeText(variable.typeHint ?: "process variable")
                 .appendTailText(
@@ -118,10 +168,12 @@ class ScriptCompletionContributor : CompletionContributor() {
          * the right, description greyed. Accepting it inserts `name(…)` and starts
          * a live [com.intellij.codeInsight.template.Template] so the parameters are
          * tab-through editable — the IntelliJ analogue of VS Code's `SnippetString`
-         * `${1:param}` placeholders.
+         * `${1:param}` placeholders. Seeded via `create(method, method.name)` so
+         * `LookupElement.getObject()` returns the [MethodInfo] for
+         * [ScriptDocumentationProvider]'s quick-doc pane.
          */
         private fun methodLookup(method: MethodInfo) =
-            LookupElementBuilder.create(method.name)
+            LookupElementBuilder.create(method, method.name)
                 .withIcon(AllIcons.Nodes.Method)
                 .withTailText(signatureOf(method), true)
                 .withTypeText(method.returnType)

@@ -62,6 +62,12 @@ export class ScriptVariableManifestService {
     /** `foo.bpmn` → `<dir>/foo.bpmn.vars.json`, in the port's fs-path space. */
     private manifestPathFor(documentPath: string): string {
         const directory = this.workspace.getDocumentDirectory(documentPath);
-        return posix.join(directory, `${posix.basename(documentPath)}.vars.json`);
+        // Host fs paths aren't guaranteed posix: on Windows both VS Code's
+        // `uri.fsPath` and the bridge `fsPath` use backslashes, so a raw
+        // `posix.basename` would return the whole string and the computed
+        // manifest path (and watcher glob) would never match. Normalize
+        // separators first — `getDocumentDirectory` already does the equivalent.
+        const fileName = posix.basename(documentPath.replace(/\\/g, "/"));
+        return posix.join(directory, `${fileName}.vars.json`);
     }
 }
