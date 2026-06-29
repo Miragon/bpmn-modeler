@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+
 import { ExtensionContext } from "vscode";
 
 import {
@@ -46,6 +48,8 @@ export function register(
         cache,
         deps.vsSettings,
         deps.notifier,
+        // Injected so the host-agnostic core can expand `~` in a local source.
+        homedir(),
     );
 
     return { marketplaceSvc };

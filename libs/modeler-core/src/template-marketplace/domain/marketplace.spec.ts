@@ -156,6 +156,25 @@ describe("parseMarketplace", () => {
         );
     });
 
+    it("parses a provider:local source, keeping a ~ path raw for fetch-time expansion", () => {
+        expect(
+            parseMarketplace({ sources: [{ provider: "local", path: "~/ext-templates" }] }),
+        ).toEqual([{ kind: "local", path: "~/ext-templates" }]);
+    });
+
+    it("parses a provider:local source with an absolute path", () => {
+        expect(
+            parseMarketplace({ sources: [{ provider: "local", path: "/opt/templates" }] }),
+        ).toEqual([{ kind: "local", path: "/opt/templates" }]);
+    });
+
+    it("rejects a provider:local source with a relative path", () => {
+        // A relative path belongs in a provider-less (marketplace-relative) source.
+        expect(() =>
+            parseMarketplace({ sources: [{ provider: "local", path: "./templates" }] }),
+        ).toThrow(InvalidMarketplaceError);
+    });
+
     it("rejects an unsupported provider (later slices)", () => {
         expect(() =>
             parseMarketplace({ sources: [{ provider: "gitlab", repo: "a/b", path: "x" }] }),

@@ -50,6 +50,7 @@ function createService(opts: { manifest?: string | Error } = {}) {
         cache as never,
         settings as never,
         notifier as never,
+        "/home/test",
     );
     return { service, cache, settings, notifier, sourceFactory };
 }
@@ -113,6 +114,53 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         );
     });
 
+    it("resolves a provider:local source, expanding ~ via the injected home dir", async () => {
+        // A github-registered marketplace whose manifest points at an external
+        // local folder via `provider: "local"`. The root (manifest) read uses the
+        // github config; the local source resolves to its own expanded directory.
+        const cache = {
+            writeTemplate: vi.fn().mockResolvedValue(undefined),
+            getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
+        };
+        const notifier = { logWarning: vi.fn() };
+        const manifest = JSON.stringify({
+            sources: [{ provider: "local", path: "~/ext-templates" }],
+        });
+        const factory = vi.fn(
+            (config: RepositorySourceConfig): RepositorySource =>
+                config.kind === "github" && config.path === ""
+                    ? {
+                          listTemplateFiles: vi.fn().mockResolvedValue([]),
+                          fetchFile: vi.fn().mockResolvedValue(manifest),
+                      }
+                    : {
+                          listTemplateFiles: vi.fn().mockResolvedValue(["connector.json"]),
+                          fetchFile: vi.fn().mockResolvedValue("{}"),
+                      },
+        );
+        const service = new TemplateMarketplaceService(
+            factory as never,
+            cache as never,
+            { getTemplateMarketplaces: vi.fn() } as never,
+            notifier as never,
+            "/home/test",
+        );
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(factory).toHaveBeenCalledWith({
+            kind: "local",
+            rootDir: "/home/test/ext-templates",
+            path: "",
+        });
+        expect(cache.writeTemplate).toHaveBeenCalledWith(
+            "acme__templates",
+            0,
+            "connector.json",
+            "{}",
+        );
+    });
+
     it("throws when the manifest cannot be read, so no registration is persisted", async () => {
         const { service, cache } = createService({ manifest: new Error("404") });
 
@@ -151,6 +199,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             cache as never,
             { getTemplateMarketplaces: vi.fn() } as never,
             notifier as never,
+            "/home/test",
         );
 
         await service.addMarketplace("https://github.com/acme/templates");

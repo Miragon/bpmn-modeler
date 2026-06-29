@@ -59,10 +59,13 @@ export interface MarketplaceRegistration {
 /**
  * A `sources[]` entry resolved to where its templates live.
  *
- * `relative` points back into the marketplace repo itself (resolved against the
- * registration's owner/repo/ref at fetch time); `github` names an external repo
- * directly. The discriminant lets the service resolve both to a concrete
- * GitHub fetch without re-sniffing the raw JSON shape.
+ * `relative` points back into the marketplace itself (resolved against the
+ * registration's location at fetch time); `github` names an external repo
+ * directly; `local` names an absolute or `~`-rooted directory on this machine,
+ * independent of the marketplace's own location. The discriminant lets the
+ * service resolve each to a concrete fetch without re-sniffing the raw JSON
+ * shape. `local.path` is kept raw (it may contain `~`) because home expansion
+ * needs the host's home directory, resolved only at fetch time.
  */
 export type TemplateSource =
     | { readonly kind: "relative"; readonly path: string }
@@ -72,7 +75,8 @@ export type TemplateSource =
           readonly repo: string;
           readonly ref?: string;
           readonly path: string;
-      };
+      }
+    | { readonly kind: "local"; readonly path: string };
 
 /**
  * Strips a `./` prefix and surrounding slashes so a source path compares
@@ -139,16 +143,22 @@ function parseLocalFolder(input: string): MarketplaceRegistration | undefined {
     };
 }
 
+/** POSIX absolute (`/…`), Windows drive (`C:\` / `C:/`), or UNC (`\\host`). */
+function isAbsolutePath(path: string): boolean {
+    return path.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith("\\\\");
+}
+
+/** A `~`-rooted home path (`~`, `~/…`, or `~\…`). */
+function isHomePath(path: string): boolean {
+    return path === "~" || path.startsWith("~/") || path.startsWith("~\\");
+}
+
 /** @returns the filesystem path for a local input, or `undefined` if remote. */
 function toLocalFsPath(input: string): string | undefined {
     if (/^file:\/\//i.test(input)) {
         return fileUrlToPath(input);
     }
-    // POSIX absolute (`/…`), Windows drive (`C:\` / `C:/`), or UNC (`\\host`).
-    if (input.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(input) || input.startsWith("\\\\")) {
-        return input;
-    }
-    return undefined;
+    return isAbsolutePath(input) ? input : undefined;
 }
 
 /**
@@ -233,11 +243,11 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
  * into {@link TemplateSource}s.
  *
  * Invariants enforced (the reason this is a parser, not a cast): `sources` must
- * be a non-empty-shaped array; a `provider` entry must be GitHub (the only
- * provider this slice fetches) with a `owner/repo` `repo` and a `path`; a
- * provider-less entry must carry a `path` and is read as repo-relative. Anything
- * else throws so a typo surfaces as a clear error instead of silently loading
- * zero templates.
+ * be a non-empty-shaped array; a `github` provider needs a `owner/repo` `repo`
+ * and a `path`; a `local` provider needs an absolute or `~` `path`; a
+ * provider-less entry carries a `path` and is read as marketplace-relative.
+ * Anything else throws so a typo surfaces as a clear error instead of silently
+ * loading zero templates.
  *
  * @throws {InvalidMarketplaceError} on any shape violation.
  */
@@ -267,6 +277,21 @@ function parseSource(entry: unknown, index: number): TemplateSource {
 
     if (source.provider === undefined) {
         return { kind: "relative", path: normalizeSourcePath(path) };
+    }
+
+    if (source.provider === "local") {
+        const local = path.trim();
+        // An absolute or `~` path only; a relative one belongs in a no-provider
+        // source (resolved against the marketplace), so reject it loudly rather
+        // than resolve it against an undefined base. Kept raw — `~` is expanded
+        // at fetch time, where the home directory is known.
+        if (!isAbsolutePath(local) && !isHomePath(local)) {
+            throw new InvalidMarketplaceError(
+                `sources[${index}] local "path" must be absolute or start with "~" ` +
+                    `(use a provider-less source for a marketplace-relative path)`,
+            );
+        }
+        return { kind: "local", path: local };
     }
 
     if (source.provider !== "github") {

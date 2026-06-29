@@ -31,12 +31,15 @@ export class TemplateMarketplaceService {
      * @param cache Local store the render pipeline reads from.
      * @param settings Reads the persisted list of registered marketplaces.
      * @param notifier User-facing logging for the warn-and-continue path.
+     * @param homeDir Absolute home directory, injected because the host-agnostic
+     *   core cannot read it; used to expand `~` in a `provider: "local"` source.
      */
     constructor(
         private readonly sourceFactory: RepositorySourceFactory,
         private readonly cache: MarketplaceCache,
         private readonly settings: SettingsPort,
         private readonly notifier: NotifierPort,
+        private readonly homeDir: string,
     ) {}
 
     /**
@@ -118,16 +121,22 @@ export class TemplateMarketplaceService {
         source: TemplateSource,
         index: number,
     ): Promise<void> {
-        const config: RepositorySourceConfig =
-            source.kind === "relative"
-                ? this.configFor(registration.location, source.path)
-                : {
-                      kind: "github",
-                      owner: source.owner,
-                      repo: source.repo,
-                      ref: source.ref,
-                      path: source.path,
-                  };
+        let config: RepositorySourceConfig;
+        if (source.kind === "relative") {
+            config = this.configFor(registration.location, source.path);
+        } else if (source.kind === "github") {
+            config = {
+                kind: "github",
+                owner: source.owner,
+                repo: source.repo,
+                ref: source.ref,
+                path: source.path,
+            };
+        } else {
+            // A `provider: "local"` source names its own directory: expand `~`,
+            // then scan the whole folder (empty subtree).
+            config = { kind: "local", rootDir: this.expandHome(source.path), path: "" };
+        }
 
         const repository = this.sourceFactory(config);
         for (const repoPath of await repository.listTemplateFiles()) {
@@ -142,6 +151,21 @@ export class TemplateMarketplaceService {
      * This is the single place the github/local discriminant is mapped, so the
      * fetch flow above stays provider-agnostic.
      */
+    /**
+     * Expands a leading `~` against the injected home directory. The trailing
+     * join uses `/` (never `node:path`) to keep the core host-agnostic; the
+     * adapter normalises separators when it reads the directory.
+     */
+    private expandHome(path: string): string {
+        if (path === "~") {
+            return this.homeDir;
+        }
+        if (path.startsWith("~/") || path.startsWith("~\\")) {
+            return `${this.homeDir}/${path.slice(2)}`;
+        }
+        return path;
+    }
+
     private configFor(location: MarketplaceLocation, path: string): RepositorySourceConfig {
         return location.kind === "github"
             ? {
