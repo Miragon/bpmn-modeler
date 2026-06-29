@@ -10,6 +10,8 @@ export class VsCodeStatusBar implements StatusBarPort {
 
     private engineVersionStatusItem: StatusBarItem | undefined;
 
+    private bpmnlintStatusItem: StatusBarItem | undefined;
+
     showElementTemplatesLoading(): void {
         const item = this.getOrCreateTemplateStatusItem();
         item.text = "$(loading~spin) Loading element templates…";
@@ -44,6 +46,24 @@ export class VsCodeStatusBar implements StatusBarPort {
         this.engineVersionStatusItem = undefined;
     }
 
+    showBpmnlintActive(configPath: string): void {
+        const item = this.getOrCreateBpmnlintStatusItem();
+        item.text = "$(check) BPMNlint";
+        item.tooltip = configPath;
+        item.show();
+    }
+
+    showBpmnlintNoConfig(): void {
+        const item = this.getOrCreateBpmnlintStatusItem();
+        item.text = "$(info) BPMNlint: no .bpmnlintrc";
+        item.tooltip = undefined;
+        item.show();
+    }
+
+    hideBpmnlintStatus(): void {
+        this.bpmnlintStatusItem?.hide();
+    }
+
     private getOrCreateTemplateStatusItem(): StatusBarItem {
         if (!this.templateStatusItem) {
             this.templateStatusItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
@@ -60,5 +80,12 @@ export class VsCodeStatusBar implements StatusBarPort {
             this.engineVersionStatusItem.command = CHANGE_ENGINE_VERSION_CMD;
         }
         return this.engineVersionStatusItem;
+    }
+
+    private getOrCreateBpmnlintStatusItem(): StatusBarItem {
+        if (!this.bpmnlintStatusItem) {
+            this.bpmnlintStatusItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
+        }
+        return this.bpmnlintStatusItem;
     }
 }

@@ -59,7 +59,10 @@ a:link {
     color: #bd2828;
 }
 
-.content:not(.with-error) .error,
+/* Scope to the import-error message box (`<div class="message error">`).
+ * A bare `.error` also matches descendants like bpmnlint's `<li class="error">`
+ * issue rows, which hid their text on hover. */
+.content:not(.with-error) .message.error,
 .content.with-error .intro,
 .content.with-diagram .intro {
     display: none;

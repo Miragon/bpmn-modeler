@@ -17,6 +17,7 @@ import { MessageHandler } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
+import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { ModelNavigationService } from "../../../../navigation/index";
@@ -50,6 +51,15 @@ export function getElementTemplatesHandler(
 ): MessageHandler {
     return (_message: Command, editorId: string) => {
         templatesSvc.setElementTemplates(editorId);
+    };
+}
+
+/**
+ * `GetBpmnlintConfigCommand` → discover and push the nearest `.bpmnlintrc`.
+ */
+export function getBpmnlintConfigHandler(lintSvc: BpmnLintConfigService): MessageHandler {
+    return (_message: Command, editorId: string) => {
+        lintSvc.setBpmnlintConfig(editorId);
     };
 }
 

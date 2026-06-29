@@ -18,6 +18,7 @@ export * from "./shared/domain/viewTypes";
 
 // ── shared: service + vscode-free infrastructure ────────────────────────────
 export * from "./shared/service/ArtifactService";
+export * from "./shared/service/BpmnLintConfigLocator";
 export * from "./shared/infrastructure/EditorSessionStore";
 export * from "./shared/infrastructure/WebviewMessageRouter";
 export * from "./shared/infrastructure/helpers";
@@ -26,6 +27,7 @@ export * from "./shared/infrastructure/helpers";
 export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/service/BpmnModelerService";
 export * from "./modeler/bpmn/service/BpmnElementTemplatesService";
+export * from "./modeler/bpmn/service/BpmnLintConfigService";
 export * from "./modeler/bpmn/service/BpmnClipboardMediator";
 export * from "./modeler/bpmn/service/BpmnPropertiesPanelService";
 export * from "./modeler/bpmn/service/BpmnSettingsBroadcaster";

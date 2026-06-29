@@ -15,6 +15,7 @@ Here's what you get, roughly in the order you reach for it.
   script-task and listener scripts in real VS Code editor tabs.
   Syntax highlighting, IntelliSense for the Camunda 7 script API,
   per-keystroke sync back into the BPMN model.
+
 ## Compare
 
 - **[BPMN Diff](/vscode/features/bpmn-diff)** — swap VS Code's text diff
@@ -28,6 +29,14 @@ Here's what you get, roughly in the order you reach for it.
 - **[Deployment](/vscode/features/deployment)** — push BPMN/DMN diagrams and
   start process instances directly from VS Code. Camunda 7 and 8 support,
   three auth modes, payload file discovery by convention.
+
+## Validate
+
+- **[Linting](/vscode/features/linting)** — validate your diagram live with
+  [bpmnlint](https://github.com/bpmn-io/bpmnlint), the same linter you run in
+  CI. Drop a `.bpmnlintrc` in your project and rule violations show up as
+  ⚠️/❌ overlays plus a status-bar summary while you edit.
+
 ## Configure
 
 - **[Language Support](/vscode/features/language-support)** — switch the

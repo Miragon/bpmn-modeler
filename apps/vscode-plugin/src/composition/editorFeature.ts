@@ -5,6 +5,8 @@ import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
+import { BpmnLintConfigLocator } from "@miragon/bpmn-modeler-core";
+import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
@@ -14,6 +16,7 @@ import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
 import { ElementTemplatesParticipant } from "../modeler/bpmn/controller/editor-participants/ElementTemplatesParticipant";
+import { BpmnlintParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnlintParticipant";
 import { SettingsParticipant } from "../modeler/bpmn/controller/editor-participants/SettingsParticipant";
 import { EngineVersionStatusBarParticipant } from "../modeler/bpmn/controller/editor-participants/EngineVersionStatusBarParticipant";
 import { ScriptTaskTeardownParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant";
@@ -22,6 +25,7 @@ import { DmnSettingsParticipant } from "../modeler/dmn/controller/editor-partici
 import {
     getBpmnFileHandler,
     getElementTemplatesHandler,
+    getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     resyncScriptTasksHandler,
     getPropertiesPanelStateHandler,
@@ -94,6 +98,18 @@ export function register(
         deps.statusBar,
         deps.notifier,
     );
+    const lintConfigLocator = new BpmnLintConfigLocator(
+        deps.vsWorkspace,
+        deps.vsSettings,
+        deps.artifactSvc,
+    );
+    const lintConfigSvc = new BpmnLintConfigService(
+        deps.editorStore,
+        deps.vsDocument,
+        lintConfigLocator,
+        deps.statusBar,
+        deps.notifier,
+    );
     const clipboardMediator = new BpmnClipboardMediator(
         deps.editorStore,
         deps.clipboard,
@@ -140,6 +156,7 @@ export function register(
     const bpmnMessageRouter = new WebviewMessageRouter()
         .on("GetBpmnFileCommand", getBpmnFileHandler(bpmnService, deps.notifier))
         .on("GetElementTemplatesCommand", getElementTemplatesHandler(templatesSvc))
+        .on("GetBpmnlintConfigCommand", getBpmnlintConfigHandler(lintConfigSvc))
         .on("GetBpmnModelerSettingCommand", getBpmnModelerSettingHandler(settingsBroadcaster))
         .on("GetBpmnModelerSettingCommand", resyncScriptTasksHandler(scriptTaskSvc))
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(panelSvc))
@@ -181,6 +198,12 @@ export function register(
         participants: [
             new BpmnRenderParticipant(bpmnService, deps.notifier),
             new ElementTemplatesParticipant(templatesSvc, deps.artifactSvc, deps.notifier),
+            new BpmnlintParticipant(
+                lintConfigSvc,
+                lintConfigLocator,
+                deps.statusBar,
+                deps.notifier,
+            ),
             new SettingsParticipant(settingsBroadcaster),
             new EngineVersionStatusBarParticipant(deps.statusBar, deps.vsDocument),
             new ScriptTaskTeardownParticipant(scriptTaskSvc, scriptVariableStore),

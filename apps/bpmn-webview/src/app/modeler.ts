@@ -24,6 +24,7 @@ import {
 } from "./scriptTaskContextPad";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
+import LintModule from "./bpmnlint";
 import { setColorThemeMode } from "@miragon/bpmn-modeler-shared";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
@@ -102,6 +103,7 @@ export class BpmnModeler {
     create(engine: Engine, extraModules?: any[]): void {
         const commonModules = [
             TokenSimulationModule,
+            LintModule,
             ElementTemplateChooserModule,
             AppendMenuModule,
             NavigateToReferencedModelModule,
