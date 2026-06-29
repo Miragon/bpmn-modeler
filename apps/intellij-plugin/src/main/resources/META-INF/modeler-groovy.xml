@@ -20,5 +20,15 @@
         <annotator
             language="Groovy"
             implementationClass="io.miragon.intellij.bpmn.ScriptSemanticHighlighter"/>
+
+        <!-- 💡 "Declare '<name>' in variable manifest" for an unresolved variable
+             in our Groovy script tabs. <language> scopes it to Groovy (it needs
+             Groovy PSI); the action self-scopes to our tabs via the UserData.
+             See DeclareVariableIntention. -->
+        <intentionAction>
+            <language>Groovy</language>
+            <className>io.miragon.intellij.bpmn.DeclareVariableIntention</className>
+            <category>BPMN Modeler</category>
+        </intentionAction>
     </extensions>
 </idea-plugin>

@@ -35,6 +35,7 @@ import { posix, sep } from "node:path";
 import {
     DirectoryNotFound,
     EditorSubscription,
+    FileNotFound,
     NoWorkspaceFolderFoundError,
     SettingChange,
     SettingsPort,
@@ -201,8 +202,23 @@ export class NodeWorkspace implements WorkspacePort {
         });
     }
 
+    /**
+     * @throws {FileNotFound} on `ENOENT`. The {@link WorkspacePort.readFile}
+     *   contract is "throw FileNotFound when absent" (VsCodeWorkspace already
+     *   does, via `Uri.file`), and callers like `ScriptVariableManifestService`
+     *   catch it (via `instanceof`) to mean "no manifest, use defaults". A raw
+     *   ENOENT would slip that guard and rethrow — mirror the `readDirectory`
+     *   precedent above so the class identity survives bundling.
+     */
     async readFile(path: string): Promise<string> {
-        return fs.readFile(toFsPath(path), "utf8");
+        try {
+            return await fs.readFile(toFsPath(path), "utf8");
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+                throw new FileNotFound(path);
+            }
+            throw error;
+        }
     }
 
     /**

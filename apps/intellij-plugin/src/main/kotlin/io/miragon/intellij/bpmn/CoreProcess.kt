@@ -129,6 +129,14 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Pushes the current settings snapshot to the running core so an open editor reacts live. */
     fun pushSettings() = editorRouter.pushSettings()
 
+    /**
+     * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script
+     * variable and reveal the manifest — backs the "Declare in variable manifest"
+     * intention, which has the `scriptId` but not the bridge channel.
+     */
+    fun appendScriptVariableToManifest(scriptId: String, name: String) =
+        scriptRouter.appendToManifest(scriptId, name)
+
     // ── deployment tool window ─────────────────────────────────────────────────
 
     fun registerDeploymentWindow(sink: (String) -> Unit) = deploymentRouter.registerDeploymentWindow(sink)

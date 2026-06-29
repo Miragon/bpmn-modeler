@@ -1,5 +1,7 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -34,6 +36,10 @@ dependencies {
         // (no version-catalog entry) and the jars download on the first test run.
         testFramework(TestFrameworkType.JUnit5)
         testFramework(TestFrameworkType.Platform)
+        // Java code-insight test fixtures: ship LightJavaCodeInsightFixtureTestCase5,
+        // the JUnit5 base class the script-completion test extends to drive the real
+        // completion pipeline with a properly leak-tracked light project.
+        testFramework(TestFrameworkType.Plugin.Java)
     }
     // Gson does the JSON encode/decode for the host ↔ bridge ↔ webview messages.
     // Hand-built strings are unsafe here: SyncDocumentCommand carries the full
@@ -56,6 +62,12 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    // A new JVM per test class. The light-project code-insight test
+    // (ScriptCompletionContributorTest) and the @TestApplication router tests can't
+    // share a JVM: the router tests install a strict app-level project-leak tracker
+    // that catches the code-insight test's light project (held by project services
+    // after disposal). Isolating each class sidesteps the cross-contamination.
+    setForkEvery(1)
     // Always refresh the coverage data so `jacocoTestReport` reflects the latest run.
     finalizedBy(tasks.jacocoTestReport)
 }
@@ -80,6 +92,32 @@ intellijPlatform {
             untilBuild = provider { null }
         }
     }
+
+    // Binary-compatibility verification. We build against the 242 floor but claim
+    // compatibility up to the latest (untilBuild = null), so the verifier guards
+    // the open upper bound: the floor catches accidental use of a post-242 API,
+    // and a current release (the top of the range users actually run) catches a
+    // removed/changed API the 242 build would crash on at runtime.
+    pluginVerification {
+        // Gate on real breakage only. Deprecated/experimental/internal usages are
+        // reported but don't fail: across a 242→latest range the replacement API
+        // often doesn't exist on the floor, so failing on a deprecation would make
+        // every upstream deprecation an un-fixable build break. COMPATIBILITY and
+        // SCHEDULED_FOR_REMOVAL are the categories that mean "will not run".
+        failureLevel = listOf(
+            FailureLevel.COMPATIBILITY_PROBLEMS,
+            FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES,
+            FailureLevel.MISSING_DEPENDENCIES,
+            FailureLevel.INVALID_PLUGIN,
+        )
+        ides {
+            // The 242 floor still ships as the standalone Community artifact.
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2024.2.5")
+            // Community stopped being published as a separate artifact in 2025.3;
+            // newer releases resolve through the unified IntelliJ IDEA type.
+            create(IntelliJPlatformType.IntellijIdea, "2026.1.3")
+        }
+    }
 }
 
 // The webview bundles (bpmn + deployment) and the modeler-core bridge binary are
@@ -94,6 +132,11 @@ val deploymentWebviewDist =
 val bridgeBinary = layout.projectDirectory.file("../../apps/modeler-bridge/dist/modeler-bridge")
 val bridgeDistRoot = layout.projectDirectory.dir("../../apps/modeler-bridge/dist")
 val stagedResourcesRoot = layout.buildDirectory.dir("modeler-resources")
+
+// Single source of truth: the `*.bpmn.vars.json` JSON Schema lives in libs/shared
+// next to the type it mirrors. Staged into resources so the JsonSchemaProviderFactory
+// loads it from the classpath at `/schemas/bpmn-vars.schema.json`.
+val varsSchema = layout.projectDirectory.file("../../libs/shared/src/lib/variableManifest.schema.json")
 
 /**
  * Release distribution mode: when set, stage every per-platform bridge binary
@@ -212,17 +255,32 @@ val copyBridge =
         }
     }
 
+val copySchema =
+    tasks.register<Copy>("copySchema") {
+        description = "Stages the shared *.bpmn.vars.json JSON Schema into plugin resources (loaded from the classpath by the JsonSchemaProviderFactory)."
+        doFirst {
+            if (!varsSchema.asFile.exists()) {
+                throw GradleException("Vars manifest schema not found at ${varsSchema.asFile}.")
+            }
+        }
+        from(varsSchema) {
+            rename { "bpmn-vars.schema.json" }
+        }
+        // Lands at `/schemas/bpmn-vars.schema.json` on the classpath.
+        into(stagedResourcesRoot.map { it.dir("schemas") })
+    }
+
 sourceSets.named("main") {
     resources.srcDir(stagedResourcesRoot)
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge)
+    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema)
 }
 
 // The sandbox for `runIde` is assembled from the jar, which already contains the
 // staged resources, so no extra sandbox wiring is needed — but make the
 // dependency explicit so a clean `runIde` always stages the bundles first.
 tasks.withType<PrepareSandboxTask>().configureEach {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge)
+    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema)
 }

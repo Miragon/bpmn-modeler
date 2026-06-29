@@ -26,13 +26,16 @@ import {
     PickerPort,
     ScriptLanguage,
     ScriptUri,
+    ScriptVariableManifestService,
 } from "@miragon/bpmn-modeler-core";
 import {
+    dedupeVariables,
     OpenScriptEditorCommand,
     ScriptKind,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
     VariableDef,
+    VariableManifestEntry,
 } from "@miragon/bpmn-modeler-shared";
 
 import { BridgeSettings } from "./nodeAdapters";
@@ -56,10 +59,21 @@ interface TrackedScript {
 export class BridgeScriptEditor {
     private readonly scripts = new Map<string, TrackedScript>();
 
-    // Latest process-variable model per editor. Seeded on open and replaced on
-    // every `UpdateScriptVariablesCommand`; read both into the `script/open`
-    // payload and the per-script `script/updateVariables` push.
-    private readonly variablesByEditor = new Map<string, VariableDef[]>();
+    // Two process-variable sources per editor, kept apart and merged on read
+    // (mirrors the VS Code `ScriptVariableStore`): the webview-extracted model
+    // (seeded on open, replaced on every `UpdateScriptVariablesCommand`) and the
+    // `*.bpmn.vars.json` manifest model (loaded on session register, refreshed by
+    // the file watcher). `mergedFor` deduplicates them so the manifest's
+    // `authored` tier wins clashes; the merge feeds both the `script/open`
+    // payload and the `script/updateVariables` push.
+    private readonly extractedByEditor = new Map<string, VariableDef[]>();
+    private readonly manifestByEditor = new Map<string, VariableDef[]>();
+
+    // The editor's diagram fs path, retained so `appendToManifest` can resolve
+    // which manifest to write — a script tab is addressed only by an opaque
+    // `scriptId`, which carries no path. Seeded when `loadManifest` runs at
+    // session register.
+    private readonly documentPathByEditor = new Map<string, string>();
 
     constructor(
         private readonly store: EditorSessionStore,
@@ -67,6 +81,7 @@ export class BridgeScriptEditor {
         private readonly rpc: Rpc,
         private readonly notifier: NotifierPort,
         private readonly settings: BridgeSettings,
+        private readonly manifestSvc: ScriptVariableManifestService,
     ) {}
 
     /**
@@ -107,9 +122,9 @@ export class BridgeScriptEditor {
             listenerIndex: cmd.listenerIndex,
         });
 
-        // Seed the editor's variable model from the open command so the host has
+        // Seed the editor's extracted model from the open command so the host has
         // variable completion before the first live update arrives.
-        this.variablesByEditor.set(editorId, cmd.variables ?? []);
+        this.extractedByEditor.set(editorId, cmd.variables ?? []);
 
         // The SPIN globals (`S`/`JSON`) and the type→methods table are gated here
         // in the bridge (single source): off → empty, so the Kotlin contributor
@@ -141,7 +156,7 @@ export class BridgeScriptEditor {
                     // they have no member completion.
                     methods: methodsForBean(bean),
                 })),
-                variables: this.variablesByEditor.get(editorId) ?? [],
+                variables: this.mergedFor(editorId),
                 globals: spinOn ? globalFunctionsFor(cmd.kind) : [],
                 types: spinOn
                     ? Object.fromEntries(COMPLEX_TYPES.map((type) => [type.name, type.methods]))
@@ -151,12 +166,55 @@ export class BridgeScriptEditor {
     }
 
     /**
-     * Replaces an editor's process-variable model and pushes it to every open
-     * script tab of that editor via `script/updateVariables`, so completion goes
-     * live without reopening. Scoped to the originating editor's scripts only.
+     * Replaces an editor's webview-extracted model and re-pushes the merged
+     * model to every open script tab of that editor via `script/updateVariables`,
+     * so completion goes live without reopening. Scoped to the originating
+     * editor's scripts only.
      */
     updateVariables(editorId: string, variables: VariableDef[]): void {
-        this.variablesByEditor.set(editorId, variables);
+        this.extractedByEditor.set(editorId, variables);
+        this.pushVariables(editorId);
+    }
+
+    /**
+     * Loads the `*.bpmn.vars.json` manifest for an editor and re-pushes the merged
+     * model. Called on session register (no tabs open yet, so the push is a no-op
+     * that just seeds the manifest source) and on every manifest file change.
+     * A read error is logged and leaves the previous manifest model in place.
+     */
+    async loadManifest(editorId: string, documentPath: string): Promise<void> {
+        this.documentPathByEditor.set(editorId, documentPath);
+        try {
+            this.manifestByEditor.set(editorId, await this.manifestSvc.load(documentPath));
+        } catch (error) {
+            this.notifier.logError(error as Error);
+            return;
+        }
+        this.pushVariables(editorId);
+    }
+
+    /**
+     * Watches the manifest file and reloads + re-pushes on any change. The
+     * returned handle is owned by the session feature, which disposes it when the
+     * editor closes. Async because resolving the manifest path needs the
+     * workspace root.
+     */
+    async watchManifest(editorId: string, documentPath: string): Promise<{ dispose(): void }> {
+        return this.manifestSvc.createWatcher(documentPath, () => {
+            void this.loadManifest(editorId, documentPath);
+        });
+    }
+
+    /** Deduplicated manifest-over-extracted model; manifest's `authored` tier wins. */
+    private mergedFor(editorId: string): VariableDef[] {
+        const manifest = this.manifestByEditor.get(editorId) ?? [];
+        const extracted = this.extractedByEditor.get(editorId) ?? [];
+        return dedupeVariables([...manifest, ...extracted]);
+    }
+
+    /** Pushes the merged model to every open script tab of `editorId`. */
+    private pushVariables(editorId: string): void {
+        const variables = this.mergedFor(editorId);
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
                 this.rpc.notify(METHODS.scriptUpdateVariables, { scriptId, variables });
@@ -191,6 +249,37 @@ export class BridgeScriptEditor {
     }
 
     /**
+     * The host's "Declare in variable manifest" intention fired: scaffold the
+     * entry in the script's diagram manifest, then reveal the file so the author
+     * fills in `type`/`description`. Reveal reuses the existing `notifier/openDocument`
+     * capability (already implemented on the host).
+     *
+     * The re-push is done explicitly via `loadManifest` rather than left to the
+     * per-session manifest watcher: `fs.watch` latency is unbounded (and flaky in
+     * CI), so waiting for the watcher to observe *our own* write would make the new
+     * authored entry appear only after an indeterminate delay. The watcher still
+     * covers external edits; a redundant watcher-driven re-push afterwards is
+     * idempotent.
+     */
+    async appendToManifest(scriptId: string, entry: VariableManifestEntry): Promise<void> {
+        const tracked = this.scripts.get(scriptId);
+        if (!tracked) {
+            return;
+        }
+        const documentPath = this.documentPathByEditor.get(tracked.editorId);
+        if (!documentPath) {
+            return;
+        }
+        try {
+            const manifestPath = await this.manifestSvc.upsert(documentPath, entry);
+            await this.notifier.openDocument(manifestPath);
+            await this.loadManifest(tracked.editorId, documentPath);
+        } catch (error) {
+            this.notifier.logError(error as Error);
+        }
+    }
+
+    /**
      * The BPMN editor was disposed: tell the host to close every script tab it
      * opened for that editor and drop their tracking. Iterating while deleting is
      * safe for a `Map` — only already-visited or current entries are removed.
@@ -202,7 +291,9 @@ export class BridgeScriptEditor {
                 this.scripts.delete(scriptId);
             }
         }
-        this.variablesByEditor.delete(editorId);
+        this.extractedByEditor.delete(editorId);
+        this.manifestByEditor.delete(editorId);
+        this.documentPathByEditor.delete(editorId);
     }
 
     /**

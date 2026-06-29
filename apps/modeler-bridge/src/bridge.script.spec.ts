@@ -12,7 +12,7 @@
 
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -74,10 +74,20 @@ describe("bridge script editor (real core over a fake transport)", () => {
         }
     });
 
-    async function setup(): Promise<{ rpc: Rpc; frames: any[]; editorId: string }> {
+    async function setup(options?: {
+        manifest?: string;
+    }): Promise<{ rpc: Rpc; frames: any[]; editorId: string }> {
         const root = await fs.mkdtemp(join(tmpdir(), "modeler-bridge-script-"));
         const sourcePath = join(root, "source.bpmn");
         await fs.writeFile(sourcePath, C7_XML, "utf8");
+        // Written before session/register so the script feature's onSessionRegistered
+        // hook reads it into the editor's manifest source. The manifest now lives
+        // under `<configFolder>/vars/<relBpmn>.vars.json`, not beside the diagram.
+        if (options?.manifest !== undefined) {
+            const varsDir = join(root, ".camunda", "vars");
+            await fs.mkdir(varsDir, { recursive: true });
+            await fs.writeFile(join(varsDir, "source.bpmn.vars.json"), options.manifest, "utf8");
+        }
 
         const frames: any[] = [];
         const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
@@ -265,6 +275,121 @@ describe("bridge script editor (real core over a fake transport)", () => {
 
         const open = await waitForFrame(frames, (f) => f.method === "script/open");
         expect(open.params.completion.variables).toEqual(variables);
+    });
+
+    it("merges the *.bpmn.vars.json manifest into the script/open payload, manifest winning a clash", async () => {
+        const { rpc, frames, editorId } = await setup({
+            manifest: JSON.stringify({
+                variables: [
+                    { name: "orderId", type: "String", description: "Set by REST start" },
+                    { name: "amount", type: "Long" },
+                ],
+            }),
+        });
+
+        // `amount` also arrives as an extracted (heuristic) variable — the
+        // manifest's authored entry must win the clash.
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+            variables,
+        });
+
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const byName: Record<string, any> = Object.fromEntries(
+            open.params.completion.variables.map((v: { name: string }) => [v.name, v]),
+        );
+
+        expect(byName.orderId).toMatchObject({
+            typeHint: "String",
+            description: "Set by REST start",
+            confidence: "authored",
+        });
+        // The authored `amount` (type Long) wins over the extracted form field.
+        expect(byName.amount).toMatchObject({ typeHint: "Long", confidence: "authored" });
+        expect(open.params.completion.variables).toHaveLength(2);
+    });
+
+    it("appends to the manifest, reveals it, and re-pushes updateVariables on script/appendToManifest", async () => {
+        const { rpc, frames, editorId } = await setup({
+            manifest: JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
+        });
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const scriptId = open.params.scriptId;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "script/appendToManifest",
+                params: { scriptId, name: "amount" },
+            }),
+        );
+
+        // (a) the reveal frame carries the resolved manifest path …
+        const reveal = await waitForFrame(frames, (f) => f.method === "notifier/openDocument");
+        const sourcePath = editorId.replace(/^file:\/\//, "");
+        const manifestPath = join(dirname(sourcePath), ".camunda", "vars", "source.bpmn.vars.json");
+        expect(reveal.params.path).toBe(manifestPath);
+
+        // (b) … the entry was appended on disk (the existing entry preserved) …
+        const onDisk = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(onDisk.variables).toEqual([{ name: "orderId", type: "String" }, { name: "amount" }]);
+
+        // (c) … and the append re-pushes the merged var to the tab (done eagerly,
+        // not via the fs watcher, so it is deterministic and does not race a write).
+        const update = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "script/updateVariables" &&
+                f.params.scriptId === scriptId &&
+                f.params.variables.some((v: { name: string }) => v.name === "amount"),
+        );
+        expect(update.params.variables.map((v: { name: string }) => v.name)).toEqual(
+            expect.arrayContaining(["orderId", "amount"]),
+        );
+    });
+
+    it("opens a diagram without a manifest without logging an error", async () => {
+        // Exercises the real NodeWorkspace.readFile ENOENT path: a missing
+        // manifest must read as "absent" (FileNotFound), not rethrow and get
+        // logged at error level on every editor open. `setup()` writes no
+        // `.camunda/vars/*.vars.json`, so session/register hits the absent-manifest branch.
+        const { rpc, frames, editorId } = await setup();
+        await settle();
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+            variables: [{ name: "amount", origin: "form field", confidence: "declared" }],
+        });
+
+        const errorLog = frames.find(
+            (f) => f.method === "notifier/log" && f.params?.level === "error",
+        );
+        expect(errorLog).toBeUndefined();
+
+        // With no manifest the payload carries only the extracted variables.
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        expect(open.params.completion.variables).toEqual([
+            { name: "amount", origin: "form field", confidence: "declared" },
+        ]);
     });
 
     it("pushes script/updateVariables for that editor's open scripts only", async () => {

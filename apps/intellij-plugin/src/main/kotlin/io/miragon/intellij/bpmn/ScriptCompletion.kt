@@ -38,14 +38,17 @@ data class ScriptCompletionModel(
 )
 
 /**
- * A process variable surfaced by the model's static extraction. [origin] and
- * [typeHint] are nullable for the same Gson reason as above and because the
- * core only sets `typeHint` when it knows one (e.g. a form field's type).
+ * A process variable surfaced by the model's static extraction or declared in a
+ * `*.bpmn.vars.json` manifest. [origin], [typeHint], and [description] are
+ * nullable for the same Gson reason as above and because the core only sets each
+ * when it knows one — [description] rides along only for manifest (`authored`)
+ * entries.
  */
 data class VariableInfo(
     val name: String,
     val origin: String?,
     val typeHint: String?,
+    val description: String?,
 )
 
 /**
@@ -78,6 +81,15 @@ data class ParamInfo(val name: String, val type: String)
  * `.js`/`.groovy` file — absence of the key means "not our tab, stay silent".
  */
 val SCRIPT_COMPLETION_KEY: Key<ScriptCompletionModel> = Key.create("modeler.script.completion")
+
+/**
+ * The opaque `scriptId` the bridge assigned this tab, stashed on its
+ * [VirtualFile] so [DeclareVariableIntention] can address the
+ * `script/appendToManifest` RPC for an unknown variable. Separate from
+ * [SCRIPT_COMPLETION_KEY] because the completion catalog is swapped wholesale on
+ * every `updateVariables`, whereas the id is stable for the tab's lifetime.
+ */
+val SCRIPT_ID_KEY: Key<String> = Key.create("modeler.script.id")
 
 private val MEMBER_ACCESS = Regex("([A-Za-z_][A-Za-z0-9_]*)\\.\\s*$")
 

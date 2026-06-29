@@ -114,6 +114,19 @@ export interface ScriptCloseParams {
     scriptId: string;
 }
 
+/**
+ * `script/appendToManifest` — the host's "Declare in variable manifest" intention
+ * asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown variable.
+ * `type`/`description` are optional so the host can append a name-only entry and
+ * let the author fill the rest in the opened manifest.
+ */
+export interface ScriptAppendToManifestParams {
+    scriptId: string;
+    name: string;
+    type?: string;
+    description?: string;
+}
+
 // ── Core → Host requests (params + results) ──────────────────────────────────
 
 /** `document/write` — push core-originated text; result reports whether it changed. */

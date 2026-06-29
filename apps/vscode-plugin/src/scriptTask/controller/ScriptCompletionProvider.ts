@@ -69,8 +69,9 @@ import { VariableDef } from "@miragon/bpmn-modeler-shared";
  * without reopening the script.
  */
 export class ScriptCompletionProvider implements CompletionItemProvider {
-    // Languages this provider participates in.
-    private static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
+    // Languages this provider participates in. Public so the sibling
+    // `ScriptDeclareVariableCodeAction` registers for exactly the same set.
+    static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
 
     constructor(
         private readonly store: ScriptVariableStore,
@@ -175,7 +176,12 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
 function variableToCompletion(variable: VariableDef): CompletionItem {
     const item = new CompletionItem(variable.name, CompletionItemKind.Variable);
     item.detail = variable.typeHint ?? "process variable";
-    item.documentation = new MarkdownString(variable.origin);
+    // Author-supplied description leads; the heuristic `origin` follows as a
+    // muted line so a manifest variable reads as documentation, not provenance.
+    const docs = variable.description
+        ? `${variable.description}\n\n_${variable.origin}_`
+        : variable.origin;
+    item.documentation = new MarkdownString(docs);
     return item;
 }
 

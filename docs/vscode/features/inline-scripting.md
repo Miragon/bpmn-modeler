@@ -129,6 +129,68 @@ scope.
      `setVariable`, `getVariable`, `getProcessBusinessKey`, etc. with their
      signatures visible. -->
 
+### Process-variable completions
+
+Inside a `getVariable("…")` / `setVariable("…")` string argument — and at
+the start of a line — you also get completions for the **process
+variables** the modeler discovered in the diagram. These are inferred
+heuristically from input/output mappings, form fields, result variables,
+call-activity mappings, and `setVariable(…)` / `${…}` occurrences.
+
+### Declaring variables with a `*.bpmn.vars.json` manifest
+
+Heuristic discovery cannot see variables injected from outside the model
+(a REST start payload, a correlated message, a parent process), and it
+cannot carry author-supplied types or documentation. To declare those
+explicitly, add a manifest named after the diagram with a `.vars.json`
+suffix under the config folder's `vars/` subfolder, mirroring the
+diagram's workspace-relative path (the same convention as
+element-templates and code-link):
+
+```
+order-process.bpmn
+.camunda/vars/order-process.bpmn.vars.json
+```
+
+A diagram in a subfolder mirrors that path too — `src/order-process.bpmn`
+→ `.camunda/vars/src/order-process.bpmn.vars.json` — so two same-named
+diagrams in different folders don't collide. The config folder defaults to
+`.camunda` and is overridable via `miragon.bpmnModeler.configFolder`.
+
+```json
+{
+  "variables": [
+    { "name": "orderId", "type": "String", "description": "Set by the REST start request" },
+    { "name": "amount", "type": "Long" },
+    { "name": "approved" }
+  ]
+}
+```
+
+- `name` is required; `type` and `description` are optional.
+- The `description` is shown in the completion documentation popup.
+- Manifest entries **merge with** the discovered variables and **win** on a
+  name clash, so a declared `type` overrides whatever the heuristic
+  guessed.
+- The manifest is watched: edits, creation, and deletion update completion
+  live while the script editor is open. A malformed manifest is ignored
+  (it never breaks completion for the rest of the diagram).
+- A bundled **JSON Schema** is associated with every `*.bpmn.vars.json`
+  file, so editing one gives you completion, hover docs, and validation
+  (e.g. a missing `name` or a misspelled key is flagged) in both VS Code
+  and the standalone IntelliJ-based app — no `$schema` line needed.
+
+#### Declare from the script — the 💡 lightbulb
+
+You don't have to create the manifest by hand. When you reference a
+variable the model doesn't know, put the caret on it and open the
+quick-fix menu (💡, or `Ctrl`/`Cmd`+`.`): **"Declare '&lt;name&gt;' in
+variable manifest"** appends a name-only entry to the diagram's manifest
+and opens that file so you can fill in the `type` and `description`. The
+new variable then appears in completion as an authored entry immediately,
+since the manifest is watched. The same action is available in the
+standalone IntelliJ-based app via `Alt`+`Enter` on a Groovy script tab.
+
 ## Pair with an AI Assistant
 
 Because the script editor is a real VS Code document, AI assistants that

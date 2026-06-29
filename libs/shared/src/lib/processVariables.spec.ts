@@ -293,4 +293,29 @@ describe("dedupeVariables", () => {
         expect(deduped).toHaveLength(1);
         expect(deduped[0].typeHint).toBe("String");
     });
+
+    it("lets an authored entry win over a declared one regardless of order", () => {
+        const authored = {
+            name: "x",
+            origin: "declared in foo.bpmn.vars.json",
+            typeHint: "Boolean",
+            confidence: "authored" as const,
+        };
+        const declared = { name: "x", origin: "form field", confidence: "declared" as const };
+
+        expect(dedupeVariables([authored, declared])[0]).toEqual(authored);
+        expect(dedupeVariables([declared, authored])[0]).toEqual(authored);
+    });
+
+    it("lets an authored entry win even when it has no type and the rival is typed", () => {
+        const authored = { name: "x", origin: "manifest", confidence: "authored" as const };
+        const declaredTyped = {
+            name: "x",
+            origin: "form field",
+            typeHint: "String",
+            confidence: "declared" as const,
+        };
+
+        expect(dedupeVariables([declaredTyped, authored])[0]).toEqual(authored);
+    });
 });

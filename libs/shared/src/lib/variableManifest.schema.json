@@ -1,0 +1,43 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://miragon.io/schemas/bpmn-vars.schema.json",
+    "title": "BPMN process-variable manifest",
+    "description": "Declares process variables for a BPMN diagram's inline scripts. Lives at <configFolder>/vars/<relativeBpmnPath>.bpmn.vars.json and is merged on top of the heuristic variable discovery (authored entries win a name clash).",
+    "type": "object",
+    "required": ["variables"],
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "Optional JSON Schema reference. The modeler already associates this schema by file name, so this is only needed for editors that don't."
+        },
+        "variables": {
+            "type": "array",
+            "description": "The declared process variables. Each entry adds (or overrides, on a name clash) a variable offered in inline-script completion.",
+            "items": { "$ref": "#/definitions/variable" }
+        }
+    },
+    "definitions": {
+        "variable": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The variable name as referenced in scripts (e.g. execution.getVariable(\"orderId\")). Required."
+                },
+                "type": {
+                    "type": "string",
+                    "description": "Optional author type hint, shown in completion. A few hints (e.g. SpinJsonNode) also drive member completion; otherwise any label is fine (String, Long, Boolean, ...).",
+                    "examples": ["String", "Long", "Boolean", "Date", "Object", "SpinJsonNode"]
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Optional human-readable documentation, shown in the completion popup."
+                }
+            }
+        }
+    }
+}
