@@ -175,6 +175,21 @@ diagrams in different folders don't collide. The config folder defaults to
 - The manifest is watched: edits, creation, and deletion update completion
   live while the script editor is open. A malformed manifest is ignored
   (it never breaks completion for the rest of the diagram).
+- A bundled **JSON Schema** is associated with every `*.bpmn.vars.json`
+  file, so editing one gives you completion, hover docs, and validation
+  (e.g. a missing `name` or a misspelled key is flagged) in both VS Code
+  and the standalone IntelliJ-based app — no `$schema` line needed.
+
+#### Declare from the script — the 💡 lightbulb
+
+You don't have to create the manifest by hand. When you reference a
+variable the model doesn't know, put the caret on it and open the
+quick-fix menu (💡, or `Ctrl`/`Cmd`+`.`): **"Declare '&lt;name&gt;' in
+variable manifest"** appends a name-only entry to the diagram's manifest
+and opens that file so you can fill in the `type` and `description`. The
+new variable then appears in completion as an authored entry immediately,
+since the manifest is watched. The same action is available in the
+standalone IntelliJ-based app via `Alt`+`Enter` on a Groovy script tab.
 
 ## Pair with an AI Assistant
 

@@ -94,6 +94,9 @@ class ScriptEditorManager(
             val file = LightVirtualFile(fileName, content)
             // Attach before opening so the contributor sees it on the first keystroke.
             file.putUserData(SCRIPT_COMPLETION_KEY, completion)
+            // Stable for the tab's lifetime (updateVariables swaps only the catalog),
+            // so the "Declare in variable manifest" intention can address this script.
+            file.putUserData(SCRIPT_ID_KEY, scriptId)
             manager.openFile(file, true)
 
             val document = FileDocumentManager.getInstance().getDocument(file)

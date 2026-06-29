@@ -48,6 +48,7 @@ import {
     PickerShowParams,
     PickerShowResult,
     RegisterParams,
+    ScriptAppendToManifestParams,
     ScriptCloseNotifyParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
@@ -86,6 +87,7 @@ export const METHODS = {
     deploymentOpen: "deployment/open",
     scriptDidChange: "script/didChange",
     scriptDidClose: "script/didClose",
+    scriptAppendToManifest: "script/appendToManifest",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -243,6 +245,15 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseParams,
+    },
+    {
+        method: METHODS.scriptAppendToManifest,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            scriptId: "s1",
+            name: "orderId",
+        } satisfies ScriptAppendToManifestParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────

@@ -175,6 +175,17 @@ export class ScriptTaskService {
     }
 
     /**
+     * Maps an open script URI path back to its owning BPMN editor id, or
+     * `undefined` if no script is tracked at that path. The "Declare in variable
+     * manifest" code action needs this to resolve which diagram's manifest the
+     * unknown variable belongs to — the script URI itself carries only a one-way
+     * hash of the editor id, not the original document path.
+     */
+    getEditorIdForScriptUri(uriPath: string): string | undefined {
+        return this.openDocuments.get(uriPath)?.editorId;
+    }
+
+    /**
      * Re-sends the current content of every open virtual document for the
      * given editor as `UpdateScriptContentQuery` messages.
      *

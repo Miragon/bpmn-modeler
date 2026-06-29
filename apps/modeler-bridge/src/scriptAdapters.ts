@@ -35,6 +35,7 @@ import {
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
     VariableDef,
+    VariableManifestEntry,
 } from "@miragon/bpmn-modeler-shared";
 
 import { BridgeSettings } from "./nodeAdapters";
@@ -67,6 +68,12 @@ export class BridgeScriptEditor {
     // payload and the `script/updateVariables` push.
     private readonly extractedByEditor = new Map<string, VariableDef[]>();
     private readonly manifestByEditor = new Map<string, VariableDef[]>();
+
+    // The editor's diagram fs path, retained so `appendToManifest` can resolve
+    // which manifest to write — a script tab is addressed only by an opaque
+    // `scriptId`, which carries no path. Seeded when `loadManifest` runs at
+    // session register.
+    private readonly documentPathByEditor = new Map<string, string>();
 
     constructor(
         private readonly store: EditorSessionStore,
@@ -176,6 +183,7 @@ export class BridgeScriptEditor {
      * A read error is logged and leaves the previous manifest model in place.
      */
     async loadManifest(editorId: string, documentPath: string): Promise<void> {
+        this.documentPathByEditor.set(editorId, documentPath);
         try {
             this.manifestByEditor.set(editorId, await this.manifestSvc.load(documentPath));
         } catch (error) {
@@ -241,6 +249,31 @@ export class BridgeScriptEditor {
     }
 
     /**
+     * The host's "Declare in variable manifest" intention fired: scaffold the
+     * entry in the script's diagram manifest, then reveal the file so the author
+     * fills in `type`/`description`. Reveal reuses the existing `notifier/openDocument`
+     * capability (already implemented on the host). The append does **not** re-push
+     * variables manually — the per-session manifest watcher fires on the write and
+     * re-pushes `script/updateVariables`, so the new authored entry appears live.
+     */
+    async appendToManifest(scriptId: string, entry: VariableManifestEntry): Promise<void> {
+        const tracked = this.scripts.get(scriptId);
+        if (!tracked) {
+            return;
+        }
+        const documentPath = this.documentPathByEditor.get(tracked.editorId);
+        if (!documentPath) {
+            return;
+        }
+        try {
+            const manifestPath = await this.manifestSvc.upsert(documentPath, entry);
+            await this.notifier.openDocument(manifestPath);
+        } catch (error) {
+            this.notifier.logError(error as Error);
+        }
+    }
+
+    /**
      * The BPMN editor was disposed: tell the host to close every script tab it
      * opened for that editor and drop their tracking. Iterating while deleting is
      * safe for a `Map` — only already-visited or current entries are removed.
@@ -254,6 +287,7 @@ export class BridgeScriptEditor {
         }
         this.extractedByEditor.delete(editorId);
         this.manifestByEditor.delete(editorId);
+        this.documentPathByEditor.delete(editorId);
     }
 
     /**

@@ -87,6 +87,12 @@
     ],
     "main": "main.js",
     "contributes": {
+        "jsonValidation": [
+            {
+                "fileMatch": "*.bpmn.vars.json",
+                "url": "./schemas/bpmn-vars.schema.json"
+            }
+        ],
         "themes": [
             {
                 "id": "miragon-light",

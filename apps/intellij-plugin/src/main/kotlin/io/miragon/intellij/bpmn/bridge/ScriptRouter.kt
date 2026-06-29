@@ -52,4 +52,17 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
                 )
             }
     }
+
+    /**
+     * Host→Core: the "Declare in variable manifest" intention asks the core to
+     * scaffold a manifest entry for an unknown variable. Fire-and-forget — the
+     * core writes the file, reveals it via `notifier/openDocument`, and the
+     * manifest watcher re-pushes `script/updateVariables`.
+     */
+    fun appendToManifest(scriptId: String, name: String) {
+        deps.channel.notify(
+            "script/appendToManifest",
+            linkedMapOf("scriptId" to scriptId, "name" to name),
+        )
+    }
 }

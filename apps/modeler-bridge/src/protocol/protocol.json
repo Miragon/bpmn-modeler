@@ -127,6 +127,15 @@
         ]
     },
     {
+        "method": "script/appendToManifest",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "name",
+            "scriptId"
+        ]
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",

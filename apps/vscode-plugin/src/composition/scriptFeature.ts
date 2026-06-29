@@ -3,6 +3,7 @@ import { ExtensionContext, workspace } from "vscode";
 import { ScriptVariableManifestService, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
 import { BpmnScriptFileSystem } from "../scriptTask/infrastructure/BpmnScriptFileSystem";
 import { ScriptCompletionProvider } from "../scriptTask/controller/ScriptCompletionProvider";
+import { ScriptDeclareVariableCodeAction } from "../scriptTask/controller/ScriptDeclareVariableCodeAction";
 import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptManifestParticipant";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
 import { SharedDeps } from "./sharedDeps";
@@ -42,8 +43,23 @@ export function register(
     const scriptVariableStore = new ScriptVariableStore();
     new ScriptCompletionProvider(scriptVariableStore, deps.vsSettings).register(context);
 
+    // One manifest service feeds both the read path (the participant loads/watches
+    // it into the store) and the write path (the code action scaffolds entries).
+    const manifestSvc = new ScriptVariableManifestService(
+        deps.vsWorkspace,
+        deps.vsSettings,
+        deps.artifactSvc,
+    );
+
+    new ScriptDeclareVariableCodeAction(
+        scriptTaskSvc,
+        scriptVariableStore,
+        manifestSvc,
+        deps.notifier,
+    ).register(context);
+
     const scriptManifestParticipant = new ScriptManifestParticipant(
-        new ScriptVariableManifestService(deps.vsWorkspace, deps.vsSettings, deps.artifactSvc),
+        manifestSvc,
         scriptVariableStore,
         deps.notifier,
     );

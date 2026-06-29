@@ -7,7 +7,11 @@ import { ScriptVariableManifestService } from "@miragon/bpmn-modeler-core";
 
 import { BridgeScriptEditor } from "../scriptAdapters";
 import { METHODS } from "../protocol/descriptor";
-import { ScriptCloseParams, ScriptDidChangeParams } from "../protocol/types";
+import {
+    ScriptAppendToManifestParams,
+    ScriptCloseParams,
+    ScriptDidChangeParams,
+} from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
 import { RegisterParams, SessionHooks } from "./sessionHooks";
 
@@ -65,6 +69,17 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     // re-reads the current BPMN content rather than revealing a stale tab.
     deps.rpc.on(METHODS.scriptDidClose, (params: ScriptCloseParams) => {
         scriptEditor.didClose(params.scriptId);
+    });
+
+    // The host's "Declare in variable manifest" intention → scaffold the entry in
+    // the diagram's manifest and reveal it. Fire-and-forget; the manifest watcher
+    // re-pushes completion on the resulting write.
+    deps.rpc.on(METHODS.scriptAppendToManifest, (params: ScriptAppendToManifestParams) => {
+        void scriptEditor.appendToManifest(params.scriptId, {
+            name: params.name,
+            type: params.type,
+            description: params.description,
+        });
     });
 
     return {

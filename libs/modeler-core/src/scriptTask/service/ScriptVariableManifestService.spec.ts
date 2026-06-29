@@ -45,6 +45,10 @@ class FakeWorkspace implements Partial<WorkspacePort> {
         return content;
     }
 
+    async writeFile(path: string, content: string): Promise<void> {
+        this.files.set(path, content);
+    }
+
     createWatcher(rootPath: string, glob: string, handlers: WatcherHandlers): { dispose(): void } {
         this.lastWatch = { rootPath, glob, handlers };
         return { dispose: this.dispose };
@@ -116,6 +120,58 @@ describe("ScriptVariableManifestService", () => {
         const handle = await service(ws).createWatcher(DOCUMENT, vi.fn());
         handle.dispose();
         expect(ws.dispose).toHaveBeenCalledOnce();
+    });
+
+    describe("upsert", () => {
+        it("creates the manifest under <configFolder>/vars/ when absent and returns its path", async () => {
+            const manifestPath = await service(ws).upsert(DOCUMENT, { name: "orderId" });
+
+            expect(manifestPath).toBe(MANIFEST_PATH);
+            expect(JSON.parse(ws.files.get(MANIFEST_PATH)!)).toEqual({
+                variables: [{ name: "orderId" }],
+            });
+            // Trailing newline so the file is POSIX-clean and diffs minimally.
+            expect(ws.files.get(MANIFEST_PATH)!.endsWith("}\n")).toBe(true);
+        });
+
+        it("appends to an existing manifest, preserving order and unknown fields", async () => {
+            ws.files.set(
+                MANIFEST_PATH,
+                JSON.stringify({
+                    $schema: "./vars.schema.json",
+                    variables: [{ name: "orderId", type: "String" }],
+                }),
+            );
+
+            await service(ws).upsert(DOCUMENT, { name: "amount" });
+
+            expect(JSON.parse(ws.files.get(MANIFEST_PATH)!)).toEqual({
+                $schema: "./vars.schema.json",
+                variables: [{ name: "orderId", type: "String" }, { name: "amount" }],
+            });
+        });
+
+        it("is a no-op when an entry with that name already exists", async () => {
+            ws.files.set(
+                MANIFEST_PATH,
+                JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
+            );
+
+            await service(ws).upsert(DOCUMENT, { name: "orderId" });
+
+            // The existing typed entry must survive untouched (no nameless overwrite).
+            expect(JSON.parse(ws.files.get(MANIFEST_PATH)!)).toEqual({
+                variables: [{ name: "orderId", type: "String" }],
+            });
+        });
+
+        it("propagates a parse error rather than clobbering a malformed manifest", async () => {
+            ws.files.set(MANIFEST_PATH, "{ not json");
+
+            await expect(service(ws).upsert(DOCUMENT, { name: "orderId" })).rejects.toThrow();
+            // The hand-broken content is left intact for the author to fix.
+            expect(ws.files.get(MANIFEST_PATH)).toBe("{ not json");
+        });
     });
 
     // On Windows the host fs path uses backslashes; getDocumentDirectory already

@@ -12,7 +12,7 @@
 
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -313,6 +313,52 @@ describe("bridge script editor (real core over a fake transport)", () => {
         // The authored `amount` (type Long) wins over the extracted form field.
         expect(byName.amount).toMatchObject({ typeHint: "Long", confidence: "authored" });
         expect(open.params.completion.variables).toHaveLength(2);
+    });
+
+    it("appends to the manifest, reveals it, and re-pushes updateVariables on script/appendToManifest", async () => {
+        const { rpc, frames, editorId } = await setup({
+            manifest: JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
+        });
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const scriptId = open.params.scriptId;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "script/appendToManifest",
+                params: { scriptId, name: "amount" },
+            }),
+        );
+
+        // (a) the reveal frame carries the resolved manifest path …
+        const reveal = await waitForFrame(frames, (f) => f.method === "notifier/openDocument");
+        const sourcePath = editorId.replace(/^file:\/\//, "");
+        const manifestPath = join(dirname(sourcePath), ".camunda", "vars", "source.bpmn.vars.json");
+        expect(reveal.params.path).toBe(manifestPath);
+
+        // (b) … the entry was appended on disk (the existing entry preserved) …
+        const onDisk = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(onDisk.variables).toEqual([{ name: "orderId", type: "String" }, { name: "amount" }]);
+
+        // (c) … and the watcher-driven reload re-pushes the merged var to the tab.
+        const update = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "script/updateVariables" &&
+                f.params.scriptId === scriptId &&
+                f.params.variables.some((v: { name: string }) => v.name === "amount"),
+        );
+        expect(update.params.variables.map((v: { name: string }) => v.name)).toEqual(
+            expect.arrayContaining(["orderId", "amount"]),
+        );
     });
 
     it("opens a diagram without a manifest without logging an error", async () => {

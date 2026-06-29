@@ -69,8 +69,9 @@ import { VariableDef } from "@miragon/bpmn-modeler-shared";
  * without reopening the script.
  */
 export class ScriptCompletionProvider implements CompletionItemProvider {
-    // Languages this provider participates in.
-    private static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
+    // Languages this provider participates in. Public so the sibling
+    // `ScriptDeclareVariableCodeAction` registers for exactly the same set.
+    static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
 
     constructor(
         private readonly store: ScriptVariableStore,

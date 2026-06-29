@@ -108,6 +108,7 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/open",
                     "  script/didChange",
                     "  script/didClose",
+                    "  script/appendToManifest",
                     "",
                     "Core → Host (requests):",
                     "  document/write",

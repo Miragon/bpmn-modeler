@@ -133,6 +133,11 @@ val bridgeBinary = layout.projectDirectory.file("../../apps/modeler-bridge/dist/
 val bridgeDistRoot = layout.projectDirectory.dir("../../apps/modeler-bridge/dist")
 val stagedResourcesRoot = layout.buildDirectory.dir("modeler-resources")
 
+// Single source of truth: the `*.bpmn.vars.json` JSON Schema lives in libs/shared
+// next to the type it mirrors. Staged into resources so the JsonSchemaProviderFactory
+// loads it from the classpath at `/schemas/bpmn-vars.schema.json`.
+val varsSchema = layout.projectDirectory.file("../../libs/shared/src/lib/variableManifest.schema.json")
+
 /**
  * Release distribution mode: when set, stage every per-platform bridge binary
  * under `bin/<os>-<arch>/` so the published ZIP runs on any host. Default
@@ -250,17 +255,32 @@ val copyBridge =
         }
     }
 
+val copySchema =
+    tasks.register<Copy>("copySchema") {
+        description = "Stages the shared *.bpmn.vars.json JSON Schema into plugin resources (loaded from the classpath by the JsonSchemaProviderFactory)."
+        doFirst {
+            if (!varsSchema.asFile.exists()) {
+                throw GradleException("Vars manifest schema not found at ${varsSchema.asFile}.")
+            }
+        }
+        from(varsSchema) {
+            rename { "bpmn-vars.schema.json" }
+        }
+        // Lands at `/schemas/bpmn-vars.schema.json` on the classpath.
+        into(stagedResourcesRoot.map { it.dir("schemas") })
+    }
+
 sourceSets.named("main") {
     resources.srcDir(stagedResourcesRoot)
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge)
+    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema)
 }
 
 // The sandbox for `runIde` is assembled from the jar, which already contains the
 // staged resources, so no extra sandbox wiring is needed — but make the
 // dependency explicit so a clean `runIde` always stages the bundles first.
 tasks.withType<PrepareSandboxTask>().configureEach {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge)
+    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema)
 }

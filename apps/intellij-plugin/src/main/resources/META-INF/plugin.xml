@@ -59,6 +59,14 @@
     -->
     <depends optional="true" config-file="modeler-groovy.xml">org.intellij.groovy</depends>
 
+    <!--
+        Optional: when the JSON module is present (it is in every IntelliJ-based
+        IDE), register the JSON Schema for `*.bpmn.vars.json` manifests so authors
+        get validation + completion (modeler-json.xml). Optional so a hypothetical
+        JSON-less host still loads the rest of the plugin.
+    -->
+    <depends optional="true" config-file="modeler-json.xml">com.intellij.modules.json</depends>
+
     <extensions defaultExtensionNs="com.intellij">
         <!--
             Registers `.bpmn` as a real file type so (a) JetBrains Marketplace's
