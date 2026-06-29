@@ -1,5 +1,5 @@
-import { Command, Query, VsCodeApi } from "@miragon/bpmn-modeler-shared";
-import { WebviewState } from "./vscode";
+import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
+import { WebviewState } from "./host";
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
 const PANEL_GROUP = ".bio-properties-panel-group";
@@ -31,7 +31,7 @@ function isGroupOpen(group: HTMLElement): boolean {
  * 2. {@link startPersisting}       — installs the change listeners
  */
 export class WebviewStateManager {
-    constructor(private readonly vscode: VsCodeApi<WebviewState, Command | Query>) {}
+    constructor(private readonly host: HostApi<WebviewState, Command | Query>) {}
 
     /**
      * Restores the properties-panel UI state (expanded groups + scroll) in a
@@ -82,7 +82,7 @@ export class WebviewStateManager {
 
     private getSavedState(): WebviewState | undefined {
         try {
-            return this.vscode.getState();
+            return this.host.getState();
         } catch {
             return undefined;
         }
@@ -90,9 +90,9 @@ export class WebviewStateManager {
 
     private persistPartialState(partial: Partial<WebviewState>): void {
         try {
-            this.vscode.updateState(partial);
+            this.host.updateState(partial);
         } catch {
-            this.vscode.setState(partial as WebviewState);
+            this.host.setState(partial as WebviewState);
         }
     }
 

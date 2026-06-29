@@ -7,11 +7,11 @@ import {
     SwapCompareSidesCommand,
     SyncCursorQuery,
     SyncViewportQuery,
-    VsCodeApi,
+    HostApi,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { WebviewState } from "../vscode";
+import { WebviewState } from "../host";
 import { DiffLegend } from "./DiffLegend";
 import { DiffViewer } from "./DiffViewer";
 
@@ -54,7 +54,7 @@ export class DiffMode {
     constructor(
         canvasSelector: string,
         legendParent: HTMLElement,
-        private readonly vscode: VsCodeApi<WebviewState, MessageType>,
+        private readonly host: HostApi<WebviewState, MessageType>,
     ) {
         this.viewer = new DiffViewer(canvasSelector);
         this.legend = new DiffLegend(legendParent, {
@@ -64,11 +64,11 @@ export class DiffMode {
             // toggles its display based on origin), so the host side will only
             // ever receive this command from a compare-files session.  The
             // host still validates origin defensively before acting.
-            onSwap: () => this.vscode.postMessage(new SwapCompareSidesCommand()),
+            onSwap: () => this.host.postMessage(new SwapCompareSidesCommand()),
         });
 
         this.viewer.onViewportChanged((viewport) => {
-            this.vscode.postMessage(new ViewportChangedCommand(viewport));
+            this.host.postMessage(new ViewportChangedCommand(viewport));
         });
     }
 
@@ -106,7 +106,7 @@ export class DiffMode {
             console.error("DiffViewer import failed", error);
             return;
         }
-        this.vscode.postMessage(new DiffReadyCommand());
+        this.host.postMessage(new DiffReadyCommand());
     }
 
     private paint(query: ApplyDiffHighlightsQuery): void {
@@ -199,7 +199,7 @@ export class DiffMode {
         }
 
         if (emit) {
-            this.vscode.postMessage(new CursorChangedCommand(this.cursor));
+            this.host.postMessage(new CursorChangedCommand(this.cursor));
         }
     }
 

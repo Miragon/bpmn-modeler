@@ -9,14 +9,14 @@ import {
     Query,
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
-    VsCodeApi,
+    HostApi,
 } from "@miragon/bpmn-modeler-shared";
 
-import { WebviewState } from "./vscode";
+import { WebviewState } from "./host";
 
 /**
  * Intentionally framework-free — manipulates the DOM directly and talks to
- * the extension host via the `postMessage` API wrapped by {@link VsCodeApi}.
+ * the extension host via the `postMessage` API wrapped by {@link HostApi}.
  */
 export class DeploymentForm {
     private static readonly DEFAULT_COLLAPSED_SECTIONS: string[] = [];
@@ -62,7 +62,7 @@ export class DeploymentForm {
     /**
      * @throws {Error} If any expected DOM element is missing.
      */
-    constructor(private readonly vscode: VsCodeApi<unknown, Command | Query>) {
+    constructor(private readonly host: HostApi<unknown, Command | Query>) {
         this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
         this.tenantIdInput = this.requireElement<HTMLInputElement>("#tenant-id");
         this.endpointInput = this.requireElement<HTMLInputElement>("#endpoint");
@@ -108,7 +108,7 @@ export class DeploymentForm {
             : "";
 
         if (defaults.authType !== "none") {
-            this.vscode.postMessage(new RequestStoredCredentialsCommand());
+            this.host.postMessage(new RequestStoredCredentialsCommand());
         }
     }
 
@@ -249,7 +249,7 @@ export class DeploymentForm {
 
         let collapsed: string[];
         try {
-            const state = this.vscode.getState() as WebviewState | undefined;
+            const state = this.host.getState() as WebviewState | undefined;
             collapsed = state?.collapsedSections ?? this.defaultCollapsedSections();
         } catch {
             collapsed = this.defaultCollapsedSections();
@@ -304,7 +304,7 @@ export class DeploymentForm {
             }
         }
 
-        this.vscode.setState({ collapsedSections } as WebviewState);
+        this.host.setState({ collapsedSections } as WebviewState);
     }
 
     private defaultCollapsedSections(): string[] {
@@ -315,19 +315,19 @@ export class DeploymentForm {
         this.authTypeSelect.addEventListener("change", () => {
             this.toggleAuthFields();
             if (this.authTypeSelect.value !== "none") {
-                this.vscode.postMessage(new RequestStoredCredentialsCommand());
+                this.host.postMessage(new RequestStoredCredentialsCommand());
             }
         });
 
         this.additionalFilesBtn.addEventListener("click", () => {
-            this.vscode.postMessage(new RequestAdditionalFilesCommand());
+            this.host.postMessage(new RequestAdditionalFilesCommand());
         });
 
         this.deployBtn.addEventListener("click", () => {
             try {
                 const payload = this.getConfigPayload();
                 this.showProgress();
-                this.vscode.postMessage(new DeployCommand(payload));
+                this.host.postMessage(new DeployCommand(payload));
             } catch (err) {
                 this.statusBanner.className = "status-banner error";
                 this.statusBanner.textContent = err instanceof Error ? err.message : String(err);

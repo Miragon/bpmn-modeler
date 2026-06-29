@@ -1,6 +1,15 @@
 import type { WebviewApi } from "vscode-webview";
 
-export interface VsCodeApi<T, M> {
+/**
+ * Channel between a webview and the host application embedding it.
+ *
+ * A "host" is whatever product renders the webview — the VS Code extension,
+ * the IntelliJ plugin, or the standalone desktop app. Every host exposes the
+ * same VS Code-style webview bridge, so the webview talks to all of them
+ * through this one interface: send messages to the host and persist a little
+ * view state across reloads.
+ */
+export interface HostApi<T, M> {
     /**
      * Get the current state of the webview.
      * @throws MissingStateError if the state is missing
@@ -20,21 +29,26 @@ export class MissingStateError extends Error {
     }
 }
 
-export class VsCodeImpl<T, M> implements VsCodeApi<T, M> {
-    private vscode: WebviewApi<T>;
+/**
+ * Production {@link HostApi} backed by the host-injected `acquireVsCodeApi()`
+ * bridge. VS Code, IntelliJ, and the desktop app all provide this same shim,
+ * so this single implementation serves every host.
+ */
+export class HostApiImpl<T, M> implements HostApi<T, M> {
+    private host: WebviewApi<T>;
 
     constructor() {
-        this.vscode = acquireVsCodeApi();
+        this.host = acquireVsCodeApi();
     }
 
     getState(): T {
-        const state = this.vscode.getState();
+        const state = this.host.getState();
         if (!state) throw new MissingStateError();
         return state;
     }
 
     setState(state: T) {
-        this.vscode.setState({
+        this.host.setState({
             ...state,
         });
     }
@@ -47,11 +61,15 @@ export class VsCodeImpl<T, M> implements VsCodeApi<T, M> {
     }
 
     postMessage(message: M) {
-        this.vscode.postMessage(message);
+        this.host.postMessage(message);
     }
 }
 
-export abstract class VsCodeMock<T, M> implements VsCodeApi<T, M> {
+/**
+ * Base for development mocks that stand in for a real host, letting a webview
+ * run standalone in the browser without any embedding application.
+ */
+export abstract class MockHostApi<T, M> implements HostApi<T, M> {
     protected state: T | undefined;
 
     getState(): T {

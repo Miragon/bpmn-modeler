@@ -4,15 +4,15 @@ import {
     DmnModelerSettingQuery,
     PropertiesPanelStateQuery,
     Query,
-    VsCodeApi,
-    VsCodeImpl,
-    VsCodeMock,
+    HostApi,
+    HostApiImpl,
+    MockHostApi,
 } from "@miragon/bpmn-modeler-shared";
 
 declare const process: { env: { NODE_ENV: string } };
 
 /**
- * Shape of the data persisted via `vscode.setState` / `vscode.getState`.
+ * Shape of the data persisted via `host.setState` / `host.getState`.
  */
 export interface WebviewState {
     // Scroll position of `.bio-properties-panel-scroll-container`.
@@ -30,16 +30,17 @@ type StateType = WebviewState;
 type MessageType = Command | Query;
 
 /**
- * Returns the appropriate host-channel implementation. In `development` mode a
- * {@link MockedVsCodeApi} is returned for standalone browser runs; otherwise
- * the real {@link VsCodeImpl} is used (the IntelliJ host injects the same
- * `acquireVsCodeApi()` shim, so it takes this path too).
+ * Returns the channel to the host application embedding this webview. In
+ * `development` mode a {@link MockHost} is returned for standalone browser
+ * runs; otherwise the real {@link HostApiImpl} is used (VS Code, IntelliJ, and
+ * the desktop app all inject the same `acquireVsCodeApi()` shim, so they share
+ * this path).
  */
-export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
+export function getHostApi(): HostApi<StateType, MessageType> {
     if (process.env.NODE_ENV === "development") {
-        return new MockedVsCodeApi();
+        return new MockHost();
     }
-    return new VsCodeImpl<StateType, MessageType>();
+    return new HostApiImpl<StateType, MessageType>();
 }
 
 // Minimal DRD for standalone browser runs, so the palette and an element's
@@ -59,7 +60,7 @@ const SAMPLE_DMN = `<?xml version="1.0" encoding="UTF-8"?>
   </dmndi:DMNDI>
 </definitions>`;
 
-class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
+class MockHost extends MockHostApi<StateType, MessageType> {
     /**
      * Merges `state` into the current mock state, initialising it when no
      * state has been set yet (i.e. when {@link getState} would throw).

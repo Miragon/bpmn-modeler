@@ -8,15 +8,15 @@ import {
     SelectedPayloadFileQuery,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
-    VsCodeApi,
-    VsCodeImpl,
-    VsCodeMock,
+    HostApi,
+    HostApiImpl,
+    MockHostApi,
 } from "@miragon/bpmn-modeler-shared";
 
 declare const process: { env: { NODE_ENV: string } };
 
 /**
- * Shape of the data persisted via `vscode.setState` / `vscode.getState`.
+ * Shape of the data persisted via `host.setState` / `host.getState`.
  */
 export interface WebviewState {
     formData?: Record<string, string>;
@@ -27,24 +27,25 @@ type StateType = WebviewState;
 type MessageType = Command | Query;
 
 /**
- * Returns the appropriate VS Code API implementation.
+ * Returns the channel to the host application embedding this webview.
  *
- * In `development` mode a {@link MockedVsCodeApi} is returned so the webview
- * can be run standalone in a browser without a VS Code host.  In all other
- * environments the real {@link VsCodeImpl} is used.
+ * In `development` mode a {@link MockHost} is returned so the webview can be
+ * run standalone in a browser without any host. In all other environments the
+ * real {@link HostApiImpl} is used (VS Code, IntelliJ, and the desktop app all
+ * inject the same `acquireVsCodeApi()` shim, so they share this path).
  */
-export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
+export function getHostApi(): HostApi<StateType, MessageType> {
     if (process.env.NODE_ENV === "development") {
-        return new MockedVsCodeApi();
+        return new MockHost();
     }
-    return new VsCodeImpl<StateType, MessageType>();
+    return new HostApiImpl<StateType, MessageType>();
 }
 
 /**
- * Development-only mock that simulates the VS Code extension host by
- * dispatching synthetic `MessageEvent`s in response to outbound commands.
+ * Development-only mock that simulates the host application by dispatching
+ * synthetic `MessageEvent`s in response to outbound commands.
  */
-class MockedVsCodeApi extends VsCodeMock<StateType, MessageType> {
+class MockHost extends MockHostApi<StateType, MessageType> {
     /**
      * Intercepts outbound messages and dispatches synthetic inbound responses
      * so the deployment form can be developed standalone in a browser.

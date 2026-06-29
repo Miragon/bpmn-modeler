@@ -7,7 +7,7 @@ import {
     StartInstanceCommand,
     StartInstanceConfigPayload,
     StartInstanceResultQuery,
-    VsCodeApi,
+    HostApi,
 } from "@miragon/bpmn-modeler-shared";
 
 /**
@@ -33,13 +33,13 @@ export class StartInstanceForm {
     /**
      * Wires up all DOM element references and attaches event listeners.
      *
-     * @param vscode The VS Code API instance used to post messages.
+     * @param host The host channel used to post messages.
      * @param getSharedAuth Callback to read the current auth config from the shared form fields.
      * @param getSharedConnection Callback to read endpoint and engine from the shared form fields.
      * @throws {Error} If any expected DOM element is missing.
      */
     constructor(
-        private readonly vscode: VsCodeApi<unknown, Command | Query>,
+        private readonly host: HostApi<unknown, Command | Query>,
         private readonly getSharedAuth: () => AuthConfigPayload,
         private readonly getSharedConnection: () => {
             endpoint: string;
@@ -112,14 +112,14 @@ export class StartInstanceForm {
      */
     private bindEvents(): void {
         this.selectPayloadBtn.addEventListener("click", () => {
-            this.vscode.postMessage(new RequestPayloadFilesCommand());
+            this.host.postMessage(new RequestPayloadFilesCommand());
         });
 
         this.startInstanceBtn.addEventListener("click", () => {
             try {
                 const payload = this.getConfigPayload();
                 this.showProgress();
-                this.vscode.postMessage(new StartInstanceCommand(payload));
+                this.host.postMessage(new StartInstanceCommand(payload));
             } catch (err) {
                 this.statusBanner.className = "status-banner error";
                 this.statusBanner.textContent = err instanceof Error ? err.message : String(err);

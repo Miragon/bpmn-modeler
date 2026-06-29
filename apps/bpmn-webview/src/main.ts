@@ -47,7 +47,7 @@ import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-model
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnModeler,
-    getVsCodeApi,
+    getHostApi,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
 } from "./app";
@@ -55,7 +55,7 @@ import { DiffMode } from "./app/diff/DiffMode";
 import type { LintConfigService } from "./app/bpmnlint";
 import { WebviewStateManager } from "./app/state";
 
-const vscode = getVsCodeApi();
+const host = getHostApi();
 
 /**
  * Singleton modeler instance shared across all message handlers.
@@ -125,22 +125,22 @@ window.onload = async function () {
     if (process.env.NODE_ENV !== "development") {
         const requestElementClipboard = async (): Promise<string> => {
             elementClipboardResolver = createResolver<ClipboardQuery>();
-            vscode.postMessage(new GetClipboardCommand());
+            host.postMessage(new GetClipboardCommand());
             const q = await elementClipboardResolver.wait();
             return q?.text ?? "";
         };
         const writeElementClipboard = (text: string): void => {
-            vscode.postMessage(new SetClipboardCommand(text));
+            host.postMessage(new SetClipboardCommand(text));
         };
 
         const requestTextClipboard = async (): Promise<string> => {
             textClipboardResolver = createResolver<TextClipboardQuery>();
-            vscode.postMessage(new GetTextClipboardCommand());
+            host.postMessage(new GetTextClipboardCommand());
             const q = await textClipboardResolver.wait();
             return q?.text ?? "";
         };
         const writeTextClipboard = (text: string): void => {
-            vscode.postMessage(new SetTextClipboardCommand(text));
+            host.postMessage(new SetTextClipboardCommand(text));
         };
 
         clipboardModules = [
@@ -175,7 +175,7 @@ window.onload = async function () {
         installContentEditableClipboardPolyfill(requestTextClipboard, writeTextClipboard);
     }
 
-    vscode.postMessage(new GetBpmnFileCommand());
+    host.postMessage(new GetBpmnFileCommand());
 
     const bpmnFileQuery = await bpmnFileResolver.wait();
 
@@ -191,7 +191,7 @@ window.onload = async function () {
             console.error("Diff mode: missing #js-canvas or #js-drop-zone");
             return;
         }
-        const diffMode = new DiffMode("#js-canvas", dropZone, vscode);
+        const diffMode = new DiffMode("#js-canvas", dropZone, host);
         await diffMode.startWith(bpmnFileQuery.content);
         return;
     }
@@ -204,7 +204,7 @@ window.onload = async function () {
         onLabelChange: (apply) => i18n.onChange(apply),
     });
     const vsCodeBridgeModule = {
-        vsCodeBridge: ["value", { postMessage: (m: unknown) => vscode.postMessage(m as never) }],
+        vsCodeBridge: ["value", { postMessage: (m: unknown) => host.postMessage(m as never) }],
     };
     const extraModules = [TranslateModule, vsCodeBridgeModule, ...(clipboardModules ?? [])];
     await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
@@ -218,7 +218,7 @@ window.onload = async function () {
      */
     if (bpmnFileQuery?.engine === "c7") {
         bpmnModeler.onOpenScriptEditor((data) => {
-            vscode.postMessage(
+            host.postMessage(
                 new OpenScriptEditorCommand(
                     data.elementId,
                     data.kind,
@@ -245,7 +245,7 @@ window.onload = async function () {
                 return;
             }
             lastVariablesJson = json;
-            vscode.postMessage(new UpdateScriptVariablesCommand(variables));
+            host.postMessage(new UpdateScriptVariablesCommand(variables));
         }, 300);
         bpmnModeler.onCommandStackChanged(() => void sendVariables());
         // commandStack.changed doesn't fire on import, and a webview reload starts
@@ -255,16 +255,16 @@ window.onload = async function () {
 
     console.debug("[DEBUG] Modeler is initialized...");
 
-    stateManager = new WebviewStateManager(vscode, bpmnModeler);
+    stateManager = new WebviewStateManager(host, bpmnModeler);
 
     // Phase 1: restore viewport (canvas exists after openXml)
     stateManager.restoreViewport();
 
     // Request templates + settings + panel state, wait for all to apply
-    vscode.postMessage(new GetElementTemplatesCommand());
-    vscode.postMessage(new GetBpmnModelerSettingCommand());
-    vscode.postMessage(new GetPropertiesPanelStateCommand());
-    vscode.postMessage(new GetBpmnlintConfigCommand());
+    host.postMessage(new GetElementTemplatesCommand());
+    host.postMessage(new GetBpmnModelerSettingCommand());
+    host.postMessage(new GetPropertiesPanelStateCommand());
+    host.postMessage(new GetBpmnlintConfigCommand());
 
     const [, , panelStateQuery] = await Promise.all([
         elementTemplatesResolver.wait(),
@@ -280,7 +280,7 @@ window.onload = async function () {
     // Report user toggles back to the host so the global default tracks the
     // latest preference across all BPMN editors.
     propertiesPanelHandle.onVisibilityChanged((visible) => {
-        vscode.postMessage(new SetPropertiesPanelStateCommand(visible));
+        host.postMessage(new SetPropertiesPanelStateCommand(visible));
     });
 
     // Phase 2: restore selection + panel-side UI state (safe now — side-effects done)
@@ -304,7 +304,7 @@ async function initializeModeler(
     extraModules?: any[],
 ): Promise<void> {
     if (!engine) {
-        vscode.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
+        host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
         return;
     }
 
@@ -314,11 +314,11 @@ async function initializeModeler(
         await openXml(bpmn);
     } catch (error: any) {
         if (error instanceof NoModelerError) {
-            vscode.postMessage(new LogErrorCommand(error.message));
+            host.postMessage(new LogErrorCommand(error.message));
         } else if (error instanceof UnsupportedEngineError) {
-            vscode.postMessage(new LogErrorCommand(error.message));
+            host.postMessage(new LogErrorCommand(error.message));
         } else {
-            vscode.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
+            host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
         }
     }
 }
@@ -340,7 +340,7 @@ async function openXml(bpmn?: string): Promise<void> {
 
     if (result.warnings.length > 0) {
         const warnings = `with following warnings: ${formatErrors(result.warnings)}`;
-        vscode.postMessage(new LogInfoCommand(warnings));
+        host.postMessage(new LogInfoCommand(warnings));
     }
 }
 
@@ -350,12 +350,12 @@ async function openXml(bpmn?: string): Promise<void> {
  */
 async function sendXmlChanges(): Promise<void> {
     const bpmn = await bpmnModeler.exportDiagram();
-    vscode.postMessage(new SyncDocumentCommand(bpmn));
+    host.postMessage(new SyncDocumentCommand(bpmn));
     bpmnModeler.alignElementsToOrigin();
 }
 
 /**
- * Routes incoming messages from the VS Code extension host to the appropriate
+ * Routes incoming messages from the host application to the appropriate
  * handler.
  *
  * @param message The raw `MessageEvent` from `window.addEventListener("message", …)`.
@@ -374,7 +374,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     bpmnFileResolver.done(bpmnFileQuery);
                 }
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -385,7 +385,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 bpmnModeler.setElementTemplates(elementTemplates);
                 elementTemplatesResolver.done(message.data as ElementTemplatesQuery);
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -397,10 +397,10 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     .apply(query.config);
 
                 for (const warning of warnings) {
-                    vscode.postMessage(new LogInfoCommand(warning));
+                    host.postMessage(new LogInfoCommand(warning));
                 }
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -410,7 +410,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 bpmnModeler.setSettings(setting);
                 settingsResolver.done(message.data as BpmnModelerSettingQuery);
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -439,7 +439,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     await refreshDiagram();
                 }
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -448,9 +448,9 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 const command = message.data as GetDiagramAsSVGCommand;
                 // Populate the SVG field and echo the command back to the host.
                 command.svg = await bpmnModeler.getDiagramSvg();
-                vscode.postMessage(command);
+                host.postMessage(command);
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -464,7 +464,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     query.content,
                 );
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -478,7 +478,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     query.scriptFormat,
                 );
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
@@ -487,7 +487,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 const query = message.data as ImplementationStatusQuery;
                 bpmnModeler.applyImplementationStatus(query.resolved);
             } catch (error: any) {
-                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
             break;
         }
