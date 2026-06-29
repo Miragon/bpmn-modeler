@@ -215,6 +215,14 @@
                 "title": "BPMN Modeler: Change Modeler Language"
             },
             {
+                "command": "bpmn-modeler.addTemplateMarketplace",
+                "title": "BPMN Modeler: Add Template Marketplace"
+            },
+            {
+                "command": "bpmn-modeler.updateTemplateMarketplaces",
+                "title": "BPMN Modeler: Update Template Marketplaces"
+            },
+            {
                 "command": "bpmn-modeler.selectForCompare",
                 "title": "BPMN Modeler: Select for Compare"
             },
@@ -397,6 +405,14 @@
                         "繁体中文"
                     ],
                     "markdownDescription": "UI language for the BPMN/DMN modeler (palette, context pad, properties panel)."
+                },
+                "miragon.bpmnModeler.templateMarketplaces": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "markdownDescription": "Public GitHub repositories holding a `marketplace.json` that links to element templates. Use the `BPMN Modeler: Add Template Marketplace` command to register one, then `BPMN Modeler: Update Template Marketplaces` to re-fetch. Cached templates merge with workspace-local ones."
                 }
             }
         }

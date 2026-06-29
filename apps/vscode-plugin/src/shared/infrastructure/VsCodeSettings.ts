@@ -1,4 +1,4 @@
-import { workspace } from "vscode";
+import { ConfigurationTarget, workspace } from "vscode";
 
 import { SettingsPort } from "@miragon/bpmn-modeler-core";
 
@@ -117,5 +117,34 @@ export class VsCodeSettings implements SettingsPort {
         return (
             workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("scripting.spin") ?? true
         );
+    }
+
+    /**
+     * Reads the registered element-template marketplace repo URLs.
+     *
+     * Defaults to an empty array if not configured.
+     */
+    getTemplateMarketplaces(): string[] {
+        return workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .get<string[]>("templateMarketplaces", []);
+    }
+
+    /**
+     * Persists a marketplace URL into the global settings list, de-duplicating
+     * so re-adding the same repo is a no-op.
+     *
+     * Written at {@link ConfigurationTarget.Global} because marketplaces are a
+     * machine-wide, user-level concern (their cache lives in global storage),
+     * not a per-workspace one.
+     */
+    async addTemplateMarketplace(url: string): Promise<void> {
+        const current = this.getTemplateMarketplaces();
+        if (current.includes(url)) {
+            return;
+        }
+        await workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .update("templateMarketplaces", [...current, url], ConfigurationTarget.Global);
     }
 }

@@ -10,6 +10,7 @@ import * as editorFeature from "./composition/editorFeature";
 import * as compareFeature from "./composition/compareFeature";
 import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
+import * as templateMarketplaceFeature from "./composition/templateMarketplaceFeature";
 
 /**
  * Activation is now pure composition: build the shared collaborators once, then
@@ -18,10 +19,11 @@ import * as deploymentFeature from "./composition/deploymentFeature";
  *
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available) and is preserved exactly: diff → script →
- * codeLink → editor → compare → commands → deployment. Handles flow forward
- * only: the editor routes into diff's controller, script's service, and
- * code-link's handles; compare and commands reuse handles the earlier features
- * returned.
+ * codeLink → marketplace (service) → editor → marketplace (commands) → compare →
+ * commands → deployment. Handles flow forward only: the editor routes into
+ * diff's controller, script's service, code-link's handles, and the marketplace
+ * service; the marketplace commands and compare/commands reuse handles the
+ * earlier features returned.
  */
 export function activate(context: ExtensionContext): void {
     setContext(context);
@@ -33,13 +35,19 @@ export function activate(context: ExtensionContext): void {
     const { scriptTaskSvc, scriptVariableStore, scriptManifestParticipant } =
         scriptFeature.register(context, deps);
     const codeLink = codeLinkFeature.register(context, deps);
-    const { bpmnService } = editorFeature.register(context, deps, {
+    // The marketplace service must exist before the editor feature so the
+    // template service can merge its cache; its commands are wired afterwards
+    // because they re-run that same template service.
+    const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
+    const { bpmnService, templatesSvc } = editorFeature.register(context, deps, {
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
         scriptManifestParticipant,
         codeLink,
+        marketplaceSvc,
     });
+    templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, { bpmnService });
     deploymentFeature.register(context, deps);

@@ -34,6 +34,7 @@ function createService() {
         logInfo: vi.fn(),
         logDebug: vi.fn(),
     };
+    const marketplaceSvc = { getCachedTemplatePaths: vi.fn().mockResolvedValue([]) };
 
     const service = new BpmnElementTemplatesService(
         editorStore as never,
@@ -41,9 +42,10 @@ function createService() {
         artifactSvc as never,
         statusBar as never,
         notifier as never,
+        marketplaceSvc as never,
     );
 
-    return { service, editorStore, vsDocument, artifactSvc, statusBar, notifier };
+    return { service, editorStore, vsDocument, artifactSvc, statusBar, notifier, marketplaceSvc };
 }
 
 beforeEach(() => {
@@ -73,6 +75,48 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         ]);
         expect(statusBar.showElementTemplatesReady).toHaveBeenCalledWith(2);
         expect(notifier.logInfo).toHaveBeenCalledOnce();
+    });
+
+    it("merges cached marketplace templates with workspace-local ones, name-sorted", async () => {
+        const { service, editorStore, artifactSvc, marketplaceSvc } = createService();
+        artifactSvc.getArtifactPaths.mockResolvedValue([["local.json"], ".json"]);
+        marketplaceSvc.getCachedTemplatePaths.mockResolvedValue(["/cache/remote.json"]);
+        artifactSvc.readFile.mockImplementation(async (path: string) =>
+            path === "local.json"
+                ? JSON.stringify({ name: "Local" })
+                : JSON.stringify({ name: "Aremote" }),
+        );
+
+        const result = await service.setElementTemplates(EDITOR);
+
+        expect(result).toBe(true);
+        // Both the workspace path and the cached path are read through the same loop.
+        expect(artifactSvc.readFile).toHaveBeenCalledWith("local.json");
+        expect(artifactSvc.readFile).toHaveBeenCalledWith("/cache/remote.json");
+        const msg = editorStore.postMessage.mock.calls[0][1] as ElementTemplatesQuery;
+        expect((msg.elementTemplates as unknown as { name: string }[]).map((t) => t.name)).toEqual([
+            "Aremote",
+            "Local",
+        ]);
+    });
+
+    it("works without a marketplace service (workspace-only host)", async () => {
+        const { editorStore, vsDocument, artifactSvc, statusBar, notifier } = createService();
+        artifactSvc.getArtifactPaths.mockResolvedValue([["local.json"], ".json"]);
+        artifactSvc.readFile.mockResolvedValue(JSON.stringify({ name: "Local" }));
+        const service = new BpmnElementTemplatesService(
+            editorStore as never,
+            vsDocument as never,
+            artifactSvc as never,
+            statusBar as never,
+            notifier as never,
+        );
+
+        const result = await service.setElementTemplates(EDITOR);
+
+        expect(result).toBe(true);
+        const msg = editorStore.postMessage.mock.calls[0][1] as ElementTemplatesQuery;
+        expect(msg.elementTemplates).toEqual([{ name: "Local" }]);
     });
 
     it("skips and logs a file that fails to parse, keeping the rest", async () => {

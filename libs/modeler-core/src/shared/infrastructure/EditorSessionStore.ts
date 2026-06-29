@@ -58,6 +58,15 @@ export class EditorSessionStore {
         this.activeEditorListeners.forEach((listener) => listener(id));
     }
 
+    /**
+     * Ids of every registered editor session. Used to re-push element templates
+     * to all open editors after a marketplace refresh. Posting a BPMN-only query
+     * to a DMN webview is a harmless no-op for Slice 1.
+     */
+    getEditorIds(): string[] {
+        return Array.from(this.editors.keys());
+    }
+
     getActiveEditorId(): string {
         if (!this.activeEditorId) {
             throw new Error("No active editor.");
