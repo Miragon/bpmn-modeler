@@ -252,9 +252,14 @@ export class BridgeScriptEditor {
      * The host's "Declare in variable manifest" intention fired: scaffold the
      * entry in the script's diagram manifest, then reveal the file so the author
      * fills in `type`/`description`. Reveal reuses the existing `notifier/openDocument`
-     * capability (already implemented on the host). The append does **not** re-push
-     * variables manually — the per-session manifest watcher fires on the write and
-     * re-pushes `script/updateVariables`, so the new authored entry appears live.
+     * capability (already implemented on the host).
+     *
+     * The re-push is done explicitly via `loadManifest` rather than left to the
+     * per-session manifest watcher: `fs.watch` latency is unbounded (and flaky in
+     * CI), so waiting for the watcher to observe *our own* write would make the new
+     * authored entry appear only after an indeterminate delay. The watcher still
+     * covers external edits; a redundant watcher-driven re-push afterwards is
+     * idempotent.
      */
     async appendToManifest(scriptId: string, entry: VariableManifestEntry): Promise<void> {
         const tracked = this.scripts.get(scriptId);
@@ -268,6 +273,7 @@ export class BridgeScriptEditor {
         try {
             const manifestPath = await this.manifestSvc.upsert(documentPath, entry);
             await this.notifier.openDocument(manifestPath);
+            await this.loadManifest(tracked.editorId, documentPath);
         } catch (error) {
             this.notifier.logError(error as Error);
         }

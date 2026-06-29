@@ -348,7 +348,8 @@ describe("bridge script editor (real core over a fake transport)", () => {
         const onDisk = JSON.parse(await fs.readFile(manifestPath, "utf8"));
         expect(onDisk.variables).toEqual([{ name: "orderId", type: "String" }, { name: "amount" }]);
 
-        // (c) … and the watcher-driven reload re-pushes the merged var to the tab.
+        // (c) … and the append re-pushes the merged var to the tab (done eagerly,
+        // not via the fs watcher, so it is deterministic and does not race a write).
         const update = await waitForFrame(
             frames,
             (f) =>
