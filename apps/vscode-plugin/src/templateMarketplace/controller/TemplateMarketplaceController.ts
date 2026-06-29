@@ -1,3 +1,6 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 import { commands, ExtensionContext, window } from "vscode";
 
 import {
@@ -12,6 +15,24 @@ import { VsCodeSettings } from "../../shared/infrastructure/VsCodeSettings";
 // VS Code command IDs for the two marketplace commands.
 export const ADD_MARKETPLACE_CMD = "bpmn-modeler.addTemplateMarketplace";
 export const UPDATE_MARKETPLACES_CMD = "bpmn-modeler.updateTemplateMarketplaces";
+
+/**
+ * Expands a leading `~` to the user's home directory. `~` is a shell convention
+ * neither the filesystem APIs nor the host-agnostic core resolve, so it is
+ * expanded here, at the host boundary, before the path is fetched or persisted —
+ * the core then only ever sees an absolute path. `~user` is intentionally left
+ * untouched (other users' homes are not portably resolvable) so it falls through
+ * to the parser and is rejected.
+ */
+export function expandHomePath(input: string): string {
+    if (input === "~") {
+        return homedir();
+    }
+    if (input.startsWith("~/") || input.startsWith("~\\")) {
+        return join(homedir(), input.slice(2));
+    }
+    return input;
+}
 
 /**
  * Host glue for the element-template marketplace commands.
@@ -52,30 +73,33 @@ export class TemplateMarketplaceController {
      * `marketplace.json` is missing never lands in settings.
      */
     private async addMarketplace(): Promise<void> {
-        const url = await window.showInputBox({
+        const input = await window.showInputBox({
             title: "Add Template Marketplace",
             prompt: "Public GitHub repository, or a local folder, holding a marketplace.json",
-            placeHolder: "https://github.com/owner/repo  or  /path/to/folder",
-            // Reuse the domain parser as the validator so the accepted forms can
-            // never drift from what the service actually resolves.
+            placeHolder: "https://github.com/owner/repo  or  ~/path/to/folder",
+            // Reuse the domain parser as the validator (after `~` expansion) so
+            // the accepted forms can never drift from what the service resolves.
             validateInput: (value) => {
                 try {
-                    parseMarketplaceUrl(value);
+                    parseMarketplaceUrl(expandHomePath(value.trim()));
                     return undefined;
                 } catch {
                     return "Enter a GitHub repository URL or a local folder path holding a marketplace.json.";
                 }
             },
         });
-        if (!url) {
+        if (!input) {
             return;
         }
 
+        // Expand once and use the absolute path for both fetch and persistence,
+        // so a re-fetch via Update (which re-reads settings) never sees a `~`.
+        const location = expandHomePath(input.trim());
         try {
             await this.notifier.withProgress("Adding template marketplace…", () =>
-                this.marketplaceSvc.addMarketplace(url),
+                this.marketplaceSvc.addMarketplace(location),
             );
-            await this.settings.addTemplateMarketplace(url);
+            await this.settings.addTemplateMarketplace(location);
             await this.refreshOpenEditors();
             this.notifier.showInfo("Template marketplace added.");
         } catch (error) {

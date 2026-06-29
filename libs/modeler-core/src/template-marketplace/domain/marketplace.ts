@@ -102,6 +102,15 @@ function normalizeSourcePath(raw: string): string {
  */
 export function parseMarketplaceUrl(input: string): MarketplaceRegistration {
     const trimmed = input.trim();
+    // `~` is a shell convention the host-agnostic core cannot expand (it would
+    // need the home directory, which only the host knows). The host layer
+    // expands it before registration; if a raw `~` still reaches here, reject it
+    // rather than silently mis-reading `~/x` as the GitHub repo `~/x`.
+    if (trimmed.startsWith("~")) {
+        throw new InvalidMarketplaceError(
+            `"~" home paths must be expanded to an absolute path before registration: "${input}"`,
+        );
+    }
     return parseLocalFolder(trimmed) ?? parseGitHubRepoUrl(trimmed);
 }
 

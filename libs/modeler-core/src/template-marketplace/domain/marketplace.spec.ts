@@ -93,6 +93,13 @@ describe("parseMarketplaceUrl (local)", () => {
     it("does not mistake the bare owner/repo shorthand for a local path", () => {
         expect(parseMarketplaceUrl("acme/templates").location).toMatchObject({ kind: "github" });
     });
+
+    it("rejects an unexpanded ~ rather than mis-reading it as a github repo", () => {
+        // The host layer expands `~`; a raw one reaching the domain must throw,
+        // not parse as the repo `~/templates`.
+        expect(() => parseMarketplaceUrl("~/templates")).toThrow(InvalidMarketplaceError);
+        expect(() => parseMarketplaceUrl("~")).toThrow(InvalidMarketplaceError);
+    });
 });
 
 describe("parseMarketplace", () => {
