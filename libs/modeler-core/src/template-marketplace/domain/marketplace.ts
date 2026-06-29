@@ -155,10 +155,25 @@ function fileUrlToPath(url: string): string {
     return path;
 }
 
+/**
+ * Trims trailing path separators by scanning from the end rather than a
+ * `[\\/]+$` regex. The anchored quantifier backtracks polynomially
+ * (js/polynomial-redos) on a path of many separators followed by a
+ * non-separator, on otherwise user-controlled input.
+ */
+export function trimTrailingSeparators(path: string): string {
+    let end = path.length;
+    while (end > 0 && (path[end - 1] === "/" || path[end - 1] === "\\")) {
+        end--;
+    }
+    return path.slice(0, end);
+}
+
 /** Trims trailing separators and a trailing `marketplace.json` filename. */
 function stripTrailingManifest(path: string): string {
-    const withoutTrailingSlash = path.replace(/[\\/]+$/, "");
-    return withoutTrailingSlash.replace(/[\\/]marketplace\.json$/i, "");
+    // A single `[\\/]` (no `+`) is linear, so only the separator run above needs
+    // the scan; this fixed-shape match is ReDoS-safe.
+    return trimTrailingSeparators(path).replace(/[\\/]marketplace\.json$/i, "");
 }
 
 /**

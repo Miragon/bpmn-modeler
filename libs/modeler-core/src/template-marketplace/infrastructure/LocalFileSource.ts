@@ -1,3 +1,4 @@
+import { trimTrailingSeparators } from "../domain/marketplace";
 import { DirectoryNotFound } from "../../shared/domain/errors";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
 import { LocalSourceConfig, RepositorySource } from "../domain/ports";
@@ -58,7 +59,8 @@ export class LocalFileSource implements RepositorySource {
 
     /** Joins a root-relative path onto `rootDir`; `""` addresses the root itself. */
     private absolute(relativePath: string): string {
-        const root = this.config.rootDir.replace(/[\\/]+$/, "");
+        // Scan-based trim (not `[\\/]+$`) to stay clear of js/polynomial-redos.
+        const root = trimTrailingSeparators(this.config.rootDir);
         return relativePath ? `${root}/${relativePath}` : root;
     }
 }
