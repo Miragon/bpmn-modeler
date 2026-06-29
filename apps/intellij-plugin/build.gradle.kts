@@ -36,6 +36,10 @@ dependencies {
         // (no version-catalog entry) and the jars download on the first test run.
         testFramework(TestFrameworkType.JUnit5)
         testFramework(TestFrameworkType.Platform)
+        // Java code-insight test fixtures: ship LightJavaCodeInsightFixtureTestCase5,
+        // the JUnit5 base class the script-completion test extends to drive the real
+        // completion pipeline with a properly leak-tracked light project.
+        testFramework(TestFrameworkType.Plugin.Java)
     }
     // Gson does the JSON encode/decode for the host ↔ bridge ↔ webview messages.
     // Hand-built strings are unsafe here: SyncDocumentCommand carries the full
@@ -58,6 +62,12 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    // A new JVM per test class. The light-project code-insight test
+    // (ScriptCompletionContributorTest) and the @TestApplication router tests can't
+    // share a JVM: the router tests install a strict app-level project-leak tracker
+    // that catches the code-insight test's light project (held by project services
+    // after disposal). Isolating each class sidesteps the cross-contamination.
+    setForkEvery(1)
     // Always refresh the coverage data so `jacocoTestReport` reflects the latest run.
     finalizedBy(tasks.jacocoTestReport)
 }
