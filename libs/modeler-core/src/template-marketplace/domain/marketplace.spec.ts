@@ -15,6 +15,20 @@ describe("parseGitHubRepoUrl", () => {
         expect(reg).toMatchObject({ owner: "acme", repo: "templates", ref: "develop" });
     });
 
+    it("folds a pinned ref into the id so two refs of one repo cache separately", () => {
+        const main = parseGitHubRepoUrl("https://github.com/acme/templates/tree/main");
+        const dev = parseGitHubRepoUrl("https://github.com/acme/templates/tree/dev");
+        expect(main.id).toBe("acme__templates__main");
+        expect(dev.id).toBe("acme__templates__dev");
+        expect(main.id).not.toBe(dev.id);
+    });
+
+    it("sanitizes a slash-bearing ref in the id", () => {
+        expect(parseGitHubRepoUrl("https://github.com/acme/templates/tree/feature/x").id).toBe(
+            "acme__templates__feature-x",
+        );
+    });
+
     it("keeps slash-bearing branch names whole", () => {
         const reg = parseGitHubRepoUrl("https://github.com/acme/templates/tree/feature/x");
         expect(reg.ref).toBe("feature/x");

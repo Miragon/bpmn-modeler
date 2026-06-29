@@ -95,6 +95,20 @@ describe("GitHubSource.listTemplateFiles", () => {
         expect(repoMetaCalls).toHaveLength(1);
     });
 
+    it("throws when the tree is truncated rather than listing a partial set", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue(
+            ok(JSON.stringify({ truncated: true, tree: [{ path: "a.json", type: "blob" }] })),
+        );
+        const source = new GitHubSource(http as never, {
+            owner: "a",
+            repo: "b",
+            ref: "main",
+            path: "",
+        });
+        await expect(source.listTemplateFiles()).rejects.toThrow(/truncated/);
+    });
+
     it("throws when the tree request fails", async () => {
         const http = createHttp();
         http.getJson.mockResolvedValue({ status: 403, body: "rate limited" });

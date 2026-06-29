@@ -27,9 +27,10 @@ export class InvalidMarketplaceError extends Error {
 /**
  * A registered marketplace: the GitHub repo that holds `marketplace.json`.
  *
- * `id` is a filesystem-safe key derived from `owner`/`repo` so the on-disk
- * cache layout (`<globalStorage>/marketplaces/<id>/…`) is stable across
- * refreshes. `url` is kept verbatim so it round-trips through settings.
+ * `id` is a filesystem-safe key derived from `owner`/`repo` (plus `ref` when
+ * one is pinned) so the on-disk cache layout (`<globalStorage>/marketplaces/<id>/…`)
+ * is stable across refreshes yet distinct for the same repo registered at two
+ * refs. `url` is kept verbatim so it round-trips through settings.
  */
 export interface MarketplaceRegistration {
     readonly id: string;
@@ -102,8 +103,11 @@ export function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
     // itself contain slashes, so everything after `tree` is the ref.
     const ref = tail[0] === "tree" && tail.length > 1 ? tail.slice(1).join("/") : undefined;
 
+    // Fold `ref` into the id so the same repo pinned at two refs caches into
+    // separate dirs instead of clobbering one shared `<owner>__<repo>` slot.
+    const slug = ref ? `${owner}__${repo}__${ref}` : `${owner}__${repo}`;
     return {
-        id: `${owner}__${repo}`.replace(/[^a-zA-Z0-9._-]/g, "-"),
+        id: slug.replace(/[^a-zA-Z0-9._-]/g, "-"),
         owner,
         repo,
         ref,

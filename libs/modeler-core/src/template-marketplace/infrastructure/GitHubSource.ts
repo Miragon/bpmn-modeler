@@ -36,10 +36,22 @@ export class GitHubSource implements RepositorySource {
             );
         }
 
-        const tree = (JSON.parse(response.body) as { tree?: { path: string; type: string }[] })
-            .tree;
+        const parsed = JSON.parse(response.body) as {
+            tree?: { path: string; type: string }[];
+            truncated?: boolean;
+        };
+        const tree = parsed.tree;
         if (!Array.isArray(tree)) {
             throw new Error(`Unexpected GitHub tree response for ${owner}/${repo}@${ref}`);
+        }
+        // GitHub caps a recursive tree at 100k entries / 7MB and flags the
+        // overflow. Listing the partial set would silently drop templates, so
+        // fail loudly — the service logs it and skips this source rather than
+        // presenting an incomplete catalogue as complete.
+        if (parsed.truncated) {
+            throw new Error(
+                `GitHub tree for ${owner}/${repo}@${ref} is truncated; repository too large to list in one request`,
+            );
         }
 
         // An empty source path means "scan the whole repo"; otherwise restrict
