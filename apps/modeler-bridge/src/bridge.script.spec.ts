@@ -81,9 +81,12 @@ describe("bridge script editor (real core over a fake transport)", () => {
         const sourcePath = join(root, "source.bpmn");
         await fs.writeFile(sourcePath, C7_XML, "utf8");
         // Written before session/register so the script feature's onSessionRegistered
-        // hook reads it into the editor's manifest source.
+        // hook reads it into the editor's manifest source. The manifest now lives
+        // under `<configFolder>/vars/<relBpmn>.vars.json`, not beside the diagram.
         if (options?.manifest !== undefined) {
-            await fs.writeFile(`${sourcePath}.vars.json`, options.manifest, "utf8");
+            const varsDir = join(root, ".camunda", "vars");
+            await fs.mkdir(varsDir, { recursive: true });
+            await fs.writeFile(join(varsDir, "source.bpmn.vars.json"), options.manifest, "utf8");
         }
 
         const frames: any[] = [];
@@ -312,11 +315,11 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(open.params.completion.variables).toHaveLength(2);
     });
 
-    it("opens a diagram without a sibling manifest without logging an error", async () => {
+    it("opens a diagram without a manifest without logging an error", async () => {
         // Exercises the real NodeWorkspace.readFile ENOENT path: a missing
         // manifest must read as "absent" (FileNotFound), not rethrow and get
         // logged at error level on every editor open. `setup()` writes no
-        // `.vars.json`, so session/register hits the absent-manifest branch.
+        // `.camunda/vars/*.vars.json`, so session/register hits the absent-manifest branch.
         const { rpc, frames, editorId } = await setup();
         await settle();
 

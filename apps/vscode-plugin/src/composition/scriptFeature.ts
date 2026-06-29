@@ -43,7 +43,7 @@ export function register(
     new ScriptCompletionProvider(scriptVariableStore, deps.vsSettings).register(context);
 
     const scriptManifestParticipant = new ScriptManifestParticipant(
-        new ScriptVariableManifestService(deps.vsWorkspace),
+        new ScriptVariableManifestService(deps.vsWorkspace, deps.vsSettings, deps.artifactSvc),
         scriptVariableStore,
         deps.notifier,
     );

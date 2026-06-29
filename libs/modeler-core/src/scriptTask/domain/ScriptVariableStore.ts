@@ -9,7 +9,8 @@ import { ScriptUri } from "./ScriptUri";
  *
  * Two sources are kept apart and merged on read: the *extracted* model the
  * webview heuristically derives from the diagram, and the *manifest* model read
- * from a sibling `*.bpmn.vars.json`. They arrive on independent schedules (the
+ * from a `*.bpmn.vars.json` manifest under `<configFolder>/vars/`. They arrive
+ * on independent schedules (the
  * webview on every model edit, the manifest on file change), so storing them
  * separately lets either update without clobbering the other. {@link dedupeVariables}
  * does the merge; the manifest's `authored` tier wins any name clash.

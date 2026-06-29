@@ -188,9 +188,10 @@ export class BridgeScriptEditor {
     /**
      * Watches the manifest file and reloads + re-pushes on any change. The
      * returned handle is owned by the session feature, which disposes it when the
-     * editor closes.
+     * editor closes. Async because resolving the manifest path needs the
+     * workspace root.
      */
-    watchManifest(editorId: string, documentPath: string): { dispose(): void } {
+    async watchManifest(editorId: string, documentPath: string): Promise<{ dispose(): void }> {
         return this.manifestSvc.createWatcher(documentPath, () => {
             void this.loadManifest(editorId, documentPath);
         });

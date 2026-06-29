@@ -3,11 +3,12 @@ import { posix } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FileNotFound } from "../../shared/domain/errors";
-import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { SettingsPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { ArtifactService } from "../../shared/service/ArtifactService";
 import { ScriptVariableManifestService } from "./ScriptVariableManifestService";
 
 const DOCUMENT = "/work/diagram.bpmn";
-const MANIFEST_PATH = "/work/diagram.bpmn.vars.json";
+const MANIFEST_PATH = "/work/.camunda/vars/diagram.bpmn.vars.json";
 
 interface WatcherHandlers {
     onChange?: (path: string) => void;
@@ -16,9 +17,10 @@ interface WatcherHandlers {
 }
 
 /**
- * Minimal in-memory {@link WorkspacePort} exercising only the three methods the
- * service touches (getDocumentDirectory / readFile / createWatcher); the rest
- * throw so an accidental new dependency surfaces loudly.
+ * Minimal in-memory {@link WorkspacePort} exercising only the methods the
+ * service and a real {@link ArtifactService} touch (getDocumentDirectory /
+ * getWorkspaceFolderForDocument / readFile / createWatcher); the rest throw so
+ * an accidental new dependency surfaces loudly.
  */
 class FakeWorkspace implements Partial<WorkspacePort> {
     files = new Map<string, string>();
@@ -27,6 +29,12 @@ class FakeWorkspace implements Partial<WorkspacePort> {
 
     getDocumentDirectory(document: string): string {
         return posix.dirname(document);
+    }
+
+    // In these tests the document directory *is* the workspace root, so the real
+    // ArtifactService resolves the root by echoing back what it is handed.
+    getWorkspaceFolderForDocument(document: string): string {
+        return document;
     }
 
     async readFile(path: string): Promise<string> {
@@ -43,8 +51,15 @@ class FakeWorkspace implements Partial<WorkspacePort> {
     }
 }
 
+const FAKE_SETTINGS = { getConfigFolder: () => ".camunda" } as unknown as SettingsPort;
+
 function service(ws: FakeWorkspace): ScriptVariableManifestService {
-    return new ScriptVariableManifestService(ws as unknown as WorkspacePort);
+    const artifactSvc = new ArtifactService(ws as unknown as WorkspacePort, FAKE_SETTINGS);
+    return new ScriptVariableManifestService(
+        ws as unknown as WorkspacePort,
+        FAKE_SETTINGS,
+        artifactSvc,
+    );
 }
 
 describe("ScriptVariableManifestService", () => {
@@ -54,7 +69,7 @@ describe("ScriptVariableManifestService", () => {
         ws = new FakeWorkspace();
     });
 
-    it("loads the sibling manifest as authored variables", async () => {
+    it("loads the manifest under <configFolder>/vars/ as authored variables", async () => {
         ws.files.set(
             MANIFEST_PATH,
             JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
@@ -82,12 +97,14 @@ describe("ScriptVariableManifestService", () => {
         expect(await service(ws).load(DOCUMENT)).toEqual([]);
     });
 
-    it("watches the document directory for the manifest filename", () => {
+    it("watches the config folder for the manifest path", async () => {
         const onChange = vi.fn();
-        service(ws).createWatcher(DOCUMENT, onChange);
+        await service(ws).createWatcher(DOCUMENT, onChange);
 
         expect(ws.lastWatch?.rootPath).toBe("/work");
-        expect(ws.lastWatch?.glob).toBe("diagram.bpmn.vars.json");
+        // `**/` prefix is required for the chokidar adapter to match the absolute
+        // manifest path; VS Code matches root-relative either way.
+        expect(ws.lastWatch?.glob).toBe("**/.camunda/vars/diagram.bpmn.vars.json");
 
         ws.lastWatch?.handlers.onCreate?.(MANIFEST_PATH);
         ws.lastWatch?.handlers.onChange?.(MANIFEST_PATH);
@@ -95,18 +112,19 @@ describe("ScriptVariableManifestService", () => {
         expect(onChange).toHaveBeenCalledTimes(3);
     });
 
-    it("disposes the underlying watcher handle", () => {
-        const handle = service(ws).createWatcher(DOCUMENT, vi.fn());
+    it("disposes the underlying watcher handle", async () => {
+        const handle = await service(ws).createWatcher(DOCUMENT, vi.fn());
         handle.dispose();
         expect(ws.dispose).toHaveBeenCalledOnce();
     });
 
     // On Windows the host fs path uses backslashes; getDocumentDirectory already
-    // normalizes to posix, so the manifest basename must not be derived from a raw
-    // posix.basename of the backslash path (which would return the whole string).
+    // normalizes to posix, so the workspace-relative path must be derived from
+    // that normalized directory, not a raw posix split of the backslash path
+    // (which would return the whole string and yield a garbage relative path).
     describe("with a Windows-style backslash document path", () => {
         const WINDOWS_DOCUMENT = "C:\\work\\diagram.bpmn";
-        const WINDOWS_MANIFEST_PATH = "C:/work/diagram.bpmn.vars.json";
+        const WINDOWS_MANIFEST_PATH = "C:/work/.camunda/vars/diagram.bpmn.vars.json";
 
         beforeEach(() => {
             // getDocumentDirectory is robust (normalizes to posix) — only the
@@ -114,7 +132,7 @@ describe("ScriptVariableManifestService", () => {
             ws.getDocumentDirectory = () => "C:/work";
         });
 
-        it("computes the manifest filename from the normalized path", async () => {
+        it("computes the manifest path from the normalized relative path", async () => {
             ws.files.set(
                 WINDOWS_MANIFEST_PATH,
                 JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
@@ -133,11 +151,13 @@ describe("ScriptVariableManifestService", () => {
             ]);
         });
 
-        it("scopes the watcher glob to the bare manifest filename", () => {
-            service(ws).createWatcher(WINDOWS_DOCUMENT, vi.fn());
+        it("scopes the watcher glob to the relative manifest path, not garbage", async () => {
+            await service(ws).createWatcher(WINDOWS_DOCUMENT, vi.fn());
 
             expect(ws.lastWatch?.rootPath).toBe("C:/work");
-            expect(ws.lastWatch?.glob).toBe("diagram.bpmn.vars.json");
+            // Relative path is clean (`diagram.bpmn.vars.json`), proving the path
+            // is computed in posix space rather than from the backslash raw path.
+            expect(ws.lastWatch?.glob).toBe("**/.camunda/vars/diagram.bpmn.vars.json");
         });
     });
 });

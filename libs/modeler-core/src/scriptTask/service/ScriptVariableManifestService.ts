@@ -3,34 +3,49 @@ import { posix } from "path";
 import { parseVariableManifest, VariableDef } from "@miragon/bpmn-modeler-shared";
 
 import { FileNotFound } from "../../shared/domain/errors";
-import { WorkspacePort } from "../../shared/domain/hostPorts";
+import { SettingsPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import { ArtifactService } from "../../shared/service/ArtifactService";
+
+const VARS_DIR = "vars";
 
 /**
- * Reads (and watches) the `*.bpmn.vars.json` manifest that may sit next to a
- * diagram, turning it into the `authored`-tier variable model that overrides
- * heuristic extraction. Both hosts reuse it because it depends only on the
- * shared {@link WorkspacePort}; the merge with extracted variables happens in
- * the caller (the VS Code store / the bridge editor) via `dedupeVariables`.
+ * Reads (and watches) the `*.bpmn.vars.json` process-variable manifest, turning
+ * it into the `authored`-tier variable model that overrides heuristic
+ * extraction. Both hosts reuse it because it depends only on the shared
+ * {@link WorkspacePort}/{@link SettingsPort} and {@link ArtifactService}; the
+ * merge with extracted variables happens in the caller (the VS Code store / the
+ * bridge editor) via `dedupeVariables`.
+ *
+ * The manifest lives under `<configFolder>/vars/<relativeBpmnPath>.vars.json`
+ * (e.g. `src/order.bpmn` → `.camunda/vars/src/order.bpmn.vars.json`) rather than
+ * beside the diagram. This declutters the diagram folder and mirrors the
+ * code-link convention ({@link ArtifactService}/`CodeLinkMapService`): the
+ * workspace-relative path is preserved so two same-named diagrams in different
+ * folders don't collide.
  *
  * The service speaks the port's plain-fs-path vocabulary, not editor URIs: the
  * two {@link WorkspacePort} adapters disagree on scheme handling (VS Code reads
  * via `Uri.file`, expecting a bare path; the bridge strips `file://` itself), so
  * each host converts its editor URI to an fs path at the boundary — which is
  * also where the `file:`-scheme guard belongs, since a `git:`/`untitled:` diff
- * editor has no sibling on disk.
+ * editor has no manifest on disk.
  */
 export class ScriptVariableManifestService {
-    constructor(private readonly workspace: WorkspacePort) {}
+    constructor(
+        private readonly workspace: WorkspacePort,
+        private readonly settings: SettingsPort,
+        private readonly artifactSvc: ArtifactService,
+    ) {}
 
     /**
-     * Loads `<documentPath>.vars.json` as authored variables. Returns `[]` when
-     * the manifest is absent so a diagram without one is indistinguishable from
-     * one with an empty manifest. A malformed manifest yields `[]` from
+     * Loads the diagram's manifest as authored variables. Returns `[]` when the
+     * manifest is absent so a diagram without one is indistinguishable from one
+     * with an empty manifest. A malformed manifest yields `[]` from
      * {@link parseVariableManifest} (never throws); only unexpected read errors
      * propagate, so the host can surface them.
      */
     async load(documentPath: string): Promise<VariableDef[]> {
-        const manifestPath = this.manifestPathFor(documentPath);
+        const manifestPath = await this.manifestPathFor(documentPath);
         let jsonText: string;
         try {
             jsonText = await this.workspace.readFile(manifestPath);
@@ -40,34 +55,51 @@ export class ScriptVariableManifestService {
             }
             throw error;
         }
+        // The origin label uses the bare manifest basename, unchanged by the
+        // relocation (`order.bpmn.vars.json`), so origin strings stay stable.
         return parseVariableManifest(jsonText, posix.basename(manifestPath));
     }
 
     /**
-     * Watches the document directory for create/change/delete of the manifest
-     * and fires `onChange` so the caller can reload + re-merge. Scoped to the
-     * exact manifest filename so edits to a sibling diagram's manifest don't
+     * Watches the config folder for create/change/delete of this diagram's
+     * manifest and fires `onChange` so the caller can reload + re-merge. Scoped
+     * to the exact manifest path so edits to another diagram's manifest don't
      * trigger a needless reload.
      */
-    createWatcher(documentPath: string, onChange: () => void): { dispose(): void } {
-        const directory = this.workspace.getDocumentDirectory(documentPath);
-        const glob = posix.basename(this.manifestPathFor(documentPath));
-        return this.workspace.createWatcher(directory, glob, {
+    async createWatcher(documentPath: string, onChange: () => void): Promise<{ dispose(): void }> {
+        const documentDir = this.workspace.getDocumentDirectory(documentPath);
+        const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
+        const manifestPath = await this.manifestPathFor(documentPath);
+        // The chokidar/node adapter anchors the glob (`^…$`) and matches against
+        // absolute paths, so a root-relative glob must be prefixed `**/` to match
+        // the bridge the same way VS Code does (the template watcher does the same).
+        const glob = `**/${posix.relative(workspaceRoot, manifestPath)}`;
+        return this.workspace.createWatcher(workspaceRoot, glob, {
             onCreate: () => onChange(),
             onChange: () => onChange(),
             onDelete: () => onChange(),
         });
     }
 
-    /** `foo.bpmn` → `<dir>/foo.bpmn.vars.json`, in the port's fs-path space. */
-    private manifestPathFor(documentPath: string): string {
-        const directory = this.workspace.getDocumentDirectory(documentPath);
-        // Host fs paths aren't guaranteed posix: on Windows both VS Code's
-        // `uri.fsPath` and the bridge `fsPath` use backslashes, so a raw
-        // `posix.basename` would return the whole string and the computed
-        // manifest path (and watcher glob) would never match. Normalize
-        // separators first — `getDocumentDirectory` already does the equivalent.
+    /**
+     * `<root>/src/foo.bpmn` → `<root>/<configFolder>/vars/src/foo.bpmn.vars.json`,
+     * mirroring the diagram's workspace-relative path under the config folder.
+     */
+    private async manifestPathFor(documentPath: string): Promise<string> {
+        // Compute everything in the `uri.path` space `getDocumentDirectory`
+        // returns: on Windows the raw `documentPath` is `fsPath` (`c:\a\b`) while
+        // the directory is `uri.path` (`/c:/a/b`), so a relative path derived
+        // from the raw path would be garbage. Take the basename from the
+        // normalized path and join it onto the directory.
+        const documentDir = this.workspace.getDocumentDirectory(documentPath);
+        const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
         const fileName = posix.basename(documentPath.replace(/\\/g, "/"));
-        return posix.join(directory, `${fileName}.vars.json`);
+        const relBpmn = posix.relative(workspaceRoot, posix.join(documentDir, fileName));
+        return posix.join(
+            workspaceRoot,
+            this.settings.getConfigFolder(),
+            VARS_DIR,
+            `${relBpmn}.vars.json`,
+        );
     }
 }

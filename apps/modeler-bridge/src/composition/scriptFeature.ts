@@ -24,7 +24,11 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     // in-core service — the VS Code original was never extracted (its guts are
     // VS Code-specific accidental complexity) — so the portable slice lives here
     // and the Kotlin host is a dumb editor surface keyed by an opaque scriptId.
-    const manifestSvc = new ScriptVariableManifestService(deps.nodeWorkspace);
+    const manifestSvc = new ScriptVariableManifestService(
+        deps.nodeWorkspace,
+        deps.settings,
+        deps.artifactSvc,
+    );
     const scriptEditor = new BridgeScriptEditor(
         deps.store,
         deps.picker,
@@ -65,10 +69,10 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
 
     return {
         sessionHooks: {
-            // Load the sibling manifest and arm its watcher so authored variables
-            // merge into completion and refresh live. Guard non-file editors
-            // (a diff pane has no manifest on disk); the manifest service speaks
-            // fs paths, so pass the host-provided `fsPath`.
+            // Load the manifest and arm its watcher so authored variables merge
+            // into completion and refresh live. Guard non-file editors (a diff
+            // pane has no manifest on disk); the manifest service speaks fs paths,
+            // so pass the host-provided `fsPath`.
             onSessionRegistered: async (params: RegisterParams) => {
                 if (params.scheme !== "file") {
                     return;
@@ -76,7 +80,7 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
                 await scriptEditor.loadManifest(params.editorId, params.fsPath);
                 manifestWatchers.set(
                     params.editorId,
-                    scriptEditor.watchManifest(params.editorId, params.fsPath),
+                    await scriptEditor.watchManifest(params.editorId, params.fsPath),
                 );
             },
             // Close any script tabs this editor opened before its handle is

@@ -142,13 +142,20 @@ call-activity mappings, and `setVariable(…)` / `${…}` occurrences.
 Heuristic discovery cannot see variables injected from outside the model
 (a REST start payload, a correlated message, a parent process), and it
 cannot carry author-supplied types or documentation. To declare those
-explicitly, drop a manifest next to the diagram named after it with a
-`.vars.json` suffix:
+explicitly, add a manifest named after the diagram with a `.vars.json`
+suffix under the config folder's `vars/` subfolder, mirroring the
+diagram's workspace-relative path (the same convention as
+element-templates and code-link):
 
 ```
 order-process.bpmn
-order-process.bpmn.vars.json
+.camunda/vars/order-process.bpmn.vars.json
 ```
+
+A diagram in a subfolder mirrors that path too — `src/order-process.bpmn`
+→ `.camunda/vars/src/order-process.bpmn.vars.json` — so two same-named
+diagrams in different folders don't collide. The config folder defaults to
+`.camunda` and is overridable via `miragon.bpmnModeler.configFolder`.
 
 ```json
 {

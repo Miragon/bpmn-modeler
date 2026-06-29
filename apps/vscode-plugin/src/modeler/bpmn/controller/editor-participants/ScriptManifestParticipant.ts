@@ -16,7 +16,7 @@ import {
  *
  * The `editorId` is a document URI; the manifest service speaks fs paths, so the
  * conversion and the `file:`-scheme guard live here — a `git:`/`untitled:` diff
- * editor has no sibling manifest on disk.
+ * editor has no manifest on disk.
  */
 export class ScriptManifestParticipant implements EditorSessionParticipant {
     constructor(
@@ -36,7 +36,7 @@ export class ScriptManifestParticipant implements EditorSessionParticipant {
         await this.reload(editorId, documentPath);
 
         session.addDisposable(
-            this.manifestSvc.createWatcher(documentPath, () => {
+            await this.manifestSvc.createWatcher(documentPath, () => {
                 void this.reload(editorId, documentPath);
             }),
         );
