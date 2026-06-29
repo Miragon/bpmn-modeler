@@ -4,7 +4,9 @@ import {
     BpmnElementTemplatesService,
     FetchHttpClient,
     GitHubSource,
+    LocalFileSource,
     MarketplaceCache,
+    RepositorySource,
     RepositorySourceConfig,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
@@ -26,7 +28,12 @@ export function register(
     deps: SharedDeps,
 ): { marketplaceSvc: TemplateMarketplaceService } {
     const httpClient = new FetchHttpClient();
-    const sourceFactory = (config: RepositorySourceConfig) => new GitHubSource(httpClient, config);
+    // Dispatch on the config discriminant: a github source fetches over HTTP, a
+    // local source reads the workspace filesystem — same port, different adapter.
+    const sourceFactory = (config: RepositorySourceConfig): RepositorySource =>
+        config.kind === "github"
+            ? new GitHubSource(httpClient, config)
+            : new LocalFileSource(deps.vsWorkspace, config);
 
     // Idiomatic machine-global location; `writeFile` mkdirps it on first use.
     const cache = new MarketplaceCache(

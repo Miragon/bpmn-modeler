@@ -86,11 +86,31 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         await service.addMarketplace("https://github.com/acme/templates/tree/main");
 
         expect(sourceFactory).toHaveBeenCalledWith({
+            kind: "github",
             owner: "acme",
             repo: "templates",
             ref: "main",
             path: "element-templates",
         });
+    });
+
+    it("resolves a local folder registration to a local source config", async () => {
+        const { service, sourceFactory, cache } = createService();
+
+        await service.addMarketplace("/Users/me/templates");
+
+        // The relative source resolves against the registered folder, not a repo.
+        expect(sourceFactory).toHaveBeenCalledWith({
+            kind: "local",
+            rootDir: "/Users/me/templates",
+            path: "element-templates",
+        });
+        expect(cache.writeTemplate).toHaveBeenCalledWith(
+            "local--Users-me-templates",
+            0,
+            "element-templates/t.json",
+            expect.any(String),
+        );
     });
 
     it("throws when the manifest cannot be read, so no registration is persisted", async () => {

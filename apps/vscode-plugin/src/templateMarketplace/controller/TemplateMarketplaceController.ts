@@ -3,6 +3,7 @@ import { commands, ExtensionContext, window } from "vscode";
 import {
     BpmnElementTemplatesService,
     EditorSessionStore,
+    parseMarketplaceUrl,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
@@ -45,19 +46,26 @@ export class TemplateMarketplaceController {
     }
 
     /**
-     * Prompts for a public GitHub repo URL, fetches it, and — only if the fetch
-     * succeeds — persists the registration. Persisting after the fetch means a
-     * repo whose `marketplace.json` is missing never lands in settings.
+     * Prompts for a marketplace location (a public GitHub repo or a local
+     * folder), fetches it, and — only if the fetch succeeds — persists the
+     * registration. Persisting after the fetch means a location whose
+     * `marketplace.json` is missing never lands in settings.
      */
     private async addMarketplace(): Promise<void> {
         const url = await window.showInputBox({
             title: "Add Template Marketplace",
-            prompt: "Public GitHub repository holding a marketplace.json",
-            placeHolder: "https://github.com/owner/repo",
-            validateInput: (value) =>
-                /github\.com\/[^/\s]+\/[^/\s]+|^[^/\s]+\/[^/\s]+$/.test(value.trim())
-                    ? undefined
-                    : "Enter a public GitHub repository URL (e.g. https://github.com/owner/repo).",
+            prompt: "Public GitHub repository, or a local folder, holding a marketplace.json",
+            placeHolder: "https://github.com/owner/repo  or  /path/to/folder",
+            // Reuse the domain parser as the validator so the accepted forms can
+            // never drift from what the service actually resolves.
+            validateInput: (value) => {
+                try {
+                    parseMarketplaceUrl(value);
+                    return undefined;
+                } catch {
+                    return "Enter a GitHub repository URL or a local folder path holding a marketplace.json.";
+                }
+            },
         });
         if (!url) {
             return;

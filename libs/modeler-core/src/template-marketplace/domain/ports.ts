@@ -21,20 +21,41 @@ export interface RepositorySource {
 }
 
 /**
- * Construction parameters for a single {@link RepositorySource}. `path` is the
- * subtree to scan (`""` = whole repo, used when only {@link RepositorySource.fetchFile}
- * is needed, e.g. reading `marketplace.json` at the repo root). `ref` absent
- * means "resolve the default branch".
+ * Construction parameters shared by every {@link RepositorySource}. `path` is
+ * the subtree to scan (`""` = whole repo/root, used when only
+ * {@link RepositorySource.fetchFile} is needed, e.g. reading `marketplace.json`
+ * at the root). `kind` is the discriminant the factory dispatches on.
  */
-export interface RepositorySourceConfig {
-    readonly owner: string;
-    readonly repo: string;
-    readonly ref?: string;
+interface RepositorySourceConfigBase {
     readonly path: string;
 }
 
 /**
- * Builds a {@link RepositorySource} for a given repo/subtree. Injected into the
- * service so the provider adapter and its `HttpClient` stay in infrastructure.
+ * A subtree of a public GitHub repository. `ref` absent means "resolve the
+ * default branch".
+ */
+export interface GitHubSourceConfig extends RepositorySourceConfigBase {
+    readonly kind: "github";
+    readonly owner: string;
+    readonly repo: string;
+    readonly ref?: string;
+}
+
+/**
+ * A subtree of a local on-disk folder (decision: a marketplace can live as a
+ * plain `marketplace.json` folder, no repository required). `rootDir` is the
+ * absolute folder holding the manifest; `path` resolves relative to it.
+ */
+export interface LocalSourceConfig extends RepositorySourceConfigBase {
+    readonly kind: "local";
+    readonly rootDir: string;
+}
+
+export type RepositorySourceConfig = GitHubSourceConfig | LocalSourceConfig;
+
+/**
+ * Builds a {@link RepositorySource} for a given config. Injected into the
+ * service so the provider adapters (and their `HttpClient` / `WorkspacePort`)
+ * stay in infrastructure; the factory dispatches on {@link RepositorySourceConfig.kind}.
  */
 export type RepositorySourceFactory = (config: RepositorySourceConfig) => RepositorySource;

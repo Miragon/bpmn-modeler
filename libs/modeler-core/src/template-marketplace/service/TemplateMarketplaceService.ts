@@ -1,9 +1,10 @@
 import { NotifierPort, SettingsPort } from "../../shared/domain/hostPorts";
 import {
     InvalidMarketplaceError,
+    MarketplaceLocation,
     MarketplaceRegistration,
-    parseGitHubRepoUrl,
     parseMarketplace,
+    parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
 import { RepositorySourceConfig, RepositorySourceFactory } from "../domain/ports";
@@ -46,7 +47,7 @@ export class TemplateMarketplaceService {
      *   registration that cannot be fetched.
      */
     async addMarketplace(url: string): Promise<void> {
-        await this.fetchAndCache(parseGitHubRepoUrl(url));
+        await this.fetchAndCache(parseMarketplaceUrl(url));
     }
 
     /**
@@ -57,7 +58,7 @@ export class TemplateMarketplaceService {
     async updateAll(): Promise<void> {
         for (const url of this.settings.getTemplateMarketplaces()) {
             try {
-                await this.fetchAndCache(parseGitHubRepoUrl(url));
+                await this.fetchAndCache(parseMarketplaceUrl(url));
             } catch (error) {
                 this.notifier.logWarning(
                     `Skipped template marketplace "${url}": ${(error as Error).message}`,
@@ -95,12 +96,7 @@ export class TemplateMarketplaceService {
      * to {@link InvalidMarketplaceError} so the caller's error path is uniform.
      */
     private async readManifest(registration: MarketplaceRegistration): Promise<string> {
-        const root = this.sourceFactory({
-            owner: registration.owner,
-            repo: registration.repo,
-            ref: registration.ref,
-            path: "",
-        });
+        const root = this.sourceFactory(this.configFor(registration.location, ""));
         try {
             return await root.fetchFile(MARKETPLACE_MANIFEST);
         } catch (error) {
@@ -111,10 +107,11 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Resolves one source to a concrete GitHub fetch and caches its `.json`
-     * files. A relative source resolves against the marketplace repo itself; a
-     * github source names its own repo. The registration's `ref` only pins the
-     * relative case — an external source carries its own.
+     * Resolves one source to a concrete fetch and caches its `.json` files. A
+     * relative source resolves against the marketplace's own location (the repo
+     * or local folder it was registered from); a github source names its own
+     * repo. The registration only pins the relative case — an external source
+     * carries its own coordinates.
      */
     private async cacheSource(
         registration: MarketplaceRegistration,
@@ -123,13 +120,9 @@ export class TemplateMarketplaceService {
     ): Promise<void> {
         const config: RepositorySourceConfig =
             source.kind === "relative"
-                ? {
-                      owner: registration.owner,
-                      repo: registration.repo,
-                      ref: registration.ref,
-                      path: source.path,
-                  }
+                ? this.configFor(registration.location, source.path)
                 : {
+                      kind: "github",
                       owner: source.owner,
                       repo: source.repo,
                       ref: source.ref,
@@ -141,5 +134,23 @@ export class TemplateMarketplaceService {
             const content = await repository.fetchFile(repoPath);
             await this.cache.writeTemplate(registration.id, index, repoPath, content);
         }
+    }
+
+    /**
+     * Projects a marketplace location plus a subtree `path` into the
+     * provider-specific {@link RepositorySourceConfig} the factory dispatches on.
+     * This is the single place the github/local discriminant is mapped, so the
+     * fetch flow above stays provider-agnostic.
+     */
+    private configFor(location: MarketplaceLocation, path: string): RepositorySourceConfig {
+        return location.kind === "github"
+            ? {
+                  kind: "github",
+                  owner: location.owner,
+                  repo: location.repo,
+                  ref: location.ref,
+                  path,
+              }
+            : { kind: "local", rootDir: location.rootDir, path };
     }
 }

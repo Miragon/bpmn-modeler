@@ -1,5 +1,5 @@
 import { HttpClient } from "../../deployment/domain/ports";
-import { RepositorySource, RepositorySourceConfig } from "../domain/ports";
+import { GitHubSourceConfig, RepositorySource } from "../domain/ports";
 
 // GitHub's REST API rejects requests without a User-Agent; identify the client.
 const USER_AGENT = "bpmn-modeler";
@@ -21,7 +21,7 @@ export class GitHubSource implements RepositorySource {
 
     constructor(
         private readonly http: HttpClient,
-        private readonly config: RepositorySourceConfig,
+        private readonly config: GitHubSourceConfig,
     ) {}
 
     async listTemplateFiles(): Promise<string[]> {

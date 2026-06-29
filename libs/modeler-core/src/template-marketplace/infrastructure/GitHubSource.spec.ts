@@ -37,6 +37,7 @@ describe("GitHubSource.listTemplateFiles", () => {
         );
 
         const source = new GitHubSource(http as never, {
+            kind: "github",
             owner: "acme",
             repo: "repo",
             ref: "main",
@@ -60,6 +61,7 @@ describe("GitHubSource.listTemplateFiles", () => {
             .mockResolvedValueOnce(ok(JSON.stringify({ tree: [] })));
 
         const source = new GitHubSource(http as never, {
+            kind: "github",
             owner: "acme",
             repo: "repo",
             path: "",
@@ -84,7 +86,12 @@ describe("GitHubSource.listTemplateFiles", () => {
             .mockResolvedValueOnce(ok(JSON.stringify({ default_branch: "develop" })))
             .mockResolvedValue(ok(JSON.stringify({ tree: [] })));
 
-        const source = new GitHubSource(http as never, { owner: "a", repo: "b", path: "" });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "a",
+            repo: "b",
+            path: "",
+        });
         await source.listTemplateFiles();
         await source.listTemplateFiles();
 
@@ -101,6 +108,7 @@ describe("GitHubSource.listTemplateFiles", () => {
             ok(JSON.stringify({ truncated: true, tree: [{ path: "a.json", type: "blob" }] })),
         );
         const source = new GitHubSource(http as never, {
+            kind: "github",
             owner: "a",
             repo: "b",
             ref: "main",
@@ -113,6 +121,7 @@ describe("GitHubSource.listTemplateFiles", () => {
         const http = createHttp();
         http.getJson.mockResolvedValue({ status: 403, body: "rate limited" });
         const source = new GitHubSource(http as never, {
+            kind: "github",
             owner: "a",
             repo: "b",
             ref: "main",
@@ -128,6 +137,7 @@ describe("GitHubSource.fetchFile", () => {
         http.getText.mockResolvedValue(ok("{ }"));
 
         const source = new GitHubSource(http as never, {
+            kind: "github",
             owner: "acme",
             repo: "repo",
             ref: "v1.0.0",
@@ -145,6 +155,7 @@ describe("GitHubSource.fetchFile", () => {
         const http = createHttp();
         http.getText.mockResolvedValue({ status: 404, body: "Not Found" });
         const source = new GitHubSource(http as never, {
+            kind: "github",
             owner: "a",
             repo: "b",
             ref: "main",

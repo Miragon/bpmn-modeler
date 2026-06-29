@@ -7,9 +7,11 @@
  * external repos the single source of truth (issue #961): nothing is copied,
  * templates are fetched and merged into the existing render pipeline.
  *
- * Slice 1 supports public GitHub only; GitLab / `baseUrl` / private repos
- * follow in later slices, so the parser rejects anything it cannot yet honour
- * rather than silently dropping it.
+ * A marketplace is registered either as a public GitHub repo or as a local
+ * on-disk folder (so manual testing and air-gapped/shared-drive setups need no
+ * repository at all). Beyond that, Slice 1 supports public GitHub only; GitLab /
+ * `baseUrl` / private repos follow in later slices, so the parser rejects
+ * anything it cannot yet honour rather than silently dropping it.
  */
 
 /**
@@ -25,18 +27,32 @@ export class InvalidMarketplaceError extends Error {
 }
 
 /**
- * A registered marketplace: the GitHub repo that holds `marketplace.json`.
+ * Where a registered marketplace's `marketplace.json` lives: a public GitHub
+ * repo, or a local on-disk folder. The discriminant lets the service resolve a
+ * registration to a concrete fetch without re-sniffing how it was entered.
+ */
+export type MarketplaceLocation =
+    | {
+          readonly kind: "github";
+          readonly owner: string;
+          readonly repo: string;
+          readonly ref?: string;
+      }
+    | { readonly kind: "local"; readonly rootDir: string };
+
+/**
+ * A registered marketplace: the GitHub repo or local folder that holds
+ * `marketplace.json`.
  *
- * `id` is a filesystem-safe key derived from `owner`/`repo` (plus `ref` when
- * one is pinned) so the on-disk cache layout (`<globalStorage>/marketplaces/<id>/…`)
- * is stable across refreshes yet distinct for the same repo registered at two
- * refs. `url` is kept verbatim so it round-trips through settings.
+ * `id` is a filesystem-safe key derived from the location (owner/repo plus `ref`
+ * when pinned, or the folder path) so the on-disk cache layout
+ * (`<globalStorage>/marketplaces/<id>/…`) is stable across refreshes yet
+ * distinct for the same repo registered at two refs. `url` is kept verbatim so
+ * it round-trips through settings.
  */
 export interface MarketplaceRegistration {
     readonly id: string;
-    readonly owner: string;
-    readonly repo: string;
-    readonly ref?: string;
+    readonly location: MarketplaceLocation;
     readonly url: string;
 }
 
@@ -75,6 +91,77 @@ function normalizeSourcePath(raw: string): string {
 }
 
 /**
+ * Parses a marketplace reference into a {@link MarketplaceRegistration}.
+ *
+ * A `file://` URL or an absolute filesystem path registers a *local* folder
+ * (no repository required); anything else is parsed as a public GitHub repo.
+ * The split is detected here so callers (and input validation) never re-derive
+ * "is this local or remote".
+ *
+ * @throws {InvalidMarketplaceError} when the input is neither.
+ */
+export function parseMarketplaceUrl(input: string): MarketplaceRegistration {
+    const trimmed = input.trim();
+    return parseLocalFolder(trimmed) ?? parseGitHubRepoUrl(trimmed);
+}
+
+/**
+ * Recognises a local marketplace folder from a `file://` URL or an absolute
+ * path. Returns `undefined` (not a throw) for anything else so the caller can
+ * fall through to GitHub parsing — the bare `owner/repo` shorthand is relative,
+ * so it never collides with an absolute path.
+ *
+ * A path pointing straight at `marketplace.json` is accepted as sugar for its
+ * containing folder, since the manifest is always read from the folder root.
+ */
+function parseLocalFolder(input: string): MarketplaceRegistration | undefined {
+    const fsPath = toLocalFsPath(input);
+    if (fsPath === undefined) {
+        return undefined;
+    }
+
+    const rootDir = stripTrailingManifest(fsPath);
+    return {
+        // Prefix + sanitize so a local cache slot never collides with a
+        // `<owner>__<repo>` GitHub slot and is a legal directory name.
+        id: `local-${rootDir}`.replace(/[^a-zA-Z0-9._-]/g, "-"),
+        location: { kind: "local", rootDir },
+        url: input,
+    };
+}
+
+/** @returns the filesystem path for a local input, or `undefined` if remote. */
+function toLocalFsPath(input: string): string | undefined {
+    if (/^file:\/\//i.test(input)) {
+        return fileUrlToPath(input);
+    }
+    // POSIX absolute (`/…`), Windows drive (`C:\` / `C:/`), or UNC (`\\host`).
+    if (input.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(input) || input.startsWith("\\\\")) {
+        return input;
+    }
+    return undefined;
+}
+
+/**
+ * Converts a `file://` URL to a filesystem path without `node:url`, so the core
+ * stays host-agnostic. Handles the empty/`localhost` authority and the
+ * leading-slash-before-drive-letter quirk of `file:///C:/…`.
+ */
+function fileUrlToPath(url: string): string {
+    let path = decodeURIComponent(url.replace(/^file:\/\//i, "").replace(/^localhost/i, ""));
+    if (/^\/[a-zA-Z]:/.test(path)) {
+        path = path.slice(1);
+    }
+    return path;
+}
+
+/** Trims trailing separators and a trailing `marketplace.json` filename. */
+function stripTrailingManifest(path: string): string {
+    const withoutTrailingSlash = path.replace(/[\\/]+$/, "");
+    return withoutTrailingSlash.replace(/[\\/]marketplace\.json$/i, "");
+}
+
+/**
  * Parses a public-GitHub repo reference into a {@link MarketplaceRegistration}.
  *
  * Accepts the forms a user is likely to paste — full `https://github.com/o/r`,
@@ -85,7 +172,7 @@ function normalizeSourcePath(raw: string): string {
  *
  * @throws {InvalidMarketplaceError} when the input is not a GitHub repo URL.
  */
-export function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
+function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
     const trimmed = input.trim();
     const rest = trimmed
         .replace(/^https?:\/\//i, "")
@@ -112,9 +199,7 @@ export function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
     const slug = ref ? `${owner}__${repo}__${ref}` : `${owner}__${repo}`;
     return {
         id: slug.replace(/[^a-zA-Z0-9._-]/g, "-"),
-        owner,
-        repo,
-        ref,
+        location: { kind: "github", owner, repo, ref },
         url: trimmed,
     };
 }
