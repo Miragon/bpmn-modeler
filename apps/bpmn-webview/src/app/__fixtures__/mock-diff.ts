@@ -1,7 +1,7 @@
 /**
  * Fixture BPMN XMLs for the dev-mode diff preview.
  *
- * Used exclusively by the `MockedVsCodeApi` in `vscode.ts` when the webview
+ * Used exclusively by the `MockHost` in `host.ts` when the webview
  * is booted with `?mode=diff-before` or `?mode=diff-after`.  The two diagrams
  * differ in every category `bpmn-js-differ` reports:
  *

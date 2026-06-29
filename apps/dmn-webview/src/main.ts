@@ -30,15 +30,15 @@ import { i18n } from "@miragon/bpmn-modeler-i18n";
 import {
     createModeler,
     exportDiagram,
-    getVsCodeApi,
+    getHostApi,
     loadDiagram,
     onCommandStackChanged,
     WebviewStateManager,
 } from "./app";
 
-const vscode = getVsCodeApi();
+const host = getHostApi();
 
-const stateManager = new WebviewStateManager(vscode);
+const stateManager = new WebviewStateManager(host);
 
 /**
  * Debounce the openXML function to avoid multiple calls when the user types fast.
@@ -81,9 +81,9 @@ window.onload = async function () {
         onLabelChange: (apply) => i18n.onChange(apply),
     });
 
-    vscode.postMessage(new GetDmnFileCommand());
-    vscode.postMessage(new GetPropertiesPanelStateCommand());
-    vscode.postMessage(new GetDmnModelerSettingCommand());
+    host.postMessage(new GetDmnFileCommand());
+    host.postMessage(new GetPropertiesPanelStateCommand());
+    host.postMessage(new GetDmnModelerSettingCommand());
     const dmnFile = await dmnFileResolver.wait();
     await initializeModeler(dmnFile?.content);
     modelerIsInitialized = true;
@@ -97,7 +97,7 @@ window.onload = async function () {
     const panelState = await panelStateResolver.wait();
     propertiesPanelHandle.setVisible(panelState?.visible ?? true);
     propertiesPanelHandle.onVisibilityChanged((visible) => {
-        vscode.postMessage(new SetPropertiesPanelStateCommand(visible));
+        host.postMessage(new SetPropertiesPanelStateCommand(visible));
     });
 
     stateManager.restorePanelUiState();
@@ -111,10 +111,10 @@ async function initializeModeler(dmnFile: string | undefined) {
         await openXML(dmnFile);
     } catch (error) {
         if (error instanceof NoModelerError) {
-            vscode.postMessage(new LogErrorCommand(error.message));
+            host.postMessage(new LogErrorCommand(error.message));
         } else {
             const message = error instanceof Error ? error.message : `${error}`;
-            vscode.postMessage(new LogErrorCommand(`Unable to open XML ${message}`));
+            host.postMessage(new LogErrorCommand(`Unable to open XML ${message}`));
         }
     }
 }
@@ -138,13 +138,13 @@ async function openXML(dmn: string | undefined) {
         );
         const message = `Diagram was opened with following warnings: ${formatErrors(warnings)}
             `;
-        vscode.postMessage(new LogInfoCommand(message));
+        host.postMessage(new LogInfoCommand(message));
     }
 }
 
 async function sendChanges() {
     const dmn = await exportDiagram();
-    vscode.postMessage(new SyncDocumentCommand(dmn));
+    host.postMessage(new SyncDocumentCommand(dmn));
 }
 
 async function onReceiveMessage(message: MessageEvent<Query | Command>) {
@@ -161,7 +161,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : `${error}`;
-                vscode.postMessage(
+                host.postMessage(
                     new LogErrorCommand(
                         `Something went wrong when receiving the message ${errorMessage}`,
                     ),

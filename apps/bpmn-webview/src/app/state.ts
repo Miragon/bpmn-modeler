@@ -1,5 +1,5 @@
-import { Command, Query, VsCodeApi } from "@miragon/bpmn-modeler-shared";
-import { WebviewState } from "./vscode";
+import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
+import { WebviewState } from "./host";
 import { BpmnModeler } from "./modeler";
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
@@ -29,7 +29,7 @@ function isGroupOpen(group: HTMLElement): boolean {
  */
 export class WebviewStateManager {
     constructor(
-        private readonly vscode: VsCodeApi<WebviewState, Command | Query>,
+        private readonly host: HostApi<WebviewState, Command | Query>,
         private readonly modeler: BpmnModeler,
     ) {}
 
@@ -125,7 +125,7 @@ export class WebviewStateManager {
 
     private getSavedState(): WebviewState | undefined {
         try {
-            return this.vscode.getState();
+            return this.host.getState();
         } catch {
             return undefined;
         }
@@ -136,9 +136,9 @@ export class WebviewStateManager {
      */
     private persistPartialState(partial: Partial<WebviewState>): void {
         try {
-            this.vscode.updateState(partial);
+            this.host.updateState(partial);
         } catch {
-            this.vscode.setState(partial as WebviewState);
+            this.host.setState(partial as WebviewState);
         }
     }
 

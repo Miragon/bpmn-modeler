@@ -4,17 +4,17 @@ import { WebviewStateManager } from "./state";
 
 /**
  * Builds a `WebviewStateManager` wired to spies for the only collaborators
- * `restoreViewport` touches: `vscode.getState` (the saved-state source that
+ * `restoreViewport` touches: `host.getState` (the saved-state source that
  * discriminates fresh open from tab-switch rebuild) and the viewport methods.
  */
 function setup(savedState: unknown) {
     const getState = vi.fn().mockReturnValue(savedState);
     const setViewport = vi.fn();
     const fitViewport = vi.fn();
-    const vscode = { getState } as any;
+    const host = { getState } as any;
     const modeler = { viewport: { setViewport, fitViewport } } as any;
     return {
-        manager: new WebviewStateManager(vscode, modeler),
+        manager: new WebviewStateManager(host, modeler),
         setViewport,
         fitViewport,
     };

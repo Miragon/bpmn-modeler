@@ -1,4 +1,4 @@
-import { ViewportData } from "./vscode";
+import { ViewportData } from "./host";
 
 /**
  * Function type for accessing a service from the bpmn-js DI container.

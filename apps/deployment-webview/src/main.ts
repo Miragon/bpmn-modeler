@@ -16,9 +16,9 @@ import {
 import { DeploymentForm } from "./app/form";
 import { FORM_TEMPLATE } from "./app/formTemplate";
 import { StartInstanceForm } from "./app/startInstanceForm";
-import { getVsCodeApi } from "./app/vscode";
+import { getHostApi } from "./app/host";
 
-const vscode = getVsCodeApi();
+const host = getHostApi();
 
 /**
  * Entry point: initialises the deployment and start-instance forms once the
@@ -36,9 +36,9 @@ window.onload = function () {
     }
 
     try {
-        form = new DeploymentForm(vscode);
+        form = new DeploymentForm(host);
         startForm = new StartInstanceForm(
-            vscode,
+            host,
             () => form.getAuthPayload(),
             () => form.getConnectionPayload(),
         );
@@ -54,7 +54,7 @@ window.onload = function () {
     });
 
     // Request pre-populated defaults from the extension host.
-    vscode.postMessage(new RequestFormDefaultsCommand());
+    host.postMessage(new RequestFormDefaultsCommand());
 };
 
 /**
@@ -69,7 +69,7 @@ function initTabs(): void {
 
     // Restore persisted active tab.
     try {
-        const state = vscode.getState() as Record<string, unknown> | undefined;
+        const state = host.getState() as Record<string, unknown> | undefined;
         const savedTab = state?.activeTab as string | undefined;
         if (savedTab) {
             activateTab(savedTab, tabBtns, tabPanels);
@@ -83,8 +83,8 @@ function initTabs(): void {
             const tab = btn.dataset.tab;
             if (!tab) return;
             activateTab(tab, tabBtns, tabPanels);
-            vscode.setState({
-                ...((vscode.getState() as Record<string, unknown>) ?? {}),
+            host.setState({
+                ...((host.getState() as Record<string, unknown>) ?? {}),
                 activeTab: tab,
             });
         });
@@ -112,7 +112,7 @@ function activateTab(
 }
 
 /**
- * Routes messages from the VS Code extension host to the appropriate form method.
+ * Routes messages from the host application to the appropriate form method.
  *
  * @param event The raw `MessageEvent` from `window.addEventListener("message", …)`.
  * @param form The active {@link DeploymentForm} instance.
