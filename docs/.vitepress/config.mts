@@ -67,6 +67,7 @@ export default withMermaid(defineConfig({
                             text: "Language Support",
                             link: "/vscode/features/language-support",
                         },
+                        { text: "Linting", link: "/vscode/features/linting" },
                     ],
                 },
                 {

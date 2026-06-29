@@ -26,6 +26,9 @@ export default defineConfig({
         jsx: "automatic",
         jsxImportSource: "preact",
     },
+    optimizeDeps: {
+        include: ["bpmnlint", "bpmn-js-bpmnlint"],
+    },
     resolve: {
         dedupe: [
             "preact",
@@ -55,7 +58,6 @@ export default defineConfig({
                 darkTheme: resolve(__dirname, "src/styles/dark-theme/index.css"),
             },
             output: {
-                // don't hash the name of the output file (index.js)
                 entryFileNames: `[name].js`,
                 assetFileNames: "[name].[ext]",
             },

@@ -46,3 +46,10 @@ Element templates follow the
 and are resolved by convention. No project config file required. See the
 [Element Template Chooser](/vscode/features/element-template-chooser) page for
 details on template discovery and the UI for applying them.
+
+## Linting
+
+`.bpmnlintrc` discovery reuses the same `configFolder` walk: at each level from
+the BPMN file up to the workspace root, `<dir>/.bpmnlintrc` then
+`<dir>/<configFolder>/.bpmnlintrc` is checked, nearest match wins. See the
+[Linting](/vscode/features/linting) page for details.

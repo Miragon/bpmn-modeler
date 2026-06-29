@@ -6,12 +6,14 @@ import "./styles/diff.css";
 
 import {
     BpmnFileQuery,
+    BpmnlintConfigQuery,
     BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
     ElementTemplatesQuery,
     Engine,
     GetBpmnFileCommand,
+    GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
@@ -50,6 +52,7 @@ import {
     UnsupportedEngineError,
 } from "./app";
 import { DiffMode } from "./app/diff/DiffMode";
+import type { LintConfigService } from "./app/bpmnlint";
 import { WebviewStateManager } from "./app/state";
 
 const vscode = getVsCodeApi();
@@ -261,6 +264,7 @@ window.onload = async function () {
     vscode.postMessage(new GetElementTemplatesCommand());
     vscode.postMessage(new GetBpmnModelerSettingCommand());
     vscode.postMessage(new GetPropertiesPanelStateCommand());
+    vscode.postMessage(new GetBpmnlintConfigCommand());
 
     const [, , panelStateQuery] = await Promise.all([
         elementTemplatesResolver.wait(),
@@ -380,6 +384,21 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 console.log("Received element templates: ", elementTemplates);
                 bpmnModeler.setElementTemplates(elementTemplates);
                 elementTemplatesResolver.done(message.data as ElementTemplatesQuery);
+            } catch (error: any) {
+                vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
+        case queryOrCommand.type === "BpmnlintConfigQuery": {
+            try {
+                const query = message.data as BpmnlintConfigQuery;
+                const warnings = bpmnModeler
+                    .getService<LintConfigService>("bpmnLintConfig")
+                    .apply(query.config);
+
+                for (const warning of warnings) {
+                    vscode.postMessage(new LogInfoCommand(warning));
+                }
             } catch (error: any) {
                 vscode.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

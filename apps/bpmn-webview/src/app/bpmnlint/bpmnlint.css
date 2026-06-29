@@ -1,0 +1,100 @@
+/**
+ * Hide-until-configured: the bpmn-js-bpmnlint status button is hidden until a
+ * `.bpmnlintrc` is applied, so a workspace with no lint config looks exactly as
+ * it did before this feature. LintConfigService.apply() toggles
+ * `.bpmnlint-active` on <body> (add on config, remove on null).
+ */
+.bjsl-button {
+    display: none;
+}
+
+/**
+ * Flat, chip-like restyle of the in-canvas lint summary button.
+ *
+ * Replaces bpmn-js-bpmnlint's saturated pill (bold white-on-red/amber/green)
+ * with a compact tinted chip: soft state-coloured fill, matching text, hairline
+ * border, no depth. `inline-flex` (not the vendor's `flex`, and crucially not
+ * `block`, which stacked the icon above the count) keeps icon and count on one
+ * row and shrink-wraps the chip to its content. The icon is a `currentColor`
+ * SVG, so the per-state text colour repaints it for free. The canvas stays white
+ * in every VS Code theme, so the palette is tuned for a light background and
+ * needs no dark-mode variant.
+ */
+body.bpmnlint-active .bjsl-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    bottom: 16px;
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background-color: #f0f0f0;
+    color: #555;
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 1.4;
+    transition:
+        background-color 0.12s ease,
+        border-color 0.12s ease,
+        color 0.12s ease;
+}
+
+body.bpmnlint-active .bjsl-button .icon {
+    margin: 0;
+    width: 13px;
+    height: 13px;
+}
+
+body.bpmnlint-active .bjsl-button-success {
+    background-color: #eaf6ea;
+    border-color: #cbe7c4;
+    color: #2e7d22;
+}
+
+body.bpmnlint-active .bjsl-button-warning {
+    background-color: #fbf1d3;
+    border-color: #f0dfa3;
+    color: #7a5d10;
+}
+
+body.bpmnlint-active .bjsl-button-error {
+    background-color: #fbe6e6;
+    border-color: #f1c2c0;
+    color: #c0392b;
+}
+
+body.bpmnlint-active .bjsl-button-success:hover {
+    background-color: #e0f0df;
+}
+
+body.bpmnlint-active .bjsl-button-warning:hover {
+    background-color: #f7e9bf;
+}
+
+body.bpmnlint-active .bjsl-button-error:hover {
+    background-color: #f7d9d7;
+}
+
+body.bpmnlint-active .bjsl-button:focus-visible {
+    outline: 2px solid rgba(0, 120, 212, 0.7);
+    outline-offset: 1px;
+}
+
+/**
+ * Match the issues dropdown to the chip: flat panel, soft hairline border, and a
+ * gentle lift so it stays legible floating over the diagram.
+ */
+body.bpmnlint-active .bjsl-issues {
+    padding: 10px 12px;
+    border: 1px solid #e4e4e4;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+body.bpmnlint-active .bjsl-id-hint {
+    padding: 1px 6px;
+    background-color: #ededed;
+    color: #555;
+    font-weight: 500;
+    border-radius: 4px;
+}

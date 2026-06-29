@@ -422,6 +422,18 @@ export class RpcStatusBar implements StatusBarPort {
     disposeEngineVersionStatus(): void {
         this.rpc.notify(METHODS.statusBarDisposeEngineVersion, {});
     }
+
+    showBpmnlintActive(): void {
+        /* not supported yet for intellij */
+    }
+
+    showBpmnlintNoConfig(): void {
+        /* not supported yet for intellij */
+    }
+
+    hideBpmnlintStatus(): void {
+        /* not supported yet for intellij */
+    }
 }
 
 /**

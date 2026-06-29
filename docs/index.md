@@ -32,6 +32,7 @@ Professional BPMN and DMN modeling that fits how you work — embedded in VS Cod
 |---------|----------------------|---------------------------|---------------|
 | Available as | <span class="ok">✓</span> VS Code extension + Standalone app | Standalone app only | Web only |
 | Visual BPMN diff | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |
+| Live linting (.bpmnlintrc) | <span class="ok">✓</span> | <span class="ok">✓</span> | <span class="no">✕</span> |
 | Git Source Control (standalone) | <span class="ok">✓</span> Built-in | <span class="no">✕</span> | <span class="no">✕</span> |
 | Auto-save (standalone default) | <span class="ok">✓</span> | <span class="no">✕</span> | n/a |
 | Light & dark mode | <span class="ok">✓</span> | <span class="no">✕</span> | <span class="no">✕</span> |

@@ -8,6 +8,7 @@
  * - {@link BpmnFileQuery}                 — deliver BPMN XML and detected engine type for rendering
  * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
+ * - {@link BpmnlintConfigQuery}           — deliver the raw .bpmnlintrc config (or null when none found)
  * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
  * - {@link DmnModelerSettingQuery}         — deliver DMN modeler settings (colorTheme only)
  * - {@link PropertiesPanelStateQuery}     — deliver the global default visibility of the properties panel
@@ -20,6 +21,7 @@
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
  * - {@link GetDmnFileCommand}                 — webview is ready; request the DMN file
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
+ * - {@link GetBpmnlintConfigCommand}          — request the current .bpmnlintrc config
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
  * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
  * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
@@ -93,6 +95,25 @@ export class ElementTemplatesQuery extends Query {
     constructor(elementTemplates: any[]) {
         super("ElementTemplatesQuery");
         this.elementTemplates = elementTemplates;
+    }
+}
+
+/**
+ * Delivers the raw, parsed `.bpmnlintrc` JSON the host discovered for the open
+ * document, or `null` when no config exists anywhere up the workspace tree.
+ *
+ * The host stays oblivious to bpmnlint's resolver semantics: it ships the file
+ * verbatim and the webview turns it into a runtime `{ config, resolver }` — the
+ * resolver (and the current-scope built-in-rules-only allow-list) live entirely in the
+ * webview. A `null` config tells the webview to deactivate linting and hide the
+ * lint button, keeping the no-config experience pixel-identical to today.
+ */
+export class BpmnlintConfigQuery extends Query {
+    public readonly config: Record<string, unknown> | null;
+
+    constructor(config: Record<string, unknown> | null) {
+        super("BpmnlintConfigQuery");
+        this.config = config;
     }
 }
 
@@ -302,6 +323,18 @@ export class GetDmnFileCommand extends Command {
 export class GetElementTemplatesCommand extends Command {
     constructor() {
         super("GetElementTemplatesCommand");
+    }
+}
+
+/**
+ * Sent by the BPMN webview on (re)load to request the current `.bpmnlintrc`
+ * config. The host answers with {@link BpmnlintConfigQuery}. Hosts that do not
+ * implement lint config discovery (e.g. the IntelliJ bridge) simply have no
+ * handler for it, so linting stays dormant and the webview is unaffected.
+ */
+export class GetBpmnlintConfigCommand extends Command {
+    constructor() {
+        super("GetBpmnlintConfigCommand");
     }
 }
 
