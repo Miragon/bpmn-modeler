@@ -64,10 +64,14 @@ export type TemplateSource =
  * ambiguity. An empty result means "the repository root".
  */
 function normalizeSourcePath(raw: string): string {
-    return raw
-        .trim()
-        .replace(/^\.?\//, "")
-        .replace(/\/+$/, "");
+    const withoutLeadingSlash = raw.trim().replace(/^\.?\//, "");
+    // Trim trailing slashes by scanning rather than a `\/+$` regex: the latter
+    // backtracks quadratically on a path of many slashes (a polynomial-ReDoS).
+    let end = withoutLeadingSlash.length;
+    while (end > 0 && withoutLeadingSlash[end - 1] === "/") {
+        end--;
+    }
+    return withoutLeadingSlash.slice(0, end);
 }
 
 /**

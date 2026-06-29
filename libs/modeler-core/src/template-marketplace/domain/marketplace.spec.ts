@@ -58,6 +58,11 @@ describe("parseMarketplace", () => {
         expect(sources).toEqual([{ kind: "relative", path: "element-templates" }]);
     });
 
+    it("strips repeated trailing slashes from a relative path", () => {
+        const sources = parseMarketplace({ sources: [{ path: "./templates///" }] });
+        expect(sources).toEqual([{ kind: "relative", path: "templates" }]);
+    });
+
     it("parses a github source into owner/repo/ref/path", () => {
         const sources = parseMarketplace({
             sources: [
