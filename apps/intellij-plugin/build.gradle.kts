@@ -1,5 +1,7 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.PrepareSandboxTask
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -78,6 +80,32 @@ intellijPlatform {
             // rejects every IDE newer than 2024.2 at install time. Null removes
             // the upper bound entirely (the documented opt-out).
             untilBuild = provider { null }
+        }
+    }
+
+    // Binary-compatibility verification. We build against the 242 floor but claim
+    // compatibility up to the latest (untilBuild = null), so the verifier guards
+    // the open upper bound: the floor catches accidental use of a post-242 API,
+    // and a current release (the top of the range users actually run) catches a
+    // removed/changed API the 242 build would crash on at runtime.
+    pluginVerification {
+        // Gate on real breakage only. Deprecated/experimental/internal usages are
+        // reported but don't fail: across a 242→latest range the replacement API
+        // often doesn't exist on the floor, so failing on a deprecation would make
+        // every upstream deprecation an un-fixable build break. COMPATIBILITY and
+        // SCHEDULED_FOR_REMOVAL are the categories that mean "will not run".
+        failureLevel = listOf(
+            FailureLevel.COMPATIBILITY_PROBLEMS,
+            FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES,
+            FailureLevel.MISSING_DEPENDENCIES,
+            FailureLevel.INVALID_PLUGIN,
+        )
+        ides {
+            // The 242 floor still ships as the standalone Community artifact.
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2024.2.5")
+            // Community stopped being published as a separate artifact in 2025.3;
+            // newer releases resolve through the unified IntelliJ IDEA type.
+            create(IntelliJPlatformType.IntellijIdea, "2026.1.3")
         }
     }
 }

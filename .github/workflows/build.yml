@@ -433,6 +433,16 @@ jobs:
           flags: intellij-plugin
           name: intellij-plugin
           verbose: true
+      # Binary-compatibility gate. We build against the 242 floor but claim
+      # compatibility up to the latest (untilBuild = null), so the verifier checks
+      # the plugin against both the floor and a current release (2026.1), failing
+      # only on real breakage (removed/changed APIs) — see the `failureLevel` in
+      # build.gradle.kts. Runs last so the unit-test signal and coverage land
+      # first; it downloads the verified IDEs (~1 GB), which setup-gradle caches
+      # under ~/.gradle across runs.
+      - name: Verify plugin binary compatibility
+        working-directory: apps/intellij-plugin
+        run: ./gradlew verifyPlugin --no-daemon
 
   # Extension-Host smoke test: the only job that runs the composition root
   # (`activate()` + custom-editor registration) end-to-end in a real VS Code.

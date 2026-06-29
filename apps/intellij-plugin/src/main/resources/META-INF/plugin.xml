@@ -35,10 +35,18 @@
 
     <depends>com.intellij.modules.platform</depends>
     <!--
+        The Groovy binding resolver (ScriptBindingMembersContributor, loaded via
+        modeler-groovy.xml) builds synthetic Java PSI — JavaPsiFacade, PsiClass,
+        PsiElementFactory — so the Java plugin must be present. Groovy already
+        pulls Java transitively, but the plugin verifier only honours an explicit
+        declaration, and it documents the real requirement. Java also brings the
+        XML module, so the explicit modules.xml below is belt-and-braces.
+    -->
+    <depends>com.intellij.modules.java</depends>
+    <!--
         XMLLanguage (BpmnFileType's base language) lives in the bundled XML
-        module. The plugin already depends on com.intellij.java, which pulls
-        XML transitively, but declaring it explicitly documents the intent
-        and protects against a future drop of the java dependency.
+        module. Declared explicitly so a future drop of the Java dependency
+        above wouldn't silently take XML highlighting with it.
     -->
     <depends>com.intellij.modules.xml</depends>
 
