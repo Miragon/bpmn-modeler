@@ -109,7 +109,7 @@ jobs:
       - name: Publish to Open VSX Marketplace
         if: inputs.dry-run == false
         working-directory: dist/apps/vscode-plugin
-        run: ovsx  --pat "$OVSX_PAT" publish
+        run: ovsx --pat "$OVSX_PAT" publish
         env:
           OVSX_PAT: ${{ secrets.OVSX_PUBLISH }}
 
