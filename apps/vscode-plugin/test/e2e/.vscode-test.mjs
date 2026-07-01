@@ -14,7 +14,7 @@ const here = import.meta.dirname;
 const repoRoot = resolve(here, "../../../..");
 
 // webpack assembles the runnable extension (compiled main.js + a copied
-// package.json + themes + the three webview bundles) here; pointing at the
+// package.json + the three webview bundles) here; pointing at the
 // source `apps/vscode-plugin` would fail because `main: "main.js"` only
 // resolves in the dist dir. So `corepack yarn build` is a prerequisite.
 const extensionDevelopmentPath = resolve(repoRoot, "dist/apps/vscode-plugin");
