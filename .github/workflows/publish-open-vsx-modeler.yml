@@ -1,8 +1,8 @@
-name: Publish VS Code Modeler
+name: Publish Open VSX Modeler
 
-# Builds and publishes the VS Code extension. Manual workflow_dispatch only;
-# dry-run uploads a vsix artifact, non-dry-run publishes to the VS Code
-# Marketplace using the version in apps/vscode-plugin/package.json.
+# Builds and publishes the VS Code extension to the Open VSX Registry.
+# Dry-run uploads a vsix artifact; non-dry-run publishes using the version in
+# apps/vscode-plugin/package.json.
 
 on:
   workflow_dispatch:
@@ -31,23 +31,22 @@ on:
         default: true
 
 permissions:
-  contents: write
+  contents: read
   deployments: write
 
 concurrency:
-  group: bpmn-modeler-publish
+  group: bpmn-modeler-open-vsx-publish
   cancel-in-progress: false
 
 jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    # Gate only real publishes behind the vscode-marketplace environment so
-    # VSCE_PUBLISH stays behind the environment's protection rules. VSCE_PUBLISH
-    # is read solely in the dry-run == false publish step, so an empty
-    # environment name leaves dry-runs ungated (no approval wait).
+    # Gate only real publishes behind the Open VSX environment so OVSX_PUBLISH
+    # stays behind the environment's protection rules. OVSX_PUBLISH is read
+    # solely in the dry-run == false publish step, so dry-runs stay ungated.
     environment:
-      name: ${{ inputs.dry-run == false && 'vscode-marketplace' || '' }}
+      name: ${{ inputs.dry-run == false && 'open-vsx-marketplace' || '' }}
 
     steps:
       - name: Checkout
@@ -92,19 +91,19 @@ jobs:
         if: inputs.dry-run == true
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: bpmn-modeler-plugin-v${{ steps.version.outputs.version }}
+          name: open-vsx-bpmn-modeler-plugin-v${{ steps.version.outputs.version }}
           path: dist/apps/vscode-plugin/bpmn-modeler-plugin.vsix
           retention-days: 7
 
-      - name: Publish to VS Code Marketplace
+      - name: Publish to Open VSX Marketplace
         if: inputs.dry-run == false
         working-directory: dist/apps/vscode-plugin
-        run: vsce publish --yarn --no-dependencies --skip-duplicate
+        run: npx ovsx --pat "$OVSX_PAT" publish --packagePath bpmn-modeler-plugin.vsix
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PUBLISH }}
+          OVSX_PAT: ${{ secrets.OVSX_PUBLISH }}
 
       # Record a per-host deployment so the repo Environments page shows the
-      # VS Code extension's last-published version. The environment
+      # Open VSX extension's last-published version. The environment
       # auto-creates on first deployment.
       - name: Record deployment
         if: inputs.dry-run == false
@@ -112,12 +111,13 @@ jobs:
         with:
           script: |
             const version = "${{ steps.version.outputs.version }}";
+            const publishedRef = "${{ inputs.tag || github.sha }}";
             const deployment = await github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: context.sha,
-              environment: "vscode-marketplace",
-              description: `VS Code extension v${version}`,
+              ref: publishedRef,
+              environment: "open-vsx-marketplace",
+              description: `Open VSX extension v${version}`,
               required_contexts: [],
               auto_merge: false,
               production_environment: true,
@@ -127,6 +127,6 @@ jobs:
               repo: context.repo.repo,
               deployment_id: deployment.data.id,
               state: "success",
-              environment_url: "https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler",
-              description: `VS Code extension v${version} published`,
+              environment_url: "https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler",
+              description: `Open VSX extension v${version} published`,
             });

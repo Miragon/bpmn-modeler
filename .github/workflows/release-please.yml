@@ -46,6 +46,15 @@ jobs:
       dry-run: false
     secrets: inherit
 
+  open-vsx:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    uses: ./.github/workflows/publish-open-vsx-modeler.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag }}
+      dry-run: false
+    secrets: inherit
+
   intellij:
     needs: release-please
     if: needs.release-please.outputs.released == 'true'
