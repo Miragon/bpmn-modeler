@@ -12,11 +12,11 @@
         "serve": "vite"
     },
     "dependencies": {
-        "@bpmn-io/properties-panel": "3.44.1",
+        "@bpmn-io/properties-panel": "3.46.0",
         "@miragon/bpmn-modeler-i18n": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "camunda-dmn-moddle": "1.3.1",
-        "diagram-js": "15.17.0",
+        "diagram-js": "15.18.0",
         "dmn-js": "17.8.1",
         "dmn-js-properties-panel": "3.11.1",
         "min-dash": "5.0.0",
@@ -25,7 +25,7 @@
     "devDependencies": {
         "@types/vscode-webview": "1.57.5",
         "typescript": "6.0.3",
-        "vite": "8.0.16",
+        "vite": "8.1.0",
         "vite-tsconfig-paths": "6.1.1"
     }
 }
