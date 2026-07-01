@@ -83,6 +83,9 @@ jobs:
 
       - name: Install vsce
         run: npm install -g @vscode/vsce@3.2.2
+        
+      - name: Install ovsx
+        run: npm install -g ovsx
 
       - name: Package vsix
         working-directory: dist/apps/vscode-plugin
@@ -102,6 +105,13 @@ jobs:
         run: vsce publish --yarn --no-dependencies
         env:
           VSCE_PAT: ${{ secrets.VSCE_PUBLISH }}
+          
+      - name: Publish to Open VSX Marketplace
+        if: inputs.dry-run == false
+        working-directory: dist/apps/vscode-plugin
+        run: ovsx publish
+        env:
+          VSCE_PAT: ${{ secrets.OVSX_PUBLISH }}
 
       # Record a per-host deployment so the repo Environments page shows the
       # VS Code extension's last-published version. The environment
