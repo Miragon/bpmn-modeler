@@ -99,7 +99,7 @@ jobs:
       - name: Publish to VS Code Marketplace
         if: inputs.dry-run == false
         working-directory: dist/apps/vscode-plugin
-        run: vsce publish --yarn --no-dependencies --skip-duplicate
+        run: vsce publish --yarn --no-dependencies
         env:
           VSCE_PAT: ${{ secrets.VSCE_PUBLISH }}
 
