@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.2.0](https://github.com/Miragon/bpmn-modeler/compare/v1.1.2...v1.2.0) (2026-07-01)
+
+
+### 🎉 New Features
+
+* **dmn-webview:** follow VS Code color theme ([#1164](https://github.com/Miragon/bpmn-modeler/issues/1164)) ([5f0a513](https://github.com/Miragon/bpmn-modeler/commit/5f0a5131f1e746b0979d6098bdfc5d73df70c4b2))
+* **editor:** integrate bpmnlint for in-modeler validation ([#1176](https://github.com/Miragon/bpmn-modeler/issues/1176)) ([0002f57](https://github.com/Miragon/bpmn-modeler/commit/0002f571c7a73463718daa8c1b8679f9c1fa6c6e))
+* **intellij:** add icon and follow IDE color theme in deployment webview ([#1180](https://github.com/Miragon/bpmn-modeler/issues/1180)) ([a6f5def](https://github.com/Miragon/bpmn-modeler/commit/a6f5def012d51ef0c2c5ca10c93765eaf39729a0))
+* **scripting:** add *.bpmn.vars.json process-variable manifest override ([#1182](https://github.com/Miragon/bpmn-modeler/issues/1182)) ([d117909](https://github.com/Miragon/bpmn-modeler/commit/d1179099bbe509ef6e2d81e1df3abf23ba8868d4))
+* **scripting:** add Camunda SPIN script completion ([#1181](https://github.com/Miragon/bpmn-modeler/issues/1181)) ([69c02de](https://github.com/Miragon/bpmn-modeler/commit/69c02dec05f9590aad6255b104849ee8dafff375))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** keep side-by-side text editor focused while typing ([#1178](https://github.com/Miragon/bpmn-modeler/issues/1178)) ([450b2b5](https://github.com/Miragon/bpmn-modeler/commit/450b2b5bed807f91c80d4548dc66fa8fa61304c4))
+* **vscode-plugin:** stop contributing Miragon workbench themes ([#1190](https://github.com/Miragon/bpmn-modeler/issues/1190)) ([#1192](https://github.com/Miragon/bpmn-modeler/issues/1192)) ([c24e15a](https://github.com/Miragon/bpmn-modeler/commit/c24e15a041fc7047aff306dc89bff37ac1b4d7c2))
+
+
+### 🔨 Refactoring
+
+* **bridge:** explicit causation for write echoes and acked persists ([#1179](https://github.com/Miragon/bpmn-modeler/issues/1179)) ([4387cf2](https://github.com/Miragon/bpmn-modeler/commit/4387cf2db0149e0120ddff449bf48aee06070842))
+* **webview:** rename vscode host channel to host-neutral HostApi ([#1183](https://github.com/Miragon/bpmn-modeler/issues/1183)) ([b747c82](https://github.com/Miragon/bpmn-modeler/commit/b747c82c2c544dfd0517fb8cf825540206e778f4))
+
+
+### 🛠️ Misc
+
+* **ci:** pin github actions to exact version tags ([#1170](https://github.com/Miragon/bpmn-modeler/issues/1170)) ([89e876b](https://github.com/Miragon/bpmn-modeler/commit/89e876b7ef98901f626ada1c722f512567d1b908))
+* **deps:** bump gradle-wrapper from 9.5.1 to 9.6.0 in /apps/intellij-plugin in the gradle-minor-patch group ([#1187](https://github.com/Miragon/bpmn-modeler/issues/1187)) ([1b7722e](https://github.com/Miragon/bpmn-modeler/commit/1b7722ebccb6b95fab3ad01317c6288b240d1bc3))
+* **deps:** bump org.junit:junit-bom from 5.11.4 to 6.1.0 in /apps/intellij-plugin in the gradle-major group ([#1167](https://github.com/Miragon/bpmn-modeler/issues/1167)) ([887a2e5](https://github.com/Miragon/bpmn-modeler/commit/887a2e57b4fcfbb4e7fe27a72cea6ae1c2890fb5))
+* **deps:** bump the github-actions-all group with 2 updates ([#1186](https://github.com/Miragon/bpmn-modeler/issues/1186)) ([5ed8bd3](https://github.com/Miragon/bpmn-modeler/commit/5ed8bd34434e547c6d7cab896e6f689d0d1f43a2))
+* **deps:** bump the github-actions-all group with 5 updates ([#1166](https://github.com/Miragon/bpmn-modeler/issues/1166)) ([e8ade97](https://github.com/Miragon/bpmn-modeler/commit/e8ade9754e80a97396b07e0f3239e247750ecbaa))
+* **deps:** bump the npm-major group across 1 directory with 3 updates ([#1168](https://github.com/Miragon/bpmn-modeler/issues/1168)) ([c89cf17](https://github.com/Miragon/bpmn-modeler/commit/c89cf17296edb563f2b70ea7c367fd31070e9cf3))
+* **deps:** bump the npm-minor-patch group across 1 directory with 46 updates ([#1175](https://github.com/Miragon/bpmn-modeler/issues/1175)) ([7371fd8](https://github.com/Miragon/bpmn-modeler/commit/7371fd8cfbe665b5254376b1ea4116fc82fa75ed))
+* **intellij-plugin:** add JUnit 5 bridge harness + PR test/coverage CI ([#1163](https://github.com/Miragon/bpmn-modeler/issues/1163)) ([2ddc1f6](https://github.com/Miragon/bpmn-modeler/commit/2ddc1f6851eff3df32ab3852758c02452911cf30))
+* **modeler-bridge:** single-source-of-truth for the host↔core RPC protocol ([#1161](https://github.com/Miragon/bpmn-modeler/issues/1161)) ([bb2b2cb](https://github.com/Miragon/bpmn-modeler/commit/bb2b2cb94e94edd9a7c851eff22b02c05c04c7ea))
+* publish to Open VSX Marketplace ([#1191](https://github.com/Miragon/bpmn-modeler/issues/1191)) ([520b38f](https://github.com/Miragon/bpmn-modeler/commit/520b38f1120692a6b797971dec723ed3c18a2054))
+* **release:** move intellij plugin version out of build.gradle.kts ([#1165](https://github.com/Miragon/bpmn-modeler/issues/1165)) ([aa8e1ae](https://github.com/Miragon/bpmn-modeler/commit/aa8e1aea0f39b6cd5e1e9a16c6abfed19efe0b09))
+* standardize portless dev scripts and pin portless dependency ([#1174](https://github.com/Miragon/bpmn-modeler/issues/1174)) ([ae4a83f](https://github.com/Miragon/bpmn-modeler/commit/ae4a83f8dfa751e79b255f95ae02b361ef844c35))
+
 ## [1.1.2](https://github.com/Miragon/bpmn-modeler/compare/v1.1.1...v1.1.2) (2026-06-17)
 
 
