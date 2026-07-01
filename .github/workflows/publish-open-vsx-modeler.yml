@@ -1,0 +1,132 @@
+name: Publish Open VSX Modeler
+
+# Builds and publishes the VS Code extension to the Open VSX Registry.
+# Dry-run uploads a vsix artifact; non-dry-run publishes using the version in
+# apps/vscode-plugin/package.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to check out (e.g. v1.2.3). Empty = current branch.'
+        required: false
+        type: string
+        default: ''
+      dry-run:
+        description: 'Dry run (build + package, do not publish)'
+        required: false
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to check out (e.g. v1.2.3). Empty = current branch.'
+        required: false
+        type: string
+        default: ''
+      dry-run:
+        description: 'Dry run (build + package, do not publish)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: bpmn-modeler-open-vsx-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    # Gate only real publishes behind the Open VSX environment so OVSX_PUBLISH
+    # stays behind the environment's protection rules. OVSX_PUBLISH is read
+    # solely in the dry-run == false publish step, so dry-runs stay ungated.
+    environment:
+      name: ${{ inputs.dry-run == false && 'open-vsx-marketplace' || '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check pinned dependencies
+        uses: Miragon/pin-npm-dependencies@v1.2.1
+
+      - name: Corepack enable
+        run: corepack enable
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '22'
+          cache: yarn
+
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-webview @miragon/dmn-modeler-webview @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-clipboard @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-element-template-chooser
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION=$(node -e "console.log(require('./apps/vscode-plugin/package.json').version)")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: yarn build
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce@3.2.2
+
+      - name: Package vsix
+        working-directory: dist/apps/vscode-plugin
+        run: vsce package --out bpmn-modeler-plugin.vsix --yarn --no-dependencies
+
+      - name: Upload vsix artifact (dry-run)
+        if: inputs.dry-run == true
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: open-vsx-bpmn-modeler-plugin-v${{ steps.version.outputs.version }}
+          path: dist/apps/vscode-plugin/bpmn-modeler-plugin.vsix
+          retention-days: 7
+
+      - name: Publish to Open VSX Marketplace
+        if: inputs.dry-run == false
+        working-directory: dist/apps/vscode-plugin
+        run: npx ovsx --pat "$OVSX_PAT" publish --packagePath bpmn-modeler-plugin.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PUBLISH }}
+
+      # Record a per-host deployment so the repo Environments page shows the
+      # Open VSX extension's last-published version. The environment
+      # auto-creates on first deployment.
+      - name: Record deployment
+        if: inputs.dry-run == false
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const version = "${{ steps.version.outputs.version }}";
+            const publishedRef = "${{ inputs.tag || github.sha }}";
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: publishedRef,
+              environment: "open-vsx-marketplace",
+              description: `Open VSX extension v${version}`,
+              required_contexts: [],
+              auto_merge: false,
+              production_environment: true,
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: "success",
+              environment_url: "https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler",
+              description: `Open VSX extension v${version} published`,
+            });
