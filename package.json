@@ -64,7 +64,8 @@
         "vitest": "4.1.9"
     },
     "resolutions": {
-        "preact": "10.29.2",
+        "preact": "10.29.3",
+        "webpack": "5.108.1",
         "webpack-cli": "4.10.0"
     },
     "packageManager": "yarn@4.17.0"

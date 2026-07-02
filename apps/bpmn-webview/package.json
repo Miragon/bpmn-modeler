@@ -13,6 +13,7 @@
         "test": "vitest run --coverage"
     },
     "dependencies": {
+        "@bpmn-io/cm-theme": "0.2.2",
         "@bpmn-io/properties-panel": "3.46.0",
         "@miragon/bpmn-model-navigation": "workspace:*",
         "@miragon/bpmn-modeler-append-menu": "workspace:*",
