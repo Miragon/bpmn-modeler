@@ -146,12 +146,6 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Projects a marketplace location plus a subtree `path` into the
-     * provider-specific {@link RepositorySourceConfig} the factory dispatches on.
-     * This is the single place the github/local discriminant is mapped, so the
-     * fetch flow above stays provider-agnostic.
-     */
-    /**
      * Expands a leading `~` against the injected home directory. The trailing
      * join uses `/` (never `node:path`) to keep the core host-agnostic; the
      * adapter normalises separators when it reads the directory.
@@ -166,6 +160,12 @@ export class TemplateMarketplaceService {
         return path;
     }
 
+    /**
+     * Projects a marketplace location plus a subtree `path` into the
+     * provider-specific {@link RepositorySourceConfig} the factory dispatches on.
+     * This is the single place the github/local discriminant is mapped, so the
+     * fetch flow above stays provider-agnostic.
+     */
     private configFor(location: MarketplaceLocation, path: string): RepositorySourceConfig {
         return location.kind === "github"
             ? {

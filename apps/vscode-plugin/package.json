@@ -408,11 +408,12 @@
                 },
                 "miragon.bpmnModeler.templateMarketplaces": {
                     "type": "array",
+                    "scope": "application",
                     "items": {
                         "type": "string"
                     },
                     "default": [],
-                    "markdownDescription": "Public GitHub repositories holding a `marketplace.json` that links to element templates. Use the `BPMN Modeler: Add Template Marketplace` command to register one, then `BPMN Modeler: Update Template Marketplaces` to re-fetch. Cached templates merge with workspace-local ones."
+                    "markdownDescription": "Public GitHub repositories or local folders holding a `marketplace.json` that links to element templates. Use the `BPMN Modeler: Add Template Marketplace` command to register one, then `BPMN Modeler: Update Template Marketplaces` to re-fetch. Cached templates merge with workspace-local ones."
                 }
             }
         }

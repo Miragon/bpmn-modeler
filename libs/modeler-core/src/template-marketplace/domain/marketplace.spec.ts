@@ -54,6 +54,17 @@ describe("parseMarketplaceUrl (github)", () => {
             InvalidMarketplaceError,
         );
     });
+
+    it("rejects a non-GitHub host rather than parsing it as a bogus repo", () => {
+        // The host survives as `owner`; a dotted first segment is unambiguously
+        // foreign (a GitHub org never contains a dot), so it must throw.
+        expect(() => parseMarketplaceUrl("https://gitlab.com/acme/templates")).toThrow(
+            InvalidMarketplaceError,
+        );
+        expect(() => parseMarketplaceUrl("https://git.example.com/o/r")).toThrow(
+            InvalidMarketplaceError,
+        );
+    });
 });
 
 describe("parseMarketplaceUrl (local)", () => {
@@ -106,6 +117,13 @@ describe("parseMarketplace", () => {
     it("parses a relative source, normalizing the path", () => {
         const sources = parseMarketplace({ sources: [{ path: "./element-templates/" }] });
         expect(sources).toEqual([{ kind: "relative", path: "element-templates" }]);
+    });
+
+    it("normalizes a bare '.' relative path to the repository root", () => {
+        // `.` means the root; left as-is it builds a `"./"` prefix matching no
+        // git-tree path, silently loading zero templates on GitHub.
+        const sources = parseMarketplace({ sources: [{ path: "." }] });
+        expect(sources).toEqual([{ kind: "relative", path: "" }]);
     });
 
     it("strips repeated trailing slashes from a relative path", () => {

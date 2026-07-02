@@ -84,7 +84,14 @@ export type TemplateSource =
  * ambiguity. An empty result means "the repository root".
  */
 function normalizeSourcePath(raw: string): string {
-    const withoutLeadingSlash = raw.trim().replace(/^\.?\//, "");
+    const trimmed = raw.trim();
+    // A bare `.` means the repository root; the `/^\.?\//` strip below only fires
+    // with a slash, so `.` would otherwise survive and build a `"./"` prefix that
+    // matches no git-tree path (silently zero templates on GitHub).
+    if (trimmed === ".") {
+        return "";
+    }
+    const withoutLeadingSlash = trimmed.replace(/^\.?\//, "");
     // Trim trailing slashes by scanning rather than a `\/+$` regex: the latter
     // backtracks quadratically on a path of many slashes (a polynomial-ReDoS).
     let end = withoutLeadingSlash.length;
@@ -224,6 +231,13 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
     }
 
     const [owner, repo, ...tail] = parts;
+    // The `github.com/` strip only fires for github.com, so a foreign host
+    // (`gitlab.com/o/r`, `git.example.com/o/r`) survives as `owner`. A GitHub
+    // username/org is alphanumerics + single hyphens — never a dot — so a dotted
+    // first segment is unambiguously a host we cannot honour yet.
+    if (owner.includes(".")) {
+        throw new InvalidMarketplaceError(`not a public GitHub repository URL: "${input}"`);
+    }
     // `/tree/<ref>` is the only browse form Slice 1 desugars; a branch name may
     // itself contain slashes, so everything after `tree` is the ref.
     const ref = tail[0] === "tree" && tail.length > 1 ? tail.slice(1).join("/") : undefined;
