@@ -23,7 +23,14 @@ Webview HTML is generated at runtime by functions in the infrastructure layer, n
 
 ### Deployment Webview (`DeploymentWebviewHtml.ts`)
 
-The deployment sidebar uses inline HTML with form markup for connection, authentication, deployment, and instance start tabs. This is the "dual-HTML" pattern documented in CLAUDE.md — `DeploymentWebviewHtml.ts` and `apps/deployment-webview/index.html` must stay in sync.
+The deployment sidebar's form markup lives in **one** place —
+`apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`), which the
+bundle injects into `#app` at runtime. Every host shell (Vite `index.html`, the
+VS Code `DeploymentWebviewHtml.ts`, the IntelliJ tool-window `WebviewServer.kt`)
+ships only an empty `<div id="app"></div>`; none carries a copy of the form.
+`DeploymentWebviewHtml.ts` keeps only the CSP nonce + asset-URI injection —
+edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
+section in CLAUDE.md).
 
 ## Content Security Policy (CSP)
 
@@ -87,9 +94,9 @@ webviewPanel.webview.postMessage(query);
 
 **Webview → Host** (Command):
 ```typescript
-// vscode.ts wraps the acquireVsCodeApi() singleton
-const vscode = acquireVsCodeApi();
-vscode.postMessage(command);
+// host.ts wraps the acquireVsCodeApi() singleton behind HostApi
+const host = getHostApi();
+host.postMessage(command);
 ```
 
 ### Receiving Messages
@@ -170,31 +177,44 @@ if (state?.viewbox) {
 }
 ```
 
-Note: With `retainContextWhenHidden: true` (used for BPMN/DMN editors), the webview stays alive when hidden. State persistence is mainly useful for VS Code restart scenarios.
+Note: BPMN/DMN editors do **not** set `retainContextWhenHidden` — their
+webviews are torn down when hidden and recreated when shown, so `getState`/
+`setState` is the *only* thing that survives a hide, not just a restart.
+(`VsCodeEditorHandle.postMessage` throws for a hidden panel precisely because
+the webview is gone — see `VsCodeEditorHandle.ts:105`.) Only the deployment
+sidebar view sets `retainContextWhenHidden: true`
+(`DeploymentController.ts:63`), because it uses `registerWebviewViewProvider`,
+not a custom editor.
 
 ## VS Code API in Webviews
 
-The webview gets a limited VS Code API via `acquireVsCodeApi()`. In this project, the raw API is wrapped behind a `VsCodeApi<S, M>` interface (from `libs/shared/src/lib/vscode.ts`) with two implementations:
+The webview gets a limited VS Code API via `acquireVsCodeApi()`. In this
+project, the raw API is wrapped behind a host-agnostic `HostApi<S, M>` interface
+(from `libs/shared/src/lib/host.ts`) so the same webview code runs under VS Code,
+IntelliJ, or a plain browser. Two implementations back it:
 
-- **`VsCodeImpl`** — wraps the real `acquireVsCodeApi()` singleton for production use inside VS Code.
-- **`VsCodeMock`** — base class for development mocks. The bpmn-webview defines `MockedVsCodeApi` (in `apps/bpmn-webview/src/app/vscode.ts`) which extends `VsCodeMock` and dispatches synthetic responses so the webview can run standalone in a browser via `vite dev`.
+- **`HostApiImpl`** — wraps the real `acquireVsCodeApi()` singleton for
+  production use inside VS Code.
+- **`MockHostApi`** — abstract base for development mocks. The bpmn-webview
+  defines `MockHost` (in `apps/bpmn-webview/src/app/host.ts`) which extends
+  `MockHostApi` and dispatches synthetic responses so the webview can run
+  standalone in a browser via `vite serve`.
 
 ```typescript
-// apps/bpmn-webview/src/app/vscode.ts
-export function getVsCodeApi(): VsCodeApi<StateType, MessageType> {
+// apps/bpmn-webview/src/app/host.ts
+export function getHostApi(): HostApi<StateType, MessageType> {
   if (process.env.NODE_ENV === "development") {
-    return new MockedVsCodeApi();   // standalone browser
-  } else {
-    return new VsCodeImpl<StateType, MessageType>();  // VS Code
+    return new MockHost();               // standalone browser
   }
+  return new HostApiImpl<StateType, MessageType>();  // VS Code
 }
 ```
 
-The API surface:
+The API surface (the wrapped handle is conventionally named `host`):
 ```typescript
-vscode.postMessage(message);       // Send to host
-vscode.getState();                 // Read persisted state
-vscode.setState(state);            // Write persisted state
+host.postMessage(message);       // Send to host
+host.getState();                 // Read persisted state
+host.setState(state);            // Write persisted state
 ```
 
 ## Theme Handling
@@ -233,10 +253,11 @@ This converts `file://` paths to `vscode-resource:` URIs that pass the webview's
 ## Key Files
 
 - **BPMN/DMN HTML**: `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`
-- **Deployment HTML**: `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`
-- **Message router**: `apps/vscode-plugin/src/shared/infrastructure/WebviewMessageRouter.ts`
+- **Deployment HTML shell**: `apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts` (CSP + asset URIs only)
+- **Deployment form markup (single source)**: `apps/deployment-webview/src/app/formTemplate.ts` (`FORM_TEMPLATE`)
+- **Message router**: `libs/modeler-core/src/shared/infrastructure/WebviewMessageRouter.ts`
 - **Base message types**: `libs/shared/src/lib/messages.ts`
 - **Modeler message types**: `libs/shared/src/lib/modeler.ts`
-- **VS Code API interface + implementations**: `libs/shared/src/lib/vscode.ts`
-- **Webview VS Code API wrapper + mock**: `apps/bpmn-webview/src/app/vscode.ts`
+- **Host API interface + implementations** (`HostApi`/`HostApiImpl`/`MockHostApi`): `libs/shared/src/lib/host.ts`
+- **Webview host wrapper + mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/app/host.ts`
 - **Resolver utility**: `libs/shared/src/lib/utils.ts` (`createResolver`)

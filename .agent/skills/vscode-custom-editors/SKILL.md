@@ -126,10 +126,11 @@ Services operate on the active editor by default. The echo-prevention guard is p
 - **Generic editor controller**: `apps/vscode-plugin/src/modeler/editor-session/ModelerEditorController.ts`
 - **Session participant interface**: `apps/vscode-plugin/src/modeler/editor-session/EditorSessionParticipant.ts`
 - **BPMN participants / handlers**: `apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/`, `…/webview-handlers/bpmnMessageHandlers.ts`
-- **Message router**: `apps/vscode-plugin/src/shared/infrastructure/WebviewMessageRouter.ts`
+- **Message router**: `libs/modeler-core/src/shared/infrastructure/WebviewMessageRouter.ts` (host-agnostic; moved to modeler-core)
 - **Command Controller**: `apps/vscode-plugin/src/modeler/bpmn/controller/CommandController.ts`
 - **Deployment Controller**: `apps/vscode-plugin/src/deployment/controller/DeploymentController.ts`
-- **Editor session store / handle**: `apps/vscode-plugin/src/shared/infrastructure/EditorSessionStore.ts`, `…/VsCodeEditorHandle.ts`
+- **Editor session store**: `libs/modeler-core/src/shared/infrastructure/EditorSessionStore.ts` (`vscode`-free registry; moved to modeler-core)
+- **Editor handle**: `apps/vscode-plugin/src/shared/infrastructure/VsCodeEditorHandle.ts` (concrete VS Code adapter; stays in the app)
 - **Document Adapter**: `apps/vscode-plugin/src/shared/infrastructure/VsCodeDocument.ts`
 - **Message Types**: `libs/shared/src/lib/modeler.ts` (modeler `Command`/`Query` classes) + `messages.ts` (base + cross-cutting)
 - **Registration**: `apps/vscode-plugin/package.json` → `contributes.customEditors`

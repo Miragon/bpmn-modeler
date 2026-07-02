@@ -18,11 +18,18 @@ using the Playwright MCP plugin. The webview is an SVG-based BPMN editor built o
 ## Starting the dev server
 
 ```bash
-corepack yarn workspce bpmn-webview serve
+corepack yarn workspace @miragon/bpmn-modeler-webview serve
 ```
 
 This runs Vite on `http://localhost:5173`. In dev mode (`NODE_ENV=development`), the
-webview skips the VS Code clipboard bridge and uses native browser clipboard instead.
+webview runs against the `MockHost` (from `apps/bpmn-webview/src/app/host.ts`)
+instead of the real VS Code bridge — clipboard falls back to the native browser
+clipboard.
+
+Alternative: `corepack yarn workspace @miragon/bpmn-modeler-webview dev` starts
+the same app under [portless](https://portless.sh) at a stable
+`<worktree>.<app>.localhost` URL (one-time setup: `npx portless service
+install`). Use `serve` for the plain `localhost:5173` flow these recipes assume.
 
 ## Page structure
 
