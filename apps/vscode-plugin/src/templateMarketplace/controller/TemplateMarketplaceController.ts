@@ -67,15 +67,15 @@ export class TemplateMarketplaceController {
     }
 
     /**
-     * Prompts for a marketplace location (a public GitHub repo or a local
-     * folder), fetches it, and — only if the fetch succeeds — persists the
-     * registration. Persisting after the fetch means a location whose
-     * `marketplace.json` is missing never lands in settings.
+     * Prompts for a marketplace location (a GitHub repo or a local folder),
+     * fetches it, and — only if the fetch succeeds — persists the registration.
+     * Persisting after the fetch means a location whose `marketplace.json` is
+     * missing never lands in settings.
      */
     private async addMarketplace(): Promise<void> {
         const input = await window.showInputBox({
             title: "Add Template Marketplace",
-            prompt: "Public GitHub repository, or a local folder, holding a marketplace.json",
+            prompt: "GitHub repository, or a local folder, holding a marketplace.json",
             placeHolder: "https://github.com/owner/repo  or  ~/path/to/folder",
             // Reuse the domain parser as the validator (after `~` expansion) so
             // the accepted forms can never drift from what the service resolves.

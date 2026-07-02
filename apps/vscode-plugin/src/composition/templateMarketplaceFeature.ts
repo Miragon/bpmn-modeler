@@ -14,6 +14,8 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../shared/infrastructure/extensionContext";
 import { TemplateMarketplaceController } from "../templateMarketplace/controller/TemplateMarketplaceController";
+import { VsCodeTokenPrompt } from "../templateMarketplace/infrastructure/VsCodeTokenPrompt";
+import { VsCodeTokenStore } from "../templateMarketplace/infrastructure/VsCodeTokenStore";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -48,6 +50,10 @@ export function register(
         cache,
         deps.vsSettings,
         deps.notifier,
+        // Feature-owned secret storage + prompt for private-repo tokens; the
+        // factory stays unchanged (a resolved `config.token` rides through it).
+        new VsCodeTokenStore(),
+        new VsCodeTokenPrompt(),
         // Injected so the host-agnostic core can expand `~` in a local source.
         homedir(),
     );

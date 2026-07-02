@@ -117,7 +117,7 @@ export interface SettingsPort {
     getPersistCodeLinkMap(): boolean;
     /** Whether Camunda SPIN globals (`S`/`JSON`) and SpinJsonNode members are offered in C7 scripts. */
     getScriptingSpin(): boolean;
-    /** Public GitHub repos or local folders registered as element-template marketplaces. */
+    /** GitHub repos (public or private) or local folders registered as element-template marketplaces. */
     getTemplateMarketplaces(): string[];
 }
 
@@ -186,6 +186,34 @@ export interface SecretStorePort {
     getBasicAuth(): Promise<{ username: string; password: string } | undefined>;
     saveOAuth2(clientId: string, clientSecret: string): Promise<void>;
     getOAuth2(): Promise<{ clientId: string; clientSecret: string } | undefined>;
+}
+
+/**
+ * Encrypted-at-rest storage for per-host personal access tokens used to reach
+ * private template-marketplace repositories.
+ *
+ * A sibling of {@link SecretStorePort} rather than a member of it: that port is
+ * deployment-shaped (basic-auth / OAuth2 pairs) and reshaping it would touch
+ * every host. Keyed by `host` (e.g. `"github.com"`) so slice 3 (GitLab / GHE)
+ * can store a distinct token per origin. Setting an existing host overwrites —
+ * that is how token rotation is expressed.
+ */
+export interface TokenStorePort {
+    getToken(host: string): Promise<string | undefined>;
+    setToken(host: string, token: string): Promise<void>;
+}
+
+/**
+ * Prompts the user for a personal access token for `host`, explaining why via
+ * `reason`. Returns a non-empty, trimmed token, or `undefined` when the user
+ * declines (empty/whitespace input counts as a decline).
+ *
+ * Never throws: a decline is per-run data, not control flow — a background
+ * `updateAll` must keep going after one, unlike {@link PickerPort}'s
+ * throw-on-cancel prompts.
+ */
+export interface TokenPromptPort {
+    promptForToken(host: string, reason: string): Promise<string | undefined>;
 }
 
 /**

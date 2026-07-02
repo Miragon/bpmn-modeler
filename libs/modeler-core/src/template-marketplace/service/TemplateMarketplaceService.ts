@@ -1,4 +1,9 @@
-import { NotifierPort, SettingsPort } from "../../shared/domain/hostPorts";
+import {
+    NotifierPort,
+    SettingsPort,
+    TokenPromptPort,
+    TokenStorePort,
+} from "../../shared/domain/hostPorts";
 import {
     InvalidMarketplaceError,
     MarketplaceLocation,
@@ -7,11 +12,27 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
-import { RepositorySourceConfig, RepositorySourceFactory } from "../domain/ports";
+import {
+    hostForConfig,
+    RepositoryAccessError,
+    RepositorySourceConfig,
+    RepositorySourceFactory,
+} from "../domain/ports";
 import { MarketplaceCache } from "../infrastructure/MarketplaceCache";
 
 // The pointer file every registered marketplace repo must hold at its root.
 const MARKETPLACE_MANIFEST = "marketplace.json";
+
+/**
+ * Bookkeeping for one user-initiated command so a host is prompted for a token
+ * at most once, even when a run spans many marketplaces (an `updateAll`) or a
+ * marketplace's manifest and its several same-host sources all fail auth. A
+ * decline is recorded here too (the host is added regardless of outcome), so
+ * the run remembers it and does not nag.
+ */
+interface PromptRun {
+    readonly promptedHosts: Set<string>;
+}
 
 /**
  * Orchestrates the marketplace lifecycle: resolve a registration's
@@ -24,6 +45,13 @@ const MARKETPLACE_MANIFEST = "marketplace.json";
  * swallowed and logged so one bad marketplace never blocks the others — or the
  * modeler. Per-source failures are always swallowed: a 404/rate-limit on one
  * source keeps the last-good cache and warns, leaving sibling sources intact.
+ *
+ * Private repos are reached with per-host personal access tokens: the service
+ * resolves a stored token onto the source config before each fetch and, on an
+ * auth-shaped failure ({@link RepositoryAccessError}), prompts once per host per
+ * run and retries. The token lives only in {@link TokenStorePort}; it is only
+ * ever placed on a config the GitHub adapter sends to `api.github.com`, and
+ * never reaches settings, the cache, logs, or error messages (D9).
  */
 export class TemplateMarketplaceService {
     /**
@@ -31,6 +59,10 @@ export class TemplateMarketplaceService {
      * @param cache Local store the render pipeline reads from.
      * @param settings Reads the persisted list of registered marketplaces.
      * @param notifier User-facing logging for the warn-and-continue path.
+     * @param tokens Encrypted per-host token store; read to authenticate, written
+     *   on a granted prompt (a set overwrites — that is token rotation).
+     * @param tokenPrompt Asks the user for a token; a decline returns `undefined`
+     *   and never aborts a run.
      * @param homeDir Absolute home directory, injected because the host-agnostic
      *   core cannot read it; used to expand `~` in a `provider: "local"` source.
      */
@@ -39,6 +71,8 @@ export class TemplateMarketplaceService {
         private readonly cache: MarketplaceCache,
         private readonly settings: SettingsPort,
         private readonly notifier: NotifierPort,
+        private readonly tokens: TokenStorePort,
+        private readonly tokenPrompt: TokenPromptPort,
         private readonly homeDir: string,
     ) {}
 
@@ -50,18 +84,21 @@ export class TemplateMarketplaceService {
      *   registration that cannot be fetched.
      */
     async addMarketplace(url: string): Promise<void> {
-        await this.fetchAndCache(parseMarketplaceUrl(url));
+        await this.fetchAndCache(parseMarketplaceUrl(url), { promptedHosts: new Set() });
     }
 
     /**
      * Re-fetches every registered marketplace on demand (decision D7: no silent
      * auto-refresh). Never throws — a failing marketplace is logged and skipped
-     * so the others still refresh and the modeler stays usable offline.
+     * so the others still refresh and the modeler stays usable offline. One
+     * {@link PromptRun} spans all marketplaces so the token prompt appears at
+     * most once per host across the whole update.
      */
     async updateAll(): Promise<void> {
+        const run: PromptRun = { promptedHosts: new Set() };
         for (const url of this.settings.getTemplateMarketplaces()) {
             try {
-                await this.fetchAndCache(parseMarketplaceUrl(url));
+                await this.fetchAndCache(parseMarketplaceUrl(url), run);
             } catch (error) {
                 this.notifier.logWarning(
                     `Skipped template marketplace "${url}": ${(error as Error).message}`,
@@ -79,13 +116,19 @@ export class TemplateMarketplaceService {
      * Fetches `marketplace.json`, resolves its sources, and caches every
      * template. Manifest-level failures propagate (the marketplace is unusable);
      * source-level failures are logged and skipped to preserve last-good data.
+     * Declared-private sources are batch-prompted up front so the tokens are in
+     * the store before the per-source fetches begin.
      */
-    private async fetchAndCache(registration: MarketplaceRegistration): Promise<void> {
-        const sources = parseMarketplace(JSON.parse(await this.readManifest(registration)));
+    private async fetchAndCache(
+        registration: MarketplaceRegistration,
+        run: PromptRun,
+    ): Promise<void> {
+        const sources = parseMarketplace(JSON.parse(await this.readManifest(registration, run)));
+        await this.ensureTokensForPrivateSources(sources, run);
 
         for (let index = 0; index < sources.length; index++) {
             try {
-                await this.cacheSource(registration, sources[index], index);
+                await this.cacheSource(registration, sources[index], index, run);
             } catch (error) {
                 this.notifier.logWarning(
                     `Skipped a source of "${registration.url}": ${(error as Error).message}`,
@@ -97,11 +140,18 @@ export class TemplateMarketplaceService {
     /**
      * Reads the manifest from the marketplace repo root, mapping a fetch failure
      * to {@link InvalidMarketplaceError} so the caller's error path is uniform.
+     * Goes through {@link withAuthRetry} so a private marketplace prompts for a
+     * token here — the token then also covers the relative sources it points at.
      */
-    private async readManifest(registration: MarketplaceRegistration): Promise<string> {
-        const root = this.sourceFactory(this.configFor(registration.location, ""));
+    private async readManifest(
+        registration: MarketplaceRegistration,
+        run: PromptRun,
+    ): Promise<string> {
+        const baseConfig = this.configFor(registration.location, "");
         try {
-            return await root.fetchFile(MARKETPLACE_MANIFEST);
+            return await this.withAuthRetry(baseConfig, run, (config) =>
+                this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
+            );
         } catch (error) {
             throw new InvalidMarketplaceError(
                 `could not read ${MARKETPLACE_MANIFEST} from "${registration.url}": ${(error as Error).message}`,
@@ -114,35 +164,185 @@ export class TemplateMarketplaceService {
      * relative source resolves against the marketplace's own location (the repo
      * or local folder it was registered from); a github source names its own
      * repo. The registration only pins the relative case — an external source
-     * carries its own coordinates.
+     * carries its own coordinates. The whole listing+fetch runs under
+     * {@link withAuthRetry}, so a mid-source auth failure prompts and retries.
      */
     private async cacheSource(
         registration: MarketplaceRegistration,
         source: TemplateSource,
         index: number,
+        run: PromptRun,
     ): Promise<void> {
-        let config: RepositorySourceConfig;
+        const baseConfig = this.configForSource(registration, source);
+        await this.withAuthRetry(baseConfig, run, async (config) => {
+            const repository = this.sourceFactory(config);
+            for (const repoPath of await repository.listTemplateFiles()) {
+                const content = await repository.fetchFile(repoPath);
+                await this.cache.writeTemplate(registration.id, index, repoPath, content);
+            }
+        });
+    }
+
+    /**
+     * Runs `task` with a stored token (if any) resolved onto the config, then —
+     * on an auth-shaped {@link RepositoryAccessError} — prompts once for the
+     * host, stores a granted token, and retries the task exactly once with it.
+     * A non-auth error, or an unauthenticated host (a local folder), propagates
+     * unchanged. On decline or a second denial the failure is rewritten into a
+     * user-facing message via {@link accessFailure} (the raw error text is not
+     * shown — it would say "HTTP 404" for a private repo).
+     */
+    private async withAuthRetry<T>(
+        baseConfig: RepositorySourceConfig,
+        run: PromptRun,
+        task: (config: RepositorySourceConfig) => Promise<T>,
+    ): Promise<T> {
+        const host = hostForConfig(baseConfig);
+        const stored = host ? await this.tokens.getToken(host) : undefined;
+        try {
+            return await task(this.withToken(baseConfig, stored));
+        } catch (error) {
+            if (!(error instanceof RepositoryAccessError) || host === undefined) {
+                throw error;
+            }
+            const hadToken = stored !== undefined;
+            const fresh = await this.promptOncePerRun(host, run, hadToken, error);
+            if (fresh === undefined) {
+                throw this.accessFailure(error, hadToken);
+            }
+            try {
+                return await task(this.withToken(baseConfig, fresh));
+            } catch (retryError) {
+                if (retryError instanceof RepositoryAccessError) {
+                    throw this.accessFailure(retryError, true);
+                }
+                throw retryError;
+            }
+        }
+    }
+
+    /**
+     * Prompts for a token for `host` unless this run already prompted it, adding
+     * the host to the run regardless of outcome so a decline is remembered. A
+     * granted token is stored immediately (overwrite = rotation) so later
+     * same-host fetches pick it up on their first attempt.
+     */
+    private async promptOncePerRun(
+        host: string,
+        run: PromptRun,
+        hadToken: boolean,
+        error: RepositoryAccessError,
+    ): Promise<string | undefined> {
+        if (run.promptedHosts.has(host)) {
+            return undefined;
+        }
+        run.promptedHosts.add(host);
+        const token = await this.tokenPrompt.promptForToken(
+            host,
+            this.promptReason(hadToken, error),
+        );
+        if (token !== undefined) {
+            await this.tokens.setToken(host, token);
+        }
+        return token;
+    }
+
+    /**
+     * Prompts up front for every distinct host that has a *declared*-private
+     * github source and no stored token, so those tokens are in the store before
+     * the per-source fetches run and `withAuthRetry` picks them up first try.
+     * `visibility` is only a hint (D2): undeclared-private sources still get the
+     * failure-driven prompt instead.
+     */
+    private async ensureTokensForPrivateSources(
+        sources: TemplateSource[],
+        run: PromptRun,
+    ): Promise<void> {
+        const hosts = new Set<string>();
+        for (const source of sources) {
+            if (source.kind === "github" && source.visibility === "private") {
+                const host = hostForConfig(this.configForSource(undefined, source));
+                if (host !== undefined) {
+                    hosts.add(host);
+                }
+            }
+        }
+        for (const host of hosts) {
+            if (run.promptedHosts.has(host) || (await this.tokens.getToken(host)) !== undefined) {
+                continue;
+            }
+            run.promptedHosts.add(host);
+            const reason = `${host} hosts a private template source. Enter a personal access token to fetch it.`;
+            const token = await this.tokenPrompt.promptForToken(host, reason);
+            if (token !== undefined) {
+                await this.tokens.setToken(host, token);
+            }
+        }
+    }
+
+    /** The reason string shown in the token prompt, tailored to the failure. */
+    private promptReason(hadToken: boolean, error: RepositoryAccessError): string {
+        if (error.rateLimited && !hadToken) {
+            return `Hit GitHub's rate limit for ${error.resource}. A personal access token raises the limit.`;
+        }
+        if (hadToken) {
+            return `The stored token for ${error.host} was rejected (HTTP ${error.status}) for ${error.resource}. Enter a new token.`;
+        }
+        return `${error.host} denied access to ${error.resource} (HTTP ${error.status}); it may be private. Enter a personal access token.`;
+    }
+
+    /** The user-facing failure when no working token could be obtained. */
+    private accessFailure(error: RepositoryAccessError, hadToken: boolean): Error {
+        if (error.rateLimited) {
+            return new Error(
+                `GitHub rate limit exceeded for ${error.resource} — try again later or provide a personal access token.`,
+            );
+        }
+        if (hadToken) {
+            return new Error(
+                `The token for ${error.host} can't access ${error.resource} (HTTP ${error.status}).`,
+            );
+        }
+        return new Error(
+            `${error.resource} on ${error.host} requires a personal access token (none provided).`,
+        );
+    }
+
+    /** Places `token` onto a github config; local configs never carry one. */
+    private withToken(
+        config: RepositorySourceConfig,
+        token: string | undefined,
+    ): RepositorySourceConfig {
+        return config.kind === "github" ? { ...config, token } : config;
+    }
+
+    /**
+     * Projects a `sources[]` entry into the provider-specific config to fetch it
+     * with. A relative source resolves against the marketplace's `registration`
+     * location; a github/local source names its own coordinates and ignores it
+     * (so `registration` may be omitted when only the host is needed).
+     */
+    private configForSource(
+        registration: MarketplaceRegistration | undefined,
+        source: TemplateSource,
+    ): RepositorySourceConfig {
         if (source.kind === "relative") {
-            config = this.configFor(registration.location, source.path);
-        } else if (source.kind === "github") {
-            config = {
+            // A relative source only exists against a registration; the callers
+            // that pass `undefined` never hand in a relative source.
+            return this.configFor(registration!.location, source.path);
+        }
+        if (source.kind === "github") {
+            return {
                 kind: "github",
                 owner: source.owner,
                 repo: source.repo,
                 ref: source.ref,
                 path: source.path,
             };
-        } else {
-            // A `provider: "local"` source names its own directory: expand `~`,
-            // then scan the whole folder (empty subtree).
-            config = { kind: "local", rootDir: this.expandHome(source.path), path: "" };
         }
-
-        const repository = this.sourceFactory(config);
-        for (const repoPath of await repository.listTemplateFiles()) {
-            const content = await repository.fetchFile(repoPath);
-            await this.cache.writeTemplate(registration.id, index, repoPath, content);
-        }
+        // A `provider: "local"` source names its own directory: expand `~`, then
+        // scan the whole folder (empty subtree).
+        return { kind: "local", rootDir: this.expandHome(source.path), path: "" };
     }
 
     /**

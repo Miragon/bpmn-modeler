@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RepositorySource, RepositorySourceConfig } from "../domain/ports";
+import { RepositoryAccessError, RepositorySource, RepositorySourceConfig } from "../domain/ports";
 import { TemplateMarketplaceService } from "./TemplateMarketplaceService";
 
 const MANIFEST = JSON.stringify({
@@ -23,6 +23,17 @@ function createService(opts: { manifest?: string | Error } = {}) {
     };
     const settings = { getTemplateMarketplaces: vi.fn().mockReturnValue([]) };
     const notifier = { logWarning: vi.fn() };
+
+    // Map-backed token store so a granted prompt is observable on the next
+    // `getToken`; the prompt stub declines by default (tests override it).
+    const stored = new Map<string, string>();
+    const tokens = {
+        getToken: vi.fn(async (host: string) => stored.get(host)),
+        setToken: vi.fn(async (host: string, token: string) => void stored.set(host, token)),
+    };
+    const tokenPrompt = {
+        promptForToken: vi.fn<() => Promise<string | undefined>>(async () => undefined),
+    };
 
     // Each distinct config gets its own scripted source; the root source serves
     // the manifest, others serve template files keyed by path.
@@ -50,9 +61,87 @@ function createService(opts: { manifest?: string | Error } = {}) {
         cache as never,
         settings as never,
         notifier as never,
+        tokens as never,
+        tokenPrompt as never,
         "/home/test",
     );
-    return { service, cache, settings, notifier, sourceFactory };
+    return { service, cache, settings, notifier, sourceFactory, tokens, tokenPrompt, stored };
+}
+
+/** Inert token store + prompt for tests that never exercise the auth path. */
+function noAuth() {
+    return {
+        tokens: { getToken: vi.fn(async () => undefined), setToken: vi.fn() },
+        tokenPrompt: { promptForToken: vi.fn(async () => undefined) },
+    };
+}
+
+/**
+ * A factory whose *manifest* source is gated on `config.token`: without the
+ * expected token it throws {@link RepositoryAccessError} (mimicking GitHub's
+ * 401/403/404 on a private repo), with it, it serves `manifest`. Every other
+ * source serves one template file so a post-auth run still caches something.
+ */
+function tokenGatedFactory(opts: {
+    manifest: string;
+    expectedToken?: string;
+    status?: number;
+    rateLimited?: boolean;
+}) {
+    const { manifest, expectedToken, status = 404, rateLimited = false } = opts;
+    return vi.fn((config: RepositorySourceConfig): RepositorySource => {
+        if (config.path === "") {
+            const token = config.kind === "github" ? config.token : undefined;
+            return {
+                listTemplateFiles: vi.fn().mockResolvedValue([]),
+                fetchFile: vi.fn(async () => {
+                    if (expectedToken === undefined || token !== expectedToken) {
+                        throw new RepositoryAccessError(
+                            "github.com",
+                            status,
+                            "acme/templates",
+                            rateLimited,
+                        );
+                    }
+                    return manifest;
+                }),
+            };
+        }
+        return {
+            listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+            fetchFile: vi.fn().mockResolvedValue("{}"),
+        };
+    });
+}
+
+/** Builds a service over `factory` with a Map-backed token store + prompt stub. */
+function serviceOver(
+    factory: ReturnType<typeof vi.fn>,
+    prompt: () => Promise<string | undefined>,
+    seededTokens: Record<string, string> = {},
+) {
+    const cache = {
+        writeTemplate: vi.fn().mockResolvedValue(undefined),
+        getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
+    };
+    const notifier = { logWarning: vi.fn() };
+    const stored = new Map<string, string>(Object.entries(seededTokens));
+    const tokens = {
+        getToken: vi.fn(async (host: string) => stored.get(host)),
+        setToken: vi.fn(async (host: string, token: string) => void stored.set(host, token)),
+    };
+    const tokenPrompt = { promptForToken: vi.fn(prompt) };
+    const settings = { getTemplateMarketplaces: vi.fn().mockReturnValue([]) };
+    const service = new TemplateMarketplaceService(
+        factory as never,
+        cache as never,
+        settings as never,
+        notifier as never,
+        tokens as never,
+        tokenPrompt as never,
+        "/home/test",
+    );
+    return { service, cache, notifier, tokens, tokenPrompt, stored, settings };
 }
 
 beforeEach(() => {
@@ -143,6 +232,8 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             cache as never,
             { getTemplateMarketplaces: vi.fn() } as never,
             notifier as never,
+            noAuth().tokens as never,
+            noAuth().tokenPrompt as never,
             "/home/test",
         );
 
@@ -199,6 +290,8 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             cache as never,
             { getTemplateMarketplaces: vi.fn() } as never,
             notifier as never,
+            noAuth().tokens as never,
+            noAuth().tokenPrompt as never,
             "/home/test",
         );
 
@@ -247,5 +340,191 @@ describe("TemplateMarketplaceService.getCachedTemplatePaths", () => {
         const { service, cache } = createService();
         cache.getCachedTemplatePaths.mockResolvedValue(["/cache/a.json"]);
         expect(await service.getCachedTemplatePaths()).toEqual(["/cache/a.json"]);
+    });
+});
+
+describe("TemplateMarketplaceService private-repo auth", () => {
+    it("places a stored token on the github config but never on a local one", async () => {
+        // A github marketplace pointing at an external provider:local folder.
+        const manifest = JSON.stringify({
+            sources: [{ path: "element-templates" }, { provider: "local", path: "/opt/ext" }],
+        });
+        const { service, sourceFactory, tokenPrompt } = (() => {
+            const svc = createService({ manifest });
+            svc.stored.set("github.com", "stored-tok");
+            return svc;
+        })();
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        // The github manifest + relative source carry the token; the local one does not.
+        expect(sourceFactory).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: "github", path: "", token: "stored-tok" }),
+        );
+        expect(sourceFactory).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: "local", rootDir: "/opt/ext" }),
+        );
+        expect(sourceFactory).not.toHaveBeenCalledWith(
+            expect.objectContaining({ kind: "local", token: expect.anything() }),
+        );
+        // The public-looking marketplace read succeeds with the stored token; no prompt.
+        expect(tokenPrompt.promptForToken).not.toHaveBeenCalled();
+    });
+
+    it("prompts on a private-repo 404, stores the token, retries once, and succeeds", async () => {
+        const factory = tokenGatedFactory({
+            manifest: JSON.stringify({ sources: [{ path: "element-templates" }] }),
+            expectedToken: "granted",
+        });
+        const { service, cache, tokenPrompt, tokens } = serviceOver(factory, async () => "granted");
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledWith(
+            "github.com",
+            expect.stringMatching(/may be private/),
+        );
+        expect(tokens.setToken).toHaveBeenCalledWith("github.com", "granted");
+        expect(cache.writeTemplate).toHaveBeenCalled();
+    });
+
+    it("declining during add rejects, caches nothing, and prompts once", async () => {
+        const factory = tokenGatedFactory({
+            manifest: JSON.stringify({ sources: [{ path: "x" }] }),
+            // No expectedToken → every read is denied, whatever the token.
+        });
+        const { service, cache, tokenPrompt } = serviceOver(factory, async () => undefined);
+
+        await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
+            /requires a personal access token/,
+        );
+        expect(cache.writeTemplate).not.toHaveBeenCalled();
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+    });
+
+    it("reports 'can't access' when the freshly entered token is also denied", async () => {
+        const factory = tokenGatedFactory({
+            manifest: JSON.stringify({ sources: [{ path: "x" }] }),
+            // Every token is rejected, so the retry fails too.
+        });
+        const { service, tokenPrompt } = serviceOver(factory, async () => "still-wrong");
+
+        await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
+            /can't access/,
+        );
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+    });
+
+    it("re-prompts with 'was rejected' wording for a stale stored token and overwrites it", async () => {
+        const factory = tokenGatedFactory({
+            manifest: JSON.stringify({ sources: [{ path: "x" }] }),
+            expectedToken: "new",
+        });
+        const { service, tokenPrompt, tokens, stored } = serviceOver(factory, async () => "new", {
+            "github.com": "old",
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledWith(
+            "github.com",
+            expect.stringMatching(/was rejected/),
+        );
+        expect(tokens.setToken).toHaveBeenCalledWith("github.com", "new");
+        expect(stored.get("github.com")).toBe("new"); // rotation = overwrite
+    });
+
+    it("batch-prompts once for two private sources when the store is empty", async () => {
+        const manifest = JSON.stringify({
+            sources: [
+                { provider: "github", repo: "acme/one", path: "t", visibility: "private" },
+                { provider: "github", repo: "acme/two", path: "t", visibility: "private" },
+                { provider: "github", repo: "acme/pub", path: "t", visibility: "public" },
+            ],
+        });
+        // A plain factory: the public manifest reads without a token, and every
+        // source serves a file — the batch prompt is what we assert on.
+        const factory = vi.fn(
+            (config: RepositorySourceConfig): RepositorySource =>
+                config.path === ""
+                    ? {
+                          listTemplateFiles: vi.fn().mockResolvedValue([]),
+                          fetchFile: vi.fn().mockResolvedValue(manifest),
+                      }
+                    : {
+                          listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                          fetchFile: vi.fn().mockResolvedValue("{}"),
+                      },
+        );
+        const { service, tokenPrompt } = serviceOver(factory, async () => "granted");
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+    });
+
+    it("does not batch-prompt when a token for the host is already stored", async () => {
+        const manifest = JSON.stringify({
+            sources: [{ provider: "github", repo: "acme/one", path: "t", visibility: "private" }],
+        });
+        const factory = vi.fn(
+            (config: RepositorySourceConfig): RepositorySource =>
+                config.path === ""
+                    ? {
+                          listTemplateFiles: vi.fn().mockResolvedValue([]),
+                          fetchFile: vi.fn().mockResolvedValue(manifest),
+                      }
+                    : {
+                          listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                          fetchFile: vi.fn().mockResolvedValue("{}"),
+                      },
+        );
+        const { service, tokenPrompt } = serviceOver(factory, async () => "granted", {
+            "github.com": "have-it",
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(tokenPrompt.promptForToken).not.toHaveBeenCalled();
+    });
+
+    it("prompts at most once per host across a whole updateAll, warning+skipping each", async () => {
+        const factory = tokenGatedFactory({
+            manifest: JSON.stringify({ sources: [{ path: "x" }] }),
+            // Both marketplaces are private and the user declines.
+        });
+        const { service, notifier, tokenPrompt, settings } = serviceOver(
+            factory,
+            async () => undefined,
+        );
+        settings.getTemplateMarketplaces.mockReturnValue([
+            "https://github.com/acme/one",
+            "https://github.com/acme/two",
+        ]);
+
+        await expect(service.updateAll()).resolves.toBeUndefined();
+
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce(); // one run spans both
+        expect(notifier.logWarning).toHaveBeenCalledTimes(2);
+    });
+
+    it("mentions the rate limit (not a rejection) when a 403 rate-limit persists with a token", async () => {
+        const factory = tokenGatedFactory({
+            manifest: JSON.stringify({ sources: [{ path: "x" }] }),
+            status: 403,
+            rateLimited: true,
+            // No expectedToken → the stored token still hits the limit.
+        });
+        const { service } = serviceOver(factory, async () => undefined, {
+            "github.com": "have-it",
+        });
+
+        await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
+            /rate limit/i,
+        );
+        await expect(
+            service.addMarketplace("https://github.com/acme/templates"),
+        ).rejects.not.toThrow(/can't access/);
     });
 });

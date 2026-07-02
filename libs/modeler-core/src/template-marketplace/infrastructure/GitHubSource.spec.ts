@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HttpResponse } from "../../deployment/domain/ports";
+import { RepositoryAccessError } from "../domain/ports";
 import { GitHubSource } from "./GitHubSource";
 
 /** Minimal `HttpClient` double exposing only the GET methods GitHubSource uses. */
@@ -162,5 +163,152 @@ describe("GitHubSource.fetchFile", () => {
             path: "",
         });
         await expect(source.fetchFile("missing.json")).rejects.toThrow(/HTTP 404/);
+    });
+
+    it("never sends the auth header to the raw host (D9)", async () => {
+        const http = createHttp();
+        http.getText.mockResolvedValue(ok("{ }"));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "a",
+            repo: "b",
+            ref: "main",
+            path: "",
+            token: "secret",
+        });
+
+        // With a token set, fetching goes through the Contents API, not the raw
+        // host — so the raw host is never even called with the token attached.
+        await source.fetchFile("a.json");
+        const rawCall = http.getText.mock.calls.find(([url]) =>
+            url.startsWith("https://raw.githubusercontent.com"),
+        );
+        expect(rawCall).toBeUndefined();
+    });
+});
+
+describe("GitHubSource authenticated requests", () => {
+    it("adds a Bearer header to the tree and default-branch calls", async () => {
+        const http = createHttp();
+        http.getJson
+            .mockResolvedValueOnce(ok(JSON.stringify({ default_branch: "main" })))
+            .mockResolvedValueOnce(ok(JSON.stringify({ tree: [] })));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            path: "",
+            token: "tok",
+        });
+
+        await source.listTemplateFiles();
+
+        for (const [, headers] of http.getJson.mock.calls) {
+            expect(headers).toMatchObject({ Authorization: "Bearer tok" });
+        }
+    });
+
+    it("fetches via the Contents API with raw Accept and encoded path/ref", async () => {
+        const http = createHttp();
+        http.getText.mockResolvedValue(ok("{ }"));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "feature/x",
+            path: "templates",
+            token: "tok",
+        });
+
+        expect(await source.fetchFile("templates/my file.json")).toBe("{ }");
+        expect(http.getText).toHaveBeenCalledWith(
+            "https://api.github.com/repos/acme/repo/contents/templates/my%20file.json?ref=feature%2Fx",
+            expect.objectContaining({
+                Accept: "application/vnd.github.raw+json",
+                Authorization: "Bearer tok",
+            }),
+        );
+    });
+
+    it.each([401, 403, 404])(
+        "maps a %s on the tree call to a RepositoryAccessError",
+        async (status) => {
+            const http = createHttp();
+            http.getJson.mockResolvedValue({ status, body: "" });
+            const source = new GitHubSource(http as never, {
+                kind: "github",
+                owner: "acme",
+                repo: "repo",
+                ref: "main",
+                path: "",
+            });
+
+            await expect(source.listTemplateFiles()).rejects.toMatchObject({
+                name: "RepositoryAccessError",
+                host: "github.com",
+                status,
+                resource: "acme/repo",
+                rateLimited: false,
+            });
+        },
+    );
+
+    it("maps an auth failure on the default-branch call to a RepositoryAccessError", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue({ status: 404, body: "" });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            path: "",
+        });
+
+        await expect(source.listTemplateFiles()).rejects.toBeInstanceOf(RepositoryAccessError);
+    });
+
+    it("maps an auth failure on the Contents API fetch to a RepositoryAccessError", async () => {
+        const http = createHttp();
+        http.getText.mockResolvedValue({ status: 401, body: "" });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "main",
+            path: "",
+            token: "tok",
+        });
+
+        await expect(source.fetchFile("a.json")).rejects.toBeInstanceOf(RepositoryAccessError);
+    });
+
+    it("flags a 403 whose body reads like a rate-limit rejection", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue({ status: 403, body: "API rate limit exceeded for ..." });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "main",
+            path: "",
+        });
+
+        await expect(source.listTemplateFiles()).rejects.toMatchObject({ rateLimited: true });
+    });
+
+    it("leaves a non-auth status (500) as a plain Error", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue({ status: 500, body: "boom" });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "main",
+            path: "",
+        });
+
+        const error = await source.listTemplateFiles().catch((e) => e);
+        expect(error).toBeInstanceOf(Error);
+        expect(error).not.toBeInstanceOf(RepositoryAccessError);
+        expect(error.message).toMatch(/HTTP 500/);
     });
 });

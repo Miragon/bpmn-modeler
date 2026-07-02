@@ -75,6 +75,11 @@ export type TemplateSource =
           readonly repo: string;
           readonly ref?: string;
           readonly path: string;
+          // A declared hint, not the source of truth (access is proven by the
+          // fetch): lets the service pre-prompt for a token before hitting a
+          // known-private repo. Undeclared-private repos still get the
+          // failure-driven prompt.
+          readonly visibility?: "public" | "private";
       }
     | { readonly kind: "local"; readonly path: string };
 
@@ -323,6 +328,15 @@ function parseSource(entry: unknown, index: number): TemplateSource {
     if (ref !== undefined && typeof ref !== "string") {
         throw new InvalidMarketplaceError(`sources[${index}] "ref" must be a string`);
     }
+    // A github entry graduates `visibility` from tolerated-unknown (as it stays
+    // on relative/local entries) to validated: a typo like `"privte"` must fail
+    // loudly rather than silently degrade to the failure-driven prompt path.
+    const visibility = source.visibility;
+    if (visibility !== undefined && visibility !== "public" && visibility !== "private") {
+        throw new InvalidMarketplaceError(
+            `sources[${index}] "visibility" must be "public" or "private"`,
+        );
+    }
 
     return {
         kind: "github",
@@ -330,5 +344,6 @@ function parseSource(entry: unknown, index: number): TemplateSource {
         repo: repoName,
         ref,
         path: normalizeSourcePath(path),
+        visibility,
     };
 }

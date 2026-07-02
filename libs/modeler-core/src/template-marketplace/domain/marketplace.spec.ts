@@ -204,4 +204,32 @@ describe("parseMarketplace", () => {
             parseMarketplace({ sources: [{ provider: "github", repo: "bare", path: "x" }] }),
         ).toThrow(InvalidMarketplaceError);
     });
+
+    it("parses and preserves a valid visibility on a github source", () => {
+        const [source] = parseMarketplace({
+            sources: [{ provider: "github", repo: "a/b", path: "x", visibility: "private" }],
+        });
+        expect(source).toMatchObject({ kind: "github", visibility: "private" });
+    });
+
+    it("rejects an unknown visibility on a github source (typos fail loudly)", () => {
+        expect(() =>
+            parseMarketplace({
+                sources: [{ provider: "github", repo: "a/b", path: "x", visibility: "privte" }],
+            }),
+        ).toThrow(InvalidMarketplaceError);
+    });
+
+    it("still tolerates a stray visibility on relative and local sources", () => {
+        // visibility is only meaningful for github; on other kinds it is an
+        // unknown field that must not break parsing.
+        expect(() =>
+            parseMarketplace({
+                sources: [
+                    { path: "templates", visibility: "whatever" },
+                    { provider: "local", path: "/opt/x", visibility: "whatever" },
+                ],
+            }),
+        ).not.toThrow();
+    });
 });
