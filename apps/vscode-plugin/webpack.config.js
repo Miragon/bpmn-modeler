@@ -74,6 +74,10 @@ module.exports = (env, argv) => {
                         },
                     },
                     {
+                        from: path.resolve(__dirname, ".vscodeignore"),
+                        to: ".",
+                    },
+                    {
                         from: path.resolve(__dirname, "assets"),
                         to: "assets",
                     },
