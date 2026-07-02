@@ -6,13 +6,13 @@
         "build": "tsc --noEmit"
     },
     "dependencies": {
-        "preact": "10.29.2"
+        "preact": "10.29.3"
     },
     "peerDependencies": {
-        "bpmn-js": "18.18.0"
+        "bpmn-js": "18.19.0"
     },
     "devDependencies": {
-        "bpmn-js": "18.18.0",
+        "bpmn-js": "18.19.0",
         "typescript": "6.0.3"
     }
 }
