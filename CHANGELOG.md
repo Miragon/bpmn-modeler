@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.1](https://github.com/Miragon/bpmn-modeler/compare/v1.2.0...v1.2.1) (2026-07-03)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** keep diagram readable in dark mode during token simulation ([#1208](https://github.com/Miragon/bpmn-modeler/issues/1208)) ([c4d6f0d](https://github.com/Miragon/bpmn-modeler/commit/c4d6f0d6aa428b81e0c53b5744930ddef87e21ef))
+* **intellij-plugin:** fix JCEF module dependency and drop internal plugin lookup on 2026.2 ([#1206](https://github.com/Miragon/bpmn-modeler/issues/1206)) ([c52323f](https://github.com/Miragon/bpmn-modeler/commit/c52323f8c9a123265c00bc9a2c30935e6426c732))
+* **intellij-plugin:** resolve JetBrains Marketplace verification rejection ([#1203](https://github.com/Miragon/bpmn-modeler/issues/1203)) ([54007d4](https://github.com/Miragon/bpmn-modeler/commit/54007d4ffb2e80b9403d00b4f2e2728f0559b50e))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the npm-minor-patch group across 1 directory with 39 updates ([#1194](https://github.com/Miragon/bpmn-modeler/issues/1194)) ([42c77c4](https://github.com/Miragon/bpmn-modeler/commit/42c77c4bdeb964242a1d2c520f7f4d20a2010b20))
+* **intellij-plugin:** add local dev/test tooling and dark-mode preview ([#1209](https://github.com/Miragon/bpmn-modeler/issues/1209)) ([e41b42f](https://github.com/Miragon/bpmn-modeler/commit/e41b42f4cc5314a299f7b64fffcc8810a4ef5561))
+* **release:** silence release pipeline warnings ([#1201](https://github.com/Miragon/bpmn-modeler/issues/1201)) ([fc2eeac](https://github.com/Miragon/bpmn-modeler/commit/fc2eeac67d963a3b8c806aa8f0b540deab619491))
+
 ## [1.2.0](https://github.com/Miragon/bpmn-modeler/compare/v1.1.2...v1.2.0) (2026-07-01)
 
 
