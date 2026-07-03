@@ -108,6 +108,32 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
     stroke: var(--bpmn-shape-fill-color) !important;
 }
 
+/**
+ * Token Simulation override.
+ *
+ * Token Simulation repaints every element with its own neutral colours, which the
+ * default-paint rules above don't catch — without this, dark mode shows white shapes
+ * and invisible flows while simulation runs.
+ */
+
+/* neutral fill (white) → dark surface */
+.bjs-container.simulation .djs-shape > .djs-visual > [style*="fill: rgb(255, 255, 255)"] {
+    fill: var(--bpmn-shape-fill-color) !important;
+}
+
+/* neutral stroke used as a fill (filled throw markers, arrowheads) → light */
+.bjs-container.simulation .djs-shape > .djs-visual > [style*="fill: rgb(33, 33, 33)"],
+.bjs-container.simulation defs marker > [style*="fill: rgb(33, 33, 33)"] {
+    fill: var(--bpmn-shape-stroke-color) !important;
+}
+
+/* neutral stroke → light stroke (shapes, connections/flows, arrowhead markers) */
+.bjs-container.simulation .djs-shape > .djs-visual > [style*="stroke: rgb(33, 33, 33)"],
+.bjs-container.simulation .djs-connection > .djs-visual > [style*="stroke: rgb(33, 33, 33)"],
+.bjs-container.simulation defs marker > [style*="stroke: rgb(33, 33, 33)"] {
+    stroke: var(--bpmn-shape-stroke-color) !important;
+}
+
 /*
  * Embedded labels — recolour only the default. bpmn-js paints a label with the
  * element's stroke colour (no `defaultLabelColor` configured), so a coloured
