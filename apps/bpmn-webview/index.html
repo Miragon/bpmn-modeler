@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <link href="/favicon.ico" rel="icon" />
-    <link href="src/styles/light-theme/index.css" rel="stylesheet" />
+    <link href="src/styles/light-theme/index.css" id="theme-link" rel="stylesheet" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>BPMN Modeler</title>
 </head>
@@ -27,6 +27,21 @@
         <div class="properties-panel-parent" id="js-properties-panel"></div>
     </div>
 </div>
+<!--
+    Dev-only theme switch for the standalone browser preview (`yarn ... serve`).
+    Hosts (VS Code / IntelliJ / Theia) inject their own HTML and never load this
+    shell, so this affects local preview only. Open `?theme=dark` to exercise the
+    dark stylesheet — the only way to hit dark-mode regressions (e.g. #1199)
+    without launching a host, since FakeHost otherwise forces the light theme.
+    Runs before the deferred module below, so initTheme() sees `vscode-dark`.
+-->
+<script>
+    if (new URLSearchParams(location.search).get("theme") === "dark") {
+        document.body.classList.add("vscode-dark");
+        const link = document.getElementById("theme-link");
+        if (link) link.href = link.getAttribute("href").replace("light-theme", "dark-theme");
+    }
+</script>
 <script src="/src/main.ts" type="module"></script>
 </body>
 </html>

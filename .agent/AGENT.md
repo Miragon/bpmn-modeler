@@ -20,6 +20,10 @@ corepack yarn watch             # Development watch mode (F5 Extension Host)
 corepack yarn test              # Test (Vitest)
 corepack yarn lint              # Lint
 
+# IntelliJ plugin: build the webview/bridge artefacts, then launch a sandbox IDE
+corepack yarn intellij:run      # = intellij:build (libs → webviews → bridge) + gradlew runIde
+corepack yarn intellij:build    # refresh artefacts only (re-run after a webview change)
+
 # Target a single workspace
 corepack yarn workspace vs-code-bpmn-modeler build
 corepack yarn workspace @miragon/bpmn-modeler-webview build
@@ -27,6 +31,10 @@ corepack yarn workspace @miragon/bpmn-modeler-webview build
 # Run a single test file
 corepack yarn test apps/vscode-plugin/src/shared/domain/BpmnDocument.spec.ts
 ```
+
+For the full IntelliJ dev/verify loop (prerequisites, sandbox behaviour, and how
+to reproduce dark-mode webview bugs without launching a host) see
+`apps/intellij-plugin/README.md`.
 
 ### Webview scripts (bpmn-webview, dmn-webview, deployment-webview)
 
