@@ -180,8 +180,10 @@ describe("GitHubSource.fetchFile", () => {
         // With a token set, fetching goes through the Contents API, not the raw
         // host — so the raw host is never even called with the token attached.
         await source.fetchFile("a.json");
-        const rawCall = http.getText.mock.calls.find(([url]) =>
-            url.startsWith("https://raw.githubusercontent.com"),
+        // Compare the parsed host exactly (not a startsWith on the URL string,
+        // which js/incomplete-url-substring-sanitization rightly flags).
+        const rawCall = http.getText.mock.calls.find(
+            ([url]) => new URL(url).host === "raw.githubusercontent.com",
         );
         expect(rawCall).toBeUndefined();
     });
@@ -352,11 +354,10 @@ describe("GitHubSource on GitHub Enterprise (baseUrl)", () => {
         const [url, headers] = http.getText.mock.calls[0];
         expect(url).toBe("https://ghe.acme.com/api/v3/repos/team/repo/contents/a.json?ref=main");
         expect(headers).not.toHaveProperty("Authorization");
-        // The raw host is never used on GHE.
+        // The raw host is never used on GHE (exact host compare, not a URL
+        // startsWith that js/incomplete-url-substring-sanitization flags).
         expect(
-            http.getText.mock.calls.some(([u]) =>
-                u.startsWith("https://raw.githubusercontent.com"),
-            ),
+            http.getText.mock.calls.some(([u]) => new URL(u).host === "raw.githubusercontent.com"),
         ).toBe(false);
     });
 
