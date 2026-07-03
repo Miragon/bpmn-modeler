@@ -58,6 +58,13 @@ dependencies {
 
 kotlin {
     jvmToolchain(21)
+    compilerOptions {
+        // Emit real JVM default methods instead of DefaultImpls override bridges,
+        // which the plugin verifier otherwise flags as internal/experimental/
+        // deprecated usages of the inherited platform defaults (e.g.
+        // ToolWindowFactory.getIcon) — Marketplace-blocking false positives.
+        freeCompilerArgs.add("-jvm-default=no-compatibility")
+    }
 }
 
 tasks.test {
@@ -107,7 +114,6 @@ intellijPlatform {
         failureLevel = listOf(
             FailureLevel.COMPATIBILITY_PROBLEMS,
             FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES,
-            FailureLevel.MISSING_DEPENDENCIES,
             FailureLevel.INVALID_PLUGIN,
         )
         ides {

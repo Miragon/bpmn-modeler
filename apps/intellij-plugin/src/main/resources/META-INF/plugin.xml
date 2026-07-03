@@ -67,6 +67,14 @@
     -->
     <depends optional="true" config-file="modeler-json.xml">com.intellij.modules.json</depends>
 
+    <!--
+        2026.2 split JCEF out of the core class path into its own module, so without
+        this the plugin's class loader can't see JBCefApp and crashes at startup.
+        Optional because the module is absent on the 242 floor (JCEF still core
+        there); where present it becomes a class-loader parent.
+    -->
+    <depends optional="true" config-file="modeler-jcef.xml">intellij.platform.ui.jcef</depends>
+
     <extensions defaultExtensionNs="com.intellij">
         <!--
             Registers `.bpmn` as a real file type so (a) JetBrains Marketplace's
