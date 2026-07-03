@@ -7,12 +7,15 @@
  * external repos the single source of truth (issue #961): nothing is copied,
  * templates are fetched and merged into the existing render pipeline.
  *
- * A marketplace is registered either as a public GitHub repo or as a local
+ * A marketplace is registered as a GitHub repo, a GitLab project, or a local
  * on-disk folder (so manual testing and air-gapped/shared-drive setups need no
- * repository at all). Beyond that, Slice 1 supports public GitHub only; GitLab /
- * `baseUrl` / private repos follow in later slices, so the parser rejects
- * anything it cannot yet honour rather than silently dropping it.
+ * repository at all). Public and private repos are both supported, on the public
+ * hosts and — via an object settings entry carrying a `baseUrl` — on self-hosted
+ * GitHub Enterprise / GitLab. The parser rejects anything it cannot honour
+ * rather than silently dropping it.
  */
+
+import { MarketplaceSettingsEntry } from "../../shared/domain/hostPorts";
 
 /**
  * Thrown when a `marketplace.json` (or the URL desugared into a registration)
@@ -27,9 +30,10 @@ export class InvalidMarketplaceError extends Error {
 }
 
 /**
- * Where a registered marketplace's `marketplace.json` lives: a public GitHub
- * repo, or a local on-disk folder. The discriminant lets the service resolve a
- * registration to a concrete fetch without re-sniffing how it was entered.
+ * Where a registered marketplace's `marketplace.json` lives: a GitHub repo, a
+ * GitLab project, or a local on-disk folder. The discriminant lets the service
+ * resolve a registration to a concrete fetch without re-sniffing how it was
+ * entered. `baseUrl` (absent = public host) names a self-hosted GHE / GitLab.
  */
 export type MarketplaceLocation =
     | {
@@ -37,18 +41,26 @@ export type MarketplaceLocation =
           readonly owner: string;
           readonly repo: string;
           readonly ref?: string;
+          readonly baseUrl?: string;
+      }
+    | {
+          readonly kind: "gitlab";
+          readonly projectPath: string;
+          readonly ref?: string;
+          readonly baseUrl?: string;
       }
     | { readonly kind: "local"; readonly rootDir: string };
 
 /**
- * A registered marketplace: the GitHub repo or local folder that holds
+ * A registered marketplace: the GitHub/GitLab repo or local folder that holds
  * `marketplace.json`.
  *
- * `id` is a filesystem-safe key derived from the location (owner/repo plus `ref`
+ * `id` is a filesystem-safe key derived from the location (repo path plus `ref`
  * when pinned, or the folder path) so the on-disk cache layout
  * (`<globalStorage>/marketplaces/<id>/…`) is stable across refreshes yet
- * distinct for the same repo registered at two refs. `url` is kept verbatim so
- * it round-trips through settings.
+ * distinct for the same repo registered at two refs. `url` is a display label:
+ * the verbatim string for a pasted URL, or {@link marketplaceEntryLabel}'s
+ * `host/repo[@ref]` for an object settings entry (which has no single string).
  */
 export interface MarketplaceRegistration {
     readonly id: string;
@@ -75,10 +87,20 @@ export type TemplateSource =
           readonly repo: string;
           readonly ref?: string;
           readonly path: string;
+          readonly baseUrl?: string;
           // A declared hint, not the source of truth (access is proven by the
           // fetch): lets the service pre-prompt for a token before hitting a
           // known-private repo. Undeclared-private repos still get the
           // failure-driven prompt.
+          readonly visibility?: "public" | "private";
+      }
+    | {
+          readonly kind: "gitlab";
+          readonly projectPath: string;
+          readonly ref?: string;
+          readonly path: string;
+          readonly baseUrl?: string;
+          // Same hint role as on the github arm (D2).
           readonly visibility?: "public" | "private";
       }
     | { readonly kind: "local"; readonly path: string };
@@ -109,12 +131,14 @@ function normalizeSourcePath(raw: string): string {
 /**
  * Parses a marketplace reference into a {@link MarketplaceRegistration}.
  *
- * A `file://` URL or an absolute filesystem path registers a *local* folder
- * (no repository required); anything else is parsed as a public GitHub repo.
- * The split is detected here so callers (and input validation) never re-derive
- * "is this local or remote".
+ * A `file://` URL or an absolute filesystem path registers a *local* folder;
+ * a `github.com` URL (or the bare `owner/repo` shorthand) a GitHub repo; a
+ * `gitlab.com` URL a GitLab project. Any other dotted host is rejected: a
+ * self-hosted GHE / GitLab is registered through a `settings.json` object entry
+ * carrying a `baseUrl` (see {@link parseMarketplaceEntry}), which a bare URL
+ * string cannot express unambiguously.
  *
- * @throws {InvalidMarketplaceError} when the input is neither.
+ * @throws {InvalidMarketplaceError} when the input is none of these.
  */
 export function parseMarketplaceUrl(input: string): MarketplaceRegistration {
     const trimmed = input.trim();
@@ -127,7 +151,94 @@ export function parseMarketplaceUrl(input: string): MarketplaceRegistration {
             `"~" home paths must be expanded to an absolute path before registration: "${input}"`,
         );
     }
-    return parseLocalFolder(trimmed) ?? parseGitHubRepoUrl(trimmed);
+
+    const local = parseLocalFolder(trimmed);
+    if (local !== undefined) {
+        return local;
+    }
+
+    const host = extractHost(trimmed);
+    if (host === "gitlab.com") {
+        return parseGitLabRepoUrl(trimmed);
+    }
+    // A bare `owner/repo` shorthand has no dotted host segment; treat it, and an
+    // explicit github.com URL, as GitHub.
+    if (host === undefined || host === "github.com") {
+        return parseGitHubRepoUrl(trimmed);
+    }
+    throw new InvalidMarketplaceError(
+        `unrecognized marketplace host "${host}" — register a self-hosted GitHub Enterprise ` +
+            `or GitLab via a settings.json object entry with a "baseUrl": "${input}"`,
+    );
+}
+
+/**
+ * Extracts the lowercased host from a URL-ish string, or `undefined` for the
+ * bare `owner/repo` shorthand. A GitHub/GitLab namespace segment never contains
+ * a dot, so a dotted first segment is unambiguously a host.
+ */
+function extractHost(input: string): string | undefined {
+    const firstSegment = input
+        .replace(/^https?:\/\//i, "")
+        .replace(/^www\./i, "")
+        .split("/")[0]
+        .toLowerCase();
+    return firstSegment.includes(".") ? firstSegment : undefined;
+}
+
+/**
+ * Validates a self-hosted `baseUrl` (GHE / self-hosted GitLab): an http(s)
+ * absolute URL, returned with any trailing slash stripped so an adapter can
+ * append `/api/...` without doubling the slash. Validating with `new URL` here
+ * means {@link hostForConfig} can re-parse it without a try/catch.
+ */
+function parseBaseUrl(raw: unknown, context: string): string {
+    if (typeof raw !== "string" || raw.trim().length === 0) {
+        throw new InvalidMarketplaceError(`${context} "baseUrl" must be a non-empty string`);
+    }
+    let parsed: URL;
+    try {
+        parsed = new URL(raw.trim());
+    } catch {
+        throw new InvalidMarketplaceError(`${context} "baseUrl" is not a valid URL: "${raw}"`);
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new InvalidMarketplaceError(`${context} "baseUrl" must be an http(s) URL: "${raw}"`);
+    }
+    return stripTrailingSlashes(raw.trim());
+}
+
+/**
+ * Trims trailing `/` by scanning from the end rather than a `\/+$` regex, whose
+ * anchored quantifier backtracks polynomially (js/polynomial-redos) on
+ * user-edited settings input.
+ */
+function stripTrailingSlashes(value: string): string {
+    let end = value.length;
+    while (end > 0 && value[end - 1] === "/") {
+        end--;
+    }
+    return value.slice(0, end);
+}
+
+/**
+ * Filesystem-safe cache key for a remote marketplace. `github.com` without a
+ * `baseUrl` keeps the legacy `owner__repo[__ref]` slug so caches written before
+ * slice 3 stay valid; every other origin is host-prefixed
+ * (`<host>__<repo path with / → __>[__ref]`). A GitHub owner cannot contain a
+ * dot, so a host-prefixed slug (always starting with a dotted host) can never
+ * collide with a legacy one.
+ */
+function marketplaceId(
+    host: string,
+    repoPath: string,
+    ref: string | undefined,
+    legacyGithub: boolean,
+): string {
+    const path = repoPath.replace(/\//g, "__");
+    const base = legacyGithub ? path : `${host}__${path}`;
+    const slug = ref ? `${base}__${ref}` : base;
+    return slug.replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
 /**
@@ -243,18 +354,174 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
     if (owner.includes(".")) {
         throw new InvalidMarketplaceError(`not a public GitHub repository URL: "${input}"`);
     }
-    // `/tree/<ref>` is the only browse form Slice 1 desugars; a branch name may
-    // itself contain slashes, so everything after `tree` is the ref.
+    // `/tree/<ref>` is the only browse form desugared; a branch name may itself
+    // contain slashes, so everything after `tree` is the ref.
     const ref = tail[0] === "tree" && tail.length > 1 ? tail.slice(1).join("/") : undefined;
 
-    // Fold `ref` into the id so the same repo pinned at two refs caches into
-    // separate dirs instead of clobbering one shared `<owner>__<repo>` slot.
-    const slug = ref ? `${owner}__${repo}__${ref}` : `${owner}__${repo}`;
     return {
-        id: slug.replace(/[^a-zA-Z0-9._-]/g, "-"),
+        // Legacy (no host prefix): a github.com URL never carries a baseUrl, so
+        // the same repo added by URL or by a baseUrl-less object entry shares one
+        // cache slot; `ref` folds in so two refs of one repo cache separately.
+        id: marketplaceId("github.com", `${owner}/${repo}`, ref, true),
         location: { kind: "github", owner, repo, ref },
         url: trimmed,
     };
+}
+
+/**
+ * Parses a `gitlab.com` project reference into a {@link MarketplaceRegistration}.
+ *
+ * Accepts the pasteable forms — `https://gitlab.com/group/project`, a nested
+ * `group/subgroup/project`, a `.git` clone URL, or a `/-/tree/<ref>` browse URL.
+ * GitLab wraps the project path before the literal `/-/` route separator, so
+ * everything before `/-/` is the project namespace and a `/-/tree/<ref…>` route
+ * desugars into the `ref` (D1). Unlike GitHub there is no exactly-two-segment
+ * rule: subgroups nest arbitrarily deep.
+ *
+ * @throws {InvalidMarketplaceError} when the input is not a GitLab project URL.
+ */
+function parseGitLabRepoUrl(input: string): MarketplaceRegistration {
+    const trimmed = input.trim();
+    const rest = trimmed
+        .replace(/^https?:\/\//i, "")
+        .replace(/^www\./i, "")
+        .replace(/^gitlab\.com\//i, "")
+        .replace(/\.git(?=$|\/|#|\?)/i, "")
+        .split(/[?#]/)[0];
+
+    // The project namespace ends at GitLab's `/-/` route separator, if present.
+    const [projectPart, route] = rest.split("/-/");
+    const projectSegments = projectPart.split("/").filter((segment) => segment.length > 0);
+    if (projectSegments.length < 2) {
+        throw new InvalidMarketplaceError(`not a GitLab project URL: "${input}"`);
+    }
+
+    let ref: string | undefined;
+    if (route !== undefined) {
+        const routeSegments = route.split("/").filter((segment) => segment.length > 0);
+        if (routeSegments[0] === "tree" && routeSegments.length > 1) {
+            ref = routeSegments.slice(1).join("/");
+        }
+    }
+
+    const projectPath = projectSegments.join("/");
+    return {
+        id: marketplaceId("gitlab.com", projectPath, ref, false),
+        location: { kind: "gitlab", projectPath, ref },
+        url: trimmed,
+    };
+}
+
+/**
+ * Parses one persisted {@link MarketplaceSettingsEntry} into a registration.
+ *
+ * A string is a pasted URL / path (delegated to {@link parseMarketplaceUrl}).
+ * An object is the settings-JSON-only form for a self-hosted host: validated
+ * defensively (a user hand-edits `settings.json`) — provider enum, a
+ * provider-appropriate `repo`, optional string `ref`, and an http(s) `baseUrl`.
+ *
+ * @throws {InvalidMarketplaceError} on any shape violation.
+ */
+export function parseMarketplaceEntry(entry: MarketplaceSettingsEntry): MarketplaceRegistration {
+    if (typeof entry === "string") {
+        return parseMarketplaceUrl(entry);
+    }
+    // The port types the object arm, but settings.json is user-edited, so treat
+    // every field as unknown and re-validate rather than trust the shape.
+    return parseMarketplaceObject(entry as Record<string, unknown>);
+}
+
+function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegistration {
+    const { provider } = entry;
+    if (provider !== "github" && provider !== "gitlab") {
+        throw new InvalidMarketplaceError(
+            `marketplace entry "provider" must be "github" or "gitlab"`,
+        );
+    }
+    const { repo } = entry;
+    if (typeof repo !== "string" || repo.trim().length === 0) {
+        throw new InvalidMarketplaceError(`marketplace entry requires a non-empty "repo"`);
+    }
+    const { ref } = entry;
+    if (ref !== undefined && typeof ref !== "string") {
+        throw new InvalidMarketplaceError(`marketplace entry "ref" must be a string`);
+    }
+    const baseUrl =
+        entry.baseUrl !== undefined ? parseBaseUrl(entry.baseUrl, "marketplace entry") : undefined;
+    const host = baseUrl
+        ? new URL(baseUrl).host
+        : provider === "gitlab"
+          ? "gitlab.com"
+          : "github.com";
+
+    const segments = repo
+        .trim()
+        .split("/")
+        .filter((segment) => segment.length > 0);
+    if (provider === "github") {
+        // GitHub is exactly `owner/repo`.
+        if (segments.length !== 2 || /\s/.test(repo)) {
+            throw new InvalidMarketplaceError(
+                `marketplace entry github "repo" must be "owner/repo"`,
+            );
+        }
+        const [owner, repoName] = segments;
+        return {
+            // A baseUrl-less github entry keeps the legacy slug so it shares a
+            // cache slot with the equivalent pasted URL.
+            id: marketplaceId(host, `${owner}/${repoName}`, ref, baseUrl === undefined),
+            location: { kind: "github", owner, repo: repoName, ref, baseUrl },
+            url: entryLabel(host, `${owner}/${repoName}`, ref),
+        };
+    }
+    // GitLab allows nested subgroups: `group[/subgroup…]/project`, ≥2 segments.
+    if (segments.length < 2 || /\s/.test(repo)) {
+        throw new InvalidMarketplaceError(
+            `marketplace entry gitlab "repo" must be "group/project" (subgroups allowed)`,
+        );
+    }
+    const projectPath = segments.join("/");
+    return {
+        id: marketplaceId(host, projectPath, ref, false),
+        location: { kind: "gitlab", projectPath, ref, baseUrl },
+        url: entryLabel(host, projectPath, ref),
+    };
+}
+
+/** The `host/repo[@ref]` display label shared by object registrations and {@link marketplaceEntryLabel}. */
+function entryLabel(host: string, repoPath: string, ref: string | undefined): string {
+    return `${host}/${repoPath}${ref ? `@${ref}` : ""}`;
+}
+
+/**
+ * A stable, human-readable label for a settings entry: the verbatim string, or
+ * `host/repo[@ref]` for an object entry (which has no single URL string).
+ *
+ * Must never throw — {@link TemplateMarketplaceService.updateAll} needs a label
+ * to name a marketplace in a warning *before* {@link parseMarketplaceEntry} has
+ * proven the entry valid — so it reads every field defensively and falls back to
+ * a JSON dump for a malformed object.
+ */
+export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
+    if (typeof entry === "string") {
+        return entry;
+    }
+    if (typeof entry.repo !== "string") {
+        return JSON.stringify(entry);
+    }
+    let host: string;
+    try {
+        host =
+            typeof entry.baseUrl === "string" && entry.baseUrl.length > 0
+                ? new URL(entry.baseUrl).host
+                : entry.provider === "gitlab"
+                  ? "gitlab.com"
+                  : "github.com";
+    } catch {
+        host = entry.provider === "gitlab" ? "gitlab.com" : "github.com";
+    }
+    const ref = typeof entry.ref === "string" ? entry.ref : undefined;
+    return entryLabel(host, entry.repo, ref);
 }
 
 /**
@@ -262,11 +529,11 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
  * into {@link TemplateSource}s.
  *
  * Invariants enforced (the reason this is a parser, not a cast): `sources` must
- * be a non-empty-shaped array; a `github` provider needs a `owner/repo` `repo`
- * and a `path`; a `local` provider needs an absolute or `~` `path`; a
- * provider-less entry carries a `path` and is read as marketplace-relative.
- * Anything else throws so a typo surfaces as a clear error instead of silently
- * loading zero templates.
+ * be a non-empty-shaped array; a `github` provider needs an `owner/repo` `repo`
+ * and a `path`; a `gitlab` provider needs a `group/project` `repo` and a `path`;
+ * a `local` provider needs an absolute or `~` `path`; a provider-less entry
+ * carries a `path` and is read as marketplace-relative. Anything else throws so
+ * a typo surfaces as a clear error instead of silently loading zero templates.
  *
  * @throws {InvalidMarketplaceError} on any shape violation.
  */
@@ -313,6 +580,10 @@ function parseSource(entry: unknown, index: number): TemplateSource {
         return { kind: "local", path: local };
     }
 
+    if (source.provider === "gitlab") {
+        return parseGitLabSource(source, index, path);
+    }
+
     if (source.provider !== "github") {
         throw new InvalidMarketplaceError(
             `sources[${index}] provider "${String(source.provider)}" is not supported yet`,
@@ -324,19 +595,9 @@ function parseSource(entry: unknown, index: number): TemplateSource {
         throw new InvalidMarketplaceError(`sources[${index}] requires "repo" in "owner/repo" form`);
     }
     const [owner, repoName] = repo.split("/");
-    const ref = source.ref;
-    if (ref !== undefined && typeof ref !== "string") {
-        throw new InvalidMarketplaceError(`sources[${index}] "ref" must be a string`);
-    }
-    // A github entry graduates `visibility` from tolerated-unknown (as it stays
-    // on relative/local entries) to validated: a typo like `"privte"` must fail
-    // loudly rather than silently degrade to the failure-driven prompt path.
-    const visibility = source.visibility;
-    if (visibility !== undefined && visibility !== "public" && visibility !== "private") {
-        throw new InvalidMarketplaceError(
-            `sources[${index}] "visibility" must be "public" or "private"`,
-        );
-    }
+    const ref = parseSourceRef(source.ref, index);
+    const visibility = parseSourceVisibility(source.visibility, index);
+    const baseUrl = parseSourceBaseUrl(source.baseUrl, index);
 
     return {
         kind: "github",
@@ -344,6 +605,64 @@ function parseSource(entry: unknown, index: number): TemplateSource {
         repo: repoName,
         ref,
         path: normalizeSourcePath(path),
+        baseUrl,
         visibility,
     };
+}
+
+/**
+ * Projects a `provider: "gitlab"` source. `repo` is the full project namespace
+ * (`group[/subgroup…]/project`, ≥2 segments — subgroups nest, so no exactly-two
+ * rule); `visibility` and `baseUrl` are validated exactly as on the github arm.
+ */
+function parseGitLabSource(
+    source: Record<string, unknown>,
+    index: number,
+    path: string,
+): TemplateSource {
+    const repo = source.repo;
+    if (typeof repo !== "string" || !/^[^/\s]+(?:\/[^/\s]+)+$/.test(repo)) {
+        throw new InvalidMarketplaceError(
+            `sources[${index}] requires "repo" in "group/project" form (subgroups allowed)`,
+        );
+    }
+    return {
+        kind: "gitlab",
+        projectPath: repo,
+        ref: parseSourceRef(source.ref, index),
+        path: normalizeSourcePath(path),
+        baseUrl: parseSourceBaseUrl(source.baseUrl, index),
+        visibility: parseSourceVisibility(source.visibility, index),
+    };
+}
+
+/** Validates an optional string `ref` on a source. */
+function parseSourceRef(ref: unknown, index: number): string | undefined {
+    if (ref !== undefined && typeof ref !== "string") {
+        throw new InvalidMarketplaceError(`sources[${index}] "ref" must be a string`);
+    }
+    return ref;
+}
+
+/**
+ * Validates an optional `visibility` hint. A github/gitlab entry graduates it
+ * from tolerated-unknown (as it stays on relative/local entries) to validated,
+ * so a typo like `"privte"` fails loudly rather than silently degrading to the
+ * failure-driven prompt path.
+ */
+function parseSourceVisibility(
+    visibility: unknown,
+    index: number,
+): "public" | "private" | undefined {
+    if (visibility !== undefined && visibility !== "public" && visibility !== "private") {
+        throw new InvalidMarketplaceError(
+            `sources[${index}] "visibility" must be "public" or "private"`,
+        );
+    }
+    return visibility;
+}
+
+/** Validates an optional self-hosted `baseUrl` on a source. */
+function parseSourceBaseUrl(baseUrl: unknown, index: number): string | undefined {
+    return baseUrl !== undefined ? parseBaseUrl(baseUrl, `sources[${index}]`) : undefined;
 }

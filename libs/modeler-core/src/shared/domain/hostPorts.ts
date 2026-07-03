@@ -103,6 +103,27 @@ export interface ClipboardPort {
 }
 
 /**
+ * One registered element-template marketplace as it is stored in settings.
+ *
+ * A bare string is a pasted GitHub/GitLab URL (or a local folder path) parsed by
+ * the domain — the form the *Add* command writes. The object form is
+ * settings-JSON-only (§10): it names a self-hosted host via `baseUrl`
+ * (GitHub Enterprise `/api/v3`, or a self-hosted GitLab), which a dotted-host URL
+ * string could not express unambiguously. `repo` is `owner/repo` for GitHub and
+ * the full `group/subgroup/project` path for GitLab (nested subgroups make a
+ * two-field split lossy). Objects are validated defensively at parse time since
+ * a user hand-edits `settings.json`.
+ */
+export type MarketplaceSettingsEntry =
+    | string
+    | {
+          readonly provider: "github" | "gitlab";
+          readonly repo: string;
+          readonly baseUrl?: string;
+          readonly ref?: string;
+      };
+
+/**
  * Read-only access to the modeler's user/workspace configuration.
  */
 export interface SettingsPort {
@@ -117,8 +138,11 @@ export interface SettingsPort {
     getPersistCodeLinkMap(): boolean;
     /** Whether Camunda SPIN globals (`S`/`JSON`) and SpinJsonNode members are offered in C7 scripts. */
     getScriptingSpin(): boolean;
-    /** GitHub repos (public or private) or local folders registered as element-template marketplaces. */
-    getTemplateMarketplaces(): string[];
+    /**
+     * Registered element-template marketplaces: GitHub/GitLab repos (public or
+     * private, incl. self-hosted via a `baseUrl` object entry) or local folders.
+     */
+    getTemplateMarketplaces(): MarketplaceSettingsEntry[];
 }
 
 /**

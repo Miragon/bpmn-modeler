@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { InvalidMarketplaceError, parseMarketplace, parseMarketplaceUrl } from "./marketplace";
+import {
+    InvalidMarketplaceError,
+    marketplaceEntryLabel,
+    parseMarketplace,
+    parseMarketplaceEntry,
+    parseMarketplaceUrl,
+} from "./marketplace";
 
 describe("parseMarketplaceUrl (github)", () => {
     it("parses a plain repo URL without a ref", () => {
@@ -55,15 +61,162 @@ describe("parseMarketplaceUrl (github)", () => {
         );
     });
 
-    it("rejects a non-GitHub host rather than parsing it as a bogus repo", () => {
-        // The host survives as `owner`; a dotted first segment is unambiguously
-        // foreign (a GitHub org never contains a dot), so it must throw.
-        expect(() => parseMarketplaceUrl("https://gitlab.com/acme/templates")).toThrow(
-            InvalidMarketplaceError,
-        );
+    it("routes gitlab.com to the GitLab parser but rejects other dotted hosts", () => {
+        // gitlab.com is now first-class; an unknown self-hosted origin must be an
+        // object entry (baseUrl), so a bare URL to it still throws.
+        expect(parseMarketplaceUrl("https://gitlab.com/acme/templates").location).toMatchObject({
+            kind: "gitlab",
+            projectPath: "acme/templates",
+        });
         expect(() => parseMarketplaceUrl("https://git.example.com/o/r")).toThrow(
             InvalidMarketplaceError,
         );
+    });
+});
+
+describe("parseMarketplaceUrl (gitlab)", () => {
+    it("parses a plain project URL", () => {
+        const reg = parseMarketplaceUrl("https://gitlab.com/acme/templates");
+        expect(reg.location).toEqual({
+            kind: "gitlab",
+            projectPath: "acme/templates",
+            ref: undefined,
+        });
+        // gitlab is host-prefixed (never legacy), so it can't collide with a
+        // github `owner__repo` slot.
+        expect(reg.id).toBe("gitlab.com__acme__templates");
+        expect(reg.url).toBe("https://gitlab.com/acme/templates");
+    });
+
+    it("keeps nested subgroups in the project path (no exactly-two rule)", () => {
+        const reg = parseMarketplaceUrl("https://gitlab.com/group/sub/team/project");
+        expect(reg.location).toMatchObject({
+            kind: "gitlab",
+            projectPath: "group/sub/team/project",
+        });
+        expect(reg.id).toBe("gitlab.com__group__sub__team__project");
+    });
+
+    it("desugars a /-/tree/<ref> browse URL, keeping a slashed ref whole", () => {
+        const reg = parseMarketplaceUrl("https://gitlab.com/group/sub/project/-/tree/feature/x");
+        expect(reg.location).toMatchObject({
+            kind: "gitlab",
+            projectPath: "group/sub/project",
+            ref: "feature/x",
+        });
+        expect(reg.id).toBe("gitlab.com__group__sub__project__feature-x");
+    });
+
+    it("strips a .git suffix and a www. prefix", () => {
+        expect(parseMarketplaceUrl("https://www.gitlab.com/acme/templates.git").location).toEqual({
+            kind: "gitlab",
+            projectPath: "acme/templates",
+            ref: undefined,
+        });
+    });
+
+    it("rejects a one-segment gitlab path", () => {
+        expect(() => parseMarketplaceUrl("https://gitlab.com/acme")).toThrow(
+            InvalidMarketplaceError,
+        );
+    });
+});
+
+describe("parseMarketplaceEntry (object entries)", () => {
+    it("parses a self-hosted GitHub Enterprise object entry", () => {
+        const reg = parseMarketplaceEntry({
+            provider: "github",
+            repo: "team/templates",
+            baseUrl: "https://ghe.acme.com/",
+            ref: "main",
+        });
+        expect(reg.location).toEqual({
+            kind: "github",
+            owner: "team",
+            repo: "templates",
+            ref: "main",
+            baseUrl: "https://ghe.acme.com", // trailing slash stripped
+        });
+        // A baseUrl host-prefixes the id; the ghe host, not github.com.
+        expect(reg.id).toBe("ghe.acme.com__team__templates__main");
+        expect(reg.url).toBe("ghe.acme.com/team/templates@main");
+    });
+
+    it("parses a self-hosted GitLab object entry with nested subgroups", () => {
+        const reg = parseMarketplaceEntry({
+            provider: "gitlab",
+            repo: "group/sub/project",
+            baseUrl: "https://gitlab.acme.com",
+        });
+        expect(reg.location).toEqual({
+            kind: "gitlab",
+            projectPath: "group/sub/project",
+            ref: undefined,
+            baseUrl: "https://gitlab.acme.com",
+        });
+        expect(reg.id).toBe("gitlab.acme.com__group__sub__project");
+    });
+
+    it("keeps a baseUrl-less github object entry on the legacy cache slot", () => {
+        // Same slug as the equivalent pasted URL, so they share one cache dir.
+        const obj = parseMarketplaceEntry({ provider: "github", repo: "acme/templates" });
+        const url = parseMarketplaceUrl("https://github.com/acme/templates");
+        expect(obj.id).toBe("acme__templates");
+        expect(obj.id).toBe(url.id);
+    });
+
+    it("delegates a string entry to the URL parser", () => {
+        expect(parseMarketplaceEntry("https://github.com/acme/templates").location).toMatchObject({
+            kind: "github",
+            owner: "acme",
+        });
+    });
+
+    it("rejects a bad provider, a mis-shaped repo, and a non-http baseUrl", () => {
+        expect(() =>
+            parseMarketplaceEntry({ provider: "bitbucket" as never, repo: "a/b" }),
+        ).toThrow(InvalidMarketplaceError);
+        // GitHub must be exactly owner/repo.
+        expect(() => parseMarketplaceEntry({ provider: "github", repo: "a/b/c" })).toThrow(
+            InvalidMarketplaceError,
+        );
+        // GitLab needs at least a group and a project.
+        expect(() => parseMarketplaceEntry({ provider: "gitlab", repo: "bare" })).toThrow(
+            InvalidMarketplaceError,
+        );
+        expect(() =>
+            parseMarketplaceEntry({ provider: "github", repo: "a/b", baseUrl: "ftp://x" }),
+        ).toThrow(InvalidMarketplaceError);
+    });
+});
+
+describe("marketplaceEntryLabel", () => {
+    it("returns a string entry verbatim", () => {
+        expect(marketplaceEntryLabel("https://github.com/acme/templates")).toBe(
+            "https://github.com/acme/templates",
+        );
+    });
+
+    it("builds host/repo[@ref] for object entries", () => {
+        expect(marketplaceEntryLabel({ provider: "gitlab", repo: "g/p" })).toBe("gitlab.com/g/p");
+        expect(marketplaceEntryLabel({ provider: "github", repo: "a/b", ref: "main" })).toBe(
+            "github.com/a/b@main",
+        );
+        expect(
+            marketplaceEntryLabel({
+                provider: "gitlab",
+                repo: "g/p",
+                baseUrl: "https://gl.acme.com",
+            }),
+        ).toBe("gl.acme.com/g/p");
+    });
+
+    it("never throws on a malformed object, falling back to a JSON dump", () => {
+        // updateAll needs a label before validation runs, so a garbage entry
+        // still yields *some* label rather than crashing the whole update.
+        const garbage = { provider: "github" } as never;
+        expect(() => marketplaceEntryLabel(garbage)).not.toThrow();
+        expect(marketplaceEntryLabel(garbage)).toBe(JSON.stringify({ provider: "github" }));
     });
 });
 
@@ -193,9 +346,9 @@ describe("parseMarketplace", () => {
         ).toThrow(InvalidMarketplaceError);
     });
 
-    it("rejects an unsupported provider (later slices)", () => {
+    it("rejects an unsupported provider", () => {
         expect(() =>
-            parseMarketplace({ sources: [{ provider: "gitlab", repo: "a/b", path: "x" }] }),
+            parseMarketplace({ sources: [{ provider: "bitbucket", repo: "a/b", path: "x" }] }),
         ).toThrow(InvalidMarketplaceError);
     });
 
@@ -231,5 +384,61 @@ describe("parseMarketplace", () => {
                 ],
             }),
         ).not.toThrow();
+    });
+
+    it("parses a gitlab source, keeping the full nested project path", () => {
+        const sources = parseMarketplace({
+            sources: [
+                {
+                    provider: "gitlab",
+                    repo: "group/sub/project",
+                    ref: "main",
+                    path: "resources/element-templates",
+                    baseUrl: "https://gitlab.acme.com/",
+                    visibility: "private",
+                },
+            ],
+        });
+        expect(sources).toEqual([
+            {
+                kind: "gitlab",
+                projectPath: "group/sub/project",
+                ref: "main",
+                path: "resources/element-templates",
+                baseUrl: "https://gitlab.acme.com", // normalized
+                visibility: "private",
+            },
+        ]);
+    });
+
+    it("rejects a gitlab source whose repo has fewer than two segments", () => {
+        expect(() =>
+            parseMarketplace({ sources: [{ provider: "gitlab", repo: "bare", path: "x" }] }),
+        ).toThrow(InvalidMarketplaceError);
+    });
+
+    it("rejects an unknown visibility on a gitlab source (typos fail loudly)", () => {
+        expect(() =>
+            parseMarketplace({
+                sources: [{ provider: "gitlab", repo: "g/p", path: "x", visibility: "privte" }],
+            }),
+        ).toThrow(InvalidMarketplaceError);
+    });
+
+    it("rejects an invalid baseUrl on a source", () => {
+        expect(() =>
+            parseMarketplace({
+                sources: [{ provider: "github", repo: "a/b", path: "x", baseUrl: "not a url" }],
+            }),
+        ).toThrow(InvalidMarketplaceError);
+    });
+
+    it("carries a baseUrl through a github source", () => {
+        const [source] = parseMarketplace({
+            sources: [
+                { provider: "github", repo: "a/b", path: "x", baseUrl: "https://ghe.acme.com" },
+            ],
+        });
+        expect(source).toMatchObject({ kind: "github", baseUrl: "https://ghe.acme.com" });
     });
 });
