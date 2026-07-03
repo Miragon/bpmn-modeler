@@ -65,26 +65,57 @@ bridge (`apps/modeler-bridge/`), never reimplemented in Kotlin.
 ## Build & run
 
 This Gradle build does **not** invoke the JS/Bun toolchain — it only packages
-the already-built artefacts. Build them from the repo root first:
+the already-built artefacts (webview bundles + the `modeler-bridge` binary).
+
+**One command (from the repo root)** builds those artefacts and launches the
+sandbox IDE:
+
+```bash
+corepack yarn intellij:run
+```
+
+`intellij:run` = `intellij:build` (libs → bpmn + deployment webviews → bridge
+`compile`) then `./gradlew runIde`. Use `corepack yarn intellij:build` alone to
+refresh the artefacts without launching, then re-run `runIde` yourself.
+
+<details>
+<summary>The manual equivalent</summary>
 
 ```bash
 corepack yarn build:libs
 corepack yarn build:bpmn-webview          # → dist/webview-staging/bpmn-webview/
+corepack yarn build:deployment-webview    # → dist/webview-staging/deployment-webview/
 corepack yarn workspace @miragon/bpmn-modeler-bridge compile
                                           # → apps/modeler-bridge/dist/modeler-bridge
+cd apps/intellij-plugin && ./gradlew runIde
 ```
 
-Then, from this directory:
-
-```bash
-./gradlew runIde
-```
+</details>
 
 A sandboxed IntelliJ IDEA Community launches. Open any `.bpmn` file — it opens in
 a **BPMN Modeler** tab and the diagram renders. Move/add an element, then
 `Ctrl/Cmd+S`, and switch to the plain-text tab to confirm the round-tripped XML.
 The status bar shows the engine version + template count; loading errors surface
 as balloons. Tail the IDE log for `[bridge stderr]` lines to watch the seam.
+
+> The Gradle build only repackages the artefacts `intellij:build` produced — a
+> webview/CSS change is **not** picked up until you rebuild them. Re-run
+> `corepack yarn intellij:build` (or the full `intellij:run`) after editing the
+> webview.
+
+### Verifying the dark-mode Token Simulation fix (#1199)
+
+Token Simulation used to break the diagram in dark mode (white shapes, vanished
+arrows). To verify it stays fixed: switch the sandbox IDE to a **dark** theme
+(`Settings → Appearance` → a Dark theme), open a diagram with sequence flows
+(e.g. `c7-subscribe-newsletter.bpmn`), click **Token Simulation**, and confirm
+transparent backgrounds stay transparent and every flow/arrow remains visible.
+
+The bug lives in the shared `bpmn-webview` dark stylesheet, so the fastest loop
+is **not** IntelliJ — reproduce in the browser preview instead:
+`corepack yarn workspace @miragon/bpmn-modeler-webview serve`, then open
+`http://localhost:5173/?theme=dark` (the `?theme=dark` switch is dev-only) and
+toggle Token Simulation.
 
 ### Crash-recovery / orphan check
 
