@@ -312,3 +312,69 @@ describe("GitHubSource authenticated requests", () => {
         expect(error.message).toMatch(/HTTP 500/);
     });
 });
+
+describe("GitHubSource on GitHub Enterprise (baseUrl)", () => {
+    it("roots the tree call at <baseUrl>/api/v3", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue(ok(JSON.stringify({ tree: [] })));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "team",
+            repo: "repo",
+            ref: "main",
+            path: "",
+            baseUrl: "https://ghe.acme.com",
+        });
+
+        await source.listTemplateFiles();
+
+        expect(http.getJson).toHaveBeenCalledWith(
+            "https://ghe.acme.com/api/v3/repos/team/repo/git/trees/main?recursive=1",
+            expect.anything(),
+        );
+    });
+
+    it("fetches tokenless GHE blobs via the Contents API with no Authorization header", async () => {
+        const http = createHttp();
+        http.getText.mockResolvedValue(ok("{ }"));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "team",
+            repo: "repo",
+            ref: "main",
+            path: "",
+            baseUrl: "https://ghe.acme.com",
+            // No token: enterprise still has no raw host, so it must use Contents.
+        });
+
+        await source.fetchFile("a.json");
+
+        const [url, headers] = http.getText.mock.calls[0];
+        expect(url).toBe("https://ghe.acme.com/api/v3/repos/team/repo/contents/a.json?ref=main");
+        expect(headers).not.toHaveProperty("Authorization");
+        // The raw host is never used on GHE.
+        expect(
+            http.getText.mock.calls.some(([u]) =>
+                u.startsWith("https://raw.githubusercontent.com"),
+            ),
+        ).toBe(false);
+    });
+
+    it("attributes an access error to the GHE host, not github.com", async () => {
+        const http = createHttp();
+        http.getJson.mockResolvedValue({ status: 404, body: "" });
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "team",
+            repo: "repo",
+            ref: "main",
+            path: "",
+            baseUrl: "https://ghe.acme.com",
+        });
+
+        await expect(source.listTemplateFiles()).rejects.toMatchObject({
+            name: "RepositoryAccessError",
+            host: "ghe.acme.com",
+        });
+    });
+});

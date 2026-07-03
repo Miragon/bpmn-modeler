@@ -1,26 +1,29 @@
 import { HttpClient, HttpResponse } from "../../deployment/domain/ports";
-import { GitHubSourceConfig, RepositoryAccessError, RepositorySource } from "../domain/ports";
+import {
+    GitHubSourceConfig,
+    hostForConfig,
+    RepositoryAccessError,
+    RepositorySource,
+} from "../domain/ports";
 
 // GitHub's REST API rejects requests without a User-Agent; identify the client.
 const USER_AGENT = "bpmn-modeler";
 
-// The origin every credential and access error is attributed to. Kept in step
-// with `hostForConfig` so the service's per-host token bookkeeping lines up.
-const GITHUB_HOST = "github.com";
-
 /**
- * {@link RepositorySource} over the GitHub REST + raw APIs.
+ * {@link RepositorySource} over the GitHub REST + raw APIs, on public
+ * `github.com` or a self-hosted GitHub Enterprise instance (`config.baseUrl`).
  *
  * Listing uses the **recursive git-tree API** (decision D6): one call returns
  * the whole tree, which is then filtered to `.json` blobs under the source
  * path — this avoids the per-directory Contents calls that would blow through
  * GitHub's 60 req/hr unauthenticated rate limit on a deep template folder.
  *
- * Fetching splits on whether a `token` is present. Unauthenticated, it reads
- * blobs from `raw.githubusercontent.com` (public files, no rate concern) and
- * deliberately never sends the token there (D9). Authenticated, it switches to
- * the Contents API (`GET /repos/o/r/contents/<path>`), which serves private
- * repos and is GHE-ready; the raw host cannot see private content.
+ * Fetching splits on whether the blob can come from the raw host. Only
+ * public github.com uses `raw.githubusercontent.com` (no rate concern) and
+ * deliberately never sends the token there (D9). With a `token` *or* a `baseUrl`
+ * it switches to the Contents API (`GET <apiRoot>/repos/o/r/contents/<path>`),
+ * which serves private repos and is the only blob route on GHE — enterprise has
+ * no raw host. A tokenless GHE read carries no auth header at all.
  */
 export class GitHubSource implements RepositorySource {
     // The resolved branch/tag/SHA, memoized so a missing `ref` triggers exactly
@@ -38,7 +41,7 @@ export class GitHubSource implements RepositorySource {
         const { owner, repo } = this.config;
         const ref = await this.resolveRef();
 
-        const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`;
+        const url = `${this.apiRoot()}/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`;
         const response = await this.http.getJson(url, this.apiHeaders());
         if (response.status !== 200) {
             this.throwFor(response, `GitHub tree request failed for ${owner}/${repo}@${ref}`);
@@ -76,12 +79,12 @@ export class GitHubSource implements RepositorySource {
     }
 
     async fetchFile(repoPath: string): Promise<string> {
-        const { owner, repo, token } = this.config;
+        const { owner, repo, token, baseUrl } = this.config;
         const ref = await this.resolveRef();
 
-        // Private-repo + GHE-ready path: the raw host cannot see private blobs,
-        // so an authenticated read goes through the Contents API instead.
-        if (token) {
+        // The raw host cannot see private blobs, and GHE has no raw host at all,
+        // so an authenticated *or* enterprise read goes through the Contents API.
+        if (token || baseUrl) {
             return this.fetchViaContentsApi(repoPath, ref);
         }
 
@@ -106,7 +109,7 @@ export class GitHubSource implements RepositorySource {
         const { owner, repo } = this.config;
         const encodedPath = repoPath.split("/").map(encodeURIComponent).join("/");
         const url =
-            `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}` +
+            `${this.apiRoot()}/repos/${owner}/${repo}/contents/${encodedPath}` +
             `?ref=${encodeURIComponent(ref)}`;
         const response = await this.http.getText(url, {
             ...this.apiHeaders(),
@@ -133,7 +136,7 @@ export class GitHubSource implements RepositorySource {
 
         const { owner, repo } = this.config;
         const response = await this.http.getJson(
-            `https://api.github.com/repos/${owner}/${repo}`,
+            `${this.apiRoot()}/repos/${owner}/${repo}`,
             this.apiHeaders(),
         );
         if (response.status !== 200) {
@@ -145,6 +148,15 @@ export class GitHubSource implements RepositorySource {
             throw new Error(`GitHub returned no default_branch for ${owner}/${repo}`);
         }
         return (this.resolvedRef = branch);
+    }
+
+    /**
+     * The REST API root: `<baseUrl>/api/v3` for GitHub Enterprise, else the
+     * public `api.github.com`. GHE hangs its REST API under `/api/v3`, whereas
+     * public GitHub uses the dedicated `api.` subdomain.
+     */
+    private apiRoot(): string {
+        return this.config.baseUrl ? `${this.config.baseUrl}/api/v3` : "https://api.github.com";
     }
 
     private apiHeaders(): Record<string, string> {
@@ -174,7 +186,15 @@ export class GitHubSource implements RepositorySource {
         const { status } = response;
         if (status === 401 || status === 403 || status === 404) {
             const rateLimited = status === 403 && /rate limit/i.test(response.body);
-            throw new RepositoryAccessError(GITHUB_HOST, status, `${owner}/${repo}`, rateLimited);
+            // `hostForConfig` can't return undefined for a github config; the `!`
+            // is safe and keeps the attributed host (github.com or the GHE host)
+            // in step with the service's per-host token bookkeeping.
+            throw new RepositoryAccessError(
+                hostForConfig(this.config)!,
+                status,
+                `${owner}/${repo}`,
+                rateLimited,
+            );
         }
         throw new Error(`${action} (HTTP ${status})`);
     }
