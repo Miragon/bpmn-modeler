@@ -35,8 +35,6 @@ function createService(opts: { manifest?: string | Error } = {}) {
         promptForToken: vi.fn<() => Promise<string | undefined>>(async () => undefined),
     };
 
-    // Each distinct config gets its own scripted source; the root source serves
-    // the manifest, others serve template files keyed by path.
     const sourceFor = (config: RepositorySourceConfig): RepositorySource => {
         if (config.path === "") {
             return {
@@ -432,7 +430,7 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             expect.stringMatching(/was rejected/),
         );
         expect(tokens.setToken).toHaveBeenCalledWith("github.com", "new");
-        expect(stored.get("github.com")).toBe("new"); // rotation = overwrite
+        expect(stored.get("github.com")).toBe("new");
     });
 
     it("batch-prompts once for two private sources when the store is empty", async () => {

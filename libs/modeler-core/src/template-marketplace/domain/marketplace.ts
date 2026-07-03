@@ -3,15 +3,14 @@
  *
  * A *marketplace* is one registered repository holding a `marketplace.json`
  * that does not store templates itself but *points* at where they live — in the
- * same repo via relative paths, or in other GitHub repos. This keeps the
- * external repos the single source of truth (issue #961): nothing is copied,
- * templates are fetched and merged into the existing render pipeline.
+ * same repo via relative paths, or in other repos. External repos stay the
+ * single source of truth: nothing is copied; templates are fetched and merged
+ * into the existing render pipeline.
  *
- * A marketplace is registered as a GitHub repo, a GitLab project, or a local
- * on-disk folder (so manual testing and air-gapped/shared-drive setups need no
- * repository at all). Public and private repos are both supported, on the public
- * hosts and — via an object settings entry carrying a `baseUrl` — on self-hosted
- * GitHub Enterprise / GitLab. The parser rejects anything it cannot honour
+ * A marketplace registers as a GitHub repo, a GitLab project, or a local
+ * on-disk folder (so air-gapped/shared-drive setups need no repository).
+ * Self-hosted GitHub Enterprise / GitLab are reached via an object settings
+ * entry carrying a `baseUrl`. The parser rejects anything it cannot honour
  * rather than silently dropping it.
  */
 
@@ -19,8 +18,8 @@ import { MarketplaceSettingsEntry } from "../../shared/domain/hostPorts";
 
 /**
  * Thrown when a `marketplace.json` (or the URL desugared into a registration)
- * is missing, malformed, or names a capability not supported in this slice.
- * Surfaced to the user via `notifyError`; the registration is then not added.
+ * is missing, malformed, or names an unsupported capability. Surfaced via
+ * `notifyError`; the registration is then not added.
  */
 export class InvalidMarketplaceError extends Error {
     constructor(reason: string) {
@@ -30,10 +29,10 @@ export class InvalidMarketplaceError extends Error {
 }
 
 /**
- * Where a registered marketplace's `marketplace.json` lives: a GitHub repo, a
- * GitLab project, or a local on-disk folder. The discriminant lets the service
- * resolve a registration to a concrete fetch without re-sniffing how it was
- * entered. `baseUrl` (absent = public host) names a self-hosted GHE / GitLab.
+ * Where a registered marketplace's `marketplace.json` lives. The discriminant
+ * lets the service resolve a registration to a concrete fetch without
+ * re-sniffing how it was entered. `baseUrl` (absent = public host) names a
+ * self-hosted GHE / GitLab.
  */
 export type MarketplaceLocation =
     | {
@@ -52,15 +51,11 @@ export type MarketplaceLocation =
     | { readonly kind: "local"; readonly rootDir: string };
 
 /**
- * A registered marketplace: the GitHub/GitLab repo or local folder that holds
- * `marketplace.json`.
- *
- * `id` is a filesystem-safe key derived from the location (repo path plus `ref`
- * when pinned, or the folder path) so the on-disk cache layout
- * (`<globalStorage>/marketplaces/<id>/…`) is stable across refreshes yet
+ * `id` is a filesystem-safe cache key derived from the location so the on-disk
+ * layout (`<globalStorage>/marketplaces/<id>/…`) is stable across refreshes yet
  * distinct for the same repo registered at two refs. `url` is a display label:
- * the verbatim string for a pasted URL, or {@link marketplaceEntryLabel}'s
- * `host/repo[@ref]` for an object settings entry (which has no single string).
+ * the verbatim pasted string, or {@link marketplaceEntryLabel}'s `host/repo[@ref]`
+ * for an object settings entry (which has no single string).
  */
 export interface MarketplaceRegistration {
     readonly id: string;
@@ -69,15 +64,11 @@ export interface MarketplaceRegistration {
 }
 
 /**
- * A `sources[]` entry resolved to where its templates live.
- *
- * `relative` points back into the marketplace itself (resolved against the
- * registration's location at fetch time); `github` names an external repo
- * directly; `local` names an absolute or `~`-rooted directory on this machine,
- * independent of the marketplace's own location. The discriminant lets the
- * service resolve each to a concrete fetch without re-sniffing the raw JSON
- * shape. `local.path` is kept raw (it may contain `~`) because home expansion
- * needs the host's home directory, resolved only at fetch time.
+ * A `sources[]` entry resolved to where its templates live. `relative` points
+ * back into the marketplace itself; `github`/`gitlab` name an external repo
+ * directly; `local` names an absolute or `~`-rooted directory on this machine.
+ * `local.path` is kept raw because `~` expansion needs the host's home
+ * directory, known only at fetch time.
  */
 export type TemplateSource =
     | { readonly kind: "relative"; readonly path: string }
@@ -88,10 +79,9 @@ export type TemplateSource =
           readonly ref?: string;
           readonly path: string;
           readonly baseUrl?: string;
-          // A declared hint, not the source of truth (access is proven by the
-          // fetch): lets the service pre-prompt for a token before hitting a
-          // known-private repo. Undeclared-private repos still get the
-          // failure-driven prompt.
+          // A hint, not the source of truth (the fetch proves access): lets the
+          // service pre-prompt for a token before hitting a known-private repo.
+          // Undeclared-private repos still get the failure-driven prompt.
           readonly visibility?: "public" | "private";
       }
     | {
@@ -100,15 +90,13 @@ export type TemplateSource =
           readonly ref?: string;
           readonly path: string;
           readonly baseUrl?: string;
-          // Same hint role as on the github arm (D2).
           readonly visibility?: "public" | "private";
       }
     | { readonly kind: "local"; readonly path: string };
 
 /**
- * Strips a `./` prefix and surrounding slashes so a source path compares
- * cleanly as a tree prefix (`resources/element-templates`), never `""` vs `"/"`
- * ambiguity. An empty result means "the repository root".
+ * Normalizes a source path so it compares cleanly as a git-tree prefix, with no
+ * `""` vs `"/"` ambiguity. An empty result means "the repository root".
  */
 function normalizeSourcePath(raw: string): string {
     const trimmed = raw.trim();
@@ -131,21 +119,17 @@ function normalizeSourcePath(raw: string): string {
 /**
  * Parses a marketplace reference into a {@link MarketplaceRegistration}.
  *
- * A `file://` URL or an absolute filesystem path registers a *local* folder;
- * a `github.com` URL (or the bare `owner/repo` shorthand) a GitHub repo; a
- * `gitlab.com` URL a GitLab project. Any other dotted host is rejected: a
- * self-hosted GHE / GitLab is registered through a `settings.json` object entry
- * carrying a `baseUrl` (see {@link parseMarketplaceEntry}), which a bare URL
- * string cannot express unambiguously.
- *
- * @throws {InvalidMarketplaceError} when the input is none of these.
+ * A `file://` URL or absolute path is a *local* folder; a `github.com` URL (or
+ * bare `owner/repo` shorthand) a GitHub repo; a `gitlab.com` URL a GitLab
+ * project. Any other dotted host is rejected: a self-hosted GHE / GitLab needs
+ * a `baseUrl`, which a bare URL string cannot express unambiguously (use
+ * {@link parseMarketplaceEntry}'s object form).
  */
 export function parseMarketplaceUrl(input: string): MarketplaceRegistration {
     const trimmed = input.trim();
-    // `~` is a shell convention the host-agnostic core cannot expand (it would
-    // need the home directory, which only the host knows). The host layer
-    // expands it before registration; if a raw `~` still reaches here, reject it
-    // rather than silently mis-reading `~/x` as the GitHub repo `~/x`.
+    // The host-agnostic core cannot expand `~` (only the host knows the home
+    // directory) and expands it before registration. A raw `~` reaching here is
+    // rejected rather than mis-read as the GitHub repo `~/x`.
     if (trimmed.startsWith("~")) {
         throw new InvalidMarketplaceError(
             `"~" home paths must be expanded to an absolute path before registration: "${input}"`,
@@ -173,9 +157,9 @@ export function parseMarketplaceUrl(input: string): MarketplaceRegistration {
 }
 
 /**
- * Extracts the lowercased host from a URL-ish string, or `undefined` for the
- * bare `owner/repo` shorthand. A GitHub/GitLab namespace segment never contains
- * a dot, so a dotted first segment is unambiguously a host.
+ * The lowercased host, or `undefined` for the bare `owner/repo` shorthand. A
+ * GitHub/GitLab namespace segment never contains a dot, so a dotted first
+ * segment is unambiguously a host.
  */
 function extractHost(input: string): string | undefined {
     const firstSegment = input
@@ -187,10 +171,10 @@ function extractHost(input: string): string | undefined {
 }
 
 /**
- * Validates a self-hosted `baseUrl` (GHE / self-hosted GitLab): an http(s)
- * absolute URL, returned with any trailing slash stripped so an adapter can
- * append `/api/...` without doubling the slash. Validating with `new URL` here
- * means {@link hostForConfig} can re-parse it without a try/catch.
+ * Validates a self-hosted `baseUrl` to an http(s) URL, returned with any
+ * trailing slash stripped so an adapter can append `/api/...` without doubling
+ * it. Validating with `new URL` here means {@link hostForConfig} can re-parse it
+ * without a try/catch.
  */
 function parseBaseUrl(raw: unknown, context: string): string {
     if (typeof raw !== "string" || raw.trim().length === 0) {
@@ -209,9 +193,8 @@ function parseBaseUrl(raw: unknown, context: string): string {
 }
 
 /**
- * Trims trailing `/` by scanning from the end rather than a `\/+$` regex, whose
- * anchored quantifier backtracks polynomially (js/polynomial-redos) on
- * user-edited settings input.
+ * Scans from the end rather than a `\/+$` regex, whose anchored quantifier
+ * backtracks polynomially (js/polynomial-redos) on user-edited settings input.
  */
 function stripTrailingSlashes(value: string): string {
     let end = value.length;
@@ -223,9 +206,8 @@ function stripTrailingSlashes(value: string): string {
 
 /**
  * Filesystem-safe cache key for a remote marketplace. `github.com` without a
- * `baseUrl` keeps the legacy `owner__repo[__ref]` slug so caches written before
- * slice 3 stay valid; every other origin is host-prefixed
- * (`<host>__<repo path with / → __>[__ref]`). A GitHub owner cannot contain a
+ * `baseUrl` keeps the legacy `owner__repo[__ref]` slug so older caches stay
+ * valid; every other origin is host-prefixed. A GitHub owner cannot contain a
  * dot, so a host-prefixed slug (always starting with a dotted host) can never
  * collide with a legacy one.
  */
@@ -242,13 +224,10 @@ function marketplaceId(
 }
 
 /**
- * Recognises a local marketplace folder from a `file://` URL or an absolute
- * path. Returns `undefined` (not a throw) for anything else so the caller can
- * fall through to GitHub parsing — the bare `owner/repo` shorthand is relative,
- * so it never collides with an absolute path.
- *
- * A path pointing straight at `marketplace.json` is accepted as sugar for its
- * containing folder, since the manifest is always read from the folder root.
+ * Returns `undefined` (not a throw) for a non-local input so the caller can fall
+ * through to GitHub parsing — the bare `owner/repo` shorthand is relative, so it
+ * never collides with an absolute path. A path pointing straight at
+ * `marketplace.json` is accepted as sugar for its containing folder.
  */
 function parseLocalFolder(input: string): MarketplaceRegistration | undefined {
     const fsPath = toLocalFsPath(input);
@@ -266,17 +245,14 @@ function parseLocalFolder(input: string): MarketplaceRegistration | undefined {
     };
 }
 
-/** POSIX absolute (`/…`), Windows drive (`C:\` / `C:/`), or UNC (`\\host`). */
 function isAbsolutePath(path: string): boolean {
     return path.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith("\\\\");
 }
 
-/** A `~`-rooted home path (`~`, `~/…`, or `~\…`). */
 function isHomePath(path: string): boolean {
     return path === "~" || path.startsWith("~/") || path.startsWith("~\\");
 }
 
-/** @returns the filesystem path for a local input, or `undefined` if remote. */
 function toLocalFsPath(input: string): string | undefined {
     if (/^file:\/\//i.test(input)) {
         return fileUrlToPath(input);
@@ -285,9 +261,9 @@ function toLocalFsPath(input: string): string | undefined {
 }
 
 /**
- * Converts a `file://` URL to a filesystem path without `node:url`, so the core
- * stays host-agnostic. Handles the empty/`localhost` authority and the
- * leading-slash-before-drive-letter quirk of `file:///C:/…`.
+ * Hand-rolled (no `node:url`) so the core stays host-agnostic. Handles the
+ * empty/`localhost` authority and the leading-slash-before-drive-letter quirk
+ * of `file:///C:/…`.
  */
 function fileUrlToPath(url: string): string {
     let path = decodeURIComponent(url.replace(/^file:\/\//i, "").replace(/^localhost/i, ""));
@@ -298,10 +274,8 @@ function fileUrlToPath(url: string): string {
 }
 
 /**
- * Trims trailing path separators by scanning from the end rather than a
- * `[\\/]+$` regex. The anchored quantifier backtracks polynomially
- * (js/polynomial-redos) on a path of many separators followed by a
- * non-separator, on otherwise user-controlled input.
+ * Scans from the end rather than a `[\\/]+$` regex, whose anchored quantifier
+ * backtracks polynomially (js/polynomial-redos) on user-controlled input.
  */
 export function trimTrailingSeparators(path: string): string {
     let end = path.length;
@@ -311,23 +285,17 @@ export function trimTrailingSeparators(path: string): string {
     return path.slice(0, end);
 }
 
-/** Trims trailing separators and a trailing `marketplace.json` filename. */
 function stripTrailingManifest(path: string): string {
-    // A single `[\\/]` (no `+`) is linear, so only the separator run above needs
-    // the scan; this fixed-shape match is ReDoS-safe.
+    // A single `[\\/]` (no `+`) is linear, so only the separator run needs the
+    // scan; this fixed-shape match is ReDoS-safe.
     return trimTrailingSeparators(path).replace(/[\\/]marketplace\.json$/i, "");
 }
 
 /**
- * Parses a public-GitHub repo reference into a {@link MarketplaceRegistration}.
- *
- * Accepts the forms a user is likely to paste — full `https://github.com/o/r`,
- * a `.git` clone URL, a `/tree/<ref>` browse URL, or the bare `owner/repo`
- * shorthand. Per design decision D1, a browse URL is treated as sugar: the
- * segment(s) after `/tree/` become the `ref`; there is no path to disambiguate
- * because the marketplace repo's `marketplace.json` always sits at its root.
- *
- * @throws {InvalidMarketplaceError} when the input is not a GitHub repo URL.
+ * Accepts the pasteable forms — full `https://github.com/o/r`, a `.git` clone
+ * URL, a `/tree/<ref>` browse URL, or the bare `owner/repo` shorthand. A browse
+ * URL desugars its `/tree/` segment(s) into the `ref`; there is no path to
+ * disambiguate because `marketplace.json` always sits at the repo root.
  */
 function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
     const trimmed = input.trim();
@@ -348,20 +316,18 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
 
     const [owner, repo, ...tail] = parts;
     // The `github.com/` strip only fires for github.com, so a foreign host
-    // (`gitlab.com/o/r`, `git.example.com/o/r`) survives as `owner`. A GitHub
-    // username/org is alphanumerics + single hyphens — never a dot — so a dotted
-    // first segment is unambiguously a host we cannot honour yet.
+    // survives as `owner`. A GitHub owner is never dotted, so a dotted first
+    // segment is unambiguously a host we cannot honour here.
     if (owner.includes(".")) {
         throw new InvalidMarketplaceError(`not a public GitHub repository URL: "${input}"`);
     }
-    // `/tree/<ref>` is the only browse form desugared; a branch name may itself
-    // contain slashes, so everything after `tree` is the ref.
+    // A branch name may contain slashes, so everything after `tree` is the ref.
     const ref = tail[0] === "tree" && tail.length > 1 ? tail.slice(1).join("/") : undefined;
 
     return {
         // Legacy (no host prefix): a github.com URL never carries a baseUrl, so
         // the same repo added by URL or by a baseUrl-less object entry shares one
-        // cache slot; `ref` folds in so two refs of one repo cache separately.
+        // cache slot.
         id: marketplaceId("github.com", `${owner}/${repo}`, ref, true),
         location: { kind: "github", owner, repo, ref },
         url: trimmed,
@@ -369,16 +335,11 @@ function parseGitHubRepoUrl(input: string): MarketplaceRegistration {
 }
 
 /**
- * Parses a `gitlab.com` project reference into a {@link MarketplaceRegistration}.
- *
- * Accepts the pasteable forms — `https://gitlab.com/group/project`, a nested
- * `group/subgroup/project`, a `.git` clone URL, or a `/-/tree/<ref>` browse URL.
- * GitLab wraps the project path before the literal `/-/` route separator, so
- * everything before `/-/` is the project namespace and a `/-/tree/<ref…>` route
- * desugars into the `ref` (D1). Unlike GitHub there is no exactly-two-segment
- * rule: subgroups nest arbitrarily deep.
- *
- * @throws {InvalidMarketplaceError} when the input is not a GitLab project URL.
+ * Accepts the pasteable forms, including a nested `group/subgroup/project` and a
+ * `/-/tree/<ref>` browse URL. GitLab's literal `/-/` route separator bounds the
+ * project namespace: everything before it is the path, and a `/-/tree/<ref…>`
+ * route desugars into the `ref`. Unlike GitHub there is no exactly-two-segment
+ * rule — subgroups nest arbitrarily deep.
  */
 function parseGitLabRepoUrl(input: string): MarketplaceRegistration {
     const trimmed = input.trim();
@@ -413,14 +374,9 @@ function parseGitLabRepoUrl(input: string): MarketplaceRegistration {
 }
 
 /**
- * Parses one persisted {@link MarketplaceSettingsEntry} into a registration.
- *
- * A string is a pasted URL / path (delegated to {@link parseMarketplaceUrl}).
- * An object is the settings-JSON-only form for a self-hosted host: validated
- * defensively (a user hand-edits `settings.json`) — provider enum, a
- * provider-appropriate `repo`, optional string `ref`, and an http(s) `baseUrl`.
- *
- * @throws {InvalidMarketplaceError} on any shape violation.
+ * A string entry is a pasted URL / path; an object entry is the settings-only
+ * form for a self-hosted host, validated defensively because a user hand-edits
+ * `settings.json`.
  */
 export function parseMarketplaceEntry(entry: MarketplaceSettingsEntry): MarketplaceRegistration {
     if (typeof entry === "string") {
@@ -459,7 +415,6 @@ function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegi
         .split("/")
         .filter((segment) => segment.length > 0);
     if (provider === "github") {
-        // GitHub is exactly `owner/repo`.
         if (segments.length !== 2 || /\s/.test(repo)) {
             throw new InvalidMarketplaceError(
                 `marketplace entry github "repo" must be "owner/repo"`,
@@ -474,7 +429,7 @@ function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegi
             url: entryLabel(host, `${owner}/${repoName}`, ref),
         };
     }
-    // GitLab allows nested subgroups: `group[/subgroup…]/project`, ≥2 segments.
+    // Subgroups nest, so ≥2 segments rather than an exactly-two rule.
     if (segments.length < 2 || /\s/.test(repo)) {
         throw new InvalidMarketplaceError(
             `marketplace entry gitlab "repo" must be "group/project" (subgroups allowed)`,
@@ -488,17 +443,13 @@ function parseMarketplaceObject(entry: Record<string, unknown>): MarketplaceRegi
     };
 }
 
-/** The `host/repo[@ref]` display label shared by object registrations and {@link marketplaceEntryLabel}. */
 function entryLabel(host: string, repoPath: string, ref: string | undefined): string {
     return `${host}/${repoPath}${ref ? `@${ref}` : ""}`;
 }
 
 /**
- * A stable, human-readable label for a settings entry: the verbatim string, or
- * `host/repo[@ref]` for an object entry (which has no single URL string).
- *
- * Must never throw — {@link TemplateMarketplaceService.updateAll} needs a label
- * to name a marketplace in a warning *before* {@link parseMarketplaceEntry} has
+ * A human-readable label for a settings entry. Must never throw — the service
+ * names a marketplace in a warning *before* {@link parseMarketplaceEntry} has
  * proven the entry valid — so it reads every field defensively and falls back to
  * a JSON dump for a malformed object.
  */
@@ -525,17 +476,10 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
 }
 
 /**
- * Validates a parsed `marketplace.json` object and projects its `sources[]`
- * into {@link TemplateSource}s.
- *
- * Invariants enforced (the reason this is a parser, not a cast): `sources` must
- * be a non-empty-shaped array; a `github` provider needs an `owner/repo` `repo`
- * and a `path`; a `gitlab` provider needs a `group/project` `repo` and a `path`;
- * a `local` provider needs an absolute or `~` `path`; a provider-less entry
- * carries a `path` and is read as marketplace-relative. Anything else throws so
- * a typo surfaces as a clear error instead of silently loading zero templates.
- *
- * @throws {InvalidMarketplaceError} on any shape violation.
+ * Validates a parsed `marketplace.json` and projects its `sources[]` into
+ * {@link TemplateSource}s. This is a parser, not a cast: a shape violation
+ * throws so a typo surfaces as a clear error instead of silently loading zero
+ * templates.
  */
 export function parseMarketplace(json: unknown): TemplateSource[] {
     if (typeof json !== "object" || json === null) {
@@ -567,10 +511,9 @@ function parseSource(entry: unknown, index: number): TemplateSource {
 
     if (source.provider === "local") {
         const local = path.trim();
-        // An absolute or `~` path only; a relative one belongs in a no-provider
-        // source (resolved against the marketplace), so reject it loudly rather
-        // than resolve it against an undefined base. Kept raw — `~` is expanded
-        // at fetch time, where the home directory is known.
+        // A relative path belongs in a no-provider source (resolved against the
+        // marketplace); reject it loudly rather than resolve it against an
+        // undefined base. Kept raw — `~` is expanded at fetch time.
         if (!isAbsolutePath(local) && !isHomePath(local)) {
             throw new InvalidMarketplaceError(
                 `sources[${index}] local "path" must be absolute or start with "~" ` +
@@ -611,9 +554,8 @@ function parseSource(entry: unknown, index: number): TemplateSource {
 }
 
 /**
- * Projects a `provider: "gitlab"` source. `repo` is the full project namespace
- * (`group[/subgroup…]/project`, ≥2 segments — subgroups nest, so no exactly-two
- * rule); `visibility` and `baseUrl` are validated exactly as on the github arm.
+ * `repo` is the full project namespace (≥2 segments — subgroups nest, so no
+ * exactly-two rule).
  */
 function parseGitLabSource(
     source: Record<string, unknown>,
@@ -636,7 +578,6 @@ function parseGitLabSource(
     };
 }
 
-/** Validates an optional string `ref` on a source. */
 function parseSourceRef(ref: unknown, index: number): string | undefined {
     if (ref !== undefined && typeof ref !== "string") {
         throw new InvalidMarketplaceError(`sources[${index}] "ref" must be a string`);
@@ -645,9 +586,8 @@ function parseSourceRef(ref: unknown, index: number): string | undefined {
 }
 
 /**
- * Validates an optional `visibility` hint. A github/gitlab entry graduates it
- * from tolerated-unknown (as it stays on relative/local entries) to validated,
- * so a typo like `"privte"` fails loudly rather than silently degrading to the
+ * On a github/gitlab entry `visibility` is validated (not tolerated-unknown) so
+ * a typo like `"privte"` fails loudly rather than silently degrading to the
  * failure-driven prompt path.
  */
 function parseSourceVisibility(
@@ -662,7 +602,6 @@ function parseSourceVisibility(
     return visibility;
 }
 
-/** Validates an optional self-hosted `baseUrl` on a source. */
 function parseSourceBaseUrl(baseUrl: unknown, index: number): string | undefined {
     return baseUrl !== undefined ? parseBaseUrl(baseUrl, `sources[${index}]`) : undefined;
 }

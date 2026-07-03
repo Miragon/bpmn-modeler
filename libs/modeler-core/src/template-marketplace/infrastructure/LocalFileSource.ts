@@ -6,13 +6,10 @@ import { LocalSourceConfig, RepositorySource } from "../domain/ports";
 /**
  * {@link RepositorySource} over a local on-disk folder, so a marketplace can be
  * a plain `marketplace.json` folder with no repository, network, or rate limit
- * — useful both for manual testing and for air-gapped / shared-drive setups.
+ * — useful for manual testing and for air-gapped / shared-drive setups.
  *
- * It speaks the same root-relative path vocabulary as {@link GitHubSource}: a
- * listed path includes its source-`path` prefix, and {@link fetchFile}
- * round-trips it against `rootDir`. That symmetry lets the service and cache
- * treat a local source exactly like a remote one — the templates are copied
- * into the same cache and merged through the same pipeline.
+ * It speaks the same root-relative path vocabulary as {@link GitHubSource}, so
+ * the service and cache treat a local source exactly like a remote one.
  */
 export class LocalFileSource implements RepositorySource {
     constructor(
@@ -20,7 +17,6 @@ export class LocalFileSource implements RepositorySource {
         private readonly config: LocalSourceConfig,
     ) {}
 
-    /** Lists `.json` files under the source subtree as `rootDir`-relative paths. */
     listTemplateFiles(): Promise<string[]> {
         return this.listJsonRecursive(this.config.path);
     }
@@ -30,9 +26,8 @@ export class LocalFileSource implements RepositorySource {
     }
 
     /**
-     * A missing directory yields `[]` rather than throwing: an absent subtree is
-     * an empty source, not a fatal error — the same tolerance the cache applies,
-     * so a typo'd `path` warns-and-skips instead of failing the whole add.
+     * A missing directory yields `[]` rather than throwing, so a typo'd `path`
+     * warns-and-skips instead of failing the whole add.
      */
     private async listJsonRecursive(relDir: string): Promise<string[]> {
         let entries: [string, "file" | "directory"][];
@@ -57,7 +52,6 @@ export class LocalFileSource implements RepositorySource {
         return files;
     }
 
-    /** Joins a root-relative path onto `rootDir`; `""` addresses the root itself. */
     private absolute(relativePath: string): string {
         // Scan-based trim (not `[\\/]+$`) to stay clear of js/polynomial-redos.
         const root = trimTrailingSeparators(this.config.rootDir);

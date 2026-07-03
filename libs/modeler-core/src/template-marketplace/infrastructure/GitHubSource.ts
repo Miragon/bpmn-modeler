@@ -13,23 +13,18 @@ const USER_AGENT = "bpmn-modeler";
  * {@link RepositorySource} over the GitHub REST + raw APIs, on public
  * `github.com` or a self-hosted GitHub Enterprise instance (`config.baseUrl`).
  *
- * Listing uses the **recursive git-tree API** (decision D6): one call returns
- * the whole tree, which is then filtered to `.json` blobs under the source
- * path — this avoids the per-directory Contents calls that would blow through
- * GitHub's 60 req/hr unauthenticated rate limit on a deep template folder.
+ * Listing uses the recursive git-tree API: one call returns the whole tree,
+ * avoiding the per-directory Contents calls that would blow through GitHub's
+ * 60 req/hr unauthenticated rate limit on a deep template folder.
  *
- * Fetching splits on whether the blob can come from the raw host. Only
- * public github.com uses `raw.githubusercontent.com` (no rate concern) and
- * deliberately never sends the token there (D9). With a `token` *or* a `baseUrl`
- * it switches to the Contents API (`GET <apiRoot>/repos/o/r/contents/<path>`),
- * which serves private repos and is the only blob route on GHE — enterprise has
- * no raw host. A tokenless GHE read carries no auth header at all.
+ * Fetching splits on whether the blob can come from the raw host. Only public
+ * github.com uses `raw.githubusercontent.com` and never sends the token there.
+ * A `token` *or* a `baseUrl` switches to the Contents API, which serves private
+ * repos and is the only blob route on GHE — enterprise has no raw host.
  */
 export class GitHubSource implements RepositorySource {
-    // The resolved branch/tag/SHA, memoized so a missing `ref` triggers exactly
-    // one default-branch lookup shared by listing and every fetch. A post-prompt
-    // retry builds a *new* GitHubSource via the factory, so this can never carry
-    // a stale ref across a token change.
+    // Memoized so a missing `ref` triggers exactly one default-branch lookup
+    // shared by listing and every fetch.
     private resolvedRef: string | undefined;
 
     constructor(
@@ -56,9 +51,7 @@ export class GitHubSource implements RepositorySource {
             throw new Error(`Unexpected GitHub tree response for ${owner}/${repo}@${ref}`);
         }
         // GitHub caps a recursive tree at 100k entries / 7MB and flags the
-        // overflow. Listing the partial set would silently drop templates, so
-        // fail loudly — the service logs it and skips this source rather than
-        // presenting an incomplete catalogue as complete.
+        // overflow; listing the partial set would silently drop templates.
         if (parsed.truncated) {
             throw new Error(
                 `GitHub tree for ${owner}/${repo}@${ref} is truncated; repository too large to list in one request`,
@@ -89,7 +82,7 @@ export class GitHubSource implements RepositorySource {
         }
 
         const url = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${repoPath}`;
-        // Raw host gets only the User-Agent — never the auth header (D9).
+        // Raw host gets only the User-Agent — never the auth header.
         const response = await this.http.getText(url, { "User-Agent": USER_AGENT });
         if (response.status !== 200) {
             this.throwFor(response, `Failed to fetch ${repoPath} from ${owner}/${repo}@${ref}`);
@@ -99,11 +92,8 @@ export class GitHubSource implements RepositorySource {
 
     /**
      * Reads one blob through the authenticated Contents API. Path segments are
-     * `encodeURIComponent`-encoded individually (a `/` between segments must
-     * survive as a separator, so the whole path can't be encoded in one shot),
-     * and the `ref` query value is encoded because a branch name may contain
-     * a slash. `Accept: raw+json` makes GitHub return the file bytes verbatim
-     * rather than the base64 JSON envelope.
+     * encoded individually so the `/` separators survive; `Accept: raw+json`
+     * returns the file bytes verbatim rather than the base64 JSON envelope.
      */
     private async fetchViaContentsApi(repoPath: string, ref: string): Promise<string> {
         const { owner, repo } = this.config;
@@ -121,11 +111,7 @@ export class GitHubSource implements RepositorySource {
         return response.body;
     }
 
-    /**
-     * Resolves the repo's default branch when no `ref` was configured. Both the
-     * tree API and raw host accept a branch, tag, or SHA in the same position,
-     * so a single resolved value drives every request.
-     */
+    /** Resolves the repo's default branch when no `ref` was configured. */
     private async resolveRef(): Promise<string> {
         if (this.config.ref) {
             return this.config.ref;
@@ -150,11 +136,7 @@ export class GitHubSource implements RepositorySource {
         return (this.resolvedRef = branch);
     }
 
-    /**
-     * The REST API root: `<baseUrl>/api/v3` for GitHub Enterprise, else the
-     * public `api.github.com`. GHE hangs its REST API under `/api/v3`, whereas
-     * public GitHub uses the dedicated `api.` subdomain.
-     */
+    /** `<baseUrl>/api/v3` for GitHub Enterprise, else public `api.github.com`. */
     private apiRoot(): string {
         return this.config.baseUrl ? `${this.config.baseUrl}/api/v3` : "https://api.github.com";
     }
@@ -171,24 +153,17 @@ export class GitHubSource implements RepositorySource {
     }
 
     /**
-     * Maps a non-200 GitHub response to a domain error. 401/403/404 become a
-     * {@link RepositoryAccessError} so the service can prompt-and-retry — GitHub
-     * hides an invisible private repo behind a 404, so it counts as auth-shaped
-     * too. A 403 whose body reads like a rate-limit rejection is flagged (a
-     * token still raises the limit, so this only changes the wording). Any other
-     * status stays a plain `Error` the caller just logs and skips.
-     *
-     * @param action Human-readable description of the failed request. The token
-     *   never appears in it (D9).
+     * Maps a non-200 GitHub response to a domain error so the service can
+     * prompt-and-retry. 401/403/404 are auth-shaped — GitHub hides an invisible
+     * private repo behind a 404 — and a rate-limit-looking 403 is flagged so the
+     * wording differs. Any other status stays a plain `Error`.
      */
     private throwFor(response: HttpResponse, action: string): never {
         const { owner, repo } = this.config;
         const { status } = response;
         if (status === 401 || status === 403 || status === 404) {
             const rateLimited = status === 403 && /rate limit/i.test(response.body);
-            // `hostForConfig` can't return undefined for a github config; the `!`
-            // is safe and keeps the attributed host (github.com or the GHE host)
-            // in step with the service's per-host token bookkeeping.
+            // `hostForConfig` can't return undefined for a github config.
             throw new RepositoryAccessError(
                 hostForConfig(this.config)!,
                 status,

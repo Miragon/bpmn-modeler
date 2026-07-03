@@ -7,10 +7,9 @@ import { EditorSessionStore } from "../../../shared/infrastructure/EditorSession
 import { ArtifactChangeTarget, ArtifactService } from "../../../shared/service/ArtifactService";
 
 /**
- * Supplies absolute paths of remotely-fetched templates already cached on disk.
- * Declared structurally (not as a direct `TemplateMarketplaceService` import) so
- * the template pipeline stays decoupled from the marketplace feature: a host
- * that wires no marketplace simply passes nothing.
+ * Declared structurally (not as a `TemplateMarketplaceService` import) so the
+ * template pipeline stays decoupled from the marketplace feature: a host that
+ * wires no marketplace simply passes nothing.
  */
 export interface CachedTemplateProvider {
     getCachedTemplatePaths(): Promise<string[]>;
@@ -24,9 +23,8 @@ export interface CachedTemplateProvider {
  */
 export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     /**
-     * @param marketplaceSvc Optional source of cached remote templates merged in
-     *   alongside workspace-local ones. Absent in hosts without the marketplace
-     *   feature, so the workspace-only behaviour is unchanged.
+     * @param marketplaceSvc Absent in hosts without the marketplace feature, so
+     *   the workspace-only behaviour is unchanged.
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -49,9 +47,8 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
                     : "No element-template files resolved.",
             );
 
-            // Cached marketplace templates merge with workspace-local ones for
-            // free: both are absolute `.json` paths read by the same loop, so
-            // the flatten/sort/post pipeline below is unchanged.
+            // Cached and workspace-local templates are both absolute `.json`
+            // paths, so the pipeline below handles the merged list unchanged.
             const cached = (await this.marketplaceSvc?.getCachedTemplatePaths()) ?? [];
             const all = [...artifacts, ...cached];
 

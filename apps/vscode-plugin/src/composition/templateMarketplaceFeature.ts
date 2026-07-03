@@ -20,21 +20,16 @@ import { VsCodeTokenStore } from "../templateMarketplace/infrastructure/VsCodeTo
 import { SharedDeps } from "./sharedDeps";
 
 /**
- * The template-marketplace feature owns its HTTP client, GitHub source factory,
- * and the global-storage-backed cache. It is split into two phases to break a
- * construction cycle: the *service* must exist before the editor feature (which
- * threads it into the template service as the merge source), but the *commands*
- * need that very template service to refresh open editors. So {@link register}
- * builds the service up front and {@link registerCommands} wires the controller
- * once the editor feature has handed back its template service.
+ * Split into two phases to break a construction cycle: the service must exist
+ * before the editor feature (which merges it into the template service), but the
+ * commands need that same template service to refresh open editors. So the
+ * service is built here and {@link registerCommands} runs after the editor feature.
  */
 export function register(
     _context: ExtensionContext,
     deps: SharedDeps,
 ): { marketplaceSvc: TemplateMarketplaceService } {
     const httpClient = new FetchHttpClient();
-    // Dispatch on the config discriminant: github/gitlab sources fetch over HTTP,
-    // a local source reads the workspace filesystem — same port, different adapter.
     const sourceFactory = (config: RepositorySourceConfig): RepositorySource => {
         switch (config.kind) {
             case "github":
@@ -46,7 +41,7 @@ export function register(
         }
     };
 
-    // Idiomatic machine-global location; `writeFile` mkdirps it on first use.
+    // `writeFile` mkdirps this on first use.
     const cache = new MarketplaceCache(
         `${getContext().globalStorageUri.fsPath}/marketplaces`,
         deps.vsWorkspace,
@@ -57,8 +52,6 @@ export function register(
         cache,
         deps.vsSettings,
         deps.notifier,
-        // Feature-owned secret storage + prompt for private-repo tokens; the
-        // factory stays unchanged (a resolved `config.token` rides through it).
         new VsCodeTokenStore(),
         new VsCodeTokenPrompt(),
         // Injected so the host-agnostic core can expand `~` in a local source.
@@ -69,9 +62,8 @@ export function register(
 }
 
 /**
- * Registers the marketplace commands. Deferred until after the editor feature so
- * the same {@link BpmnElementTemplatesService} that consumes the cache is the
- * one the commands re-run to refresh open editors.
+ * Deferred until after the editor feature so the commands re-run the same
+ * {@link BpmnElementTemplatesService} that consumes the cache, refreshing open editors.
  */
 export function registerCommands(
     context: ExtensionContext,

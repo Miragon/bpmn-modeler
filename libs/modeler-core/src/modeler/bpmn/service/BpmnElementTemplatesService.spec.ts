@@ -90,7 +90,6 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         const result = await service.setElementTemplates(EDITOR);
 
         expect(result).toBe(true);
-        // Both the workspace path and the cached path are read through the same loop.
         expect(artifactSvc.readFile).toHaveBeenCalledWith("local.json");
         expect(artifactSvc.readFile).toHaveBeenCalledWith("/cache/remote.json");
         const msg = editorStore.postMessage.mock.calls[0][1] as ElementTemplatesQuery;

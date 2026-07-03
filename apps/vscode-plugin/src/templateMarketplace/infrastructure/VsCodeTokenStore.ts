@@ -9,11 +9,9 @@ const TOKEN_PREFIX = "bpmn-modeler.marketplace.token";
 /**
  * Adapter over VS Code's {@link SecretStorage} for per-host marketplace tokens.
  *
- * Mirrors the deployment `VsCodeSecretStore` pattern: secrets are encrypted at
- * rest by VS Code and never written to workspace state or settings. Keyed by
- * host so a token stored for `github.com` stays distinct from a future GitLab
- * or GHE origin. A repeated {@link setToken} overwrites — that is how the
- * service expresses token rotation.
+ * Keyed by host so `github.com` stays distinct from a future GitLab or GHE
+ * origin. A repeated {@link setToken} overwrites — that is how the service
+ * expresses token rotation.
  */
 export class VsCodeTokenStore implements TokenStorePort {
     async getToken(host: string): Promise<string | undefined> {

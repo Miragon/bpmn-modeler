@@ -103,16 +103,12 @@ export interface ClipboardPort {
 }
 
 /**
- * One registered element-template marketplace as it is stored in settings.
- *
- * A bare string is a pasted GitHub/GitLab URL (or a local folder path) parsed by
- * the domain — the form the *Add* command writes. The object form is
- * settings-JSON-only (§10): it names a self-hosted host via `baseUrl`
- * (GitHub Enterprise `/api/v3`, or a self-hosted GitLab), which a dotted-host URL
- * string could not express unambiguously. `repo` is `owner/repo` for GitHub and
- * the full `group/subgroup/project` path for GitLab (nested subgroups make a
- * two-field split lossy). Objects are validated defensively at parse time since
- * a user hand-edits `settings.json`.
+ * A bare string is a pasted GitHub/GitLab URL (or local folder path). The object
+ * form exists to name a self-hosted host via `baseUrl` (GitHub Enterprise
+ * `/api/v3`, or self-hosted GitLab), which a dotted-host URL string cannot
+ * express unambiguously. `repo` is the full `group/subgroup/project` path for
+ * GitLab, since nested subgroups make a two-field owner/repo split lossy.
+ * Validated defensively at parse time since a user hand-edits `settings.json`.
  */
 export type MarketplaceSettingsEntry =
     | string
@@ -138,10 +134,6 @@ export interface SettingsPort {
     getPersistCodeLinkMap(): boolean;
     /** Whether Camunda SPIN globals (`S`/`JSON`) and SpinJsonNode members are offered in C7 scripts. */
     getScriptingSpin(): boolean;
-    /**
-     * Registered element-template marketplaces: GitHub/GitLab repos (public or
-     * private, incl. self-hosted via a `baseUrl` object entry) or local folders.
-     */
     getTemplateMarketplaces(): MarketplaceSettingsEntry[];
 }
 
@@ -213,14 +205,13 @@ export interface SecretStorePort {
 }
 
 /**
- * Encrypted-at-rest storage for per-host personal access tokens used to reach
+ * Encrypted-at-rest storage for per-host personal access tokens reaching
  * private template-marketplace repositories.
  *
- * A sibling of {@link SecretStorePort} rather than a member of it: that port is
+ * A sibling of {@link SecretStorePort} rather than a member: that port is
  * deployment-shaped (basic-auth / OAuth2 pairs) and reshaping it would touch
- * every host. Keyed by `host` (e.g. `"github.com"`) so slice 3 (GitLab / GHE)
- * can store a distinct token per origin. Setting an existing host overwrites —
- * that is how token rotation is expressed.
+ * every host. Keyed by `host` for a distinct token per origin; setting an
+ * existing host overwrites, which is how token rotation is expressed.
  */
 export interface TokenStorePort {
     getToken(host: string): Promise<string | undefined>;
@@ -228,12 +219,9 @@ export interface TokenStorePort {
 }
 
 /**
- * Prompts the user for a personal access token for `host`, explaining why via
- * `reason`. Returns a non-empty, trimmed token, or `undefined` when the user
- * declines (empty/whitespace input counts as a decline).
- *
- * Never throws: a decline is per-run data, not control flow — a background
- * `updateAll` must keep going after one, unlike {@link PickerPort}'s
+ * Returns a trimmed token, or `undefined` on decline (empty/whitespace counts as
+ * decline). Never throws: a decline is per-run data, not control flow — a
+ * background `updateAll` must keep going after one, unlike {@link PickerPort}'s
  * throw-on-cancel prompts.
  */
 export interface TokenPromptPort {

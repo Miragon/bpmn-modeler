@@ -9,10 +9,9 @@ import {
 // Sent on every request to identify the client, mirroring GitHubSource.
 const USER_AGENT = "bpmn-modeler";
 
-// GitLab's tree API paginates by offset (there is no one-shot recursive tree,
-// and keyset pagination needs response headers `HttpResponse` does not carry).
-// 100 is GitLab's max `per_page`; the page cap bounds a single source to 10k
-// blobs so a runaway repo fails loudly (D6) instead of looping unbounded.
+// GitLab's tree API paginates by offset (keyset pagination needs response
+// headers `HttpResponse` does not carry). 100 is GitLab's max `per_page`; the
+// page cap bounds a source to 10k blobs so a runaway repo fails loudly.
 const TREE_PAGE_SIZE = 100;
 const MAX_TREE_PAGES = 100;
 
@@ -20,13 +19,10 @@ const MAX_TREE_PAGES = 100;
  * {@link RepositorySource} over the GitLab REST API, on public `gitlab.com` or a
  * self-hosted instance (`config.baseUrl`).
  *
- * Listing offset-paginates the recursive tree API (`?recursive=true`), scoping
- * to the source subtree server-side with `path=` — GitLab returns repo-root-
- * relative paths that round-trip straight into {@link fetchFile}. Blob fetches
- * use the raw files endpoint, which works unauthenticated for public projects
- * and needs no default-branch lookup (an omitted `ref` resolves server-side,
- * unlike GitHub). Authentication is the canonical `PRIVATE-TOKEN` header, sent
- * only when a token is present (D9).
+ * Listing offset-paginates the recursive tree API, scoping to the source subtree
+ * server-side with `path=`. Blob fetches use the raw files endpoint and need no
+ * default-branch lookup — an omitted `ref` resolves server-side, unlike GitHub.
+ * Authentication is the `PRIVATE-TOKEN` header, sent only when a token is set.
  */
 export class GitLabSource implements RepositorySource {
     constructor(
@@ -35,14 +31,10 @@ export class GitLabSource implements RepositorySource {
     ) {}
 
     /**
-     * Lists the `.json` blob paths under the source subtree. `path=` is
-     * authoritative (the server already scoped the tree), so there is no
-     * client-side prefix filter — only the blob / `.json` shape is checked.
-     *
-     * Pagination stops at the first short page. Reaching {@link MAX_TREE_PAGES}
-     * with a full final page means the tree may hold more entries than one run
-     * can page through, so it fails loudly rather than present a partial
-     * catalogue as complete (the D6 analog of GitHub's `truncated` guard).
+     * Lists the `.json` blob paths under the source subtree. `path=` already
+     * scoped the tree server-side, so there is no client-side prefix filter.
+     * Reaching {@link MAX_TREE_PAGES} with a full final page fails loudly rather
+     * than present a partial catalogue as complete.
      */
     async listTemplateFiles(): Promise<string[]> {
         const { projectPath } = this.config;
@@ -89,11 +81,9 @@ export class GitLabSource implements RepositorySource {
     }
 
     /**
-     * The paginated recursive-tree URL for `page`. The project path is a single
-     * `encodeURIComponent`-encoded path segment (GitLab addresses a project by
-     * its URL-encoded full path, not owner/repo segments). `ref` and `path` are
-     * added only when set — an omitted `ref` lets the server pick the default
-     * branch, and an empty `path` scans the whole repo.
+     * The paginated recursive-tree URL. GitLab addresses a project by its
+     * URL-encoded full path, not owner/repo segments. `ref`/`path` are added
+     * only when set — an omitted `ref` lets the server pick the default branch.
      */
     private treeUrl(page: number): string {
         const project = encodeURIComponent(this.config.projectPath);
@@ -110,9 +100,8 @@ export class GitLabSource implements RepositorySource {
     }
 
     /**
-     * The raw-blob URL. Both the project path and the file path are single,
-     * one-shot `encodeURIComponent`-encoded segments — unlike GitHub's Contents
-     * API, GitLab does not want the file path's `/`s left as separators.
+     * The raw-blob URL. Unlike GitHub's Contents API, GitLab wants the file
+     * path encoded as one segment — its `/`s must not survive as separators.
      */
     private fileUrl(repoPath: string): string {
         const project = encodeURIComponent(this.config.projectPath);
@@ -138,14 +127,10 @@ export class GitLabSource implements RepositorySource {
     }
 
     /**
-     * Maps a non-200 GitLab response to a domain error. 401/403/404 become a
-     * {@link RepositoryAccessError} so the service can prompt-and-retry — GitLab,
-     * like GitHub, hides an invisible private project behind a 404. GitLab's
-     * rate limit is a dedicated 429, flagged so the wording says "rate limit"
-     * (a token still raises the limit). Any other status stays a plain `Error`.
-     *
-     * @param action Human-readable description of the failed request. The token
-     *   never appears in it (D9).
+     * Maps a non-200 GitLab response to a domain error so the service can
+     * prompt-and-retry. 401/403/404 are auth-shaped — GitLab hides an invisible
+     * private project behind a 404 — and its rate limit is a dedicated 429,
+     * flagged for wording. Any other status stays a plain `Error`.
      */
     private throwFor(response: HttpResponse, action: string): never {
         const { status } = response;

@@ -120,12 +120,8 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * Reads the registered element-template marketplaces: pasted URL/path
-     * strings, and `{ provider, repo, baseUrl?, ref? }` object entries for
-     * self-hosted GHE / GitLab. The domain parser validates each shape; this
-     * only forwards the raw array.
-     *
-     * Defaults to an empty array if not configured.
+     * Forwards the raw marketplace entries (URL/path strings, or object entries
+     * for self-hosted GHE / GitLab); the domain parser validates each shape.
      */
     getTemplateMarketplaces(): MarketplaceSettingsEntry[] {
         return workspace
@@ -134,18 +130,12 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * Persists a marketplace URL into the global settings list, de-duplicating
-     * so re-adding the same repo is a no-op.
-     *
      * Written at {@link ConfigurationTarget.Global} because marketplaces are a
-     * machine-wide, user-level concern (their cache lives in global storage),
-     * not a per-workspace one.
+     * machine-wide, user-level concern (their cache lives in global storage).
      *
-     * The Add command only ever writes strings, so string `includes` de-dups
-     * correctly against a mixed array. It cannot spot a string that resolves to
-     * the same repo as an existing object entry; that only costs a redundant
-     * fetch into the same cache slot (harmless) — a future *Manage* command that
-     * edits object entries would revisit this.
+     * String `includes` de-dups only against other strings, which is all the Add
+     * command writes; a string that resolves to the same repo as an object entry
+     * slips through, costing only a redundant fetch into the same cache slot.
      */
     async addTemplateMarketplace(url: string): Promise<void> {
         const current = this.getTemplateMarketplaces();

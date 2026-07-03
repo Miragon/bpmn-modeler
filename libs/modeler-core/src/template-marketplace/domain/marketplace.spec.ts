@@ -62,8 +62,8 @@ describe("parseMarketplaceUrl (github)", () => {
     });
 
     it("routes gitlab.com to the GitLab parser but rejects other dotted hosts", () => {
-        // gitlab.com is now first-class; an unknown self-hosted origin must be an
-        // object entry (baseUrl), so a bare URL to it still throws.
+        // An unknown self-hosted origin must be an object entry (baseUrl), so a
+        // bare URL to it still throws — only gitlab.com is a first-class host.
         expect(parseMarketplaceUrl("https://gitlab.com/acme/templates").location).toMatchObject({
             kind: "gitlab",
             projectPath: "acme/templates",
@@ -135,7 +135,7 @@ describe("parseMarketplaceEntry (object entries)", () => {
             owner: "team",
             repo: "templates",
             ref: "main",
-            baseUrl: "https://ghe.acme.com", // trailing slash stripped
+            baseUrl: "https://ghe.acme.com",
         });
         // A baseUrl host-prefixes the id; the ghe host, not github.com.
         expect(reg.id).toBe("ghe.acme.com__team__templates__main");
@@ -405,7 +405,7 @@ describe("parseMarketplace", () => {
                 projectPath: "group/sub/project",
                 ref: "main",
                 path: "resources/element-templates",
-                baseUrl: "https://gitlab.acme.com", // normalized
+                baseUrl: "https://gitlab.acme.com",
                 visibility: "private",
             },
         ]);

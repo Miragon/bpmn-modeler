@@ -59,9 +59,8 @@ export class EditorSessionStore {
     }
 
     /**
-     * Ids of every registered editor session. Used to re-push element templates
-     * to all open editors after a marketplace refresh. Posting a BPMN-only query
-     * to a DMN webview is a harmless no-op for Slice 1.
+     * Used to re-push element templates to all open editors after a marketplace
+     * refresh. Posting a BPMN-only query to a DMN webview is a harmless no-op.
      */
     getEditorIds(): string[] {
         return Array.from(this.editors.keys());

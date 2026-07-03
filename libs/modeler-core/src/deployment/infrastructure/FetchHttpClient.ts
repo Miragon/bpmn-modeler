@@ -7,13 +7,6 @@ import { HttpClient, HttpResponse } from "../domain/ports";
  * external dependencies are required.
  */
 export class FetchHttpClient implements HttpClient {
-    /**
-     * Sends a GET request and returns the response as text.
-     *
-     * @param url Full URL to GET.
-     * @param headers Optional extra headers to merge into the request.
-     * @returns The HTTP status code and raw response body text.
-     */
     async getText(url: string, headers: Record<string, string> = {}): Promise<HttpResponse> {
         const response = await fetch(url, { method: "GET", headers });
         return {
@@ -22,13 +15,6 @@ export class FetchHttpClient implements HttpClient {
         };
     }
 
-    /**
-     * Sends a GET request announcing a JSON response (`Accept: application/json`).
-     *
-     * @param url Full URL to GET.
-     * @param headers Optional extra headers to merge into the request.
-     * @returns The HTTP status code and raw response body text.
-     */
     async getJson(url: string, headers: Record<string, string> = {}): Promise<HttpResponse> {
         const response = await fetch(url, {
             method: "GET",

@@ -27,10 +27,8 @@ const MARKETPLACE_MANIFEST = "marketplace.json";
 
 /**
  * Bookkeeping for one user-initiated command so a host is prompted for a token
- * at most once, even when a run spans many marketplaces (an `updateAll`) or a
- * marketplace's manifest and its several same-host sources all fail auth. A
- * decline is recorded here too (the host is added regardless of outcome), so
- * the run remembers it and does not nag.
+ * at most once per run. A decline is recorded too (the host is added regardless
+ * of outcome), so the run remembers it and does not nag.
  */
 interface PromptRun {
     readonly promptedHosts: Set<string>;
@@ -41,36 +39,26 @@ interface PromptRun {
  * `marketplace.json`, fan out over its sources, fetch every template, and cache
  * it for the render pipeline.
  *
- * Resilience is split by intent (decision D8). For an explicit *add*, a missing
- * or malformed `marketplace.json` throws so the controller can report it and
- * skip persisting the registration. For a background *update*, every error is
- * swallowed and logged so one bad marketplace never blocks the others — or the
- * modeler. Per-source failures are always swallowed: a 404/rate-limit on one
- * source keeps the last-good cache and warns, leaving sibling sources intact.
+ * Resilience is split by intent. An explicit *add* throws on a missing/malformed
+ * `marketplace.json` so the controller skips persisting the registration; a
+ * background *update* swallows and logs every error so one bad marketplace never
+ * blocks the others. Per-source failures are always swallowed — a failing source
+ * keeps the last-good cache and warns, leaving siblings intact.
  *
- * Private repos are reached with per-host personal access tokens: the service
- * resolves a stored token onto the source config before each fetch and, on an
- * auth-shaped failure ({@link RepositoryAccessError}), prompts once per host per
- * run and retries. The token lives only in {@link TokenStorePort}; it is only
- * ever placed on a remote (github/gitlab) config the adapter sends to that
- * config's own host, and never reaches settings, the cache, logs, or error
- * messages (D9). The orchestration is provider-agnostic — {@link hostForConfig}
- * is the single place a config maps to the host its token is keyed by, so
- * github.com, gitlab.com, and self-hosted `baseUrl` origins are all handled the
- * same way.
+ * Private repos are reached with per-host personal access tokens, prompted once
+ * per host per run on an auth-shaped {@link RepositoryAccessError} and retried.
+ * The token lives only in {@link TokenStorePort} and never reaches settings, the
+ * cache, logs, or error messages. {@link hostForConfig} is the single place a
+ * config maps to the host its token is keyed by, so github.com, gitlab.com, and
+ * self-hosted `baseUrl` origins are handled the same way.
  */
 export class TemplateMarketplaceService {
     /**
-     * @param sourceFactory Builds a provider adapter for a repo/subtree.
-     * @param cache Local store the render pipeline reads from.
-     * @param settings Reads the persisted list of registered marketplaces.
-     * @param notifier User-facing logging for the warn-and-continue path.
-     * @param tokens Encrypted per-host token store; read to authenticate, written
-     *   on a granted prompt (a set overwrites — that is token rotation).
-     * @param tokenPrompt Asks the user for a token; a decline returns `undefined`
-     *   and never aborts a run.
-     * @param homeDir Absolute home directory, injected because the host-agnostic
-     *   core cannot read it; used to expand `~` in a `provider: "local"` source.
+     * @param tokens Per-host token store; a `setToken` overwrites — that is
+     *   token rotation.
+     * @param tokenPrompt A decline returns `undefined` and never aborts a run.
+     * @param homeDir Injected because the host-agnostic core cannot read it;
+     *   used to expand `~` in a `provider: "local"` source.
      */
     constructor(
         private readonly sourceFactory: RepositorySourceFactory,
@@ -83,24 +71,23 @@ export class TemplateMarketplaceService {
     ) {}
 
     /**
-     * Registers and fetches a single marketplace from a pasted URL (GitHub /
-     * GitLab repo or a local folder). Self-hosted `baseUrl` marketplaces are
-     * object entries in settings and never flow through this string path (§10).
+     * Registers and fetches a single marketplace from a pasted URL. Self-hosted
+     * `baseUrl` marketplaces are object entries in settings and never flow
+     * through this string path.
      *
-     * @throws {InvalidMarketplaceError} if the URL is not a supported repo/path
-     *   or its `marketplace.json` is missing/malformed — the caller must not
-     *   persist a registration that cannot be fetched.
+     * @throws {InvalidMarketplaceError} if the URL is unsupported or its
+     *   `marketplace.json` is missing/malformed — the caller must not persist a
+     *   registration that cannot be fetched.
      */
     async addMarketplace(url: string): Promise<void> {
         await this.fetchAndCache(parseMarketplaceUrl(url), { promptedHosts: new Set() });
     }
 
     /**
-     * Re-fetches every registered marketplace on demand (decision D7: no silent
-     * auto-refresh). Never throws — a failing marketplace is logged and skipped
-     * so the others still refresh and the modeler stays usable offline. One
-     * {@link PromptRun} spans all marketplaces so the token prompt appears at
-     * most once per host across the whole update.
+     * Re-fetches every registered marketplace on demand. Never throws — a
+     * failing marketplace is logged and skipped so the others still refresh.
+     * One {@link PromptRun} spans all marketplaces so the token prompt appears
+     * at most once per host across the whole update.
      */
     async updateAll(): Promise<void> {
         const run: PromptRun = { promptedHosts: new Set() };
@@ -124,11 +111,10 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Fetches `marketplace.json`, resolves its sources, and caches every
-     * template. Manifest-level failures propagate (the marketplace is unusable);
+     * Manifest-level failures propagate (the marketplace is unusable);
      * source-level failures are logged and skipped to preserve last-good data.
-     * Declared-private sources are batch-prompted up front so the tokens are in
-     * the store before the per-source fetches begin.
+     * Declared-private sources are batch-prompted up front so their tokens are
+     * stored before the per-source fetches begin.
      */
     private async fetchAndCache(
         registration: MarketplaceRegistration,
@@ -149,10 +135,9 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Reads the manifest from the marketplace repo root, mapping a fetch failure
-     * to {@link InvalidMarketplaceError} so the caller's error path is uniform.
-     * Goes through {@link withAuthRetry} so a private marketplace prompts for a
-     * token here — the token then also covers the relative sources it points at.
+     * Maps a fetch failure to {@link InvalidMarketplaceError} so the caller's
+     * error path is uniform. Goes through {@link withAuthRetry} so a private
+     * marketplace prompts here — the token then also covers its relative sources.
      */
     private async readManifest(
         registration: MarketplaceRegistration,
@@ -171,12 +156,8 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Resolves one source to a concrete fetch and caches its `.json` files. A
-     * relative source resolves against the marketplace's own location (the repo
-     * or local folder it was registered from); a github source names its own
-     * repo. The registration only pins the relative case — an external source
-     * carries its own coordinates. The whole listing+fetch runs under
-     * {@link withAuthRetry}, so a mid-source auth failure prompts and retries.
+     * The whole listing+fetch runs under {@link withAuthRetry}, so a mid-source
+     * auth failure prompts and retries.
      */
     private async cacheSource(
         registration: MarketplaceRegistration,
@@ -195,13 +176,12 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Runs `task` with a stored token (if any) resolved onto the config, then —
-     * on an auth-shaped {@link RepositoryAccessError} — prompts once for the
-     * host, stores a granted token, and retries the task exactly once with it.
-     * A non-auth error, or an unauthenticated host (a local folder), propagates
-     * unchanged. On decline or a second denial the failure is rewritten into a
-     * user-facing message via {@link accessFailure} (the raw error text is not
-     * shown — it would say "HTTP 404" for a private repo).
+     * Runs `task` with any stored token, then — on an auth-shaped
+     * {@link RepositoryAccessError} — prompts once for the host and retries
+     * exactly once. A non-auth error or an unauthenticated host (a local folder)
+     * propagates unchanged. On decline or a second denial the failure is
+     * rewritten via {@link accessFailure}; the raw text would say "HTTP 404" for
+     * a private repo.
      */
     private async withAuthRetry<T>(
         baseConfig: RepositorySourceConfig,
@@ -233,10 +213,9 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Prompts for a token for `host` unless this run already prompted it, adding
-     * the host to the run regardless of outcome so a decline is remembered. A
-     * granted token is stored immediately (overwrite = rotation) so later
-     * same-host fetches pick it up on their first attempt.
+     * Prompts unless this run already prompted the host, adding it regardless of
+     * outcome so a decline is remembered. A granted token is stored immediately
+     * so later same-host fetches pick it up on their first attempt.
      */
     private async promptOncePerRun(
         host: string,
@@ -259,12 +238,10 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Prompts up front for every distinct host that has a *declared*-private
-     * remote source and no stored token, so those tokens are in the store before
-     * the per-source fetches run and `withAuthRetry` picks them up first try.
-     * `visibility` is only a hint (D2): undeclared-private sources still get the
-     * failure-driven prompt instead. `hostForConfig` already yields the baseUrl
-     * host, so a self-hosted GHE / GitLab source extends this for free.
+     * Prompts up front for every distinct host with a *declared*-private remote
+     * source and no stored token, so `withAuthRetry` picks the token up first
+     * try. `visibility` is only a hint: undeclared-private sources still get the
+     * failure-driven prompt instead.
      */
     private async ensureTokensForPrivateSources(
         sources: TemplateSource[],
@@ -295,7 +272,6 @@ export class TemplateMarketplaceService {
         }
     }
 
-    /** The reason string shown in the token prompt, tailored to the failure. */
     private promptReason(hadToken: boolean, error: RepositoryAccessError): string {
         if (error.rateLimited && !hadToken) {
             return `Hit ${error.host}'s rate limit for ${error.resource}. A personal access token raises the limit.`;
@@ -306,7 +282,6 @@ export class TemplateMarketplaceService {
         return `${error.host} denied access to ${error.resource} (HTTP ${error.status}); it may be private. Enter a personal access token.`;
     }
 
-    /** The user-facing failure when no working token could be obtained. */
     private accessFailure(error: RepositoryAccessError, hadToken: boolean): Error {
         if (error.rateLimited) {
             return new Error(
@@ -332,10 +307,9 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Projects a `sources[]` entry into the provider-specific config to fetch it
-     * with. A relative source resolves against the marketplace's `registration`
-     * location; a github/local source names its own coordinates and ignores it
-     * (so `registration` may be omitted when only the host is needed).
+     * A relative source resolves against the marketplace's `registration`
+     * location; a github/local source names its own coordinates and ignores it,
+     * so `registration` may be omitted when only the host is needed.
      */
     private configForSource(
         registration: MarketplaceRegistration | undefined,
@@ -365,15 +339,13 @@ export class TemplateMarketplaceService {
                 baseUrl: source.baseUrl,
             };
         }
-        // A `provider: "local"` source names its own directory: expand `~`, then
-        // scan the whole folder (empty subtree).
         return { kind: "local", rootDir: this.expandHome(source.path), path: "" };
     }
 
     /**
-     * Expands a leading `~` against the injected home directory. The trailing
-     * join uses `/` (never `node:path`) to keep the core host-agnostic; the
-     * adapter normalises separators when it reads the directory.
+     * Expands a leading `~` against the injected home directory. The join uses
+     * `/` (never `node:path`) to keep the core host-agnostic; the adapter
+     * normalises separators when it reads the directory.
      */
     private expandHome(path: string): string {
         if (path === "~") {
@@ -386,9 +358,7 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Projects a marketplace location plus a subtree `path` into the
-     * provider-specific {@link RepositorySourceConfig} the factory dispatches on.
-     * This is the single place the github/local discriminant is mapped, so the
+     * The single place a location's provider discriminant is mapped, so the
      * fetch flow above stays provider-agnostic.
      */
     private configFor(location: MarketplaceLocation, path: string): RepositorySourceConfig {

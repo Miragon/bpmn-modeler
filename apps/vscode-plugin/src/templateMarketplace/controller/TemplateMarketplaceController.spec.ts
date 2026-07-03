@@ -3,9 +3,8 @@ import { join } from "node:path";
 
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
-// A minimal `vscode` mock: the controller only touches `window.showInputBox`
-// and `commands.registerCommand`. Everything else (progress, persistence) is on
-// injected ports we stub directly.
+// The controller touches only these two `vscode` surfaces; progress and
+// persistence are on injected ports stubbed directly.
 vi.mock("vscode", () => ({
     window: { showInputBox: vi.fn() },
     commands: { registerCommand: vi.fn(() => ({ dispose: vi.fn() })) },
@@ -20,9 +19,8 @@ import {
 } from "./TemplateMarketplaceController";
 
 /**
- * Wires the controller to stubbed collaborators and exposes the captured
- * command handlers so a test can invoke a command exactly as VS Code would.
- * `withProgress` runs its task inline so the awaited fetch is observable.
+ * Exposes the captured command handlers so a test can invoke a command as VS
+ * Code would; `withProgress` runs its task inline so the fetch is observable.
  */
 function createController() {
     const marketplaceSvc = {
@@ -116,8 +114,8 @@ describe("TemplateMarketplaceController.addMarketplace", () => {
 
         await handlers.get(ADD_MARKETPLACE_CMD)!();
 
-        // The validator is passed to showInputBox at prompt time; grab it and
-        // exercise it directly — `~/...` must validate (expands to a local path).
+        // Exercise the validator captured at prompt time directly: `~/...` must
+        // validate, since it expands to a local path.
         const options = (window.showInputBox as Mock).mock.calls[0][0];
         expect(options.validateInput("~/templates")).toBeUndefined();
         expect(options.validateInput("not-a-repo-or-path")).toEqual(expect.any(String));

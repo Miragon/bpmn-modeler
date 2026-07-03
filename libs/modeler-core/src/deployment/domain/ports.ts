@@ -52,24 +52,11 @@ export interface CamundaEnginePort {
  * handle serialisation, transport, and response buffering.
  */
 export interface HttpClient {
-    /**
-     * Sends a GET request and returns the response as text.
-     *
-     * @param url Full URL to GET.
-     * @param headers Optional extra headers to merge into the request.
-     * @returns The HTTP status code and raw response body text.
-     */
     getText(url: string, headers?: Record<string, string>): Promise<HttpResponse>;
 
     /**
-     * Sends a GET request announcing a JSON response (`Accept: application/json`).
-     *
-     * The body is still returned as raw text so the caller owns parsing — the
-     * marketplace adapters need to read GitHub error bodies on non-2xx too.
-     *
-     * @param url Full URL to GET.
-     * @param headers Optional extra headers to merge into the request.
-     * @returns The HTTP status code and raw response body text.
+     * Body is returned as raw text so the caller owns parsing — the marketplace
+     * adapters need to read GitHub error bodies on non-2xx too.
      */
     getJson(url: string, headers?: Record<string, string>): Promise<HttpResponse>;
 

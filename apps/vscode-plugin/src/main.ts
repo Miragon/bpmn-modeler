@@ -22,8 +22,7 @@ import * as templateMarketplaceFeature from "./composition/templateMarketplaceFe
  * codeLink → marketplace (service) → editor → marketplace (commands) → compare →
  * commands → deployment. Handles flow forward only: the editor routes into
  * diff's controller, script's service, code-link's handles, and the marketplace
- * service; the marketplace commands and compare/commands reuse handles the
- * earlier features returned.
+ * service; later features reuse handles the earlier ones returned.
  */
 export function activate(context: ExtensionContext): void {
     setContext(context);
@@ -35,9 +34,8 @@ export function activate(context: ExtensionContext): void {
     const { scriptTaskSvc, scriptVariableStore, scriptManifestParticipant } =
         scriptFeature.register(context, deps);
     const codeLink = codeLinkFeature.register(context, deps);
-    // The marketplace service must exist before the editor feature so the
-    // template service can merge its cache; its commands are wired afterwards
-    // because they re-run that same template service.
+    // Service built before the editor feature (which merges its cache); commands
+    // deferred after, since they re-run the resulting template service.
     const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
     const { bpmnService, templatesSvc } = editorFeature.register(context, deps, {
         diffController,

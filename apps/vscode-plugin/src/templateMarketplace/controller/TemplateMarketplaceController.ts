@@ -12,17 +12,14 @@ import {
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { VsCodeSettings } from "../../shared/infrastructure/VsCodeSettings";
 
-// VS Code command IDs for the two marketplace commands.
 export const ADD_MARKETPLACE_CMD = "bpmn-modeler.addTemplateMarketplace";
 export const UPDATE_MARKETPLACES_CMD = "bpmn-modeler.updateTemplateMarketplaces";
 
 /**
- * Expands a leading `~` to the user's home directory. `~` is a shell convention
- * neither the filesystem APIs nor the host-agnostic core resolve, so it is
- * expanded here, at the host boundary, before the path is fetched or persisted —
- * the core then only ever sees an absolute path. `~user` is intentionally left
- * untouched (other users' homes are not portably resolvable) so it falls through
- * to the parser and is rejected.
+ * Expands a leading `~` at the host boundary — a shell convention neither the
+ * filesystem APIs nor the host-agnostic core resolve — so the core only ever
+ * sees an absolute path. `~user` is left untouched (not portably resolvable) so
+ * the parser rejects it.
  */
 export function expandHomePath(input: string): string {
     if (input === "~") {
@@ -35,22 +32,12 @@ export function expandHomePath(input: string): string {
 }
 
 /**
- * Host glue for the element-template marketplace commands.
- *
- * Lives in the controller (host) layer because it owns the `vscode` input box,
- * progress, and command registration; all fetch/cache logic sits behind the
- * host-agnostic {@link TemplateMarketplaceService}. After any successful
- * fetch it re-pushes templates to every open editor so newly cached templates
- * appear without reopening the diagram.
+ * Host glue for the marketplace commands: owns the `vscode` input box, progress,
+ * and command registration, delegating all fetch/cache logic to the
+ * host-agnostic {@link TemplateMarketplaceService}. After any successful fetch it
+ * re-pushes templates to open editors so newly cached ones appear without reopening.
  */
 export class TemplateMarketplaceController {
-    /**
-     * @param marketplaceSvc Fetch/cache orchestration.
-     * @param templatesSvc Re-run to re-post the merged template set per editor.
-     * @param editorStore Source of open-editor ids to refresh.
-     * @param settings Persists the registration on a successful add.
-     * @param notifier Progress + error/info surfacing.
-     */
     constructor(
         private readonly marketplaceSvc: TemplateMarketplaceService,
         private readonly templatesSvc: BpmnElementTemplatesService,
@@ -67,20 +54,16 @@ export class TemplateMarketplaceController {
     }
 
     /**
-     * Prompts for a marketplace location (a GitHub or GitLab repo, or a local
-     * folder), fetches it, and — only if the fetch succeeds — persists the
-     * registration. Persisting after the fetch means a location whose
-     * `marketplace.json` is missing never lands in settings. Self-hosted
-     * GHE / GitLab hosts are registered as object entries in settings.json, not
-     * through this box.
+     * Persists the registration only after the fetch succeeds, so a location
+     * whose `marketplace.json` is missing never lands in settings.
      */
     private async addMarketplace(): Promise<void> {
         const input = await window.showInputBox({
             title: "Add Template Marketplace",
             prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
             placeHolder: "https://github.com/owner/repo  or  ~/path/to/folder",
-            // Reuse the domain parser as the validator (after `~` expansion) so
-            // the accepted forms can never drift from what the service resolves.
+            // Reuse the domain parser as the validator so the accepted forms
+            // can never drift from what the service resolves.
             validateInput: (value) => {
                 try {
                     parseMarketplaceUrl(expandHomePath(value.trim()));
@@ -97,8 +80,8 @@ export class TemplateMarketplaceController {
             return;
         }
 
-        // Expand once and use the absolute path for both fetch and persistence,
-        // so a re-fetch via Update (which re-reads settings) never sees a `~`.
+        // Persist the expanded path so a re-fetch via Update (which re-reads
+        // settings) never sees a `~`.
         const location = expandHomePath(input.trim());
         try {
             await this.notifier.withProgress("Adding template marketplace…", () =>
@@ -113,7 +96,6 @@ export class TemplateMarketplaceController {
     }
 
     /**
-     * Manually re-fetches all registered marketplaces (decision D7).
      * {@link TemplateMarketplaceService.updateAll} swallows per-marketplace
      * errors itself, so this never blocks even fully offline.
      */
