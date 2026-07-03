@@ -14,6 +14,7 @@ Code's settings UI (search for "BPMN Modeler") or directly in `settings.json`.
 | `miragon.bpmnModeler.showTransactionBoundaries` | boolean | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |
 | `miragon.bpmnModeler.favouriteBpmnElements` | string[] | `["bpmn:ServiceTask","bpmn:UserTask","bpmn:CallActivity","bpmn:ExclusiveGateway"]` | BPMN element types pinned at the top of the append menu (max 6). |
 | `miragon.bpmnModeler.c8ApiVersion` | string | `v2` | REST API version prefix for Camunda 8 endpoints. Change this if your cluster exposes a different API version. |
+| `miragon.bpmnModeler.marketplaces` | (string \| object)[] | `[]` | Registered [template marketplaces](/vscode/features/template-marketplace): GitHub/GitLab URLs, local folder paths, or object entries for self-hosted instances. User-scoped; usually managed via the `Add Marketplace` command. |
 
 ## Example `settings.json`
 
