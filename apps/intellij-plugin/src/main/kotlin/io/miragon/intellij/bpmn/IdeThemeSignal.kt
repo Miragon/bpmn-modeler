@@ -13,7 +13,6 @@ import com.intellij.ui.JBColor
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.NamedColorUtil
-import com.intellij.util.ui.StartupUiUtil
 import com.intellij.util.ui.UIUtil
 import org.cef.browser.CefBrowser
 
@@ -32,9 +31,9 @@ import org.cef.browser.CefBrowser
  * It owns dark detection, the IDE→`--vscode-*` color mapping, the HTML/JS
  * snippet generation, and the change fan-out — keeping [WebviewServer] and the
  * editors free of theming logic (SRP). Dark detection deliberately uses the
- * **LaF** ([StartupUiUtil.isDarkTheme]), not the editor scheme, so the palette
- * and properties panel match the IDE chrome; the canvas additionally receives
- * the real editor-scheme background/foreground through the injected variables.
+ * **LaF** ([JBColor.isBright]), not the editor scheme, so the palette and
+ * properties panel match the IDE chrome; the canvas additionally receives the
+ * real editor-scheme background/foreground through the injected variables.
  */
 @Service(Service.Level.APP)
 class IdeThemeSignal : Disposable {
@@ -57,7 +56,7 @@ class IdeThemeSignal : Disposable {
     }
 
     /** LaF-based dark detection — matches the IDE chrome the webview sits in. */
-    fun isDark(): Boolean = StartupUiUtil.isDarkTheme
+    fun isDark(): Boolean = !JBColor.isBright()
 
     /** The body class VS Code would set; `app/theme.ts` keys its stylesheet swap off this. */
     fun bodyClass(): String = if (isDark()) "vscode-dark" else "vscode-light"
