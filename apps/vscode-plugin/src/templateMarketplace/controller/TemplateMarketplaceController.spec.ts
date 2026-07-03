@@ -29,7 +29,7 @@ function createController() {
     };
     const templatesSvc = { setElementTemplates: vi.fn().mockResolvedValue(undefined) };
     const editorStore = { getEditorIds: vi.fn().mockReturnValue([]) };
-    const settings = { addTemplateMarketplace: vi.fn().mockResolvedValue(undefined) };
+    const settings = { addMarketplace: vi.fn().mockResolvedValue(undefined) };
     const notifier = {
         withProgress: vi.fn((_title: string, task: () => Promise<unknown>) => task()),
         showInfo: vi.fn(),
@@ -85,7 +85,7 @@ describe("TemplateMarketplaceController.addMarketplace", () => {
         const expanded = join(homedir(), "templates");
         expect(marketplaceSvc.addMarketplace).toHaveBeenCalledWith(expanded);
         // Persisting the expanded path means a later Update never re-reads a `~`.
-        expect(settings.addTemplateMarketplace).toHaveBeenCalledWith(expanded);
+        expect(settings.addMarketplace).toHaveBeenCalledWith(expanded);
     });
 
     it("does not persist when the fetch fails", async () => {
@@ -95,7 +95,7 @@ describe("TemplateMarketplaceController.addMarketplace", () => {
 
         await handlers.get(ADD_MARKETPLACE_CMD)!();
 
-        expect(settings.addTemplateMarketplace).not.toHaveBeenCalled();
+        expect(settings.addMarketplace).not.toHaveBeenCalled();
         expect(notifier.notifyError).toHaveBeenCalledOnce();
     });
 

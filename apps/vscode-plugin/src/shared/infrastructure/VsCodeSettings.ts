@@ -123,10 +123,10 @@ export class VsCodeSettings implements SettingsPort {
      * Forwards the raw marketplace entries (URL/path strings, or object entries
      * for self-hosted GHE / GitLab); the domain parser validates each shape.
      */
-    getTemplateMarketplaces(): MarketplaceSettingsEntry[] {
+    getMarketplaces(): MarketplaceSettingsEntry[] {
         return workspace
             .getConfiguration("miragon.bpmnModeler")
-            .get<MarketplaceSettingsEntry[]>("templateMarketplaces", []);
+            .get<MarketplaceSettingsEntry[]>("marketplaces", []);
     }
 
     /**
@@ -137,13 +137,13 @@ export class VsCodeSettings implements SettingsPort {
      * command writes; a string that resolves to the same repo as an object entry
      * slips through, costing only a redundant fetch into the same cache slot.
      */
-    async addTemplateMarketplace(url: string): Promise<void> {
-        const current = this.getTemplateMarketplaces();
+    async addMarketplace(url: string): Promise<void> {
+        const current = this.getMarketplaces();
         if (current.includes(url)) {
             return;
         }
         await workspace
             .getConfiguration("miragon.bpmnModeler")
-            .update("templateMarketplaces", [...current, url], ConfigurationTarget.Global);
+            .update("marketplaces", [...current, url], ConfigurationTarget.Global);
     }
 }

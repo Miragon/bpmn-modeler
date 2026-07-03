@@ -134,7 +134,7 @@ export interface SettingsPort {
     getPersistCodeLinkMap(): boolean;
     /** Whether Camunda SPIN globals (`S`/`JSON`) and SpinJsonNode members are offered in C7 scripts. */
     getScriptingSpin(): boolean;
-    getTemplateMarketplaces(): MarketplaceSettingsEntry[];
+    getMarketplaces(): MarketplaceSettingsEntry[];
 }
 
 /**

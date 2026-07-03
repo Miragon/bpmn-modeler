@@ -405,7 +405,7 @@ export interface SettingsSnapshot {
     favouriteBpmnElements: string[];
     language: string;
     scriptingSpin: boolean;
-    templateMarketplaces: string[];
+    marketplaces: string[];
 }
 
 /** Mirrors the VS Code config prefix so `affectsConfiguration` keys line up across hosts. */
@@ -432,7 +432,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
     ],
     language: "en",
     scriptingSpin: true,
-    templateMarketplaces: [],
+    marketplaces: [],
 };
 
 /**
@@ -526,8 +526,8 @@ export class BridgeSettings implements SettingsPort {
      * stays assignable by return-type covariance and keeps {@link valuesEqual}
      * correct.
      */
-    getTemplateMarketplaces(): string[] {
-        return this.snapshot.templateMarketplaces;
+    getMarketplaces(): string[] {
+        return this.snapshot.marketplaces;
     }
 }
 

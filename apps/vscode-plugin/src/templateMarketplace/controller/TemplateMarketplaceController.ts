@@ -12,8 +12,8 @@ import {
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { VsCodeSettings } from "../../shared/infrastructure/VsCodeSettings";
 
-export const ADD_MARKETPLACE_CMD = "bpmn-modeler.addTemplateMarketplace";
-export const UPDATE_MARKETPLACES_CMD = "bpmn-modeler.updateTemplateMarketplaces";
+export const ADD_MARKETPLACE_CMD = "bpmn-modeler.addMarketplace";
+export const UPDATE_MARKETPLACES_CMD = "bpmn-modeler.updateMarketplaces";
 
 /**
  * Expands a leading `~` at the host boundary — a shell convention neither the
@@ -59,7 +59,7 @@ export class TemplateMarketplaceController {
      */
     private async addMarketplace(): Promise<void> {
         const input = await window.showInputBox({
-            title: "Add Template Marketplace",
+            title: "Add Marketplace",
             prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
             placeHolder: "https://github.com/owner/repo  or  ~/path/to/folder",
             // Reuse the domain parser as the validator so the accepted forms
@@ -84,14 +84,14 @@ export class TemplateMarketplaceController {
         // settings) never sees a `~`.
         const location = expandHomePath(input.trim());
         try {
-            await this.notifier.withProgress("Adding template marketplace…", () =>
+            await this.notifier.withProgress("Adding marketplace…", () =>
                 this.marketplaceSvc.addMarketplace(location),
             );
-            await this.settings.addTemplateMarketplace(location);
+            await this.settings.addMarketplace(location);
             await this.refreshOpenEditors();
-            this.notifier.showInfo("Template marketplace added.");
+            this.notifier.showInfo("Marketplace added.");
         } catch (error) {
-            this.notifier.notifyError("Failed to add template marketplace.", error as Error);
+            this.notifier.notifyError("Failed to add marketplace.", error as Error);
         }
     }
 
@@ -100,7 +100,7 @@ export class TemplateMarketplaceController {
      * errors itself, so this never blocks even fully offline.
      */
     private async updateMarketplaces(): Promise<void> {
-        await this.notifier.withProgress("Updating template marketplaces…", () =>
+        await this.notifier.withProgress("Updating marketplaces…", () =>
             this.marketplaceSvc.updateAll(),
         );
         await this.refreshOpenEditors();
