@@ -1,2 +1,6 @@
 # Build output: the compiled Node-free Bun binary (~58 MB).
 dist/
+
+# Bun's transient compile scratch files (e.g. .18bec….bun-build), left behind
+# by `bun build --compile` when it can't atomically replace the output.
+*.bun-build

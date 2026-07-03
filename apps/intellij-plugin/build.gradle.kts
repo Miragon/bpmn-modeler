@@ -276,17 +276,29 @@ val copySchema =
         into(stagedResourcesRoot.map { it.dir("schemas") })
     }
 
+// Stamp the plugin version onto the class path so BridgeBinaryResolver can key
+// its extraction cache without a PluginManager lookup — every class/id→descriptor
+// API is @ApiStatus.Internal and would fail Marketplace verification.
+val writeBridgeVersion =
+    tasks.register("writeBridgeVersion") {
+        val versionFile = stagedResourcesRoot.map { it.file("bridge-version.txt") }
+        val pluginVersion = version.toString()
+        inputs.property("pluginVersion", pluginVersion)
+        outputs.file(versionFile)
+        doLast { versionFile.get().asFile.apply { parentFile.mkdirs() }.writeText(pluginVersion) }
+    }
+
 sourceSets.named("main") {
     resources.srcDir(stagedResourcesRoot)
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema)
+    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
 }
 
 // The sandbox for `runIde` is assembled from the jar, which already contains the
 // staged resources, so no extra sandbox wiring is needed — but make the
 // dependency explicit so a clean `runIde` always stages the bundles first.
 tasks.withType<PrepareSandboxTask>().configureEach {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema)
+    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
 }
