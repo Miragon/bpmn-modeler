@@ -18,10 +18,10 @@ const MANIFEST = JSON.stringify({
  */
 function createService(opts: { manifest?: string | Error } = {}) {
     const cache = {
-        writeTemplate: vi.fn().mockResolvedValue(undefined),
+        write: vi.fn().mockResolvedValue(undefined),
         getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
     };
-    const settings = { getTemplateMarketplaces: vi.fn().mockReturnValue([]) };
+    const settings = { getMarketplaces: vi.fn().mockReturnValue([]) };
     const notifier = { logWarning: vi.fn() };
 
     // Map-backed token store so a granted prompt is observable on the next
@@ -119,7 +119,7 @@ function serviceOver(
     seededTokens: Record<string, string> = {},
 ) {
     const cache = {
-        writeTemplate: vi.fn().mockResolvedValue(undefined),
+        write: vi.fn().mockResolvedValue(undefined),
         getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
     };
     const notifier = { logWarning: vi.fn() };
@@ -129,7 +129,7 @@ function serviceOver(
         setToken: vi.fn(async (host: string, token: string) => void stored.set(host, token)),
     };
     const tokenPrompt = { promptForToken: vi.fn(prompt) };
-    const settings = { getTemplateMarketplaces: vi.fn().mockReturnValue([]) };
+    const settings = { getMarketplaces: vi.fn().mockReturnValue([]) };
     const service = new TemplateMarketplaceService(
         factory as never,
         cache as never,
@@ -154,15 +154,17 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
 
         // Relative source resolves against the marketplace repo (index 0);
         // the github source uses its own repo (index 1).
-        expect(cache.writeTemplate).toHaveBeenCalledWith(
+        expect(cache.write).toHaveBeenCalledWith(
             "acme__templates",
             0,
+            "element-templates",
             "element-templates/t.json",
             expect.any(String),
         );
-        expect(cache.writeTemplate).toHaveBeenCalledWith(
+        expect(cache.write).toHaveBeenCalledWith(
             "acme__templates",
             1,
+            "element-templates",
             "resources/t.json",
             expect.any(String),
         );
@@ -193,9 +195,10 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             rootDir: "/Users/me/templates",
             path: "element-templates",
         });
-        expect(cache.writeTemplate).toHaveBeenCalledWith(
+        expect(cache.write).toHaveBeenCalledWith(
             "local--Users-me-templates",
             0,
+            "element-templates",
             "element-templates/t.json",
             expect.any(String),
         );
@@ -206,7 +209,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         // local folder via `provider: "local"`. The root (manifest) read uses the
         // github config; the local source resolves to its own expanded directory.
         const cache = {
-            writeTemplate: vi.fn().mockResolvedValue(undefined),
+            write: vi.fn().mockResolvedValue(undefined),
             getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
         };
         const notifier = { logWarning: vi.fn() };
@@ -228,7 +231,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         const service = new TemplateMarketplaceService(
             factory as never,
             cache as never,
-            { getTemplateMarketplaces: vi.fn() } as never,
+            { getMarketplaces: vi.fn() } as never,
             notifier as never,
             noAuth().tokens as never,
             noAuth().tokenPrompt as never,
@@ -242,9 +245,10 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             rootDir: "/home/test/ext-templates",
             path: "",
         });
-        expect(cache.writeTemplate).toHaveBeenCalledWith(
+        expect(cache.write).toHaveBeenCalledWith(
             "acme__templates",
             0,
+            "element-templates",
             "connector.json",
             "{}",
         );
@@ -254,7 +258,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         const { service, cache } = createService({ manifest: new Error("404") });
 
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow();
-        expect(cache.writeTemplate).not.toHaveBeenCalled();
+        expect(cache.write).not.toHaveBeenCalled();
     });
 
     it("throws when the manifest is malformed", async () => {
@@ -286,7 +290,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         const service = new TemplateMarketplaceService(
             failingFactory as never,
             cache as never,
-            { getTemplateMarketplaces: vi.fn() } as never,
+            { getMarketplaces: vi.fn() } as never,
             notifier as never,
             noAuth().tokens as never,
             noAuth().tokenPrompt as never,
@@ -295,30 +299,59 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
 
         await service.addMarketplace("https://github.com/acme/templates");
 
-        expect(cache.writeTemplate).toHaveBeenCalledTimes(1); // only the relative source
+        expect(cache.write).toHaveBeenCalledTimes(1); // only the relative source
         expect(notifier.logWarning).toHaveBeenCalledOnce();
+    });
+
+    it("caches a supported source but warns and skips an unknown content type", async () => {
+        // A newer marketplace mixing this version's element-templates with a
+        // future content type: the known source still caches, the unknown one
+        // is warned about rather than sinking the whole marketplace.
+        const manifest = JSON.stringify({
+            sources: [
+                { path: "element-templates" },
+                { type: "palette-entries", provider: "github", repo: "acme/palette", path: "p" },
+            ],
+        });
+        const { service, cache, notifier } = createService({ manifest });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(cache.write).toHaveBeenCalledTimes(1);
+        expect(cache.write).toHaveBeenCalledWith(
+            "acme__templates",
+            0,
+            "element-templates",
+            "element-templates/t.json",
+            expect.any(String),
+        );
+        expect(notifier.logWarning).toHaveBeenCalledWith(
+            expect.stringContaining('content type "palette-entries" is not supported'),
+        );
     });
 });
 
 describe("TemplateMarketplaceService.updateAll", () => {
     it("re-fetches every registered marketplace", async () => {
         const { service, settings, cache } = createService();
-        settings.getTemplateMarketplaces.mockReturnValue([
+        settings.getMarketplaces.mockReturnValue([
             "https://github.com/acme/one",
             "https://github.com/acme/two",
         ]);
 
         await service.updateAll();
 
-        expect(cache.writeTemplate).toHaveBeenCalledWith(
+        expect(cache.write).toHaveBeenCalledWith(
             "acme__one",
             0,
+            "element-templates",
             expect.any(String),
             expect.any(String),
         );
-        expect(cache.writeTemplate).toHaveBeenCalledWith(
+        expect(cache.write).toHaveBeenCalledWith(
             "acme__two",
             0,
+            "element-templates",
             expect.any(String),
             expect.any(String),
         );
@@ -326,7 +359,7 @@ describe("TemplateMarketplaceService.updateAll", () => {
 
     it("never throws when a marketplace fails — logs and continues (D8)", async () => {
         const { service, settings, notifier } = createService({ manifest: new Error("offline") });
-        settings.getTemplateMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
+        settings.getMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
 
         await expect(service.updateAll()).resolves.toBeUndefined();
         expect(notifier.logWarning).toHaveBeenCalledOnce();
@@ -384,7 +417,7 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             expect.stringMatching(/may be private/),
         );
         expect(tokens.setToken).toHaveBeenCalledWith("github.com", "granted");
-        expect(cache.writeTemplate).toHaveBeenCalled();
+        expect(cache.write).toHaveBeenCalled();
     });
 
     it("declining during add rejects, caches nothing, and prompts once", async () => {
@@ -397,7 +430,7 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
             /requires a personal access token/,
         );
-        expect(cache.writeTemplate).not.toHaveBeenCalled();
+        expect(cache.write).not.toHaveBeenCalled();
         expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
     });
 
@@ -496,7 +529,7 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             factory,
             async () => undefined,
         );
-        settings.getTemplateMarketplaces.mockReturnValue([
+        settings.getMarketplaces.mockReturnValue([
             "https://github.com/acme/one",
             "https://github.com/acme/two",
         ]);
@@ -546,7 +579,7 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
 
     it("resolves a mixed string+object settings array to the right configs", async () => {
         const { service, settings, sourceFactory } = createService();
-        settings.getTemplateMarketplaces.mockReturnValue([
+        settings.getMarketplaces.mockReturnValue([
             "https://github.com/acme/one",
             { provider: "gitlab", repo: "group/two", baseUrl: "https://gitlab.acme.com" },
         ]);
@@ -596,7 +629,7 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
             };
         });
         const { service, settings } = serviceOver(factory, async () => "gl-tok");
-        settings.getTemplateMarketplaces.mockReturnValue([
+        settings.getMarketplaces.mockReturnValue([
             { provider: "gitlab", repo: "group/proj", baseUrl: "https://gitlab.acme.com" },
             "https://github.com/acme/repo",
         ]);
@@ -658,7 +691,7 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
             }),
         );
         const { service, notifier, settings } = serviceOver(factory, async () => undefined);
-        settings.getTemplateMarketplaces.mockReturnValue([
+        settings.getMarketplaces.mockReturnValue([
             { provider: "gitlab", repo: "group/proj", baseUrl: "https://gitlab.acme.com" },
         ]);
 

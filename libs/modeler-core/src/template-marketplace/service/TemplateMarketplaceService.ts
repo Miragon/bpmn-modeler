@@ -91,7 +91,7 @@ export class TemplateMarketplaceService {
      */
     async updateAll(): Promise<void> {
         const run: PromptRun = { promptedHosts: new Set() };
-        for (const entry of this.settings.getTemplateMarketplaces()) {
+        for (const entry of this.settings.getMarketplaces()) {
             // Label first (never throws) so a marketplace whose *entry* fails to
             // parse can still be named in the warning below.
             const label = marketplaceEntryLabel(entry);
@@ -120,7 +120,15 @@ export class TemplateMarketplaceService {
         registration: MarketplaceRegistration,
         run: PromptRun,
     ): Promise<void> {
-        const sources = parseMarketplace(JSON.parse(await this.readManifest(registration, run)));
+        const { sources, skipped } = parseMarketplace(
+            JSON.parse(await this.readManifest(registration, run)),
+        );
+        // A source this version can't serve (an unknown content type) is loud,
+        // not silent: warn per skip so a newer marketplace's extra content is
+        // visible rather than mysteriously absent.
+        for (const reason of skipped) {
+            this.notifier.logWarning(`Skipped a source of "${registration.url}": ${reason}`);
+        }
         await this.ensureTokensForPrivateSources(sources, run);
 
         for (let index = 0; index < sources.length; index++) {
@@ -170,7 +178,7 @@ export class TemplateMarketplaceService {
             const repository = this.sourceFactory(config);
             for (const repoPath of await repository.listTemplateFiles()) {
                 const content = await repository.fetchFile(repoPath);
-                await this.cache.writeTemplate(registration.id, index, repoPath, content);
+                await this.cache.write(registration.id, index, source.type, repoPath, content);
             }
         });
     }

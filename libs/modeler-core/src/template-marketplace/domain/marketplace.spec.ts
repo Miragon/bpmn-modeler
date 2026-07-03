@@ -268,24 +268,28 @@ describe("parseMarketplaceUrl (local)", () => {
 
 describe("parseMarketplace", () => {
     it("parses a relative source, normalizing the path", () => {
-        const sources = parseMarketplace({ sources: [{ path: "./element-templates/" }] });
-        expect(sources).toEqual([{ kind: "relative", path: "element-templates" }]);
+        const { sources } = parseMarketplace({ sources: [{ path: "./element-templates/" }] });
+        expect(sources).toEqual([
+            { kind: "relative", type: "element-templates", path: "element-templates" },
+        ]);
     });
 
     it("normalizes a bare '.' relative path to the repository root", () => {
         // `.` means the root; left as-is it builds a `"./"` prefix matching no
         // git-tree path, silently loading zero templates on GitHub.
-        const sources = parseMarketplace({ sources: [{ path: "." }] });
-        expect(sources).toEqual([{ kind: "relative", path: "" }]);
+        const { sources } = parseMarketplace({ sources: [{ path: "." }] });
+        expect(sources).toEqual([{ kind: "relative", type: "element-templates", path: "" }]);
     });
 
     it("strips repeated trailing slashes from a relative path", () => {
-        const sources = parseMarketplace({ sources: [{ path: "./templates///" }] });
-        expect(sources).toEqual([{ kind: "relative", path: "templates" }]);
+        const { sources } = parseMarketplace({ sources: [{ path: "./templates///" }] });
+        expect(sources).toEqual([
+            { kind: "relative", type: "element-templates", path: "templates" },
+        ]);
     });
 
     it("parses a github source into owner/repo/ref/path", () => {
-        const sources = parseMarketplace({
+        const { sources } = parseMarketplace({
             sources: [
                 {
                     provider: "github",
@@ -298,18 +302,21 @@ describe("parseMarketplace", () => {
         expect(sources).toEqual([
             {
                 kind: "github",
+                type: "element-templates",
                 owner: "camunda",
                 repo: "camunda-modeler",
                 ref: "develop",
                 path: "resources/element-templates",
+                baseUrl: undefined,
+                visibility: undefined,
             },
         ]);
     });
 
     it("allows a github source without a ref", () => {
-        const [source] = parseMarketplace({
-            sources: [{ provider: "github", repo: "a/b", path: "x" }],
-        });
+        const {
+            sources: [source],
+        } = parseMarketplace({ sources: [{ provider: "github", repo: "a/b", path: "x" }] });
         expect(source).toMatchObject({ kind: "github", ref: undefined });
     });
 
@@ -329,14 +336,14 @@ describe("parseMarketplace", () => {
 
     it("parses a provider:local source, keeping a ~ path raw for fetch-time expansion", () => {
         expect(
-            parseMarketplace({ sources: [{ provider: "local", path: "~/ext-templates" }] }),
-        ).toEqual([{ kind: "local", path: "~/ext-templates" }]);
+            parseMarketplace({ sources: [{ provider: "local", path: "~/ext-templates" }] }).sources,
+        ).toEqual([{ kind: "local", type: "element-templates", path: "~/ext-templates" }]);
     });
 
     it("parses a provider:local source with an absolute path", () => {
         expect(
-            parseMarketplace({ sources: [{ provider: "local", path: "/opt/templates" }] }),
-        ).toEqual([{ kind: "local", path: "/opt/templates" }]);
+            parseMarketplace({ sources: [{ provider: "local", path: "/opt/templates" }] }).sources,
+        ).toEqual([{ kind: "local", type: "element-templates", path: "/opt/templates" }]);
     });
 
     it("rejects a provider:local source with a relative path", () => {
@@ -359,7 +366,9 @@ describe("parseMarketplace", () => {
     });
 
     it("parses and preserves a valid visibility on a github source", () => {
-        const [source] = parseMarketplace({
+        const {
+            sources: [source],
+        } = parseMarketplace({
             sources: [{ provider: "github", repo: "a/b", path: "x", visibility: "private" }],
         });
         expect(source).toMatchObject({ kind: "github", visibility: "private" });
@@ -387,7 +396,7 @@ describe("parseMarketplace", () => {
     });
 
     it("parses a gitlab source, keeping the full nested project path", () => {
-        const sources = parseMarketplace({
+        const { sources } = parseMarketplace({
             sources: [
                 {
                     provider: "gitlab",
@@ -402,6 +411,7 @@ describe("parseMarketplace", () => {
         expect(sources).toEqual([
             {
                 kind: "gitlab",
+                type: "element-templates",
                 projectPath: "group/sub/project",
                 ref: "main",
                 path: "resources/element-templates",
@@ -434,11 +444,51 @@ describe("parseMarketplace", () => {
     });
 
     it("carries a baseUrl through a github source", () => {
-        const [source] = parseMarketplace({
+        const {
+            sources: [source],
+        } = parseMarketplace({
             sources: [
                 { provider: "github", repo: "a/b", path: "x", baseUrl: "https://ghe.acme.com" },
             ],
         });
         expect(source).toMatchObject({ kind: "github", baseUrl: "https://ghe.acme.com" });
+    });
+});
+
+describe("parseMarketplace source content type", () => {
+    it("defaults an omitted type to element-templates", () => {
+        const { sources, skipped } = parseMarketplace({ sources: [{ path: "templates" }] });
+        expect(sources).toEqual([
+            { kind: "relative", type: "element-templates", path: "templates" },
+        ]);
+        expect(skipped).toEqual([]);
+    });
+
+    it("accepts an explicit element-templates type", () => {
+        const { sources } = parseMarketplace({
+            sources: [{ type: "element-templates", path: "templates" }],
+        });
+        expect(sources).toMatchObject([{ kind: "relative", type: "element-templates" }]);
+    });
+
+    it("skips a well-formed but unknown type with a reason instead of throwing", () => {
+        // Forward compatibility: a newer marketplace's extra content type must
+        // not sink the whole marketplace on an older modeler.
+        const { sources, skipped } = parseMarketplace({
+            sources: [
+                { path: "templates" },
+                { type: "palette-entries", provider: "github", repo: "a/b", path: "x" },
+            ],
+        });
+        expect(sources).toMatchObject([{ kind: "relative", type: "element-templates" }]);
+        expect(skipped).toEqual([
+            'sources[1]: content type "palette-entries" is not supported by this version',
+        ]);
+    });
+
+    it("rejects a non-string type as a shape error", () => {
+        expect(() => parseMarketplace({ sources: [{ type: 5, path: "x" }] })).toThrow(
+            InvalidMarketplaceError,
+        );
     });
 });

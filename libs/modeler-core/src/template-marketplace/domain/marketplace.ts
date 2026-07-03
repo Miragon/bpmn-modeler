@@ -64,16 +64,27 @@ export interface MarketplaceRegistration {
 }
 
 /**
+ * What kind of content a source serves. The marketplace format is shared across
+ * future content types (properties-panel entries, palette entries, lint rules,
+ * …); today only element templates exist, so the union has a single member and
+ * grows as new pipelines are wired up. Reserving it now lets an older modeler
+ * skip a newer marketplace's unknown content instead of mis-reading it.
+ */
+export type MarketplaceContentType = "element-templates";
+
+/**
  * A `sources[]` entry resolved to where its templates live. `relative` points
  * back into the marketplace itself; `github`/`gitlab` name an external repo
  * directly; `local` names an absolute or `~`-rooted directory on this machine.
  * `local.path` is kept raw because `~` expansion needs the host's home
- * directory, known only at fetch time.
+ * directory, known only at fetch time. `type` carries the source's content type
+ * so the cache can segment it and the pipeline can claim only its own kind.
  */
 export type TemplateSource =
-    | { readonly kind: "relative"; readonly path: string }
+    | { readonly kind: "relative"; readonly type: MarketplaceContentType; readonly path: string }
     | {
           readonly kind: "github";
+          readonly type: MarketplaceContentType;
           readonly owner: string;
           readonly repo: string;
           readonly ref?: string;
@@ -86,13 +97,14 @@ export type TemplateSource =
       }
     | {
           readonly kind: "gitlab";
+          readonly type: MarketplaceContentType;
           readonly projectPath: string;
           readonly ref?: string;
           readonly path: string;
           readonly baseUrl?: string;
           readonly visibility?: "public" | "private";
       }
-    | { readonly kind: "local"; readonly path: string };
+    | { readonly kind: "local"; readonly type: MarketplaceContentType; readonly path: string };
 
 /**
  * Normalizes a source path so it compares cleanly as a git-tree prefix, with no
@@ -476,12 +488,24 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
 }
 
 /**
+ * The result of validating a `marketplace.json`: the sources this version can
+ * serve, plus one {@link skipped} reason per source whose content `type` this
+ * version does not understand. Unknown types are skipped, not rejected, so an
+ * older modeler still loads the element-template sources of a newer marketplace.
+ */
+export interface ParsedMarketplace {
+    readonly sources: TemplateSource[];
+    readonly skipped: string[];
+}
+
+/**
  * Validates a parsed `marketplace.json` and projects its `sources[]` into
  * {@link TemplateSource}s. This is a parser, not a cast: a shape violation
  * throws so a typo surfaces as a clear error instead of silently loading zero
- * templates.
+ * templates. An unknown (well-formed) content `type` is the one non-fatal case —
+ * it lands in {@link ParsedMarketplace.skipped} so the caller can warn loudly.
  */
-export function parseMarketplace(json: unknown): TemplateSource[] {
+export function parseMarketplace(json: unknown): ParsedMarketplace {
     if (typeof json !== "object" || json === null) {
         throw new InvalidMarketplaceError("expected a JSON object");
     }
@@ -491,22 +515,47 @@ export function parseMarketplace(json: unknown): TemplateSource[] {
         throw new InvalidMarketplaceError("`sources` must be an array");
     }
 
-    return sources.map((entry, index) => parseSource(entry, index));
+    const parsed: TemplateSource[] = [];
+    const skipped: string[] = [];
+    sources.forEach((entry, index) => {
+        const result = parseSource(entry, index);
+        if ("unsupported" in result) {
+            skipped.push(result.unsupported);
+        } else {
+            parsed.push(result);
+        }
+    });
+    return { sources: parsed, skipped };
 }
 
-function parseSource(entry: unknown, index: number): TemplateSource {
+/** A source whose content `type` this version cannot serve; carries the warning text. */
+interface UnsupportedSource {
+    readonly unsupported: string;
+}
+
+function parseSource(entry: unknown, index: number): TemplateSource | UnsupportedSource {
     if (typeof entry !== "object" || entry === null) {
         throw new InvalidMarketplaceError(`sources[${index}] must be an object`);
     }
 
     const source = entry as Record<string, unknown>;
+    // The content type is read before the rest of the shape: a future content
+    // type may carry fields this version doesn't understand, so an unknown type
+    // must short-circuit to "skip" rather than trip a later shape check.
+    const type = parseContentType(source.type, index);
+    if (type === undefined) {
+        return {
+            unsupported: `sources[${index}]: content type "${String(source.type)}" is not supported by this version`,
+        };
+    }
+
     const path = source.path;
     if (typeof path !== "string" || path.trim().length === 0) {
         throw new InvalidMarketplaceError(`sources[${index}] is missing a non-empty "path"`);
     }
 
     if (source.provider === undefined) {
-        return { kind: "relative", path: normalizeSourcePath(path) };
+        return { kind: "relative", type, path: normalizeSourcePath(path) };
     }
 
     if (source.provider === "local") {
@@ -520,11 +569,11 @@ function parseSource(entry: unknown, index: number): TemplateSource {
                     `(use a provider-less source for a marketplace-relative path)`,
             );
         }
-        return { kind: "local", path: local };
+        return { kind: "local", type, path: local };
     }
 
     if (source.provider === "gitlab") {
-        return parseGitLabSource(source, index, path);
+        return parseGitLabSource(source, index, path, type);
     }
 
     if (source.provider !== "github") {
@@ -544,6 +593,7 @@ function parseSource(entry: unknown, index: number): TemplateSource {
 
     return {
         kind: "github",
+        type,
         owner,
         repo: repoName,
         ref,
@@ -554,6 +604,22 @@ function parseSource(entry: unknown, index: number): TemplateSource {
 }
 
 /**
+ * Resolves a source's reserved `type` discriminant. An omitted type defaults to
+ * `element-templates` (the sole current type); a non-string is a shape error and
+ * throws; a well-formed but unknown type returns `undefined` so the caller can
+ * skip-with-warning rather than reject the whole marketplace.
+ */
+function parseContentType(raw: unknown, index: number): MarketplaceContentType | undefined {
+    if (raw === undefined) {
+        return "element-templates";
+    }
+    if (typeof raw !== "string") {
+        throw new InvalidMarketplaceError(`sources[${index}] "type" must be a string`);
+    }
+    return raw === "element-templates" ? "element-templates" : undefined;
+}
+
+/**
  * `repo` is the full project namespace (≥2 segments — subgroups nest, so no
  * exactly-two rule).
  */
@@ -561,6 +627,7 @@ function parseGitLabSource(
     source: Record<string, unknown>,
     index: number,
     path: string,
+    type: MarketplaceContentType,
 ): TemplateSource {
     const repo = source.repo;
     if (typeof repo !== "string" || !/^[^/\s]+(?:\/[^/\s]+)+$/.test(repo)) {
@@ -570,6 +637,7 @@ function parseGitLabSource(
     }
     return {
         kind: "gitlab",
+        type,
         projectPath: repo,
         ref: parseSourceRef(source.ref, index),
         path: normalizeSourcePath(path),
