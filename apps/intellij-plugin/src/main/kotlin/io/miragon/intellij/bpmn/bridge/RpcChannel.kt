@@ -53,6 +53,15 @@ internal class RpcChannel(
     fun notify(method: String, params: Any?, coalesceKey: String? = null) =
         enqueue(gson.toJson(linkedMapOf("method" to method, "params" to params)), coalesceKey)
 
+    /**
+     * Enqueues an already-serialised NDJSON frame verbatim, coalescing by
+     * [coalesceKey] like [notify]. Lets a caller that has the raw webview JSON in
+     * hand splice it into the frame instead of parsing and re-serialising it — the
+     * JSON work then never touches the CEF query thread. [line] must be a single
+     * line of valid JSON; the framing appends the trailing newline.
+     */
+    fun notifyRaw(line: String, coalesceKey: String? = null) = enqueue(line, coalesceKey)
+
     fun reply(id: Int, result: Any?) =
         enqueue(gson.toJson(linkedMapOf("id" to id, "result" to result)), null)
 

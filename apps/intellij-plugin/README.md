@@ -92,6 +92,44 @@ Kill the `modeler-bridge` process (Activity Monitor / `kill`). The open editor
 recovers (the session re-registers and the diagram re-renders) and no orphaned
 process remains. Closing the IDE leaves no `modeler-bridge` process behind.
 
+## Troubleshooting
+
+### The diagram canvas feels "one interaction behind" (Windows)
+
+**Symptoms.** After you click on the canvas the context pad lingers; a deleted
+element stays visible until your next selection; drags feel like they repaint a
+frame late. It looks like the modeler is always one input event behind.
+
+**Cause.** On IntelliJ 2025+/2026 builds JCEF (the embedded Chromium) runs
+**out-of-process** ("remote" CEF). The plugin's browsers render **off-screen**
+(OSR) — the only mode available under remote CEF — and that remote-OSR frame
+pipeline presents a frame only on the *next* input event when the DOM mutates on
+a click. The lag is entirely in Chromium's frame delivery; it never touches the
+modeler core or the bridge.
+
+**Fix (recommended).** Turn off out-of-process JCEF so it runs in-process:
+
+- **Help → Edit Custom VM Options…**, add a line:
+
+  ```
+  -Djcef.remote.enabled=false
+  ```
+
+  then restart the IDE. On an affected setup the plugin shows this same hint once
+  as a balloon (with a "Don't show again" opt-out); applying the option makes the
+  balloon self-cancel, since the plugin then detects in-process JCEF.
+
+**Fix (alternative).** The same switch is exposed in the registry
+(**Help → Find Action → "Registry…"**) as
+`ide.browser.jcef.out-of-process.enabled` — clear it and restart.
+
+> **Do _not_ set `ide.browser.jcef.osr.enabled=false`.** On these IDEs that flag
+> does not give you windowed rendering — it makes **every** `JBCefBrowser`
+> construction throw, so the modeler, diff viewer, and deployment tool window all
+> fail to start (the editor then shows an "could not start" label instead of the
+> diagram). Off-screen rendering is mandatory under remote CEF; the fixes above
+> address the *remote* half, which is the part that drops frames.
+
 ## Scope
 
 BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, and

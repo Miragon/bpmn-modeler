@@ -12,7 +12,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBSplitter
 import com.intellij.ui.jcef.JBCefApp
-import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import org.cef.browser.CefBrowser
@@ -201,7 +200,7 @@ class BpmnDiffViewer(
      * session exists before the page's first buffered message flushes.
      */
     private fun createPane(role: String): Pane {
-        val browser = JBCefBrowser()
+        val browser = createModelerBrowser()
         Disposer.register(ownDisposable, browser)
 
         val post: (String) -> Unit = { json ->
@@ -212,7 +211,9 @@ class BpmnDiffViewer(
         val jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
         Disposer.register(browser, jsQuery)
         jsQuery.addHandler { message ->
-            onPaneMessage(role, message)
+            // Hop off the CEF UI thread (which also delivers OSR onPaint): this moves
+            // the isSwapCommand JSON parse and the core forward off the paint path.
+            webviewForwardExecutor.execute { onPaneMessage(role, message) }
             null
         }
 

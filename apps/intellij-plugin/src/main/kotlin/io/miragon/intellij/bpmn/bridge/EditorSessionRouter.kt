@@ -1,7 +1,6 @@
 package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
@@ -111,20 +110,35 @@ internal class EditorSessionRouter(
         deps.channel.notify("settings/didChange", linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap()))
     }
 
-    /** Forwards one raw webview message (already JSON) to the core untouched. */
+    /**
+     * Forwards one raw webview message (already JSON) to the core untouched.
+     *
+     * Runs on the single [webviewForwardExecutor] thread that also feeds off the CEF
+     * query thread, so it must stay cheap: instead of parsing the (full-BPMN-XML)
+     * message and re-serialising it into the frame, splice the raw text straight in.
+     * The coalesce key is sniffed by substring rather than a parse — the only
+     * producer of `SyncDocumentCommand` is the webview shim's compact
+     * `JSON.stringify`, so the marker is a stable literal. A leading-`{` guard drops
+     * obvious non-objects here; anything subtler that slips through is caught and
+     * logged bridge-side (`server.ts`), never crashing the core.
+     */
     fun forwardWebviewMessage(editorId: String, rawMessage: String) {
-        val parsed =
-            try {
-                JsonParser.parseString(rawMessage)
-            } catch (e: Exception) {
-                log.warn("Discarding malformed webview message: $rawMessage", e)
-                return
-            }
-        val type = (parsed as? JsonObject)?.get("type")?.takeIf { !it.isJsonNull }?.asString
-        // Document syncs fire once per diagram edit and supersede each other —
-        // only the latest XML matters for write-back — so collapse queued ones.
-        val coalesceKey = if (type == "SyncDocumentCommand") "sync:$editorId" else null
-        deps.channel.notify("webview/message", linkedMapOf("editorId" to editorId, "message" to parsed), coalesceKey)
+        val trimmed = rawMessage.trimStart()
+        if (!trimmed.startsWith("{")) {
+            log.warn("Discarding non-JSON webview message: $rawMessage")
+            return
+        }
+        // Document syncs fire once per diagram edit and supersede each other — only
+        // the latest XML matters for write-back — so collapse queued ones.
+        val coalesceKey =
+            if (trimmed.contains(SYNC_COMMAND_MARKER)) "sync:$editorId" else null
+        // Splice the raw message in as the `message` value rather than parse →
+        // re-serialise. editorId goes through gson so it is correctly JSON-escaped.
+        val frame =
+            "{\"method\":\"webview/message\",\"params\":{\"editorId\":" +
+                deps.gson.toJson(editorId) +
+                ",\"message\":" + rawMessage + "}}"
+        deps.channel.notifyRaw(frame, coalesceKey)
     }
 
     /**
@@ -236,7 +250,11 @@ internal class EditorSessionRouter(
             var changed = false
             if (!session.project.isDisposed) {
                 val document = FileDocumentManager.getInstance().getDocument(session.file)
-                if (document != null && document.text != content) {
+                // Compare against the Document's live char sequence instead of
+                // document.text: the latter allocates a full String copy of the whole
+                // file on every write, on the EDT. StringUtil.equals reads the
+                // CharSequence in place.
+                if (document != null && !StringUtil.equals(document.charsSequence, content)) {
                     // setText synchronously fires the editor's DocumentListener, which
                     // calls notifyDocumentChanged on this thread. Stamp the causation
                     // token first so that echo carries `causedBy`; the listener
@@ -271,6 +289,11 @@ internal class EditorSessionRouter(
 
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
+
+        // The webview shim's compact JSON.stringify emits exactly this substring for
+        // a SyncDocumentCommand, so a substring match replaces a full JSON parse on
+        // the forward thread.
+        const val SYNC_COMMAND_MARKER = "\"type\":\"SyncDocumentCommand\""
 
         // Long enough to collapse a typing burst into one re-render, short enough
         // that an external edit (git checkout) feels immediate.

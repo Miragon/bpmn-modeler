@@ -3,7 +3,6 @@ package io.miragon.intellij.bpmn
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.util.Disposer
-import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import com.intellij.ui.jcef.JcefShortcutProvider
@@ -36,7 +35,7 @@ import org.cef.handler.CefLoadHandlerAdapter
  * nothing flushes to a null forwarder.
  */
 class WarmBrowser : Disposable {
-    val browser = JBCefBrowser()
+    val browser = createModelerBrowser()
 
     // Set by bind() once the owning editor is known; read from the CEF query
     // handler thread, so volatile for safe publication.
@@ -73,7 +72,11 @@ class WarmBrowser : Disposable {
         jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
         Disposer.register(browser, jsQuery)
         jsQuery.addHandler { request ->
-            forwarder?.invoke(request)
+            // Hop off the CEF UI thread (it also delivers OSR onPaint) so JSON work
+            // in the forwarder never competes with frame delivery. The handler's own
+            // return value is unused (null), so returning before the work completes
+            // is correct.
+            webviewForwardExecutor.execute { forwarder?.invoke(request) }
             null
         }
 
