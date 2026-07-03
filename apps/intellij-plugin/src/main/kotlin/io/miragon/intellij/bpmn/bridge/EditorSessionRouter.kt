@@ -3,10 +3,10 @@ package io.miragon.intellij.bpmn.bridge
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
@@ -78,9 +78,11 @@ internal class EditorSessionRouter(
 
     private fun sendRegister(session: CoreSession) {
         val content =
-            ReadAction.compute<String, RuntimeException> {
-                FileDocumentManager.getInstance().getDocument(session.file)?.text.orEmpty()
-            }
+            ApplicationManager.getApplication().runReadAction(
+                Computable {
+                    FileDocumentManager.getInstance().getDocument(session.file)?.text.orEmpty()
+                },
+            )
         deps.channel.notify(
             "session/register",
             linkedMapOf(

@@ -6,9 +6,10 @@ import com.intellij.diff.contents.DiffContent
 import com.intellij.diff.contents.DocumentContent
 import com.intellij.diff.contents.FileContent
 import com.intellij.diff.requests.ContentDiffRequest
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBSplitter
 import com.intellij.ui.jcef.JBCefApp
@@ -287,13 +288,15 @@ class BpmnDiffViewer(
      * kinds yield empty text, but [BpmnDiffTool.canShow] already declines those.
      */
     private fun textOf(content: DiffContent): String =
-        ReadAction.compute<String, RuntimeException> {
-            when (content) {
-                is DocumentContent -> content.document.text
-                is FileContent -> String(content.file.contentsToByteArray(), StandardCharsets.UTF_8)
-                else -> ""
-            }
-        }
+        ApplicationManager.getApplication().runReadAction(
+            Computable {
+                when (content) {
+                    is DocumentContent -> content.document.text
+                    is FileContent -> String(content.file.contentsToByteArray(), StandardCharsets.UTF_8)
+                    else -> ""
+                }
+            },
+        )
 
     private companion object {
         const val ROLE_BEFORE = "before"
