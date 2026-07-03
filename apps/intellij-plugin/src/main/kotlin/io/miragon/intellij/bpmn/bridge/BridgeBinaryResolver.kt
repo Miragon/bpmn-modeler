@@ -1,6 +1,5 @@
 package io.miragon.intellij.bpmn.bridge
 
-import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.Logger
 import java.nio.file.FileAlreadyExistsException
@@ -94,8 +93,16 @@ internal class BridgeBinaryResolver {
      * differ. Keyed by plugin version so an upgrade re-extracts (and Defender
      * re-scans once); falls back to `"dev"` when the version is unavailable — fine
      * because dev runs use the `MIRAGON_BRIDGE` override checked above.
+     *
+     * Read from a build-stamped class-path resource rather than a PluginManager
+     * lookup: every API that maps a class or id back to its descriptor
+     * (`getPluginByClass`, `PluginManagerCore.getPlugin`) is `@ApiStatus.Internal`
+     * and would fail JetBrains Marketplace verification.
      */
-    private fun bridgeCacheKey(): String = PluginManager.getPluginByClass(javaClass)?.version ?: "dev"
+    private fun bridgeCacheKey(): String =
+        javaClass.getResourceAsStream("/bridge-version.txt")
+            ?.bufferedReader()?.use { it.readText().trim() }
+            ?.ifEmpty { null } ?: "dev"
 
     /**
      * Best-effort removal of *other* version dirs so extracted binaries don't

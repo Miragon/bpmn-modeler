@@ -1,4 +1,4 @@
 <idea-plugin>
-    <!-- Marker for the optional intellij.platform.ui.jcef dependency; intentionally
+    <!-- Marker for the optional com.intellij.modules.jcef dependency; intentionally
          empty — it exists only for the class-loader link, not to register anything. -->
 </idea-plugin>
