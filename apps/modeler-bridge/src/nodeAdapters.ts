@@ -521,7 +521,13 @@ export class BridgeSettings implements SettingsPort {
     getScriptingSpin(): boolean {
         return this.snapshot.scriptingSpin;
     }
-    /** Registered element-template marketplaces; empty until the host supports the feature. */
+    /**
+     * Registered element-template marketplaces; empty until the host supports
+     * the feature. The port widened to `MarketplaceSettingsEntry[]` (string |
+     * object), but this bridge only ever returns `string[]`, which stays
+     * assignable by return-type covariance — no change needed, and the snapshot
+     * staying `string[]` keeps {@link valuesEqual} correct.
+     */
     getTemplateMarketplaces(): string[] {
         return this.snapshot.templateMarketplaces;
     }

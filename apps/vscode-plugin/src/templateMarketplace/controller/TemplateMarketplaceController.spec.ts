@@ -122,6 +122,16 @@ describe("TemplateMarketplaceController.addMarketplace", () => {
         expect(options.validateInput("~/templates")).toBeUndefined();
         expect(options.validateInput("not-a-repo-or-path")).toEqual(expect.any(String));
     });
+
+    it("accepts a gitlab.com URL in the input validator", async () => {
+        const { handlers } = createController();
+        (window.showInputBox as Mock).mockResolvedValue(undefined);
+
+        await handlers.get(ADD_MARKETPLACE_CMD)!();
+
+        const options = (window.showInputBox as Mock).mock.calls[0][0];
+        expect(options.validateInput("https://gitlab.com/group/project")).toBeUndefined();
+    });
 });
 
 describe("TemplateMarketplaceController.updateMarketplaces", () => {

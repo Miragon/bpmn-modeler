@@ -67,15 +67,17 @@ export class TemplateMarketplaceController {
     }
 
     /**
-     * Prompts for a marketplace location (a GitHub repo or a local folder),
-     * fetches it, and — only if the fetch succeeds — persists the registration.
-     * Persisting after the fetch means a location whose `marketplace.json` is
-     * missing never lands in settings.
+     * Prompts for a marketplace location (a GitHub or GitLab repo, or a local
+     * folder), fetches it, and — only if the fetch succeeds — persists the
+     * registration. Persisting after the fetch means a location whose
+     * `marketplace.json` is missing never lands in settings. Self-hosted
+     * GHE / GitLab hosts are registered as object entries in settings.json, not
+     * through this box.
      */
     private async addMarketplace(): Promise<void> {
         const input = await window.showInputBox({
             title: "Add Template Marketplace",
-            prompt: "GitHub repository, or a local folder, holding a marketplace.json",
+            prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
             placeHolder: "https://github.com/owner/repo  or  ~/path/to/folder",
             // Reuse the domain parser as the validator (after `~` expansion) so
             // the accepted forms can never drift from what the service resolves.
@@ -84,7 +86,10 @@ export class TemplateMarketplaceController {
                     parseMarketplaceUrl(expandHomePath(value.trim()));
                     return undefined;
                 } catch {
-                    return "Enter a GitHub repository URL or a local folder path holding a marketplace.json.";
+                    return (
+                        "Enter a GitHub or GitLab repository URL, or a local folder path, " +
+                        "holding a marketplace.json. Self-hosted hosts go in settings.json."
+                    );
                 }
             },
         });

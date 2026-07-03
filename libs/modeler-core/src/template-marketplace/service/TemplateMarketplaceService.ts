@@ -6,9 +6,11 @@ import {
 } from "../../shared/domain/hostPorts";
 import {
     InvalidMarketplaceError,
+    marketplaceEntryLabel,
     MarketplaceLocation,
     MarketplaceRegistration,
     parseMarketplace,
+    parseMarketplaceEntry,
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
@@ -50,8 +52,12 @@ interface PromptRun {
  * resolves a stored token onto the source config before each fetch and, on an
  * auth-shaped failure ({@link RepositoryAccessError}), prompts once per host per
  * run and retries. The token lives only in {@link TokenStorePort}; it is only
- * ever placed on a config the GitHub adapter sends to `api.github.com`, and
- * never reaches settings, the cache, logs, or error messages (D9).
+ * ever placed on a remote (github/gitlab) config the adapter sends to that
+ * config's own host, and never reaches settings, the cache, logs, or error
+ * messages (D9). The orchestration is provider-agnostic — {@link hostForConfig}
+ * is the single place a config maps to the host its token is keyed by, so
+ * github.com, gitlab.com, and self-hosted `baseUrl` origins are all handled the
+ * same way.
  */
 export class TemplateMarketplaceService {
     /**
@@ -77,11 +83,13 @@ export class TemplateMarketplaceService {
     ) {}
 
     /**
-     * Registers and fetches a single marketplace from a pasted GitHub URL.
+     * Registers and fetches a single marketplace from a pasted URL (GitHub /
+     * GitLab repo or a local folder). Self-hosted `baseUrl` marketplaces are
+     * object entries in settings and never flow through this string path (§10).
      *
-     * @throws {InvalidMarketplaceError} if the URL is not a GitHub repo or its
-     *   `marketplace.json` is missing/malformed — the caller must not persist a
-     *   registration that cannot be fetched.
+     * @throws {InvalidMarketplaceError} if the URL is not a supported repo/path
+     *   or its `marketplace.json` is missing/malformed — the caller must not
+     *   persist a registration that cannot be fetched.
      */
     async addMarketplace(url: string): Promise<void> {
         await this.fetchAndCache(parseMarketplaceUrl(url), { promptedHosts: new Set() });
@@ -96,12 +104,15 @@ export class TemplateMarketplaceService {
      */
     async updateAll(): Promise<void> {
         const run: PromptRun = { promptedHosts: new Set() };
-        for (const url of this.settings.getTemplateMarketplaces()) {
+        for (const entry of this.settings.getTemplateMarketplaces()) {
+            // Label first (never throws) so a marketplace whose *entry* fails to
+            // parse can still be named in the warning below.
+            const label = marketplaceEntryLabel(entry);
             try {
-                await this.fetchAndCache(parseMarketplaceUrl(url), run);
+                await this.fetchAndCache(parseMarketplaceEntry(entry), run);
             } catch (error) {
                 this.notifier.logWarning(
-                    `Skipped template marketplace "${url}": ${(error as Error).message}`,
+                    `Skipped template marketplace "${label}": ${(error as Error).message}`,
                 );
             }
         }
@@ -249,10 +260,11 @@ export class TemplateMarketplaceService {
 
     /**
      * Prompts up front for every distinct host that has a *declared*-private
-     * github source and no stored token, so those tokens are in the store before
+     * remote source and no stored token, so those tokens are in the store before
      * the per-source fetches run and `withAuthRetry` picks them up first try.
      * `visibility` is only a hint (D2): undeclared-private sources still get the
-     * failure-driven prompt instead.
+     * failure-driven prompt instead. `hostForConfig` already yields the baseUrl
+     * host, so a self-hosted GHE / GitLab source extends this for free.
      */
     private async ensureTokensForPrivateSources(
         sources: TemplateSource[],
@@ -260,7 +272,10 @@ export class TemplateMarketplaceService {
     ): Promise<void> {
         const hosts = new Set<string>();
         for (const source of sources) {
-            if (source.kind === "github" && source.visibility === "private") {
+            const isPrivateRemote =
+                (source.kind === "github" || source.kind === "gitlab") &&
+                source.visibility === "private";
+            if (isPrivateRemote) {
                 const host = hostForConfig(this.configForSource(undefined, source));
                 if (host !== undefined) {
                     hosts.add(host);
@@ -283,7 +298,7 @@ export class TemplateMarketplaceService {
     /** The reason string shown in the token prompt, tailored to the failure. */
     private promptReason(hadToken: boolean, error: RepositoryAccessError): string {
         if (error.rateLimited && !hadToken) {
-            return `Hit GitHub's rate limit for ${error.resource}. A personal access token raises the limit.`;
+            return `Hit ${error.host}'s rate limit for ${error.resource}. A personal access token raises the limit.`;
         }
         if (hadToken) {
             return `The stored token for ${error.host} was rejected (HTTP ${error.status}) for ${error.resource}. Enter a new token.`;
@@ -295,7 +310,7 @@ export class TemplateMarketplaceService {
     private accessFailure(error: RepositoryAccessError, hadToken: boolean): Error {
         if (error.rateLimited) {
             return new Error(
-                `GitHub rate limit exceeded for ${error.resource} — try again later or provide a personal access token.`,
+                `${error.host} rate limit exceeded for ${error.resource} — try again later or provide a personal access token.`,
             );
         }
         if (hadToken) {
@@ -308,12 +323,12 @@ export class TemplateMarketplaceService {
         );
     }
 
-    /** Places `token` onto a github config; local configs never carry one. */
+    /** Places `token` onto a remote (github/gitlab) config; local configs never carry one. */
     private withToken(
         config: RepositorySourceConfig,
         token: string | undefined,
     ): RepositorySourceConfig {
-        return config.kind === "github" ? { ...config, token } : config;
+        return config.kind === "local" ? config : { ...config, token };
     }
 
     /**
@@ -338,6 +353,16 @@ export class TemplateMarketplaceService {
                 repo: source.repo,
                 ref: source.ref,
                 path: source.path,
+                baseUrl: source.baseUrl,
+            };
+        }
+        if (source.kind === "gitlab") {
+            return {
+                kind: "gitlab",
+                projectPath: source.projectPath,
+                ref: source.ref,
+                path: source.path,
+                baseUrl: source.baseUrl,
             };
         }
         // A `provider: "local"` source names its own directory: expand `~`, then
@@ -367,14 +392,25 @@ export class TemplateMarketplaceService {
      * fetch flow above stays provider-agnostic.
      */
     private configFor(location: MarketplaceLocation, path: string): RepositorySourceConfig {
-        return location.kind === "github"
-            ? {
-                  kind: "github",
-                  owner: location.owner,
-                  repo: location.repo,
-                  ref: location.ref,
-                  path,
-              }
-            : { kind: "local", rootDir: location.rootDir, path };
+        if (location.kind === "github") {
+            return {
+                kind: "github",
+                owner: location.owner,
+                repo: location.repo,
+                ref: location.ref,
+                path,
+                baseUrl: location.baseUrl,
+            };
+        }
+        if (location.kind === "gitlab") {
+            return {
+                kind: "gitlab",
+                projectPath: location.projectPath,
+                ref: location.ref,
+                path,
+                baseUrl: location.baseUrl,
+            };
+        }
+        return { kind: "local", rootDir: location.rootDir, path };
     }
 }

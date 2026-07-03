@@ -528,3 +528,146 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         ).rejects.not.toThrow(/can't access/);
     });
 });
+
+describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
+    /** A factory serving `manifest` at the root and one file per other source. */
+    function serving(manifest: string) {
+        return vi.fn(
+            (config: RepositorySourceConfig): RepositorySource =>
+                config.path === ""
+                    ? {
+                          listTemplateFiles: vi.fn().mockResolvedValue([]),
+                          fetchFile: vi.fn().mockResolvedValue(manifest),
+                      }
+                    : {
+                          listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                          fetchFile: vi.fn().mockResolvedValue("{}"),
+                      },
+        );
+    }
+
+    it("resolves a mixed string+object settings array to the right configs", async () => {
+        const { service, settings, sourceFactory } = createService();
+        settings.getTemplateMarketplaces.mockReturnValue([
+            "https://github.com/acme/one",
+            { provider: "gitlab", repo: "group/two", baseUrl: "https://gitlab.acme.com" },
+        ]);
+
+        await service.updateAll();
+
+        expect(sourceFactory).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: "github", owner: "acme", repo: "one", path: "" }),
+        );
+        expect(sourceFactory).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: "gitlab",
+                projectPath: "group/two",
+                baseUrl: "https://gitlab.acme.com",
+                path: "",
+            }),
+        );
+    });
+
+    it("never sends one host's token to a different host in the same run (cross-host D9)", async () => {
+        const seen: RepositorySourceConfig[] = [];
+        // The gitlab manifest is gated on "gl-tok"; github.com is public.
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            seen.push(config);
+            if (config.path === "") {
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn(async () => {
+                        if (config.kind === "gitlab") {
+                            if (config.token !== "gl-tok") {
+                                throw new RepositoryAccessError(
+                                    "gitlab.acme.com",
+                                    404,
+                                    "group/proj",
+                                    false,
+                                );
+                            }
+                            return JSON.stringify({ sources: [{ path: "t" }] });
+                        }
+                        return JSON.stringify({ sources: [{ path: "t" }] });
+                    }),
+                };
+            }
+            return {
+                listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                fetchFile: vi.fn().mockResolvedValue("{}"),
+            };
+        });
+        const { service, settings } = serviceOver(factory, async () => "gl-tok");
+        settings.getTemplateMarketplaces.mockReturnValue([
+            { provider: "gitlab", repo: "group/proj", baseUrl: "https://gitlab.acme.com" },
+            "https://github.com/acme/repo",
+        ]);
+
+        await service.updateAll();
+
+        // The gitlab token is keyed by host, so no github.com config ever carries it.
+        expect(seen.filter((c) => c.kind === "github" && c.token === "gl-tok")).toHaveLength(0);
+    });
+
+    it("batch-prompts for a declared-private gitlab source keyed by its baseUrl host", async () => {
+        const manifest = JSON.stringify({
+            sources: [
+                {
+                    provider: "gitlab",
+                    repo: "group/proj",
+                    path: "t",
+                    baseUrl: "https://gitlab.acme.com",
+                    visibility: "private",
+                },
+            ],
+        });
+        const { service, tokenPrompt } = serviceOver(serving(manifest), async () => "granted");
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledWith(
+            "gitlab.acme.com",
+            expect.any(String),
+        );
+    });
+
+    it("derives the rate-limit warning wording from the failing host (gitlab 429)", async () => {
+        const factory = vi.fn(
+            (): RepositorySource => ({
+                listTemplateFiles: vi.fn().mockResolvedValue([]),
+                fetchFile: vi.fn(async () => {
+                    throw new RepositoryAccessError("gitlab.com", 429, "group/proj", true);
+                }),
+            }),
+        );
+        const { service } = serviceOver(factory, async () => undefined, {
+            "gitlab.com": "have-it",
+        });
+
+        await expect(service.addMarketplace("https://gitlab.com/group/proj")).rejects.toThrow(
+            /gitlab\.com rate limit exceeded/,
+        );
+    });
+
+    it("names a failing object entry by its host/repo label", async () => {
+        const factory = vi.fn(
+            (): RepositorySource => ({
+                listTemplateFiles: vi.fn().mockResolvedValue([]),
+                fetchFile: vi.fn(async () => {
+                    throw new Error("offline");
+                }),
+            }),
+        );
+        const { service, notifier, settings } = serviceOver(factory, async () => undefined);
+        settings.getTemplateMarketplaces.mockReturnValue([
+            { provider: "gitlab", repo: "group/proj", baseUrl: "https://gitlab.acme.com" },
+        ]);
+
+        await service.updateAll();
+
+        expect(notifier.logWarning).toHaveBeenCalledWith(
+            expect.stringContaining("gitlab.acme.com/group/proj"),
+        );
+    });
+});

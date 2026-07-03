@@ -6,6 +6,7 @@ import {
     BpmnElementTemplatesService,
     FetchHttpClient,
     GitHubSource,
+    GitLabSource,
     LocalFileSource,
     MarketplaceCache,
     RepositorySource,
@@ -32,12 +33,18 @@ export function register(
     deps: SharedDeps,
 ): { marketplaceSvc: TemplateMarketplaceService } {
     const httpClient = new FetchHttpClient();
-    // Dispatch on the config discriminant: a github source fetches over HTTP, a
-    // local source reads the workspace filesystem — same port, different adapter.
-    const sourceFactory = (config: RepositorySourceConfig): RepositorySource =>
-        config.kind === "github"
-            ? new GitHubSource(httpClient, config)
-            : new LocalFileSource(deps.vsWorkspace, config);
+    // Dispatch on the config discriminant: github/gitlab sources fetch over HTTP,
+    // a local source reads the workspace filesystem — same port, different adapter.
+    const sourceFactory = (config: RepositorySourceConfig): RepositorySource => {
+        switch (config.kind) {
+            case "github":
+                return new GitHubSource(httpClient, config);
+            case "gitlab":
+                return new GitLabSource(httpClient, config);
+            case "local":
+                return new LocalFileSource(deps.vsWorkspace, config);
+        }
+    };
 
     // Idiomatic machine-global location; `writeFile` mkdirps it on first use.
     const cache = new MarketplaceCache(
