@@ -44,21 +44,21 @@ beforeEach(() => {
 describe("getBpmnFileHandler", () => {
     it("logs readiness only when the diagram actually rendered", async () => {
         const bpmnService = { display: vi.fn().mockResolvedValue(true) };
-        const notifier = { logInfo: vi.fn() };
+        const notifier = { logDebug: vi.fn() };
 
         await getBpmnFileHandler(bpmnService as never, notifier as never)(ANY, EDITOR);
 
         expect(bpmnService.display).toHaveBeenCalledWith(EDITOR);
-        expect(notifier.logInfo).toHaveBeenCalledOnce();
+        expect(notifier.logDebug).toHaveBeenCalledOnce();
     });
 
     it("does not log when rendering was skipped", async () => {
         const bpmnService = { display: vi.fn().mockResolvedValue(false) };
-        const notifier = { logInfo: vi.fn() };
+        const notifier = { logDebug: vi.fn() };
 
         await getBpmnFileHandler(bpmnService as never, notifier as never)(ANY, EDITOR);
 
-        expect(notifier.logInfo).not.toHaveBeenCalled();
+        expect(notifier.logDebug).not.toHaveBeenCalled();
     });
 });
 

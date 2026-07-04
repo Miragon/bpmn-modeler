@@ -10,8 +10,10 @@ import {
     DiffCounts,
     DiffSide,
     ElementTemplatesQuery,
+    LogDebugCommand,
     LogErrorCommand,
     LogInfoCommand,
+    LogWarningCommand,
     PropertiesPanelStateQuery,
     Query,
     sortIdsByOrder,
@@ -213,8 +215,16 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 );
                 break;
             }
+            case message.type === "LogDebugCommand": {
+                console.debug((message as LogDebugCommand).message);
+                break;
+            }
             case message.type === "LogInfoCommand": {
                 console.info((message as LogInfoCommand).message);
+                break;
+            }
+            case message.type === "LogWarningCommand": {
+                console.warn((message as LogWarningCommand).message);
                 break;
             }
             case message.type === "LogErrorCommand": {

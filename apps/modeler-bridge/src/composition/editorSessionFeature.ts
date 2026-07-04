@@ -1,5 +1,5 @@
 import { Command, Query, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
-import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
+import { BpmnModelerService, registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 
 import { RpcEditorHandle } from "../adapters";
 import { METHODS } from "../protocol/descriptor";
@@ -44,7 +44,7 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
     deps.router
         .on("GetBpmnFileCommand", async (_message: Command, editorId: string) => {
             if (await bpmnService.display(editorId)) {
-                deps.notifier.logInfo("BPMN modeler is ready");
+                deps.notifier.logDebug("BPMN modeler is ready");
             }
         })
         .on("SyncDocumentCommand", async (message: Command, editorId: string) => {
@@ -57,6 +57,9 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
         .on("GetPropertiesPanelStateCommand", (_m: Command, editorId: string) => {
             deps.store.postMessage(editorId, query("PropertiesPanelStateQuery", { visible: true }));
         });
+
+    // Route the webview's Log*Commands into `idea.log` via the notifier/log RPC.
+    registerWebviewLogHandlers(deps.router, deps.notifier);
 
     deps.rpc.on(METHODS.sessionRegister, async (params: RegisterParams) => {
         // Seed settings before any discovery so `getConfigFolder()` is correct on

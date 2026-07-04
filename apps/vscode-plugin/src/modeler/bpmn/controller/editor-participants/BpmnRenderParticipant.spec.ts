@@ -42,7 +42,7 @@ function createService() {
     } as unknown as BpmnModelerService;
 }
 
-const notifier = { logInfo: vi.fn() } as unknown as VsCodeNotifier;
+const notifier = { logDebug: vi.fn() } as unknown as VsCodeNotifier;
 
 describe("BpmnRenderParticipant", () => {
     it("registers the modeler session on resolve", () => {

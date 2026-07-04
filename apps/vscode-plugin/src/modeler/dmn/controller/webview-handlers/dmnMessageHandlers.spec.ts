@@ -24,21 +24,21 @@ beforeEach(() => {
 describe("getDmnFileHandler", () => {
     it("logs readiness only when the diagram actually rendered", async () => {
         const dmnService = { display: vi.fn().mockResolvedValue(true) };
-        const notifier = { logInfo: vi.fn() };
+        const notifier = { logDebug: vi.fn() };
 
         await getDmnFileHandler(dmnService as never, notifier as never)(ANY, EDITOR);
 
         expect(dmnService.display).toHaveBeenCalledWith(EDITOR);
-        expect(notifier.logInfo).toHaveBeenCalledOnce();
+        expect(notifier.logDebug).toHaveBeenCalledOnce();
     });
 
     it("does not log when rendering was skipped", async () => {
         const dmnService = { display: vi.fn().mockResolvedValue(false) };
-        const notifier = { logInfo: vi.fn() };
+        const notifier = { logDebug: vi.fn() };
 
         await getDmnFileHandler(dmnService as never, notifier as never)(ANY, EDITOR);
 
-        expect(notifier.logInfo).not.toHaveBeenCalled();
+        expect(notifier.logDebug).not.toHaveBeenCalled();
     });
 });
 

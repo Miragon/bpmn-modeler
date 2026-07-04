@@ -19,19 +19,36 @@ import { AuthTypePayload, Engine } from "@miragon/bpmn-modeler-shared";
 import { MigrationScope } from "../../migration/domain/MigrationPlan";
 
 /**
+ * Levelled diagnostic logging to the host's log surface (VS Code's
+ * `bpmn.modeler` output channel, IntelliJ's `idea.log`). Split out of
+ * {@link NotifierPort} so pure-logging callers — webview-log routing, artifact
+ * discovery diagnostics — depend only on logging, not the whole notifier.
+ *
+ * `logDebug` is the level for high-frequency transport/lifecycle noise the user
+ * only wants when diagnosing (raised via *Developer: Set Log Level…*). `logError`
+ * accepts a bare `string` so a webview-supplied stack prints verbatim; wrapping
+ * it in a host-side `Error` would replace the original throw site's stack.
+ */
+export interface LoggerPort {
+    logDebug(message: string): void;
+    logInfo(message: string): void;
+    logWarning(message: string): void;
+    logError(error: string | Error): void;
+}
+
+/**
  * User-facing messages and diagnostic logging. Keeps services free of
  * `window.show*Message` / output-channel wiring and centralises the
- * log-then-toast convention behind {@link notifyError}.
+ * log-then-toast convention behind {@link notifyError}. Extends
+ * {@link LoggerPort}, so every notifier is also a logger — injection sites that
+ * only need to log can narrow to `LoggerPort` without extra wiring.
  */
-export interface NotifierPort {
+export interface NotifierPort extends LoggerPort {
     showInfo(message: string): void;
     showError(message: string): void;
     /** Logs `error`, then surfaces a toast pairing `context` with the error message. */
     notifyError(context: string, error: Error): void;
     openLoggingConsole(): void;
-    logInfo(message: string): void;
-    logWarning(message: string): void;
-    logError(error: Error): void;
     /** Runs `task` under a status-bar progress indicator titled `title`. */
     withProgress<T>(title: string, task: () => Promise<T>): Promise<T>;
     /** Opens the file at `absolutePath` in its registered editor. */

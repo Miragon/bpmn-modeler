@@ -28,7 +28,12 @@ function createService() {
         showElementTemplatesReady: vi.fn(),
         hideElementTemplatesStatus: vi.fn(),
     };
-    const notifier = { notifyError: vi.fn(), logError: vi.fn(), logInfo: vi.fn() };
+    const notifier = {
+        notifyError: vi.fn(),
+        logError: vi.fn(),
+        logInfo: vi.fn(),
+        logDebug: vi.fn(),
+    };
 
     const service = new BpmnElementTemplatesService(
         editorStore as never,

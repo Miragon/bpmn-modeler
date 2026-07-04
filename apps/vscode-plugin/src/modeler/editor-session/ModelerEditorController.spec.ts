@@ -46,6 +46,7 @@ function createFakeStore() {
 
 function createNotifier() {
     return {
+        logDebug: vi.fn(),
         logInfo: vi.fn(),
         logError: vi.fn(),
         showError: vi.fn(),

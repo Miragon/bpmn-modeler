@@ -23,7 +23,7 @@ import {
     ImplementationStatusQuery,
     LanguageQuery,
     LogErrorCommand,
-    LogInfoCommand,
+    LogWarningCommand,
     NoModelerError,
     OpenScriptEditorCommand,
     PropertiesPanelStateQuery,
@@ -56,6 +56,24 @@ import type { LintConfigService } from "./app/bpmnlint";
 import { WebviewStateManager } from "./app/state";
 
 const host = getHostApi();
+
+// Global safety net for throws the per-message try/catch in onReceiveMessage
+// can't reach — bpmn-js event-bus callbacks (e.g. onCommandStackChanged) run
+// outside it, so an error there would otherwise vanish into the webview console
+// and never reach the output channel. Registered eagerly so it covers failures
+// during the initial modeler bootstrap too.
+window.addEventListener("error", (event: ErrorEvent) => {
+    host.postMessage(new LogErrorCommand(`Unhandled error: ${event.message}`, event.error?.stack));
+});
+window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+    const reason: unknown = event.reason;
+    host.postMessage(
+        new LogErrorCommand(
+            `Unhandled promise rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
+            reason instanceof Error ? reason.stack : undefined,
+        ),
+    );
+});
 
 /**
  * Singleton modeler instance shared across all message handlers.
@@ -260,6 +278,18 @@ window.onload = async function () {
     // Phase 1: restore viewport (canvas exists after openXml)
     stateManager.restoreViewport();
 
+    // Surface templates bpmn-js rejects (invalid schema, bad `appliesTo`, …).
+    // Subscribed *before* GetElementTemplatesCommand so the errors fired while
+    // the loader validates the reply are observed. It's a warning, not an error:
+    // bpmn-js skips an invalid template non-fatally, and its message already
+    // carries the offending template's id/name.
+    bpmnModeler.onElementTemplatesErrors((errors) => {
+        for (const error of errors ?? []) {
+            const message = error instanceof Error ? error.message : String(error);
+            host.postMessage(new LogWarningCommand(`Element template rejected: ${message}`));
+        }
+    });
+
     // Request templates + settings + panel state, wait for all to apply
     host.postMessage(new GetElementTemplatesCommand());
     host.postMessage(new GetBpmnModelerSettingCommand());
@@ -339,8 +369,8 @@ async function openXml(bpmn?: string): Promise<void> {
     }
 
     if (result.warnings.length > 0) {
-        const warnings = `with following warnings: ${formatErrors(result.warnings)}`;
-        host.postMessage(new LogInfoCommand(warnings));
+        const warnings = `Diagram opened with following warnings: ${formatErrors(result.warnings)}`;
+        host.postMessage(new LogWarningCommand(warnings));
     }
 }
 
@@ -381,7 +411,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
         case queryOrCommand.type === "ElementTemplatesQuery": {
             try {
                 const elementTemplates = (message.data as ElementTemplatesQuery).elementTemplates;
-                console.log("Received element templates: ", elementTemplates);
+                console.debug("Received element templates: ", elementTemplates);
                 bpmnModeler.setElementTemplates(elementTemplates);
                 elementTemplatesResolver.done(message.data as ElementTemplatesQuery);
             } catch (error: any) {
@@ -397,7 +427,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     .apply(query.config);
 
                 for (const warning of warnings) {
-                    host.postMessage(new LogInfoCommand(warning));
+                    host.postMessage(new LogWarningCommand(warning));
                 }
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));

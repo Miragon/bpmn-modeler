@@ -2,6 +2,7 @@ import { ExtensionContext } from "vscode";
 
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/PropertiesPanelStateRepository";
 import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
@@ -193,12 +194,16 @@ export function register(
             ),
         )
         .on("SyncActivitiesCommand", syncActivitiesHandler(codeLink.codeLinkMap));
+    // Route the webview's own Log*Commands into the output channel; without this
+    // the router drops them as unknown types and webview diagnostics never surface.
+    registerWebviewLogHandlers(bpmnMessageRouter, deps.notifier);
     const dmnMessageRouter = new WebviewMessageRouter()
         .on("GetDmnFileCommand", getDmnFileHandler(dmnService, deps.notifier))
         .on("GetDmnModelerSettingCommand", getDmnModelerSettingHandler(dmnSettingsBroadcaster))
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
+    registerWebviewLogHandlers(dmnMessageRouter, deps.notifier);
 
     new ModelerEditorController(deps.editorStore, deps.notifier, {
         viewType: BPMN_VIEW_TYPE,

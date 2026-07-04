@@ -63,7 +63,7 @@ export function buildSharedDeps(
     // onOpenCountChanged is the VS Code setContext hook; irrelevant out-of-process.
     const store = new EditorSessionStore(() => {});
 
-    const artifactSvc = new ArtifactService(nodeWorkspace, settings);
+    const artifactSvc = new ArtifactService(nodeWorkspace, settings, notifier);
 
     // One router shared across features: each feature registers its own
     // webview-message surface on it. The core enforces one handler per type, so
