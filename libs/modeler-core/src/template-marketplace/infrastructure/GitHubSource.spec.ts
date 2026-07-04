@@ -152,6 +152,25 @@ describe("GitHubSource.fetchFile", () => {
         );
     });
 
+    it("percent-encodes the raw-host path so `#`/`%` don't truncate the URL", async () => {
+        const http = createHttp();
+        http.getText.mockResolvedValue(ok("{ }"));
+        const source = new GitHubSource(http as never, {
+            kind: "github",
+            owner: "acme",
+            repo: "repo",
+            ref: "main",
+            path: "",
+        });
+
+        await source.fetchFile("templates/a#b%c.json");
+
+        expect(http.getText).toHaveBeenCalledWith(
+            "https://raw.githubusercontent.com/acme/repo/main/templates/a%23b%25c.json",
+            expect.objectContaining({ "User-Agent": expect.any(String) }),
+        );
+    });
+
     it("throws when the raw fetch 404s", async () => {
         const http = createHttp();
         http.getText.mockResolvedValue({ status: 404, body: "Not Found" });

@@ -469,7 +469,9 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
     if (typeof entry === "string") {
         return entry;
     }
-    if (typeof entry.repo !== "string") {
+    // `typeof null === "object"`, so a hand-edited `[null]` entry slips past the
+    // string check; guard for a non-object before touching `entry.repo`.
+    if (entry === null || typeof entry !== "object" || typeof entry.repo !== "string") {
         return JSON.stringify(entry);
     }
     let host: string;

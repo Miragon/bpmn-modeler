@@ -81,7 +81,11 @@ export class GitHubSource implements RepositorySource {
             return this.fetchViaContentsApi(repoPath, ref);
         }
 
-        const url = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${repoPath}`;
+        // Encode per segment so a filename with `#`, `?`, or `%` can't truncate
+        // or mis-decode the URL (the `/` separators must survive). Leaving `ref`
+        // raw is intentional: slashed refs work via greedy route matching.
+        const encodedPath = repoPath.split("/").map(encodeURIComponent).join("/");
+        const url = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${encodedPath}`;
         // Raw host gets only the User-Agent — never the auth header.
         const response = await this.http.getText(url, { "User-Agent": USER_AGENT });
         if (response.status !== 200) {

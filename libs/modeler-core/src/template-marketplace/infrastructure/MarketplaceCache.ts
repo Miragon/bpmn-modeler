@@ -36,6 +36,12 @@ export class MarketplaceCache {
      * `repoPath` is reproduced verbatim under the slot so distinct upstream
      * files stay distinct on disk. `contentType` segments the slot so a source's
      * files never mingle with another content type sharing the same source slot.
+     *
+     * @throws {Error} when `repoPath` is absolute or contains a `..` segment. A
+     *   self-hosted `baseUrl` is untrusted user-configured infrastructure and can
+     *   return a hostile path (e.g. `../../../settings.json`); without this guard
+     *   the concatenation below would write attacker content outside the cache
+     *   root. Skipped, not fatal — `cacheSource` catches per source.
      */
     async write(
         marketplaceId: string,
@@ -44,8 +50,26 @@ export class MarketplaceCache {
         repoPath: string,
         content: string,
     ): Promise<void> {
+        this.assertSafeRepoPath(repoPath);
         const target = `${this.cacheRoot}/${marketplaceId}/${sourceIndex}/${contentType}/${repoPath}`;
         await this.workspace.writeFile(target, content);
+    }
+
+    /**
+     * Rejects a `repoPath` that would escape its cache slot. Real git trees only
+     * ever use `/`, but a compromised server can send `\` or drive-letter forms,
+     * so both separators are split and every absolute shape is refused — mirrors
+     * the `isAbsolutePath` guard in `domain/marketplace.ts`.
+     */
+    private assertSafeRepoPath(repoPath: string): void {
+        const isAbsolute =
+            repoPath.startsWith("/") ||
+            /^[a-zA-Z]:[\\/]/.test(repoPath) ||
+            repoPath.startsWith("\\\\");
+        const hasTraversal = repoPath.split(/[/\\]/).some((segment) => segment === "..");
+        if (isAbsolute || hasTraversal) {
+            throw new Error(`Rejected unsafe template path "${repoPath}"`);
+        }
     }
 
     /**

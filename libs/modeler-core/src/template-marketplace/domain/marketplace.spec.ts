@@ -218,6 +218,14 @@ describe("marketplaceEntryLabel", () => {
         expect(() => marketplaceEntryLabel(garbage)).not.toThrow();
         expect(marketplaceEntryLabel(garbage)).toBe(JSON.stringify({ provider: "github" }));
     });
+
+    it('renders a null entry as "null" instead of throwing', () => {
+        // `typeof null === "object"`, so a hand-edited `[null]` entry would reach
+        // `entry.repo` and throw a TypeError without the non-null guard.
+        const nullEntry = null as unknown as Parameters<typeof marketplaceEntryLabel>[0];
+        expect(() => marketplaceEntryLabel(nullEntry)).not.toThrow();
+        expect(marketplaceEntryLabel(nullEntry)).toBe("null");
+    });
 });
 
 describe("parseMarketplaceUrl (local)", () => {
