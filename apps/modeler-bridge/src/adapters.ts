@@ -360,6 +360,10 @@ export class RpcNotifier implements NotifierPort {
         this.rpc.notify(METHODS.notifierOpenConsole, {});
     }
 
+    logDebug(message: string): void {
+        this.rpc.notify(METHODS.notifierLog, { level: "debug", message });
+    }
+
     logInfo(message: string): void {
         this.rpc.notify(METHODS.notifierLog, { level: "info", message });
     }
@@ -368,8 +372,12 @@ export class RpcNotifier implements NotifierPort {
         this.rpc.notify(METHODS.notifierLog, { level: "warn", message });
     }
 
-    logError(error: Error): void {
-        this.rpc.notify(METHODS.notifierLog, { level: "error", message: error.message });
+    /** A bare `string` (e.g. a webview stack) is forwarded verbatim, not re-wrapped. */
+    logError(error: string | Error): void {
+        this.rpc.notify(METHODS.notifierLog, {
+            level: "error",
+            message: error instanceof Error ? error.message : error,
+        });
     }
 
     /**

@@ -40,7 +40,7 @@ export function getBpmnFileHandler(
 ): MessageHandler {
     return async (_message: Command, editorId: string) => {
         if (await bpmnService.display(editorId)) {
-            notifier.logInfo("Bpmn modeler is ready");
+            notifier.logDebug("Bpmn modeler is ready");
         }
     };
 }

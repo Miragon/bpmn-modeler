@@ -60,6 +60,7 @@ function createController() {
     const notifier = {
         showInfo: vi.fn(),
         showError: vi.fn(),
+        logDebug: vi.fn(),
         logInfo: vi.fn(),
         logError: vi.fn(),
     };

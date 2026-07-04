@@ -18,7 +18,7 @@ export function getDmnFileHandler(
 ): MessageHandler {
     return async (_message: Command, editorId: string) => {
         if (await dmnService.display(editorId)) {
-            notifier.logInfo("Dmn modeler is ready");
+            notifier.logDebug("Dmn modeler is ready");
         }
     };
 }

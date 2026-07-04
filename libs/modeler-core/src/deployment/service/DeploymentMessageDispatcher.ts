@@ -56,7 +56,7 @@ export class DeploymentMessageDispatcher {
      * ignored — the protocol is closed and a stray discriminant is not an error.
      */
     async handle(message: Command): Promise<void> {
-        this.notifier.logInfo(`Deployment message received -> ${message.type}`);
+        this.notifier.logDebug(`Deployment message received -> ${message.type}`);
         switch (message.type) {
             case "RequestFormDefaultsCommand":
                 this.sendFormDefaults();

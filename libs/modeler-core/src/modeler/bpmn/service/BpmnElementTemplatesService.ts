@@ -27,6 +27,11 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             const documentDir = posix.dirname(this.vsDocument.getFilePath(editorId));
 
             const [artifacts] = await this.artifactSvc.getArtifactPaths(documentDir);
+            this.notifier.logDebug(
+                artifacts.length > 0
+                    ? `Element-template files resolved: ${artifacts.join(", ")}`
+                    : "No element-template files resolved.",
+            );
 
             const parsed = await Promise.all(
                 artifacts.map(async (a) => {
@@ -51,7 +56,13 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             if (await this.editorStore.postMessage(editorId, new ElementTemplatesQuery(sorted))) {
                 this.statusBar.showElementTemplatesReady(sorted.length);
                 if (artifacts.length > 0) {
-                    this.notifier.logInfo(`${artifacts.length} element templates are set.`);
+                    // Report templates loaded vs. files scanned separately — a
+                    // file can hold several templates, so conflating the two (the
+                    // old message reported the file count as the template count)
+                    // misled anyone cross-checking the status-bar count.
+                    this.notifier.logInfo(
+                        `${sorted.length} element template(s) loaded from ${artifacts.length} file(s).`,
+                    );
                 }
                 return true;
             } else {

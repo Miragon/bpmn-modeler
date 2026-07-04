@@ -2,6 +2,10 @@ import {
     Command,
     DmnFileQuery,
     DmnModelerSettingQuery,
+    LogDebugCommand,
+    LogErrorCommand,
+    LogInfoCommand,
+    LogWarningCommand,
     PropertiesPanelStateQuery,
     Query,
     HostApi,
@@ -93,6 +97,26 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
             case message.type === "SetPropertiesPanelStateCommand": {
                 // No host to persist to in standalone browser runs.
+                break;
+            }
+            // The webview forwards log entries to the host; in a standalone
+            // browser run there's no host, so mirror them onto the dev console.
+            // Cases are required because the base MockHost throws on unknown
+            // types — and the global error listeners now emit LogErrorCommand.
+            case message.type === "LogDebugCommand": {
+                console.debug((message as LogDebugCommand).message);
+                break;
+            }
+            case message.type === "LogInfoCommand": {
+                console.info((message as LogInfoCommand).message);
+                break;
+            }
+            case message.type === "LogWarningCommand": {
+                console.warn((message as LogWarningCommand).message);
+                break;
+            }
+            case message.type === "LogErrorCommand": {
+                console.error((message as LogErrorCommand).message);
                 break;
             }
             default: {

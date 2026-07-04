@@ -3,21 +3,26 @@ import { commands, LogOutputChannel, ProgressLocation, Uri, window } from "vscod
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
 const LOG_CHANNEL_ID = "bpmn.modeler";
-const LOG_PREFIX = `[${LOG_CHANNEL_ID}] `;
 
 /**
  * Adapter for user-facing messages and diagnostic logging.
  *
- * Owns a single VS Code log output channel and the toast notification
+ * Owns a single VS Code {@link LogOutputChannel} and the toast notification
  * API so services and controllers can surface information to the user
  * without importing from `vscode` directly.
+ *
+ * The channel is created with `{ log: true }`, so VS Code supplies the level
+ * filtering (Output panel gear / *Developer: Set Log Level…*), per-line
+ * timestamps, and persistence to the extension log file. The channel-name
+ * prefix each line used to carry is therefore redundant — the channel already
+ * identifies itself — and the ctor no longer `clear()`s, so the previous
+ * session's trail survives a reload.
  */
 export class VsCodeNotifier implements NotifierPort {
     private readonly channel: LogOutputChannel;
 
     constructor() {
         this.channel = window.createOutputChannel(LOG_CHANNEL_ID, { log: true });
-        this.channel.clear();
     }
 
     showInfo(message: string): void {
@@ -43,16 +48,24 @@ export class VsCodeNotifier implements NotifierPort {
         this.channel.show(true);
     }
 
+    logDebug(message: string): void {
+        this.channel.debug(message);
+    }
+
     logInfo(message: string): void {
-        this.channel.info(LOG_PREFIX + message);
+        this.channel.info(message);
     }
 
     logWarning(message: string): void {
-        this.channel.warn(LOG_PREFIX + message);
+        this.channel.warn(message);
     }
 
-    logError(error: Error): void {
-        this.channel.error(LOG_PREFIX, error);
+    /**
+     * A `string` is passed through untouched so a webview-forwarded stack prints
+     * verbatim; an `Error` keeps VS Code's own formatting (message + stack).
+     */
+    logError(error: string | Error): void {
+        this.channel.error(error);
     }
 
     /**
