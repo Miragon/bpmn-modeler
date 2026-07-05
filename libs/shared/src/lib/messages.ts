@@ -51,8 +51,10 @@ export class LogMessageCommand implements Command {
 
     /**
      * The originating error's stack, carried as text: a real `Error` doesn't
-     * survive `postMessage` (structured clone drops the stack), so the webview
-     * passes it as a string the host appends verbatim. Absent for non-error logs.
+     * survive `postMessage` here because VS Code JSON-serializes webview
+     * messages, and JSON flattens an `Error` to `{}` (dropping `message` and
+     * `stack` alike), so the webview passes it as a string the host appends
+     * verbatim. Absent for non-error logs.
      */
     public readonly stack?: string;
 
