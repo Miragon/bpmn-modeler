@@ -159,6 +159,18 @@ describe("ArtifactService.collectTemplateDirs", () => {
         expect(vsWorkspace.readDirectory).toHaveBeenCalledTimes(1);
     });
 
+    it("collects dirs when the workspace root carries a trailing slash (drive-root)", async () => {
+        const { service, vsWorkspace } = createService();
+        vsWorkspace.readDirectory.mockResolvedValue([]);
+
+        // A drive-root workspace opened as `C:\` surfaces as `/c:/`; the trailing
+        // slash must not defeat the `startsWith`/`===` containment guard.
+        await expect(service.collectTemplateDirs("/c:/proj", "/c:/", ".camunda")).resolves.toEqual([
+            "/c:/proj/.camunda/element-templates",
+            "/c:/.camunda/element-templates",
+        ]);
+    });
+
     it("guards against an infinite loop at the filesystem root", async () => {
         const { service, vsWorkspace } = createService();
         vsWorkspace.readDirectory.mockResolvedValue([]);

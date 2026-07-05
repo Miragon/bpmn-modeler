@@ -9,6 +9,7 @@ import {
     SettingChange,
 } from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "./bootstrapWebview";
+import { canonicalizeDriveLetter } from "./uriPath";
 
 /**
  * VS Code adapter for {@link EditorHandle}: wraps a `WebviewPanel` + the
@@ -55,7 +56,11 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     documentPath(): string {
-        return this.document.uri.path;
+        // Canonicalize the drive letter so `getFilePath()`-derived paths land in
+        // the same space as the workspace root the artifact walk compares them
+        // against; VS Code's document URIs already lowercase it, but this keeps
+        // the guarantee explicit and host-boundary-local (issue #1204).
+        return canonicalizeDriveLetter(this.document.uri.path);
     }
 
     documentFsPath(): string {

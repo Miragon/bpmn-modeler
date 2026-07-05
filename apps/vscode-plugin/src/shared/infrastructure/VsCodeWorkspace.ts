@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { FileType, RelativePattern, Uri, workspace } from "vscode";
+import { FileType, RelativePattern, workspace } from "vscode";
 
 import {
     DirectoryNotFound,
@@ -8,6 +8,7 @@ import {
     NoWorkspaceFolderFoundError,
 } from "@miragon/bpmn-modeler-core";
 import { WorkspacePort } from "@miragon/bpmn-modeler-core";
+import { canonicalPath, toUri } from "./uriPath";
 
 const fs = workspace.fs;
 
@@ -27,11 +28,11 @@ export class VsCodeWorkspace implements WorkspacePort {
      * @throws {NoWorkspaceFolderFoundError} If the document is not inside any workspace folder.
      */
     getWorkspaceFolderForDocument(document: string): string {
-        const workspaceFolder = workspace.getWorkspaceFolder(Uri.file(document));
+        const workspaceFolder = workspace.getWorkspaceFolder(toUri(document));
         if (!workspaceFolder) {
             throw new NoWorkspaceFolderFoundError();
         }
-        return workspaceFolder.uri.path;
+        return canonicalPath(workspaceFolder.uri);
     }
 
     /**
@@ -44,7 +45,8 @@ export class VsCodeWorkspace implements WorkspacePort {
      * rather than an error.
      */
     findWorkspaceFolderForDocument(document: string): string | undefined {
-        return workspace.getWorkspaceFolder(Uri.file(document))?.uri.path;
+        const workspaceFolder = workspace.getWorkspaceFolder(toUri(document));
+        return workspaceFolder ? canonicalPath(workspaceFolder.uri) : undefined;
     }
 
     /**
@@ -52,20 +54,21 @@ export class VsCodeWorkspace implements WorkspacePort {
      * open (the loose-file / single-file-window case).
      */
     getWorkspaceFolderPaths(): string[] {
-        return (workspace.workspaceFolders ?? []).map((folder) => folder.uri.path);
+        return (workspace.workspaceFolders ?? []).map((folder) => canonicalPath(folder.uri));
     }
 
     /**
      * Returns the directory containing `document` in the `uri.path` form the
      * rest of this adapter speaks.
      *
-     * Routing the OS path through `Uri.file(...).path` is what lets callers
-     * pass a raw `uri.fsPath` and stay free of `vscode.Uri`; the normalization
-     * matters on Windows, where `fsPath` (`c:\a\b`) and `uri.path`
-     * (`/c:/a/b`) diverge.
+     * Routing the OS path through `toUri(...)` + `canonicalPath` is what lets
+     * callers pass a raw `uri.fsPath` (or a `file://` string) and stay free of
+     * `vscode.Uri`; the normalization matters on Windows, where `fsPath`
+     * (`c:\a\b`) and `uri.path` (`/c:/a/b`) diverge and the drive-letter casing
+     * must be canonicalized to compare against the workspace root.
      */
     getDocumentDirectory(document: string): string {
-        return posix.dirname(Uri.file(document).path);
+        return posix.dirname(canonicalPath(toUri(document)));
     }
 
     /**
@@ -113,7 +116,7 @@ export class VsCodeWorkspace implements WorkspacePort {
     async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
         let dir: [string, FileType][];
         try {
-            dir = await fs.readDirectory(Uri.file(path));
+            dir = await fs.readDirectory(toUri(path));
         } catch {
             throw new DirectoryNotFound(path);
         }
@@ -134,7 +137,7 @@ export class VsCodeWorkspace implements WorkspacePort {
      * @throws {FileNotFound} If the file does not exist or cannot be read.
      */
     async readFile(path: string): Promise<string> {
-        return fs.readFile(Uri.file(path)).then(
+        return fs.readFile(toUri(path)).then(
             (buffer) => buffer.toString(),
             (reason) => {
                 throw new FileNotFound(reason);
@@ -149,11 +152,14 @@ export class VsCodeWorkspace implements WorkspacePort {
      * @param content The string content to write.
      */
     async writeFile(path: string, content: string): Promise<void> {
+        const uri = toUri(path);
         // Create the parent directory first (idempotent). `fs.writeFile` already
         // mkdirps via FileService, so this is platform-proof insurance for the
         // code-link artifact's nested target paths rather than a hard requirement.
-        await fs.createDirectory(Uri.file(posix.dirname(path)));
-        await fs.writeFile(Uri.file(path), Buffer.from(content));
+        // Deriving the parent from `uri.path` keeps this correct for both plain
+        // and `file://`-form inputs.
+        await fs.createDirectory(toUri(posix.dirname(uri.path)));
+        await fs.writeFile(uri, Buffer.from(content));
     }
 
     /**
@@ -170,7 +176,7 @@ export class VsCodeWorkspace implements WorkspacePort {
      */
     async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
         const uris = await workspace.findFiles(pattern, exclude, limit);
-        return uris.map((uri) => uri.path);
+        return uris.map((uri) => canonicalPath(uri));
     }
 
     /**
@@ -196,17 +202,23 @@ export class VsCodeWorkspace implements WorkspacePort {
             onDelete?: (path: string) => void;
         },
     ): { dispose(): void } {
-        const watcher = workspace.createFileSystemWatcher(new RelativePattern(rootPath, glob));
+        // A `Uri` base keeps `RelativePattern` correct when the root arrives in
+        // `file://` form (`editorId` = `uri.toString()`): a raw string base is
+        // taken literally, so `file:///c%3A/…` would never match anything and
+        // the watcher would silently never fire.
+        const watcher = workspace.createFileSystemWatcher(
+            new RelativePattern(toUri(rootPath), glob),
+        );
         const subscriptions: { dispose(): void }[] = [watcher];
         const { onCreate, onChange, onDelete } = handlers;
         if (onCreate) {
-            subscriptions.push(watcher.onDidCreate((uri) => onCreate(uri.path)));
+            subscriptions.push(watcher.onDidCreate((uri) => onCreate(canonicalPath(uri))));
         }
         if (onChange) {
-            subscriptions.push(watcher.onDidChange((uri) => onChange(uri.path)));
+            subscriptions.push(watcher.onDidChange((uri) => onChange(canonicalPath(uri))));
         }
         if (onDelete) {
-            subscriptions.push(watcher.onDidDelete((uri) => onDelete(uri.path)));
+            subscriptions.push(watcher.onDidDelete((uri) => onDelete(canonicalPath(uri))));
         }
         return {
             dispose(): void {
