@@ -339,8 +339,9 @@ describe("TemplateMarketplaceService.updateAll", () => {
             "https://github.com/acme/two",
         ]);
 
-        await service.updateAll();
+        const outcome = await service.updateAll();
 
+        expect(outcome).toEqual({ succeeded: 2, failures: [] });
         expect(cache.write).toHaveBeenCalledWith(
             "acme__one",
             0,
@@ -361,8 +362,52 @@ describe("TemplateMarketplaceService.updateAll", () => {
         const { service, settings, notifier } = createService({ manifest: new Error("offline") });
         settings.getMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
 
-        await expect(service.updateAll()).resolves.toBeUndefined();
+        const outcome = await service.updateAll();
+        expect(outcome).toEqual({
+            succeeded: 0,
+            failures: [
+                {
+                    label: "https://github.com/acme/one",
+                    reason: expect.stringContaining("could not read marketplace.json"),
+                },
+            ],
+        });
         expect(notifier.logWarning).toHaveBeenCalledOnce();
+    });
+
+    it("reports a manifest-level failure in the outcome while the healthy one succeeds", async () => {
+        // First marketplace's manifest read blows up; the second serves fine.
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.kind === "github" && config.owner === "acme" && config.repo === "one") {
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn().mockRejectedValue(new Error("offline")),
+                };
+            }
+            return {
+                listTemplateFiles: vi.fn().mockResolvedValue(["t.json"]),
+                fetchFile: vi
+                    .fn()
+                    .mockResolvedValue(
+                        JSON.stringify({ sources: [{ path: "element-templates" }] }),
+                    ),
+            };
+        });
+        const { service, settings } = serviceOver(factory, async () => undefined);
+        settings.getMarketplaces.mockReturnValue([
+            "https://github.com/acme/one",
+            "https://github.com/acme/two",
+        ]);
+
+        const outcome = await service.updateAll();
+
+        expect(outcome.succeeded).toBe(1);
+        expect(outcome.failures).toEqual([
+            {
+                label: "https://github.com/acme/one",
+                reason: expect.stringContaining("could not read marketplace.json"),
+            },
+        ]);
     });
 });
 
@@ -534,8 +579,10 @@ describe("TemplateMarketplaceService private-repo auth", () => {
             "https://github.com/acme/two",
         ]);
 
-        await expect(service.updateAll()).resolves.toBeUndefined();
+        const outcome = await service.updateAll();
 
+        expect(outcome.succeeded).toBe(0);
+        expect(outcome.failures).toHaveLength(2);
         expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce(); // one run spans both
         expect(notifier.logWarning).toHaveBeenCalledTimes(2);
     });

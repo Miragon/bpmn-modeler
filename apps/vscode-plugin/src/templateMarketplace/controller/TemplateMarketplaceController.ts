@@ -97,13 +97,29 @@ export class TemplateMarketplaceController {
 
     /**
      * {@link TemplateMarketplaceService.updateAll} swallows per-marketplace
-     * errors itself, so this never blocks even fully offline.
+     * errors itself, so this never blocks even fully offline. Its outcome is
+     * folded into one summary toast — success count on the happy path, an error
+     * toast listing each failed marketplace and why on partial failure.
      */
     private async updateMarketplaces(): Promise<void> {
-        await this.notifier.withProgress("Updating marketplaces…", () =>
+        const outcome = await this.notifier.withProgress("Updating marketplaces…", () =>
             this.marketplaceSvc.updateAll(),
         );
         await this.refreshOpenEditors();
+
+        const total = outcome.succeeded + outcome.failures.length;
+        if (total === 0) {
+            this.notifier.showInfo("No marketplaces configured to update.");
+            return;
+        }
+        if (outcome.failures.length === 0) {
+            this.notifier.showInfo(`Updated ${outcome.succeeded} marketplace(s).`);
+            return;
+        }
+        const details = outcome.failures.map((f) => `${f.label}: ${f.reason}`).join("\n");
+        this.notifier.showError(
+            `Updated ${outcome.succeeded} of ${total} marketplaces. Failed:\n${details}`,
+        );
     }
 
     private async refreshOpenEditors(): Promise<void> {

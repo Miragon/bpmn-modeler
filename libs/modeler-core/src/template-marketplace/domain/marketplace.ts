@@ -490,6 +490,25 @@ export function marketplaceEntryLabel(entry: MarketplaceSettingsEntry): string {
 }
 
 /**
+ * One marketplace an update could not refresh at all. Only *manifest*-level
+ * failures (the whole marketplace unusable) land here; per-source failures stay
+ * in the log channel so a single bad source never masks a healthy marketplace.
+ */
+export interface MarketplaceUpdateFailure {
+    readonly label: string; // from marketplaceEntryLabel()
+    readonly reason: string; // error.message (manifest-level failure)
+}
+
+/**
+ * Outcome of a whole update run so the host can turn it into one summary
+ * message — how many marketplaces refreshed and which could not, with why.
+ */
+export interface MarketplaceUpdateOutcome {
+    readonly succeeded: number;
+    readonly failures: readonly MarketplaceUpdateFailure[];
+}
+
+/**
  * The result of validating a `marketplace.json`: the sources this version can
  * serve, plus one {@link skipped} reason per source whose content `type` this
  * version does not understand. Unknown types are skipped, not rejected, so an

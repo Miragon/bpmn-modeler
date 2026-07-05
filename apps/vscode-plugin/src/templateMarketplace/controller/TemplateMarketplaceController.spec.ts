@@ -25,7 +25,7 @@ import {
 function createController() {
     const marketplaceSvc = {
         addMarketplace: vi.fn().mockResolvedValue(undefined),
-        updateAll: vi.fn().mockResolvedValue(undefined),
+        updateAll: vi.fn().mockResolvedValue({ succeeded: 1, failures: [] }),
     };
     const templatesSvc = { setElementTemplates: vi.fn().mockResolvedValue(undefined) };
     const editorStore = { getEditorIds: vi.fn().mockReturnValue([]) };
@@ -33,6 +33,7 @@ function createController() {
     const notifier = {
         withProgress: vi.fn((_title: string, task: () => Promise<unknown>) => task()),
         showInfo: vi.fn(),
+        showError: vi.fn(),
         notifyError: vi.fn(),
     };
 
@@ -142,5 +143,41 @@ describe("TemplateMarketplaceController.updateMarketplaces", () => {
         expect(marketplaceSvc.updateAll).toHaveBeenCalledOnce();
         expect(templatesSvc.setElementTemplates).toHaveBeenCalledWith("editor-1");
         expect(templatesSvc.setElementTemplates).toHaveBeenCalledWith("editor-2");
+    });
+
+    it("shows a success toast with the refreshed count", async () => {
+        const { handlers, marketplaceSvc, notifier } = createController();
+        marketplaceSvc.updateAll.mockResolvedValue({ succeeded: 2, failures: [] });
+
+        await handlers.get(UPDATE_MARKETPLACES_CMD)!();
+
+        expect(notifier.showInfo).toHaveBeenCalledWith("Updated 2 marketplace(s).");
+        expect(notifier.showError).not.toHaveBeenCalled();
+    });
+
+    it("notes when nothing is configured to update", async () => {
+        const { handlers, marketplaceSvc, notifier } = createController();
+        marketplaceSvc.updateAll.mockResolvedValue({ succeeded: 0, failures: [] });
+
+        await handlers.get(UPDATE_MARKETPLACES_CMD)!();
+
+        expect(notifier.showInfo).toHaveBeenCalledWith("No marketplaces configured to update.");
+    });
+
+    it("lists each failed marketplace and its reason on partial failure", async () => {
+        const { handlers, marketplaceSvc, notifier } = createController();
+        marketplaceSvc.updateAll.mockResolvedValue({
+            succeeded: 1,
+            failures: [
+                { label: "github.com/acme/broken", reason: "could not read marketplace.json" },
+            ],
+        });
+
+        await handlers.get(UPDATE_MARKETPLACES_CMD)!();
+
+        expect(notifier.showInfo).not.toHaveBeenCalled();
+        expect(notifier.showError).toHaveBeenCalledWith(
+            "Updated 1 of 2 marketplaces. Failed:\ngithub.com/acme/broken: could not read marketplace.json",
+        );
     });
 });

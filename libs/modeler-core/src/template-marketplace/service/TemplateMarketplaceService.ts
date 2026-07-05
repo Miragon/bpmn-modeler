@@ -9,6 +9,8 @@ import {
     marketplaceEntryLabel,
     MarketplaceLocation,
     MarketplaceRegistration,
+    MarketplaceUpdateFailure,
+    MarketplaceUpdateOutcome,
     parseMarketplace,
     parseMarketplaceEntry,
     parseMarketplaceUrl,
@@ -88,21 +90,31 @@ export class TemplateMarketplaceService {
      * failing marketplace is logged and skipped so the others still refresh.
      * One {@link PromptRun} spans all marketplaces so the token prompt appears
      * at most once per host across the whole update.
+     *
+     * The {@link MarketplaceUpdateOutcome} lets the host report a single summary;
+     * the `logWarning` above stays the detailed per-marketplace record. Only
+     * manifest-level failures count as a failure — a per-*source* failure inside
+     * {@link fetchAndCache} keeps last-good data, so its marketplace still counts
+     * as succeeded here.
      */
-    async updateAll(): Promise<void> {
+    async updateAll(): Promise<MarketplaceUpdateOutcome> {
         const run: PromptRun = { promptedHosts: new Set() };
+        let succeeded = 0;
+        const failures: MarketplaceUpdateFailure[] = [];
         for (const entry of this.settings.getMarketplaces()) {
             // Label first (never throws) so a marketplace whose *entry* fails to
             // parse can still be named in the warning below.
             const label = marketplaceEntryLabel(entry);
             try {
                 await this.fetchAndCache(parseMarketplaceEntry(entry), run);
+                succeeded++;
             } catch (error) {
-                this.notifier.logWarning(
-                    `Skipped template marketplace "${label}": ${(error as Error).message}`,
-                );
+                const reason = (error as Error).message;
+                this.notifier.logWarning(`Skipped template marketplace "${label}": ${reason}`);
+                failures.push({ label, reason });
             }
         }
+        return { succeeded, failures };
     }
 
     /** The merge input handed to {@link BpmnElementTemplatesService}. */
