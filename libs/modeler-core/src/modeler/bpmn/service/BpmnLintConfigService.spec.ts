@@ -23,7 +23,12 @@ function createService() {
         showBpmnlintNoConfig: vi.fn(),
         hideBpmnlintStatus: vi.fn(),
     };
-    const notifier = { logError: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() };
+    const notifier = {
+        logError: vi.fn(),
+        logInfo: vi.fn(),
+        logDebug: vi.fn(),
+        logWarning: vi.fn(),
+    };
 
     const service = new BpmnLintConfigService(
         editorStore as never,
@@ -104,5 +109,25 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(statusBar.showBpmnlintNoConfig).toHaveBeenCalledOnce();
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintConfigQuery;
         expect(msg.config).toBeNull();
+    });
+
+    it("swallows a hidden-panel post rejection as a warning without misreporting it as a read failure", async () => {
+        const { service, editorStore, locator, notifier } = createService();
+        locator.findNearestConfig.mockResolvedValue("/work/.bpmnlintrc");
+        locator.readConfig.mockResolvedValue(JSON.stringify({ extends: "bpmnlint:recommended" }));
+        // The watcher fires while the diagram panel is hidden, so the post rejects.
+        editorStore.postMessage.mockRejectedValue(new Error("The active editor is hidden."));
+
+        const result = await service.setBpmnlintConfig(EDITOR);
+
+        // Recoverable transport drop: resolves false, never throws.
+        expect(result).toBe(false);
+        expect(notifier.logWarning).toHaveBeenCalledWith(
+            "[bpmnlint] config push skipped: The active editor is hidden.",
+        );
+        // The read succeeded — the transport failure must not be logged as one.
+        expect(notifier.logError).not.toHaveBeenCalled();
+        // The sole post means no second rejecting fallback push.
+        expect(editorStore.postMessage).toHaveBeenCalledOnce();
     });
 });

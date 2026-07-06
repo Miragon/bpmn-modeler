@@ -32,6 +32,26 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     ) {}
 
     async setBpmnlintConfig(editorId: string, reflectInStatusBar = true): Promise<boolean> {
+        const config = await this.resolveConfig(editorId, reflectInStatusBar);
+        return this.pushConfig(editorId, config);
+    }
+
+    /**
+     * Resolves the effective config for an editor: walks to the nearest
+     * `.bpmnlintrc`, parses it, and reflects presence in the status bar.
+     *
+     * A missing/malformed file must not crash the editor, so a read/parse
+     * failure degrades to the no-config state here. This handler is scoped to
+     * the filesystem work *only* — transport is pushed apart in
+     * {@link pushConfig} — because {@link EditorSessionStore.postMessage}
+     * rejects with "The active editor is hidden." when the panel is hidden,
+     * the exact state the `.bpmnlintrc` watcher fires in, and that recoverable
+     * drop must not be misreported as a read failure.
+     */
+    private async resolveConfig(
+        editorId: string,
+        reflectInStatusBar: boolean,
+    ): Promise<Record<string, unknown> | null> {
         try {
             const dir = posix.dirname(this.vsDocument.getFilePath(editorId));
             const path = await this.locator.findNearestConfig(dir);
@@ -52,9 +72,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             } else {
                 this.notifier.logDebug("No .bpmnlintrc found; linting inactive");
             }
-            // `return await` (not a bare `return`) so a rejected post is caught
-            // by this block's own handler rather than escaping to the caller.
-            return await this.editorStore.postMessage(editorId, new BpmnlintConfigQuery(config));
+            return config;
         } catch (error) {
             // A malformed .bpmnlintrc must not crash the editor — warn, fall back
             // to the no-config state, and tell the webview to deactivate linting.
@@ -64,7 +82,28 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             if (reflectInStatusBar) {
                 this.statusBar.showBpmnlintNoConfig();
             }
-            return this.editorStore.postMessage(editorId, new BpmnlintConfigQuery(null));
+            return null;
+        }
+    }
+
+    /**
+     * Posts the resolved config to the webview, the sole config transport.
+     *
+     * A hidden panel (no `retainContextWhenHidden`) makes `postMessage` reject;
+     * the webview re-syncs on reload, so the drop is recoverable. Swallowing it
+     * here — at warning level, mirroring `CodeLinkMapService.pushStatus` — keeps
+     * fire-and-forget callers from leaking an unhandled rejection, and being the
+     * only post means a drop can't trigger a second rejecting fallback push.
+     */
+    private async pushConfig(
+        editorId: string,
+        config: Record<string, unknown> | null,
+    ): Promise<boolean> {
+        try {
+            return await this.editorStore.postMessage(editorId, new BpmnlintConfigQuery(config));
+        } catch (error) {
+            this.notifier.logWarning(`[bpmnlint] config push skipped: ${(error as Error).message}`);
+            return false;
         }
     }
 }
