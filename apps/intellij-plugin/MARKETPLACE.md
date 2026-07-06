@@ -91,6 +91,18 @@ parallel, unchanged.
   turns the job red. That's an accepted trade-off for keeping the workflow
   simple — add a skip step if it ever becomes a nuisance.
 
+### Dry run
+
+Trigger the workflow manually (*Actions ▸ Publish IntelliJ Plugin ▸ Run
+workflow*) with **dry run** left on (the default for manual runs) to verify the
+whole pipeline without touching the Marketplace or `main`. It builds the
+all-platform ZIP and runs `signPlugin`, which exercises `CERTIFICATE_CHAIN` /
+`PRIVATE_KEY` / `PRIVATE_KEY_PASSWORD` and fails loudly on a broken signing
+secret. The upload, release-asset, `updatePlugins.xml` commit,
+and deployment-record steps are all skipped. The upload token itself is only
+exercised by a real publish, so the dry run does not check it. The release
+pipeline (`workflow_call`) defaults dry run **off** and publishes for real.
+
 The four required credentials live in the `jetbrains-marketplace` GitHub
 Environment: `JETBRAINS_MARKETPLACE_TOKEN` (Marketplace account ▸ *My Tokens*),
 plus `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, and `PRIVATE_KEY_PASSWORD` for signing.

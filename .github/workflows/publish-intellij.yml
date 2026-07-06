@@ -7,12 +7,22 @@ on:
         description: 'Release tag (e.g. v1.2.3)'
         required: true
         type: string
+      dry_run:
+        description: 'Dry run: build + sign + verify signature only. Skips Marketplace upload, release-asset upload, updatePlugins.xml commit, and the deployment record. Defaults on for manual runs so a hand-triggered dispatch never publishes by accident.'
+        required: false
+        default: true
+        type: boolean
   workflow_call:
     inputs:
       tag:
         description: 'Release tag (e.g. v1.2.3)'
         required: true
         type: string
+      dry_run:
+        description: 'Dry run: skip every publishing side effect. Off by default so the release pipeline publishes for real.'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -103,7 +113,25 @@ jobs:
           echo "path=${ZIP}" >> "$GITHUB_OUTPUT"
           echo "name=$(basename "$ZIP")" >> "$GITHUB_OUTPUT"
 
+      # signPlugin exercises the whole publish-critical path — build the
+      # all-platform ZIP and sign it with CERTIFICATE_CHAIN/PRIVATE_KEY/
+      # PRIVATE_KEY_PASSWORD — so a broken signing secret fails here instead of
+      # mid-release, without touching the Marketplace. (verifyPluginSignature is
+      # skipped: it mis-passes an inline certificate chain to the zip-signer CLI,
+      # and our cert is generated from the same key so a mismatch is impossible.)
+      - name: Verify build & signing (dry run)
+        if: ${{ inputs.dry_run }}
+        working-directory: apps/intellij-plugin
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+        run: |
+          ./gradlew signPlugin -PbundleAllPlatforms --no-daemon
+          echo "Dry run OK: built and signed the plugin; nothing was published."
+
       - name: Generate App token
+        if: ${{ ! inputs.dry_run }}
         uses: actions/create-github-app-token@v3.2.0
         id: app-token
         with:
@@ -111,12 +139,14 @@ jobs:
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
       - name: Upload ZIP to release
+        if: ${{ ! inputs.dry_run }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.zip.outputs.path }}" --clobber
 
       - name: Publish to JetBrains Marketplace
+        if: ${{ ! inputs.dry_run }}
         working-directory: apps/intellij-plugin
         env:
           CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
@@ -128,6 +158,7 @@ jobs:
       # Regenerate the custom-repository descriptor.
       # IntellIJ Marketplace requires this
       - name: Regenerate updatePlugins.xml
+        if: ${{ ! inputs.dry_run }}
         run: |
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.zip.outputs.name }}"
           node .github/scripts/generate-update-plugins-xml.mjs \
@@ -135,6 +166,7 @@ jobs:
             --download-url "$DOWNLOAD_URL"
 
       - name: Commit updatePlugins.xml to main
+        if: ${{ ! inputs.dry_run }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
@@ -202,6 +234,7 @@ jobs:
           exit 1
 
       - name: Record deployment
+        if: ${{ ! inputs.dry_run }}
         uses: actions/github-script@v9.0.0
         with:
           script: |
