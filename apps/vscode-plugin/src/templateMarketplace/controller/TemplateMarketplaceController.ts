@@ -58,6 +58,7 @@ export class TemplateMarketplaceController {
      * whose `marketplace.json` is missing never lands in settings.
      */
     private async addMarketplace(): Promise<void> {
+        this.notifier.logInfo("Add Marketplace command invoked");
         const input = await window.showInputBox({
             title: "Add Marketplace",
             prompt: "GitHub or GitLab repository, or a local folder, holding a marketplace.json",
@@ -77,6 +78,7 @@ export class TemplateMarketplaceController {
             },
         });
         if (!input) {
+            this.notifier.logDebug("Add Marketplace cancelled at input box");
             return;
         }
 
@@ -88,6 +90,7 @@ export class TemplateMarketplaceController {
                 this.marketplaceSvc.addMarketplace(location),
             );
             await this.settings.addMarketplace(location);
+            this.notifier.logDebug(`Marketplace registration persisted to settings: ${location}`);
             await this.refreshOpenEditors();
             this.notifier.showInfo("Marketplace added.");
         } catch (error) {

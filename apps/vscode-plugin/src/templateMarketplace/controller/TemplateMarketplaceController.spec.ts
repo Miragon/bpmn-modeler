@@ -35,6 +35,8 @@ function createController() {
         showInfo: vi.fn(),
         showError: vi.fn(),
         notifyError: vi.fn(),
+        logInfo: vi.fn(),
+        logDebug: vi.fn(),
     };
 
     const handlers = new Map<string, () => Promise<void>>();
@@ -101,12 +103,13 @@ describe("TemplateMarketplaceController.addMarketplace", () => {
     });
 
     it("does nothing when the prompt is dismissed", async () => {
-        const { handlers, marketplaceSvc } = createController();
+        const { handlers, marketplaceSvc, notifier } = createController();
         (window.showInputBox as Mock).mockResolvedValue(undefined);
 
         await handlers.get(ADD_MARKETPLACE_CMD)!();
 
         expect(marketplaceSvc.addMarketplace).not.toHaveBeenCalled();
+        expect(notifier.logDebug).toHaveBeenCalledWith("Add Marketplace cancelled at input box");
     });
 
     it("accepts a ~ path in the input validator and rejects non-locations", async () => {

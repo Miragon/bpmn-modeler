@@ -50,7 +50,8 @@ interface PromptRun {
  * Private repos are reached with per-host personal access tokens, prompted once
  * per host per run on an auth-shaped {@link RepositoryAccessError} and retried.
  * The token lives only in {@link TokenStorePort} and never reaches settings, the
- * cache, logs, or error messages. {@link hostForConfig} is the single place a
+ * cache, logs, or error messages; token lifecycle events (prompt, store,
+ * decline) are logged by host name only. {@link hostForConfig} is the single place a
  * config maps to the host its token is keyed by, so github.com, gitlab.com, and
  * self-hosted `baseUrl` origins are handled the same way.
  */
@@ -82,7 +83,14 @@ export class TemplateMarketplaceService {
      *   registration that cannot be fetched.
      */
     async addMarketplace(url: string): Promise<void> {
-        await this.fetchAndCache(parseMarketplaceUrl(url), { promptedHosts: new Set() });
+        // Parse up front so the log names the resolved registration, not the raw
+        // paste, and a bad URL fails before any log line implies work started.
+        const registration = parseMarketplaceUrl(url);
+        this.notifier.logInfo(`Adding marketplace: ${registration.url}`);
+        const cached = await this.fetchAndCache(registration, { promptedHosts: new Set() });
+        this.notifier.logInfo(
+            `Marketplace added: ${registration.url} (${cached} template file(s) cached)`,
+        );
     }
 
     /**
@@ -99,21 +107,30 @@ export class TemplateMarketplaceService {
      */
     async updateAll(): Promise<MarketplaceUpdateOutcome> {
         const run: PromptRun = { promptedHosts: new Set() };
+        const entries = this.settings.getMarketplaces();
+        this.notifier.logInfo(`Updating ${entries.length} marketplace(s)`);
         let succeeded = 0;
         const failures: MarketplaceUpdateFailure[] = [];
-        for (const entry of this.settings.getMarketplaces()) {
+        for (const entry of entries) {
             // Label first (never throws) so a marketplace whose *entry* fails to
             // parse can still be named in the warning below.
             const label = marketplaceEntryLabel(entry);
+            this.notifier.logInfo(`Updating marketplace: ${label}`);
             try {
-                await this.fetchAndCache(parseMarketplaceEntry(entry), run);
+                const cached = await this.fetchAndCache(parseMarketplaceEntry(entry), run);
                 succeeded++;
+                this.notifier.logDebug(
+                    `Marketplace updated: ${label} (${cached} template file(s) cached)`,
+                );
             } catch (error) {
                 const reason = (error as Error).message;
                 this.notifier.logWarning(`Skipped template marketplace "${label}": ${reason}`);
                 failures.push({ label, reason });
             }
         }
+        this.notifier.logInfo(
+            `Marketplace update finished: ${succeeded} of ${entries.length} succeeded`,
+        );
         return { succeeded, failures };
     }
 
@@ -131,9 +148,13 @@ export class TemplateMarketplaceService {
     private async fetchAndCache(
         registration: MarketplaceRegistration,
         run: PromptRun,
-    ): Promise<void> {
+    ): Promise<number> {
         const { sources, skipped } = parseMarketplace(
             JSON.parse(await this.readManifest(registration, run)),
+        );
+        const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped` : "";
+        this.notifier.logDebug(
+            `Manifest of "${registration.url}": ${sources.length} usable source(s)${skippedNote}`,
         );
         // A source this version can't serve (an unknown content type) is loud,
         // not silent: warn per skip so a newer marketplace's extra content is
@@ -143,15 +164,17 @@ export class TemplateMarketplaceService {
         }
         await this.ensureTokensForPrivateSources(sources, run);
 
+        let cached = 0;
         for (let index = 0; index < sources.length; index++) {
             try {
-                await this.cacheSource(registration, sources[index], index, run);
+                cached += await this.cacheSource(registration, sources[index], index, run);
             } catch (error) {
                 this.notifier.logWarning(
                     `Skipped a source of "${registration.url}": ${(error as Error).message}`,
                 );
             }
         }
+        return cached;
     }
 
     /**
@@ -164,6 +187,9 @@ export class TemplateMarketplaceService {
         run: PromptRun,
     ): Promise<string> {
         const baseConfig = this.configFor(registration.location, "");
+        this.notifier.logDebug(
+            `Fetching ${MARKETPLACE_MANIFEST} from ${this.describeConfig(baseConfig)}`,
+        );
         try {
             return await this.withAuthRetry(baseConfig, run, (config) =>
                 this.sourceFactory(config).fetchFile(MARKETPLACE_MANIFEST),
@@ -184,14 +210,37 @@ export class TemplateMarketplaceService {
         source: TemplateSource,
         index: number,
         run: PromptRun,
-    ): Promise<void> {
+    ): Promise<number> {
         const baseConfig = this.configForSource(registration, source);
-        await this.withAuthRetry(baseConfig, run, async (config) => {
+        this.notifier.logDebug(
+            `Fetching source ${index} of "${registration.url}": ${this.describeConfig(baseConfig)}`,
+        );
+        return this.withAuthRetry(baseConfig, run, async (config) => {
             const repository = this.sourceFactory(config);
-            for (const repoPath of await repository.listTemplateFiles()) {
+            const files = await repository.listTemplateFiles();
+            this.notifier.logDebug(
+                `Source ${index} of "${registration.url}": ${files.length} template file(s) listed`,
+            );
+            if (files.length === 0) {
+                // A local source with zero files most often means a mistyped
+                // folder; the hint closes that otherwise-silent gap. A remote
+                // subtree returning zero is a genuine empty subtree worth flagging.
+                const hint =
+                    config.kind === "local"
+                        ? " — the folder may not exist or holds no .json files"
+                        : "";
+                this.notifier.logWarning(
+                    `Source ${index} of "${registration.url}" has no template files (${this.describeConfig(config)})${hint}`,
+                );
+            }
+            for (const repoPath of files) {
                 const content = await repository.fetchFile(repoPath);
                 await this.cache.write(registration.id, index, source.type, repoPath, content);
+                this.notifier.logDebug(
+                    `Cached template: ${repoPath} → ${registration.id}/${index}/${source.type}`,
+                );
             }
+            return files.length;
         });
     }
 
@@ -210,21 +259,36 @@ export class TemplateMarketplaceService {
     ): Promise<T> {
         const host = hostForConfig(baseConfig);
         const stored = host ? await this.tokens.getToken(host) : undefined;
+        if (stored !== undefined) {
+            this.notifier.logDebug(`Using stored token for ${host}`);
+        }
         try {
             return await task(this.withToken(baseConfig, stored));
         } catch (error) {
             if (!(error instanceof RepositoryAccessError) || host === undefined) {
                 throw error;
             }
+            // Log the raw access failure before {@link accessFailure} rewrites it
+            // to a friendly message: the status/resource is what a bug report needs.
+            const rateNote = error.rateLimited ? ", rate limited" : "";
+            this.notifier.logDebug(
+                `${error.host} denied access to ${error.resource} (HTTP ${error.status}${rateNote})`,
+            );
             const hadToken = stored !== undefined;
             const fresh = await this.promptOncePerRun(host, run, hadToken, error);
             if (fresh === undefined) {
                 throw this.accessFailure(error, hadToken);
             }
+            this.notifier.logDebug(
+                `Retrying ${error.resource} on ${error.host} with the new token`,
+            );
             try {
                 return await task(this.withToken(baseConfig, fresh));
             } catch (retryError) {
                 if (retryError instanceof RepositoryAccessError) {
+                    this.notifier.logDebug(
+                        `Retry with new token failed: HTTP ${retryError.status} for ${retryError.resource}`,
+                    );
                     throw this.accessFailure(retryError, true);
                 }
                 throw retryError;
@@ -244,15 +308,28 @@ export class TemplateMarketplaceService {
         error: RepositoryAccessError,
     ): Promise<string | undefined> {
         if (run.promptedHosts.has(host)) {
+            this.notifier.logDebug(
+                `Token prompt for ${host} suppressed (already prompted this run)`,
+            );
             return undefined;
         }
         run.promptedHosts.add(host);
-        const token = await this.tokenPrompt.promptForToken(
-            host,
-            this.promptReason(hadToken, error),
-        );
+        return this.promptAndStore(host, this.promptReason(hadToken, error));
+    }
+
+    /**
+     * The single prompt→store sequence, so the token lifecycle is logged in
+     * exactly one place. Only the host name reaches the log — never the token
+     * value, which upholds the class-level secret-hygiene invariant.
+     */
+    private async promptAndStore(host: string, reason: string): Promise<string | undefined> {
+        this.notifier.logDebug(`Prompting for a ${host} access token`);
+        const token = await this.tokenPrompt.promptForToken(host, reason);
         if (token !== undefined) {
             await this.tokens.setToken(host, token);
+            this.notifier.logDebug(`Token for ${host} stored`);
+        } else {
+            this.notifier.logDebug(`Token prompt for ${host} declined`);
         }
         return token;
     }
@@ -279,17 +356,34 @@ export class TemplateMarketplaceService {
                 }
             }
         }
+        if (hosts.size > 0) {
+            this.notifier.logDebug(`Declared-private source host(s): ${[...hosts].join(", ")}`);
+        }
         for (const host of hosts) {
             if (run.promptedHosts.has(host) || (await this.tokens.getToken(host)) !== undefined) {
                 continue;
             }
             run.promptedHosts.add(host);
             const reason = `${host} hosts a private template source. Enter a personal access token to fetch it.`;
-            const token = await this.tokenPrompt.promptForToken(host, reason);
-            if (token !== undefined) {
-                await this.tokens.setToken(host, token);
-            }
+            await this.promptAndStore(host, reason);
         }
+    }
+
+    /**
+     * A credential-free, log-safe rendering of a source config. Never reads
+     * `token`, so logging it can never leak a secret by construction.
+     * {@link hostForConfig} supplies the host so self-hosted origins read the
+     * same as the public ones.
+     */
+    private describeConfig(config: RepositorySourceConfig): string {
+        if (config.kind === "local") {
+            return `local folder ${config.rootDir}`;
+        }
+        const repo =
+            config.kind === "github" ? `${config.owner}/${config.repo}` : config.projectPath;
+        const ref = config.ref ? `@${config.ref}` : "";
+        const path = config.path ? ` path "${config.path}"` : "";
+        return `${config.kind} ${hostForConfig(config)}/${repo}${ref}${path}`;
     }
 
     private promptReason(hadToken: boolean, error: RepositoryAccessError): string {
