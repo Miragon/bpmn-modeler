@@ -66,6 +66,32 @@ class RpcChannelTest {
     }
 
     /**
+     * `notifyRaw` enqueues a pre-serialised frame verbatim yet still coalesces by
+     * key exactly like `notify` — the property `EditorSessionRouter` relies on to
+     * collapse spliced document-sync frames without re-serialising them. Enqueuing
+     * before attach makes the flood coalesce in the deque deterministically.
+     */
+    @Test
+    fun `notifyRaw enqueues verbatim and coalesces by key like notify`() {
+        val fake = fakeProcess()
+        val channel = rpcChannel { _, _, _ -> }
+
+        channel.notifyRaw("""{"method":"webview/message","params":{"v":1}}""", coalesceKey = "sync:x")
+        channel.notifyRaw("""{"method":"webview/message","params":{"v":2}}""", coalesceKey = "sync:x")
+        channel.notifyRaw("""{"method":"other"}""", coalesceKey = null)
+        channel.notifyRaw("""{"method":"webview/message","params":{"v":3}}""", coalesceKey = "sync:x")
+
+        channel.attach(fake.outputStream, fake.inputStream)
+
+        val first = parse(fake.nextFrame())
+        val second = parse(fake.nextFrame())
+        assertEquals("other", first.get("method").asString, "the non-coalesced frame survives in order")
+        assertEquals("webview/message", second.get("method").asString)
+        assertEquals(3, second.getAsJsonObject("params").get("v").asInt, "only the latest sync:x frame survives")
+        fake.expectNoFrame()
+    }
+
+    /**
      * Past [OUTBOUND_CAPACITY] the oldest frame is dropped and the newest kept.
      * The writer stays detached while we overflow, so the drop happens purely in
      * the deque; attaching afterwards drains exactly the survivors.

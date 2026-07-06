@@ -180,6 +180,82 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `forwardWebviewMessage splices the raw message into the same frame shape as a parse+reserialize`() {
+        val f = setUpRouter(INITIAL_XML)
+        val raw = "{\"type\":\"GetBpmnFileCommand\"}"
+
+        f.router.forwardWebviewMessage(f.session.editorId, raw)
+
+        val spliced = parse(f.wired.fake.nextFrame())
+        // The old shape parsed the raw text and nested it under params.message; the
+        // spliced frame must be byte-for-byte equivalent once both are re-parsed.
+        val expected =
+            f.wired.channel.gson
+                .toJsonTree(
+                    mapOf(
+                        "method" to "webview/message",
+                        "params" to
+                            mapOf(
+                                "editorId" to f.session.editorId,
+                                "message" to mapOf("type" to "GetBpmnFileCommand"),
+                            ),
+                    ),
+                ).asJsonObject
+        assertEquals(expected, spliced, "the spliced frame matches the parse+re-serialize shape")
+    }
+
+    @Test
+    fun `forwardWebviewMessage drops a non-JSON message instead of framing it`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        f.router.forwardWebviewMessage(f.session.editorId, "this is not json")
+
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a burst of SyncDocumentCommand forwards coalesces to the latest, non-sync survives`() {
+        // The router chooses the coalesce key; the channel then collapses queued
+        // sync frames. Observing that deterministically needs the whole flood to
+        // coalesce in the deque *before* any writer drains it, so this router runs
+        // over a channel that is only attached after the forwards are enqueued
+        // (`detach` drops frames rather than holding them, so it can't be used here).
+        val project = projectFixture.get()
+        val bpmn = createBpmnFile(tempDirFixture.get(), "coalesce.bpmn", INITIAL_XML)
+        val handlers = RpcHandlerRegistry()
+        val channel = RpcChannel { method, params, id -> handlers.dispatch(method, params, id) }
+        val fake = FakeProcess()
+        val router = EditorSessionRouter(bridgeDeps(project, channel, handlers), DeterministicScheduler())
+        router.register()
+        val editorId = bpmn.file.url
+        try {
+            router.forwardWebviewMessage(editorId, syncCommand("<one/>"))
+            router.forwardWebviewMessage(editorId, "{\"type\":\"OtherCommand\"}")
+            router.forwardWebviewMessage(editorId, syncCommand("<two/>"))
+
+            channel.attach(fake.outputStream, fake.inputStream)
+
+            val first = parse(fake.nextFrame())
+            assertEquals(
+                "OtherCommand",
+                first.getAsJsonObject("params").getAsJsonObject("message").get("type").asString,
+                "the non-sync command is not coalesced and survives in order",
+            )
+            val second = parse(fake.nextFrame())
+            assertEquals(
+                "<two/>",
+                second.getAsJsonObject("params").getAsJsonObject("message").get("content").asString,
+                "only the latest SyncDocumentCommand survives",
+            )
+            fake.expectNoFrame()
+        } finally {
+            channel.close()
+            fake.close()
+            Files.deleteIfExists(bpmn.nioPath)
+        }
+    }
+
+    @Test
     fun `a host write supersedes a pending external edit, leaving no stale frame`() {
         val f = setUpRouter(INITIAL_XML)
         f.attachEditorEcho()
@@ -214,6 +290,10 @@ class EditorSessionRouterTest {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
         f.wired.fake.expectNoFrame()
     }
+
+    /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
+    private fun syncCommand(content: String): String =
+        "{\"type\":\"SyncDocumentCommand\",\"content\":\"$content\"}"
 
     private companion object {
         const val REVISION = 7L

@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.jcef.JBCefApp
@@ -30,6 +31,8 @@ import com.intellij.ui.jcef.JBCefApp
  */
 @Service(Service.Level.PROJECT)
 class BrowserPrewarmService(private val project: Project) : Disposable {
+    private val log = Logger.getInstance(BrowserPrewarmService::class.java)
+
     private val lock = Any()
 
     // The single ready browser, or null while one is being built or after it was
@@ -47,23 +50,31 @@ class BrowserPrewarmService(private val project: Project) : Disposable {
      * (same cost as the pre-pre-warm behaviour), then refills the pool. Must run on
      * the EDT — `JBCefBrowser` creation requires it; `BpmnFileEditor` construction
      * already satisfies this.
+     *
+     * The inline build may throw: `JBCefBrowser` construction fails outright when
+     * the `ide.browser.jcef.osr.enabled=false` registry flag is set. That is
+     * deliberately *not* swallowed here — [BpmnFileEditor] catches it and shows the
+     * unavailable-editor label instead of silently falling back to the XML tab.
      */
     fun take(): WarmBrowser {
-        val taken =
-            synchronized(lock) {
-                val ready = warm
-                warm = null
-                ready
-            } ?: WarmBrowser()
+        val ready = synchronized(lock) { warm.also { warm = null } }
         ensureWarm()
-        return taken
+        return ready ?: WarmBrowser()
     }
 
     private fun ensureWarm() {
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
             synchronized(lock) {
-                if (warm == null) warm = WarmBrowser()
+                if (warm != null) return@synchronized
+                // A failed pre-warm must not propagate off the EDT event: leave the
+                // pool empty and let the next take() retry (and surface the error to
+                // the user through BpmnFileEditor). Nothing here has a caller to throw
+                // to — this runs from an invokeLater.
+                warm =
+                    runCatching { WarmBrowser() }
+                        .onFailure { log.warn("Failed to pre-warm a JCEF browser; will retry on next open", it) }
+                        .getOrNull()
             }
         }
     }

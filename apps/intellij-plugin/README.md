@@ -123,6 +123,43 @@ Kill the `modeler-bridge` process (Activity Monitor / `kill`). The open editor
 recovers (the session re-registers and the diagram re-renders) and no orphaned
 process remains. Closing the IDE leaves no `modeler-bridge` process behind.
 
+## Troubleshooting
+
+### The diagram canvas feels "one interaction behind" (Windows)
+
+**Symptoms.** After you click on the canvas the context pad lingers; a deleted
+element stays visible until your next selection; drags feel like they repaint a
+frame late. It looks like the modeler is always one input event behind.
+
+**Cause.** On IntelliJ 2025+/2026 builds JCEF (the embedded Chromium) runs
+**out-of-process** ("remote" CEF). The plugin's browsers render **off-screen**
+(OSR) — the only mode available under remote CEF — and that remote-OSR frame
+pipeline presents a frame only on the *next* input event when the DOM mutates on
+a click. The lag is entirely in Chromium's frame delivery; it never touches the
+modeler core or the bridge.
+
+**Fix.** Turn off out-of-process JCEF so it runs in-process:
+
+- **Help → Find Action → "Registry…"**, disable
+  `ide.browser.jcef.out-of-process.enabled`, then restart the IDE. On an affected
+  setup the plugin shows this same hint once as a balloon (with a "Don't show
+  again" opt-out); applying the registry change makes the balloon self-cancel,
+  since the plugin then detects in-process JCEF.
+
+> **The `-Djcef.remote.enabled=false` VM option is not enough.** Platform sources
+> suggest a pre-set property disables remote mode, but on 2026.1 (IU-261.25134.95,
+> JBR 25.0.3, JCEF 137) it verifiably does nothing: with only the VM option set the
+> staleness persists, and browsers still resolve as remote-OSR. Use the registry
+> key above — it is the platform's master switch.
+
+> **Leave `ide.browser.jcef.osr.enabled` alone.** While out-of-process JCEF is
+> active, setting it to `false` does not give you windowed rendering — it makes
+> **every** `JBCefBrowser` construction throw, so the modeler, diff viewer, and
+> deployment tool window all fail to start (the editor then shows a "could not
+> start" label instead of the diagram). Once out-of-process JCEF is off, `false`
+> does yield windowed rendering, but it measured no better than in-process OSR at
+> the plugin's 60 fps — so there is no reason to touch it either way.
+
 ## Scope
 
 BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, and

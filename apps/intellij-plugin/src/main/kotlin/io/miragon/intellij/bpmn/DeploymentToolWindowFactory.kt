@@ -9,7 +9,6 @@ import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.openapi.wm.ex.ToolWindowManagerListener
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.jcef.JBCefApp
-import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import org.cef.browser.CefBrowser
@@ -55,7 +54,7 @@ class DeploymentToolWindowFactory : ToolWindowFactory {
      */
     private fun buildBrowser(project: Project, toolWindow: ToolWindow): JComponent {
         val coreProcess = project.service<CoreProcess>()
-        val browser = JBCefBrowser()
+        val browser = createModelerBrowser()
         Disposer.register(toolWindow.disposable, browser)
 
         // Follow the IDE color theme: push a deployment-form theme update into the
@@ -68,7 +67,9 @@ class DeploymentToolWindowFactory : ToolWindowFactory {
         val jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
         Disposer.register(browser, jsQuery)
         jsQuery.addHandler { request ->
-            coreProcess.forwardDeploymentMessage(request)
+            // Hop off the CEF UI thread (it also delivers OSR onPaint) so forwarding
+            // never competes with frame delivery. The return value is unused (null).
+            webviewForwardExecutor.execute { coreProcess.forwardDeploymentMessage(request) }
             null
         }
 
