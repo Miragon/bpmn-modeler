@@ -74,7 +74,11 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
             try {
                 JsonParser.parseString(rawMessage)
             } catch (e: Exception) {
-                log.warn("Discarding malformed deployment message: $rawMessage", e)
+                // The body is withheld: deployment form messages carry the user's
+                // plaintext password / clientSecret, and unlike the core→host
+                // frames there is no method marker to key redaction on — the whole
+                // raw message is the auth payload. The parse exception is enough.
+                log.warn("Discarding malformed deployment message (body withheld: may contain credentials)", e)
                 return
             }
         deps.channel.notify("deployment/webviewMessage", linkedMapOf("message" to parsed))
