@@ -257,6 +257,21 @@ describe("parseMarketplaceUrl (local)", () => {
         expect(reg.location).toEqual({ kind: "local", rootDir: "C:/templates" });
     });
 
+    it("maps a UNC file:// URL onto a \\\\server\\share path", () => {
+        const reg = parseMarketplaceUrl("file://server/share");
+        expect(reg.location).toEqual({ kind: "local", rootDir: "\\\\server\\share" });
+    });
+
+    it("keeps deeper segments of a UNC file:// URL", () => {
+        const reg = parseMarketplaceUrl("file://server/share/sub");
+        expect(reg.location).toEqual({ kind: "local", rootDir: "\\\\server\\share\\sub" });
+    });
+
+    it("treats a localhost authority as local rather than UNC", () => {
+        const reg = parseMarketplaceUrl("file://localhost/Users/me/templates");
+        expect(reg.location).toEqual({ kind: "local", rootDir: "/Users/me/templates" });
+    });
+
     it("registers a Windows drive path as local", () => {
         const reg = parseMarketplaceUrl("C:\\templates\\marketplace.json");
         expect(reg.location).toEqual({ kind: "local", rootDir: "C:\\templates" });

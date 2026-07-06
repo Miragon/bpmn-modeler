@@ -1,16 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { DirectoryNotFound } from "../../shared/domain/errors";
 import { WorkspacePort } from "../../shared/domain/hostPorts";
 import { MarketplaceCache } from "./MarketplaceCache";
 
+type DirEntry = [string, "file" | "directory"];
+
 /**
- * Minimal `WorkspacePort` double capturing only `writeFile` — the sole port
- * method `write` touches.
+ * Minimal `WorkspacePort` double capturing `writeFile` (the sole port method
+ * `write` touches) and `readDirectory` (the read path). `readDirectory` is
+ * driven per-path by an in-memory tree; an unknown path throws
+ * `DirectoryNotFound`, mirroring a host reading a folder that was never cached.
  */
-function createWorkspace() {
+function createWorkspace(tree: Record<string, DirEntry[]> = {}) {
     return {
         writeFile: vi.fn<(path: string, content: string) => Promise<void>>().mockResolvedValue(),
-    } as unknown as WorkspacePort & { writeFile: ReturnType<typeof vi.fn> };
+        readDirectory: vi.fn<(path: string) => Promise<DirEntry[]>>(async (path) => {
+            const entries = tree[path];
+            if (entries === undefined) {
+                throw new DirectoryNotFound(path);
+            }
+            return entries;
+        }),
+    } as unknown as WorkspacePort & {
+        writeFile: ReturnType<typeof vi.fn>;
+        readDirectory: ReturnType<typeof vi.fn>;
+    };
 }
 
 describe("MarketplaceCache.write", () => {
@@ -38,5 +53,96 @@ describe("MarketplaceCache.write", () => {
             /unsafe template path/,
         );
         expect(workspace.writeFile).not.toHaveBeenCalled();
+    });
+});
+
+describe("MarketplaceCache.getCachedTemplatePaths", () => {
+    it("returns [] when nothing is cached yet (cache root absent)", async () => {
+        // No entry for `/cache` → readDirectory throws DirectoryNotFound.
+        const cache = new MarketplaceCache("/cache", createWorkspace());
+
+        expect(await cache.getCachedTemplatePaths()).toEqual([]);
+    });
+
+    it("recurses the element-templates segment, keeping only .json files", async () => {
+        const workspace = createWorkspace({
+            "/cache": [["acme", "directory"]],
+            "/cache/acme": [["0", "directory"]],
+            "/cache/acme/0": [["element-templates", "directory"]],
+            "/cache/acme/0/element-templates": [
+                ["a.json", "file"],
+                ["README.md", "file"],
+                ["nested", "directory"],
+            ],
+            "/cache/acme/0/element-templates/nested": [
+                ["b.json", "file"],
+                ["notes.txt", "file"],
+            ],
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.getCachedTemplatePaths()).toEqual([
+            "/cache/acme/0/element-templates/a.json",
+            "/cache/acme/0/element-templates/nested/b.json",
+        ]);
+    });
+
+    it("scopes to element-templates, ignoring sibling content types", async () => {
+        const workspace = createWorkspace({
+            "/cache": [["acme", "directory"]],
+            "/cache/acme": [["0", "directory"]],
+            "/cache/acme/0": [
+                ["element-templates", "directory"],
+                ["lint-rules", "directory"],
+            ],
+            "/cache/acme/0/element-templates": [["a.json", "file"]],
+            // Never read: getCachedTemplatePaths only descends into element-templates.
+            "/cache/acme/0/lint-rules": [["x.json", "file"]],
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.getCachedTemplatePaths()).toEqual([
+            "/cache/acme/0/element-templates/a.json",
+        ]);
+        expect(workspace.readDirectory).not.toHaveBeenCalledWith("/cache/acme/0/lint-rules");
+    });
+
+    it("treats a source slot lacking element-templates as empty, not an error", async () => {
+        const workspace = createWorkspace({
+            "/cache": [["acme", "directory"]],
+            "/cache/acme": [["0", "directory"]],
+            // No element-templates child → listJsonRecursive hits DirectoryNotFound.
+            "/cache/acme/0": [["lint-rules", "directory"]],
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.getCachedTemplatePaths()).toEqual([]);
+    });
+
+    it("aggregates across marketplaces and source indexes", async () => {
+        const workspace = createWorkspace({
+            "/cache": [
+                ["acme", "directory"],
+                ["globex", "directory"],
+            ],
+            "/cache/acme": [
+                ["0", "directory"],
+                ["1", "directory"],
+            ],
+            "/cache/acme/0": [["element-templates", "directory"]],
+            "/cache/acme/0/element-templates": [["a.json", "file"]],
+            "/cache/acme/1": [["element-templates", "directory"]],
+            "/cache/acme/1/element-templates": [["b.json", "file"]],
+            "/cache/globex": [["0", "directory"]],
+            "/cache/globex/0": [["element-templates", "directory"]],
+            "/cache/globex/0/element-templates": [["c.json", "file"]],
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.getCachedTemplatePaths()).toEqual([
+            "/cache/acme/0/element-templates/a.json",
+            "/cache/acme/1/element-templates/b.json",
+            "/cache/globex/0/element-templates/c.json",
+        ]);
     });
 });

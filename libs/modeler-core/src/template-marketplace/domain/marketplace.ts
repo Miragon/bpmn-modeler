@@ -273,12 +273,26 @@ function toLocalFsPath(input: string): string | undefined {
 }
 
 /**
- * Hand-rolled (no `node:url`) so the core stays host-agnostic. Handles the
- * empty/`localhost` authority and the leading-slash-before-drive-letter quirk
- * of `file:///C:/…`.
+ * Hand-rolled (no `node:url`) so the core stays host-agnostic. Splits the
+ * authority (between `file://` and the first `/`) from the path so a UNC host
+ * survives as `\\server\share` instead of being misread as a relative path
+ * segment. Handles the empty/`localhost` authority and the
+ * leading-slash-before-drive-letter quirk of `file:///C:/…`.
  */
 function fileUrlToPath(url: string): string {
-    let path = decodeURIComponent(url.replace(/^file:\/\//i, "").replace(/^localhost/i, ""));
+    const afterScheme = url.replace(/^file:\/\//i, "");
+    const firstSlash = afterScheme.indexOf("/");
+    const authority = firstSlash === -1 ? afterScheme : afterScheme.slice(0, firstSlash);
+    const rawPath = firstSlash === -1 ? "" : afterScheme.slice(firstSlash);
+
+    if (authority !== "" && authority.toLowerCase() !== "localhost") {
+        // UNC host: `file://server/share` is the URL spelling of `\\server\share`.
+        // Convert `/` separators *before* decoding so an encoded `%2F` inside a
+        // segment survives instead of being turned into a real separator.
+        return decodeURIComponent(`\\\\${authority}${rawPath.replace(/\//g, "\\")}`);
+    }
+
+    let path = decodeURIComponent(rawPath);
     if (/^\/[a-zA-Z]:/.test(path)) {
         path = path.slice(1);
     }
