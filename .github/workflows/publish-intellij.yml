@@ -1,13 +1,5 @@
 name: Publish IntelliJ Plugin
 
-# Manual publish for the IntelliJ plugin. Dispatched against a unified
-# `v<version>` release tag (cut by release-please). Cross-compiles the
-# modeler-bridge for all 5 supported platforms, builds the plugin ZIP with
-# every binary staged, uploads it to that release, then regenerates
-# docs/public/updatePlugins.xml so the JetBrains custom-repository descriptor
-# served via GitHub Pages advertises the new version. Pushing the
-# regenerated XML to main triggers deploy-docs.yml automatically.
-
 on:
   workflow_dispatch:
     inputs:
@@ -111,32 +103,6 @@ jobs:
           echo "path=${ZIP}" >> "$GITHUB_OUTPUT"
           echo "name=$(basename "$ZIP")" >> "$GITHUB_OUTPUT"
 
-      - name: Record artefact sizes
-        run: |
-          {
-            echo "## IntelliJ plugin ZIP"
-            echo
-            echo "- Tag: \`${{ steps.tag.outputs.tag }}\`"
-            echo "- Version: \`${{ steps.tag.outputs.version }}\`"
-            ZIP="${{ steps.zip.outputs.path }}"
-            ZIP_SIZE=$(du -h "$ZIP" | awk '{print $1}')
-            echo "- ZIP: \`$(basename "$ZIP")\` ($ZIP_SIZE)"
-            echo
-            echo "### Per-platform bridge binary sizes"
-            echo
-            echo "| Platform | Binary | Size |"
-            echo "|----------|--------|------|"
-            for d in apps/modeler-bridge/dist/*/; do
-              platform=$(basename "$d")
-              for f in "$d"modeler-bridge*; do
-                if [ -f "$f" ]; then
-                  size=$(du -h "$f" | awk '{print $1}')
-                  echo "| $platform | $(basename "$f") | $size |"
-                fi
-              done
-            done
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Generate App token
         uses: actions/create-github-app-token@v3.2.0
         id: app-token
@@ -149,6 +115,15 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh release upload "${{ steps.tag.outputs.tag }}" "${{ steps.zip.outputs.path }}" --clobber
+
+      - name: Publish to JetBrains Marketplace
+        working-directory: apps/intellij-plugin
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: ./gradlew publishPlugin -PbundleAllPlatforms --no-daemon
 
       # Regenerate the custom-repository descriptor.
       # IntellIJ Marketplace requires this
