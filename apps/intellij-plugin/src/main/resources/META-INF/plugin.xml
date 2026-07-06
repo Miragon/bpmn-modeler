@@ -22,6 +22,17 @@
                 leaving the IDE.</li>
         </ul>
 
+        <h4>Troubleshooting</h4>
+        <p>If a diagram fails to open or an action misbehaves, the plugin surfaces
+        errors as IDE notifications and records the full detail in the IDE log.
+        Open it via <b>Help | Show Log in Finder / Explorer</b> (or bundle it with
+        <b>Help | Collect Logs and Diagnostic Data</b>).</p>
+        <p>When filing a bug, capture more detail first: open
+        <b>Help | Diagnostic Tools | Debug Log Settings…</b>, add
+        <code>io.miragon</code>, reproduce the problem, then attach the log.
+        Deployment passwords and client secrets are stored in the IDE's password
+        safe and are redacted from the log, so it is safe to attach.</p>
+
         <p>For the complete feature list and documentation, visit
            <a href="https://miragon.github.io/bpmn-modeler/">miragon.github.io/bpmn-modeler</a>.</p>
         <p><b>Source &amp; issues:</b>

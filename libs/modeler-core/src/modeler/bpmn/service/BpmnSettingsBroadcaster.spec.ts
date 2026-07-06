@@ -155,4 +155,17 @@ describe("BpmnSettingsBroadcaster.subscribe", () => {
         expect(setSettings).not.toHaveBeenCalled();
         expect(setLanguage).not.toHaveBeenCalled();
     });
+
+    it("guards a rejecting setSettings so the change listener never leaks a rejection", async () => {
+        const { broadcaster, editorStore, notifier } = createBroadcaster();
+        vi.spyOn(broadcaster, "setSettings").mockRejectedValue(new Error("post failed"));
+
+        broadcaster.subscribe(EDITOR);
+        fireSettingChange(editorStore, ["miragon.bpmnModeler.colorTheme"]);
+        // The `.catch` guard runs on a later microtask; flush before asserting.
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(notifier.logError).toHaveBeenCalledOnce();
+    });
 });

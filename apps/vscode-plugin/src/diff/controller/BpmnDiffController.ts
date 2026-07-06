@@ -15,7 +15,12 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { DiffPaneHandle, DiffSession, basenameOfUriString } from "@miragon/bpmn-modeler-core";
+import {
+    DiffPaneHandle,
+    DiffSession,
+    basenameOfUriString,
+    routeWebviewLogCommand,
+} from "@miragon/bpmn-modeler-core";
 import { bootstrapWebview } from "../../shared/infrastructure/bootstrapWebview";
 import { DiffPaneStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
@@ -152,7 +157,13 @@ export class BpmnDiffController {
         // `GetBpmnFileCommand` as soon as the webview's scripts run.
         const handle = new WebviewPaneHandle(panel, document);
 
-        panel.webview.onDidReceiveMessage((message: Command) => this.onMessage(handle, message));
+        panel.webview.onDidReceiveMessage((message: Command) =>
+            this.onMessage(handle, message).catch((error) => {
+                // VS Code's emitter doesn't await this listener, so a rejected
+                // handler would surface as an unhandled rejection — log instead.
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            }),
+        );
         panel.onDidDispose(() => this.disposePane(handle));
 
         const session = this.store.findByUri(handle.uri);
@@ -255,6 +266,12 @@ export class BpmnDiffController {
     }
 
     private async onMessage(handle: DiffPaneHandle, message: Command): Promise<void> {
+        // Diff panes reuse bpmn-webview, whose global error hooks post
+        // Log*Commands. The switch below doesn't know them, so route them onto
+        // the channel first (tagged with the pane's file) or they're dropped.
+        if (routeWebviewLogCommand(this.notifier, message, basenameOfUriString(handle.uri))) {
+            return;
+        }
         switch (message.type) {
             case "GetBpmnFileCommand":
                 await this.diffService.sendViewerFile(handle);

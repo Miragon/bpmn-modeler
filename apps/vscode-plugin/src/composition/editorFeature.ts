@@ -1,7 +1,10 @@
+import { basename } from "node:path";
+
 import { ExtensionContext } from "vscode";
 
 import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/PropertiesPanelStateRepository";
 import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
+import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
@@ -193,12 +196,28 @@ export function register(
             ),
         )
         .on("SyncActivitiesCommand", syncActivitiesHandler(codeLink.codeLinkMap));
+    // Tags forwarded webview log lines with the diagram's basename so a warning
+    // can be correlated to a file when several editors are open. getFilePath
+    // throws for an editorId the store no longer tracks; a bare `[webview]` tag
+    // is better than dropping the line.
+    const resolveSource = (editorId: string): string | undefined => {
+        try {
+            return basename(deps.vsDocument.getFilePath(editorId));
+        } catch {
+            return undefined;
+        }
+    };
+
+    // Route the webview's own Log*Commands into the output channel; without this
+    // the router drops them as unknown types and webview diagnostics never surface.
+    registerWebviewLogHandlers(bpmnMessageRouter, deps.notifier, resolveSource);
     const dmnMessageRouter = new WebviewMessageRouter()
         .on("GetDmnFileCommand", getDmnFileHandler(dmnService, deps.notifier))
         .on("GetDmnModelerSettingCommand", getDmnModelerSettingHandler(dmnSettingsBroadcaster))
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
+    registerWebviewLogHandlers(dmnMessageRouter, deps.notifier, resolveSource);
 
     new ModelerEditorController(deps.editorStore, deps.notifier, {
         viewType: BPMN_VIEW_TYPE,

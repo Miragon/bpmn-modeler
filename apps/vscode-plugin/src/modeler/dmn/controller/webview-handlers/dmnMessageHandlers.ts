@@ -18,7 +18,7 @@ export function getDmnFileHandler(
 ): MessageHandler {
     return async (_message: Command, editorId: string) => {
         if (await dmnService.display(editorId)) {
-            notifier.logInfo("Dmn modeler is ready");
+            notifier.logDebug("Dmn modeler is ready");
         }
     };
 }
@@ -34,7 +34,9 @@ export function syncDmnDocumentHandler(dmnService: DmnModelerService): MessageHa
 export function getDmnModelerSettingHandler(
     settingsBroadcaster: DmnSettingsBroadcaster,
 ): MessageHandler {
-    return (_message: Command, editorId: string) => {
-        settingsBroadcaster.setSettings(editorId);
+    // Await so a rejection propagates to the router's dispatch catch instead of
+    // floating off unlogged.
+    return async (_message: Command, editorId: string) => {
+        await settingsBroadcaster.setSettings(editorId);
     };
 }

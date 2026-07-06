@@ -59,7 +59,7 @@ function createController() {
         }),
     };
     const vsDocument = { getFilePath: vi.fn().mockReturnValue("/work/diagram.bpmn") };
-    const notifier = { openLoggingConsole: vi.fn(), logError: vi.fn() };
+    const notifier = { openLoggingConsole: vi.fn(), logError: vi.fn(), logInfo: vi.fn() };
     const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
@@ -250,18 +250,36 @@ describe("CommandController.writeToClipboard", () => {
 });
 
 describe("CommandController.writeToFile", () => {
-    it("writes the svg to a sibling .svg file, rewriting the .bpmn extension", () => {
-        const { controller, captured, vsDocument } = createController();
+    it("writes the svg to a sibling .svg file and logs the export path", async () => {
+        const { controller, captured, vsDocument, notifier } = createController();
         vsDocument.getFilePath.mockReturnValue("/work/diagram.bpmn");
         controller.writeToFile();
 
         captured.onMessage?.(svgReply("<svg/>"));
+        // The write + info log run on a microtask chain; flush before asserting.
+        await Promise.resolve();
+        await Promise.resolve();
 
         expect(uriFileMock).toHaveBeenCalledWith("/work/diagram.svg");
         const [uriArg, bufferArg] = fsWriteFileMock.mock.calls[0];
         expect((uriArg as { path: string }).path).toBe("/work/diagram.svg");
         expect(Buffer.isBuffer(bufferArg)).toBe(true);
         expect((bufferArg as Buffer).toString()).toBe("<svg/>");
+        expect(notifier.logInfo).toHaveBeenCalledWith("Diagram SVG exported to /work/diagram.svg");
+    });
+
+    it("logs an error when the file write rejects", async () => {
+        const { controller, captured, notifier } = createController();
+        const failure = new Error("EACCES");
+        fsWriteFileMock.mockRejectedValueOnce(failure);
+        controller.writeToFile();
+
+        captured.onMessage?.(svgReply("<svg/>"));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(notifier.logError).toHaveBeenCalledWith(failure);
+        expect(notifier.logInfo).not.toHaveBeenCalled();
     });
 
     it("does not write a file when the svg payload is empty", () => {
@@ -271,5 +289,26 @@ describe("CommandController.writeToFile", () => {
         captured.onMessage?.(svgReply(""));
 
         expect(fsWriteFileMock).not.toHaveBeenCalled();
+    });
+});
+
+describe("CommandController command error surfacing", () => {
+    it("logs and rethrows when changeLanguage's config update rejects", async () => {
+        const { controller, notifier } = createController();
+        showQuickPickMock.mockResolvedValue({ label: "English", description: "en" });
+        const failure = new Error("update denied");
+        configUpdateMock.mockRejectedValueOnce(failure);
+
+        await expect(controller.changeLanguage()).rejects.toThrow(failure);
+        expect(notifier.logError).toHaveBeenCalledWith(failure);
+    });
+
+    it("logs and rethrows when changeEngineVersion rejects", async () => {
+        const { controller, bpmnService, notifier } = createController();
+        const failure = new Error("engine change failed");
+        bpmnService.changeEngineVersion.mockRejectedValueOnce(failure);
+
+        await expect(controller.changeEngineVersion()).rejects.toThrow(failure);
+        expect(notifier.logError).toHaveBeenCalledWith(failure);
     });
 });

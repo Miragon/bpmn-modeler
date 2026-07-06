@@ -10,7 +10,7 @@ import {
 import { Command } from "@miragon/bpmn-modeler-shared";
 
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "@miragon/bpmn-modeler-core";
-import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
+import { basenameOfUriString, EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { VsCodeEditorHandle } from "../../shared/infrastructure/VsCodeEditorHandle";
 import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
@@ -99,6 +99,11 @@ export class ModelerEditorController implements CustomTextEditorProvider {
                     this.options.initialPanelVisible?.(),
                 ),
             );
+            // Reproduction breadcrumb: the open/close pair frames a session in the
+            // channel so a bug report reads as a sequence of user steps.
+            this.notifier.logInfo(
+                `Editor opened: ${basenameOfUriString(editorId)} (${this.options.viewType})`,
+            );
 
             const context = new EditorSessionContextImpl(this.editorStore, editorId, webviewPanel);
 
@@ -119,7 +124,12 @@ export class ModelerEditorController implements CustomTextEditorProvider {
             // it a single call, after the store's own bookkeeping. Wired before
             // the loop (the callbacks are read lazily) so an immediate close
             // during a participant's await is still cleaned up.
-            this.editorStore.subscribeToDisposeEvent(editorId, () => context.runDisposeCallbacks());
+            this.editorStore.subscribeToDisposeEvent(editorId, () => {
+                this.notifier.logInfo(
+                    `Editor closed: ${basenameOfUriString(editorId)} (${this.options.viewType})`,
+                );
+                context.runDisposeCallbacks();
+            });
 
             // Isolate each participant: a throw in one must not skip the rest.
             // ElementTemplatesParticipant awaits a workspace-root lookup that
@@ -150,10 +160,12 @@ export class ModelerEditorController implements CustomTextEditorProvider {
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
-            this.notifier.logInfo(`Message received -> ${message.type}`);
+            // Per-message transport tracing: useful when diagnosing a stuck
+            // webview handshake, but far too frequent for the default level.
+            this.notifier.logDebug(`Message received -> ${message.type}`);
             try {
                 await this.options.messageRouter.dispatch(message, id);
-                this.notifier.logInfo(`Message processed -> ${message.type}`);
+                this.notifier.logDebug(`Message processed -> ${message.type}`);
             } catch (error) {
                 // VS Code's event emitter does not await this async listener, so
                 // a rejected dispatch would otherwise surface as an unhandled

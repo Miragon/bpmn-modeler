@@ -76,7 +76,12 @@ function createService(
         getPersistCodeLinkMap: vi.fn(() => opts.persist ?? false),
         getConfigFolder: vi.fn(() => ".camunda"),
     };
-    const notifier = { logInfo: vi.fn(), logWarning: vi.fn() };
+    const notifier = {
+        logDebug: vi.fn(),
+        logInfo: vi.fn(),
+        logWarning: vi.fn(),
+        logError: vi.fn(),
+    };
 
     const service = new CodeLinkMapService(
         editorStore as never,
@@ -530,7 +535,8 @@ describe("CodeLinkMapService — lifecycle", () => {
         await expect(
             service.syncActivities("editor1", [entry("A", "jobType", "a")]),
         ).resolves.toBeUndefined();
-        expect(notifier.logInfo).toHaveBeenCalledWith(
+        // A skipped push leaves the context pad briefly stale → warn, not info.
+        expect(notifier.logWarning).toHaveBeenCalledWith(
             expect.stringContaining("status push skipped"),
         );
     });

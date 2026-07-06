@@ -78,6 +78,25 @@ Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`
 | BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the BPMN modeler                |
 | BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
 
+## Troubleshooting
+
+The modeler logs to the **`bpmn.modeler`** output channel. Open it via the
+Output panel (View → Output → select *bpmn.modeler*) or the command **BPMN
+Modeler: Display Logging Information** (`bpmn-modeler.openLoggingConsole`).
+
+By default the channel shows `Info` and above. When a diagram, element
+template, or the webview misbehaves, raise the level to see the full trace:
+run **Developer: Set Log Level…**, pick *bpmn.modeler*, and choose **Debug**.
+Debug adds the per-message transport trace, the element-template discovery scan
+(which config folder was searched and what was found), and any warnings or
+errors the webview forwards (prefixed with `[webview:<file>]`).
+
+**Filing a bug?** Set the log level to **Debug**, reproduce the problem, then
+copy the whole `bpmn.modeler` channel into the report — the Info-level
+breadcrumbs (editor opened/closed, deployment started/result, SVG export) plus
+the Debug transport trace let us reconstruct the exact steps that led to the
+failure. Credentials are never logged, so the channel is safe to paste.
+
 ## Support and feedback
 
 - Documentation: <https://miragon.github.io/bpmn-modeler/>

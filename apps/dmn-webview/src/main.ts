@@ -17,7 +17,7 @@ import {
     initResizer,
     initTheme,
     LogErrorCommand,
-    LogInfoCommand,
+    LogWarningCommand,
     NoModelerError,
     PropertiesPanelStateQuery,
     Query,
@@ -37,6 +37,22 @@ import {
 } from "./app";
 
 const host = getHostApi();
+
+// Global safety net for throws outside the per-message try/catch below — dmn-js
+// event-bus callbacks run outside it, so an error there would otherwise vanish
+// into the webview console instead of reaching the output channel.
+window.addEventListener("error", (event: ErrorEvent) => {
+    host.postMessage(new LogErrorCommand(`Unhandled error: ${event.message}`, event.error?.stack));
+});
+window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+    const reason: unknown = event.reason;
+    host.postMessage(
+        new LogErrorCommand(
+            `Unhandled promise rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
+            reason instanceof Error ? reason.stack : undefined,
+        ),
+    );
+});
 
 const stateManager = new WebviewStateManager(host);
 
@@ -138,13 +154,23 @@ async function openXML(dmn: string | undefined) {
         );
         const message = `Diagram was opened with following warnings: ${formatErrors(warnings)}
             `;
-        host.postMessage(new LogInfoCommand(message));
+        host.postMessage(new LogWarningCommand(message));
     }
 }
 
 async function sendChanges() {
-    const dmn = await exportDiagram();
-    host.postMessage(new SyncDocumentCommand(dmn));
+    // A rejection here only reaches the global unhandledrejection hook (the
+    // dmn-js event bus discards the returned promise) as a context-free line —
+    // catch it so the failure is named and deterministic on the channel.
+    try {
+        const dmn = await exportDiagram();
+        host.postMessage(new SyncDocumentCommand(dmn));
+    } catch (error) {
+        const e = error instanceof Error ? error : new Error(String(error));
+        host.postMessage(
+            new LogErrorCommand(`Failed to sync diagram changes: ${e.message}`, e.stack),
+        );
+    }
 }
 
 async function onReceiveMessage(message: MessageEvent<Query | Command>) {

@@ -8,7 +8,9 @@
  * Also contains cross-cutting concrete commands that are not specific to any one
  * modeler feature:
  * - {@link SyncDocumentCommand} — webview notifies the host to persist the current XML to disk
- * - {@link LogInfoCommand} / {@link LogErrorCommand} — webview forwards log entries to the host's output channel
+ * - {@link LogDebugCommand} / {@link LogInfoCommand} / {@link LogWarningCommand} /
+ *   {@link LogErrorCommand} — webview forwards a levelled log entry to the host's
+ *   output channel
  *
  * @see modeler.ts for the modeler-specific Query and Command implementations that
  * extend these base classes.
@@ -47,13 +49,31 @@ export class LogMessageCommand implements Command {
 
     public readonly message: string;
 
-    constructor(log: string) {
+    /**
+     * The originating error's stack, carried as text: a real `Error` doesn't
+     * survive `postMessage` here because VS Code JSON-serializes webview
+     * messages, and JSON flattens an `Error` to `{}` (dropping `message` and
+     * `stack` alike), so the webview passes it as a string the host appends
+     * verbatim. Absent for non-error logs.
+     */
+    public readonly stack?: string;
+
+    constructor(log: string, stack?: string) {
         this.message = log;
+        this.stack = stack;
     }
+}
+
+export class LogDebugCommand extends LogMessageCommand {
+    public override readonly type: string = "LogDebugCommand";
 }
 
 export class LogInfoCommand extends LogMessageCommand {
     public override readonly type: string = "LogInfoCommand";
+}
+
+export class LogWarningCommand extends LogMessageCommand {
+    public override readonly type: string = "LogWarningCommand";
 }
 
 export class LogErrorCommand extends LogMessageCommand {

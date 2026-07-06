@@ -77,7 +77,14 @@ export class BpmnSettingsBroadcaster {
                 event.affectsConfiguration("miragon.bpmnModeler.colorTheme") ||
                 event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")
             ) {
-                this.setSettings(id);
+                // The change listener has no caller to await it, so guard the
+                // floating promise even though setSettings already logs its own
+                // failures — a future refactor mustn't turn this into a leak.
+                this.setSettings(id).catch((error) => {
+                    this.notifier.logError(
+                        error instanceof Error ? error : new Error(String(error)),
+                    );
+                });
             }
             if (event.affectsConfiguration("miragon.bpmnModeler.language")) {
                 this.setLanguage(id);

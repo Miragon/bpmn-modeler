@@ -216,7 +216,7 @@ export interface NotifierOpenDocumentParams {
 
 /** `notifier/log` — a leveled line to the IDE log/console. */
 export interface NotifierLogParams {
-    level: "info" | "warn" | "error";
+    level: "debug" | "info" | "warn" | "error";
     message: string;
 }
 

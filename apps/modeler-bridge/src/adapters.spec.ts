@@ -386,6 +386,18 @@ describe("RpcNotifier", () => {
             params: { message: "boom" },
         });
 
+        notifier.logDebug("trace");
+        expect(last(frames)).toEqual({
+            method: "notifier/log",
+            params: { level: "debug", message: "trace" },
+        });
+
+        notifier.logInfo("step");
+        expect(last(frames)).toEqual({
+            method: "notifier/log",
+            params: { level: "info", message: "step" },
+        });
+
         notifier.logWarning("careful");
         expect(last(frames)).toEqual({
             method: "notifier/log",
@@ -396,6 +408,14 @@ describe("RpcNotifier", () => {
         expect(last(frames)).toEqual({
             method: "notifier/log",
             params: { level: "error", message: "bad" },
+        });
+
+        // A bare string (e.g. a webview-forwarded stack) is forwarded verbatim,
+        // not re-wrapped in an Error.
+        notifier.logError("[webview] raw stack");
+        expect(last(frames)).toEqual({
+            method: "notifier/log",
+            params: { level: "error", message: "[webview] raw stack" },
         });
 
         notifier.openLoggingConsole();

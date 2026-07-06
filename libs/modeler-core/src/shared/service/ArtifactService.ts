@@ -1,7 +1,7 @@
 import { posix } from "path";
 
 import { DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
-import { SettingsPort, WorkspacePort } from "../domain/hostPorts";
+import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
 
 /**
  * Implemented by {@link import("../../modeler/bpmn/service/BpmnElementTemplatesService").BpmnElementTemplatesService}
@@ -29,6 +29,10 @@ export class ArtifactService {
     constructor(
         private readonly vsWorkspace: WorkspacePort,
         private readonly vsSettings: SettingsPort,
+        // Optional so the two hosts (VS Code + bridge) can opt in without every
+        // ArtifactService call-site or test having to supply a logger. Used only
+        // for debug-level "why did nothing load?" diagnostics.
+        private readonly logger?: LoggerPort,
     ) {}
 
     /**
@@ -118,6 +122,22 @@ export class ArtifactService {
             configFolder,
         );
 
+        // Debug-level trail for the "no templates showed up" support case: the
+        // resolved config folder + root are the two inputs that most often
+        // explain an empty scan, and an explicit "no directory found" line names
+        // the range walked so the user knows where the modeler looked.
+        this.logger?.logDebug(
+            `Element-template scan: configFolder="${configFolder}", root="${workspaceRoot}", ` +
+                `documentDir="${documentDir}" → ${templateDirs.length} directory(ies)` +
+                (templateDirs.length > 0 ? `: ${templateDirs.join(", ")}` : ""),
+        );
+        if (templateDirs.length === 0) {
+            this.logger?.logDebug(
+                `No "${configFolder}/element-templates" directory found between ` +
+                    `${documentDir} and ${workspaceRoot}.`,
+            );
+        }
+
         const allPaths: string[] = [];
         for (const dir of templateDirs) {
             allPaths.push(...(await this.readDirectory(dir, ".json")));
@@ -156,10 +176,18 @@ export class ArtifactService {
         const workspaceRoot = await this.getWorkspaceRoot(documentDir);
 
         const pattern = `**/${configFolder}/element-templates/**/*.json`;
+        // A watcher callback's rejection has no caller to await it, so a failed
+        // re-push (unreadable template dir, gone webview) would float away as an
+        // unhandled rejection instead of reaching the channel.
+        const repushTemplates = () => {
+            target.setElementTemplates(editorId).catch((error) => {
+                this.logger?.logError(error instanceof Error ? error : new Error(String(error)));
+            });
+        };
         const handle = this.vsWorkspace.createWatcher(workspaceRoot, pattern, {
-            onCreate: () => void target.setElementTemplates(editorId),
-            onChange: () => void target.setElementTemplates(editorId),
-            onDelete: () => void target.setElementTemplates(editorId),
+            onCreate: repushTemplates,
+            onChange: repushTemplates,
+            onDelete: repushTemplates,
         });
 
         return { disposables: [handle], errors: [] };

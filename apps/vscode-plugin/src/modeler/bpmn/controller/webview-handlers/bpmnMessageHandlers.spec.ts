@@ -19,6 +19,7 @@ import {
 
 import {
     getBpmnFileHandler,
+    getBpmnlintConfigHandler,
     getBpmnModelerSettingHandler,
     getClipboardHandler,
     getElementTemplatesHandler,
@@ -44,21 +45,21 @@ beforeEach(() => {
 describe("getBpmnFileHandler", () => {
     it("logs readiness only when the diagram actually rendered", async () => {
         const bpmnService = { display: vi.fn().mockResolvedValue(true) };
-        const notifier = { logInfo: vi.fn() };
+        const notifier = { logDebug: vi.fn() };
 
         await getBpmnFileHandler(bpmnService as never, notifier as never)(ANY, EDITOR);
 
         expect(bpmnService.display).toHaveBeenCalledWith(EDITOR);
-        expect(notifier.logInfo).toHaveBeenCalledOnce();
+        expect(notifier.logDebug).toHaveBeenCalledOnce();
     });
 
     it("does not log when rendering was skipped", async () => {
         const bpmnService = { display: vi.fn().mockResolvedValue(false) };
-        const notifier = { logInfo: vi.fn() };
+        const notifier = { logDebug: vi.fn() };
 
         await getBpmnFileHandler(bpmnService as never, notifier as never)(ANY, EDITOR);
 
-        expect(notifier.logInfo).not.toHaveBeenCalled();
+        expect(notifier.logDebug).not.toHaveBeenCalled();
     });
 });
 
@@ -183,6 +184,41 @@ describe("openScriptEditorHandler", () => {
         );
 
         expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
+    });
+});
+
+describe("Pattern B: a rejecting service promise propagates through the handler", () => {
+    // The router awaits each handler and ModelerEditorController's dispatch catch
+    // logs a rejection — but only if the handler actually returns/awaits the
+    // service promise instead of dropping it on the floor.
+    const boom = new Error("service failed");
+
+    it("getElementTemplatesHandler rejects when setElementTemplates rejects", async () => {
+        const svc = { setElementTemplates: vi.fn().mockRejectedValue(boom) };
+        await expect(getElementTemplatesHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
+    });
+
+    it("getBpmnlintConfigHandler rejects when setBpmnlintConfig rejects", async () => {
+        const svc = { setBpmnlintConfig: vi.fn().mockRejectedValue(boom) };
+        await expect(getBpmnlintConfigHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
+    });
+
+    it("resyncScriptTasksHandler rejects when resyncOpenDocuments rejects", async () => {
+        const svc = { resyncOpenDocuments: vi.fn().mockRejectedValue(boom) };
+        await expect(resyncScriptTasksHandler(svc as never)(ANY, EDITOR)).rejects.toThrow(boom);
+    });
+
+    it("getBpmnModelerSettingHandler rejects when setSettings rejects, still setting language", async () => {
+        const broadcaster = {
+            setSettings: vi.fn().mockRejectedValue(boom),
+            setLanguage: vi.fn(),
+        };
+
+        await expect(
+            getBpmnModelerSettingHandler(broadcaster as never)(ANY, EDITOR),
+        ).rejects.toThrow(boom);
+        // Language is posted before settings is awaited, so it still fires.
+        expect(broadcaster.setLanguage).toHaveBeenCalledWith(EDITOR);
     });
 });
 

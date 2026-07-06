@@ -68,6 +68,11 @@ export class BpmnModeler {
 
     private _selection: SelectionManager | undefined;
 
+    // Optional host sink for non-fatal warnings (element-not-found, missing
+    // inline script). Kept as an injected callback rather than a host import so
+    // the modeler stays constructible in tests and the standalone dev browser.
+    private onWarningSink?: (message: string) => void;
+
     /**
      * Access the viewport manager after {@link create}.
      *
@@ -359,7 +364,7 @@ export class BpmnModeler {
         const modeling = modeler.get<any>("modeling");
         const element = elementRegistry.get(elementId);
         if (!element) {
-            console.warn(`Element not found: ${elementId}`);
+            this.warn(`Element not found: ${elementId}`);
             return;
         }
 
@@ -378,7 +383,7 @@ export class BpmnModeler {
             kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
         const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
         if (!listener || !listener.script) {
-            console.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
+            this.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
             return;
         }
         modeling.updateModdleProperties(element, listener.script, {
@@ -409,7 +414,7 @@ export class BpmnModeler {
         const modeling = modeler.get<any>("modeling");
         const element = elementRegistry.get(elementId);
         if (!element) {
-            console.warn(`Element not found: ${elementId}`);
+            this.warn(`Element not found: ${elementId}`);
             return;
         }
 
@@ -424,7 +429,7 @@ export class BpmnModeler {
             kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
         const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
         if (!listener || !listener.script) {
-            console.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
+            this.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
             return;
         }
         modeling.updateModdleProperties(element, listener.script, {
@@ -450,6 +455,15 @@ export class BpmnModeler {
     }
 
     /**
+     * Registers a sink for non-fatal warnings so the host can forward them to the
+     * output channel. Without it these only reached the webview console, invisible
+     * in a bug report.
+     */
+    onWarning(sink: (message: string) => void): void {
+        this.onWarningSink = sink;
+    }
+
+    /**
      * Hands the host's per-activity implementation-resolution map to the
      * code-link DI service, which caches it and refreshes the context pad so the
      * "Go to implementation" entry hides for tasks whose implementation does not
@@ -459,6 +473,15 @@ export class BpmnModeler {
      */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getService<CodeLinkMapClient>("codeLinkMapClient").applyStatus(resolved);
+    }
+
+    /**
+     * Emits a non-fatal warning to the console (preserved for dev/tests) and, if
+     * a host sink is wired via {@link onWarning}, forwards it to the channel.
+     */
+    private warn(message: string): void {
+        console.warn(message);
+        this.onWarningSink?.(message);
     }
 
     /**

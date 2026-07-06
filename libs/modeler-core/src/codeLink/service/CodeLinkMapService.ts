@@ -341,8 +341,12 @@ export class CodeLinkMapService {
             let content: string;
             try {
                 content = await this.vsWorkspace.readFile(path);
-            } catch {
+            } catch (error) {
                 // Linked file gone or unreadable → drop it; re-resolution decides.
+                // Debug: a source file disappearing mid-session is routine churn.
+                this.notifier.logDebug(
+                    `[code-link] linked file unreadable, dropping ${path}: ${(error as Error).message}`,
+                );
                 continue;
             }
             if (fileMatchesEntry(entry.kind, entry.reference, path, content)) {
@@ -360,9 +364,12 @@ export class CodeLinkMapService {
         try {
             await this.editorStore.postMessage(editorId, new ImplementationStatusQuery(resolved));
         } catch (error) {
-            // Expected when the editor is hidden (no retainContextWhenHidden):
-            // the webview re-syncs on reload, so a dropped push is harmless.
-            this.notifier.logInfo(`[code-link] status push skipped: ${(error as Error).message}`);
+            // Usually the editor being hidden (no retainContextWhenHidden): the
+            // webview re-syncs on reload, so the drop is recoverable — but it does
+            // mean the context pad is briefly stale, so warn rather than whisper.
+            this.notifier.logWarning(
+                `[code-link] status push skipped: ${(error as Error).message}`,
+            );
         }
     }
 
@@ -449,8 +456,14 @@ export class CodeLinkMapService {
         let raw: string;
         try {
             raw = await this.vsWorkspace.readFile(artifactPath);
-        } catch {
-            return; // No prior artifact — cold open, the diff resolves everything.
+        } catch (error) {
+            // No prior artifact — cold open, the diff resolves everything. Debug
+            // level: the first open of any diagram hits this, so it must not add
+            // channel noise, but the path helps when persistence is misconfigured.
+            this.notifier.logDebug(
+                `[code-link] no warm cache at ${artifactPath}: ${(error as Error).message}`,
+            );
+            return;
         }
         const json = parseMapJson(raw);
         if (!json) {

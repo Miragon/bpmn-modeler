@@ -131,7 +131,9 @@ internal class RpcChannel(
             try {
                 gson.fromJson(line, JsonObject::class.java)
             } catch (e: Exception) {
-                log.warn("Discarding malformed core message: $line", e)
+                // `method` is unreadable here (the line failed to parse), so
+                // redactFrameForLog falls back to a substring probe.
+                log.warn("Discarding malformed core message: ${redactFrameForLog(line, method = null)}", e)
                 return
             }
         // The host issues no requests to the core, so a frame without `method`
@@ -150,7 +152,7 @@ internal class RpcChannel(
         try {
             dispatch(method, params, id)
         } catch (e: Exception) {
-            log.warn("Failed to handle core message ($method): $line", e)
+            log.warn("Failed to handle core message ($method): ${redactFrameForLog(line, method)}", e)
             id?.let { replyError(it, e.message ?: "host handler failed") }
         }
     }
@@ -205,4 +207,29 @@ internal class RpcChannel(
     private companion object {
         const val OUTBOUND_CAPACITY = 512
     }
+}
+
+// JSON-RPC namespaces whose frames can carry plaintext credentials: the password
+// / clientSecret live in `secretStore/*` params, and the deployment form relays
+// the same secrets (and the core echoes stored ones back to prefill the form)
+// under `deployment/*`. Their bodies must never reach idea.log. Kept in sync with
+// `SecretStoreRouter` and `DeploymentRouter`.
+internal val CREDENTIAL_METHOD_PREFIXES = listOf("secretStore/", "deployment/")
+internal const val REDACTED_FRAME = "<redacted: credential-bearing frame>"
+
+/**
+ * Strips the body of a credential-bearing frame before it is logged. When the
+ * [method] is known (a parsed frame that then threw during dispatch) we match the
+ * credential namespaces exactly; for an unparseable line ([method] == null) we
+ * fall back to a substring probe so a corrupted secret frame still can't leak its
+ * plaintext. Other frames pass through unredacted for debuggability.
+ */
+internal fun redactFrameForLog(line: String, method: String?): String {
+    val sensitive =
+        if (method != null) {
+            CREDENTIAL_METHOD_PREFIXES.any { method.startsWith(it) }
+        } else {
+            CREDENTIAL_METHOD_PREFIXES.any { line.contains(it) }
+        }
+    return if (sensitive) REDACTED_FRAME else line
 }

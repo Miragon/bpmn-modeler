@@ -2,6 +2,7 @@ import {
     AuthConfigPayload,
     Command,
     Engine,
+    LogInfoCommand,
     Query,
     RequestPayloadFilesCommand,
     StartInstanceCommand,
@@ -124,6 +125,13 @@ export class StartInstanceForm {
                 this.statusBanner.className = "status-banner error";
                 this.statusBanner.textContent = err instanceof Error ? err.message : String(err);
                 this.statusBanner.style.display = "block";
+                // Breadcrumb, not a defect: the banner already tells the user; the
+                // channel line records that start-instance was blocked client-side.
+                this.host.postMessage(
+                    new LogInfoCommand(
+                        `Start-instance form validation failed: ${err instanceof Error ? err.message : String(err)}`,
+                    ),
+                );
             }
         });
     }

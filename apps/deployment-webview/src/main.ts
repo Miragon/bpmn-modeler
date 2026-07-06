@@ -5,6 +5,7 @@ import {
     Command,
     DeploymentResultQuery,
     FormDefaultsQuery,
+    LogErrorCommand,
     ProcessDefinitionKeyQuery,
     Query,
     RequestFormDefaultsCommand,
@@ -19,6 +20,23 @@ import { StartInstanceForm } from "./app/startInstanceForm";
 import { getHostApi } from "./app/host";
 
 const host = getHostApi();
+
+// Global safety net: the deployment webview had no error forwarding at all, so a
+// throw in a DOM callback or a rejected promise vanished into the webview console
+// and never reached the output channel. Mirrors the bpmn-webview hooks; registered
+// eagerly so failures during form bootstrap are covered too.
+window.addEventListener("error", (event: ErrorEvent) => {
+    host.postMessage(new LogErrorCommand(`Unhandled error: ${event.message}`, event.error?.stack));
+});
+window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+    const reason: unknown = event.reason;
+    host.postMessage(
+        new LogErrorCommand(
+            `Unhandled promise rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
+            reason instanceof Error ? reason.stack : undefined,
+        ),
+    );
+});
 
 /**
  * Entry point: initialises the deployment and start-instance forms once the
@@ -44,6 +62,10 @@ window.onload = function () {
         );
     } catch (err) {
         console.error("[DeploymentWebview] Failed to initialise forms:", err);
+        const e = err instanceof Error ? err : new Error(String(err));
+        host.postMessage(
+            new LogErrorCommand(`Failed to initialise deployment forms: ${e.message}`, e.stack),
+        );
         return;
     }
 

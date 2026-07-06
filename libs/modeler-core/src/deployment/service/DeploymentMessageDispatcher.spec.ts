@@ -4,6 +4,10 @@ import {
     AdditionalFilesQuery,
     DeploymentResultQuery,
     FormDefaultsQuery,
+    LogDebugCommand,
+    LogErrorCommand,
+    LogInfoCommand,
+    LogWarningCommand,
     ProcessDefinitionKeyQuery,
     SelectedPayloadFileQuery,
     StartInstanceResultQuery,
@@ -48,7 +52,9 @@ function createDispatcher() {
     const notifier = {
         showInfo: vi.fn(),
         showError: vi.fn(),
+        logDebug: vi.fn(),
         logInfo: vi.fn(),
+        logWarning: vi.fn(),
         logError: vi.fn(),
     };
 
@@ -223,6 +229,64 @@ describe("DeploymentMessageDispatcher deploy result handling", () => {
     });
 });
 
+describe("DeploymentMessageDispatcher deploy breadcrumbs", () => {
+    /** Every string passed to any notifier log method across the whole call. */
+    function allLoggedText(c: ReturnType<typeof createDispatcher>): string {
+        return [
+            ...c.notifier.logDebug.mock.calls,
+            ...c.notifier.logInfo.mock.calls,
+            ...c.notifier.logWarning.mock.calls,
+            ...c.notifier.logError.mock.calls,
+        ]
+            .map((args) => String(args[0]))
+            .join("\n");
+    }
+
+    it("logs a start breadcrumb with the trusted basename, engine, and endpoint host", async () => {
+        const c = createDispatcher();
+        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        await deploy(c, { authType: "none" });
+
+        expect(c.notifier.logInfo).toHaveBeenCalledWith(
+            "Deployment started: order-process.bpmn -> c7 @ localhost:8080",
+        );
+    });
+
+    it("logs a warning breadcrumb when the deployment fails", async () => {
+        const c = createDispatcher();
+        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(false, "rejected"));
+
+        await deploy(c, { authType: "none" });
+
+        expect(c.notifier.logWarning).toHaveBeenCalledWith("Deployment failed: rejected");
+    });
+
+    it("never writes the basic-auth password to any log line", async () => {
+        const c = createDispatcher();
+        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        await deploy(c, { authType: "basic", username: "admin", password: "s3cret" });
+
+        expect(allLoggedText(c)).not.toContain("s3cret");
+    });
+
+    it("never writes an oauth2 client secret to any log line", async () => {
+        const c = createDispatcher();
+        c.startInstanceService.startInstance.mockResolvedValue(new StartInstanceResult(true, "ok"));
+
+        await startInstance(c, {
+            authType: "oauth2",
+            clientId: "cid",
+            clientSecret: "s3cret",
+            tokenEndpoint: "https://idp/token",
+            audience: "zeebe-api",
+        });
+
+        expect(allLoggedText(c)).not.toContain("s3cret");
+    });
+});
+
 describe("DeploymentMessageDispatcher start-instance auth construction", () => {
     it("builds a BasicAuth from a basic payload", async () => {
         const c = createDispatcher();
@@ -340,9 +404,13 @@ describe("DeploymentMessageDispatcher.sendFormDefaults", () => {
         c.dispatcher.sendFormDefaults();
 
         expect(postedQuery(c.post, ProcessDefinitionKeyQuery).processDefinitionKey).toBe("");
+        // A parseable diagram whose key can't be read is a degradation → warn.
+        expect(c.notifier.logWarning).toHaveBeenCalledWith(
+            expect.stringContaining("Process-definition key extraction failed"),
+        );
     });
 
-    it("falls back to empty defaults when there is no active editor", () => {
+    it("falls back to empty defaults (and only debug-logs) when there is no active editor", () => {
         const c = createDispatcher();
         c.editorStore.getActiveEditorId.mockImplementation(() => {
             throw new Error("no active editor");
@@ -350,6 +418,11 @@ describe("DeploymentMessageDispatcher.sendFormDefaults", () => {
 
         c.dispatcher.sendFormDefaults();
 
+        // No active editor is the expected steady state — debug, not warn.
+        expect(c.notifier.logDebug).toHaveBeenCalledWith(
+            expect.stringContaining("No active editor for deployment form defaults"),
+        );
+        expect(c.notifier.logWarning).not.toHaveBeenCalled();
         const defaults = postedQuery(c.post, FormDefaultsQuery).defaults;
         expect(defaults.deploymentName).toBe("");
         expect(defaults.engine).toBe("c7");
@@ -482,5 +555,44 @@ describe("DeploymentMessageDispatcher.handle routing", () => {
         } as StartInstanceCommand);
 
         expect(c.startInstanceService.startInstance).toHaveBeenCalledOnce();
+    });
+});
+
+describe("DeploymentMessageDispatcher.handle webview-log routing", () => {
+    it("routes each Log* level onto the notifier with a [webview:deployment] tag", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle(new LogDebugCommand("d"));
+        await c.dispatcher.handle(new LogInfoCommand("i"));
+        await c.dispatcher.handle(new LogWarningCommand("w"));
+        await c.dispatcher.handle(new LogErrorCommand("boom", "at foo"));
+
+        expect(c.notifier.logInfo).toHaveBeenCalledWith("[webview:deployment] i");
+        expect(c.notifier.logWarning).toHaveBeenCalledWith("[webview:deployment] w");
+        expect(c.notifier.logError).toHaveBeenCalledWith("[webview:deployment] boom\nat foo");
+    });
+
+    it("does not enter the command switch for a Log* command", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle(new LogInfoCommand("i"));
+
+        // The switch's per-message debug breadcrumb is skipped for log traffic
+        // so forwarded lines aren't double-logged.
+        expect(c.notifier.logDebug).not.toHaveBeenCalledWith(
+            "Deployment message received -> LogInfoCommand",
+        );
+        expect(c.deploymentService.getFormDefaults).not.toHaveBeenCalled();
+    });
+
+    it("still no-ops on an unknown, non-log command type", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle({ type: "TotallyUnknownCommand" } as Command);
+
+        expect(c.post).not.toHaveBeenCalled();
+        expect(c.notifier.logDebug).toHaveBeenCalledWith(
+            "Deployment message received -> TotallyUnknownCommand",
+        );
     });
 });

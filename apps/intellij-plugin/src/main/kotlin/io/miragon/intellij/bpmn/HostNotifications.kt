@@ -36,6 +36,7 @@ class HostNotifications(private val project: Project) {
         when (level) {
             "error" -> log.warn(text)
             "warn" -> log.warn(text)
+            "debug" -> log.debug(text)
             else -> log.info(text)
         }
     }

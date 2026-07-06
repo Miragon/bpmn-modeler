@@ -47,6 +47,9 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
 
     const vsWorkspace = new VsCodeWorkspace();
     const vsSettings = new VsCodeSettings();
+    // Hoisted so it can seed ArtifactService's optional logger for the
+    // element-template discovery diagnostics.
+    const notifier = new VsCodeNotifier();
 
     return {
         editorStore,
@@ -54,10 +57,10 @@ export function buildSharedDeps(context: ExtensionContext): SharedDeps {
         vsWorkspace,
         vsSettings,
         statusBar: new VsCodeStatusBar(),
-        notifier: new VsCodeNotifier(),
+        notifier,
         picker: new VsCodePicker(vsWorkspace),
         clipboard: new VsCodeClipboard(),
         textEditor: new VsCodeTextEditor(),
-        artifactSvc: new ArtifactService(vsWorkspace, vsSettings),
+        artifactSvc: new ArtifactService(vsWorkspace, vsSettings, notifier),
     };
 }

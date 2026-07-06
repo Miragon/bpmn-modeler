@@ -41,7 +41,7 @@ function createService() {
     } as unknown as DmnModelerService;
 }
 
-const notifier = { logInfo: vi.fn() } as unknown as VsCodeNotifier;
+const notifier = { logDebug: vi.fn() } as unknown as VsCodeNotifier;
 
 describe("DmnRenderParticipant", () => {
     it("registers the modeler session on resolve", () => {

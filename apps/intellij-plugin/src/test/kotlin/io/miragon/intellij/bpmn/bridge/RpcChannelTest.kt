@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -155,6 +156,57 @@ class RpcChannelTest {
         val okReply = parse(fake.nextFrame())
         assertEquals(9, okReply.get("id").asInt)
         assertEquals("ok", okReply.get("result").asString)
+    }
+
+    /**
+     * A `secretStore` frame whose handler throws (e.g. a failing PasswordSafe
+     * call) must never have its plaintext credential reach the log. The redaction
+     * runs before `log.warn`, so we assert the property on [redactFrameForLog]
+     * directly rather than scraping the process-global no-op logger.
+     */
+    @Test
+    fun `redaction strips credentials from a failing secretStore frame`() {
+        val frame = """{"method":"secretStore/saveBasicAuth","params":{"username":"admin","password":"hunter2"},"id":3}"""
+
+        val redacted = redactFrameForLog(frame, method = "secretStore/saveBasicAuth")
+
+        assertEquals(REDACTED_FRAME, redacted)
+        assertFalse(redacted.contains("hunter2"), "the plaintext password must not survive redaction")
+    }
+
+    /**
+     * Credentials also ride `deployment` frames: the form relays them and the
+     * core echoes stored ones back to prefill the form. A failing prefill dispatch
+     * must not leak the echoed password.
+     */
+    @Test
+    fun `redaction strips credentials from a failing deployment frame`() {
+        val frame = """{"method":"deployment/postMessage","params":{"message":{"auth":{"password":"hunter2"}}}}"""
+
+        val redacted = redactFrameForLog(frame, method = "deployment/postMessage")
+
+        assertEquals(REDACTED_FRAME, redacted)
+        assertFalse(redacted.contains("hunter2"), "the echoed password must not survive redaction")
+    }
+
+    /** An unparseable line that still mentions a credential namespace is redacted via the substring fallback. */
+    @Test
+    fun `redaction covers a malformed credential line with no parsed method`() {
+        val corrupt = """{"method":"secretStore/saveOAuth2","params":{"clientSecret":"s3cr3t"},"""
+
+        val redacted = redactFrameForLog(corrupt, method = null)
+
+        assertEquals(REDACTED_FRAME, redacted)
+        assertFalse(redacted.contains("s3cr3t"), "a corrupted secret frame must not leak either")
+    }
+
+    /** Non-credential frames pass through unredacted so ordinary failures stay debuggable. */
+    @Test
+    fun `redaction leaves non-credential frames intact`() {
+        val frame = """{"method":"document/save","params":{"editorId":"x"},"id":1}"""
+
+        assertEquals(frame, redactFrameForLog(frame, method = "document/save"))
+        assertEquals(frame, redactFrameForLog(frame, method = null))
     }
 
     /**
