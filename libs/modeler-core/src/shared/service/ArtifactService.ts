@@ -176,10 +176,18 @@ export class ArtifactService {
         const workspaceRoot = await this.getWorkspaceRoot(documentDir);
 
         const pattern = `**/${configFolder}/element-templates/**/*.json`;
+        // A watcher callback's rejection has no caller to await it, so a failed
+        // re-push (unreadable template dir, gone webview) would float away as an
+        // unhandled rejection instead of reaching the channel.
+        const repushTemplates = () => {
+            target.setElementTemplates(editorId).catch((error) => {
+                this.logger?.logError(error instanceof Error ? error : new Error(String(error)));
+            });
+        };
         const handle = this.vsWorkspace.createWatcher(workspaceRoot, pattern, {
-            onCreate: () => void target.setElementTemplates(editorId),
-            onChange: () => void target.setElementTemplates(editorId),
-            onDelete: () => void target.setElementTemplates(editorId),
+            onCreate: repushTemplates,
+            onChange: repushTemplates,
+            onDelete: repushTemplates,
         });
 
         return { disposables: [handle], errors: [] };

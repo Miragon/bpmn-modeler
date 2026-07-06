@@ -263,4 +263,32 @@ describe("ArtifactService.createWatcher", () => {
         expect(target.setElementTemplates).toHaveBeenCalledTimes(3);
         expect(target.setElementTemplates).toHaveBeenNthCalledWith(1, "/work/proc/order.bpmn");
     });
+
+    it("logs a rejected template refresh instead of leaking an unhandled rejection", async () => {
+        const { vsWorkspace, vsSettings } = createService();
+        vsWorkspace.getWorkspaceFolderForDocument.mockReturnValue("/work");
+        vsWorkspace.createWatcher.mockReturnValue({ dispose: vi.fn() });
+        const logger = {
+            logDebug: vi.fn(),
+            logInfo: vi.fn(),
+            logWarning: vi.fn(),
+            logError: vi.fn(),
+        };
+        const service = new ArtifactService(
+            vsWorkspace as never,
+            vsSettings as never,
+            logger as never,
+        );
+        const boom = new Error("templates dir unreadable");
+        const target = { setElementTemplates: vi.fn().mockRejectedValue(boom) };
+
+        await service.createWatcher("/work/proc/order.bpmn", target as never);
+        const handlers = vsWorkspace.createWatcher.mock.calls[0][2];
+        handlers.onChange("/work/.camunda/element-templates/x.json");
+        // The `.catch` guard runs on a later microtask; flush before asserting.
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(logger.logError).toHaveBeenCalledWith(boom);
+    });
 });

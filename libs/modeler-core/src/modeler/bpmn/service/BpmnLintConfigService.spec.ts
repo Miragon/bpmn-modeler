@@ -23,7 +23,7 @@ function createService() {
         showBpmnlintNoConfig: vi.fn(),
         hideBpmnlintStatus: vi.fn(),
     };
-    const notifier = { logError: vi.fn() };
+    const notifier = { logError: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() };
 
     const service = new BpmnLintConfigService(
         editorStore as never,
@@ -42,7 +42,7 @@ beforeEach(() => {
 
 describe("BpmnLintConfigService.setBpmnlintConfig", () => {
     it("posts the parsed config and shows the active status when a config is found", async () => {
-        const { service, editorStore, locator, statusBar } = createService();
+        const { service, editorStore, locator, statusBar, notifier } = createService();
         locator.findNearestConfig.mockResolvedValue("/work/.bpmnlintrc");
         locator.readConfig.mockResolvedValue(JSON.stringify({ extends: "bpmnlint:recommended" }));
 
@@ -53,13 +53,17 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(locator.findNearestConfig).toHaveBeenCalledWith("file:///work");
         expect(statusBar.showBpmnlintActive).toHaveBeenCalledWith("/work/.bpmnlintrc");
         expect(statusBar.showBpmnlintNoConfig).not.toHaveBeenCalled();
+        // Reproduction breadcrumb names the applied config path.
+        expect(notifier.logInfo).toHaveBeenCalledWith(
+            "bpmnlint config applied from /work/.bpmnlintrc",
+        );
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintConfigQuery;
         expect(msg.type).toBe("BpmnlintConfigQuery");
         expect(msg.config).toEqual({ extends: "bpmnlint:recommended" });
     });
 
-    it("posts null and shows the no-config status when nothing is found", async () => {
-        const { service, editorStore, locator, statusBar } = createService();
+    it("posts null and shows the no-config status (debug-only) when nothing is found", async () => {
+        const { service, editorStore, locator, statusBar, notifier } = createService();
         locator.findNearestConfig.mockResolvedValue(undefined);
 
         const result = await service.setBpmnlintConfig(EDITOR);
@@ -67,6 +71,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(result).toBe(true);
         expect(locator.readConfig).not.toHaveBeenCalled();
         expect(statusBar.showBpmnlintNoConfig).toHaveBeenCalledOnce();
+        // The no-config case fires on every editor open → debug, not info.
+        expect(notifier.logDebug).toHaveBeenCalledWith("No .bpmnlintrc found; linting inactive");
+        expect(notifier.logInfo).not.toHaveBeenCalled();
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintConfigQuery;
         expect(msg.config).toBeNull();
     });

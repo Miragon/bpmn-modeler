@@ -89,7 +89,13 @@ template, or the webview misbehaves, raise the level to see the full trace:
 run **Developer: Set Log Level…**, pick *bpmn.modeler*, and choose **Debug**.
 Debug adds the per-message transport trace, the element-template discovery scan
 (which config folder was searched and what was found), and any warnings or
-errors the webview forwards (prefixed with `[webview]`).
+errors the webview forwards (prefixed with `[webview:<file>]`).
+
+**Filing a bug?** Set the log level to **Debug**, reproduce the problem, then
+copy the whole `bpmn.modeler` channel into the report — the Info-level
+breadcrumbs (editor opened/closed, deployment started/result, SVG export) plus
+the Debug transport trace let us reconstruct the exact steps that led to the
+failure. Credentials are never logged, so the channel is safe to paste.
 
 ## Support and feedback
 

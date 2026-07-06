@@ -16,6 +16,7 @@ import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domai
 import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
+import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHandlers";
 import { DeploymentService } from "./DeploymentService";
 import { StartInstanceService } from "./StartInstanceService";
 
@@ -56,6 +57,12 @@ export class DeploymentMessageDispatcher {
      * ignored — the protocol is closed and a stray discriminant is not an error.
      */
     async handle(message: Command): Promise<void> {
+        // The deployment webview forwards its own diagnostics as Log*Commands.
+        // This dispatcher owns a raw switch (it bypasses WebviewMessageRouter),
+        // so route them here or the switch below drops them as unknown types.
+        if (routeWebviewLogCommand(this.notifier, message, "deployment")) {
+            return;
+        }
         this.notifier.logDebug(`Deployment message received -> ${message.type}`);
         switch (message.type) {
             case "RequestFormDefaultsCommand":
@@ -97,12 +104,21 @@ export class DeploymentMessageDispatcher {
             try {
                 const key = this.startInstanceService.getProcessDefinitionKey(activeEditorId);
                 this.post(new ProcessDefinitionKeyQuery(key));
-            } catch {
-                // Process key extraction failed — send empty key.
+            } catch (error) {
+                // A parseable diagram with an unreadable/absent process key is a
+                // real degradation of the Start Instance tab — warn, then fall
+                // back to an empty key so the form still renders.
+                this.notifier.logWarning(
+                    `Process-definition key extraction failed: ${(error as Error).message}`,
+                );
                 this.post(new ProcessDefinitionKeyQuery(""));
             }
-        } catch {
-            // No active editor — send empty defaults.
+        } catch (error) {
+            // No active editor is the expected steady state when no diagram is
+            // focused — a debug breadcrumb, not a warning.
+            this.notifier.logDebug(
+                `No active editor for deployment form defaults: ${(error as Error).message}`,
+            );
             this.post(
                 new FormDefaultsQuery({
                     deploymentName: "",
@@ -190,6 +206,11 @@ export class DeploymentMessageDispatcher {
         try {
             const auth = this.buildAuth(configPayload.auth);
 
+            // Breadcrumb. Host[:port] only — never the full URL or auth payload.
+            this.notifier.logInfo(
+                `Instance start requested: ${configPayload.processDefinitionKey} @ ${this.endpointHost(configPayload.endpoint)}`,
+            );
+
             const result = await this.startInstanceService.startInstance(
                 configPayload.processDefinitionKey,
                 configPayload.endpoint,
@@ -199,8 +220,10 @@ export class DeploymentMessageDispatcher {
             );
 
             if (result.success) {
+                this.notifier.logInfo(`Instance start succeeded: ${result.message}`);
                 this.notifier.showInfo(result.message);
             } else {
+                this.notifier.logWarning(`Instance start failed: ${result.message}`);
                 this.notifier.showError(result.message);
             }
 
@@ -244,11 +267,19 @@ export class DeploymentMessageDispatcher {
                 .withAuth(auth)
                 .build();
 
+            // Breadcrumb. Only host[:port] is logged (never the full URL, which can
+            // carry credentials, and never the auth payload) — see endpointHost.
+            this.notifier.logInfo(
+                `Deployment started: ${this.fileBasename(mainFilePath)} -> ${configPayload.engine} @ ${this.endpointHost(configPayload.endpoint)}`,
+            );
+
             const result = await this.deploymentService.deploy(config);
 
             if (result.success) {
+                this.notifier.logInfo(`Deployment succeeded: ${result.message}`);
                 this.notifier.showInfo(result.message);
             } else {
+                this.notifier.logWarning(`Deployment failed: ${result.message}`);
                 this.notifier.showError(result.message);
             }
 
@@ -265,6 +296,24 @@ export class DeploymentMessageDispatcher {
             this.notifier.showError(message);
             this.post(new DeploymentResultQuery(false, message));
         }
+    }
+
+    /**
+     * Host[:port] of `endpoint` for a breadcrumb — never the path, query, or
+     * userinfo. `URL.host` deliberately excludes any `user:pass@` prefix, so a
+     * credentialled endpoint can't leak into the channel.
+     */
+    private endpointHost(endpoint: string): string {
+        try {
+            return new URL(endpoint).host || "unknown-host";
+        } catch {
+            return "unknown-host";
+        }
+    }
+
+    /** Basename for logging; separator-agnostic so Windows paths don't leak a full path. */
+    private fileBasename(filePath: string): string {
+        return filePath.split(/[\\/]/).pop() || filePath;
     }
 
     /** Maps the webview's auth payload to the domain auth value object. */

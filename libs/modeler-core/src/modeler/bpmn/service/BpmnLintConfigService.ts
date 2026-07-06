@@ -45,7 +45,16 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                     this.statusBar.showBpmnlintNoConfig();
                 }
             }
-            return this.editorStore.postMessage(editorId, new BpmnlintConfigQuery(config));
+            // Reproduction breadcrumb. `applied` at info; the no-config case fires
+            // on every editor open, so it stays debug to keep the trail legible.
+            if (path) {
+                this.notifier.logInfo(`bpmnlint config applied from ${path}`);
+            } else {
+                this.notifier.logDebug("No .bpmnlintrc found; linting inactive");
+            }
+            // `return await` (not a bare `return`) so a rejected post is caught
+            // by this block's own handler rather than escaping to the caller.
+            return await this.editorStore.postMessage(editorId, new BpmnlintConfigQuery(config));
         } catch (error) {
             // A malformed .bpmnlintrc must not crash the editor — warn, fall back
             // to the no-config state, and tell the webview to deactivate linting.

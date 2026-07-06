@@ -104,8 +104,9 @@ export class CommandController {
      * Delegates to {@link BpmnModelerService.changeEngineVersion}.
      */
     changeEngineVersion(): Promise<boolean> {
-        const activeId = this.editorStore.getActiveEditorId();
-        return this.bpmnService.changeEngineVersion(activeId);
+        return this.logAndRethrow(() =>
+            this.bpmnService.changeEngineVersion(this.editorStore.getActiveEditorId()),
+        );
     }
 
     /**
@@ -114,7 +115,7 @@ export class CommandController {
      * Delegates to {@link BpmnMigrationService.migrateAllDiagrams}.
      */
     migrateAllDiagrams(): Promise<boolean> {
-        return this.migrationSvc.migrateAllDiagrams();
+        return this.logAndRethrow(() => this.migrationSvc.migrateAllDiagrams());
     }
 
     /**
@@ -123,26 +124,46 @@ export class CommandController {
      * Shows a QuickPick with all supported languages and sends the selected
      * locale to the active webview via {@link BpmnModelerService.setLanguage}.
      */
-    async changeLanguage(): Promise<void> {
-        const items = supportedLanguages.map((lang) => ({
-            label: lang.label,
-            description: lang.locale,
-        }));
+    changeLanguage(): Promise<void> {
+        return this.logAndRethrow(async () => {
+            const items = supportedLanguages.map((lang) => ({
+                label: lang.label,
+                description: lang.locale,
+            }));
 
-        const picked = await window.showQuickPick(items, {
-            placeHolder: "Select the modeler language",
+            const picked = await window.showQuickPick(items, {
+                placeHolder: "Select the modeler language",
+            });
+
+            if (!picked) {
+                return;
+            }
+
+            // Language is a personal UI preference rather than a project-scoped
+            // setting — writing at Global (User) level avoids pinning one
+            // collaborator's choice to a shared workspace settings file.
+            await workspace
+                .getConfiguration("miragon.bpmnModeler")
+                .update("language", picked.description, ConfigurationTarget.Global);
+            // Breadcrumb: a language switch changes UI strings across the modeler,
+            // so record it to explain later "why is the panel in German?" reports.
+            this.notifier.logInfo(`Modeler language changed to ${picked.description}`);
         });
+    }
 
-        if (!picked) {
-            return;
+    /**
+     * Runs an async command body, logging any rejection to the output channel
+     * before rethrowing. Without the log a rejected config update (e.g. the
+     * language write) never reaches the channel; the rethrow preserves VS Code's
+     * own command-failed surfacing so the user still sees the error.
+     */
+    private async logAndRethrow<T>(run: () => Promise<T>): Promise<T> {
+        try {
+            return await run();
+        } catch (error) {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            throw error;
         }
-
-        // Language is a personal UI preference rather than a project-scoped
-        // setting — writing at Global (User) level avoids pinning one
-        // collaborator's choice to a shared workspace settings file.
-        await workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .update("language", picked.description, ConfigurationTarget.Global);
     }
 
     /**
@@ -166,11 +187,12 @@ export class CommandController {
      * prevent listener accumulation.
      */
     writeToFile(): void {
-        this.requestSvg((svg) => {
+        this.requestSvg(async (svg) => {
             const filePath = this.vsDocument
                 .getFilePath(this.editorStore.getActiveEditorId())
                 .replace(/\.bpmn$/, ".svg");
-            workspace.fs.writeFile(Uri.file(filePath), Buffer.from(svg));
+            await workspace.fs.writeFile(Uri.file(filePath), Buffer.from(svg));
+            this.notifier.logInfo(`Diagram SVG exported to ${filePath}`);
         });
     }
 
@@ -178,9 +200,12 @@ export class CommandController {
      * Sends a `GetDiagramAsSVGCommand` to the active webview and subscribes
      * to the response.  Disposes any previously active SVG subscription first.
      *
-     * @param onSvg Callback invoked with the SVG string once received.
+     * @param onSvg Callback invoked with the SVG string once received. Its
+     *   result is awaited so a rejected async sink (a failed `workspace.fs`
+     *   file write, a denied clipboard write) reaches the channel instead of
+     *   floating away as an unhandled rejection.
      */
-    private requestSvg(onSvg: (svg: string) => void): void {
+    private requestSvg(onSvg: (svg: string) => void | Promise<void>): void {
         const activeId = this.editorStore.getActiveEditorId();
 
         this.editorStore.postMessage(activeId, new GetDiagramAsSVGCommand()).catch((error) => {
@@ -195,7 +220,11 @@ export class CommandController {
                 if (message.type === "GetDiagramAsSVGCommand") {
                     const cmd = message as GetDiagramAsSVGCommand;
                     if (cmd.svg && cmd.svg.length > 0) {
-                        onSvg(cmd.svg);
+                        Promise.resolve(onSvg(cmd.svg)).catch((error) => {
+                            this.notifier.logError(
+                                error instanceof Error ? error : new Error(String(error)),
+                            );
+                        });
                     }
                     // Dispose after receiving the response.
                     this.svgSubscription?.dispose();

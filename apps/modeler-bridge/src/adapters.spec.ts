@@ -392,6 +392,12 @@ describe("RpcNotifier", () => {
             params: { level: "debug", message: "trace" },
         });
 
+        notifier.logInfo("step");
+        expect(last(frames)).toEqual({
+            method: "notifier/log",
+            params: { level: "info", message: "step" },
+        });
+
         notifier.logWarning("careful");
         expect(last(frames)).toEqual({
             method: "notifier/log",

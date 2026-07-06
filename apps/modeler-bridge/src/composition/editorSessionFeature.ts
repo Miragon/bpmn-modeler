@@ -1,3 +1,5 @@
+import { basename } from "node:path";
+
 import { Command, Query, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 import { BpmnModelerService, registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 
@@ -59,7 +61,16 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
         });
 
     // Route the webview's Log*Commands into `idea.log` via the notifier/log RPC.
-    registerWebviewLogHandlers(deps.router, deps.notifier);
+    // Tag each line with the diagram's basename so a warning is correlatable when
+    // several editors are open; getFilePath throws for an unknown editorId.
+    const resolveSource = (editorId: string): string | undefined => {
+        try {
+            return basename(deps.documentPort.getFilePath(editorId));
+        } catch {
+            return undefined;
+        }
+    };
+    registerWebviewLogHandlers(deps.router, deps.notifier, resolveSource);
 
     deps.rpc.on(METHODS.sessionRegister, async (params: RegisterParams) => {
         // Seed settings before any discovery so `getConfigFolder()` is correct on
@@ -78,8 +89,13 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
         // messages through the store into the router, and arm the echo-prevention
         // session.
         deps.store.register(handle);
+        // The bridge (unlike VS Code's ModelerEditorController) doesn't wrap the
+        // dispatch, so a rejected handler — now that commit 2 makes handlers return
+        // their service promise — would surface as a Node unhandled rejection.
         deps.store.subscribeToMessageEvent(params.editorId, (message, editorId) =>
-            deps.router.dispatch(message, editorId),
+            deps.router.dispatch(message, editorId).catch((error) => {
+                deps.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            }),
         );
         bpmnService.registerSession(params.editorId);
 

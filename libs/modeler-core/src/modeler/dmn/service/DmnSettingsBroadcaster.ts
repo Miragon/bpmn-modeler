@@ -50,7 +50,13 @@ export class DmnSettingsBroadcaster {
     subscribe(editorId: string): void {
         this.editorStore.subscribeToSettingChangeEvent(editorId, (event, id) => {
             if (event.affectsConfiguration("miragon.bpmnModeler.colorTheme")) {
-                this.setSettings(id);
+                // Guard the floating promise: the change listener has no caller
+                // to await it (setSettings already logs its own failures).
+                this.setSettings(id).catch((error) => {
+                    this.notifier.logError(
+                        error instanceof Error ? error : new Error(String(error)),
+                    );
+                });
             }
         });
     }

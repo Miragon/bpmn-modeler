@@ -340,6 +340,9 @@ async function initializeModeler(
 
     try {
         bpmnModeler.create(engine, extraModules);
+        // Forward the modeler's non-fatal warnings (element-not-found, missing
+        // inline script) to the output channel — they were console-only before.
+        bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
         bpmnModeler.onCommandStackChanged(sendXmlChanges);
         await openXml(bpmn);
     } catch (error: any) {
@@ -379,9 +382,19 @@ async function openXml(bpmn?: string): Promise<void> {
  * changes, then triggers an align-to-origin pass if the setting is enabled.
  */
 async function sendXmlChanges(): Promise<void> {
-    const bpmn = await bpmnModeler.exportDiagram();
-    host.postMessage(new SyncDocumentCommand(bpmn));
-    bpmnModeler.alignElementsToOrigin();
+    // A rejection here only reaches the global unhandledrejection hook (diagram-js
+    // discards the returned promise) as a context-free line — catch it so the
+    // failure is named and deterministic on the channel.
+    try {
+        const bpmn = await bpmnModeler.exportDiagram();
+        host.postMessage(new SyncDocumentCommand(bpmn));
+        bpmnModeler.alignElementsToOrigin();
+    } catch (error) {
+        const e = error instanceof Error ? error : new Error(String(error));
+        host.postMessage(
+            new LogErrorCommand(`Failed to sync diagram changes: ${e.message}`, e.stack),
+        );
+    }
 }
 
 /**

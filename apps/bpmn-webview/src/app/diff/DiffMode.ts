@@ -3,6 +3,7 @@ import {
     Command,
     CursorChangedCommand,
     DiffReadyCommand,
+    LogErrorCommand,
     Query,
     SwapCompareSidesCommand,
     SyncCursorQuery,
@@ -104,6 +105,10 @@ export class DiffMode {
             await this.viewer.importXML(content);
         } catch (error) {
             console.error("DiffViewer import failed", error);
+            const e = error instanceof Error ? error : new Error(String(error));
+            this.host.postMessage(
+                new LogErrorCommand(`DiffViewer import failed: ${e.message}`, e.stack),
+            );
             return;
         }
         this.host.postMessage(new DiffReadyCommand());

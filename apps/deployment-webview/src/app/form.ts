@@ -6,6 +6,7 @@ import {
     DeploymentFormDefaults,
     DeploymentResultQuery,
     Engine,
+    LogInfoCommand,
     Query,
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
@@ -332,6 +333,14 @@ export class DeploymentForm {
                 this.statusBanner.className = "status-banner error";
                 this.statusBanner.textContent = err instanceof Error ? err.message : String(err);
                 this.statusBanner.style.display = "block";
+                // Breadcrumb, not a defect: the banner already tells the user. The
+                // channel line lets a bug report show the deploy was blocked by
+                // client-side validation before any request left the webview.
+                this.host.postMessage(
+                    new LogInfoCommand(
+                        `Deployment form validation failed: ${err instanceof Error ? err.message : String(err)}`,
+                    ),
+                );
             }
         });
     }

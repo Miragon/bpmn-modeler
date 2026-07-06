@@ -103,4 +103,16 @@ describe("DmnSettingsBroadcaster.subscribe", () => {
 
         expect(setSettings).not.toHaveBeenCalled();
     });
+
+    it("guards a rejecting setSettings so the change listener never leaks a rejection", async () => {
+        const { broadcaster, editorStore, notifier } = createBroadcaster();
+        vi.spyOn(broadcaster, "setSettings").mockRejectedValue(new Error("post failed"));
+
+        broadcaster.subscribe(EDITOR);
+        fireSettingChange(editorStore, ["miragon.bpmnModeler.colorTheme"]);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(notifier.logError).toHaveBeenCalledOnce();
+    });
 });

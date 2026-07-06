@@ -49,8 +49,10 @@ export function getBpmnFileHandler(
 export function getElementTemplatesHandler(
     templatesSvc: BpmnElementTemplatesService,
 ): MessageHandler {
-    return (_message: Command, editorId: string) => {
-        templatesSvc.setElementTemplates(editorId);
+    // Await (not fire-and-forget) so a rejection propagates to the router's
+    // dispatch catch (ModelerEditorController) instead of floating off unlogged.
+    return async (_message: Command, editorId: string) => {
+        await templatesSvc.setElementTemplates(editorId);
     };
 }
 
@@ -58,8 +60,8 @@ export function getElementTemplatesHandler(
  * `GetBpmnlintConfigCommand` → discover and push the nearest `.bpmnlintrc`.
  */
 export function getBpmnlintConfigHandler(lintSvc: BpmnLintConfigService): MessageHandler {
-    return (_message: Command, editorId: string) => {
-        lintSvc.setBpmnlintConfig(editorId);
+    return async (_message: Command, editorId: string) => {
+        await lintSvc.setBpmnlintConfig(editorId);
     };
 }
 
@@ -73,17 +75,19 @@ export function getBpmnlintConfigHandler(lintSvc: BpmnLintConfigService): Messag
 export function getBpmnModelerSettingHandler(
     settingsBroadcaster: BpmnSettingsBroadcaster,
 ): MessageHandler {
-    return (_message: Command, editorId: string) => {
-        settingsBroadcaster.setSettings(editorId);
+    // Preserve the original settings-then-language post order (settingsPromise is
+    // started first), but await settings so its rejection reaches the router's
+    // dispatch catch. setLanguage owns its own error handling and stays floating.
+    return async (_message: Command, editorId: string) => {
+        const settingsPromise = settingsBroadcaster.setSettings(editorId);
         settingsBroadcaster.setLanguage(editorId);
+        await settingsPromise;
     };
 }
 
 /** Second handler for `GetBpmnModelerSettingCommand`: reload scripts edited while hidden. */
 export function resyncScriptTasksHandler(scriptTaskSvc: ScriptTaskService): MessageHandler {
-    return (_message: Command, editorId: string) => {
-        scriptTaskSvc.resyncOpenDocuments(editorId);
-    };
+    return (_message: Command, editorId: string) => scriptTaskSvc.resyncOpenDocuments(editorId);
 }
 
 /** `GetPropertiesPanelStateCommand` → send the persisted panel visibility. */

@@ -159,8 +159,18 @@ async function openXML(dmn: string | undefined) {
 }
 
 async function sendChanges() {
-    const dmn = await exportDiagram();
-    host.postMessage(new SyncDocumentCommand(dmn));
+    // A rejection here only reaches the global unhandledrejection hook (the
+    // dmn-js event bus discards the returned promise) as a context-free line —
+    // catch it so the failure is named and deterministic on the channel.
+    try {
+        const dmn = await exportDiagram();
+        host.postMessage(new SyncDocumentCommand(dmn));
+    } catch (error) {
+        const e = error instanceof Error ? error : new Error(String(error));
+        host.postMessage(
+            new LogErrorCommand(`Failed to sync diagram changes: ${e.message}`, e.stack),
+        );
+    }
 }
 
 async function onReceiveMessage(message: MessageEvent<Query | Command>) {

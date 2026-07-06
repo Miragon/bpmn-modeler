@@ -50,6 +50,15 @@ describe("getDmnModelerSettingHandler", () => {
 
         expect(settingsBroadcaster.setSettings).toHaveBeenCalledWith(EDITOR);
     });
+
+    it("rejects when setSettings rejects so the router's dispatch catch logs it", async () => {
+        const boom = new Error("settings failed");
+        const settingsBroadcaster = { setSettings: vi.fn().mockRejectedValue(boom) };
+
+        await expect(
+            getDmnModelerSettingHandler(settingsBroadcaster as never)(ANY, EDITOR),
+        ).rejects.toThrow(boom);
+    });
 });
 
 describe("syncDmnDocumentHandler", () => {

@@ -89,7 +89,15 @@ export class ScriptTaskService {
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
-            workspace.onDidChangeTextDocument((event) => this.onVirtualDocumentChanged(event)),
+            workspace.onDidChangeTextDocument((event) =>
+                // VS Code doesn't await this async listener, so a rejection would
+                // otherwise surface as an unhandled promise rejection.
+                this.onVirtualDocumentChanged(event).catch((error) => {
+                    this.notifier.logError(
+                        error instanceof Error ? error : new Error(String(error)),
+                    );
+                }),
+            ),
             window.tabGroups.onDidChangeTabs((event) => this.onTabsChanged(event)),
         );
     }
