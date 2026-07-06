@@ -72,23 +72,42 @@ Suggested blurb — keep it in sync with the README's *Troubleshooting* section:
 > do **not** set `ide.browser.jcef.osr.enabled=false` — while out-of-process
 > JCEF is active it breaks JCEF browser creation entirely.
 
-## Future automation (out of scope today)
+## Automated publishing
 
-The release pipeline currently uploads to GitHub Releases and refreshes
-`docs/public/updatePlugins.xml`. Marketplace uploads can be automated with
-the official Gradle task:
+The release pipeline now publishes to the official Marketplace on every
+release, **in addition to** uploading to GitHub Releases and refreshing
+`docs/public/updatePlugins.xml` — the custom repository keeps running in
+parallel, unchanged.
 
-```kotlin
-// build.gradle.kts (sketch)
-intellijPlatform {
-    publishing {
-        token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
-        // channels = listOf("default")  // or "beta", "eap"
-    }
-}
-```
+- `build.gradle.kts` carries the `signing { }` and `publishing { }` blocks in
+  the `intellijPlatform { }` configuration. Signing uses our own certificate so
+  the Marketplace verifies the artefact's integrity; publishing reads the
+  upload token from the environment.
+- `publish-intellij.yml` runs `./gradlew publishPlugin -PbundleAllPlatforms`
+  after the release-ZIP upload. `publishPlugin` pulls `signPlugin`/`buildPlugin`
+  in as task dependencies, so signing + upload happen in one step.
+- There is no idempotency guard: `publishPlugin` hard-fails when the release
+  version already exists on the Marketplace, so re-running a completed release
+  turns the job red. That's an accepted trade-off for keeping the workflow
+  simple — add a skip step if it ever becomes a nuisance.
 
-Wire `./gradlew publishPlugin` into the release workflow and add
-`JETBRAINS_MARKETPLACE_TOKEN` as a repository secret (generate it from your
-Marketplace account ▸ *My Tokens*). Until that lands, every release re-uses
-the manual flow above.
+### Dry run
+
+Trigger the workflow manually (*Actions ▸ Publish IntelliJ Plugin ▸ Run
+workflow*) with **dry run** left on (the default for manual runs) to verify the
+whole pipeline without touching the Marketplace or `main`. It builds the
+all-platform ZIP and runs `signPlugin`, which exercises `CERTIFICATE_CHAIN` /
+`PRIVATE_KEY` / `PRIVATE_KEY_PASSWORD` and fails loudly on a broken signing
+secret. The upload, release-asset, `updatePlugins.xml` commit,
+and deployment-record steps are all skipped. The upload token itself is only
+exercised by a real publish, so the dry run does not check it. The release
+pipeline (`workflow_call`) defaults dry run **off** and publishes for real.
+
+The four required credentials live in the `jetbrains-marketplace` GitHub
+Environment: `JETBRAINS_MARKETPLACE_TOKEN` (Marketplace account ▸ *My Tokens*),
+plus `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, and `PRIVATE_KEY_PASSWORD` for signing.
+
+The manual submission flow above remains the reference for the **first**
+listing of the plugin (creating the Marketplace listing, metadata, screenshots,
+and JetBrains moderation) — automation only takes over once that listing
+exists.
