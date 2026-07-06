@@ -67,7 +67,12 @@ export class ArtifactService {
         const dirs: string[] = [];
         let current = documentDir;
 
-        while (current === workspaceRoot || current.startsWith(workspaceRoot + "/")) {
+        // Strip a trailing slash so a drive-root workspace (`/c:/`) still matches:
+        // otherwise the guard tests `startsWith("/c://")` and the `===` check never
+        // hits, since the `posix.dirname` walk yields `/c:`, never `/c:/`.
+        const root = this.stripTrailingSlash(workspaceRoot);
+
+        while (current === root || current.startsWith(root + "/")) {
             const targetDir = posix.join(current, configFolder, subFolder);
             try {
                 await this.vsWorkspace.readDirectory(targetDir);
@@ -78,7 +83,7 @@ export class ArtifactService {
                 }
             }
 
-            if (current === workspaceRoot) {
+            if (current === root) {
                 break;
             }
 
@@ -93,6 +98,15 @@ export class ArtifactService {
         }
 
         return dirs;
+    }
+
+    /**
+     * Drops a single trailing slash unless the path is the filesystem root
+     * itself (`/`). Normalizes a drive-root workspace (`/c:/`) so it compares
+     * against the `posix.dirname` walk, which never re-introduces the slash.
+     */
+    private stripTrailingSlash(path: string): string {
+        return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
     }
 
     async getArtifactPaths(documentDir: string): Promise<[string[], string]> {
