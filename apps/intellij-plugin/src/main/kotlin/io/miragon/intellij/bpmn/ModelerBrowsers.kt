@@ -26,7 +26,9 @@ private val log = Logger.getInstance("io.miragon.intellij.bpmn.ModelerBrowsers")
  * mode, so it is exactly the knob that matters here; 60 fps halves the frame
  * interval that made canvas interactions feel "one behind" on Windows. We do *not*
  * try to disable OSR — under remote CEF `setOffScreenRendering(false)` is ignored,
- * and the `ide.browser.jcef.osr.enabled=false` registry flag makes the ctor throw.
+ * the `ide.browser.jcef.osr.enabled=false` registry flag makes the ctor throw while
+ * remote CEF is active, and with remote CEF off, windowed rendering measured no
+ * better than in-process OSR at this framerate.
  *
  * The builder does not create the native browser immediately (callers that need
  * that, e.g. [WarmBrowser], call `createImmediately()` themselves), so it is a
@@ -68,10 +70,14 @@ private const val OOP_JCEF_NOTICE_DISMISSED = "io.miragon.bpmn-modeler.oopJcefNo
  * "Don't show again" opt-out, when a modeler opens on an affected setup.
  *
  * Scoped to Windows because that is where the remote-CEF OSR pipeline visibly
- * drops/delays frames (the canvas feels "one interaction behind"). Self-cancelling:
- * once the user applies `-Djcef.remote.enabled=false`, [isOutOfProcessJcef] returns
- * false and this never fires again — so the persistent flag is only needed for the
- * user who chooses to live with it.
+ * drops/delays frames (the canvas feels "one interaction behind"). The advertised
+ * fix is the registry key `ide.browser.jcef.out-of-process.enabled` — the platform's
+ * master switch for remote CEF. The documented `-Djcef.remote.enabled=false` VM
+ * option is NOT offered: on 2026.1 (IU-261) it was observed to have no effect
+ * (remote mode stayed active and browsers still resolved as remote-OSR).
+ * Self-cancelling: once the user disables the registry key, [isOutOfProcessJcef]
+ * returns false and this never fires again — so the persistent flag is only needed
+ * for the user who chooses to live with it.
  */
 fun maybeNotifyOutOfProcessJcef(project: Project) {
     if (!SystemInfo.isWindows || !isOutOfProcessJcef()) return
@@ -85,9 +91,9 @@ fun maybeNotifyOutOfProcessJcef(project: Project) {
             .createNotification(
                 "BPMN modeler rendering may lag",
                 "This IDE runs embedded Chromium (JCEF) out-of-process, which can make the diagram " +
-                    "canvas feel one interaction behind on Windows. To fix it, add " +
-                    "<code>-Djcef.remote.enabled=false</code> via <b>Help → Edit Custom VM Options</b> " +
-                    "and restart the IDE.",
+                    "canvas feel one interaction behind on Windows. To fix it, open " +
+                    "<b>Help → Find Action → \"Registry…\"</b>, disable " +
+                    "<code>ide.browser.jcef.out-of-process.enabled</code>, and restart the IDE.",
                 NotificationType.INFORMATION,
             )
     notification.addAction(

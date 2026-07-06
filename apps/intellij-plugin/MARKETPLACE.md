@@ -65,11 +65,12 @@ Suggested blurb — keep it in sync with the README's *Troubleshooting* section:
 
 > **Windows: diagram feels "one interaction behind"?** On IntelliJ 2025+/2026
 > the embedded Chromium (JCEF) runs out-of-process, and its off-screen frame
-> pipeline presents a frame only on your *next* input. Fix it via **Help → Edit
-> Custom VM Options…**, add `-Djcef.remote.enabled=false`, and restart. (The
-> plugin also shows this hint once on affected setups.) Do **not** set
-> `ide.browser.jcef.osr.enabled=false` — on these IDEs it breaks JCEF browser
-> creation entirely.
+> pipeline presents a frame only on your *next* input. Fix it via **Help → Find
+> Action → "Registry…"**: disable `ide.browser.jcef.out-of-process.enabled` and
+> restart. (The plugin also shows this hint once on affected setups.) The
+> `-Djcef.remote.enabled=false` VM option is **not** sufficient on 2026.1, and
+> do **not** set `ide.browser.jcef.osr.enabled=false` — while out-of-process
+> JCEF is active it breaks JCEF browser creation entirely.
 
 ## Future automation (out of scope today)
 

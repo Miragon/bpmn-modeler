@@ -107,28 +107,27 @@ pipeline presents a frame only on the *next* input event when the DOM mutates on
 a click. The lag is entirely in Chromium's frame delivery; it never touches the
 modeler core or the bridge.
 
-**Fix (recommended).** Turn off out-of-process JCEF so it runs in-process:
+**Fix.** Turn off out-of-process JCEF so it runs in-process:
 
-- **Help → Edit Custom VM Options…**, add a line:
+- **Help → Find Action → "Registry…"**, disable
+  `ide.browser.jcef.out-of-process.enabled`, then restart the IDE. On an affected
+  setup the plugin shows this same hint once as a balloon (with a "Don't show
+  again" opt-out); applying the registry change makes the balloon self-cancel,
+  since the plugin then detects in-process JCEF.
 
-  ```
-  -Djcef.remote.enabled=false
-  ```
+> **The `-Djcef.remote.enabled=false` VM option is not enough.** Platform sources
+> suggest a pre-set property disables remote mode, but on 2026.1 (IU-261.25134.95,
+> JBR 25.0.3, JCEF 137) it verifiably does nothing: with only the VM option set the
+> staleness persists, and browsers still resolve as remote-OSR. Use the registry
+> key above — it is the platform's master switch.
 
-  then restart the IDE. On an affected setup the plugin shows this same hint once
-  as a balloon (with a "Don't show again" opt-out); applying the option makes the
-  balloon self-cancel, since the plugin then detects in-process JCEF.
-
-**Fix (alternative).** The same switch is exposed in the registry
-(**Help → Find Action → "Registry…"**) as
-`ide.browser.jcef.out-of-process.enabled` — clear it and restart.
-
-> **Do _not_ set `ide.browser.jcef.osr.enabled=false`.** On these IDEs that flag
-> does not give you windowed rendering — it makes **every** `JBCefBrowser`
-> construction throw, so the modeler, diff viewer, and deployment tool window all
-> fail to start (the editor then shows an "could not start" label instead of the
-> diagram). Off-screen rendering is mandatory under remote CEF; the fixes above
-> address the *remote* half, which is the part that drops frames.
+> **Leave `ide.browser.jcef.osr.enabled` alone.** While out-of-process JCEF is
+> active, setting it to `false` does not give you windowed rendering — it makes
+> **every** `JBCefBrowser` construction throw, so the modeler, diff viewer, and
+> deployment tool window all fail to start (the editor then shows a "could not
+> start" label instead of the diagram). Once out-of-process JCEF is off, `false`
+> does yield windowed rendering, but it measured no better than in-process OSR at
+> the plugin's 60 fps — so there is no reason to touch it either way.
 
 ## Scope
 
