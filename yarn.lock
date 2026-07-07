@@ -3619,8 +3619,10 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-element-template-chooser@workspace:libs/element-template-chooser"
   dependencies:
     bpmn-js: "npm:18.19.0"
+    minisearch: "npm:7.2.0"
     preact: "npm:10.29.3"
     typescript: "npm:6.0.3"
+    vitest: "npm:4.1.9"
   peerDependencies:
     bpmn-js: 18.19.0
   languageName: unknown
@@ -16354,7 +16356,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minisearch@npm:^7.1.1":
+"minisearch@npm:7.2.0, minisearch@npm:^7.1.1":
   version: 7.2.0
   resolution: "minisearch@npm:7.2.0"
   checksum: 10c0/64efaf30ead2acb19eb8be49c78352c527812dd2927a0981c9d666339d5d206d132b83038d2bfa756f5161cae5d98f15b07cc7e7b7be6b8278d35d2ecdc2628c

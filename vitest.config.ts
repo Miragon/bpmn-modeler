@@ -7,6 +7,7 @@ export default defineConfig({
             "apps/modeler-bridge",
             "apps/bpmn-webview",
             "libs/bpmn-i18n",
+            "libs/element-template-chooser",
             "libs/modeler-core",
             "libs/shared",
         ],
