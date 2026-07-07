@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugins>
   <plugin id="io.miragon.bpmn-modeler"
-          url="https://github.com/Miragon/bpmn-modeler/releases/download/v1.2.1/bpmn-modeler-intellij-plugin-1.2.1.zip"
-          version="1.2.1">
+          url="https://github.com/Miragon/bpmn-modeler/releases/download/v1.3.0/bpmn-modeler-intellij-plugin-1.3.0.zip"
+          version="1.3.0">
     <idea-version since-build="242"/>
     <name>Miragon BPMN Modeler</name>
     <vendor>Miragon</vendor>
@@ -24,6 +24,17 @@
             <li>Deploy diagrams to a running Camunda 7 or Camunda 8 engine without
                 leaving the IDE.</li>
         </ul>
+
+        <h4>Troubleshooting</h4>
+        <p>If a diagram fails to open or an action misbehaves, the plugin surfaces
+        errors as IDE notifications and records the full detail in the IDE log.
+        Open it via <b>Help | Show Log in Finder / Explorer</b> (or bundle it with
+        <b>Help | Collect Logs and Diagnostic Data</b>).</p>
+        <p>When filing a bug, capture more detail first: open
+        <b>Help | Diagnostic Tools | Debug Log Settings…</b>, add
+        <code>io.miragon</code>, reproduce the problem, then attach the log.
+        Deployment passwords and client secrets are stored in the IDE's password
+        safe and are redacted from the log, so it is safe to attach.</p>
 
         <p>For the complete feature list and documentation, visit
            <a href="https://miragon.github.io/bpmn-modeler/">miragon.github.io/bpmn-modeler</a>.</p>
