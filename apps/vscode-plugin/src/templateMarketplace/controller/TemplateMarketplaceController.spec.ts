@@ -3,14 +3,16 @@ import { join } from "node:path";
 
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 
-// The controller touches only these two `vscode` surfaces; progress and
-// persistence are on injected ports stubbed directly.
+// The controller touches only these `vscode` surfaces; progress and persistence
+// are on injected ports stubbed directly. `workspace` is read by the scope pick
+// to decide whether a quick pick is even shown.
 vi.mock("vscode", () => ({
-    window: { showInputBox: vi.fn() },
+    window: { showInputBox: vi.fn(), showQuickPick: vi.fn() },
     commands: { registerCommand: vi.fn(() => ({ dispose: vi.fn() })) },
+    workspace: { workspaceFolders: undefined, workspaceFile: undefined },
 }));
 
-import { commands, window } from "vscode";
+import { commands, window, workspace } from "vscode";
 import {
     ADD_MARKETPLACE_CMD,
     expandHomePath,
@@ -57,8 +59,17 @@ function createController() {
     return { handlers, marketplaceSvc, templatesSvc, editorStore, settings, notifier };
 }
 
+/** Models an open workspace vs. an empty window for the scope pick. */
+function setWorkspaceOpen(open: boolean) {
+    (workspace as { workspaceFolders: unknown }).workspaceFolders = open ? [{}] : undefined;
+    (workspace as { workspaceFile: unknown }).workspaceFile = undefined;
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
+    // Default to an empty window: the scope pick resolves to "user" without a
+    // quick pick, so add tests unrelated to scope stay focused.
+    setWorkspaceOpen(false);
 });
 
 describe("expandHomePath", () => {
@@ -88,7 +99,40 @@ describe("TemplateMarketplaceController.addMarketplace", () => {
         const expanded = join(homedir(), "templates");
         expect(marketplaceSvc.addMarketplace).toHaveBeenCalledWith(expanded);
         // Persisting the expanded path means a later Update never re-reads a `~`.
-        expect(settings.addMarketplace).toHaveBeenCalledWith(expanded);
+        // No workspace is open, so the scope resolves to "user".
+        expect(settings.addMarketplace).toHaveBeenCalledWith(expanded, "user");
+    });
+
+    it("prompts for the scope when a workspace is open and passes the choice through", async () => {
+        const { handlers, marketplaceSvc, settings } = createController();
+        setWorkspaceOpen(true);
+        (window.showInputBox as Mock).mockResolvedValue("~/templates");
+        // The quick pick returns the chosen item; the controller reads its `scope`.
+        (window.showQuickPick as Mock).mockResolvedValue({ scope: "workspace" });
+
+        await handlers.get(ADD_MARKETPLACE_CMD)!();
+
+        const expanded = join(homedir(), "templates");
+        expect(window.showQuickPick).toHaveBeenCalledWith(
+            expect.any(Array),
+            expect.objectContaining({ title: "Add Marketplace" }),
+        );
+        expect(marketplaceSvc.addMarketplace).toHaveBeenCalledWith(expanded);
+        expect(settings.addMarketplace).toHaveBeenCalledWith(expanded, "workspace");
+    });
+
+    it("aborts without fetching when the scope pick is dismissed", async () => {
+        const { handlers, marketplaceSvc, settings, notifier } = createController();
+        setWorkspaceOpen(true);
+        (window.showInputBox as Mock).mockResolvedValue("~/templates");
+        (window.showQuickPick as Mock).mockResolvedValue(undefined);
+
+        await handlers.get(ADD_MARKETPLACE_CMD)!();
+
+        // The pick runs before the fetch, so cancelling it touches neither.
+        expect(marketplaceSvc.addMarketplace).not.toHaveBeenCalled();
+        expect(settings.addMarketplace).not.toHaveBeenCalled();
+        expect(notifier.logDebug).toHaveBeenCalledWith("Add Marketplace cancelled at scope pick");
     });
 
     it("does not persist when the fetch fails", async () => {
