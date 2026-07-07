@@ -131,13 +131,104 @@ export class VsCodeSettings implements SettingsPort {
      * project-specific ones.
      */
     getMarketplaces(): MarketplaceSettingsEntry[] {
+        return this.getMarketplacesWithScopes().map((e) => e.entry);
+    }
+
+    /**
+     * The deduped union of registered marketplaces, each annotated with the
+     * scope(s) it lives in (User first, since the union orders User before
+     * Workspace). The Remove Marketplace command needs this: one picker item per
+     * union entry, with a description naming where the entry is registered, and a
+     * removal that deletes it from *every* scope it appears in.
+     *
+     * Dedup is by {@link entryKey} — the same structural key {@link getMarketplaces}
+     * uses — so the picker's identity can never drift from what removal matches.
+     */
+    getMarketplacesWithScopes(): {
+        entry: MarketplaceSettingsEntry;
+        scopes: ("user" | "workspace")[];
+    }[] {
         const inspected = workspace
             .getConfiguration("miragon.bpmnModeler")
             .inspect<MarketplaceSettingsEntry[]>("marketplaces");
-        return dedupeEntries([
-            ...(inspected?.globalValue ?? []),
-            ...(inspected?.workspaceValue ?? []),
-        ]);
+        // User first so a shared "all my projects" entry annotated with both
+        // scopes still reads "User and Workspace settings", not the reverse.
+        const scoped: [MarketplaceSettingsEntry, "user" | "workspace"][] = [
+            ...(inspected?.globalValue ?? []).map(
+                (entry) => [entry, "user"] as [MarketplaceSettingsEntry, "user"],
+            ),
+            ...(inspected?.workspaceValue ?? []).map(
+                (entry) => [entry, "workspace"] as [MarketplaceSettingsEntry, "workspace"],
+            ),
+        ];
+        const byKey = new Map<
+            string,
+            { entry: MarketplaceSettingsEntry; scopes: ("user" | "workspace")[] }
+        >();
+        for (const [entry, scope] of scoped) {
+            const key = entryKey(entry);
+            const existing = byKey.get(key);
+            if (existing) {
+                existing.scopes.push(scope);
+            } else {
+                byKey.set(key, { entry, scopes: [scope] });
+            }
+        }
+        return [...byKey.values()];
+    }
+
+    /**
+     * Unregisters the given marketplaces from every scope they appear in. Each
+     * scope's own list from `inspect()` is filtered independently, and written
+     * back only when it actually changed — an emptied list is written as
+     * `undefined` so the `marketplaces` key is removed from that `settings.json`
+     * rather than left as a stray `[]`.
+     *
+     * Matching is by {@link entryKey}, the same structural key the picker dedups
+     * on, so an object entry (self-hosted GHE/GitLab) is matched by shape, not
+     * reference. No-workspace safety is implicit: with no folder open the
+     * Workspace scope's `workspaceValue` is `undefined`, so its update is never
+     * attempted and VS Code never throws.
+     */
+    async removeMarketplaces(entries: readonly MarketplaceSettingsEntry[]): Promise<void> {
+        const config = workspace.getConfiguration("miragon.bpmnModeler");
+        const inspected = config.inspect<MarketplaceSettingsEntry[]>("marketplaces");
+        const removeKeys = new Set(entries.map((entry) => entryKey(entry)));
+
+        await this.removeFromScope(
+            config,
+            inspected?.globalValue,
+            removeKeys,
+            ConfigurationTarget.Global,
+        );
+        await this.removeFromScope(
+            config,
+            inspected?.workspaceValue,
+            removeKeys,
+            ConfigurationTarget.Workspace,
+        );
+    }
+
+    /**
+     * Filters one scope's own list and writes it back only if it shrank, so a
+     * scope that never held any of the removed entries is left untouched (no
+     * redundant `update` that would dirty its `settings.json`). An emptied list
+     * is written as `undefined` to drop the key entirely.
+     */
+    private async removeFromScope(
+        config: ReturnType<typeof workspace.getConfiguration>,
+        current: MarketplaceSettingsEntry[] | undefined,
+        removeKeys: ReadonlySet<string>,
+        target: ConfigurationTarget,
+    ): Promise<void> {
+        if (current === undefined) {
+            return;
+        }
+        const filtered = current.filter((entry) => !removeKeys.has(entryKey(entry)));
+        if (filtered.length === current.length) {
+            return;
+        }
+        await config.update("marketplaces", filtered.length > 0 ? filtered : undefined, target);
     }
 
     /**
@@ -190,19 +281,14 @@ export class VsCodeSettings implements SettingsPort {
 }
 
 /**
- * Dedupes settings entries by a structural key so an entry present in both the
- * User and Workspace scope is fetched once. Objects (self-hosted GHE/GitLab)
- * can't use referential/`Set<string>` identity, so a serialized key is the
- * simplest stable comparison.
+ * The structural identity of a settings entry, shared by the picker's dedup and
+ * the removal's matching so the two can never drift. Objects (self-hosted
+ * GHE/GitLab) can't use referential/`Set<string>` identity, so a serialized key
+ * is the simplest stable comparison. Key order is significant for object entries
+ * — two entries differing only in field order read as distinct — which is
+ * consistent across dedup, the picker, and removal because all three route
+ * through this one function.
  */
-function dedupeEntries(entries: MarketplaceSettingsEntry[]): MarketplaceSettingsEntry[] {
-    const seen = new Set<string>();
-    return entries.filter((entry) => {
-        const key = JSON.stringify(entry);
-        if (seen.has(key)) {
-            return false;
-        }
-        seen.add(key);
-        return true;
-    });
+function entryKey(entry: MarketplaceSettingsEntry): string {
+    return JSON.stringify(entry);
 }

@@ -503,6 +503,46 @@ describe("TemplateMarketplaceService.updateAll", () => {
     });
 });
 
+describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
+    it("prunes using the ids parsed from current settings and returns the pruned ids", async () => {
+        const { service, settings, cache } = createService();
+        settings.getMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
+        cache.prune.mockResolvedValue(["acme__gone"]);
+
+        const pruned = await service.pruneOrphanedCaches();
+
+        expect(pruned).toEqual(["acme__gone"]);
+        expect(cache.prune).toHaveBeenCalledOnce();
+        const registeredIds = cache.prune.mock.calls[0][0] as ReadonlySet<string>;
+        expect([...registeredIds]).toEqual(["acme__one"]);
+    });
+
+    it("removing the last marketplace prunes with an empty set (sweeps every slot)", async () => {
+        const { service, settings, cache } = createService();
+        settings.getMarketplaces.mockReturnValue([]);
+        cache.prune.mockResolvedValue(["acme__one", "acme__two"]);
+
+        const pruned = await service.pruneOrphanedCaches();
+
+        expect(pruned).toEqual(["acme__one", "acme__two"]);
+        const registeredIds = cache.prune.mock.calls[0][0] as ReadonlySet<string>;
+        expect([...registeredIds]).toEqual([]);
+    });
+
+    it("suppresses pruning and returns [] when a settings entry cannot be parsed", async () => {
+        const { service, settings, cache, notifier } = createService();
+        settings.getMarketplaces.mockReturnValue([{ provider: "bogus" } as never]);
+
+        const pruned = await service.pruneOrphanedCaches();
+
+        expect(pruned).toEqual([]);
+        expect(cache.prune).not.toHaveBeenCalled();
+        expect(notifier.logDebug).toHaveBeenCalledWith(
+            expect.stringContaining("Skipped marketplace cache prune"),
+        );
+    });
+});
+
 describe("TemplateMarketplaceService include filtering", () => {
     /** A factory serving `manifest` at the root and a fixed `listing` elsewhere. */
     function servingListing(manifest: string, listing: string[]) {

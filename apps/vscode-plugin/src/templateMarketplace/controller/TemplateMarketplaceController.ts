@@ -6,6 +6,8 @@ import { commands, ExtensionContext, QuickPickItem, window, workspace } from "vs
 import {
     BpmnElementTemplatesService,
     EditorSessionStore,
+    marketplaceEntryLabel,
+    MarketplaceSettingsEntry,
     parseMarketplaceUrl,
     TemplateMarketplaceService,
 } from "@miragon/bpmn-modeler-core";
@@ -14,6 +16,7 @@ import { VsCodeSettings } from "../../shared/infrastructure/VsCodeSettings";
 
 export const ADD_MARKETPLACE_CMD = "bpmn-modeler.addMarketplace";
 export const UPDATE_MARKETPLACES_CMD = "bpmn-modeler.updateMarketplaces";
+export const REMOVE_MARKETPLACE_CMD = "bpmn-modeler.removeMarketplace";
 
 /**
  * Expands a leading `~` at the host boundary — a shell convention neither the
@@ -32,10 +35,24 @@ export function expandHomePath(input: string): string {
 }
 
 /**
- * Host glue for the marketplace commands: owns the `vscode` input box, progress,
- * and command registration, delegating all fetch/cache logic to the
- * host-agnostic {@link TemplateMarketplaceService}. After any successful fetch it
- * re-pushes templates to open editors so newly cached ones appear without reopening.
+ * Renders a marketplace's scope membership for the Remove picker's description,
+ * so the user sees where each entry lives before removing it from every scope.
+ */
+function describeScopes(scopes: readonly ("user" | "workspace")[]): string {
+    const inUser = scopes.includes("user");
+    const inWorkspace = scopes.includes("workspace");
+    if (inUser && inWorkspace) {
+        return "User and Workspace settings";
+    }
+    return inUser ? "User settings" : "Workspace settings";
+}
+
+/**
+ * Host glue for the marketplace commands: owns the `vscode` input box, quick
+ * picks, progress, and command registration, delegating all fetch/cache logic to
+ * the host-agnostic {@link TemplateMarketplaceService}. After any add, update, or
+ * removal it re-pushes templates to open editors so the change (newly cached
+ * templates, or pruned ones) appears without reopening.
  */
 export class TemplateMarketplaceController {
     constructor(
@@ -50,6 +67,7 @@ export class TemplateMarketplaceController {
         context.subscriptions.push(
             commands.registerCommand(ADD_MARKETPLACE_CMD, () => this.addMarketplace()),
             commands.registerCommand(UPDATE_MARKETPLACES_CMD, () => this.updateMarketplaces()),
+            commands.registerCommand(REMOVE_MARKETPLACE_CMD, () => this.removeMarketplace()),
         );
     }
 
@@ -157,6 +175,53 @@ export class TemplateMarketplaceController {
         this.notifier.showError(
             `Updated ${outcome.succeeded} of ${total} marketplaces. Failed:\n${details}`,
         );
+    }
+
+    /**
+     * Unregisters one or more marketplaces via a multi-select quick pick. The
+     * pick's OK is the confirmation (re-adding is cheap), so there is no extra
+     * dialog. Cache eviction goes through the prune-only
+     * {@link TemplateMarketplaceService.pruneOrphanedCaches} — never `updateAll`,
+     * which would re-fetch every survivor over the network. The toast reports the
+     * **selection** count, not the prune count: a removed entry may have had no
+     * cache slot, and a remaining malformed entry suppresses pruning for the run.
+     */
+    private async removeMarketplace(): Promise<void> {
+        this.notifier.logInfo("Remove Marketplace command invoked");
+        const registered = this.settings.getMarketplacesWithScopes();
+        if (registered.length === 0) {
+            this.notifier.showInfo("No marketplaces registered.");
+            return;
+        }
+
+        const items: (QuickPickItem & { entry: MarketplaceSettingsEntry })[] = registered.map(
+            ({ entry, scopes }) => ({
+                label: marketplaceEntryLabel(entry),
+                description: describeScopes(scopes),
+                entry,
+            }),
+        );
+        const picked = await window.showQuickPick(items, {
+            title: "Remove Marketplace",
+            canPickMany: true,
+            placeHolder: "Select marketplaces to remove",
+        });
+        // Escape (`undefined`) and OK with nothing checked (`[]`) both mean cancel.
+        if (!picked || picked.length === 0) {
+            this.notifier.logDebug("Remove Marketplace cancelled");
+            return;
+        }
+
+        try {
+            await this.settings.removeMarketplaces(picked.map((item) => item.entry));
+            // Local-only and fast — no progress indicator needed, unlike a fetch.
+            const pruned = await this.marketplaceSvc.pruneOrphanedCaches();
+            this.notifier.logDebug(`Pruned marketplace cache(s): ${pruned.join(", ") || "none"}`);
+            await this.refreshOpenEditors();
+            this.notifier.showInfo(`Removed ${picked.length} marketplace(s).`);
+        } catch (error) {
+            this.notifier.notifyError("Failed to remove marketplace(s).", error as Error);
+        }
     }
 
     private async refreshOpenEditors(): Promise<void> {

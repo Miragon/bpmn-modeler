@@ -82,6 +82,122 @@ describe("VsCodeSettings.getMarketplaces", () => {
     });
 });
 
+describe("VsCodeSettings.getMarketplacesWithScopes", () => {
+    it("annotates each entry with the scope(s) it lives in, User first", () => {
+        stubInspect({
+            globalValue: ["https://github.com/acme/user", "https://github.com/acme/shared"],
+            workspaceValue: ["https://github.com/acme/shared", "https://github.com/acme/ws"],
+        });
+
+        expect(new VsCodeSettings().getMarketplacesWithScopes()).toEqual([
+            { entry: "https://github.com/acme/user", scopes: ["user"] },
+            { entry: "https://github.com/acme/shared", scopes: ["user", "workspace"] },
+            { entry: "https://github.com/acme/ws", scopes: ["workspace"] },
+        ]);
+    });
+
+    it("dedupes an object entry structurally across scopes", () => {
+        const obj = {
+            provider: "gitlab" as const,
+            repo: "group/proj",
+            baseUrl: "https://gl.acme.com",
+        };
+        stubInspect({ globalValue: [obj], workspaceValue: [obj] });
+
+        expect(new VsCodeSettings().getMarketplacesWithScopes()).toEqual([
+            { entry: obj, scopes: ["user", "workspace"] },
+        ]);
+    });
+});
+
+describe("VsCodeSettings.removeMarketplaces", () => {
+    it("removes an entry from every scope it appears in", async () => {
+        stubInspect({
+            globalValue: ["https://github.com/acme/shared", "https://github.com/acme/keep"],
+            workspaceValue: ["https://github.com/acme/shared"],
+        });
+
+        await new VsCodeSettings().removeMarketplaces(["https://github.com/acme/shared"]);
+
+        // The shared entry lived in both scopes, so both settings.json are rewritten.
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            ["https://github.com/acme/keep"],
+            ConfigurationTarget.Global,
+        );
+        // Removing the workspace scope's only entry drops the key entirely.
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            undefined,
+            ConfigurationTarget.Workspace,
+        );
+        expect(updateMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("matches an object entry structurally", async () => {
+        const obj = {
+            provider: "gitlab" as const,
+            repo: "group/proj",
+            baseUrl: "https://gl.acme.com",
+        };
+        stubInspect({ globalValue: [obj, "https://github.com/acme/keep"] });
+
+        // A fresh object with the same shape must still match and be removed.
+        await new VsCodeSettings().removeMarketplaces([{ ...obj }]);
+
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            ["https://github.com/acme/keep"],
+            ConfigurationTarget.Global,
+        );
+        expect(updateMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not touch a scope that never held any of the removed entries", async () => {
+        stubInspect({
+            globalValue: ["https://github.com/acme/gone"],
+            workspaceValue: ["https://github.com/acme/other"],
+        });
+
+        await new VsCodeSettings().removeMarketplaces(["https://github.com/acme/gone"]);
+
+        // Only the Global list changed; the Workspace list is left untouched.
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            undefined,
+            ConfigurationTarget.Global,
+        );
+        expect(updateMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("writes undefined when the removed entry was the scope's last one", async () => {
+        stubInspect({ globalValue: ["https://github.com/acme/only"] });
+
+        await new VsCodeSettings().removeMarketplaces(["https://github.com/acme/only"]);
+
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            undefined,
+            ConfigurationTarget.Global,
+        );
+    });
+
+    it("touches only Global and never throws when no workspace is open", async () => {
+        setWorkspaceOpen(false);
+        // No workspace open → inspect reports no workspaceValue at all.
+        stubInspect({ globalValue: ["https://github.com/acme/gone"] });
+
+        await new VsCodeSettings().removeMarketplaces(["https://github.com/acme/gone"]);
+
+        expect(updateMock).toHaveBeenCalledOnce();
+        expect(updateMock).toHaveBeenCalledWith(
+            "marketplaces",
+            undefined,
+            ConfigurationTarget.Global,
+        );
+    });
+});
+
 describe("VsCodeSettings.addMarketplace", () => {
     it("appends to the Workspace scope's own list when scoped to the workspace", async () => {
         setWorkspaceOpen(true);

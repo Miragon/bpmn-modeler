@@ -16,6 +16,7 @@ import { commands, window, workspace } from "vscode";
 import {
     ADD_MARKETPLACE_CMD,
     expandHomePath,
+    REMOVE_MARKETPLACE_CMD,
     TemplateMarketplaceController,
     UPDATE_MARKETPLACES_CMD,
 } from "./TemplateMarketplaceController";
@@ -28,10 +29,15 @@ function createController() {
     const marketplaceSvc = {
         addMarketplace: vi.fn().mockResolvedValue(undefined),
         updateAll: vi.fn().mockResolvedValue({ succeeded: 1, failures: [] }),
+        pruneOrphanedCaches: vi.fn().mockResolvedValue([]),
     };
     const templatesSvc = { setElementTemplates: vi.fn().mockResolvedValue(undefined) };
     const editorStore = { getEditorIds: vi.fn().mockReturnValue([]) };
-    const settings = { addMarketplace: vi.fn().mockResolvedValue(undefined) };
+    const settings = {
+        addMarketplace: vi.fn().mockResolvedValue(undefined),
+        removeMarketplaces: vi.fn().mockResolvedValue(undefined),
+        getMarketplacesWithScopes: vi.fn().mockReturnValue([]),
+    };
     const notifier = {
         withProgress: vi.fn((_title: string, task: () => Promise<unknown>) => task()),
         showInfo: vi.fn(),
@@ -226,5 +232,123 @@ describe("TemplateMarketplaceController.updateMarketplaces", () => {
         expect(notifier.showError).toHaveBeenCalledWith(
             "Updated 1 of 2 marketplaces. Failed:\ngithub.com/acme/broken: could not read marketplace.json",
         );
+    });
+});
+
+describe("TemplateMarketplaceController.removeMarketplace", () => {
+    it("informs and does nothing when no marketplaces are registered", async () => {
+        const { handlers, settings, notifier } = createController();
+        settings.getMarketplacesWithScopes.mockReturnValue([]);
+
+        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
+
+        expect(notifier.showInfo).toHaveBeenCalledWith("No marketplaces registered.");
+        expect(window.showQuickPick).not.toHaveBeenCalled();
+        expect(settings.removeMarketplaces).not.toHaveBeenCalled();
+    });
+
+    it("offers a labelled, scope-described multi-select of every registered marketplace", async () => {
+        const { handlers, settings } = createController();
+        settings.getMarketplacesWithScopes.mockReturnValue([
+            { entry: "https://github.com/acme/user", scopes: ["user"] },
+            {
+                entry: { provider: "gitlab", repo: "group/proj", baseUrl: "https://gl.acme.com" },
+                scopes: ["user", "workspace"],
+            },
+            { entry: "https://github.com/acme/ws", scopes: ["workspace"] },
+        ]);
+        (window.showQuickPick as Mock).mockResolvedValue(undefined);
+
+        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
+
+        const [items, options] = (window.showQuickPick as Mock).mock.calls[0];
+        expect(options).toEqual(
+            expect.objectContaining({ title: "Remove Marketplace", canPickMany: true }),
+        );
+        expect(items).toEqual([
+            expect.objectContaining({
+                label: "https://github.com/acme/user",
+                description: "User settings",
+            }),
+            expect.objectContaining({
+                label: "gl.acme.com/group/proj",
+                description: "User and Workspace settings",
+            }),
+            expect.objectContaining({
+                label: "https://github.com/acme/ws",
+                description: "Workspace settings",
+            }),
+        ]);
+    });
+
+    it("removes the picked entries, prunes the cache, refreshes editors, and reports the count", async () => {
+        const { handlers, settings, marketplaceSvc, templatesSvc, editorStore, notifier } =
+            createController();
+        editorStore.getEditorIds.mockReturnValue(["editor-1", "editor-2"]);
+        settings.getMarketplacesWithScopes.mockReturnValue([
+            { entry: "https://github.com/acme/one", scopes: ["user"] },
+            { entry: "https://github.com/acme/two", scopes: ["workspace"] },
+            { entry: "https://github.com/acme/three", scopes: ["user"] },
+        ]);
+        // Pick two of the three offered items.
+        (window.showQuickPick as Mock).mockResolvedValue([
+            { entry: "https://github.com/acme/one" },
+            { entry: "https://github.com/acme/two" },
+        ]);
+
+        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
+
+        expect(settings.removeMarketplaces).toHaveBeenCalledWith([
+            "https://github.com/acme/one",
+            "https://github.com/acme/two",
+        ]);
+        expect(marketplaceSvc.pruneOrphanedCaches).toHaveBeenCalledOnce();
+        expect(templatesSvc.setElementTemplates).toHaveBeenCalledWith("editor-1");
+        expect(templatesSvc.setElementTemplates).toHaveBeenCalledWith("editor-2");
+        expect(notifier.showInfo).toHaveBeenCalledWith("Removed 2 marketplace(s).");
+    });
+
+    it("treats Escape (undefined) as cancel", async () => {
+        const { handlers, settings, marketplaceSvc, notifier } = createController();
+        settings.getMarketplacesWithScopes.mockReturnValue([
+            { entry: "https://github.com/acme/one", scopes: ["user"] },
+        ]);
+        (window.showQuickPick as Mock).mockResolvedValue(undefined);
+
+        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
+
+        expect(settings.removeMarketplaces).not.toHaveBeenCalled();
+        expect(marketplaceSvc.pruneOrphanedCaches).not.toHaveBeenCalled();
+        expect(notifier.showInfo).not.toHaveBeenCalled();
+    });
+
+    it("treats OK with nothing checked (empty array) as cancel", async () => {
+        const { handlers, settings, marketplaceSvc } = createController();
+        settings.getMarketplacesWithScopes.mockReturnValue([
+            { entry: "https://github.com/acme/one", scopes: ["user"] },
+        ]);
+        (window.showQuickPick as Mock).mockResolvedValue([]);
+
+        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
+
+        expect(settings.removeMarketplaces).not.toHaveBeenCalled();
+        expect(marketplaceSvc.pruneOrphanedCaches).not.toHaveBeenCalled();
+    });
+
+    it("reports an error and shows no success toast when removal fails", async () => {
+        const { handlers, settings, marketplaceSvc, notifier } = createController();
+        settings.getMarketplacesWithScopes.mockReturnValue([
+            { entry: "https://github.com/acme/one", scopes: ["user"] },
+        ]);
+        (window.showQuickPick as Mock).mockResolvedValue([
+            { entry: "https://github.com/acme/one" },
+        ]);
+        settings.removeMarketplaces.mockRejectedValue(new Error("write failed"));
+
+        await handlers.get(REMOVE_MARKETPLACE_CMD)!();
+
+        expect(marketplaceSvc.pruneOrphanedCaches).not.toHaveBeenCalled();
+        expect(notifier.notifyError).toHaveBeenCalledOnce();
+        expect(notifier.showInfo).not.toHaveBeenCalled();
     });
 });

@@ -24,7 +24,9 @@ and the [Append Menu](/vscode/features/append-menu) like any other template.
 4. The marketplace is fetched, validated, and saved at the chosen scope.
    Templates show up immediately — open editors refresh without reopening.
 5. To re-fetch later (new templates, updated versions), run
-   **BPMN Modeler: Update Marketplaces**.
+   **BPMN Modeler: Update Marketplaces**. To unregister one or more, run
+   **BPMN Modeler: Remove Marketplace** and multi-select — their cached
+   templates are pruned without re-fetching the ones you keep.
 
 A marketplace whose `marketplace.json` is missing or malformed is rejected at
 add time, so a typo never lands in your settings.
@@ -276,11 +278,15 @@ paths use a provider-less source.
 - **Caching.** Fetched templates are cached in the extension's global storage
   and re-read from there — the modeler does not hit the network every time an
   editor opens, only on **Add** and **Update Marketplaces**.
-- **Removing a marketplace clears its cache.** Delete a marketplace's entry
-  from `miragon.bpmnModeler.marketplaces` and run **Update Marketplaces**: its
-  cached templates are pruned from the extension's global storage, so they stop
-  appearing immediately. (If any settings entry is malformed, pruning is skipped
-  for that run — fix the entry, then update again.)
+- **Removing a marketplace clears its cache.** Run **BPMN Modeler: Remove
+  Marketplace**, multi-select the marketplaces to drop, and confirm: they are
+  unregistered from every scope they live in (User and/or Workspace), their
+  cached templates are pruned from the extension's global storage, and open
+  editors refresh so the templates disappear immediately — without re-fetching
+  the marketplaces you keep. (Editing `miragon.bpmnModeler.marketplaces` by hand
+  and running **Update Marketplaces** still prunes too, but re-fetches every
+  remaining marketplace over the network.) If any settings entry is malformed,
+  pruning is skipped for that run — fix the entry, then remove again.
 - **Upstream deletions within a kept marketplace are not yet pruned.** A
   template removed from a marketplace you still have registered lingers in the
   cache (files are overwritten in place, not swept) until you remove the
