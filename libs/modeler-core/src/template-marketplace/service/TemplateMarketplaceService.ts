@@ -307,12 +307,20 @@ export class TemplateMarketplaceService {
     }
 
     /**
-     * Runs `task` with any stored token, then — on an auth-shaped
-     * {@link RepositoryAccessError} — prompts once for the host and retries
-     * exactly once. A non-auth error or an unauthenticated host (a local folder)
-     * propagates unchanged. On decline or a second denial the failure is
-     * rewritten via {@link accessFailure}; the raw text would say "HTTP 404" for
-     * a private repo.
+     * Runs `task` down an escalating auth ladder: stored token → anonymous →
+     * prompt-and-retry. On an auth-shaped {@link RepositoryAccessError} with a
+     * *stored* token that isn't rate-limited, it first retries **without** the
+     * token, because a fine-grained PAT's grant is scoped to specific repos and
+     * GitHub returns 403 for any repo outside that grant — even a public one.
+     * The anonymous retry lets public marketplaces succeed without clobbering
+     * the working token stored for some other private repo on the same host.
+     * Only if the anonymous attempt also fails do we prompt once and retry.
+     *
+     * A non-auth error or an unauthenticated host (a local folder) propagates
+     * unchanged. A rate-limited 403 skips the anonymous retry (unauthenticated
+     * limits are lower, so it would only fail harder) and goes straight to the
+     * prompt. On decline or a final denial the failure is rewritten via
+     * {@link accessFailure}; the raw text would say "HTTP 404" for a private repo.
      */
     private async withAuthRetry<T>(
         baseConfig: RepositorySourceConfig,
@@ -337,6 +345,28 @@ export class TemplateMarketplaceService {
                 `${error.host} denied access to ${error.resource} (HTTP ${error.status}${rateNote})`,
             );
             const hadToken = stored !== undefined;
+            if (hadToken && !error.rateLimited) {
+                // The stored (likely fine-grained) token was rejected for a repo
+                // outside its grant. Try anonymously before prompting: a public
+                // repo then just works and the stored token survives untouched.
+                this.notifier.logDebug(
+                    `Retrying ${error.resource} on ${error.host} without the stored token`,
+                );
+                try {
+                    return await task(this.withToken(baseConfig, undefined));
+                } catch (anonError) {
+                    if (anonError instanceof RepositoryAccessError) {
+                        // Anonymous failed too, so the repo isn't public — fall
+                        // through to the prompt using the *original* error, whose
+                        // "was rejected … enter a new token" wording stays right.
+                        this.notifier.logDebug(
+                            `Anonymous retry failed: HTTP ${anonError.status} for ${anonError.resource}`,
+                        );
+                    } else {
+                        throw anonError;
+                    }
+                }
+            }
             const fresh = await this.promptOncePerRun(host, run, hadToken, error);
             if (fresh === undefined) {
                 throw this.accessFailure(error, hadToken);

@@ -84,21 +84,36 @@ function noAuth() {
  * expected token it throws {@link RepositoryAccessError} (mimicking GitHub's
  * 401/403/404 on a private repo), with it, it serves `manifest`. Every other
  * source serves one template file so a post-auth run still caches something.
+ *
+ * `denyOnlyWithToken` inverts the gate to model a public repo behind a
+ * fine-grained PAT: a request *carrying* a token is rejected (the repo is
+ * outside the token's grant), an anonymous request serves the manifest. It is
+ * how the unauthenticated fallback is exercised.
  */
 function tokenGatedFactory(opts: {
     manifest: string;
     expectedToken?: string;
     status?: number;
     rateLimited?: boolean;
+    denyOnlyWithToken?: boolean;
 }) {
-    const { manifest, expectedToken, status = 404, rateLimited = false } = opts;
+    const {
+        manifest,
+        expectedToken,
+        status = 404,
+        rateLimited = false,
+        denyOnlyWithToken = false,
+    } = opts;
     return vi.fn((config: RepositorySourceConfig): RepositorySource => {
         if (config.path === "") {
             const token = config.kind === "github" ? config.token : undefined;
+            const denied = denyOnlyWithToken
+                ? token !== undefined
+                : expectedToken === undefined || token !== expectedToken;
             return {
                 listTemplateFiles: vi.fn().mockResolvedValue([]),
                 fetchFile: vi.fn(async () => {
-                    if (expectedToken === undefined || token !== expectedToken) {
+                    if (denied) {
                         throw new RepositoryAccessError(
                             "github.com",
                             status,
@@ -712,6 +727,123 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         );
         expect(tokens.setToken).toHaveBeenCalledWith("github.com", "new");
         expect(stored.get("github.com")).toBe("new");
+    });
+
+    it("retries a public repo anonymously when the stored token is rejected, never prompting", async () => {
+        // The fine-grained-PAT case: the stored token is outside the repo's
+        // grant (403 even though the repo is public), but an anonymous request
+        // succeeds. No prompt fires and the working token is preserved.
+        const factory = tokenGatedFactory({
+            manifest: JSON.stringify({ sources: [{ path: "element-templates" }] }),
+            status: 403,
+            denyOnlyWithToken: true,
+        });
+        const { service, cache, tokenPrompt, tokens, stored } = serviceOver(
+            factory,
+            async () => "should-not-be-used",
+            { "github.com": "fine-grained" },
+        );
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(tokenPrompt.promptForToken).not.toHaveBeenCalled();
+        expect(tokens.setToken).not.toHaveBeenCalled();
+        expect(stored.get("github.com")).toBe("fine-grained");
+        expect(cache.write).toHaveBeenCalled();
+    });
+
+    it("attempts the manifest in order stored → anonymous → new when a stale token guards a private repo", async () => {
+        // A private repo whose stored token is stale: the anonymous fallback
+        // also fails (proving the repo isn't public), so the prompt runs and the
+        // fresh token is tried last. The root-path token sequence must be exactly
+        // old → undefined → new.
+        const attempted: (string | undefined)[] = [];
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.path === "") {
+                const token = config.kind === "github" ? config.token : undefined;
+                attempted.push(token);
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn(async () => {
+                        if (token !== "new") {
+                            throw new RepositoryAccessError(
+                                "github.com",
+                                404,
+                                "acme/templates",
+                                false,
+                            );
+                        }
+                        return JSON.stringify({ sources: [{ path: "x" }] });
+                    }),
+                };
+            }
+            return {
+                listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                fetchFile: vi.fn().mockResolvedValue("{}"),
+            };
+        });
+        const { service, tokenPrompt } = serviceOver(factory, async () => "new", {
+            "github.com": "old",
+        });
+
+        await service.addMarketplace("https://github.com/acme/templates");
+
+        expect(attempted).toEqual(["old", undefined, "new"]);
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+    });
+
+    it("skips the anonymous retry for a rate-limited 403 and prompts straight away", async () => {
+        // Anonymous limits are lower, so an anonymous retry would only fail
+        // harder; a stored-token rate-limit must go straight to the prompt.
+        const attempted: (string | undefined)[] = [];
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            const token = config.kind === "github" ? config.token : undefined;
+            attempted.push(token);
+            return {
+                listTemplateFiles: vi.fn().mockResolvedValue([]),
+                fetchFile: vi.fn(async () => {
+                    throw new RepositoryAccessError("github.com", 403, "acme/templates", true);
+                }),
+            };
+        });
+        const { service, tokenPrompt } = serviceOver(factory, async () => undefined, {
+            "github.com": "have-it",
+        });
+
+        await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow(
+            /rate limit/i,
+        );
+        // Only the stored-token attempt ran — no anonymous (undefined) attempt.
+        expect(attempted).toEqual(["have-it"]);
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
+    });
+
+    it("makes exactly one pre-prompt attempt when no token is stored (unchanged)", async () => {
+        // Without a stored token there is nothing to fall back from, so the very
+        // first (anonymous) attempt is the one that prompts on failure.
+        const attempted: (string | undefined)[] = [];
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.path === "") {
+                const token = config.kind === "github" ? config.token : undefined;
+                attempted.push(token);
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn(async () => {
+                        throw new RepositoryAccessError("github.com", 404, "acme/templates", false);
+                    }),
+                };
+            }
+            return {
+                listTemplateFiles: vi.fn().mockResolvedValue([]),
+                fetchFile: vi.fn(),
+            };
+        });
+        const { service, tokenPrompt } = serviceOver(factory, async () => undefined);
+
+        await expect(service.addMarketplace("https://github.com/acme/templates")).rejects.toThrow();
+
+        expect(attempted).toEqual([undefined]);
+        expect(tokenPrompt.promptForToken).toHaveBeenCalledOnce();
     });
 
     it("batch-prompts once for two private sources when the store is empty", async () => {
