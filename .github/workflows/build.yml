@@ -41,7 +41,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v7.0.0
-      - uses: dorny/paths-filter@v4.0.1
+      - uses: dorny/paths-filter@v4.0.2
         id: filter
         with:
           # `every` makes the `!`-negation patterns in the `*-src` filters below
