@@ -124,9 +124,10 @@ class ModelerSettingsConfigurable : Configurable {
                             .applyToComponent { rows = MARKETPLACES_ROWS }
                             .comment(
                                 "GitHub / GitLab repositories or local folders holding a " +
-                                    "<code>marketplace.json</code>, one per line. Add via " +
-                                    "<b>Tools | Add Template Marketplace</b> and refresh via " +
-                                    "<b>Tools | Update Template Marketplaces</b>.",
+                                    "<code>marketplace.json</code>, one per line. This list applies " +
+                                    "to all projects; <b>Tools | Add Template Marketplace</b> instead " +
+                                    "stores the entry <b>per project</b> (invisible here). Both lists " +
+                                    "are merged. Refresh via <b>Tools | Update Template Marketplaces</b>.",
                             )
                     }
                 }

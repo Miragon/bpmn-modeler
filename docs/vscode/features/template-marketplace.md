@@ -18,7 +18,8 @@ and the [Append Menu](/vscode/features/append-menu) like any other template.
 1. Open the command palette and run **BPMN Modeler: Add Marketplace**.
 2. Paste a GitHub/GitLab repository URL or a local folder path holding a
    `marketplace.json`.
-3. The marketplace is fetched, validated, and saved to your user settings.
+3. The marketplace is fetched, validated, and saved. It lands in your
+   **Workspace** settings when a folder is open (else your User settings).
    Templates show up immediately — open editors refresh without reopening.
 4. To re-fetch later (new templates, updated versions), run
    **BPMN Modeler: Update Marketplaces**.
@@ -37,6 +38,11 @@ identical to VS Code; tokens live in the IDE's **PasswordSafe** rather than VS
 Code secret storage. The settings list is **strings-only** for now (pasted URLs
 and local paths) — the structured self-hosted GHE / self-hosted GitLab object
 form is VS-Code-only until a later release.
+
+**Add Template Marketplace…** stores the entry **per project** (in the project's
+`workspace.xml`), while the settings-page list applies to all projects; the two
+are merged, mirroring VS Code's Workspace∪User behaviour. Project-level entries
+are not shown on the settings page.
 
 ## The `marketplace.json` Manifest
 
@@ -83,8 +89,7 @@ loading zero templates. Unknown extra fields are tolerated.
 
 The **Add Marketplace** command is the easiest way for public hosts
 and local folders. Under the hood every marketplace is an entry in the
-user-level setting `miragon.bpmnModeler.marketplaces`, which you can
-also edit directly:
+`miragon.bpmnModeler.marketplaces` setting, which you can also edit directly:
 
 ```json
 {
@@ -117,8 +122,14 @@ also edit directly:
 - In `settings.json`, local paths must be absolute — `~` is only expanded when
   you enter it in the Add command's input box.
 
-The setting is application-scoped (per user, not per workspace) because the
-template cache lives in the extension's global storage.
+The setting is **window-scoped**: your User- and Workspace-level lists are
+**merged** (User entries act as "all my projects"; the workspace adds
+project-specific ones). The **Add Marketplace** command writes to the Workspace
+when a folder is open — so a project's marketplaces land in its
+`.vscode/settings.json` — and to User settings otherwise. Because the lists are
+unioned rather than shadowed, a workspace `"marketplaces": []` no longer
+suppresses your User-level entries. The template cache itself stays machine-global
+(in the extension's global storage) regardless of where a marketplace is registered.
 
 ## Element Templates
 
@@ -178,6 +189,13 @@ Considerations:
 - One token per host covers all marketplaces and sources on that host — a
   marketplace on `github.com` with three private sources prompts once, not
   three times.
+- A **fine-grained PAT** grants access only to the repositories you list, and
+  GitHub returns 403 for any repo outside that grant — **even a public one**.
+  So a stored fine-grained token no longer breaks adding a public marketplace:
+  when the stored token is rejected (and it is not a rate-limit), the modeler
+  retries the fetch **without** the token before prompting. A public repo then
+  just works, and your stored token is left untouched. Only if the anonymous
+  retry also fails does it prompt you for a new token.
 - For **self-hosted** GitHub Enterprise or GitLab, register the marketplace as
   an object entry with `baseUrl` (see above). Sources in `marketplace.json`
   can carry a `baseUrl` too, so a public marketplace may reference templates

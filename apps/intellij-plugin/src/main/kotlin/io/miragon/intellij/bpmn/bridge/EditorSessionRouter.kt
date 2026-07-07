@@ -96,7 +96,7 @@ internal class EditorSessionRouter(
                 "workspaceRoot" to (deps.project.basePath ?: session.file.parent?.path),
                 // Seed the core's SettingsPort before it scans templates, so the
                 // very first discovery uses the configured folder, not the default.
-                "settings" to ModelerSettingsStore.getInstance().snapshotMap(),
+                "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
                 "content" to content,
             ),
         )
@@ -109,7 +109,7 @@ internal class EditorSessionRouter(
      */
     fun pushSettings() {
         if (!deps.isProcessAlive()) return
-        deps.channel.notify("settings/didChange", linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap()))
+        deps.channel.notify("settings/didChange", linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project)))
     }
 
     /**

@@ -120,30 +120,71 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * Forwards the raw marketplace entries (URL/path strings, or object entries
-     * for self-hosted GHE / GitLab); the domain parser validates each shape.
+     * The union of the User- and Workspace-level marketplace lists (User first),
+     * deduped structurally. Forwards the raw entries (URL/path strings, or object
+     * entries for self-hosted GHE / GitLab); the domain parser validates each shape.
+     *
+     * `get()` returns only the effective scope — for an array VS Code shadow-
+     * *replaces* rather than merges across scopes, so a workspace list would hide
+     * the User list entirely. `inspect()` exposes both scopes so we can union them,
+     * letting User-level entries act as "all my projects" while the workspace adds
+     * project-specific ones.
      */
     getMarketplaces(): MarketplaceSettingsEntry[] {
-        return workspace
+        const inspected = workspace
             .getConfiguration("miragon.bpmnModeler")
-            .get<MarketplaceSettingsEntry[]>("marketplaces", []);
+            .inspect<MarketplaceSettingsEntry[]>("marketplaces");
+        return dedupeEntries([
+            ...(inspected?.globalValue ?? []),
+            ...(inspected?.workspaceValue ?? []),
+        ]);
     }
 
     /**
-     * Written at {@link ConfigurationTarget.Global} because marketplaces are a
-     * machine-wide, user-level concern (their cache lives in global storage).
+     * Registers a marketplace, defaulting to Workspace scope so it stays a
+     * per-project concern (User scope = "all my projects"). Falls back to Global
+     * when no folder/workspace is open, because `update()` to Workspace throws
+     * without one.
+     *
+     * De-dups against the *union* (so re-adding one that already lives in the
+     * other scope is a no-op), but appends only to the **target scope's own**
+     * list from `inspect()` — never the union — so a workspace write can't copy
+     * User-level entries into the repo's `.vscode/settings.json`.
      *
      * String `includes` de-dups only against other strings, which is all the Add
      * command writes; a string that resolves to the same repo as an object entry
      * slips through, costing only a redundant fetch into the same cache slot.
      */
     async addMarketplace(url: string): Promise<void> {
-        const current = this.getMarketplaces();
-        if (current.includes(url)) {
+        if (this.getMarketplaces().includes(url)) {
             return;
         }
-        await workspace
-            .getConfiguration("miragon.bpmnModeler")
-            .update("marketplaces", [...current, url], ConfigurationTarget.Global);
+        const config = workspace.getConfiguration("miragon.bpmnModeler");
+        const inspected = config.inspect<MarketplaceSettingsEntry[]>("marketplaces");
+        const hasWorkspace =
+            workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
+        const target = hasWorkspace ? ConfigurationTarget.Workspace : ConfigurationTarget.Global;
+        const scopeList = hasWorkspace
+            ? (inspected?.workspaceValue ?? [])
+            : (inspected?.globalValue ?? []);
+        await config.update("marketplaces", [...scopeList, url], target);
     }
+}
+
+/**
+ * Dedupes settings entries by a structural key so an entry present in both the
+ * User and Workspace scope is fetched once. Objects (self-hosted GHE/GitLab)
+ * can't use referential/`Set<string>` identity, so a serialized key is the
+ * simplest stable comparison.
+ */
+function dedupeEntries(entries: MarketplaceSettingsEntry[]): MarketplaceSettingsEntry[] {
+    const seen = new Set<string>();
+    return entries.filter((entry) => {
+        const key = JSON.stringify(entry);
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
 }

@@ -2,11 +2,11 @@ package io.miragon.intellij.bpmn.bridge
 
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.Messages
 import io.miragon.intellij.bpmn.CoreProcess
 import io.miragon.intellij.bpmn.IntellijMarketplaceTokenStore
 import io.miragon.intellij.bpmn.ModelerSettingsStore
+import io.miragon.intellij.bpmn.ProjectMarketplacesStore
 
 /**
  * Routes the template-marketplace seam: the two Core→Host requests the marketplace
@@ -41,21 +41,16 @@ internal class MarketplaceRouter(
     // ── core → host requests ──────────────────────────────────────────────────
 
     /**
-     * Persists the just-fetched registration and fans the fresh snapshot to every
-     * open project's bridge, so an already-open editor in another window picks up
-     * the new marketplace's templates too. Acked so a persist failure surfaces as a
-     * rejected promise on the core rather than being silently dropped.
+     * Persists the just-fetched registration to *this* project's marketplace store
+     * and pushes the fresh snapshot to this project's own bridge. Scoped to
+     * `deps.project` — the registration is now a per-project concern, so a sibling
+     * window must not inherit it. Acked so a persist failure surfaces as a rejected
+     * promise on the core rather than being silently dropped.
      */
     private fun handleStateSave(params: JsonObject, id: Int?) {
         val location = params.get("location").asString
-        ModelerSettingsStore.getInstance().addMarketplace(location)
-        // Copied from `ModelerSettingsConfigurable.pushToRunningBridges`:
-        // getServiceIfCreated avoids spawning a bridge for a window that never
-        // opened a `.bpmn` file.
-        for (project in ProjectManager.getInstance().openProjects) {
-            if (project.isDisposed) continue
-            project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
-        }
+        ProjectMarketplacesStore.getInstance(deps.project).add(location)
+        deps.project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
         id?.let { deps.channel.reply(it, null) }
     }
 
@@ -103,7 +98,7 @@ internal class MarketplaceRouter(
             "marketplace/add",
             linkedMapOf(
                 "location" to location,
-                "settings" to ModelerSettingsStore.getInstance().snapshotMap(),
+                "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
             ),
         )
         deps.ensureStartedAsync()
@@ -113,7 +108,7 @@ internal class MarketplaceRouter(
     fun updateMarketplaces() {
         deps.channel.notify(
             "marketplace/update",
-            linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap()),
+            linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project)),
         )
         deps.ensureStartedAsync()
     }

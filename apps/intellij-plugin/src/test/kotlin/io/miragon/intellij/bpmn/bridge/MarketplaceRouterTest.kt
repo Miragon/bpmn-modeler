@@ -6,6 +6,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.junit5.TestApplication
 import com.intellij.testFramework.junit5.fixture.projectFixture
 import io.miragon.intellij.bpmn.ModelerSettingsStore
+import io.miragon.intellij.bpmn.ProjectMarketplacesStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -46,7 +47,7 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `marketplaceState save persists de-duped and acks the request id`() {
+    fun `marketplaceState save persists to the project store, not the app-level list`() {
         val (wired, _) = router()
         val location = "https://github.com/owner/repo-${System.nanoTime()}"
 
@@ -54,8 +55,31 @@ class MarketplaceRouterTest {
         dispatchSave(wired, location, id = 7)
         dispatchSave(wired, location, id = 8)
 
-        val stored = ModelerSettingsStore.getInstance().current().marketplaces
-        assertEquals(1, stored.count { it == location }, "duplicate location must be recorded once")
+        val projectList = ProjectMarketplacesStore.getInstance(projectFixture.get()).list()
+        assertEquals(1, projectList.count { it == location }, "duplicate location must be recorded once")
+        val appList = ModelerSettingsStore.getInstance().current().marketplaces
+        assertFalse(appList.contains(location), "the registration must not leak into the app-level list")
+    }
+
+    @Test
+    fun `marketplaceState save is a no-op when the location already lives in the app-level list`() {
+        val (wired, _) = router()
+        val location = "https://github.com/owner/app-repo-${System.nanoTime()}"
+        // Seed the app-level list; the save must dedupe against the union.
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        store.update(before.copy(marketplaces = before.marketplaces + location))
+        try {
+            dispatchSave(wired, location, id = 9)
+
+            assertFalse(
+                ProjectMarketplacesStore.getInstance(projectFixture.get()).list().contains(location),
+                "a location already in the app-level list must not be re-added per project",
+            )
+        } finally {
+            // App-level settings are shared across the @TestApplication; restore them.
+            store.update(before)
+        }
     }
 
     @Test
@@ -130,6 +154,27 @@ class MarketplaceRouterTest {
             frame.getAsJsonObject("params").getAsJsonObject("settings").has("marketplaces"),
             "update must piggyback the marketplace list the core re-reads",
         )
+    }
+
+    @Test
+    fun `snapshot unions the app-level and project-level marketplace lists`() {
+        val (wired, router) = router()
+        val appEntry = "https://github.com/owner/app-${System.nanoTime()}"
+        val projectEntry = "https://github.com/owner/project-${System.nanoTime()}"
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        store.update(before.copy(marketplaces = before.marketplaces + appEntry))
+        ProjectMarketplacesStore.getInstance(projectFixture.get()).add(projectEntry)
+        try {
+            router.updateMarketplaces()
+
+            val settings = parse(wired.fake.nextFrame()).getAsJsonObject("params").getAsJsonObject("settings")
+            val marketplaces = settings.getAsJsonArray("marketplaces").map { it.asString }
+            assertTrue(marketplaces.contains(appEntry), "snapshot must carry the app-level entry")
+            assertTrue(marketplaces.contains(projectEntry), "snapshot must carry the project-level entry")
+        } finally {
+            store.update(before)
+        }
     }
 
     private fun dispatchSave(wired: WiredBridge, location: String, id: Int) {

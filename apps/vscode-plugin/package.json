@@ -408,7 +408,7 @@
                 },
                 "miragon.bpmnModeler.marketplaces": {
                     "type": "array",
-                    "scope": "application",
+                    "scope": "window",
                     "items": {
                         "oneOf": [
                             {
@@ -446,7 +446,7 @@
                         ]
                     },
                     "default": [],
-                    "markdownDescription": "GitHub/GitLab repositories or local folders holding a `marketplace.json` that links to element templates. Public hosts can be a pasted URL string; a self-hosted GitHub Enterprise or GitLab is an object entry `{ \"provider\": \"github\"|\"gitlab\", \"repo\": \"…\", \"baseUrl\": \"https://…\", \"ref\": \"…\" }`. Use the `BPMN Modeler: Add Marketplace` command to register a public one, then `BPMN Modeler: Update Marketplaces` to re-fetch. Cached templates merge with workspace-local ones."
+                    "markdownDescription": "GitHub/GitLab repositories or local folders holding a `marketplace.json` that links to element templates. Public hosts can be a pasted URL string; a self-hosted GitHub Enterprise or GitLab is an object entry `{ \"provider\": \"github\"|\"gitlab\", \"repo\": \"…\", \"baseUrl\": \"https://…\", \"ref\": \"…\" }`. User- and Workspace-level entries are **merged** — put shared marketplaces in your User settings (\"all my projects\") and project-specific ones in the workspace. Use the `BPMN Modeler: Add Marketplace` command to register a public one; it writes to Workspace settings when a folder is open (else User). Then `BPMN Modeler: Update Marketplaces` to re-fetch. Cached templates merge with workspace-local ones."
                 }
             }
         }

@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.project.Project
 
 /**
  * One snapshot of the user-controllable `miragon.bpmnModeler.*` options.
@@ -34,6 +35,11 @@ data class ModelerSettings(
  * every open project's [CoreProcess]. Keys are namespaced exactly like the VS Code
  * configuration so a future shared-config layer (or a user reading idea.log) sees
  * matching names across hosts; defaults track `apps/vscode-plugin/package.json`.
+ *
+ * The `marketplaces` list is the exception: the app-level list held here is the
+ * "all my projects" set, but [snapshotMap] emits the union with the per-project
+ * [ProjectMarketplacesStore] (mirroring VS Code's User∪Workspace merge), so the
+ * snapshot is always project-scoped.
  */
 @Service(Service.Level.APP)
 class ModelerSettingsStore {
@@ -71,23 +77,16 @@ class ModelerSettingsStore {
     }
 
     /**
-     * Appends a marketplace location, de-duping against the existing strings —
-     * the IntelliJ counterpart of `VsCodeSettings.addMarketplace`. Backs the
-     * `marketplaceState/save` handler: the core has already fetched successfully,
-     * so this only records the registration for later Update runs.
-     */
-    fun addMarketplace(location: String) {
-        val current = props.getList(MARKETPLACES) ?: emptyList()
-        if (current.contains(location)) return
-        props.setList(MARKETPLACES, current + location)
-    }
-
-    /**
      * The snapshot shaped exactly as the bridge's `settings` RPC param (see the
      * TS `SettingsSnapshot`). Gson serialises the list as a JSON array; the core
      * computes the per-key change diff, so the host only ever sends the full set.
+     *
+     * `project` is required so the `marketplaces` key is the app ∪ project union
+     * from [ProjectMarketplacesStore] rather than the app-only list — the core
+     * only ever sees the merged set, so no caller can accidentally ship the
+     * narrower one.
      */
-    fun snapshotMap(): Map<String, Any> {
+    fun snapshotMap(project: Project): Map<String, Any> {
         val current = current()
         return linkedMapOf(
             "alignToOrigin" to current.alignToOrigin,
@@ -102,7 +101,7 @@ class ModelerSettingsStore {
             // `SettingsSnapshot`, NOT the dotted persisted key — a mismatch here
             // would make the gate a silent no-op.
             "scriptingSpin" to current.scriptingSpin,
-            "marketplaces" to current.marketplaces,
+            "marketplaces" to ProjectMarketplacesStore.getInstance(project).merged(),
         )
     }
 
