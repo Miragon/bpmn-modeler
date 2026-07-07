@@ -141,6 +141,28 @@ extension's global storage) regardless of where a marketplace is registered.
 
 ## Element Templates
 
+### Compatibility with the Diagram's Camunda Version
+
+Element templates may declare which Camunda version they support via an
+`engines` field (e.g. `"engines": { "camunda": "^8.7" }`). The modeler filters
+the templates it offers against the version the diagram targets — the
+`modeler:executionPlatformVersion` attribute stored on each BPMN file — so you
+only ever see templates the diagram can actually use. This is derived from the
+diagram itself, not a separate setting, mirroring Camunda Modeler's own
+behaviour, so it works identically in VS Code, JetBrains IDEs, and the
+standalone app.
+
+- A template **without** an `engines` field is always shown — this covers
+  workspace-local templates and connectors that don't pin a version.
+- **Camunda 7** diagrams are never filtered by this rule; it only applies to
+  Camunda 8 (Cloud) diagrams.
+- To change the target version for your diagrams, run **BPMN Modeler: Migrate
+  BPMN diagrams** and pick a version — it writes `modeler:executionPlatformVersion`
+  into every workspace diagram. Open editors refresh live: raising the version
+  reveals newer templates, lowering it hides the incompatible ones and marks any
+  already-applied template as incompatible in the properties panel. You can also
+  edit the attribute in the BPMN XML by hand.
+
 ### Online: Public Repositories
 
 Any public GitHub repository or GitLab project with a `marketplace.json` at

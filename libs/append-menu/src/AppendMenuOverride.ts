@@ -82,11 +82,19 @@ class AppendMenuOverride {
                 empty: boolean;
             } = popupMenu._getContext(target, providerId);
 
-            // Gather full template objects for enrichment.
+            // Gather full template objects for enrichment. `getAll()` ignores
+            // engine compatibility (unlike `getLatest()`), so filter by the
+            // diagram's execution platform version here — otherwise templates
+            // requiring a newer Camunda version than the diagram targets would
+            // still be appendable. Templates without `engines` pass `isCompatible`.
             let allTemplates: ElementTemplate[] = [];
             if (elementTemplates) {
                 try {
-                    allTemplates = elementTemplates.getAll();
+                    allTemplates = elementTemplates
+                        .getAll()
+                        .filter((template: ElementTemplate) =>
+                            elementTemplates.isCompatible(template),
+                        );
                 } catch {
                     // elementTemplates service may not have templates loaded yet.
                 }

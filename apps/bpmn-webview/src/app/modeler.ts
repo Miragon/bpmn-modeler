@@ -24,6 +24,7 @@ import {
 } from "./scriptTaskContextPad";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
+import { deriveEngines } from "./engines";
 import LintModule from "./bpmnlint";
 import { setColorThemeMode } from "@miragon/bpmn-modeler-shared";
 
@@ -202,7 +203,9 @@ export class BpmnModeler {
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     async newDiagram(): Promise<ImportXMLResult> {
-        return this.getModeler().createDiagram();
+        const result = await this.getModeler().createDiagram();
+        this.applyEnginesFromDefinitions();
+        return result;
     }
 
     /**
@@ -224,6 +227,7 @@ export class BpmnModeler {
                     if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
                         this.getModeler().get<any>("transactionBoundaries").show();
                     }
+                    this.applyEnginesFromDefinitions();
                     return result;
                 });
         } catch (error: unknown) {
@@ -482,6 +486,27 @@ export class BpmnModeler {
     private warn(message: string): void {
         console.warn(message);
         this.onWarningSink?.(message);
+    }
+
+    /**
+     * Re-derives the element-template engine profile from the freshly imported
+     * definitions and pushes it to the `elementTemplates` service, which
+     * re-indexes and fires `elementTemplates.changed` so the chooser/panel
+     * refresh live. Called after every import (open, migration rewrite, new
+     * diagram) since those replace the definitions the version rides on.
+     *
+     * Engines come from the diagram, not a setting, to match Camunda Modeler
+     * and the library's own lint rule; templates without `engines` stay visible
+     * by library semantics. The service is fetched defensively — the C7 base
+     * modeler may not register it, and `{}` clears any prior value.
+     */
+    private applyEnginesFromDefinitions(): void {
+        const definitions = this.getModeler().getDefinitions();
+        const engines = deriveEngines(
+            definitions?.get("modeler:executionPlatform"),
+            definitions?.get("modeler:executionPlatformVersion"),
+        );
+        this.getModeler().get<any>("elementTemplates", false)?.setEngines(engines);
     }
 
     /**
