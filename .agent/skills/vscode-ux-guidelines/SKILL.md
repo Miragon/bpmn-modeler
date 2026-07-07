@@ -64,7 +64,7 @@ The status bar item is lazily created. Use the **right side** for transient stat
 
 ## Quick Picks
 
-`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) owns every quick pick — e.g. `pickExecutionPlatform()` when the execution platform cannot be auto-detected from the BPMN XML, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `pickReferencedModel`:
+`VsCodePicker` (`apps/vscode-plugin/src/shared/infrastructure/VsCodePicker.ts`) owns every quick pick — e.g. `pickExecutionPlatform()` when the execution platform cannot be auto-detected from the BPMN XML, plus `pickEngineVersion`, `pickScriptLanguage`, `pickPayloadFile`, `searchAndPickReferencedModel`:
 
 ```typescript
 const result = await window.showQuickPick(items, {

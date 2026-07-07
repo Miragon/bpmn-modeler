@@ -16,7 +16,6 @@ vi.mock("vscode", () => ({
             show: vi.fn(),
         }),
     },
-    ProgressLocation: { Window: 10 },
     Uri: { file: (path: string) => ({ scheme: "file", path, fsPath: path }) },
 }));
 

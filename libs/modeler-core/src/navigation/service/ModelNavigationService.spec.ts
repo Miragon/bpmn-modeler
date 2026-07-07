@@ -13,23 +13,30 @@ function createService(result: LocateResult) {
         logInfo: vi.fn(),
         logWarning: vi.fn(),
         logError: vi.fn(),
-        withProgress: vi.fn(<T>(_title: string, task: () => Promise<T>): Promise<T> => task()),
         openDocument: vi.fn().mockResolvedValue(undefined),
     };
+
     const picker = {
-        pickReferencedModel: vi.fn(),
+        searchAndPickReferencedModel: vi.fn(
+            async (_placeholder: string, search: () => Promise<LocateResult>) => ({
+                outcome: await search(),
+                chosen: undefined as string | undefined,
+            }),
+        ),
     };
+
     const service = new ModelNavigationService(
         locator as never,
         notifier as never,
         picker as never,
     );
+
     return { service, locator, notifier, picker };
 }
 
 describe("ModelNavigationService.navigate", () => {
-    it("wraps the search in a status-bar progress indicator", async () => {
-        const { service, notifier } = createService({
+    it("runs the search behind the picker's busy list, passing its own thunk", async () => {
+        const { service, picker, locator } = createService({
             kind: "matches",
             paths: ["/a.bpmn"],
             readFailures: [],
@@ -37,9 +44,11 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(notifier.withProgress).toHaveBeenCalledTimes(1);
-        const [title] = notifier.withProgress.mock.calls[0];
-        expect(title).toContain("ProcessB");
+        expect(picker.searchAndPickReferencedModel).toHaveBeenCalledTimes(1);
+        const [placeholder, search] = picker.searchAndPickReferencedModel.mock.calls[0];
+        expect(placeholder).toContain("ProcessB");
+        expect(search).toBeTypeOf("function");
+        expect(locator.findDeclaringFiles).toHaveBeenCalled();
     });
 
     it("delegates to the locator with the same arguments", async () => {
@@ -55,7 +64,7 @@ describe("ModelNavigationService.navigate", () => {
     });
 
     it("opens the file directly via openDocument when the locator returns a single match", async () => {
-        const { service, picker, notifier } = createService({
+        const { service, notifier } = createService({
             kind: "matches",
             paths: ["/a.bpmn"],
             readFailures: [],
@@ -63,7 +72,7 @@ describe("ModelNavigationService.navigate", () => {
 
         await service.navigate("ProcessB", "process");
 
-        expect(picker.pickReferencedModel).not.toHaveBeenCalled();
+        // Single match opens directly, without a pick.
         expect(notifier.openDocument).toHaveBeenCalledWith("/a.bpmn");
     });
 
@@ -73,11 +82,13 @@ describe("ModelNavigationService.navigate", () => {
             paths: ["/a.bpmn", "/b.bpmn"],
             readFailures: [],
         });
-        picker.pickReferencedModel.mockResolvedValue("/b.bpmn");
+        picker.searchAndPickReferencedModel.mockImplementation(async (_placeholder, search) => ({
+            outcome: await search(),
+            chosen: "/b.bpmn",
+        }));
 
         await service.navigate("Shared", "process");
 
-        expect(picker.pickReferencedModel).toHaveBeenCalledWith(["/a.bpmn", "/b.bpmn"]);
         expect(notifier.openDocument).toHaveBeenCalledWith("/b.bpmn");
     });
 
@@ -87,7 +98,10 @@ describe("ModelNavigationService.navigate", () => {
             paths: ["/a.bpmn", "/b.bpmn"],
             readFailures: [],
         });
-        picker.pickReferencedModel.mockResolvedValue(undefined);
+        picker.searchAndPickReferencedModel.mockImplementation(async (_placeholder, search) => ({
+            outcome: await search(),
+            chosen: undefined,
+        }));
 
         await service.navigate("Shared", "process");
 

@@ -380,20 +380,6 @@ export class RpcNotifier implements NotifierPort {
         });
     }
 
-    /**
-     * The progress task runs core-side (that is where the work is); the host
-     * only renders a spinner, so we bracket the local run with start/end
-     * notifications and `finally` guarantees the spinner clears even on throw.
-     */
-    async withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
-        this.rpc.notify(METHODS.notifierProgressStart, { title });
-        try {
-            return await task();
-        } finally {
-            this.rpc.notify(METHODS.notifierProgressEnd, { title });
-        }
-    }
-
     async openDocument(absolutePath: string): Promise<void> {
         this.rpc.notify(METHODS.notifierOpenDocument, { path: absolutePath });
     }
@@ -747,15 +733,33 @@ export class RpcPicker implements PickerPort {
         return selected === null ? undefined : formats[selected[0]];
     }
 
-    async pickReferencedModel(paths: string[]): Promise<string | undefined> {
+    async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(
+        placeholder: string,
+        search: () => Promise<R>,
+    ): Promise<{ outcome: R; chosen?: string }> {
+        // The host can't render a busy list, so it keeps its status-bar spinner:
+        // bracket the local search with the progress notifications, then open the
+        // native picker only for a multi-match.
+        this.rpc.notify(METHODS.notifierProgressStart, { title: placeholder });
+        let outcome: R;
+        try {
+            outcome = await search();
+        } finally {
+            this.rpc.notify(METHODS.notifierProgressEnd, { title: placeholder });
+        }
+
+        if (!outcome.paths || outcome.paths.length < 2) {
+            return { outcome, chosen: undefined };
+        }
+
         // Sort by path so nearby files surface first. The bridge has no VS Code
         // `asRelativePath`, so the absolute path is both the detail and sort key.
-        const sorted = [...paths].sort((a, b) => a.localeCompare(b));
+        const sorted = [...outcome.paths].sort((a, b) => a.localeCompare(b));
         const selected = await this.show({
             placeholder: "Select the referenced model to open",
             canPickMany: false,
             items: sorted.map((path) => ({ label: posix.basename(path), description: path })),
         });
-        return selected === null ? undefined : sorted[selected[0]];
+        return { outcome, chosen: selected === null ? undefined : sorted[selected[0]] };
     }
 }
