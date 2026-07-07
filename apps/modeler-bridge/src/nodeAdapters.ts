@@ -360,6 +360,15 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
+     * Recursively removes `path`. `force: true` makes a missing directory a
+     * no-op, mirroring `VsCodeWorkspace.deleteDirectory`, so pruning a cache slot
+     * that was already deleted never throws.
+     */
+    async deleteDirectory(path: string): Promise<void> {
+        await fs.rm(toFsPath(path), { recursive: true, force: true });
+    }
+
+    /**
      * Globs `pattern` across every registered workspace root, returning absolute
      * paths. Mirrors `VsCodeWorkspace.findFiles` for the picker's workspace-file
      * prompt: `exclude` drops matches, `limit` caps the result count.

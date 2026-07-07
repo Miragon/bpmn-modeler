@@ -105,6 +105,13 @@ export class TemplateMarketplaceService {
      * manifest-level failures count as a failure — a per-*source* failure inside
      * {@link fetchAndCache} keeps last-good data, so its marketplace still counts
      * as succeeded here.
+     *
+     * After the fetch loop the cache is pruned of every slot no longer
+     * registered, so removing an entry from settings also removes its orphaned
+     * templates. An id is registered *before* its fetch, so a fetch failure keeps
+     * its last-good cache (the id survives the prune). An entry that fails to
+     * *parse* has no known id, so pruning is suppressed for the whole run rather
+     * than risk deleting a still-valid marketplace's cache.
      */
     async updateAll(): Promise<MarketplaceUpdateOutcome> {
         const run: PromptRun = { promptedHosts: new Set() };
@@ -112,27 +119,71 @@ export class TemplateMarketplaceService {
         this.notifier.logInfo(`Updating ${entries.length} marketplace(s)`);
         let succeeded = 0;
         const failures: MarketplaceUpdateFailure[] = [];
+        // Every id we can parse; the cache prunes any slot outside this set. One
+        // unparseable entry means its id is unknown, so we cannot safely prune —
+        // `canPrune` gates the whole run off to protect its last-good cache.
+        const registeredIds = new Set<string>();
+        let canPrune = true;
         for (const entry of entries) {
             // Label first (never throws) so a marketplace whose *entry* fails to
             // parse can still be named in the warning below.
             const label = marketplaceEntryLabel(entry);
             this.notifier.logInfo(`Updating marketplace: ${label}`);
+            let registration: MarketplaceRegistration;
             try {
-                const cached = await this.fetchAndCache(parseMarketplaceEntry(entry), run);
+                registration = parseMarketplaceEntry(entry);
+            } catch (error) {
+                // No id to register: suppress pruning so a still-registered
+                // marketplace's cache is never collateral damage this run.
+                canPrune = false;
+                failures.push(this.recordSkip(label, error));
+                continue;
+            }
+            // Register before fetching: a fetch failure keeps last-good data, so
+            // the slot must survive the prune (its id is still registered).
+            registeredIds.add(registration.id);
+            try {
+                const cached = await this.fetchAndCache(registration, run);
                 succeeded++;
                 this.notifier.logDebug(
                     `Marketplace updated: ${label} (${cached} template file(s) cached)`,
                 );
             } catch (error) {
-                const reason = (error as Error).message;
-                this.notifier.logWarning(`Skipped template marketplace "${label}": ${reason}`);
-                failures.push({ label, reason });
+                failures.push(this.recordSkip(label, error));
             }
         }
+        await this.pruneCache(registeredIds, canPrune);
         this.notifier.logInfo(
             `Marketplace update finished: ${succeeded} of ${entries.length} succeeded`,
         );
         return { succeeded, failures };
+    }
+
+    /** Logs a per-marketplace skip warning and returns its {@link MarketplaceUpdateFailure}. */
+    private recordSkip(label: string, error: unknown): MarketplaceUpdateFailure {
+        const reason = (error as Error).message;
+        this.notifier.logWarning(`Skipped template marketplace "${label}": ${reason}`);
+        return { label, reason };
+    }
+
+    /**
+     * Deletes cache slots no longer registered, logging what went. Skipped
+     * entirely when an unparseable entry left an unknown id in play — pruning
+     * then could delete a still-valid marketplace's last-good cache.
+     */
+    private async pruneCache(registeredIds: ReadonlySet<string>, canPrune: boolean): Promise<void> {
+        if (!canPrune) {
+            this.notifier.logDebug(
+                "Skipped marketplace cache prune: an unparseable entry left its id unknown",
+            );
+            return;
+        }
+        const pruned = await this.cache.prune(registeredIds);
+        if (pruned.length > 0) {
+            this.notifier.logInfo(
+                `Pruned ${pruned.length} orphaned marketplace cache(s): ${pruned.join(", ")}`,
+            );
+        }
     }
 
     /** The merge input handed to {@link BpmnElementTemplatesService}. */

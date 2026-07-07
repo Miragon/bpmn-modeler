@@ -64,6 +64,39 @@ describe("NodeWorkspace.findFiles", () => {
 });
 
 /**
+ * `deleteDirectory` backs the marketplace-cache prune. It must recursively
+ * remove a slot and, crucially, tolerate a missing path (a slot a prior run
+ * already deleted) rather than throw — exercised against a real temp tree.
+ */
+describe("NodeWorkspace.deleteDirectory", () => {
+    let root: string;
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(join(tmpdir(), "modeler-del-"));
+    });
+
+    afterEach(async () => {
+        await fs.rm(root, { recursive: true, force: true });
+    });
+
+    it("recursively removes a populated directory", async () => {
+        const slot = join(root, "acme");
+        await fs.mkdir(join(slot, "0/element-templates"), { recursive: true });
+        await fs.writeFile(join(slot, "0/element-templates/t.json"), "{}");
+
+        await new NodeWorkspace().deleteDirectory(slot);
+
+        await expect(fs.access(slot)).rejects.toMatchObject({ code: "ENOENT" });
+    });
+
+    it("is a no-op for a missing path", async () => {
+        await expect(
+            new NodeWorkspace().deleteDirectory(join(root, "never-cached")),
+        ).resolves.toBeUndefined();
+    });
+});
+
+/**
  * The three workspace-folder methods the navigation locator depends on. These
  * were once unimplemented stubs that threw — the path that runs
  * `findWorkspaceFolderForDocument` (loose-file detection) and

@@ -276,10 +276,15 @@ paths use a provider-less source.
 - **Caching.** Fetched templates are cached in the extension's global storage
   and re-read from there — the modeler does not hit the network every time an
   editor opens, only on **Add** and **Update Marketplaces**.
-- **Cache is not pruned.** Templates removed upstream (or a whole marketplace
-  removed from settings) currently stay in the local cache until it is cleared
-  manually from the extension's global storage folder. Removing a settings
-  entry stops future updates but does not yet delete what was already fetched.
+- **Removing a marketplace clears its cache.** Delete a marketplace's entry
+  from `miragon.bpmnModeler.marketplaces` and run **Update Marketplaces**: its
+  cached templates are pruned from the extension's global storage, so they stop
+  appearing immediately. (If any settings entry is malformed, pruning is skipped
+  for that run — fix the entry, then update again.)
+- **Upstream deletions within a kept marketplace are not yet pruned.** A
+  template removed from a marketplace you still have registered lingers in the
+  cache (files are overwritten in place, not swept) until you remove the
+  marketplace or clear the global-storage folder manually.
 - **Trust.** Templates configure how your processes execute (delegate
   expressions, connectors, called elements). Only register marketplaces from
   sources you trust, the same way you would vet a dependency.

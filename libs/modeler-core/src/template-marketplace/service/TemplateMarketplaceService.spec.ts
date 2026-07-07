@@ -20,6 +20,7 @@ function createService(opts: { manifest?: string | Error } = {}) {
     const cache = {
         write: vi.fn().mockResolvedValue(undefined),
         getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
+        prune: vi.fn().mockResolvedValue([]),
     };
     const settings = { getMarketplaces: vi.fn().mockReturnValue([]) };
     const notifier = {
@@ -141,6 +142,7 @@ function serviceOver(
     const cache = {
         write: vi.fn().mockResolvedValue(undefined),
         getCachedTemplatePaths: vi.fn().mockResolvedValue([]),
+        prune: vi.fn().mockResolvedValue([]),
     };
     const notifier = {
         logWarning: vi.fn(),
@@ -470,6 +472,34 @@ describe("TemplateMarketplaceService.updateAll", () => {
                 reason: expect.stringContaining("could not read marketplace.json"),
             },
         ]);
+    });
+
+    it("prunes after a fetch failure, keeping the still-registered marketplace's slot", async () => {
+        const { service, settings, cache } = createService({ manifest: new Error("offline") });
+        settings.getMarketplaces.mockReturnValue(["https://github.com/acme/one"]);
+
+        await service.updateAll();
+
+        // The fetch failed, but the id was registered before the fetch, so the
+        // prune keeps its last-good slot (its id is still in the registered set).
+        expect(cache.prune).toHaveBeenCalledOnce();
+        const registeredIds = cache.prune.mock.calls[0][0] as ReadonlySet<string>;
+        expect([...registeredIds]).toContain("acme__one");
+    });
+
+    it("suppresses pruning entirely when a settings entry cannot be parsed", async () => {
+        const { service, settings, cache, notifier } = createService();
+        // An object entry with no valid provider fails parseMarketplaceEntry, so
+        // its id is unknown — pruning would risk deleting a valid slot.
+        settings.getMarketplaces.mockReturnValue([{ provider: "bogus" } as never]);
+
+        const outcome = await service.updateAll();
+
+        expect(outcome.failures).toHaveLength(1);
+        expect(cache.prune).not.toHaveBeenCalled();
+        expect(notifier.logDebug).toHaveBeenCalledWith(
+            expect.stringContaining("Skipped marketplace cache prune"),
+        );
     });
 });
 

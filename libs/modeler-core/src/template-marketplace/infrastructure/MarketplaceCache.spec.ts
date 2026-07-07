@@ -8,13 +8,15 @@ type DirEntry = [string, "file" | "directory"];
 
 /**
  * Minimal `WorkspacePort` double capturing `writeFile` (the sole port method
- * `write` touches) and `readDirectory` (the read path). `readDirectory` is
- * driven per-path by an in-memory tree; an unknown path throws
- * `DirectoryNotFound`, mirroring a host reading a folder that was never cached.
+ * `write` touches), `readDirectory` (the read path), and `deleteDirectory` (the
+ * prune path). `readDirectory` is driven per-path by an in-memory tree; an
+ * unknown path throws `DirectoryNotFound`, mirroring a host reading a folder
+ * that was never cached.
  */
 function createWorkspace(tree: Record<string, DirEntry[]> = {}) {
     return {
         writeFile: vi.fn<(path: string, content: string) => Promise<void>>().mockResolvedValue(),
+        deleteDirectory: vi.fn<(path: string) => Promise<void>>().mockResolvedValue(),
         readDirectory: vi.fn<(path: string) => Promise<DirEntry[]>>(async (path) => {
             const entries = tree[path];
             if (entries === undefined) {
@@ -24,6 +26,7 @@ function createWorkspace(tree: Record<string, DirEntry[]> = {}) {
         }),
     } as unknown as WorkspacePort & {
         writeFile: ReturnType<typeof vi.fn>;
+        deleteDirectory: ReturnType<typeof vi.fn>;
         readDirectory: ReturnType<typeof vi.fn>;
     };
 }
@@ -144,5 +147,49 @@ describe("MarketplaceCache.getCachedTemplatePaths", () => {
             "/cache/acme/1/element-templates/b.json",
             "/cache/globex/0/element-templates/c.json",
         ]);
+    });
+});
+
+describe("MarketplaceCache.prune", () => {
+    it("deletes an unregistered slot and keeps the registered ones", async () => {
+        const workspace = createWorkspace({
+            "/cache": [
+                ["acme", "directory"],
+                ["stale", "directory"],
+                ["globex", "directory"],
+            ],
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        const pruned = await cache.prune(new Set(["acme", "globex"]));
+
+        expect(pruned).toEqual(["stale"]);
+        expect(workspace.deleteDirectory).toHaveBeenCalledOnce();
+        expect(workspace.deleteDirectory).toHaveBeenCalledWith("/cache/stale");
+    });
+
+    it("deletes every slot when the registered set is empty", async () => {
+        const workspace = createWorkspace({
+            "/cache": [
+                ["acme", "directory"],
+                ["globex", "directory"],
+            ],
+        });
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        const pruned = await cache.prune(new Set());
+
+        expect(pruned).toEqual(["acme", "globex"]);
+        expect(workspace.deleteDirectory).toHaveBeenCalledWith("/cache/acme");
+        expect(workspace.deleteDirectory).toHaveBeenCalledWith("/cache/globex");
+    });
+
+    it("is a no-op when the cache root does not exist yet", async () => {
+        // No entry for `/cache` → readDirectory throws DirectoryNotFound → [].
+        const workspace = createWorkspace();
+        const cache = new MarketplaceCache("/cache", workspace);
+
+        expect(await cache.prune(new Set(["acme"]))).toEqual([]);
+        expect(workspace.deleteDirectory).not.toHaveBeenCalled();
     });
 });

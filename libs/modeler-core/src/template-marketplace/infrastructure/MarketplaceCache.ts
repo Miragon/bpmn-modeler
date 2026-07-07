@@ -19,8 +19,10 @@ const ELEMENT_TEMPLATES_SEGMENT: MarketplaceContentType = "element-templates";
  * segment keeps a future JSON content type (lint rules, palette entries) out of
  * the element-template pipeline that reads this cache.
  *
- * Files are overwritten in place on refresh; templates that disappeared
- * upstream are not pruned — that needs a delete capability the port lacks.
+ * Files are overwritten in place on refresh, so a template deleted upstream
+ * within a *still-registered* marketplace lingers until its slot is rewritten.
+ * A marketplace removed from settings is pruned wholesale via {@link prune},
+ * which deletes every top-level slot no longer registered.
  */
 export class MarketplaceCache {
     /**
@@ -88,6 +90,29 @@ export class MarketplaceCache {
             }
         }
         return paths;
+    }
+
+    /**
+     * Deletes every top-level marketplace slot whose id is not in
+     * `registeredIds`, so removing a marketplace from settings also removes the
+     * templates it orphaned. A slot's directory name *is* its `marketplaceId`
+     * (that is how {@link write} keys the layout), so the set membership check is
+     * exact. A missing cache root maps to `[]` (nothing cached yet).
+     *
+     * @returns the ids of the slots actually deleted, for the caller to log.
+     */
+    async prune(registeredIds: ReadonlySet<string>): Promise<string[]> {
+        const pruned: string[] = [];
+        for (const marketplaceDir of await this.listSubdirectories(this.cacheRoot)) {
+            // `listSubdirectories` returns `<cacheRoot>/<name>`; the name after the
+            // root prefix is the marketplaceId the slot was written under.
+            const id = marketplaceDir.slice(this.cacheRoot.length + 1);
+            if (!registeredIds.has(id)) {
+                await this.workspace.deleteDirectory(marketplaceDir);
+                pruned.push(id);
+            }
+        }
+        return pruned;
     }
 
     /**

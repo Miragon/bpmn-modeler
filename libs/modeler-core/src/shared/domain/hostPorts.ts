@@ -154,6 +154,12 @@ export interface WorkspacePort {
     readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
     readFile(path: string): Promise<string>;
     writeFile(path: string, content: string): Promise<void>;
+    /**
+     * Recursively removes the directory at `path`. A missing path is a no-op,
+     * not an error — the marketplace-cache prune targets slots that a prior run
+     * may already have deleted, and re-deleting one must stay silent.
+     */
+    deleteDirectory(path: string): Promise<void>;
     findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
     /** Returns a handle that disposes the watcher and its listeners in one call. */
     createWatcher(
