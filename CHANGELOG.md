@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.3.0](https://github.com/Miragon/bpmn-modeler/compare/v1.2.1...v1.3.0) (2026-07-07)
+
+
+### 🎉 New Features
+
+* **logging:** improve output channel logging ([#1214](https://github.com/Miragon/bpmn-modeler/issues/1214)) ([00c06b7](https://github.com/Miragon/bpmn-modeler/commit/00c06b7be8a336d846f29945e01f51e33b319b5f))
+* **vscode-plugin:** add get-started walkthrough for onboarding ([#1230](https://github.com/Miragon/bpmn-modeler/issues/1230)) ([f36d5fb](https://github.com/Miragon/bpmn-modeler/commit/f36d5fb52cdcb885a2007dbdccb3328af0743cb5))
+
+
+### 🐞 Bug Fixes
+
+* **intellij-plugin:** mitigate out-of-process JCEF rendering jank ([#1205](https://github.com/Miragon/bpmn-modeler/issues/1205)) ([60af8c3](https://github.com/Miragon/bpmn-modeler/commit/60af8c3dca80fa993a459ae10d914f4940c647fd))
+* **vscode-plugin:** find element templates on Windows + VS Code ([#1213](https://github.com/Miragon/bpmn-modeler/issues/1213)) ([8f5e5d7](https://github.com/Miragon/bpmn-modeler/commit/8f5e5d7b6be4eda7029818c2b3e00aca03a306e9))
+* **vscode-plugin:** open code-link implementation in a persistent tab ([#1226](https://github.com/Miragon/bpmn-modeler/issues/1226)) ([#1227](https://github.com/Miragon/bpmn-modeler/issues/1227)) ([428f219](https://github.com/Miragon/bpmn-modeler/commit/428f2192019f6a19865fa28f70355d659431ca7b))
+* **vscode-plugin:** show search spinner inside the navigation selection list ([#1229](https://github.com/Miragon/bpmn-modeler/issues/1229)) ([94de398](https://github.com/Miragon/bpmn-modeler/commit/94de398e8d377cd8581c772ae75fe4a74776d696))
+
+
+### 🛠️ Misc
+
+* **ci:** pin github actions to commit shas ([#1228](https://github.com/Miragon/bpmn-modeler/issues/1228)) ([5a5777a](https://github.com/Miragon/bpmn-modeler/commit/5a5777af5604111d656d6a1fdec8140f2c2f051a))
+* **deps:** bump the github-actions-all group with 2 updates ([#1221](https://github.com/Miragon/bpmn-modeler/issues/1221)) ([84c800f](https://github.com/Miragon/bpmn-modeler/commit/84c800fe4c404db69c96ed5826ba45585629e896))
+* **deps:** bump the gradle-minor-patch group in /apps/intellij-plugin with 3 updates ([#1222](https://github.com/Miragon/bpmn-modeler/issues/1222)) ([878a1cf](https://github.com/Miragon/bpmn-modeler/commit/878a1cfff896f436fbd4942777d05c0ad8d63db4))
+* **intellij-plugin:** auto-publish signed plugin to jetbrains marketplace ([#1216](https://github.com/Miragon/bpmn-modeler/issues/1216)) ([3999c50](https://github.com/Miragon/bpmn-modeler/commit/3999c5066cb79bb44d9db0df94f3f3b0b47a75d0))
+
 ## [1.2.1](https://github.com/Miragon/bpmn-modeler/compare/v1.2.0...v1.2.1) (2026-07-03)
 
 
