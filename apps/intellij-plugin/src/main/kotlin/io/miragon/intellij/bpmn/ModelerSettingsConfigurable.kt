@@ -38,6 +38,7 @@ class ModelerSettingsConfigurable : Configurable {
         var favouritesText: String,
         var language: String,
         var scriptingSpin: Boolean,
+        var marketplacesText: String,
     )
 
     private val state = loadState()
@@ -115,6 +116,20 @@ class ModelerSettingsConfigurable : Configurable {
                             )
                     }
                 }
+                group("Template Marketplaces") {
+                    row {
+                        textArea()
+                            .align(AlignX.FILL)
+                            .bindText({ state.marketplacesText }, { state.marketplacesText = it })
+                            .applyToComponent { rows = MARKETPLACES_ROWS }
+                            .comment(
+                                "GitHub / GitLab repositories or local folders holding a " +
+                                    "<code>marketplace.json</code>, one per line. Add via " +
+                                    "<b>Tools | Add Template Marketplace</b> and refresh via " +
+                                    "<b>Tools | Update Template Marketplaces</b>.",
+                            )
+                    }
+                }
             }
         dialogPanel = builtPanel
         return builtPanel
@@ -163,6 +178,7 @@ class ModelerSettingsConfigurable : Configurable {
             favouriteBpmnElements = parseFavourites(favouritesText),
             language = language,
             scriptingSpin = scriptingSpin,
+            marketplaces = parseMarketplaces(marketplacesText),
         )
 
     private fun UiState.copyFrom(other: UiState) {
@@ -175,6 +191,7 @@ class ModelerSettingsConfigurable : Configurable {
         favouritesText = other.favouritesText
         language = other.language
         scriptingSpin = other.scriptingSpin
+        marketplacesText = other.marketplacesText
     }
 
     private fun loadState(): UiState {
@@ -189,6 +206,7 @@ class ModelerSettingsConfigurable : Configurable {
             favouritesText = settings.favouriteBpmnElements.joinToString("\n"),
             language = settings.language,
             scriptingSpin = settings.scriptingSpin,
+            marketplacesText = settings.marketplaces.joinToString("\n"),
         )
     }
 
@@ -196,8 +214,13 @@ class ModelerSettingsConfigurable : Configurable {
     private fun parseFavourites(text: String): List<String> =
         text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
+    /** Splits the textarea into trimmed, non-blank marketplace locations (the core validates each). */
+    private fun parseMarketplaces(text: String): List<String> =
+        text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
     private companion object {
         const val FAVOURITES_ROWS = 5
+        const val MARKETPLACES_ROWS = 4
         const val DEFAULT_THEME = "automatic"
         const val DEFAULT_LOCALE = "en"
 

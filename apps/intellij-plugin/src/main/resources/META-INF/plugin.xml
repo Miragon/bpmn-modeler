@@ -194,4 +194,23 @@
             icon="/icons/rocket.svg"
             factoryClass="io.miragon.intellij.bpmn.DeploymentToolWindowFactory"/>
     </extensions>
+
+    <!-- Tools-menu entry points for the template marketplace. The marketplace list
+         is edited on the Settings page; these two actions add a new source and
+         refresh all of them, delegating every fetch/validation to the shared core. -->
+    <actions>
+        <group id="MiragonBpmn.Marketplace" popup="false">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action
+                id="io.miragon.bpmn-modeler.addMarketplace"
+                class="io.miragon.intellij.bpmn.AddMarketplaceAction"
+                text="Add Template Marketplace…"
+                description="Add a GitHub/GitLab repository or local folder holding a marketplace.json"/>
+            <action
+                id="io.miragon.bpmn-modeler.updateMarketplaces"
+                class="io.miragon.intellij.bpmn.UpdateMarketplacesAction"
+                text="Update Template Marketplaces"
+                description="Re-fetch every configured template marketplace"/>
+        </group>
+    </actions>
 </idea-plugin>

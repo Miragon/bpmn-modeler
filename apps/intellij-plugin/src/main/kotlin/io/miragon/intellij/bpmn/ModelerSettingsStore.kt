@@ -21,6 +21,8 @@ data class ModelerSettings(
     val favouriteBpmnElements: List<String>,
     val language: String,
     val scriptingSpin: Boolean,
+    /** Pasted marketplace URLs / local paths (strings-only v1); fed to the core over RPC. */
+    val marketplaces: List<String>,
 )
 
 /**
@@ -49,6 +51,7 @@ class ModelerSettingsStore {
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
+            marketplaces = props.getList(MARKETPLACES) ?: emptyList(),
         )
 
     /** Persists the snapshot, normalising the two constrained fields so stored values stay valid. */
@@ -64,6 +67,19 @@ class ModelerSettingsStore {
         props.setList(FAVOURITE_ELEMENTS, settings.favouriteBpmnElements.take(MAX_FAVOURITES))
         props.setValue(LANGUAGE, settings.language, DEFAULT_LANGUAGE)
         props.setValue(SCRIPTING_SPIN, settings.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
+        props.setList(MARKETPLACES, settings.marketplaces)
+    }
+
+    /**
+     * Appends a marketplace location, de-duping against the existing strings —
+     * the IntelliJ counterpart of `VsCodeSettings.addMarketplace`. Backs the
+     * `marketplaceState/save` handler: the core has already fetched successfully,
+     * so this only records the registration for later Update runs.
+     */
+    fun addMarketplace(location: String) {
+        val current = props.getList(MARKETPLACES) ?: emptyList()
+        if (current.contains(location)) return
+        props.setList(MARKETPLACES, current + location)
     }
 
     /**
@@ -86,6 +102,7 @@ class ModelerSettingsStore {
             // `SettingsSnapshot`, NOT the dotted persisted key — a mismatch here
             // would make the gate a silent no-op.
             "scriptingSpin" to current.scriptingSpin,
+            "marketplaces" to current.marketplaces,
         )
     }
 
@@ -108,6 +125,7 @@ class ModelerSettingsStore {
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
+        private const val MARKETPLACES = "miragon.bpmnModeler.marketplaces"
 
         // Defaults track apps/vscode-plugin/package.json.
         private const val DEFAULT_ALIGN_TO_ORIGIN = false

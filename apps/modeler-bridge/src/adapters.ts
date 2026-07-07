@@ -30,6 +30,8 @@ import {
     SecretStorePort,
     SettingChange,
     StatusBarPort,
+    TokenPromptPort,
+    TokenStorePort,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
 
@@ -44,6 +46,8 @@ import {
     OAuth2Credentials,
     PickerShowParams,
     PickerShowResult,
+    TokenPromptShowResult,
+    TokenStoreGetResult,
 } from "./protocol/types";
 
 /** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
@@ -489,6 +493,48 @@ export class RpcSecretStore implements SecretStorePort {
             {},
         )) as OAuth2Credentials | null;
         return result ?? undefined;
+    }
+}
+
+/**
+ * Routes the core's {@link TokenStorePort} to the host's PasswordSafe-backed
+ * marketplace token store. Like {@link RpcSecretStore}, both calls are
+ * **requests**: the marketplace service awaits a read before deciding whether to
+ * prompt, and awaits a write before its auth retry, so each must resolve only
+ * once the host has actually fetched/persisted. A `null` host result maps to
+ * `undefined` to satisfy the port's `| undefined` contract.
+ */
+export class RpcTokenStore implements TokenStorePort {
+    constructor(private readonly rpc: Rpc) {}
+
+    async getToken(host: string): Promise<string | undefined> {
+        const result = (await this.rpc.request(METHODS.tokenStoreGet, {
+            host,
+        })) as TokenStoreGetResult | null;
+        return result?.token ?? undefined;
+    }
+
+    async setToken(host: string, token: string): Promise<void> {
+        await this.rpc.request(METHODS.tokenStoreSet, { host, token });
+    }
+}
+
+/**
+ * Routes the core's {@link TokenPromptPort} to a host modal PAT-entry dialog. A
+ * `null` result (decline) — or a blank one — maps to `undefined`, the port's
+ * "declined" signal that keeps a background `updateAll` running. The host already
+ * blank-checks, but re-guarding here keeps the contract honest independently.
+ */
+export class RpcTokenPrompt implements TokenPromptPort {
+    constructor(private readonly rpc: Rpc) {}
+
+    async promptForToken(host: string, reason: string): Promise<string | undefined> {
+        const result = (await this.rpc.request(METHODS.tokenPromptShow, {
+            host,
+            reason,
+        })) as TokenPromptShowResult | null;
+        const token = result?.token?.trim();
+        return token ? token : undefined;
     }
 }
 

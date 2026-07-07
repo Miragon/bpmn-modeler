@@ -26,6 +26,18 @@ and the [Append Menu](/vscode/features/append-menu) like any other template.
 A marketplace whose `marketplace.json` is missing or malformed is rejected at
 add time, so a typo never lands in your settings.
 
+### In JetBrains IDEs
+
+The marketplace also ships in the IntelliJ plugin. The two commands live under
+the **Tools** menu — **Add Template Marketplace…** and **Update Template
+Marketplaces** — and the source list is edited on the settings page
+(**Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**, one
+location per line). Fetch, validation, caching, and the per-host token flow are
+identical to VS Code; tokens live in the IDE's **PasswordSafe** rather than VS
+Code secret storage. The settings list is **strings-only** for now (pasted URLs
+and local paths) — the structured self-hosted GHE / self-hosted GitLab object
+form is VS-Code-only until a later release.
+
 ## The `marketplace.json` Manifest
 
 Place a `marketplace.json` at the root of the repository (or folder). It lists

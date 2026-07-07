@@ -162,8 +162,10 @@ modeler core or the bridge.
 
 ## Scope
 
-BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, and
-the inline "Edit Script" tab. DMN has no IntelliJ editor yet.
+BPMN editor + element templates + Notifier/StatusBar, plus diff, deployment, the
+inline "Edit Script" tab, and the template marketplace (Tools ▸ Add / Update
+Template Marketplace; the source list is edited on the Settings page, per-host
+PATs live in `PasswordSafe`). DMN has no IntelliJ editor yet.
 
 ## Monorepo hygiene
 

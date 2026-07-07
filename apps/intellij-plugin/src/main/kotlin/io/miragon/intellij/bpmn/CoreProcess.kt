@@ -12,6 +12,7 @@ import io.miragon.intellij.bpmn.bridge.DeploymentRouter
 import io.miragon.intellij.bpmn.bridge.DiffRouter
 import io.miragon.intellij.bpmn.bridge.EditorSessionRouter
 import io.miragon.intellij.bpmn.bridge.HostUiRouter
+import io.miragon.intellij.bpmn.bridge.MarketplaceRouter
 import io.miragon.intellij.bpmn.bridge.ProcessSupervisor
 import io.miragon.intellij.bpmn.bridge.RpcChannel
 import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
@@ -87,6 +88,7 @@ class CoreProcess(private val project: Project) : Disposable {
     private val diffRouter = DiffRouter(deps)
     private val scriptRouter = ScriptRouter(deps)
     private val secretStoreRouter = SecretStoreRouter(deps)
+    private val marketplaceRouter = MarketplaceRouter(deps)
     private val hostUiRouter = HostUiRouter(deps)
 
     init {
@@ -95,6 +97,7 @@ class CoreProcess(private val project: Project) : Disposable {
         diffRouter.register()
         scriptRouter.register()
         secretStoreRouter.register()
+        marketplaceRouter.register()
         hostUiRouter.register()
 
         // Keep the core's active-editor pointer in sync with the focused tab so
@@ -128,6 +131,14 @@ class CoreProcess(private val project: Project) : Disposable {
 
     /** Pushes the current settings snapshot to the running core so an open editor reacts live. */
     fun pushSettings() = editorRouter.pushSettings()
+
+    // ── template marketplace ───────────────────────────────────────────────────
+
+    /** Fires `marketplace/add` for the pasted location; backs the Tools-menu Add action. */
+    fun addMarketplace(location: String) = marketplaceRouter.addMarketplace(location)
+
+    /** Fires `marketplace/update` to re-fetch every configured marketplace. */
+    fun updateMarketplaces() = marketplaceRouter.updateMarketplaces()
 
     /**
      * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script

@@ -210,11 +210,13 @@ internal class RpcChannel(
 }
 
 // JSON-RPC namespaces whose frames can carry plaintext credentials: the password
-// / clientSecret live in `secretStore/*` params, and the deployment form relays
-// the same secrets (and the core echoes stored ones back to prefill the form)
-// under `deployment/*`. Their bodies must never reach idea.log. Kept in sync with
-// `SecretStoreRouter` and `DeploymentRouter`.
-internal val CREDENTIAL_METHOD_PREFIXES = listOf("secretStore/", "deployment/")
+// / clientSecret live in `secretStore/*` params, the deployment form relays the
+// same secrets (and the core echoes stored ones back to prefill the form) under
+// `deployment/*`, and the marketplace personal access tokens ride `tokenStore/*`
+// params and the `tokenPrompt/*` reply. Their bodies must never reach idea.log.
+// Kept in sync with `SecretStoreRouter`, `DeploymentRouter`, and `MarketplaceRouter`.
+internal val CREDENTIAL_METHOD_PREFIXES =
+    listOf("secretStore/", "deployment/", "tokenStore/", "tokenPrompt/")
 internal const val REDACTED_FRAME = "<redacted: credential-bearing frame>"
 
 /**

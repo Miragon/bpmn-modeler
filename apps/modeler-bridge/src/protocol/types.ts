@@ -127,6 +127,24 @@ export interface ScriptAppendToManifestParams {
     description?: string;
 }
 
+/**
+ * `marketplace/add` — a Tools-menu "Add Template Marketplace" action. `settings`
+ * piggybacks the host's fresh snapshot so the fetch never depends on a prior
+ * `session/register` seed (the run may fire before any editor is open).
+ */
+export interface MarketplaceAddParams {
+    location: string;
+    settings: Partial<SettingsSnapshot>;
+}
+
+/**
+ * `marketplace/update` — re-fetch every configured marketplace. `settings`
+ * piggybacks the snapshot for the same reason as {@link MarketplaceAddParams}.
+ */
+export interface MarketplaceUpdateParams {
+    settings: Partial<SettingsSnapshot>;
+}
+
 // ── Core → Host requests (params + results) ──────────────────────────────────
 
 /** `document/write` — push core-originated text; result reports whether it changed. */
@@ -183,6 +201,42 @@ export interface BasicAuthCredentials {
 export interface OAuth2Credentials {
     clientId: string;
     clientSecret: string;
+}
+
+/**
+ * `marketplaceState/save` — the host persists the added registration and fans the
+ * new snapshot to every open bridge. No result: the host acks an empty reply and
+ * the core awaits only the round-trip (like `deploymentState/save*`).
+ */
+export interface MarketplaceStateSaveParams {
+    location: string;
+}
+
+/** `tokenStore/get` — read a per-host PAT; result carries the token, or `null` when none. */
+export interface TokenStoreGetParams {
+    host: string;
+}
+export interface TokenStoreGetResult {
+    token: string;
+}
+
+/** `tokenStore/set` — persist a per-host PAT (an overwrite expresses token rotation). */
+export interface TokenStoreSetParams {
+    host: string;
+    token: string;
+}
+
+/**
+ * `tokenPrompt/show` — a modal PAT-entry dialog on the host. Result carries the
+ * entered token, or `null` on decline/blank (never throws — a decline is per-run
+ * data, not control flow).
+ */
+export interface TokenPromptShowParams {
+    host: string;
+    reason: string;
+}
+export interface TokenPromptShowResult {
+    token: string;
 }
 
 // ── Core → Host notifications ────────────────────────────────────────────────

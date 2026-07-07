@@ -1,5 +1,9 @@
 import { Command } from "@miragon/bpmn-modeler-shared";
-import { BpmnElementTemplatesService, BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
+import {
+    BpmnElementTemplatesService,
+    BpmnSettingsBroadcaster,
+    CachedTemplateProvider,
+} from "@miragon/bpmn-modeler-core";
 
 import { METHODS } from "../protocol/descriptor";
 import { RegisterParams, SettingsDidChangeParams } from "../protocol/types";
@@ -16,17 +20,22 @@ import { SessionHooks } from "./sessionHooks";
  *
  * Webview messages: GetElementTemplatesCommand, GetBpmnModelerSettingCommand.
  * RPC (Host → Core): settings/didChange.
+ *
+ * `marketplaceSvc` (optional) merges the marketplace cache into element-template
+ * discovery; absent, the workspace-only behaviour is unchanged. It is built by
+ * the marketplace feature before this one so its cache can be threaded in here.
  */
 export function register(
     deps: BridgeSharedDeps,
-    handles: { onSettingsApplied: () => void },
-): { sessionHooks: SessionHooks } {
+    handles: { onSettingsApplied: () => void; marketplaceSvc?: CachedTemplateProvider },
+): { sessionHooks: SessionHooks; templatesSvc: BpmnElementTemplatesService } {
     const templatesSvc = new BpmnElementTemplatesService(
         deps.store,
         deps.documentPort,
         deps.artifactSvc,
         deps.statusBar,
         deps.notifier,
+        handles.marketplaceSvc,
     );
 
     // The same broadcaster the VS Code host uses: on a settings change it re-pushes
@@ -64,6 +73,7 @@ export function register(
     });
 
     return {
+        templatesSvc,
         sessionHooks: {
             onSessionRegistered: async (params: RegisterParams) => {
                 // Mirrors SettingsParticipant + ElementTemplatesParticipant: re-push

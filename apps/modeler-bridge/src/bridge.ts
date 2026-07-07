@@ -24,15 +24,19 @@
  * the canonical, un-rottable method index that used to live in this comment.
  *
  * DMN is deliberately out of scope here — it has no IntelliJ editor yet; this
- * covers the BPMN editor, diff and deployment. The
+ * covers the BPMN editor, diff, deployment, and the template marketplace. The
  * diff path reuses the production diff brain verbatim (`DiffPaneStore` +
  * `BpmnDiffService` + `bpmn-js-differ`), driven by host-originated `diff/*` RPC
  * instead of VS Code's `vscode.diff` + custom-editor resolution.
  */
 
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 import { Rpc } from "./rpc";
 import { buildSharedDeps } from "./composition/sharedDeps";
 import * as diffFeature from "./composition/diffFeature";
+import * as marketplaceFeature from "./composition/marketplaceFeature";
 import * as templatesSettingsFeature from "./composition/templatesSettingsFeature";
 import * as clipboardFeature from "./composition/clipboardFeature";
 import * as navigationFeature from "./composition/navigationFeature";
@@ -40,6 +44,19 @@ import * as codeLinkFeature from "./composition/codeLinkFeature";
 import * as scriptFeature from "./composition/scriptFeature";
 import * as editorSessionFeature from "./composition/editorSessionFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
+
+/**
+ * Host-supplied paths the core cannot read itself.
+ *
+ * @property marketplaceCacheRoot Absolute root for the marketplace template
+ *   cache. Defaults to `~/.miragon-bpmn-modeler/marketplaces`; the IntelliJ host
+ *   overrides it with a `PathManager`-derived location via `server.ts`.
+ * @property homeDir Home directory used to expand a `~` in a pasted local path.
+ */
+export interface BridgeOptions {
+    marketplaceCacheRoot?: string;
+    homeDir?: string;
+}
 
 /**
  * Constructs the bridge: the shared collaborators, then every per-feature wiring
@@ -55,12 +72,22 @@ import * as deploymentFeature from "./composition/deploymentFeature";
 export function createBridge(
     write: (line: string) => void,
     log: (message: string) => void = () => {},
+    options: BridgeOptions = {},
 ): { rpc: Rpc } {
     const deps = buildSharedDeps(write, log);
 
+    const homeDir = options.homeDir ?? homedir();
+    const cacheRoot =
+        options.marketplaceCacheRoot ?? join(homeDir, ".miragon-bpmn-modeler", "marketplaces");
+
     const diff = diffFeature.register(deps);
+    // The marketplace service must exist before templates so its cache merges into
+    // element-template discovery; its add/update handlers are registered last (they
+    // need the templates service to refresh open editors).
+    const marketplace = marketplaceFeature.register(deps, { cacheRoot, homeDir });
     const templates = templatesSettingsFeature.register(deps, {
         onSettingsApplied: diff.rebroadcastLanguage,
+        marketplaceSvc: marketplace.marketplaceSvc,
     });
     clipboardFeature.register(deps);
     navigationFeature.register(deps);
@@ -74,6 +101,11 @@ export function createBridge(
         templates.sessionHooks,
     ]);
     deploymentFeature.register(deps);
+    marketplaceFeature.registerHandlers(deps, {
+        marketplaceSvc: marketplace.marketplaceSvc,
+        templatesSvc: templates.templatesSvc,
+        homeDir,
+    });
 
     return { rpc: deps.rpc };
 }
