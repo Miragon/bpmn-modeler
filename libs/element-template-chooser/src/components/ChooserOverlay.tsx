@@ -7,6 +7,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "preact/hooks";
 import type { ElementTemplate } from "../types";
 import { extractImplementationDetail } from "../types";
+import { TemplateSearchIndex } from "../search";
 import { TemplatePreview } from "./TemplatePreview";
 
 interface ChooserOverlayProps {
@@ -41,27 +42,17 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
         return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
     }, [templates]);
 
-    // Filter templates by search query and active category.
+    // Rebuild the search index only when the template set changes; querying it
+    // on every keystroke is cheap.
+    const searchIndex = useMemo(() => new TemplateSearchIndex(templates), [templates]);
+
+    // Rank templates by the search query, then narrow to the active category.
+    // Category filtering runs after ranking because it is UI state, not a
+    // text-relevance concern.
     const filtered = useMemo(() => {
-        const q = search.toLowerCase().trim();
-        return templates.filter((t) => {
-            if (activeCategory && t.category?.id !== activeCategory) {
-                return false;
-            }
-            if (!q) {
-                return true;
-            }
-            const haystack = [
-                t.name,
-                t.description ?? "",
-                t.category?.name ?? "",
-                ...(t.keywords ?? []),
-            ]
-                .join(" ")
-                .toLowerCase();
-            return haystack.includes(q);
-        });
-    }, [templates, search, activeCategory]);
+        const results = searchIndex.search(search);
+        return activeCategory ? results.filter((t) => t.category?.id === activeCategory) : results;
+    }, [searchIndex, search, activeCategory]);
 
     const selectedTemplate = useMemo(
         () => filtered.find((t) => t.id === selectedId) ?? null,
@@ -77,10 +68,15 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
 
     /**
      * Reset focus index when filter results change.
+     *
+     * Keyed on the memoized array identity, not its length: ranked search can
+     * reorder results without changing the count (typing one more character),
+     * which would otherwise leave the keyboard focus index pointing at a
+     * different template than the highlighted one.
      */
     useEffect(() => {
         setFocusIndex(-1);
-    }, [filtered.length]);
+    }, [filtered]);
 
     /**
      * Close on Escape key.
