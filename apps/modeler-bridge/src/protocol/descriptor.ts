@@ -276,6 +276,7 @@ export const PROTOCOL = [
         paramsFixture: {
             location: "https://github.com/owner/repo",
             settings: {},
+            scope: "project",
         } satisfies MarketplaceAddParams,
     },
     {
@@ -385,6 +386,7 @@ export const PROTOCOL = [
         kind: "request",
         paramsFixture: {
             location: "https://github.com/owner/repo",
+            scope: "project",
         } satisfies MarketplaceStateSaveParams,
     },
     {

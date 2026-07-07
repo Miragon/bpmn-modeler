@@ -141,6 +141,7 @@
         "kind": "notification",
         "paramKeys": [
             "location",
+            "scope",
             "settings"
         ]
     },
@@ -268,7 +269,8 @@
         "direction": "coreToHost",
         "kind": "request",
         "paramKeys": [
-            "location"
+            "location",
+            "scope"
         ]
     },
     {

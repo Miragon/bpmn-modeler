@@ -105,6 +105,19 @@ class ModelerSettingsStore {
         )
     }
 
+    /**
+     * Appends a registration to the app-level ("all my projects") list, de-duping
+     * against that list *alone*. Per the promotion rule, an entry that already
+     * lives in some project's [ProjectMarketplacesStore] may still be lifted
+     * app-wide, so the merged union is intentionally not consulted here — backs the
+     * "Register for all projects" add scope.
+     */
+    fun addMarketplace(location: String) {
+        val appList = props.getList(MARKETPLACES) ?: emptyList()
+        if (appList.contains(location)) return
+        props.setList(MARKETPLACES, appList + location)
+    }
+
     /** Constrains the theme to the two values the core's `SettingsPort` accepts. */
     private fun normalizeColorTheme(value: String): String = if (value == "light") "light" else "automatic"
 

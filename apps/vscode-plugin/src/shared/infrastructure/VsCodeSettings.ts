@@ -141,33 +141,51 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
-     * Registers a marketplace, defaulting to Workspace scope so it stays a
-     * per-project concern (User scope = "all my projects"). Falls back to Global
-     * when no folder/workspace is open, because `update()` to Workspace throws
-     * without one.
+     * Registers a marketplace at the caller-chosen scope. The controller decides
+     * (via a quick pick), because scope is a user intent — `"workspace"` keeps the
+     * entry a per-project concern in `.vscode/settings.json`; `"user"` promotes it
+     * to "all my projects". A `"workspace"` request with no folder/workspace open
+     * falls back to Global, because `update()` to Workspace throws without one.
      *
-     * De-dups against the *union* (so re-adding one that already lives in the
-     * other scope is a no-op), but appends only to the **target scope's own**
-     * list from `inspect()` — never the union — so a workspace write can't copy
-     * User-level entries into the repo's `.vscode/settings.json`.
+     * Dedup follows the effective-union rule: a `"workspace"` add is a no-op if the
+     * URL exists in *either* scope (it already resolves for this project); a
+     * `"user"` add de-dups only against the User list, so an entry that lives
+     * workspace-level can still be promoted user-wide. Either way it appends only
+     * to the **target scope's own** list from `inspect()` — never the union — so a
+     * workspace write can't copy User-level entries into the repo's settings.
      *
      * String `includes` de-dups only against other strings, which is all the Add
      * command writes; a string that resolves to the same repo as an object entry
      * slips through, costing only a redundant fetch into the same cache slot.
      */
-    async addMarketplace(url: string): Promise<void> {
-        if (this.getMarketplaces().includes(url)) {
-            return;
-        }
+    async addMarketplace(url: string, scope: "workspace" | "user"): Promise<void> {
         const config = workspace.getConfiguration("miragon.bpmnModeler");
         const inspected = config.inspect<MarketplaceSettingsEntry[]>("marketplaces");
         const hasWorkspace =
             workspace.workspaceFolders !== undefined || workspace.workspaceFile !== undefined;
-        const target = hasWorkspace ? ConfigurationTarget.Workspace : ConfigurationTarget.Global;
-        const scopeList = hasWorkspace
-            ? (inspected?.workspaceValue ?? [])
-            : (inspected?.globalValue ?? []);
-        await config.update("marketplaces", [...scopeList, url], target);
+        const target =
+            scope === "user" || !hasWorkspace
+                ? ConfigurationTarget.Global
+                : ConfigurationTarget.Workspace;
+        if (target === ConfigurationTarget.Global) {
+            // Promotion rule: only the User list de-dups a "user" add, so an entry
+            // present workspace-level can still be lifted to "all my projects".
+            if ((inspected?.globalValue ?? []).includes(url)) {
+                return;
+            }
+            await config.update("marketplaces", [...(inspected?.globalValue ?? []), url], target);
+            return;
+        }
+        // Workspace add: a no-op if the URL already resolves for this project via
+        // either scope's list.
+        if (this.getMarketplaces().includes(url)) {
+            return;
+        }
+        await config.update(
+            "marketplaces",
+            [...(inspected?.workspaceValue ?? []), url],
+            ConfigurationTarget.Workspace,
+        );
     }
 }
 

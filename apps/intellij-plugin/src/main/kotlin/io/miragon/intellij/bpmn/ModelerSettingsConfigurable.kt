@@ -1,7 +1,6 @@
 package io.miragon.intellij.bpmn
 
 import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.bindItem
@@ -142,7 +141,7 @@ class ModelerSettingsConfigurable : Configurable {
         // Push UI → state, persist, then propagate to live bridges.
         dialogPanel?.apply()
         ModelerSettingsStore.getInstance().update(state.toSettings())
-        pushToRunningBridges()
+        pushSettingsToRunningBridges()
     }
 
     override fun reset() {
@@ -154,18 +153,6 @@ class ModelerSettingsConfigurable : Configurable {
 
     override fun disposeUIResources() {
         dialogPanel = null
-    }
-
-    /**
-     * Notifies every open project that has already spawned its bridge.
-     * `getServiceIfCreated` is deliberate: instantiating [CoreProcess] here would
-     * spawn a bridge for projects that never opened a `.bpmn` file.
-     */
-    private fun pushToRunningBridges() {
-        for (project in ProjectManager.getInstance().openProjects) {
-            if (project.isDisposed) continue
-            project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
-        }
     }
 
     private fun UiState.toSettings(): ModelerSettings =

@@ -62,6 +62,29 @@ class MarketplaceRouterTest {
     }
 
     @Test
+    fun `marketplaceState save with application scope lands in the app-level list, not the project store`() {
+        val (wired, _) = router()
+        val location = "https://github.com/owner/app-wide-${System.nanoTime()}"
+        // App-level settings are shared across the @TestApplication; restore them.
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        try {
+            dispatchSave(wired, location, id = 30, scope = "application")
+
+            assertTrue(
+                store.current().marketplaces.contains(location),
+                "an application-scoped save must persist to the app-level list",
+            )
+            assertFalse(
+                ProjectMarketplacesStore.getInstance(projectFixture.get()).list().contains(location),
+                "an application-scoped save must not touch the per-project store",
+            )
+        } finally {
+            store.update(before)
+        }
+    }
+
+    @Test
     fun `marketplaceState save is a no-op when the location already lives in the app-level list`() {
         val (wired, _) = router()
         val location = "https://github.com/owner/app-repo-${System.nanoTime()}"
@@ -128,19 +151,31 @@ class MarketplaceRouterTest {
     }
 
     @Test
-    fun `addMarketplace notification carries the location and the settings snapshot`() {
+    fun `addMarketplace notification carries the location, scope, and the settings snapshot`() {
         val (wired, router) = router()
-        router.addMarketplace("~/local/marketplace")
+        router.addMarketplace("~/local/marketplace", appWide = false)
 
         val frame = parse(wired.fake.nextFrame())
         assertEquals("marketplace/add", frame.get("method").asString)
         val params = frame.getAsJsonObject("params")
         assertEquals("~/local/marketplace", params.get("location").asString)
+        // Unchecked "Register for all projects" → per-project scope.
+        assertEquals("project", params.get("scope").asString)
         // The piggybacked snapshot must be the full settings map (so the run never
         // depends on a prior register seed), including the marketplace list itself.
         val settings = params.getAsJsonObject("settings")
         assertTrue(settings.has("marketplaces"), "snapshot must carry the marketplace list")
         assertTrue(settings.has("configFolder"), "snapshot must be the full settings map")
+    }
+
+    @Test
+    fun `addMarketplace notification carries the application scope when registered app-wide`() {
+        val (wired, router) = router()
+        router.addMarketplace("~/local/marketplace", appWide = true)
+
+        val params = parse(wired.fake.nextFrame()).getAsJsonObject("params")
+        // Checked "Register for all projects" → app-level scope.
+        assertEquals("application", params.get("scope").asString)
     }
 
     @Test
@@ -177,8 +212,10 @@ class MarketplaceRouterTest {
         }
     }
 
-    private fun dispatchSave(wired: WiredBridge, location: String, id: Int) {
-        wired.handlers.dispatch("marketplaceState/save", obj("location" to location), id)
+    private fun dispatchSave(wired: WiredBridge, location: String, id: Int, scope: String? = null) {
+        val params = obj("location" to location)
+        if (scope != null) params.addProperty("scope", scope)
+        wired.handlers.dispatch("marketplaceState/save", params, id)
         assertAck(wired, id)
     }
 

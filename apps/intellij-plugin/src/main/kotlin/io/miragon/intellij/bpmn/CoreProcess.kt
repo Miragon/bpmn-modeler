@@ -134,8 +134,11 @@ class CoreProcess(private val project: Project) : Disposable {
 
     // ── template marketplace ───────────────────────────────────────────────────
 
-    /** Fires `marketplace/add` for the pasted location; backs the Tools-menu Add action. */
-    fun addMarketplace(location: String) = marketplaceRouter.addMarketplace(location)
+    /**
+     * Fires `marketplace/add` for the pasted location; backs the Tools-menu Add
+     * action. `appWide` carries the dialog's scope choice through to the persist.
+     */
+    fun addMarketplace(location: String, appWide: Boolean) = marketplaceRouter.addMarketplace(location, appWide)
 
     /** Fires `marketplace/update` to re-fetch every configured marketplace. */
     fun updateMarketplaces() = marketplaceRouter.updateMarketplaces()

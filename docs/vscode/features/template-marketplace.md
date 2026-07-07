@@ -18,10 +18,12 @@ and the [Append Menu](/vscode/features/append-menu) like any other template.
 1. Open the command palette and run **BPMN Modeler: Add Marketplace**.
 2. Paste a GitHub/GitLab repository URL or a local folder path holding a
    `marketplace.json`.
-3. The marketplace is fetched, validated, and saved. It lands in your
-   **Workspace** settings when a folder is open (else your User settings).
+3. Choose the scope: **This workspace** (default — saved in
+   `.vscode/settings.json`) or **All my projects** (saved in your User settings).
+   The pick is skipped when no folder is open, since only User scope applies then.
+4. The marketplace is fetched, validated, and saved at the chosen scope.
    Templates show up immediately — open editors refresh without reopening.
-4. To re-fetch later (new templates, updated versions), run
+5. To re-fetch later (new templates, updated versions), run
    **BPMN Modeler: Update Marketplaces**.
 
 A marketplace whose `marketplace.json` is missing or malformed is rejected at
@@ -39,10 +41,13 @@ Code secret storage. The settings list is **strings-only** for now (pasted URLs
 and local paths) — the structured self-hosted GHE / self-hosted GitLab object
 form is VS-Code-only until a later release.
 
-**Add Template Marketplace…** stores the entry **per project** (in the project's
-`workspace.xml`), while the settings-page list applies to all projects; the two
-are merged, mirroring VS Code's Workspace∪User behaviour. Project-level entries
-are not shown on the settings page.
+**Add Template Marketplace…** opens a dialog with a **Register for all projects**
+checkbox. Left unchecked (the default) the entry is stored **per project** (in the
+project's `workspace.xml`), invisible on the settings page; checked, it is added to
+the app-level list that **does** appear under **Settings ▸ Tools ▸ Miragon BPMN
+Modeler ▸ Template Marketplaces** and applies to every project. The two lists are
+merged, mirroring VS Code's Workspace∪User behaviour. An app-wide add refreshes the
+templates in every open project window at once.
 
 ## The `marketplace.json` Manifest
 
@@ -124,12 +129,15 @@ and local folders. Under the hood every marketplace is an entry in the
 
 The setting is **window-scoped**: your User- and Workspace-level lists are
 **merged** (User entries act as "all my projects"; the workspace adds
-project-specific ones). The **Add Marketplace** command writes to the Workspace
-when a folder is open — so a project's marketplaces land in its
-`.vscode/settings.json` — and to User settings otherwise. Because the lists are
-unioned rather than shadowed, a workspace `"marketplaces": []` no longer
-suppresses your User-level entries. The template cache itself stays machine-global
-(in the extension's global storage) regardless of where a marketplace is registered.
+project-specific ones). When a folder is open, the **Add Marketplace** command
+asks where to save the entry — **This workspace** (the default, landing in the
+project's `.vscode/settings.json`) or **All my projects** (your User settings);
+with no folder open it goes straight to User settings. Registering an entry
+"All my projects" that already exists workspace-level **promotes** it, copying it
+into your User list so it applies everywhere. Because the lists are unioned rather
+than shadowed, a workspace `"marketplaces": []` no longer suppresses your
+User-level entries. The template cache itself stays machine-global (in the
+extension's global storage) regardless of where a marketplace is registered.
 
 ## Element Templates
 

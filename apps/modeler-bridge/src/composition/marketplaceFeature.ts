@@ -117,7 +117,7 @@ export function registerHandlers(
         // The action carries the fresh snapshot so a run that fires before any
         // editor opened still sees the configured folder + marketplace list.
         deps.settings.apply(params.settings);
-        void addMarketplace(deps, handles, params.location);
+        void addMarketplace(deps, handles, params.location, params.scope);
     });
     deps.rpc.on(METHODS.marketplaceUpdate, (params: MarketplaceUpdateParams) => {
         // Apply *before* updateAll: the service reads the marketplace list from
@@ -143,6 +143,7 @@ async function addMarketplace(
         homeDir: string;
     },
     rawLocation: string,
+    scope: MarketplaceAddParams["scope"],
 ): Promise<void> {
     deps.notifier.logInfo("Add Marketplace command invoked");
     // Persist the expanded path so a re-fetch via Update (which re-reads settings)
@@ -152,7 +153,7 @@ async function addMarketplace(
         await deps.notifier.withProgress("Adding marketplace…", () =>
             handles.marketplaceSvc.addMarketplace(location),
         );
-        await persistRegistration(deps, location);
+        await persistRegistration(deps, location, scope);
         deps.notifier.logDebug(`Marketplace registration persist requested: ${location}`);
         await refreshOpenEditors(deps, handles.templatesSvc);
         deps.notifier.showInfo("Marketplace added.");
@@ -198,10 +199,18 @@ async function updateMarketplaces(
  * Acknowledged persist: the host adds the entry to settings and fans the fresh
  * snapshot to every open bridge. A failure is logged rather than thrown so it
  * never swallows the surrounding success (the templates are already cached).
+ *
+ * `scope` is echoed straight back from the add — the bridge never interprets it.
+ * Persistence has to wait for the fetch to succeed, but only the host knows what
+ * "project" vs "application" means, so the choice rides the round trip opaquely.
  */
-async function persistRegistration(deps: BridgeSharedDeps, location: string): Promise<void> {
+async function persistRegistration(
+    deps: BridgeSharedDeps,
+    location: string,
+    scope: MarketplaceAddParams["scope"],
+): Promise<void> {
     try {
-        await deps.rpc.request(METHODS.marketplaceStateSave, { location });
+        await deps.rpc.request(METHODS.marketplaceStateSave, { location, scope });
     } catch (error) {
         deps.notifier.logError(
             error instanceof Error

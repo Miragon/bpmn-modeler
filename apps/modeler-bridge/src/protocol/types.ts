@@ -131,10 +131,16 @@ export interface ScriptAppendToManifestParams {
  * `marketplace/add` — a Tools-menu "Add Template Marketplace" action. `settings`
  * piggybacks the host's fresh snapshot so the fetch never depends on a prior
  * `session/register` seed (the run may fire before any editor is open).
+ *
+ * `scope` is the host's persist target, opaque to the bridge: persistence happens
+ * in `marketplaceState/save` *after* the fetch succeeds, so the choice must ride
+ * the round trip and be echoed back. Absent = `"project"` so an older host that
+ * never sends it stays compatible.
  */
 export interface MarketplaceAddParams {
     location: string;
     settings: Partial<SettingsSnapshot>;
+    scope?: "project" | "application";
 }
 
 /**
@@ -207,9 +213,14 @@ export interface OAuth2Credentials {
  * `marketplaceState/save` — the host persists the added registration and fans the
  * new snapshot to every open bridge. No result: the host acks an empty reply and
  * the core awaits only the round-trip (like `deploymentState/save*`).
+ *
+ * `scope` is echoed straight back from {@link MarketplaceAddParams} — the bridge
+ * never interprets it; only the host knows what its scopes mean. Absent =
+ * `"project"` so an add that carried no scope persists per-project as before.
  */
 export interface MarketplaceStateSaveParams {
     location: string;
+    scope?: "project" | "application";
 }
 
 /** `tokenStore/get` — read a per-host PAT; result carries the token, or `null` when none. */

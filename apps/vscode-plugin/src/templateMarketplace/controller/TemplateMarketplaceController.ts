@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { commands, ExtensionContext, window } from "vscode";
+import { commands, ExtensionContext, QuickPickItem, window, workspace } from "vscode";
 
 import {
     BpmnElementTemplatesService,
@@ -82,6 +82,12 @@ export class TemplateMarketplaceController {
             return;
         }
 
+        const scope = await this.pickScope();
+        if (!scope) {
+            this.notifier.logDebug("Add Marketplace cancelled at scope pick");
+            return;
+        }
+
         // Persist the expanded path so a re-fetch via Update (which re-reads
         // settings) never sees a `~`.
         const location = expandHomePath(input.trim());
@@ -89,13 +95,41 @@ export class TemplateMarketplaceController {
             await this.notifier.withProgress("Adding marketplace…", () =>
                 this.marketplaceSvc.addMarketplace(location),
             );
-            await this.settings.addMarketplace(location);
+            await this.settings.addMarketplace(location, scope);
             this.notifier.logDebug(`Marketplace registration persisted to settings: ${location}`);
             await this.refreshOpenEditors();
             this.notifier.showInfo("Marketplace added.");
         } catch (error) {
             this.notifier.notifyError("Failed to add marketplace.", error as Error);
         }
+    }
+
+    /**
+     * Asks where the registration should live. Scope is either/or, so a
+     * single-select quick pick fits (an input box can't host a checkbox). Skipped
+     * entirely when no workspace is open — only User scope is writable then, so
+     * there is nothing to choose. `undefined` means the user dismissed the pick.
+     */
+    private async pickScope(): Promise<"workspace" | "user" | undefined> {
+        if (workspace.workspaceFolders === undefined && workspace.workspaceFile === undefined) {
+            return "user";
+        }
+        // Workspace first so it is the pre-selected default: the Add command is a
+        // per-project concern unless the user opts to share it across projects.
+        const items: (QuickPickItem & { scope: "workspace" | "user" })[] = [
+            {
+                label: "This workspace",
+                description: "Saved in .vscode/settings.json",
+                scope: "workspace",
+            },
+            {
+                label: "All my projects",
+                description: "Saved in your user settings",
+                scope: "user",
+            },
+        ];
+        const picked = await window.showQuickPick(items, { title: "Add Marketplace" });
+        return picked?.scope;
     }
 
     /**

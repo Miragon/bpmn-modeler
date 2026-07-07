@@ -156,6 +156,8 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
             (f) => f.method === "marketplaceState/save" && f.id != null,
         );
         expect(save.params.location).toBe(folder);
+        // An add that carried no scope must not invent one — the host defaults it.
+        expect(save.params.scope).toBeUndefined();
 
         // Ack it so the flow proceeds to the refresh + success toast.
         await rpc.handleLine(JSON.stringify({ id: save.id, result: null }));
@@ -171,6 +173,26 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         // The template actually landed on disk under the injected cache root.
         const marketplaceDirs = await fs.readdir(cacheRoot);
         expect(marketplaceDirs.length).toBe(1);
+    });
+
+    it("echoes the add's scope back on the persist request", async () => {
+        const { rpc, frames, tmp } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "marketplace/add",
+                params: { location: folder, settings: {}, scope: "application" },
+            }),
+        );
+
+        // The bridge treats scope as opaque: whatever the add carried must ride the
+        // round trip back to the host, which alone knows what it means.
+        const save = await waitForFrame(
+            frames,
+            (f) => f.method === "marketplaceState/save" && f.id != null,
+        );
+        expect(save.params.scope).toBe("application");
     });
 
     it("does not persist when the marketplace.json is missing", async () => {
