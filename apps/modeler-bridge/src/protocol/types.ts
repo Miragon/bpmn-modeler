@@ -151,6 +151,20 @@ export interface MarketplaceUpdateParams {
     settings: Partial<SettingsSnapshot>;
 }
 
+/**
+ * `marketplace/remove` — drop one or more marketplaces the host already
+ * unregistered, pruning their orphaned cache slots **without** re-fetching the
+ * survivors (the local counterpart to {@link MarketplaceUpdateParams}). `settings`
+ * carries the *post-removal* snapshot, so the core prunes against the reduced
+ * marketplace list. `removedCount` is the host's selection count, echoed straight
+ * into the summary toast — the prune count would understate it (a removed entry
+ * may have had no cache slot).
+ */
+export interface MarketplaceRemoveParams {
+    settings: Partial<SettingsSnapshot>;
+    removedCount: number;
+}
+
 // ── Core → Host requests (params + results) ──────────────────────────────────
 
 /** `document/write` — push core-originated text; result reports whether it changed. */

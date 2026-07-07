@@ -12,8 +12,8 @@ import io.miragon.intellij.bpmn.pushSettingsToRunningBridges
 /**
  * Routes the template-marketplace seam: the two Core→Host requests the marketplace
  * service needs (the acknowledged registration persist, and the two per-host token
- * ports) plus the outbound `marketplace/add` / `marketplace/update` notifications
- * the Tools-menu actions fire.
+ * ports) plus the outbound `marketplace/add` / `marketplace/update` /
+ * `marketplace/remove` notifications the Tools-menu actions fire.
  *
  * The token get/set run inline on the reader thread — [PasswordSafe][
  * com.intellij.ide.passwordSafe.PasswordSafe] must not touch the EDT, exactly like
@@ -123,6 +123,25 @@ internal class MarketplaceRouter(
         deps.channel.notify(
             "marketplace/update",
             linkedMapOf("settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project)),
+        )
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `marketplace/remove`: the host already unregistered the selected
+     * entries, so the piggybacked snapshot is the *post-removal* list. The core
+     * prunes their orphaned cache slots without re-fetching the survivors and
+     * refreshes open editors. [removedCount] is the selection size, echoed into
+     * the core's summary toast (the prune count would understate it — a removed
+     * entry may have held no cache slot).
+     */
+    fun removeMarketplaces(removedCount: Int) {
+        deps.channel.notify(
+            "marketplace/remove",
+            linkedMapOf(
+                "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
+                "removedCount" to removedCount,
+            ),
         )
         deps.ensureStartedAsync()
     }

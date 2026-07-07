@@ -144,6 +144,13 @@ class CoreProcess(private val project: Project) : Disposable {
     fun updateMarketplaces() = marketplaceRouter.updateMarketplaces()
 
     /**
+     * Fires `marketplace/remove` to prune the caches of already-unregistered
+     * marketplaces without re-fetching the rest; backs the Tools-menu Remove
+     * action. `removedCount` is the selection size, echoed into the summary toast.
+     */
+    fun removeMarketplaces(removedCount: Int) = marketplaceRouter.removeMarketplaces(removedCount)
+
+    /**
      * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script
      * variable and reveal the manifest — backs the "Declare in variable manifest"
      * intention, which has the `scriptId` but not the bridge channel.

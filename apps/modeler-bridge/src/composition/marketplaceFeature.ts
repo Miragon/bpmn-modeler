@@ -14,7 +14,11 @@ import {
 
 import { RpcTokenPrompt, RpcTokenStore } from "../adapters";
 import { METHODS } from "../protocol/descriptor";
-import { MarketplaceAddParams, MarketplaceUpdateParams } from "../protocol/types";
+import {
+    MarketplaceAddParams,
+    MarketplaceRemoveParams,
+    MarketplaceUpdateParams,
+} from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
 
 /**
@@ -103,7 +107,7 @@ export function register(
  * {@link BpmnElementTemplatesService} that consumes the cache — refreshing open
  * editors so newly cached templates appear without reopening.
  *
- * RPC (Host → Core): marketplace/add, marketplace/update.
+ * RPC (Host → Core): marketplace/add, marketplace/update, marketplace/remove.
  */
 export function registerHandlers(
     deps: BridgeSharedDeps,
@@ -124,6 +128,12 @@ export function registerHandlers(
         // `SettingsPort`, so the snapshot must be live first.
         deps.settings.apply(params.settings);
         void updateMarketplaces(deps, handles);
+    });
+    deps.rpc.on(METHODS.marketplaceRemove, (params: MarketplaceRemoveParams) => {
+        // The host already unregistered the entries; apply the reduced snapshot
+        // *before* pruning so the prune reads the post-removal marketplace list.
+        deps.settings.apply(params.settings);
+        void removeMarketplaces(deps, handles, params.removedCount);
     });
 }
 
@@ -193,6 +203,34 @@ async function updateMarketplaces(
     deps.notifier.showError(
         `Updated ${outcome.succeeded} of ${total} marketplaces. Failed:\n${details}`,
     );
+}
+
+/**
+ * Ports the VS Code controller's remove flow. The host already unregistered the
+ * selected entries and pushed the reduced snapshot, so this only prunes the cache
+ * slots they orphaned — {@link TemplateMarketplaceService.pruneOrphanedCaches}
+ * never re-fetches the survivors — then refreshes open editors so the templates
+ * disappear at once. The toast reports the host's `removedCount` (the selection),
+ * not the prune count: a removed entry may have had no cache slot, and a remaining
+ * malformed entry suppresses pruning for the run.
+ */
+async function removeMarketplaces(
+    deps: BridgeSharedDeps,
+    handles: {
+        marketplaceSvc: TemplateMarketplaceService;
+        templatesSvc: BpmnElementTemplatesService;
+    },
+    removedCount: number,
+): Promise<void> {
+    deps.notifier.logInfo("Remove Marketplace command invoked");
+    try {
+        const pruned = await handles.marketplaceSvc.pruneOrphanedCaches();
+        deps.notifier.logDebug(`Pruned marketplace cache(s): ${pruned.join(", ") || "none"}`);
+        await refreshOpenEditors(deps, handles.templatesSvc);
+        deps.notifier.showInfo(`Removed ${removedCount} marketplace(s).`);
+    } catch (error) {
+        deps.notifier.notifyError("Failed to remove marketplace(s).", error as Error);
+    }
 }
 
 /**

@@ -111,6 +111,7 @@ describe("RPC protocol descriptor", () => {
                     "  script/appendToManifest",
                     "  marketplace/add",
                     "  marketplace/update",
+                    "  marketplace/remove",
                     "",
                     "Core → Host (requests):",
                     "  document/write",

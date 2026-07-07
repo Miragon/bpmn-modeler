@@ -40,6 +40,7 @@ import {
     EditorRefParams,
     EmptyParams,
     MarketplaceAddParams,
+    MarketplaceRemoveParams,
     MarketplaceStateSaveParams,
     MarketplaceUpdateParams,
     NotifierLogParams,
@@ -98,6 +99,7 @@ export const METHODS = {
     scriptAppendToManifest: "script/appendToManifest",
     marketplaceAdd: "marketplace/add",
     marketplaceUpdate: "marketplace/update",
+    marketplaceRemove: "marketplace/remove",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -284,6 +286,12 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { settings: {} } satisfies MarketplaceUpdateParams,
+    },
+    {
+        method: METHODS.marketplaceRemove,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { settings: {}, removedCount: 1 } satisfies MarketplaceRemoveParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────

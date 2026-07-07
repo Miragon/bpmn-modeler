@@ -118,6 +118,22 @@ class ModelerSettingsStore {
         props.setList(MARKETPLACES, appList + location)
     }
 
+    /**
+     * Unregisters the given locations from the app-level ("all my projects") list,
+     * backing the app-level side of Tools ▸ Remove Template Marketplace. Only
+     * writes when the list actually shrank, so removing entries that lived solely
+     * per-project leaves this list — and its persisted `workspace.xml` value —
+     * untouched.
+     */
+    fun removeMarketplaces(locations: Collection<String>) {
+        val removeSet = locations.toSet()
+        val appList = props.getList(MARKETPLACES) ?: emptyList()
+        val remaining = appList.filterNot { it in removeSet }
+        if (remaining.size != appList.size) {
+            props.setList(MARKETPLACES, remaining)
+        }
+    }
+
     /** Constrains the theme to the two values the core's `SettingsPort` accepts. */
     private fun normalizeColorTheme(value: String): String = if (value == "light") "light" else "automatic"
 

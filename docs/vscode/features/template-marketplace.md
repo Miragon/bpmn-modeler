@@ -33,15 +33,16 @@ add time, so a typo never lands in your settings.
 
 ### In JetBrains IDEs
 
-The marketplace also ships in the IntelliJ plugin. The two commands live under
-the **Tools** menu — **Add Template Marketplace…** and **Update Template
-Marketplaces** — and the source list is edited on the settings page
-(**Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template Marketplaces**, one
-location per line). Fetch, validation, caching, and the per-host token flow are
-identical to VS Code; tokens live in the IDE's **PasswordSafe** rather than VS
-Code secret storage. The settings list is **strings-only** for now (pasted URLs
-and local paths) — the structured self-hosted GHE / self-hosted GitLab object
-form is VS-Code-only until a later release.
+The marketplace also ships in the IntelliJ plugin. The three commands live under
+the **Tools** menu — **Add Template Marketplace…**, **Update Template
+Marketplaces**, and **Remove Template Marketplace…** — and the source list is
+edited on the settings page (**Settings ▸ Tools ▸ Miragon BPMN Modeler ▸
+Template Marketplaces**, one location per line). Fetch, validation, caching, and
+the per-host token flow are identical to VS Code; tokens live in the IDE's
+**PasswordSafe** rather than VS Code secret storage. The settings list is
+**strings-only** for now (pasted URLs and local paths) — the structured
+self-hosted GHE / self-hosted GitLab object form is VS-Code-only until a later
+release.
 
 **Add Template Marketplace…** opens a dialog with a **Register for all projects**
 checkbox. Left unchecked (the default) the entry is stored **per project** (in the
@@ -50,6 +51,14 @@ the app-level list that **does** appear under **Settings ▸ Tools ▸ Miragon B
 Modeler ▸ Template Marketplaces** and applies to every project. The two lists are
 merged, mirroring VS Code's Workspace∪User behaviour. An app-wide add refreshes the
 templates in every open project window at once.
+
+**Remove Template Marketplace…** opens a multi-select dialog listing every
+registered marketplace with the scope it lives in (all projects, this project, or
+both). Checking entries and confirming unregisters them from every scope they
+appear in and prunes their cached templates from the shared global storage
+**without** re-fetching the ones you keep, so the open editor's templates update
+at once. Removing an app-level entry also refreshes the merged list in every open
+window.
 
 ## The `marketplace.json` Manifest
 

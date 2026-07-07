@@ -211,6 +211,11 @@
                 class="io.miragon.intellij.bpmn.UpdateMarketplacesAction"
                 text="Update Template Marketplaces"
                 description="Re-fetch every configured template marketplace"/>
+            <action
+                id="io.miragon.bpmn-modeler.removeMarketplace"
+                class="io.miragon.intellij.bpmn.RemoveMarketplaceAction"
+                text="Remove Template Marketplace…"
+                description="Unregister one or more template marketplaces and prune their cached templates"/>
         </group>
     </actions>
 </idea-plugin>

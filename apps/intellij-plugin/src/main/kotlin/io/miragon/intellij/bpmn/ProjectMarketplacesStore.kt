@@ -35,6 +35,21 @@ class ProjectMarketplacesStore(private val project: Project) {
     }
 
     /**
+     * Unregisters the given locations from this project's list, backing the
+     * per-project side of Tools ▸ Remove Template Marketplace. A location that
+     * only lives in the app-level list is silently absent here — the caller
+     * removes it from [ModelerSettingsStore] separately.
+     */
+    fun remove(locations: Collection<String>) {
+        val removeSet = locations.toSet()
+        val current = list()
+        val remaining = current.filterNot { it in removeSet }
+        if (remaining.size != current.size) {
+            props.setList(MARKETPLACES, remaining)
+        }
+    }
+
+    /**
      * The union the core fetches: the app-level list first (shared across
      * projects), then this project's own entries. Deduped so an entry present in
      * both scopes is fetched once.

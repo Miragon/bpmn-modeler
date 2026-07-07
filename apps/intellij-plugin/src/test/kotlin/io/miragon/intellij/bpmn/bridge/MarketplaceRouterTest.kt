@@ -192,6 +192,58 @@ class MarketplaceRouterTest {
     }
 
     @Test
+    fun `removeMarketplaces notification carries the settings snapshot and the removed count`() {
+        val (wired, router) = router()
+        router.removeMarketplaces(removedCount = 3)
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("marketplace/remove", frame.get("method").asString)
+        val params = frame.getAsJsonObject("params")
+        // The core prunes against the post-removal list, so the snapshot must ride along.
+        assertTrue(
+            params.getAsJsonObject("settings").has("marketplaces"),
+            "remove must piggyback the post-removal marketplace list the core prunes against",
+        )
+        // The selection count feeds the summary toast (not the prune count).
+        assertEquals(3, params.get("removedCount").asInt)
+    }
+
+    @Test
+    fun `app-level removeMarketplaces drops only the listed entries and leaves the rest`() {
+        router()
+        val store = ModelerSettingsStore.getInstance()
+        val before = store.current()
+        val keep = "https://github.com/owner/keep-${System.nanoTime()}"
+        val drop = "https://github.com/owner/drop-${System.nanoTime()}"
+        store.update(before.copy(marketplaces = before.marketplaces + keep + drop))
+        try {
+            store.removeMarketplaces(setOf(drop))
+
+            val after = store.current().marketplaces
+            assertTrue(after.contains(keep), "an unlisted app-level entry must survive")
+            assertFalse(after.contains(drop), "a listed app-level entry must be removed")
+        } finally {
+            store.update(before)
+        }
+    }
+
+    @Test
+    fun `project-level remove drops only the listed entries`() {
+        router()
+        val projectStore = ProjectMarketplacesStore.getInstance(projectFixture.get())
+        val keep = "https://github.com/owner/pkeep-${System.nanoTime()}"
+        val drop = "https://github.com/owner/pdrop-${System.nanoTime()}"
+        projectStore.add(keep)
+        projectStore.add(drop)
+
+        projectStore.remove(setOf(drop))
+
+        val after = projectStore.list()
+        assertTrue(after.contains(keep), "an unlisted project entry must survive")
+        assertFalse(after.contains(drop), "a listed project entry must be removed")
+    }
+
+    @Test
     fun `snapshot unions the app-level and project-level marketplace lists`() {
         val (wired, router) = router()
         val appEntry = "https://github.com/owner/app-${System.nanoTime()}"

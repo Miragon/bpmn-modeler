@@ -154,6 +154,15 @@
         ]
     },
     {
+        "method": "marketplace/remove",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "removedCount",
+            "settings"
+        ]
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",

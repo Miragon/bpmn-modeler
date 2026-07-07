@@ -236,4 +236,39 @@ describe("bridge template marketplace (real core + cache over a fake transport)"
         // The cached template reached the open editor.
         await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
     });
+
+    it("removes a marketplace: prunes its cache slot without re-fetching and reports the selection count", async () => {
+        const { rpc, frames, tmp, cacheRoot } = await setup();
+        const folder = await writeLocalMarketplace(tmp);
+
+        // Cache the marketplace first, then confirm its slot is on disk.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "marketplace/update",
+                params: { settings: { marketplaces: [folder] } },
+            }),
+        );
+        await waitForFrame(frames, isTemplatesQuery(TEMPLATE_NAME));
+        expect((await fs.readdir(cacheRoot)).length).toBe(1);
+
+        // Remove it: the host already dropped it from settings, so the post-removal
+        // snapshot is empty and the prune sweeps the orphaned slot.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "marketplace/remove",
+                params: { settings: { marketplaces: [] }, removedCount: 1 },
+            }),
+        );
+
+        await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "notifier/showInfo" &&
+                f.params.message === "Removed 1 marketplace(s).",
+        );
+        // Remove never persists — the host already unregistered the entries.
+        expect(frames.find((f) => f.method === "marketplaceState/save")).toBeUndefined();
+        // The orphaned cache slot is gone.
+        expect((await fs.readdir(cacheRoot)).length).toBe(0);
+    });
 });
