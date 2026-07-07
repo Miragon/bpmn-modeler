@@ -82,6 +82,12 @@ module.exports = (env, argv) => {
                         to: "assets",
                     },
                     {
+                        // Walkthrough markdown referenced by contributes.walkthroughs.
+                        from: path.resolve(__dirname, "media"),
+                        to: "media",
+                        noErrorOnMissing: true,
+                    },
+                    {
                         // Single source of truth: the manifest JSON Schema lives in
                         // libs/shared next to the type it mirrors. Copied (not
                         // imported) because `contributes.jsonValidation.url` resolves

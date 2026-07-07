@@ -87,6 +87,48 @@
     ],
     "main": "main.js",
     "contributes": {
+        "walkthroughs": [
+            {
+                "id": "getStarted",
+                "title": "Get Started with BPMN Modeler",
+                "description": "Create, edit, and deploy BPMN 2.0 and DMN diagrams directly in VS Code.",
+                "steps": [
+                    {
+                        "id": "create",
+                        "title": "Create your first diagram",
+                        "description": "Create a new file and save it as `.bpmn` (process) or `.dmn` (decision) — VS Code opens it in the graphical modeler.\n[New file](command:workbench.action.files.newUntitledFile)",
+                        "media": {
+                            "markdown": "media/walkthrough/create.md"
+                        },
+                        "completionEvents": [
+                            "onStepSelected"
+                        ]
+                    },
+                    {
+                        "id": "learn",
+                        "title": "Learn the basics",
+                        "description": "Add and connect elements from the palette, then edit their Camunda 7 / Camunda 8 attributes in the properties panel.",
+                        "media": {
+                            "markdown": "media/walkthrough/learn.md"
+                        },
+                        "completionEvents": [
+                            "onStepSelected"
+                        ]
+                    },
+                    {
+                        "id": "deploy",
+                        "title": "Deploy your diagram",
+                        "description": "Deploy a BPMN diagram to a Camunda 7 or Camunda 8 engine straight from the editor.\n[Deploy Diagram](command:bpmn-modeler.deployDiagram)",
+                        "media": {
+                            "markdown": "media/walkthrough/deploy.md"
+                        },
+                        "completionEvents": [
+                            "onCommand:bpmn-modeler.deployDiagram"
+                        ]
+                    }
+                ]
+            }
+        ],
         "jsonValidation": [
             {
                 "fileMatch": "*.bpmn.vars.json",

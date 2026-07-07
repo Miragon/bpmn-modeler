@@ -10,44 +10,101 @@ BPMN 2.0 and DMN modeling for Camunda 7 and Camunda 8 — directly in VS Code.
 
 ---
 
-## Why this extension
+## What it is
 
-Model and maintain BPMN/DMN files where your code already lives. No context
-switch into a separate desktop modeler, no detached tooling — diagrams are
-versioned, reviewed, and edited in the same workflow as the rest of your
-project.
+A **BPMN** (Business Process Model and Notation) diagram describes a business
+process as a flowchart of events, tasks, and decisions; a **DMN** (Decision
+Model and Notation) diagram captures the decision logic behind it as tables —
+both are open standards you can run on a workflow engine such as Camunda.
+
+This extension opens `.bpmn` and `.dmn` files in a graphical editor inside VS
+Code, while the text file stays the source of truth — so save, Git, and diff
+keep working, and diagrams are versioned and reviewed in the same workflow as
+the rest of your project. No context switch into a separate desktop modeler.
 
 > **Powered by [bpmn.io](https://bpmn.io/)** — built on
 > [bpmn-js](https://github.com/bpmn-io/bpmn-js) and
 > [dmn-js](https://github.com/bpmn-io/dmn-js).
 
-## Features
-
-- **BPMN modeling** — full BPMN 2.0 with Camunda 7 and Camunda 8 properties,
-  including compatible forks like Operaton and CIB7.
-- **DMN modeling** — decision tables, decision requirements diagrams, literal
-  expressions.
-- **Element templates** — convention-based discovery: drop templates under
-  `<configFolder>/element-templates/` anywhere between your BPMN file and the
-  workspace root. No extra project config needed.
-- **Deployment sidebar** — deploy diagrams and start process instances against
-  Camunda 7 or 8. Supports no auth, Basic Auth, and OAuth2 Client Credentials.
-  Payload files are discovered by convention from `<configFolder>/payloads/`.
-- **BPMN diff view** — side-by-side readonly canvases for two `.bpmn` files
-  with element-level colour coding (added / removed / changed / moved) via
-  [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ), synchronized
-  pan/zoom, and a prev/next change navigator.
-- **Multi-language UI** — palette, context pad, and properties panel
-  available in English, Deutsch, Español, Français, Nederlands,
-  Português (Brasil), Русский, 简体中文, and 繁體中文.
-
 ![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-preview.png)
 
 ## Getting started
 
-Install **BPMN Modeler** from the VS Code Marketplace, then open
-any `.bpmn` or `.dmn` file — the modeler opens automatically as a custom
-editor.
+Install **BPMN Modeler** (publisher `miragon-gmbh`) from the VS Code
+Marketplace, then get oriented in a couple of minutes:
+
+1. **Take the walkthrough first.** The built-in **Get Started with BPMN
+   Modeler** walkthrough is the recommended first stop — open it from
+   **Help: Get Started** in the Command Palette. It walks you through creating,
+   editing, and deploying a diagram.
+2. **Create a diagram.** Make a new file ending in `.bpmn` (a BPMN 2.0 process)
+   or `.dmn` (a DMN decision table). VS Code opens it straight in the graphical
+   modeler instead of the plain text editor.
+3. **Open an existing one.** Any `.bpmn` or `.dmn` file opens the same way.
+
+## Reading a diagram
+
+New to the notation? Here is the 30-second version — full primers are linked
+under [Develop and learn more](#develop-and-learn-more).
+
+A BPMN process reads left to right along its flow:
+
+- **Events** (circles) mark what starts, happens during, or ends the process.
+- **Tasks** (rounded rectangles) are the work being done.
+- **Gateways** (diamonds) split or merge the flow to model decisions and
+  parallel paths.
+- **Sequence flows** (arrows) connect the elements in the order they run.
+
+A DMN decision table reads as rows of rules: input columns on the left map to
+output columns on the right, so each row says "when the inputs look like this,
+the decision is that".
+
+## Editing a diagram
+
+- **Graphical editor for `.bpmn` / `.dmn`.** Add elements from the palette or
+  the context pad on a selected shape, connect them into sequence flows, and set
+  each element's name, type, and Camunda 7 / Camunda 8 attributes in the
+  **Properties panel**. Everything is written straight back into the underlying
+  XML. Flip to the raw XML at any time with **BPMN Modeler: Toggle Standard
+  Text Editor** (`Ctrl+Shift+E`); it also sits in the editor title bar.
+- **Element templates** — convention-based discovery: drop templates under
+  `<configFolder>/element-templates/` anywhere between your BPMN file and the
+  workspace root. No extra project config needed.
+- **Deploy to Camunda** — open the **Deploy Diagram** view from the activity
+  bar (the rocket icon) or run **BPMN Modeler: Deploy Diagram** from the editor
+  title bar to deploy a diagram and start process instances against Camunda 7
+  or 8. Supports no auth, Basic Auth, and OAuth2 Client Credentials; payload
+  files are discovered by convention from `<configFolder>/payloads/`.
+- **Compare two diagrams** — select two `.bpmn` files in the Explorer (or
+  right-click one, **BPMN Modeler: Select for Compare**, then **Compare with
+  Selected** on another) to open a side-by-side read-only diff with element-level
+  colour coding (added / removed / changed / moved) via
+  [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ), synchronized
+  pan/zoom, and a prev/next change navigator.
+- **Export** — copy the current diagram to the clipboard as SVG, or save an SVG
+  next to the source file, via the SVG commands below.
+- **Multi-language UI** — palette, context pad, and properties panel available
+  in English, Deutsch, Español, Français, Nederlands, Português (Brasil),
+  Русский, 简体中文, and 繁體中文.
+
+### Commands
+
+Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+
+| Command                                   | Keybinding     | Description                                                      |
+|-------------------------------------------|----------------|------------------------------------------------------------------|
+| BPMN Modeler: Deploy Diagram              |                | Open the Deployment sidebar for the current BPMN/DMN diagram     |
+| BPMN Modeler: Copy Diagram as SVG         |                | Copy the current diagram to the clipboard as SVG                 |
+| BPMN Modeler: Save Diagram as SVG         |                | Save an SVG file of the current diagram next to the source file  |
+| BPMN Modeler: Change Engine Version       |                | Switch between engine versions (within a platform)               |
+| BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
+| BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
+| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the BPMN modeler                |
+| BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
+
+The compare commands — **Select for Compare**, **Compare with Selected**, and
+**Compare Selected** — are available from the Explorer right-click menu on
+`.bpmn` files rather than the Command Palette.
 
 ### Settings
 
@@ -63,26 +120,11 @@ Search for "BPMN Modeler" in Settings (`Ctrl+,` / `Cmd+,`).
 | `miragon.bpmnModeler.c8ApiVersion`              | `v2`                        | REST API version prefix for Camunda 8 deployment endpoints              |
 | `miragon.bpmnModeler.alignToOrigin`             | `false`                     | Align the diagram to the origin when opening a new diagram              |
 
-### Commands
-
-Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
-
-| Command                                   | Keybinding     | Description                                                      |
-|-------------------------------------------|----------------|------------------------------------------------------------------|
-| BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
-| BPMN Modeler: Deploy Diagram              |                | Open the Deployment sidebar for the current BPMN/DMN diagram     |
-| BPMN Modeler: Copy Diagram as SVG         |                | Copy the current diagram to the clipboard as SVG                 |
-| BPMN Modeler: Save Diagram as SVG         |                | Save a SVG file of the current diagram next to the bpmn file     |
-| BPMN Modeler: Change Engine Version       |                | Switch between engine versions (within a platform)               |
-| BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
-| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the BPMN modeler                |
-| BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
-
 ## Troubleshooting
 
-The modeler logs to the **`bpmn.modeler`** output channel. Open it via the
-Output panel (View → Output → select *bpmn.modeler*) or the command **BPMN
-Modeler: Display Logging Information** (`bpmn-modeler.openLoggingConsole`).
+The modeler logs to the **`bpmn.modeler`** output channel. Open it from the
+Output panel (**View: Output**, then select *bpmn.modeler*) or with the command
+**BPMN Modeler: Display Logging Information**.
 
 By default the channel shows `Info` and above. When a diagram, element
 template, or the webview misbehaves, raise the level to see the full trace:
@@ -96,6 +138,14 @@ copy the whole `bpmn.modeler` channel into the report — the Info-level
 breadcrumbs (editor opened/closed, deployment started/result, SVG export) plus
 the Debug transport trace let us reconstruct the exact steps that led to the
 failure. Credentials are never logged, so the channel is safe to paste.
+
+## Develop and learn more
+
+- **New to BPMN or DMN?** Learn the notation at
+  [camunda.com/bpmn](https://camunda.com/bpmn/) and
+  [camunda.com/dmn](https://camunda.com/dmn/).
+- **Contributing** — building from source and the dev loop are documented in
+  [CONTRIBUTING.md](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md).
 
 ## Support and feedback
 
