@@ -384,6 +384,20 @@ export class RpcNotifier implements NotifierPort {
         });
     }
 
+    /**
+     * The progress task runs core-side (that is where the work is); the host
+     * only renders a spinner, so we bracket the local run with start/end
+     * notifications and `finally` guarantees the spinner clears even on throw.
+     */
+    async withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
+        this.rpc.notify(METHODS.notifierProgressStart, { title });
+        try {
+            return await task();
+        } finally {
+            this.rpc.notify(METHODS.notifierProgressEnd, { title });
+        }
+    }
+
     async openDocument(absolutePath: string): Promise<void> {
         this.rpc.notify(METHODS.notifierOpenDocument, { path: absolutePath });
     }

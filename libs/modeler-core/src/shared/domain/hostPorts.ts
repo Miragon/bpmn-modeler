@@ -49,6 +49,8 @@ export interface NotifierPort extends LoggerPort {
     /** Logs `error`, then surfaces a toast pairing `context` with the error message. */
     notifyError(context: string, error: Error): void;
     openLoggingConsole(): void;
+    /** Runs `task` under a status-bar progress indicator titled `title`. */
+    withProgress<T>(title: string, task: () => Promise<T>): Promise<T>;
     /** Opens the file at `absolutePath` in its registered editor. */
     openDocument(absolutePath: string): Promise<void>;
 }
