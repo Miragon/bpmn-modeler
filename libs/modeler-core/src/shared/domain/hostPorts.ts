@@ -49,8 +49,6 @@ export interface NotifierPort extends LoggerPort {
     /** Logs `error`, then surfaces a toast pairing `context` with the error message. */
     notifyError(context: string, error: Error): void;
     openLoggingConsole(): void;
-    /** Runs `task` under a status-bar progress indicator titled `title`. */
-    withProgress<T>(title: string, task: () => Promise<T>): Promise<T>;
     /** Opens the file at `absolutePath` in its registered editor. */
     openDocument(absolutePath: string): Promise<void>;
 }
@@ -78,8 +76,21 @@ export interface PickerPort {
     pickPayloadFile(paths: string[]): Promise<{ filePath: string; label: string } | null>;
     /** @returns the picked `scriptFormat`, or `undefined` on dismissal. */
     pickScriptLanguage(currentFormat: string): Promise<string | undefined>;
-    /** @returns the chosen model path, or `undefined` on dismissal. */
-    pickReferencedModel(paths: string[]): Promise<string | undefined>;
+    /**
+     * Runs `search` behind a busy selection list so the spinner sits where the
+     * user is looking, not only in the status bar. Only a multi-match result
+     * reveals the list to pick from; the untouched `outcome` comes back either
+     * way, so the caller keeps its own 0/1/error branching and messages.
+     *
+     * The constraint carries `kind` (not just `paths?`) because an all-optional
+     * shape is a "weak type" no locate-result union can be assigned to.
+     *
+     * @returns `{ outcome, chosen }` — `chosen` set only on a multi-match pick.
+     */
+    searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(
+        placeholder: string,
+        search: () => Promise<R>,
+    ): Promise<{ outcome: R; chosen?: string }>;
 }
 
 /**

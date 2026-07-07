@@ -13,11 +13,16 @@ function createService(result: LocateImplementationResult) {
         logInfo: vi.fn(),
         logWarning: vi.fn(),
         logError: vi.fn(),
-        withProgress: vi.fn(<T>(_title: string, task: () => Promise<T>): Promise<T> => task()),
         openDocument: vi.fn().mockResolvedValue(undefined),
     };
+    // Default stub runs the search and returns no pick; tests override `chosen`.
     const picker = {
-        pickReferencedModel: vi.fn(),
+        searchAndPickReferencedModel: vi.fn(
+            async (_placeholder: string, search: () => Promise<LocateImplementationResult>) => ({
+                outcome: await search(),
+                chosen: undefined as string | undefined,
+            }),
+        ),
     };
     const service = new ImplementationNavigationService(
         locator as never,
@@ -28,8 +33,8 @@ function createService(result: LocateImplementationResult) {
 }
 
 describe("ImplementationNavigationService.navigate", () => {
-    it("wraps the search in a status-bar progress indicator", async () => {
-        const { service, notifier } = createService({
+    it("runs the search behind the picker's busy list, passing its own thunk", async () => {
+        const { service, picker, locator } = createService({
             kind: "matches",
             paths: ["/src/MyDelegate.java"],
             readFailures: [],
@@ -37,10 +42,13 @@ describe("ImplementationNavigationService.navigate", () => {
 
         await service.navigate("com.example.MyDelegate", "javaClass");
 
-        expect(notifier.withProgress).toHaveBeenCalledTimes(1);
-        const [title] = notifier.withProgress.mock.calls[0];
-        expect(title).toContain("com.example.MyDelegate");
-        expect(title).toContain("class");
+        expect(picker.searchAndPickReferencedModel).toHaveBeenCalledTimes(1);
+        const [placeholder, search] = picker.searchAndPickReferencedModel.mock.calls[0];
+        expect(placeholder).toContain("com.example.MyDelegate");
+        expect(placeholder).toContain("class");
+        // Service hands over a thunk, not a resolved result.
+        expect(search).toBeTypeOf("function");
+        expect(locator.resolve).toHaveBeenCalled();
     });
 
     it("delegates to the locator with the same arguments", async () => {
@@ -56,7 +64,7 @@ describe("ImplementationNavigationService.navigate", () => {
     });
 
     it("opens the file directly when the locator returns a single match", async () => {
-        const { service, picker, notifier } = createService({
+        const { service, notifier } = createService({
             kind: "matches",
             paths: ["/src/MyDelegate.java"],
             readFailures: [],
@@ -64,7 +72,7 @@ describe("ImplementationNavigationService.navigate", () => {
 
         await service.navigate("com.example.MyDelegate", "javaClass");
 
-        expect(picker.pickReferencedModel).not.toHaveBeenCalled();
+        // Single match opens directly, without a pick.
         expect(notifier.openDocument).toHaveBeenCalledWith("/src/MyDelegate.java");
     });
 
@@ -74,11 +82,13 @@ describe("ImplementationNavigationService.navigate", () => {
             paths: ["/src/A.java", "/src/B.java"],
             readFailures: [],
         });
-        picker.pickReferencedModel.mockResolvedValue("/src/B.java");
+        picker.searchAndPickReferencedModel.mockImplementation(async (_placeholder, search) => ({
+            outcome: await search(),
+            chosen: "/src/B.java",
+        }));
 
         await service.navigate("t", "jobType");
 
-        expect(picker.pickReferencedModel).toHaveBeenCalledWith(["/src/A.java", "/src/B.java"]);
         expect(notifier.openDocument).toHaveBeenCalledWith("/src/B.java");
     });
 
@@ -88,7 +98,10 @@ describe("ImplementationNavigationService.navigate", () => {
             paths: ["/src/A.java", "/src/B.java"],
             readFailures: [],
         });
-        picker.pickReferencedModel.mockResolvedValue(undefined);
+        picker.searchAndPickReferencedModel.mockImplementation(async (_placeholder, search) => ({
+            outcome: await search(),
+            chosen: undefined,
+        }));
 
         await service.navigate("t", "jobType");
 

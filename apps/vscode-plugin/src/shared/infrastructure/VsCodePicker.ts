@@ -170,22 +170,72 @@ export class VsCodePicker implements PickerPort {
     }
 
     /**
-     * Returns `undefined` (not throws) on cancel: the user is free to back
-     * out of a navigation prompt. Sorted by workspace-relative path so
-     * nearby files surface first.
+     * Puts the search spinner on the selection list itself rather than the
+     * status bar. Only a multi-match result opens the list to pick from; the
+     * service still owns the 0/1/error cases via the returned `outcome`.
+     *
+     * Cancel resolves to `undefined` (never throws) — backing out of a
+     * navigation prompt is expected. Sorted by workspace-relative path so nearby
+     * files surface first.
      */
-    async pickReferencedModel(paths: string[]): Promise<string | undefined> {
-        const items = paths
-            .map((path) => ({
-                label: posix.basename(path),
-                description: workspace.asRelativePath(Uri.file(path)),
-                path,
-            }))
-            .sort((a, b) => a.description.localeCompare(b.description));
+    async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(
+        placeholder: string,
+        search: () => Promise<R>,
+    ): Promise<{ outcome: R; chosen?: string }> {
+        const qp = window.createQuickPick<ReferencedModelItem>();
+        try {
+            // Defer the reveal so a fast search doesn't flash the list open and
+            // shut; slow searches still get the spinner.
+            let revealed = false;
+            const revealTimer = setTimeout(() => {
+                revealed = true;
+                qp.busy = true;
+                qp.placeholder = placeholder;
+                qp.show();
+            }, 150);
 
-        const picked = await window.showQuickPick(items, {
-            placeHolder: "Select the referenced model to open",
-        });
-        return picked?.path;
+            let outcome: R;
+            try {
+                outcome = await search();
+            } finally {
+                clearTimeout(revealTimer);
+            }
+
+            if (!outcome.paths || outcome.paths.length < 2) {
+                // Nothing to pick — hide (in case the reveal already fired) and
+                // hand the 0/1/error cases back to the service.
+                qp.hide();
+                return { outcome, chosen: undefined };
+            }
+
+            const items = outcome.paths
+                .map((path) => ({
+                    label: posix.basename(path),
+                    description: workspace.asRelativePath(Uri.file(path)),
+                    path,
+                }))
+                .sort((a, b) => a.description.localeCompare(b.description));
+
+            qp.items = items;
+            qp.placeholder = "Select the referenced model to open";
+            qp.busy = false;
+            if (!revealed) {
+                qp.show();
+            }
+
+            const chosen = await new Promise<string | undefined>((resolve) => {
+                qp.onDidAccept(() => resolve(qp.selectedItems[0]?.path));
+                // Escape/dismissal; a resolved promise ignores a later settle.
+                qp.onDidHide(() => resolve(undefined));
+            });
+
+            return { outcome, chosen };
+        } finally {
+            qp.dispose();
+        }
     }
+}
+
+interface ReferencedModelItem extends QuickPickItem {
+    readonly path: string;
 }

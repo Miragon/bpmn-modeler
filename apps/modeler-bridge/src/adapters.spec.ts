@@ -434,30 +434,6 @@ describe("RpcNotifier", () => {
             },
         ]);
     });
-
-    it("withProgress brackets the task and returns its result", async () => {
-        const { frames, rpc } = harness();
-        const result = await new RpcNotifier(rpc).withProgress("Work", async () => 42);
-
-        expect(result).toBe(42);
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
-
-    it("withProgress still ends the spinner when the task throws", async () => {
-        const { frames, rpc } = harness();
-        const run = new RpcNotifier(rpc).withProgress("Work", async () => {
-            throw new Error("fail");
-        });
-
-        await expect(run).rejects.toThrow("fail");
-        expect(frames.map((f) => f.method)).toEqual([
-            "notifier/progressStart",
-            "notifier/progressEnd",
-        ]);
-    });
 });
 
 describe("RpcSecretStore", () => {
@@ -649,21 +625,73 @@ describe("RpcPicker", () => {
         await expect(pending).resolves.toBeNull();
     });
 
-    it("pickReferencedModel sorts by path and returns the chosen one", async () => {
+    it("searchAndPickReferencedModel brackets the search with progress, then picks from multiple matches", async () => {
         const { frames, picker, answerLast } = setup();
-        const pending = picker.pickReferencedModel(["/w/b.bpmn", "/w/a.bpmn"]);
-        expect(
-            last(frames).params.items.map((item: { description: string }) => item.description),
-        ).toEqual(["/w/a.bpmn", "/w/b.bpmn"]);
+        const pending = picker.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: ["/w/b.bpmn", "/w/a.bpmn"],
+        }));
+        await flush();
+
+        // No busy list on the host, so the search keeps the status-bar spinner:
+        // progress brackets it, then the picker opens.
+        expect(frames.filter((f) => f.method.startsWith("notifier/progress"))).toEqual([
+            { method: "notifier/progressStart", params: { title: "Searching…" } },
+            { method: "notifier/progressEnd", params: { title: "Searching…" } },
+        ]);
+        const show = frames.find((f) => f.method === "picker/show");
+        expect(show.params.items.map((item: { description: string }) => item.description)).toEqual([
+            "/w/a.bpmn",
+            "/w/b.bpmn",
+        ]);
         await answerLast({ selected: [0] });
-        await expect(pending).resolves.toBe("/w/a.bpmn");
+        await expect(pending).resolves.toEqual({
+            outcome: { kind: "matches", paths: ["/w/b.bpmn", "/w/a.bpmn"] },
+            chosen: "/w/a.bpmn",
+        });
     });
 
-    it("pickReferencedModel returns undefined on dismissal", async () => {
+    it("searchAndPickReferencedModel skips the picker for a single match", async () => {
+        const { frames, picker } = setup();
+        const result = await picker.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: ["/w/only.bpmn"],
+        }));
+        expect(result).toEqual({
+            outcome: { kind: "matches", paths: ["/w/only.bpmn"] },
+            chosen: undefined,
+        });
+        expect(frames.find((f) => f.method === "picker/show")).toBeUndefined();
+        expect(frames.map((f) => f.method)).toEqual([
+            "notifier/progressStart",
+            "notifier/progressEnd",
+        ]);
+    });
+
+    it("searchAndPickReferencedModel returns chosen=undefined when the list is dismissed", async () => {
         const { picker, answerLast } = setup();
-        const pending = picker.pickReferencedModel(["/w/a.bpmn"]);
+        const pending = picker.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: ["/w/a.bpmn", "/w/b.bpmn"],
+        }));
+        await flush();
         await answerLast({ selected: null });
-        await expect(pending).resolves.toBeUndefined();
+        await expect(pending).resolves.toEqual({
+            outcome: { kind: "matches", paths: ["/w/a.bpmn", "/w/b.bpmn"] },
+            chosen: undefined,
+        });
+    });
+
+    it("searchAndPickReferencedModel still ends the spinner when the search throws", async () => {
+        const { frames, picker } = setup();
+        const run = picker.searchAndPickReferencedModel("Searching…", async () => {
+            throw new Error("scan failed");
+        });
+        await expect(run).rejects.toThrow("scan failed");
+        expect(frames.map((f) => f.method)).toEqual([
+            "notifier/progressStart",
+            "notifier/progressEnd",
+        ]);
     });
 
     it("pickScriptLanguage pins the current format first and returns it", async () => {

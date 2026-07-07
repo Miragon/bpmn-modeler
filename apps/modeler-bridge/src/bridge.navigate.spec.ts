@@ -38,10 +38,10 @@ async function settle(): Promise<void> {
 
 /**
  * Waits for a frame matching `predicate` to land, or rejects after `timeoutMs`.
- * The navigation flow awaits `notifier.withProgress` → an async fs.glob → an
- * `await Promise.all` over per-file reads, so a single `settle()` isn't enough
- * turns to drain it; polling lets the test stay deterministic without coupling
- * to the number of microtasks the service happens to chain.
+ * The navigation flow awaits the picker's `searchAndPickReferencedModel` → an
+ * async fs.glob → an `await Promise.all` over per-file reads, so a single
+ * `settle()` isn't enough turns to drain it; polling lets the test stay
+ * deterministic without coupling to the number of microtasks the flow chains.
  */
 async function waitForFrame(
     frames: any[],

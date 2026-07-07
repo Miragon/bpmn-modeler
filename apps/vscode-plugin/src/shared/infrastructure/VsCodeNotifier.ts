@@ -1,4 +1,4 @@
-import { commands, LogOutputChannel, ProgressLocation, Uri, window } from "vscode";
+import { commands, LogOutputChannel, Uri, window } from "vscode";
 
 import { NotifierPort } from "@miragon/bpmn-modeler-core";
 
@@ -66,18 +66,6 @@ export class VsCodeNotifier implements NotifierPort {
      */
     logError(error: string | Error): void {
         this.channel.error(error);
-    }
-
-    /**
-     * Runs `task` while showing a status-bar progress indicator titled
-     * `title`. Status-bar location (`ProgressLocation.Window`) is the only
-     * surface this adapter exposes — the modal/notification variants belong
-     * on a future Picker or modal helper if a caller ever needs them.
-     */
-    withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
-        return Promise.resolve(
-            window.withProgress({ location: ProgressLocation.Window, title }, task),
-        );
     }
 
     /**

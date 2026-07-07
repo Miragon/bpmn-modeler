@@ -3,12 +3,69 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const showQuickPickMock = vi.fn();
 const asRelativePathMock = vi.fn();
 
+interface FakeQuickPick {
+    busy: boolean;
+    items: { label: string; description: string; path: string }[];
+    placeholder: string | undefined;
+    selectedItems: { path: string }[];
+    show: ReturnType<typeof vi.fn>;
+    hide: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+    onDidAccept: (cb: () => void) => void;
+    onDidHide: (cb: () => void) => void;
+    _accept?: () => void;
+    _hide?: () => void;
+}
+
+// `pickBehavior` scripts how the simulated user settles a revealed list, so
+// tests stay free of hand-timed accept/dismiss calls.
+let quickPicks: FakeQuickPick[] = [];
+let pickBehavior: { action: "accept"; index: number } | { action: "hide" } = {
+    action: "hide",
+};
+
+const createQuickPickMock = vi.fn((): FakeQuickPick => {
+    const qp: FakeQuickPick = {
+        busy: false,
+        items: [],
+        placeholder: undefined,
+        selectedItems: [],
+        show: vi.fn(),
+        hide: vi.fn(),
+        dispose: vi.fn(),
+        onDidAccept(cb) {
+            qp._accept = cb;
+        },
+        onDidHide(cb) {
+            qp._hide = cb;
+            // Both handlers are set now — settle on the next microtask.
+            queueMicrotask(() => {
+                if (pickBehavior.action === "accept") {
+                    qp.selectedItems = qp.items[pickBehavior.index]
+                        ? [qp.items[pickBehavior.index]]
+                        : [];
+                    qp._accept?.();
+                } else {
+                    qp._hide?.();
+                }
+            });
+        },
+    };
+    quickPicks.push(qp);
+    return qp;
+});
+
+function lastQuickPick(): FakeQuickPick {
+    return quickPicks[quickPicks.length - 1];
+}
+
 vi.mock("vscode", () => ({
     env: { clipboard: { readText: vi.fn(), writeText: vi.fn() } },
     window: {
         showInformationMessage: vi.fn(),
         showErrorMessage: vi.fn(),
         showQuickPick: (...args: unknown[]) => showQuickPickMock(...args),
+        createQuickPick: () => createQuickPickMock(),
         createOutputChannel: () => ({
             clear: vi.fn(),
             info: vi.fn(),
@@ -46,75 +103,133 @@ function stubWorkspace(findFilesResult: string[] = []): VsCodeWorkspace {
 
 beforeEach(() => {
     showQuickPickMock.mockReset();
+    createQuickPickMock.mockClear();
+    quickPicks = [];
+    pickBehavior = { action: "hide" };
     asRelativePathMock.mockReset();
     asRelativePathMock.mockImplementation((uri: { path: string }) => uri.path.replace(/^\//, ""));
+    vi.useRealTimers();
 });
 
-describe("VsCodePicker.pickReferencedModel", () => {
-    it("returns the chosen item's path", async () => {
-        showQuickPickMock.mockImplementation((items: { path: string }[]) =>
-            Promise.resolve(items[0]),
-        );
-
+describe("VsCodePicker.searchAndPickReferencedModel", () => {
+    it("returns the untouched outcome and the picked path for multiple matches", async () => {
+        pickBehavior = { action: "accept", index: 0 };
         const sut = new VsCodePicker(stubWorkspace());
+        const outcome = { kind: "matches", paths: ["/repo/src/z.bpmn", "/repo/lib/a.bpmn"] };
 
-        const result = await sut.pickReferencedModel(["/src/a.bpmn"]);
+        const result = await sut.searchAndPickReferencedModel("Searching…", async () => outcome);
 
-        expect(result).toBe("/src/a.bpmn");
+        // Outcome passes through untouched so the service can branch on it.
+        expect(result.outcome).toBe(outcome);
+        expect(result.chosen).toBe("/repo/lib/a.bpmn");
     });
 
-    it("returns undefined when the user dismisses the picker", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-
+    it("reveals the list busy=false with sorted basename/relative items for multiple matches", async () => {
+        pickBehavior = { action: "accept", index: 0 };
         const sut = new VsCodePicker(stubWorkspace());
 
-        const result = await sut.pickReferencedModel(["/src/a.bpmn"]);
+        await sut.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: ["/repo/src/z.bpmn", "/repo/lib/a.bpmn", "/repo/src/m.bpmn"],
+        }));
 
-        expect(result).toBeUndefined();
-    });
-
-    it("builds items with basename label + workspace-relative description", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-
-        const sut = new VsCodePicker(stubWorkspace());
-        await sut.pickReferencedModel(["/repo/src/a.bpmn"]);
-
-        const items = showQuickPickMock.mock.calls[0][0] as {
-            label: string;
-            description: string;
-            path: string;
-        }[];
-        expect(items).toHaveLength(1);
-        expect(items[0].label).toBe("a.bpmn");
-        expect(items[0].description).toBe("repo/src/a.bpmn");
-        expect(items[0].path).toBe("/repo/src/a.bpmn");
-    });
-
-    it("sorts items by workspace-relative description", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-        // Inputs in non-alphabetical order; expect the picker to receive
-        // them sorted by `description` so nearby files surface first.
-        const sut = new VsCodePicker(stubWorkspace());
-        await sut.pickReferencedModel(["/repo/src/z.bpmn", "/repo/lib/a.bpmn", "/repo/src/m.bpmn"]);
-
-        const items = showQuickPickMock.mock.calls[0][0] as { path: string }[];
-        expect(items.map((i) => i.path)).toEqual([
+        const qp = lastQuickPick();
+        expect(qp.show).toHaveBeenCalled();
+        expect(qp.busy).toBe(false);
+        expect(qp.placeholder).toBe("Select the referenced model to open");
+        // Sorted by workspace-relative description so nearby files surface first.
+        expect(qp.items.map((i) => i.path)).toEqual([
             "/repo/lib/a.bpmn",
             "/repo/src/m.bpmn",
             "/repo/src/z.bpmn",
         ]);
+        expect(qp.items[0].label).toBe("a.bpmn");
+        expect(qp.items[0].description).toBe("repo/lib/a.bpmn");
+        expect(qp.dispose).toHaveBeenCalled();
     });
 
-    it("passes the placeholder to the picker", async () => {
-        showQuickPickMock.mockResolvedValue(undefined);
-
+    it("returns chosen=undefined when the user dismisses the populated list", async () => {
+        pickBehavior = { action: "hide" };
         const sut = new VsCodePicker(stubWorkspace());
-        await sut.pickReferencedModel(["/a.bpmn"]);
 
-        const options = showQuickPickMock.mock.calls[0][1] as {
-            placeHolder: string;
-        };
-        expect(options.placeHolder).toBe("Select the referenced model to open");
+        const result = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: ["/a.bpmn", "/b.bpmn"],
+        }));
+
+        expect(result.chosen).toBeUndefined();
+        expect(lastQuickPick().dispose).toHaveBeenCalled();
+    });
+
+    it("never reveals a list for a single match and leaves chosen undefined", async () => {
+        const sut = new VsCodePicker(stubWorkspace());
+
+        const result = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: ["/a.bpmn"],
+        }));
+
+        const qp = lastQuickPick();
+        expect(result.chosen).toBeUndefined();
+        expect(qp.items).toEqual([]);
+        expect(qp.hide).toHaveBeenCalled();
+        expect(qp.dispose).toHaveBeenCalled();
+    });
+
+    it("never reveals a list for zero matches or a non-matches outcome", async () => {
+        const sut = new VsCodePicker(stubWorkspace());
+
+        const empty = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: [],
+        }));
+        const noScope = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "no-search-scope",
+        }));
+
+        expect(empty.chosen).toBeUndefined();
+        expect(noScope.chosen).toBeUndefined();
+    });
+
+    it("reveals a busy list only after the ~150 ms delay while the search runs", async () => {
+        vi.useFakeTimers();
+        let resolveSearch!: (r: { kind: string; paths: string[] }) => void;
+        const search = () =>
+            new Promise<{ kind: string; paths: string[] }>((res) => (resolveSearch = res));
+        const sut = new VsCodePicker(stubWorkspace());
+
+        const pending = sut.searchAndPickReferencedModel("Searching…", search);
+        const qp = lastQuickPick();
+
+        // Before the delay elapses the list stays hidden.
+        await vi.advanceTimersByTimeAsync(149);
+        expect(qp.show).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(1);
+        expect(qp.show).toHaveBeenCalled();
+        expect(qp.busy).toBe(true);
+        expect(qp.placeholder).toBe("Searching…");
+
+        // A single-match result then hides the spinner without populating items.
+        resolveSearch({ kind: "matches", paths: ["/a.bpmn"] });
+        await pending;
+        expect(qp.hide).toHaveBeenCalled();
+    });
+
+    it("does not flash the list when the search resolves before the reveal delay", async () => {
+        vi.useFakeTimers();
+        const sut = new VsCodePicker(stubWorkspace());
+
+        // Search resolves before the 150 ms timer, so the list never shows.
+        const result = await sut.searchAndPickReferencedModel("Searching…", async () => ({
+            kind: "matches",
+            paths: ["/a.bpmn"],
+        }));
+
+        const qp = lastQuickPick();
+        expect(qp.show).not.toHaveBeenCalled();
+        expect(qp.dispose).toHaveBeenCalled();
+        expect(result.chosen).toBeUndefined();
     });
 });
 

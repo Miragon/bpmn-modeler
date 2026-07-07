@@ -5,7 +5,7 @@ import { ReferencedModelLocator } from "./ReferencedModelLocator";
 // Maximum length of a reference id echoed back into a user-facing notification.
 const REFERENCE_ID_DISPLAY_LIMIT = 100;
 
-// Tighter cap for the status-bar progress label — it's space-constrained.
+// Tighter cap for the busy-list placeholder — it's space-constrained.
 const PROGRESS_LABEL_LIMIT = 40;
 
 /**
@@ -30,9 +30,10 @@ export class ModelNavigationService {
         sourceDocumentPath?: string,
     ): Promise<void> {
         const display = truncate(referenceId, REFERENCE_ID_DISPLAY_LIMIT);
-        // Only the search itself is wrapped — the QuickPick (multi-match) and
-        // openDocument are user-driven and must not keep a spinner visible.
-        const result = await this.notifier.withProgress(
+        // The picker shows the search spinner on the list itself; this service
+        // still owns the 0/1/error messaging. `picked` is set only on a
+        // multi-match pick.
+        const { outcome: result, chosen: picked } = await this.picker.searchAndPickReferencedModel(
             `Searching for ${kind} "${truncate(referenceId, PROGRESS_LABEL_LIMIT)}"…`,
             () => this.locator.findDeclaringFiles(referenceId, kind, sourceDocumentPath),
         );
@@ -64,7 +65,7 @@ export class ModelNavigationService {
         } else if (result.paths.length === 1) {
             chosen = result.paths[0];
         } else {
-            chosen = await this.picker.pickReferencedModel(result.paths);
+            chosen = picked;
         }
 
         if (!chosen) {
