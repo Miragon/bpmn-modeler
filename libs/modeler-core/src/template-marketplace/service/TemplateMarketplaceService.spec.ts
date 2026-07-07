@@ -458,6 +458,146 @@ describe("TemplateMarketplaceService.updateAll", () => {
     });
 });
 
+describe("TemplateMarketplaceService include filtering", () => {
+    /** A factory serving `manifest` at the root and a fixed `listing` elsewhere. */
+    function servingListing(manifest: string, listing: string[]) {
+        return vi.fn(
+            (config: RepositorySourceConfig): RepositorySource =>
+                config.path === ""
+                    ? {
+                          listTemplateFiles: vi.fn().mockResolvedValue([]),
+                          fetchFile: vi.fn().mockResolvedValue(manifest),
+                      }
+                    : {
+                          listTemplateFiles: vi.fn().mockResolvedValue(listing),
+                          fetchFile: vi.fn().mockResolvedValue("{}"),
+                      },
+        );
+    }
+
+    it("caches only a github source's include matches, keeping the full repo paths", async () => {
+        const manifest = JSON.stringify({
+            sources: [
+                {
+                    provider: "github",
+                    repo: "acme/mono",
+                    path: "connectors",
+                    include: ["**/element-templates/*.json"],
+                },
+            ],
+        });
+        // A monorepo mix: two real templates, a test fixture, and a versioned
+        // history file the single-`*` final segment must not reach.
+        const listing = [
+            "connectors/http/element-templates/rest.json",
+            "connectors/http/src/test/fixture.json",
+            "connectors/http/element-templates/versioned/old.json",
+            "connectors/aws/lambda/element-templates/lambda.json",
+        ];
+        const { service, cache } = serviceOver(
+            servingListing(manifest, listing),
+            async () => undefined,
+        );
+
+        await service.addMarketplace("https://github.com/acme/mp");
+
+        expect(cache.write).toHaveBeenCalledTimes(2);
+        // The cache key is the untrimmed listed path (only stripped for matching).
+        expect(cache.write).toHaveBeenCalledWith(
+            "acme__mp",
+            0,
+            "element-templates",
+            "connectors/http/element-templates/rest.json",
+            expect.any(String),
+        );
+        expect(cache.write).toHaveBeenCalledWith(
+            "acme__mp",
+            0,
+            "element-templates",
+            "connectors/aws/lambda/element-templates/lambda.json",
+            expect.any(String),
+        );
+    });
+
+    it("excludes a nested file for a relative source with a single-depth include", async () => {
+        const manifest = JSON.stringify({
+            sources: [{ path: "element-templates", include: ["*.json"] }],
+        });
+        const listing = ["element-templates/a.json", "element-templates/nested/b.json"];
+        const { service, cache } = serviceOver(
+            servingListing(manifest, listing),
+            async () => undefined,
+        );
+
+        await service.addMarketplace("https://github.com/acme/mp");
+
+        expect(cache.write).toHaveBeenCalledOnce();
+        expect(cache.write).toHaveBeenCalledWith(
+            "acme__mp",
+            0,
+            "element-templates",
+            "element-templates/a.json",
+            expect.any(String),
+        );
+    });
+
+    it("strips the config.path prefix for a provider:local source (config.path === '')", async () => {
+        // A local source resolves to config.path === "" while its adapter lists
+        // subtree-relative paths, so the empty prefix must leave them untouched.
+        const manifest = JSON.stringify({
+            sources: [{ provider: "local", path: "/opt/ext", include: ["*.json"] }],
+        });
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource => {
+            if (config.kind === "github" && config.path === "") {
+                return {
+                    listTemplateFiles: vi.fn().mockResolvedValue([]),
+                    fetchFile: vi.fn().mockResolvedValue(manifest),
+                };
+            }
+            return {
+                listTemplateFiles: vi.fn().mockResolvedValue(["a.json", "sub/b.json"]),
+                fetchFile: vi.fn().mockResolvedValue("{}"),
+            };
+        });
+        const { service, cache } = serviceOver(factory, async () => undefined);
+
+        await service.addMarketplace("https://github.com/acme/mp");
+
+        expect(cache.write).toHaveBeenCalledOnce();
+        expect(cache.write).toHaveBeenCalledWith(
+            "acme__mp",
+            0,
+            "element-templates",
+            "a.json",
+            expect.any(String),
+        );
+    });
+
+    it("warns and caches nothing when include matches none of the listed files", async () => {
+        const manifest = JSON.stringify({
+            sources: [
+                {
+                    provider: "github",
+                    repo: "acme/mono",
+                    path: "connectors",
+                    include: ["**/nope/*.json"],
+                },
+            ],
+        });
+        const { service, cache, notifier } = serviceOver(
+            servingListing(manifest, ["connectors/http/element-templates/rest.json"]),
+            async () => undefined,
+        );
+
+        await service.addMarketplace("https://github.com/acme/mp");
+
+        expect(cache.write).not.toHaveBeenCalled();
+        expect(notifier.logWarning).toHaveBeenCalledWith(
+            expect.stringContaining('"include" patterns matched none'),
+        );
+    });
+});
+
 describe("TemplateMarketplaceService.getCachedTemplatePaths", () => {
     it("delegates to the cache", async () => {
         const { service, cache } = createService();

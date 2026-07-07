@@ -79,9 +79,19 @@ export type MarketplaceContentType = "element-templates";
  * `local.path` is kept raw because `~` expansion needs the host's home
  * directory, known only at fetch time. `type` carries the source's content type
  * so the cache can segment it and the pipeline can claim only its own kind.
+ *
+ * `include` (optional) narrows which of the listed files a source contributes to
+ * globs matched against the subtree-relative path — the escape hatch for
+ * pointing a source at a monorepo where templates sit in nested folders among
+ * unrelated `.json` files. Absent = keep every listed file (the default).
  */
 export type TemplateSource =
-    | { readonly kind: "relative"; readonly type: MarketplaceContentType; readonly path: string }
+    | {
+          readonly kind: "relative";
+          readonly type: MarketplaceContentType;
+          readonly path: string;
+          readonly include?: readonly string[];
+      }
     | {
           readonly kind: "github";
           readonly type: MarketplaceContentType;
@@ -94,6 +104,7 @@ export type TemplateSource =
           // service pre-prompt for a token before hitting a known-private repo.
           // Undeclared-private repos still get the failure-driven prompt.
           readonly visibility?: "public" | "private";
+          readonly include?: readonly string[];
       }
     | {
           readonly kind: "gitlab";
@@ -103,8 +114,14 @@ export type TemplateSource =
           readonly path: string;
           readonly baseUrl?: string;
           readonly visibility?: "public" | "private";
+          readonly include?: readonly string[];
       }
-    | { readonly kind: "local"; readonly type: MarketplaceContentType; readonly path: string };
+    | {
+          readonly kind: "local";
+          readonly type: MarketplaceContentType;
+          readonly path: string;
+          readonly include?: readonly string[];
+      };
 
 /**
  * Normalizes a source path so it compares cleanly as a git-tree prefix, with no
@@ -589,8 +606,10 @@ function parseSource(entry: unknown, index: number): TemplateSource | Unsupporte
         throw new InvalidMarketplaceError(`sources[${index}] is missing a non-empty "path"`);
     }
 
+    const include = parseSourceInclude(source.include, index);
+
     if (source.provider === undefined) {
-        return { kind: "relative", type, path: normalizeSourcePath(path) };
+        return { kind: "relative", type, path: normalizeSourcePath(path), include };
     }
 
     if (source.provider === "local") {
@@ -604,11 +623,11 @@ function parseSource(entry: unknown, index: number): TemplateSource | Unsupporte
                     `(use a provider-less source for a marketplace-relative path)`,
             );
         }
-        return { kind: "local", type, path: local };
+        return { kind: "local", type, path: local, include };
     }
 
     if (source.provider === "gitlab") {
-        return parseGitLabSource(source, index, path, type);
+        return parseGitLabSource(source, index, path, type, include);
     }
 
     if (source.provider !== "github") {
@@ -635,6 +654,7 @@ function parseSource(entry: unknown, index: number): TemplateSource | Unsupporte
         path: normalizeSourcePath(path),
         baseUrl,
         visibility,
+        include,
     };
 }
 
@@ -663,6 +683,7 @@ function parseGitLabSource(
     index: number,
     path: string,
     type: MarketplaceContentType,
+    include: readonly string[] | undefined,
 ): TemplateSource {
     const repo = source.repo;
     if (typeof repo !== "string" || !/^[^/\s]+(?:\/[^/\s]+)+$/.test(repo)) {
@@ -678,6 +699,7 @@ function parseGitLabSource(
         path: normalizeSourcePath(path),
         baseUrl: parseSourceBaseUrl(source.baseUrl, index),
         visibility: parseSourceVisibility(source.visibility, index),
+        include,
     };
 }
 
@@ -686,6 +708,42 @@ function parseSourceRef(ref: unknown, index: number): string | undefined {
         throw new InvalidMarketplaceError(`sources[${index}] "ref" must be a string`);
     }
     return ref;
+}
+
+/**
+ * Normalizes a source's optional `include` field into a list of glob patterns.
+ * A parser, not a cast: an omitted field passes through as `undefined` (keep
+ * every listed file), a bare string is sugar for a one-element list, and a
+ * present value must be a non-empty array of non-empty strings — a typo fails
+ * loudly rather than silently matching nothing.
+ *
+ * A leading `/` or a `..` segment is rejected: patterns match a subtree-relative
+ * path (which never starts with `/` or escapes upward), so either can only be a
+ * mistake that would silently match no file.
+ */
+function parseSourceInclude(raw: unknown, index: number): readonly string[] | undefined {
+    if (raw === undefined) {
+        return undefined;
+    }
+    const patterns = typeof raw === "string" ? [raw] : raw;
+    if (!Array.isArray(patterns) || patterns.length === 0) {
+        throw new InvalidMarketplaceError(
+            `sources[${index}] "include" must be a non-empty string or array of glob strings`,
+        );
+    }
+    for (const pattern of patterns) {
+        if (typeof pattern !== "string" || pattern.trim().length === 0) {
+            throw new InvalidMarketplaceError(
+                `sources[${index}] "include" patterns must be non-empty strings`,
+            );
+        }
+        if (pattern.startsWith("/") || pattern.split("/").includes("..")) {
+            throw new InvalidMarketplaceError(
+                `sources[${index}] "include" pattern "${pattern}" must be relative and must not contain ".." segments`,
+            );
+        }
+    }
+    return patterns as string[];
 }
 
 /**

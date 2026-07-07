@@ -16,6 +16,7 @@ import {
     parseMarketplaceUrl,
     TemplateSource,
 } from "../domain/marketplace";
+import { matchesGlob } from "../domain/glob";
 import {
     hostForConfig,
     RepositoryAccessError,
@@ -217,21 +218,13 @@ export class TemplateMarketplaceService {
         );
         return this.withAuthRetry(baseConfig, run, async (config) => {
             const repository = this.sourceFactory(config);
-            const files = await repository.listTemplateFiles();
+            const listed = await repository.listTemplateFiles();
             this.notifier.logDebug(
-                `Source ${index} of "${registration.url}": ${files.length} template file(s) listed`,
+                `Source ${index} of "${registration.url}": ${listed.length} template file(s) listed`,
             );
+            const files = this.applyInclude(listed, config.path, source.include, index);
             if (files.length === 0) {
-                // A local source with zero files most often means a mistyped
-                // folder; the hint closes that otherwise-silent gap. A remote
-                // subtree returning zero is a genuine empty subtree worth flagging.
-                const hint =
-                    config.kind === "local"
-                        ? " — the folder may not exist or holds no .json files"
-                        : "";
-                this.notifier.logWarning(
-                    `Source ${index} of "${registration.url}" has no template files (${this.describeConfig(config)})${hint}`,
-                );
+                this.warnNoFilesToCache(registration, config, index, source.include, listed.length);
             }
             for (const repoPath of files) {
                 const content = await repository.fetchFile(repoPath);
@@ -242,6 +235,75 @@ export class TemplateMarketplaceService {
             }
             return files.length;
         });
+    }
+
+    /**
+     * Narrows the listed files to those whose subtree-relative path matches one
+     * of the source's `include` globs; a source without `include` keeps every
+     * file (the default). Filtering runs here, once, after listing — so it stays
+     * provider-agnostic and the adapters, cache, and ports need no change.
+     *
+     * The kept entries are the *full* listed paths (only stripped for matching),
+     * so the cache key stays the path the adapter reported. `config.path` is the
+     * prefix to strip, not `source.path`: a `provider:"local"` source resolves to
+     * `config.path === ""` while its adapter lists subtree-relative paths. A
+     * listed path unexpectedly lacking the prefix is matched whole rather than
+     * dropped, so a prefix mismatch can never silently swallow a template.
+     */
+    private applyInclude(
+        listed: string[],
+        sourcePath: string,
+        include: readonly string[] | undefined,
+        index: number,
+    ): string[] {
+        if (include === undefined) {
+            return listed;
+        }
+        const prefix = sourcePath === "" ? "" : `${sourcePath}/`;
+        const kept = listed.filter((repoPath) => {
+            const relative =
+                prefix !== "" && repoPath.startsWith(prefix)
+                    ? repoPath.slice(prefix.length)
+                    : repoPath;
+            return include.some((pattern) => matchesGlob(pattern, relative));
+        });
+        if (kept.length !== listed.length) {
+            this.notifier.logDebug(
+                `Source ${index}: "include" kept ${kept.length} of ${listed.length} listed file(s)`,
+            );
+        }
+        return kept;
+    }
+
+    /**
+     * Distinguishes the two ways a source ends up with nothing to cache. Files
+     * listed but filtered to zero by `include` almost always means a mistyped
+     * pattern (not an empty subtree), so it warrants a distinct warning naming
+     * the config; a genuinely empty listing keeps the original hint. Warn (never
+     * throw) is consistent with D8's per-source resilience.
+     */
+    private warnNoFilesToCache(
+        registration: MarketplaceRegistration,
+        config: RepositorySourceConfig,
+        index: number,
+        include: readonly string[] | undefined,
+        listedCount: number,
+    ): void {
+        if (include !== undefined && listedCount > 0) {
+            this.notifier.logWarning(
+                `Source ${index} of "${registration.url}": "include" patterns matched none of ` +
+                    `${listedCount} listed file(s) (${this.describeConfig(config)}) — check the patterns`,
+            );
+            return;
+        }
+        // A local source with zero files most often means a mistyped folder; the
+        // hint closes that otherwise-silent gap. A remote subtree returning zero
+        // is a genuine empty subtree worth flagging.
+        const hint =
+            config.kind === "local" ? " — the folder may not exist or holds no .json files" : "";
+        this.notifier.logWarning(
+            `Source ${index} of "${registration.url}" has no template files (${this.describeConfig(config)})${hint}`,
+        );
     }
 
     /**

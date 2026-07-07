@@ -515,3 +515,62 @@ describe("parseMarketplace source content type", () => {
         );
     });
 });
+
+describe("parseMarketplace source include globs", () => {
+    it("leaves include undefined when the field is omitted", () => {
+        const {
+            sources: [source],
+        } = parseMarketplace({ sources: [{ path: "templates" }] });
+        expect(source).toMatchObject({ kind: "relative" });
+        expect((source as { include?: unknown }).include).toBeUndefined();
+    });
+
+    it("normalizes a single string into a one-element array", () => {
+        const {
+            sources: [source],
+        } = parseMarketplace({ sources: [{ path: "templates", include: "*.json" }] });
+        expect(source).toMatchObject({ include: ["*.json"] });
+    });
+
+    it("carries include through all four source kinds", () => {
+        const { sources } = parseMarketplace({
+            sources: [
+                { path: "templates", include: ["a/*.json"] },
+                { provider: "github", repo: "a/b", path: "x", include: ["**/x.json"] },
+                {
+                    provider: "gitlab",
+                    repo: "g/p",
+                    path: "x",
+                    include: ["**/element-templates/*.json"],
+                },
+                { provider: "local", path: "/opt/x", include: ["*.json"] },
+            ],
+        });
+        expect(sources.map((s) => (s as { include?: unknown }).include)).toEqual([
+            ["a/*.json"],
+            ["**/x.json"],
+            ["**/element-templates/*.json"],
+            ["*.json"],
+        ]);
+    });
+
+    it("rejects a non-string / empty pattern and a non-array shape", () => {
+        for (const include of ["", [], [""], [5], {}] as unknown[]) {
+            expect(() => parseMarketplace({ sources: [{ path: "templates", include }] })).toThrow(
+                InvalidMarketplaceError,
+            );
+        }
+    });
+
+    it("rejects a leading-slash or .. escaping pattern (would match nothing)", () => {
+        expect(() =>
+            parseMarketplace({ sources: [{ path: "templates", include: ["/abs/x.json"] }] }),
+        ).toThrow(InvalidMarketplaceError);
+        expect(() =>
+            parseMarketplace({ sources: [{ path: "templates", include: ["../x.json"] }] }),
+        ).toThrow(InvalidMarketplaceError);
+        expect(() =>
+            parseMarketplace({ sources: [{ path: "templates", include: ["a/../x.json"] }] }),
+        ).toThrow(InvalidMarketplaceError);
+    });
+});
