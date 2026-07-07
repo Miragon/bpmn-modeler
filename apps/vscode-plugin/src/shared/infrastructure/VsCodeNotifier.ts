@@ -86,6 +86,8 @@ export class VsCodeNotifier implements NotifierPort {
      * stay free of `commands` and `Uri`.
      */
     async openDocument(absolutePath: string): Promise<void> {
-        await commands.executeCommand("vscode.open", Uri.file(absolutePath));
+        await commands.executeCommand("vscode.open", Uri.file(absolutePath), {
+            preview: false,
+        });
     }
 }
