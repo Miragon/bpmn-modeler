@@ -36,7 +36,7 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
                 EngineStatusBarWidget.updateTemplateCount(project, params.get("count")?.asInt ?: 0)
             }
             .on("statusBar/templatesHide") { _, _ -> EngineStatusBarWidget.updateTemplateCount(project, null) }
-            .on("statusBar/templatesLoading") { _, _ -> } // transient; the count frame follows
+            .on("statusBar/templatesLoading") { _, _ -> EngineStatusBarWidget.showTemplatesLoading(project) }
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }
             .on("notifier/showError") { params, _ -> notifications.showError(params.get("message").asString) }
             .on("notifier/notifyError") { params, _ ->
