@@ -53,6 +53,7 @@ import {
 } from "./app";
 import { DiffMode } from "./app/diff/DiffMode";
 import type { LintConfigService } from "./app/bpmnlint";
+import { installHostEditorActions } from "./app/hostEditorActions";
 import { WebviewStateManager } from "./app/state";
 
 const host = getHostApi();
@@ -340,6 +341,13 @@ async function initializeModeler(
 
     try {
         bpmnModeler.create(engine, extraModules);
+        // Lets the IntelliJ JCEF host drive undo/redo: it swallows Ctrl+Z/Ctrl+Y
+        // at the IDE level before bpmn-js sees them (works fine in VS Code/Theia).
+        installHostEditorActions((action) =>
+            bpmnModeler
+                .getService<{ trigger(action: string): void }>("editorActions")
+                .trigger(action),
+        );
         // Forward the modeler's non-fatal warnings (element-not-found, missing
         // inline script) to the output channel — they were console-only before.
         bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
