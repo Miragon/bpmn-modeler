@@ -14,6 +14,7 @@
       "release-type": "node",
       "component": "vscode",
       "include-component-in-tag": true,
+      "exclude-paths": ["apps/intellij-plugin", "docs"],
       "extra-files": [
         {
           "type": "json",
