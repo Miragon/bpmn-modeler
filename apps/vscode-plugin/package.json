@@ -215,6 +215,18 @@
                 "title": "BPMN Modeler: Change Modeler Language"
             },
             {
+                "command": "bpmn-modeler.addMarketplace",
+                "title": "BPMN Modeler: Add Marketplace"
+            },
+            {
+                "command": "bpmn-modeler.updateMarketplaces",
+                "title": "BPMN Modeler: Update Marketplaces"
+            },
+            {
+                "command": "bpmn-modeler.removeMarketplace",
+                "title": "BPMN Modeler: Remove Marketplace"
+            },
+            {
                 "command": "bpmn-modeler.selectForCompare",
                 "title": "BPMN Modeler: Select for Compare"
             },
@@ -397,6 +409,48 @@
                         "繁体中文"
                     ],
                     "markdownDescription": "UI language for the BPMN/DMN modeler (palette, context pad, properties panel)."
+                },
+                "miragon.bpmnModeler.marketplaces": {
+                    "type": "array",
+                    "scope": "window",
+                    "items": {
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "object",
+                                "required": [
+                                    "provider",
+                                    "repo"
+                                ],
+                                "properties": {
+                                    "provider": {
+                                        "enum": [
+                                            "github",
+                                            "gitlab"
+                                        ]
+                                    },
+                                    "repo": {
+                                        "type": "string",
+                                        "markdownDescription": "`owner/repo` for GitHub, or `group/subgroup/project` for GitLab."
+                                    },
+                                    "baseUrl": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "markdownDescription": "Base URL of a self-hosted GitHub Enterprise or GitLab instance (omit for the public host)."
+                                    },
+                                    "ref": {
+                                        "type": "string",
+                                        "markdownDescription": "Branch, tag, or commit to pin (omit for the default branch)."
+                                    }
+                                },
+                                "additionalProperties": false
+                            }
+                        ]
+                    },
+                    "default": [],
+                    "markdownDescription": "GitHub/GitLab repositories or local folders holding a `marketplace.json` that links to element templates. Public hosts can be a pasted URL string; a self-hosted GitHub Enterprise or GitLab is an object entry `{ \"provider\": \"github\"|\"gitlab\", \"repo\": \"…\", \"baseUrl\": \"https://…\", \"ref\": \"…\" }`. User- and Workspace-level entries are **merged** — put shared marketplaces in your User settings (\"all my projects\") and project-specific ones in the workspace. Use the `BPMN Modeler: Add Marketplace` command to register a public one; it writes to Workspace settings when a folder is open (else User). Then `BPMN Modeler: Update Marketplaces` to re-fetch. `BPMN Modeler: Remove Marketplace` unregisters one or more (multi-select) and prunes their cached templates without re-fetching the rest. Cached templates merge with workspace-local ones."
                 }
             }
         }

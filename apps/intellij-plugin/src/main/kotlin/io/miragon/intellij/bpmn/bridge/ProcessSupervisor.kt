@@ -29,6 +29,10 @@ import java.util.concurrent.atomic.AtomicInteger
  *   never builds the UI surface; tests pass a recording fake.
  * @param onSpawned Runs after every (re)spawn — seeds the deployment mirror.
  * @param onRespawned Runs after a *crash* respawn — re-registers live sessions.
+ * @param onProcessDown Runs the moment the tracked process dies, before the
+ *   respawn/give-up decision — clears any in-flight host-UI spinner so it can't
+ *   hang on a `progressEnd` the dead core will never send. Defaulted so callers
+ *   and tests that don't care stay untouched.
  * @param scheduler Runs the async pre-warm spawn and the backoff respawn.
  *   Injectable so tests step time deterministically instead of waiting on the
  *   shared platform pool.
@@ -41,6 +45,7 @@ internal class ProcessSupervisor(
     private val notifier: BridgeErrorNotifier,
     private val onSpawned: () -> Unit,
     private val onRespawned: () -> Unit,
+    private val onProcessDown: () -> Unit = {},
     private val scheduler: ScheduledExecutorService = AppExecutorUtil.getAppScheduledExecutorService(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -122,7 +127,10 @@ internal class ProcessSupervisor(
      * Reacts to the bridge process dying. Distinguishes a stable run that
      * crashed (reset the attempt counter) from a rapid restart loop (give up
      * after [MAX_RESTARTS]); on a survivable crash, respawns with linear backoff
-     * and recovers every open editor.
+     * and recovers every open editor. Fires [onProcessDown] once the death is
+     * confirmed (past the "already replaced" guard, so it never runs for a stale
+     * exit) and before any respawn/give-up branch, so in-flight spinners clear
+     * regardless of which branch wins.
      */
     private fun handleExit(dead: Process) {
         if (disposed.get()) return
@@ -130,6 +138,9 @@ internal class ProcessSupervisor(
             if (process !== dead) return // already replaced by a newer spawn
             channel.detach()
         }
+        // Outside the lock (no external callback under stateLock): reaching here
+        // guarantees `process === dead`, so this only fires for the tracked death.
+        onProcessDown()
 
         if (clock() - lastSpawnAt > STABLE_RUN_MS) {
             restartAttempts.set(0)

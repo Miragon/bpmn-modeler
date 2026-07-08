@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const findFilesMock = vi.fn();
 const createDirectoryMock = vi.fn();
 const writeFileMock = vi.fn();
+const deleteMock = vi.fn();
 const createFileSystemWatcherMock = vi.fn();
 
 vi.mock("vscode", () => ({
@@ -12,10 +13,18 @@ vi.mock("vscode", () => ({
             readFile: vi.fn(),
             writeFile: (...args: unknown[]) => writeFileMock(...args),
             createDirectory: (...args: unknown[]) => createDirectoryMock(...args),
+            delete: (...args: unknown[]) => deleteMock(...args),
         },
         findFiles: (...args: unknown[]) => findFilesMock(...args),
         getWorkspaceFolder: vi.fn(),
         createFileSystemWatcher: (...args: unknown[]) => createFileSystemWatcherMock(...args),
+    },
+    // Mirrors `vscode.FileSystemError`: an `Error` carrying a `.code`
+    // discriminant, defined inside the factory to dodge vi.mock's hoist-time TDZ.
+    FileSystemError: class FileSystemError extends Error {
+        constructor(readonly code: string) {
+            super(code);
+        }
     },
     Uri: {
         file: (path: string) => ({ scheme: "file", path, fsPath: path }),
@@ -35,7 +44,7 @@ vi.mock("vscode", () => ({
     FileType: { File: 1, Directory: 2, SymbolicLink: 64 },
 }));
 
-import { workspace } from "vscode";
+import { FileSystemError, workspace } from "vscode";
 
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
@@ -48,6 +57,8 @@ beforeEach(() => {
     createDirectoryMock.mockResolvedValue(undefined);
     writeFileMock.mockReset();
     writeFileMock.mockResolvedValue(undefined);
+    deleteMock.mockReset();
+    deleteMock.mockResolvedValue(undefined);
     createFileSystemWatcherMock.mockReset();
     createFileSystemWatcherMock.mockReturnValue({
         onDidCreate: vi.fn(),
@@ -167,6 +178,35 @@ describe("VsCodeWorkspace.createWatcher", () => {
         changeCb({ path: "/C:/ws/.camunda/element-templates/x.json" });
 
         expect(onChange).toHaveBeenCalledWith("/c:/ws/.camunda/element-templates/x.json");
+    });
+});
+
+describe("VsCodeWorkspace.deleteDirectory", () => {
+    it("recursively deletes the directory", async () => {
+        const sut = new VsCodeWorkspace();
+
+        await sut.deleteDirectory("/global/marketplaces/stale");
+
+        expect(deleteMock).toHaveBeenCalledWith(
+            expect.objectContaining({ path: "/global/marketplaces/stale" }),
+            { recursive: true },
+        );
+    });
+
+    it("swallows a FileNotFound so pruning a missing slot is a no-op", async () => {
+        deleteMock.mockRejectedValueOnce(new FileSystemError("FileNotFound"));
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.deleteDirectory("/global/marketplaces/gone")).resolves.toBeUndefined();
+    });
+
+    it("rethrows a non-FileNotFound filesystem error", async () => {
+        deleteMock.mockRejectedValueOnce(new FileSystemError("NoPermissions"));
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.deleteDirectory("/global/marketplaces/locked")).rejects.toThrow(
+            /NoPermissions/,
+        );
     });
 });
 

@@ -186,6 +186,42 @@ class ProcessSupervisorTest {
         assertEquals(1, respawnCount, "dispose does not trigger a re-register")
     }
 
+    /**
+     * A crash fires [ProcessSupervisor.onProcessDown] once per confirmed death so
+     * the host can clear in-flight spinners — even before the respawn runs, and
+     * even on the give-up crash where no respawn follows.
+     */
+    @Test
+    fun `a crash fires onProcessDown before the respawn`() {
+        val processes = mutableListOf<FakeProcess>()
+        val scheduler = DeterministicScheduler()
+        var downCount = 0
+        val supervisor =
+            ProcessSupervisor(
+                channel = RpcChannel { _, _, _ -> },
+                launcher = { spawnFake().also { processes += it } },
+                notifier = RecordingErrorNotifier(),
+                onSpawned = {},
+                onRespawned = {},
+                onProcessDown = { downCount++ },
+                scheduler = scheduler,
+                clock = MutableClock(),
+            )
+
+        supervisor.ensureStarted()
+        assertEquals(0, downCount, "no death yet")
+
+        // Each crash within the stable window fires onProcessDown once, including
+        // the final give-up crash that schedules no respawn.
+        repeat(6) {
+            processes.last().kill()
+            scheduler.runPending()
+        }
+        assertEquals(6, downCount, "onProcessDown fired once per crash")
+
+        supervisor.dispose()
+    }
+
     private companion object {
         // Comfortably past the supervisor's private 15s STABLE_RUN_MS.
         const val STABLE_WINDOW_EXCEEDED_MS = 20_000L

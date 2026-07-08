@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { FileType, RelativePattern, workspace } from "vscode";
+import { FileSystemError, FileType, RelativePattern, workspace } from "vscode";
 
 import {
     DirectoryNotFound,
@@ -160,6 +160,26 @@ export class VsCodeWorkspace implements WorkspacePort {
         // and `file://`-form inputs.
         await fs.createDirectory(toUri(posix.dirname(uri.path)));
         await fs.writeFile(uri, Buffer.from(content));
+    }
+
+    /**
+     * Recursively deletes the directory at `path`, tolerating a missing target.
+     *
+     * A `FileNotFound` is swallowed so pruning a marketplace cache slot that was
+     * already removed (or never written) is a silent no-op, matching the port
+     * contract; any other failure propagates so a real fs error is not masked.
+     *
+     * @param path Absolute path to the directory to remove.
+     */
+    async deleteDirectory(path: string): Promise<void> {
+        try {
+            await fs.delete(toUri(path), { recursive: true });
+        } catch (error) {
+            if (error instanceof FileSystemError && error.code === "FileNotFound") {
+                return;
+            }
+            throw error;
+        }
     }
 
     /**

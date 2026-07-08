@@ -28,6 +28,11 @@ import {
     SELECT_FOR_COMPARE_CMD,
 } from "./diff/controller/BpmnCompareController";
 import { DEPLOY_CMD } from "./deployment/controller/DeploymentController";
+import {
+    ADD_MARKETPLACE_CMD,
+    REMOVE_MARKETPLACE_CMD,
+    UPDATE_MARKETPLACES_CMD,
+} from "./templateMarketplace/controller/TemplateMarketplaceController";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 const SRC_DIR = __dirname;
@@ -62,6 +67,9 @@ const CODE_COMMAND_IDS = [
     COMPARE_WITH_SELECTED_CMD,
     COMPARE_SELECTED_CMD,
     DEPLOY_CMD,
+    ADD_MARKETPLACE_CMD,
+    UPDATE_MARKETPLACES_CMD,
+    REMOVE_MARKETPLACE_CMD,
 ];
 
 const CONFIG_NAMESPACE = "miragon.bpmnModeler";

@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.project.Project
 
 /**
  * One snapshot of the user-controllable `miragon.bpmnModeler.*` options.
@@ -21,6 +22,8 @@ data class ModelerSettings(
     val favouriteBpmnElements: List<String>,
     val language: String,
     val scriptingSpin: Boolean,
+    /** Pasted marketplace URLs / local paths (strings-only v1); fed to the core over RPC. */
+    val marketplaces: List<String>,
 )
 
 /**
@@ -32,6 +35,11 @@ data class ModelerSettings(
  * every open project's [CoreProcess]. Keys are namespaced exactly like the VS Code
  * configuration so a future shared-config layer (or a user reading idea.log) sees
  * matching names across hosts; defaults track `apps/vscode-plugin/package.json`.
+ *
+ * The `marketplaces` list is the exception: the app-level list held here is the
+ * "all my projects" set, but [snapshotMap] emits the union with the per-project
+ * [ProjectMarketplacesStore] (mirroring VS Code's User∪Workspace merge), so the
+ * snapshot is always project-scoped.
  */
 @Service(Service.Level.APP)
 class ModelerSettingsStore {
@@ -49,6 +57,7 @@ class ModelerSettingsStore {
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
+            marketplaces = props.getList(MARKETPLACES) ?: emptyList(),
         )
 
     /** Persists the snapshot, normalising the two constrained fields so stored values stay valid. */
@@ -64,14 +73,20 @@ class ModelerSettingsStore {
         props.setList(FAVOURITE_ELEMENTS, settings.favouriteBpmnElements.take(MAX_FAVOURITES))
         props.setValue(LANGUAGE, settings.language, DEFAULT_LANGUAGE)
         props.setValue(SCRIPTING_SPIN, settings.scriptingSpin, DEFAULT_SCRIPTING_SPIN)
+        props.setList(MARKETPLACES, settings.marketplaces)
     }
 
     /**
      * The snapshot shaped exactly as the bridge's `settings` RPC param (see the
      * TS `SettingsSnapshot`). Gson serialises the list as a JSON array; the core
      * computes the per-key change diff, so the host only ever sends the full set.
+     *
+     * `project` is required so the `marketplaces` key is the app ∪ project union
+     * from [ProjectMarketplacesStore] rather than the app-only list — the core
+     * only ever sees the merged set, so no caller can accidentally ship the
+     * narrower one.
      */
-    fun snapshotMap(): Map<String, Any> {
+    fun snapshotMap(project: Project): Map<String, Any> {
         val current = current()
         return linkedMapOf(
             "alignToOrigin" to current.alignToOrigin,
@@ -86,7 +101,37 @@ class ModelerSettingsStore {
             // `SettingsSnapshot`, NOT the dotted persisted key — a mismatch here
             // would make the gate a silent no-op.
             "scriptingSpin" to current.scriptingSpin,
+            "marketplaces" to ProjectMarketplacesStore.getInstance(project).merged(),
         )
+    }
+
+    /**
+     * Appends a registration to the app-level ("all my projects") list, de-duping
+     * against that list *alone*. Per the promotion rule, an entry that already
+     * lives in some project's [ProjectMarketplacesStore] may still be lifted
+     * app-wide, so the merged union is intentionally not consulted here — backs the
+     * "Register for all projects" add scope.
+     */
+    fun addMarketplace(location: String) {
+        val appList = props.getList(MARKETPLACES) ?: emptyList()
+        if (appList.contains(location)) return
+        props.setList(MARKETPLACES, appList + location)
+    }
+
+    /**
+     * Unregisters the given locations from the app-level ("all my projects") list,
+     * backing the app-level side of Tools ▸ Remove Template Marketplace. Only
+     * writes when the list actually shrank, so removing entries that lived solely
+     * per-project leaves this list — and its persisted `workspace.xml` value —
+     * untouched.
+     */
+    fun removeMarketplaces(locations: Collection<String>) {
+        val removeSet = locations.toSet()
+        val appList = props.getList(MARKETPLACES) ?: emptyList()
+        val remaining = appList.filterNot { it in removeSet }
+        if (remaining.size != appList.size) {
+            props.setList(MARKETPLACES, remaining)
+        }
     }
 
     /** Constrains the theme to the two values the core's `SettingsPort` accepts. */
@@ -108,6 +153,7 @@ class ModelerSettingsStore {
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
+        private const val MARKETPLACES = "miragon.bpmnModeler.marketplaces"
 
         // Defaults track apps/vscode-plugin/package.json.
         private const val DEFAULT_ALIGN_TO_ORIGIN = false

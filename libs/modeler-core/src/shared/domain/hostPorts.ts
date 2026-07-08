@@ -49,6 +49,8 @@ export interface NotifierPort extends LoggerPort {
     /** Logs `error`, then surfaces a toast pairing `context` with the error message. */
     notifyError(context: string, error: Error): void;
     openLoggingConsole(): void;
+    /** Runs `task` under a status-bar progress indicator titled `title`. */
+    withProgress<T>(title: string, task: () => Promise<T>): Promise<T>;
     /** Opens the file at `absolutePath` in its registered editor. */
     openDocument(absolutePath: string): Promise<void>;
 }
@@ -103,6 +105,23 @@ export interface ClipboardPort {
 }
 
 /**
+ * A bare string is a pasted GitHub/GitLab URL (or local folder path). The object
+ * form exists to name a self-hosted host via `baseUrl` (GitHub Enterprise
+ * `/api/v3`, or self-hosted GitLab), which a dotted-host URL string cannot
+ * express unambiguously. `repo` is the full `group/subgroup/project` path for
+ * GitLab, since nested subgroups make a two-field owner/repo split lossy.
+ * Validated defensively at parse time since a user hand-edits `settings.json`.
+ */
+export type MarketplaceSettingsEntry =
+    | string
+    | {
+          readonly provider: "github" | "gitlab";
+          readonly repo: string;
+          readonly baseUrl?: string;
+          readonly ref?: string;
+      };
+
+/**
  * Read-only access to the modeler's user/workspace configuration.
  */
 export interface SettingsPort {
@@ -117,6 +136,7 @@ export interface SettingsPort {
     getPersistCodeLinkMap(): boolean;
     /** Whether Camunda SPIN globals (`S`/`JSON`) and SpinJsonNode members are offered in C7 scripts. */
     getScriptingSpin(): boolean;
+    getMarketplaces(): MarketplaceSettingsEntry[];
 }
 
 /**
@@ -134,6 +154,12 @@ export interface WorkspacePort {
     readDirectory(path: string): Promise<[string, "file" | "directory"][]>;
     readFile(path: string): Promise<string>;
     writeFile(path: string, content: string): Promise<void>;
+    /**
+     * Recursively removes the directory at `path`. A missing path is a no-op,
+     * not an error — the marketplace-cache prune targets slots that a prior run
+     * may already have deleted, and re-deleting one must stay silent.
+     */
+    deleteDirectory(path: string): Promise<void>;
     findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]>;
     /** Returns a handle that disposes the watcher and its listeners in one call. */
     createWatcher(
@@ -184,6 +210,30 @@ export interface SecretStorePort {
     getBasicAuth(): Promise<{ username: string; password: string } | undefined>;
     saveOAuth2(clientId: string, clientSecret: string): Promise<void>;
     getOAuth2(): Promise<{ clientId: string; clientSecret: string } | undefined>;
+}
+
+/**
+ * Encrypted-at-rest storage for per-host personal access tokens reaching
+ * private template-marketplace repositories.
+ *
+ * A sibling of {@link SecretStorePort} rather than a member: that port is
+ * deployment-shaped (basic-auth / OAuth2 pairs) and reshaping it would touch
+ * every host. Keyed by `host` for a distinct token per origin; setting an
+ * existing host overwrites, which is how token rotation is expressed.
+ */
+export interface TokenStorePort {
+    getToken(host: string): Promise<string | undefined>;
+    setToken(host: string, token: string): Promise<void>;
+}
+
+/**
+ * Returns a trimmed token, or `undefined` on decline (empty/whitespace counts as
+ * decline). Never throws: a decline is per-run data, not control flow — a
+ * background `updateAll` must keep going after one, unlike {@link PickerPort}'s
+ * throw-on-cancel prompts.
+ */
+export interface TokenPromptPort {
+    promptForToken(host: string, reason: string): Promise<string | undefined>;
 }
 
 /**

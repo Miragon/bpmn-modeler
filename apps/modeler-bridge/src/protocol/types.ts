@@ -127,6 +127,44 @@ export interface ScriptAppendToManifestParams {
     description?: string;
 }
 
+/**
+ * `marketplace/add` — a Tools-menu "Add Template Marketplace" action. `settings`
+ * piggybacks the host's fresh snapshot so the fetch never depends on a prior
+ * `session/register` seed (the run may fire before any editor is open).
+ *
+ * `scope` is the host's persist target, opaque to the bridge: persistence happens
+ * in `marketplaceState/save` *after* the fetch succeeds, so the choice must ride
+ * the round trip and be echoed back. Absent = `"project"` so an older host that
+ * never sends it stays compatible.
+ */
+export interface MarketplaceAddParams {
+    location: string;
+    settings: Partial<SettingsSnapshot>;
+    scope?: "project" | "application";
+}
+
+/**
+ * `marketplace/update` — re-fetch every configured marketplace. `settings`
+ * piggybacks the snapshot for the same reason as {@link MarketplaceAddParams}.
+ */
+export interface MarketplaceUpdateParams {
+    settings: Partial<SettingsSnapshot>;
+}
+
+/**
+ * `marketplace/remove` — drop one or more marketplaces the host already
+ * unregistered, pruning their orphaned cache slots **without** re-fetching the
+ * survivors (the local counterpart to {@link MarketplaceUpdateParams}). `settings`
+ * carries the *post-removal* snapshot, so the core prunes against the reduced
+ * marketplace list. `removedCount` is the host's selection count, echoed straight
+ * into the summary toast — the prune count would understate it (a removed entry
+ * may have had no cache slot).
+ */
+export interface MarketplaceRemoveParams {
+    settings: Partial<SettingsSnapshot>;
+    removedCount: number;
+}
+
 // ── Core → Host requests (params + results) ──────────────────────────────────
 
 /** `document/write` — push core-originated text; result reports whether it changed. */
@@ -183,6 +221,47 @@ export interface BasicAuthCredentials {
 export interface OAuth2Credentials {
     clientId: string;
     clientSecret: string;
+}
+
+/**
+ * `marketplaceState/save` — the host persists the added registration and fans the
+ * new snapshot to every open bridge. No result: the host acks an empty reply and
+ * the core awaits only the round-trip (like `deploymentState/save*`).
+ *
+ * `scope` is echoed straight back from {@link MarketplaceAddParams} — the bridge
+ * never interprets it; only the host knows what its scopes mean. Absent =
+ * `"project"` so an add that carried no scope persists per-project as before.
+ */
+export interface MarketplaceStateSaveParams {
+    location: string;
+    scope?: "project" | "application";
+}
+
+/** `tokenStore/get` — read a per-host PAT; result carries the token, or `null` when none. */
+export interface TokenStoreGetParams {
+    host: string;
+}
+export interface TokenStoreGetResult {
+    token: string;
+}
+
+/** `tokenStore/set` — persist a per-host PAT (an overwrite expresses token rotation). */
+export interface TokenStoreSetParams {
+    host: string;
+    token: string;
+}
+
+/**
+ * `tokenPrompt/show` — a modal PAT-entry dialog on the host. Result carries the
+ * entered token, or `null` on decline/blank (never throws — a decline is per-run
+ * data, not control flow).
+ */
+export interface TokenPromptShowParams {
+    host: string;
+    reason: string;
+}
+export interface TokenPromptShowResult {
+    token: string;
 }
 
 // ── Core → Host notifications ────────────────────────────────────────────────

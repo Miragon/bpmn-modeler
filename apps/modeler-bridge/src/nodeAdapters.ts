@@ -360,6 +360,15 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     /**
+     * Recursively removes `path`. `force: true` makes a missing directory a
+     * no-op, mirroring `VsCodeWorkspace.deleteDirectory`, so pruning a cache slot
+     * that was already deleted never throws.
+     */
+    async deleteDirectory(path: string): Promise<void> {
+        await fs.rm(toFsPath(path), { recursive: true, force: true });
+    }
+
+    /**
      * Globs `pattern` across every registered workspace root, returning absolute
      * paths. Mirrors `VsCodeWorkspace.findFiles` for the picker's workspace-file
      * prompt: `exclude` drops matches, `limit` caps the result count.
@@ -405,6 +414,7 @@ export interface SettingsSnapshot {
     favouriteBpmnElements: string[];
     language: string;
     scriptingSpin: boolean;
+    marketplaces: string[];
 }
 
 /** Mirrors the VS Code config prefix so `affectsConfiguration` keys line up across hosts. */
@@ -431,6 +441,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
     ],
     language: "en",
     scriptingSpin: true,
+    marketplaces: [],
 };
 
 /**
@@ -518,6 +529,14 @@ export class BridgeSettings implements SettingsPort {
      */
     getScriptingSpin(): boolean {
         return this.snapshot.scriptingSpin;
+    }
+    /**
+     * The port widened to `MarketplaceSettingsEntry[]`, but returning `string[]`
+     * stays assignable by return-type covariance and keeps {@link valuesEqual}
+     * correct.
+     */
+    getMarketplaces(): string[] {
+        return this.snapshot.marketplaces;
     }
 }
 

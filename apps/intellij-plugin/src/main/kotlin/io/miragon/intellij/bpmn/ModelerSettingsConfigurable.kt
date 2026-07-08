@@ -1,7 +1,6 @@
 package io.miragon.intellij.bpmn
 
 import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.bindItem
@@ -38,6 +37,7 @@ class ModelerSettingsConfigurable : Configurable {
         var favouritesText: String,
         var language: String,
         var scriptingSpin: Boolean,
+        var marketplacesText: String,
     )
 
     private val state = loadState()
@@ -115,6 +115,21 @@ class ModelerSettingsConfigurable : Configurable {
                             )
                     }
                 }
+                group("Template Marketplaces") {
+                    row {
+                        textArea()
+                            .align(AlignX.FILL)
+                            .bindText({ state.marketplacesText }, { state.marketplacesText = it })
+                            .applyToComponent { rows = MARKETPLACES_ROWS }
+                            .comment(
+                                "GitHub / GitLab repositories or local folders holding a " +
+                                    "<code>marketplace.json</code>, one per line. This list applies " +
+                                    "to all projects; <b>Tools | Add Template Marketplace</b> instead " +
+                                    "stores the entry <b>per project</b> (invisible here). Both lists " +
+                                    "are merged. Refresh via <b>Tools | Update Template Marketplaces</b>.",
+                            )
+                    }
+                }
             }
         dialogPanel = builtPanel
         return builtPanel
@@ -126,7 +141,7 @@ class ModelerSettingsConfigurable : Configurable {
         // Push UI → state, persist, then propagate to live bridges.
         dialogPanel?.apply()
         ModelerSettingsStore.getInstance().update(state.toSettings())
-        pushToRunningBridges()
+        pushSettingsToRunningBridges()
     }
 
     override fun reset() {
@@ -140,18 +155,6 @@ class ModelerSettingsConfigurable : Configurable {
         dialogPanel = null
     }
 
-    /**
-     * Notifies every open project that has already spawned its bridge.
-     * `getServiceIfCreated` is deliberate: instantiating [CoreProcess] here would
-     * spawn a bridge for projects that never opened a `.bpmn` file.
-     */
-    private fun pushToRunningBridges() {
-        for (project in ProjectManager.getInstance().openProjects) {
-            if (project.isDisposed) continue
-            project.getServiceIfCreated(CoreProcess::class.java)?.pushSettings()
-        }
-    }
-
     private fun UiState.toSettings(): ModelerSettings =
         ModelerSettings(
             alignToOrigin = alignToOrigin,
@@ -163,6 +166,7 @@ class ModelerSettingsConfigurable : Configurable {
             favouriteBpmnElements = parseFavourites(favouritesText),
             language = language,
             scriptingSpin = scriptingSpin,
+            marketplaces = parseMarketplaces(marketplacesText),
         )
 
     private fun UiState.copyFrom(other: UiState) {
@@ -175,6 +179,7 @@ class ModelerSettingsConfigurable : Configurable {
         favouritesText = other.favouritesText
         language = other.language
         scriptingSpin = other.scriptingSpin
+        marketplacesText = other.marketplacesText
     }
 
     private fun loadState(): UiState {
@@ -189,6 +194,7 @@ class ModelerSettingsConfigurable : Configurable {
             favouritesText = settings.favouriteBpmnElements.joinToString("\n"),
             language = settings.language,
             scriptingSpin = settings.scriptingSpin,
+            marketplacesText = settings.marketplaces.joinToString("\n"),
         )
     }
 
@@ -196,8 +202,13 @@ class ModelerSettingsConfigurable : Configurable {
     private fun parseFavourites(text: String): List<String> =
         text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
+    /** Splits the textarea into trimmed, non-blank marketplace locations (the core validates each). */
+    private fun parseMarketplaces(text: String): List<String> =
+        text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
     private companion object {
         const val FAVOURITES_ROWS = 5
+        const val MARKETPLACES_ROWS = 4
         const val DEFAULT_THEME = "automatic"
         const val DEFAULT_LOCALE = "en"
 

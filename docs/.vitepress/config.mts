@@ -64,6 +64,10 @@ export default withMermaid(defineConfig({
                             link: "/vscode/features/element-template-chooser",
                         },
                         {
+                            text: "Template Marketplace",
+                            link: "/vscode/features/template-marketplace",
+                        },
+                        {
                             text: "Language Support",
                             link: "/vscode/features/language-support",
                         },

@@ -39,6 +39,10 @@ import {
     EditorPostMessageParams,
     EditorRefParams,
     EmptyParams,
+    MarketplaceAddParams,
+    MarketplaceRemoveParams,
+    MarketplaceStateSaveParams,
+    MarketplaceUpdateParams,
     NotifierLogParams,
     NotifierMessageParams,
     NotifierNotifyErrorParams,
@@ -57,6 +61,11 @@ import {
     SettingsDidChangeParams,
     StatusBarEngineVersionParams,
     StatusBarTemplatesReadyParams,
+    TokenPromptShowParams,
+    TokenPromptShowResult,
+    TokenStoreGetParams,
+    TokenStoreGetResult,
+    TokenStoreSetParams,
     WebviewMessageParams,
 } from "./types";
 
@@ -88,6 +97,9 @@ export const METHODS = {
     scriptDidChange: "script/didChange",
     scriptDidClose: "script/didClose",
     scriptAppendToManifest: "script/appendToManifest",
+    marketplaceAdd: "marketplace/add",
+    marketplaceUpdate: "marketplace/update",
+    marketplaceRemove: "marketplace/remove",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -101,6 +113,10 @@ export const METHODS = {
     deploymentStateSaveAuthType: "deploymentState/saveAuthType",
     deploymentStateSaveOAuth2Config: "deploymentState/saveOAuth2Config",
     deploymentStateSave: "deploymentState/save",
+    marketplaceStateSave: "marketplaceState/save",
+    tokenStoreGet: "tokenStore/get",
+    tokenStoreSet: "tokenStore/set",
+    tokenPromptShow: "tokenPrompt/show",
 
     // Core → Host notifications
     editorPostMessage: "editor/postMessage",
@@ -255,6 +271,28 @@ export const PROTOCOL = [
             name: "orderId",
         } satisfies ScriptAppendToManifestParams,
     },
+    {
+        method: METHODS.marketplaceAdd,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            location: "https://github.com/owner/repo",
+            settings: {},
+            scope: "project",
+        } satisfies MarketplaceAddParams,
+    },
+    {
+        method: METHODS.marketplaceUpdate,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { settings: {} } satisfies MarketplaceUpdateParams,
+    },
+    {
+        method: METHODS.marketplaceRemove,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { settings: {}, removedCount: 1 } satisfies MarketplaceRemoveParams,
+    },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
     {
@@ -347,6 +385,43 @@ export const PROTOCOL = [
             endpoint: "https://engine",
             tenantId: "t1",
         } satisfies DeploymentSaveParams,
+    },
+    // Acknowledged persist: the host adds the entry, fans the snapshot to all
+    // bridges, then acks an empty reply — the core awaits only the round-trip.
+    {
+        method: METHODS.marketplaceStateSave,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            location: "https://github.com/owner/repo",
+            scope: "project",
+        } satisfies MarketplaceStateSaveParams,
+    },
+    {
+        method: METHODS.tokenStoreGet,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: { host: "github.com" } satisfies TokenStoreGetParams,
+        resultFixture: { token: "ghp_example" } satisfies TokenStoreGetResult,
+    },
+    {
+        method: METHODS.tokenStoreSet,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            host: "github.com",
+            token: "ghp_example",
+        } satisfies TokenStoreSetParams,
+    },
+    {
+        method: METHODS.tokenPromptShow,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            host: "github.com",
+            reason: "github.com denied access; enter a personal access token.",
+        } satisfies TokenPromptShowParams,
+        resultFixture: { token: "ghp_example" } satisfies TokenPromptShowResult,
     },
 
     // ── Core → Host notifications ────────────────────────────────────────────

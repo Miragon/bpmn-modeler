@@ -67,6 +67,15 @@ export * from "./deployment/infrastructure/camunda/Camunda8RestClient";
 export * from "./deployment/infrastructure/camunda/CamundaEngineRouter";
 export * from "./deployment/infrastructure/camunda/MultipartBuilder";
 
+// ── template-marketplace ─────────────────────────────────────────────────────
+export * from "./template-marketplace/domain/marketplace";
+export * from "./template-marketplace/domain/ports";
+export * from "./template-marketplace/infrastructure/GitHubSource";
+export * from "./template-marketplace/infrastructure/GitLabSource";
+export * from "./template-marketplace/infrastructure/LocalFileSource";
+export * from "./template-marketplace/infrastructure/MarketplaceCache";
+export * from "./template-marketplace/service/TemplateMarketplaceService";
+
 // ── scriptTask: domain ───────────────────────────────────────────────────────
 export * from "./scriptTask/domain/ScriptUri";
 export * from "./scriptTask/domain/ScriptVariableStore";

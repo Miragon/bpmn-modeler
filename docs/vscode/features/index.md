@@ -11,6 +11,10 @@ Here's what you get, roughly in the order you reach for it.
 - **[Element Template Chooser](/vscode/features/element-template-chooser)** —
   browse, preview, and apply Camunda element templates from the properties
   panel. Category filters, instant search, full template preview.
+- **[Template Marketplace](/vscode/features/template-marketplace)** — pull
+  element templates from shared GitHub/GitLab repositories or local folders
+  instead of copying JSON files into every project. Public, private (token),
+  and fully offline setups.
 - **[Inline Script Editing](/vscode/features/inline-scripting)** — edit
   script-task and listener scripts in real VS Code editor tabs.
   Syntax highlighting, IntelliSense for the Camunda 7 script API,

@@ -52,6 +52,14 @@ export interface CamundaEnginePort {
  * handle serialisation, transport, and response buffering.
  */
 export interface HttpClient {
+    getText(url: string, headers?: Record<string, string>): Promise<HttpResponse>;
+
+    /**
+     * Body is returned as raw text so the caller owns parsing — the marketplace
+     * adapters need to read GitHub error bodies on non-2xx too.
+     */
+    getJson(url: string, headers?: Record<string, string>): Promise<HttpResponse>;
+
     /**
      * Sends a POST request with a JSON body.
      *

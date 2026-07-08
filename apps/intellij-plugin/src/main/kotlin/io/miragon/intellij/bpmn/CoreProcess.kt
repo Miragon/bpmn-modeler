@@ -12,6 +12,7 @@ import io.miragon.intellij.bpmn.bridge.DeploymentRouter
 import io.miragon.intellij.bpmn.bridge.DiffRouter
 import io.miragon.intellij.bpmn.bridge.EditorSessionRouter
 import io.miragon.intellij.bpmn.bridge.HostUiRouter
+import io.miragon.intellij.bpmn.bridge.MarketplaceRouter
 import io.miragon.intellij.bpmn.bridge.ProcessSupervisor
 import io.miragon.intellij.bpmn.bridge.RpcChannel
 import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
@@ -62,14 +63,19 @@ class CoreProcess(private val project: Project) : Disposable {
     private val supervisor: ProcessSupervisor =
         ProcessSupervisor(
             channel = channel,
-            launcher = DefaultBridgeProcessLauncher(),
+            // Per-project cache segment so a prune never evicts another project's
+            // marketplaces (getLocationHash is IntelliJ's stable per-project key).
+            launcher = DefaultBridgeProcessLauncher(project.locationHash),
             // Adapt the host notifier behind the narrow port; `notifications` is
             // lazy, so the UI surface is still built only on the first error.
             notifier = BridgeErrorNotifier { message -> notifications.value.showError(message) },
-            // Declared after the supervisor; safe because both lambdas only fire
-            // post-construction, on the first (re)spawn.
+            // Declared after the supervisor; safe because these lambdas only fire
+            // post-construction, on the first (re)spawn or on a crash.
             onSpawned = { deploymentRouter.sendSeed() },
             onRespawned = { editorRouter.reregisterLiveSessions() },
+            // Clear any in-flight spinner on a crash so it can't hang waiting on a
+            // progressEnd the dead core will never send.
+            onProcessDown = { hostUiRouter.clearProgress() },
         )
     private val deps =
         BridgeDeps(
@@ -87,6 +93,7 @@ class CoreProcess(private val project: Project) : Disposable {
     private val diffRouter = DiffRouter(deps)
     private val scriptRouter = ScriptRouter(deps)
     private val secretStoreRouter = SecretStoreRouter(deps)
+    private val marketplaceRouter = MarketplaceRouter(deps)
     private val hostUiRouter = HostUiRouter(deps)
 
     init {
@@ -95,6 +102,7 @@ class CoreProcess(private val project: Project) : Disposable {
         diffRouter.register()
         scriptRouter.register()
         secretStoreRouter.register()
+        marketplaceRouter.register()
         hostUiRouter.register()
 
         // Keep the core's active-editor pointer in sync with the focused tab so
@@ -128,6 +136,24 @@ class CoreProcess(private val project: Project) : Disposable {
 
     /** Pushes the current settings snapshot to the running core so an open editor reacts live. */
     fun pushSettings() = editorRouter.pushSettings()
+
+    // ── template marketplace ───────────────────────────────────────────────────
+
+    /**
+     * Fires `marketplace/add` for the pasted location; backs the Tools-menu Add
+     * action. `appWide` carries the dialog's scope choice through to the persist.
+     */
+    fun addMarketplace(location: String, appWide: Boolean) = marketplaceRouter.addMarketplace(location, appWide)
+
+    /** Fires `marketplace/update` to re-fetch every configured marketplace. */
+    fun updateMarketplaces() = marketplaceRouter.updateMarketplaces()
+
+    /**
+     * Fires `marketplace/remove` to prune the caches of already-unregistered
+     * marketplaces without re-fetching the rest; backs the Tools-menu Remove
+     * action. `removedCount` is the selection size, echoed into the summary toast.
+     */
+    fun removeMarketplaces(removedCount: Int) = marketplaceRouter.removeMarketplaces(removedCount)
 
     /**
      * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script
@@ -166,6 +192,9 @@ class CoreProcess(private val project: Project) : Disposable {
 
     override fun dispose() {
         supervisor.dispose()
+        // dispose() sets `disposed`, so handleExit skips onProcessDown on the
+        // project-close path; clear spinners here so none survives the teardown.
+        hostUiRouter.clearProgress()
         editorRouter.clear()
         diffRouter.clear()
         deploymentRouter.clear()

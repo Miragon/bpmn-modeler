@@ -53,6 +53,7 @@ import {
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
+import { TemplateMarketplaceService } from "@miragon/bpmn-modeler-core";
 import { CodeLinkHandles } from "./codeLinkFeature";
 import { SharedDeps } from "./sharedDeps";
 
@@ -70,6 +71,7 @@ interface EditorHandles {
     scriptVariableStore: ScriptVariableStore;
     scriptManifestParticipant: ScriptManifestParticipant;
     codeLink: CodeLinkHandles;
+    marketplaceSvc: TemplateMarketplaceService;
 }
 
 /**
@@ -85,13 +87,14 @@ export function register(
     context: ExtensionContext,
     deps: SharedDeps,
     handles: EditorHandles,
-): { bpmnService: BpmnModelerService } {
+): { bpmnService: BpmnModelerService; templatesSvc: BpmnElementTemplatesService } {
     const {
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
         scriptManifestParticipant,
         codeLink,
+        marketplaceSvc,
     } = handles;
 
     const panelStateRepo = new PropertiesPanelStateRepository(context);
@@ -108,6 +111,7 @@ export function register(
         deps.artifactSvc,
         deps.statusBar,
         deps.notifier,
+        marketplaceSvc,
     );
     const lintConfigLocator = new BpmnLintConfigLocator(
         deps.vsWorkspace,
@@ -258,5 +262,5 @@ export function register(
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
 
-    return { bpmnService };
+    return { bpmnService, templatesSvc };
 }

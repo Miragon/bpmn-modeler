@@ -70,13 +70,30 @@ Services are accessed via `modeler.get('serviceName')`. Key services used:
 bpmn-js events use a priority system. Higher priority listeners fire first and can prevent lower-priority listeners from executing by returning `false` or calling `event.stopPropagation()`.
 
 - Default priority: `1000`
-- This project's clipboard interceptors use priority: **`2051`** — intentionally above the internal `CopyPasteModule` (priority `2050`) to intercept before the default handler
+- The element-clipboard interceptor in `VsCodeClipboardModule` uses priority
+  **`2051`** — intentionally above bpmn-js's `NativeCopyPaste` (priority `2050`)
+  to intercept `copyPaste.elementsCopied` / `copyPaste.pasteElements` before the
+  default handler runs
 
 ## Copy-Paste Architecture (Three Layers)
 
-Copy-paste in this project operates at three distinct layers. **Important**: Layers 1 and 2 are only installed in production (`process.env.NODE_ENV !== "development"`). In development mode (plain browser), `NativeCopyPaste` from bpmn-js handles clipboard natively.
+Copy-paste in this project operates at three distinct layers. The first two are
+**bpmn-js DI modules** extracted into the shared `libs/bpmn-clipboard` package
+(`@miragon/bpmn-modeler-clipboard`) and installed as `additionalModules` in
+`apps/bpmn-webview/src/main.ts`; the third is a webview-local polyfill. The two
+DI modules receive their host bridges through didi value injection —
+`elementClipboardBridge` (element JSON) and `textClipboardBridge` (plain text),
+each a `{ requestClipboard, writeClipboard }` pair wired in `main.ts` to the
+host clipboard commands. Because bpmn-js's own `NativeCopyPaste` still handles
+the canvas natively in a plain browser, the interception only matters inside the
+sandboxed VS Code / IntelliJ webview, where the iframe has no clipboard access.
 
-### Layer 1: Diagram Elements (bpmn-js CopyPaste service)
+> Two separate host round-trips: **element** clipboard uses
+> `GetClipboardCommand` / `SetClipboardCommand` → `ClipboardQuery`; **text**
+> clipboard (labels, FEEL editor) uses `GetTextClipboardCommand` /
+> `SetTextClipboardCommand` → `TextClipboardQuery`.
+
+### Layer 1: Diagram Elements (`VsCodeClipboardModule`)
 
 Handles copying/pasting of BPMN shapes and connections on the canvas.
 
@@ -100,35 +117,25 @@ Handles copying/pasting of BPMN shapes and connections on the canvas.
 
 **Why the interceptor?** The webview runs in an iframe without clipboard API access. The extension host mediates clipboard access via `vscode.env.clipboard`.
 
-### Layer 2: Direct-Editing Label Overlays (ContentEditable Polyfill)
+### Layer 2: Direct-Editing Label Overlays (`LabelClipboardModule`)
 
-Handles copying/pasting text within contenteditable label overlays on the diagram canvas (e.g., when double-clicking a task to edit its name). Despite the filename `propertiesPanelClipboard.ts`, this targets diagram-js's **direct-editing overlays**, not properties panel inputs. Standard INPUT and TEXTAREA elements (used by the properties panel) work natively in VS Code webviews.
+Handles copying/pasting text within contenteditable label overlays on the diagram canvas (e.g., when double-clicking a task to edit its name). This targets diagram-js's **direct-editing overlays**, not properties panel inputs — standard INPUT and TEXTAREA elements work natively in VS Code webviews.
 
 **Problem**: diagram-js's `DirectEditing._handleKey` calls `stopPropagation()` on every keydown from the contenteditable overlay. This prevents native clipboard handling from reaching the element. Additionally, VS Code webview iframes lack `clipboard-read`/`clipboard-write` permissions.
 
-**Solution**: `propertiesPanelClipboard.ts` installs a **capture-phase** `keydown` listener on `document`. Capture phase fires before bubble phase, so it runs before diagram-js can stop propagation.
+**Solution**: `LabelClipboardModule` is a bpmn-js DI module that attaches a **capture-phase** `keydown` listener **on the label element, only while direct editing is active** (scoped tighter than the old document-wide listener). Capture phase fires before bubble phase, so it runs before diagram-js can stop propagation.
 
 ```
 Capture phase (our listener) → Target → Bubble phase (diagram-js listener)
 ```
 
-The polyfill:
-1. Checks if the target element is `contenteditable`
-2. If **Cmd/Ctrl+C**: reads `window.getSelection()`, writes to the system clipboard via the extension host's `writeClipboard` callback
-3. If **Cmd/Ctrl+V**: prevents the default event, reads from the system clipboard via the extension host's `requestClipboard` callback, then dispatches a synthetic `ClipboardEvent("paste")`. Falls back to `document.execCommand('insertText')` if no handler consumes the paste event.
+For Cmd/Ctrl+C it reads `window.getSelection()` and writes via the injected `textClipboardBridge.writeClipboard`; for Cmd/Ctrl+V it prevents default, reads via `textClipboardBridge.requestClipboard`, then dispatches a synthetic `ClipboardEvent("paste")`, falling back to `document.execCommand('insertText')` if no handler consumes it.
 
-### Layer 3: Select-All in ContentEditable
+### Layer 3: FEEL Editor Polyfill + Select-All Guard (`propertiesPanelClipboard.ts`)
 
-**Problem**: Cmd/Ctrl+A while editing a label selects all diagram elements instead of all text in the focused input.
+The C8 properties panel's FEEL expression editor is **CodeMirror 6**, which lives *outside* the bpmn-js DI context — so the two DI modules above can't reach it. `installContentEditableClipboardPolyfill(requestTextClipboard, writeTextClipboard)` (still webview-local in `apps/bpmn-webview/src/app/propertiesPanelClipboard.ts`, installed from `main.ts`) fills that gap: a capture-phase `keydown` listener that bridges Cmd/Ctrl+C/V on any contenteditable/text-editing surface through the host **text** clipboard.
 
-**Solution**: `main.ts` installs a capture-phase `keydown` listener that checks if the target element is `contenteditable`. If so, it uses the Selection API to select all text within that element:
-```typescript
-const range = document.createRange();
-range.selectNodeContents(target);
-selection.removeAllRanges();
-selection.addRange(range);
-```
-This prevents diagram-js from receiving the event and selecting all shapes.
+It also guards **Cmd/Ctrl+A**: without it, bpmn-js's `Keyboard` service steals Ctrl+A in a text field and selects all diagram shapes. The polyfill lets Ctrl+A select text within the focused editable element (canvas Ctrl+A stays owned by bpmn-js's `SelectionKeyBindings`).
 
 ## Element Templates
 
@@ -157,7 +164,9 @@ Theme detection uses `document.body.classList` — checking for `vscode-dark` or
 ## Key Files
 
 - **Modeler wrapper**: `apps/bpmn-webview/src/app/modeler.ts`
-- **Webview entry**: `apps/bpmn-webview/src/main.ts`
-- **Clipboard polyfill**: `apps/bpmn-webview/src/app/propertiesPanelClipboard.ts`
+- **Webview entry** (installs the clipboard modules): `apps/bpmn-webview/src/main.ts`
+- **Element clipboard module** (priority 2051, `createReviver`): `libs/bpmn-clipboard/src/VsCodeClipboardModule.ts`
+- **Label overlay clipboard module**: `libs/bpmn-clipboard/src/LabelClipboardModule.ts`
+- **FEEL editor + Ctrl+A polyfill**: `apps/bpmn-webview/src/app/propertiesPanelClipboard.ts`
 - **Barrel exports**: `apps/bpmn-webview/src/app/index.ts`
-- **VS Code API mock**: `apps/bpmn-webview/src/app/vscode.ts`
+- **Host API wrapper + dev mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/app/host.ts`

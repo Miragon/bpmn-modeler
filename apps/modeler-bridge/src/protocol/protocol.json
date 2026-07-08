@@ -136,6 +136,33 @@
         ]
     },
     {
+        "method": "marketplace/add",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "location",
+            "scope",
+            "settings"
+        ]
+    },
+    {
+        "method": "marketplace/update",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "settings"
+        ]
+    },
+    {
+        "method": "marketplace/remove",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "removedCount",
+            "settings"
+        ]
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",
@@ -244,6 +271,47 @@
         "paramKeys": [
             "endpoint",
             "tenantId"
+        ]
+    },
+    {
+        "method": "marketplaceState/save",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "location",
+            "scope"
+        ]
+    },
+    {
+        "method": "tokenStore/get",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "host"
+        ],
+        "resultKeys": [
+            "token"
+        ]
+    },
+    {
+        "method": "tokenStore/set",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "host",
+            "token"
+        ]
+    },
+    {
+        "method": "tokenPrompt/show",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "host",
+            "reason"
+        ],
+        "resultKeys": [
+            "token"
         ]
     },
     {

@@ -434,6 +434,30 @@ describe("RpcNotifier", () => {
             },
         ]);
     });
+
+    it("withProgress brackets the task and returns its result", async () => {
+        const { frames, rpc } = harness();
+        const result = await new RpcNotifier(rpc).withProgress("Work", async () => 42);
+
+        expect(result).toBe(42);
+        expect(frames.map((f) => f.method)).toEqual([
+            "notifier/progressStart",
+            "notifier/progressEnd",
+        ]);
+    });
+
+    it("withProgress still ends the spinner when the task throws", async () => {
+        const { frames, rpc } = harness();
+        const run = new RpcNotifier(rpc).withProgress("Work", async () => {
+            throw new Error("fail");
+        });
+
+        await expect(run).rejects.toThrow("fail");
+        expect(frames.map((f) => f.method)).toEqual([
+            "notifier/progressStart",
+            "notifier/progressEnd",
+        ]);
+    });
 });
 
 describe("RpcSecretStore", () => {

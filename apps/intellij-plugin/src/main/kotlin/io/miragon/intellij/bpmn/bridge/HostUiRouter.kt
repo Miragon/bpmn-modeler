@@ -4,10 +4,15 @@ import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.ide.CopyPasteManager
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import io.miragon.intellij.bpmn.EngineStatusBarWidget
 import io.miragon.intellij.bpmn.HostPicker
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Routes the core's host-UI ports — `PickerPort`, clipboard, `StatusBarPort`,
@@ -20,6 +25,11 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
 
     private val notifications get() = deps.notifications.value
     private val project get() = deps.project
+
+    // One in-flight spinner per progress title. The core brackets a run with
+    // progressStart/progressEnd; the future is what a `Task.Backgroundable` blocks
+    // on so the spinner lives exactly as long as the core-side work.
+    private val progressTasks = ConcurrentHashMap<String, CompletableFuture<Void>>()
 
     fun register() {
         deps.handlers
@@ -47,8 +57,58 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
             .on("notifier/log") { params, _ ->
                 notifications.log(params.get("level")?.asString, params.get("message")?.asString.orEmpty())
             }
-            .on("notifier/progressStart") { params, _ -> log.debug("notifier/progressStart: ${params.get("title")?.asString}") }
-            .on("notifier/progressEnd") { params, _ -> log.debug("notifier/progressEnd: ${params.get("title")?.asString}") }
+            .on("notifier/progressStart") { params, _ ->
+                handleProgressStart(params.get("title")?.asString.orEmpty())
+            }
+            .on("notifier/progressEnd") { params, _ ->
+                handleProgressEnd(params.get("title")?.asString.orEmpty())
+            }
+    }
+
+    /**
+     * Launches an indeterminate background spinner titled by the core's progress
+     * label, backed by a [CompletableFuture] the `run()` blocks on. Keeps the
+     * existing log line (the diagnostic trail) and completes any stale same-title
+     * future so its task exits — a title is only ever bracketed by one start/end
+     * pair core-side, so a residual one means the previous run threw past its end.
+     * Benefits deployments too, which use the same progress bracket.
+     */
+    private fun handleProgressStart(title: String) {
+        log.debug("notifier/progressStart: $title")
+        val future = CompletableFuture<Void>()
+        progressTasks.put(title, future)?.complete(null)
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) {
+                future.complete(null)
+                return@invokeLater
+            }
+            ProgressManager.getInstance().run(
+                object : Task.Backgroundable(project, title, false) {
+                    override fun run(indicator: ProgressIndicator) {
+                        indicator.isIndeterminate = true
+                        // Blocks until progressEnd completes the future; the work
+                        // itself runs core-side, so the host only holds the spinner.
+                        runCatching { future.get() }
+                    }
+                },
+            )
+        }
+    }
+
+    private fun handleProgressEnd(title: String) {
+        log.debug("notifier/progressEnd: $title")
+        progressTasks.remove(title)?.complete(null)
+    }
+
+    /**
+     * Completes and drops every in-flight spinner future so a blocked
+     * [Task.Backgroundable] exits instead of hanging on a `progressEnd` a crashed
+     * core will never send. Invoked when the bridge goes down (process death or
+     * dispose); without it a mid-run crash leaves the spinner until IDE restart
+     * and a progress-pool thread parked on `future.get()`.
+     */
+    fun clearProgress() {
+        for (title in progressTasks.keys.toList()) progressTasks.remove(title)?.complete(null)
     }
 
     /**

@@ -7,6 +7,28 @@ import { HttpClient, HttpResponse } from "../domain/ports";
  * external dependencies are required.
  */
 export class FetchHttpClient implements HttpClient {
+    async getText(url: string, headers: Record<string, string> = {}): Promise<HttpResponse> {
+        const response = await fetch(url, { method: "GET", headers });
+        return {
+            status: response.status,
+            body: await response.text(),
+        };
+    }
+
+    async getJson(url: string, headers: Record<string, string> = {}): Promise<HttpResponse> {
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                ...headers,
+            },
+        });
+        return {
+            status: response.status,
+            body: await response.text(),
+        };
+    }
+
     /**
      * Sends a POST request with a JSON body.
      *
