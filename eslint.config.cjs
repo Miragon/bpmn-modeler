@@ -120,6 +120,35 @@ module.exports = [
             "@typescript-eslint/no-require-imports": "off",
         },
     },
+    // Public-API barrel guardrail (BND-PUBLIC-API-BARREL): external code must
+    // reach the i18n library only through its `@miragon/bpmn-modeler-i18n`
+    // entry point, never deep-import `languages/**` or `TranslateModule`. The
+    // curated barrel is the single seam; deep imports couple callers to locale
+    // internals and defeat the parity/structure guardrails. Scoped to exclude
+    // the package itself, whose internal relative imports are legitimate.
+    {
+        files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.vue"],
+        ignores: ["libs/bpmn-i18n/**"],
+        rules: {
+            "no-restricted-imports": [
+                "error",
+                {
+                    patterns: [
+                        {
+                            group: [
+                                "@miragon/bpmn-modeler-i18n/*",
+                                "**/bpmn-i18n/src/languages",
+                                "**/bpmn-i18n/src/languages/**",
+                                "**/bpmn-i18n/src/TranslateModule",
+                            ],
+                            message:
+                                "Import from the '@miragon/bpmn-modeler-i18n' barrel only; languages/** and TranslateModule are private (BND-PUBLIC-API-BARREL).",
+                        },
+                    ],
+                },
+            ],
+        },
+    },
     // Must come last: turns off ESLint rules that would conflict with Prettier.
     eslintConfigPrettier,
 ];

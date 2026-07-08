@@ -469,6 +469,26 @@ const translations: Record<string, string> = {
     "Wait for completion": "Auf Fertigstellung warten",
     "Wait for Completion": "Auf Fertigstellung warten",
     "Zeebe user task": "Zeebe-Benutzeraufgabe",
+    "Business Key": "Geschäftsschlüssel",
+    "Specify more than one group as a comma separated list.":
+        "Geben Sie mehr als eine Gruppe als kommagetrennte Liste an.",
+    "Specify more than one user as a comma separated list.":
+        "Geben Sie mehr als einen Benutzer als kommagetrennte Liste an.",
+    "Specify more than one variable change event as a comma separated list.":
+        "Geben Sie mehr als ein Variablenänderungsereignis als kommagetrennte Liste an.",
+    "<none>": "<keine>",
+    "Form Ref": "Formularreferenz",
+    "Local Variable Name": "Name der lokalen Variable",
+    "Variable Assignment Type": "Typ der Variablenzuweisung",
+    "Variable Assignment Value": "Wert der Variablenzuweisung",
+    "Process Variable Name": "Prozess-Variablenname",
+    "String or Expression": "Zeichenkette oder Ausdruck",
+    "No variables defined.": "Keine Variablen definiert.",
+    "Available process variables, identified in the diagram.":
+        "Verfügbare Prozessvariablen, die im Diagramm erkannt wurden.",
+    "No variables found.": "Keine Variablen gefunden.",
+    "Global Message referenced": "Globale Nachricht referenziert",
+    "Properties Panel": "Eigenschaften-Panel",
 };
 
 export default translations;

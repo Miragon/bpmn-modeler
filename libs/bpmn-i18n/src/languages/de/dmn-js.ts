@@ -200,6 +200,22 @@ const translations: Record<string, string> = {
     "Yes": "Ja",
     "value, value, ...": "Wert, Wert, ...",
     "value": "Wert",
+    "Add Values": "Werte hinzufügen",
+    "cellInput": "cellInput",
+    "Change Cell Expression Language": "Zell-Ausdruckssprache ändern",
+    "Add Rule": "Regel hinzufügen",
+    "Append Decision": "Entscheidung anhängen",
+    "Append Knowledge Source": "Wissensquelle anhängen",
+    "Append Business Knowledge Model": "Geschäftswissensmodell anhängen",
+    "Append Input Data": "Eingabedaten anhängen",
+    "input": "Eingabe",
+    "Edit DRD": "DRD bearbeiten",
+    "Close OverView": "Übersicht schließen",
+    "Open OverView": "Übersicht öffnen",
+    "Hit Policy": "Trefferrichtlinie",
+    "enterExpression": "Ausdruck eingeben",
+    "Move Input": "Eingabe verschieben",
+    "Move Output": "Ausgabe verschieben",
 };
 
 export default translations;

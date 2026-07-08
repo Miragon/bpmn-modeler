@@ -197,6 +197,8 @@ const translations: Record<string, string> = {
     "unsupported bpmnElement for {plane}: {rootElement}":
         "Nicht unterstütztes bpmnElement für {plane}: {rootElement}",
     "User task": "Benutzer-Aufgabe",
+    "Append TextAnnotation": "Textannotation anfügen",
+    "TextAnnotation": "Textannotation",
 };
 
 export default translations;

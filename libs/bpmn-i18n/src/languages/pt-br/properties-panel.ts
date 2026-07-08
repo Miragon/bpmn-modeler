@@ -264,6 +264,228 @@ const translations: Record<string, string> = {
     "Generated Task Forms": "Formulários de Tarefa Gerados",
     "Form key": "Chave do Formulário",
     "Form reference": "Referência do Formulário",
+    "A cycle defined as ISO 8601 repeating intervals format, or a cron expression.":
+        "Um ciclo definido no formato de intervalos repetitivos ISO 8601, ou uma expressão cron.",
+    "A cycle defined as ISO 8601 repeating intervals format.":
+        "Um ciclo definido no formato de intervalos repetitivos ISO 8601.",
+    "A specific point in time defined as ISO 8601 combined date and time representation.":
+        "Um momento específico definido como representação combinada de data e hora ISO 8601.",
+    "A time duration defined as ISO 8601 durations format.":
+        "Uma duração de tempo definida no formato de durações ISO 8601.",
+    "Activity reference": "Referência de Atividade",
+    "and ": "e ",
+    "Assignment": "Atribuição",
+    "Asynchronous after": "Assíncrono Após",
+    "Asynchronous before": "Assíncrono Antes",
+    "boolean": "booleano",
+    "BPMN": "BPMN",
+    "Business key expression": "Expressão da Chave de Negócios",
+    "Business rule task documentation": "Documentação da Atividade de Regra de Negócios",
+    "Call activity documentation": "Documentação da Atividade de Chamada",
+    "Called decision": "Decisão Chamada",
+    "Camunda Form (embedded)": "Formulário Camunda (incorporado)",
+    "Camunda Form (linked)": "Formulário Camunda (vinculado)",
+    "Camunda Form": "Camunda Form",
+    "Candidate groups": "Grupos Candidatos",
+    "Candidate users": "Usuários Candidatos",
+    "Case ref": "Referência de Caso",
+    "CMMN": "CMMN",
+    "Code variable": "Variável de Código",
+    "Code": "Código",
+    "Completion condition": "Condição de Conclusão",
+    "Condition expression": "Expressão de Condição",
+    "Condition Expression": "Expressão de Condição",
+    "Conditions documentation": "Documentação de Condições",
+    "Connector ID": "ID do Conector",
+    "Constraints": "Restrições",
+    "Create a new local variable in the scope of this task. ":
+        "Crie uma nova variável local no escopo desta atividade. ",
+    "Create new ...": "Criar novo ...",
+    "Custom Foo Group": "Grupo Foo Personalizado",
+    "Custom form key": "Chave de Formulário Personalizada",
+    "Custom type": "Tipo Personalizado",
+    "Customize how result variables are merged into the global scope of the process instance. ":
+        "Personalize como as variáveis de resultado são mescladas no escopo global da instância do processo. ",
+    "date": "date",
+    "Decision ID": "ID da Decisão",
+    "Decision reference": "Referência de Decisão",
+    "Default value": "Valor Padrão",
+    "Define a boolean condition expression that defines when this flow is taken. ":
+        "Defina uma expressão de condição booleana que define quando este fluxo é seguido. ",
+    "Define an error code (e.g. ": "Defina um código de erro (por ex. ",
+    "Define an input collection expression that defines the collection to iterate over (e.g. ":
+        "Defina uma expressão de coleção de entrada que define a coleção a ser iterada (por ex. ",
+    "Define the decision to evaluate and how to map back the evaluation result. ":
+        "Defina a decisão a ser avaliada e como mapear o resultado da avaliação. ",
+    "Define the ID of the process to call (e.g. ":
+        "Defina o ID do processo a ser chamado (por ex. ",
+    "Define the name of the message (e.g. ": "Defina o nome da mensagem (por ex. ",
+    "Define the name of the variable that will contain the error code.":
+        "Defina o nome da variável que conterá o código de erro.",
+    "Define the name of the variable that will contain the error message.":
+        "Defina o nome da variável que conterá a mensagem de erro.",
+    "Define the name of the variable that will contain the escalation code.":
+        "Defina o nome da variável que conterá o código de escalação.",
+    "Define who the task is assigned to. One or all of the following attributes can be specified simultaneously. ":
+        "Defina a quem a atividade é atribuída. Um ou todos os atributos a seguir podem ser especificados simultaneamente. ",
+    "Delegate Class": "Classe Delegada",
+    "DMN decision": "Decisão DMN",
+    "Documentation: Timer events": "Documentação: Eventos de Temporizador",
+    "Documentation: Variable events": "Documentação: Eventos de Variável",
+    "Due date": "Data de Vencimento",
+    "Element variable": "Variável de Elemento",
+    "enum": "enum",
+    "Error event documentation": "Documentação do Evento de Erro",
+    "Evaluate a business rule, for example a DMN decision. To add a custom implementation, use a job worker. ":
+        "Avalie uma regra de negócio, por exemplo uma decisão DMN. Para adicionar uma implementação personalizada, use um job worker. ",
+    "every 10 seconds, up to 5 times": "a cada 10 segundos, até 5 vezes",
+    "every day, infinitely": "todos os dias, infinitamente",
+    "every hour on the hour from 9-5 p.m. UTC Monday-Friday":
+        "a cada hora em ponto das 9h às 17h UTC de segunda a sexta-feira",
+    "Execute this task for each element of a given collection. ":
+        "Execute esta atividade para cada elemento de uma dada coleção. ",
+    "External form reference": "Referência de Formulário Externo",
+    "FEEL expression": "Expressão FEEL",
+    "Follow up date": "Data de Acompanhamento",
+    "Form ID": "ID do Formulário",
+    "Form JSON configuration": "Configuração JSON do Formulário",
+    "Form": "Formulário",
+    "Global error reference": "Referência Global de Erro",
+    "Global escalation reference": "Referência Global de Escalação",
+    "Global message reference": "Referência Global de Mensagem",
+    "Global signal reference": "Referência Global de Sinal",
+    "Group 1": "Grupo 1",
+    "Group 2": "Grupo 2",
+    "Group 3": "Grupo 3",
+    "Group 4": "Grupo 4",
+    "Headers": "Cabeçalhos",
+    "How to configure a timer": "Como configurar um temporizador",
+    "ID must be a valid QName.": "ID deve ser um QName válido.",
+    "ID must be unique.": "ID deve ser único.",
+    "ID must not be empty.": "ID não deve estar vazio.",
+    "ID must not contain prefix.": "ID não deve conter prefixo.",
+    "ID must not contain spaces.": "ID não deve conter espaços.",
+    "If turned on, all variables from the child process instance will be propagated to the parent process instance.":
+        "Se ativado, todas as variáveis da instância do processo filho serão propagadas para a instância do processo pai.",
+    "If turned on, all variables from the parent process instance will be propagated to the child process instance.":
+        "Se ativado, todas as variáveis da instância do processo pai serão propagadas para a instância do processo filho.",
+    "Implement a script task using an inline FEEL expression. To add a custom implementation, use a job worker. ":
+        "Implemente uma atividade de script usando uma expressão FEEL em linha. Para adicionar uma implementação personalizada, use um job worker. ",
+    "Implement a user task managed by Zeebe. To add a custom implementation, use a job worker. ":
+        "Implemente uma atividade de usuário gerenciada pelo Zeebe. Para adicionar uma implementação personalizada, use um job worker. ",
+    "Input collection": "Coleção de Entrada",
+    "Input element": "Elemento de Entrada",
+    "Input mappings documentation": "Documentação de Mapeamentos de Entrada",
+    "Input propagation": "Propagação de Entrada",
+    "Job worker": "Job worker",
+    "Learn how to define conditions.": "Saiba como definir condições.",
+    "Learn more how to ": "Saiba mais sobre como ",
+    "Learn more.": "Saiba mais.",
+    "Link a form created with the Camunda Forms editor. To associate a custom form, application, or URL to the user task, specify an external reference. ":
+        "Vincule um formulário criado com o editor Camunda Forms. Para associar um formulário personalizado, aplicação ou URL à atividade de usuário, especifique uma referência externa. ",
+    "Link or embed a form created with the Camunda Forms editor. To associate a custom form, application, or URL to the user task, specify a form key. ":
+        "Vincule ou incorpore um formulário criado com o editor Camunda Forms. Para associar um formulário personalizado, aplicação ou URL à atividade de usuário, especifique uma chave de formulário. ",
+    "List values": "Valores de Lista",
+    "Listener ID": "ID do Listener",
+    "long": "long",
+    "Loop cardinality": "Cardinalidade do Loop",
+    "Map decision result": "Mapear Resultado da Decisão",
+    "Map entries": "Entradas de Mapa",
+    "Message event documentation": "Documentação do Evento de Mensagem",
+    "Message throw event documentation": "Documentação do Evento de Lançamento de Mensagem",
+    "Message variable": "Variável de Mensagem",
+    "Multi instance documentation": "Documentação de Múltiplas Instâncias",
+    "Multiple elements are selected. Select a single element to edit its properties.":
+        "Vários elementos estão selecionados. Selecione um único elemento para editar suas propriedades.",
+    "Number of days before this resource is being cleaned up. If specified, takes precedence over the engine configuration.":
+        "Número de dias antes que este recurso seja limpo. Se especificado, tem precedência sobre a configuração do mecanismo.",
+    "Off": "Desativado",
+    "On": "Ativado",
+    "option A": "opção A",
+    "option B": "opção B",
+    "option C": "opção C",
+    "Otherwise, only variables defined via input mappings will be propagated.":
+        "Caso contrário, apenas as variáveis definidas por meio de mapeamentos de entrada serão propagadas.",
+    "Otherwise, only variables defined via output mappings will be propagated.":
+        "Caso contrário, apenas as variáveis definidas por meio de mapeamentos de saída serão propagadas.",
+    "Output collection": "Coleção de Saída",
+    "Output element": "Elemento de Saída",
+    "Output mappings documentation": "Documentação de Mapeamentos de Saída",
+    "Output propagation": "Propagação de Saída",
+    "Participant Name": "Nome do Participante",
+    "Participant ID": "ID do Participante",
+    "Process documentation": "Documentação do Processo",
+    "Process ID": "ID do Processo",
+    "Process name": "Nome do Processo",
+    "Propagate all child process variables": "Propagar todas as variáveis do processo filho",
+    "Propagate all parent process variables": "Propagar todas as variáveis do processo pai",
+    "Propagate all variables": "Propagar todas as variáveis",
+    "Receive task documentation": "Documentação da Atividade de Recebimento",
+    "Refers to the process variable name": "Refere-se ao nome da variável de processo",
+    "Result variable": "Variável de Resultado",
+    "Retries": "Tentativas",
+    "Retry time cycle": "Ciclo de Tempo de Nova Tentativa",
+    "Scope": "Escopo",
+    "Script task documentation": "Documentação da Atividade de Script",
+    "Script type": "Tipo de Script",
+    "Select an element to edit its properties.":
+        "Selecione um elemento para editar suas propriedades.",
+    "Send task documentation": "Documentação da Atividade de Envio",
+    "send ": "enviar ",
+    "Service task documentation": "Documentação da Atividade de Serviço",
+    "Set color": "Definir cor",
+    "Source expression": "Expressão de Origem",
+    "Specify more than one group as a comma separated list. ":
+        "Especifique mais de um grupo como uma lista separada por vírgulas. ",
+    "Specify more than one user as a comma separated list. ":
+        "Especifique mais de um usuário como uma lista separada por vírgulas. ",
+    "Specify more than one variable change event as a comma separated list . Variable change events are:":
+        "Especifique mais de um evento de alteração de variável como uma lista separada por vírgulas. Os eventos de alteração de variável são:",
+    "Specify more than one variable change event as a comma separated list. ":
+        "Especifique mais de um evento de alteração de variável como uma lista separada por vírgulas. ",
+    "Specify which job workers handle the event work. ":
+        "Especifique quais job workers tratam o trabalho do evento. ",
+    "Specify which job workers handle the task work to evaluate business rules. ":
+        "Especifique quais job workers tratam o trabalho da atividade para avaliar regras de negócio. ",
+    "Specify which job workers handle the task work to execute a script. ":
+        "Especifique quais job workers tratam o trabalho da atividade para executar um script. ",
+    "Specify which job workers handle the task work to execute a service (e.g. ":
+        "Especifique quais job workers tratam o trabalho da atividade para executar um serviço (por ex. ",
+    "Specify which job workers handle the task work to send a message (e.g. ":
+        "Especifique quais job workers tratam o trabalho da atividade para enviar uma mensagem (por ex. ",
+    "string": "string",
+    "Subscription correlation key": "Chave de Correlação de Assinatura",
+    "Task definition": "Definição da Atividade",
+    "Tenant ID": "ID do Locatário",
+    "The due date as an EL expression (e.g. ${someDate}) or an ISO date (e.g. 2015-06-26T09:54:00).":
+        "A data de vencimento como uma expressão EL (por ex. ${someDate}) ou uma data ISO (por ex. 2015-06-26T09:54:00).",
+    "The number of times the engine tries executing this activity if a worker signals a failure. The default is three.":
+        "O número de vezes que o mecanismo tenta executar esta atividade se um worker sinalizar uma falha. O padrão é três.",
+    "Throw expression": "Expressão de Lançamento",
+    "Timer documentation": "Documentação do Temporizador",
+    "To collect the output define the output collection and the output element expressions. ":
+        "Para coletar a saída, defina a coleção de saída e as expressões de elemento de saída. ",
+    "User task documentation": "Documentação da Atividade de Usuário",
+    "User task form documentation": "Documentação do Formulário da Atividade de Usuário",
+    "UTC plus 2 hours zone offset": "deslocamento de fuso UTC mais 2 horas",
+    "UTC time": "Hora UTC",
+    "Variable assignment value": "Valor de Atribuição de Variável",
+    "Variable events": "Eventos de Variável",
+    "version tag": "tag de versão",
+    "Wait for completion": "Aguardar conclusão",
+    "Zeebe user task": "Atividade de Usuário Zeebe",
+    "Form Ref": "Referência de Formulário",
+    "Local Variable Name": "Nome da Variável Local",
+    "Variable Assignment Type": "Tipo de Atribuição de Variável",
+    "Variable Assignment Value": "Valor de Atribuição de Variável",
+    "Process Variable Name": "Nome da Variável de Processo",
+    "String or Expression": "String ou Expressão",
+    "No variables defined.": "Nenhuma variável definida.",
+    "Available process variables, identified in the diagram.":
+        "Variáveis de processo disponíveis, identificadas no diagrama.",
+    "No variables found.": "Nenhuma variável encontrada.",
+    "Global Message referenced": "Mensagem Global referenciada",
+    "Properties Panel": "Painel de Propriedades",
 };
 
 export default translations;

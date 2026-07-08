@@ -9,6 +9,21 @@ Traditional Chinese — each locale assembled from four flat dictionaries
 strings; `{param}` placeholders are substituted at lookup time, and a missing
 key falls back to the English source.
 
+## Translations are machine-assisted — native speakers welcome
+
+`en` is the canonical key set; every other locale is held to _exact_ key parity
+with it by the `keyParity.spec.ts` guardrail (no missing keys, no extras). To
+reach that parity a large share of the non-English values were **generated with
+LLM assistance** (seeded with the German/Spanish references and the project
+glossary) rather than written by native speakers. They preserve `{param}`
+placeholders and keep industry-standard terms (BPMN, DMN, FEEL, …) untranslated,
+but the phrasing has not been reviewed by native speakers for every locale.
+
+**Contributions from native speakers are very welcome.** To improve a locale,
+edit the values in `src/languages/<locale>/{bpmn-js,dmn-js,properties-panel,other}.ts`
+— never touch the keys (they are the English lookup identifiers). `corepack yarn
+test` enforces that your changes keep the locale at full key parity with `en`.
+
 ## How it works
 
 A single `CustomTranslator` instance is exported as the shared singleton
@@ -16,7 +31,7 @@ A single `CustomTranslator` instance is exported as the shared singleton
 `customTranslator` service and as the `translate(template, replacements)`
 factory bpmn-js calls during rendering. `i18n.setLanguage(locale)` atomically
 swaps the active dictionary and fires `onChange` listeners so UI that lives
-*outside* the bpmn-js DI container can re-render.
+_outside_ the bpmn-js DI container can re-render.
 
 ## Why this lives in its own library
 
@@ -24,7 +39,7 @@ swaps the active dictionary and fires `onChange` listeners so UI that lives
   through their private DI container (via the `translate` factory), while
   webview UI that sits outside that container — the diff legend, the resizer
   toggle — can't inject DI services and must import `i18n` directly. Exporting
-  the *same* instance both as a didi module and as a singleton is what keeps the
+  the _same_ instance both as a didi module and as a singleton is what keeps the
   two scopes in sync on a language change; that dual shape is the reason it is
   its own package rather than folded into the webview or `shared`.
 - **The extension host needs the catalogue too.** `supportedLanguages` (label +

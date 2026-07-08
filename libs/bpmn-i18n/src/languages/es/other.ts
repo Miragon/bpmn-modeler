@@ -249,6 +249,21 @@ const translations: Record<string, string> = {
     "Variable Listeners": "Listeners de variable",
     "Navigate to referenced model": "Ir al modelo referenciado",
     "Go to implementation": "Ir a la implementación",
+    "Added": "Añadido",
+    "Changed": "Modificado",
+    "Ereignis-Teilprozess": "Subproceso de evento",
+    "Exklusives Gateway": "Gateway exclusivo basado en datos (XOR)",
+    "Moved": "Movido",
+    "Next change": "Siguiente cambio",
+    "Prev change": "Cambio anterior",
+    "Removed": "Eliminado",
+    "Event Sub Process": "Subproceso de evento",
+    "Event based Gateway": "Gateway basado en eventos",
+    "Exclusive Gateway": "Gateway exclusivo (XOR)",
+    "Create new BPMN Diagram (Camunda Platform)": "Crear nuevo diagrama BPMN (Camunda Platform)",
+    "Copy": "Copiar",
+    "Paste": "Pegar",
+    "No errors defined.": "No hay errores definidos.",
 };
 
 export default translations;
