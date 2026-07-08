@@ -13,6 +13,8 @@ import "./DownloadPage.css";
 
 const MARKETPLACE_URL =
     "https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler";
+const JETBRAINS_MARKETPLACE_URL =
+    "https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler";
 const RELEASES_URL = "https://github.com/Miragon/bpmn-modeler/releases";
 const HOMEBREW_TAP_CMD = "brew tap miragon/tap";
 const HOMEBREW_INSTALL_CMD = "brew install --cask miragon-bpmn-modeler";
@@ -151,7 +153,12 @@ async function copyHomebrew() {
                         </td>
                         <td>JetBrains Marketplace</td>
                         <td class="dl-right">
-                            <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled" disabled aria-disabled="true">Coming Soon</button>
+                            <a
+                                class="dl-btn dl-btn-primary"
+                                :href="JETBRAINS_MARKETPLACE_URL"
+                                target="_blank"
+                                rel="noopener"
+                            >↗ Install</a>
                         </td>
                     </tr>
                 </tbody>
@@ -201,7 +208,12 @@ async function copyHomebrew() {
                             <div class="dl-card-format">JetBrains Marketplace</div>
                         </div>
                     </div>
-                    <button type="button" class="dl-btn dl-btn-secondary dl-btn-disabled dl-btn-block" disabled aria-disabled="true">Coming Soon</button>
+                    <a
+                        class="dl-btn dl-btn-primary dl-btn-block"
+                        :href="JETBRAINS_MARKETPLACE_URL"
+                        target="_blank"
+                        rel="noopener"
+                    >↗ Install</a>
                 </div>
             </div>
 
