@@ -9,7 +9,6 @@ run_mode = "concurrent"
 
 [scripts.run.vscode]
 command = "corepack yarn watch"
-default = true
 icon = "code"
 
 [scripts.run.intellij]
