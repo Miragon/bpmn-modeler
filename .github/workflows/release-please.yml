@@ -20,9 +20,13 @@ jobs:
     name: Maintain release PR
     runs-on: ubuntu-latest
     outputs:
-      vscode_released: ${{ steps.release.outputs['.--release_created'] }}
-      vscode_tag: ${{ steps.release.outputs['.--tag_name'] }}
-      vscode_version: ${{ steps.release.outputs['.--version'] }}
+      # The action prefixes per-path outputs with "<path>--" EXCEPT for the
+      # root path ".", whose outputs are unprefixed (setPathOutput in
+      # release-please-action). ".--release_created" never exists, which
+      # silently skips every downstream job via the empty-string comparison.
+      vscode_released: ${{ steps.release.outputs.release_created }}
+      vscode_tag: ${{ steps.release.outputs.tag_name }}
+      vscode_version: ${{ steps.release.outputs.version }}
       intellij_released: ${{ steps.release.outputs['apps/intellij-plugin--release_created'] }}
       intellij_tag: ${{ steps.release.outputs['apps/intellij-plugin--tag_name'] }}
     steps:
