@@ -143,9 +143,11 @@ then shows the last-published version per host.
 
 - **VS Code** → [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)
   and the [Open VSX Registry](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler).
-- **IntelliJ** → the plugin ZIP attaches to the `intellij-v<version>` release;
-  `docs/public/updatePlugins.xml` (served via GitHub Pages) points the IDE's
-  custom-repository updater at it.
+- **IntelliJ** → the [JetBrains Marketplace](https://plugins.jetbrains.com/) is
+  the primary channel. The plugin ZIP also attaches to the `intellij-v<version>`
+  release and `docs/public/updatePlugins.xml` (served via GitHub Pages) points
+  the IDE's custom-repository updater at it — a **legacy/fallback channel** that
+  still runs on every release but is no longer the recommended install path.
 - **Standalone** → DMG / NSIS installers attach to the `vscode-v<version>`
   release, and the Homebrew Cask in
   [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap) is updated for
