@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.4.0...intellij-v1.5.0) (2026-07-08)
+
+
+### 🎉 New Features
+
+* **templates:** add element template marketplace for GitHub/GitLab repos ([#1184](https://github.com/Miragon/bpmn-modeler/issues/1184)) ([05e86b6](https://github.com/Miragon/bpmn-modeler/commit/05e86b65e26583b1d1d24110dd9c07664a128f19))
+
 ## [1.4.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.3.0...intellij-v1.4.0) (2026-07-08)
 
 
