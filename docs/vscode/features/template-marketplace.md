@@ -66,8 +66,8 @@ window; another window's own cached copy is swept on its next
 ## The `marketplace.json` Manifest
 
 Place a `marketplace.json` at the root of the repository (or folder). It lists
-one or more **sources**; every `.json` file under a source's path is loaded as
-an element template.
+one or more **sources**; by default every `.json` file under a source's path is
+loaded as an element template — an `include` filter narrows that down.
 
 ```json
 {
@@ -78,6 +78,13 @@ an element template.
             "repo": "my-org/camunda-templates",
             "path": "templates",
             "ref": "v1.2.0"
+        },
+        {
+            "provider": "github",
+            "repo": "camunda/connectors",
+            "ref": "8.9.6",
+            "path": "connectors",
+            "include": ["**/element-templates/*.json"]
         },
         {
             "provider": "gitlab",
@@ -93,6 +100,7 @@ an element template.
 | Field        | Applies to        | Description                                                                                                                                          |
 |--------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `path`       | all               | Required. The folder to scan for `.json` templates. Without a `provider`, it is relative to the marketplace itself.                                   |
+| `include`    | all               | Optional glob pattern(s) selecting which `.json` files under `path` are loaded; a single string is shorthand for a one-element array. Patterns are matched against the path **relative to** `path`. Omit to load everything. |
 | `type`       | optional          | Content type of the source. Defaults to `element-templates` (the only type this version serves). A future, unknown type is skipped with a warning rather than rejecting the whole marketplace, so an older modeler still loads the sources it understands. |
 | `provider`   | optional          | Omit for a marketplace-relative path. `github` / `gitlab` point at another repository; `local` at a folder on the user's machine.                     |
 | `repo`       | `github`, `gitlab` | `owner/repo` for GitHub; the full `group/subgroup/project` path for GitLab (subgroups allowed).                                                       |
@@ -100,9 +108,21 @@ an element template.
 | `baseUrl`    | `github`, `gitlab` | Base URL of a self-hosted GitHub Enterprise or GitLab instance. Omit for the public host.                                                             |
 | `visibility` | `github`, `gitlab` | Set `"private"` to have the modeler ask for an access token up front instead of after the first failed fetch. This is a hint — access is proven by the fetch either way. |
 
+`include` is for repositories where templates are not gathered under one
+folder — in [camunda/connectors](https://github.com/camunda/connectors), for
+example, every connector keeps its own `element-templates/` folder, so a
+single `path` cannot capture them. Point `path` at the common ancestor and let
+the globs pick the template files: `**` matches any number of folders (including
+none), `*` and `?` match within a single path segment and never cross a `/`.
+Matching is case-sensitive, and a pattern must match the **whole** path
+relative to `path` — so don't repeat the `path` prefix in the pattern. If the
+patterns match none of the files a source lists, a warning says so — a typo in
+a glob never silently yields an empty catalogue.
+
 A shape error in the manifest (a missing `path`, an unknown `provider`, a
-malformed `repo`) fails loudly with a clear message rather than silently
-loading zero templates. Unknown extra fields are tolerated.
+malformed `repo`, an empty `include` array) fails loudly with a clear message
+rather than silently loading zero templates. Unknown extra fields are
+tolerated.
 
 ## Registering Marketplaces
 
@@ -195,7 +215,10 @@ Things to consider when setting one up:
 - **Keep templates under a dedicated folder** (e.g. `element-templates/`) and
   point the source's `path` at it. Every `.json` under that path is treated as
   a template, so don't mix in other JSON files (CI configs, `package.json`,
-  and the like).
+  and the like). When templates are unavoidably scattered — an upstream
+  repository you don't control — point `path` at the common ancestor and use
+  `include` globs to pick out the template files (see the manifest section
+  above).
 - **GitHub rate limits.** Unauthenticated GitHub API access is limited to 60
   requests per hour. Listing is done with a single tree call per source to
   stay well under that, but if you update very frequently or aggregate many
