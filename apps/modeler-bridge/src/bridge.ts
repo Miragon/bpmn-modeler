@@ -50,7 +50,8 @@ import * as deploymentFeature from "./composition/deploymentFeature";
  *
  * @property marketplaceCacheRoot Absolute root for the marketplace template
  *   cache. Defaults to `~/.miragon-bpmn-modeler/marketplaces`; the IntelliJ host
- *   overrides it with a `PathManager`-derived location via `server.ts`.
+ *   overrides it with a `PathManager`-derived, per-project location (segmented by
+ *   the project's location hash) via `server.ts`.
  * @property homeDir Home directory used to expand a `~` in a pasted local path.
  */
 export interface BridgeOptions {

@@ -226,7 +226,7 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
             path: "element-templates",
         });
         expect(cache.write).toHaveBeenCalledWith(
-            "local--Users-me-templates",
+            "local--Users-me-templates-f7bdb1db",
             0,
             "element-templates",
             "element-templates/t.json",

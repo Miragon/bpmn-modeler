@@ -248,8 +248,34 @@ function marketplaceId(
 ): string {
     const path = repoPath.replace(/\//g, "__");
     const base = legacyGithub ? path : `${host}__${path}`;
+    // Keep the *raw* ref in the slug (not a pre-sanitized copy) so refs that
+    // differ only by an unsafe char — `feature/x` vs `feature-x` — reach
+    // filesystemSafeId distinct and therefore hash apart.
     const slug = ref ? `${base}__${ref}` : base;
-    return slug.replace(/[^a-zA-Z0-9._-]/g, "-");
+    return filesystemSafeId(slug);
+}
+
+/**
+ * Filesystem-safe id that stays byte-identical when the sanitizing collapse is
+ * lossless (so legacy `owner__repo[__ref]` slugs keep their existing cache dirs)
+ * and appends a short hash of the *original* only when a character was actually
+ * replaced. Without the hash two inputs that collapse to the same safe string —
+ * refs `feature/x` and `feature-x`, or local paths `/a/b` and `/a-b` — would
+ * share one cache slot, contradicting the "distinct per repo/ref" invariant.
+ */
+function filesystemSafeId(raw: string): string {
+    const safe = raw.replace(/[^a-zA-Z0-9._-]/g, "-");
+    return safe === raw ? safe : `${safe}-${hashSlug(raw)}`;
+}
+
+/** FNV-1a 32-bit as 8 hex chars — no node:crypto, so the core stays host-agnostic. */
+function hashSlug(value: string): string {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < value.length; i++) {
+        hash ^= value.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 /**
@@ -267,8 +293,10 @@ function parseLocalFolder(input: string): MarketplaceRegistration | undefined {
     const rootDir = stripTrailingManifest(fsPath);
     return {
         // Prefix + sanitize so a local cache slot never collides with a
-        // `<owner>__<repo>` GitHub slot and is a legal directory name.
-        id: `local-${rootDir}`.replace(/[^a-zA-Z0-9._-]/g, "-"),
+        // `<owner>__<repo>` GitHub slot and is a legal directory name. A path is
+        // always lossy (its separators are unsafe), so the appended hash makes
+        // every local id injective — `/a/b` and `/a-b` no longer collide.
+        id: filesystemSafeId(`local-${rootDir}`),
         location: { kind: "local", rootDir },
         url: input,
     };

@@ -63,14 +63,19 @@ class CoreProcess(private val project: Project) : Disposable {
     private val supervisor: ProcessSupervisor =
         ProcessSupervisor(
             channel = channel,
-            launcher = DefaultBridgeProcessLauncher(),
+            // Per-project cache segment so a prune never evicts another project's
+            // marketplaces (getLocationHash is IntelliJ's stable per-project key).
+            launcher = DefaultBridgeProcessLauncher(project.locationHash),
             // Adapt the host notifier behind the narrow port; `notifications` is
             // lazy, so the UI surface is still built only on the first error.
             notifier = BridgeErrorNotifier { message -> notifications.value.showError(message) },
-            // Declared after the supervisor; safe because both lambdas only fire
-            // post-construction, on the first (re)spawn.
+            // Declared after the supervisor; safe because these lambdas only fire
+            // post-construction, on the first (re)spawn or on a crash.
             onSpawned = { deploymentRouter.sendSeed() },
             onRespawned = { editorRouter.reregisterLiveSessions() },
+            // Clear any in-flight spinner on a crash so it can't hang waiting on a
+            // progressEnd the dead core will never send.
+            onProcessDown = { hostUiRouter.clearProgress() },
         )
     private val deps =
         BridgeDeps(
@@ -187,6 +192,9 @@ class CoreProcess(private val project: Project) : Disposable {
 
     override fun dispose() {
         supervisor.dispose()
+        // dispose() sets `disposed`, so handleExit skips onProcessDown on the
+        // project-close path; clear spinners here so none survives the teardown.
+        hostUiRouter.clearProgress()
         editorRouter.clear()
         diffRouter.clear()
         deploymentRouter.clear()

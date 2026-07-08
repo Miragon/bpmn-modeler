@@ -12,9 +12,10 @@ import { join } from "node:path";
 
 import { createBridge } from "./bridge";
 
-// The host (IntelliJ) sets this to a `PathManager`-derived, per-machine location
-// shared across project windows; absent, fall back to a stable home-dir path so a
-// standalone/dev run still caches somewhere deterministic.
+// The host (IntelliJ) sets this to a `PathManager`-derived location segmented by
+// the project's location hash (per-project, shared only among windows on that
+// project); absent, fall back to a stable home-dir path so a standalone/dev run
+// still caches somewhere deterministic.
 const marketplaceCacheRoot =
     process.env.MIRAGON_BPMN_MARKETPLACE_CACHE ??
     join(homedir(), ".miragon-bpmn-modeler", "marketplaces");

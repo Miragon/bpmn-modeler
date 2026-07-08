@@ -41,11 +41,13 @@ export function register(
         }
     };
 
-    // `writeFile` mkdirps this on first use.
-    const cache = new MarketplaceCache(
-        `${getContext().globalStorageUri.fsPath}/marketplaces`,
-        deps.vsWorkspace,
-    );
+    // Per-workspace cache root so a prune only ever evicts *this* window's slots:
+    // marketplaces can be workspace-scoped, so an Update/Remove in another window
+    // must not delete a marketplace registered only here. `storageUri` is VS
+    // Code's stable per-workspace directory; a no-folder window has none, so fall
+    // back to the shared global root there. `writeFile` mkdirps it on first use.
+    const base = getContext().storageUri ?? getContext().globalStorageUri;
+    const cache = new MarketplaceCache(`${base.fsPath}/marketplaces`, deps.vsWorkspace);
 
     const marketplaceSvc = new TemplateMarketplaceService(
         sourceFactory,

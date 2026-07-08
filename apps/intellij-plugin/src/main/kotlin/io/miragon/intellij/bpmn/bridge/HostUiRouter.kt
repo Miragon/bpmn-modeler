@@ -101,6 +101,17 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
     }
 
     /**
+     * Completes and drops every in-flight spinner future so a blocked
+     * [Task.Backgroundable] exits instead of hanging on a `progressEnd` a crashed
+     * core will never send. Invoked when the bridge goes down (process death or
+     * dispose); without it a mid-run crash leaves the spinner until IDE restart
+     * and a progress-pool thread parked on `future.get()`.
+     */
+    fun clearProgress() {
+        for (title in progressTasks.keys.toList()) progressTasks.remove(title)?.complete(null)
+    }
+
+    /**
      * Shows a native list popup for the core's `PickerPort` and replies with the
      * chosen item indices, or `null` on dismissal. The host renders only the
      * chooser; the cancel-vs-throw convention is applied core-side.

@@ -26,13 +26,14 @@ import { BridgeSharedDeps } from "./sharedDeps";
  * itself: where the on-disk cache lives, and the home directory used to expand a
  * `~` in a pasted local path.
  *
- * **Cache is shared across project windows** (mirroring VS Code's per-machine
- * global storage): every IntelliJ window points at the same
- * `PathManager.getSystemPath()`-derived root. Concurrent updates worst-case
- * overwrite the same *deterministic* per-file paths (keyed by registration id /
- * source index / repo path), and a torn read is caught by the per-file
- * JSON-parse guard in {@link BpmnElementTemplatesService} — so no cross-window
- * locking is needed.
+ * **Cache is per-project**, not machine-global: the IntelliJ host derives
+ * {@link cacheRoot} from a `PathManager.getSystemPath()` root segmented by the
+ * project's stable location hash, so a prune only ever evicts the current
+ * project's slots (marketplaces can be project-scoped). Windows on the *same*
+ * project still share one cache; concurrent updates worst-case overwrite the same
+ * *deterministic* per-file paths (keyed by registration id / source index / repo
+ * path), and a torn read is caught by the per-file JSON-parse guard in
+ * {@link BpmnElementTemplatesService} — so no cross-window locking is needed.
  */
 export interface MarketplaceOptions {
     /** Absolute cache root; {@link MarketplaceCache} mkdirps it on first write. */

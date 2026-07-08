@@ -34,10 +34,15 @@ describe("parseMarketplaceUrl (github)", () => {
         expect(main.id).not.toBe(dev.id);
     });
 
-    it("sanitizes a slash-bearing ref in the id", () => {
-        expect(parseMarketplaceUrl("https://github.com/acme/templates/tree/feature/x").id).toBe(
-            "acme__templates__feature-x",
-        );
+    it("hashes a slash-bearing ref so it stays distinct from a dash ref", () => {
+        // `feature/x` and `feature-x` both sanitize to `…feature-x`; a hash of
+        // the raw slug is appended only to the lossy one, so their cache slots
+        // never collapse into one.
+        const slashed = parseMarketplaceUrl("https://github.com/acme/templates/tree/feature/x");
+        const dashed = parseMarketplaceUrl("https://github.com/acme/templates/tree/feature-x");
+        expect(slashed.id).toBe("acme__templates__feature-x-62af52f7");
+        expect(dashed.id).toBe("acme__templates__feature-x");
+        expect(slashed.id).not.toBe(dashed.id);
     });
 
     it("keeps slash-bearing branch names whole", () => {
@@ -104,7 +109,7 @@ describe("parseMarketplaceUrl (gitlab)", () => {
             projectPath: "group/sub/project",
             ref: "feature/x",
         });
-        expect(reg.id).toBe("gitlab.com__group__sub__project__feature-x");
+        expect(reg.id).toBe("gitlab.com__group__sub__project__feature-x-635aec0c");
     });
 
     it("strips a .git suffix and a www. prefix", () => {
@@ -232,9 +237,20 @@ describe("parseMarketplaceUrl (local)", () => {
     it("registers an absolute POSIX path as a local folder", () => {
         const reg = parseMarketplaceUrl("/Users/me/templates");
         expect(reg.location).toEqual({ kind: "local", rootDir: "/Users/me/templates" });
-        // The id is prefixed + sanitized so it never collides with a github slot.
-        expect(reg.id).toBe("local--Users-me-templates");
+        // The id is prefixed + sanitized so it never collides with a github slot;
+        // a path is always lossy, so a hash of the raw path is appended too.
+        expect(reg.id).toBe("local--Users-me-templates-f7bdb1db");
         expect(reg.url).toBe("/Users/me/templates");
+    });
+
+    it("keeps two folders that sanitize alike on distinct cache slots", () => {
+        // `/a/b` and `/a-b` both sanitize to `local--a-b`; the appended hash of
+        // the raw path keeps their caches from colliding.
+        const slashed = parseMarketplaceUrl("/a/b");
+        const dashed = parseMarketplaceUrl("/a-b");
+        expect(slashed.id).toBe("local--a-b-7c18c852");
+        expect(dashed.id).toBe("local--a-b-841d5218");
+        expect(slashed.id).not.toBe(dashed.id);
     });
 
     it("accepts a path pointing straight at marketplace.json as its folder", () => {
