@@ -49,16 +49,19 @@ checkbox. Left unchecked (the default) the entry is stored **per project** (in t
 project's `workspace.xml`), invisible on the settings page; checked, it is added to
 the app-level list that **does** appear under **Settings ▸ Tools ▸ Miragon BPMN
 Modeler ▸ Template Marketplaces** and applies to every project. The two lists are
-merged, mirroring VS Code's Workspace∪User behaviour. An app-wide add refreshes the
-templates in every open project window at once.
+merged, mirroring VS Code's Workspace∪User behaviour. An app-wide add updates the
+registration list in every open project window at once; the cache is per project,
+so another window fetches the new marketplace's templates on its next
+**Update Template Marketplaces**.
 
 **Remove Template Marketplace…** opens a multi-select dialog listing every
 registered marketplace with the scope it lives in (all projects, this project, or
 both). Checking entries and confirming unregisters them from every scope they
-appear in and prunes their cached templates from the shared global storage
+appear in and prunes their cached templates from the project's own cache
 **without** re-fetching the ones you keep, so the open editor's templates update
-at once. Removing an app-level entry also refreshes the merged list in every open
-window.
+at once. Removing an app-level entry also updates the merged list in every open
+window; another window's own cached copy is swept on its next
+**Update Template Marketplaces**.
 
 ## The `marketplace.json` Manifest
 
@@ -147,8 +150,11 @@ with no folder open it goes straight to User settings. Registering an entry
 "All my projects" that already exists workspace-level **promotes** it, copying it
 into your User list so it applies everywhere. Because the lists are unioned rather
 than shadowed, a workspace `"marketplaces": []` no longer suppresses your
-User-level entries. The template cache itself stays machine-global (in the
-extension's global storage) regardless of where a marketplace is registered.
+User-level entries. The template cache is kept **per workspace** (in the
+extension's workspace storage) regardless of where a marketplace is registered,
+so an **Update** or **Remove** in one window never evicts templates a
+marketplace registered only in another workspace still provides — User-level
+entries are simply fetched once per workspace.
 
 ## Element Templates
 
@@ -284,13 +290,16 @@ paths use a provider-less source.
 
 ## Good to Know
 
-- **Caching.** Fetched templates are cached in the extension's global storage
-  and re-read from there — the modeler does not hit the network every time an
-  editor opens, only on **Add** and **Update Marketplaces**.
+- **Caching.** Fetched templates are cached per workspace in the extension's
+  workspace storage (global storage only when no folder is open) and re-read
+  from there — the modeler does not hit the network every time an editor opens,
+  only on **Add** and **Update Marketplaces**. A marketplace registered in your
+  User settings is therefore fetched once per workspace: run
+  **Update Marketplaces** in a window that hasn't cached it yet.
 - **Removing a marketplace clears its cache.** Run **BPMN Modeler: Remove
   Marketplace**, multi-select the marketplaces to drop, and confirm: they are
   unregistered from every scope they live in (User and/or Workspace), their
-  cached templates are pruned from the extension's global storage, and open
+  cached templates are pruned from this workspace's cache, and open
   editors refresh so the templates disappear immediately — without re-fetching
   the marketplaces you keep. (Editing `miragon.bpmnModeler.marketplaces` by hand
   and running **Update Marketplaces** still prunes too, but re-fetches every
@@ -299,7 +308,7 @@ paths use a provider-less source.
 - **Upstream deletions within a kept marketplace are not yet pruned.** A
   template removed from a marketplace you still have registered lingers in the
   cache (files are overwritten in place, not swept) until you remove the
-  marketplace or clear the global-storage folder manually.
+  marketplace or clear the workspace-storage cache folder manually.
 - **Trust.** Templates configure how your processes execute (delegate
   expressions, connectors, called elements). Only register marketplaces from
   sources you trust, the same way you would vet a dependency.
