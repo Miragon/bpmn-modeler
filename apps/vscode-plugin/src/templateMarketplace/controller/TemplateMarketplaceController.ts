@@ -118,8 +118,34 @@ export class TemplateMarketplaceController {
             await this.refreshOpenEditors();
             this.notifier.showInfo("Marketplace added.");
         } catch (error) {
-            this.notifier.notifyError("Failed to add marketplace.", error as Error);
+            await this.handleAddFailure(error as Error);
         }
+    }
+
+    /**
+     * The fetch caches templates *before* the settings write, so a failed
+     * persist leaves an orphaned cache entry — prune it first so a failed add
+     * leaves no residue. Then, when the write failed because the `marketplaces`
+     * key is not yet in the window's configuration registry (an in-place update
+     * from ≤1.3.x whose window hasn't reloaded), steer the user to the one fix
+     * that works — a window reload — instead of the generic failure toast.
+     */
+    private async handleAddFailure(error: Error): Promise<void> {
+        try {
+            await this.marketplaceSvc.pruneOrphanedCaches();
+        } catch (pruneError) {
+            // A prune failure must not mask the original add failure below.
+            this.notifier.logError(pruneError as Error);
+        }
+
+        if ((error.message ?? "").includes("not a registered configuration")) {
+            await this.notifier.showErrorWithReload(
+                "The BPMN Modeler extension was just updated. Reload the window to " +
+                    "finish enabling marketplaces, then add it again.",
+            );
+            return;
+        }
+        this.notifier.notifyError("Failed to add marketplace.", error);
     }
 
     /**

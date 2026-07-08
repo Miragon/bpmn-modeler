@@ -42,9 +42,11 @@ function createController() {
         withProgress: vi.fn((_title: string, task: () => Promise<unknown>) => task()),
         showInfo: vi.fn(),
         showError: vi.fn(),
+        showErrorWithReload: vi.fn().mockResolvedValue(undefined),
         notifyError: vi.fn(),
         logInfo: vi.fn(),
         logDebug: vi.fn(),
+        logError: vi.fn(),
     };
 
     const handlers = new Map<string, () => Promise<void>>();
@@ -149,6 +151,38 @@ describe("TemplateMarketplaceController.addMarketplace", () => {
         await handlers.get(ADD_MARKETPLACE_CMD)!();
 
         expect(settings.addMarketplace).not.toHaveBeenCalled();
+        expect(notifier.notifyError).toHaveBeenCalledOnce();
+    });
+
+    it("steers to a window reload and prunes the orphaned cache when the settings key is unregistered", async () => {
+        const { handlers, marketplaceSvc, settings, notifier } = createController();
+        (window.showInputBox as Mock).mockResolvedValue("~/templates");
+        // Models VS Code's ERROR_UNKNOWN_KEY: the `marketplaces` contribution is
+        // absent from a not-yet-reloaded window after an in-place update.
+        settings.addMarketplace.mockRejectedValue(
+            new Error(
+                "Unable to write to Workspace Settings because " +
+                    "miragon.bpmnModeler.marketplaces is not a registered configuration.",
+            ),
+        );
+
+        await handlers.get(ADD_MARKETPLACE_CMD)!();
+
+        // The fetch already cached templates before the write failed, so the
+        // orphaned entry must be pruned rather than left as residue.
+        expect(marketplaceSvc.pruneOrphanedCaches).toHaveBeenCalledOnce();
+        expect(notifier.showErrorWithReload).toHaveBeenCalledOnce();
+        expect(notifier.notifyError).not.toHaveBeenCalled();
+    });
+
+    it("shows the generic failure toast for any other add error", async () => {
+        const { handlers, marketplaceSvc, notifier } = createController();
+        (window.showInputBox as Mock).mockResolvedValue("/bad/folder");
+        marketplaceSvc.addMarketplace.mockRejectedValue(new Error("no marketplace.json"));
+
+        await handlers.get(ADD_MARKETPLACE_CMD)!();
+
+        expect(notifier.showErrorWithReload).not.toHaveBeenCalled();
         expect(notifier.notifyError).toHaveBeenCalledOnce();
     });
 

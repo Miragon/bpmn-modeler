@@ -34,6 +34,23 @@ export class VsCodeNotifier implements NotifierPort {
     }
 
     /**
+     * Surfaces an error toast carrying a single "Reload Window" action.
+     *
+     * A configuration contribution added by an in-place extension update only
+     * enters the *window's* registry on a full window reload; until then a write
+     * to the new key raises VS Code's ERROR_UNKNOWN_KEY. Restarting the
+     * extension host does not refresh the registry — only a reload does — so we
+     * offer that reload directly rather than leaving the user to discover it.
+     */
+    async showErrorWithReload(message: string): Promise<void> {
+        const reload = "Reload Window";
+        const choice = await window.showErrorMessage(message, reload);
+        if (choice === reload) {
+            await commands.executeCommand("workbench.action.reloadWindow");
+        }
+    }
+
+    /**
      * Logs `error` and surfaces a toast that pairs a caller-supplied
      * `context` line with the error's own message. Centralises the
      * log-then-show pattern so each service only specifies what it was
