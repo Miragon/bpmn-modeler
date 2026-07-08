@@ -2,6 +2,8 @@ package io.miragon.intellij.bpmn
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
+import com.intellij.openapi.keymap.KeymapUtil
+import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
@@ -67,6 +69,8 @@ class WarmBrowser : Disposable {
             }
         }
 
+        forwardUndoRedoToWebview()
+
         // Created before createImmediately() so its message router binds to the
         // render process; the handler delegates to the swappable forwarder.
         jsQuery = JBCefJSQuery.create(browser as JBCefBrowserBase)
@@ -119,6 +123,30 @@ class WarmBrowser : Disposable {
                 loaded
             }
         if (injectNow) injectSink(browser.cefBrowser)
+    }
+
+    /**
+     * Makes Ctrl+Z / Ctrl+Y reach bpmn-js. IntelliJ's global `$Undo`/`$Redo`
+     * actions consume the keystroke before it reaches this OSR browser, and a
+     * global keymap action can't be suppressed per-component — but a
+     * component-scoped action with the same shortcut wins over it while focus is
+     * here. Each forwards to the page's `__modelerTriggerEditorAction` hook,
+     * which runs the matching bpmn-js editor action (see the bpmn-webview's
+     * `hostEditorActions.ts`). The existing macOS `JcefShortcutProvider`
+     * unregister above never addressed the global action, so undo was broken on
+     * every platform.
+     */
+    private fun forwardUndoRedoToWebview() {
+        registerWebviewShortcut("\$Undo", "undo")
+        registerWebviewShortcut("\$Redo", "redo")
+    }
+
+    private fun registerWebviewShortcut(actionId: String, editorAction: String) {
+        val cef = browser.cefBrowser
+        val js = "window.__modelerTriggerEditorAction && window.__modelerTriggerEditorAction('$editorAction');"
+        val action = DumbAwareAction.create { cef.executeJavaScript(js, cef.url, 0) }
+        val shortcuts = KeymapUtil.getActiveKeymapShortcuts(actionId)
+        action.registerCustomShortcutSet(shortcuts, browser.component, this)
     }
 
     // inject("p") emits the JS that ships the string argument `p` back to the

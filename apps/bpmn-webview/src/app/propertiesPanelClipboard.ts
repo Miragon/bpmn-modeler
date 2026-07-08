@@ -7,7 +7,7 @@
  * own their own selection, so the event must not reach bpmn-js's Keyboard
  * service.
  */
-function isTextEditingSurface(el: Element | null): boolean {
+export function isTextEditingSurface(el: Element | null): boolean {
     if (el instanceof HTMLInputElement) return true;
     if (el instanceof HTMLTextAreaElement) return true;
     if (el instanceof HTMLElement && el.contentEditable === "true") return true;
