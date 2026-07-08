@@ -2,8 +2,24 @@
 
 [scripts]
 setup = "corepack yarn install"
-run = "corepack yarn workspace @miragon/bpmn-modeler-webview dev"
 archive = "rm -rf dist node_modules"
-
 run_mode = "concurrent"
-auto_run_after_setup = true
+
+# Nothing autostarts after setup — pick a target from the Run button dropdown.
+
+[scripts.run.vscode]
+command = "corepack yarn watch"
+default = true
+icon = "code"
+
+[scripts.run.intellij]
+command = "corepack yarn intellij:run"
+icon = "flame"
+
+[scripts.run.docs]
+command = "corepack yarn docs:dev"
+icon = "book-open"
+
+[scripts.run.webview]
+command = "corepack yarn workspace @miragon/bpmn-modeler-webview dev"
+icon = "globe"
