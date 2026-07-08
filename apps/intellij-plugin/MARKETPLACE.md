@@ -1,13 +1,10 @@
 # Publishing to the JetBrains Marketplace
 
-The plugin currently ships through a **custom plugin repository** served from
-GitHub Pages (`https://miragon.github.io/bpmn-modeler/updatePlugins.xml`). This
-document captures the one-time steps to also publish on the official
+This document captures the one-time steps to publish the plugin on the official
 [JetBrains Marketplace](https://plugins.jetbrains.com/) — these are the parts
 the code in this repo cannot do for you.
 
-Why bother publishing on the official Marketplace if the custom repository
-already works? Two reasons:
+Why publishing on the official Marketplace matters:
 
 1. **Discoverability.** Settings ▸ Plugins ▸ Marketplace search hits anyone
    with a fresh IDE; the custom repository does not.
@@ -74,10 +71,10 @@ Suggested blurb — keep it in sync with the README's *Troubleshooting* section:
 
 ## Automated publishing
 
-The release pipeline now publishes to the official Marketplace on every
-release, **in addition to** uploading to GitHub Releases and refreshing
-`docs/public/updatePlugins.xml` — the custom repository keeps running in
-parallel, unchanged.
+The release pipeline now publishes to the official Marketplace — the primary
+channel — on every release. It **also** uploads to GitHub Releases and refreshes
+`docs/public/updatePlugins.xml`: the custom repository keeps running in parallel,
+unchanged, as a **legacy/fallback channel**.
 
 - `build.gradle.kts` carries the `signing { }` and `publishing { }` blocks in
   the `intellijPlatform { }` configuration. Signing uses our own certificate so
