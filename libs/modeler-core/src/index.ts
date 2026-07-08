@@ -32,6 +32,7 @@ export * from "./modeler/bpmn/service/BpmnLintConfigService";
 export * from "./modeler/bpmn/service/BpmnClipboardMediator";
 export * from "./modeler/bpmn/service/BpmnPropertiesPanelService";
 export * from "./modeler/bpmn/service/BpmnSettingsBroadcaster";
+export * from "./modeler/dmn/domain/emptyDmn";
 export * from "./modeler/dmn/service/DmnModelerService";
 export * from "./modeler/dmn/service/DmnSettingsBroadcaster";
 

@@ -29,5 +29,6 @@ export function register(
         deps.textEditor,
         handles.bpmnService,
         migrationSvc,
+        deps.picker,
     ).register(context);
 }
