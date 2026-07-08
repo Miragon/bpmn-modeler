@@ -19,6 +19,14 @@ icon = "flame"
 command = "corepack yarn docs:dev"
 icon = "book-open"
 
-[scripts.run.webview]
+[scripts.run.bpmn-webview]
 command = "corepack yarn workspace @miragon/bpmn-modeler-webview dev"
+icon = "globe"
+
+[scripts.run.dmn-webview]
+command = "corepack yarn workspace @miragon/dmn-modeler-webview dev"
+icon = "globe"
+
+[scripts.run.deployment-webview]
+command = "corepack yarn workspace @miragon/bpmn-modeler-deployment-webview dev"
 icon = "globe"
