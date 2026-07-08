@@ -1,20 +1,21 @@
 // Resolves the latest standalone-app GitHub release for the download page.
 //
-// Why not /releases/latest? It returns whichever tag was published most recently
-// across the whole repo, and under the unified release model every host shares
-// the same `v<version>` tag. A release cut for a VS Code-only or IntelliJ-only
-// publish carries no DMG, so /releases/latest would break the page.
+// Tag-scheme independent by design. Releases are split per host
+// (`vscode-v<version>`, `intellij-v<version>`), so the tag prefix is not a
+// reliable signal — and hard-coding one rots the next time it changes. The
+// **arm64 DMG asset is the discriminator**: a release without one (e.g. an
+// IntelliJ-only publish) shipped no standalone build and is skipped. The
+// version is read from the DMG filename, not the tag, so this keeps working
+// regardless of how releases are tagged.
 //
-// All hosts now share the `v` tag prefix, so the prefix no longer signals a
-// standalone build — the **arm64 DMG asset is the real discriminator**. We list
-// /releases and pick the most recently *published* `v*` release that actually
-// has the arm64 DMG uploaded; a `v*` release without a DMG means the standalone
-// wasn't shipped at that version and is correctly skipped. We sort client-side
-// by published_at desc — GitHub's default order is created_at desc, which can
-// drift from published order if a release was drafted long before publishing.
+// Why not /releases/latest? It returns whichever release was published most
+// recently across the whole repo — frequently an IntelliJ release with no DMG —
+// so it would break the page. We list /releases and pick the most recently
+// *published* release that actually has the arm64 DMG, sorting client-side by
+// published_at desc (GitHub's default created_at desc can drift from publish
+// order if a release was drafted long before publishing).
 
 const REPO = "Miragon/bpmn-modeler";
-const STANDALONE_TAG_PREFIX = "v";
 const RELEASES_LIST_URL = `https://api.github.com/repos/${REPO}/releases?per_page=100`;
 const RELEASES_PAGE_BASE = `https://github.com/${REPO}/releases/tag`;
 
@@ -25,6 +26,10 @@ const RELEASES_PAGE_BASE = `https://github.com/${REPO}/releases/tag`;
 const ARM64_DMG = /-arm64\.dmg$/i;
 const INTEL_DMG = /-(x64|intel)\.dmg$/i;
 const WIN_EXE = /-x64\.exe$/i;
+// The version is the segment between the product name and the arch suffix.
+// Greedy so prerelease versions with their own hyphen (1.3.1-beta.1) survive;
+// the product name has no hyphens, so the leftmost match starts after it.
+const DMG_VERSION = /-(.+)-arm64\.dmg$/i;
 
 export interface GitHubReleaseAsset {
     name?: string;
@@ -49,33 +54,42 @@ export interface StandaloneRelease {
     releasePageUrl: string;
 }
 
-function findAssetUrl(
+function findAsset(
     assets: GitHubReleaseAsset[] | undefined,
     pattern: RegExp,
-): string | null {
+): GitHubReleaseAsset | null {
     for (const a of assets ?? []) {
         if (a.name && pattern.test(a.name) && a.browser_download_url) {
-            return a.browser_download_url;
+            return a;
         }
     }
     return null;
 }
 
+function findAssetUrl(
+    assets: GitHubReleaseAsset[] | undefined,
+    pattern: RegExp,
+): string | null {
+    return findAsset(assets, pattern)?.browser_download_url ?? null;
+}
+
 export function parseStandaloneRelease(r: GitHubRelease): StandaloneRelease | null {
     if (r.draft) return null;
-    if (!r.tag_name?.startsWith(STANDALONE_TAG_PREFIX)) return null;
 
-    const version = r.tag_name.slice(STANDALONE_TAG_PREFIX.length);
-    if (!version) return null; // Reject the prefix-only edge case "v".
+    // The arm64 DMG is the discriminator — no DMG means no standalone build at
+    // this release (e.g. an IntelliJ-only publish), regardless of the tag.
+    const arm64 = findAsset(r.assets, ARM64_DMG);
+    if (!arm64?.browser_download_url) return null;
 
-    const dmgArm64Url = findAssetUrl(r.assets, ARM64_DMG);
-    if (!dmgArm64Url) return null;
+    // Read the version from the DMG filename, never the tag.
+    const version = DMG_VERSION.exec(arm64.name ?? "")?.[1] ?? "";
+    if (!version) return null;
 
     return {
-        tagName: r.tag_name,
+        tagName: r.tag_name ?? "",
         version,
         publishedAt: r.published_at ?? "",
-        dmgArm64Url,
+        dmgArm64Url: arm64.browser_download_url,
         dmgIntelUrl: findAssetUrl(r.assets, INTEL_DMG),
         exeX64Url: findAssetUrl(r.assets, WIN_EXE),
         releasePageUrl: r.html_url ?? `${RELEASES_PAGE_BASE}/${r.tag_name}`,

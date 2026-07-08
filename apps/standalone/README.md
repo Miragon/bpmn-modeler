@@ -105,30 +105,32 @@ the login keychain. See [Releasing](#releasing) below for the full setup.
 
 ### Auto-update on Windows
 
-Auto-update is wired via `electron-updater` on both platforms. The CI pipeline uploads `latest-mac.yml` and `latest.yml` to each GitHub Release, so existing installs find the new version on next launch. The first release that ships the Windows yml file is the starting point — anything installed from an earlier release has to be upgraded manually once.
+Auto-update is wired via `electron-updater` on both platforms, using a **generic feed** at a fixed URL rather than the github provider. The github provider resolves updates from the repo-wide `/releases/latest`, which — now that IntelliJ and VS Code release on separate lines — is frequently an IntelliJ release with no `latest-mac.yml`, breaking the check. Instead each standalone publish overwrites a rolling `standalone-latest` prerelease with the newest installers and `latest-mac.yml` / `latest.yml`, and the app reads from `releases/download/standalone-latest/` (see `electron-builder.yml`). Existing installs find the new version on next launch. The first release that ships the Windows yml file is the starting point — anything installed from an earlier release has to be upgraded manually once.
 
 ## Releasing
 
-The standalone shares **one version and one `v<version>` GitHub Release** with
-all other hosts. release-please cuts the tag + release from `main`; the
-standalone is then **published manually** against that tag — it does not have
-its own version bump or tag anymore. See
-[Release process](../../docs/vscode/contributing/release-process.md) for the
-shared model.
+The standalone rides the **VS Code-family release line** (`vscode-v<version>`),
+sharing that version and GitHub Release with the VS Code extension and Open VSX.
+release-please cuts the tag + release from `main`; the standalone is then
+**published manually** against that tag — it does not have its own version bump
+or tag. IntelliJ releases independently on its own line (`intellij-v<version>`).
+See [Release process](../../docs/vscode/contributing/release-process.md) for the
+model.
 
 Publishing is a single orchestrator that chains two sub-workflows, each
 independently runnable for reruns:
 
 - `.github/workflows/release-standalone.yml` — **single entry point**
   (`workflow_dispatch`). Takes the `version` to publish (the release tag is
-  `v<version>`) and runs publish → homebrew in sequence, propagating `dry-run`.
+  `vscode-v<version>`) and runs publish → homebrew in sequence, propagating `dry-run`.
 - `.github/workflows/publish-standalone.yml` — builds the `.vsix` on
   `ubuntu-latest`, then fans out to two packaging jobs on their native runners
   (`macos-latest` for the signed + notarized DMG, `windows-latest` for the NSIS
   installer). Each job uploads its platform artifact plus its `electron-updater`
-  manifest (`latest-mac.yml` / `latest.yml`) to the `v<version>` release, and a
-  final job records a `standalone` deployment. Existing installs pick up updates
-  on next launch.
+  manifest (`latest-mac.yml` / `latest.yml`) to the `vscode-v<version>` release
+  **and** mirrors them onto the rolling `standalone-latest` prerelease that the
+  auto-updater reads; a final job records a `standalone` deployment. Existing
+  installs pick up updates on next launch.
 - `.github/workflows/publish-standalone-homebrew.yml` — updates the Cask
   formula in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap)
   so `brew upgrade --cask miragon-bpmn-modeler` picks up the new version.

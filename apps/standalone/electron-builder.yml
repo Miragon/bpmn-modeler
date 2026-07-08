@@ -6,9 +6,8 @@ directories:
   buildResources: resources
   output: dist
 publish:
-  provider: github
-  owner: Miragon
-  repo: bpmn-modeler
+  provider: generic
+  url: https://github.com/Miragon/bpmn-modeler/releases/download/standalone-latest
 fileAssociations:
   - ext: bpmn
     name: BPMN Process Model

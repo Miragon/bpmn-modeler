@@ -1,6 +1,6 @@
 name: Release Please
 
-# Maintains the repo-wide Release PR.
+# Two release lines (see release-please-config.json): "." (vscode) and "apps/intellij-plugin" (intellij), each with its own Release PR, tag and publish jobs.
 
 on:
   push:
@@ -20,9 +20,11 @@ jobs:
     name: Maintain release PR
     runs-on: ubuntu-latest
     outputs:
-      released: ${{ steps.release.outputs.releases_created }}
-      tag: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.version }}
+      vscode_released: ${{ steps.release.outputs['.--release_created'] }}
+      vscode_tag: ${{ steps.release.outputs['.--tag_name'] }}
+      vscode_version: ${{ steps.release.outputs['.--version'] }}
+      intellij_released: ${{ steps.release.outputs['apps/intellij-plugin--release_created'] }}
+      intellij_tag: ${{ steps.release.outputs['apps/intellij-plugin--tag_name'] }}
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
@@ -39,35 +41,35 @@ jobs:
 
   vscode:
     needs: release-please
-    if: needs.release-please.outputs.released == 'true'
+    if: needs.release-please.outputs.vscode_released == 'true'
     uses: ./.github/workflows/publish-vscode-modeler.yml
     with:
-      tag: ${{ needs.release-please.outputs.tag }}
+      tag: ${{ needs.release-please.outputs.vscode_tag }}
       dry-run: false
     secrets: inherit
 
   open-vsx:
     needs: release-please
-    if: needs.release-please.outputs.released == 'true'
+    if: needs.release-please.outputs.vscode_released == 'true'
     uses: ./.github/workflows/publish-open-vsx-modeler.yml
     with:
-      tag: ${{ needs.release-please.outputs.tag }}
+      tag: ${{ needs.release-please.outputs.vscode_tag }}
+      dry-run: false
+    secrets: inherit
+
+  standalone:
+    needs: release-please
+    if: needs.release-please.outputs.vscode_released == 'true'
+    uses: ./.github/workflows/release-standalone.yml
+    with:
+      version: ${{ needs.release-please.outputs.vscode_version }}
       dry-run: false
     secrets: inherit
 
   intellij:
     needs: release-please
-    if: needs.release-please.outputs.released == 'true'
+    if: needs.release-please.outputs.intellij_released == 'true'
     uses: ./.github/workflows/publish-intellij.yml
     with:
-      tag: ${{ needs.release-please.outputs.tag }}
-    secrets: inherit
-
-  standalone:
-    needs: release-please
-    if: needs.release-please.outputs.released == 'true'
-    uses: ./.github/workflows/release-standalone.yml
-    with:
-      version: ${{ needs.release-please.outputs.version }}
-      dry-run: false
+      tag: ${{ needs.release-please.outputs.intellij_tag }}
     secrets: inherit

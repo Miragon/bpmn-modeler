@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "include-component-in-tag": false,
+  "separate-pull-requests": true,
   "changelog-sections": [
     { "type": "feat", "section": "🎉 New Features" },
     { "type": "fix", "section": "🐞 Bug Fixes" },
@@ -11,6 +12,8 @@
   "packages": {
     ".": {
       "release-type": "node",
+      "component": "vscode",
+      "include-component-in-tag": true,
       "extra-files": [
         {
           "type": "json",
@@ -26,12 +29,14 @@
           "type": "json",
           "path": "libs/standalone-extension/package.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "generic",
-          "path": "apps/intellij-plugin/gradle.properties"
         }
       ]
+    },
+    "apps/intellij-plugin": {
+      "release-type": "simple",
+      "component": "intellij",
+      "include-component-in-tag": true,
+      "extra-files": [{ "type": "generic", "path": "gradle.properties" }]
     }
   }
 }
