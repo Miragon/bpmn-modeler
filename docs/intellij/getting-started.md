@@ -5,9 +5,10 @@ IntelliJ-based JetBrains IDEs ≥ 2024.2). It opens `.bpmn` files in a JCEF
 (embedded Chromium) editor that renders the same bpmn-js modeler used by the
 VS Code extension and the standalone app.
 
-The plugin is available on the official **JetBrains Marketplace**, so it
-installs through the regular *Marketplace* flow — no custom repository setup
-required.
+The plugin is published on the official
+[**JetBrains Marketplace**](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler),
+so it installs through the regular *Marketplace* flow — no custom repository
+setup required.
 
 ## Requirements
 
@@ -25,6 +26,11 @@ binary for each supported platform.
 2. Select the *Marketplace* tab.
 3. Search for **Miragon BPMN Modeler** and click *Install*.
 4. Restart the IDE when prompted.
+
+Prefer the browser? Open the
+[JetBrains Marketplace listing](https://plugins.jetbrains.com/plugin/32634-miragon-bpmn-modeler)
+to read reviews and the changelog, then click **Get → Install to IDE** to push
+it straight into a running IDE.
 
 Updates are delivered automatically: the IDE offers new versions from the
 Marketplace on its normal schedule under *Settings → Plugins → Updates*.

@@ -5,15 +5,24 @@ built on [Eclipse Theia](https://theia-ide.org/). Same modeler as the
 [VS Code extension](/vscode/getting-started), packaged as a native Electron
 app for when you don't want to run a full IDE.
 
-The standalone app currently ships for **macOS on Apple Silicon**.
-Windows and Linux builds may follow.
+The standalone app currently ships for **macOS** and **Windows**.
+A Linux build may follow.
 
 ## Install
 
-Head to the [**Download** page](/download) for the latest macOS `.dmg` and the
-Homebrew tap snippet. Both options install the same signed and notarized
-build; the app auto-updates from GitHub Releases on each launch, regardless
-of how it was installed.
+Grab the latest signed, notarized `.dmg` from the
+[**Download** page](/download), or install straight from the terminal with
+Homebrew:
+
+```bash
+brew tap miragon/tap
+brew install --cask miragon-bpmn-modeler
+```
+
+Every asset also lives on
+[GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases). Both
+options install the same build; the app auto-updates from GitHub Releases on
+each launch, regardless of how it was installed.
 
 ### Upgrade later
 
