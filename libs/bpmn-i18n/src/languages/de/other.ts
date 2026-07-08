@@ -29,8 +29,6 @@ const translations: Record<string, string> = {
     "Append element": "Element anfügen",
     "Applied": "Angewendet",
     "Assign to process variable": "Prozessvariable zuweisen",
-    "Beispielausgabe": "Beispielausgabe",
-    "Beispieldaten": "Beispieldaten",
     "Business Rule Task": "Geschäftsregel-Aufgabe",
     "Call Activity": "Aufruf-Aktivität",
     "Cancel Boundary Event": "Abbruch-Grenzereignis",
@@ -261,6 +259,14 @@ const translations: Record<string, string> = {
     "Variable Listeners": "Variablen-Ereignisse",
     "Navigate to referenced model": "Zum referenzierten Modell springen",
     "Go to implementation": "Zur Implementierung springen",
+    "Event Sub Process": "Ereignis-Teilprozess",
+    "Event based Gateway": "Ereignisbasiertes Gateway",
+    "Exclusive Gateway": "Exklusives Gateway (XOR)",
+    "Create new BPMN Diagram (Camunda Platform)":
+        "Neues BPMN-Diagramm erstellen (Camunda Platform)",
+    "Copy": "Kopieren",
+    "Paste": "Einfügen",
+    "No errors defined.": "Keine Fehler definiert.",
 };
 
 export default translations;

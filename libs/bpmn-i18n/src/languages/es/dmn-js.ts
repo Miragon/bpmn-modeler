@@ -235,6 +235,19 @@ const translations: Record<string, string> = {
     "Yes": "Sí",
     "value, value, ...": "valor, valor, ...",
     "value": "valor",
+    "Add Rule": "Añadir regla",
+    "Append Decision": "Añadir decisión",
+    "Append Knowledge Source": "Añadir fuente de conocimiento",
+    "Append Business Knowledge Model": "Añadir modelo de conocimiento de negocio",
+    "Append Input Data": "Añadir datos de entrada",
+    "input": "entrada",
+    "Edit DRD": "Editar DRD",
+    "Close OverView": "Cerrar vista general",
+    "Open OverView": "Abrir vista general",
+    "Hit Policy": "Política de acierto",
+    "enterExpression": "Introducir expresión",
+    "Move Input": "Mover entrada",
+    "Move Output": "Mover salida",
 };
 
 export default translations;
