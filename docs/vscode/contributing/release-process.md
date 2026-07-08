@@ -6,102 +6,118 @@ version history lives on
 
 ## Overview
 
-All hosts (VS Code extension, IntelliJ plugin, standalone app) share **one
-version** and **one GitHub Release**. The version is the *repository's*
-version — when any host changes, every host's number advances. Publishing is
-chosen **manually, per host**, so an unpublished host simply lags at its prior
-version (shown truthfully on the
-[Environments](https://github.com/Miragon/bpmn-modeler/deployments) page).
+The repo ships on **two independent release lines**, so a change to one host no
+longer forces a release of the others:
 
-The flow has two distinct phases:
+| Line | Tag | Covers | Publishes to |
+|---|---|---|---|
+| **`vscode`** (path `.`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS) + Homebrew |
+| **`intellij`** (path `apps/intellij-plugin`) | `intellij-v<version>` | IntelliJ plugin | JetBrains Marketplace + `updatePlugins.xml` |
 
-1. **Prepare (automated)** — [release-please](https://github.com/googleapis/release-please)
-   watches `main`. From the Conventional-Commit history it maintains a single
-   **Release PR** that bumps every host's version file in lockstep, updates the
-   root `CHANGELOG.md`, and — when merged — cuts one `v<version>` tag + one
-   GitHub Release. **Nothing is published at this point.**
-2. **Publish (manual, per host)** — for each host you want to ship, dispatch
-   its `publish-*` workflow against the new `v<version>` tag. Each attaches its
-   artefact to the shared release and records a per-host **deployment** so the
-   Environments page reflects what is actually live.
+VS Code, Open VSX and Standalone stay on **one** shared version because they are
+all built from the same frontend (`libs/shared`, the webviews). IntelliJ is a
+separate Gradle plugin and versions on its own.
 
-### Why a single shared version
+The flow has two phases, both automated:
 
-- Features almost always touch shared code (`libs/shared` feeds every host),
-  so they ship to everyone as a `minor`/`major` bump — always coupled.
-- Host-specific divergence is confined to **`patch`** bumps (per-host
-  keybinding/theme quirks). Patch gaps between hosts are cosmetic, never a
-  feature-level jump.
+1. **Prepare** — [release-please](https://github.com/googleapis/release-please)
+   watches `main` and maintains **one Release PR per line**
+   (`separate-pull-requests: true`). Each PR bumps its line's version files,
+   updates that line's `CHANGELOG.md`, and — when merged — cuts that line's tag
+   + GitHub Release.
+2. **Publish** — merging a Release PR triggers `release-please.yml`, which fans
+   out **only to that line's** publish jobs. Each `publish-*` workflow is also
+   runnable on its own via `workflow_dispatch` for reruns.
 
-Per-host attribution in the single changelog comes for free from the commit
-**scope** (`fix(intellij): …` renders as `**intellij:** …`). Each marketplace
-only ever shows the changelog sections for the versions it actually shipped.
+### How commits are routed
+
+release-please assigns each commit to the package whose path is the **longest
+prefix** of its changed files. Commits under `apps/intellij-plugin/**` go to the
+`intellij` line; everything else falls through to the `vscode` catch-all. So an
+IntelliJ-only fix never releases VS Code/Standalone, and vice versa — keep a
+commit to one host's files to keep it on one line.
+
+### Shared frontend → IntelliJ
+
+The IntelliJ plugin **bundles** the bpmn-webview, deployment-webview,
+modeler-bridge and shared libs at build time. Because that coupling lives in no
+package manifest, a shared-frontend fix routes to the `vscode` line only.
+[`sync-intellij-webview.yml`](../../../.github/workflows/sync-intellij-webview.yml)
+closes the gap: when a bundled source lands on `main`, it records the commit in
+`apps/intellij-plugin/BUNDLED_WEBVIEW` and commits it as `fix(intellij): …`,
+which routes to the `intellij` line and guarantees a matching release.
 
 ## Pipeline flow
 
 ```mermaid
 flowchart LR
     commits([Conventional commits on main])
-    rp[release-please.yml<br/>maintains Release PR]
-    pr{{Release PR}}
-    tag[(v&lt;version&gt; tag<br/>+ GitHub Release)]
+    sync[sync-intellij-webview.yml<br/>marks IntelliJ on bundled-source change]
+    rp[release-please.yml<br/>one Release PR per line]
+    pr_v{{vscode Release PR}}
+    pr_i{{intellij Release PR}}
+    tag_v[(vscode-v&lt;version&gt; tag<br/>+ Release)]
+    tag_i[(intellij-v&lt;version&gt; tag<br/>+ Release)]
 
-    commits --> rp --> pr
-    pr -->|maintainer merges| tag
+    commits --> rp
+    commits --> sync --> commits
+    rp --> pr_v -->|merge| tag_v
+    rp --> pr_i -->|merge| tag_i
 
-    user([Maintainer])
-    subgraph Publish[Manual publish · per host]
-        p_vscode[publish-vscode-modeler.yml]
-        p_intellij[publish-intellij.yml]
-        p_standalone[release-standalone.yml<br/>→ publish-standalone<br/>→ homebrew]
-    end
+    tag_v --> p_vscode[publish-vscode-modeler.yml]
+    tag_v --> p_ovsx[publish-open-vsx-modeler.yml]
+    tag_v --> p_standalone[release-standalone.yml<br/>→ publish-standalone → homebrew]
+    tag_i --> p_intellij[publish-intellij.yml]
 
-    tag -. dispatch against tag .-> Publish
-    user -->|per host| Publish
-    p_vscode --> a_vscode[(VS Code Marketplace<br/>+ deployment)]
-    p_intellij --> a_intellij[(updatePlugins.xml + ZIP<br/>+ deployment)]
-    p_standalone --> a_standalone[(DMG / NSIS + Homebrew<br/>+ deployment)]
+    p_vscode --> a_vscode[(VS Code Marketplace)]
+    p_ovsx --> a_ovsx[(Open VSX)]
+    p_standalone --> a_standalone[(DMG / NSIS + Homebrew)]
+    p_intellij --> a_intellij[(updatePlugins.xml + ZIP)]
 ```
 
 ## Configuration
 
 release-please is driven by two checked-in files:
 
-- **`release-please-config.json`** — the whole repo is one package (`"."`,
-  `release-type: node`). `extra-files` stamp the four host version files
-  (`apps/vscode-plugin/package.json`, `apps/standalone/package.json`,
-  `libs/standalone-extension/package.json` via the `json` updater; the
-  `version = "…"` literal in `apps/intellij-plugin/build.gradle.kts` via the
-  `generic` updater, anchored by its `// x-release-please-version` comment).
-  `include-component-in-tag: false` keeps the tag as plain `v<version>`.
-  `changelog-sections` map commit **types** (`feat`/`fix`/`refactor`/`docs`/
-  `chore`) to changelog headings.
-- **`.release-please-manifest.json`** — `{ ".": "1.0.1" }`, the current shared
-  version. release-please updates this on each release.
+- **`release-please-config.json`** — two packages, `separate-pull-requests: true`:
+  - `"."` — `release-type: node`, `component: vscode`, `include-component-in-tag: true`
+    → tag `vscode-v<version>`. `extra-files` stamp the three host version files
+    (`apps/vscode-plugin/package.json`, `apps/standalone/package.json`,
+    `libs/standalone-extension/package.json`) via the `json` updater.
+  - `"apps/intellij-plugin"` — `release-type: simple`, `component: intellij`,
+    `include-component-in-tag: true` → tag `intellij-v<version>`. Its `extra-files`
+    stamp `gradle.properties` (`pluginVersion`) via the `generic` updater,
+    anchored by the `# x-release-please-start-version` markers.
+  - `changelog-sections` map commit **types** (`feat`/`fix`/`refactor`/`docs`/
+    `chore`) to changelog headings.
+- **`.release-please-manifest.json`** — `{ ".": "…", "apps/intellij-plugin": "…" }`,
+  the current version of each line. release-please updates these on each release.
 
 ## Releasing
 
 ### 1. Cut the release (prepare)
 
 1. Merge your feature/fix PRs into `main` with Conventional-Commit messages.
-   Use a host scope for host-only fixes (`fix(intellij): …`).
-2. release-please opens/updates a **Release PR** titled
-   `chore(main): release <version>`. Review the proposed version and changelog.
-3. **Merge the Release PR.** This pushes the version-file bumps, tags
-   `v<version>`, and creates the GitHub Release. No publish fires.
+   Use `fix(intellij): …` for IntelliJ-only fixes so they land on the IntelliJ
+   line; anything else lands on the `vscode` line.
+2. release-please opens/updates a **Release PR** per affected line
+   (`chore(main): release <component> <version>`). Review the version + changelog.
+3. **Merge the Release PR.** It pushes the version bumps, tags the line
+   (`vscode-v<version>` or `intellij-v<version>`), and creates the GitHub
+   Release — which triggers that line's publish jobs automatically.
 
-### 2. Publish each host (manual)
+### 2. Publishing (automatic, per line)
 
-For every host you want to ship at this version:
+Merging a Release PR fans out via `release-please.yml`:
 
-| Host | Workflow | How |
+| Line | Auto-publishes | Notes |
 |---|---|---|
-| VS Code | `publish-vscode-modeler.yml` | Run with `tag: v<version>`, `dry-run: false`. Packages the `.vsix` and runs `vsce publish`. |
-| IntelliJ | `publish-intellij.yml` | Run with `tag: v<version>`. Builds the multi-platform ZIP, uploads it to the release, and refreshes `docs/public/updatePlugins.xml`. |
-| Standalone | `release-standalone.yml` | Run with `version: <version>`. Chains `publish-standalone` (DMG + NSIS) → homebrew. Each sub-workflow is also runnable on its own. |
+| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX + DMG/NSIS + Homebrew. |
+| `intellij` | `publish-intellij.yml` | Multi-platform ZIP → JetBrains Marketplace, refreshes `docs/public/updatePlugins.xml`. |
 
-All publish workflows support `dry-run` (build/package without uploading or
-pushing). A host you skip stays live at its previous version.
+Each `publish-*` workflow is also runnable on its own via `workflow_dispatch`
+(pass the line's tag, e.g. `tag: vscode-v1.4.0` / `tag: intellij-v1.4.0`) with a
+`dry-run` option for reruns.
 
 > The `@miragon/create-append-c7` polyfill that the BPMN webview depends on
 > lives in its [own repository](https://github.com/Miragon/create-append-c7)
@@ -121,17 +137,22 @@ environment:
 
 The repo
 [Environments / Deployments page](https://github.com/Miragon/bpmn-modeler/deployments)
-then shows the last-published version per host — the source of truth for which
-hosts have shipped a given shared version and which are still lagging.
+then shows the last-published version per host.
 
 ## Artefact distribution
 
-- **VS Code** → [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler).
-- **IntelliJ** → the plugin ZIP attaches to the `v<version>` release;
+- **VS Code** → [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler)
+  and the [Open VSX Registry](https://open-vsx.org/extension/miragon-gmbh/vs-code-bpmn-modeler).
+- **IntelliJ** → the plugin ZIP attaches to the `intellij-v<version>` release;
   `docs/public/updatePlugins.xml` (served via GitHub Pages) points the IDE's
   custom-repository updater at it.
-- **Standalone** → DMG / NSIS installers + the `electron-updater` manifests
-  (`latest-mac.yml` / `latest.yml`) attach to the `v<version>` release; the
-  Homebrew Cask in [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap)
-  is updated for `brew upgrade --cask miragon-bpmn-modeler`. The docs download
-  page resolves the latest `v*` release that carries an arm64 DMG.
+- **Standalone** → DMG / NSIS installers attach to the `vscode-v<version>`
+  release, and the Homebrew Cask in
+  [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap) is updated for
+  `brew upgrade --cask miragon-bpmn-modeler`. **Auto-update** uses a
+  `electron-updater` **generic feed**: each publish also mirrors the installers +
+  `latest-mac.yml` / `latest.yml` onto a rolling `standalone-latest` prerelease,
+  which the app reads from a fixed URL (the repo-wide `/releases/latest` can't be
+  used — it is often an IntelliJ release with no DMG). The docs download page
+  resolves the most recent release that carries an arm64 DMG, independent of the
+  tag scheme.

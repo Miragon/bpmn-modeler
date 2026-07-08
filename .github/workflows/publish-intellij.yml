@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v1.2.3)'
+        description: 'Release tag (e.g. intellij-v1.2.3)'
         required: true
         type: string
       dry_run:
@@ -15,7 +15,7 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: 'Release tag (e.g. v1.2.3)'
+        description: 'Release tag (e.g. intellij-v1.2.3)'
         required: true
         type: string
       dry_run:
@@ -42,11 +42,14 @@ jobs:
       - name: Resolve tag
         id: tag
         run: |
+          # release-please tags the IntelliJ line as "intellij-v<version>";
+          # a bare "v<version>" is still accepted for manual reruns of older
+          # releases cut before the release lines were split.
           TAG="${{ inputs.tag }}"
-          if [[ "$TAG" != v* ]]; then
-            echo "Tag '$TAG' is not a v* tag; aborting." && exit 1
+          VERSION="${TAG##*v}"
+          if [[ -z "$VERSION" || "$VERSION" == "$TAG" ]]; then
+            echo "Tag '$TAG' has no v<version> component; aborting." && exit 1
           fi
-          VERSION="${TAG#v}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 

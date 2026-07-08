@@ -1,7 +1,7 @@
 name: Release Standalone
 
 # Manual publish orchestrator for the standalone app. The shared version and
-# `v<version>` tag are produced by release-please (release-please.yml); this
+# `vscode-v<version>` tag are produced by release-please (release-please.yml); this
 # workflow only *publishes* against an existing release. It chains
 # publish-standalone.yml (DMG + Windows installer) → publish-standalone-homebrew.yml.
 # Each sub-workflow is also runnable on its own via workflow_dispatch for
@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish, without prefix (e.g. 1.2.3). The release tag is v<version>.'
+        description: 'Version to publish, without prefix (e.g. 1.2.3). The release tag is vscode-v<version>.'
         required: true
         type: string
       dry-run:
@@ -27,7 +27,7 @@ on:
   workflow_call:
     inputs:
       version:
-        description: 'Version to publish, without prefix (e.g. 1.2.3). The release tag is v<version>.'
+        description: 'Version to publish, without prefix (e.g. 1.2.3). The release tag is vscode-v<version>.'
         required: true
         type: string
       dry-run:
@@ -57,7 +57,7 @@ jobs:
       dry-run: ${{ inputs.dry-run }}
       # Real runs check out the release tag so the bundled version matches the
       # release; dry-runs build from the triggering SHA (no tag required).
-      ref: ${{ inputs.dry-run && '' || format('v{0}', inputs.version) }}
+      ref: ${{ inputs.dry-run && '' || format('vscode-v{0}', inputs.version) }}
     secrets: inherit
 
   homebrew:

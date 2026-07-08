@@ -30,7 +30,7 @@ on:
         type: boolean
         default: true
       ref:
-        description: 'Git ref to check out (e.g. the v<version> release tag). Defaults to the triggering SHA.'
+        description: 'Git ref to check out (e.g. the vscode-v<version> release tag). Defaults to the triggering SHA.'
         required: false
         type: string
         default: ''
@@ -198,7 +198,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
-          TAG="v${VERSION}"
+          TAG="vscode-v${VERSION}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG does not exist. Create it first (tag + 'gh release create $TAG')." && exit 1
           fi
@@ -208,6 +208,17 @@ jobs:
             echo "No artifacts found in apps/standalone/dist/." && exit 1
           fi
           gh release upload "$TAG" "${FILES[@]}" --clobber
+
+          # Mirror the same artifacts onto the rolling `standalone-latest`
+          # prerelease — the fixed feed electron-updater reads (see
+          # electron-builder.yml `publish`). Prerelease so it never becomes the
+          # repo's /releases/latest; create-if-missing tolerates the race with
+          # the other platform job (whichever loses the create just uploads).
+          gh release create standalone-latest --prerelease \
+            --title "Standalone auto-update feed" \
+            --notes "Rolling feed for the desktop app's auto-updater. Assets are overwritten on each standalone release — install from the Download page, not from here." \
+            2>/dev/null || true
+          gh release upload standalone-latest "${FILES[@]}" --clobber
 
   package-windows:
     name: Package NSIS installer (Windows)
@@ -267,7 +278,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -e "console.log(require('./apps/standalone/package.json').version)")
-          TAG="v${VERSION}"
+          TAG="vscode-v${VERSION}"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG does not exist. Create it first (tag + 'gh release create $TAG')." && exit 1
           fi
@@ -277,6 +288,17 @@ jobs:
             echo "No artifacts found in apps/standalone/dist/." && exit 1
           fi
           gh release upload "$TAG" "${FILES[@]}" --clobber
+
+          # Mirror the same artifacts onto the rolling `standalone-latest`
+          # prerelease — the fixed feed electron-updater reads (see
+          # electron-builder.yml `publish`). Prerelease so it never becomes the
+          # repo's /releases/latest; create-if-missing tolerates the race with
+          # the other platform job (whichever loses the create just uploads).
+          gh release create standalone-latest --prerelease \
+            --title "Standalone auto-update feed" \
+            --notes "Rolling feed for the desktop app's auto-updater. Assets are overwritten on each standalone release — install from the Download page, not from here." \
+            2>/dev/null || true
+          gh release upload standalone-latest "${FILES[@]}" --clobber
 
   record-deployment:
     name: Record deployment
@@ -300,7 +322,7 @@ jobs:
         with:
           script: |
             const version = "${{ steps.version.outputs.version }}";
-            const tag = `v${version}`;
+            const tag = `vscode-v${version}`;
             const deployment = await github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,

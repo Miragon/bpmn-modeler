@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version without prefix (e.g. 1.2.3). Tag is always v<version>."
+        description: "Version without prefix (e.g. 1.2.3). Tag is always vscode-v<version>."
         required: true
         type: string
       dry-run:
@@ -71,7 +71,7 @@ jobs:
           INPUT_FILENAME: ${{ inputs.dmg-filename }}
         run: |
           VERSION="$INPUT_VERSION"
-          TAG="v${VERSION}"
+          TAG="vscode-v${VERSION}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           if [ -n "$INPUT_SHA" ] && [ -n "$INPUT_FILENAME" ]; then
