@@ -15,6 +15,8 @@ finish-args:
   - --filesystem=home
   - --talk-name=org.freedesktop.secrets
   - --env=ELECTRON_TRASH=gio
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=x11
+  - --unset-env=WAYLAND_DISPLAY
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
 
 modules:
@@ -31,12 +33,12 @@ modules:
       - patch-electron-desktop-filename /app/opt/miragon-bpmn-modeler/resources/app.asar
     sources:
       - type: dir
-        path: ../../apps/standalone/dist/linux-unpacked
+        path: ../dist/linux-unpacked
         dest: linux-unpacked
       - type: script
         dest-filename: miragon-bpmn-modeler
         commands:
-          - zypak-wrapper /app/opt/miragon-bpmn-modeler/miragon-bpmn-modeler "$@"
+          - zypak-wrapper /app/opt/miragon-bpmn-modeler/miragon-bpmn-modeler --ozone-platform=x11 "$@"
       - type: file
         path: io.miragon.BpmnModeler.desktop
       - type: file

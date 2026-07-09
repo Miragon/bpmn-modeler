@@ -131,9 +131,16 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak
 Install and run the generated bundle:
 
 ```bash
-flatpak install --user apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x86_64.flatpak
+flatpak install --user --bundle apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x86_64.flatpak
 flatpak run io.miragon.BpmnModeler
 ```
+
+Use `--bundle` for the generated `.flatpak` file. `--from` is only for
+`.flatpakref` files and will fail by trying to parse the bundle as text.
+
+The Flatpak launcher forces Electron onto X11/Xwayland. Native Wayland support
+can be revisited later, but X11 is the stable default recommended for Electron
+Flatpaks.
 
 For packaging-only reruns after `apps/standalone/dist/linux-unpacked/` already
 exists, use:
@@ -231,7 +238,8 @@ chain runs through without a gate; dry-run remains the only safety net.
 apps/standalone/
 ├── package.json            Theia deps + scripts
 ├── tsconfig.json
-├── electron-builder.yml    macOS / Windows build targets (unsigned)
+├── electron-builder.yml    macOS / Windows / Linux build targets
+├── flatpak/                Flatpak manifest and Linux desktop metadata
 ├── scripts/
 │   ├── bundle-extension.mjs   Copy .vsix from dist/apps/vscode-plugin
 │   └── theia-electron-main.js Electron main entry (points at ./plugins)
