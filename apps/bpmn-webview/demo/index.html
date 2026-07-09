@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <!--
+        Vite does not auto-inject these because this HTML is copied in, not a
+        Vite HTML entry — so they are linked explicitly with the stable output
+        names the demo build produces. `index.css` carries the app's own
+        component styles; the theme stylesheet carries the bpmn-font @font-face
+        that renders the palette/element icons (same as the VS Code host).
+    -->
+    <link href="./index.css" rel="stylesheet" />
+    <link href="./lightTheme.css" id="theme-link" rel="stylesheet" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BPMN Modeler — Demo</title>
+</head>
+<body>
+<div id="app" style="height: 100vh">
+    <div class="content with-diagram" id="js-drop-zone">
+
+        <div class="message error">
+            <div class="note">
+                <p>Ooops, we could not display the BPMN 2.0 diagram.</p>
+
+                <div class="details">
+                    <span>Import Error Details</span>
+                    <pre></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas" id="js-canvas"></div>
+        <div class="panel-resizer" id="js-panel-resizer"></div>
+        <div class="properties-panel-parent" id="js-properties-panel"></div>
+    </div>
+</div>
+<!--
+    Light theme only: the demo's MockHost reports a fixed `colorTheme: "light"`
+    (apps/bpmn-webview/src/app/host.ts), so a runtime dark switch would be
+    overridden on the settings round-trip. Kept simple on purpose.
+-->
+<script src="./index.js" type="module"></script>
+</body>
+</html>

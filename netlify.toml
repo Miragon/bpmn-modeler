@@ -1,0 +1,11 @@
+# Standalone browser demo of the BPMN modeler (bpmn-webview).
+#
+# Netlify's Git integration builds this for every branch/PR (deploy previews)
+# and for `main` (production). 
+
+[build]
+  command = "corepack yarn build:demo"
+  publish = "dist/demo/bpmn-webview"
+
+[build.environment]
+  NODE_VERSION = "22"
