@@ -63,3 +63,4 @@ docs/.vitepress/cache
 .gstack/
 .agent/
 .claude/logs/
+.flatpak-builder/

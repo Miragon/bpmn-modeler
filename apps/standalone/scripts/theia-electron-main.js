@@ -13,7 +13,7 @@ const bundledPluginsDir = isInsideAsar
 
 process.env.THEIA_DEFAULT_PLUGINS = `local-dir:${bundledPluginsDir}`;
 
-if (app.isPackaged) {
+if (app.isPackaged && !process.env.FLATPAK_ID) {
     const { autoUpdater } = require("electron-updater");
     app.whenReady().then(() => {
         autoUpdater.checkForUpdatesAndNotify().catch((err) => {

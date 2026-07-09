@@ -54,8 +54,8 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone start
 ## Building installers
 
 The packaging scripts produce a platform-appropriate installer for whichever
-OS you run them on — DMG on macOS, NSIS `.exe` on Windows. electron-builder
-defaults to the host OS; no cross-compilation.
+OS you run them on — DMG on macOS, NSIS `.exe` on Windows, and a Flatpak bundle
+on Linux. electron-builder defaults to the host OS; no cross-compilation.
 
 End-to-end recipe — start from a clean `apps/standalone/` and run from the
 **repo root**:
@@ -75,12 +75,14 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone run rebuild
 
 # 4. Pick one packaging script:
 corepack yarn workspace @miragon/bpmn-modeler-standalone run package          # unsigned (Gatekeeper warning on macOS, SmartScreen on Windows)
+corepack yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak  # Linux only: local .flatpak bundle
 corepack yarn workspace @miragon/bpmn-modeler-standalone run package:signed   # macOS only: signed + notarized (no warning)
 ```
 
 | Script | Use it for | Apple secrets needed |
 |---|---|---|
-| `package` | Local smoke testing on any OS | None |
+| `package` | Local smoke testing on any OS (Linux produces an unpacked dir) | None |
+| `package:flatpak` | Building a local Linux `.flatpak` bundle | None |
 | `package:signed` | Building a release-quality DMG locally (macOS) | Yes (see Releasing) |
 | `package:release` | CI only — signs, notarizes, **publishes** to GitHub Releases | Yes |
 
@@ -90,6 +92,7 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone run package:signed   # 
 |---|---|---|
 | macOS | DMG | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-arm64.dmg` |
 | Windows | NSIS installer | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x64.exe` |
+| Linux | Flatpak bundle | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x86_64.flatpak` |
 
 The `<version>` comes from `apps/standalone/package.json`.
 
@@ -102,6 +105,45 @@ the login keychain. See [Releasing](#releasing) below for the full setup.
 - **Build toolchain:** install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/) with the "Desktop development with C++" workload, plus Python 3 (required by `node-gyp` for native module rebuilds).
 - **Install the app:** double-click the `.exe`; NSIS walks through the usual install flow and registers the `.bpmn` / `.dmn` file associations.
 - **SmartScreen warning:** the build is unsigned, so Windows will show "Windows protected your PC" on first launch. Click *More info → Run anyway*. Production code signing is on the roadmap.
+
+### Linux Flatpak notes
+
+Local Flatpak packaging wraps electron-builder's Linux `dir` output in a
+single-file `.flatpak` bundle. Install the Linux build and Flatpak tooling first:
+
+```bash
+sudo apt install \
+  flatpak flatpak-builder \
+  build-essential python3 make g++ pkg-config \
+  libx11-dev libxkbfile-dev \
+  desktop-file-utils appstream libxml2-utils
+
+flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+```
+
+Build the local bundle from the repo root:
+
+```bash
+corepack yarn install
+corepack yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak
+```
+
+Install and run the generated bundle:
+
+```bash
+flatpak install --user apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x86_64.flatpak
+flatpak run io.miragon.BpmnModeler
+```
+
+For packaging-only reruns after `apps/standalone/dist/linux-unpacked/` already
+exists, use:
+
+```bash
+corepack yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak:bundle
+```
+
+Flatpak builds disable `electron-updater`; updates should be delivered by
+installing a newer Flatpak bundle or, later, through a signed Flatpak repository.
 
 ### Auto-update on Windows
 

@@ -3,6 +3,7 @@
   "name": "@miragon/bpmn-modeler-standalone",
   "description": "Miragon BPMN Modeler — standalone Theia-based Electron desktop app",
   "productName": "Miragon BPMN Modeler",
+  "desktopName": "io.miragon.BpmnModeler.desktop",
   "version": "1.4.0",
   "main": "scripts/theia-electron-main.js",
   "license": "Apache-2.0",
@@ -109,6 +110,9 @@
     "start:isolated": "npm-run-all -s build:repo prepare-plugin package start:isolated:run",
     "start:isolated:run": "node scripts/launch-isolated.mjs",
     "package": "yarn clean:dist && yarn download:plugins && yarn rebuild && yarn build:prod && electron-builder -c.mac.identity=null -c.mac.notarize=false -c.mac.hardenedRuntime=false --publish never",
+    "package:linux:dir": "yarn clean:dist && yarn rebuild && yarn build:prod && electron-builder --linux dir --publish never",
+    "package:flatpak": "npm-run-all -s build:repo prepare-plugin package:linux:dir package:flatpak:bundle",
+    "package:flatpak:bundle": "node scripts/package-flatpak.mjs",
     "package:signed": "yarn clean:dist && yarn download:plugins && yarn rebuild && yarn build:prod && electron-builder --publish never",
     "package:release": "yarn clean:dist && yarn download:plugins && yarn rebuild && yarn build:prod && electron-builder --publish never"
   }

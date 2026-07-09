@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/bpmn+xml">
+    <comment>BPMN Process Model</comment>
+    <glob pattern="*.bpmn" />
+  </mime-type>
+  <mime-type type="application/dmn+xml">
+    <comment>DMN Decision Model</comment>
+    <glob pattern="*.dmn" />
+  </mime-type>
+</mime-info>
