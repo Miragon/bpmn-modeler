@@ -109,6 +109,22 @@ two listeners on the same task do not collide:
 - Switching the BPMN tab away while you keep typing is safe: the changes
   are buffered and replayed when you switch back to the diagram.
 
+## Single Writer
+
+While a script editor tab is open, that tab is the **single writer** for
+the script. The matching **Script** field in the properties panel (and the
+matching listener row) becomes read-only, showing a hint like *"Being
+edited in `Task_1.groovy` — click to focus"*. Clicking the hint reveals the
+editor tab.
+
+This prevents a silent-clobber bug: previously you could type into the
+panel textarea while a tab was open, and the panel edit would be
+overwritten by the next keystroke streamed from the tab. Now the panel
+field is locked for the duration, so edits only flow from the one tab that
+owns the script. The field still updates live to mirror what you type in
+the tab — it just cannot be edited in place. Close the tab and the field
+becomes fully editable again.
+
 ## IntelliSense
 
 Each supported language gets context-aware completions for the Camunda 7

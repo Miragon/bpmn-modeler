@@ -259,6 +259,43 @@ export class UpdateScriptContentQuery extends Query {
 }
 
 /**
+ * Identifies a single inline script that currently has an editor tab open on
+ * the host, so the webview can lock the matching properties-panel field.
+ *
+ * `fileName` is the host editor's tab name (last URI/path segment) — shown in
+ * the "being edited in …" hint so the user knows which tab owns the write.
+ * The `(elementId, kind, listenerIndex)` triple is the same addressing scheme
+ * {@link UpdateScriptContentQuery} uses, so the webview can key the lock on it.
+ */
+export interface OpenScriptEditorRef {
+    readonly elementId: string;
+    readonly kind: ScriptKind;
+    readonly listenerIndex: number | undefined;
+    readonly fileName: string;
+}
+
+/**
+ * Broadcasts the host's *full* set of currently-open inline-script editors for
+ * one BPMN editor so the webview can make the matching properties-panel script
+ * fields read-only (single-writer arbitration): while a script tab owns the
+ * content, a panel edit would be silently clobbered by the next keystroke
+ * streamed from that tab.
+ *
+ * A full-set broadcast (not a delta) is sent on every open/close/handshake:
+ * the webview reloads whenever the host hides and re-shows it, wiping any
+ * incremental lock state, so only an idempotent replace stays correct across
+ * reloads. An empty array means nothing is open — the panel is fully editable.
+ */
+export class UpdateOpenScriptEditorsQuery extends Query {
+    public readonly openScripts: OpenScriptEditorRef[];
+
+    constructor(openScripts: OpenScriptEditorRef[]) {
+        super("UpdateOpenScriptEditorsQuery");
+        this.openScripts = openScripts;
+    }
+}
+
+/**
  * Delivers the user's language selection to the webview for live translation.
  */
 export class LanguageQuery extends Query {

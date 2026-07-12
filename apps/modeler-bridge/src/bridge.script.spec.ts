@@ -421,6 +421,91 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(update.params.variables).toEqual(variables);
     });
 
+    it("broadcasts the open-script set as UpdateOpenScriptEditorsQuery on open", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "execution-listener",
+            listenerIndex: 0,
+            eventName: "start",
+            scriptFormat: "javascript",
+            content: "",
+        });
+
+        const lock = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "UpdateOpenScriptEditorsQuery",
+        );
+        expect(lock.params.editorId).toBe(editorId);
+        expect(lock.params.message.openScripts).toEqual([
+            {
+                elementId: "Task_1",
+                kind: "execution-listener",
+                listenerIndex: 0,
+                fileName: "Task_1.execution-start.js",
+            },
+        ]);
+    });
+
+    it("clears the lock broadcast when the script tab is closed (script/didClose)", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "javascript",
+            content: "",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const scriptId = open.params.scriptId;
+        frames.length = 0;
+
+        await rpc.handleLine(JSON.stringify({ method: "script/didClose", params: { scriptId } }));
+        await settle();
+
+        const lock = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "UpdateOpenScriptEditorsQuery",
+        );
+        expect(lock.params.message.openScripts).toEqual([]);
+    });
+
+    it("re-broadcasts the lock state on the GetBpmnModelerSettingCommand handshake", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "javascript",
+            content: "",
+        });
+        frames.length = 0;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "GetBpmnModelerSettingCommand" } },
+            }),
+        );
+        await settle();
+
+        const lock = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "UpdateOpenScriptEditorsQuery",
+        );
+        expect(lock.params.message.openScripts).toHaveLength(1);
+        expect(lock.params.message.openScripts[0].elementId).toBe("Task_1");
+    });
+
     it("closes the editor's open script tabs on session/dispose", async () => {
         const { rpc, frames, editorId } = await setup();
 

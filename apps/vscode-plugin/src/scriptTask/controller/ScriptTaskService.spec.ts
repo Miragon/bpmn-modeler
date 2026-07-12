@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ScriptKind, UpdateScriptContentQuery } from "@miragon/bpmn-modeler-shared";
+import {
+    OpenScriptEditorRef,
+    ScriptKind,
+    UpdateOpenScriptEditorsQuery,
+    UpdateScriptContentQuery,
+} from "@miragon/bpmn-modeler-shared";
 
 // `ScriptTaskService` reaches into vscode directly (`Uri`, `languages`,
 // `window`, `workspace`, `ViewColumn`, `TabInputText`), so the factory must
@@ -128,6 +133,24 @@ function docChangeEvent(uriString: string, text: string) {
     };
 }
 
+/** Content-update posts only, filtering out lock broadcasts that share the mock. */
+function contentQueryCalls(postMessage: { mock: { calls: unknown[][] } }): unknown[][] {
+    return postMessage.mock.calls.filter(
+        ([, message]) => (message as { type: string }).type === "UpdateScriptContentQuery",
+    );
+}
+
+/** The `openScripts` array of the most recent lock broadcast, or `undefined`. */
+function lastBroadcastRefs(postMessage: {
+    mock: { calls: unknown[][] };
+}): OpenScriptEditorRef[] | undefined {
+    const calls = postMessage.mock.calls.filter(
+        ([, message]) => (message as { type: string }).type === "UpdateOpenScriptEditorsQuery",
+    );
+    const last = calls[calls.length - 1];
+    return last ? (last[1] as UpdateOpenScriptEditorsQuery).openScripts : undefined;
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
     openTabGroups = [];
@@ -252,6 +275,8 @@ describe("ScriptTaskService.onVirtualDocumentChanged", () => {
             "a",
         );
         scriptFs.writeFile.mockClear();
+        // Drop the open-time lock broadcast so the assertion isolates this event.
+        editorStore.postMessage.mockClear();
 
         await fireDocChange({
             document: { uri: Uri.parse(scriptUriString()), getText: () => "next" },
@@ -274,6 +299,7 @@ describe("ScriptTaskService.onVirtualDocumentChanged", () => {
             "a",
         );
         scriptFs.writeFile.mockClear();
+        editorStore.postMessage.mockClear();
 
         // Pre-seed the guard so the change looks like the echo of our own write.
         (service as never as { writingGuard: Set<string> }).writingGuard.add(
@@ -339,7 +365,8 @@ describe("ScriptTaskService.onVirtualDocumentChanged", () => {
         // The editor is now armed: a resync replays the buffered edit.
         editorStore.postMessage.mockResolvedValue(true);
         await service.resyncOpenDocuments(EDITOR_ID);
-        expect(editorStore.postMessage).toHaveBeenLastCalledWith(
+        // The lock re-broadcast is posted last; assert the content replay landed.
+        expect(editorStore.postMessage).toHaveBeenCalledWith(
             EDITOR_ID,
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "buffered"),
         );
@@ -417,7 +444,8 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
         await service.resyncOpenDocuments(EDITOR_ID);
 
-        expect(editorStore.postMessage).toHaveBeenCalledTimes(1);
+        // One content replay (the lock re-broadcast rides on the same mock).
+        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(1);
         expect(editorStore.postMessage).toHaveBeenCalledWith(
             EDITOR_ID,
             new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "decoded"),
@@ -460,7 +488,7 @@ describe("ScriptTaskService.resyncOpenDocuments", () => {
         (service as never as { pendingResync: Set<string> }).pendingResync.add(EDITOR_ID);
         await service.resyncOpenDocuments(EDITOR_ID);
 
-        expect(editorStore.postMessage).toHaveBeenCalledTimes(1);
+        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(1);
         expect(notifier.logError).not.toHaveBeenCalled();
     });
 
@@ -616,6 +644,90 @@ describe("ScriptTaskService.onTabsChanged", () => {
         });
 
         expect(scriptFs.deleteByPrefix).not.toHaveBeenCalled();
+    });
+});
+
+describe("ScriptTaskService lock broadcast", () => {
+    it("broadcasts the open script (fileName + addressing) when a tab opens", async () => {
+        const { service, editorStore } = createService();
+
+        await service.openScriptEditor(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "javascript",
+            "a",
+        );
+
+        const filename = new ScriptUri(EDITOR_ID, ELEMENT_ID, KIND, undefined, undefined, "js")
+            .filename;
+        expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([
+            {
+                elementId: ELEMENT_ID,
+                kind: KIND,
+                listenerIndex: undefined,
+                fileName: filename,
+            },
+        ]);
+    });
+
+    it("broadcasts an empty set when the last script tab is cleaned up", async () => {
+        const { service, fireTabsChange, editorStore } = createService();
+        await service.openScriptEditor(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "javascript",
+            "a",
+        );
+        setOpenTabs([]);
+
+        fireTabsChange({ closed: [makeTab(scriptUriString())], opened: [], changed: [] });
+
+        expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([]);
+    });
+
+    it("re-broadcasts the current open set on the reload handshake (syncLockState)", async () => {
+        const { service, editorStore } = createService();
+        await service.openScriptEditor(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "javascript",
+            "a",
+        );
+        editorStore.postMessage.mockClear();
+
+        service.syncLockState(EDITOR_ID);
+
+        const refs = lastBroadcastRefs(editorStore.postMessage);
+        expect(refs).toHaveLength(1);
+        expect(refs?.[0].elementId).toBe(ELEMENT_ID);
+    });
+
+    it("tolerates a hidden webview during the lock broadcast without logging", async () => {
+        const { service, editorStore, notifier } = createService();
+        editorStore.postMessage.mockRejectedValue(new Error("The active editor is hidden."));
+
+        await service.openScriptEditor(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "javascript",
+            "a",
+        );
+        // Let the fire-and-forget broadcast's rejection settle.
+        await Promise.resolve();
+
+        expect(notifier.logError).not.toHaveBeenCalled();
     });
 });
 

@@ -14,9 +14,12 @@ import {
     BpmnModelerSetting,
     Engine,
     NoModelerError,
+    OpenScriptEditorRef,
     ScriptKind,
 } from "@miragon/bpmn-modeler-shared";
 import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
+import { OpenScriptEditorsStore, OpenScriptEditorsStoreModule } from "./openScriptEditorsStore";
+import { ScriptLockPropertiesProviderModule } from "./scriptLockPropertiesProvider";
 import {
     OPEN_SCRIPT_EDITOR_EVENT,
     OpenScriptEditorEvent,
@@ -130,6 +133,8 @@ export class BpmnModeler {
                         TransactionBoundariesModule,
                         ScriptTaskContextPadModule,
                         ScriptEditorButtonsModule,
+                        OpenScriptEditorsStoreModule,
+                        ScriptLockPropertiesProviderModule,
                         ...extra,
                     ],
                 });
@@ -439,6 +444,17 @@ export class BpmnModeler {
         modeling.updateModdleProperties(element, listener.script, {
             value: content,
         });
+    }
+
+    /**
+     * Hands the host's current set of open inline-script editors to the
+     * {@link OpenScriptEditorsStore}, which locks the matching properties-panel
+     * script fields (single-writer arbitration). C7-only: the store/provider
+     * modules are not registered for C8, so the service is resolved defensively
+     * and the call is a no-op there.
+     */
+    applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
+        this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
     }
 
     /**

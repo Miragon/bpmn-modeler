@@ -31,7 +31,9 @@ import {
 import {
     dedupeVariables,
     OpenScriptEditorCommand,
+    OpenScriptEditorRef,
     ScriptKind,
+    UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
     VariableDef,
@@ -163,6 +165,43 @@ export class BridgeScriptEditor {
                     : {},
             },
         });
+
+        // A tab now owns this script — lock the matching webview panel field.
+        this.broadcastOpenScripts(editorId);
+    }
+
+    /**
+     * Re-broadcasts the open-script set for an editor so the webview's
+     * properties-panel lock is restored after a reload. Called on the
+     * `GetBpmnModelerSettingCommand` handshake, the same signal the webview
+     * sends whenever it (re)initialises.
+     */
+    syncLockState(editorId: string): void {
+        this.broadcastOpenScripts(editorId);
+    }
+
+    /**
+     * Posts the full set of open inline-script editors for `editorId` so the
+     * webview locks the matching panel fields (single-writer arbitration). The
+     * tab's file name is the last `scriptId` path segment — the `ScriptUri`
+     * already ends in the human-facing filename, so no extra tracking is needed.
+     */
+    private broadcastOpenScripts(editorId: string): void {
+        const openScripts: OpenScriptEditorRef[] = [];
+        for (const [scriptId, entry] of this.scripts) {
+            if (entry.editorId !== editorId) {
+                continue;
+            }
+            openScripts.push({
+                elementId: entry.elementId,
+                kind: entry.kind,
+                listenerIndex: entry.listenerIndex,
+                fileName: scriptId.substring(scriptId.lastIndexOf("/") + 1),
+            });
+        }
+        this.store
+            .postMessage(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
+            .catch((error) => this.notifier.logError(error as Error));
     }
 
     /**
@@ -245,7 +284,12 @@ export class BridgeScriptEditor {
 
     /** Host reported the user closed the script tab → drop tracking (no close echo). */
     didClose(scriptId: string): void {
+        // Capture the owner before deleting so the lock release reflects the removal.
+        const editorId = this.scripts.get(scriptId)?.editorId;
         this.scripts.delete(scriptId);
+        if (editorId !== undefined) {
+            this.broadcastOpenScripts(editorId);
+        }
     }
 
     /**

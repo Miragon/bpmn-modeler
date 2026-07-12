@@ -101,10 +101,14 @@ describe("getBpmnModelerSettingHandler", () => {
 });
 
 describe("resyncScriptTasksHandler", () => {
-    it("reloads open inline scripts for the editor", () => {
-        const svc = { resyncOpenDocuments: vi.fn() };
-        resyncScriptTasksHandler(svc as never)(ANY, EDITOR);
+    it("reloads open inline scripts then re-broadcasts the lock state", async () => {
+        const svc = {
+            resyncOpenDocuments: vi.fn().mockResolvedValue(undefined),
+            syncLockState: vi.fn(),
+        };
+        await resyncScriptTasksHandler(svc as never)(ANY, EDITOR);
         expect(svc.resyncOpenDocuments).toHaveBeenCalledWith(EDITOR);
+        expect(svc.syncLockState).toHaveBeenCalledWith(EDITOR);
     });
 });
 

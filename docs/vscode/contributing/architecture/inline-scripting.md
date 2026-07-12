@@ -111,6 +111,7 @@ clean cross-platform filenames (e.g. dots and colons).
 | `OpenScriptEditorCommand` | webview → host | Open inline script for `(elementId, kind, listenerIndex, eventName)` with current `scriptFormat` and `content` |
 | `UpdateScriptContentQuery` | host → webview | Push edited content back to the modeler so it can write the moddle property and persist via the command stack |
 | `UpdateScriptFormatQuery` | host → webview | Persist a Quick-Pick'ed `scriptFormat` back to the model so subsequent opens skip the prompt |
+| `UpdateOpenScriptEditorsQuery` | host → webview | Broadcast the **full set** of currently-open script editors so the webview locks the matching properties-panel fields (single-writer) |
 
 `(elementId, kind, listenerIndex)` is the addressing tuple for the moddle
 property on both directions. `eventName` flows host-bound only — it's used to
@@ -184,6 +185,38 @@ sequenceDiagram
     ScriptSvc->>ScriptSvc: For each tracked doc — read scriptFs, postMessage
     ScriptSvc->>Webview: UpdateScriptContentQuery (replay)
 ```
+
+### Single-writer lock
+
+While a script tab is open, the properties-panel script field must be
+read-only — otherwise a panel edit races the stream of keystrokes coming
+from the tab and gets silently clobbered by the next one.
+
+`ScriptTaskService.broadcastOpenScripts(editorId)` posts the **full set** of
+open scripts for an editor as `UpdateOpenScriptEditorsQuery` whenever the set
+changes (open, cleanup) and on the reload handshake
+(`syncLockState`, wired into `resyncScriptTasksHandler`). A full-set replace
+(not a delta) is required because the webview drops its lock state every time
+it is hidden and re-shown; only an idempotent replace stays correct across
+reloads. A hidden-webview `postMessage` failure is swallowed — the next
+handshake re-broadcasts.
+
+In the webview, `OpenScriptEditorsStore` holds the set keyed by
+`${elementId}::${kind}::${listenerIndex ?? 0}` and fires
+`propertiesPanel.providersChanged` on every update. `ScriptLockPropertiesProvider`
+registers **below** the stock Camunda provider (priority `500` < `1000`), so
+its `getGroups` middleware sees the fully-built groups and swaps the locked
+`scriptValue` entry's component for a disabled `TextAreaEntry` plus a
+click-to-focus hint. Owning `setValue` (rather than toggling a DOM attribute)
+is what makes the lock airtight: a locked field has no write path at all, yet
+still live-updates as keystrokes stream in. The hint's reveal click re-fires
+`OPEN_SCRIPT_EDITOR_EVENT`; the host's already-open branch reveals the tab
+without rewriting it.
+
+The IntelliJ bridge mirrors this exactly — `BridgeScriptEditor` broadcasts the
+same query on open/`didClose` and on the `GetBpmnModelerSettingCommand`
+handshake, so the shared webview locks identically on both hosts. No Kotlin or
+RPC changes were needed.
 
 ## Completion provider
 

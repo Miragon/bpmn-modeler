@@ -11,7 +11,9 @@ import {
 } from "vscode";
 
 import {
+    OpenScriptEditorRef,
     ScriptKind,
+    UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
@@ -180,6 +182,58 @@ export class ScriptTaskService {
             listenerIndex,
             uri: scriptUri,
         });
+
+        // Tell the webview a tab now owns this script so the panel field locks.
+        this.broadcastOpenScripts(editorId);
+    }
+
+    /**
+     * Re-broadcasts the current open-script set for the given editor so the
+     * webview's properties-panel lock is restored after a reload.
+     *
+     * Kept separate from {@link resyncOpenDocuments}: that method's
+     * `pendingResync` early-return must stay content-only (it replays edits
+     * buffered while hidden), whereas the lock must refresh on *every*
+     * reload handshake regardless of whether a hidden edit occurred.
+     */
+    syncLockState(editorId: string): void {
+        this.broadcastOpenScripts(editorId);
+    }
+
+    /**
+     * Posts the full set of open inline-script editors for `editorId` so the
+     * webview can lock the matching panel fields. Called on every open/close
+     * and on the reload handshake — a full-set broadcast is idempotent, so a
+     * redundant one after a reload does no harm.
+     *
+     * A hidden webview makes `postMessage` throw; that is swallowed because the
+     * `GetBpmnModelerSettingCommand` reload handshake re-broadcasts once the
+     * webview is visible again — the same invariant {@link resyncOpenDocuments}
+     * relies on for content.
+     */
+    private broadcastOpenScripts(editorId: string): void {
+        const openScripts: OpenScriptEditorRef[] = [];
+        for (const entry of this.openDocuments.values()) {
+            if (entry.editorId !== editorId) {
+                continue;
+            }
+            const path = entry.uri.path;
+            openScripts.push({
+                elementId: entry.elementId,
+                kind: entry.kind,
+                listenerIndex: entry.listenerIndex,
+                fileName: path.substring(path.lastIndexOf("/") + 1),
+            });
+        }
+
+        this.editorStore
+            .postMessage(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
+            .catch((error: unknown) => {
+                if (error instanceof Error && error.message === "The active editor is hidden.") {
+                    return;
+                }
+                this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            });
     }
 
     /**
@@ -258,6 +312,11 @@ export class ScriptTaskService {
         for (const uri of deferredCleanups) {
             this.performCleanup(uri);
         }
+
+        // A hidden-edit replay may have closed tabs (handled above) or left the
+        // set unchanged; either way refresh the lock now that the webview — which
+        // dropped its lock state on reload — is visible again.
+        this.broadcastOpenScripts(editorId);
     }
 
     /**
@@ -362,7 +421,14 @@ export class ScriptTaskService {
     }
 
     private performCleanup(uri: Uri): void {
+        // Capture the owning editor before deleting so the lock broadcast below
+        // reflects the removal — the entry is gone by the time we post.
+        const editorId = this.openDocuments.get(uri.path)?.editorId;
         this.openDocuments.delete(uri.path);
+
+        if (editorId !== undefined) {
+            this.broadcastOpenScripts(editorId);
+        }
 
         // Each script lives in its own slug directory. Deleting it both
         // frees memory and fires `Deleted` change events, so the next

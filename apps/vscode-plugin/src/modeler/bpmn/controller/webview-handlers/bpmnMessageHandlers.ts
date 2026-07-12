@@ -85,9 +85,17 @@ export function getBpmnModelerSettingHandler(
     };
 }
 
-/** Second handler for `GetBpmnModelerSettingCommand`: reload scripts edited while hidden. */
+/**
+ * Second handler for `GetBpmnModelerSettingCommand`, run on every (re)load:
+ * replay script edits made while the webview was hidden, then re-broadcast the
+ * open-script set so the properties-panel lock survives the reload (the webview
+ * drops its lock state whenever it is hidden and re-shown).
+ */
 export function resyncScriptTasksHandler(scriptTaskSvc: ScriptTaskService): MessageHandler {
-    return (_message: Command, editorId: string) => scriptTaskSvc.resyncOpenDocuments(editorId);
+    return async (_message: Command, editorId: string) => {
+        await scriptTaskSvc.resyncOpenDocuments(editorId);
+        scriptTaskSvc.syncLockState(editorId);
+    };
 }
 
 /** `GetPropertiesPanelStateCommand` → send the persisted panel visibility. */

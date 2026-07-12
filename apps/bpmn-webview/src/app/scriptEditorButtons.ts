@@ -42,7 +42,7 @@ const SCRIPT_GROUP_ID = "group-CamundaPlatform__Script";
  * The element id may itself contain dashes, so we anchor on the well-known
  * listener-type tokens.
  */
-const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)-(\d+)$/;
+export const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)-(\d+)$/;
 
 // Attribute set on processed elements to avoid duplicate injection.
 const INJECTED_MARKER = "data-script-btn-injected";

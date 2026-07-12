@@ -289,6 +289,22 @@ a:link {
     flex-shrink: 0;
 }
 
+/* Clickable hint shown under a script field that is locked because a host
+   editor tab owns it. Styled as a link so "click to focus" reads as actionable;
+   it reveals the owning tab rather than editing the field in place. */
+.bio-properties-panel .script-lock-hint {
+    margin-top: 4px;
+    color: var(--color-blue-205-100-50, #4d90ff);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.bio-properties-panel .script-lock-hint:hover,
+.bio-properties-panel .script-lock-hint:focus-visible {
+    text-decoration: underline;
+    outline: none;
+}
+
 /* Trim the title's right-padding (24px by default) so our icon sits close
    to the title text instead of with a visible gap from the padding. */
 .bio-properties-panel-collapsible-entry-header[data-script-btn-injected="true"]

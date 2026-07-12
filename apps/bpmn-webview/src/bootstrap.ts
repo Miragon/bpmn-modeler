@@ -34,6 +34,7 @@ import {
     SetTextClipboardCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
+    UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
     UpdateScriptVariablesCommand,
@@ -587,6 +588,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                     query.listenerIndex,
                     query.scriptFormat,
                 );
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
+        case queryOrCommand.type === "UpdateOpenScriptEditorsQuery": {
+            try {
+                const query = message.data as UpdateOpenScriptEditorsQuery;
+                bpmnModeler.applyOpenScriptEditors(query.openScripts);
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

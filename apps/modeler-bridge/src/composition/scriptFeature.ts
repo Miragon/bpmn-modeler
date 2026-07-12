@@ -57,6 +57,12 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
                 editorId,
                 (message as UpdateScriptVariablesCommand).variables,
             );
+        })
+        // Reload handshake: the webview re-requests settings on (re)init, which is
+        // also when it has dropped its properties-panel lock state — re-broadcast
+        // the open-script set so locked fields stay locked across a reload.
+        .on("GetBpmnModelerSettingCommand", (_message: Command, editorId: string) => {
+            scriptEditor.syncLockState(editorId);
         });
 
     // The host edited an open script tab → push the new content into the owning
