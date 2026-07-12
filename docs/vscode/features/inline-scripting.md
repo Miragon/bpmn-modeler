@@ -147,6 +147,29 @@ statement, no function parameters), not a full parser. Camunda beans and
 process variables win any name clash, so a local never hides an item
 that carries type information and documentation.
 
+### Camunda SPIN completions and Groovy auto-import
+
+With the `miragon.bpmnModeler.scripting.spin` setting on (the default),
+the SPIN globals `S(…)` and `JSON(…)` are offered at root scope, and a
+variable the modeler recognises as JSON-typed gets `SpinJsonNode` member
+completions (`prop`, `stringValue`, `mapTo`, …) after its `.`. Disable
+the setting if your project does not have `camunda-spin` on the
+classpath.
+
+In **Groovy** scripts, accepting `S`, `JSON`, or the `SpinJsonNode` type
+name also inserts the matching import — `import static
+org.camunda.spin.Spin.S` and friends — below your last import statement
+(or at the top of the script). The insert is skipped when the import is
+already present, exactly or via a covering wildcard like `import static
+org.camunda.spin.Spin.*`. `SpinJsonNode` itself appears as a class
+completion so typed declarations (`SpinJsonNode node = S(payload)`) are
+one accept away.
+
+> Camunda's script runtime binds the SPIN functions automatically, so a
+> script without the import still runs — the explicit import keeps the
+> script self-contained and lets external Groovy tooling resolve the
+> symbols.
+
 ### Declaring variables with a `*.bpmn.vars.json` manifest
 
 Heuristic discovery cannot see variables injected from outside the model

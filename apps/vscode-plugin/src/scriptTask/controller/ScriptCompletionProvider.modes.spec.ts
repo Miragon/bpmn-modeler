@@ -9,6 +9,7 @@ vi.mock("vscode", () => {
         detail?: string;
         documentation?: unknown;
         insertText?: unknown;
+        additionalTextEdits?: unknown[];
         constructor(
             public label: string,
             public kind: number,
@@ -20,11 +21,30 @@ vi.mock("vscode", () => {
     class SnippetString {
         constructor(public value: string) {}
     }
+    class Position {
+        constructor(
+            public line: number,
+            public character: number,
+        ) {}
+    }
+    // Mirrors the real `TextEdit.insert` shape (an empty range at the position)
+    // so assertions can read `edit.range.start` through the vscode typings.
+    class TextEdit {
+        constructor(
+            public range: { start: Position; end: Position },
+            public newText: string,
+        ) {}
+        static insert(position: Position, newText: string): TextEdit {
+            return new TextEdit({ start: position, end: position }, newText);
+        }
+    }
     return {
         CompletionItem,
         CompletionItemKind: { Text: 0, Method: 1, Function: 2, Variable: 5, Class: 6 },
         MarkdownString,
+        Position,
         SnippetString,
+        TextEdit,
         languages: { registerCompletionItemProvider: vi.fn() },
     };
 });
@@ -261,6 +281,76 @@ describe("ScriptCompletionProvider modes", () => {
                 line: 1,
             });
             expect(labels).not.toContain("myTotal");
+        });
+    });
+
+    describe("groovy SPIN auto-import", () => {
+        it("attaches the S import at line 0 when the script has no imports", () => {
+            const items = completeItems(buildProvider(storeWith()), "S", { scriptText: "S" });
+            const edit = items.find((item) => item.label === "S")?.additionalTextEdits?.[0];
+            expect(edit?.newText).toBe("import static org.camunda.spin.Spin.S\n");
+            expect(edit?.range.start).toMatchObject({ line: 0, character: 0 });
+        });
+
+        it("inserts below the last existing import", () => {
+            const items = completeItems(buildProvider(storeWith()), "S", {
+                scriptText: "import foo.Bar\nS",
+                line: 1,
+            });
+            const edit = items.find((item) => item.label === "S")?.additionalTextEdits?.[0];
+            expect(edit?.range.start.line).toBe(1);
+        });
+
+        it("attaches no edit when the import is already present", () => {
+            const items = completeItems(buildProvider(storeWith()), "S", {
+                scriptText: "import static org.camunda.spin.Spin.S\nS",
+                line: 1,
+            });
+            expect(items.find((item) => item.label === "S")?.additionalTextEdits).toBeUndefined();
+        });
+
+        it("treats a covering wildcard import as satisfying", () => {
+            const items = completeItems(buildProvider(storeWith()), "JSO", {
+                scriptText: "import static org.camunda.spin.Spin.*\nJSO",
+                line: 1,
+            });
+            const item = items.find((candidate) => candidate.label === "JSON");
+            expect(item?.additionalTextEdits).toBeUndefined();
+        });
+
+        it("attaches no import edit outside groovy", () => {
+            const items = completeItems(buildProvider(storeWith()), "S", {
+                languageId: "javascript",
+                scriptText: "S",
+            });
+            expect(items.find((item) => item.label === "S")?.additionalTextEdits).toBeUndefined();
+        });
+
+        it("offers SpinJsonNode as a class completion carrying its import", () => {
+            const items = completeItems(buildProvider(storeWith()), "Spin", {
+                scriptText: "Spin",
+            });
+            const item = items.find((candidate) => candidate.label === "SpinJsonNode");
+            expect(item?.kind).toBe(6); // CompletionItemKind.Class
+            expect(item?.detail).toBe("import org.camunda.spin.json.SpinJsonNode");
+            expect(item?.additionalTextEdits?.[0]?.newText).toBe(
+                "import org.camunda.spin.json.SpinJsonNode\n",
+            );
+        });
+
+        it("keeps SpinJsonNode out of non-groovy scripts", () => {
+            const labels = complete(buildProvider(storeWith()), "Spin", {
+                languageId: "javascript",
+                scriptText: "Spin",
+            });
+            expect(labels).not.toContain("SpinJsonNode");
+        });
+
+        it("keeps SpinJsonNode out when the SPIN setting is off", () => {
+            const labels = complete(buildProvider(storeWith(), false), "Spin", {
+                scriptText: "Spin",
+            });
+            expect(labels).not.toContain("SpinJsonNode");
         });
     });
 

@@ -66,6 +66,7 @@ those listeners are what propagate edits and clean up tracking state.
 | `libs/modeler-core/src/scriptTask/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess`, `matchVariableStringArg` (testable without `vscode`) |
 | `libs/modeler-core/src/scriptTask/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
 | `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts` | `collectLocalDeclarations` — slim per-line scan for script-local variable/function declarations |
+| `libs/modeler-core/src/scriptTask/domain/groovyImports.ts` | `groovyImportInsertionLine` — placement / already-satisfied check for auto-inserted Groovy SPIN imports |
 | `libs/modeler-core/src/scriptTask/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
 | `libs/modeler-core/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
 | `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | `openScriptEditorHandler` + `resyncScriptTasksHandler`, dispatched by the BPMN `WebviewMessageRouter` |
@@ -194,7 +195,7 @@ three modes, checked in order:
 |---|---|---|
 | Variable-name completion | Cursor inside the string argument of `getVariable("…` / `setVariable("…` (and `has`/`remove` variants) | Process variables for the owning editor (from `ScriptVariableStore`) |
 | Member completion | Trailing `.` after a known bean or a SPIN-typed variable | Methods rendered as snippets with parameter placeholders |
-| Root completion | Word being typed at root scope | SPIN globals (`scripting.spin`-gated), bean names for the current `kind`, process variables, and local declarations (`collectLocalDeclarations`) |
+| Root completion | Word being typed at root scope | SPIN globals (`scripting.spin`-gated), bean names for the current `kind`, process variables, and local declarations (`collectLocalDeclarations`). In Groovy, SPIN items carry their import as an `additionalTextEdits` insert (`groovyImportInsertionLine` decides placement / already-satisfied), and importable SPIN type names (`SpinJsonNode`) are offered as class completions |
 
 Beans-in-scope are derived from the URI slug via `parseKindFromUri`:
 
