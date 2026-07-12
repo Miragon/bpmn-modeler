@@ -94,11 +94,17 @@ Webviews run in sandboxed iframes without `clipboard-read`/`clipboard-write` per
 
 Defined in `libs/shared/src/lib/modeler.ts`:
 
+Two separate host round-trips — **element** clipboard (BPMN shapes as JSON) and
+**text** clipboard (labels, FEEL editor):
+
 | Message | Direction | Purpose |
 |---------|-----------|---------|
-| `GetClipboardCommand` | webview → extension host | Request to read system clipboard |
-| `SetClipboardCommand(text)` | webview → extension host | Request to write text to system clipboard |
-| `ClipboardQuery(text)` | extension host → webview | Response with clipboard content |
+| `GetClipboardCommand` | webview → extension host | Request to read system clipboard (element) |
+| `SetClipboardCommand(text)` | webview → extension host | Request to write element JSON to system clipboard |
+| `ClipboardQuery(text)` | extension host → webview | Response with element clipboard content |
+| `GetTextClipboardCommand` | webview → extension host | Request to read system clipboard (text) |
+| `SetTextClipboardCommand(text)` | webview → extension host | Request to write text to system clipboard |
+| `TextClipboardQuery(text)` | extension host → webview | Response with text clipboard content |
 
 ### Extension Host Side
 
@@ -111,51 +117,74 @@ async writeClipboard(text: string): Promise<void>  // vscode.env.clipboard.write
 
 The BPMN `WebviewMessageRouter` dispatches incoming `GetClipboardCommand` / `SetClipboardCommand` to the clipboard handlers in `bpmnMessageHandlers.ts`, which call `BpmnClipboardMediator` → `VsCodeClipboard`.
 
-### Webview Side — Two Polyfills
+### Webview Side — Two DI Modules
 
-The webview needs two separate clipboard polyfills because diagram elements and contenteditable labels have different event handling:
+The webview installs two **bpmn-js DI modules** (from the shared
+`libs/bpmn-clipboard` package, `@miragon/bpmn-modeler-clipboard`) because diagram
+elements and contenteditable labels have different event handling. Both are
+passed as `additionalModules` in `apps/bpmn-webview/src/main.ts`; each receives
+its host bridge through didi value injection — a `{ requestClipboard,
+writeClipboard }` pair — rather than the old `installClipboardInterceptor(...)`
+call, which no longer exists.
 
-**1. Diagram element copy/paste** (`apps/bpmn-webview/src/app/modeler.ts`):
+**1. Diagram element copy/paste** (`VsCodeClipboardModule`,
+`libs/bpmn-clipboard/src/VsCodeClipboardModule.ts`, injected
+`elementClipboardBridge`):
 
-`installClipboardInterceptor(requestClipboard, writeClipboard)` intercepts bpmn-js `copyPaste.elementsCopied` and `copyPaste.pasteElements` events at priority 2051 (above NativeCopyPaste).
+Intercepts bpmn-js `copyPaste.elementsCopied` / `copyPaste.pasteElements` at
+priority 2051 (above `NativeCopyPaste`, which it disables on construction).
 
-- **Copy**: Serializes the element tree as `"bpmn-js-clip----" + JSON.stringify(tree)` and sends it to the extension host via `SetClipboardCommand`.
-- **Paste**: When the internal clipboard is empty (cross-editor paste), requests clipboard text via `GetClipboardCommand`, deserializes the JSON, and re-triggers paste. Snapshots the event context before the async `await` to prevent `defaultPrevented` issues.
+- **Copy**: Serializes the element tree as `"bpmn-js-clip----" + JSON.stringify(tree)` and sends it via `SetClipboardCommand`.
+- **Paste**: On cross-editor paste (no internal `context.tree`), snapshots the context, cancels the default paste, requests clipboard text via `GetClipboardCommand`, then reconstructs typed model objects with `createReviver(moddle)` and re-triggers `copyPaste.paste()`.
 
-**2. Contenteditable label copy/paste** (`apps/bpmn-webview/src/app/propertiesPanelClipboard.ts`):
+**2. Direct-editing label overlays** (`LabelClipboardModule`,
+`libs/bpmn-clipboard/src/LabelClipboardModule.ts`, injected
+`textClipboardBridge`):
 
-`installContentEditableClipboardPolyfill(requestClipboard, writeClipboard)` installs a **capture-phase** keydown listener that fires before diagram-js's `DirectEditing._handleKey` (which calls `stopPropagation()` on every keydown).
+Attaches a **capture-phase** keydown listener on the label element while direct
+editing is active — it fires before diagram-js's `DirectEditing._handleKey`
+calls `stopPropagation()`.
 
-- **Cmd/Ctrl+C**: Extracts selected text from the contenteditable element, sends via `SetClipboardCommand`.
-- **Cmd/Ctrl+V**: Requests clipboard via `GetClipboardCommand`, dispatches a synthetic `ClipboardEvent("paste")`, falls back to `document.execCommand("insertText")`.
+- **Cmd/Ctrl+C**: Reads `window.getSelection()`, writes via `textClipboardBridge` → `SetTextClipboardCommand`.
+- **Cmd/Ctrl+V**: Reads via `textClipboardBridge` → `GetTextClipboardCommand`, dispatches a synthetic `ClipboardEvent("paste")`, falls back to `document.execCommand("insertText")`.
+
+See the `/bpmn-js` skill for the full three-layer copy-paste architecture (the
+third layer is a webview-local FEEL-editor polyfill).
 
 ### Wiring (Production Only)
 
-Both polyfills are wired in `apps/bpmn-webview/src/main.ts` using a promise-based resolver pattern:
+The bridges are wired in `apps/bpmn-webview/src/main.ts` using a promise-based
+resolver pattern, then injected as `value` providers:
 
 ```typescript
-const requestClipboard = async (): Promise<string> => {
+const requestElementClipboard = async (): Promise<string> => {
     clipboardResolver = createResolver<ClipboardQuery>();
-    vscode.postMessage(new GetClipboardCommand());
+    host.postMessage(new GetClipboardCommand());
     return (await clipboardResolver.wait())?.text ?? "";
 };
-
-const writeClipboard = (text: string): void => {
-    vscode.postMessage(new SetClipboardCommand(text));
+const writeElementClipboard = (text: string): void => {
+    host.postMessage(new SetClipboardCommand(text));
 };
+// (text bridge mirrors this with the *Text* commands / TextClipboardQuery)
 
-bpmnModeler.installClipboardInterceptor(requestClipboard, writeClipboard);
-installContentEditableClipboardPolyfill(requestClipboard, writeClipboard);
+clipboardModules = [
+    VsCodeClipboardModule,
+    LabelClipboardModule,
+    {
+        elementClipboardBridge: ["value", { requestClipboard: requestElementClipboard, writeClipboard: writeElementClipboard }],
+        textClipboardBridge: ["value", { requestClipboard: requestTextClipboard, writeClipboard: writeTextClipboard }],
+    },
+];
 ```
 
-These are only installed in production (not development) because in dev mode the webview runs in a regular browser with native clipboard access.
+These modules are only added in production (not development) because in dev mode the webview runs in a regular browser with native clipboard access.
 
 ## Webview Theming
 
 Webviews **must** respect the user's VS Code theme:
 
 - BPMN/DMN webviews ship `lightTheme.css` and `darkTheme.css`
-- Theme detection via `document.body.dataset.vscodeThemeKind`
+- Theme detection via VS Code's body classes — `document.body.classList.contains("vscode-dark")` / `"vscode-high-contrast"` (`libs/shared/src/lib/theme.ts`), watched by a `MutationObserver` on the body `class` attribute
 - Initial HTML loads light theme; JS swaps stylesheet on init
 - Use VS Code CSS custom properties (`--vscode-*`) for colors when possible
 - Test with light, dark, and high-contrast themes

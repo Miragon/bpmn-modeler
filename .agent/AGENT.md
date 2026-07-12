@@ -6,7 +6,8 @@ This file provides guidance to AI coding agents when working with code in this r
 
 VS Code extension for BPMN/DMN process modeling, built with **Yarn 4 workspaces**.
 Detailed architecture knowledge is available via skills — invoke `/architecture`,
-`/bpmn-js`, `/vscode-custom-editors`, `/vscode-webviews`, or `/vscode-ux-guidelines`.
+`/bpmn-js`, `/vscode-custom-editors`, `/vscode-webviews`, `/vscode-ux-guidelines`,
+`/intellij-plugin`, `/i18n-translate`, or `/bpmn-browser-testing`.
 
 ## Commands
 
@@ -29,7 +30,7 @@ corepack yarn workspace vs-code-bpmn-modeler build
 corepack yarn workspace @miragon/bpmn-modeler-webview build
 
 # Run a single test file
-corepack yarn test apps/vscode-plugin/src/shared/domain/BpmnDocument.spec.ts
+corepack yarn test libs/modeler-core/src/shared/domain/BpmnDocument.spec.ts
 ```
 
 For the full IntelliJ dev/verify loop (prerequisites, sandbox behaviour, and how
@@ -65,9 +66,20 @@ apps/
   bpmn-webview/          # BPMN webview frontend (Vite/browser)
   dmn-webview/           # DMN webview frontend (Vite/browser)
   deployment-webview/    # Deployment sidebar webview (Vite/browser)
+  intellij-plugin/       # IntelliJ host (Kotlin/Gradle, JCEF editors)
+  modeler-bridge/        # stdio JSON-RPC Bun binary running modeler-core
+                         # out-of-process for the IntelliJ host
   standalone/            # Theia/Electron desktop host shell
 libs/
+  modeler-core/          # Host-agnostic engine core (domain/service/
+                         # infrastructure), consumed by all hosts (ADR #1060)
   shared/                # Shared webview utilities and message types
+  append-menu/           # bpmn-js append-menu module
+  bpmn-clipboard/        # bpmn-js clipboard modules
+  bpmn-i18n/             # BPMN/DMN i18n
+  code-link/             # Code-link feature
+  element-template-chooser/ # Element-template chooser module
+  model-navigation/      # Model navigation module
   standalone-extension/  # Theia frontend extension consumed by
                          # `apps/standalone/` (Miragon themes, splash,
                          # hidden built-in views)
@@ -84,13 +96,25 @@ build → package plugin → bundle → start chain.
 ## Build System
 
 - **Extension host**: Webpack + `ts-loader` — `apps/vscode-plugin/webpack.config.js`
-- **Webviews**: Vite — `apps/{bpmn,dmn}-webview/vite.config.mts`
-- **Tests**: Vitest — `apps/vscode-plugin/vitest.config.ts`
+- **Webviews**: Vite — `apps/{bpmn,dmn,deployment}-webview/vite.config.mts`
+- **Tests**: Vitest — root `vitest.config.ts` aggregates per-workspace projects
+  (vscode-plugin, modeler-bridge, bpmn-webview, bpmn-i18n,
+  element-template-chooser, modeler-core, shared); root `test` =
+  `vitest run --coverage`
 - **Output**: `dist/apps/vscode-plugin/`
 
 ## Path Aliases (`tsconfig.base.json`)
 
-- `@miragon/bpmn-modeler-shared` → `libs/shared/src/index.ts`
+Each `@miragon/...` alias maps to `libs/<dir>/src/index.ts`:
+
+- `@miragon/bpmn-modeler-shared` → `libs/shared`
+- `@miragon/bpmn-modeler-core` → `libs/modeler-core`
+- `@miragon/bpmn-modeler-clipboard` → `libs/bpmn-clipboard`
+- `@miragon/bpmn-modeler-i18n` → `libs/bpmn-i18n`
+- `@miragon/bpmn-modeler-element-template-chooser` → `libs/element-template-chooser`
+- `@miragon/bpmn-modeler-append-menu` → `libs/append-menu`
+- `@miragon/bpmn-model-navigation` → `libs/model-navigation`
+- `@miragon/bpmn-modeler-code-link` → `libs/code-link`
 - Resolved by `TsconfigPathsPlugin` (webpack) and `vite-tsconfig-paths` (Vite)
 
 ## Configuration Namespace

@@ -151,7 +151,7 @@ Expect these console messages in dev mode — they are not errors in your workfl
 
 ```
 1. browser_snapshot → find "Create task" ref → click it
-2. browser_run_code → page.mouse.click(250, 350) to place on canvas
+2. browser_run_code_unsafe → page.mouse.click(250, 350) to place on canvas
 3. browser_snapshot → find "Change element" ref → click it
 4. browser_snapshot → find "Service task" ref → click it
 5. browser_snapshot → expand "Task definition" → fill in job type
