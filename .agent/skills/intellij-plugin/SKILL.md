@@ -55,7 +55,7 @@ corepack yarn workspace @miragon/bpmn-modeler-bridge compile
 
 Other Gradle tasks: `./gradlew build`, `./gradlew verifyPlugin` (binary-
 compatibility gate). Versions are pinned in `build.gradle.kts` (IntelliJ
-Platform Gradle Plugin `2.5.0`) and `gradle.properties` (`ideaVersion=2024.2.5`,
+Platform Gradle Plugin `2.17.0`) and `gradle.properties` (`ideaVersion=2024.2.5`,
 JCEF requires 2024.2+); bump to a locally available combo if resolution fails.
 This subproject is **not** a yarn workspace (no `package.json`), so the JS
 lint/tsc globs never touch the Kotlin sources.

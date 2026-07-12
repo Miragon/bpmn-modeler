@@ -145,7 +145,7 @@ The deployment subsystem uses ports & adapters to decouple business logic from e
 
 **Benefit**: `DeploymentService` / `StartInstanceService` depend only on `CamundaEnginePort`. Adding a new engine version is a new adapter, no service change.
 
-> Note the two distinct port families (both in the core): `shared/domain/hostPorts.ts` (10 interfaces) abstracts the *host* (VS Code / IntelliJ) facilities; `deployment/domain/ports.ts` abstracts the *Camunda engine*. Each host provides its own adapter set — `VsCode*` in the plugin, RPC-backed adapters in the bridge.
+> Note the two distinct port families (both in the core): `shared/domain/hostPorts.ts` (13 interfaces) abstracts the *host* (VS Code / IntelliJ) facilities; `deployment/domain/ports.ts` abstracts the *Camunda engine*. Each host provides its own adapter set — `VsCode*` in the plugin, RPC-backed adapters in the bridge.
 
 ## Composition wiring (`main.ts` + `composition/`)
 
