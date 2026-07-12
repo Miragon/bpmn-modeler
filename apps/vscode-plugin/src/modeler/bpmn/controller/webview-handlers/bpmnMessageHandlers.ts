@@ -8,6 +8,7 @@ import {
     SetTextClipboardCommand,
     SyncActivitiesCommand,
     SyncDocumentCommand,
+    UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -152,7 +153,7 @@ export function syncDocumentHandler(bpmnService: BpmnModelerService): MessageHan
 }
 
 /**
- * `OpenScriptEditorCommand` → open the inline script in a virtual editor.
+ * `OpenScriptEditorCommand` → open the inline script in an editor tab.
  *
  * Seeds the variable store from the command's `variables` first so completion
  * is accurate before the very first keystroke, even if no live
@@ -181,6 +182,23 @@ export function openScriptEditorHandler(
 export function updateScriptVariablesHandler(variableStore: ScriptVariableStore): MessageHandler {
     return (message: Command, editorId: string) => {
         variableStore.setExtracted(editorId, (message as UpdateScriptVariablesCommand).variables);
+    };
+}
+
+/**
+ * `UpdateScriptSourceCommand` → apply a model-side script change (canvas
+ * undo/redo, external reload, element deletion) to the open script tab.
+ */
+export function updateScriptSourceHandler(scriptTaskSvc: ScriptTaskService): MessageHandler {
+    return async (message: Command, editorId: string) => {
+        const cmd = message as UpdateScriptSourceCommand;
+        await scriptTaskSvc.applyModelChange(
+            editorId,
+            cmd.elementId,
+            cmd.kind,
+            cmd.listenerIndex,
+            cmd.content,
+        );
     };
 }
 

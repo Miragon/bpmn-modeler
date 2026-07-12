@@ -4,11 +4,16 @@
 
 Inline scripts on BPMN elements (`bpmn:ScriptTask`, `camunda:ExecutionListener`,
 `camunda:TaskListener`) are edited in real VS Code editor tabs instead of the
-properties-panel textarea. A custom `FileSystemProvider` registered for the
-`bpmn-script://` URI scheme stores the script bodies in memory; edits are
-streamed back to the webview keystroke-by-keystroke and persisted through the
-bpmn-js command stack. A `CompletionItemProvider` scoped to the same scheme
-drives Camunda 7 IntelliSense (`execution`, `task`, `eventName`) per surface.
+properties-panel textarea. Each open script is a **real file** under
+`<configFolder>/tmp/scripting/` — real files (rather than a virtual
+`FileSystemProvider` scheme, which this feature used before) are what let
+tsserver, language-server extensions, and disk-reading coding agents attach to
+the script. Edits are streamed back to the webview keystroke-by-keystroke and
+persisted through the bpmn-js command stack; the open buffer, not the file on
+disk, is the authoritative copy. A `CompletionItemProvider` scoped to the
+scripting directory drives the Camunda-specific IntelliSense (`execution`,
+`task`, `eventName`) per surface; for JavaScript a generated `camunda.d.ts`
+hands the typed bean surface to tsserver instead.
 
 The webview surfaces the entry points: a context-pad button on script tasks
 and properties-panel buttons on listener rows. Both fire a single bpmn-js
@@ -18,18 +23,22 @@ event that the webview translates into an `OpenScriptEditorCommand`.
 
 | Component | Role |
 |---|---|
-| `BpmnScriptFileSystem` | In-memory `FileSystemProvider` for the `bpmn-script://` scheme |
-| `ScriptTaskService` | Lifecycle: open / track / sync / clean up virtual script documents |
-| `ScriptCompletionProvider` | Per-language IntelliSense scoped to `bpmn-script://` URIs |
+| `ScriptFileStore` | Filesystem home of the on-disk scripts — base-dir resolution, `.gitignore`, activation orphan sweep |
+| `ScriptTaskService` | Lifecycle: open / track / sync / overwrite / clean up script documents |
+| `ScriptCompletionProvider` | Per-language Camunda IntelliSense scoped to `**/tmp/scripting/**` files |
 | `scriptApi` (domain) | Bean and method definitions surfaced as completions |
+| `camundaDts` (domain) | Generates the kind-scoped `camunda.d.ts` + `jsconfig.json` for JavaScript |
 | `ScriptLanguage` (domain) | Camunda `scriptFormat` ↔ VS Code language id ↔ file extension |
 | `scriptEditorButtons` (webview) | Injects "Edit Script" buttons into listener properties-panel rows |
 | `scriptTaskContextPad` (webview) | Adds "Edit Script" entry to the script-task context pad |
+| `openScriptEditorsStore` (webview) | Holds the host's open-script set for the single-writer lock |
+| `scriptLockPropertiesProvider` (webview) | Swaps locked panel script entries for a read-only component |
+| `scriptSourceWatcher` (webview) | Detects model-side script changes (undo/redo, reload, deletion) and reports them to the host |
 
-`ScriptTaskService`, `BpmnScriptFileSystem`, and `ScriptCompletionProvider`
+`ScriptTaskService`, `ScriptFileStore`, and `ScriptCompletionProvider`
 are constructed in `apps/vscode-plugin/src/composition/scriptFeature.ts` and
-registered before any editor controller resolves. `ScriptTaskService.register()`
-subscribes to
+registered before any editor controller resolves (the store's orphan sweep is
+also fired there). `ScriptTaskService.register()` subscribes to
 `workspace.onDidChangeTextDocument` and `window.tabGroups.onDidChangeTabs` —
 those listeners are what propagate edits and clean up tracking state.
 
@@ -59,36 +68,45 @@ those listeners are what propagate edits and clean up tracking state.
 
 | File | Purpose |
 |---|---|
-| `apps/vscode-plugin/src/composition/scriptFeature.ts` | Registers `BpmnScriptFileSystem` for the `bpmn-script` scheme, constructs `ScriptTaskService` and `ScriptCompletionProvider` |
-| `apps/vscode-plugin/src/scriptTask/infrastructure/BpmnScriptFileSystem.ts` | `FileSystemProvider` impl — `Map<string, Uint8Array>` keyed by URI path; fires `FileChangeEvent`s for create / change / delete |
-| `apps/vscode-plugin/src/scriptTask/controller/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
-| `apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
+| `apps/vscode-plugin/src/composition/scriptFeature.ts` | Constructs `ScriptFileStore` (+ orphan sweep), `ScriptTaskService`, and `ScriptCompletionProvider` |
+| `apps/vscode-plugin/src/scriptTask/infrastructure/ScriptFileStore.ts` | `workspace.fs`-backed disk store — base-dir resolution (workspace root → config folder, os-tmpdir fallback), `.gitignore`, sweep |
+| `apps/vscode-plugin/src/scriptTask/controller/ScriptTaskService.ts` | Open / track / sync / overwrite / clean up script documents; path shape; format prompt; resync after webview reload |
+| `apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `**/tmp/scripting/**` + tracked-path guard; root + member completion modes |
+| `libs/modeler-core/src/scriptTask/domain/camundaDts.ts` | `generateCamundaDts` + `SCRIPT_JSCONFIG` — the tsserver ambient surface for JavaScript |
 | `libs/modeler-core/src/scriptTask/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess`, `matchVariableStringArg` (testable without `vscode`) |
 | `libs/modeler-core/src/scriptTask/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
 | `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts` | `collectLocalDeclarations` — slim per-line scan for script-local variable/function declarations |
 | `libs/modeler-core/src/scriptTask/domain/groovyImports.ts` | `groovyImportInsertionLine` — placement / already-satisfied check for auto-inserted Groovy SPIN imports |
 | `libs/modeler-core/src/scriptTask/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
-| `libs/modeler-core/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
-| `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | `openScriptEditorHandler` + `resyncScriptTasksHandler`, dispatched by the BPMN `WebviewMessageRouter` |
+| `libs/modeler-core/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `<editorHash>/<elementId>/<slug>/<filename>` path shape + `TMP_SCRIPTING_SEGMENT` |
+| `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | `openScriptEditorHandler`, `resyncScriptTasksHandler`, `updateScriptSourceHandler`, dispatched by the BPMN `WebviewMessageRouter` |
 | `apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant.ts` | Calls `disposeForEditor` when the BPMN editor closes |
-| `libs/shared/src/lib/modeler.ts` | `OpenScriptEditorCommand`, `UpdateScriptContentQuery`, `UpdateScriptFormatQuery`, `ScriptKind` |
+| `libs/shared/src/lib/modeler.ts` | `OpenScriptEditorCommand`, `UpdateScriptContentQuery`, `UpdateScriptFormatQuery`, `UpdateScriptSourceCommand`, `UpdateOpenScriptEditorsQuery`, `ScriptKind` |
 | `apps/bpmn-webview/src/main.ts` | Bridges `OPEN_SCRIPT_EDITOR_EVENT` (bus) ↔ `OpenScriptEditorCommand` (host) and applies `UpdateScriptContentQuery` / `UpdateScriptFormatQuery` to the model |
 | `apps/bpmn-webview/src/app/scriptEditorButtons.ts` | Listener-row "Edit Script" buttons in the properties panel |
 | `apps/bpmn-webview/src/app/scriptTaskContextPad.ts` | "Edit Script" entry in the script-task context pad |
+| `apps/bpmn-webview/src/app/scriptModel.ts` | Shared model-side script lookups (`findListenerAt`, `readScriptContent`) |
+| `apps/bpmn-webview/src/app/scriptSourceWatcher.ts` | Detects model-side divergence for open scripts and fires `SCRIPT_SOURCE_CHANGED_EVENT` |
 
-## URI scheme
+## Path shape
 
 Every open script lives at:
 
 ```
-bpmn-script:/<editorHash>/<elementId>/<slug>/<filename>
+<base>/tmp/scripting/<editorHash>/<elementId>/<slug>/<filename>
 ```
+
+`<base>` is `<workspaceRoot>/<configFolder>` (resolved like the vars
+manifests: workspace folder → git root → document directory; a document with
+no resolvable directory falls back to the OS temp dir). The `tmp/scripting`
+pair doubles as the **parse anchor**: `parseScriptPath` locates it inside the
+absolute path, so the parsers work regardless of where the base resolved to.
 
 | Segment | Source | Purpose |
 |---|---|---|
-| `<editorHash>` | `ScriptUri.hashEditorId(editorId)` — short hash of the BPMN document URI | Isolates scripts per diagram so two diagrams with overlapping element IDs do not collide |
+| `<editorHash>` | `ScriptUri.hashEditorId(editorId)` — short hash of the BPMN document URI | Isolates scripts per diagram so two diagrams with overlapping element IDs do not collide; the dispose sweep deletes this directory |
 | `<elementId>` | The hosting BPMN element's id (script task, or listener's parent) | Per-element namespace |
-| `<slug>` | `ScriptUri.slug` — `script-task`, `execution-listener-<idx>[-<event>]`, `task-listener-<idx>[-<event>]` | Distinguishes multiple scripts on the same element; consumed by `parseKindFromUri` to scope completions |
+| `<slug>` | `ScriptUri.slug` — `script-task`, `execution-listener-<idx>[-<event>]`, `task-listener-<idx>[-<event>]` | Distinguishes multiple scripts on the same element; consumed by `parseKindFromUri` to scope completions. For JavaScript the slug directory also holds `camunda.d.ts` + `jsconfig.json` |
 | `<filename>` | `ScriptUri.filename` — sanitized element id plus a short discriminator | Human-readable tab label |
 
 Filename examples:
@@ -104,6 +122,10 @@ The `<elementId>` *path* segment is the raw id; the *filename* is sanitized
 with `[^A-Za-z0-9_-]` → `_` because XML NCNames permit characters that aren't
 clean cross-platform filenames (e.g. dots and colons).
 
+A `.gitignore` containing `*` is dropped into `<configFolder>/tmp/` on first
+use (and never overwritten), so the transient scripts can't land in version
+control even though they live inside the repository.
+
 ## Message protocol
 
 | Message | Direction | Purpose |
@@ -112,6 +134,7 @@ clean cross-platform filenames (e.g. dots and colons).
 | `UpdateScriptContentQuery` | host → webview | Push edited content back to the modeler so it can write the moddle property and persist via the command stack |
 | `UpdateScriptFormatQuery` | host → webview | Persist a Quick-Pick'ed `scriptFormat` back to the model so subsequent opens skip the prompt |
 | `UpdateOpenScriptEditorsQuery` | host → webview | Broadcast the **full set** of currently-open script editors so the webview locks the matching properties-panel fields (single-writer) |
+| `UpdateScriptSourceCommand` | webview → host | A script's content changed on the **model** side (canvas undo/redo, document reload) → overwrite the open buffer; `content: undefined` ⇒ the script surface is gone → close the tab + delete the file |
 
 `(elementId, kind, listenerIndex)` is the addressing tuple for the moddle
 property on both directions. `eventName` flows host-bound only — it's used to
@@ -127,7 +150,7 @@ sequenceDiagram
     participant Webview as BPMN Webview
     participant ExtHost as Extension Host
     participant ScriptSvc as ScriptTaskService
-    participant ScriptFs as BpmnScriptFileSystem
+    participant ScriptFs as ScriptFileStore
 
     User->>Webview: Click "Edit Script" (context pad / listener row)
     Webview->>Webview: bpmn-js eventBus fires OPEN_SCRIPT_EDITOR_EVENT
@@ -137,7 +160,8 @@ sequenceDiagram
         ScriptSvc->>User: Quick-Pick — choose language
         ScriptSvc->>Webview: UpdateScriptFormatQuery(picked)
     end
-    ScriptSvc->>ScriptFs: writeFile(bpmn-script:/.../filename.ext, content)
+    ScriptSvc->>ScriptFs: writeFile(<base>/tmp/scripting/.../filename.ext, content)
+    Note over ScriptSvc,ScriptFs: JavaScript also gets camunda.d.ts + jsconfig.json
     ScriptSvc->>ExtHost: workspace.openTextDocument + showTextDocument(ViewColumn.Beside)
     ExtHost-->>User: Editor tab opens beside the diagram
 ```
@@ -153,11 +177,35 @@ sequenceDiagram
 
     User->>Editor: Types in script tab
     Editor->>ScriptSvc: workspace.onDidChangeTextDocument
-    ScriptSvc->>ScriptSvc: writingGuard prevents echo
-    ScriptSvc->>ScriptSvc: scriptFs.writeFile(updated bytes)
+    ScriptSvc->>ScriptSvc: writingGuard prevents echo of our own overwrites
     ScriptSvc->>Webview: UpdateScriptContentQuery(elementId, kind, idx, content)
     Webview->>Webview: bpmnModeler.updateScriptContent — moddle update via command stack
 ```
+
+There is deliberately **no per-keystroke disk write**: the open buffer is
+authoritative, and disk freshness follows the user's own save/auto-save
+behaviour. An *external* file write (a coding agent) reaches the model through
+the same listener — VS Code reloads a non-dirty buffer on external change,
+which fires `onDidChangeTextDocument`.
+
+### Model → document overwrite (undo/redo, reload, deletion)
+
+The lock removes the user as a second writer, but not the command stack:
+every keystroke is an undoable modeler command, so Ctrl+Z **on the canvas**
+reverts script content underneath the open tab; a document reload (git
+checkout) re-imports the XML. The webview-side `ScriptSourceWatcher` keeps a
+per-open-script baseline of model content (established when the lock
+broadcast arrives, updated via `noteApplied` before each keystroke write so
+tab-originated changes never echo) and compares on `commandStack.changed` /
+`import.done`. On divergence it fires `SCRIPT_SOURCE_CHANGED_EVENT`, which
+`main.ts` forwards as `UpdateScriptSourceCommand`:
+
+- **content present** → `ScriptTaskService.applyModelChange` overwrites the
+  open buffer with a full-range `WorkspaceEdit` under the `writingGuard` (so
+  the resulting document-change event doesn't stream back).
+- **content undefined** (element deleted, listener removed) → the tab is
+  saved (to suppress the dirty prompt), closed, and its slug directory
+  deleted; the lock broadcast releases the panel field.
 
 ### Hidden-webview replay
 
@@ -182,7 +230,7 @@ sequenceDiagram
     Note over Webview: User switches back — VS Code re-shows the webview
     Webview->>Router: GetBpmnModelerSettingCommand
     Router->>ScriptSvc: resyncOpenDocuments(editorId)
-    ScriptSvc->>ScriptSvc: For each tracked doc — read scriptFs, postMessage
+    ScriptSvc->>ScriptSvc: For each tracked doc — read the open buffer (disk fallback), postMessage
     ScriptSvc->>Webview: UpdateScriptContentQuery (replay)
 ```
 
@@ -213,16 +261,38 @@ still live-updates as keystrokes stream in. The hint's reveal click re-fires
 `OPEN_SCRIPT_EDITOR_EVENT`; the host's already-open branch reveals the tab
 without rewriting it.
 
-The IntelliJ bridge mirrors this exactly — `BridgeScriptEditor` broadcasts the
+The IntelliJ bridge mirrors this — `BridgeScriptEditor` broadcasts the
 same query on open/`didClose` and on the `GetBpmnModelerSettingCommand`
-handshake, so the shared webview locks identically on both hosts. No Kotlin or
-RPC changes were needed.
+handshake, so the shared webview locks identically on both hosts.
+
+## IntelliJ / bridge specifics
+
+The bridge (`apps/modeler-bridge/src/scriptAdapters.ts`) writes the real file
+itself (it resolves the base dir from the session's document path + the
+mirrored `configFolder` setting) and ships the absolute path in the
+`script/open` payload. `ScriptEditorManager.kt` resolves it through the local
+VFS (`refreshAndFindFileByPath`) — a real `VirtualFile` tab is what re-enables
+IdeaVim and file-based AI plugins — falling back to a `LightVirtualFile` from
+the payload's `content` when the path doesn't resolve. The
+`SCRIPT_COMPLETION_KEY` / `SCRIPT_ID_KEY` UserData continue to scope the
+Kotlin completion contributors; they work on real files unchanged.
+
+Model→document overwrites travel as a `script/updateContent` RPC; the Kotlin
+side applies them in a `WriteCommandAction` behind a `programmaticEdits` echo
+guard (the document listener would otherwise bounce the overwrite back as
+`script/didChange`). File deletion mirrors VS Code: slug dir on `didClose` /
+close, editorHash dir on `disposeEditor`, plus a once-per-base-dir orphan
+sweep + `.gitignore` before the first write.
 
 ## Completion provider
 
-`ScriptCompletionProvider` registers for the `bpmn-script` scheme on every
-supported language (`javascript`, `groovy`, `python`, `ruby`). It runs in
-three modes, checked in order:
+`ScriptCompletionProvider` registers for `{ scheme: "file", language, pattern:
+"**/tmp/scripting/**" }` on every supported language (`javascript`, `groovy`,
+`python`, `ruby`) — the glob keeps it working wherever the base dir resolved
+to (the config folder is a setting), and a tracked-path guard
+(`getEditorIdForScriptUri`) inside the provider rejects same-named user
+directories the glob can't distinguish. It runs in three modes, checked in
+order:
 
 | Mode | Trigger | Returns |
 |---|---|---|
@@ -230,7 +300,15 @@ three modes, checked in order:
 | Member completion | Trailing `.` after a known bean or a SPIN-typed variable | Methods rendered as snippets with parameter placeholders |
 | Root completion | Word being typed at root scope | SPIN globals (`scripting.spin`-gated), bean names for the current `kind`, process variables, and local declarations (`collectLocalDeclarations`). In Groovy, SPIN items carry their import as an `additionalTextEdits` insert (`groovyImportInsertionLine` decides placement / already-satisfied), and importable SPIN type names (`SpinJsonNode`) are offered as class completions |
 
-Beans-in-scope are derived from the URI slug via `parseKindFromUri`:
+**JavaScript is trimmed to the dynamic surface** (variable-name mode, root
+process variables, typed-variable members): the static catalog — beans, bean
+methods, SPIN globals, locals — comes fully typed from tsserver via the
+generated `camunda.d.ts`. The `jsconfig.json` written next to the script is
+what makes tsserver include the sibling d.ts (a loose file's *inferred*
+project ignores siblings) and shields the script from any workspace-root
+`tsconfig.json`.
+
+Beans-in-scope are derived from the path slug via `parseKindFromUri`:
 
 | `ScriptKind` | Beans |
 |---|---|
@@ -245,44 +323,60 @@ types, return types, and human-readable descriptions.
 
 | Trigger | Path | Behaviour |
 |---|---|---|
-| User closes script tab | `onTabsChanged` → `cleanupClosedScript` | Removes from `openDocuments`; deletes the slug folder from `scriptFs` so a re-open picks up fresh content |
+| User closes script tab | `onTabsChanged` → `cleanupClosedScript` | Removes from `openDocuments`; deletes the slug directory on disk (script + JS ambient files) so a re-open picks up fresh content |
 | Tab moves between groups | Same path | No-op — `isUriOpenInAnyTab` detects the move (close + open pair) |
 | Tab close while BPMN webview hidden | Cleanup is **deferred** | `pendingResync` carries the unwritten edit — `performCleanup` runs only after `resyncOpenDocuments` has replayed |
-| BPMN editor disposed | `disposeForEditor` | Tracking state cleared synchronously, then orphaned tabs closed, then `scriptFs.deleteByPrefix(/<editorHash>/)` |
+| Element deleted while its tab is open | `applyModelChange(content: undefined)` | Save-then-close the tab, delete the slug directory, release the lock |
+| BPMN editor disposed | `disposeForEditor` | Tracking state cleared synchronously; then (async) dirty buffers saved, orphaned tabs closed, and the `<editorHash>` directory deleted |
+| Crashed / killed window | `ScriptFileStore.sweepOrphans()` at activation | Deletes every workspace folder's `tmp/scripting` dir plus the os-tmpdir fallback |
 
 ## Gotchas
 
-- **Edits propagate per keystroke, not on save.** `Ctrl+S` on a virtual
-  script file is effectively a no-op — `BpmnScriptFileSystem` is in-memory.
-  The BPMN file becomes dirty as soon as the moddle update lands; that's
-  the persistence point.
-- **`writingGuard` is mandatory** in `onVirtualDocumentChanged`. The service
-  itself writes to `scriptFs` to keep the in-memory bytes in sync with the
-  editor buffer; without the guard the change event re-enters the handler.
+- **Edits propagate per keystroke, not on save.** The BPMN file becomes
+  dirty as soon as the moddle update lands; that's the persistence point.
+  The script tab's own save state only affects the transient file on disk
+  (and thereby what disk-reading tools see).
+- **No per-keystroke disk mirror.** The open buffer is authoritative;
+  writing the file under a dirty buffer would provoke save conflicts. The
+  resync path therefore reads the open `TextDocument` first and only falls
+  back to disk when the buffer is already gone.
+- **`writingGuard` is mandatory** around `applyModelChange`'s buffer
+  overwrite — `onDidChangeTextDocument` fires while `applyEdit` is in
+  flight, and without the guard the overwrite would stream back into the
+  model as a keystroke.
+- **Save before programmatic close.** `TextDocument.save()` precedes every
+  service-initiated `tabGroups.close` so VS Code never pops the "do you
+  want to save" prompt for a file that is about to be deleted anyway.
 - **Use `onTabsChanged`, not `onDidCloseTextDocument`.** VS Code keeps the
   `TextDocument` alive for a short window after the tab closes (cheap
   re-opens). If we keyed cleanup off document close, a quick close-reopen
   with a different language would resurface the cached doc with stale
   content.
-- **Cleanup must be deferred when the webview is hidden.** The only copy of
-  the unwritten edit lives in `scriptFs`. Cleaning up before the resync runs
-  drops the buffered keystrokes silently. `pendingResync.has(editorId)`
-  guards `performCleanup`.
-- **Slug folder is the source of truth for `ScriptKind`.** `parseKindFromUri`
-  reads `segments[segments.length - 2]` — the slug folder, never the
+- **Cleanup must be deferred when the webview is hidden.** The buffered
+  edit's only copy lives in the (about-to-be-deleted) buffer/file. Cleaning
+  up before the resync runs drops the keystrokes silently.
+  `pendingResync.has(editorId)` guards `performCleanup`.
+- **Slug folder is the source of truth for `ScriptKind`.** `parseScriptPath`
+  anchors on `tmp/scripting` and reads the slug segment, never the
   filename. The filename is purely cosmetic for the tab strip.
-- **Element-id sanitization is filename-only.** The `<elementId>` URI path
+- **Element-id sanitization is filename-only.** The `<elementId>` path
   segment carries the raw id. Sanitizing the path too would break the
-  `disposeForEditor` prefix delete.
-- **`tsserver` cannot see sibling files** in a `FileSystemProvider`-backed
-  scheme. That's why JavaScript completions go through the same
-  `CompletionItemProvider` as the JSR-223 languages instead of a
-  `camunda.d.ts` next to the script — the inferred TS project would never
-  load it.
+  editor-hash directory delete on dispose.
+- **The path glob is a heuristic.** Any user directory whose path contains
+  `tmp/scripting` matches the provider selector; the in-provider
+  tracked-path guard is what keeps foreign files suggestion-free.
+- **Two windows on the same diagram share paths.** Last writer wins on
+  disk (accepted); each window's model still receives its own keystrokes,
+  and the activation sweep of one window can delete the other's live file —
+  the open buffer survives and a save recreates it.
+- **The `jsconfig.json` is not optional.** tsserver's inferred project for
+  a loose `.js` file does not include a sibling `camunda.d.ts`; the config
+  file is what turns the slug directory into a configured project (and
+  shields it from a workspace-root `tsconfig.json`).
 
 ## Related
 
-- [VS Code `FileSystemProvider`](https://code.visualstudio.com/api/references/vscode-api#FileSystemProvider) — virtual filesystem contract
+- [VS Code `workspace.fs`](https://code.visualstudio.com/api/references/vscode-api#FileSystem) — filesystem API behind `ScriptFileStore` (remote/WSL-safe)
 - [VS Code `CompletionItemProvider`](https://code.visualstudio.com/api/references/vscode-api#CompletionItemProvider) — IntelliSense contract
 - [Architecture overview](../architecture-overview) — extension host ↔ webview message protocol
 - [Copy & Paste internals](./copy-paste.md) — sister doc; same Query/Command pattern

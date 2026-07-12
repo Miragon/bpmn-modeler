@@ -2,21 +2,28 @@
  * Bridge-only orchestrator for the "Edit Script" feature on a remote host.
  *
  * The VS Code `ScriptTaskService` was deliberately *not* extracted to core: its
- * guts (resync-on-hidden-webview, `tabGroups` tracking, `FileSystemProvider`
- * caching quirks) are VS Code accidental complexity that doesn't port. JCEF
- * webviews are never "hidden" the way VS Code editor panels are, so the resync
- * machinery and the echo-prevention `writingGuard` are both moot here — content
- * is set at `LightVirtualFile` construction *before* the host attaches its
- * document listener, and the host never re-writes the script editor after open.
+ * guts (resync-on-hidden-webview, `tabGroups` tracking) are VS Code accidental
+ * complexity that doesn't port — JCEF webviews are never "hidden" the way VS
+ * Code editor panels are, so no resync machinery is needed here.
  *
- * What remains is the portable slice: pick a language when the model's
- * `scriptFormat` is unsupported, persist the choice, then address the script by
- * a stable `ScriptUri` and hand the host an opaque `scriptId`. The host is a
- * dumb editor surface keyed by that id; this class owns all BPMN/element
- * knowledge and maps host-reported edits back to the right webview.
+ * The bridge writes each script as a real file under
+ * `<configFolder>/tmp/scripting/` and hands the host its absolute path; a real
+ * `VirtualFile` (rather than an in-memory `LightVirtualFile`) is what
+ * re-enables IdeaVim and file-based AI tooling in the IntelliJ tab. The bridge
+ * also owns the disk hygiene: a one-shot orphan sweep per base directory, a
+ * `.gitignore`, and deletion on tab close / editor dispose.
+ *
+ * This class owns all BPMN/element knowledge: it addresses scripts by a stable
+ * `ScriptUri` and hands the host an opaque `scriptId`; the host is a dumb
+ * editor surface keyed by that id, and host-reported edits map back to the
+ * right webview here.
  */
 
+import { tmpdir } from "os";
+import { posix } from "path";
+
 import {
+    ArtifactService,
     beansFor,
     COMPLEX_TYPES,
     EditorSessionStore,
@@ -27,6 +34,8 @@ import {
     ScriptLanguage,
     ScriptUri,
     ScriptVariableManifestService,
+    TMP_SCRIPTING_SEGMENT,
+    WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import {
     dedupeVariables,
@@ -36,6 +45,7 @@ import {
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
+    UpdateScriptSourceCommand,
     VariableDef,
     VariableManifestEntry,
 } from "@miragon/bpmn-modeler-shared";
@@ -61,6 +71,24 @@ interface TrackedScript {
 export class BridgeScriptEditor {
     private readonly scripts = new Map<string, TrackedScript>();
 
+    // Absolute file path per open script, retained for deletion on close.
+    private readonly filePathByScript = new Map<string, string>();
+
+    /**
+     * Base `tmp/scripting` directory per editor, cached at first open so
+     * teardown deletes from the directory the files were actually written to
+     * even if the configFolder setting changed mid-session.
+     */
+    private readonly baseDirByEditor = new Map<string, string>();
+
+    /**
+     * Base directories already swept this process. The orphan sweep (files
+     * left behind by a crashed host) must run exactly once per directory and
+     * strictly before the first file is written into it — a later sweep
+     * would delete live scripts of other editors sharing the directory.
+     */
+    private readonly sweptBaseDirs = new Set<string>();
+
     // Two process-variable sources per editor, kept apart and merged on read
     // (mirrors the VS Code `ScriptVariableStore`): the webview-extracted model
     // (seeded on open, replaced on every `UpdateScriptVariablesCommand`) and the
@@ -84,6 +112,8 @@ export class BridgeScriptEditor {
         private readonly notifier: NotifierPort,
         private readonly settings: BridgeSettings,
         private readonly manifestSvc: ScriptVariableManifestService,
+        private readonly workspace: WorkspacePort,
+        private readonly artifactSvc: ArtifactService,
     ) {}
 
     /**
@@ -117,6 +147,24 @@ export class BridgeScriptEditor {
         );
         const scriptId = uri.toString();
 
+        // Write the real file only on first open: a re-open just reveals the
+        // existing tab, and rewriting the file underneath IntelliJ's (possibly
+        // unsaved) document would trigger its external-change conflict dialog.
+        let filePath = this.filePathByScript.get(scriptId);
+        if (filePath === undefined) {
+            const baseDir = await this.prepareBaseDir(editorId);
+            filePath = posix.join(baseDir, uri.relativePath());
+            try {
+                await this.workspace.writeFile(filePath, cmd.content);
+                this.filePathByScript.set(scriptId, filePath);
+            } catch (error) {
+                // The host falls back to a LightVirtualFile from `content`
+                // when the path doesn't resolve, so an unwritable disk
+                // degrades to the pre-real-file behaviour instead of failing.
+                this.notifier.logError(error as Error);
+            }
+        }
+
         this.scripts.set(scriptId, {
             editorId,
             elementId: cmd.elementId,
@@ -148,6 +196,7 @@ export class BridgeScriptEditor {
             scriptId,
             fileName: uri.filename,
             languageId: lang.languageId,
+            filePath,
             content: cmd.content,
             completion: {
                 beans: beansFor(cmd.kind).map((bean) => ({
@@ -171,6 +220,58 @@ export class BridgeScriptEditor {
     }
 
     /**
+     * Resolves (and caches) the editor's `tmp/scripting` base directory,
+     * sweeping orphans and dropping the `.gitignore` the first time a
+     * directory is used in this process. The sweep runs strictly before the
+     * first file is written into the directory, so it only ever removes
+     * leftovers of a previous (crashed) host process.
+     *
+     * Resolution mirrors the vars-manifest path: workspace root → config
+     * folder. A document without a resolvable directory (non-file session)
+     * falls back to the OS temp dir, keeping the `tmp/scripting` marker
+     * segments intact for `parseScriptPath`.
+     */
+    private async prepareBaseDir(editorId: string): Promise<string> {
+        let baseDir = this.baseDirByEditor.get(editorId);
+        if (baseDir === undefined) {
+            const documentPath = this.documentPathByEditor.get(editorId);
+            try {
+                if (documentPath === undefined) {
+                    throw new Error("no document path for editor");
+                }
+                const documentDir = this.workspace.getDocumentDirectory(documentPath);
+                const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
+                baseDir = posix.join(
+                    workspaceRoot,
+                    this.settings.getConfigFolder(),
+                    TMP_SCRIPTING_SEGMENT,
+                );
+            } catch {
+                baseDir = posix.join(
+                    tmpdir().replace(/\\/g, "/"),
+                    "miragon-bpmn-modeler",
+                    TMP_SCRIPTING_SEGMENT,
+                );
+            }
+            this.baseDirByEditor.set(editorId, baseDir);
+        }
+
+        if (!this.sweptBaseDirs.has(baseDir)) {
+            this.sweptBaseDirs.add(baseDir);
+            try {
+                await this.workspace.deleteDirectory(baseDir);
+                await this.workspace.writeFile(
+                    posix.join(posix.dirname(baseDir), ".gitignore"),
+                    "*\n",
+                );
+            } catch (error) {
+                this.notifier.logError(error as Error);
+            }
+        }
+        return baseDir;
+    }
+
+    /**
      * Re-broadcasts the open-script set for an editor so the webview's
      * properties-panel lock is restored after a reload. Called on the
      * `GetBpmnModelerSettingCommand` handshake, the same signal the webview
@@ -178,6 +279,52 @@ export class BridgeScriptEditor {
      */
     syncLockState(editorId: string): void {
         this.broadcastOpenScripts(editorId);
+    }
+
+    /**
+     * Applies a *model-originated* content change (canvas undo/redo, document
+     * reload, element deletion) reported by the webview to the owning tab.
+     *
+     * `content === undefined` means the script surface no longer exists: the
+     * tab is closed and its file deleted. Otherwise the host overwrites the
+     * open document via `script/updateContent` (echo-guarded on the host);
+     * the file on disk follows through IntelliJ's own save cycle.
+     */
+    applyModelChange(cmd: UpdateScriptSourceCommand, editorId: string): void {
+        for (const [scriptId, entry] of this.scripts) {
+            if (
+                entry.editorId !== editorId ||
+                entry.elementId !== cmd.elementId ||
+                entry.kind !== cmd.kind ||
+                (entry.listenerIndex ?? 0) !== (cmd.listenerIndex ?? 0)
+            ) {
+                continue;
+            }
+            if (cmd.content === undefined) {
+                this.rpc.notify(METHODS.scriptClose, { scriptId });
+                this.scripts.delete(scriptId);
+                this.deleteScriptDir(scriptId);
+                this.broadcastOpenScripts(editorId);
+            } else {
+                this.rpc.notify(METHODS.scriptUpdateContent, {
+                    scriptId,
+                    content: cmd.content,
+                });
+            }
+            return;
+        }
+    }
+
+    /** Deletes the script's slug directory on disk; failures are logged only. */
+    private deleteScriptDir(scriptId: string): void {
+        const filePath = this.filePathByScript.get(scriptId);
+        this.filePathByScript.delete(scriptId);
+        if (filePath === undefined) {
+            return;
+        }
+        void this.workspace
+            .deleteDirectory(posix.dirname(filePath))
+            .catch((error) => this.notifier.logError(error as Error));
     }
 
     /**
@@ -282,11 +429,12 @@ export class BridgeScriptEditor {
         }
     }
 
-    /** Host reported the user closed the script tab → drop tracking (no close echo). */
+    /** Host reported the user closed the script tab → drop tracking + delete the file. */
     didClose(scriptId: string): void {
         // Capture the owner before deleting so the lock release reflects the removal.
         const editorId = this.scripts.get(scriptId)?.editorId;
         this.scripts.delete(scriptId);
+        this.deleteScriptDir(scriptId);
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
         }
@@ -333,7 +481,17 @@ export class BridgeScriptEditor {
             if (entry.editorId === editorId) {
                 this.rpc.notify(METHODS.scriptClose, { scriptId });
                 this.scripts.delete(scriptId);
+                this.deleteScriptDir(scriptId);
             }
+        }
+        // Also sweep the editor's whole hash directory: it catches leftovers
+        // whose per-script deletion failed (e.g. a file still locked).
+        const baseDir = this.baseDirByEditor.get(editorId);
+        this.baseDirByEditor.delete(editorId);
+        if (baseDir !== undefined) {
+            void this.workspace
+                .deleteDirectory(posix.join(baseDir, ScriptUri.hashEditorId(editorId)))
+                .catch((error) => this.notifier.logError(error as Error));
         }
         this.extractedByEditor.delete(editorId);
         this.manifestByEditor.delete(editorId);

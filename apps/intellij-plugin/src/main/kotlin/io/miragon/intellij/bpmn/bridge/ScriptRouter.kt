@@ -35,11 +35,22 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
                 scriptEditors.openScript(
                     params.get("scriptId").asString,
                     params.get("fileName").asString,
+                    // Tolerate an absent/null path (older bridge, unwritable
+                    // disk) — the manager falls back to an in-memory tab.
+                    params.get("filePath")?.takeIf { !it.isJsonNull }?.asString,
                     params.get("content").asString,
                     deps.gson.fromJson(params.get("completion"), ScriptCompletionModel::class.java),
                 )
             }
             .on("script/close") { params, _ -> scriptEditors.closeScript(params.get("scriptId").asString) }
+            // Model-side overwrite (canvas undo/redo, document reload) — echo-
+            // guarded in the manager so it doesn't bounce back as didChange.
+            .on("script/updateContent") { params, _ ->
+                scriptEditors.updateContent(
+                    params.get("scriptId").asString,
+                    params.get("content").asString,
+                )
+            }
             // Live variable model push: swap the script tab's completion catalog
             // so the next completion invocation sees the current variables.
             .on("script/updateVariables") { params, _ ->

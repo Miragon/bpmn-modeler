@@ -14,6 +14,7 @@ import {
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
+    UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -31,6 +32,7 @@ import {
     setPropertiesPanelStateHandler,
     setTextClipboardHandler,
     syncDocumentHandler,
+    updateScriptSourceHandler,
     updateScriptVariablesHandler,
 } from "./bpmnMessageHandlers";
 
@@ -237,5 +239,41 @@ describe("updateScriptVariablesHandler", () => {
         );
 
         expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
+    });
+});
+
+describe("updateScriptSourceHandler", () => {
+    it("forwards a model-side content change to applyModelChange", async () => {
+        const scriptTaskSvc = { applyModelChange: vi.fn().mockResolvedValue(undefined) };
+
+        await updateScriptSourceHandler(scriptTaskSvc as never)(
+            new UpdateScriptSourceCommand("Task_1", "script-task", undefined, "undone"),
+            EDITOR,
+        );
+
+        expect(scriptTaskSvc.applyModelChange).toHaveBeenCalledWith(
+            EDITOR,
+            "Task_1",
+            "script-task",
+            undefined,
+            "undone",
+        );
+    });
+
+    it("forwards the deletion signal (undefined content) unchanged", async () => {
+        const scriptTaskSvc = { applyModelChange: vi.fn().mockResolvedValue(undefined) };
+
+        await updateScriptSourceHandler(scriptTaskSvc as never)(
+            new UpdateScriptSourceCommand("Task_1", "script-task", undefined, undefined),
+            EDITOR,
+        );
+
+        expect(scriptTaskSvc.applyModelChange).toHaveBeenCalledWith(
+            EDITOR,
+            "Task_1",
+            "script-task",
+            undefined,
+            undefined,
+        );
     });
 });

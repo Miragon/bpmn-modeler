@@ -477,6 +477,7 @@
             "completion",
             "content",
             "fileName",
+            "filePath",
             "languageId",
             "scriptId"
         ]
@@ -488,6 +489,15 @@
         "paramKeys": [
             "scriptId",
             "variables"
+        ]
+    },
+    {
+        "method": "script/updateContent",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "content",
+            "scriptId"
         ]
     },
     {

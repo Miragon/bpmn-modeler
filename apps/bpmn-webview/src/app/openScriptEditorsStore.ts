@@ -1,6 +1,14 @@
 import type { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-shared";
 
 /**
+ * Fired after the store replaced its open-script set, so listeners that keep
+ * per-script state (e.g. the {@link ScriptSourceWatcher}'s model baselines)
+ * re-align at the moment a script opens/closes rather than lazily at the next
+ * command — a lazy baseline would silently swallow the first model change.
+ */
+export const OPEN_SCRIPT_EDITORS_CHANGED_EVENT = "openScriptEditors.changed";
+
+/**
  * Builds the lock key for a script identity. `listenerIndex` is folded in with
  * a `0` default so a script task (no index) and a first-listener share no key,
  * because their `kind` already differs — the default only normalises the
@@ -44,7 +52,13 @@ export class OpenScriptEditorsStore {
         for (const ref of refs) {
             this.openByKey.set(openScriptKey(ref.elementId, ref.kind, ref.listenerIndex), ref);
         }
+        this.eventBus.fire(OPEN_SCRIPT_EDITORS_CHANGED_EVENT);
         this.eventBus.fire("propertiesPanel.providersChanged");
+    }
+
+    /** All currently open editor references. */
+    all(): OpenScriptEditorRef[] {
+        return [...this.openByKey.values()];
     }
 
     /** The open-editor reference for a script identity, or `undefined` if none. */

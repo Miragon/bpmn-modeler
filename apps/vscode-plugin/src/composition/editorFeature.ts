@@ -40,6 +40,7 @@ import {
     setTextClipboardHandler,
     syncDocumentHandler,
     openScriptEditorHandler,
+    updateScriptSourceHandler,
     updateScriptVariablesHandler,
     navigateToReferencedModelHandler,
     navigateToImplementationHandler,
@@ -183,6 +184,7 @@ export function register(
         .on("SyncDocumentCommand", syncDocumentHandler(bpmnService))
         .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc, scriptVariableStore))
         .on("UpdateScriptVariablesCommand", updateScriptVariablesHandler(scriptVariableStore))
+        .on("UpdateScriptSourceCommand", updateScriptSourceHandler(scriptTaskSvc))
         .on(
             "NavigateToReferencedModelCommand",
             navigateToReferencedModelHandler(

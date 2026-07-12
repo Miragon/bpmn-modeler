@@ -1,13 +1,22 @@
 import { ScriptKind } from "@miragon/bpmn-modeler-shared";
 
 /**
- * Encodes the `bpmn-script:/<editorHash>/<elementId>/<slug>/<filename>` URI
- * shape used for virtual inline-script documents.
+ * Directory (relative to the config folder) that holds all on-disk inline
+ * scripts. Doubles as the parse anchor: `parseScriptPath` locates this
+ * segment pair inside an absolute path to find the four script segments
+ * after it, so the base directory can live anywhere (workspace config
+ * folder, os tmpdir fallback) without the parsers caring.
+ */
+export const TMP_SCRIPTING_SEGMENT = "tmp/scripting";
+
+/**
+ * Encodes the `<editorHash>/<elementId>/<slug>/<filename>` path shape used
+ * for inline-script documents under `<configFolder>/tmp/scripting/`.
  *
  * Centralised because the slug encodes the script's kind and listener index
- * — `parseKindFromUri` reads it back, so changing the convention here also
- * requires updating the parser. The filename is human-facing only; URI
- * uniqueness is already guaranteed by the path segments above it.
+ * — `parseScriptPath` reads it back, so changing the convention here also
+ * requires updating the parser. The filename is human-facing only; path
+ * uniqueness is already guaranteed by the segments above it.
  */
 export class ScriptUri {
     constructor(
@@ -90,9 +99,21 @@ export class ScriptUri {
     }
 
     /**
-     * Full URI string suitable for `Uri.parse(...)`.
+     * Path relative to the `tmp/scripting/` base directory. The host joins
+     * this onto `<configFolder>/tmp/scripting/` to obtain the real file
+     * location; the bridge additionally uses the string as the stable
+     * `scriptId` across the RPC seam.
+     */
+    relativePath(): string {
+        return `${this.editorHash}/${this.elementId}/${this.slug}/${this.filename}`;
+    }
+
+    /**
+     * Canonical string identity of the script. Equals {@link relativePath}:
+     * the segments alone identify a script regardless of which base
+     * directory the file materialises under.
      */
     toString(): string {
-        return `bpmn-script:/${this.editorHash}/${this.elementId}/${this.slug}/${this.filename}`;
+        return this.relativePath();
     }
 }

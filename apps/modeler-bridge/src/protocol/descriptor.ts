@@ -58,6 +58,7 @@ import {
     ScriptCloseParams,
     ScriptDidChangeParams,
     ScriptOpenParams,
+    ScriptUpdateContentParams,
     ScriptUpdateVariablesParams,
     SettingsDidChangeParams,
     StatusBarEngineVersionParams,
@@ -142,6 +143,7 @@ export const METHODS = {
     deploymentPostMessage: "deployment/postMessage",
     scriptOpen: "script/open",
     scriptUpdateVariables: "script/updateVariables",
+    scriptUpdateContent: "script/updateContent",
     scriptClose: "script/close",
 } as const;
 
@@ -559,6 +561,7 @@ export const PROTOCOL = [
             scriptId: "s1",
             fileName: "script.js",
             languageId: "javascript",
+            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/script.js",
             content: "x",
             completion: { beans: [], variables: [], globals: [], types: {} },
         } satisfies ScriptOpenParams,
@@ -568,6 +571,12 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: { scriptId: "s1", variables: [] } satisfies ScriptUpdateVariablesParams,
+    },
+    {
+        method: METHODS.scriptUpdateContent,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { scriptId: "s1", content: "x" } satisfies ScriptUpdateContentParams,
     },
     {
         method: METHODS.scriptClose,

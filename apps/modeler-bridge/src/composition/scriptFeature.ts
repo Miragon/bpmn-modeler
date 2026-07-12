@@ -1,6 +1,7 @@
 import {
     Command,
     OpenScriptEditorCommand,
+    UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { ScriptVariableManifestService } from "@miragon/bpmn-modeler-core";
@@ -40,6 +41,8 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         deps.notifier,
         deps.settings,
         manifestSvc,
+        deps.nodeWorkspace,
+        deps.artifactSvc,
     );
 
     // Manifest watchers are armed per session and disposed when that editor
@@ -63,6 +66,11 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         // the open-script set so locked fields stay locked across a reload.
         .on("GetBpmnModelerSettingCommand", (_message: Command, editorId: string) => {
             scriptEditor.syncLockState(editorId);
+        })
+        // A script changed on the *model* side (canvas undo/redo, document
+        // reload, element deletion) → overwrite or close the owning tab.
+        .on("UpdateScriptSourceCommand", (message: Command, editorId: string) => {
+            scriptEditor.applyModelChange(message as UpdateScriptSourceCommand, editorId);
         });
 
     // The host edited an open script tab → push the new content into the owning

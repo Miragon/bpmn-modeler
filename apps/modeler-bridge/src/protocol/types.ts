@@ -367,6 +367,13 @@ export interface ScriptOpenParams {
     scriptId: string;
     fileName: string;
     languageId: string;
+    /**
+     * Absolute path of the real script file the bridge wrote under
+     * `<configFolder>/tmp/scripting/`. The host opens this file (re-enabling
+     * IdeaVim and file-based tooling) and falls back to an in-memory
+     * `LightVirtualFile` from `content` only if the path fails to resolve.
+     */
+    filePath: string;
     content: string;
     completion: {
         beans: readonly ScriptCompletionBean[];
@@ -386,6 +393,17 @@ export interface ScriptOpenParams {
 export interface ScriptUpdateVariablesParams {
     scriptId: string;
     variables: VariableDef[];
+}
+
+/**
+ * `script/updateContent` — the core overwrites an open tab's content because
+ * the script changed on the *model* side (canvas undo/redo, document reload).
+ * The host must guard its document listener so the write doesn't echo back as
+ * a `script/didChange`.
+ */
+export interface ScriptUpdateContentParams {
+    scriptId: string;
+    content: string;
 }
 
 /** `script/close` — the core tells the host to close a script tab it opened. */

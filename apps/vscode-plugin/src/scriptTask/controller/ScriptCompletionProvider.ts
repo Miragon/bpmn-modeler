@@ -38,19 +38,33 @@ import {
 import { VariableDef } from "@miragon/bpmn-modeler-shared";
 
 /**
- * VS Code language-feature provider that powers IntelliSense for inline
- * Camunda 7 scripts across all supported languages (JavaScript, Groovy,
- * Python, Ruby).
+ * Narrow view on {@link ScriptTaskService}: the provider only needs to know
+ * whether a document is one of the service's open scripts. Keeps the
+ * dependency injectable in tests without constructing the whole service.
+ */
+export interface OpenScriptRegistry {
+    getEditorIdForScriptUri(uriPath: string): string | undefined;
+}
+
+/**
+ * VS Code language-feature provider that powers the *Camunda-specific* part
+ * of IntelliSense for inline Camunda 7 scripts.
  *
- * VS Code's `tsserver` does not enumerate sibling files of a custom URI
- * scheme through `FileSystemProvider`s, so a `camunda.d.ts` written next
- * to a virtual `.js` file in the `bpmn-script://` filesystem is invisible
- * to the inferred TypeScript project. We therefore drive JavaScript
- * IntelliSense through the same `CompletionItemProvider` path as the other
- * JSR-223 languages, keeping behaviour and method signatures consistent.
+ * Since scripts became real files under `tmp/scripting/`, general language
+ * intelligence is external tooling's job: tsserver serves JavaScript (typed
+ * beans/SPIN via the generated `camunda.d.ts`), and users can install a
+ * Groovy/Python/Ruby language server. This provider covers only what no
+ * external tool can know — the Camunda execution context:
+ *
+ * - For Groovy/Python/Ruby: kind-scoped beans and their methods, SPIN
+ *   globals, plus a slim local-declaration scan as a fallback for users
+ *   without a language server (our root items suppress VS Code's word-based
+ *   suggestions, which live in a lower provider group).
+ * - For JavaScript: only the dynamic surface a static d.ts cannot express —
+ *   process variables and `getVariable("…")` string-argument completion.
  *
  * The provider derives the script's *kind* (script task / execution
- * listener / task listener) from the URI path slug — written by
+ * listener / task listener) from the path slug — written by
  * {@link ScriptTaskService} when it opens the document — and uses
  * {@link beansFor} to determine which globals are in scope. This keeps
  * suggestions accurate per surface (e.g. `task` only appears in task
@@ -85,21 +99,31 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
     // `ScriptDeclareVariableCodeAction` registers for exactly the same set.
     static readonly LANGUAGES = ["javascript", "groovy", "python", "ruby"] as const;
 
+    /**
+     * Path glob matching script files wherever the base directory resolved to
+     * (workspace config folder or os tmpdir) — the `tmp/scripting` marker
+     * segments are the invariant. A glob can't verify the file is *ours*, so
+     * {@link OpenScriptRegistry} is re-checked inside the provider.
+     */
+    static readonly PATH_GLOB = "**/tmp/scripting/**";
+
     constructor(
         private readonly store: ScriptVariableStore,
         private readonly settings: SettingsPort,
+        private readonly openScripts: OpenScriptRegistry,
     ) {}
 
     /**
      * Registers the completion provider for every supported language scoped
-     * to the `bpmn-script` scheme. Quote characters trigger variable-name
+     * to the script directory. Quote characters trigger variable-name
      * completion inside `getVariable("…`; `.` triggers member completion.
      */
     register(context: ExtensionContext): void {
         for (const language of ScriptCompletionProvider.LANGUAGES) {
             const filter: DocumentFilter = {
-                scheme: "bpmn-script",
+                scheme: "file",
                 language,
+                pattern: ScriptCompletionProvider.PATH_GLOB,
             };
             context.subscriptions.push(
                 languages.registerCompletionItemProvider(filter, this, ".", '"', "'"),
@@ -113,12 +137,23 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
         _token: unknown,
         context: CompletionContext,
     ): CompletionItem[] {
+        // The glob is a heuristic any same-named user directory satisfies;
+        // only documents the service tracks as open scripts get suggestions.
+        if (!this.openScripts.getEditorIdForScriptUri(document.uri.path)) {
+            return [];
+        }
         const kind = parseKindFromUri(document.uri.path);
         if (!kind) {
             return [];
         }
         const beans = beansFor(kind);
         const linePrefix = document.lineAt(position).text.slice(0, position.character);
+
+        // JavaScript gets its static surface (beans, bean methods, SPIN
+        // globals, locals) from tsserver via the generated `camunda.d.ts` —
+        // duplicating it here would double every entry in the merged list.
+        // Only the dynamic, model-derived items stay on this provider.
+        const jsAmbient = document.languageId === "javascript";
 
         // Mode 1: cursor inside a `getVariable("…` style string argument.
         if (matchVariableStringArg(linePrefix)) {
@@ -138,7 +173,7 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
         if (memberAccess) {
             const bean = beans.find((b) => b.name === memberAccess);
             if (bean) {
-                return methodsForBean(bean).map(methodToCompletion);
+                return jsAmbient ? [] : methodsForBean(bean).map(methodToCompletion);
             }
             // Not a bean: a producer-heuristic typeHint (e.g. SpinJsonNode) may
             // resolve. Gated by the same setting as the SPIN globals —
@@ -157,7 +192,7 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
         // local declarations. The setting is read live on every invocation, so a
         // toggle takes effect on the next completion request with no reload.
         const spinEnabled = this.settings.getScriptingSpin();
-        const globals = spinEnabled ? globalFunctionsFor(kind) : [];
+        const globals = spinEnabled && !jsAmbient ? globalFunctionsFor(kind) : [];
         // Importable type names only in Groovy: it is the sole language where a
         // script names a SPIN type directly (`SpinJsonNode node = …`) and where
         // the attached Java-style import line is valid syntax.
@@ -177,12 +212,16 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
             ...globals.map((g) => g.name),
             ...importableTypes.map((t) => t.name),
         ]);
-        const locals = collectLocalDeclarations(scriptText, document.languageId)
-            .filter((decl) => !taken.has(decl.name))
-            // A declaration must not complete itself while it is being typed.
-            // Over-suppression when the name is re-declared on a later line is
-            // accepted as cosmetic.
-            .filter((decl) => decl.line !== position.line);
+        // tsserver already completes JavaScript locals from real source; the
+        // lexical fallback only serves the languages without a language server.
+        const locals = jsAmbient
+            ? []
+            : collectLocalDeclarations(scriptText, document.languageId)
+                  .filter((decl) => !taken.has(decl.name))
+                  // A declaration must not complete itself while it is being
+                  // typed. Over-suppression when the name is re-declared on a
+                  // later line is accepted as cosmetic.
+                  .filter((decl) => decl.line !== position.line);
         const languageId = document.languageId;
         return [
             ...globals.map((fn) =>
@@ -191,7 +230,7 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
             ...importableTypes.map((type) =>
                 withGroovyImport(typeToCompletion(type), type.groovyImport, languageId, scriptText),
             ),
-            ...beans.map(beanToCompletion),
+            ...(jsAmbient ? [] : beans.map(beanToCompletion)),
             ...variables.filter((v) => !beanNames.has(v.name)).map(variableToCompletion),
             ...locals.map(localToCompletion),
         ];

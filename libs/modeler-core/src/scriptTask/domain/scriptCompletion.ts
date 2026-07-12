@@ -46,34 +46,62 @@ export function matchVariableStringArg(
 }
 
 /**
- * Extracts the editor hash (first path segment) from a `bpmn-script://` URI
- * path. The hash keys the host-side variable store, which the completion
- * provider reads to scope suggestions to the BPMN editor the script belongs to.
- *
- * Path shape: `/<editorHash>/<elementId>/<slug>/<filename>`.
+ * The four `ScriptUri` path segments of an on-disk inline script, recovered
+ * from a filesystem path.
  */
-export function parseEditorHashFromUri(path: string): string | undefined {
-    return path.split("/").filter(Boolean)[0];
+export interface ParsedScriptPath {
+    readonly editorHash: string;
+    readonly elementId: string;
+    readonly slug: string;
+    readonly filename: string;
 }
 
 /**
- * Extracts the script kind from a `bpmn-script://` URI path written by
- * `ScriptUri.slug`.
- *
- * Path shape: `/<editorHash>/<elementId>/<slug>/script.<ext>`
+ * Recovers the `ScriptUri` segments from a filesystem path by anchoring on
+ * the `tmp/scripting/` marker rather than a fixed depth: the base directory
+ * varies (workspace config folder, os tmpdir fallback), so only the segments
+ * *after* the marker are stable. Splits on both separators because callers
+ * hand in `uri.fsPath`, which uses `\` on Windows.
+ */
+export function parseScriptPath(path: string): ParsedScriptPath | undefined {
+    const segments = path.split(/[/\\]/).filter(Boolean);
+    // Find the last marker occurrence: a workspace folder could itself be
+    // named `tmp/scripting`, and only the innermost marker is ours.
+    let anchor = -1;
+    for (let i = segments.length - 2; i >= 0; i--) {
+        if (segments[i] === "tmp" && segments[i + 1] === "scripting") {
+            anchor = i + 2;
+            break;
+        }
+    }
+    if (anchor === -1 || segments.length - anchor !== 4) {
+        return undefined;
+    }
+    const [editorHash, elementId, slug, filename] = segments.slice(anchor);
+    return { editorHash, elementId, slug, filename };
+}
+
+/**
+ * Extracts the editor hash from an inline-script file path. The hash keys the
+ * host-side variable store, which the completion provider reads to scope
+ * suggestions to the BPMN editor the script belongs to.
+ */
+export function parseEditorHashFromUri(path: string): string | undefined {
+    return parseScriptPath(path)?.editorHash;
+}
+
+/**
+ * Extracts the script kind from an inline-script file path, reading back the
+ * slug written by `ScriptUri.slug`:
  *   - `script-task`                    → `script-task`
  *   - `execution-listener-<i>[-<evt>]` → `execution-listener`
  *   - `task-listener-<i>[-<evt>]`      → `task-listener`
  */
 export function parseKindFromUri(path: string): ScriptKind | undefined {
-    const segments = path.split("/").filter(Boolean);
-    /**
-     * We need at least <hash>/<elementId>/<slug>/<file>.
-     */
-    if (segments.length < 4) {
+    const slug = parseScriptPath(path)?.slug;
+    if (slug === undefined) {
         return undefined;
     }
-    const slug = segments[segments.length - 2];
     if (slug === "script-task") {
         return "script-task";
     }

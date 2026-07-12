@@ -6,10 +6,15 @@ elements in real VS Code editor tabs — with syntax highlighting,
 IntelliSense for the Camunda 7 script API, and full access to your
 favourite editor features (multi-cursor, snippets, AI assistants).
 
-The script body is **not** written to disk: each script lives in a virtual
-in-memory document under the `bpmn-script://` URI scheme. Edits are
-streamed back into the BPMN model as you type, and the BPMN file becomes
-dirty just like any other modeler change.
+While a script tab is open, its content lives in a **real file** under
+`<configFolder>/tmp/scripting/` (`.camunda/tmp/scripting/` by default).
+Real files are what let external tooling participate: language servers and
+tsserver only attach to on-disk files, and coding agents such as Claude
+Code can read and write the script directly. The files are transient —
+created when you open a script, deleted when you close it, and ignored by
+git via an auto-generated `.gitignore`. The BPMN model stays the source of
+truth: edits are streamed back into it as you type, and the BPMN file
+becomes dirty just like any other modeler change.
 
 ## Supported Languages
 
@@ -99,15 +104,27 @@ two listeners on the same task do not collide:
 ## Live Edits
 
 - Every keystroke in the script editor is pushed back into the BPMN model
-  immediately — there is **no save step**.
-- Pressing <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>S</kbd> on the script tab
-  is a no-op (the virtual file lives in memory). Save the **BPMN file**
-  to persist your script changes to disk.
-- Closing the script tab discards the in-memory virtual document but does
-  **not** revert the script in the model — the bytes you typed are
-  already part of the diagram.
+  immediately — there is **no save step** for the model. Save the **BPMN
+  file** to persist your script changes.
+- The script tab itself behaves like any other file: it shows a dirty
+  marker and follows your own `files.autoSave` setting. Saving it only
+  refreshes the transient file on disk (useful for disk-reading tools);
+  the model already has your keystrokes either way, so discarding the
+  file's unsaved state loses nothing.
+- **Undo/redo on the canvas wins.** Every keystroke is an undoable modeler
+  command, so pressing <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Z</kbd> on the
+  *diagram* reverts script content — and the open script tab is
+  overwritten to match. Deleting the element closes its script tab and
+  removes the file.
+- Closing the script tab deletes the transient file but does **not**
+  revert the script in the model — the bytes you typed are already part
+  of the diagram.
 - Switching the BPMN tab away while you keep typing is safe: the changes
   are buffered and replayed when you switch back to the diagram.
+- If a script file is edited **externally** (a coding agent, a terminal
+  tool), VS Code reloads the buffer and the change streams into the model
+  — as long as the buffer has no unsaved edits of its own; a dirty buffer
+  is never auto-reloaded by VS Code.
 
 ## Single Writer
 
@@ -139,6 +156,20 @@ script API. The available beans depend on **where the script lives**:
 Typing a bean name plus `.` triggers a list of methods with parameter
 hints; typing at the start of a line offers the bean names that are in
 scope.
+
+**JavaScript** goes further: a kind-scoped `camunda.d.ts` (plus a tiny
+`jsconfig.json`) is generated next to the script file, so the beans and
+SPIN globals come fully typed from VS Code's built-in TypeScript service —
+including hover documentation, signature help, and return-type inference
+(`S(payload).` completes `SpinJsonNode` members). Local variables and
+functions are completed by tsserver too, like in any other `.js` file.
+
+For **Groovy, Python, and Ruby**, installing a language-server extension
+(e.g. a Groovy LS) adds general language intelligence on top — because the
+scripts are real files, such extensions attach to them automatically. The
+Camunda-specific surface (beans, process variables, SPIN) always comes
+from this extension; note that a language server cannot resolve the
+untyped `execution` binding on its own.
 
 <!-- TODO screenshot: JavaScript script tab showing IntelliSense popup
      after typing `execution.` — the popup should list methods like
@@ -275,19 +306,27 @@ Two flavours of AI feature work out of the box:
      prompt like "Set a process variable customerEmail from the user
      task's assignee" and the proposed diff visible underneath. -->
 
-> **What does *not* work:** AI tools that read files from disk — including
-> Claude Code's `@` file reference and other terminal-based assistants —
-> cannot see the script body, because the virtual document lives only in
-> memory. Stick to extensions that operate on the active editor buffer.
+Disk-reading tools work too: while a script tab is open, the script is a
+real file under `<configFolder>/tmp/scripting/`, so terminal-based
+assistants like **Claude Code** can read it (`@`-reference the file) and
+even edit it — an external write is picked up by the open buffer and
+streamed into the BPMN model, as long as you don't have unsaved edits in
+that same tab. With auto-save off, save the tab first if you want the
+on-disk copy to reflect your latest keystrokes.
 
 ## Tips
 
 - **Multiple scripts at once.** Open as many script tabs as you like, on
   the same element or across elements. They all stream back into the
   BPMN model independently.
-- **Close tabs you don't need.** When you close a script tab, re-opening
-  it loads the latest content from the BPMN model. This is the cleanest
-  way to discard a stale buffer if you ever suspect drift.
+- **Close tabs you don't need.** When you close a script tab, its
+  transient file is deleted and re-opening loads the latest content from
+  the BPMN model. This is the cleanest way to discard a stale buffer if
+  you ever suspect drift.
+- **Two windows, same diagram.** Opening the same script from two VS Code
+  windows maps to the same transient file — last writer wins on disk, but
+  each window's model still receives its own keystrokes. Avoid editing the
+  same script from two windows at once.
 
 ---
 

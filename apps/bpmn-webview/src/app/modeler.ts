@@ -20,6 +20,13 @@ import {
 import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
 import { OpenScriptEditorsStore, OpenScriptEditorsStoreModule } from "./openScriptEditorsStore";
 import { ScriptLockPropertiesProviderModule } from "./scriptLockPropertiesProvider";
+import { findListenerAt } from "./scriptModel";
+import {
+    SCRIPT_SOURCE_CHANGED_EVENT,
+    ScriptSourceChangedEvent,
+    ScriptSourceWatcher,
+    ScriptSourceWatcherModule,
+} from "./scriptSourceWatcher";
 import {
     OPEN_SCRIPT_EDITOR_EVENT,
     OpenScriptEditorEvent,
@@ -135,6 +142,7 @@ export class BpmnModeler {
                         ScriptEditorButtonsModule,
                         OpenScriptEditorsStoreModule,
                         ScriptLockPropertiesProviderModule,
+                        ScriptSourceWatcherModule,
                         ...extra,
                     ],
                 });
@@ -427,6 +435,14 @@ export class BpmnModeler {
             return;
         }
 
+        // Pre-declare this write as tab-originated *before* the moddle write:
+        // `commandStack.changed` fires synchronously inside it, and the watcher
+        // must see the new content as its baseline or it would report our own
+        // keystroke back to the host as a model-side change.
+        modeler
+            .get<ScriptSourceWatcher>("scriptSourceWatcher", false)
+            ?.noteApplied(elementId, kind, listenerIndex, content);
+
         if (kind === "script-task") {
             modeling.updateModdleProperties(element, element.businessObject, {
                 script: content,
@@ -470,6 +486,21 @@ export class BpmnModeler {
         this.getModeler()
             .get<any>("eventBus")
             .on(OPEN_SCRIPT_EDITOR_EVENT, (event: OpenScriptEditorEvent) => {
+                callback(event);
+            });
+    }
+
+    /**
+     * Registers a callback for the {@link ScriptSourceWatcher}'s divergence
+     * event, fired when an open script's model content changed underneath its
+     * editor tab (canvas undo/redo, document reload, element deletion). The
+     * entry point forwards it to the host, which overwrites — or, for a
+     * deleted element, closes — the tab.
+     */
+    onScriptSourceChanged(callback: (data: ScriptSourceChangedEvent) => void): void {
+        this.getModeler()
+            .get<any>("eventBus")
+            .on(SCRIPT_SOURCE_CHANGED_EVENT, (event: ScriptSourceChangedEvent) => {
                 callback(event);
             });
     }
@@ -546,25 +577,4 @@ export class UnsupportedEngineError extends Error {
     constructor(engine: string) {
         super(`Unsupported engine: ${engine}`);
     }
-}
-
-/**
- * Returns the `index`-th listener of `listenerType` from the element's
- * extension elements, or undefined if not found.
- *
- * Mirrors the upstream filtering bpmn-js-properties-panel does in
- * `ExecutionListenerProps` / `TaskListenerProps` so indices stay aligned
- * with what the user sees in the properties panel.
- */
-function findListenerAt(
-    bo: any,
-    listenerType: "camunda:ExecutionListener" | "camunda:TaskListener",
-    index: number | undefined,
-): any {
-    if (index === undefined) {
-        return undefined;
-    }
-    const values = bo?.extensionElements?.values ?? [];
-    const filtered = values.filter((v: any) => v.$type === listenerType);
-    return filtered[index];
 }

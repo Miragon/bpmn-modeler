@@ -153,6 +153,7 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/postMessage",
                     "  script/open",
                     "  script/updateVariables",
+                    "  script/updateContent",
                     "  script/close",
                 ].join("\n"),
             );

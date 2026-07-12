@@ -43,6 +43,20 @@ async function waitForFrame(
     throw new Error("waitForFrame timed out");
 }
 
+/** Polls until `path` no longer exists — deletions are fire-and-forget on the bridge. */
+async function waitForDeletion(path: string, timeoutMs = 2000): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        try {
+            await fs.access(path);
+        } catch {
+            return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`still exists: ${path}`);
+}
+
 function registerParams(editorId: string, root: string, fsPath: string, content: string) {
     return {
         editorId,
@@ -486,6 +500,9 @@ describe("bridge script editor (real core over a fake transport)", () => {
             scriptFormat: "javascript",
             content: "",
         });
+        // Open completes asynchronously (it writes the real script file);
+        // wait for its frame so the handshake below sees the tracked script.
+        await waitForFrame(frames, (f) => f.method === "script/open");
         frames.length = 0;
 
         await rpc.handleLine(
@@ -524,5 +541,123 @@ describe("bridge script editor (real core over a fake transport)", () => {
 
         const close = await waitForFrame(frames, (f) => f.method === "script/close");
         expect(close.params.scriptId).toBe(scriptId);
+    });
+
+    it("writes the script as a real file under <configFolder>/tmp/scripting and ships its path", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "x = 1",
+        });
+
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        expect(open.params.filePath).toContain("/.camunda/tmp/scripting/");
+        expect(open.params.filePath.endsWith("/Task_1.groovy")).toBe(true);
+        expect(await fs.readFile(open.params.filePath, "utf8")).toBe("x = 1");
+
+        // Transient scripts must never land in version control.
+        const gitignore = join(dirname(open.params.filePath), "..", "..", "..", "..", ".gitignore");
+        expect(await fs.readFile(gitignore, "utf8")).toBe("*\n");
+    });
+
+    it("deletes the script's directory when the host reports the tab closed", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "x = 1",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "script/didClose",
+                params: { scriptId: open.params.scriptId },
+            }),
+        );
+
+        await waitForDeletion(dirname(open.params.filePath));
+    });
+
+    it("forwards a model-side content change as script/updateContent", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "x = 1",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "UpdateScriptSourceCommand",
+                        elementId: "Task_1",
+                        kind: "script-task",
+                        listenerIndex: undefined,
+                        content: "undone",
+                    },
+                },
+            }),
+        );
+
+        const update = await waitForFrame(frames, (f) => f.method === "script/updateContent");
+        expect(update.params.scriptId).toBe(open.params.scriptId);
+        expect(update.params.content).toBe("undone");
+    });
+
+    it("closes the tab and deletes the file when the script surface disappeared", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "x = 1",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "UpdateScriptSourceCommand",
+                        elementId: "Task_1",
+                        kind: "script-task",
+                        listenerIndex: undefined,
+                        // `content` deliberately absent: the element is gone.
+                    },
+                },
+            }),
+        );
+
+        const close = await waitForFrame(frames, (f) => f.method === "script/close");
+        expect(close.params.scriptId).toBe(open.params.scriptId);
+        const lock = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "UpdateOpenScriptEditorsQuery" &&
+                f.params.message.openScripts.length === 0,
+        );
+        expect(lock).toBeDefined();
+        await waitForDeletion(dirname(open.params.filePath));
     });
 });

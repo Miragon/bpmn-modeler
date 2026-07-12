@@ -550,7 +550,8 @@ export class SetTextClipboardCommand extends Command {
  * Sent by the BPMN webview when the user activates "Edit Script" on a
  * scriptable element (script task, execution listener, or task listener).
  *
- * The host opens the inline script in a virtual `bpmn-script://` editor and
+ * The host opens the inline script in an editor tab (backed by a real file
+ * under the config folder's `tmp/scripting/` directory) and
  * streams edits back via {@link UpdateScriptContentQuery}. {@link kind} and
  * {@link listenerIndex} together address which script's content is being
  * edited so the host can supply the correct type stubs and the webview can
@@ -595,6 +596,43 @@ export class OpenScriptEditorCommand extends Command {
         this.scriptFormat = scriptFormat;
         this.content = content;
         this.variables = variables;
+    }
+}
+
+/**
+ * Sent by the BPMN webview when a script's content changed in the *model*
+ * while a host editor tab owns it — canvas undo/redo or an external document
+ * reload rewrites the moddle property underneath the tab. The host overwrites
+ * the open buffer with {@link content} so the tab reflects what the user asked
+ * for (single-writer: the model side wins for non-keystroke mutations).
+ *
+ * `content === undefined` means the element or its script no longer exists
+ * (deletion, element replace): the host closes the tab and deletes the file.
+ *
+ * The webview only posts on a real difference against the last content it
+ * applied or received for that script, so keystrokes the tab itself streamed
+ * in via {@link UpdateScriptContentQuery} never echo back.
+ */
+export class UpdateScriptSourceCommand extends Command {
+    public readonly elementId: string;
+
+    public readonly kind: ScriptKind;
+
+    public readonly listenerIndex: number | undefined;
+
+    public readonly content: string | undefined;
+
+    constructor(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        content: string | undefined,
+    ) {
+        super("UpdateScriptSourceCommand");
+        this.elementId = elementId;
+        this.kind = kind;
+        this.listenerIndex = listenerIndex;
+        this.content = content;
     }
 }
 

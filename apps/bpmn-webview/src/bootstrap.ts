@@ -37,6 +37,7 @@ import {
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
+    UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
     asyncDebounce,
     createResolver,
@@ -261,6 +262,20 @@ async function run(): Promise<void> {
                     data.scriptFormat,
                     data.content,
                     extractProcessVariables(bpmnModeler.getDefinitions()),
+                ),
+            );
+        });
+
+        // Model-side script changes (canvas undo/redo, document reload,
+        // element deletion) must reach the host so it can overwrite — or
+        // close — the owning editor tab; see ScriptSourceWatcher.
+        bpmnModeler.onScriptSourceChanged((data) => {
+            host.postMessage(
+                new UpdateScriptSourceCommand(
+                    data.elementId,
+                    data.kind,
+                    data.listenerIndex,
+                    data.content,
                 ),
             );
         });
