@@ -22,7 +22,7 @@ vi.mock("vscode", () => {
     }
     return {
         CompletionItem,
-        CompletionItemKind: { Variable: 5, Method: 1 },
+        CompletionItemKind: { Text: 0, Method: 1, Function: 2, Variable: 5, Class: 6 },
         MarkdownString,
         SnippetString,
         languages: { registerCompletionItemProvider: vi.fn() },
@@ -53,17 +53,39 @@ function buildProvider(store: ScriptVariableStore, spinEnabled = true): ScriptCo
     return new ScriptCompletionProvider(store, settings);
 }
 
+interface CompleteOptions {
+    path?: string;
+    triggerCharacter?: string;
+    languageId?: string;
+    /** Full document text for the local-declaration scan; defaults to the line prefix. */
+    scriptText?: string;
+    /** 0-based cursor line; drives the declaration self-suppression rule. */
+    line?: number;
+}
+
+function completeItems(
+    provider: ScriptCompletionProvider,
+    linePrefix: string,
+    options: CompleteOptions = {},
+): ReturnType<ScriptCompletionProvider["provideCompletionItems"]> {
+    const path = options.path ?? SCRIPT_PATH;
+    const document = {
+        uri: { path },
+        languageId: options.languageId ?? "groovy",
+        lineAt: () => ({ text: linePrefix }),
+        getText: () => options.scriptText ?? linePrefix,
+    } as never;
+    const position = { line: options.line ?? 0, character: linePrefix.length } as never;
+    const context = { triggerCharacter: options.triggerCharacter } as never;
+    return provider.provideCompletionItems(document, position, undefined, context);
+}
+
 function complete(
     provider: ScriptCompletionProvider,
     linePrefix: string,
-    options: { path?: string; triggerCharacter?: string } = {},
+    options: CompleteOptions = {},
 ): string[] {
-    const path = options.path ?? SCRIPT_PATH;
-    const document = { uri: { path }, lineAt: () => ({ text: linePrefix }) } as never;
-    const position = { character: linePrefix.length } as never;
-    const context = { triggerCharacter: options.triggerCharacter } as never;
-    const items = provider.provideCompletionItems(document, position, undefined, context);
-    return items.map((item) => item.label as string);
+    return completeItems(provider, linePrefix, options).map((item) => item.label as string);
 }
 
 const variable = (name: string, typeHint?: string): VariableDef => ({
@@ -144,6 +166,102 @@ describe("ScriptCompletionProvider modes", () => {
     it("member access on a primitive-typed variable returns nothing", () => {
         const provider = buildProvider(storeWith(variable("node", "long")));
         expect(complete(provider, "node.")).toEqual([]);
+    });
+
+    describe("local declarations at root", () => {
+        it("offers a local declared on an earlier line", () => {
+            const provider = buildProvider(storeWith());
+            const labels = complete(provider, "myT", {
+                scriptText: "def myTotal = 1\nmyT",
+                line: 1,
+            });
+            expect(labels).toContain("myTotal");
+        });
+
+        it("marks locals with a local-variable / local-function detail", () => {
+            const provider = buildProvider(storeWith());
+            const items = completeItems(provider, "x", {
+                scriptText: "def myTotal = 1\ndef helper() {\nx",
+                line: 2,
+            });
+            const byLabel = new Map(items.map((item) => [item.label as string, item]));
+            expect(byLabel.get("myTotal")?.detail).toBe("local variable");
+            expect(byLabel.get("helper")?.detail).toBe("local function");
+        });
+
+        it("does not suggest a declaration to itself while it is being typed", () => {
+            const provider = buildProvider(storeWith());
+            const labels = complete(provider, "def myTotal = 1", {
+                scriptText: "def myTotal = 1",
+                line: 0,
+            });
+            expect(labels).not.toContain("myTotal");
+        });
+
+        it("lets the bean win over a same-named local (no duplicate)", () => {
+            const provider = buildProvider(storeWith());
+            const labels = complete(provider, "ex", {
+                scriptText: "def execution = wat\nex",
+                line: 1,
+            });
+            expect(labels.filter((label) => label === "execution")).toHaveLength(1);
+        });
+
+        it("lets the process variable win over a same-named local (docs preserved)", () => {
+            const provider = buildProvider(storeWith(variable("amount", "long")));
+            const items = completeItems(provider, "am", {
+                scriptText: "def amount = 1\nam",
+                line: 1,
+            });
+            const amounts = items.filter((item) => item.label === "amount");
+            expect(amounts).toHaveLength(1);
+            // The surviving item is the store's (typeHint detail), not the local.
+            expect(amounts[0].detail).toBe("long");
+        });
+
+        it("lets a SPIN global win while enabled, and frees the name when disabled", () => {
+            const script = "def S = 5\nx";
+            const spinOn = complete(buildProvider(storeWith()), "x", {
+                scriptText: script,
+                line: 1,
+            });
+            expect(spinOn.filter((label) => label === "S")).toHaveLength(1);
+
+            const spinOff = complete(buildProvider(storeWith(), false), "x", {
+                scriptText: script,
+                line: 1,
+            });
+            expect(spinOff).toContain("S");
+        });
+
+        it("collects javascript locals and functions for a javascript document", () => {
+            const provider = buildProvider(storeWith());
+            const labels = complete(provider, "ra", {
+                languageId: "javascript",
+                scriptText: "const rate = 2\nfunction fmt(x) {}\nra",
+                line: 2,
+            });
+            expect(labels).toContain("rate");
+            expect(labels).toContain("fmt");
+        });
+
+        it("keeps locals out of the variable-string-arg mode", () => {
+            const provider = buildProvider(storeWith(variable("amount")));
+            const labels = complete(provider, `execution.getVariable("`, {
+                scriptText: 'def myTotal = 1\nexecution.getVariable("',
+                line: 1,
+            });
+            expect(labels).toEqual(["amount"]);
+        });
+
+        it("keeps locals out of member completion", () => {
+            const provider = buildProvider(storeWith());
+            const labels = complete(provider, "execution.", {
+                scriptText: "def myTotal = 1\nexecution.",
+                line: 1,
+            });
+            expect(labels).not.toContain("myTotal");
+        });
     });
 
     it("carries the typeHint as the completion detail", () => {

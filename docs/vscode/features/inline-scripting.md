@@ -137,6 +137,16 @@ variables** the modeler discovered in the diagram. These are inferred
 heuristically from input/output mappings, form fields, result variables,
 call-activity mappings, and `setVariable(…)` / `${…}` occurrences.
 
+### Local script variables
+
+Identifiers you declare in the script body itself are offered at root
+scope too — `def total = …` (Groovy), `let x` / `const x` (JavaScript),
+`x = …` (Python/Ruby), and function declarations like `def helper(…)`.
+Detection is a lightweight per-line heuristic (one declarator per
+statement, no function parameters), not a full parser. Camunda beans and
+process variables win any name clash, so a local never hides an item
+that carries type information and documentation.
+
 ### Declaring variables with a `*.bpmn.vars.json` manifest
 
 Heuristic discovery cannot see variables injected from outside the model
