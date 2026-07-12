@@ -24,11 +24,23 @@ describe("globalFunctionsFor", () => {
         const globals = globalFunctionsFor("script-task");
         expect(globals.every((fn) => fn.returnType === "SpinJsonNode")).toBe(true);
     });
+
+    it("carries the groovy static import for each SPIN global", () => {
+        const byName = new Map(globalFunctionsFor("script-task").map((fn) => [fn.name, fn]));
+        expect(byName.get("S")?.groovyImport).toBe("import static org.camunda.spin.Spin.S");
+        expect(byName.get("JSON")?.groovyImport).toBe("import static org.camunda.spin.Spin.JSON");
+    });
 });
 
 describe("SpinJsonNode catalog entry", () => {
     it("is registered in COMPLEX_TYPES so 2c can resolve a typeHint", () => {
         expect(COMPLEX_TYPES.some((type) => type.name === "SpinJsonNode")).toBe(true);
+    });
+
+    it("is the only complex type carrying a groovy import (context beans need none)", () => {
+        const importable = COMPLEX_TYPES.filter((type) => type.groovyImport);
+        expect(importable.map((type) => type.name)).toEqual(["SpinJsonNode"]);
+        expect(importable[0].groovyImport).toBe("import org.camunda.spin.json.SpinJsonNode");
     });
 
     it("resolves its methods through methodsForBean for a SpinJsonNode-typed bean", () => {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const findFilesMock = vi.fn();
 const createDirectoryMock = vi.fn();
 const writeFileMock = vi.fn();
+const readFileMock = vi.fn();
 const deleteMock = vi.fn();
 const createFileSystemWatcherMock = vi.fn();
 
@@ -10,7 +11,7 @@ vi.mock("vscode", () => ({
     workspace: {
         fs: {
             readDirectory: vi.fn(),
-            readFile: vi.fn(),
+            readFile: (...args: unknown[]) => readFileMock(...args),
             writeFile: (...args: unknown[]) => writeFileMock(...args),
             createDirectory: (...args: unknown[]) => createDirectoryMock(...args),
             delete: (...args: unknown[]) => deleteMock(...args),
@@ -46,6 +47,7 @@ vi.mock("vscode", () => ({
 
 import { FileSystemError, workspace } from "vscode";
 
+import { FileNotFound } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 const getWorkspaceFolderMock = workspace.getWorkspaceFolder as unknown as ReturnType<typeof vi.fn>;
@@ -57,6 +59,7 @@ beforeEach(() => {
     createDirectoryMock.mockResolvedValue(undefined);
     writeFileMock.mockReset();
     writeFileMock.mockResolvedValue(undefined);
+    readFileMock.mockReset();
     deleteMock.mockReset();
     deleteMock.mockResolvedValue(undefined);
     createFileSystemWatcherMock.mockReset();
@@ -207,6 +210,43 @@ describe("VsCodeWorkspace.deleteDirectory", () => {
         await expect(sut.deleteDirectory("/global/marketplaces/locked")).rejects.toThrow(
             /NoPermissions/,
         );
+    });
+});
+
+describe("VsCodeWorkspace.readFile", () => {
+    it("decodes the read buffer to a string", async () => {
+        readFileMock.mockResolvedValueOnce(Buffer.from("hello"));
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.readFile("/work/a.txt")).resolves.toBe("hello");
+    });
+
+    it("maps a FileNotFound fs error to the domain FileNotFound carrying the path", async () => {
+        readFileMock.mockRejectedValue(new FileSystemError("FileNotFound"));
+        const sut = new VsCodeWorkspace();
+
+        // The path — not the raw rejection — is what callers log, so the domain
+        // error must carry it (mirrors NodeWorkspace.readFile).
+        await expect(sut.readFile("/work/gone.txt")).rejects.toBeInstanceOf(FileNotFound);
+        await expect(sut.readFile("/work/gone.txt")).rejects.toThrow(/gone\.txt/);
+    });
+
+    it("rethrows a non-FileNotFound fs error instead of masking it as FileNotFound", async () => {
+        readFileMock.mockRejectedValue(new FileSystemError("NoPermissions"));
+        const sut = new VsCodeWorkspace();
+
+        // A real read failure must reach the caller so the manifest participant
+        // can surface it — the old catch-all swallowed it as "no manifest".
+        await expect(sut.readFile("/work/locked.txt")).rejects.not.toBeInstanceOf(FileNotFound);
+        await expect(sut.readFile("/work/locked.txt")).rejects.toThrow(/NoPermissions/);
+    });
+
+    it("rethrows a plain Error unchanged", async () => {
+        readFileMock.mockRejectedValue(new Error("boom"));
+        const sut = new VsCodeWorkspace();
+
+        await expect(sut.readFile("/work/x.txt")).rejects.not.toBeInstanceOf(FileNotFound);
+        await expect(sut.readFile("/work/x.txt")).rejects.toThrow(/boom/);
     });
 });
 

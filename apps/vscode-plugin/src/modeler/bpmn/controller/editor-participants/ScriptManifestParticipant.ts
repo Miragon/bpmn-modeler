@@ -42,10 +42,22 @@ export class ScriptManifestParticipant implements EditorSessionParticipant {
         );
     }
 
-    /** Re-reads the manifest into the store; a read error leaves the store untouched. */
+    /**
+     * Re-reads the manifest into the store and logs the resolved lookup path so
+     * a mislocated manifest is debuggable. A read error leaves the store
+     * untouched and is surfaced as an error notification (fires on session
+     * resolve and on every watcher-triggered reload).
+     */
     private async reload(editorId: string, documentPath: string): Promise<void> {
         try {
-            this.store.setManifest(editorId, await this.manifestSvc.load(documentPath));
+            const { manifestPath, found, variables } =
+                await this.manifestSvc.loadWithStatus(documentPath);
+            this.store.setManifest(editorId, variables);
+            this.notifier.logInfo(
+                found
+                    ? `Variable manifest loaded: ${manifestPath} (${variables.length} variable(s))`
+                    : `No variable manifest at ${manifestPath}`,
+            );
         } catch (error) {
             this.notifier.notifyError("Failed to read process-variable manifest", error as Error);
         }

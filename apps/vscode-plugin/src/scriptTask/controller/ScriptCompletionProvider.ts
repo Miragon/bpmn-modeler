@@ -10,18 +10,24 @@ import {
     Position,
     SnippetString,
     TextDocument,
+    TextEdit,
 } from "vscode";
 
 import {
     BeanDef,
     beansFor,
+    COMPLEX_TYPES,
     GlobalFunctionDef,
     globalFunctionsFor,
     MethodDef,
     methodsForBean,
     methodsForType,
+    TypeDef,
 } from "@miragon/bpmn-modeler-core";
 import {
+    collectLocalDeclarations,
+    groovyImportInsertionLine,
+    LocalDeclaration,
     matchMemberAccess,
     matchVariableStringArg,
     parseEditorHashFromUri,
@@ -61,8 +67,14 @@ import { VariableDef } from "@miragon/bpmn-modeler-shared";
  *    Returns the methods rendered as snippets so the cursor lands inside the
  *    parentheses with parameter placeholders.
  * 3. **Root completion**: returns the SPIN global functions (`S`/`JSON`, when
- *    the `scripting.spin` setting is on), the bean names, and the process
- *    variables whenever a word is being typed at root scope.
+ *    the `scripting.spin` setting is on), the bean names, the process
+ *    variables, and identifiers declared in the script body (slim lexical
+ *    scan — see {@link collectLocalDeclarations}) whenever a word is being
+ *    typed at root scope. In Groovy scripts the SPIN items additionally carry
+ *    their import statement as an `additionalTextEdits` entry (skipped when
+ *    the script already imports the symbol — see
+ *    {@link groovyImportInsertionLine}), and importable SPIN type names
+ *    (`SpinJsonNode`) are offered as class completions for typed declarations.
  *
  * The provider depends on a {@link ScriptVariableStore} (populated by the
  * webview's live variable extraction) so suggestions reflect the current model
@@ -141,19 +153,47 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
             return [];
         }
 
-        // Mode 3: root — globals first, then beans, then process variables, with
-        // beans winning any name clash (a variable named `execution` would be
-        // shadowed anyway). The setting is read live on every invocation, so a
+        // Mode 3: root — globals first, then beans, then process variables, then
+        // local declarations. The setting is read live on every invocation, so a
         // toggle takes effect on the next completion request with no reload.
-        const globals = this.settings.getScriptingSpin() ? globalFunctionsFor(kind) : [];
+        const spinEnabled = this.settings.getScriptingSpin();
+        const globals = spinEnabled ? globalFunctionsFor(kind) : [];
+        // Importable type names only in Groovy: it is the sole language where a
+        // script names a SPIN type directly (`SpinJsonNode node = …`) and where
+        // the attached Java-style import line is valid syntax.
+        const importableTypes =
+            spinEnabled && document.languageId === "groovy"
+                ? COMPLEX_TYPES.filter((type) => type.groovyImport)
+                : [];
+        const scriptText = document.getText();
+        const variables = this.variablesFor(document);
         const beanNames = new Set(beans.map((b) => b.name));
-        const variableItems = this.variableItems(document).filter(
-            (item) => !beanNames.has(item.label as string),
-        );
+        // Catalog/model items win any name clash — they carry type and docs; a
+        // same-named local would insert identical text anyway (and a variable
+        // named `execution` would be shadowed by the bean at runtime).
+        const taken = new Set([
+            ...beanNames,
+            ...variables.map((v) => v.name),
+            ...globals.map((g) => g.name),
+            ...importableTypes.map((t) => t.name),
+        ]);
+        const locals = collectLocalDeclarations(scriptText, document.languageId)
+            .filter((decl) => !taken.has(decl.name))
+            // A declaration must not complete itself while it is being typed.
+            // Over-suppression when the name is re-declared on a later line is
+            // accepted as cosmetic.
+            .filter((decl) => decl.line !== position.line);
+        const languageId = document.languageId;
         return [
-            ...globals.map(globalToCompletion),
+            ...globals.map((fn) =>
+                withGroovyImport(globalToCompletion(fn), fn.groovyImport, languageId, scriptText),
+            ),
+            ...importableTypes.map((type) =>
+                withGroovyImport(typeToCompletion(type), type.groovyImport, languageId, scriptText),
+            ),
             ...beans.map(beanToCompletion),
-            ...variableItems,
+            ...variables.filter((v) => !beanNames.has(v.name)).map(variableToCompletion),
+            ...locals.map(localToCompletion),
         ];
     }
 
@@ -171,6 +211,47 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
         const editorHash = parseEditorHashFromUri(document.uri.path) ?? "";
         return this.store.getByEditorHash(editorHash);
     }
+}
+
+/**
+ * Attaches the symbol's Groovy import as an additional edit, applied together
+ * with the completion insert. Groovy-only: the other JSR-223 languages bind
+ * SPIN through their own mechanisms (`Java.type`, `from … import`), where a
+ * Java-style import line would be a syntax error. Skipped when the script
+ * already satisfies the import (exactly or via wildcard).
+ */
+function withGroovyImport(
+    item: CompletionItem,
+    groovyImport: string | undefined,
+    languageId: string,
+    scriptText: string,
+): CompletionItem {
+    if (!groovyImport || languageId !== "groovy") {
+        return item;
+    }
+    const line = groovyImportInsertionLine(scriptText, groovyImport);
+    if (line !== undefined) {
+        item.additionalTextEdits = [TextEdit.insert(new Position(line, 0), `${groovyImport}\n`)];
+    }
+    return item;
+}
+
+function typeToCompletion(type: TypeDef): CompletionItem {
+    const item = new CompletionItem(type.name, CompletionItemKind.Class);
+    // The import statement as detail tells the user which package the bare
+    // name will resolve against before they accept.
+    item.detail = type.groovyImport;
+    item.documentation = new MarkdownString(type.description);
+    return item;
+}
+
+function localToCompletion(decl: LocalDeclaration): CompletionItem {
+    const item = new CompletionItem(
+        decl.name,
+        decl.kind === "function" ? CompletionItemKind.Function : CompletionItemKind.Variable,
+    );
+    item.detail = decl.kind === "function" ? "local function" : "local variable";
+    return item;
 }
 
 function variableToCompletion(variable: VariableDef): CompletionItem {

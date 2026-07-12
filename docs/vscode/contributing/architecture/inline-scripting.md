@@ -63,10 +63,12 @@ those listeners are what propagate edits and clean up tracking state.
 | `apps/vscode-plugin/src/scriptTask/infrastructure/BpmnScriptFileSystem.ts` | `FileSystemProvider` impl — `Map<string, Uint8Array>` keyed by URI path; fires `FileChangeEvent`s for create / change / delete |
 | `apps/vscode-plugin/src/scriptTask/controller/ScriptTaskService.ts` | Open / track / sync / clean up virtual script documents; URI scheme; format prompt; resync after webview reload |
 | `apps/vscode-plugin/src/scriptTask/controller/ScriptCompletionProvider.ts` | `CompletionItemProvider` scoped to `bpmn-script` scheme; root + member completion modes |
-| `apps/vscode-plugin/src/scriptTask/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess` (testable without `vscode`) |
-| `apps/vscode-plugin/src/scriptTask/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
-| `apps/vscode-plugin/src/scriptTask/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
-| `apps/vscode-plugin/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
+| `libs/modeler-core/src/scriptTask/domain/scriptCompletion.ts` | Pure helpers — `parseKindFromUri`, `matchMemberAccess`, `matchVariableStringArg` (testable without `vscode`) |
+| `libs/modeler-core/src/scriptTask/domain/scriptApi.ts` | Camunda 7 bean and method catalogue (`DELEGATE_EXECUTION_METHODS`, `DELEGATE_TASK_METHODS`, `beansFor`) |
+| `libs/modeler-core/src/scriptTask/domain/localDeclarations.ts` | `collectLocalDeclarations` — slim per-line scan for script-local variable/function declarations |
+| `libs/modeler-core/src/scriptTask/domain/groovyImports.ts` | `groovyImportInsertionLine` — placement / already-satisfied check for auto-inserted Groovy SPIN imports |
+| `libs/modeler-core/src/scriptTask/domain/scriptLanguage.ts` | `ScriptLanguage` value object — supported formats, extensions, language ids |
+| `libs/modeler-core/src/scriptTask/domain/ScriptUri.ts` | `ScriptUri` value object — encodes the `bpmn-script:/…` URI shape (slug, filename, editor hash) |
 | `apps/vscode-plugin/src/modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers.ts` | `openScriptEditorHandler` + `resyncScriptTasksHandler`, dispatched by the BPMN `WebviewMessageRouter` |
 | `apps/vscode-plugin/src/modeler/bpmn/controller/editor-participants/ScriptTaskTeardownParticipant.ts` | Calls `disposeForEditor` when the BPMN editor closes |
 | `libs/shared/src/lib/modeler.ts` | `OpenScriptEditorCommand`, `UpdateScriptContentQuery`, `UpdateScriptFormatQuery`, `ScriptKind` |
@@ -186,13 +188,14 @@ sequenceDiagram
 ## Completion provider
 
 `ScriptCompletionProvider` registers for the `bpmn-script` scheme on every
-supported language (`javascript`, `groovy`, `python`, `ruby`). It runs in two
-modes:
+supported language (`javascript`, `groovy`, `python`, `ruby`). It runs in
+three modes, checked in order:
 
 | Mode | Trigger | Returns |
 |---|---|---|
-| Member completion | Trailing `.` after a known bean | Bean's methods rendered as snippets with parameter placeholders |
-| Root completion | Word being typed at root scope | Bean names available in the current `kind` |
+| Variable-name completion | Cursor inside the string argument of `getVariable("…` / `setVariable("…` (and `has`/`remove` variants) | Process variables for the owning editor (from `ScriptVariableStore`) |
+| Member completion | Trailing `.` after a known bean or a SPIN-typed variable | Methods rendered as snippets with parameter placeholders |
+| Root completion | Word being typed at root scope | SPIN globals (`scripting.spin`-gated), bean names for the current `kind`, process variables, and local declarations (`collectLocalDeclarations`). In Groovy, SPIN items carry their import as an `additionalTextEdits` insert (`groovyImportInsertionLine` decides placement / already-satisfied), and importable SPIN type names (`SpinJsonNode`) are offered as class completions |
 
 Beans-in-scope are derived from the URI slug via `parseKindFromUri`:
 
