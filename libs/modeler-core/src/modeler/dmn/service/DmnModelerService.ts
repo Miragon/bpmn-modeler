@@ -4,30 +4,7 @@ import { ModelerSession } from "../../../shared/domain/session";
 import { UserCancelledError } from "../../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
-
-// Minimal DMN XML used when opening a new blank `.dmn` file.
-const EMPTY_DMN_DIAGRAM = `
-<?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_1y42u6n" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" xmlns:modeler="http://camunda.org/schema/modeler/1.0" exporter="Camunda Modeler" exporterVersion="5.8.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.18.0">
-  <decision id="Decision_16wqg49" name="Decision 1">
-    <decisionTable id="DecisionTable_1wi1sbd">
-      <input id="Input_1">
-        <inputExpression id="InputExpression_1" typeRef="string">
-          <text></text>
-        </inputExpression>
-      </input>
-      <output id="Output_1" typeRef="string" />
-    </decisionTable>
-  </decision>
-  <dmndi:DMNDI>
-    <dmndi:DMNDiagram>
-      <dmndi:DMNShape dmnElementRef="Decision_16wqg49">
-        <dc:Bounds height="80" width="180" x="160" y="100" />
-      </dmndi:DMNShape>
-    </dmndi:DMNDiagram>
-  </dmndi:DMNDI>
-</definitions>
-`;
+import { EMPTY_DMN_DIAGRAM } from "../domain/emptyDmn";
 
 export class DmnModelerService {
     private readonly sessions: Map<string, ModelerSession> = new Map();

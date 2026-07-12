@@ -181,62 +181,88 @@
         "commands": [
             {
                 "command": "bpmn-modeler.toggleTextEditor",
-                "title": "BPMN Modeler: Toggle Standard Text Editor",
+                "title": "Toggle Standard Text Editor",
+                "category": "Miragon BPMN Modeler",
                 "icon": "$(notebook-mimetype)"
             },
             {
                 "command": "bpmn-modeler.openLoggingConsole",
-                "title": "BPMN Modeler: Display Logging Information",
+                "title": "Display Logging Information",
+                "category": "Miragon BPMN Modeler",
                 "icon": "$(callstack-view-session)"
             },
             {
                 "command": "bpmn-modeler.copyDiagramAsSvg",
-                "title": "BPMN Modeler: Copy Diagram as SVG"
+                "title": "Copy Diagram as SVG",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.saveDiagramAsSvgCommand",
-                "title": "BPMN Modeler: Save Diagram as SVG"
+                "title": "Save Diagram as SVG",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.deployDiagram",
-                "title": "BPMN Modeler: Deploy Diagram",
+                "title": "Deploy Diagram",
+                "category": "Miragon BPMN Modeler",
                 "icon": "$(rocket)"
             },
             {
                 "command": "bpmn-modeler.changeEngineVersion",
-                "title": "BPMN Modeler: Change Engine Version"
+                "title": "Change Engine Version",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.migrateAllDiagrams",
-                "title": "BPMN Modeler: Migrate All BPMN Diagrams"
+                "title": "Migrate All BPMN Diagrams",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.changeLanguage",
-                "title": "BPMN Modeler: Change Modeler Language"
+                "title": "Change Modeler Language",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.addMarketplace",
-                "title": "BPMN Modeler: Add Marketplace"
+                "title": "Add Marketplace",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.updateMarketplaces",
-                "title": "BPMN Modeler: Update Marketplaces"
+                "title": "Update Marketplaces",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.removeMarketplace",
-                "title": "BPMN Modeler: Remove Marketplace"
+                "title": "Remove Marketplace",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.selectForCompare",
-                "title": "BPMN Modeler: Select for Compare"
+                "title": "Select for Compare",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.compareWithSelected",
-                "title": "BPMN Modeler: Compare with Selected"
+                "title": "Compare with Selected",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.compareSelected",
-                "title": "BPMN Modeler: Compare Selected"
+                "title": "Compare Selected",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.newBpmnModel",
+                "title": "New BPMN Model",
+                "shortTitle": "BPMN Model",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.newDmnModel",
+                "title": "New DMN Model",
+                "shortTitle": "DMN Model",
+                "category": "Miragon BPMN Modeler"
             }
         ],
         "keybindings": [
@@ -320,6 +346,16 @@
                     "command": "bpmn-modeler.deployDiagram",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                }
+            ],
+            "file/newFile": [
+                {
+                    "command": "bpmn-modeler.newBpmnModel",
+                    "group": "file"
+                },
+                {
+                    "command": "bpmn-modeler.newDmnModel",
+                    "group": "file"
                 }
             ]
         },
