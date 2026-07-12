@@ -134,15 +134,22 @@ export class VsCodeWorkspace implements WorkspacePort {
      *
      * @param path Absolute path to the file.
      * @returns The file content as a string.
-     * @throws {FileNotFound} If the file does not exist or cannot be read.
+     * @throws {FileNotFound} only when the file is absent. Any other fs failure
+     *   (permission denied, target is a directory, …) propagates unchanged so
+     *   callers can surface it — `ScriptVariableManifestService` relies on this
+     *   to distinguish "no manifest" from "manifest unreadable" (mirrors
+     *   `NodeWorkspace.readFile`).
      */
     async readFile(path: string): Promise<string> {
-        return fs.readFile(toUri(path)).then(
-            (buffer) => buffer.toString(),
-            (reason) => {
-                throw new FileNotFound(reason);
-            },
-        );
+        try {
+            const buffer = await fs.readFile(toUri(path));
+            return buffer.toString();
+        } catch (error) {
+            if (error instanceof FileSystemError && error.code === "FileNotFound") {
+                throw new FileNotFound(path);
+            }
+            throw error;
+        }
     }
 
     /**
