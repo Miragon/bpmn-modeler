@@ -89,6 +89,16 @@ export class BridgeScriptEditor {
      */
     private readonly sweptBaseDirs = new Set<string>();
 
+    /**
+     * Deferred cleanups keyed by scriptId, armed when *we* send `script/close`
+     * and run on the host's `script/didClose` ack. The host flush-saves the
+     * closing document before acking; deleting the file eagerly would race
+     * that save, which would rewrite the just-deleted file as an orphan no
+     * cleanup path owns. A lost ack (host death) leaves the directory for the
+     * next process start's orphan sweep.
+     */
+    private readonly pendingCloseAcks = new Map<string, () => void>();
+
     // Two process-variable sources per editor, kept apart and merged on read
     // (mirrors the VS Code `ScriptVariableStore`): the webview-extracted model
     // (seeded on open, replaced on every `UpdateScriptVariablesCommand`) and the
@@ -146,6 +156,14 @@ export class BridgeScriptEditor {
             lang.extension,
         );
         const scriptId = uri.toString();
+
+        // Re-opening a script whose close is still awaiting the host's ack:
+        // cancel the deferred deletion (the late ack must not tear down the
+        // fresh tab) and rewrite the file — the bytes on disk are the last
+        // save, which may trail the model content we were just handed.
+        if (this.pendingCloseAcks.delete(scriptId)) {
+            this.filePathByScript.delete(scriptId);
+        }
 
         // Write the real file only on first open: a re-open just reveals the
         // existing tab, and rewriting the file underneath IntelliJ's (possibly
@@ -301,9 +319,8 @@ export class BridgeScriptEditor {
                 continue;
             }
             if (cmd.content === undefined) {
-                this.rpc.notify(METHODS.scriptClose, { scriptId });
                 this.scripts.delete(scriptId);
-                this.deleteScriptDir(scriptId);
+                this.requestClose(scriptId);
                 this.broadcastOpenScripts(editorId);
             } else {
                 this.rpc.notify(METHODS.scriptUpdateContent, {
@@ -315,14 +332,26 @@ export class BridgeScriptEditor {
         }
     }
 
+    /**
+     * Tells the host to close a script tab and defers the file deletion until
+     * its `script/didClose` ack — the host flush-saves the closing document
+     * first, and only the ack guarantees that save has landed.
+     */
+    private requestClose(scriptId: string, onAcked?: () => void): void {
+        this.rpc.notify(METHODS.scriptClose, { scriptId });
+        this.pendingCloseAcks.set(scriptId, () => {
+            void this.deleteScriptDir(scriptId).then(onAcked);
+        });
+    }
+
     /** Deletes the script's slug directory on disk; failures are logged only. */
-    private deleteScriptDir(scriptId: string): void {
+    private deleteScriptDir(scriptId: string): Promise<void> {
         const filePath = this.filePathByScript.get(scriptId);
         this.filePathByScript.delete(scriptId);
         if (filePath === undefined) {
-            return;
+            return Promise.resolve();
         }
-        void this.workspace
+        return this.workspace
             .deleteDirectory(posix.dirname(filePath))
             .catch((error) => this.notifier.logError(error as Error));
     }
@@ -429,12 +458,25 @@ export class BridgeScriptEditor {
         }
     }
 
-    /** Host reported the user closed the script tab → drop tracking + delete the file. */
+    /**
+     * Host reported a script tab is closed. For a close *we* requested this is
+     * the ack that the host's flush-save finished — run the deferred deletion
+     * (tracking and the lock broadcast were already handled at request time).
+     * For a user-initiated close, drop tracking so a re-open re-reads the
+     * current BPMN content, release the lock, and delete the file — the host
+     * flushed the document before sending this.
+     */
     didClose(scriptId: string): void {
+        const pendingAck = this.pendingCloseAcks.get(scriptId);
+        if (pendingAck) {
+            this.pendingCloseAcks.delete(scriptId);
+            pendingAck();
+            return;
+        }
         // Capture the owner before deleting so the lock release reflects the removal.
         const editorId = this.scripts.get(scriptId)?.editorId;
         this.scripts.delete(scriptId);
-        this.deleteScriptDir(scriptId);
+        void this.deleteScriptDir(scriptId);
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
         }
@@ -475,24 +517,45 @@ export class BridgeScriptEditor {
      * The BPMN editor was disposed: tell the host to close every script tab it
      * opened for that editor and drop their tracking. Iterating while deleting is
      * safe for a `Map` — only already-visited or current entries are removed.
+     *
+     * The editor's whole hash directory is swept too — it catches leftovers
+     * whose per-script deletion failed (e.g. a file still locked). With tabs
+     * still open the sweep must wait for the host's last close ack, or it
+     * would race the host's flush-saves exactly like a per-script delete.
      */
     disposeEditor(editorId: string): void {
+        const closing = new Set<string>();
         for (const [scriptId, entry] of this.scripts) {
             if (entry.editorId === editorId) {
-                this.rpc.notify(METHODS.scriptClose, { scriptId });
                 this.scripts.delete(scriptId);
-                this.deleteScriptDir(scriptId);
+                closing.add(scriptId);
             }
         }
-        // Also sweep the editor's whole hash directory: it catches leftovers
-        // whose per-script deletion failed (e.g. a file still locked).
+
         const baseDir = this.baseDirByEditor.get(editorId);
         this.baseDirByEditor.delete(editorId);
-        if (baseDir !== undefined) {
-            void this.workspace
-                .deleteDirectory(posix.join(baseDir, ScriptUri.hashEditorId(editorId)))
-                .catch((error) => this.notifier.logError(error as Error));
+        const sweepHashDir = (): void => {
+            if (baseDir !== undefined) {
+                void this.workspace
+                    .deleteDirectory(posix.join(baseDir, ScriptUri.hashEditorId(editorId)))
+                    .catch((error) => this.notifier.logError(error as Error));
+            }
+        };
+
+        if (closing.size === 0) {
+            sweepHashDir();
+        } else {
+            let remaining = closing.size;
+            for (const scriptId of closing) {
+                this.requestClose(scriptId, () => {
+                    remaining -= 1;
+                    if (remaining === 0) {
+                        sweepHashDir();
+                    }
+                });
+            }
         }
+
         this.extractedByEditor.delete(editorId);
         this.manifestByEditor.delete(editorId);
         this.documentPathByEditor.delete(editorId);

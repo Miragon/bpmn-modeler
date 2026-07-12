@@ -46,6 +46,18 @@ function tsType(javaLabel: string): string {
     return JAVA_TO_TS.get(javaLabel) ?? "any";
 }
 
+/**
+ * Catalog globals whose name already exists as a built-in global *value* in
+ * TypeScript's core libs (lib.es5.d.ts declares `var JSON: JSON`). A
+ * `declare function` for such a name is a duplicate identifier: the call
+ * site keeps resolving to the built-in, which has no call signature, so
+ * `JSON('…')` types as not callable and loses the SPIN hover/signature.
+ * These names are emitted as a call-signature merge into the built-in's
+ * same-named *interface* instead — legal declaration merging that makes the
+ * global callable while keeping its original members (`JSON.parse` etc.).
+ */
+const BUILTIN_GLOBAL_INTERFACES = new Set(["JSON"]);
+
 function tsParams(params: readonly MethodParam[]): string {
     return params.map((param) => `${param.name}: ${tsType(param.type)}`).join(", ");
 }
@@ -82,11 +94,16 @@ export function generateCamundaDts(kind: ScriptKind, spinEnabled: boolean): stri
 
     if (spinEnabled) {
         for (const fn of globalFunctionsFor(kind)) {
-            sections.push(`/** ${fn.description} */`);
-            sections.push(
-                `declare function ${fn.name}(${tsParams(fn.params)}): ${tsType(fn.returnType)};`,
-                "",
-            );
+            const signature = `(${tsParams(fn.params)}): ${tsType(fn.returnType)}`;
+            if (BUILTIN_GLOBAL_INTERFACES.has(fn.name)) {
+                sections.push(`interface ${fn.name} {`);
+                sections.push(`    /** ${fn.description} */`);
+                sections.push(`    ${signature};`);
+                sections.push("}", "");
+            } else {
+                sections.push(`/** ${fn.description} */`);
+                sections.push(`declare function ${fn.name}${signature};`, "");
+            }
         }
     }
 

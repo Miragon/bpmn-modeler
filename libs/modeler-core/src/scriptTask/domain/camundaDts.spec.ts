@@ -27,13 +27,24 @@ describe("generateCamundaDts", () => {
     it("gates the SPIN globals on the setting", () => {
         const withSpin = generateCamundaDts("script-task", true);
         expect(withSpin).toContain("declare function S(input: any): SpinJsonNode;");
-        expect(withSpin).toContain("declare function JSON(input: any): SpinJsonNode;");
 
         const withoutSpin = generateCamundaDts("script-task", false);
         expect(withoutSpin).not.toContain("declare function S(");
+        expect(withoutSpin).not.toContain("interface JSON {");
         // The interfaces stay — they cross-reference each other and are
         // harmless without a value of the type in scope.
         expect(withoutSpin).toContain("interface SpinJsonNode {");
+    });
+
+    it("emits built-in-colliding globals as an interface merge, not a declare function", () => {
+        // `declare function JSON` would duplicate lib.es5's `var JSON` and the
+        // call site would keep resolving to the (non-callable) built-in;
+        // merging a call signature into the built-in `JSON` interface keeps
+        // JSON.parse intact and types `JSON('…')` as SpinJsonNode.
+        const withSpin = generateCamundaDts("script-task", true);
+        expect(withSpin).not.toContain("declare function JSON(");
+        expect(withSpin).toContain("interface JSON {");
+        expect(withSpin).toContain("    (input: any): SpinJsonNode;");
     });
 
     it("carries catalog descriptions as JSDoc for hover documentation", () => {

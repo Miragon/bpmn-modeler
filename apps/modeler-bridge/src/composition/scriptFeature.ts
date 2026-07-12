@@ -79,8 +79,10 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         void scriptEditor.didChange(params.scriptId, params.content);
     });
 
-    // The user closed a script tab on the host → drop tracking so a re-open
-    // re-reads the current BPMN content rather than revealing a stale tab.
+    // A script tab closed on the host (user close, or the ack of our own
+    // script/close) → drop tracking so a re-open re-reads the current BPMN
+    // content, and delete the on-disk file now that the host's flush-save
+    // is guaranteed to have finished.
     deps.rpc.on(METHODS.scriptDidClose, (params: ScriptCloseParams) => {
         scriptEditor.didClose(params.scriptId);
     });

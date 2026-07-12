@@ -658,6 +658,48 @@ describe("bridge script editor (real core over a fake transport)", () => {
                 f.params.message.openScripts.length === 0,
         );
         expect(lock).toBeDefined();
+
+        // Deletion is deferred until the host acks the close with
+        // script/didClose — the host flush-saves the closing document first,
+        // and an eager delete would race that save.
+        await settle();
+        await fs.access(open.params.filePath);
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "script/didClose",
+                params: { scriptId: open.params.scriptId },
+            }),
+        );
         await waitForDeletion(dirname(open.params.filePath));
+    });
+
+    it("sweeps the editor's hash directory only after the host acks the dispose closes", async () => {
+        const { rpc, frames, editorId } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "x = 1",
+        });
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        // <hash dir>/<elementId>/<slug>/<file> — three levels above the file.
+        const hashDir = dirname(dirname(dirname(open.params.filePath)));
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+        await waitForFrame(frames, (f) => f.method === "script/close");
+
+        // Still on disk: the host has not confirmed its flush-save yet.
+        await settle();
+        await fs.access(open.params.filePath);
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "script/didClose",
+                params: { scriptId: open.params.scriptId },
+            }),
+        );
+        await waitForDeletion(hashDir);
     });
 });

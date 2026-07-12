@@ -109,7 +109,12 @@ export interface ScriptDidChangeParams {
     content: string;
 }
 
-/** `script/didClose` — the user closed a script tab on the host. */
+/**
+ * `script/didClose` — the host reports a script tab is closed: user-initiated,
+ * or the completion ack of a core-initiated `script/close`. Sent only after
+ * the host flush-saved the closing document, so the core may delete the
+ * on-disk file on receipt without racing that save.
+ */
 export interface ScriptCloseParams {
     scriptId: string;
 }
@@ -406,7 +411,11 @@ export interface ScriptUpdateContentParams {
     content: string;
 }
 
-/** `script/close` — the core tells the host to close a script tab it opened. */
+/**
+ * `script/close` — the core tells the host to close a script tab it opened.
+ * The host flushes and closes the tab, then acks with `script/didClose`; the
+ * core defers deleting the script's on-disk file until that ack.
+ */
 export interface ScriptCloseNotifyParams {
     scriptId: string;
 }

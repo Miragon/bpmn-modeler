@@ -37,14 +37,17 @@ import java.util.concurrent.ConcurrentHashMap
  *   per-script document listener to the owning service's lifetime, so all
  *   tracking is released when the project's [CoreProcess] is disposed.
  * @param onChange Fired with the buffer text on each keystroke in a tracked tab.
- * @param onUserClose Fired once when the *user* closes a tab — distinguished
- *   from our own [closeScript] so the BPMN-editor-dispose path doesn't echo.
+ * @param onClosed Fired once whenever a tab is closed — by the user, or as the
+ *   completion ack of our own [closeScript]. The core deletes the on-disk file
+ *   only on this signal, so it always lands *after* the flush-save below; an
+ *   eager core-side delete would race the save, which would write the file
+ *   right back as an orphan.
  */
 class ScriptEditorManager(
     private val project: Project,
     private val parentDisposable: Disposable,
     private val onChange: (scriptId: String, content: String) -> Unit,
-    private val onUserClose: (scriptId: String) -> Unit,
+    private val onClosed: (scriptId: String) -> Unit,
 ) {
     private val log = Logger.getInstance(ScriptEditorManager::class.java)
 
@@ -67,10 +70,11 @@ class ScriptEditorManager(
             object : FileEditorManagerListener {
                 override fun fileClosed(source: FileEditorManager, file: VirtualFile) {
                     val scriptId = scripts.entries.find { it.value.file == file }?.key ?: return
-                    // Our own close already dropped tracking core-side; swallow it.
+                    // Our own close acks from `closeScript` after its flush; swallow the echo.
                     if (closingProgrammatically.remove(scriptId)) return
+                    flushUnsaved(file)
                     untrack(scriptId)
-                    onUserClose(scriptId)
+                    onClosed(scriptId)
                 }
             },
         )
@@ -189,21 +193,30 @@ class ScriptEditorManager(
         tracked.file.putUserData(SCRIPT_COMPLETION_KEY, current.copy(variables = variables))
     }
 
-    /** Closes a script tab on the core's behalf (BPMN editor disposed); no user-close echo. */
+    /**
+     * Closes a script tab on the core's behalf (model-side deletion or BPMN
+     * editor dispose); no user-close semantics. Flushes, closes, then acks via
+     * [onClosed] — only that ordering lets the core delete the on-disk file
+     * without racing the flush-save.
+     */
     fun closeScript(scriptId: String) {
-        val tracked = scripts[scriptId] ?: return
+        val tracked = scripts[scriptId]
+        if (tracked == null) {
+            // Never tracked host-side (the open failed or raced the close):
+            // nothing to flush — ack so the core still deletes the file it
+            // wrote. Via EDT like every other ack, keeping callback threading
+            // uniform for the channel.
+            ApplicationManager.getApplication().invokeLater { onClosed(scriptId) }
+            return
+        }
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) {
+                // No ack: the channel is going down with the project; the
+                // core's next-start orphan sweep owns the leftover file.
                 untrack(scriptId)
                 return@invokeLater
             }
-            // Flush unsaved edits before closing: the core deletes the file
-            // right after, and a released-but-unsaved document would otherwise
-            // surface a spurious external-deletion conflict.
-            val fdm = FileDocumentManager.getInstance()
-            fdm.getCachedDocument(tracked.file)
-                ?.takeIf { fdm.isDocumentUnsaved(it) }
-                ?.let { fdm.saveDocument(it) }
+            flushUnsaved(tracked.file)
             // Mark before closing so the synchronous `fileClosed` swallows the echo.
             closingProgrammatically.add(scriptId)
             FileEditorManager.getInstance(project).closeFile(tracked.file)
@@ -212,7 +225,20 @@ class ScriptEditorManager(
                 closingProgrammatically.remove(scriptId)
                 untrack(scriptId)
             }
+            onClosed(scriptId)
         }
+    }
+
+    /**
+     * Flushes a still-cached unsaved document before the core deletes the
+     * file: a lingering unsaved document would be written back by IntelliJ's
+     * next save-all, resurrecting the just-deleted file as an orphan.
+     */
+    private fun flushUnsaved(file: VirtualFile) {
+        val fdm = FileDocumentManager.getInstance()
+        fdm.getCachedDocument(file)
+            ?.takeIf { fdm.isDocumentUnsaved(it) }
+            ?.let { fdm.saveDocument(it) }
     }
 
     private fun untrack(scriptId: String) {

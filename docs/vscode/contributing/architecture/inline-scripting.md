@@ -280,9 +280,13 @@ Kotlin completion contributors; they work on real files unchanged.
 Model→document overwrites travel as a `script/updateContent` RPC; the Kotlin
 side applies them in a `WriteCommandAction` behind a `programmaticEdits` echo
 guard (the document listener would otherwise bounce the overwrite back as
-`script/didChange`). File deletion mirrors VS Code: slug dir on `didClose` /
-close, editorHash dir on `disposeEditor`, plus a once-per-base-dir orphan
-sweep + `.gitignore` before the first write.
+`script/didChange`). File deletion is ack-ordered: the host flush-saves the
+closing document and reports every close (user-initiated or requested via
+`script/close`) as `script/didClose`, and only that ack deletes the slug dir
+— an eager delete would race the flush-save, which would write the file right
+back as an orphan. The editorHash dir falls with the last ack on
+`disposeEditor`; a once-per-base-dir orphan sweep + `.gitignore` before the
+first write cover lost acks and crashes.
 
 ## Completion provider
 

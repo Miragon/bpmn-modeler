@@ -30,9 +30,9 @@ export class ScriptUri {
 
     /**
      * Short, filesystem-safe hash of the editor's document URI. Keeps the
-     * script-URI path opaque (the editor URI may contain `:` or `?`) and
-     * lets the dispose path wipe everything for an editor via a prefix
-     * delete.
+     * script path opaque (the editor URI may contain `:` or `?`) and lets
+     * the dispose path wipe everything for an editor by deleting its hash
+     * directory.
      */
     static hashEditorId(editorId: string): string {
         let hash = 0;
@@ -41,14 +41,6 @@ export class ScriptUri {
             hash |= 0;
         }
         return Math.abs(hash).toString(16);
-    }
-
-    /**
-     * Prefix shared by every script URI for this editor — used by the
-     * dispose sweep to delete all orphaned virtual files in one pass.
-     */
-    static editorPathPrefix(editorId: string): string {
-        return `/${ScriptUri.hashEditorId(editorId)}/`;
     }
 
     get editorHash(): string {

@@ -7,7 +7,9 @@ import io.miragon.intellij.bpmn.VariableInfo
 /**
  * Routes the inline "Edit Script" feature. The host is a dumb surface keyed by
  * opaque `scriptId`: it opens a script as an editor tab and streams keystrokes
- * back as `script/didChange`, a user-initiated tab close as `script/didClose`.
+ * back as `script/didChange`; `script/didClose` reports any tab close — user-
+ * initiated or the completion ack of a core-initiated `script/close`. The core
+ * deletes the on-disk file only on `didClose`, after the host's flush-save.
  *
  * The [ScriptEditorManager] is lazy so opening a `.bpmn` file that never edits a
  * script touches no editor-manager machinery; it parents to the `CoreProcess`
@@ -21,7 +23,7 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
             onChange = { scriptId, content ->
                 deps.channel.notify("script/didChange", linkedMapOf("scriptId" to scriptId, "content" to content))
             },
-            onUserClose = { scriptId ->
+            onClosed = { scriptId ->
                 deps.channel.notify("script/didClose", linkedMapOf("scriptId" to scriptId))
             },
         )
