@@ -38,6 +38,8 @@ import {
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
 import {
+    AsyncDebounced,
+    asyncDebounce,
     dedupeVariables,
     OpenScriptEditorCommand,
     OpenScriptEditorRef,
@@ -98,6 +100,22 @@ export class BridgeScriptEditor {
      * next process start's orphan sweep.
      */
     private readonly pendingCloseAcks = new Map<string, () => void>();
+
+    /** How long host keystrokes coalesce before one streams into the webview model. */
+    private static readonly STREAM_DEBOUNCE_MS = 300;
+
+    /**
+     * One debounced content sender per open `scriptId`. Every host-reported
+     * keystroke re-arms the trailing edge, so a burst of typing produces a
+     * single `UpdateScriptContentQuery` (and the full diagram XML export behind
+     * it) instead of one per character. The sender body owns the error logging,
+     * so it never rejects. Perf-only here: JCEF webviews never hide, so unlike
+     * VS Code there is no lost-edit bug to guard against.
+     */
+    private readonly contentSenders = new Map<
+        string,
+        AsyncDebounced<(content: string) => Promise<void>>
+    >();
 
     // Two process-variable sources per editor, kept apart and merged on read
     // (mirrors the VS Code `ScriptVariableStore`): the webview-extracted model
@@ -319,10 +337,16 @@ export class BridgeScriptEditor {
                 continue;
             }
             if (cmd.content === undefined) {
+                // Surface gone: drop the sender so a pending keystroke can't
+                // fire against a deleted element.
+                this.dropSender(scriptId);
                 this.scripts.delete(scriptId);
                 this.requestClose(scriptId);
                 this.broadcastOpenScripts(editorId);
             } else {
+                // Canvas undo/redo overwrites the tab; cancel any pending
+                // keystroke so it can't fire afterwards and clobber the undo.
+                this.contentSenders.get(scriptId)?.cancel();
                 this.rpc.notify(METHODS.scriptUpdateContent, {
                     scriptId,
                     content: cmd.content,
@@ -438,24 +462,52 @@ export class BridgeScriptEditor {
     }
 
     /** Host reported an edit in the script editor → push it into the owning webview. */
-    async didChange(scriptId: string, content: string): Promise<void> {
+    didChange(scriptId: string, content: string): void {
         const entry = this.scripts.get(scriptId);
         if (!entry) {
             return;
         }
-        try {
-            await this.store.postMessage(
-                entry.editorId,
-                new UpdateScriptContentQuery(
-                    entry.elementId,
-                    entry.kind,
-                    entry.listenerIndex,
-                    content,
-                ),
-            );
-        } catch (error) {
-            this.notifier.logError(error as Error);
+        // Fire-and-forget through the per-script debounced sender: it owns the
+        // postMessage and error logging, and never rejects.
+        void this.getSender(scriptId, entry)(content);
+    }
+
+    /**
+     * Lazily creates (and caches) the debounced content sender for a script.
+     * The closure captures the tracked-script addressing — stable for a given
+     * `scriptId` — and streams the latest content into the webview model,
+     * owning its own error logging so the debounced body never rejects.
+     */
+    private getSender(
+        scriptId: string,
+        entry: TrackedScript,
+    ): AsyncDebounced<(content: string) => Promise<void>> {
+        let sender = this.contentSenders.get(scriptId);
+        if (!sender) {
+            sender = asyncDebounce(async (content: string) => {
+                try {
+                    await this.store.postMessage(
+                        entry.editorId,
+                        new UpdateScriptContentQuery(
+                            entry.elementId,
+                            entry.kind,
+                            entry.listenerIndex,
+                            content,
+                        ),
+                    );
+                } catch (error) {
+                    this.notifier.logError(error as Error);
+                }
+            }, BridgeScriptEditor.STREAM_DEBOUNCE_MS);
+            this.contentSenders.set(scriptId, sender);
         }
+        return sender;
+    }
+
+    /** Cancels any pending keystroke for `scriptId` and forgets its sender. */
+    private dropSender(scriptId: string): void {
+        this.contentSenders.get(scriptId)?.cancel();
+        this.contentSenders.delete(scriptId);
     }
 
     /**
@@ -466,7 +518,14 @@ export class BridgeScriptEditor {
      * current BPMN content, release the lock, and delete the file — the host
      * flushed the document before sending this.
      */
-    didClose(scriptId: string): void {
+    async didClose(scriptId: string): Promise<void> {
+        // Force the last <300 ms of typing into the model before tearing the
+        // script down, then drop the sender. On the ack branch the sender was
+        // already cancelled by applyModelChange/disposeEditor, so this is a
+        // no-op there.
+        await this.contentSenders.get(scriptId)?.flush();
+        this.dropSender(scriptId);
+
         const pendingAck = this.pendingCloseAcks.get(scriptId);
         if (pendingAck) {
             this.pendingCloseAcks.delete(scriptId);
@@ -547,6 +606,13 @@ export class BridgeScriptEditor {
         } else {
             let remaining = closing.size;
             for (const scriptId of closing) {
+                // Best-effort: push the last <300 ms of typing into the model
+                // before asking the host to close. The sender body swallows its
+                // own errors so this never rejects; if the webview is already
+                // unreachable the keystroke is lost — accepted trade-off, there
+                // is no host-side XML fallback on this platform.
+                void this.contentSenders.get(scriptId)?.flush();
+                this.dropSender(scriptId);
                 this.requestClose(scriptId, () => {
                     remaining -= 1;
                     if (remaining === 0) {

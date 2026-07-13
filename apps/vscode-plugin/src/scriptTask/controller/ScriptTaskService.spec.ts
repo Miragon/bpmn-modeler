@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     OpenScriptEditorRef,
@@ -13,6 +13,7 @@ import {
 // pattern lets the (hoisted) `vi.mock` factory close over these consts while
 // keeping them assertable in tests.
 const onDidChangeTextDocumentMock = vi.fn();
+const onDidSaveTextDocumentMock = vi.fn();
 const onDidChangeTabsMock = vi.fn();
 const openTextDocumentMock = vi.fn();
 const showTextDocumentMock = vi.fn();
@@ -65,6 +66,7 @@ vi.mock("vscode", () => {
         workspace: {
             openTextDocument: (...args: unknown[]) => openTextDocumentMock(...args),
             onDidChangeTextDocument: (...args: unknown[]) => onDidChangeTextDocumentMock(...args),
+            onDidSaveTextDocument: (...args: unknown[]) => onDidSaveTextDocumentMock(...args),
             applyEdit: (...args: unknown[]) => applyEditMock(...args),
             get textDocuments() {
                 return openTextDocuments;
@@ -130,10 +132,17 @@ function stageDocument(path: string, text: string, isDirty = false) {
     return doc;
 }
 
-/** Lets fire-and-forget async tails (dispose, deleteScriptDir) settle. */
+/**
+ * Lets fire-and-forget async tails (dispose, deleteScriptDir, tab-close flush)
+ * settle. Under fake timers, advancing by 0 ms drains the microtask queue
+ * behind those promise chains without firing the 300 ms keystroke debounce.
+ */
 async function flushAsync(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.advanceTimersByTimeAsync(0);
 }
+
+/** Keystroke debounce window; a burst must sit inside it, one post lands after. */
+const STREAM_DEBOUNCE_MS = 300;
 
 /**
  * Builds the subject with port doubles, registers it, and captures the two
@@ -152,8 +161,18 @@ function createService() {
     const settings = { getScriptingSpin: () => true };
     const notifier = { logError: vi.fn() };
     const picker = { pickScriptLanguage: vi.fn() };
+    // Default: nothing diverged, so the dispose-time write-back is a no-op.
+    const scriptXml = { applyScriptContents: vi.fn().mockResolvedValue(undefined) };
 
-    openTextDocumentMock.mockResolvedValue({});
+    // A generic TextDocument shape works both for the script opened in
+    // `openScriptEditor` and the diagram re-opened by `persistScriptsToDocument`.
+    openTextDocumentMock.mockResolvedValue({
+        uri: Uri.file("/repo/process.bpmn"),
+        getText: () => "<diagram-xml/>",
+        positionAt: (offset: number) => ({ offset }),
+        isDirty: false,
+        save: vi.fn().mockResolvedValue(true),
+    });
     showTextDocumentMock.mockResolvedValue(undefined);
     setTextDocumentLanguageMock.mockResolvedValue(undefined);
     applyEditMock.mockResolvedValue(true);
@@ -164,21 +183,62 @@ function createService() {
         settings as never,
         notifier as never,
         picker as never,
+        scriptXml as never,
     );
     service.register({ subscriptions: [] } as never);
 
     const fireDocChange = onDidChangeTextDocumentMock.mock.calls[0][0] as (
         event: unknown,
     ) => unknown;
+    const fireSave = onDidSaveTextDocumentMock.mock.calls[0][0] as (document: unknown) => unknown;
     const fireTabsChange = onDidChangeTabsMock.mock.calls[0][0] as (event: unknown) => unknown;
 
-    return { service, editorStore, scriptFiles, notifier, picker, fireDocChange, fireTabsChange };
+    return {
+        service,
+        editorStore,
+        scriptFiles,
+        notifier,
+        picker,
+        scriptXml,
+        fireDocChange,
+        fireSave,
+        fireTabsChange,
+    };
 }
 
 /** Builds a doc-change event for the given tracked path and new buffer text. */
 function docChangeEvent(path: string, text: string) {
     return {
         document: { uri: Uri.file(path), getText: () => text },
+        contentChanges: [{}],
+    };
+}
+
+/**
+ * Fires a keystroke in a tracked script and lets the debounce window elapse so
+ * the coalesced content actually streams into the webview model.
+ */
+async function typeInScript(
+    fireDocChange: (event: unknown) => unknown,
+    path: string,
+    text: string,
+): Promise<void> {
+    await fireDocChange(docChangeEvent(path, text));
+    await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS);
+}
+
+/**
+ * Builds a change event for the tracked *diagram* (not a script file), used to
+ * exercise the "Don't Save" revert detection. A clean (`isDirty: false`) change
+ * is the revert signal; a dirty one means the user is still editing.
+ */
+function diagramChangeEvent(isDirty: boolean) {
+    return {
+        document: {
+            uri: { scheme: "file", path: "/repo/process.bpmn", toString: () => EDITOR_ID },
+            isDirty,
+            getText: () => "<diagram-xml/>",
+        },
         contentChanges: [{}],
     };
 }
@@ -219,8 +279,15 @@ async function openCanonicalScript(
 
 beforeEach(() => {
     vi.clearAllMocks();
+    // Fake timers make the 300 ms keystroke debounce deterministic; each test
+    // advances time explicitly instead of sleeping.
+    vi.useFakeTimers();
     openTabGroups = [];
     openTextDocuments = [];
+});
+
+afterEach(() => {
+    vi.useRealTimers();
 });
 
 describe("ScriptTaskService.openScriptEditor", () => {
@@ -384,7 +451,7 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
         await openCanonicalScript(service, "groovy");
         scriptFiles.writeFile.mockClear();
 
-        await fireDocChange(docChangeEvent(scriptPath("groovy"), "next"));
+        await typeInScript(fireDocChange, scriptPath("groovy"), "next");
 
         // The buffer is authoritative; disk freshness follows the user's
         // save behaviour, so a keystroke never writes the file.
@@ -401,7 +468,7 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
         editorStore.postMessage.mockRejectedValueOnce(new Error("The active editor is hidden."));
         scriptFiles.readFile.mockResolvedValue("buffered");
 
-        await fireDocChange(docChangeEvent(scriptPath("groovy"), "buffered"));
+        await typeInScript(fireDocChange, scriptPath("groovy"), "buffered");
 
         expect(notifier.logError).not.toHaveBeenCalled();
 
@@ -421,12 +488,29 @@ describe("ScriptTaskService.onScriptDocumentChanged", () => {
         const failure = new Error("boom");
         editorStore.postMessage.mockRejectedValueOnce(failure);
 
-        await fireDocChange(docChangeEvent(scriptPath("groovy"), "next"));
+        await typeInScript(fireDocChange, scriptPath("groovy"), "next");
 
         expect(notifier.logError).toHaveBeenCalledWith(failure);
         expect(
             (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
         ).toBe(false);
+    });
+
+    it("coalesces a keystroke burst into a single trailing query", async () => {
+        const { service, fireDocChange, editorStore } = createService();
+        await openCanonicalScript(service, "groovy", "a");
+        editorStore.postMessage.mockClear();
+
+        await fireDocChange(docChangeEvent(scriptPath("groovy"), "ab"));
+        await fireDocChange(docChangeEvent(scriptPath("groovy"), "abc"));
+        // Nothing streams while still inside the window.
+        await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS - 1);
+        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(0);
+
+        await vi.advanceTimersByTimeAsync(1);
+        const calls = contentQueryCalls(editorStore.postMessage);
+        expect(calls).toHaveLength(1);
+        expect((calls[0][1] as UpdateScriptContentQuery).content).toBe("abc");
     });
 });
 
@@ -711,6 +795,8 @@ describe("ScriptTaskService lock broadcast", () => {
         setOpenTabs([]);
 
         fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
+        // Cleanup is async now (flushes the sender before the lock re-broadcast).
+        await flushAsync();
 
         expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([]);
     });
@@ -794,5 +880,237 @@ describe("ScriptTaskService.disposeForEditor", () => {
         expect(closeTabMock).not.toHaveBeenCalled();
         // No cached base dir → nothing was ever written → nothing to delete.
         expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+    });
+});
+
+describe("ScriptTaskService keystroke debounce", () => {
+    it("cancels a pending keystroke when a model change overwrites the buffer", async () => {
+        const { service, fireDocChange, editorStore } = createService();
+        await openCanonicalScript(service, "groovy", "a");
+        stageDocument(scriptPath("groovy"), "a");
+        editorStore.postMessage.mockClear();
+
+        // Type, then let a canvas undo overwrite the buffer before the window ends.
+        await fireDocChange(docChangeEvent(scriptPath("groovy"), "stale"));
+        await service.applyModelChange(EDITOR_ID, ELEMENT_ID, KIND, undefined, "undone");
+        await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS);
+
+        // The stale keystroke was cancelled: it never streamed back as a query.
+        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(0);
+        // The overwrite itself lands via a workspace edit, not a post.
+        expect(applyEditMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("flushes the last keystroke before deleting a closed script tab", async () => {
+        const { service, fireDocChange, fireTabsChange, editorStore, scriptFiles } =
+            createService();
+        await openCanonicalScript(service, "groovy", "a");
+        editorStore.postMessage.mockClear();
+
+        // Type, then close the tab within the debounce window.
+        await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
+        setOpenTabs([]);
+        fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
+        await flushAsync();
+
+        // The flush delivered the last keystroke before the file was removed.
+        const calls = contentQueryCalls(editorStore.postMessage);
+        expect(calls).toHaveLength(1);
+        expect((calls[0][1] as UpdateScriptContentQuery).content).toBe("typed");
+        const path = scriptPath("groovy");
+        expect(scriptFiles.deleteDir).toHaveBeenCalledWith(
+            path.substring(0, path.lastIndexOf("/")),
+        );
+    });
+
+    it("arms pendingResync and defers deletion when the flush hits a hidden webview", async () => {
+        const { service, fireDocChange, fireTabsChange, editorStore, scriptFiles } =
+            createService();
+        await openCanonicalScript(service, "groovy", "a");
+        editorStore.postMessage.mockRejectedValue(new Error("The active editor is hidden."));
+
+        await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
+        setOpenTabs([]);
+        fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
+        await flushAsync();
+
+        // The buffered edit only lives in the file/buffer; do not delete it yet.
+        expect(
+            (service as never as { pendingResync: Set<string> }).pendingResync.has(EDITOR_ID),
+        ).toBe(true);
+        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
+    });
+
+    it("drops the content sender when a script tab is cleaned up", async () => {
+        const { service, fireDocChange, fireTabsChange } = createService();
+        await openCanonicalScript(service, "groovy", "a");
+        await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
+
+        setOpenTabs([]);
+        fireTabsChange({ closed: [makeTab(scriptPath("groovy"))], opened: [], changed: [] });
+        await flushAsync();
+
+        expect(
+            (service as never as { contentSenders: Map<string, unknown> }).contentSenders.has(
+                scriptPath("groovy"),
+            ),
+        ).toBe(false);
+    });
+
+    it("cancels pending keystrokes on dispose without posting or logging", async () => {
+        const { service, fireDocChange, editorStore, notifier } = createService();
+        await openCanonicalScript(service, "groovy", "a");
+        editorStore.postMessage.mockClear();
+
+        await fireDocChange(docChangeEvent(scriptPath("groovy"), "typed"));
+        service.disposeForEditor(EDITOR_ID);
+        await vi.advanceTimersByTimeAsync(STREAM_DEBOUNCE_MS);
+
+        expect(contentQueryCalls(editorStore.postMessage)).toHaveLength(0);
+        expect(notifier.logError).not.toHaveBeenCalled();
+    });
+});
+
+describe("ScriptTaskService dispose write-back", () => {
+    it("writes the buffered script into the diagram and saves before deleting", async () => {
+        const { service, scriptFiles, scriptXml } = createService();
+        await openCanonicalScript(service, "groovy", "edited");
+        setOpenTabs([scriptPath("groovy")]);
+        stageDocument(scriptPath("groovy"), "edited");
+        const diagramDoc = stageDocument("/repo/process.bpmn", "<old-xml/>");
+        scriptXml.applyScriptContents.mockResolvedValue("<new-xml/>");
+
+        service.disposeForEditor(EDITOR_ID);
+        await flushAsync();
+
+        expect(scriptXml.applyScriptContents).toHaveBeenCalledWith("<old-xml/>", [
+            { elementId: ELEMENT_ID, kind: KIND, listenerIndex: undefined, content: "edited" },
+        ]);
+        const edit = applyEditMock.mock.calls[0][0] as { replacements: { newText: string }[] };
+        expect(edit.replacements[0].newText).toBe("<new-xml/>");
+        expect(diagramDoc.save).toHaveBeenCalledTimes(1);
+        expect(scriptFiles.deleteDir).toHaveBeenCalled();
+    });
+
+    it("skips the write-back but still deletes when nothing diverged", async () => {
+        const { service, scriptFiles } = createService();
+        await openCanonicalScript(service, "groovy", "edited");
+        stageDocument(scriptPath("groovy"), "edited");
+        stageDocument("/repo/process.bpmn", "<xml/>");
+        // The default scriptXml stub resolves undefined (no divergence).
+
+        service.disposeForEditor(EDITOR_ID);
+        await flushAsync();
+
+        expect(applyEditMock).not.toHaveBeenCalled();
+        expect(scriptFiles.deleteDir).toHaveBeenCalled();
+    });
+
+    it("reads the script file when its buffer is gone, then writes back", async () => {
+        const { service, scriptFiles, scriptXml } = createService();
+        await openCanonicalScript(service, "groovy", "edited");
+        // No staged script doc → the buffer is gone → readFile fallback.
+        scriptFiles.readFile.mockResolvedValue("from-disk");
+        stageDocument("/repo/process.bpmn", "<xml/>");
+        scriptXml.applyScriptContents.mockResolvedValue("<new/>");
+
+        service.disposeForEditor(EDITOR_ID);
+        await flushAsync();
+
+        expect(scriptXml.applyScriptContents).toHaveBeenCalledWith("<xml/>", [
+            { elementId: ELEMENT_ID, kind: KIND, listenerIndex: undefined, content: "from-disk" },
+        ]);
+    });
+
+    it("opens the diagram document when it is not already staged", async () => {
+        const { service, scriptXml } = createService();
+        await openCanonicalScript(service, "groovy", "edited");
+        stageDocument(scriptPath("groovy"), "edited");
+        // Diagram NOT staged → persistScriptsToDocument must open it.
+        scriptXml.applyScriptContents.mockResolvedValue("<new/>");
+        openTextDocumentMock.mockClear();
+        const diagramDoc = {
+            uri: Uri.file("/repo/process.bpmn"),
+            getText: () => "<xml/>",
+            positionAt: (offset: number) => ({ offset }),
+            save: vi.fn().mockResolvedValue(true),
+        };
+        openTextDocumentMock.mockResolvedValue(diagramDoc);
+
+        service.disposeForEditor(EDITOR_ID);
+        await flushAsync();
+
+        expect(openTextDocumentMock).toHaveBeenCalled();
+        expect(diagramDoc.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs and still deletes when the write-back throws", async () => {
+        const { service, scriptFiles, scriptXml, notifier } = createService();
+        await openCanonicalScript(service, "groovy", "edited");
+        stageDocument(scriptPath("groovy"), "edited");
+        stageDocument("/repo/process.bpmn", "<xml/>");
+        scriptXml.applyScriptContents.mockRejectedValue(new Error("boom"));
+
+        service.disposeForEditor(EDITOR_ID);
+        await flushAsync();
+
+        expect(notifier.logError).toHaveBeenCalled();
+        expect(scriptFiles.deleteDir).toHaveBeenCalled();
+    });
+
+    it("skips the write-back entirely when the diagram was reverted", async () => {
+        const { service, scriptXml } = createService();
+        await openCanonicalScript(service, "groovy", "edited");
+        stageDocument(scriptPath("groovy"), "edited");
+        stageDocument("/repo/process.bpmn", "<xml/>");
+        (service as never as { revertedEditors: Set<string> }).revertedEditors.add(EDITOR_ID);
+
+        service.disposeForEditor(EDITOR_ID);
+        await flushAsync();
+
+        expect(scriptXml.applyScriptContents).not.toHaveBeenCalled();
+        expect(applyEditMock).not.toHaveBeenCalled();
+    });
+});
+
+describe("ScriptTaskService revert tracking", () => {
+    /** The private revert set, read for assertions. */
+    function reverted(service: ScriptTaskService): Set<string> {
+        return (service as never as { revertedEditors: Set<string> }).revertedEditors;
+    }
+
+    it("marks the editor on a clean diagram change and clears it on save", async () => {
+        const { service, fireDocChange, fireSave } = createService();
+        // Open a script so the editor is tracked in baseDirByEditor.
+        await openCanonicalScript(service, "groovy");
+
+        // A change landing on an already-clean diagram is a "Don't Save" revert.
+        await fireDocChange(diagramChangeEvent(false));
+        expect(reverted(service).has(EDITOR_ID)).toBe(true);
+
+        // Saving the diagram at the prompt is not a revert — clear the mark.
+        fireSave({ uri: { toString: () => EDITOR_ID } });
+        expect(reverted(service).has(EDITOR_ID)).toBe(false);
+    });
+
+    it("unmarks the editor when the diagram becomes dirty again", async () => {
+        const { service, fireDocChange } = createService();
+        await openCanonicalScript(service, "groovy");
+
+        await fireDocChange(diagramChangeEvent(false));
+        expect(reverted(service).has(EDITOR_ID)).toBe(true);
+
+        // The user resumed editing: a dirty change clears the revert mark.
+        await fireDocChange(diagramChangeEvent(true));
+        expect(reverted(service).has(EDITOR_ID)).toBe(false);
+    });
+
+    it("ignores diagram changes for editors that never opened a script", async () => {
+        const { service, fireDocChange } = createService();
+
+        // No script opened → editor absent from baseDirByEditor → not tracked.
+        await fireDocChange(diagramChangeEvent(false));
+
+        expect(reverted(service).has(EDITOR_ID)).toBe(false);
     });
 });

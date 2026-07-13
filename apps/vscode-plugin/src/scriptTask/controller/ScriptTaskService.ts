@@ -16,6 +16,8 @@ import {
 } from "vscode";
 
 import {
+    AsyncDebounced,
+    asyncDebounce,
     OpenScriptEditorRef,
     ScriptKind,
     UpdateOpenScriptEditorsQuery,
@@ -27,8 +29,10 @@ import {
     EditorSessionStore,
     generateCamundaDts,
     SCRIPT_JSCONFIG,
+    ScriptContentUpdate,
     ScriptLanguage,
     ScriptUri,
+    ScriptXmlService,
     SettingsPort,
 } from "@miragon/bpmn-modeler-core";
 import { ScriptFileStore } from "../infrastructure/ScriptFileStore";
@@ -101,12 +105,40 @@ export class ScriptTaskService {
      */
     private readonly pendingResync = new Set<string>();
 
+    /** How long keystrokes coalesce before one streams into the webview model. */
+    private static readonly STREAM_DEBOUNCE_MS = 300;
+
+    /**
+     * One debounced content sender per open script `uri.path`. Each keystroke
+     * re-arms the trailing edge, so a burst of typing produces a single
+     * `UpdateScriptContentQuery` (with a full diagram XML export behind it)
+     * instead of one per character. The sender body owns the hidden-webview
+     * catch and error logging, so it never rejects.
+     */
+    private readonly contentSenders = new Map<
+        string,
+        AsyncDebounced<(content: string) => Promise<void>>
+    >();
+
+    /**
+     * Editor IDs whose diagram was discarded via "Don't Save" (or, indistinctly,
+     * undone back to its saved state). Script edits buffered while the webview
+     * was hidden are NOT written back for these editors — the user chose to
+     * throw the diagram's changes away, and the scripts go with them.
+     *
+     * Tracked only for editors present in {@link baseDirByEditor} (i.e. those
+     * that opened at least one script), since that is the only case where a
+     * dispose-time write-back can happen.
+     */
+    private readonly revertedEditors = new Set<string>();
+
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly scriptFiles: ScriptFileStore,
         private readonly settings: SettingsPort,
         private readonly notifier: VsCodeNotifier,
         private readonly picker: VsCodePicker,
+        private readonly scriptXml: ScriptXmlService,
     ) {}
 
     /**
@@ -125,6 +157,11 @@ export class ScriptTaskService {
                         error instanceof Error ? error : new Error(String(error)),
                     );
                 }),
+            ),
+            // A Save at the close prompt is not a revert: clear any reverted mark
+            // so the dispose-time script write-back stays alive for this editor.
+            workspace.onDidSaveTextDocument((document) =>
+                this.revertedEditors.delete(document.uri.toString()),
             ),
             window.tabGroups.onDidChangeTabs((event) => this.onTabsChanged(event)),
         );
@@ -325,9 +362,12 @@ export class ScriptTaskService {
         }
 
         if (content === undefined) {
-            // Clear tracking first so the tab-close event is a no-op, then
-            // save-before-close to suppress the dirty prompt (the bytes are
-            // already gone from the model; the file is deleted right after).
+            // The script surface is gone: drop the sender entirely so a pending
+            // keystroke can't fire against a deleted element. Clear tracking
+            // first so the tab-close event is a no-op, then save-before-close to
+            // suppress the dirty prompt (the bytes are already gone from the
+            // model; the file is deleted right after).
+            this.dropSender(entry.uri.path);
             this.openDocuments.delete(entry.uri.path);
             this.broadcastOpenScripts(editorId);
             await this.saveIfDirty(entry.uri);
@@ -335,6 +375,11 @@ export class ScriptTaskService {
             void this.deleteScriptDir(entry.uri);
             return;
         }
+
+        // Canvas undo/redo (or a document reload) overwrites the buffer; cancel
+        // any pending keystroke so it can't fire afterwards and clobber the
+        // model-side content the user actually asked for.
+        this.contentSenders.get(entry.uri.path)?.cancel();
 
         const doc = this.findOpenTextDocument(entry.uri);
         if (!doc) {
@@ -412,6 +457,10 @@ export class ScriptTaskService {
                         content,
                     ),
                 );
+                // The replay just carried the live buffer, so any keystroke
+                // still pending in this path's sender is redundant — cancel it
+                // to avoid a duplicate post landing right after.
+                this.contentSenders.get(entry.uri.path)?.cancel();
                 /**
                  * The user may have closed the script tab while the BPMN
                  * webview was hidden — `cleanupClosedScript` deferred the
@@ -454,24 +503,45 @@ export class ScriptTaskService {
      * fire-and-forget because the participant's dispose path is synchronous.
      */
     disposeForEditor(editorId: string): void {
-        const orphaned = new Map<string, Uri>();
+        // Keep the full entries (not just URIs): the dispose-time write-back
+        // needs each script's elementId/kind/listenerIndex to address the XML.
+        const orphaned = new Map<string, OpenDocument>();
         for (const [path, entry] of this.openDocuments) {
             if (entry.editorId === editorId) {
-                orphaned.set(path, entry.uri);
+                orphaned.set(path, entry);
             }
         }
         for (const path of orphaned.keys()) {
             this.openDocuments.delete(path);
+            // The handle is already gone (dispose ordering), so a pending
+            // keystroke can never reach the webview. Cancel it — never flush;
+            // any divergence is covered by the compare-and-write below.
+            this.dropSender(path);
         }
 
         this.pendingResync.delete(editorId);
+
+        // Read the revert mark before clearing it: a diagram discarded via
+        // "Don't Save" must not have its buffered script edits written back.
+        const wasReverted = this.revertedEditors.has(editorId);
+        this.revertedEditors.delete(editorId);
 
         const baseDir = this.baseDirByEditor.get(editorId);
         this.baseDirByEditor.delete(editorId);
 
         void (async () => {
-            for (const uri of orphaned.values()) {
-                await this.saveIfDirty(uri);
+            // Unless the diagram was discarded, write buffered script content
+            // straight into the `.bpmn` XML before the files are deleted —
+            // otherwise a close of a hidden diagram silently drops edits that
+            // never reached the webview model. Run always (compare-and-write is
+            // a no-op when nothing diverged); this also covers the sub-300 ms
+            // debounce window where the last keystroke hadn't streamed yet.
+            if (!wasReverted) {
+                const updates = await this.collectScriptUpdates(orphaned);
+                await this.persistScriptsToDocument(editorId, updates);
+            }
+            for (const entry of orphaned.values()) {
+                await this.saveIfDirty(entry.uri);
             }
             await this.closeTabsFor(new Set(orphaned.keys()));
             if (baseDir !== undefined) {
@@ -480,6 +550,73 @@ export class ScriptTaskService {
                 );
             }
         })().catch((error) => this.notifier.logError(error as Error));
+    }
+
+    /**
+     * Collects the current content of each orphaned script as a
+     * {@link ScriptContentUpdate}. The open buffer is authoritative; disk is the
+     * fallback for the closed-while-hidden case where the buffer is already
+     * gone. A script whose file can no longer be read is skipped.
+     */
+    private async collectScriptUpdates(
+        orphaned: Map<string, OpenDocument>,
+    ): Promise<ScriptContentUpdate[]> {
+        const updates: ScriptContentUpdate[] = [];
+        for (const entry of orphaned.values()) {
+            let content = this.findOpenTextDocument(entry.uri)?.getText();
+            if (content === undefined) {
+                try {
+                    content = await this.scriptFiles.readFile(entry.uri.path);
+                } catch {
+                    continue;
+                }
+            }
+            updates.push({
+                elementId: entry.elementId,
+                kind: entry.kind,
+                listenerIndex: entry.listenerIndex,
+                content,
+            });
+        }
+        return updates;
+    }
+
+    /**
+     * Writes buffered script content straight into the `.bpmn` XML on the host —
+     * the last-resort path when the diagram tab is closed before a hidden edit
+     * could stream into the webview model. Never throws: the file deletion in
+     * the dispose tail must still run even if this write-back fails.
+     *
+     * Echo-safe by construction: the session's own listeners are disposed by
+     * the time dispose runs, and this service's doc-change listener ignores the
+     * `.bpmn` (it isn't in {@link openDocuments}, and the editor was removed
+     * from {@link baseDirByEditor} in the sync head so it can't read as a
+     * revert either). The `WorkspaceEdit` is followed by an explicit save
+     * because no editor remains to own the resulting dirty buffer.
+     */
+    private async persistScriptsToDocument(
+        editorId: string,
+        updates: ScriptContentUpdate[],
+    ): Promise<void> {
+        if (updates.length === 0) {
+            return;
+        }
+        try {
+            const uri = toUri(editorId);
+            const doc = this.findOpenTextDocument(uri) ?? (await workspace.openTextDocument(uri));
+            const nextXml = await this.scriptXml.applyScriptContents(doc.getText(), updates);
+            if (nextXml === undefined) {
+                // Nothing diverged from what already reached the model — no write.
+                return;
+            }
+            const edit = new WorkspaceEdit();
+            const fullRange = new Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+            edit.replace(uri, fullRange, nextXml);
+            await workspace.applyEdit(edit);
+            await doc.save();
+        } catch (error) {
+            this.notifier.logError(error as Error);
+        }
     }
 
     /**
@@ -498,7 +635,12 @@ export class ScriptTaskService {
     private onTabsChanged(event: TabChangeEvent): void {
         for (const tab of event.closed) {
             if (tab.input instanceof TabInputText && this.openDocuments.has(tab.input.uri.path)) {
-                this.cleanupClosedScript(tab.input.uri);
+                // Cleanup is async now (it flushes the pending keystroke before
+                // deleting); fire-and-forget with its own error sink since the
+                // tab handler can't be awaited.
+                void this.cleanupClosedScript(tab.input.uri).catch((error) =>
+                    this.notifier.logError(error as Error),
+                );
             }
         }
     }
@@ -554,7 +696,7 @@ export class ScriptTaskService {
         }
     }
 
-    private cleanupClosedScript(uri: Uri): void {
+    private async cleanupClosedScript(uri: Uri): Promise<void> {
         const entry = this.openDocuments.get(uri.path);
         if (!entry) {
             return;
@@ -568,6 +710,13 @@ export class ScriptTaskService {
         if (this.isUriOpenInAnyTab(uri)) {
             return;
         }
+
+        // The last <300 ms of typing is still sitting in the debounced sender;
+        // force it into the model before deleting the only copy. A flush against
+        // a hidden webview arms `pendingResync` *asynchronously*, so the
+        // pendingResync re-check below MUST run after the await — a pre-await
+        // check would race past it and delete the buffer.
+        await this.contentSenders.get(uri.path)?.flush();
 
         /**
          * Real close, but the BPMN webview was hidden when the user typed
@@ -587,6 +736,7 @@ export class ScriptTaskService {
         // reflects the removal — the entry is gone by the time we post.
         const editorId = this.openDocuments.get(uri.path)?.editorId;
         this.openDocuments.delete(uri.path);
+        this.dropSender(uri.path);
 
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
@@ -619,6 +769,14 @@ export class ScriptTaskService {
         if (event.contentChanges.length === 0) {
             return;
         }
+
+        // A change on a tracked *diagram* (not a script file) is the
+        // revert-detection signal for the "Don't Save" write-back suppression.
+        if (this.baseDirByEditor.has(uri.toString())) {
+            this.trackDiagramRevert(event.document);
+            return;
+        }
+
         if (this.writingGuard.has(uri.path)) {
             return;
         }
@@ -634,29 +792,77 @@ export class ScriptTaskService {
         // model through the same path as keystrokes.
         const updatedContent = event.document.getText();
 
-        try {
-            await this.editorStore.postMessage(
-                entry.editorId,
-                new UpdateScriptContentQuery(
-                    entry.elementId,
-                    entry.kind,
-                    entry.listenerIndex,
-                    updatedContent,
-                ),
-            );
-        } catch (error) {
-            /**
-             * VS Code throws "The active editor is hidden." when the
-             * webview's tab isn't visible. The user may still be typing in
-             * the script editor, so we mark the editor and replay all
-             * open documents on the next reload via `resyncOpenDocuments`.
-             */
-            if (error instanceof Error && error.message === "The active editor is hidden.") {
-                this.pendingResync.add(entry.editorId);
-            } else {
-                this.notifier.logError(error as Error);
-            }
+        // Fire-and-forget through the per-path debounced sender: it self-handles
+        // the hidden-webview and error cases (never rejecting), and awaiting the
+        // debounced promise here would deadlock the fake-timer tests.
+        void this.getSender(entry)(updatedContent);
+    }
+
+    /**
+     * Maintains {@link revertedEditors} for the diagram backing `document`.
+     *
+     * VS Code fires a "Don't Save"/revert as a content change on an
+     * already-clean document, so a change with `isDirty === false` is the
+     * revert signal; a dirty change means the user is still editing (unmark).
+     * Accepted limitation: an "undo back to the last saved state" also lands as
+     * a clean change and is therefore indistinguishable from a revert — it too
+     * suppresses the dispose-time script write-back.
+     */
+    private trackDiagramRevert(document: TextDocument): void {
+        const editorId = document.uri.toString();
+        if (document.isDirty) {
+            this.revertedEditors.delete(editorId);
+        } else {
+            this.revertedEditors.add(editorId);
         }
+    }
+
+    /**
+     * Lazily creates (and caches) the debounced content sender for a script's
+     * path. The closure captures the open-document entry — stable for the tab's
+     * lifetime — and streams the latest buffer into the webview model, owning
+     * the hidden-webview catch so the debounced body never rejects.
+     */
+    private getSender(entry: OpenDocument): AsyncDebounced<(content: string) => Promise<void>> {
+        let sender = this.contentSenders.get(entry.uri.path);
+        if (!sender) {
+            sender = asyncDebounce(async (content: string) => {
+                try {
+                    await this.editorStore.postMessage(
+                        entry.editorId,
+                        new UpdateScriptContentQuery(
+                            entry.elementId,
+                            entry.kind,
+                            entry.listenerIndex,
+                            content,
+                        ),
+                    );
+                } catch (error) {
+                    /**
+                     * VS Code throws "The active editor is hidden." when the
+                     * webview's tab isn't visible. The user may still be typing,
+                     * so mark the editor and replay all open documents on the
+                     * next reload via `resyncOpenDocuments`.
+                     */
+                    if (
+                        error instanceof Error &&
+                        error.message === "The active editor is hidden."
+                    ) {
+                        this.pendingResync.add(entry.editorId);
+                    } else {
+                        this.notifier.logError(error as Error);
+                    }
+                }
+            }, ScriptTaskService.STREAM_DEBOUNCE_MS);
+            this.contentSenders.set(entry.uri.path, sender);
+        }
+        return sender;
+    }
+
+    /** Cancels any pending keystroke for `path` and forgets its sender. */
+    private dropSender(path: string): void {
+        this.contentSenders.get(path)?.cancel();
+        this.contentSenders.delete(path);
     }
 
     private findOpenDocument(

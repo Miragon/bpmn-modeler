@@ -3585,6 +3585,7 @@ __metadata:
     "@vitest/coverage-v8": "npm:4.1.9"
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.0.0"
+    camunda-bpmn-moddle: "npm:7.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"

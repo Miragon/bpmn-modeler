@@ -89,3 +89,4 @@ export * from "./scriptTask/domain/scriptLanguage";
 
 // ── scriptTask: service ──────────────────────────────────────────────────────
 export * from "./scriptTask/service/ScriptVariableManifestService";
+export * from "./scriptTask/service/ScriptXmlService";

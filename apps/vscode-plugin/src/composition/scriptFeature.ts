@@ -1,6 +1,10 @@
 import { ExtensionContext } from "vscode";
 
-import { ScriptVariableManifestService, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
+import {
+    ScriptVariableManifestService,
+    ScriptVariableStore,
+    ScriptXmlService,
+} from "@miragon/bpmn-modeler-core";
 import { ScriptFileStore } from "../scriptTask/infrastructure/ScriptFileStore";
 import { ScriptCompletionProvider } from "../scriptTask/controller/ScriptCompletionProvider";
 import { ScriptDeclareVariableCodeAction } from "../scriptTask/controller/ScriptDeclareVariableCodeAction";
@@ -37,6 +41,7 @@ export function register(
         deps.vsSettings,
         deps.notifier,
         deps.picker,
+        new ScriptXmlService(),
     );
     scriptTaskSvc.register(context);
 

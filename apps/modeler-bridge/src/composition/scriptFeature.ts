@@ -76,16 +76,17 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     // The host edited an open script tab → push the new content into the owning
     // BPMN webview, which writes it to the moddle property via bpmn-js.
     deps.rpc.on(METHODS.scriptDidChange, (params: ScriptDidChangeParams) => {
-        void scriptEditor.didChange(params.scriptId, params.content);
+        scriptEditor.didChange(params.scriptId, params.content);
     });
 
     // A script tab closed on the host (user close, or the ack of our own
     // script/close) → drop tracking so a re-open re-reads the current BPMN
     // content, and delete the on-disk file now that the host's flush-save
-    // is guaranteed to have finished.
-    deps.rpc.on(METHODS.scriptDidClose, (params: ScriptCloseParams) => {
-        scriptEditor.didClose(params.scriptId);
-    });
+    // is guaranteed to have finished. Returned (not `void`ed) so the dispatcher
+    // awaits the debounce flush before the frame is considered handled.
+    deps.rpc.on(METHODS.scriptDidClose, (params: ScriptCloseParams) =>
+        scriptEditor.didClose(params.scriptId),
+    );
 
     // The host's "Declare in variable manifest" intention → scaffold the entry in
     // the diagram's manifest and reveal it. Fire-and-forget; the manifest watcher
