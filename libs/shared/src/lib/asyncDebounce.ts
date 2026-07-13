@@ -16,16 +16,28 @@ export interface AsyncDebounced<F extends (...args: any[]) => Promise<unknown>> 
     flush(): Promise<void>;
     /** Drops a pending invocation; outstanding caller promises resolve with `undefined`. */
     cancel(): void;
+    /**
+     * True while a trailing call is scheduled *or* an invocation is in flight;
+     * false once every outstanding call has settled or been cancelled. Backed by
+     * `resolveSet.size`, whose entries live from a wrapper call until its promise
+     * settles — so it covers the whole scheduled→running→done arc, not just the
+     * lodash timer. Used by the flush protocol to decide whether the webview
+     * holds unsynced changes worth exporting.
+     */
+    pending(): boolean;
 }
 
 /**
  * Makes the [lodash.debounce](https://lodash.com/docs/4.17.15#debounce) function async-friendly
  * @param func The function to debounce
  * @param wait The number of milliseconds to delay
+ * @param options Forwarded to lodash `debounce` — notably `maxWait`, the upper
+ *   bound on how long a sustained call stream can starve the trailing edge.
  */
 export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
     func: F,
     wait?: number,
+    options?: { maxWait?: number },
 ): AsyncDebounced<F> {
     const resolveSet = new Set<(p: unknown) => void>();
     const rejectSet = new Set<(p: unknown) => void>();
@@ -53,7 +65,7 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
                     inFlight = undefined;
                 }
             });
-    }, wait);
+    }, wait, options);
 
     const wrapper = (...args: Parameters<F>): ReturnType<F> =>
         new Promise((resolve, reject) => {
@@ -78,6 +90,8 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
         resolveSet.clear();
         rejectSet.clear();
     };
+
+    wrapper.pending = (): boolean => resolveSet.size > 0;
 
     return wrapper as AsyncDebounced<F>;
 }

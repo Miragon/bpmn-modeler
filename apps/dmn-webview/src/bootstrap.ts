@@ -7,9 +7,11 @@ import "./styles.css";
 import {
     asyncDebounce,
     Command,
+    createFlushResponder,
     createResolver,
     DmnFileQuery,
     DmnModelerSettingQuery,
+    FlushDocumentQuery,
     formatErrors,
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
@@ -67,6 +69,43 @@ function registerGlobalErrorHandlers(): void {
  * @throws NoModelerError if the modeler is not initialized
  */
 const debouncedUpdateXML = asyncDebounce(openXML, 100);
+
+// Best-effort flush of the outbound sync debounce when the webview is hidden
+// (tab switch / close). Reliable in the persistent JCEF host; in VS Code the
+// webview context may die mid-export, so this only mitigates the ≤300ms
+// hide-loss window — the save path is fully covered by the flush protocol.
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+        void debouncedSendChanges.flush();
+    }
+});
+
+/**
+ * Debounces the outbound document sync so a burst of model changes (e.g.
+ * decision-table typing) collapses into one full export + host write instead of
+ * one per keystroke. `maxWait` bounds starvation: sustained typing still syncs
+ * at least once per second. The host recovers the sub-300ms tail via the flush
+ * protocol ({@link respondToFlush}) so a save never persists stale XML.
+ *
+ * dmn-js rebinds `commandStack.changed` per view switch and stacks duplicate
+ * listeners; the debounce coalescing those duplicates is a strict improvement.
+ */
+const debouncedSendChanges = asyncDebounce(sendChanges, 300, { maxWait: 1000 });
+
+/**
+ * Answers a host {@link FlushDocumentQuery} on the save/close path. Before the
+ * first diagram loads `exportDiagram()` throws, which the responder maps to a
+ * nothing-pending reply. Rationale for the gate lives in {@link createFlushResponder}.
+ */
+const respondToFlush = createFlushResponder(
+    {
+        isReady: () => modelerIsInitialized,
+        hasPendingSync: () => debouncedSendChanges.pending(),
+        cancelPendingSync: () => debouncedSendChanges.cancel(),
+        exportXml: () => exportDiagram(),
+    },
+    (reply) => host.postMessage(reply),
+);
 
 // create resolver to wait for the response from the backend
 const dmnFileResolver = createResolver<DmnFileQuery>();
@@ -128,7 +167,7 @@ async function run(): Promise<void> {
 async function initializeModeler(dmnFile: string | undefined) {
     try {
         createModeler();
-        onCommandStackChanged(sendChanges);
+        onCommandStackChanged(() => void debouncedSendChanges());
         await openXML(dmnFile);
     } catch (error) {
         if (error instanceof NoModelerError) {
@@ -186,6 +225,9 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
             try {
                 const dmnFileQuery = message.data as DmnFileQuery;
                 if (modelerIsInitialized) {
+                    // A host push is authoritative; drop any pending outbound
+                    // sync so a stale export can't clobber it after re-import.
+                    debouncedSendChanges.cancel();
                     await debouncedUpdateXML(dmnFileQuery.content);
                 } else {
                     dmnFileResolver.done(dmnFileQuery);
@@ -210,6 +252,12 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
             const settingQuery = message.data as DmnModelerSettingQuery;
             setColorThemeMode(settingQuery.setting.colorTheme);
             settingsResolver.done(settingQuery);
+            break;
+        }
+        case queryOrCommand.type === "FlushDocumentQuery": {
+            // The responder owns its own error handling (replies `undefined` on
+            // export failure), so it never throws into this dispatch.
+            await respondToFlush(message.data as FlushDocumentQuery);
             break;
         }
     }

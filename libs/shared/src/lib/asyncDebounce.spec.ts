@@ -113,4 +113,67 @@ describe("asyncDebounce", () => {
         expect(spy).toHaveBeenCalledTimes(1);
         expect(spy).toHaveBeenCalledWith("b");
     });
+
+    it("maxWait forces a call under a sustained sub-wait burst (no starvation)", async () => {
+        const spy = vi.fn().mockResolvedValue("x");
+        const debounced = asyncDebounce(spy, 300, { maxWait: 1000 });
+
+        // Calls every 100ms keep resetting the 300ms trailing timer, so without
+        // maxWait the invocation would be starved forever. maxWait caps it at ~1s,
+        // so a burst carried past 1000ms must have fired at least once.
+        for (let i = 0; i < 11; i++) {
+            void debounced(`c${i}`);
+            await vi.advanceTimersByTimeAsync(100);
+        }
+
+        expect(spy).toHaveBeenCalled();
+    });
+
+    it("does not fire at the trailing edge while the burst is still sub-wait", async () => {
+        const spy = vi.fn().mockResolvedValue("x");
+        const debounced = asyncDebounce(spy, 300, { maxWait: 1000 });
+
+        // Two calls 100ms apart, then only 250ms — under both the 300ms wait and
+        // the 1000ms maxWait — so nothing has fired yet.
+        void debounced("a");
+        await vi.advanceTimersByTimeAsync(100);
+        void debounced("b");
+        await vi.advanceTimersByTimeAsync(250);
+
+        expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("pending() tracks the scheduled → in-flight → settled lifecycle", async () => {
+        let settle: (value: string) => void = () => undefined;
+        const spy = vi.fn().mockReturnValue(
+            new Promise<string>((resolve) => {
+                settle = resolve;
+            }),
+        );
+        const debounced = asyncDebounce(spy, 300);
+
+        expect(debounced.pending()).toBe(false); // idle
+
+        void debounced("a");
+        expect(debounced.pending()).toBe(true); // scheduled
+
+        await vi.advanceTimersByTimeAsync(300);
+        expect(debounced.pending()).toBe(true); // in-flight (deferred func promise)
+
+        settle("ok");
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(debounced.pending()).toBe(false); // settled
+    });
+
+    it("pending() is false after cancel", async () => {
+        const spy = vi.fn().mockResolvedValue("x");
+        const debounced = asyncDebounce(spy, 300);
+
+        void debounced("a");
+        expect(debounced.pending()).toBe(true);
+
+        debounced.cancel();
+        expect(debounced.pending()).toBe(false);
+    });
 });

@@ -19,6 +19,7 @@ export * from "./shared/domain/viewTypes";
 // ── shared: service + vscode-free infrastructure ────────────────────────────
 export * from "./shared/service/ArtifactService";
 export * from "./shared/service/BpmnLintConfigLocator";
+export * from "./shared/service/DocumentFlushService";
 export * from "./shared/infrastructure/EditorSessionStore";
 export * from "./shared/infrastructure/WebviewMessageRouter";
 export * from "./shared/infrastructure/webviewLogHandlers";
