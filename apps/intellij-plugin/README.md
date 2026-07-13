@@ -12,22 +12,39 @@ bridge (`apps/modeler-bridge/`), never reimplemented in Kotlin.
 
 ## Architecture
 
-```
-.bpmn ─▶ BpmnFileEditorProvider ─▶ BpmnFileEditor (JCEF browser)
-                                      │   ▲
-  loads http://127.0.0.1:<port>/...  │   │ window.postMessage (Query/Command)
-                                      ▼   │
-                             WebviewServer (serves the pre-built bundle)
-                                      │
-  bpmn-js webview (Chromium) ─postMessage▶ JBCefJSQuery ─┐
-                                                         │
-                       ┌─────────── CoreProcess (Kotlin) ┘   supervisor +
-        webview/message│ editor/      │     │ document/write,    port adapters
-        session/*      │ postMessage  │     │ document/save,
-        statusBar/*    │ notifier/*   ▼     ▼
-        ┌────── modeler-bridge (Bun binary, REUSED TS core) ──────┐
-        │  EditorSessionStore + BpmnModelerService + Router       │
-        └──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    file([".bpmn file"])
+
+    subgraph host["IntelliJ host — Kotlin (transport + IDE port sinks)"]
+        provider["BpmnFileEditorProvider"]
+        editor["BpmnFileEditor<br/>(JCEF browser)"]
+        server["WebviewServer<br/>serves the pre-built bundle"]
+        webview["bpmn-js webview<br/>(Chromium)"]
+        jsquery["JBCefJSQuery"]
+        supervisor["CoreProcess<br/>supervisor · spawns / restarts the bridge"]
+        notifier["Notifier → Notifications.Bus balloons"]
+        statusbar["StatusBar → EngineStatusBarWidget"]
+    end
+
+    file --> provider --> editor
+    editor -->|"loads http://127.0.0.1:&lt;port&gt;/…"| server
+    server --> webview
+    webview <-->|"window.postMessage (Query/Command)"| editor
+    webview -->|"postMessage"| jsquery --> supervisor
+
+    subgraph bridge["modeler-bridge — single Bun binary (Node-free)"]
+        router["Router + EditorSessionStore + BpmnModelerService"]
+        engine["@miragon/bpmn-modeler-core<br/>unmodified TS modeling engine"]
+        ports["RPC port adapters<br/>EditorHandle · Document · Notifier<br/>StatusBar · Clipboard · Picker"]
+        router -->|"in: dispatch Query/Command"| engine
+        engine -->|"out: port calls"| ports
+        ports -->|"serialize + write back out"| router
+    end
+
+    supervisor <==>|"one stdio NDJSON JSON-RPC pipe"| router
+    supervisor -.->|"renders port callbacks in the IDE"| notifier
+    supervisor -.-> statusbar
 ```
 
 ### Two key decisions (see the ADR)
