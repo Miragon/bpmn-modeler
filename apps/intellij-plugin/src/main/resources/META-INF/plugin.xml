@@ -288,5 +288,13 @@
                 <add-to-group group-id="NewGroup" anchor="last"/>
             </action>
         </group>
+        <group id="MiragonBpmn.Editor" popup="false">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action
+                id="io.miragon.bpmn-modeler.openAllScriptTasks"
+                class="io.miragon.intellij.bpmn.OpenAllScriptTasksAction"
+                text="Open All Script Tasks in Editor"
+                description="Open every inline script task of the active BPMN diagram as an editor tab"/>
+        </group>
     </actions>
 </idea-plugin>

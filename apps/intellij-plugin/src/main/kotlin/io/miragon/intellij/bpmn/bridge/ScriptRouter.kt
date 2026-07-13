@@ -78,4 +78,16 @@ internal class ScriptRouter(private val deps: BridgeDeps) {
             linkedMapOf("scriptId" to scriptId, "name" to name),
         )
     }
+
+    /**
+     * Host→Core: Tools ▸ Open All Script Tasks in Editor. The bridge asks the
+     * active BPMN webview for its inline script tasks and opens them all. Follows
+     * the marketplace pattern — the action can fire before the bridge is up, so
+     * the buffered notify plus [ensureStartedAsync][BridgeDeps.ensureStartedAsync]
+     * guarantees delivery once it spawns.
+     */
+    fun openAllScriptTasks() {
+        deps.channel.notify("script/openAll", linkedMapOf<String, Any>())
+        deps.ensureStartedAsync()
+    }
 }

@@ -1,6 +1,8 @@
 import {
     Command,
+    OpenAllScriptTasksQuery,
     OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -21,8 +23,9 @@ import { RegisterParams, SessionHooks } from "./sessionHooks";
  * orchestrator. It returns a session hook so the editor-session feature closes
  * this editor's open script tabs on dispose — without importing script types.
  *
- * Webview messages: OpenScriptEditorCommand, UpdateScriptVariablesCommand.
- * RPC (Host → Core): script/didChange, script/didClose.
+ * Webview messages: OpenScriptEditorCommand, UpdateScriptVariablesCommand,
+ * OpenScriptEditorsCommand (bulk "open all script tasks" reply).
+ * RPC (Host → Core): script/didChange, script/didClose, script/openAll.
  */
 export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks } {
     // "Edit Script" orchestrator. Unlike the other features this one has no
@@ -71,7 +74,41 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         // reload, element deletion) → overwrite or close the owning tab.
         .on("UpdateScriptSourceCommand", (message: Command, editorId: string) => {
             scriptEditor.applyModelChange(message as UpdateScriptSourceCommand, editorId);
+        })
+        // Bulk reply to OpenAllScriptTasksQuery: open every inline script task the
+        // webview found, one at a time — a concurrent open would race the
+        // per-script format quick-picks (see OpenScriptEditorsCommand).
+        .on("OpenScriptEditorsCommand", (message: Command, editorId: string) => {
+            void openAllScripts(message as OpenScriptEditorsCommand, editorId);
         });
+
+    /**
+     * Opens each script task sequentially through the single-open flow. The
+     * `for … await` serialises the unsupported-format picker round-trips (one
+     * chooser at a time; a cancel skips just that script) and the shared
+     * `variables` is re-seeded per script — idempotent, since every script in a
+     * diagram carries the same process-variable model.
+     */
+    async function openAllScripts(cmd: OpenScriptEditorsCommand, editorId: string): Promise<void> {
+        if (cmd.scripts.length === 0) {
+            deps.notifier.showInfo("No script tasks with inline scripts found in this diagram.");
+            return;
+        }
+        for (const script of cmd.scripts) {
+            await scriptEditor.open(
+                new OpenScriptEditorCommand(
+                    script.elementId,
+                    "script-task",
+                    undefined,
+                    undefined,
+                    script.scriptFormat,
+                    script.content,
+                    cmd.variables ?? [],
+                ),
+                editorId,
+            );
+        }
+    }
 
     // The host edited an open script tab → push the new content into the owning
     // BPMN webview, which writes it to the moddle property via bpmn-js.
@@ -87,6 +124,19 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     deps.rpc.on(METHODS.scriptDidClose, (params: ScriptCloseParams) =>
         scriptEditor.didClose(params.scriptId),
     );
+
+    // Tools ▸ Open All Script Tasks in Editor → ask the active BPMN webview for
+    // its inline script tasks. No active editor means no BPMN tab is focused;
+    // guide the user rather than surfacing the raw throw.
+    deps.rpc.on(METHODS.scriptOpenAll, async () => {
+        try {
+            const editorId = deps.store.getActiveEditorId();
+            await deps.store.postMessage(editorId, new OpenAllScriptTasksQuery());
+        } catch (error) {
+            deps.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            deps.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+        }
+    });
 
     // The host's "Declare in variable manifest" intention → scaffold the entry in
     // the diagram's manifest and reveal it. Fire-and-forget; the manifest watcher

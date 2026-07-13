@@ -99,6 +99,7 @@ export const METHODS = {
     scriptDidChange: "script/didChange",
     scriptDidClose: "script/didClose",
     scriptAppendToManifest: "script/appendToManifest",
+    scriptOpenAll: "script/openAll",
     marketplaceAdd: "marketplace/add",
     marketplaceUpdate: "marketplace/update",
     marketplaceRemove: "marketplace/remove",
@@ -275,6 +276,12 @@ export const PROTOCOL = [
             scriptId: "s1",
             name: "orderId",
         } satisfies ScriptAppendToManifestParams,
+    },
+    {
+        method: METHODS.scriptOpenAll,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
     },
     {
         method: METHODS.marketplaceAdd,

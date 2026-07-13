@@ -136,6 +136,12 @@
         ]
     },
     {
+        "method": "script/openAll",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "marketplace/add",
         "direction": "hostToCore",
         "kind": "notification",

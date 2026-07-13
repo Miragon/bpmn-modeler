@@ -109,6 +109,7 @@ describe("RPC protocol descriptor", () => {
                     "  script/didChange",
                     "  script/didClose",
                     "  script/appendToManifest",
+                    "  script/openAll",
                     "  marketplace/add",
                     "  marketplace/update",
                     "  marketplace/remove",

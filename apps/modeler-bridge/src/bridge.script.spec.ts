@@ -43,6 +43,22 @@ async function waitForFrame(
     throw new Error("waitForFrame timed out");
 }
 
+/** Polls `frames` until at least `count` matches exist, returning them in arrival order. */
+async function waitForFrames(
+    frames: any[],
+    predicate: (frame: any) => boolean,
+    count: number,
+    timeoutMs = 2000,
+): Promise<any[]> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        const matches = frames.filter(predicate);
+        if (matches.length >= count) return matches;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error("waitForFrames timed out");
+}
+
 /** Polls until `path` no longer exists — deletions are fire-and-forget on the bridge. */
 async function waitForDeletion(path: string, timeoutMs = 2000): Promise<void> {
     const start = Date.now();
@@ -701,5 +717,94 @@ describe("bridge script editor (real core over a fake transport)", () => {
             }),
         );
         await waitForDeletion(hashDir);
+    });
+
+    // ── "Open All Script Tasks in Editor" (Tools-menu bulk command) ──────────
+
+    it("asks the active webview for its script tasks on script/openAll", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await rpc.handleLine(JSON.stringify({ method: "script/openAll", params: {} }));
+
+        const post = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "OpenAllScriptTasksQuery",
+        );
+        expect(post.params.editorId).toBe(editorId);
+    });
+
+    it("opens each script task in order, on disk, with the shared variables seeded", async () => {
+        const { rpc, frames, editorId } = await setup();
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "OpenScriptEditorsCommand",
+                        scripts: [
+                            { elementId: "Task_1", scriptFormat: "groovy", content: "x = 1" },
+                            { elementId: "Task_2", scriptFormat: "javascript", content: "y = 2" },
+                        ],
+                        variables,
+                    },
+                },
+            }),
+        );
+
+        const opens = await waitForFrames(frames, (f) => f.method === "script/open", 2);
+        // The for…await opens sequentially, so the frames arrive in diagram order.
+        expect(opens.map((f) => f.params.fileName)).toEqual(["Task_1.groovy", "Task_2.js"]);
+        expect(await fs.readFile(opens[0].params.filePath, "utf8")).toBe("x = 1");
+        expect(await fs.readFile(opens[1].params.filePath, "utf8")).toBe("y = 2");
+        // The single shared variable model seeds every script's completion.
+        expect(opens[0].params.completion.variables).toEqual(variables);
+        expect(opens[1].params.completion.variables).toEqual(variables);
+    });
+
+    it("shows a hint and opens nothing when the batch is empty", async () => {
+        const { rpc, frames, editorId } = await setup();
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: { type: "OpenScriptEditorsCommand", scripts: [], variables: [] },
+                },
+            }),
+        );
+
+        const info = await waitForFrame(
+            frames,
+            (f) => f.method === "notifier/showInfo" && /No script tasks/.test(f.params.message),
+        );
+        expect(info).toBeDefined();
+        await settle();
+        expect(frames.find((f) => f.method === "script/open")).toBeUndefined();
+    });
+
+    it("hints to focus a diagram when script/openAll fires with no active editor", async () => {
+        // No session/register: getActiveEditorId() throws, and the guard must
+        // turn that into a balloon hint rather than surfacing the raw error.
+        const frames: any[] = [];
+        const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
+
+        await rpc.handleLine(JSON.stringify({ method: "script/openAll", params: {} }));
+
+        const info = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "notifier/showInfo" && /Focus a BPMN diagram/.test(f.params.message),
+        );
+        expect(info).toBeDefined();
+        expect(
+            frames.find((f) => f.method === "notifier/log" && f.params?.level === "error"),
+        ).toBeDefined();
+        expect(frames.find((f) => f.method === "editor/postMessage")).toBeUndefined();
     });
 });

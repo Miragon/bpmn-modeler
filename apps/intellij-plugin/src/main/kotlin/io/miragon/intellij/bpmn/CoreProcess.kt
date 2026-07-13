@@ -212,6 +212,12 @@ class CoreProcess(private val project: Project) : Disposable {
     fun appendScriptVariableToManifest(scriptId: String, name: String) =
         scriptRouter.appendToManifest(scriptId, name)
 
+    /**
+     * Fires `script/openAll` for the Tools-menu action; the bridge asks the active
+     * BPMN webview for its inline script tasks and opens each as an editor tab.
+     */
+    fun openAllScriptTasks() = scriptRouter.openAllScriptTasks()
+
     // ── deployment tool window ─────────────────────────────────────────────────
 
     fun registerDeploymentWindow(sink: (String) -> Unit) = deploymentRouter.registerDeploymentWindow(sink)
