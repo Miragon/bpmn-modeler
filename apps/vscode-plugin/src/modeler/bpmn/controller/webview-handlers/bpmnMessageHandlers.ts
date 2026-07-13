@@ -1,6 +1,7 @@
 import {
     Command,
     OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
     NavigateToImplementationCommand,
     NavigateToReferencedModelCommand,
     SetClipboardCommand,
@@ -175,6 +176,42 @@ export function openScriptEditorHandler(
             cmd.scriptFormat,
             cmd.content,
         );
+    };
+}
+
+/**
+ * `OpenScriptEditorsCommand` → open every inline script task in the diagram.
+ *
+ * The variable store is seeded once before the first open (the model is
+ * identical for all scripts in one diagram), then the scripts are opened
+ * strictly sequentially: `openScriptEditor` awaits `showTextDocument` and may
+ * surface a format quick-pick, so a parallel loop would produce nondeterministic
+ * tab order and stack the pickers. An empty batch — a C8 diagram or one with no
+ * inline scripts — surfaces a friendly info message instead of opening nothing.
+ */
+export function openScriptEditorsHandler(
+    scriptTaskSvc: ScriptTaskService,
+    variableStore: ScriptVariableStore,
+    notifier: VsCodeNotifier,
+): MessageHandler {
+    return async (message: Command, editorId: string) => {
+        const cmd = message as OpenScriptEditorsCommand;
+        if (cmd.scripts.length === 0) {
+            notifier.showInfo("No script tasks with inline scripts found in this diagram.");
+            return;
+        }
+        variableStore.setExtracted(editorId, cmd.variables ?? []);
+        for (const script of cmd.scripts) {
+            await scriptTaskSvc.openScriptEditor(
+                editorId,
+                script.elementId,
+                "script-task",
+                undefined,
+                undefined,
+                script.scriptFormat,
+                script.content,
+            );
+        }
     };
 }
 

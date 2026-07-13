@@ -250,6 +250,11 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
+                "command": "bpmn-modeler.openAllScriptTasks",
+                "title": "Open All Script Tasks in Editor",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.deployDiagram",
                 "title": "Deploy Diagram",
                 "category": "Miragon BPMN Modeler",
@@ -342,6 +347,10 @@
                 },
                 {
                     "command": "bpmn-modeler.saveDiagramAsSvgCommand",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.openAllScriptTasks",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {

@@ -36,6 +36,7 @@ import {
     REMOVE_MARKETPLACE_CMD,
     UPDATE_MARKETPLACES_CMD,
 } from "./templateMarketplace/controller/TemplateMarketplaceController";
+import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 const SRC_DIR = __dirname;
@@ -63,6 +64,7 @@ const CODE_COMMAND_IDS = [
     LOGGING_CMD,
     COPY_SVG_CMD,
     SAVE_SVG_CMD,
+    OPEN_ALL_SCRIPT_TASKS_CMD,
     CHANGE_ENGINE_VERSION_CMD,
     MIGRATE_ALL_CMD,
     CHANGE_LANGUAGE_CMD,

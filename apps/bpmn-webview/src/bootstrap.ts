@@ -28,6 +28,7 @@ import {
     LogWarningCommand,
     NoModelerError,
     OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
     PropertiesPanelStateQuery,
     Query,
     SetClipboardCommand,
@@ -623,6 +624,23 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
                 // Populate the SVG field and echo the command back to the host.
                 command.svg = await bpmnModeler.getDiagramSvg();
                 host.postMessage(command);
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
+        case queryOrCommand.type === "OpenAllScriptTasksQuery": {
+            try {
+                // Reply as a single bulk command so the host opens the scripts
+                // sequentially; the variable model is identical for every script
+                // in the diagram, so it is extracted once and shared.
+                const scripts = bpmnModeler.collectInlineScriptTasks();
+                host.postMessage(
+                    new OpenScriptEditorsCommand(
+                        scripts,
+                        extractProcessVariables(bpmnModeler.getDefinitions()),
+                    ),
+                );
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

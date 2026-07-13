@@ -600,6 +600,54 @@ export class OpenScriptEditorCommand extends Command {
 }
 
 /**
+ * Host → webview: asks the active BPMN editor for every `bpmn:ScriptTask` that
+ * carries an inline script, so the "Open All Script Tasks in Editor" command can
+ * materialise them all at once. Carries no payload — the webview owns the
+ * element scan and replies with a single {@link OpenScriptEditorsCommand}.
+ */
+export class OpenAllScriptTasksQuery extends Query {
+    constructor() {
+        super("OpenAllScriptTasksQuery");
+    }
+}
+
+/**
+ * One inline script-task entry in an {@link OpenScriptEditorsCommand} batch.
+ *
+ * Only `script-task` is in scope for the bulk command, so — unlike
+ * {@link OpenScriptEditorCommand} — there is no `kind`/`listenerIndex`/
+ * `eventName`; the host fills those in with the script-task defaults.
+ */
+export interface ScriptTaskScript {
+    readonly elementId: string;
+    readonly scriptFormat: string;
+    readonly content: string;
+}
+
+/**
+ * Webview → host: the batch reply to {@link OpenAllScriptTasksQuery}, carrying
+ * every inline script task in the diagram plus one shared process-variable model.
+ *
+ * A single bulk reply (rather than the webview re-firing N
+ * {@link OpenScriptEditorCommand}s) lets the host open the scripts sequentially
+ * with a `for … await` loop: {@link ModelerEditorController} dispatches incoming
+ * messages concurrently, so N separate commands would race `showTextDocument`
+ * and stack the format quick-picks. {@link variables} is sent once because it is
+ * identical for every script in the same diagram.
+ */
+export class OpenScriptEditorsCommand extends Command {
+    public readonly scripts: ScriptTaskScript[];
+
+    public readonly variables: VariableDef[];
+
+    constructor(scripts: ScriptTaskScript[], variables: VariableDef[] = []) {
+        super("OpenScriptEditorsCommand");
+        this.scripts = scripts;
+        this.variables = variables;
+    }
+}
+
+/**
  * Sent by the BPMN webview when a script's content changed in the *model*
  * while a host editor tab owns it — canvas undo/redo or an external document
  * reload rewrites the moddle property underneath the tab. The host overwrites

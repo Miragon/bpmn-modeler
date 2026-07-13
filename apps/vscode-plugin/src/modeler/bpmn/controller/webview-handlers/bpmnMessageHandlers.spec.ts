@@ -10,6 +10,7 @@ vi.mock("vscode", () => ({
 import {
     Command,
     OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
@@ -27,6 +28,7 @@ import {
     getPropertiesPanelStateHandler,
     getTextClipboardHandler,
     openScriptEditorHandler,
+    openScriptEditorsHandler,
     resyncScriptTasksHandler,
     setClipboardHandler,
     setPropertiesPanelStateHandler,
@@ -190,6 +192,87 @@ describe("openScriptEditorHandler", () => {
         );
 
         expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
+    });
+});
+
+describe("openScriptEditorsHandler", () => {
+    const script = (elementId: string, scriptFormat: string, content: string) => ({
+        elementId,
+        scriptFormat,
+        content,
+    });
+
+    it("opens scripts strictly sequentially, awaiting each before the next", async () => {
+        // A deferred first open lets us prove the second never starts until the
+        // first resolves — the ordering guarantee the bulk handler exists for.
+        let resolveFirst!: () => void;
+        const openScriptEditor = vi
+            .fn()
+            .mockImplementationOnce(() => new Promise<void>((resolve) => (resolveFirst = resolve)))
+            .mockResolvedValue(undefined);
+        const scriptTaskSvc = { openScriptEditor };
+        const variableStore = { setExtracted: vi.fn() };
+        const notifier = { showInfo: vi.fn() };
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+
+        const done = openScriptEditorsHandler(
+            scriptTaskSvc as never,
+            variableStore as never,
+            notifier as never,
+        )(
+            new OpenScriptEditorsCommand(
+                [script("A", "javascript", "a=1"), script("B", "groovy", "b=2")],
+                variables as never,
+            ),
+            EDITOR,
+        );
+
+        // Variables seeded once, before any open; the second open is still gated.
+        expect(variableStore.setExtracted).toHaveBeenCalledTimes(1);
+        expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
+        expect(openScriptEditor).toHaveBeenCalledTimes(1);
+        expect(openScriptEditor).toHaveBeenNthCalledWith(
+            1,
+            EDITOR,
+            "A",
+            "script-task",
+            undefined,
+            undefined,
+            "javascript",
+            "a=1",
+        );
+
+        resolveFirst();
+        await done;
+
+        expect(openScriptEditor).toHaveBeenCalledTimes(2);
+        expect(openScriptEditor).toHaveBeenNthCalledWith(
+            2,
+            EDITOR,
+            "B",
+            "script-task",
+            undefined,
+            undefined,
+            "groovy",
+            "b=2",
+        );
+        expect(notifier.showInfo).not.toHaveBeenCalled();
+    });
+
+    it("shows an info message and opens nothing for an empty batch", async () => {
+        const scriptTaskSvc = { openScriptEditor: vi.fn() };
+        const variableStore = { setExtracted: vi.fn() };
+        const notifier = { showInfo: vi.fn() };
+
+        await openScriptEditorsHandler(
+            scriptTaskSvc as never,
+            variableStore as never,
+            notifier as never,
+        )(new OpenScriptEditorsCommand([], []), EDITOR);
+
+        expect(notifier.showInfo).toHaveBeenCalledTimes(1);
+        expect(scriptTaskSvc.openScriptEditor).not.toHaveBeenCalled();
+        expect(variableStore.setExtracted).not.toHaveBeenCalled();
     });
 });
 

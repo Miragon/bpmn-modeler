@@ -1,5 +1,6 @@
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
 import { EDITOR_ICON_SVG } from "./editorIcon";
+import { readScriptTaskFormat } from "./scriptModel";
 
 /**
  * bpmn-js DI module that injects "Open script in editor" icon buttons into
@@ -189,8 +190,7 @@ class ScriptEditorButtons {
             return;
         }
 
-        const scriptFormat =
-            bo.get?.("camunda:scriptFormat") || bo.get?.("scriptFormat") || bo.scriptFormat || "";
+        const scriptFormat = readScriptTaskFormat(bo);
         const content = bo.script || "";
 
         this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {

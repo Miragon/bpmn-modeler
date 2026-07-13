@@ -16,11 +16,12 @@ import {
     NoModelerError,
     OpenScriptEditorRef,
     ScriptKind,
+    ScriptTaskScript,
 } from "@miragon/bpmn-modeler-shared";
 import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
 import { OpenScriptEditorsStore, OpenScriptEditorsStoreModule } from "./openScriptEditorsStore";
 import { ScriptLockPropertiesProviderModule } from "./scriptLockPropertiesProvider";
-import { findListenerAt } from "./scriptModel";
+import { collectInlineScriptTasks, findListenerAt } from "./scriptModel";
 import {
     SCRIPT_SOURCE_CHANGED_EVENT,
     ScriptSourceChangedEvent,
@@ -207,6 +208,18 @@ export class BpmnModeler {
      */
     getDefinitions(): any {
         return this.getModeler().getDefinitions();
+    }
+
+    /**
+     * Returns every `bpmn:ScriptTask` in the diagram that carries an inline
+     * script, for the host's "Open All Script Tasks in Editor" command. The
+     * scan and filtering rules live in {@link collectInlineScriptTasks} so the
+     * bulk path and the single-open path stay in agreement.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    collectInlineScriptTasks(): ScriptTaskScript[] {
+        return collectInlineScriptTasks(this.getModeler().get<any>("elementRegistry"));
     }
 
     /**

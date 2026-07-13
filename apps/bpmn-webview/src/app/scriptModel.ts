@@ -1,4 +1,4 @@
-import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-shared";
 
 /**
  * Model-side script lookups shared by {@link BpmnModeler}'s write path and the
@@ -57,4 +57,54 @@ export function readScriptContent(
         return undefined;
     }
     return listener.script.value ?? "";
+}
+
+/**
+ * Reads a script task's format, preferring the Camunda-namespaced attribute
+ * over the plain BPMN one (`camunda:scriptFormat` → `scriptFormat` → `""`).
+ *
+ * The single-open paths (context pad, panel header button) and the bulk
+ * collector all resolve the format through this one function so they can never
+ * disagree about which value the host receives. `bo.get` is guarded because a
+ * plain moddle object may expose the attribute only as a direct property.
+ */
+export function readScriptTaskFormat(bo: any): string {
+    return bo?.get?.("camunda:scriptFormat") || bo?.get?.("scriptFormat") || bo?.scriptFormat || "";
+}
+
+/**
+ * Scans the element registry for every `bpmn:ScriptTask` that carries an inline
+ * script, returning the payload the "Open All Script Tasks in Editor" command
+ * ships to the host.
+ *
+ * Three classes of element are excluded because they have no inline body to
+ * open: labels (separate registry entries that share their host's business
+ * object, so including them would double-count the task), script tasks that
+ * delegate to an external `camunda:resource`, and tasks whose `script` property
+ * is unset or empty.
+ */
+export function collectInlineScriptTasks(elementRegistry: any): ScriptTaskScript[] {
+    const scripts: ScriptTaskScript[] = [];
+    for (const element of elementRegistry.getAll()) {
+        if (element.type === "label") {
+            continue;
+        }
+        const bo = element.businessObject;
+        if (!bo || bo.$type !== "bpmn:ScriptTask") {
+            continue;
+        }
+        if (bo.get?.("camunda:resource") || bo.resource) {
+            continue;
+        }
+        const content = bo.script;
+        if (content === undefined || content === "") {
+            continue;
+        }
+        scripts.push({
+            elementId: element.id,
+            scriptFormat: readScriptTaskFormat(bo),
+            content,
+        });
+    }
+    return scripts;
 }

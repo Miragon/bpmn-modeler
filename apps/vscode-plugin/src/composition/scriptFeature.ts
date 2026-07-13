@@ -10,6 +10,7 @@ import { ScriptCompletionProvider } from "../scriptTask/controller/ScriptComplet
 import { ScriptDeclareVariableCodeAction } from "../scriptTask/controller/ScriptDeclareVariableCodeAction";
 import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptManifestParticipant";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
+import { ScriptTaskCommandController } from "../scriptTask/controller/ScriptTaskCommandController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -44,6 +45,10 @@ export function register(
         new ScriptXmlService(),
     );
     scriptTaskSvc.register(context);
+
+    // The "Open All Script Tasks in Editor" palette command only posts the query;
+    // the reply is handled by the router handler wired in the editor feature.
+    new ScriptTaskCommandController(deps.editorStore, deps.notifier).register(context);
 
     const scriptVariableStore = new ScriptVariableStore();
     new ScriptCompletionProvider(scriptVariableStore, deps.vsSettings, scriptTaskSvc).register(
