@@ -63,3 +63,4 @@ docs/.vitepress/cache
 .gstack/
 .agent/logs/
 .agent/settings.local.json
+.claude/logs/
