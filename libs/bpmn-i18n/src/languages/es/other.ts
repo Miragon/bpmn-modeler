@@ -16,6 +16,9 @@
 
 // This file contains translations that were used in other components.
 const translations: Record<string, string> = {
+    "Read-only": "Solo lectura",
+    "Being edited in": "Se está editando en",
+    "click to focus": "haz clic para enfocar",
     "About example data": "Acerca de datos de ejemplo",
     "Align elements bottom": "Alinear elementos abajo",
     "Align elements center": "Centrar elementos",

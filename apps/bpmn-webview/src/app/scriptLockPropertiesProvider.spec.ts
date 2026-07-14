@@ -1,8 +1,53 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
-import { ScriptLockPropertiesProvider } from "./scriptLockPropertiesProvider";
+import { LockedScriptEntry, ScriptLockPropertiesProvider } from "./scriptLockPropertiesProvider";
 import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
+
+/**
+ * The locked entry is a hook-free renderer, so its returned preact vnode tree
+ * can be walked directly — no DOM, no render host. These helpers collect nodes
+ * from that tree so the component tests below assert on the actual markup
+ * (readOnly textarea, badge, hint) that the crash previously hid.
+ */
+function childrenOf(node: any): any[] {
+    const kids = node?.props?.children;
+    return Array.isArray(kids) ? kids : kids != null ? [kids] : [];
+}
+
+function walkVNodes(root: any, visit: (node: any) => void): void {
+    if (root == null || typeof root !== "object") {
+        return;
+    }
+    visit(root);
+    for (const child of childrenOf(root)) {
+        walkVNodes(child, visit);
+    }
+}
+
+function findByType(root: any, type: string): any[] {
+    const found: any[] = [];
+    walkVNodes(root, (node) => {
+        if (node && node.type === type) {
+            found.push(node);
+        }
+    });
+    return found;
+}
+
+function textContentOf(root: any): string {
+    let text = "";
+    // walkVNodes only descends into element nodes, so primitive (string/number)
+    // children are collected here from each element's child list.
+    walkVNodes(root, (node) => {
+        for (const child of childrenOf(node)) {
+            if (typeof child === "string" || typeof child === "number") {
+                text += child;
+            }
+        }
+    });
+    return text;
+}
 
 /**
  * The provider's `getGroups` is a pure groups→groups transform: given the
@@ -149,6 +194,62 @@ describe("ScriptLockPropertiesProvider (script task)", () => {
             scriptFormat: "javascript",
             content: "task code",
         });
+    });
+});
+
+describe("LockedScriptEntry (rendered vnode tree)", () => {
+    // Build a locked entry through the provider so the component receives the
+    // exact props the panel would spread onto it.
+    function lockedEntry() {
+        store.set([
+            {
+                elementId: "Task_1",
+                kind: "script-task",
+                listenerIndex: undefined,
+                fileName: "Task_1.js",
+            },
+        ]);
+        const groups = scriptTaskGroups();
+        provider.getGroups(scriptTaskElement())(groups);
+        return groups[0].entries[0] as any;
+    }
+
+    it("renders a read-only textarea carrying the live script value", () => {
+        const tree = LockedScriptEntry(lockedEntry());
+        const textareas = findByType(tree, "textarea");
+
+        expect(textareas).toHaveLength(1);
+        const textarea = textareas[0];
+        expect(textarea.props.readOnly).toBe(true);
+        // A `disabled` textarea is unselectable in Chromium, defeating copy.
+        expect(textarea.props.disabled).toBeUndefined();
+        expect(textarea.props.class).toContain("bio-properties-panel-input-monospace");
+        expect(textarea.props.value).toBe("task code");
+    });
+
+    it("marks the label with the read-only badge", () => {
+        const tree = LockedScriptEntry(lockedEntry());
+        const labels = findByType(tree, "label");
+
+        expect(labels).toHaveLength(1);
+        expect(textContentOf(labels[0])).toContain("Read-only");
+    });
+
+    it("renders a hint whose onClick reveals the owning tab", () => {
+        const entry = lockedEntry();
+        const tree = LockedScriptEntry(entry);
+        const hints = findByType(tree, "div").filter((node) =>
+            (node.props.class ?? "").includes("script-lock-hint"),
+        );
+
+        expect(hints).toHaveLength(1);
+        expect(textContentOf(hints[0])).toContain("Task_1.js");
+
+        hints[0].props.onClick();
+        expect(eventBus.fire).toHaveBeenCalledWith(
+            OPEN_SCRIPT_EDITOR_EVENT,
+            expect.objectContaining({ elementId: "Task_1", kind: "script-task" }),
+        );
     });
 });
 

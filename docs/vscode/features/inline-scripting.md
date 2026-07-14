@@ -130,17 +130,19 @@ two listeners on the same task do not collide:
 
 While a script editor tab is open, that tab is the **single writer** for
 the script. The matching **Script** field in the properties panel (and the
-matching listener row) becomes read-only, showing a hint like *"Being
-edited in `Task_1.groovy` — click to focus"*. Clicking the hint reveals the
-editor tab.
+matching listener row) becomes read-only. The field stays **visible** with
+the current script content — so you can still read and copy it — and is
+marked with a small **"Read-only"** badge (that it is locked) plus a hint
+like *"Being edited in `Task_1.groovy` — click to focus"* (why). Clicking
+the hint reveals the editor tab.
 
 This prevents a silent-clobber bug: previously you could type into the
 panel textarea while a tab was open, and the panel edit would be
 overwritten by the next keystroke streamed from the tab. Now the panel
 field is locked for the duration, so edits only flow from the one tab that
 owns the script. The field still updates live to mirror what you type in
-the tab — it just cannot be edited in place. Close the tab and the field
-becomes fully editable again.
+the tab — it just cannot be edited in place, only viewed and copied. Close
+the tab and the field becomes fully editable again.
 
 ## IntelliSense
 

@@ -254,10 +254,16 @@ In the webview, `OpenScriptEditorsStore` holds the set keyed by
 `propertiesPanel.providersChanged` on every update. `ScriptLockPropertiesProvider`
 registers **below** the stock Camunda provider (priority `500` < `1000`), so
 its `getGroups` middleware sees the fully-built groups and swaps the locked
-`scriptValue` entry's component for a disabled `TextAreaEntry` plus a
-click-to-focus hint. Owning `setValue` (rather than toggling a DOM attribute)
-is what makes the lock airtight: a locked field has no write path at all, yet
-still live-updates as keystrokes stream in. The hint's reveal click re-fires
+`scriptValue` entry's component for `LockedScriptEntry` — a hook-free renderer
+that hand-rolls the stock textarea markup as a **read-only** (not `disabled`)
+field, so the content stays visible, selectable, and copyable. It carries a
+"Read-only" badge (that it is locked) and a click-to-focus hint (why).
+`readOnly` is required because a `disabled` textarea's text is unselectable in
+Chromium, and the renderer is hand-rolled because the library's `TextAreaEntry`
+exposes only `disabled` and throws when invoked without the `debounce` service.
+Owning `setValue` (rather than toggling a DOM attribute) is what makes the lock
+airtight: a locked field has no write path at all, yet still live-updates as
+keystrokes stream in. The hint's reveal click re-fires
 `OPEN_SCRIPT_EDITOR_EVENT`; the host's already-open branch reveals the tab
 without rewriting it.
 

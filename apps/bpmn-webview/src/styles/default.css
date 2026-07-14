@@ -305,6 +305,41 @@ a:link {
     outline: none;
 }
 
+/* Tint the locked textarea like a disabled field so it reads as non-editable,
+   but keep the normal text color and a text cursor: the content stays readable
+   and selectable so users can copy it. The disabled-* vars are already mapped
+   by both themes, so no theme-specific rule is needed here. */
+.bio-properties-panel .script-lock-textarea textarea[readonly] {
+    background-color: var(--input-disabled-background-color);
+    border-color: var(--input-disabled-border-color);
+    cursor: text;
+    resize: none;
+    overflow: auto;
+}
+
+/* Muted pill next to the label marking the field as read-only ("that" it is
+   locked); the adjacent hint explains "why". Uses panel color vars so it
+   follows the active theme. */
+.bio-properties-panel .script-lock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background-color: var(--input-disabled-background-color);
+    color: var(--description-color);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
+.bio-properties-panel .script-lock-badge-icon {
+    flex-shrink: 0;
+}
+
 /* Trim the title's right-padding (24px by default) so our icon sits close
    to the title text instead of with a visible gap from the padding. */
 .bio-properties-panel-collapsible-entry-header[data-script-btn-injected="true"]

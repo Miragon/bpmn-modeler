@@ -1,4 +1,3 @@
-import { TextAreaEntry } from "@bpmn-io/properties-panel";
 import { Fragment, jsx, jsxs } from "@bpmn-io/properties-panel/preact/jsx-runtime";
 import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
 
@@ -19,33 +18,104 @@ const LOCK_PROVIDER_PRIORITY = 500;
 // empty for the script task and the listener item id for listeners.
 const SCRIPT_VALUE_SUFFIX = "scriptValue";
 
-// A locked field must never write, so its `setValue` is inert — the disabled
-// textarea already blocks input, this just satisfies the entry contract.
-const NOOP = (): void => undefined;
+// Height bounds for the read-only textarea. The stock field uses `autoResize`,
+// which relies on layout effects we deliberately avoid here (see below); a
+// clamp on the line count gives a comparable feel while staying hook-free.
+const MIN_ROWS = 2;
+const MAX_ROWS = 16;
+
+/**
+ * Compact padlock rendered next to the label so the field reads as locked at a
+ * glance. `currentColor` lets the badge's CSS `color` drive the icon in both
+ * themes without a theme-specific asset.
+ */
+function LockIcon(): unknown {
+    return jsx("svg", {
+        "class": "script-lock-badge-icon",
+        "width": "10",
+        "height": "10",
+        "viewBox": "0 0 16 16",
+        "aria-hidden": "true",
+        "children": jsx("path", {
+            fill: "currentColor",
+            d: "M8 1a3 3 0 0 0-3 3v2H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1V4a3 3 0 0 0-3-3zm1.5 5h-3V4a1.5 1.5 0 0 1 3 0v2z",
+        }),
+    });
+}
+
+/**
+ * Number of textarea rows for the given script, clamped to {@link MIN_ROWS}..
+ * {@link MAX_ROWS}. Pure by design: the stock `autoResize` measures the DOM in
+ * a layout effect, but a hook-free renderer (see {@link LockedScriptEntry})
+ * can't run effects — counting newlines approximates the same height and keeps
+ * the whole component unit-testable.
+ */
+function clampRows(value: string): number {
+    const lineCount = value ? value.split("\n").length : MIN_ROWS;
+    return Math.min(MAX_ROWS, Math.max(MIN_ROWS, lineCount));
+}
 
 /**
  * Renders the read-only replacement for a locked script field: the current
- * script content in a disabled textarea plus a clickable hint that reveals the
- * host editor tab which owns the write.
+ * script content in a **read-only** (not `disabled`) textarea, a "read-only"
+ * badge on the label, and a clickable hint that reveals the host editor tab
+ * which owns the write.
+ *
+ * Hand-rolls the stock `TextAreaEntry` markup (same classes, so theming applies
+ * unchanged) for two reasons the library can't satisfy: its `TextArea` only
+ * exposes `disabled`, whose text is unselectable in Chromium — `readOnly` is
+ * what keeps the content copyable — and calling `TextAreaEntry` without the
+ * `debounce` service it expects throws during render. Staying hook-free also
+ * makes the component directly unit-testable (walk the returned vnode tree).
  *
  * Everything it needs is handed in as entry props by
  * {@link ScriptLockPropertiesProvider} (the panel spreads the whole entry onto
  * the component), so this stays a stable module-level component — a fresh
  * closure per render would remount the subtree on every keystroke stream-in.
  */
-function LockedScriptEntry(props: any): unknown {
-    const { element, id, lockGetValue, lockLabel, lockHintText, lockReveal } = props;
+export function LockedScriptEntry(props: any): unknown {
+    const { id, lockGetValue, lockLabel, lockBadgeText, lockHintText, lockReveal } = props;
 
-    // Called as a plain function (not JSX) exactly like the stock `Script`
-    // component does, so its hooks run within this component's render.
-    const textArea = TextAreaEntry({
-        element,
-        id,
-        label: lockLabel,
-        getValue: lockGetValue,
-        setValue: NOOP,
-        disabled: true,
-        monospace: true,
+    // Read on every render so the field mirrors keystrokes streamed from the
+    // owning tab — the panel re-renders on `elements.changed`.
+    const value = lockGetValue();
+    const inputId = `bio-properties-panel-${id}`;
+
+    const badge = jsxs("span", {
+        class: "script-lock-badge",
+        title: lockHintText,
+        children: [LockIcon(), lockBadgeText],
+    });
+
+    const label = jsxs("label", {
+        for: inputId,
+        class: "bio-properties-panel-label",
+        children: [lockLabel, badge],
+    });
+
+    const textarea = jsx("textarea", {
+        "id": inputId,
+        "name": id,
+        "class": "bio-properties-panel-input bio-properties-panel-input-monospace",
+        // `readOnly` (not `disabled`) keeps the text focusable/selectable so
+        // users can copy the script while the tab owns the write path.
+        "readOnly": true,
+        "spellCheck": "false",
+        "rows": clampRows(value),
+        value,
+        "title": lockHintText,
+        "data-gramm": "false",
+    });
+
+    const field = jsxs("div", {
+        class: "bio-properties-panel-textarea script-lock-textarea",
+        children: [label, textarea],
+    });
+
+    const entry = jsx("div", {
+        "class": "bio-properties-panel-entry",
+        "data-entry-id": id,
+        "children": field,
     });
 
     const hint = jsx("div", {
@@ -63,7 +133,7 @@ function LockedScriptEntry(props: any): unknown {
         children: lockHintText,
     });
 
-    return jsxs(Fragment, { children: [textArea, hint] });
+    return jsxs(Fragment, { children: [entry, hint] });
 }
 
 /**
@@ -166,8 +236,9 @@ export class ScriptLockPropertiesProvider {
 
         entry.component = LockedScriptEntry;
         entry.lockLabel = this.translate("Script");
+        entry.lockBadgeText = this.translate("Read-only");
         entry.lockHintText = `${this.translate("Being edited in")} ${ref.fileName} — ${this.translate("click to focus")}`;
-        // Read live so the disabled field mirrors keystrokes streamed from the tab.
+        // Read live so the read-only field mirrors keystrokes streamed from the tab.
         entry.lockGetValue = () => this.readScriptValue(element, entry.script);
         entry.lockReveal = () => {
             const payload = this.buildOpenEvent(element, kind, listenerIndex);
