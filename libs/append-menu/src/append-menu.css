@@ -718,6 +718,11 @@
     border-color: var(--am-border-bpmn-btn);
 }
 
+.am-bpmn-button--focused {
+    background: var(--am-accent-bg);
+    border-color: var(--am-accent);
+}
+
 .am-bpmn-button--disabled {
     opacity: 0.3;
     cursor: not-allowed;

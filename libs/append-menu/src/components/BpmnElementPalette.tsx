@@ -1,130 +1,59 @@
 /**
  * Right panel of the append menu overlay.
  *
- * Displays standard BPMN elements organised by category (Tasks, Gateways,
- * Sub-Processes, Events) as a collapsible palette.  In collapsed mode,
- * only icons are shown; expanding reveals labels.
+ * A thin renderer of the pre-processed palette (favourites row + categorised
+ * groups). Filtering/favourite resolution lives in {@link ../filtering} and
+ * the keyboard highlight in the parent overlay, so this component only draws
+ * buttons and reflects the highlighted key.
  */
-import { useMemo } from "preact/hooks";
-import type { BpmnElementGroup, BpmnElementEntry, PopupMenuEntryAction } from "../types";
-
-/**
- * A palette entry with additional state for filtering.
- */
-interface ProcessedEntry extends BpmnElementEntry {
-    disabled: boolean;
-    hidden: boolean;
-}
-
-/**
- * A processed group with filtering state on entries.
- */
-interface ProcessedGroup {
-    id: string;
-    name: string;
-    entries: ProcessedEntry[];
-}
+import { useEffect, useRef } from "preact/hooks";
+import type { PopupMenuEntryAction } from "../types";
+import type { ProcessedEntry, ProcessedGroup } from "../filtering";
 
 interface BpmnElementPaletteProps {
-    groups: BpmnElementGroup[];
-    favourites: string[];
-    search: string;
-    appliesToFilter: Set<string> | null;
+    favouriteEntries: ProcessedEntry[];
+    groups: ProcessedGroup[];
     expanded: boolean;
+    /** Nav key of the keyboard-highlighted button, or null when in the other column. */
+    highlightedKey: string | null;
     onToggleExpand: () => void;
     onSelect: (action: PopupMenuEntryAction, event: Event) => void;
 }
 
 /**
- * Checks whether a BPMN palette entry matches any of the types in a filter set.
- *
- * @param entry The BPMN palette entry.
- * @param filter The set of `appliesTo` BPMN type strings.
- * @returns `true` if the entry matches any type in the filter.
- */
-function entryMatchesFilter(entry: BpmnElementEntry, filter: Set<string>): boolean {
-    for (const bpmnType of filter) {
-        const shortName = bpmnType.split(":")[1]?.toLowerCase() ?? "";
-        const normalizedLabel = entry.entry.label.toLowerCase().replace(/[\s-]/g, "");
-        if (normalizedLabel === shortName) {
-            return true;
-        }
-        const normalizedId = entry.id.toLowerCase().replace(/[\s-]/g, "");
-        if (normalizedId.includes(shortName)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
- * Checks whether a BPMN palette entry matches a search query.
- *
- * @param entry The BPMN palette entry.
- * @param query The lowercase, trimmed search query.
- * @returns `true` if the entry label or description matches.
- */
-function entryMatchesSearch(entry: BpmnElementEntry, query: string): boolean {
-    const haystack = [entry.entry.label, entry.entry.description ?? ""].join(" ").toLowerCase();
-    return haystack.includes(query);
-}
-
-/**
  * Renders a categorised palette of BPMN element buttons.
  *
- * In collapsed mode, buttons show only icons (compact).
- * In expanded mode, buttons show icons and labels (full).
- * A toggle chevron in the header switches between modes.
+ * In collapsed mode, buttons show only icons; expanded mode adds labels.
+ * Each button carries a namespaced `data-nav-key` (`fav:…` / `grp:…`) so the
+ * keyboard highlight can target the right instance — a favourite appears both
+ * in the favourites row and in its own group.
  *
- * @param props.groups BPMN element entries grouped by category.
- * @param props.search The current search query.
- * @param props.appliesToFilter Set of BPMN types to enable, or null for all.
+ * @param props.favouriteEntries Resolved favourite entries (annotated).
+ * @param props.groups Annotated BPMN element groups.
  * @param props.expanded Whether the palette shows labels alongside icons.
+ * @param props.highlightedKey Nav key of the highlighted button, or null.
  * @param props.onToggleExpand Callback to toggle expanded/collapsed state.
  * @param props.onSelect Callback invoked when a BPMN element button is clicked.
  */
 export function BpmnElementPalette({
+    favouriteEntries,
     groups,
-    favourites,
-    search,
-    appliesToFilter,
     expanded,
+    highlightedKey,
     onToggleExpand,
     onSelect,
 }: BpmnElementPaletteProps) {
-    const query = search.toLowerCase().trim();
-    const favouriteSet = useMemo(() => new Set(favourites), [favourites]);
+    const contentRef = useRef<HTMLDivElement>(null);
 
-    const processedGroups = useMemo<ProcessedGroup[]>(() => {
-        return groups.map((group) => ({
-            ...group,
-            entries: group.entries.map((entry) => ({
-                ...entry,
-                disabled: appliesToFilter ? !entryMatchesFilter(entry, appliesToFilter) : false,
-                hidden: query ? !entryMatchesSearch(entry, query) : false,
-            })),
-        }));
-    }, [groups, appliesToFilter, query]);
-
-    // Extract favourite entries from all groups, preserving their order
-    // as specified in the favourites array.
-    const favouriteEntries = useMemo<ProcessedEntry[]>(() => {
-        if (favouriteSet.size === 0) {
-            return [];
+    /**
+     * Scroll the keyboard-highlighted button into view.
+     */
+    useEffect(() => {
+        if (highlightedKey && contentRef.current) {
+            const el = contentRef.current.querySelector(`[data-nav-key="${highlightedKey}"]`);
+            el?.scrollIntoView({ block: "nearest" });
         }
-        const allEntries = processedGroups.flatMap((g) => g.entries);
-        return favourites
-            .map((type) => {
-                const shortName = type.split(":")[1]?.toLowerCase() ?? "";
-                return allEntries.find((e) => {
-                    const normalizedLabel = e.entry.label.toLowerCase().replace(/[\s-]/g, "");
-                    if (normalizedLabel === shortName) return true;
-                    const normalizedId = e.id.toLowerCase().replace(/[\s-]/g, "");
-                    return normalizedId.includes(shortName);
-                });
-            })
-            .filter((e): e is ProcessedEntry => e !== undefined);
-    }, [favourites, favouriteSet, processedGroups]);
+    }, [highlightedKey]);
 
     return (
         <div class={`am-palette-panel ${expanded ? "am-palette-panel--expanded" : ""}`}>
@@ -145,7 +74,7 @@ export function BpmnElementPalette({
                     </svg>
                 </button>
             </div>
-            <div class="am-palette-content">
+            <div class="am-palette-content" ref={contentRef}>
                 {/* Favourites section — pinned at the top */}
                 {favouriteEntries.length > 0 && (
                     <div class="am-bpmn-group am-bpmn-group--favourites">
@@ -153,11 +82,14 @@ export function BpmnElementPalette({
                         <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                             {favouriteEntries.map(({ id, entry, disabled, hidden }) => {
                                 if (hidden) return null;
+                                const navKey = `fav:${id}`;
                                 const isDisabled = disabled || !!entry.disabled;
+                                const isFocused = navKey === highlightedKey;
                                 return (
                                     <button
-                                        key={`fav-${id}`}
-                                        class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
+                                        key={navKey}
+                                        data-nav-key={navKey}
+                                        class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${isFocused ? "am-bpmn-button--focused" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
                                         disabled={isDisabled}
                                         onClick={(e) =>
                                             onSelect(entry.action, e as unknown as Event)
@@ -179,7 +111,7 @@ export function BpmnElementPalette({
                 )}
 
                 {/* Regular groups */}
-                {processedGroups.map((group) => {
+                {groups.map((group) => {
                     const visibleEntries = group.entries.filter((e) => !e.hidden);
                     if (visibleEntries.length === 0) {
                         return null;
@@ -189,11 +121,14 @@ export function BpmnElementPalette({
                             {expanded && <h4 class="am-bpmn-group-title">{group.name}</h4>}
                             <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                                 {visibleEntries.map(({ id, entry, disabled }) => {
+                                    const navKey = `grp:${group.id}:${id}`;
                                     const isDisabled = disabled || !!entry.disabled;
+                                    const isFocused = navKey === highlightedKey;
                                     return (
                                         <button
-                                            key={id}
-                                            class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
+                                            key={navKey}
+                                            data-nav-key={navKey}
+                                            class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${isFocused ? "am-bpmn-button--focused" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
                                             disabled={isDisabled}
                                             onClick={(e) =>
                                                 onSelect(entry.action, e as unknown as Event)

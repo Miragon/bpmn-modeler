@@ -120,12 +120,25 @@ class AppendMenuOverride {
                 customMenuOpen = false;
                 closeCustomMenu = null;
                 executeEntryAction(action, event);
+                // Return focus to the canvas so keyboard-driven modelling chains
+                // without the mouse (A → nav → Enter → A → …); on unmount focus
+                // would otherwise fall to <body>. Deferred a microtask and
+                // gated on directEditing so we never steal the caret from a
+                // label-edit session that appending may open.
+                queueMicrotask(() => {
+                    const directEditing = injector.get("directEditing", false);
+                    if (directEditing?.isActive?.()) {
+                        return;
+                    }
+                    canvas.focus();
+                });
             };
 
             const handleCancel = () => {
                 close();
                 customMenuOpen = false;
                 closeCustomMenu = null;
+                canvas.focus();
             };
 
             const canvasBounds = canvasContainer.getBoundingClientRect();

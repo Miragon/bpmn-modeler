@@ -1,37 +1,30 @@
 /**
  * Left panel of the append menu overlay.
  *
- * Displays a filterable list of element template entries with category
- * filter chips.  Hovering or focusing a card displays a floating
- * {@link TemplateHoverCard} to the right of the panel.
+ * A thin renderer of the already-filtered template list. Filtering and
+ * keyboard-highlight state live in the parent overlay (see
+ * {@link ../filtering} and {@link ../navigation}) so both columns share one
+ * source of truth; this panel only renders cards and the floating
+ * {@link TemplateHoverCard}.
  */
-import { useMemo, useEffect, useRef, useState, useCallback } from "preact/hooks";
+import { useEffect, useRef, useState, useMemo, useCallback } from "preact/hooks";
 import type { EnrichedTemplateEntry } from "../types";
+import type { TemplateCategory } from "../filtering";
 import { ExpandableTemplateCard } from "./ExpandableTemplateCard";
 import { TemplateHoverCard } from "./TemplateHoverCard";
 
 // Delay in ms before the hover card hides after mouse leave.
 const HOVER_HIDE_DELAY = 150;
 
-/**
- * Converts a BPMN type string to a human-readable label for search matching.
- *
- * E.g. `"bpmn:ServiceTask"` → `"service task"`,
- *      `"bpmn:CallActivity"` → `"call activity"`.
- *
- * @param bpmnType The BPMN type string.
- * @returns A lowercase, space-separated label.
- */
-function bpmnTypeToLabel(bpmnType: string): string {
-    const shortName = bpmnType.split(":")[1] ?? bpmnType;
-    return shortName.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
-}
-
 interface TemplatePanelProps {
     entries: EnrichedTemplateEntry[];
+    categories: TemplateCategory[];
+    /** Non-empty when a search is active — drives only the empty-state hint. */
     search: string;
     activeCategory: string | null;
     selectedTemplateId: string | null;
+    /** Index of the keyboard-highlighted card, or -1 when in the other column. */
+    highlightedIndex: number;
     onCategoryChange: (cat: string | null) => void;
     onTemplateClick: (enriched: EnrichedTemplateEntry, event: Event) => void;
 }
@@ -39,114 +32,56 @@ interface TemplatePanelProps {
 /**
  * Renders the template list panel with category chips and cards.
  *
- * Search filtering matches against template name, description, keywords,
- * category name, and the human-readable names of the template's
- * `appliesTo` types (e.g. searching "service task" finds templates that
- * apply to `bpmn:ServiceTask`).
+ * The keyboard highlight (owned by the overlay) drives the focused card, the
+ * scroll-into-view, and — as a fallback when the mouse isn't hovering — the
+ * floating hover card, so arrow-key navigation always previews the detail card.
  *
- * A floating hover card appears to the right of the panel when a card
- * is hovered or keyboard-focused, showing detailed template info without
- * causing layout shifts in the list.
- *
- * @param props.entries Enriched template entries to display.
- * @param props.search Current search query (from the shared search bar).
+ * @param props.entries Already-filtered template entries to display.
+ * @param props.categories All categories (from the unfiltered list) for chips.
+ * @param props.search Current search query (empty-state hint only).
  * @param props.activeCategory Currently selected category filter, or null.
- * @param props.selectedTemplateId ID of the currently selected multi-type template, or null.
+ * @param props.selectedTemplateId ID of the selected multi-type template, or null.
+ * @param props.highlightedIndex Keyboard-highlighted card index, or -1.
  * @param props.onCategoryChange Callback when a category chip is toggled.
  * @param props.onTemplateClick Callback when a template card is clicked.
  */
 export function TemplatePanel({
     entries,
+    categories,
     search,
     activeCategory,
     selectedTemplateId,
+    highlightedIndex,
     onCategoryChange,
     onTemplateClick,
 }: TemplatePanelProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
-    const [focusIndex, setFocusIndex] = useState(-1);
     const [hoveredIndex, setHoveredIndex] = useState(-1);
     const hideTimeoutRef = useRef<number>(0);
 
     /**
      * The index whose hover card is currently displayed.
-     * Mouse hover takes priority; keyboard focus is used as fallback.
+     * Mouse hover takes priority; the keyboard highlight is the fallback.
      */
-    const activePreviewIndex = hoveredIndex >= 0 ? hoveredIndex : focusIndex;
-
-    // Extract unique categories from the full ElementTemplate objects.
-    const categories = useMemo(() => {
-        const seen = new Map<string, string>();
-        for (const { template } of entries) {
-            if (template?.category) {
-                seen.set(template.category.id, template.category.name);
-            }
-        }
-        return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
-    }, [entries]);
-
-    // Filter templates by search query and active category.
-    const filtered = useMemo(() => {
-        const q = search.toLowerCase().trim();
-        return entries.filter(({ entry, template }) => {
-            if (activeCategory && template?.category?.id !== activeCategory) {
-                return false;
-            }
-            if (!q) {
-                return true;
-            }
-            // Build searchable text from name, description, keywords,
-            // category, and appliesTo type labels.
-            const appliesToLabels = (template?.appliesTo ?? []).map(bpmnTypeToLabel);
-            const haystack = [
-                entry.label,
-                entry.description ?? "",
-                template?.category?.name ?? "",
-                ...(entry.search ?? []),
-                ...appliesToLabels,
-            ]
-                .join(" ")
-                .toLowerCase();
-            return haystack.includes(q);
-        });
-    }, [entries, search, activeCategory]);
+    const activePreviewIndex = hoveredIndex >= 0 ? hoveredIndex : highlightedIndex;
 
     /**
-     * Reset focus and hover when filter results change.
+     * Drop stale mouse-hover state when the filtered list changes.
      */
     useEffect(() => {
-        setFocusIndex(-1);
         setHoveredIndex(-1);
-    }, [filtered.length]);
-
-    // Keyboard navigation within the template list.
-    const handleKeyDown = useCallback(
-        (e: KeyboardEvent) => {
-            if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setFocusIndex((prev) => Math.min(prev + 1, filtered.length - 1));
-            } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setFocusIndex((prev) => Math.max(prev - 1, 0));
-            } else if (e.key === "Enter" && focusIndex >= 0 && focusIndex < filtered.length) {
-                e.preventDefault();
-                const focused = filtered[focusIndex];
-                onTemplateClick(focused, e as unknown as Event);
-            }
-        },
-        [filtered, focusIndex, onTemplateClick],
-    );
+    }, [entries.length]);
 
     /**
-     * Scroll focused item into view.
+     * Scroll the keyboard-highlighted item into view.
      */
     useEffect(() => {
-        if (focusIndex >= 0 && listRef.current) {
+        if (highlightedIndex >= 0 && listRef.current) {
             const items = listRef.current.querySelectorAll(".am-template-card");
-            items[focusIndex]?.scrollIntoView({ block: "nearest" });
+            items[highlightedIndex]?.scrollIntoView({ block: "nearest" });
         }
-    }, [focusIndex]);
+    }, [highlightedIndex]);
 
     /**
      * Handles hover state changes from individual cards.
@@ -199,10 +134,10 @@ export function TemplatePanel({
         return { top, left, maxHeight };
     }, [activePreviewIndex]);
 
-    const activeEntry = activePreviewIndex >= 0 ? filtered[activePreviewIndex] : null;
+    const activeEntry = activePreviewIndex >= 0 ? entries[activePreviewIndex] : null;
 
     return (
-        <div class="am-template-panel" ref={panelRef} onKeyDown={handleKeyDown}>
+        <div class="am-template-panel" ref={panelRef}>
             {/* Category filter chips */}
             {categories.length > 0 && (
                 <div class="am-filters">
@@ -230,17 +165,17 @@ export function TemplatePanel({
 
             {/* Template list */}
             <div class="am-template-list" ref={listRef}>
-                {filtered.length === 0 ? (
+                {entries.length === 0 ? (
                     <div class="am-empty">
                         <p class="am-empty-text">No templates found</p>
                         {search && <p class="am-empty-hint">Try a different search term</p>}
                     </div>
                 ) : (
-                    filtered.map((enriched, idx) => (
+                    entries.map((enriched, idx) => (
                         <ExpandableTemplateCard
                             key={enriched.id}
                             enrichedEntry={enriched}
-                            focused={focusIndex === idx}
+                            focused={highlightedIndex === idx}
                             selected={selectedTemplateId === enriched.id}
                             onClick={(event) => onTemplateClick(enriched, event)}
                             onHoverChange={(hovered) => handleCardHover(idx, hovered)}

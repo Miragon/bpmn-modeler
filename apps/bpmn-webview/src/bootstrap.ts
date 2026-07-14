@@ -48,6 +48,7 @@ import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-model
 import {
     BpmnModeler,
     installContentEditableClipboardPolyfill,
+    installKeyboardFocus,
     UnsupportedEngineError,
 } from "./app";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
@@ -359,6 +360,17 @@ async function initializeModeler(
                 .getService<{ trigger(action: string): void }>("editorActions")
                 .trigger(action),
         );
+        // Escape re-homes focus on the canvas so keyboard-driven modelling
+        // (A/N/arrows, all owned by bpmn-js's canvas-scoped Keyboard service)
+        // works even when focus sits in the properties panel or a search field.
+        // Services are resolved lazily inside the closures because the modeler
+        // exists by the time an Escape can fire.
+        installKeyboardFocus({
+            focusCanvas: () => bpmnModeler.getService<{ focus(): void }>("canvas").focus(),
+            isSearchPadOpen: () =>
+                bpmnModeler.getService<{ isOpen(): boolean }>("searchPad").isOpen(),
+            closeSearchPad: () => bpmnModeler.getService<{ close(): void }>("searchPad").close(),
+        });
         // Forward the modeler's non-fatal warnings (element-not-found, missing
         // inline script) to the output channel — they were console-only before.
         bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
