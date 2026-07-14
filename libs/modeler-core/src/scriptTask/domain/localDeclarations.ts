@@ -13,6 +13,14 @@
  * multi-declarators (`def a, b`), destructuring, dotted type names
  * (`java.util.List x`), function parameters, and declaration-shaped text
  * inside block comments or multiline strings.
+ *
+ * Groovy variable declarations additionally carry an inferred `typeHint`
+ * (see {@link inferGroovyTypeHint}) so member completion can resolve a
+ * cast-typed local (`def node = … as SpinJsonNode`). Accepted gaps there:
+ * dotted type names in casts (`as org.camunda.spin.json.SpinJsonNode`), a
+ * cast not at end of line (`(a as SpinJsonNode).prop(…)`), a later typed
+ * re-declaration of a name first declared untyped (dedup keeps the first),
+ * and a bare `def x` cast on a separate later assignment line.
  */
 
 /** A single identifier declared in the script body. */
@@ -24,6 +32,12 @@ export interface LocalDeclaration {
      */
     readonly line: number;
     readonly kind: "variable" | "function";
+    /**
+     * Inferred Groovy type name (`SpinJsonNode`, `String`, `List`, …), when the
+     * declaration line reveals one. Feeds typed-member completion; absent for
+     * every non-Groovy language and for untyped Groovy declarations.
+     */
+    readonly typeHint?: string;
 }
 
 interface DeclarationMatcher {
@@ -92,6 +106,38 @@ const MATCHERS: Record<string, readonly DeclarationMatcher[]> = {
 };
 
 /**
+ * Infers a Groovy type name from a variable-declaration line so member
+ * completion can resolve a cast-typed local. Groovy-only: it is the sole
+ * scripting language whose runtime resolves a Java-style cast to a concrete
+ * SPIN type the built-in catalog knows.
+ *
+ * Priority follows Groovy runtime semantics:
+ *  1. A trailing `as` cast is applied last at runtime, so it wins over a
+ *     declared type (`SpinJsonNode n = x as String` yields a `String`).
+ *  2. The leading type of a typed declaration (`List<String> xs = …` → `List`).
+ *  3. A SPIN initializer (`= S(` / `= JSON(`), mirroring the producer heuristic
+ *     in `processVariables.ts`.
+ *
+ * The name is stamped verbatim without validating it against the catalog:
+ * `methodsForType()` returns `[]` for an unknown or primitive type, so a
+ * harmless `String x = …` typing costs nothing.
+ */
+function inferGroovyTypeHint(lineText: string): string | undefined {
+    const cast = /\bas\s+([A-Z]\w*)\s*;?\s*$/.exec(lineText);
+    if (cast) {
+        return cast[1];
+    }
+    const typed = /^\s*([A-Z]\w*)(?:<[^>]*>)?\s+[A-Za-z_$][\w$]*\s*=(?!=)/.exec(lineText);
+    if (typed) {
+        return typed[1];
+    }
+    if (/=\s*(?:S|JSON)\s*\(/.test(lineText)) {
+        return "SpinJsonNode";
+    }
+    return undefined;
+}
+
+/**
  * Collects the identifiers declared in `scriptText` for the given VS Code
  * language id. Duplicate names collapse to their first declaration (stable
  * completion order, and the self-suppression line stays the earliest one).
@@ -122,7 +168,11 @@ export function collectLocalDeclarations(
             }
             const name = match[1];
             if (!STOP_WORDS.has(name) && !byName.has(name)) {
-                byName.set(name, { name, line, kind });
+                const typeHint =
+                    kind === "variable" && languageId === "groovy"
+                        ? inferGroovyTypeHint(text)
+                        : undefined;
+                byName.set(name, { name, line, kind, typeHint });
             }
             // One declaration per line: the first (most specific) matcher wins.
             break;

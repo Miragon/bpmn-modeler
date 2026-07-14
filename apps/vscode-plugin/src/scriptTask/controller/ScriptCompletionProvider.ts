@@ -75,11 +75,13 @@ export interface OpenScriptRegistry {
  * 1. **Variable-name completion**: triggered inside the string argument of a
  *    `getVariable`/`setVariable`/… call. Returns the editor's process
  *    variables (from {@link ScriptVariableStore}).
- * 2. **Member completion**: triggered after a `.` following a known bean, or
+ * 2. **Member completion**: triggered after a `.` following a known bean, a
+ *    cast-typed local (`def node = … as SpinJsonNode`, Groovy/Python/Ruby), or
  *    a process variable carrying a `typeHint` whose catalog type exposes
  *    methods (e.g. a SPIN-typed `var node = S(…)`, gated by `scripting.spin`).
- *    Returns the methods rendered as snippets so the cursor lands inside the
- *    parentheses with parameter placeholders.
+ *    A typed local shadows a same-named process variable, matching runtime
+ *    scoping. Returns the methods rendered as snippets so the cursor lands
+ *    inside the parentheses with parameter placeholders.
  * 3. **Root completion**: returns the SPIN global functions (`S`/`JSON`, when
  *    the `scripting.spin` setting is on), the bean names, the process
  *    variables, and identifiers declared in the script body (slim lexical
@@ -175,11 +177,24 @@ export class ScriptCompletionProvider implements CompletionItemProvider {
             if (bean) {
                 return jsAmbient ? [] : methodsForBean(bean).map(methodToCompletion);
             }
-            // Not a bean: a producer-heuristic typeHint (e.g. SpinJsonNode) may
-            // resolve. Gated by the same setting as the SPIN globals —
-            // SpinJsonNode is the only type-method surface today, so the flag
-            // governs it end to end.
+            // Not a bean: a cast-typed local or a producer-heuristic process
+            // variable (e.g. SpinJsonNode) may resolve. Gated by the same
+            // setting as the SPIN globals — SpinJsonNode is the only type-method
+            // surface today, so the flag governs it end to end.
             if (this.settings.getScriptingSpin()) {
+                // A typed local wins over a same-named store variable: a `def`
+                // re-declaration shadows the process-variable binding at runtime
+                // in Groovy, so the lexically visible cast is authoritative.
+                // Skipped for JS — tsserver owns JS locals via `camunda.d.ts`.
+                if (!jsAmbient) {
+                    const local = collectLocalDeclarations(
+                        document.getText(),
+                        document.languageId,
+                    ).find((decl) => decl.name === memberAccess && decl.typeHint);
+                    if (local?.typeHint) {
+                        return methodsForType(local.typeHint).map(methodToCompletion);
+                    }
+                }
                 const variable = this.variablesFor(document).find((v) => v.name === memberAccess);
                 if (variable?.typeHint) {
                     return methodsForType(variable.typeHint).map(methodToCompletion);
@@ -289,7 +304,8 @@ function localToCompletion(decl: LocalDeclaration): CompletionItem {
         decl.name,
         decl.kind === "function" ? CompletionItemKind.Function : CompletionItemKind.Variable,
     );
-    item.detail = decl.kind === "function" ? "local function" : "local variable";
+    // A cast-typed local reads like a typed process variable at root.
+    item.detail = decl.kind === "function" ? "local function" : (decl.typeHint ?? "local variable");
     return item;
 }
 

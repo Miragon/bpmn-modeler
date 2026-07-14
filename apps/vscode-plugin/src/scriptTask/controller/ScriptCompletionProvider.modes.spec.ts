@@ -204,6 +204,59 @@ describe("ScriptCompletionProvider modes", () => {
         expect(complete(provider, "node.")).toEqual([]);
     });
 
+    describe("member access on a cast-typed local", () => {
+        // The user's exact report: a `def` local cast to a SPIN type.
+        const SNIPPET =
+            "import org.camunda.spin.json.SpinJsonNode\n" +
+            'def myProcessVar = execution.getVariable("myVar") as SpinJsonNode\n' +
+            "myProcessVar.";
+
+        it("resolves SpinJsonNode methods after the dot", () => {
+            const provider = buildProvider(storeWith());
+            const labels = complete(provider, "myProcessVar.", {
+                scriptText: SNIPPET,
+                line: 2,
+            });
+            expect(labels).toContain("prop");
+            expect(labels).toContain("stringValue");
+            expect(labels).toContain("mapTo");
+        });
+
+        it("returns nothing when the SPIN setting is off", () => {
+            const provider = buildProvider(storeWith(), false);
+            expect(complete(provider, "myProcessVar.", { scriptText: SNIPPET, line: 2 })).toEqual(
+                [],
+            );
+        });
+
+        it("returns nothing for a cast to a type with no catalog methods", () => {
+            const provider = buildProvider(storeWith());
+            const script = 'def label = execution.getVariable("v") as String\nlabel.';
+            expect(complete(provider, "label.", { scriptText: script, line: 1 })).toEqual([]);
+        });
+
+        it("leaves a javascript local to tsserver (no SPIN methods)", () => {
+            const provider = buildProvider(storeWith());
+            const script = "const node = getSpin()\nnode.";
+            expect(
+                complete(provider, "node.", {
+                    languageId: "javascript",
+                    scriptText: script,
+                    line: 1,
+                }),
+            ).toEqual([]);
+        });
+
+        it("lets a typed local win over an untyped same-named store variable", () => {
+            const provider = buildProvider(storeWith(variable("myProcessVar")));
+            const labels = complete(provider, "myProcessVar.", {
+                scriptText: SNIPPET,
+                line: 2,
+            });
+            expect(labels).toContain("prop");
+        });
+    });
+
     describe("javascript trim — tsserver owns the static surface", () => {
         it("root mode offers only process variables, no beans or SPIN globals", () => {
             const provider = buildProvider(storeWith(variable("amount")));
