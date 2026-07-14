@@ -123,7 +123,11 @@ const MATCHERS: Record<string, readonly DeclarationMatcher[]> = {
  * harmless `String x = …` typing costs nothing.
  */
 function inferGroovyTypeHint(lineText: string): string | undefined {
-    const cast = /\bas\s+([A-Z]\w*)\s*;?\s*$/.exec(lineText);
+    // Trailing whitespace/semicolon is one `[\s;]*` class, not `\s*;?\s*`: two
+    // adjacent `\s*` groups let a long space run partition ambiguously, the
+    // polynomial-ReDoS shape CodeQL flags. `\w` and `[\s;]` are disjoint, so
+    // this form is linear.
+    const cast = /\bas\s+([A-Z]\w*)[\s;]*$/.exec(lineText);
     if (cast) {
         return cast[1];
     }
