@@ -109,7 +109,7 @@ describe("BridgeScriptEditor keystroke debounce", () => {
         expect(store.postMessage).not.toHaveBeenCalled();
     });
 
-    it("flushes the pending keystroke before deleting on didClose", async () => {
+    it("flushes the pending keystroke before releasing on didClose", async () => {
         const { editor, store, workspace } = createEditor();
 
         editor.didChange(SCRIPT_ID, "last");
@@ -121,7 +121,10 @@ describe("BridgeScriptEditor keystroke debounce", () => {
         expect(posts[0][1]).toEqual(
             new UpdateScriptContentQuery(ELEMENT_ID, "script-task", undefined, "last"),
         );
-        expect(workspace.deleteDirectory).toHaveBeenCalledTimes(1);
+        // A user-initiated close must not delete the file (a re-open has to work);
+        // it only drops the path entry so `open` rewrites fresh content.
+        expect(workspace.deleteDirectory).not.toHaveBeenCalled();
+        expect((editor as unknown as Internals).filePathByScript.has(SCRIPT_ID)).toBe(false);
     });
 
     it("cancels a pending keystroke when the model overwrites the tab", async () => {

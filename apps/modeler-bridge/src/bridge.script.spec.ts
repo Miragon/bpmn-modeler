@@ -581,7 +581,7 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(await fs.readFile(gitignore, "utf8")).toBe("*\n");
     });
 
-    it("deletes the script's directory when the host reports the tab closed", async () => {
+    it("keeps the script file on a user close and rewrites it on reopen", async () => {
         const { rpc, frames, editorId } = await setup();
         await feedOpen(rpc, editorId, {
             elementId: "Task_1",
@@ -592,6 +592,7 @@ describe("bridge script editor (real core over a fake transport)", () => {
             content: "x = 1",
         });
         const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        const filePath = open.params.filePath;
 
         await rpc.handleLine(
             JSON.stringify({
@@ -599,8 +600,25 @@ describe("bridge script editor (real core over a fake transport)", () => {
                 params: { scriptId: open.params.scriptId },
             }),
         );
+        await settle();
 
-        await waitForDeletion(dirname(open.params.filePath));
+        // A user-initiated close must leave the file on disk so a re-open works.
+        await fs.access(filePath);
+
+        // Reopen with fresh model content: the path entry was dropped on close,
+        // so `open` no longer sees it as already-open and rewrites the file.
+        frames.length = 0;
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "groovy",
+            content: "x = 2",
+        });
+        const reopen = await waitForFrame(frames, (f) => f.method === "script/open");
+        expect(reopen.params.filePath).toBe(filePath);
+        expect(await fs.readFile(filePath, "utf8")).toBe("x = 2");
     });
 
     it("forwards a model-side content change as script/updateContent", async () => {

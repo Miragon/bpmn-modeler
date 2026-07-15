@@ -162,9 +162,15 @@ sequenceDiagram
     end
     ScriptSvc->>ScriptFs: writeFile(<base>/tmp/scripting/.../filename.ext, content)
     Note over ScriptSvc,ScriptFs: JavaScript also gets camunda.d.ts + jsconfig.json
-    ScriptSvc->>ExtHost: workspace.openTextDocument + showTextDocument(ViewColumn.Beside)
-    ExtHost-->>User: Editor tab opens beside the diagram
+    ScriptSvc->>ExtHost: workspace.openTextDocument + showTextDocument(ViewColumn.Beside, preview:false)
+    ExtHost-->>User: Pinned editor tab opens beside the diagram
 ```
+
+Scripts open as **pinned** tabs (`preview: false`). A preview tab is reused by
+the next open, so a batch open ("Open all script tasks") would have each script
+replace the previous one — and each replacement arrives as a tab *close* that
+would otherwise tear down the earlier scripts. Pinning makes the batch-opened
+tabs coexist.
 
 ### Live edit propagation
 
@@ -286,12 +292,16 @@ Kotlin completion contributors; they work on real files unchanged.
 Model→document overwrites travel as a `script/updateContent` RPC; the Kotlin
 side applies them in a `WriteCommandAction` behind a `programmaticEdits` echo
 guard (the document listener would otherwise bounce the overwrite back as
-`script/didChange`). File deletion is ack-ordered: the host flush-saves the
-closing document and reports every close (user-initiated or requested via
-`script/close`) as `script/didClose`, and only that ack deletes the slug dir
-— an eager delete would race the flush-save, which would write the file right
-back as an orphan. The editorHash dir falls with the last ack on
-`disposeEditor`; a once-per-base-dir orphan sweep + `.gitignore` before the
+`script/didChange`). A **user-initiated** `script/didClose` deletes nothing: it
+drops the `filePathByScript` entry (so a re-open rewrites the file with fresh
+model content instead of revealing a stale tab) and releases the lock, but the
+file stays on disk — matching the VS Code host. File deletion is ack-ordered
+only for closes the core *requested* via `script/close` (element deletion and
+`disposeEditor`): the host flush-saves the closing document first, and only the
+`script/didClose` ack runs the deferred delete — an eager delete would race the
+flush-save, which would write the file right back as an orphan. The editorHash
+dir falls with the last ack on `disposeEditor` (covering files whose tabs were
+closed earlier); a once-per-base-dir orphan sweep + `.gitignore` before the
 first write cover lost acks and crashes.
 
 ## Completion provider
@@ -331,13 +341,19 @@ types, return types, and human-readable descriptions.
 
 ## Cleanup
 
+A tab close is **not** a delete. Files are removed from disk only on element
+deletion, editor dispose (the whole `<editorHash>` dir), and the activation
+orphan sweep — never when the user just closes a script tab. Deleting on close
+broke re-open (the file was already gone) and, before scripts were pinned, let
+one closing tab's cleanup delete its siblings.
+
 | Trigger | Path | Behaviour |
 |---|---|---|
-| User closes script tab | `onTabsChanged` → `cleanupClosedScript` | Removes from `openDocuments`; deletes the slug directory on disk (script + JS ambient files) so a re-open picks up fresh content |
+| User closes script tab | `onTabsChanged` → `cleanupClosedScript` → `performCleanup` | Removes from `openDocuments`, drops the sender, releases the lock — **the file stays on disk**; a re-open rewrites it with the current model content |
 | Tab moves between groups | Same path | No-op — `isUriOpenInAnyTab` detects the move (close + open pair) |
 | Tab close while BPMN webview hidden | Cleanup is **deferred** | `pendingResync` carries the unwritten edit — `performCleanup` runs only after `resyncOpenDocuments` has replayed |
-| Element deleted while its tab is open | `applyModelChange(content: undefined)` | Save-then-close the tab, delete the slug directory, release the lock |
-| BPMN editor disposed | `disposeForEditor` | Tracking state cleared synchronously; then (async) dirty buffers saved, orphaned tabs closed, and the `<editorHash>` directory deleted |
+| Element deleted while its tab is open | `applyModelChange(content: undefined)` | Save-then-close the tab, **delete** the slug directory, release the lock |
+| BPMN editor disposed | `disposeForEditor` | Tracking state cleared synchronously; then (async) dirty buffers saved, orphaned tabs closed, and the `<editorHash>` directory deleted — this also covers files whose tabs were closed earlier |
 | Crashed / killed window | `ScriptFileStore.sweepOrphans()` at activation | Deletes every workspace folder's `tmp/scripting` dir plus the os-tmpdir fallback |
 
 ## Gotchas
@@ -362,10 +378,19 @@ types, return types, and human-readable descriptions.
   re-opens). If we keyed cleanup off document close, a quick close-reopen
   with a different language would resurface the cached doc with stale
   content.
-- **Cleanup must be deferred when the webview is hidden.** The buffered
-  edit's only copy lives in the (about-to-be-deleted) buffer/file. Cleaning
-  up before the resync runs drops the keystrokes silently.
-  `pendingResync.has(editorId)` guards `performCleanup`.
+- **Cleanup must be deferred when the webview is hidden.** A tab close
+  releases the `openDocuments` entry — but that entry is exactly what
+  `resyncOpenDocuments` iterates to replay a hidden edit. Dropping it before
+  the resync runs would lose the buffered keystrokes silently (the buffer is
+  gone with the tab, and its last save is the only copy).
+  `pendingResync.has(editorId)` guards `performCleanup` so the entry survives
+  until the replay finishes.
+- **A closed script's file can lag the model.** `applyModelChange` is a no-op
+  once the tab is gone (the `openDocuments` entry was released), so a
+  canvas undo/redo made after a script tab closed does not touch the stale
+  on-disk file. It is refreshed on the next re-open (which rewrites it from
+  current model content) or removed on editor dispose. This mirrors the
+  no-per-keystroke-disk-mirror stance: disk trails the model by design.
 - **Slug folder is the source of truth for `ScriptKind`.** `parseScriptPath`
   anchors on `tmp/scripting` and reads the slug segment, never the
   filename. The filename is purely cosmetic for the tab strip.

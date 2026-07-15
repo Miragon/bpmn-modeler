@@ -38,10 +38,11 @@ import java.util.concurrent.ConcurrentHashMap
  *   tracking is released when the project's [CoreProcess] is disposed.
  * @param onChange Fired with the buffer text on each keystroke in a tracked tab.
  * @param onClosed Fired once whenever a tab is closed — by the user, or as the
- *   completion ack of our own [closeScript]. The core deletes the on-disk file
- *   only on this signal, so it always lands *after* the flush-save below; an
- *   eager core-side delete would race the save, which would write the file
- *   right back as an orphan.
+ *   completion ack of our own [closeScript]. A user close only releases the
+ *   core's tracking (the file survives so a re-open can rewrite it); the core
+ *   deletes on element deletion or editor dispose, whose [closeScript] ack
+ *   always lands *after* the flush-save below, so an eager delete can't race
+ *   the save and write the file right back as an orphan.
  */
 class ScriptEditorManager(
     private val project: Project,
@@ -194,10 +195,11 @@ class ScriptEditorManager(
     }
 
     /**
-     * Closes a script tab on the core's behalf (model-side deletion or BPMN
-     * editor dispose); no user-close semantics. Flushes, closes, then acks via
+     * Closes a script tab on the core's behalf (element deletion or BPMN editor
+     * dispose); no user-close semantics. Flushes, closes, then acks via
      * [onClosed] — only that ordering lets the core delete the on-disk file
-     * without racing the flush-save.
+     * without racing the flush-save. (A user-initiated close deletes nothing,
+     * so it has no such ordering constraint.)
      */
     fun closeScript(scriptId: String) {
         val tracked = scripts[scriptId]

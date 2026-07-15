@@ -144,8 +144,9 @@ export class ScriptTaskService {
     /**
      * Registers the workspace listeners that drive the script lifecycle:
      * edits in a script tab are propagated back to the BPMN modeler, and tab
-     * closures clean up tracking state and the on-disk file so a re-open
-     * always reads the current BPMN content.
+     * closures release tracking state (the file stays on disk — it is deleted
+     * only on element deletion or editor dispose) so a re-open rewrites the
+     * current BPMN content over it.
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
@@ -230,7 +231,11 @@ export class ScriptTaskService {
          */
         if (this.openDocuments.has(scriptUri.path)) {
             const doc = await workspace.openTextDocument(scriptUri);
-            await window.showTextDocument(doc, ViewColumn.Beside, true);
+            await window.showTextDocument(doc, {
+                viewColumn: ViewColumn.Beside,
+                preserveFocus: true,
+                preview: false,
+            });
             return;
         }
 
@@ -253,7 +258,14 @@ export class ScriptTaskService {
 
         const doc = await workspace.openTextDocument(scriptUri);
         await languages.setTextDocumentLanguage(doc, lang.languageId);
-        await window.showTextDocument(doc, ViewColumn.Beside, true);
+        // preview:false pins the tab so a batch open ("Open all script tasks")
+        // doesn't self-replace — a preview tab is reused by the next open, which
+        // would arrive as a close of the earlier script and delete its siblings.
+        await window.showTextDocument(doc, {
+            viewColumn: ViewColumn.Beside,
+            preserveFocus: true,
+            preview: false,
+        });
 
         this.openDocuments.set(scriptUri.path, {
             editorId,
@@ -635,9 +647,9 @@ export class ScriptTaskService {
     private onTabsChanged(event: TabChangeEvent): void {
         for (const tab of event.closed) {
             if (tab.input instanceof TabInputText && this.openDocuments.has(tab.input.uri.path)) {
-                // Cleanup is async now (it flushes the pending keystroke before
-                // deleting); fire-and-forget with its own error sink since the
-                // tab handler can't be awaited.
+                // Cleanup is async (it flushes the pending keystroke before
+                // releasing tracking); fire-and-forget with its own error sink
+                // since the tab handler can't be awaited.
                 void this.cleanupClosedScript(tab.input.uri).catch((error) =>
                     this.notifier.logError(error as Error),
                 );
@@ -712,17 +724,17 @@ export class ScriptTaskService {
         }
 
         // The last <300 ms of typing is still sitting in the debounced sender;
-        // force it into the model before deleting the only copy. A flush against
-        // a hidden webview arms `pendingResync` *asynchronously*, so the
+        // force it into the model before dropping tracking. A flush against a
+        // hidden webview arms `pendingResync` *asynchronously*, so the
         // pendingResync re-check below MUST run after the await — a pre-await
-        // check would race past it and delete the buffer.
+        // check would race past it and drop the still-unreplayed buffer.
         await this.contentSenders.get(uri.path)?.flush();
 
         /**
          * Real close, but the BPMN webview was hidden when the user typed
          * — `pendingResync` carries the buffered edit, and the buffer (or
          * its last save) is the only copy. Defer cleanup until the resync
-         * runs so it can replay before we delete the file.
+         * runs so it can replay before we forget the entry.
          */
         if (this.pendingResync.has(entry.editorId)) {
             return;
@@ -731,8 +743,16 @@ export class ScriptTaskService {
         this.performCleanup(uri);
     }
 
+    /**
+     * Releases tracking for a closed script tab without touching the file on
+     * disk. The file survives a tab close on purpose: reopening the same script
+     * must succeed, and its content is refreshed from the current model on
+     * reopen ({@link openScriptEditor} rewrites through the rewrite branch once
+     * the path is gone from {@link openDocuments}). Deletion happens only on
+     * element deletion, editor dispose, and the activation orphan sweep.
+     */
     private performCleanup(uri: Uri): void {
-        // Capture the owning editor before deleting so the lock broadcast below
+        // Capture the owning editor before removing so the lock broadcast below
         // reflects the removal — the entry is gone by the time we post.
         const editorId = this.openDocuments.get(uri.path)?.editorId;
         this.openDocuments.delete(uri.path);
@@ -741,15 +761,15 @@ export class ScriptTaskService {
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
         }
-
-        void this.deleteScriptDir(uri);
     }
 
     /**
      * Deletes the script's slug directory — the file itself plus, for
-     * JavaScript, its `camunda.d.ts` and `jsconfig.json` siblings — so a
-     * closed script leaves nothing on disk and a re-open always starts from
-     * the current BPMN content.
+     * JavaScript, its `camunda.d.ts` and `jsconfig.json` siblings. Called only
+     * when the script surface itself is gone (element deletion via
+     * {@link applyModelChange}); a plain tab close leaves the file in place so a
+     * re-open can succeed and rewrite it from the current model. Editor dispose
+     * deletes the whole `<editorHash>` dir separately.
      */
     private async deleteScriptDir(uri: Uri): Promise<void> {
         const dir = posix.dirname(uri.path);

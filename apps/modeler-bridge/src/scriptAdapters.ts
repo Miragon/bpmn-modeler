@@ -514,9 +514,12 @@ export class BridgeScriptEditor {
      * Host reported a script tab is closed. For a close *we* requested this is
      * the ack that the host's flush-save finished — run the deferred deletion
      * (tracking and the lock broadcast were already handled at request time).
-     * For a user-initiated close, drop tracking so a re-open re-reads the
-     * current BPMN content, release the lock, and delete the file — the host
-     * flushed the document before sending this.
+     * For a user-initiated close, drop tracking and release the lock but leave
+     * the file on disk: a re-open must succeed, and dropping the
+     * `filePathByScript` entry forces `open` to rewrite the file with the
+     * current model content (IntelliJ reads it from disk, so a stale entry
+     * would show stale bytes). The file is deleted only on element deletion or
+     * editor dispose.
      */
     async didClose(scriptId: string): Promise<void> {
         // Force the last <300 ms of typing into the model before tearing the
@@ -532,10 +535,12 @@ export class BridgeScriptEditor {
             pendingAck();
             return;
         }
-        // Capture the owner before deleting so the lock release reflects the removal.
+        // Capture the owner before removing so the lock release reflects it.
         const editorId = this.scripts.get(scriptId)?.editorId;
         this.scripts.delete(scriptId);
-        void this.deleteScriptDir(scriptId);
+        // Drop the path entry (not the file) so a re-open rewrites fresh content
+        // rather than revealing a stale tab; the file survives the close.
+        this.filePathByScript.delete(scriptId);
         if (editorId !== undefined) {
             this.broadcastOpenScripts(editorId);
         }
