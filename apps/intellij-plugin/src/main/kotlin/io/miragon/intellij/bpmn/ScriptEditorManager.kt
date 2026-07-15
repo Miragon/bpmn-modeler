@@ -116,6 +116,9 @@ class ScriptEditorManager(
             file.putUserData(SCRIPT_COMPLETION_KEY, completion)
             // Stable for the tab's lifetime (updateVariables swaps only the catalog),
             // so the "Declare in variable manifest" intention can address this script.
+            // Set *before* openFile so ScriptRouter's adoption listener sees the key
+            // on the resulting fileOpened and skips it as our own open, not an
+            // external one to re-report as script/didOpenExternal.
             file.putUserData(SCRIPT_ID_KEY, scriptId)
             manager.openFile(file, true)
 

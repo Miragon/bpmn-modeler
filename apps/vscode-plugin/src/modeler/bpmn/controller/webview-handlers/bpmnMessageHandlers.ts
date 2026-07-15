@@ -13,7 +13,14 @@ import {
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { EditorSessionStore, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
+import { posix } from "path";
+
+import {
+    EditorSessionStore,
+    ScriptVariableStore,
+    SettingsPort,
+    TMP_SCRIPTING_SEGMENT,
+} from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
 import { MessageHandler } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
@@ -180,18 +187,22 @@ export function openScriptEditorHandler(
 }
 
 /**
- * `OpenScriptEditorsCommand` → open every inline script task in the diagram.
+ * `OpenScriptEditorsCommand` → generate a file on disk for every inline script
+ * task in the diagram, opening no tabs. Live sync into the model begins only
+ * once the user opens one of the generated files (adoption).
  *
- * The variable store is seeded once before the first open (the model is
- * identical for all scripts in one diagram), then the scripts are opened
- * strictly sequentially: `openScriptEditor` awaits `showTextDocument` and may
- * surface a format quick-pick, so a parallel loop would produce nondeterministic
- * tab order and stack the pickers. An empty batch — a C8 diagram or one with no
- * inline scripts — surfaces a friendly info message instead of opening nothing.
+ * The variable store is seeded once before the first write (the model is
+ * identical for all scripts in one diagram), then the scripts are materialised
+ * strictly sequentially: `materializeScript` may surface a format quick-pick, so
+ * a parallel loop would stack the pickers. An empty batch — a C8 diagram or one
+ * with no inline scripts — surfaces a friendly info message. On success a
+ * completion notification names the folder and any already-open scripts that
+ * were left untouched.
  */
 export function openScriptEditorsHandler(
     scriptTaskSvc: ScriptTaskService,
     variableStore: ScriptVariableStore,
+    settings: SettingsPort,
     notifier: VsCodeNotifier,
 ): MessageHandler {
     return async (message: Command, editorId: string) => {
@@ -201,8 +212,11 @@ export function openScriptEditorsHandler(
             return;
         }
         variableStore.setExtracted(editorId, cmd.variables ?? []);
+
+        let generated = 0;
+        let alreadyOpen = 0;
         for (const script of cmd.scripts) {
-            await scriptTaskSvc.openScriptEditor(
+            const result = await scriptTaskSvc.materializeScript(
                 editorId,
                 script.elementId,
                 "script-task",
@@ -211,7 +225,21 @@ export function openScriptEditorsHandler(
                 script.scriptFormat,
                 script.content,
             );
+            if (!result) {
+                continue; // language picker cancelled for this script
+            }
+            if (result.written) {
+                generated += 1;
+            } else {
+                alreadyOpen += 1;
+            }
         }
+
+        const folder = posix.join(settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
+        const skipped = alreadyOpen > 0 ? ` (${alreadyOpen} already open, left untouched)` : "";
+        notifier.showInfo(
+            `Generated ${generated} script file(s) in ${folder}${skipped} — open a file to edit it with live sync into the diagram.`,
+        );
     };
 }
 

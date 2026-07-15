@@ -150,7 +150,12 @@ const STREAM_DEBOUNCE_MS = 300;
  * and tab events directly.
  */
 function createService() {
-    const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
+    // `getEditorIds` backs adoption's reverse hash→editor lookup; default to the
+    // canonical editor being live so an opened script resolves to a session.
+    const editorStore = {
+        postMessage: vi.fn().mockResolvedValue(true),
+        getEditorIds: vi.fn().mockReturnValue([EDITOR_ID]),
+    };
     const scriptFiles = {
         resolveBaseDir: vi.fn().mockResolvedValue(BASE_DIR),
         writeFile: vi.fn().mockResolvedValue(undefined),
@@ -1200,5 +1205,225 @@ describe("ScriptTaskService revert tracking", () => {
         await fireDocChange(diagramChangeEvent(false));
 
         expect(reverted(service).has(EDITOR_ID)).toBe(false);
+    });
+});
+
+/** Reads the private tracking map for direct assertions. */
+function openDocumentsOf(service: ScriptTaskService): Map<string, unknown> {
+    return (service as never as { openDocuments: Map<string, unknown> }).openDocuments;
+}
+
+/** The slug directory holding the canonical script and its JS ambient siblings. */
+function slugDirOf(path: string): string {
+    return path.substring(0, path.lastIndexOf("/"));
+}
+
+describe("ScriptTaskService.materializeScript", () => {
+    it("writes the script and its JS ambient files without opening, tracking, or locking", async () => {
+        const { service, scriptFiles, editorStore } = createService();
+
+        const result = await service.materializeScript(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "javascript",
+            "console.log(1)",
+        );
+
+        expect(result).toEqual({ path: scriptPath(), written: true });
+        expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath(), "console.log(1)");
+        const written = scriptFiles.writeFile.mock.calls.map(([path]) => path);
+        expect(written).toContain(`${slugDirOf(scriptPath())}/camunda.d.ts`);
+        expect(written).toContain(`${slugDirOf(scriptPath())}/jsconfig.json`);
+
+        // Generation is disk-only: no tab is revealed, the panel lock is not
+        // broadcast, and nothing is tracked — live sync starts only on adoption.
+        expect(showTextDocumentMock).not.toHaveBeenCalled();
+        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(openDocumentsOf(service).size).toBe(0);
+    });
+
+    it("writes no ambient files for a non-JavaScript script", async () => {
+        const { service, scriptFiles } = createService();
+
+        const result = await service.materializeScript(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "groovy",
+            "a",
+        );
+
+        expect(result).toEqual({ path: scriptPath("groovy"), written: true });
+        expect(scriptFiles.writeFile).toHaveBeenCalledTimes(1);
+        expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath("groovy"), "a");
+    });
+
+    it("returns undefined and writes nothing when the language picker is cancelled", async () => {
+        const { service, scriptFiles, picker } = createService();
+        picker.pickScriptLanguage.mockResolvedValue(undefined);
+
+        const result = await service.materializeScript(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "cobol",
+            "x",
+        );
+
+        expect(result).toBeUndefined();
+        expect(scriptFiles.writeFile).not.toHaveBeenCalled();
+    });
+
+    it("skips (written:false) and leaves the buffer untouched when a tab already owns the script", async () => {
+        const { service, scriptFiles } = createService();
+        // An open tab is the authoritative copy; materialise must not overwrite it.
+        await openCanonicalScript(service, "groovy", "old");
+        scriptFiles.writeFile.mockClear();
+
+        const result = await service.materializeScript(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "groovy",
+            "new",
+        );
+
+        expect(result).toEqual({ path: scriptPath("groovy"), written: false });
+        expect(scriptFiles.writeFile).not.toHaveBeenCalled();
+    });
+
+    it("overwrites stale disk content on a fresh (untracked) materialize", async () => {
+        const { service, scriptFiles } = createService();
+
+        // Materialise never tracks, so a second call is still "untracked" and
+        // rewrites — proving a file that went stale is refreshed from the model.
+        await service.materializeScript(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "groovy",
+            "v1",
+        );
+        await service.materializeScript(
+            EDITOR_ID,
+            ELEMENT_ID,
+            KIND,
+            undefined,
+            undefined,
+            "groovy",
+            "v2",
+        );
+
+        expect(scriptFiles.writeFile).toHaveBeenLastCalledWith(scriptPath("groovy"), "v2");
+    });
+});
+
+describe("ScriptTaskService adoption", () => {
+    /** Fires an opened-tab event for a file URI and drains the fire-and-forget tail. */
+    async function fireOpen(
+        fireTabsChange: (event: unknown) => unknown,
+        path: string,
+    ): Promise<void> {
+        fireTabsChange({ opened: [makeTab(path)], closed: [], changed: [] });
+        await flushAsync();
+    }
+
+    it("adopts an untracked script: tracks it, sets its language, and broadcasts the lock", async () => {
+        const { service, fireTabsChange, editorStore } = createService();
+
+        await fireOpen(fireTabsChange, scriptPath());
+
+        expect(openDocumentsOf(service).has(scriptPath())).toBe(true);
+        expect(setTextDocumentLanguageMock).toHaveBeenCalledWith(expect.anything(), "javascript");
+        const refs = lastBroadcastRefs(editorStore.postMessage);
+        expect(refs).toHaveLength(1);
+        expect(refs?.[0]).toMatchObject({ elementId: ELEMENT_ID, kind: KIND });
+    });
+
+    it("streams a subsequent keystroke into the model once the script is adopted", async () => {
+        const { fireTabsChange, fireDocChange, editorStore } = createService();
+        await fireOpen(fireTabsChange, scriptPath());
+        editorStore.postMessage.mockClear();
+
+        await typeInScript(fireDocChange, scriptPath(), "typed");
+
+        expect(editorStore.postMessage).toHaveBeenCalledWith(
+            EDITOR_ID,
+            new UpdateScriptContentQuery(ELEMENT_ID, KIND, undefined, "typed"),
+        );
+    });
+
+    it("does not re-adopt our own open (no duplicate tracking or broadcast)", async () => {
+        const { service, fireTabsChange, editorStore } = createService();
+        // openScriptEditor tracks before revealing, so the opened-tab event it
+        // would trigger must be a no-op for the adoption listener.
+        await openCanonicalScript(service, "groovy");
+        editorStore.postMessage.mockClear();
+
+        await fireOpen(fireTabsChange, scriptPath("groovy"));
+
+        expect(openDocumentsOf(service).size).toBe(1);
+        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+    });
+
+    it("ignores an opened script whose editor hash matches no live session", async () => {
+        const { service, fireTabsChange, editorStore } = createService();
+        // A well-formed script path under a hash no open editor owns.
+        const orphanPath = `${BASE_DIR}/deadbeef/${ELEMENT_ID}/script-task/${ELEMENT_ID}.js`;
+
+        await fireOpen(fireTabsChange, orphanPath);
+
+        expect(openDocumentsOf(service).has(orphanPath)).toBe(false);
+        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+    });
+
+    it("ignores an opened script that resolves outside the editor's base directory", async () => {
+        const { service, fireTabsChange, editorStore } = createService();
+        // Right editor hash and slug shape, but a different tmp/scripting root:
+        // the containment check against the resolved base dir must reject it.
+        const hash = ScriptUri.hashEditorId(EDITOR_ID);
+        const outsidePath = `/elsewhere/tmp/scripting/${hash}/${ELEMENT_ID}/script-task/${ELEMENT_ID}.js`;
+
+        await fireOpen(fireTabsChange, outsidePath);
+
+        expect(openDocumentsOf(service).has(outsidePath)).toBe(false);
+        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+    });
+
+    it("ignores the camunda.d.ts ambient sibling (not a script language)", async () => {
+        const { service, fireTabsChange, editorStore } = createService();
+        const dtsPath = `${slugDirOf(scriptPath())}/camunda.d.ts`;
+
+        await fireOpen(fireTabsChange, dtsPath);
+
+        expect(openDocumentsOf(service).has(dtsPath)).toBe(false);
+        expect(lastBroadcastRefs(editorStore.postMessage)).toBeUndefined();
+    });
+
+    it("releases the lock but leaves the file on disk when an adopted tab is closed", async () => {
+        const { service, fireTabsChange, editorStore, scriptFiles } = createService();
+        await fireOpen(fireTabsChange, scriptPath());
+        editorStore.postMessage.mockClear();
+
+        // Close the adopted tab: tracking is released and the lock re-broadcast
+        // empties, but adoption never owns deletion — the file survives.
+        setOpenTabs([]);
+        fireTabsChange({ closed: [makeTab(scriptPath())], opened: [], changed: [] });
+        await flushAsync();
+
+        expect(openDocumentsOf(service).has(scriptPath())).toBe(false);
+        expect(lastBroadcastRefs(editorStore.postMessage)).toEqual([]);
+        expect(scriptFiles.deleteDir).not.toHaveBeenCalled();
     });
 });

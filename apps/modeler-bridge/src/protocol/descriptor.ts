@@ -57,6 +57,7 @@ import {
     ScriptCloseNotifyParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
+    ScriptDidOpenExternalParams,
     ScriptOpenParams,
     ScriptUpdateContentParams,
     ScriptUpdateVariablesParams,
@@ -100,6 +101,7 @@ export const METHODS = {
     scriptDidClose: "script/didClose",
     scriptAppendToManifest: "script/appendToManifest",
     scriptOpenAll: "script/openAll",
+    scriptDidOpenExternal: "script/didOpenExternal",
     marketplaceAdd: "marketplace/add",
     marketplaceUpdate: "marketplace/update",
     marketplaceRemove: "marketplace/remove",
@@ -282,6 +284,14 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: {} satisfies EmptyParams,
+    },
+    {
+        method: METHODS.scriptDidOpenExternal,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/e.js",
+        } satisfies ScriptDidOpenExternalParams,
     },
     {
         method: METHODS.marketplaceAdd,

@@ -212,7 +212,7 @@ export class BpmnModeler {
 
     /**
      * Returns every `bpmn:ScriptTask` in the diagram that carries an inline
-     * script, for the host's "Open All Script Tasks in Editor" command. The
+     * script, for the host's "Generate Script Files for Script Tasks" command. The
      * scan and filtering rules live in {@link collectInlineScriptTasks} so the
      * bulk path and the single-open path stay in agreement.
      *

@@ -251,7 +251,7 @@
             },
             {
                 "command": "bpmn-modeler.openAllScriptTasks",
-                "title": "Open All Script Tasks in Editor",
+                "title": "Generate Script Files for Script Tasks",
                 "category": "Miragon BPMN Modeler"
             },
             {

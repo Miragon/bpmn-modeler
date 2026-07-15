@@ -30,6 +30,8 @@ import {
     globalFunctionsFor,
     methodsForBean,
     NotifierPort,
+    parseScriptPath,
+    parseScriptSlug,
     PickerPort,
     ScriptLanguage,
     ScriptUri,
@@ -212,43 +214,15 @@ export class BridgeScriptEditor {
         // variable completion before the first live update arrives.
         this.extractedByEditor.set(editorId, cmd.variables ?? []);
 
-        // The SPIN globals (`S`/`JSON`) and the type→methods table are gated here
-        // in the bridge (single source): off → empty, so the Kotlin contributor
-        // renders nothing and needs no gate of its own. Shipping the full
-        // `COMPLEX_TYPES` map when on is harmless — the host only consults `types`
-        // on a variable's `typeHint` lookup, and `SpinJsonNode` is the only hint
-        // the producer heuristic currently stamps.
-        const spinOn = this.settings.getScriptingSpin();
-
         // `fileName` carries the extension so the host infers the FileType for
         // highlighting; `content` is honoured only on first open (see above).
-        // `completion` ships the kind-scoped bean/method catalog resolved *here*
-        // so the thin Kotlin host never needs to know which beans belong to which
-        // kind — it just renders what it is handed (VS Code's
-        // `registerCompletionItemProvider` has no PSI-based analogue, so the host
-        // drives a `CompletionContributor` off this payload instead). `variables`
-        // rides alongside so the host can complete process-variable names too.
         this.rpc.notify(METHODS.scriptOpen, {
             scriptId,
             fileName: uri.filename,
             languageId: lang.languageId,
             filePath,
             content: cmd.content,
-            completion: {
-                beans: beansFor(cmd.kind).map((bean) => ({
-                    name: bean.name,
-                    type: bean.type,
-                    description: bean.description,
-                    // Empty for value beans (e.g. `eventName: String`) — correct,
-                    // they have no member completion.
-                    methods: methodsForBean(bean),
-                })),
-                variables: this.mergedFor(editorId),
-                globals: spinOn ? globalFunctionsFor(cmd.kind) : [],
-                types: spinOn
-                    ? Object.fromEntries(COMPLEX_TYPES.map((type) => [type.name, type.methods]))
-                    : {},
-            },
+            completion: this.completionPayloadFor(cmd.kind, editorId),
         });
 
         // A tab now owns this script — lock the matching webview panel field.
@@ -256,18 +230,199 @@ export class BridgeScriptEditor {
     }
 
     /**
-     * Resolves (and caches) the editor's `tmp/scripting` base directory,
-     * sweeping orphans and dropping the `.gitignore` the first time a
-     * directory is used in this process. The sweep runs strictly before the
-     * first file is written into the directory, so it only ever removes
-     * leftovers of a previous (crashed) host process.
+     * Builds the kind-scoped completion catalog shipped in `script/open` so the
+     * thin Kotlin host never needs to know which beans belong to which kind — it
+     * just renders what it is handed (VS Code's `registerCompletionItemProvider`
+     * has no PSI-based analogue, so the host drives a `CompletionContributor` off
+     * this payload instead).
      *
-     * Resolution mirrors the vars-manifest path: workspace root → config
-     * folder. A document without a resolvable directory (non-file session)
-     * falls back to the OS temp dir, keeping the `tmp/scripting` marker
-     * segments intact for `parseScriptPath`.
+     * The SPIN globals (`S`/`JSON`) and the type→methods table are gated here in
+     * the bridge (single source): off → empty, so the contributor renders nothing
+     * and needs no gate of its own. Shipping the full `COMPLEX_TYPES` map when on
+     * is harmless — the host only consults `types` on a variable's `typeHint`
+     * lookup, and `SpinJsonNode` is the only hint the producer heuristic stamps.
      */
-    private async prepareBaseDir(editorId: string): Promise<string> {
+    private completionPayloadFor(kind: ScriptKind, editorId: string) {
+        const spinOn = this.settings.getScriptingSpin();
+        return {
+            beans: beansFor(kind).map((bean) => ({
+                name: bean.name,
+                type: bean.type,
+                description: bean.description,
+                // Empty for value beans (e.g. `eventName: String`) — correct,
+                // they have no member completion.
+                methods: methodsForBean(bean),
+            })),
+            variables: this.mergedFor(editorId),
+            globals: spinOn ? globalFunctionsFor(kind) : [],
+            types: spinOn
+                ? Object.fromEntries(COMPLEX_TYPES.map((type) => [type.name, type.methods]))
+                : {},
+        };
+    }
+
+    /**
+     * Writes a script file to disk *without* opening a host tab, tracking it, or
+     * locking the panel — the "Generate Script Files" command's whole job. Live
+     * sync starts only when the user opens the file (see {@link adoptExternalOpen}).
+     * Returns whether a file was written; `undefined` when the language picker was
+     * cancelled or the write failed (nothing was generated either way).
+     *
+     * Deliberately does **not** record `filePathByScript`: a later panel-button
+     * open then sees no path and rewrites the file from the current model, keeping
+     * the panel button's rewrite-from-model semantics. A script already owned by
+     * an open tab is left untouched (`written:false`) — its buffer is authoritative.
+     */
+    async materialize(
+        cmd: OpenScriptEditorCommand,
+        editorId: string,
+    ): Promise<{ written: boolean } | undefined> {
+        let effectiveFormat = cmd.scriptFormat;
+        if (!ScriptLanguage.isSupported(cmd.scriptFormat)) {
+            const picked = await this.picker.pickScriptLanguage(cmd.scriptFormat);
+            if (!picked) {
+                return undefined;
+            }
+            effectiveFormat = picked;
+            await this.sendFormatUpdate(editorId, cmd, picked);
+        }
+
+        const lang = new ScriptLanguage(effectiveFormat);
+        const uri = new ScriptUri(
+            editorId,
+            cmd.elementId,
+            cmd.kind,
+            cmd.listenerIndex,
+            cmd.eventName,
+            lang.extension,
+        );
+        const scriptId = uri.toString();
+
+        // A re-materialise while a close ack is still pending must cancel that
+        // deferred deletion (mirror open()).
+        if (this.pendingCloseAcks.delete(scriptId)) {
+            this.filePathByScript.delete(scriptId);
+        }
+
+        // An open tab owns the authoritative buffer — leave it untouched.
+        if (this.scripts.has(scriptId)) {
+            return { written: false };
+        }
+
+        const baseDir = await this.prepareBaseDir(editorId);
+        const filePath = posix.join(baseDir, uri.relativePath());
+        try {
+            await this.workspace.writeFile(filePath, cmd.content);
+        } catch (error) {
+            this.notifier.logError(error as Error);
+            return undefined;
+        }
+
+        // Seed the editor's extracted model so a later open/adoption has variables
+        // before the first live `UpdateScriptVariablesCommand`.
+        this.extractedByEditor.set(editorId, cmd.variables ?? []);
+
+        return { written: true };
+    }
+
+    /**
+     * Adopts a script file the host reports opened *outside* our own flow (Project
+     * view, or the properties-panel button on an untracked file) so live sync into
+     * the BPMN model starts from that moment. Without it, host keystrokes would be
+     * dropped: {@link didChange} filters strictly by the tracking map.
+     *
+     * Adoption is track + notify `script/open` + lock only — the host attaches its
+     * document listener to the already-open tab. No content is pushed toward the
+     * model at adopt time: disk becomes truth on the first edit after opening. A
+     * file whose editor session isn't live, that sits outside the base directory,
+     * or that is an ambient sibling (`camunda.d.ts`/`jsconfig.json`) is ignored.
+     * Crucially uses {@link resolveBaseDir}, never {@link prepareBaseDir}: sweeping
+     * on adopt would delete the very file being opened.
+     */
+    async adoptExternalOpen(filePath: string): Promise<void> {
+        const normalized = filePath.replace(/\\/g, "/");
+        const parsed = parseScriptPath(normalized);
+        if (!parsed) {
+            return;
+        }
+        const slug = parseScriptSlug(parsed.slug);
+        if (!slug) {
+            return;
+        }
+        // fromExtension returns undefined for `camunda.d.ts` (`ts`) and
+        // `jsconfig.json` (`json`), so an ambient sibling is ignored.
+        const extension = posix.extname(parsed.filename).replace(/^\./, "");
+        const lang = ScriptLanguage.fromExtension(extension);
+        if (!lang) {
+            return;
+        }
+
+        // Reverse the editor hash back to a live BPMN session; a script whose
+        // editor isn't open has no model to sync into.
+        const editorId = this.store
+            .getEditorIds()
+            .find((id) => ScriptUri.hashEditorId(id) === parsed.editorHash);
+        if (editorId === undefined) {
+            return;
+        }
+
+        // The tmp/scripting marker alone is a heuristic any same-named user
+        // directory satisfies; the resolved base dir is the exact containment.
+        const baseDir = await this.resolveBaseDir(editorId);
+        if (!normalized.startsWith(`${baseDir}/`)) {
+            return;
+        }
+
+        // scriptId is the ScriptUri relative path — identical to what open() keys
+        // by, so a subsequent didChange/close maps to the same tracked entry.
+        const scriptId = [parsed.editorHash, parsed.elementId, parsed.slug, parsed.filename].join(
+            "/",
+        );
+        if (this.scripts.has(scriptId)) {
+            return;
+        }
+
+        let content: string;
+        try {
+            content = await this.workspace.readFile(normalized);
+        } catch (error) {
+            this.notifier.logError(error as Error);
+            return;
+        }
+
+        this.filePathByScript.set(scriptId, normalized);
+        this.scripts.set(scriptId, {
+            editorId,
+            elementId: parsed.elementId,
+            kind: slug.kind,
+            listenerIndex: slug.listenerIndex,
+        });
+
+        this.rpc.notify(METHODS.scriptOpen, {
+            scriptId,
+            fileName: parsed.filename,
+            languageId: lang.languageId,
+            filePath: normalized,
+            content,
+            completion: this.completionPayloadFor(slug.kind, editorId),
+        });
+
+        // A tab now owns this script — lock the matching webview panel field.
+        this.broadcastOpenScripts(editorId);
+    }
+
+    /**
+     * Resolves (and caches) the editor's `tmp/scripting` base directory without
+     * touching disk. Resolution mirrors the vars-manifest path: workspace root →
+     * config folder. A document without a resolvable directory (non-file session)
+     * falls back to the OS temp dir, keeping the `tmp/scripting` marker segments
+     * intact for `parseScriptPath`.
+     *
+     * Kept apart from {@link prepareBaseDir} so adoption can containment-check an
+     * externally opened file *without* running the orphan sweep — a sweep on
+     * adopt would delete the file being opened.
+     */
+    private async resolveBaseDir(editorId: string): Promise<string> {
         let baseDir = this.baseDirByEditor.get(editorId);
         if (baseDir === undefined) {
             const documentPath = this.documentPathByEditor.get(editorId);
@@ -291,7 +446,17 @@ export class BridgeScriptEditor {
             }
             this.baseDirByEditor.set(editorId, baseDir);
         }
+        return baseDir;
+    }
 
+    /**
+     * Resolves the base directory and, the first time a directory is used in this
+     * process, sweeps orphans and drops the `.gitignore`. The sweep runs strictly
+     * before the first file is written into the directory, so it only ever removes
+     * leftovers of a previous (crashed) host process.
+     */
+    private async prepareBaseDir(editorId: string): Promise<string> {
+        const baseDir = await this.resolveBaseDir(editorId);
         if (!this.sweptBaseDirs.has(baseDir)) {
             this.sweptBaseDirs.add(baseDir);
             try {

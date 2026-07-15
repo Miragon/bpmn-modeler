@@ -1,3 +1,5 @@
+import { posix } from "path";
+
 import {
     Command,
     OpenAllScriptTasksQuery,
@@ -6,7 +8,7 @@ import {
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
-import { ScriptVariableManifestService } from "@miragon/bpmn-modeler-core";
+import { ScriptVariableManifestService, TMP_SCRIPTING_SEGMENT } from "@miragon/bpmn-modeler-core";
 
 import { BridgeScriptEditor } from "../scriptAdapters";
 import { METHODS } from "../protocol/descriptor";
@@ -14,6 +16,7 @@ import {
     ScriptAppendToManifestParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
+    ScriptDidOpenExternalParams,
 } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
 import { RegisterParams, SessionHooks } from "./sessionHooks";
@@ -24,8 +27,9 @@ import { RegisterParams, SessionHooks } from "./sessionHooks";
  * this editor's open script tabs on dispose — without importing script types.
  *
  * Webview messages: OpenScriptEditorCommand, UpdateScriptVariablesCommand,
- * OpenScriptEditorsCommand (bulk "open all script tasks" reply).
- * RPC (Host → Core): script/didChange, script/didClose, script/openAll.
+ * OpenScriptEditorsCommand (bulk "generate script files" reply).
+ * RPC (Host → Core): script/didChange, script/didClose, script/openAll,
+ * script/didOpenExternal.
  */
 export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks } {
     // "Edit Script" orchestrator. Unlike the other features this one has no
@@ -83,19 +87,24 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         });
 
     /**
-     * Opens each script task sequentially through the single-open flow. The
+     * Materialises each script task to disk sequentially, opening no tabs. The
      * `for … await` serialises the unsupported-format picker round-trips (one
      * chooser at a time; a cancel skips just that script) and the shared
      * `variables` is re-seeded per script — idempotent, since every script in a
-     * diagram carries the same process-variable model.
+     * diagram carries the same process-variable model. Live sync begins only when
+     * the user opens a generated file (adoption). A completion toast names the
+     * folder and any already-open scripts left untouched.
      */
     async function openAllScripts(cmd: OpenScriptEditorsCommand, editorId: string): Promise<void> {
         if (cmd.scripts.length === 0) {
             deps.notifier.showInfo("No script tasks with inline scripts found in this diagram.");
             return;
         }
+
+        let generated = 0;
+        let alreadyOpen = 0;
         for (const script of cmd.scripts) {
-            await scriptEditor.open(
+            const result = await scriptEditor.materialize(
                 new OpenScriptEditorCommand(
                     script.elementId,
                     "script-task",
@@ -107,7 +116,21 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
                 ),
                 editorId,
             );
+            if (!result) {
+                continue; // language picker cancelled for this script
+            }
+            if (result.written) {
+                generated += 1;
+            } else {
+                alreadyOpen += 1;
+            }
         }
+
+        const folder = posix.join(deps.settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
+        const skipped = alreadyOpen > 0 ? ` (${alreadyOpen} already open, left untouched)` : "";
+        deps.notifier.showInfo(
+            `Generated ${generated} script file(s) in ${folder}${skipped} — open a file to edit it with live sync into the diagram.`,
+        );
     }
 
     // The host edited an open script tab → push the new content into the owning
@@ -125,8 +148,15 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         scriptEditor.didClose(params.scriptId),
     );
 
-    // Tools ▸ Open All Script Tasks in Editor → ask the active BPMN webview for
-    // its inline script tasks. No active editor means no BPMN tab is focused;
+    // The host reported a script file opened outside our own `script/open` flow
+    // (Project view, or the panel button on an untracked file) → adopt it so
+    // keystrokes stream into the owning BPMN webview from now on.
+    deps.rpc.on(METHODS.scriptDidOpenExternal, (params: ScriptDidOpenExternalParams) =>
+        scriptEditor.adoptExternalOpen(params.filePath),
+    );
+
+    // Tools ▸ Generate Script Files for Script Tasks → ask the active BPMN webview
+    // for its inline script tasks. No active editor means no BPMN tab is focused;
     // guide the user rather than surfacing the raw throw.
     deps.rpc.on(METHODS.scriptOpenAll, async () => {
         try {

@@ -192,7 +192,12 @@ export function register(
         .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc, scriptVariableStore))
         .on(
             "OpenScriptEditorsCommand",
-            openScriptEditorsHandler(scriptTaskSvc, scriptVariableStore, deps.notifier),
+            openScriptEditorsHandler(
+                scriptTaskSvc,
+                scriptVariableStore,
+                deps.vsSettings,
+                deps.notifier,
+            ),
         )
         .on("UpdateScriptVariablesCommand", updateScriptVariablesHandler(scriptVariableStore))
         .on("UpdateScriptSourceCommand", updateScriptSourceHandler(scriptTaskSvc))

@@ -202,22 +202,35 @@ describe("openScriptEditorsHandler", () => {
         content,
     });
 
-    it("opens scripts strictly sequentially, awaiting each before the next", async () => {
-        // A deferred first open lets us prove the second never starts until the
-        // first resolves — the ordering guarantee the bulk handler exists for.
-        let resolveFirst!: () => void;
-        const openScriptEditor = vi
+    // The command only writes files; `.camunda` is the config folder the
+    // completion notification names, joined with the `tmp/scripting` segment.
+    const CONFIG_FOLDER = ".camunda";
+    const FOLDER = ".camunda/tmp/scripting";
+
+    it("materializes scripts strictly sequentially, awaiting each before the next", async () => {
+        // A deferred first materialize lets us prove the second never starts
+        // until the first resolves — the ordering guarantee the bulk handler
+        // exists for (a parallel loop would stack the per-script format pickers).
+        let resolveFirst!: (result: { path: string; written: boolean }) => void;
+        const materializeScript = vi
             .fn()
-            .mockImplementationOnce(() => new Promise<void>((resolve) => (resolveFirst = resolve)))
-            .mockResolvedValue(undefined);
-        const scriptTaskSvc = { openScriptEditor };
+            .mockImplementationOnce(
+                () =>
+                    new Promise<{ path: string; written: boolean }>(
+                        (resolve) => (resolveFirst = resolve),
+                    ),
+            )
+            .mockResolvedValue({ path: "B", written: true });
+        const scriptTaskSvc = { materializeScript };
         const variableStore = { setExtracted: vi.fn() };
+        const settings = { getConfigFolder: () => CONFIG_FOLDER };
         const notifier = { showInfo: vi.fn() };
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
         const done = openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
+            settings as never,
             notifier as never,
         )(
             new OpenScriptEditorsCommand(
@@ -227,11 +240,11 @@ describe("openScriptEditorsHandler", () => {
             EDITOR,
         );
 
-        // Variables seeded once, before any open; the second open is still gated.
+        // Variables seeded once, before any materialize; the second is still gated.
         expect(variableStore.setExtracted).toHaveBeenCalledTimes(1);
         expect(variableStore.setExtracted).toHaveBeenCalledWith(EDITOR, variables);
-        expect(openScriptEditor).toHaveBeenCalledTimes(1);
-        expect(openScriptEditor).toHaveBeenNthCalledWith(
+        expect(materializeScript).toHaveBeenCalledTimes(1);
+        expect(materializeScript).toHaveBeenNthCalledWith(
             1,
             EDITOR,
             "A",
@@ -242,11 +255,11 @@ describe("openScriptEditorsHandler", () => {
             "a=1",
         );
 
-        resolveFirst();
+        resolveFirst({ path: "A", written: true });
         await done;
 
-        expect(openScriptEditor).toHaveBeenCalledTimes(2);
-        expect(openScriptEditor).toHaveBeenNthCalledWith(
+        expect(materializeScript).toHaveBeenCalledTimes(2);
+        expect(materializeScript).toHaveBeenNthCalledWith(
             2,
             EDITOR,
             "B",
@@ -256,23 +269,93 @@ describe("openScriptEditorsHandler", () => {
             "groovy",
             "b=2",
         );
-        expect(notifier.showInfo).not.toHaveBeenCalled();
+        // Both written, none already open → no skipped suffix.
+        expect(notifier.showInfo).toHaveBeenCalledTimes(1);
+        expect(notifier.showInfo).toHaveBeenCalledWith(
+            `Generated 2 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram.`,
+        );
     });
 
-    it("shows an info message and opens nothing for an empty batch", async () => {
-        const scriptTaskSvc = { openScriptEditor: vi.fn() };
+    it("shows an info message and materializes nothing for an empty batch", async () => {
+        const scriptTaskSvc = { materializeScript: vi.fn() };
         const variableStore = { setExtracted: vi.fn() };
+        const settings = { getConfigFolder: () => CONFIG_FOLDER };
         const notifier = { showInfo: vi.fn() };
 
         await openScriptEditorsHandler(
             scriptTaskSvc as never,
             variableStore as never,
+            settings as never,
             notifier as never,
         )(new OpenScriptEditorsCommand([], []), EDITOR);
 
         expect(notifier.showInfo).toHaveBeenCalledTimes(1);
-        expect(scriptTaskSvc.openScriptEditor).not.toHaveBeenCalled();
+        expect(notifier.showInfo).toHaveBeenCalledWith(
+            "No script tasks with inline scripts found in this diagram.",
+        );
+        expect(scriptTaskSvc.materializeScript).not.toHaveBeenCalled();
         expect(variableStore.setExtracted).not.toHaveBeenCalled();
+    });
+
+    it("reports the already-open count when a script was left untouched", async () => {
+        // One fresh write + one already-open tab (written:false): the completion
+        // notification must name the skipped count so the user knows one file
+        // wasn't overwritten.
+        const materializeScript = vi
+            .fn()
+            .mockResolvedValueOnce({ path: "A", written: true })
+            .mockResolvedValueOnce({ path: "B", written: false });
+        const scriptTaskSvc = { materializeScript };
+        const variableStore = { setExtracted: vi.fn() };
+        const settings = { getConfigFolder: () => CONFIG_FOLDER };
+        const notifier = { showInfo: vi.fn() };
+
+        await openScriptEditorsHandler(
+            scriptTaskSvc as never,
+            variableStore as never,
+            settings as never,
+            notifier as never,
+        )(
+            new OpenScriptEditorsCommand(
+                [script("A", "groovy", "a=1"), script("B", "groovy", "b=2")],
+                [],
+            ),
+            EDITOR,
+        );
+
+        expect(notifier.showInfo).toHaveBeenCalledWith(
+            `Generated 1 script file(s) in ${FOLDER} (1 already open, left untouched) — open a file to edit it with live sync into the diagram.`,
+        );
+    });
+
+    it("counts a cancelled picker as neither written nor already open", async () => {
+        // materializeScript returns undefined when the language picker is
+        // cancelled: it must not inflate either counter.
+        const materializeScript = vi
+            .fn()
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce({ path: "B", written: true });
+        const scriptTaskSvc = { materializeScript };
+        const variableStore = { setExtracted: vi.fn() };
+        const settings = { getConfigFolder: () => CONFIG_FOLDER };
+        const notifier = { showInfo: vi.fn() };
+
+        await openScriptEditorsHandler(
+            scriptTaskSvc as never,
+            variableStore as never,
+            settings as never,
+            notifier as never,
+        )(
+            new OpenScriptEditorsCommand(
+                [script("A", "cobol", "a=1"), script("B", "groovy", "b=2")],
+                [],
+            ),
+            EDITOR,
+        );
+
+        expect(notifier.showInfo).toHaveBeenCalledWith(
+            `Generated 1 script file(s) in ${FOLDER} — open a file to edit it with live sync into the diagram.`,
+        );
     });
 });
 

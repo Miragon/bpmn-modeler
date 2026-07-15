@@ -120,6 +120,16 @@ export interface ScriptCloseParams {
 }
 
 /**
+ * `script/didOpenExternal` — the host reports a script file was opened outside
+ * the core's own `script/open` flow (Project view, Explorer, Quick Open, or the
+ * panel button on an untracked file). The core adopts it into live sync; a
+ * system-independent path lets `parseScriptPath` match regardless of separator.
+ */
+export interface ScriptDidOpenExternalParams {
+    filePath: string;
+}
+
+/**
  * `script/appendToManifest` — the host's "Declare in variable manifest" intention
  * asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown variable.
  * `type`/`description` are optional so the host can append a name-only entry and

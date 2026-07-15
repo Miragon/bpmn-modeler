@@ -16,6 +16,8 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { ScriptUri } from "@miragon/bpmn-modeler-core";
+
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
@@ -41,22 +43,6 @@ async function waitForFrame(
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
     throw new Error("waitForFrame timed out");
-}
-
-/** Polls `frames` until at least `count` matches exist, returning them in arrival order. */
-async function waitForFrames(
-    frames: any[],
-    predicate: (frame: any) => boolean,
-    count: number,
-    timeoutMs = 2000,
-): Promise<any[]> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-        const matches = frames.filter(predicate);
-        if (matches.length >= count) return matches;
-        await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error("waitForFrames timed out");
 }
 
 /** Polls until `path` no longer exists — deletions are fire-and-forget on the bridge. */
@@ -737,7 +723,7 @@ describe("bridge script editor (real core over a fake transport)", () => {
         await waitForDeletion(hashDir);
     });
 
-    // ── "Open All Script Tasks in Editor" (Tools-menu bulk command) ──────────
+    // ── "Generate Script Files for Script Tasks" (Tools-menu bulk command) ────
 
     it("asks the active webview for its script tasks on script/openAll", async () => {
         const { rpc, frames, editorId } = await setup();
@@ -753,7 +739,14 @@ describe("bridge script editor (real core over a fake transport)", () => {
         expect(post.params.editorId).toBe(editorId);
     });
 
-    it("opens each script task in order, on disk, with the shared variables seeded", async () => {
+    /** Reconstructs where a generated script lands, so a test can read/adopt it. */
+    function scriptPath(editorId: string, elementId: string, filename: string): string {
+        const root = dirname(editorId.replace(/^file:\/\//, ""));
+        const hash = ScriptUri.hashEditorId(editorId);
+        return join(root, ".camunda", "tmp", "scripting", hash, elementId, "script-task", filename);
+    }
+
+    it("materialises each script task to disk without opening a tab, then hints", async () => {
         const { rpc, frames, editorId } = await setup();
         const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
 
@@ -774,14 +767,104 @@ describe("bridge script editor (real core over a fake transport)", () => {
             }),
         );
 
-        const opens = await waitForFrames(frames, (f) => f.method === "script/open", 2);
-        // The for…await opens sequentially, so the frames arrive in diagram order.
-        expect(opens.map((f) => f.params.fileName)).toEqual(["Task_1.groovy", "Task_2.js"]);
-        expect(await fs.readFile(opens[0].params.filePath, "utf8")).toBe("x = 1");
-        expect(await fs.readFile(opens[1].params.filePath, "utf8")).toBe("y = 2");
-        // The single shared variable model seeds every script's completion.
-        expect(opens[0].params.completion.variables).toEqual(variables);
-        expect(opens[1].params.completion.variables).toEqual(variables);
+        // A completion toast naming the folder — and crucially no tabs open.
+        const info = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "notifier/showInfo" &&
+                /Generated 2 script file/.test(f.params.message),
+        );
+        expect(info.params.message).toContain(".camunda/tmp/scripting");
+        await settle();
+        expect(frames.find((f) => f.method === "script/open")).toBeUndefined();
+        expect(frames.find((f) => f.method === "editor/postMessage")).toBeUndefined();
+
+        // The files exist on disk with the model content, ready to be adopted.
+        expect(await fs.readFile(scriptPath(editorId, "Task_1", "Task_1.groovy"), "utf8")).toBe(
+            "x = 1",
+        );
+        expect(await fs.readFile(scriptPath(editorId, "Task_2", "Task_2.js"), "utf8")).toBe(
+            "y = 2",
+        );
+    });
+
+    it("adopts an externally opened generated file into live sync", async () => {
+        const { rpc, frames, editorId } = await setup();
+        const variables = [{ name: "amount", origin: "form field", confidence: "declared" }];
+
+        // Generate the file (no tab), seeding the shared variable model.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "OpenScriptEditorsCommand",
+                        scripts: [
+                            { elementId: "Task_1", scriptFormat: "groovy", content: "x = 1" },
+                        ],
+                        variables,
+                    },
+                },
+            }),
+        );
+        await waitForFrame(frames, (f) => f.method === "notifier/showInfo");
+
+        const filePath = scriptPath(editorId, "Task_1", "Task_1.groovy");
+        // The host reports the user opened the generated file outside script/open.
+        await rpc.handleLine(
+            JSON.stringify({ method: "script/didOpenExternal", params: { filePath } }),
+        );
+
+        // Adoption emits a script/open (so the host attaches its listener to the
+        // already-open tab) carrying the seeded variables, plus a lock query.
+        const open = await waitForFrame(frames, (f) => f.method === "script/open");
+        expect(open.params.filePath).toBe(filePath);
+        expect(open.params.fileName).toBe("Task_1.groovy");
+        expect(open.params.content).toBe("x = 1");
+        expect(open.params.completion.variables).toEqual(variables);
+
+        const lock = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "UpdateOpenScriptEditorsQuery" &&
+                f.params.message.openScripts.length === 1,
+        );
+        expect(lock.params.message.openScripts[0].elementId).toBe("Task_1");
+
+        // A subsequent host edit now streams into the model — proves tracking.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "script/didChange",
+                params: { scriptId: open.params.scriptId, content: "x = 2" },
+            }),
+        );
+        const update = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "UpdateScriptContentQuery",
+        );
+        expect(update.params.message.content).toBe("x = 2");
+    });
+
+    it("ignores script/didOpenExternal for a path outside any live editor's base dir", async () => {
+        const { rpc, frames } = await setup();
+
+        // A tmp/scripting-shaped path whose editor hash matches no live session.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "script/didOpenExternal",
+                params: {
+                    filePath:
+                        "/somewhere/.camunda/tmp/scripting/deadbeef/Task_9/script-task/Task_9.js",
+                },
+            }),
+        );
+
+        await settle();
+        expect(frames.find((f) => f.method === "script/open")).toBeUndefined();
     });
 
     it("shows a hint and opens nothing when the batch is empty", async () => {

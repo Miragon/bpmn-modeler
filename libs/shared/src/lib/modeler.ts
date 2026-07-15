@@ -601,9 +601,9 @@ export class OpenScriptEditorCommand extends Command {
 
 /**
  * Host → webview: asks the active BPMN editor for every `bpmn:ScriptTask` that
- * carries an inline script, so the "Open All Script Tasks in Editor" command can
- * materialise them all at once. Carries no payload — the webview owns the
- * element scan and replies with a single {@link OpenScriptEditorsCommand}.
+ * carries an inline script, so the "Generate Script Files for Script Tasks"
+ * command can materialise them all at once. Carries no payload — the webview
+ * owns the element scan and replies with a single {@link OpenScriptEditorsCommand}.
  */
 export class OpenAllScriptTasksQuery extends Query {
     constructor() {
@@ -629,11 +629,13 @@ export interface ScriptTaskScript {
  * every inline script task in the diagram plus one shared process-variable model.
  *
  * A single bulk reply (rather than the webview re-firing N
- * {@link OpenScriptEditorCommand}s) lets the host open the scripts sequentially
- * with a `for … await` loop: {@link ModelerEditorController} dispatches incoming
- * messages concurrently, so N separate commands would race `showTextDocument`
- * and stack the format quick-picks. {@link variables} is sent once because it is
- * identical for every script in the same diagram.
+ * {@link OpenScriptEditorCommand}s) lets the host materialise the script files
+ * sequentially with a `for … await` loop: {@link ModelerEditorController}
+ * dispatches incoming messages concurrently, so N separate commands would stack
+ * the per-script format quick-picks. The command only writes files to disk — no
+ * tabs are opened; live sync begins when the user opens a generated file.
+ * {@link variables} is sent once because it is identical for every script in the
+ * same diagram.
  */
 export class OpenScriptEditorsCommand extends Command {
     public readonly scripts: ScriptTaskScript[];

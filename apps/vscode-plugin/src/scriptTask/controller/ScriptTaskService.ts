@@ -28,6 +28,8 @@ import {
 import {
     EditorSessionStore,
     generateCamundaDts,
+    parseScriptPath,
+    parseScriptSlug,
     SCRIPT_JSCONFIG,
     ScriptContentUpdate,
     ScriptLanguage,
@@ -52,13 +54,28 @@ interface OpenDocument {
 }
 
 /**
+ * Outcome of {@link ScriptTaskService.materializeScript}. `written` is false
+ * when an open tab already owned the script and its buffer was left untouched —
+ * the completion notification uses it to report the skipped-already-open count.
+ */
+export interface MaterializeScriptResult {
+    readonly path: string;
+    readonly written: boolean;
+}
+
+/**
  * Manages on-disk script documents for BPMN script tasks and listener scripts.
  *
- * Opens inline scripts as real files under `<configFolder>/tmp/scripting/` in
- * full VS Code editor tabs. Real files (rather than a virtual filesystem) are
- * what lets external tooling participate: tsserver and language-server
- * extensions hard-code `scheme: "file"` selectors, and coding agents can only
- * read/write bytes that exist on disk. Three surfaces are supported:
+ * Materialises inline scripts as real files under `<configFolder>/tmp/scripting/`.
+ * Real files (rather than a virtual filesystem) are what lets external tooling
+ * participate: tsserver and language-server extensions hard-code `scheme: "file"`
+ * selectors, and coding agents can only read/write bytes that exist on disk.
+ *
+ * A file can enter live sync two ways: {@link openScriptEditor} writes it and
+ * opens a tab in one step (the panel-field button), while
+ * {@link adoptExternallyOpenedScript} starts sync for a file opened any other way
+ * (Explorer, Quick Open, or the "Generate Script Files" command's output). Three
+ * surfaces are supported:
  *
  * 1. `bpmn:ScriptTask` — `script` direct property.
  * 2. `camunda:ExecutionListener` — nested `script` element on any flow node.
@@ -196,35 +213,18 @@ export class ScriptTaskService {
         scriptFormat: string,
         content: string,
     ): Promise<void> {
-        // Prompt only when the BPMN model's scriptFormat is missing or set
-        // to a language we don't ship IntelliSense for. A successful pick
-        // is persisted back to the model so the next open skips the prompt.
-        let effectiveFormat = scriptFormat;
-        if (!ScriptLanguage.isSupported(scriptFormat)) {
-            const picked = await this.picker.pickScriptLanguage(scriptFormat);
-            if (!picked) {
-                return;
-            }
-            effectiveFormat = picked;
-            await this.sendFormatUpdate(editorId, elementId, kind, listenerIndex, picked);
-        }
-
-        const lang = new ScriptLanguage(effectiveFormat);
-        const script = new ScriptUri(
+        const target = await this.resolveScriptTarget(
             editorId,
             elementId,
             kind,
             listenerIndex,
             eventName,
-            lang.extension,
+            scriptFormat,
         );
-
-        let baseDir = this.baseDirByEditor.get(editorId);
-        if (baseDir === undefined) {
-            baseDir = await this.scriptFiles.resolveBaseDir(editorId);
-            this.baseDirByEditor.set(editorId, baseDir);
+        if (!target) {
+            return; // language picker cancelled
         }
-        const scriptUri = toUri(posix.join(baseDir, script.relativePath()));
+        const { scriptUri, lang, baseDir } = target;
 
         /**
          * Already open: just reveal the existing editor.
@@ -239,7 +239,145 @@ export class ScriptTaskService {
             return;
         }
 
-        // Best-effort: a missing .gitignore must not block opening the script.
+        await this.writeScriptToDisk(scriptUri, baseDir, content, lang, kind);
+
+        const doc = await workspace.openTextDocument(scriptUri);
+        await languages.setTextDocumentLanguage(doc, lang.languageId);
+
+        // Track before revealing: showTextDocument fires an opened-tab event
+        // that the adoption listener reacts to. Its own-open guard keys off
+        // openDocuments, so setting the entry first is what stops us from
+        // re-adopting (and re-broadcasting) our own open.
+        this.openDocuments.set(scriptUri.path, {
+            editorId,
+            elementId,
+            kind,
+            listenerIndex,
+            uri: scriptUri,
+        });
+
+        // preview:false pins the tab so a batch open ("Generate Script Files")
+        // doesn't self-replace — a preview tab is reused by the next open, which
+        // would arrive as a close of the earlier script and delete its siblings.
+        await window.showTextDocument(doc, {
+            viewColumn: ViewColumn.Beside,
+            preserveFocus: true,
+            preview: false,
+        });
+
+        // Tell the webview a tab now owns this script so the panel field locks.
+        this.broadcastOpenScripts(editorId);
+    }
+
+    /**
+     * Writes an inline script to disk *without* opening a tab, tracking it, or
+     * locking the panel — the "Generate Script Files" command's whole job.
+     * Returns the file path and whether it was written; `undefined` when the
+     * language picker was cancelled. Live sync starts only once the user opens
+     * the file (adoption), so a generated-but-unopened file stays a plain file.
+     *
+     * A script already owned by an open tab is left untouched (`written:false`):
+     * that tab's buffer is the authoritative copy, so overwriting it from the
+     * model would clobber unsaved edits.
+     */
+    async materializeScript(
+        editorId: string,
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        eventName: string | undefined,
+        scriptFormat: string,
+        content: string,
+    ): Promise<MaterializeScriptResult | undefined> {
+        const target = await this.resolveScriptTarget(
+            editorId,
+            elementId,
+            kind,
+            listenerIndex,
+            eventName,
+            scriptFormat,
+        );
+        if (!target) {
+            return undefined; // language picker cancelled
+        }
+
+        if (this.openDocuments.has(target.scriptUri.path)) {
+            return { path: target.scriptUri.path, written: false };
+        }
+
+        await this.writeScriptToDisk(target.scriptUri, target.baseDir, content, target.lang, kind);
+        return { path: target.scriptUri.path, written: true };
+    }
+
+    /**
+     * Resolves the on-disk target for a script: prompts for a language when the
+     * model's `scriptFormat` is missing or unsupported (persisting the pick so
+     * the next open skips the prompt), builds the {@link ScriptUri}, and joins it
+     * onto the editor's cached base directory. `undefined` when the picker is
+     * cancelled. Shared by {@link openScriptEditor} and {@link materializeScript}
+     * so both resolve — and cache `baseDirByEditor` — identically; that cache
+     * population is what lets {@link disposeForEditor} later delete the files.
+     */
+    private async resolveScriptTarget(
+        editorId: string,
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        eventName: string | undefined,
+        scriptFormat: string,
+    ): Promise<{ scriptUri: Uri; lang: ScriptLanguage; baseDir: string } | undefined> {
+        let effectiveFormat = scriptFormat;
+        if (!ScriptLanguage.isSupported(scriptFormat)) {
+            const picked = await this.picker.pickScriptLanguage(scriptFormat);
+            if (!picked) {
+                return undefined;
+            }
+            effectiveFormat = picked;
+            await this.sendFormatUpdate(editorId, elementId, kind, listenerIndex, picked);
+        }
+
+        const lang = new ScriptLanguage(effectiveFormat);
+        const script = new ScriptUri(
+            editorId,
+            elementId,
+            kind,
+            listenerIndex,
+            eventName,
+            lang.extension,
+        );
+        const baseDir = await this.scriptsBaseDir(editorId);
+        const scriptUri = toUri(posix.join(baseDir, script.relativePath()));
+        return { scriptUri, lang, baseDir };
+    }
+
+    /**
+     * Resolves (and caches) the editor's `<…>/tmp/scripting` base directory.
+     * Public so the message handler can name the folder in its completion
+     * notification and the adoption listener can containment-check opened files
+     * against it. Caching keeps teardown deterministic — see
+     * {@link baseDirByEditor}.
+     */
+    async scriptsBaseDir(editorId: string): Promise<string> {
+        let baseDir = this.baseDirByEditor.get(editorId);
+        if (baseDir === undefined) {
+            baseDir = await this.scriptFiles.resolveBaseDir(editorId);
+            this.baseDirByEditor.set(editorId, baseDir);
+        }
+        return baseDir;
+    }
+
+    /**
+     * Writes a script file (and, for JavaScript, its ambient files) under the
+     * echo-prevention {@link writingGuard}. The `.gitignore` is best-effort: a
+     * failure to write it must not block materialising the script itself.
+     */
+    private async writeScriptToDisk(
+        scriptUri: Uri,
+        baseDir: string,
+        content: string,
+        lang: ScriptLanguage,
+        kind: ScriptKind,
+    ): Promise<void> {
         try {
             await this.scriptFiles.ensureGitignore(baseDir);
         } catch (error) {
@@ -255,27 +393,84 @@ export class ScriptTaskService {
         } finally {
             this.writingGuard.delete(scriptUri.path);
         }
+    }
 
-        const doc = await workspace.openTextDocument(scriptUri);
-        await languages.setTextDocumentLanguage(doc, lang.languageId);
-        // preview:false pins the tab so a batch open ("Open all script tasks")
-        // doesn't self-replace — a preview tab is reused by the next open, which
-        // would arrive as a close of the earlier script and delete its siblings.
-        await window.showTextDocument(doc, {
-            viewColumn: ViewColumn.Beside,
-            preserveFocus: true,
-            preview: false,
-        });
+    /**
+     * Adopts a script file opened *outside* our own open flow — via Explorer,
+     * Quick Open, or the properties-panel button on an untracked file — so live
+     * sync into the BPMN model starts from that moment. Without adoption,
+     * keystrokes would be silently dropped: {@link onScriptDocumentChanged}
+     * filters strictly by {@link openDocuments}, so an untracked path never
+     * streams.
+     *
+     * Adoption is track + set-language + lock only: no content is pushed either
+     * way. The file on disk becomes the source of truth on the first edit after
+     * opening (keystroke streaming sends the whole buffer), so a file that went
+     * stale between materialise and open catches the model up on the first edit.
+     */
+    private async adoptExternallyOpenedScript(uri: Uri): Promise<void> {
+        // Our own opens set openDocuments *before* showTextDocument, so a
+        // tracked path here is our own tab — nothing to adopt.
+        if (this.openDocuments.has(uri.path)) {
+            return;
+        }
 
-        this.openDocuments.set(scriptUri.path, {
+        const parsed = parseScriptPath(uri.path);
+        if (!parsed) {
+            return;
+        }
+        const slug = parseScriptSlug(parsed.slug);
+        if (!slug) {
+            return;
+        }
+        // fromExtension returns undefined for `camunda.d.ts` (`ts`) and
+        // `jsconfig.json` (`json`), so opening an ambient sibling is ignored.
+        const extension = posix.extname(parsed.filename).replace(/^\./, "");
+        const lang = ScriptLanguage.fromExtension(extension);
+        if (!lang) {
+            return;
+        }
+
+        // Reverse the editor hash back to a live BPMN session; a script whose
+        // editor isn't open has no model to sync into.
+        const editorId = this.editorStore
+            .getEditorIds()
+            .find((id) => ScriptUri.hashEditorId(id) === parsed.editorHash);
+        if (editorId === undefined) {
+            return;
+        }
+
+        // The tmp/scripting marker alone is a heuristic any same-named user
+        // directory satisfies; the resolved base dir is the exact containment.
+        const baseDir = await this.scriptsBaseDir(editorId);
+        if (!uri.path.startsWith(`${baseDir}/`)) {
+            return;
+        }
+
+        // Re-check after the awaits: our own open of the same path could have
+        // raced in and tracked it already.
+        if (this.openDocuments.has(uri.path)) {
+            return;
+        }
+
+        this.openDocuments.set(uri.path, {
             editorId,
-            elementId,
-            kind,
-            listenerIndex,
-            uri: scriptUri,
+            elementId: parsed.elementId,
+            kind: slug.kind,
+            listenerIndex: slug.listenerIndex,
+            uri,
         });
 
-        // Tell the webview a tab now owns this script so the panel field locks.
+        // Set the language so highlighting/completion engage. A missing language
+        // contribution must not abort adoption — the tracking above is what makes
+        // keystroke sync work, and it is already in place.
+        try {
+            const doc = await workspace.openTextDocument(uri);
+            await languages.setTextDocumentLanguage(doc, lang.languageId);
+        } catch (error) {
+            this.notifier.logError(error as Error);
+        }
+
         this.broadcastOpenScripts(editorId);
     }
 
@@ -645,6 +840,16 @@ export class ScriptTaskService {
      * entry — it clears state before programmatically closing tabs.
      */
     private onTabsChanged(event: TabChangeEvent): void {
+        // Adoption: a script file opened outside our own flow (Explorer, Quick
+        // Open, the panel button) starts live sync from now on. The listener
+        // itself decides what's a script; own opens are guarded by openDocuments.
+        for (const tab of event.opened) {
+            if (tab.input instanceof TabInputText && tab.input.uri.scheme === "file") {
+                void this.adoptExternallyOpenedScript(tab.input.uri).catch((error) =>
+                    this.notifier.logError(error as Error),
+                );
+            }
+        }
         for (const tab of event.closed) {
             if (tab.input instanceof TabInputText && this.openDocuments.has(tab.input.uri.path)) {
                 // Cleanup is async (it flushes the pending keystroke before

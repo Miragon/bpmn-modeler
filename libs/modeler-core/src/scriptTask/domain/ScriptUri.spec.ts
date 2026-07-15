@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ScriptUri } from "./ScriptUri";
+import { parseScriptSlug, ScriptUri } from "./ScriptUri";
 import { parseKindFromUri } from "./scriptCompletion";
 
 /**
@@ -64,6 +64,58 @@ describe("ScriptUri.hashEditorId", () => {
             ScriptUri.hashEditorId("file:///b.bpmn"),
         );
     });
+});
+
+describe("parseScriptSlug", () => {
+    it("returns the script-task shape for a script task", () => {
+        expect(parseScriptSlug("script-task")).toEqual({
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+        });
+    });
+
+    it("round-trips an execution-listener slug with index and event", () => {
+        const slug = new ScriptUri("e", "Task_1", "execution-listener", 1, "start", "js").slug;
+        expect(parseScriptSlug(slug)).toEqual({
+            kind: "execution-listener",
+            listenerIndex: 1,
+            eventName: "start",
+        });
+    });
+
+    it("round-trips a task-listener slug at index 0 with an event", () => {
+        const slug = new ScriptUri("e", "UserTask_1", "task-listener", 0, "create", "groovy").slug;
+        expect(parseScriptSlug(slug)).toEqual({
+            kind: "task-listener",
+            listenerIndex: 0,
+            eventName: "create",
+        });
+    });
+
+    it("recovers a listener slug that carries no event", () => {
+        const slug = new ScriptUri("e", "Task_1", "task-listener", 2, undefined, "js").slug;
+        expect(parseScriptSlug(slug)).toEqual({
+            kind: "task-listener",
+            listenerIndex: 2,
+            eventName: undefined,
+        });
+    });
+
+    it("keeps a hyphenated event name intact", () => {
+        expect(parseScriptSlug("execution-listener-0-take-flow")).toEqual({
+            kind: "execution-listener",
+            listenerIndex: 0,
+            eventName: "take-flow",
+        });
+    });
+
+    it.each(["", "unknown", "execution-listener", "execution-listener-x", "task-listener-"])(
+        "returns undefined for the malformed slug %o",
+        (slug) => {
+            expect(parseScriptSlug(slug)).toBeUndefined();
+        },
+    );
 });
 
 describe("ScriptUri.relativePath round-trip with parseKindFromUri", () => {

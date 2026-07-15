@@ -109,3 +109,39 @@ export class ScriptUri {
         return this.relativePath();
     }
 }
+
+/** The kind/index/event a script {@link ScriptUri.slug} encodes. */
+export interface ParsedScriptSlug {
+    readonly kind: ScriptKind;
+    readonly listenerIndex: number | undefined;
+    readonly eventName: string | undefined;
+}
+
+// Reverse of {@link ScriptUri.slug} for listener kinds: `<kind>-<index>[-<event>]`.
+// The `(\d+)` index and optional trailing event are both greedy-safe because the
+// index cannot contain `-` and the event, when present, is the whole remainder.
+const LISTENER_SLUG = /^(execution-listener|task-listener)-(\d+)(?:-(.+))?$/;
+
+/**
+ * Recovers the kind, listener index, and event from a script's slug segment —
+ * the inverse of {@link ScriptUri.slug}. Adoption of an externally opened script
+ * file needs the full addressing (not just the kind {@link parseKindFromUri}
+ * gives) to track and lock the right panel field.
+ *
+ * `"script-task"` → the script-task shape; a well-formed listener slug → its
+ * parsed fields; anything else → `undefined` (the caller bails on adoption).
+ */
+export function parseScriptSlug(slug: string): ParsedScriptSlug | undefined {
+    if (slug === "script-task") {
+        return { kind: "script-task", listenerIndex: undefined, eventName: undefined };
+    }
+    const match = LISTENER_SLUG.exec(slug);
+    if (!match) {
+        return undefined;
+    }
+    return {
+        kind: match[1] as ScriptKind,
+        listenerIndex: Number(match[2]),
+        eventName: match[3],
+    };
+}

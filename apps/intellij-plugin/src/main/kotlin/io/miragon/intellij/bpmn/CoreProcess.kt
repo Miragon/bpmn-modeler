@@ -214,7 +214,8 @@ class CoreProcess(private val project: Project) : Disposable {
 
     /**
      * Fires `script/openAll` for the Tools-menu action; the bridge asks the active
-     * BPMN webview for its inline script tasks and opens each as an editor tab.
+     * BPMN webview for its inline script tasks and writes a file for each. No tabs
+     * open — live sync starts when the user opens a generated file (adoption).
      */
     fun openAllScriptTasks() = scriptRouter.openAllScriptTasks()
 

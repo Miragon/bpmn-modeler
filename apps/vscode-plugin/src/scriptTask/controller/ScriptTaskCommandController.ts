@@ -8,7 +8,7 @@ import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 export const OPEN_ALL_SCRIPT_TASKS_CMD = "bpmn-modeler.openAllScriptTasks";
 
 /**
- * Registers the "Open All Script Tasks in Editor" command.
+ * Registers the "Generate Script Files for Script Tasks" command.
  *
  * The command only kicks off the flow: it posts an {@link OpenAllScriptTasksQuery}
  * to the active editor's webview and returns. The reply

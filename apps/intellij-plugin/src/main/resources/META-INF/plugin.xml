@@ -293,8 +293,8 @@
             <action
                 id="io.miragon.bpmn-modeler.openAllScriptTasks"
                 class="io.miragon.intellij.bpmn.OpenAllScriptTasksAction"
-                text="Open All Script Tasks in Editor"
-                description="Open every inline script task of the active BPMN diagram as an editor tab"/>
+                text="Generate Script Files for Script Tasks"
+                description="Write a file for every inline script task of the active BPMN diagram; open a file to edit it with live sync"/>
         </group>
     </actions>
 </idea-plugin>

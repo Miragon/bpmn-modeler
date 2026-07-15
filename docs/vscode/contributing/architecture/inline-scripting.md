@@ -167,10 +167,38 @@ sequenceDiagram
 ```
 
 Scripts open as **pinned** tabs (`preview: false`). A preview tab is reused by
-the next open, so a batch open ("Open all script tasks") would have each script
-replace the previous one — and each replacement arrives as a tab *close* that
-would otherwise tear down the earlier scripts. Pinning makes the batch-opened
-tabs coexist.
+the next open, so opening several scripts in quick succession (e.g.
+multi-selecting generated files in the Explorer) would have each replace the
+previous one — and each replacement arrives as a tab *close* that would
+otherwise tear down the earlier scripts. Pinning makes such tabs coexist.
+
+### Generate script files (materialize)
+
+The **Generate Script Files for Script Tasks** palette command
+(`bpmn-modeler.openAllScriptTasks`) writes one file per inline script task —
+`ScriptTaskService.materializeScript` — **without** opening a tab, tracking
+the script, or locking the panel. A generated-but-unopened file is a plain
+file on disk; live sync starts only on adoption (below). The command exists
+to expose every script to disk-reading tooling in one shot.
+
+### Adoption — opening a generated file
+
+Opening a materialized file **any** way — Explorer, Quick Open, or a
+properties-panel button — starts live sync. VS Code fires an opened-tab
+event; `onTabsChanged` routes files under `tmp/scripting` to
+`adoptExternallyOpenedScript`, which tracks the script (`openDocuments`), sets
+the document language, and broadcasts the lock. **No content is copied in
+either direction at adopt time** — the model keeps its bytes, the file keeps
+its bytes, and disk wins on the first edit after opening (the keystroke
+stream sends the whole buffer, so a file that went stale between materialize
+and open catches the model up on the first post-open edit).
+
+The one exception is the properties-panel button on an *untracked* file:
+`openScriptEditor` rewrites the file from the current model before tracking,
+so that entry point never adopts stale bytes. Our own opens are not
+re-adopted because `openScriptEditor` sets the `openDocuments` entry
+**before** `showTextDocument` (see gotchas), so the adoption listener sees a
+tracked path and bails.
 
 ### Live edit propagation
 
@@ -304,6 +332,39 @@ dir falls with the last ack on `disposeEditor` (covering files whose tabs were
 closed earlier); a once-per-base-dir orphan sweep + `.gitignore` before the
 first write cover lost acks and crashes.
 
+### Generate script files + adoption (IntelliJ)
+
+**Generate Script Files for Script Tasks** (Tools menu,
+`OpenAllScriptTasksAction`) materializes a file per inline script task through
+the bridge and sends **no** `script/open` — the files land on disk untracked,
+exactly like the VS Code command. `scriptAdapters.ts` writes them via the same
+base-dir resolution as a real open.
+
+Live sync starts on **adoption**: opening a materialized file any way (Project
+view, or the panel button on an untracked file) is reported host→core as a new
+RPC notification:
+
+| Message | Direction | Payload | Purpose |
+|---|---|---|---|
+| `script/didOpenExternal` | host → core | `{ filePath }` | A script file was opened outside the core's `script/open` flow; the core (`scriptAdapters.ts` `adoptExternalOpen`) adopts it into live sync — track + set language + lock — **without** pushing content either way. Disk wins on the first edit after opening. |
+
+The listener that fires it is a `FileEditorManagerListener` registered
+**eagerly** in `ScriptRouter.register()`, *not* inside the lazy
+`ScriptEditorManager`. Rationale: the Generate command sends no `script/open`,
+so a manager-hosted listener would never arm — and a Project-view open of a
+generated file would be silently dropped. Parenting the eager subscription to
+`CoreProcess` still ties its lifetime to the project.
+
+`onFileOpened` skips two things: our **own** opens and non-script files. An own
+open is detected because `ScriptEditorManager` stamps `SCRIPT_ID_KEY` UserData
+on the `VirtualFile` **before** `openFile`, so the resulting `fileOpened`
+carries the key and is ignored (it is already tracked, not an external open).
+Files outside a `tmp/scripting/` directory are filtered by path. `filePath` is
+sent system-independent so the core's `parseScriptPath` matches regardless of
+the host OS separator. As on VS Code, the ambient siblings (`camunda.d.ts`,
+`jsconfig.json`) are not adopted — their extensions don't map to a script
+language on the core side.
+
 ## Completion provider
 
 `ScriptCompletionProvider` registers for `{ scheme: "file", language, pattern:
@@ -408,6 +469,23 @@ one closing tab's cleanup delete its siblings.
   a loose `.js` file does not include a sibling `camunda.d.ts`; the config
   file is what turns the slug directory into a configured project (and
   shields it from a workspace-root `tsconfig.json`).
+- **Track before `showTextDocument`.** `openScriptEditor` sets the
+  `openDocuments` entry *before* revealing the tab, because
+  `showTextDocument` fires the opened-tab event the adoption listener reacts
+  to. The listener's own-open guard keys off `openDocuments`, so tracking
+  first is what stops us from re-adopting (and re-broadcasting) our own open.
+  Get the order wrong and every context-pad open double-fires.
+- **Adoption never syncs content at adopt time.** `adoptExternallyOpenedScript`
+  is track + set-language + lock only — pushing content either way here would
+  either clobber a file a tool just edited (model→disk) or clobber the model
+  with whatever the file happens to hold (disk→model). Disk becomes truth on
+  the *first edit* instead, which is the accepted way a stale generated file
+  reconciles.
+- **Ambient siblings are skipped on open.** Opening `camunda.d.ts` or
+  `jsconfig.json` must not adopt them. `ScriptLanguage.fromExtension` returns
+  `undefined` for their extensions (`ts` / `json`), so the adoption listener
+  bails before tracking — the extension map doubles as the ambient-file
+  guard.
 
 ## Related
 

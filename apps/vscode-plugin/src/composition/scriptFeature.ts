@@ -46,7 +46,7 @@ export function register(
     );
     scriptTaskSvc.register(context);
 
-    // The "Open All Script Tasks in Editor" palette command only posts the query;
+    // The "Generate Script Files for Script Tasks" palette command only posts the query;
     // the reply is handled by the router handler wired in the editor feature.
     new ScriptTaskCommandController(deps.editorStore, deps.notifier).register(context);
 

@@ -11,10 +11,12 @@ While a script tab is open, its content lives in a **real file** under
 Real files are what let external tooling participate: language servers and
 tsserver only attach to on-disk files, and coding agents such as Claude
 Code can read and write the script directly. The files are transient —
-created when you open a script, deleted when you close it, and ignored by
-git via an auto-generated `.gitignore`. The BPMN model stays the source of
-truth: edits are streamed back into it as you type, and the BPMN file
-becomes dirty just like any other modeler change.
+created when you open a script (or generated in bulk via **Generate Script
+Files for Script Tasks**), kept on disk until you close the diagram, and
+ignored by git via an auto-generated `.gitignore`. The BPMN model stays the
+source of truth: once a script is being edited live, edits are streamed back
+into it as you type, and the BPMN file becomes dirty just like any other
+modeler change.
 
 ## Supported Languages
 
@@ -83,6 +85,44 @@ implementation. Clicking it converts the listener to an inline
 > <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Z</kbd> on the diagram to revert if
 > you opened the editor by mistake.
 
+## Generate Script Files for Script Tasks
+
+The **Generate Script Files for Script Tasks** command (Command Palette,
+category *Miragon BPMN Modeler*) writes one file per inline script task in
+the active diagram to `<configFolder>/tmp/scripting/` — **without** opening
+any editor tabs. Use it to expose every script to disk-reading tools (a
+coding agent, a language server, `grep`) in one shot, then let the agent work
+across all of them at once.
+
+The generated files are plain files: nothing is tracked, no panel field is
+locked, and no live sync is running yet. Sync starts the moment you **open**
+one (see below).
+
+## Adoption on Open
+
+Opening a generated script file **any** way — from the Explorer, from Quick
+Open, or via a properties-panel button — starts live sync from that moment.
+We call this *adoption*: the file is tracked, the element's script language
+is set, and the matching **Script** field locks, exactly as if you had
+opened the script through the context pad.
+
+Adoption copies **no content in either direction** at open time — the model
+keeps its bytes, the file keeps its bytes. Disk becomes the source of truth
+on the **first edit after opening**: a file that a tool changed while it was
+not open lands in the model on your first post-open keystroke.
+
+One path is different. Clicking a **properties-panel button** on a file that
+isn't tracked yet first **rewrites the file from the current model**, then
+tracks it — so the panel button never adopts stale bytes. Explorer and Quick
+Open adopt the file exactly as it is on disk.
+
+> **Caveat — a generated file can go stale.** Between generating the files
+> and opening them, the panel fields are *not* locked, so a panel edit in
+> that window leaves the on-disk file behind. This is expected and accepted:
+> opening the file adopts it, and your first edit afterwards catches the
+> model up. For a guaranteed-fresh copy, open through a properties-panel
+> button, which rewrites from the model first.
+
 ## What the Editor Tab Looks Like
 
 The tab opens in a side group beside the diagram so you can see both at
@@ -116,9 +156,10 @@ two listeners on the same task do not collide:
   *diagram* reverts script content — and the open script tab is
   overwritten to match. Deleting the element closes its script tab and
   removes the file.
-- Closing the script tab deletes the transient file but does **not**
-  revert the script in the model — the bytes you typed are already part
-  of the diagram.
+- Closing the script tab does **not** delete the file and does **not**
+  revert the script in the model — the bytes you typed are already part of
+  the diagram, and the file stays on disk until you close the whole diagram.
+  Re-opening the file resumes live sync (adoption).
 - Switching the BPMN tab away while you keep typing is safe: the changes
   are buffered and replayed when you switch back to the diagram.
 - If a script file is edited **externally** (a coding agent, a terminal
@@ -321,10 +362,11 @@ on-disk copy to reflect your latest keystrokes.
 - **Multiple scripts at once.** Open as many script tabs as you like, on
   the same element or across elements. They all stream back into the
   BPMN model independently.
-- **Close tabs you don't need.** When you close a script tab, its
-  transient file is deleted and re-opening loads the latest content from
-  the BPMN model. This is the cleanest way to discard a stale buffer if
-  you ever suspect drift.
+- **Close tabs you don't need.** Closing a script tab stops live sync for
+  it but leaves the file on disk; all generated files are cleared when you
+  close the diagram. Re-opening a file resumes sync (adoption) — and if you
+  suspect drift, re-open it through a properties-panel button, which rewrites
+  the file from the current model first.
 - **Two windows, same diagram.** Opening the same script from two VS Code
   windows maps to the same transient file — last writer wins on disk, but
   each window's model still receives its own keystrokes. Avoid editing the

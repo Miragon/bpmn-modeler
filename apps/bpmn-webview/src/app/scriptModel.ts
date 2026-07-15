@@ -74,8 +74,8 @@ export function readScriptTaskFormat(bo: any): string {
 
 /**
  * Scans the element registry for every `bpmn:ScriptTask` that carries an inline
- * script, returning the payload the "Open All Script Tasks in Editor" command
- * ships to the host.
+ * script, returning the payload the "Generate Script Files for Script Tasks"
+ * command ships to the host.
  *
  * Three classes of element are excluded because they have no inline body to
  * open: labels (separate registry entries that share their host's business

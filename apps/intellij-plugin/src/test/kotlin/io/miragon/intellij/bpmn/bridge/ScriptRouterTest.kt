@@ -41,4 +41,23 @@ class ScriptRouterTest {
         // active-editor pointer, so the params object carries no keys.
         assertTrue(frame.getAsJsonObject("params").entrySet().isEmpty(), "params must be empty")
     }
+
+    @Test
+    fun `notifyDidOpenExternal emits script didOpenExternal with the file path`() {
+        val wired = wireChannel().also { this.wired = it }
+        val deps = bridgeDeps(projectFixture.get(), wired.channel, wired.handlers)
+        val router = ScriptRouter(deps)
+
+        // Exercise the extracted notify directly: the adoption decision (skip our
+        // own opens / non-tmp-scripting files) is a pure fileOpened branch, but the
+        // emitted frame — the core-facing contract — is what a drift here would break.
+        router.notifyDidOpenExternal("/ws/.camunda/tmp/scripting/h/Task_1/script-task/Task_1.js")
+
+        val frame = gson.fromJson(wired.fake.nextFrame(), JsonObject::class.java)
+        assertEquals("script/didOpenExternal", frame.get("method").asString)
+        assertEquals(
+            "/ws/.camunda/tmp/scripting/h/Task_1/script-task/Task_1.js",
+            frame.getAsJsonObject("params").get("filePath").asString,
+        )
+    }
 }
