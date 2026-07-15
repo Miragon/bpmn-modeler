@@ -2,7 +2,7 @@
 // Dependency-free static server for the built demo (dist/demo).
 // Used by `yarn demo` / the Conductor run target.
 import { createReadStream, statSync } from "node:fs";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 
@@ -32,10 +32,13 @@ const MIME = {
 };
 
 function resolvePath(urlPath) {
-    // Strip query/hash, decode, and confine to the webroot (no traversal).
-    const clean = normalize(decodeURIComponent(urlPath.split(/[?#]/)[0]));
-    let filePath = join(webroot, clean);
-    if (!filePath.startsWith(webroot)) {
+    // Decode + strip the leading slash so it resolves *inside* the webroot;
+    // `resolve` collapses any `..`, and the boundary check (with the trailing
+    // separator) rejects anything that escapes — including sibling dirs like
+    // `dist/demo-evil` that a bare `startsWith(webroot)` would let through.
+    const decoded = decodeURIComponent(urlPath.split(/[?#]/)[0]).replace(/^\/+/, "");
+    let filePath = resolve(webroot, decoded);
+    if (filePath !== webroot && !filePath.startsWith(webroot + sep)) {
         return null;
     }
     try {

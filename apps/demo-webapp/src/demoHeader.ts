@@ -117,10 +117,25 @@ export function mountDemoHeader(pageType: ModelType, links: Partial<DemoHeaderLi
         <label for="miragon-demo-model">Modell:</label>
         <select id="miragon-demo-model" aria-label="Modell wählen">${options}</select>
         <span class="spacer"></span>
-        <a class="primary" href="${l.docs}" target="_blank" rel="noopener">Zur Doku</a>
-        <a href="${l.intellij}" target="_blank" rel="noopener">in IntelliJ installieren</a>
-        <a href="${l.vscode}" target="_blank" rel="noopener">in VS Code installieren</a>
     `;
+    // Build the action links via the DOM API instead of interpolating the
+    // (externally-typed) link URLs into innerHTML — keeps CodeQL's
+    // unsafe-HTML-construction sink out of reach.
+    for (const { href, text, primary } of [
+        { href: l.docs, text: "Zur Doku", primary: true },
+        { href: l.intellij, text: "in IntelliJ installieren", primary: false },
+        { href: l.vscode, text: "in VS Code installieren", primary: false },
+    ]) {
+        const link = document.createElement("a");
+        link.href = href;
+        link.textContent = text;
+        link.target = "_blank";
+        link.rel = "noopener";
+        if (primary) {
+            link.className = "primary";
+        }
+        header.appendChild(link);
+    }
     document.body.prepend(header);
 
     const footer = document.createElement("footer");

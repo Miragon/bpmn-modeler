@@ -51,6 +51,7 @@ module.exports = [
     // Node.js globals for ESM scripts (e.g. CI helper scripts)
     {
         files: [
+            "scripts/**/*.mjs",
             ".github/scripts/**/*.mjs",
             "apps/standalone/scripts/**/*.mjs",
             "libs/standalone-extension/scripts/**/*.mjs",
