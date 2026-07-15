@@ -2,7 +2,7 @@
 // Dependency-free static server for the built demo (dist/demo).
 // Used by `yarn demo` / the Conductor run target.
 import { createReadStream, statSync } from "node:fs";
-import { extname, join, resolve, sep } from "node:path";
+import { extname, join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 
@@ -32,15 +32,15 @@ const MIME = {
 };
 
 function resolvePath(urlPath) {
-    // Decode + strip the leading slash so it resolves *inside* the webroot;
-    // `resolve` collapses any `..`, and the boundary check (with the trailing
-    // separator) rejects anything that escapes — including sibling dirs like
-    // `dist/demo-evil` that a bare `startsWith(webroot)` would let through.
-    const decoded = decodeURIComponent(urlPath.split(/[?#]/)[0]).replace(/^\/+/, "");
-    let filePath = resolve(webroot, decoded);
-    if (filePath !== webroot && !filePath.startsWith(webroot + sep)) {
+    // Reject any parent-traversal on the decoded path *before* joining it onto
+    // the webroot. The explicit `..` check is the barrier CodeQL's
+    // path-injection analysis recognises; `join` also neutralises a leading
+    // `/` (an absolute request path is treated as relative to the webroot).
+    const decoded = decodeURIComponent(urlPath.split(/[?#]/)[0]);
+    if (decoded.includes("..")) {
         return null;
     }
+    let filePath = join(webroot, decoded);
     try {
         if (statSync(filePath).isDirectory()) {
             filePath = join(filePath, "index.html");
