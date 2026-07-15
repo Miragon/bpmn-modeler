@@ -4,3 +4,4 @@ export * from "./selection";
 export * from "./state";
 export * from "./propertiesPanelClipboard";
 export * from "./host";
+export * from "./webviewState";

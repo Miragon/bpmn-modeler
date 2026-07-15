@@ -30,3 +30,7 @@ icon = "globe"
 [scripts.run.deployment-webview]
 command = "corepack yarn workspace @miragon/bpmn-modeler-deployment-webview dev"
 icon = "globe"
+
+[scripts.run.demo]
+command = "corepack yarn demo"
+icon = "presentation"

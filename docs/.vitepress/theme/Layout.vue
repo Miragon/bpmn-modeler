@@ -37,6 +37,12 @@ const showSiteFooter = computed(() =>
                     Download
                 </a>
                 <a
+                    class="btn btn-secondary"
+                    href="https://modeler-demo.miragon.io"
+                    target="_blank"
+                    rel="noopener"
+                >Live demo</a>
+                <a
                     class="btn btn-tertiary"
                     :href="withBase('/vscode/getting-started')"
                 >Learn more</a>
