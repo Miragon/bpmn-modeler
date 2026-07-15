@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1d2hcmz" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.24.0">
+  <bpmn:process id="handleRejection" isExecutable="true" camunda:historyTimeToLive="180">
+    <bpmn:startEvent id="startEvent_confirmationRejected" name="Confirmation rejected">
+      <bpmn:outgoing>Flow_0vqwqsj</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:businessRuleTask id="serviceTask_categorizeApplicant" name="Categorize applicant" camunda:decisionRef="categorizeApplicant" camunda:mapDecisionResult="singleEntry" camunda:resultVariable="isHighValue">
+      <bpmn:incoming>Flow_0vqwqsj</bpmn:incoming>
+      <bpmn:outgoing>Flow_0gvf8zj</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_0vqwqsj" sourceRef="startEvent_confirmationRejected" targetRef="serviceTask_categorizeApplicant" />
+    <bpmn:exclusiveGateway id="gateway_highValue" name="High value?" default="Flow_1imjd1v">
+      <bpmn:incoming>Flow_0gvf8zj</bpmn:incoming>
+      <bpmn:outgoing>Flow_07y997b</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1imjd1v</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0gvf8zj" sourceRef="serviceTask_categorizeApplicant" targetRef="gateway_highValue" />
+    <bpmn:sequenceFlow id="Flow_07y997b" sourceRef="gateway_highValue" targetRef="userTask_writeRegretMail">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isHighValue}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:userTask id="userTask_writeRegretMail" name="Write an&#10;email expressing regret" camunda:asyncAfter="true">
+      <bpmn:incoming>Flow_07y997b</bpmn:incoming>
+      <bpmn:outgoing>Flow_1ufk6o2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="endEvent_triedToReacquire" name="Tried to reaquire applicant">
+      <bpmn:incoming>Flow_1ufk6o2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1ufk6o2" sourceRef="userTask_writeRegretMail" targetRef="endEvent_triedToReacquire" />
+    <bpmn:endEvent id="endEvent_acceptRejection" name="Accept rejection">
+      <bpmn:incoming>Flow_1imjd1v</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1imjd1v" sourceRef="gateway_highValue" targetRef="endEvent_acceptRejection" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="handleRejection">
+      <bpmndi:BPMNShape id="Event_1rk8lh4_di" bpmnElement="startEvent_confirmationRejected">
+        <dc:Bounds x="222" y="172" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="209" y="215" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0jjbpb5_di" bpmnElement="serviceTask_categorizeApplicant">
+        <dc:Bounds x="310" y="150" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1iy6c2a_di" bpmnElement="gateway_highValue" isMarkerVisible="true">
+        <dc:Bounds x="465" y="165" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="461" y="135" width="59" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_12cgq0s_di" bpmnElement="userTask_writeRegretMail">
+        <dc:Bounds x="580" y="150" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0ucyud3_di" bpmnElement="endEvent_triedToReacquire">
+        <dc:Bounds x="752" y="172" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="730" y="215" width="81" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1mpbd5e_di" bpmnElement="endEvent_acceptRejection">
+        <dc:Bounds x="612" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="591" y="345" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0vqwqsj_di" bpmnElement="Flow_0vqwqsj">
+        <di:waypoint x="258" y="190" />
+        <di:waypoint x="310" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0gvf8zj_di" bpmnElement="Flow_0gvf8zj">
+        <di:waypoint x="410" y="190" />
+        <di:waypoint x="465" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07y997b_di" bpmnElement="Flow_07y997b">
+        <di:waypoint x="515" y="190" />
+        <di:waypoint x="580" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1ufk6o2_di" bpmnElement="Flow_1ufk6o2">
+        <di:waypoint x="680" y="190" />
+        <di:waypoint x="752" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1imjd1v_di" bpmnElement="Flow_1imjd1v">
+        <di:waypoint x="490" y="215" />
+        <di:waypoint x="490" y="320" />
+        <di:waypoint x="612" y="320" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

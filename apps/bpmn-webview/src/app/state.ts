@@ -1,5 +1,5 @@
 import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
-import { WebviewState } from "./host";
+import { WebviewState } from "./webviewState";
 import { BpmnModeler } from "./modeler";
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";

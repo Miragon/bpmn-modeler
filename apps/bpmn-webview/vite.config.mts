@@ -4,8 +4,11 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
+// Asset-bundle build embedded by the VS Code / IntelliJ / desktop hosts.
+// The static browser demo lives in apps/demo-webapp (which reuses this app's bootstrap()).
 export default defineConfig({
     root: __dirname,
+    base: "/",
     cacheDir: "../../node_modules/.vite/bpmn-webview",
     plugins: [
         tsconfigPaths(),

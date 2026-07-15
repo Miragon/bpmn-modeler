@@ -3590,6 +3590,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-demo-webapp@workspace:apps/demo-webapp":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-demo-webapp@workspace:apps/demo-webapp"
+  dependencies:
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@miragon/bpmn-modeler-webview": "workspace:*"
+    "@miragon/dmn-modeler-webview": "workspace:*"
+    npm-run-all: "npm:4.1.5"
+    vite: "npm:8.1.0"
+    vite-plugin-static-copy: "npm:4.1.1"
+    vite-tsconfig-paths: "npm:6.1.1"
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-deployment-webview@workspace:apps/deployment-webview"
@@ -3704,7 +3718,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview":
+"@miragon/bpmn-modeler-webview@workspace:*, @miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview"
   dependencies:
@@ -3754,7 +3768,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
+"@miragon/dmn-modeler-webview@workspace:*, @miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/dmn-modeler-webview@workspace:apps/dmn-webview"
   dependencies:

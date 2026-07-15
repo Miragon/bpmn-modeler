@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1d2hcmz" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Platform" modeler:executionPlatformVersion="7.24.0">
+  <bpmn:process id="subscribeNewsletter" isExecutable="true" camunda:historyTimeToLive="180">
+    <bpmn:startEvent id="startEvent_submitRegistration" name="Submit registration form" camunda:asyncBefore="true">
+      <bpmn:outgoing>Flow_0p7ko1g</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_0rxlo7x" messageRef="Message_3p5jpc1" />
+    </bpmn:startEvent>
+    <bpmn:subProcess id="subProcess_confirmMembership" name="Confirm membership">
+      <bpmn:incoming>Flow_0camehw</bpmn:incoming>
+      <bpmn:outgoing>Flow_1j9l21y</bpmn:outgoing>
+      <bpmn:startEvent id="startEvent_confirmationRequired" name="Confirmation required">
+        <bpmn:outgoing>Flow_1y9mu7r</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="serviceTask_sendConfirmationMail" name="Send confirmation mail" camunda:delegateExpression="#{sendConfirmationMailDelegate}">
+        <bpmn:incoming>Flow_1y9mu7r</bpmn:incoming>
+        <bpmn:outgoing>Flow_1wb7scj</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:userTask id="userTask_confirmMembership" name="Confirm membership" camunda:asyncAfter="true">
+        <bpmn:incoming>Flow_1wb7scj</bpmn:incoming>
+        <bpmn:outgoing>Flow_0w9368p</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="endEvent_membershipConfirmed" name="Membership confirmed">
+        <bpmn:incoming>Flow_0w9368p</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_1y9mu7r" sourceRef="startEvent_confirmationRequired" targetRef="serviceTask_sendConfirmationMail" />
+      <bpmn:sequenceFlow id="Flow_1wb7scj" sourceRef="serviceTask_sendConfirmationMail" targetRef="userTask_confirmMembership" />
+      <bpmn:sequenceFlow id="Flow_0w9368p" sourceRef="userTask_confirmMembership" targetRef="endEvent_membershipConfirmed" />
+    </bpmn:subProcess>
+    <bpmn:serviceTask id="serviceTask_sendWelcomeMail" name="Send Welcome Mail" camunda:delegateExpression="#{sendWelcomeMailDelegate}">
+      <bpmn:incoming>Flow_1j9l21y</bpmn:incoming>
+      <bpmn:outgoing>Flow_14bk7y3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="serviceTask_claimMembership" name="Claim membership" camunda:delegateExpression="#{claimMembershipDelegate}">
+      <bpmn:incoming>Flow_0p7ko1g</bpmn:incoming>
+      <bpmn:outgoing>Flow_0hlnr3k</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gateway_hasEmptySpots" name="Has empty spots" default="Flow_0camehw">
+      <bpmn:incoming>Flow_0hlnr3k</bpmn:incoming>
+      <bpmn:outgoing>Flow_0camehw</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0bt3531</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="endEvent_membershipRejected" name="Membership rejected">
+      <bpmn:incoming>Flow_10ryvaz</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="serviceTask_sendRejectionMail" name="Send rejection mail" camunda:delegateExpression="#{sendRejectionMailDelegate}">
+      <bpmn:incoming>Flow_0bt3531</bpmn:incoming>
+      <bpmn:outgoing>Flow_10ryvaz</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="serviceTask_reSendConfirmationMail" name="Re-Send confirmation mail" camunda:delegateExpression="#{reSendConfirmationMailDelegate}">
+      <bpmn:incoming>Flow_1unns5i</bpmn:incoming>
+      <bpmn:outgoing>Flow_03vzvil</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="endEvent_mailSentAgain" name="Mail sent again">
+      <bpmn:incoming>Flow_03vzvil</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="endEvent_membershipActivated" name="Membership activated">
+      <bpmn:incoming>Flow_14bk7y3</bpmn:incoming>
+      <bpmn:signalEventDefinition id="SignalEventDefinition_0qglo4a" signalRef="Signal_membershipActivated" />
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="serviceTask_revokeClaim" name="Revoke claim" isForCompensation="true" camunda:delegateExpression="#{revokeClaimDelegate}" />
+    <bpmn:boundaryEvent id="boundary_compensateClaim" attachedToRef="serviceTask_claimMembership">
+      <bpmn:compensateEventDefinition id="CompensateEventDefinition_claim" />
+    </bpmn:boundaryEvent>
+    <bpmn:callActivity id="callActivity_handleRejection" name="Handle rejection" calledElement="handleRejection">
+      <bpmn:extensionElements>
+        <camunda:in source="membershipId" target="membershipId" />
+        <camunda:in source="age" target="age" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0ho2dhw</bpmn:incoming>
+      <bpmn:incoming>Flow_153mcrs</bpmn:incoming>
+      <bpmn:outgoing>Flow_14y1unw</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:endEvent id="endEvent_membershipDeclined" name="Membership declined">
+      <bpmn:incoming>Flow_14y1unw</bpmn:incoming>
+      <bpmn:compensateEventDefinition id="CompensateEventDefinition_declined" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0ho2dhw" sourceRef="timer_abortAfter3HalfDays" targetRef="callActivity_handleRejection" />
+    <bpmn:sequenceFlow id="Flow_153mcrs" sourceRef="event_confirmationRejected" targetRef="callActivity_handleRejection" />
+    <bpmn:sequenceFlow id="Flow_14y1unw" sourceRef="callActivity_handleRejection" targetRef="endEvent_membershipDeclined" />
+    <bpmn:boundaryEvent id="timer_abortAfter3HalfDays" name="After 3&#10;1/2 days" camunda:asyncAfter="true" attachedToRef="subProcess_confirmMembership">
+      <bpmn:outgoing>Flow_0ho2dhw</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1ipk14c">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P3DT12H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="event_confirmationRejected" name="Confirmation rejected" camunda:asyncAfter="true" attachedToRef="subProcess_confirmMembership">
+      <bpmn:outgoing>Flow_153mcrs</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_0po7vrz" messageRef="Message_ConfirmationRejected" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="timer_resendEveryDay" name="Every day" camunda:asyncAfter="true" cancelActivity="false" attachedToRef="subProcess_confirmMembership">
+      <bpmn:outgoing>Flow_1unns5i</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1f4kmf0">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P1D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_14bk7y3" sourceRef="serviceTask_sendWelcomeMail" targetRef="endEvent_membershipActivated" />
+    <bpmn:sequenceFlow id="Flow_0p7ko1g" sourceRef="startEvent_submitRegistration" targetRef="serviceTask_claimMembership" />
+    <bpmn:sequenceFlow id="Flow_0camehw" name="Yes" sourceRef="gateway_hasEmptySpots" targetRef="subProcess_confirmMembership" />
+    <bpmn:sequenceFlow id="Flow_1j9l21y" sourceRef="subProcess_confirmMembership" targetRef="serviceTask_sendWelcomeMail" />
+    <bpmn:sequenceFlow id="Flow_0hlnr3k" sourceRef="serviceTask_claimMembership" targetRef="gateway_hasEmptySpots" />
+    <bpmn:sequenceFlow id="Flow_0bt3531" name="No" sourceRef="gateway_hasEmptySpots" targetRef="serviceTask_sendRejectionMail">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!hasEmptySpots}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_10ryvaz" sourceRef="serviceTask_sendRejectionMail" targetRef="endEvent_membershipRejected" />
+    <bpmn:sequenceFlow id="Flow_1unns5i" sourceRef="timer_resendEveryDay" targetRef="serviceTask_reSendConfirmationMail" />
+    <bpmn:sequenceFlow id="Flow_03vzvil" sourceRef="serviceTask_reSendConfirmationMail" targetRef="endEvent_mailSentAgain" />
+    <bpmn:association id="association_compensateClaim" associationDirection="One" sourceRef="boundary_compensateClaim" targetRef="serviceTask_revokeClaim" />
+  </bpmn:process>
+  <bpmn:message id="Message_3p5jpc1" name="Message_SubscriptionRequested" />
+  <bpmn:message id="Message_ConfirmationRejected" name="Message_ConfirmationRejected" />
+  <bpmn:signal id="Signal_membershipActivated" name="signal_membershipActivated" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="subscribeNewsletter">
+      <bpmndi:BPMNShape id="Event_11n7oe2_di" bpmnElement="startEvent_submitRegistration">
+        <dc:Bounds x="-1038" y="-738" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-1059" y="-695" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0h6nlhr_di" bpmnElement="subProcess_confirmMembership" isExpanded="true">
+        <dc:Bounds x="-670" y="-820" width="520" height="210" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1u69jx7_di" bpmnElement="startEvent_confirmationRequired">
+        <dc:Bounds x="-628" y="-735" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-641" y="-692" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_16u7iio_di" bpmnElement="serviceTask_sendConfirmationMail">
+        <dc:Bounds x="-540" y="-757" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_015b0ih_di" bpmnElement="userTask_confirmMembership">
+        <dc:Bounds x="-400" y="-757" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_031g1hy_di" bpmnElement="endEvent_membershipConfirmed">
+        <dc:Bounds x="-238" y="-735" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-250" y="-692" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1y9mu7r_di" bpmnElement="Flow_1y9mu7r">
+        <di:waypoint x="-592" y="-717" />
+        <di:waypoint x="-540" y="-717" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1wb7scj_di" bpmnElement="Flow_1wb7scj">
+        <di:waypoint x="-440" y="-717" />
+        <di:waypoint x="-400" y="-717" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0w9368p_di" bpmnElement="Flow_0w9368p">
+        <di:waypoint x="-300" y="-717" />
+        <di:waypoint x="-238" y="-717" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Activity_0h80alm_di" bpmnElement="serviceTask_sendWelcomeMail">
+        <dc:Bounds x="-100" y="-760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1fodv6z" bpmnElement="serviceTask_claimMembership">
+        <dc:Bounds x="-940" y="-760" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1lse2rm" bpmnElement="gateway_hasEmptySpots" isMarkerVisible="true">
+        <dc:Bounds x="-785" y="-745" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-801" y="-769" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1s7tsuf" bpmnElement="endEvent_membershipRejected">
+        <dc:Bounds x="-508" y="-518" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-520" y="-475" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0l9lfjn" bpmnElement="serviceTask_sendRejectionMail">
+        <dc:Bounds x="-670" y="-540" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0h0uaib" bpmnElement="serviceTask_reSendConfirmationMail">
+        <dc:Bounds x="-100" y="-540" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_12gjbia_di" bpmnElement="endEvent_mailSentAgain">
+        <dc:Bounds x="52" y="-518" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="33" y="-475" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_11di40p_di" bpmnElement="endEvent_membershipActivated">
+        <dc:Bounds x="52" y="-738" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="40" y="-687" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_125tc29" bpmnElement="serviceTask_revokeClaim">
+        <dc:Bounds x="-820" y="-975" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_callActivityHandleRejection_di" bpmnElement="callActivity_handleRejection">
+        <dc:Bounds x="-100" y="-975" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1rl3e7i" bpmnElement="endEvent_membershipDeclined">
+        <dc:Bounds x="52" y="-953" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="40" y="-910" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_08wx372_di" bpmnElement="timer_resendEveryDay">
+        <dc:Bounds x="-238" y="-628" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-205" y="-585" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_15v89ov_di" bpmnElement="event_confirmationRejected">
+        <dc:Bounds x="-288" y="-838" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-342" y="-864" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_02bjbdp_di" bpmnElement="timer_abortAfter3HalfDays">
+        <dc:Bounds x="-218" y="-838" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-181" y="-864" width="42" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_boundaryCompensateClaim_di" bpmnElement="boundary_compensateClaim">
+        <dc:Bounds x="-908" y="-778" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_01oybl0" bpmnElement="Flow_0ho2dhw">
+        <di:waypoint x="-200" y="-838" />
+        <di:waypoint x="-200" y="-935" />
+        <di:waypoint x="-100" y="-935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_1mexfn5" bpmnElement="Flow_153mcrs">
+        <di:waypoint x="-270" y="-838" />
+        <di:waypoint x="-270" y="-935" />
+        <di:waypoint x="-100" y="-935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow14y1unw" bpmnElement="Flow_14y1unw">
+        <di:waypoint x="0" y="-935" />
+        <di:waypoint x="52" y="-935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14bk7y3_di" bpmnElement="Flow_14bk7y3">
+        <di:waypoint x="0" y="-720" />
+        <di:waypoint x="52" y="-720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0p7ko1g_di" bpmnElement="Flow_0p7ko1g">
+        <di:waypoint x="-1002" y="-720" />
+        <di:waypoint x="-940" y="-720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0camehw_di" bpmnElement="Flow_0camehw">
+        <di:waypoint x="-735" y="-720" />
+        <di:waypoint x="-670" y="-720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-711" y="-738" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1j9l21y_di" bpmnElement="Flow_1j9l21y">
+        <di:waypoint x="-150" y="-720" />
+        <di:waypoint x="-100" y="-720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0hlnr3k_di" bpmnElement="Flow_0hlnr3k">
+        <di:waypoint x="-840" y="-720" />
+        <di:waypoint x="-785" y="-720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_1yque4t" bpmnElement="Flow_0bt3531">
+        <di:waypoint x="-760" y="-695" />
+        <di:waypoint x="-760" y="-500" />
+        <di:waypoint x="-670" y="-500" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="-752" y="-659" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_00t08t7" bpmnElement="Flow_10ryvaz">
+        <di:waypoint x="-570" y="-500" />
+        <di:waypoint x="-508" y="-500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1unns5i_di" bpmnElement="Flow_1unns5i">
+        <di:waypoint x="-220" y="-592" />
+        <di:waypoint x="-220" y="-500" />
+        <di:waypoint x="-100" y="-500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_03vzvil_di" bpmnElement="Flow_03vzvil">
+        <di:waypoint x="0" y="-500" />
+        <di:waypoint x="52" y="-500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_associationCompensateClaim" bpmnElement="association_compensateClaim">
+        <di:waypoint x="-899" y="-775" />
+        <di:waypoint x="-899" y="-935" />
+        <di:waypoint x="-820" y="-935" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
