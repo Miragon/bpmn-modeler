@@ -4,6 +4,7 @@ import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
 import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
+import { findListenerAt, readScriptTaskFormat } from "./scriptModel";
 
 /**
  * Runs *below* the stock Camunda provider (priority 1000) so its middleware
@@ -278,20 +279,14 @@ export class ScriptLockPropertiesProvider {
                 kind,
                 listenerIndex: undefined,
                 eventName: undefined,
-                scriptFormat:
-                    bo.get?.("camunda:scriptFormat") ||
-                    bo.get?.("scriptFormat") ||
-                    bo.scriptFormat ||
-                    "",
+                scriptFormat: readScriptTaskFormat(bo),
                 content: bo.script || "",
             };
         }
 
         const listenerType =
             kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
-        const listener = (bo.extensionElements?.values ?? []).filter(
-            (value: any) => value.$type === listenerType,
-        )[listenerIndex ?? 0];
+        const listener = findListenerAt(bo, listenerType, listenerIndex ?? 0);
         if (!listener?.script) {
             return undefined;
         }

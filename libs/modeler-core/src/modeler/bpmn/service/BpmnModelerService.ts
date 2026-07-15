@@ -3,6 +3,7 @@ import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
 import { ModelerSession } from "../../../shared/domain/session";
 import {
     ExecutionPlatformNotDetectedError,
+    isHiddenEditorError,
     UserCancelledError,
 } from "../../../shared/domain/errors";
 import { getLatestVersion, getVersions } from "../../../shared/domain/engineVersions";
@@ -75,7 +76,7 @@ export class BpmnModelerService {
 
                 return sent;
             } catch (error) {
-                if (error instanceof Error && error.message === "The active editor is hidden.") {
+                if (isHiddenEditorError(error)) {
                     return false;
                 } else if (error instanceof ExecutionPlatformNotDetectedError) {
                     const ep = await this.picker.pickExecutionPlatform(

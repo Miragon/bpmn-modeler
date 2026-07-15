@@ -17,6 +17,9 @@ import { posix } from "path";
 
 import {
     EditorSessionStore,
+    materializeScriptBatch,
+    NO_INLINE_SCRIPTS_MESSAGE,
+    scriptBatchSummary,
     ScriptVariableStore,
     SettingsPort,
     TMP_SCRIPTING_SEGMENT,
@@ -192,12 +195,10 @@ export function openScriptEditorHandler(
  * once the user opens one of the generated files (adoption).
  *
  * The variable store is seeded once before the first write (the model is
- * identical for all scripts in one diagram), then the scripts are materialised
- * strictly sequentially: `materializeScript` may surface a format quick-pick, so
- * a parallel loop would stack the pickers. An empty batch — a C8 diagram or one
- * with no inline scripts — surfaces a friendly info message. On success a
- * completion notification names the folder and any already-open scripts that
- * were left untouched.
+ * identical for all scripts in one diagram); the batch policy — sequential
+ * materialisation and the summary toast — lives in
+ * {@link materializeScriptBatch}, shared with the bridge. An empty batch — a
+ * C8 diagram or one with no inline scripts — surfaces a friendly info message.
  */
 export function openScriptEditorsHandler(
     scriptTaskSvc: ScriptTaskService,
@@ -208,15 +209,13 @@ export function openScriptEditorsHandler(
     return async (message: Command, editorId: string) => {
         const cmd = message as OpenScriptEditorsCommand;
         if (cmd.scripts.length === 0) {
-            notifier.showInfo("No script tasks with inline scripts found in this diagram.");
+            notifier.showInfo(NO_INLINE_SCRIPTS_MESSAGE);
             return;
         }
         variableStore.setExtracted(editorId, cmd.variables ?? []);
 
-        let generated = 0;
-        let alreadyOpen = 0;
-        for (const script of cmd.scripts) {
-            const result = await scriptTaskSvc.materializeScript(
+        const outcome = await materializeScriptBatch(cmd.scripts, (script) =>
+            scriptTaskSvc.materializeScript(
                 editorId,
                 script.elementId,
                 "script-task",
@@ -224,22 +223,11 @@ export function openScriptEditorsHandler(
                 undefined,
                 script.scriptFormat,
                 script.content,
-            );
-            if (!result) {
-                continue; // language picker cancelled for this script
-            }
-            if (result.written) {
-                generated += 1;
-            } else {
-                alreadyOpen += 1;
-            }
-        }
+            ),
+        );
 
         const folder = posix.join(settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
-        const skipped = alreadyOpen > 0 ? ` (${alreadyOpen} already open, left untouched)` : "";
-        notifier.showInfo(
-            `Generated ${generated} script file(s) in ${folder}${skipped} — open a file to edit it with live sync into the diagram.`,
-        );
+        notifier.showInfo(scriptBatchSummary(outcome, folder));
     };
 }
 

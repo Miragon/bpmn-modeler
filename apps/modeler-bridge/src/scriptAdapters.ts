@@ -28,10 +28,9 @@ import {
     COMPLEX_TYPES,
     EditorSessionStore,
     globalFunctionsFor,
+    matchScriptFile,
     methodsForBean,
     NotifierPort,
-    parseScriptPath,
-    parseScriptSlug,
     PickerPort,
     ScriptLanguage,
     ScriptUri,
@@ -156,34 +155,11 @@ export class BridgeScriptEditor {
      * just reveals the existing tab (so a re-open never clobbers in-flight edits).
      */
     async open(cmd: OpenScriptEditorCommand, editorId: string): Promise<void> {
-        let effectiveFormat = cmd.scriptFormat;
-        if (!ScriptLanguage.isSupported(cmd.scriptFormat)) {
-            const picked = await this.picker.pickScriptLanguage(cmd.scriptFormat);
-            if (!picked) {
-                return;
-            }
-            effectiveFormat = picked;
-            await this.sendFormatUpdate(editorId, cmd, picked);
+        const target = await this.resolveScriptTarget(cmd, editorId);
+        if (!target) {
+            return; // language picker cancelled
         }
-
-        const lang = new ScriptLanguage(effectiveFormat);
-        const uri = new ScriptUri(
-            editorId,
-            cmd.elementId,
-            cmd.kind,
-            cmd.listenerIndex,
-            cmd.eventName,
-            lang.extension,
-        );
-        const scriptId = uri.toString();
-
-        // Re-opening a script whose close is still awaiting the host's ack:
-        // cancel the deferred deletion (the late ack must not tear down the
-        // fresh tab) and rewrite the file — the bytes on disk are the last
-        // save, which may trail the model content we were just handed.
-        if (this.pendingCloseAcks.delete(scriptId)) {
-            this.filePathByScript.delete(scriptId);
-        }
+        const { scriptId, uri, lang } = target;
 
         // Write the real file only on first open: a re-open just reveals the
         // existing tab, and rewriting the file underneath IntelliJ's (possibly
@@ -277,6 +253,49 @@ export class BridgeScriptEditor {
         cmd: OpenScriptEditorCommand,
         editorId: string,
     ): Promise<{ written: boolean } | undefined> {
+        const target = await this.resolveScriptTarget(cmd, editorId);
+        if (!target) {
+            return undefined; // language picker cancelled
+        }
+
+        // An open tab owns the authoritative buffer — leave it untouched.
+        if (this.scripts.has(target.scriptId)) {
+            return { written: false };
+        }
+
+        const baseDir = await this.prepareBaseDir(editorId);
+        const filePath = posix.join(baseDir, target.uri.relativePath());
+        try {
+            await this.workspace.writeFile(filePath, cmd.content);
+        } catch (error) {
+            this.notifier.logError(error as Error);
+            return undefined;
+        }
+
+        // Seed the editor's extracted model so a later open/adoption has variables
+        // before the first live `UpdateScriptVariablesCommand`.
+        this.extractedByEditor.set(editorId, cmd.variables ?? []);
+
+        return { written: true };
+    }
+
+    /**
+     * Resolves a script's on-disk identity for {@link open} and
+     * {@link materialize}: prompts for a language when the model's
+     * `scriptFormat` is missing or unsupported (persisting the pick so the next
+     * open skips the prompt) and builds the {@link ScriptUri}. `undefined` when
+     * the picker was cancelled.
+     *
+     * Also cancels a pending close-ack deletion for the same script: the caller
+     * is about to (re)write or reveal the file, so a late `script/didClose` ack
+     * must not tear it down; dropping the `filePathByScript` entry forces a
+     * rewrite because the bytes on disk are only the last save, which may trail
+     * the model content we were just handed.
+     */
+    private async resolveScriptTarget(
+        cmd: OpenScriptEditorCommand,
+        editorId: string,
+    ): Promise<{ scriptId: string; uri: ScriptUri; lang: ScriptLanguage } | undefined> {
         let effectiveFormat = cmd.scriptFormat;
         if (!ScriptLanguage.isSupported(cmd.scriptFormat)) {
             const picked = await this.picker.pickScriptLanguage(cmd.scriptFormat);
@@ -298,31 +317,10 @@ export class BridgeScriptEditor {
         );
         const scriptId = uri.toString();
 
-        // A re-materialise while a close ack is still pending must cancel that
-        // deferred deletion (mirror open()).
         if (this.pendingCloseAcks.delete(scriptId)) {
             this.filePathByScript.delete(scriptId);
         }
-
-        // An open tab owns the authoritative buffer — leave it untouched.
-        if (this.scripts.has(scriptId)) {
-            return { written: false };
-        }
-
-        const baseDir = await this.prepareBaseDir(editorId);
-        const filePath = posix.join(baseDir, uri.relativePath());
-        try {
-            await this.workspace.writeFile(filePath, cmd.content);
-        } catch (error) {
-            this.notifier.logError(error as Error);
-            return undefined;
-        }
-
-        // Seed the editor's extracted model so a later open/adoption has variables
-        // before the first live `UpdateScriptVariablesCommand`.
-        this.extractedByEditor.set(editorId, cmd.variables ?? []);
-
-        return { written: true };
+        return { scriptId, uri, lang };
     }
 
     /**
@@ -341,43 +339,21 @@ export class BridgeScriptEditor {
      */
     async adoptExternalOpen(filePath: string): Promise<void> {
         const normalized = filePath.replace(/\\/g, "/");
-        const parsed = parseScriptPath(normalized);
-        if (!parsed) {
-            return;
-        }
-        const slug = parseScriptSlug(parsed.slug);
-        if (!slug) {
-            return;
-        }
-        // fromExtension returns undefined for `camunda.d.ts` (`ts`) and
-        // `jsconfig.json` (`json`), so an ambient sibling is ignored.
-        const extension = posix.extname(parsed.filename).replace(/^\./, "");
-        const lang = ScriptLanguage.fromExtension(extension);
-        if (!lang) {
-            return;
-        }
-
-        // Reverse the editor hash back to a live BPMN session; a script whose
-        // editor isn't open has no model to sync into.
-        const editorId = this.store
-            .getEditorIds()
-            .find((id) => ScriptUri.hashEditorId(id) === parsed.editorHash);
-        if (editorId === undefined) {
+        const match = matchScriptFile(normalized, this.store.getEditorIds());
+        if (!match) {
             return;
         }
 
         // The tmp/scripting marker alone is a heuristic any same-named user
         // directory satisfies; the resolved base dir is the exact containment.
-        const baseDir = await this.resolveBaseDir(editorId);
+        const baseDir = await this.resolveBaseDir(match.editorId);
         if (!normalized.startsWith(`${baseDir}/`)) {
             return;
         }
 
         // scriptId is the ScriptUri relative path — identical to what open() keys
         // by, so a subsequent didChange/close maps to the same tracked entry.
-        const scriptId = [parsed.editorHash, parsed.elementId, parsed.slug, parsed.filename].join(
-            "/",
-        );
+        const scriptId = match.scriptId;
         if (this.scripts.has(scriptId)) {
             return;
         }
@@ -392,23 +368,23 @@ export class BridgeScriptEditor {
 
         this.filePathByScript.set(scriptId, normalized);
         this.scripts.set(scriptId, {
-            editorId,
-            elementId: parsed.elementId,
-            kind: slug.kind,
-            listenerIndex: slug.listenerIndex,
+            editorId: match.editorId,
+            elementId: match.elementId,
+            kind: match.kind,
+            listenerIndex: match.listenerIndex,
         });
 
         this.rpc.notify(METHODS.scriptOpen, {
             scriptId,
-            fileName: parsed.filename,
-            languageId: lang.languageId,
+            fileName: match.filename,
+            languageId: match.language.languageId,
             filePath: normalized,
             content,
-            completion: this.completionPayloadFor(slug.kind, editorId),
+            completion: this.completionPayloadFor(match.kind, match.editorId),
         });
 
         // A tab now owns this script — lock the matching webview panel field.
-        this.broadcastOpenScripts(editorId);
+        this.broadcastOpenScripts(match.editorId);
     }
 
     /**

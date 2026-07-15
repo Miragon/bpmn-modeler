@@ -187,7 +187,11 @@ Opening a materialized file **any** way — Explorer, Quick Open, or a
 properties-panel button — starts live sync. VS Code fires an opened-tab
 event; `onTabsChanged` routes files under `tmp/scripting` to
 `adoptExternallyOpenedScript`, which tracks the script (`openDocuments`), sets
-the document language, and broadcasts the lock. **No content is copied in
+the document language, and broadcasts the lock. What counts as an adoptable
+script is decided once, in core: `matchScriptFile`
+(`scriptTask/domain/scriptFileMatching.ts`) parses the path, resolves the
+language, and reverses the editor hash — the VS Code service and the bridge's
+`adoptExternalOpen` both call it, so the hosts cannot drift. **No content is copied in
 either direction at adopt time** — the model keeps its bytes, the file keeps
 its bytes, and disk wins on the first edit after opening (the keystroke
 stream sends the whole buffer, so a file that went stale between materialize

@@ -86,8 +86,10 @@ export * from "./scriptTask/domain/groovyImports";
 export * from "./scriptTask/domain/localDeclarations";
 export * from "./scriptTask/domain/scriptApi";
 export * from "./scriptTask/domain/scriptCompletion";
+export * from "./scriptTask/domain/scriptFileMatching";
 export * from "./scriptTask/domain/scriptLanguage";
 
 // ── scriptTask: service ──────────────────────────────────────────────────────
 export * from "./scriptTask/service/ScriptVariableManifestService";
 export * from "./scriptTask/service/ScriptXmlService";
+export * from "./scriptTask/service/scriptBatch";

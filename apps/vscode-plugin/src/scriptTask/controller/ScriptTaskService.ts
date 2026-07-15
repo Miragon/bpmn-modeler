@@ -28,8 +28,8 @@ import {
 import {
     EditorSessionStore,
     generateCamundaDts,
-    parseScriptPath,
-    parseScriptSlug,
+    isHiddenEditorError,
+    matchScriptFile,
     SCRIPT_JSCONFIG,
     ScriptContentUpdate,
     ScriptLanguage,
@@ -61,6 +61,13 @@ interface OpenDocument {
 export interface MaterializeScriptResult {
     readonly path: string;
     readonly written: boolean;
+}
+
+/** A `WorkspaceEdit` replacing the whole of `doc` with `content`. */
+function fullReplaceEdit(uri: Uri, doc: TextDocument, content: string): WorkspaceEdit {
+    const edit = new WorkspaceEdit();
+    edit.replace(uri, new Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), content);
+    return edit;
 }
 
 /**
@@ -124,6 +131,18 @@ export class ScriptTaskService {
 
     /** How long keystrokes coalesce before one streams into the webview model. */
     private static readonly STREAM_DEBOUNCE_MS = 300;
+
+    /**
+     * Reveal options for script tabs. `preview: false` pins the tab so a batch
+     * open doesn't self-replace — a preview tab is reused by the next open,
+     * which would arrive as a close of the earlier script and delete its
+     * siblings.
+     */
+    private static readonly REVEAL_BESIDE = {
+        viewColumn: ViewColumn.Beside,
+        preserveFocus: true,
+        preview: false,
+    } as const;
 
     /**
      * One debounced content sender per open script `uri.path`. Each keystroke
@@ -231,11 +250,7 @@ export class ScriptTaskService {
          */
         if (this.openDocuments.has(scriptUri.path)) {
             const doc = await workspace.openTextDocument(scriptUri);
-            await window.showTextDocument(doc, {
-                viewColumn: ViewColumn.Beside,
-                preserveFocus: true,
-                preview: false,
-            });
+            await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
             return;
         }
 
@@ -256,14 +271,7 @@ export class ScriptTaskService {
             uri: scriptUri,
         });
 
-        // preview:false pins the tab so a batch open ("Generate Script Files")
-        // doesn't self-replace — a preview tab is reused by the next open, which
-        // would arrive as a close of the earlier script and delete its siblings.
-        await window.showTextDocument(doc, {
-            viewColumn: ViewColumn.Beside,
-            preserveFocus: true,
-            preview: false,
-        });
+        await window.showTextDocument(doc, ScriptTaskService.REVEAL_BESIDE);
 
         // Tell the webview a tab now owns this script so the panel field locks.
         this.broadcastOpenScripts(editorId);
@@ -384,14 +392,26 @@ export class ScriptTaskService {
             this.notifier.logError(error as Error);
         }
 
-        this.writingGuard.add(scriptUri.path);
-        try {
+        await this.withWritingGuard(scriptUri.path, async () => {
             await this.scriptFiles.writeFile(scriptUri.path, content);
             if (lang.languageId === "javascript") {
                 await this.writeJsAmbientFiles(scriptUri.path, kind);
             }
+        });
+    }
+
+    /**
+     * Runs `write` with `path` held in the echo-prevention {@link writingGuard}.
+     * `onDidChangeTextDocument` fires while the write is still in flight, so
+     * the guard must span the whole await — releasing it any earlier would let
+     * our own write stream back into the model as a keystroke.
+     */
+    private async withWritingGuard(path: string, write: () => Promise<void>): Promise<void> {
+        this.writingGuard.add(path);
+        try {
+            await write();
         } finally {
-            this.writingGuard.delete(scriptUri.path);
+            this.writingGuard.delete(path);
         }
     }
 
@@ -415,34 +435,14 @@ export class ScriptTaskService {
             return;
         }
 
-        const parsed = parseScriptPath(uri.path);
-        if (!parsed) {
-            return;
-        }
-        const slug = parseScriptSlug(parsed.slug);
-        if (!slug) {
-            return;
-        }
-        // fromExtension returns undefined for `camunda.d.ts` (`ts`) and
-        // `jsconfig.json` (`json`), so opening an ambient sibling is ignored.
-        const extension = posix.extname(parsed.filename).replace(/^\./, "");
-        const lang = ScriptLanguage.fromExtension(extension);
-        if (!lang) {
-            return;
-        }
-
-        // Reverse the editor hash back to a live BPMN session; a script whose
-        // editor isn't open has no model to sync into.
-        const editorId = this.editorStore
-            .getEditorIds()
-            .find((id) => ScriptUri.hashEditorId(id) === parsed.editorHash);
-        if (editorId === undefined) {
+        const match = matchScriptFile(uri.path, this.editorStore.getEditorIds());
+        if (!match) {
             return;
         }
 
         // The tmp/scripting marker alone is a heuristic any same-named user
         // directory satisfies; the resolved base dir is the exact containment.
-        const baseDir = await this.scriptsBaseDir(editorId);
+        const baseDir = await this.scriptsBaseDir(match.editorId);
         if (!uri.path.startsWith(`${baseDir}/`)) {
             return;
         }
@@ -454,10 +454,10 @@ export class ScriptTaskService {
         }
 
         this.openDocuments.set(uri.path, {
-            editorId,
-            elementId: parsed.elementId,
-            kind: slug.kind,
-            listenerIndex: slug.listenerIndex,
+            editorId: match.editorId,
+            elementId: match.elementId,
+            kind: match.kind,
+            listenerIndex: match.listenerIndex,
             uri,
         });
 
@@ -466,12 +466,12 @@ export class ScriptTaskService {
         // keystroke sync work, and it is already in place.
         try {
             const doc = await workspace.openTextDocument(uri);
-            await languages.setTextDocumentLanguage(doc, lang.languageId);
+            await languages.setTextDocumentLanguage(doc, match.language.languageId);
         } catch (error) {
             this.notifier.logError(error as Error);
         }
 
-        this.broadcastOpenScripts(editorId);
+        this.broadcastOpenScripts(match.editorId);
     }
 
     /**
@@ -529,7 +529,7 @@ export class ScriptTaskService {
         this.editorStore
             .postMessage(editorId, new UpdateOpenScriptEditorsQuery(openScripts))
             .catch((error: unknown) => {
-                if (error instanceof Error && error.message === "The active editor is hidden.") {
+                if (isHiddenEditorError(error)) {
                     return;
                 }
                 this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
@@ -592,31 +592,18 @@ export class ScriptTaskService {
         if (!doc) {
             // Tab open but document not yet materialised (or already
             // disposed): the file is the only copy to refresh.
-            this.writingGuard.add(entry.uri.path);
-            try {
-                await this.scriptFiles.writeFile(entry.uri.path, content);
-            } finally {
-                this.writingGuard.delete(entry.uri.path);
-            }
+            await this.withWritingGuard(entry.uri.path, () =>
+                this.scriptFiles.writeFile(entry.uri.path, content),
+            );
             return;
         }
         if (doc.getText() === content) {
             return;
         }
 
-        const edit = new WorkspaceEdit();
-        const fullRange = new Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
-        edit.replace(entry.uri, fullRange, content);
-
-        // onDidChangeTextDocument fires while applyEdit is in flight, so the
-        // guard held across the await is what stops the overwrite from
-        // echoing straight back into the model as a keystroke.
-        this.writingGuard.add(entry.uri.path);
-        try {
-            await workspace.applyEdit(edit);
-        } finally {
-            this.writingGuard.delete(entry.uri.path);
-        }
+        await this.withWritingGuard(entry.uri.path, async () => {
+            await workspace.applyEdit(fullReplaceEdit(entry.uri, doc, content));
+        });
     }
 
     /**
@@ -643,16 +630,9 @@ export class ScriptTaskService {
             if (entry.editorId !== editorId) {
                 continue;
             }
-            // The open buffer is authoritative; the file on disk only trails
-            // it by the user's save cadence. Fall back to disk for the
-            // closed-while-hidden case, where the buffer is already gone.
-            let content = this.findOpenTextDocument(entry.uri)?.getText();
+            const content = await this.readBufferOrDisk(entry);
             if (content === undefined) {
-                try {
-                    content = await this.scriptFiles.readFile(entry.uri.path);
-                } catch {
-                    continue;
-                }
+                continue;
             }
             try {
                 await this.editorStore.postMessage(
@@ -683,7 +663,7 @@ export class ScriptTaskService {
                  * tab mid-resync). Re-arm pendingResync so the next reload
                  * tries again rather than dropping the edit permanently.
                  */
-                if (error instanceof Error && error.message === "The active editor is hidden.") {
+                if (isHiddenEditorError(error)) {
                     this.pendingResync.add(editorId);
                 } else {
                     this.notifier.logError(error as Error);
@@ -761,22 +741,17 @@ export class ScriptTaskService {
 
     /**
      * Collects the current content of each orphaned script as a
-     * {@link ScriptContentUpdate}. The open buffer is authoritative; disk is the
-     * fallback for the closed-while-hidden case where the buffer is already
-     * gone. A script whose file can no longer be read is skipped.
+     * {@link ScriptContentUpdate}. A script whose content can no longer be read
+     * is skipped.
      */
     private async collectScriptUpdates(
         orphaned: Map<string, OpenDocument>,
     ): Promise<ScriptContentUpdate[]> {
         const updates: ScriptContentUpdate[] = [];
         for (const entry of orphaned.values()) {
-            let content = this.findOpenTextDocument(entry.uri)?.getText();
+            const content = await this.readBufferOrDisk(entry);
             if (content === undefined) {
-                try {
-                    content = await this.scriptFiles.readFile(entry.uri.path);
-                } catch {
-                    continue;
-                }
+                continue;
             }
             updates.push({
                 elementId: entry.elementId,
@@ -786,6 +761,24 @@ export class ScriptTaskService {
             });
         }
         return updates;
+    }
+
+    /**
+     * A script's current content: the open buffer when one exists (it is
+     * authoritative — disk only trails it by the user's save cadence), falling
+     * back to the file for the closed-while-hidden case where the buffer is
+     * already gone. `undefined` when neither can be read.
+     */
+    private async readBufferOrDisk(entry: OpenDocument): Promise<string | undefined> {
+        const buffered = this.findOpenTextDocument(entry.uri)?.getText();
+        if (buffered !== undefined) {
+            return buffered;
+        }
+        try {
+            return await this.scriptFiles.readFile(entry.uri.path);
+        } catch {
+            return undefined;
+        }
     }
 
     /**
@@ -816,10 +809,7 @@ export class ScriptTaskService {
                 // Nothing diverged from what already reached the model — no write.
                 return;
             }
-            const edit = new WorkspaceEdit();
-            const fullRange = new Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
-            edit.replace(uri, fullRange, nextXml);
-            await workspace.applyEdit(edit);
+            await workspace.applyEdit(fullReplaceEdit(uri, doc, nextXml));
             await doc.save();
         } catch (error) {
             this.notifier.logError(error as Error);
@@ -1069,10 +1059,7 @@ export class ScriptTaskService {
                      * so mark the editor and replay all open documents on the
                      * next reload via `resyncOpenDocuments`.
                      */
-                    if (
-                        error instanceof Error &&
-                        error.message === "The active editor is hidden."
-                    ) {
+                    if (isHiddenEditorError(error)) {
                         this.pendingResync.add(entry.editorId);
                     } else {
                         this.notifier.logError(error as Error);

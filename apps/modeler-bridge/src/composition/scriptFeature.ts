@@ -8,7 +8,13 @@ import {
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
-import { ScriptVariableManifestService, TMP_SCRIPTING_SEGMENT } from "@miragon/bpmn-modeler-core";
+import {
+    materializeScriptBatch,
+    NO_INLINE_SCRIPTS_MESSAGE,
+    scriptBatchSummary,
+    ScriptVariableManifestService,
+    TMP_SCRIPTING_SEGMENT,
+} from "@miragon/bpmn-modeler-core";
 
 import { BridgeScriptEditor } from "../scriptAdapters";
 import { METHODS } from "../protocol/descriptor";
@@ -87,24 +93,21 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         });
 
     /**
-     * Materialises each script task to disk sequentially, opening no tabs. The
-     * `for … await` serialises the unsupported-format picker round-trips (one
-     * chooser at a time; a cancel skips just that script) and the shared
-     * `variables` is re-seeded per script — idempotent, since every script in a
-     * diagram carries the same process-variable model. Live sync begins only when
-     * the user opens a generated file (adoption). A completion toast names the
-     * folder and any already-open scripts left untouched.
+     * Materialises each script task to disk, opening no tabs. The batch policy
+     * (sequential picker round-trips, outcome counting, summary toast) lives in
+     * {@link materializeScriptBatch}, shared with the VS Code handler. The
+     * `variables` model is re-seeded per script — idempotent, since every
+     * script in a diagram carries the same process-variable model. Live sync
+     * begins only when the user opens a generated file (adoption).
      */
     async function openAllScripts(cmd: OpenScriptEditorsCommand, editorId: string): Promise<void> {
         if (cmd.scripts.length === 0) {
-            deps.notifier.showInfo("No script tasks with inline scripts found in this diagram.");
+            deps.notifier.showInfo(NO_INLINE_SCRIPTS_MESSAGE);
             return;
         }
 
-        let generated = 0;
-        let alreadyOpen = 0;
-        for (const script of cmd.scripts) {
-            const result = await scriptEditor.materialize(
+        const outcome = await materializeScriptBatch(cmd.scripts, (script) =>
+            scriptEditor.materialize(
                 new OpenScriptEditorCommand(
                     script.elementId,
                     "script-task",
@@ -115,22 +118,11 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
                     cmd.variables ?? [],
                 ),
                 editorId,
-            );
-            if (!result) {
-                continue; // language picker cancelled for this script
-            }
-            if (result.written) {
-                generated += 1;
-            } else {
-                alreadyOpen += 1;
-            }
-        }
+            ),
+        );
 
         const folder = posix.join(deps.settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT);
-        const skipped = alreadyOpen > 0 ? ` (${alreadyOpen} already open, left untouched)` : "";
-        deps.notifier.showInfo(
-            `Generated ${generated} script file(s) in ${folder}${skipped} — open a file to edit it with live sync into the diagram.`,
-        );
+        deps.notifier.showInfo(scriptBatchSummary(outcome, folder));
     }
 
     // The host edited an open script tab → push the new content into the owning
