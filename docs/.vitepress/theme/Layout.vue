@@ -38,7 +38,7 @@ const showSiteFooter = computed(() =>
                 </a>
                 <a
                     class="btn btn-secondary"
-                    href="https://modeler-demo.miragon.io"
+                    href="https://miragon-bpmn-modeler-demo.netlify.app"
                     target="_blank"
                     rel="noopener"
                 >Live demo</a>
