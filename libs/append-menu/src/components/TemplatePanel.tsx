@@ -124,8 +124,14 @@ export function TemplatePanel({
         const cardRect = card.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
 
-        // Position overlapping the template list, starting near its midpoint.
-        const left = cardRect.left + cardRect.width * 0.5;
+        const panelRect = panelRef.current.getBoundingClientRect();
+        // Open to the left of the panel so the card clears both the template list
+        // and the BPMN palette. Clamp to the viewport edge on the rare occasion the
+        // 540px panel sits hard against the left (then it may touch the panel, but
+        // never runs off-screen).
+        const HOVER_CARD_WIDTH = 300; // keep in sync with .am-hover-card width
+        const GAP = 8;
+        const left = Math.max(GAP, panelRect.left - HOVER_CARD_WIDTH - GAP);
 
         // Vertically align with the card, clamped to viewport.
         const top = Math.max(8, Math.min(cardRect.top, viewportHeight - 200));

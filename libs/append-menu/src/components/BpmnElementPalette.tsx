@@ -17,6 +17,8 @@ interface BpmnElementPaletteProps {
     /** Nav key of the keyboard-highlighted button, or null when in the other column. */
     highlightedKey: string | null;
     onToggleExpand: () => void;
+    /** Reports hover-peek state so the parent can transiently expand the palette on hover. */
+    onPeekChange?: (peek: boolean) => void;
     onSelect: (action: PopupMenuEntryAction, event: Event) => void;
 }
 
@@ -33,6 +35,7 @@ interface BpmnElementPaletteProps {
  * @param props.expanded Whether the palette shows labels alongside icons.
  * @param props.highlightedKey Nav key of the highlighted button, or null.
  * @param props.onToggleExpand Callback to toggle expanded/collapsed state.
+ * @param props.onPeekChange Callback reporting hover-peek enter/leave.
  * @param props.onSelect Callback invoked when a BPMN element button is clicked.
  */
 export function BpmnElementPalette({
@@ -41,6 +44,7 @@ export function BpmnElementPalette({
     expanded,
     highlightedKey,
     onToggleExpand,
+    onPeekChange,
     onSelect,
 }: BpmnElementPaletteProps) {
     const contentRef = useRef<HTMLDivElement>(null);
@@ -56,7 +60,11 @@ export function BpmnElementPalette({
     }, [highlightedKey]);
 
     return (
-        <div class={`am-palette-panel ${expanded ? "am-palette-panel--expanded" : ""}`}>
+        <div
+            class={`am-palette-panel ${expanded ? "am-palette-panel--expanded" : ""}`}
+            onMouseEnter={() => onPeekChange?.(true)}
+            onMouseLeave={() => onPeekChange?.(false)}
+        >
             <div class="am-palette-header">
                 <h3 class="am-palette-title">BPMN</h3>
                 <button

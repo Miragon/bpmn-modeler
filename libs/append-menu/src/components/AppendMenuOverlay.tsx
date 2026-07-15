@@ -95,6 +95,10 @@ export function AppendMenuOverlay({
     // palette so users see the full BPMN element list instead of an awkward
     // icon-only column next to an empty template panel.
     const [paletteExpanded, setPaletteExpanded] = useState(!hasTemplates);
+    // Separate transient hover-peek flag. Kept apart from `paletteExpanded`
+    // (the pinned state) so leaving the palette only collapses a hover-peek,
+    // never a palette the user pinned via chevron/keyboard/template selection.
+    const [palettePeek, setPalettePeek] = useState(false);
     const [highlight, setHighlight] = useState<Highlight | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -321,6 +325,9 @@ export function AppendMenuOverlay({
         [highlight, navColumns, paletteExpanded, activateHighlight],
     );
 
+    // Pinned expansion OR a transient hover-peek both render the palette expanded.
+    const paletteExpandedVisual = paletteExpanded || palettePeek;
+
     const highlightedTemplateIndex = highlight?.column === "templates" ? highlight.index : -1;
     const highlightedPaletteKey =
         highlight?.column === "palette" ? (paletteNav[highlight.index]?.key ?? null) : null;
@@ -389,9 +396,10 @@ export function AppendMenuOverlay({
                     <BpmnElementPalette
                         favouriteEntries={processedPalette.favouriteEntries}
                         groups={processedPalette.groups}
-                        expanded={paletteExpanded}
+                        expanded={paletteExpandedVisual}
                         highlightedKey={highlightedPaletteKey}
                         onToggleExpand={() => setPaletteExpanded((prev) => !prev)}
+                        onPeekChange={setPalettePeek}
                         onSelect={handleBpmnSelect}
                     />
                 </div>
