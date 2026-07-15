@@ -88,6 +88,7 @@ function createController() {
     const editorStore = {
         getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
         postMessage: vi.fn().mockResolvedValue(true),
+        reload: vi.fn(),
         subscribeToActiveEditorMessage: vi.fn((cb: (message: unknown) => void) => {
             captured.onMessage = cb;
             const dispose = vi.fn();
@@ -146,6 +147,17 @@ describe("CommandController.toggle", () => {
 
         expect(vsDocument.getFilePath).toHaveBeenCalledWith("editor-1");
         expect(textEditor.toggle).toHaveBeenCalledWith("/work/diagram.bpmn");
+        expect(editorStore.getActiveEditorId).toHaveBeenCalled();
+    });
+});
+
+describe("CommandController.reloadModeler", () => {
+    it("reloads the active editor's webview", () => {
+        const { controller, editorStore } = createController();
+
+        controller.reloadModeler();
+
+        expect(editorStore.reload).toHaveBeenCalledWith("editor-1");
         expect(editorStore.getActiveEditorId).toHaveBeenCalled();
     });
 });

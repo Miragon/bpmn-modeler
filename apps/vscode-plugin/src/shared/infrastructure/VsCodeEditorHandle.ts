@@ -30,6 +30,11 @@ export class VsCodeEditorHandle implements EditorHandle {
         readonly id: string,
         private readonly panel: WebviewPanel,
         private readonly document: TextDocument,
+        // Retained so reload() can rebuild the exact same HTML the session
+        // opened with (viewType branches BPMN vs. DMN; the visibility flag
+        // keeps the properties panel from flashing on the re-render).
+        private readonly viewType: string,
+        private readonly initialPanelVisible: boolean,
     ) {}
 
     /**
@@ -48,7 +53,7 @@ export class VsCodeEditorHandle implements EditorHandle {
         initialPanelVisible: boolean = true,
     ): VsCodeEditorHandle {
         const panel = bootstrapWebview(viewType, webviewPanel, initialPanelVisible);
-        return new VsCodeEditorHandle(editorId, panel, document);
+        return new VsCodeEditorHandle(editorId, panel, document, viewType, initialPanelVisible);
     }
 
     documentUriString(): string {
@@ -114,6 +119,17 @@ export class VsCodeEditorHandle implements EditorHandle {
             return true;
         }
         throw new Error("Failed to send message to the webview.");
+    }
+
+    /**
+     * Re-assigns `webview.html` (with a fresh nonce) to restart the webview app
+     * in place. Reloading always retears the iframe even for identical content,
+     * so the restarted app re-runs its startup handshake — re-requesting the
+     * document (its dirty `TextDocument` text survives), element templates, and
+     * settings. Equivalent to switching away from and back to a non-retained tab.
+     */
+    reload(): void {
+        bootstrapWebview(this.viewType, this.panel, this.initialPanelVisible);
     }
 
     isActive(): boolean {

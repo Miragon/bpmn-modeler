@@ -263,6 +263,12 @@
                 "title": "New DMN Model",
                 "shortTitle": "DMN Model",
                 "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.reloadModeler",
+                "title": "Reload Modeler",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(refresh)"
             }
         ],
         "keybindings": [
@@ -304,6 +310,10 @@
                 },
                 {
                     "command": "bpmn-modeler.changeLanguage",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.reloadModeler",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {
