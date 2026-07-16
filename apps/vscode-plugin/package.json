@@ -201,6 +201,12 @@
                 "priority": "default"
             }
         ],
+        "configurationDefaults": {
+            "workbench.editorAssociations": {
+                "*.bpmn": "bpmn-modeler.bpmn",
+                "*.dmn": "bpmn-modeler.dmn"
+            }
+        },
         "viewsContainers": {
             "activitybar": [
                 {
