@@ -75,18 +75,25 @@ describe("collectInlineScriptTasks", () => {
         expect(collectInlineScriptTasks(elementRegistry([task]))).toEqual([]);
     });
 
-    it("skips script tasks whose inline script is empty or unset", () => {
+    it("collects empty and unset inline scripts as content: '' so every task gets a stub", () => {
         const empty = {
             id: "Task_1",
             type: "bpmn:ScriptTask",
-            businessObject: businessObject({ $type: "bpmn:ScriptTask", script: "" }),
+            businessObject: businessObject({
+                "$type": "bpmn:ScriptTask",
+                "camunda:scriptFormat": "groovy",
+                "script": "",
+            }),
         };
         const unset = {
             id: "Task_2",
             type: "bpmn:ScriptTask",
             businessObject: businessObject({ $type: "bpmn:ScriptTask" }),
         };
-        expect(collectInlineScriptTasks(elementRegistry([empty, unset]))).toEqual([]);
+        expect(collectInlineScriptTasks(elementRegistry([empty, unset]))).toEqual([
+            { elementId: "Task_1", scriptFormat: "groovy", content: "" },
+            { elementId: "Task_2", scriptFormat: "", content: "" },
+        ]);
     });
 
     it("ignores non-script-task elements", () => {

@@ -73,15 +73,15 @@ export function readScriptTaskFormat(bo: any): string {
 }
 
 /**
- * Scans the element registry for every `bpmn:ScriptTask` that carries an inline
- * script, returning the payload the "Generate Script Files for Script Tasks"
- * command ships to the host.
+ * Scans the element registry for every inline `bpmn:ScriptTask`, returning the
+ * payload the "Generate Script Files for Script Tasks" command ships to the host.
  *
- * Three classes of element are excluded because they have no inline body to
- * open: labels (separate registry entries that share their host's business
- * object, so including them would double-count the task), script tasks that
- * delegate to an external `camunda:resource`, and tasks whose `script` property
- * is unset or empty.
+ * Only two classes of element are excluded: labels (separate registry entries
+ * that share their host's business object, so including them would double-count
+ * the task) and script tasks that delegate to an external `camunda:resource`
+ * (they have no inline body). Tasks with an empty or unset inline script are
+ * included on purpose — the command exists to hand the user an editable stub for
+ * every script task, including ones they have not written yet.
  */
 export function collectInlineScriptTasks(elementRegistry: any): ScriptTaskScript[] {
     const scripts: ScriptTaskScript[] = [];
@@ -96,14 +96,11 @@ export function collectInlineScriptTasks(elementRegistry: any): ScriptTaskScript
         if (bo.get?.("camunda:resource") || bo.resource) {
             continue;
         }
-        const content = bo.script;
-        if (content === undefined || content === "") {
-            continue;
-        }
         scripts.push({
             elementId: element.id,
             scriptFormat: readScriptTaskFormat(bo),
-            content,
+            // An unset moddle property still has to satisfy the string contract.
+            content: bo.script ?? "",
         });
     }
     return scripts;
