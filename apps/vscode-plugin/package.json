@@ -135,6 +135,48 @@
                 "url": "./schemas/bpmn-vars.schema.json"
             }
         ],
+        "languages": [
+            {
+                "id": "bpmn",
+                "aliases": [
+                    "BPMN"
+                ],
+                "extensions": [
+                    ".bpmn"
+                ],
+                "icon": {
+                    "light": "./icons/bpmn-light.svg",
+                    "dark": "./icons/bpmn-dark.svg"
+                },
+                "configuration": "./syntaxes/xml.language-configuration.json"
+            },
+            {
+                "id": "dmn",
+                "aliases": [
+                    "DMN"
+                ],
+                "extensions": [
+                    ".dmn"
+                ],
+                "icon": {
+                    "light": "./icons/dmn-light.svg",
+                    "dark": "./icons/dmn-dark.svg"
+                },
+                "configuration": "./syntaxes/xml.language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "bpmn",
+                "scopeName": "text.xml.bpmn",
+                "path": "./syntaxes/bpmn.tmLanguage.json"
+            },
+            {
+                "language": "dmn",
+                "scopeName": "text.xml.dmn",
+                "path": "./syntaxes/dmn.tmLanguage.json"
+            }
+        ],
         "customEditors": [
             {
                 "id": "bpmn-modeler.bpmn",
