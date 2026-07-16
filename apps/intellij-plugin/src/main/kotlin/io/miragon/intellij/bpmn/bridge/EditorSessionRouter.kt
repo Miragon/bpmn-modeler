@@ -51,6 +51,13 @@ internal class EditorSessionRouter(
     // re-rendered as a stale external edit. Bumped and read only on the EDT.
     private val changeSeq = ConcurrentHashMap<String, Long>()
 
+    // Per-editor pending SVG-export callback. `GetDiagramAsSVGCommand` round-trips
+    // straight through the JS↔JVM webview pipe (no bridge/protocol involvement): the
+    // host posts the command, the webview echoes it back with the rendered `svg`,
+    // and [forwardWebviewMessage] intercepts that echo and invokes the callback. A
+    // newer request replaces the pending one (mirrors VS Code disposing the previous).
+    private val pendingSvgRequests = ConcurrentHashMap<String, (String) -> Unit>()
+
     fun register() {
         deps.handlers
             .on("editor/postMessage") { params, _ ->
@@ -128,6 +135,20 @@ internal class EditorSessionRouter(
         val trimmed = rawMessage.trimStart()
         if (!trimmed.startsWith("{")) {
             log.warn("Discarding non-JSON webview message: $rawMessage")
+            return
+        }
+        // An SVG-export echo is the host's own round trip, not a core message: if a
+        // request is pending for this editor, extract the `svg` and consume it here.
+        // Forwarding it on would ship the whole SVG through the RPC pipe for nothing
+        // (the core has no handler for it). An echo with no pending callback (e.g. a
+        // stale one already replaced) falls through and forwards like any message.
+        if (trimmed.contains(SVG_COMMAND_MARKER) && pendingSvgRequests.containsKey(editorId)) {
+            val callback = pendingSvgRequests.remove(editorId)
+            val svg = runCatching { deps.gson.fromJson(rawMessage, JsonObject::class.java).get("svg") }
+                .getOrNull()
+                ?.takeIf { !it.isJsonNull }
+                ?.asString
+            if (callback != null && svg != null) callback(svg)
             return
         }
         // Document syncs fire once per diagram edit and supersede each other — only
@@ -208,11 +229,27 @@ internal class EditorSessionRouter(
         deps.channel.notify("session/setActive", linkedMapOf("editorId" to editorId))
     }
 
+    /**
+     * Requests an SVG export of the open diagram: posts `GetDiagramAsSVGCommand`
+     * into the webview and stores [onSvg] to be invoked with the rendered SVG when
+     * the webview echoes it back (intercepted in [forwardWebviewMessage]). Returns
+     * `false` when no session is open for [editorId] (nothing to ask). A newer
+     * request replaces any pending one. No timeout: a webview error surfaces as a
+     * `LogErrorCommand`, and a stale pending callback is simply overwritten.
+     */
+    fun requestDiagramSvg(editorId: String, onSvg: (String) -> Unit): Boolean {
+        val session = sessions[editorId] ?: return false
+        pendingSvgRequests[editorId] = onSvg
+        session.postToWebview(GET_DIAGRAM_SVG_COMMAND)
+        return true
+    }
+
     fun disposeSession(editorId: String) {
         sessions.remove(editorId)
         pendingCausation.remove(editorId)
         debounceTimers.remove(editorId)?.cancel(false)
         changeSeq.remove(editorId)
+        pendingSvgRequests.remove(editorId)
         deps.channel.notify("session/dispose", linkedMapOf("editorId" to editorId))
     }
 
@@ -230,7 +267,10 @@ internal class EditorSessionRouter(
         }
     }
 
-    fun clear() = sessions.clear()
+    fun clear() {
+        sessions.clear()
+        pendingSvgRequests.clear()
+    }
 
     // ── core → host ────────────────────────────────────────────────────────────
 
@@ -291,6 +331,15 @@ internal class EditorSessionRouter(
 
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
+
+        // Posted into the webview to request an SVG export; the webview echoes the
+        // same command back with the rendered `svg` field populated.
+        const val GET_DIAGRAM_SVG_COMMAND = "{\"type\":\"GetDiagramAsSVGCommand\"}"
+
+        // The webview shim's compact JSON.stringify emits exactly this substring for
+        // the echoed GetDiagramAsSVGCommand, so a substring match spots the echo
+        // without a full parse on the forward thread (same pattern as the sync marker).
+        const val SVG_COMMAND_MARKER = "\"type\":\"GetDiagramAsSVGCommand\""
 
         // The webview shim's compact JSON.stringify emits exactly this substring for
         // a SyncDocumentCommand, so a substring match replaces a full JSON parse on

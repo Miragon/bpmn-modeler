@@ -32,7 +32,10 @@ function query(type: string, fields: Record<string, unknown>): Query {
  * RPC (Host → Core): session/register, session/setActive, session/dispose,
  * webview/message, document/didChange.
  */
-export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): void {
+export function register(
+    deps: BridgeSharedDeps,
+    sessionHooks: SessionHooks[],
+): { bpmnService: BpmnModelerService } {
     const bpmnService = new BpmnModelerService(
         deps.store,
         deps.documentPort,
@@ -163,4 +166,8 @@ export function register(deps: BridgeSharedDeps, sessionHooks: SessionHooks[]): 
         deps.mirror.remove(params.editorId);
         deps.log(`session disposed: ${params.editorId}`);
     });
+
+    // Exposed so the commands feature can reuse the same service instance for the
+    // engine-version change (it shares the store/document mirror this feature owns).
+    return { bpmnService };
 }

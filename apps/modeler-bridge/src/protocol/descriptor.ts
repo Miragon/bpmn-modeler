@@ -43,6 +43,7 @@ import {
     MarketplaceRemoveParams,
     MarketplaceStateSaveParams,
     MarketplaceUpdateParams,
+    MigrateAllParams,
     NotifierLogParams,
     NotifierMessageParams,
     NotifierNotifyErrorParams,
@@ -100,6 +101,8 @@ export const METHODS = {
     marketplaceAdd: "marketplace/add",
     marketplaceUpdate: "marketplace/update",
     marketplaceRemove: "marketplace/remove",
+    modelerChangeEngineVersion: "modeler/changeEngineVersion",
+    migrationMigrateAll: "migration/migrateAll",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -292,6 +295,18 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { settings: {}, removedCount: 1 } satisfies MarketplaceRemoveParams,
+    },
+    {
+        method: METHODS.modelerChangeEngineVersion,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { editorId: "e1" } satisfies EditorRefParams,
+    },
+    {
+        method: METHODS.migrationMigrateAll,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies MigrateAllParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────

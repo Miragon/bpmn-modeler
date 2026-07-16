@@ -43,6 +43,7 @@ import * as navigationFeature from "./composition/navigationFeature";
 import * as codeLinkFeature from "./composition/codeLinkFeature";
 import * as scriptFeature from "./composition/scriptFeature";
 import * as editorSessionFeature from "./composition/editorSessionFeature";
+import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
 
 /**
@@ -96,11 +97,14 @@ export function createBridge(
     const script = scriptFeature.register(deps);
     // Hook order is the per-session teardown order: script → code-link →
     // templates, reproducing the original inline dispose sequence.
-    editorSessionFeature.register(deps, [
+    const editorSession = editorSessionFeature.register(deps, [
         script.sessionHooks,
         codeLink.sessionHooks,
         templates.sessionHooks,
     ]);
+    // Portable modeler commands (change engine version, migrate all). Registered
+    // after the editor-session feature so it can reuse that feature's bpmnService.
+    commandsFeature.register(deps, { bpmnService: editorSession.bpmnService });
     deploymentFeature.register(deps);
     marketplaceFeature.registerHandlers(deps, {
         marketplaceSvc: marketplace.marketplaceSvc,
