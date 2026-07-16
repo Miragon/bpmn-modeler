@@ -1,0 +1,10 @@
+{
+  "information_for_contributors": [
+    "Declaring our own 'bpmn' language is the only way to attach a file-explorer icon to *.bpmn without shipping a full (all-or-nothing) file icon theme. Doing so overrides the built-in XML association for .bpmn, so this grammar re-includes text.xml to keep the toggle-to-text editor XML-highlighted."
+  ],
+  "name": "BPMN",
+  "scopeName": "text.xml.bpmn",
+  "patterns": [
+    { "include": "text.xml" }
+  ]
+}

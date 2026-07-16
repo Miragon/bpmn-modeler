@@ -1,0 +1,10 @@
+{
+  "information_for_contributors": [
+    "Declaring our own 'dmn' language is the only way to attach a file-explorer icon to *.dmn without shipping a full (all-or-nothing) file icon theme. Unlike .bpmn, .dmn is not claimed by the built-in XML extension by extension, but this grammar still re-includes text.xml so the toggle-to-text editor stays XML-highlighted."
+  ],
+  "name": "DMN",
+  "scopeName": "text.xml.dmn",
+  "patterns": [
+    { "include": "text.xml" }
+  ]
+}
