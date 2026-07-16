@@ -3529,6 +3529,7 @@ __metadata:
     bpmn-js: "npm:18.19.0"
     preact: "npm:10.29.3"
     typescript: "npm:6.0.3"
+    vitest: "npm:4.1.9"
   peerDependencies:
     bpmn-js: 18.19.0
   languageName: unknown

@@ -377,7 +377,8 @@
 }
 
 @keyframes am-hover-appear {
-    from { opacity: 0; transform: translateX(-4px); }
+    /* Card now opens to the left of the panel, so ease it in from the panel edge. */
+    from { opacity: 0; transform: translateX(4px); }
     to   { opacity: 1; transform: translateX(0); }
 }
 
@@ -716,6 +717,11 @@
 .am-bpmn-button:hover {
     background: var(--am-bg-hover);
     border-color: var(--am-border-bpmn-btn);
+}
+
+.am-bpmn-button--focused {
+    background: var(--am-accent-bg);
+    border-color: var(--am-accent);
 }
 
 .am-bpmn-button--disabled {
