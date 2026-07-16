@@ -374,8 +374,9 @@ async function initializeModeler(
             closeSearchPad: () => bpmnModeler.getService<{ close(): void }>("searchPad").close(),
         });
         // Playful counterpart to installKeyboardFocus: a focus reticle bottom-left
-        // on the canvas that lights up green while keystrokes drive the diagram.
-        // diagram-js already tracks exactly this state (Canvas fires a deduplicated
+        // on the canvas that lights up green while the canvas holds keyboard focus
+        // with no element selected (a selection already marks itself).
+        // diagram-js already tracks the focus half (Canvas fires a deduplicated
         // "canvas.focus.changed" from its own SVG focus listeners), so subscribe
         // instead of re-observing DOM focus — a container-level focusin would
         // false-positive on the lint chip inside the same .djs-container.
@@ -390,6 +391,14 @@ async function initializeModeler(
                         on(event: string, cb: (e: { focused: boolean }) => void): void;
                     }>("eventBus")
                     .on("canvas.focus.changed", (e) => listener(e.focused)),
+            hasSelection: () =>
+                bpmnModeler.getService<{ get(): unknown[] }>("selection").get().length > 0,
+            onSelectionChanged: (listener) =>
+                bpmnModeler
+                    .getService<{
+                        on(event: string, cb: (e: { newSelection: unknown[] }) => void): void;
+                    }>("eventBus")
+                    .on("selection.changed", (e) => listener(e.newSelection.length > 0)),
         });
         // Forward the modeler's non-fatal warnings (element-not-found, missing
         // inline script) to the output channel — they were console-only before.

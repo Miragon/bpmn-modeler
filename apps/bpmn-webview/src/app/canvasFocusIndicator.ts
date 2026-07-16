@@ -16,6 +16,13 @@ export interface CanvasFocusIndicatorDeps {
      * `canvas.focus.changed` `{ focused }` event.
      */
     onFocusChanged: (listener: (focused: boolean) => void) => void;
+    /** Initial selection state (`selection.get().length > 0`). */
+    hasSelection: () => boolean;
+    /**
+     * Subscribes to selection changes — production adapts the eventBus
+     * `selection.changed` `{ newSelection }` event.
+     */
+    onSelectionChanged: (listener: (hasSelection: boolean) => void) => void;
 }
 
 // Material Symbols "center_focus_weak" (idle) / "center_focus_strong" filled
@@ -27,11 +34,17 @@ const FOCUS_STRONG_SVG = `<svg class="canvas-focus-indicator__on" viewBox="0 -96
 
 /**
  * Installs a focus reticle in the canvas's bottom-left corner that lights up
- * brand-green with a solid center while the canvas holds keyboard focus and
- * shows a faint hollow reticle otherwise. On focus gain the glow briefly
- * pulses (the "you're back" moment), then settles to a steady glow —
- * canvas-focused is the normal state users sit in for minutes, so a perpetual
- * pulse would be an attention magnet.
+ * brand-green with a solid center while the canvas holds keyboard focus *and*
+ * no element is selected, and shows a faint hollow reticle otherwise. On
+ * focus gain the glow briefly pulses (the "you're back" moment), then settles
+ * to a steady glow — canvas-focused is the normal state users sit in for
+ * minutes, so a perpetual pulse would be an attention magnet.
+ *
+ * Selection gates the green state because clicking an element also puts DOM
+ * focus on the canvas SVG — without the gate the reticle would light on every
+ * selection, where the selection outline already shows that keystrokes target
+ * the diagram. Green is reserved for the bare "canvas focus" state Escape
+ * creates, which has no other visual marker.
  *
  * A reticle (not a bulb or keyboard) because a bulb collides with the IDE-wide
  * "quick fix available" affordance (VS Code/IntelliJ lightbulb); the
@@ -57,14 +70,24 @@ export function installCanvasFocusIndicator(deps: CanvasFocusIndicatorDeps): voi
     root.setAttribute("aria-hidden", "true");
     root.innerHTML = FOCUS_WEAK_SVG + FOCUS_STRONG_SVG;
 
-    const render = (focused: boolean): void => {
-        root.classList.toggle("is-focused", focused);
+    let focused = deps.isFocused();
+    let hasSelection = deps.hasSelection();
+
+    const render = (): void => {
+        root.classList.toggle("is-focused", focused && !hasSelection);
     };
 
     // Render the initial state before subscribing so the glyph is correct even
     // if the canvas already has focus at install time.
-    render(deps.isFocused());
-    deps.onFocusChanged(render);
+    render();
+    deps.onFocusChanged((nowFocused) => {
+        focused = nowFocused;
+        render();
+    });
+    deps.onSelectionChanged((nowHasSelection) => {
+        hasSelection = nowHasSelection;
+        render();
+    });
 
     deps.parent.append(root);
 }

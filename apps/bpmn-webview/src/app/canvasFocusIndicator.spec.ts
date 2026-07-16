@@ -3,16 +3,21 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 
 let parent: HTMLElement;
-// Captured listener the module registers via onFocusChanged, so tests can
-// drive focus-change events the way diagram-js's eventBus would.
-let emit: (focused: boolean) => void;
+// Captured listeners the module registers via onFocusChanged/onSelectionChanged,
+// so tests can drive events the way diagram-js's eventBus would.
+let emitFocus: (focused: boolean) => void;
+let emitSelection: (hasSelection: boolean) => void;
 
-function install(isFocused: boolean): HTMLElement {
+function install(isFocused: boolean, hasSelection = false): HTMLElement {
     installCanvasFocusIndicator({
         parent,
         isFocused: () => isFocused,
         onFocusChanged: (listener) => {
-            emit = listener;
+            emitFocus = listener;
+        },
+        hasSelection: () => hasSelection,
+        onSelectionChanged: (listener) => {
+            emitSelection = listener;
         },
     });
     return parent.querySelector(".canvas-focus-indicator") as HTMLElement;
@@ -46,17 +51,36 @@ describe("installCanvasFocusIndicator", () => {
 
     it("toggles is-focused when the focus signal fires", () => {
         const root = install(false);
-        emit(true);
+        emitFocus(true);
         expect(root.classList.contains("is-focused")).toBe(true);
-        emit(false);
+        emitFocus(false);
         expect(root.classList.contains("is-focused")).toBe(false);
     });
 
     it("is idempotent for repeated same-value signals", () => {
         const root = install(false);
-        emit(true);
-        emit(true);
+        emitFocus(true);
+        emitFocus(true);
         expect(parent.querySelectorAll(".canvas-focus-indicator")).toHaveLength(1);
         expect(root.classList.contains("is-focused")).toBe(true);
+    });
+
+    it("stays idle when focused with an element selected", () => {
+        expect(install(true, true).classList.contains("is-focused")).toBe(false);
+    });
+
+    it("turns off while a selection exists and back on once it clears", () => {
+        const root = install(true);
+        emitSelection(true);
+        expect(root.classList.contains("is-focused")).toBe(false);
+        emitSelection(false);
+        expect(root.classList.contains("is-focused")).toBe(true);
+    });
+
+    it("ignores a selection change while the canvas is not focused", () => {
+        const root = install(false);
+        emitSelection(true);
+        emitSelection(false);
+        expect(root.classList.contains("is-focused")).toBe(false);
     });
 });
