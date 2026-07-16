@@ -17,6 +17,7 @@ import { EditorSessionStore } from "./EditorSessionStore";
  */
 class FakeEditorHandle implements EditorHandle {
     disposed = false;
+    readonly reload = vi.fn();
 
     private readonly disposeListeners: Array<() => void> = [];
     private readonly messageListeners: Array<(message: Command) => void> = [];
@@ -204,6 +205,29 @@ describe("EditorSessionStore", () => {
         subscribed.emitMessage(aCommand);
 
         expect(received).toHaveBeenCalledWith(aCommand, "subscribed");
+    });
+
+    // ─── reload ──────────────────────────────────────────────────────────────
+
+    it("reload delegates to the addressed handle", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        store.register(handle);
+
+        store.reload("a");
+
+        expect(handle.reload).toHaveBeenCalledOnce();
+    });
+
+    it("reload throws when the host's handle does not support it", () => {
+        const store = new EditorSessionStore(vi.fn());
+        const handle = new FakeEditorHandle("a", "file", "/repo/a.bpmn");
+        // A bridge/IntelliJ handle omits reload; the store must fail loudly
+        // rather than silently no-op.
+        (handle as { reload?: unknown }).reload = undefined;
+        store.register(handle);
+
+        expect(() => store.reload("a")).toThrow("does not support reloading");
     });
 
     it("subscribeToSettingChangeEvent reports the subscribed editorId, not the active one", () => {

@@ -2,6 +2,7 @@ import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
     BpmnModelerSettingQuery,
+    BpmnlintConfigQuery,
     buildFlowOrder,
     buildRemovedAnchors,
     ClipboardQuery,
@@ -28,34 +29,9 @@ import c7Samples from "./__fixtures__/c7-samples.json";
 import c8Samples from "./__fixtures__/c8-samples.json";
 import { MOCK_BPMN_XML } from "./__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "./__fixtures__/mock-diff";
+import type { WebviewState } from "./webviewState";
 
 declare const process: { env: { NODE_ENV: string } };
-
-/**
- * Canvas position and zoom level captured from diagram-js.
- */
-export interface ViewportData {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
-/**
- * Shape of the data persisted via the host's `setState` / `getState`.
- */
-export interface WebviewState {
-    viewport?: ViewportData;
-    selectedElementIds?: string[];
-    // Scroll position of `.bio-properties-panel-scroll-container`.
-    panelScroll?: number;
-    /**
-     * Indexes (in render order) of `.bio-properties-panel-group` elements
-     * that are currently expanded.  Keyed by position so it survives a
-     * language switch — group labels are localised, indexes are not.
-     */
-    expandedGroupIndexes?: number[];
-}
 
 type StateType = WebviewState;
 
@@ -183,7 +159,7 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 console.debug("[DEBUG] GetBpmnModelerSettingCommand", message);
                 dispatchEvent(
                     new BpmnModelerSettingQuery({
-                        alignToOrigin: true,
+                        alignToOrigin: false,
                         showTransactionBoundaries: true,
                         colorTheme: "light",
                     }),
@@ -254,6 +230,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                     "[DEBUG] CursorChangedCommand (no partner in dev)",
                     (message as CursorChangedCommand).index,
                 );
+                break;
+            }
+            case message.type === "GetBpmnlintConfigCommand": {
+                dispatchEvent(new BpmnlintConfigQuery(null));
                 break;
             }
             default: {

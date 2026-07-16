@@ -34,6 +34,7 @@ vi.mock("./bootstrapWebview", () => ({
     bootstrapWebview: vi.fn(() => nextPanel),
 }));
 
+import { bootstrapWebview } from "./bootstrapWebview";
 import { VsCodeEditorHandle } from "./VsCodeEditorHandle";
 
 interface FakePanel {
@@ -157,6 +158,20 @@ describe("VsCodeEditorHandle.save", () => {
 
         expect(result).toBe(true);
         expect(document.save).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("VsCodeEditorHandle.reload", () => {
+    it("re-bootstraps the same panel with the session's viewType and visibility", () => {
+        const panel = makePanel();
+        // Session opened with viewType "bpmn" and the default visibility (true);
+        // reload must rebuild the exact same HTML in place.
+        const handle = createHandle(panel, makeDocument());
+        vi.mocked(bootstrapWebview).mockClear();
+
+        handle.reload();
+
+        expect(bootstrapWebview).toHaveBeenCalledWith("bpmn", panel, true);
     });
 });
 

@@ -34,6 +34,40 @@ Code's settings UI (search for "BPMN Modeler") or directly in `settings.json`.
 }
 ```
 
+## File and editor associations
+
+`.bpmn` and `.dmn` files open in the graphical modeler by default and are
+registered as their own **BPMN** / **DMN** languages — that is what powers the
+file-explorer icons and the language-mode label. The text view (`BPMN Modeler:
+Toggle Standard Text Editor`) keeps full XML syntax highlighting and editing
+behaviour.
+
+::: info XML extensions
+Extensions that activate on the `xml` language (e.g. Red Hat's *XML* extension)
+no longer auto-activate on `.bpmn`/`.dmn` files in the text view. To get that
+behaviour back, remap the files to XML in your user or workspace settings:
+
+```json
+"files.associations": {
+    "*.bpmn": "xml",
+    "*.dmn": "xml"
+}
+```
+
+Trade-off: the files are then plain XML to VS Code, so the BPMN/DMN file icons
+and language-mode label are replaced by the XML ones.
+:::
+
+To open these files in the text editor by default instead of the modeler,
+override the editor association:
+
+```json
+"workbench.editorAssociations": {
+    "*.bpmn": "default",
+    "*.dmn": "default"
+}
+```
+
 ## Commands
 
 Beyond settings, the extension contributes several commands to the palette —

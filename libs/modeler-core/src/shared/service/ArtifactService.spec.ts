@@ -245,9 +245,11 @@ describe("ArtifactService.createWatcher", () => {
         const result = await service.createWatcher("/work/proc/order.bpmn", target as never);
 
         expect(result).toEqual({ disposables: [handle], errors: [] });
+        // Extension-less glob: a one-shot folder copy may only emit a
+        // directory-create event, which a `*.json` suffix would drop.
         expect(vsWorkspace.createWatcher).toHaveBeenCalledWith(
             "/work",
-            "**/.camunda/element-templates/**/*.json",
+            "**/.camunda/element-templates/**",
             expect.objectContaining({
                 onCreate: expect.any(Function),
                 onChange: expect.any(Function),
@@ -255,9 +257,10 @@ describe("ArtifactService.createWatcher", () => {
             }),
         );
 
-        // Each handler must trigger a refresh keyed by the originating editor.
+        // Each handler must trigger a refresh keyed by the originating editor —
+        // including for a bare directory path (the folder-copy case).
         const handlers = vsWorkspace.createWatcher.mock.calls[0][2];
-        handlers.onCreate("/work/.camunda/element-templates/x.json");
+        handlers.onCreate("/work/.camunda/element-templates/copied-folder");
         handlers.onChange("/work/.camunda/element-templates/x.json");
         handlers.onDelete("/work/.camunda/element-templates/x.json");
         expect(target.setElementTemplates).toHaveBeenCalledTimes(3);

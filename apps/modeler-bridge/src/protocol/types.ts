@@ -165,6 +165,17 @@ export interface MarketplaceRemoveParams {
     removedCount: number;
 }
 
+/**
+ * `migration/migrateAll` — migrate every `.bpmn` under a workspace root to a
+ * user-picked engine version. Carries the root explicitly because the action can
+ * fire with no editor open, so no `session/register` has registered it yet and
+ * `NodeWorkspace.findFiles` only globs registered roots. (`modeler/changeEngineVersion`
+ * needs no dedicated params — it reuses {@link EditorRefParams}.)
+ */
+export interface MigrateAllParams {
+    workspaceRoot: string;
+}
+
 // ── Core → Host requests (params + results) ──────────────────────────────────
 
 /** `document/write` — push core-originated text; result reports whether it changed. */

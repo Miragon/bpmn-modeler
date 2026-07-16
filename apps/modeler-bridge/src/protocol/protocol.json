@@ -163,6 +163,22 @@
         ]
     },
     {
+        "method": "modeler/changeEngineVersion",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "editorId"
+        ]
+    },
+    {
+        "method": "migration/migrateAll",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "workspaceRoot"
+        ]
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",

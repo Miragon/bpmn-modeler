@@ -85,6 +85,31 @@
   gap: 12px;
   margin-left: 16px;
 }
+/* Live demo in the nav: outlined sibling of Install — present but lets the
+ * solid Install button stay the primary nav CTA. */
+.demo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  background: transparent;
+  color: var(--miragon-fg) !important;
+  border: 1px solid var(--miragon-border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.demo-btn:hover {
+  border-color: var(--miragon-blue);
+  color: var(--miragon-blue) !important;
+  transform: translateY(-1px);
+}
+.demo-btn:focus-visible {
+  outline: 2px solid var(--miragon-blue);
+  outline-offset: 2px;
+}
 .install-btn {
   display: inline-flex;
   align-items: center;
@@ -210,6 +235,18 @@
   background: #383E6E;
   transform: translateY(-1px);
 }
+/* Live demo: solid brand-blue CTA, on par with Download. The play glyph
+ * reads as "launch it" — this opens the hosted, running modeler. */
+.hero-actions .btn-demo {
+  background: var(--miragon-blue);
+  color: #fff;
+  box-shadow: 0 8px 24px -8px rgba(51,93,228,0.5);
+}
+.hero-actions .btn-demo:hover {
+  background: var(--miragon-blue-hover);
+  transform: translateY(-1px);
+}
+.play-ico { flex-shrink: 0; display: block; }
 .hero-actions .btn-secondary {
   background: var(--miragon-card-glass);
   backdrop-filter: blur(20px);

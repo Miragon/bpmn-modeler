@@ -46,6 +46,10 @@ export const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
 export const NEW_BPMN_MODEL_CMD = "bpmn-modeler.newBpmnModel";
 // VS Code command ID for scaffolding a new DMN model.
 export const NEW_DMN_MODEL_CMD = "bpmn-modeler.newDmnModel";
+// VS Code command ID for reloading the active modeler webview. Manual fallback
+// for setups where the element-template file watcher never fires (WSL +
+// symlinked workspace): a reload re-requests the templates from the host.
+export const RELOAD_MODELER_CMD = "bpmn-modeler.reloadModeler";
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
@@ -94,6 +98,7 @@ export class CommandController {
             commands.registerCommand(CHANGE_LANGUAGE_CMD, this.changeLanguage, this),
             commands.registerCommand(NEW_BPMN_MODEL_CMD, this.newBpmnModel, this),
             commands.registerCommand(NEW_DMN_MODEL_CMD, this.newDmnModel, this),
+            commands.registerCommand(RELOAD_MODELER_CMD, this.reloadModeler, this),
         );
     }
 
@@ -106,6 +111,17 @@ export class CommandController {
         const activeId = this.editorStore.getActiveEditorId();
         const documentPath = this.vsDocument.getFilePath(activeId);
         return this.textEditor.toggle(documentPath);
+    }
+
+    /**
+     * Restarts the active modeler webview so it re-requests the diagram,
+     * element templates, and settings — the manual workaround for setups where
+     * the element-template file watcher never delivers events (WSL + symlinked
+     * workspace). Unsaved edits survive: the `TextDocument` is the source of
+     * truth and the restarted webview re-imports its (dirty) text.
+     */
+    reloadModeler(): void {
+        this.editorStore.reload(this.editorStore.getActiveEditorId());
     }
 
     /**

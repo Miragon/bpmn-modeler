@@ -1,4 +1,4 @@
-import { ViewportData } from "./host";
+import { ViewportData } from "./webviewState";
 
 /**
  * Function type for accessing a service from the bpmn-js DI container.
