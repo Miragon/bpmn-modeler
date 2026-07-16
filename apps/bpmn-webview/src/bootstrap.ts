@@ -364,11 +364,18 @@ async function initializeModeler(
         );
         // Escape re-homes focus on the canvas so keyboard-driven modelling
         // (A/N/arrows, all owned by bpmn-js's canvas-scoped Keyboard service)
-        // works even when focus sits in the properties panel or a search field.
+        // works even when focus sits in the properties panel or a search field;
+        // a further Escape on the focused canvas clears the selection.
         // Services are resolved lazily inside the closures because the modeler
         // exists by the time an Escape can fire.
         installKeyboardFocus({
             focusCanvas: () => bpmnModeler.getService<{ focus(): void }>("canvas").focus(),
+            isCanvasFocused: () =>
+                bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
+            hasSelection: () =>
+                bpmnModeler.getService<{ get(): unknown[] }>("selection").get().length > 0,
+            clearSelection: () =>
+                bpmnModeler.getService<{ select(elements: null): void }>("selection").select(null),
             isSearchPadOpen: () =>
                 bpmnModeler.getService<{ isOpen(): boolean }>("searchPad").isOpen(),
             closeSearchPad: () => bpmnModeler.getService<{ close(): void }>("searchPad").close(),

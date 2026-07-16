@@ -8,6 +8,12 @@
 export interface KeyboardFocusDeps {
     /** Moves DOM focus onto the canvas SVG (`canvas.focus()`). */
     focusCanvas: () => void;
+    /** Whether the canvas SVG currently holds DOM focus (`canvas.isFocused()`). */
+    isCanvasFocused: () => boolean;
+    /** Whether any element is currently selected (`selection.get().length > 0`). */
+    hasSelection: () => boolean;
+    /** Clears the current selection (`selection.select(null)`). */
+    clearSelection: () => void;
     /** Whether the diagram-js SearchPad is currently open. */
     isSearchPadOpen: () => boolean;
     /** Closes the SearchPad (restores the cached selection). */
@@ -23,10 +29,18 @@ export interface KeyboardFocusDeps {
  * or a search field, keystrokes like `A`/`N`/arrows never reach the modeler.
  * Escape re-homes focus so the next keystroke drives the diagram again.
  *
+ * Escape is staged, one layer per press (mirroring the append-menu's
+ * template-then-close staging): while focus is elsewhere it only re-homes
+ * focus and *keeps* the selection — selection anchors the keyboard-modelling
+ * flow (`A`/`R`/arrows) and drives the properties panel, so clearing it here
+ * would blank the panel the user just escaped from. Only a further Escape on
+ * the already-focused canvas clears the selection, reaching the neutral state
+ * the focus reticle marks. bpmn-js has no deselect-on-Escape of its own.
+ *
  * The listener runs in the **bubble** phase and stays deliberately passive
  * (no preventDefault/stopPropagation) so host Escape behaviour is untouched.
  *
- * @param deps Injected focus/search-pad closures (see {@link KeyboardFocusDeps}).
+ * @param deps Injected focus/selection/search-pad closures (see {@link KeyboardFocusDeps}).
  */
 export function installKeyboardFocus(deps: KeyboardFocusDeps): void {
     document.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -56,7 +70,17 @@ export function installKeyboardFocus(deps: KeyboardFocusDeps): void {
         }
 
         // Label direct-editing needs no guard: its keydown handler stops
-        // propagation for every key, so we never see its Escape.
+        // propagation for every key, so we never see its Escape. Drag cancel
+        // and the popup menu preventDefault theirs, caught above — so reaching
+        // this point means there is no more transient UI layer to peel.
+
+        // Final layer: Escape on the already-focused canvas drops the
+        // selection (Figma/vim-visual convention), reaching the bare
+        // canvas-focus state the reticle lights up for.
+        if (deps.isCanvasFocused() && deps.hasSelection()) {
+            deps.clearSelection();
+            return;
+        }
 
         deps.focusCanvas();
     });
