@@ -89,9 +89,9 @@ class ModelerSettingsConfigurable : Configurable {
                 }
                 row("Language:") {
                     comboBox(
-                        LOCALE_CODES,
-                        textListCellRenderer<String?> { code -> code?.let { LOCALE_LABELS[it] ?: it } ?: "" },
-                    ).bindItem({ state.language }, { state.language = it ?: DEFAULT_LOCALE })
+                        ModelerLocales.CODES,
+                        textListCellRenderer<String?> { code -> code?.let { ModelerLocales.LABELS[it] ?: it } ?: "" },
+                    ).bindItem({ state.language }, { state.language = it ?: ModelerLocales.DEFAULT_LOCALE })
                 }
                 row {
                     checkBox("Enable Camunda SPIN script completion")
@@ -210,23 +210,7 @@ class ModelerSettingsConfigurable : Configurable {
         const val FAVOURITES_ROWS = 5
         const val MARKETPLACES_ROWS = 4
         const val DEFAULT_THEME = "automatic"
-        const val DEFAULT_LOCALE = "en"
 
         val COLOR_THEMES = listOf("automatic", "light")
-
-        // Locale codes + labels mirror apps/vscode-plugin/package.json.
-        val LOCALE_CODES = listOf("de", "en", "es", "fr", "nl-nl", "pt-br", "ru", "zh-Hans", "zh-Hant")
-        val LOCALE_LABELS =
-            mapOf(
-                "de" to "Deutsch",
-                "en" to "English",
-                "es" to "Español",
-                "fr" to "Français",
-                "nl-nl" to "Nederlands",
-                "pt-br" to "Português (Brasil)",
-                "ru" to "Русский",
-                "zh-Hans" to "简体中文",
-                "zh-Hant" to "繁体中文",
-            )
     }
 }

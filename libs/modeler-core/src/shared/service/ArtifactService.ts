@@ -175,7 +175,12 @@ export class ArtifactService {
         const configFolder = this.vsSettings.getConfigFolder();
         const workspaceRoot = await this.getWorkspaceRoot(documentDir);
 
-        const pattern = `**/${configFolder}/element-templates/**/*.json`;
+        // No `*.json` suffix: a one-shot folder copy into element-templates can
+        // surface as a single directory-create event, which a file-extension
+        // glob would filter out and the templates would stay stale until reopen.
+        // Over-firing is harmless — the refresh below re-scans from disk and
+        // `getArtifactPaths` applies the `.json` filter itself.
+        const pattern = `**/${configFolder}/element-templates/**`;
         // A watcher callback's rejection has no caller to await it, so a failed
         // re-push (unreadable template dir, gone webview) would float away as an
         // unhandled rejection instead of reaching the channel.

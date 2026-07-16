@@ -40,6 +40,26 @@ Marketplace on its normal schedule under *Settings → Plugins → Updates*.
 Create or open any `.bpmn` file in your project — the modeler opens
 automatically as the default editor for that file type.
 
+## Actions
+
+All plugin actions are accessible via **Find Action** (`Ctrl+Shift+A` /
+`Cmd+Shift+A`) or **Search Everywhere** (double `Shift`) — search for the
+action name.
+
+| Action | Description |
+|---|---|
+| New BPMN Model… | Create a new BPMN diagram and open it in the modeler (also under *Project view ▸ New*) |
+| New DMN Model… | Create a new DMN decision file (also under *Project view ▸ New*) |
+| Add Template Marketplace… | Register a GitHub/GitLab repository or local folder holding a `marketplace.json` |
+| Update Template Marketplaces | Re-fetch every configured [template marketplace](/vscode/features/template-marketplace) |
+| Remove Template Marketplace… | Unregister one or more marketplaces and prune their cached templates |
+| Reload Modeler | Re-scan element templates and re-render open diagrams without closing the tab |
+| Change Engine Version… | Change the Camunda engine version of the focused diagram |
+| Migrate All Diagrams… | Migrate every BPMN diagram in the project to a chosen engine version |
+| Change Modeler Language… | Switch the modeler UI language |
+| Copy Diagram as SVG | Copy the focused diagram to the clipboard as SVG |
+| Save Diagram as SVG… | Export the focused diagram to an SVG file |
+
 ## Where to next
 
 - [VS Code Getting Started](/vscode/getting-started) — same modeling features,

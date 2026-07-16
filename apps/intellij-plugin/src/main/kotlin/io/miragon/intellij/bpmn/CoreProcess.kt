@@ -13,6 +13,7 @@ import io.miragon.intellij.bpmn.bridge.DiffRouter
 import io.miragon.intellij.bpmn.bridge.EditorSessionRouter
 import io.miragon.intellij.bpmn.bridge.HostUiRouter
 import io.miragon.intellij.bpmn.bridge.MarketplaceRouter
+import io.miragon.intellij.bpmn.bridge.ModelerCommandsRouter
 import io.miragon.intellij.bpmn.bridge.ProcessSupervisor
 import io.miragon.intellij.bpmn.bridge.RpcChannel
 import io.miragon.intellij.bpmn.bridge.RpcHandlerRegistry
@@ -94,6 +95,7 @@ class CoreProcess(private val project: Project) : Disposable {
     private val scriptRouter = ScriptRouter(deps)
     private val secretStoreRouter = SecretStoreRouter(deps)
     private val marketplaceRouter = MarketplaceRouter(deps)
+    private val modelerCommandsRouter = ModelerCommandsRouter(deps)
     private val hostUiRouter = HostUiRouter(deps)
 
     init {
@@ -134,8 +136,24 @@ class CoreProcess(private val project: Project) : Disposable {
 
     fun disposeSession(editorId: String) = editorRouter.disposeSession(editorId)
 
+    /**
+     * Requests an SVG export of the open diagram; [onSvg] fires with the rendered
+     * SVG when the webview echoes it back. Returns `false` when no session is open
+     * for [editorId]. Backs the Copy/Save Diagram as SVG actions.
+     */
+    fun requestDiagramSvg(editorId: String, onSvg: (String) -> Unit): Boolean =
+        editorRouter.requestDiagramSvg(editorId, onSvg)
+
     /** Pushes the current settings snapshot to the running core so an open editor reacts live. */
     fun pushSettings() = editorRouter.pushSettings()
+
+    /**
+     * Soft-reloads every open modeler by re-registering its live session (re-seeds
+     * settings, re-scans element templates, replays the render) — the fallback for
+     * stale templates on setups where the filesystem watcher never fires (WSL over a
+     * symlinked workspace). No JCEF hard reload, so unsaved edits survive.
+     */
+    fun reloadModeler() = editorRouter.reregisterLiveSessions()
 
     // ── template marketplace ───────────────────────────────────────────────────
 
@@ -154,6 +172,14 @@ class CoreProcess(private val project: Project) : Disposable {
      * action. `removedCount` is the selection size, echoed into the summary toast.
      */
     fun removeMarketplaces(removedCount: Int) = marketplaceRouter.removeMarketplaces(removedCount)
+
+    // ── modeler commands ───────────────────────────────────────────────────────
+
+    /** Fires `modeler/changeEngineVersion` for the given editor session (its file url). */
+    fun changeEngineVersion(editorId: String) = modelerCommandsRouter.changeEngineVersion(editorId)
+
+    /** Fires `migration/migrateAll` for the project's workspace root. */
+    fun migrateAllDiagrams() = modelerCommandsRouter.migrateAllDiagrams()
 
     /**
      * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script

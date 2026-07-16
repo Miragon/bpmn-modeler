@@ -112,6 +112,8 @@ describe("RPC protocol descriptor", () => {
                     "  marketplace/add",
                     "  marketplace/update",
                     "  marketplace/remove",
+                    "  modeler/changeEngineVersion",
+                    "  migration/migrateAll",
                     "",
                     "Core → Host (requests):",
                     "  document/write",

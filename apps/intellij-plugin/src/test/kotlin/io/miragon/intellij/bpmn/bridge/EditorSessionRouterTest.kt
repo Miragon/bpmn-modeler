@@ -291,6 +291,62 @@ class EditorSessionRouterTest {
         f.wired.fake.expectNoFrame()
     }
 
+    @Test
+    fun `requestDiagramSvg posts the command and consumes the echo into the callback`() {
+        val project = projectFixture.get()
+        val bpmn = createBpmnFile(tempDirFixture.get(), "svg.bpmn", INITIAL_XML)
+        val wired = wireChannel()
+        val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), DeterministicScheduler())
+        router.register()
+        val posted = mutableListOf<String>()
+        val session = CoreSession(bpmn.file.url, bpmn.file, project) { posted.add(it) }
+        router.registerSession(session)
+        parse(wired.fake.nextFrame()) // drain the session/register frame
+
+        try {
+            var captured: String? = null
+            val hadSession = router.requestDiagramSvg(session.editorId) { captured = it }
+            assertTrue(hadSession, "a session is open, so the request is accepted")
+            assertEquals(
+                "{\"type\":\"GetDiagramAsSVGCommand\"}",
+                posted.single(),
+                "the export command is posted straight into the webview",
+            )
+
+            // The webview echoes the command back with the rendered svg populated.
+            router.forwardWebviewMessage(
+                session.editorId,
+                "{\"type\":\"GetDiagramAsSVGCommand\",\"svg\":\"<svg/>\"}",
+            )
+            assertEquals("<svg/>", captured, "the callback receives the echoed svg")
+            // The echo is consumed here, never framed onward to the core.
+            wired.fake.expectNoFrame()
+        } finally {
+            wired.dispose()
+            Files.deleteIfExists(bpmn.nioPath)
+        }
+    }
+
+    @Test
+    fun `an svg echo with no pending request still forwards to the core`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        // No requestDiagramSvg was issued, so there is no callback to consume this —
+        // it must fall through and forward like any other webview message.
+        f.router.forwardWebviewMessage(
+            f.session.editorId,
+            "{\"type\":\"GetDiagramAsSVGCommand\",\"svg\":\"<svg/>\"}",
+        )
+
+        val frame = parse(f.wired.fake.nextFrame())
+        assertEquals("webview/message", frame.get("method").asString)
+        assertEquals(
+            "GetDiagramAsSVGCommand",
+            frame.getAsJsonObject("params").getAsJsonObject("message").get("type").asString,
+            "an unclaimed svg echo forwards unchanged",
+        )
+    }
+
     /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
     private fun syncCommand(content: String): String =
         "{\"type\":\"SyncDocumentCommand\",\"content\":\"$content\"}"
