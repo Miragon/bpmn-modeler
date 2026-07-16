@@ -266,6 +266,12 @@
                 icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
                 text="Save Diagram as SVG…"
                 description="Export the focused diagram to an SVG file"/>
+            <action
+                id="io.miragon.bpmn-modeler.openAllScriptTasks"
+                class="io.miragon.intellij.bpmn.OpenAllScriptTasksAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Generate Script Files for Script Tasks"
+                description="Write a file for every inline script task of the active BPMN diagram; open a file to edit it with live sync"/>
 
             <separator/>
 
@@ -287,14 +293,6 @@
                 description="Create a new DMN decision file">
                 <add-to-group group-id="NewGroup" anchor="last"/>
             </action>
-        </group>
-        <group id="MiragonBpmn.Editor" popup="false">
-            <add-to-group group-id="ToolsMenu" anchor="last"/>
-            <action
-                id="io.miragon.bpmn-modeler.openAllScriptTasks"
-                class="io.miragon.intellij.bpmn.OpenAllScriptTasksAction"
-                text="Generate Script Files for Script Tasks"
-                description="Write a file for every inline script task of the active BPMN diagram; open a file to edit it with live sync"/>
         </group>
     </actions>
 </idea-plugin>
