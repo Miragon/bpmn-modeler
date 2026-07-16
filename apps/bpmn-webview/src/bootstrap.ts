@@ -3,6 +3,7 @@ import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 // css
 import "./styles/default.css";
 import "./styles/diff.css";
+import "./styles/canvasFocusIndicator.css";
 
 import {
     BpmnFileQuery,
@@ -47,6 +48,7 @@ import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-model
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnModeler,
+    installCanvasFocusIndicator,
     installContentEditableClipboardPolyfill,
     installKeyboardFocus,
     UnsupportedEngineError,
@@ -370,6 +372,24 @@ async function initializeModeler(
             isSearchPadOpen: () =>
                 bpmnModeler.getService<{ isOpen(): boolean }>("searchPad").isOpen(),
             closeSearchPad: () => bpmnModeler.getService<{ close(): void }>("searchPad").close(),
+        });
+        // Playful counterpart to installKeyboardFocus: a focus reticle bottom-left
+        // on the canvas that lights up green while keystrokes drive the diagram.
+        // diagram-js already tracks exactly this state (Canvas fires a deduplicated
+        // "canvas.focus.changed" from its own SVG focus listeners), so subscribe
+        // instead of re-observing DOM focus — a container-level focusin would
+        // false-positive on the lint chip inside the same .djs-container.
+        installCanvasFocusIndicator({
+            parent: bpmnModeler
+                .getService<{ getContainer(): HTMLElement }>("canvas")
+                .getContainer(),
+            isFocused: () => bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
+            onFocusChanged: (listener) =>
+                bpmnModeler
+                    .getService<{
+                        on(event: string, cb: (e: { focused: boolean }) => void): void;
+                    }>("eventBus")
+                    .on("canvas.focus.changed", (e) => listener(e.focused)),
         });
         // Forward the modeler's non-fatal warnings (element-not-found, missing
         // inline script) to the output channel — they were console-only before.

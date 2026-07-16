@@ -4,5 +4,6 @@ export * from "./selection";
 export * from "./state";
 export * from "./propertiesPanelClipboard";
 export * from "./keyboardFocus";
+export * from "./canvasFocusIndicator";
 export * from "./host";
 export * from "./webviewState";

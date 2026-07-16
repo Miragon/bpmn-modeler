@@ -1,0 +1,57 @@
+.canvas-focus-indicator {
+    position: absolute;
+    left: 16px;
+    bottom: 16px; /* same baseline as the lint chip (bottom-center) */
+    width: 24px;
+    height: 24px;
+    z-index: 10;
+    pointer-events: none;
+    color: rgba(85, 85, 85, 0.55); /* theme-neutral base = light-canvas idle grey */
+}
+
+.canvas-focus-indicator svg {
+    display: none;
+    width: 100%;
+    height: 100%;
+}
+
+/* The __on glyph is display:none while unfocused, and display:none terminates a
+   CSS animation — so re-displaying on each focus gain restarts the finite pulse
+   automatically, no JS timer needed. */
+.canvas-focus-indicator:not(.is-focused) .canvas-focus-indicator__off {
+    display: block;
+}
+
+.canvas-focus-indicator.is-focused .canvas-focus-indicator__on {
+    display: block;
+    color: #00e676; /* fill="currentColor" → reticle in the Miragon komet green */
+    /* Steady glow the greeting pulse settles into: the animation runs a finite
+       2 iterations with no fill-mode, so it reverts to this static filter. */
+    filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.55));
+    animation: canvas-focus-pulse 1.1s ease-in-out 2;
+}
+
+/* drop-shadow (not box-shadow) so the glow hugs the glyph silhouette, not a square.
+   Keyframes start and end at the steady-state glow so the settle is seamless. */
+@keyframes canvas-focus-pulse {
+    0%,
+    100% {
+        filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.55));
+    }
+    50% {
+        filter: drop-shadow(0 0 9px rgba(0, 230, 118, 0.95));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvas-focus-indicator.is-focused .canvas-focus-indicator__on {
+        animation: none; /* the static filter above keeps "on" distinguishable */
+    }
+}
+
+/* dark theme recolors the canvas (--canvas-fill-color) → lighter idle outline;
+   the green + glow already read on dark */
+body.vscode-dark .canvas-focus-indicator,
+body.vscode-high-contrast .canvas-focus-indicator {
+    color: rgba(190, 190, 190, 0.6);
+}
