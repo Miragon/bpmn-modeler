@@ -33,11 +33,12 @@ add time, so a typo never lands in your settings.
 
 ### In JetBrains IDEs
 
-The marketplace also ships in the IntelliJ plugin. The three commands live under
-the **Tools** menu — **Add Template Marketplace…**, **Update Template
-Marketplaces**, and **Remove Template Marketplace…** — and the source list is
-edited on the settings page (**Settings ▸ Tools ▸ Miragon BPMN Modeler ▸
-Template Marketplaces**, one location per line). Fetch, validation, caching, and
+The marketplace also ships in the IntelliJ plugin as three actions —
+**Add Template Marketplace…**, **Update Template Marketplaces**, and
+**Remove Template Marketplace…** (run them via **Find Action**, see
+[Actions](/intellij/getting-started#actions)). The source list is edited on the
+settings page (**Settings ▸ Tools ▸ Miragon BPMN Modeler ▸ Template
+Marketplaces**, one location per line). Fetch, validation, caching, and
 the per-host token flow are identical to VS Code; tokens live in the IDE's
 **PasswordSafe** rather than VS Code secret storage. The settings list is
 **strings-only** for now (pasted URLs and local paths) — the structured
