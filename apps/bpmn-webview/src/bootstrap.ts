@@ -3,6 +3,7 @@ import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 // css
 import "./styles/default.css";
 import "./styles/diff.css";
+import "./styles/canvasFocusIndicator.css";
 
 import {
     BpmnFileQuery,
@@ -47,6 +48,7 @@ import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-model
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     BpmnModeler,
+    installCanvasFocusIndicator,
     installContentEditableClipboardPolyfill,
     installKeyboardFocus,
     UnsupportedEngineError,
@@ -362,14 +364,48 @@ async function initializeModeler(
         );
         // Escape re-homes focus on the canvas so keyboard-driven modelling
         // (A/N/arrows, all owned by bpmn-js's canvas-scoped Keyboard service)
-        // works even when focus sits in the properties panel or a search field.
+        // works even when focus sits in the properties panel or a search field;
+        // a further Escape on the focused canvas clears the selection.
         // Services are resolved lazily inside the closures because the modeler
         // exists by the time an Escape can fire.
         installKeyboardFocus({
             focusCanvas: () => bpmnModeler.getService<{ focus(): void }>("canvas").focus(),
+            isCanvasFocused: () =>
+                bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
+            hasSelection: () =>
+                bpmnModeler.getService<{ get(): unknown[] }>("selection").get().length > 0,
+            clearSelection: () =>
+                bpmnModeler.getService<{ select(elements: null): void }>("selection").select(null),
             isSearchPadOpen: () =>
                 bpmnModeler.getService<{ isOpen(): boolean }>("searchPad").isOpen(),
             closeSearchPad: () => bpmnModeler.getService<{ close(): void }>("searchPad").close(),
+        });
+        // Playful counterpart to installKeyboardFocus: a focus reticle bottom-left
+        // on the canvas that lights up green while the canvas holds keyboard focus
+        // with no element selected (a selection already marks itself).
+        // diagram-js already tracks the focus half (Canvas fires a deduplicated
+        // "canvas.focus.changed" from its own SVG focus listeners), so subscribe
+        // instead of re-observing DOM focus — a container-level focusin would
+        // false-positive on the lint chip inside the same .djs-container.
+        installCanvasFocusIndicator({
+            parent: bpmnModeler
+                .getService<{ getContainer(): HTMLElement }>("canvas")
+                .getContainer(),
+            isFocused: () => bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
+            onFocusChanged: (listener) =>
+                bpmnModeler
+                    .getService<{
+                        on(event: string, cb: (e: { focused: boolean }) => void): void;
+                    }>("eventBus")
+                    .on("canvas.focus.changed", (e) => listener(e.focused)),
+            hasSelection: () =>
+                bpmnModeler.getService<{ get(): unknown[] }>("selection").get().length > 0,
+            onSelectionChanged: (listener) =>
+                bpmnModeler
+                    .getService<{
+                        on(event: string, cb: (e: { newSelection: unknown[] }) => void): void;
+                    }>("eventBus")
+                    .on("selection.changed", (e) => listener(e.newSelection.length > 0)),
         });
         // Forward the modeler's non-fatal warnings (element-not-found, missing
         // inline script) to the output channel — they were console-only before.
