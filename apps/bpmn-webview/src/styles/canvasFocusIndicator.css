@@ -1,12 +1,33 @@
 .canvas-focus-indicator {
     position: absolute;
-    left: 16px;
-    bottom: 16px; /* same baseline as the lint chip (bottom-center) */
-    width: 24px;
-    height: 24px;
+    /* Sits in the top-right corner, right of the "Open minimap" control
+       (.djs-minimap, which we nudge left below to make room). Moved off the
+       bottom-left: on short viewports the palette grows down far enough to
+       overlap a bottom-left reticle; the top-right corner stays clear in every
+       state (the minimap even when expanded keeps its right edge left of us,
+       and simulation controls render at top-left). `top` centers the 31px box
+       on the minimap button's vertical midline (its top 20px + ~36.5px/2 ≈
+       38.25px). */
+    top: 23px;
+    right: 20px;
+    width: 31px;
+    height: 31px;
     z-index: 10;
     pointer-events: none;
     color: rgba(85, 85, 85, 0.55); /* theme-neutral base = light-canvas idle grey */
+}
+
+/* Nudge the minimap left so the corner reticle has room. The gap holds even
+   when the minimap is expanded — it grows leftward/down from this right edge,
+   never into the reticle.
+
+   The `.djs-container` prefix is load-bearing: diagram-js-minimap's default
+   `.djs-minimap{right:20px}` ships in lightTheme.css/darkTheme.css, which load
+   *after* this file, so a bare `.djs-minimap` (equal specificity, earlier in
+   the cascade) loses and the minimap snaps back under the reticle. The
+   descendant selector (0,2,0 > 0,1,0) wins regardless of load order. */
+.djs-container .djs-minimap {
+    right: 61px;
 }
 
 .canvas-focus-indicator svg {
