@@ -71,7 +71,7 @@ override the editor association:
 ## Commands
 
 Beyond settings, the extension contributes several commands to the palette —
-all prefixed `BPMN Modeler:`. See [Getting Started](/vscode/getting-started)
+all prefixed `BPMN Modeler:`. See [Getting Started](getting-started)
 for the common ones.
 
 ## Element templates

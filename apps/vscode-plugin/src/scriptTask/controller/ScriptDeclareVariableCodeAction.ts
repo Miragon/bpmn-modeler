@@ -29,7 +29,7 @@ import { ScriptTaskService } from "./ScriptTaskService";
  * sidecar nobody discovers. The affordance appears exactly where the gap is felt
  * — editing a script and naming a variable the model doesn't know.
  *
- * VS Code has no Groovy/JS parser for these virtual `bpmn-script:` documents, so
+ * VS Code has no Groovy parser for these script documents, so
  * "unknown" is a lexical heuristic: the word under the caret looks like an
  * identifier and is absent from the merged completion set (process variables +
  * the kind's Camunda beans). Gating to unknown-only — and only as a user-invoked
@@ -57,16 +57,20 @@ export class ScriptDeclareVariableCodeAction implements CodeActionProvider {
 
     /**
      * Registers the provider for every supported script language scoped to the
-     * `bpmn-script` scheme (mirroring {@link ScriptCompletionProvider}) plus the
+     * script directory (mirroring {@link ScriptCompletionProvider}) plus the
      * single command the quick-fix dispatches.
      */
     register(context: ExtensionContext): void {
         for (const language of ScriptCompletionProvider.LANGUAGES) {
             context.subscriptions.push(
-                languages.registerCodeActionsProvider({ scheme: "bpmn-script", language }, this, {
-                    providedCodeActionKinds:
-                        ScriptDeclareVariableCodeAction.providedCodeActionKinds,
-                }),
+                languages.registerCodeActionsProvider(
+                    { scheme: "file", language, pattern: ScriptCompletionProvider.PATH_GLOB },
+                    this,
+                    {
+                        providedCodeActionKinds:
+                            ScriptDeclareVariableCodeAction.providedCodeActionKinds,
+                    },
+                ),
             );
         }
         context.subscriptions.push(
@@ -78,6 +82,12 @@ export class ScriptDeclareVariableCodeAction implements CodeActionProvider {
     }
 
     provideCodeActions(document: TextDocument, range: Range): CodeAction[] {
+        // The path glob is only a heuristic — any user directory named
+        // `tmp/scripting` matches it. Only documents the service actually
+        // tracks as open scripts get the action.
+        if (!this.scriptTaskSvc.getEditorIdForScriptUri(document.uri.path)) {
+            return [];
+        }
         const wordRange = document.getWordRangeAtPosition(range.start);
         if (!wordRange) {
             return [];

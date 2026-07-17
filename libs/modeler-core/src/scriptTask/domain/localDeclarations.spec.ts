@@ -47,6 +47,48 @@ describe("collectLocalDeclarations", () => {
                 { name: "other", line: 1, kind: "variable" },
             ]);
         });
+
+        describe("typeHint inference", () => {
+            const hintFor = (script: string): string | undefined =>
+                collectLocalDeclarations(script, "groovy")[0]?.typeHint;
+
+            it("infers a trailing `as` cast (the user's report)", () => {
+                const line = 'def myProcessVar = execution.getVariable("v") as SpinJsonNode';
+                expect(hintFor(line)).toBe("SpinJsonNode");
+            });
+
+            it("infers the leading type of a typed declaration", () => {
+                expect(hintFor("SpinJsonNode node = payload")).toBe("SpinJsonNode");
+            });
+
+            it("strips generics from a typed declaration", () => {
+                expect(hintFor("List<String> xs = []")).toBe("List");
+            });
+
+            it("infers SpinJsonNode from an S()/JSON() initializer", () => {
+                expect(hintFor("def node = S('{}')")).toBe("SpinJsonNode");
+                expect(hintFor("def node = JSON('{}')")).toBe("SpinJsonNode");
+            });
+
+            it("lets a trailing cast beat the declared type on the same line", () => {
+                expect(hintFor("SpinJsonNode node = raw as String")).toBe("String");
+            });
+
+            it("leaves an untyped initializer without a hint", () => {
+                expect(hintFor("def total = 1")).toBeUndefined();
+            });
+
+            it("leaves a mid-line cast without a hint (accepted gap)", () => {
+                expect(hintFor('def x = (a as SpinJsonNode).prop("b")')).toBeUndefined();
+            });
+
+            it("never infers a type outside groovy", () => {
+                expect(collectLocalDeclarations("String x = 1", "javascript")).toEqual([]);
+                expect(
+                    collectLocalDeclarations("x = S('{}')", "python")[0]?.typeHint,
+                ).toBeUndefined();
+            });
+        });
     });
 
     describe("javascript", () => {

@@ -57,7 +57,9 @@ import {
     ScriptCloseNotifyParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
+    ScriptDidOpenExternalParams,
     ScriptOpenParams,
+    ScriptUpdateContentParams,
     ScriptUpdateVariablesParams,
     SettingsDidChangeParams,
     StatusBarEngineVersionParams,
@@ -98,6 +100,8 @@ export const METHODS = {
     scriptDidChange: "script/didChange",
     scriptDidClose: "script/didClose",
     scriptAppendToManifest: "script/appendToManifest",
+    scriptOpenAll: "script/openAll",
+    scriptDidOpenExternal: "script/didOpenExternal",
     marketplaceAdd: "marketplace/add",
     marketplaceUpdate: "marketplace/update",
     marketplaceRemove: "marketplace/remove",
@@ -142,6 +146,7 @@ export const METHODS = {
     deploymentPostMessage: "deployment/postMessage",
     scriptOpen: "script/open",
     scriptUpdateVariables: "script/updateVariables",
+    scriptUpdateContent: "script/updateContent",
     scriptClose: "script/close",
 } as const;
 
@@ -273,6 +278,20 @@ export const PROTOCOL = [
             scriptId: "s1",
             name: "orderId",
         } satisfies ScriptAppendToManifestParams,
+    },
+    {
+        method: METHODS.scriptOpenAll,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
+        method: METHODS.scriptDidOpenExternal,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/e.js",
+        } satisfies ScriptDidOpenExternalParams,
     },
     {
         method: METHODS.marketplaceAdd,
@@ -559,6 +578,7 @@ export const PROTOCOL = [
             scriptId: "s1",
             fileName: "script.js",
             languageId: "javascript",
+            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/script.js",
             content: "x",
             completion: { beans: [], variables: [], globals: [], types: {} },
         } satisfies ScriptOpenParams,
@@ -568,6 +588,12 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: { scriptId: "s1", variables: [] } satisfies ScriptUpdateVariablesParams,
+    },
+    {
+        method: METHODS.scriptUpdateContent,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { scriptId: "s1", content: "x" } satisfies ScriptUpdateContentParams,
     },
     {
         method: METHODS.scriptClose,

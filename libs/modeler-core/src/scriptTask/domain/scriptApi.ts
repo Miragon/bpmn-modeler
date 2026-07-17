@@ -4,14 +4,13 @@ import { ScriptKind } from "@miragon/bpmn-modeler-shared";
  * Domain model describing the Camunda 7 JSR-223 script execution context.
  *
  * Single source of truth for the bean/method API surface exposed to inline
- * scripts. {@link ScriptCompletionProvider} reads this catalog to drive
- * autocomplete for every supported language (JavaScript, Groovy, Python,
- * Ruby) — VS Code's `tsserver` doesn't enumerate the `bpmn-script://`
- * virtual filesystem, so we can't rely on TypeScript ambient `.d.ts`
- * stubs and route all four languages through the same provider.
+ * scripts, consumed through three renderers: {@link ScriptCompletionProvider}
+ * for Groovy/Python/Ruby completion in VS Code, `generateCamundaDts` for the
+ * ambient `camunda.d.ts` tsserver serves to JavaScript, and the bridge's
+ * `script/open` payload feeding IntelliJ's completion contributors.
  *
- * Adding a new method: extend the appropriate `*_TYPE.methods` list. The
- * completion provider picks up the change automatically.
+ * Adding a new method: extend the appropriate `*_TYPE.methods` list. All
+ * renderers pick up the change automatically.
  */
 
 /**

@@ -26,6 +26,17 @@ export class DirectoryNotFound extends Error {
 }
 
 /**
+ * True for the "The active editor is hidden." error a host handle throws when
+ * `postMessage` targets a webview whose tab is not visible. String-matched
+ * rather than typed: the throwing handle lives host-side (outside core), so a
+ * shared error class can't be enforced — this predicate is the single spelling
+ * every caller shares instead.
+ */
+export function isHiddenEditorError(error: unknown): boolean {
+    return error instanceof Error && error.message === "The active editor is hidden.";
+}
+
+/**
  * Thrown when the execution platform cannot be auto-detected from BPMN XML.
  */
 export class ExecutionPlatformNotDetectedError extends Error {

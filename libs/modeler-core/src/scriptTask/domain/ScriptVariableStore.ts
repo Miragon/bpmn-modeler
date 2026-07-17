@@ -16,7 +16,7 @@ import { ScriptUri } from "./ScriptUri";
  * does the merge; the manifest's `authored` tier wins any name clash.
  *
  * Keyed by the one-way {@link ScriptUri.hashEditorId} hash rather than the raw
- * editor id because that hash is the only addressing a `bpmn-script://` URI
+ * editor id because that hash is the only addressing a script file path
  * carries — the provider recovers it from the document path, never the original
  * editor URI. Keeping the store pure (no `vscode` import) lets both the VS Code
  * plugin and the bridge tests drive it directly.

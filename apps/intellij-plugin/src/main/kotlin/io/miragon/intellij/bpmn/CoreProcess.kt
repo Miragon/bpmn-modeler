@@ -2,9 +2,11 @@ package io.miragon.intellij.bpmn
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import io.miragon.intellij.bpmn.bridge.BridgeDeps
 import io.miragon.intellij.bpmn.bridge.BridgeErrorNotifier
 import io.miragon.intellij.bpmn.bridge.DefaultBridgeProcessLauncher
@@ -111,11 +113,25 @@ class CoreProcess(private val project: Project) : Disposable {
         // operations that target "the active editor" address the right session
         // when several `.bpmn` files are open. Parented to this service, so the
         // subscription dies with the project.
-        project.messageBus.connect(this).subscribe(
+        val connection = project.messageBus.connect(this)
+        connection.subscribe(
             FileEditorManagerListener.FILE_EDITOR_MANAGER,
             object : FileEditorManagerListener {
                 override fun selectionChanged(event: FileEditorManagerEvent) {
                     event.newFile?.url?.let { editorRouter.setActiveEditor(it) }
+                }
+            },
+        )
+        // Flush the webview's debounced changes into the buffer just before a
+        // modeler tab closes. `beforeFileClosed` (not `dispose()`) is the only
+        // viable hook: the Disposer kills the JCEF browser before the editor's
+        // `dispose()` runs, so the browser is only reachable here. No-ops for
+        // non-modeler files (flushBeforeClose guards on a live session).
+        connection.subscribe(
+            FileEditorManagerListener.Before.FILE_EDITOR_MANAGER,
+            object : FileEditorManagerListener.Before {
+                override fun beforeFileClosed(source: FileEditorManager, file: VirtualFile) {
+                    editorRouter.flushBeforeClose(file.url)
                 }
             },
         )
@@ -143,6 +159,13 @@ class CoreProcess(private val project: Project) : Disposable {
      */
     fun requestDiagramSvg(editorId: String, onSvg: (String) -> Unit): Boolean =
         editorRouter.requestDiagramSvg(editorId, onSvg)
+
+    /**
+     * Flushes debounced webview changes into the buffer before a tab closes so
+     * the close doesn't drop the sub-debounce tail. Driven from the
+     * `beforeFileClosed` hook below, where the JCEF browser is still alive.
+     */
+    fun flushBeforeClose(editorId: String) = editorRouter.flushBeforeClose(editorId)
 
     /** Pushes the current settings snapshot to the running core so an open editor reacts live. */
     fun pushSettings() = editorRouter.pushSettings()
@@ -188,6 +211,13 @@ class CoreProcess(private val project: Project) : Disposable {
      */
     fun appendScriptVariableToManifest(scriptId: String, name: String) =
         scriptRouter.appendToManifest(scriptId, name)
+
+    /**
+     * Fires `script/openAll` for the Tools-menu action; the bridge asks the active
+     * BPMN webview for its inline script tasks and writes a file for each. No tabs
+     * open — live sync starts when the user opens a generated file (adoption).
+     */
+    fun openAllScriptTasks() = scriptRouter.openAllScriptTasks()
 
     // ── deployment tool window ─────────────────────────────────────────────────
 

@@ -6,6 +6,7 @@ import { PropertiesPanelStateRepository } from "../modeler/bpmn/infrastructure/P
 import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
+import { DocumentFlushService, documentFlushedHandler } from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigLocator } from "@miragon/bpmn-modeler-core";
@@ -17,6 +18,7 @@ import { DmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
 import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
+import { DocumentSaveFlushController } from "../modeler/editor-session/DocumentSaveFlushController";
 import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
 import { ElementTemplatesParticipant } from "../modeler/bpmn/controller/editor-participants/ElementTemplatesParticipant";
 import { BpmnlintParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnlintParticipant";
@@ -40,6 +42,8 @@ import {
     setTextClipboardHandler,
     syncDocumentHandler,
     openScriptEditorHandler,
+    openScriptEditorsHandler,
+    updateScriptSourceHandler,
     updateScriptVariablesHandler,
     navigateToReferencedModelHandler,
     navigateToImplementationHandler,
@@ -152,6 +156,9 @@ export function register(
         deps.notifier,
     );
     const dmnService = new DmnModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
+    // One flush service for both editors: requests are keyed per editorId, so a
+    // single instance behind both routers stays correct.
+    const flushSvc = new DocumentFlushService(deps.editorStore, deps.notifier);
     const dmnSettingsBroadcaster = new DmnSettingsBroadcaster(
         deps.editorStore,
         deps.vsSettings,
@@ -181,8 +188,19 @@ export function register(
         .on("GetTextClipboardCommand", getTextClipboardHandler(clipboardMediator))
         .on("SetTextClipboardCommand", setTextClipboardHandler(clipboardMediator))
         .on("SyncDocumentCommand", syncDocumentHandler(bpmnService))
+        .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc))
         .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc, scriptVariableStore))
+        .on(
+            "OpenScriptEditorsCommand",
+            openScriptEditorsHandler(
+                scriptTaskSvc,
+                scriptVariableStore,
+                deps.vsSettings,
+                deps.notifier,
+            ),
+        )
         .on("UpdateScriptVariablesCommand", updateScriptVariablesHandler(scriptVariableStore))
+        .on("UpdateScriptSourceCommand", updateScriptSourceHandler(scriptTaskSvc))
         .on(
             "NavigateToReferencedModelCommand",
             navigateToReferencedModelHandler(
@@ -220,7 +238,8 @@ export function register(
         .on("GetDmnModelerSettingCommand", getDmnModelerSettingHandler(dmnSettingsBroadcaster))
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(dmnPanelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(dmnPanelSvc))
-        .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService));
+        .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService))
+        .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
     registerWebviewLogHandlers(dmnMessageRouter, deps.notifier, resolveSource);
 
     new ModelerEditorController(deps.editorStore, deps.notifier, {
@@ -261,6 +280,16 @@ export function register(
         ],
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
+
+    // Flush debounced webview changes into the buffer before every save so a
+    // persist never writes XML that trails the live model by the debounce window.
+    new DocumentSaveFlushController(
+        deps.editorStore,
+        flushSvc,
+        bpmnService,
+        dmnService,
+        deps.notifier,
+    ).register(context);
 
     return { bpmnService, templatesSvc };
 }

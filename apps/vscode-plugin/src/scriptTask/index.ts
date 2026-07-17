@@ -4,3 +4,4 @@
  * internals is rejected by the feature-isolation architecture test.
  */
 export { ScriptTaskService } from "./controller/ScriptTaskService";
+export { ScriptTaskCommandController } from "./controller/ScriptTaskCommandController";

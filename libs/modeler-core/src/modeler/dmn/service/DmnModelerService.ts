@@ -1,7 +1,7 @@
 import { DmnFileQuery } from "@miragon/bpmn-modeler-shared";
 
 import { ModelerSession } from "../../../shared/domain/session";
-import { UserCancelledError } from "../../../shared/domain/errors";
+import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 import { EMPTY_DMN_DIAGRAM } from "../domain/emptyDmn";
@@ -44,7 +44,7 @@ export class DmnModelerService {
             if (error instanceof UserCancelledError) {
                 return false;
             }
-            if (error instanceof Error && error.message === "The active editor is hidden.") {
+            if (isHiddenEditorError(error)) {
                 return false;
             }
             return this.handleError(error as Error);

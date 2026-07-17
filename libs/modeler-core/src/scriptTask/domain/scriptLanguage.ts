@@ -59,6 +59,23 @@ export class ScriptLanguage {
         return [...ScriptLanguage.MAPPINGS.keys()];
     }
 
+    /**
+     * Reverse of the format→extension mapping: resolves a file extension back to
+     * its {@link ScriptLanguage}, or `undefined` when no supported language owns
+     * it. Doubles as the ambient-file guard during adoption — `camunda.d.ts`
+     * (`ts`) and `jsconfig.json` (`json`) are not script languages, so both
+     * return `undefined` and are skipped rather than tracked as scripts.
+     */
+    static fromExtension(extension: string): ScriptLanguage | undefined {
+        const normalized = ScriptLanguage.normalize(extension);
+        for (const [format, mapping] of ScriptLanguage.MAPPINGS) {
+            if (mapping.extension === normalized) {
+                return new ScriptLanguage(format);
+            }
+        }
+        return undefined;
+    }
+
     private static normalize(scriptFormat: string): string {
         return scriptFormat.toLowerCase().trim();
     }

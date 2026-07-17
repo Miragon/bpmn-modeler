@@ -56,9 +56,10 @@ import { ScriptCompletionProvider } from "./ScriptCompletionProvider";
 
 const EDITOR = "file:///work/diagram.bpmn";
 const HASH = ScriptUri.hashEditorId(EDITOR);
-// A script-task URI path keyed to EDITOR's hash; the provider derives both the
-// kind (`script-task`) and the editor hash from this path.
-const SCRIPT_PATH = `/${HASH}/Task_1/script-task/Task_1.groovy`;
+// An on-disk script-task path keyed to EDITOR's hash; the provider derives
+// both the kind (`script-task`) and the editor hash from the segments after
+// the `tmp/scripting/` marker.
+const SCRIPT_PATH = `/work/.camunda/tmp/scripting/${HASH}/Task_1/script-task/Task_1.groovy`;
 
 function storeWith(...variables: VariableDef[]): ScriptVariableStore {
     const store = new ScriptVariableStore();
@@ -68,9 +69,17 @@ function storeWith(...variables: VariableDef[]): ScriptVariableStore {
 
 // Only `getScriptingSpin` is exercised by the provider; a partial stub keeps the
 // test focused on the SPIN gate without standing up the full settings surface.
-function buildProvider(store: ScriptVariableStore, spinEnabled = true): ScriptCompletionProvider {
+// The open-script registry accepts every path by default; the tracked-only
+// guard has its own dedicated test.
+function buildProvider(
+    store: ScriptVariableStore,
+    spinEnabled = true,
+    openScripts: { getEditorIdForScriptUri(path: string): string | undefined } = {
+        getEditorIdForScriptUri: () => EDITOR,
+    },
+): ScriptCompletionProvider {
     const settings = { getScriptingSpin: () => spinEnabled } as SettingsPort;
-    return new ScriptCompletionProvider(store, settings);
+    return new ScriptCompletionProvider(store, settings, openScripts);
 }
 
 interface CompleteOptions {
@@ -149,10 +158,17 @@ describe("ScriptCompletionProvider modes", () => {
     it("an unknown editor hash yields beans only, no variables", () => {
         const provider = buildProvider(storeWith(variable("amount")));
         const labels = complete(provider, "am", {
-            path: "/unknownhash/Task_1/script-task/Task_1.groovy",
+            path: "/work/.camunda/tmp/scripting/unknownhash/Task_1/script-task/Task_1.groovy",
         });
         expect(labels).toContain("execution");
         expect(labels).not.toContain("amount");
+    });
+
+    it("returns nothing for a path the service does not track as an open script", () => {
+        const provider = buildProvider(storeWith(variable("amount")), true, {
+            getEditorIdForScriptUri: () => undefined,
+        });
+        expect(complete(provider, "am")).toEqual([]);
     });
 
     it("member access on a known bean returns its methods, not variables", () => {
@@ -186,6 +202,89 @@ describe("ScriptCompletionProvider modes", () => {
     it("member access on a primitive-typed variable returns nothing", () => {
         const provider = buildProvider(storeWith(variable("node", "long")));
         expect(complete(provider, "node.")).toEqual([]);
+    });
+
+    describe("member access on a cast-typed local", () => {
+        // The user's exact report: a `def` local cast to a SPIN type.
+        const SNIPPET =
+            "import org.camunda.spin.json.SpinJsonNode\n" +
+            'def myProcessVar = execution.getVariable("myVar") as SpinJsonNode\n' +
+            "myProcessVar.";
+
+        it("resolves SpinJsonNode methods after the dot", () => {
+            const provider = buildProvider(storeWith());
+            const labels = complete(provider, "myProcessVar.", {
+                scriptText: SNIPPET,
+                line: 2,
+            });
+            expect(labels).toContain("prop");
+            expect(labels).toContain("stringValue");
+            expect(labels).toContain("mapTo");
+        });
+
+        it("returns nothing when the SPIN setting is off", () => {
+            const provider = buildProvider(storeWith(), false);
+            expect(complete(provider, "myProcessVar.", { scriptText: SNIPPET, line: 2 })).toEqual(
+                [],
+            );
+        });
+
+        it("returns nothing for a cast to a type with no catalog methods", () => {
+            const provider = buildProvider(storeWith());
+            const script = 'def label = execution.getVariable("v") as String\nlabel.';
+            expect(complete(provider, "label.", { scriptText: script, line: 1 })).toEqual([]);
+        });
+
+        it("leaves a javascript local to tsserver (no SPIN methods)", () => {
+            const provider = buildProvider(storeWith());
+            const script = "const node = getSpin()\nnode.";
+            expect(
+                complete(provider, "node.", {
+                    languageId: "javascript",
+                    scriptText: script,
+                    line: 1,
+                }),
+            ).toEqual([]);
+        });
+
+        it("lets a typed local win over an untyped same-named store variable", () => {
+            const provider = buildProvider(storeWith(variable("myProcessVar")));
+            const labels = complete(provider, "myProcessVar.", {
+                scriptText: SNIPPET,
+                line: 2,
+            });
+            expect(labels).toContain("prop");
+        });
+    });
+
+    describe("javascript trim — tsserver owns the static surface", () => {
+        it("root mode offers only process variables, no beans or SPIN globals", () => {
+            const provider = buildProvider(storeWith(variable("amount")));
+            const labels = complete(provider, "am", { languageId: "javascript" });
+            expect(labels).toContain("amount");
+            expect(labels).not.toContain("execution");
+            expect(labels).not.toContain("S");
+            expect(labels).not.toContain("JSON");
+        });
+
+        it("bean member access yields nothing — the d.ts serves it", () => {
+            const provider = buildProvider(storeWith(variable("amount")));
+            expect(complete(provider, "execution.", { languageId: "javascript" })).toEqual([]);
+        });
+
+        it("keeps the dynamic getVariable string-argument completion", () => {
+            const provider = buildProvider(storeWith(variable("amount")));
+            const labels = complete(provider, `execution.getVariable("am`, {
+                languageId: "javascript",
+            });
+            expect(labels).toEqual(["amount"]);
+        });
+
+        it("keeps typed process-variable member completion — per-variable types are dynamic", () => {
+            const provider = buildProvider(storeWith(variable("node", "SpinJsonNode")));
+            const labels = complete(provider, "node.", { languageId: "javascript" });
+            expect(labels).toContain("prop");
+        });
     });
 
     describe("local declarations at root", () => {
@@ -254,15 +353,15 @@ describe("ScriptCompletionProvider modes", () => {
             expect(spinOff).toContain("S");
         });
 
-        it("collects javascript locals and functions for a javascript document", () => {
+        it("leaves javascript locals to tsserver (camunda.d.ts path)", () => {
             const provider = buildProvider(storeWith());
             const labels = complete(provider, "ra", {
                 languageId: "javascript",
                 scriptText: "const rate = 2\nfunction fmt(x) {}\nra",
                 line: 2,
             });
-            expect(labels).toContain("rate");
-            expect(labels).toContain("fmt");
+            expect(labels).not.toContain("rate");
+            expect(labels).not.toContain("fmt");
         });
 
         it("keeps locals out of the variable-string-arg mode", () => {

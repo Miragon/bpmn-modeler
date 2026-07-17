@@ -16,6 +16,9 @@
 
 // This file contains translations that were used in other components.
 const translations: Record<string, string> = {
+    "Read-only": "只读",
+    "Being edited in": "正在编辑于",
+    "click to focus": "点击以聚焦",
     "Open minimap": "打开缩略图",
     "Open properties panel": "打开属性面板",
     "Close properties panel": "关闭属性面板",

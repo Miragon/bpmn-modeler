@@ -13,6 +13,7 @@ import {
     Command,
     ElementTemplatesQuery,
     Engine,
+    FlushDocumentQuery,
     GetBpmnFileCommand,
     GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
@@ -27,6 +28,7 @@ import {
     LogWarningCommand,
     NoModelerError,
     OpenScriptEditorCommand,
+    OpenScriptEditorsCommand,
     PropertiesPanelStateQuery,
     Query,
     SetClipboardCommand,
@@ -34,10 +36,13 @@ import {
     SetTextClipboardCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
+    UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
+    UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
     asyncDebounce,
+    createFlushResponder,
     createResolver,
     extractProcessVariables,
     formatErrors,
@@ -85,6 +90,17 @@ function registerGlobalErrorHandlers(): void {
     });
 }
 
+// Best-effort flush of the outbound sync debounce when the webview is hidden
+// (tab switch / close). Reliable in the persistent JCEF host; in VS Code the
+// webview context may be torn down mid-export, so this is a best-effort mitigation
+// of the ≤300ms hide-loss window — the save path is fully covered by the flush
+// protocol instead.
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+        void debouncedSendXmlChanges.flush();
+    }
+});
+
 /**
  * Singleton modeler instance shared across all message handlers.
  * Created during {@link initializeModeler}; `undefined` until then.
@@ -98,6 +114,31 @@ const bpmnModeler = new BpmnModeler();
  * @throws {NoModelerError} If the modeler is not available.
  */
 const debouncedUpdateXML = asyncDebounce(openXml, 100);
+
+/**
+ * Debounces the outbound document sync so a burst of model changes (e.g.
+ * properties-panel typing) collapses into one full export + host write instead
+ * of one per keystroke. `maxWait` bounds starvation: sustained typing still
+ * syncs at least once per second. 300ms/1000ms mirrors the script-streaming
+ * debounce above. The host recovers the sub-300ms tail via the flush protocol
+ * ({@link respondToFlush}) so a save never persists stale XML.
+ */
+const debouncedSendXmlChanges = asyncDebounce(sendXmlChanges, 300, { maxWait: 1000 });
+
+/**
+ * Answers a host {@link FlushDocumentQuery} on the save/close path: exports and
+ * returns the pending XML (or reports nothing-pending). The `pending()` gate and
+ * cancel-and-carry rationale live in {@link createFlushResponder}.
+ */
+const respondToFlush = createFlushResponder(
+    {
+        isReady: () => modelerIsInitialized,
+        hasPendingSync: () => debouncedSendXmlChanges.pending(),
+        cancelPendingSync: () => debouncedSendXmlChanges.cancel(),
+        exportXml: () => bpmnModeler.exportDiagram(),
+    },
+    (reply) => host.postMessage(reply),
+);
 
 // Create resolver to wait for the response from the backend.
 const bpmnFileResolver = createResolver<BpmnFileQuery>();
@@ -264,6 +305,20 @@ async function run(): Promise<void> {
             );
         });
 
+        // Model-side script changes (canvas undo/redo, document reload,
+        // element deletion) must reach the host so it can overwrite — or
+        // close — the owning editor tab; see ScriptSourceWatcher.
+        bpmnModeler.onScriptSourceChanged((data) => {
+            host.postMessage(
+                new UpdateScriptSourceCommand(
+                    data.elementId,
+                    data.kind,
+                    data.listenerIndex,
+                    data.content,
+                ),
+            );
+        });
+
         // Publish the process-variable model to the host so open script editors
         // get live variable completion. The chain is a feedback loop, not an echo
         // loop — a keystroke in a script edits the moddle, which fires
@@ -410,7 +465,7 @@ async function initializeModeler(
         // Forward the modeler's non-fatal warnings (element-not-found, missing
         // inline script) to the output channel — they were console-only before.
         bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
-        bpmnModeler.onCommandStackChanged(sendXmlChanges);
+        bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
         await openXml(bpmn);
     } catch (error: any) {
         if (error instanceof NoModelerError) {
@@ -447,6 +502,12 @@ async function openXml(bpmn?: string): Promise<void> {
 /**
  * Exports the current diagram XML and sends it to the backend to persist the
  * changes, then triggers an align-to-origin pass if the setting is enabled.
+ *
+ * Runs at debounce-fire time now, not per model change. Align-to-origin
+ * therefore also runs debounced (and is skipped on the flush path, where we
+ * only export); the next edit realigns. That align emits its own
+ * `commandStack.changed`, which schedules one more debounced cycle — but a
+ * no-op align executes no commands, so the cycle terminates rather than looping.
  */
 async function sendXmlChanges(): Promise<void> {
     // A rejection here only reaches the global unhandledrejection hook (diagram-js
@@ -479,6 +540,10 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             try {
                 const bpmnFileQuery = message.data as BpmnFileQuery;
                 if (modelerIsInitialized) {
+                    // A host push (e.g. a raw-XML side-by-side edit) is
+                    // authoritative. Drop any pending outbound sync first so a
+                    // stale export firing after the re-import can't clobber it.
+                    debouncedSendXmlChanges.cancel();
                     await debouncedUpdateXML(bpmnFileQuery.content);
                 } else {
                     bpmnFileResolver.done(bpmnFileQuery);
@@ -564,6 +629,23 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
             break;
         }
+        case queryOrCommand.type === "OpenAllScriptTasksQuery": {
+            try {
+                // Reply as a single bulk command so the host opens the scripts
+                // sequentially; the variable model is identical for every script
+                // in the diagram, so it is extracted once and shared.
+                const scripts = bpmnModeler.collectInlineScriptTasks();
+                host.postMessage(
+                    new OpenScriptEditorsCommand(
+                        scripts,
+                        extractProcessVariables(bpmnModeler.getDefinitions()),
+                    ),
+                );
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
         case queryOrCommand.type === "UpdateScriptContentQuery": {
             try {
                 const query = message.data as UpdateScriptContentQuery;
@@ -592,6 +674,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
             break;
         }
+        case queryOrCommand.type === "UpdateOpenScriptEditorsQuery": {
+            try {
+                const query = message.data as UpdateOpenScriptEditorsQuery;
+                bpmnModeler.applyOpenScriptEditors(query.openScripts);
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
         case queryOrCommand.type === "ImplementationStatusQuery": {
             try {
                 const query = message.data as ImplementationStatusQuery;
@@ -599,6 +690,12 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
+            break;
+        }
+        case queryOrCommand.type === "FlushDocumentQuery": {
+            // The responder owns its own error handling (replies `undefined` on
+            // export failure), so it never throws into this dispatch.
+            await respondToFlush(message.data as FlushDocumentQuery);
             break;
         }
     }

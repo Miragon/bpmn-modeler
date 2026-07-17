@@ -109,6 +109,8 @@ describe("RPC protocol descriptor", () => {
                     "  script/didChange",
                     "  script/didClose",
                     "  script/appendToManifest",
+                    "  script/openAll",
+                    "  script/didOpenExternal",
                     "  marketplace/add",
                     "  marketplace/update",
                     "  marketplace/remove",
@@ -153,6 +155,7 @@ describe("RPC protocol descriptor", () => {
                     "  deployment/postMessage",
                     "  script/open",
                     "  script/updateVariables",
+                    "  script/updateContent",
                     "  script/close",
                 ].join("\n"),
             );

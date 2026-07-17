@@ -17,12 +17,11 @@ import com.intellij.util.ProcessingContext
 
 /**
  * The IntelliJ counterpart of VS Code's `registerCompletionItemProvider` for
- * inline Camunda scripts. VS Code keys its provider by language id + the
- * `bpmn-script://` scheme; IntelliJ has no scheme equivalent, so this PSI-based
+ * inline Camunda scripts. VS Code keys its provider by language id + a path
+ * selector; IntelliJ has no selector equivalent, so this PSI-based
  * `CompletionContributor` fires for *every* file and scopes itself by checking
- * for the [SCRIPT_COMPLETION_KEY] UserData that [ScriptEditorManager] attaches to
- * our `LightVirtualFile` tabs — absence of the key means "not our script, stay
- * silent".
+ * for the [SCRIPT_COMPLETION_KEY] UserData that [ScriptEditorManager] attaches
+ * to our script tabs — absence of the key means "not our script, stay silent".
  *
  * The catalog itself is authored once in core and shipped with `script/open`;
  * this class only renders it, mirroring the two VS Code modes: root-level bean

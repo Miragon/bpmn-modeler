@@ -1,5 +1,6 @@
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
 import { EDITOR_ICON_SVG } from "./editorIcon";
+import { readScriptTaskFormat } from "./scriptModel";
 
 /**
  * bpmn-js DI module that injects "Open script in editor" icon buttons into
@@ -22,7 +23,7 @@ import { EDITOR_ICON_SVG } from "./editorIcon";
  * Click handlers fire {@link OPEN_SCRIPT_EDITOR_EVENT} on the bpmn-js event
  * bus with a {@link OpenScriptEditorEvent} payload. The webview entry point
  * forwards it to the extension host as `OpenScriptEditorCommand`, which
- * opens the inline script in a virtual `bpmn-script://` editor with
+ * opens the inline script in an editor tab with
  * kind-aware completion suggestions for the bound Camunda beans.
  *
  * The listener-row buttons read the listener identity (element id, type,
@@ -42,7 +43,7 @@ const SCRIPT_GROUP_ID = "group-CamundaPlatform__Script";
  * The element id may itself contain dashes, so we anchor on the well-known
  * listener-type tokens.
  */
-const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)-(\d+)$/;
+export const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)-(\d+)$/;
 
 // Attribute set on processed elements to avoid duplicate injection.
 const INJECTED_MARKER = "data-script-btn-injected";
@@ -189,8 +190,7 @@ class ScriptEditorButtons {
             return;
         }
 
-        const scriptFormat =
-            bo.get?.("camunda:scriptFormat") || bo.get?.("scriptFormat") || bo.scriptFormat || "";
+        const scriptFormat = readScriptTaskFormat(bo);
         const content = bo.script || "";
 
         this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
