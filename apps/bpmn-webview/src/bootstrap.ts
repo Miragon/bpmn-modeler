@@ -435,9 +435,9 @@ async function initializeModeler(
                 bpmnModeler.getService<{ isOpen(): boolean }>("searchPad").isOpen(),
             closeSearchPad: () => bpmnModeler.getService<{ close(): void }>("searchPad").close(),
         });
-        // Playful counterpart to installKeyboardFocus: a focus reticle top-left on
-        // the canvas, right of the Token Simulation toggle, that lights up green
-        // while the canvas holds keyboard focus
+        // Playful counterpart to installKeyboardFocus: a focus reticle in the
+        // canvas's top-right corner, beside the "Open minimap" control, that
+        // lights up green while the canvas holds keyboard focus
         // with no element selected (a selection already marks itself).
         // diagram-js already tracks the focus half (Canvas fires a deduplicated
         // "canvas.focus.changed" from its own SVG focus listeners), so subscribe
