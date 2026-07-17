@@ -158,6 +158,8 @@ function createService() {
     };
     const scriptFiles = {
         resolveBaseDir: vi.fn().mockResolvedValue(BASE_DIR),
+        prepareBaseDir: vi.fn().mockResolvedValue(undefined),
+        markSwept: vi.fn(),
         writeFile: vi.fn().mockResolvedValue(undefined),
         readFile: vi.fn().mockResolvedValue(""),
         deleteDir: vi.fn().mockResolvedValue(undefined),
@@ -302,6 +304,8 @@ describe("ScriptTaskService.openScriptEditor", () => {
         await openCanonicalScript(service, "javascript", "console.log(1)");
 
         expect(scriptFiles.resolveBaseDir).toHaveBeenCalledWith(EDITOR_ID);
+        // The write path sweeps the base dir once before the file lands.
+        expect(scriptFiles.prepareBaseDir).toHaveBeenCalledWith(BASE_DIR);
         expect(scriptFiles.ensureGitignore).toHaveBeenCalledWith(BASE_DIR);
         expect(scriptFiles.writeFile).toHaveBeenCalledWith(scriptPath(), "console.log(1)");
         expect(setTextDocumentLanguageMock).toHaveBeenCalledWith(expect.anything(), "javascript");
@@ -1349,6 +1353,17 @@ describe("ScriptTaskService adoption", () => {
         const refs = lastBroadcastRefs(editorStore.postMessage);
         expect(refs).toHaveLength(1);
         expect(refs?.[0]).toMatchObject({ elementId: ELEMENT_ID, kind: KIND });
+    });
+
+    it("marks the base dir swept without sweeping it, so a later write spares the adopted file", async () => {
+        const { fireTabsChange, scriptFiles } = createService();
+
+        await fireOpen(fireTabsChange, scriptPath());
+
+        // Adoption must reserve the dir (markSwept) but never sweep it — a sweep
+        // here would delete the very file being opened.
+        expect(scriptFiles.markSwept).toHaveBeenCalledWith(BASE_DIR);
+        expect(scriptFiles.prepareBaseDir).not.toHaveBeenCalled();
     });
 
     it("streams a subsequent keystroke into the model once the script is adopted", async () => {

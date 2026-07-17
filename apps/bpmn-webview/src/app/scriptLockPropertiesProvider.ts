@@ -7,12 +7,12 @@ import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
 import { findListenerAt, readScriptTaskFormat } from "./scriptModel";
 
 /**
- * Runs *below* the stock Camunda provider (priority 1000) so its middleware
- * sees the fully-built groups and can swap the script entry's component. The
- * properties panel reduces providers high-priority-first, so a lower number
- * means "run last" — exactly where the override has to sit.
+ * Runs *below* the stock Camunda provider (which registers at priority 500).
+ * The panel reduces providers high-priority-first, so a lower number runs last
+ * — after the stock groups are built, which the lock override must see. A
+ * genuinely lower number avoids tying 500 and relying on insertion order.
  */
-const LOCK_PROVIDER_PRIORITY = 500;
+const LOCK_PROVIDER_PRIORITY = 250;
 
 // The stock Camunda script entry id (script-task group) / suffix (listener item
 // entries). `ScriptProps` builds it as `${prefix}scriptValue`, with `prefix`

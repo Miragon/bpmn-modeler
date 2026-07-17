@@ -15,13 +15,21 @@ import {
  * Resolves where a script file lives (`<workspaceRoot>/<configFolder>/tmp/
  * scripting/…`, mirroring where the vars manifests already resolve to) and
  * owns the disk hygiene transient real files require: a `.gitignore` so
- * scripts can't land in version control, and an activation-time sweep for
- * files orphaned by a crashed or killed window.
+ * scripts can't land in version control, and a one-shot sweep per base
+ * directory for files orphaned by a crashed or killed window.
  *
  * Kept apart from {@link ScriptTaskService} so the service stays a pure
  * editor-lifecycle orchestrator and tests can stub the disk with a map.
  */
 export class ScriptFileStore {
+    /**
+     * Base directories already swept this process. The orphan sweep (files a
+     * crashed window left behind) must run exactly once per directory and
+     * strictly before the first file is written into it — a later sweep would
+     * delete live scripts of other editors sharing the directory.
+     */
+    private readonly sweptBaseDirs = new Set<string>();
+
     constructor(
         private readonly workspace: WorkspacePort,
         private readonly settings: SettingsPort,
@@ -95,22 +103,37 @@ export class ScriptFileStore {
     }
 
     /**
-     * Activation-time sweep of script directories orphaned by a crash or
-     * killed window (the tab-close/dispose cleanup never ran). Sweeps every
-     * open workspace folder's scripting dir plus the OS-tmpdir fallback.
+     * Sweeps `baseDir` of files orphaned by a crash or killed window (the
+     * tab-close/dispose cleanup never ran) the first time the directory is used
+     * this process, then marks it swept. Idempotent per directory, so a second
+     * editor sharing the dir can't wipe the first's live scripts; the sweep runs
+     * strictly before the first file is written, so it only removes leftovers of
+     * a previous window. Best-effort — a delete failure must not block writing.
      *
-     * Trade-off, accepted knowingly: a second window sharing this workspace
-     * has its live script files deleted by our sweep — its open buffers and
-     * keystroke streaming survive, so no edits are lost, and a save recreates
-     * the file.
+     * Trade-off, accepted knowingly: the first editor to open a script in a
+     * shared base dir deletes any live script files a *second* window left there
+     * — those buffers and keystroke streaming survive, so no edits are lost and
+     * a save recreates the file.
      */
-    async sweepOrphans(): Promise<void> {
-        const roots = this.workspace
-            .getWorkspaceFolderPaths()
-            .map((root) =>
-                posix.join(root, this.settings.getConfigFolder(), TMP_SCRIPTING_SEGMENT),
-            );
-        roots.push(this.fallbackBaseDir());
-        await Promise.all(roots.map((dir) => this.workspace.deleteDirectory(dir)));
+    async prepareBaseDir(baseDir: string): Promise<void> {
+        if (this.sweptBaseDirs.has(baseDir)) {
+            return;
+        }
+        // Mark before the delete so a failed sweep isn't retried on every write.
+        this.sweptBaseDirs.add(baseDir);
+        try {
+            await this.workspace.deleteDirectory(baseDir);
+        } catch {
+            // Best-effort: a sweep failure must not block materialising scripts.
+        }
+    }
+
+    /**
+     * Marks `baseDir` swept without sweeping it — the adoption path uses this so
+     * a later write-path {@link prepareBaseDir} spares the file it just adopted
+     * (the adopted file is live, not an orphan).
+     */
+    markSwept(baseDir: string): void {
+        this.sweptBaseDirs.add(baseDir);
     }
 }

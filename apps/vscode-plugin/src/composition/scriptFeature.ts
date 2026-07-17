@@ -31,10 +31,9 @@ export function register(
 } {
     const scriptFiles = new ScriptFileStore(deps.vsWorkspace, deps.vsSettings, deps.artifactSvc);
 
-    // Script files orphaned by a crashed/killed window (the tab-close and
-    // dispose cleanups never ran) are swept once per activation. Fire-and-
-    // forget: activation must not block on disk IO.
-    void scriptFiles.sweepOrphans().catch((error) => deps.notifier.logError(error as Error));
+    // Orphan cleanup is a one-shot sweep per base directory on first open (see
+    // ScriptFileStore.prepareBaseDir) rather than an activation-time scan — the
+    // latter missed git-root / document-dir bases outside the workspace folders.
 
     const scriptTaskSvc = new ScriptTaskService(
         deps.editorStore,

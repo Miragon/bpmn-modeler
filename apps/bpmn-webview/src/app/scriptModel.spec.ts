@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectInlineScriptTasks, readScriptTaskFormat } from "./scriptModel";
+import { collectInlineScriptTasks, readScriptContent, readScriptTaskFormat } from "./scriptModel";
 
 /**
  * Builds a moddle-like business object whose `get(name)` reads back the same
@@ -32,6 +32,47 @@ describe("readScriptTaskFormat", () => {
 
     it("returns an empty string when neither attribute is present", () => {
         expect(readScriptTaskFormat(businessObject({}))).toBe("");
+    });
+});
+
+describe("readScriptContent", () => {
+    /** Element-registry double whose `get(id)` returns the single seeded element. */
+    function registryWith(element: any): any {
+        return { get: (id: string) => (element?.id === id ? element : undefined) };
+    }
+
+    it("returns undefined when the element no longer exists", () => {
+        const registry = { get: () => undefined };
+        expect(readScriptContent(registry, "Task_1", "script-task", undefined)).toBeUndefined();
+    });
+
+    it("returns the script content for a live script task", () => {
+        const element = {
+            id: "Task_1",
+            businessObject: { $type: "bpmn:ScriptTask", script: "print('hi')" },
+        };
+        expect(readScriptContent(registryWith(element), "Task_1", "script-task", undefined)).toBe(
+            "print('hi')",
+        );
+    });
+
+    it("returns '' when a live script task has no inline script yet", () => {
+        const element = { id: "Task_1", businessObject: { $type: "bpmn:ScriptTask" } };
+        expect(readScriptContent(registryWith(element), "Task_1", "script-task", undefined)).toBe(
+            "",
+        );
+    });
+
+    it("returns undefined when the element morphed away from a script task", () => {
+        // Replace-menu morph: the id survives but the ScriptTask surface (and its
+        // `script`) is gone — must read as absent so the host closes the tab.
+        const element = {
+            id: "Task_1",
+            businessObject: { $type: "bpmn:ServiceTask" },
+        };
+        expect(
+            readScriptContent(registryWith(element), "Task_1", "script-task", undefined),
+        ).toBeUndefined();
     });
 });
 

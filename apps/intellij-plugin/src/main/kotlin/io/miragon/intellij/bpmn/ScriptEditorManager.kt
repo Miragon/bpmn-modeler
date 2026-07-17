@@ -12,6 +12,7 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.LightVirtualFile
@@ -173,11 +174,16 @@ class ScriptEditorManager(
             if (project.isDisposed) return@invokeLater
             val tracked = scripts[scriptId] ?: return@invokeLater
             val document = FileDocumentManager.getInstance().getDocument(tracked.file) ?: return@invokeLater
-            if (document.text == content) return@invokeLater
+            // `Document.setText` asserts on '\r'; moddle preserves CRLF (reachable
+            // via edit-then-undo on a CRLF diagram). Normalize *before* the
+            // equality check so the no-op short-circuit stays correct for CRLF
+            // input — matching EditorSessionRouter.handleWrite / writeIfChanged.
+            val normalized = StringUtil.convertLineSeparators(content)
+            if (document.text == normalized) return@invokeLater
             programmaticEdits.add(scriptId)
             try {
                 WriteCommandAction.runWriteCommandAction(project) {
-                    document.setText(content)
+                    document.setText(normalized)
                 }
             } finally {
                 programmaticEdits.remove(scriptId)
@@ -247,6 +253,14 @@ class ScriptEditorManager(
     }
 
     private fun untrack(scriptId: String) {
-        scripts.remove(scriptId)?.let { Disposer.dispose(it.listener) }
+        scripts.remove(scriptId)?.let {
+            // Clear the id stamped in `openScript`: a user-close leaves the file
+            // (and its cached VirtualFile key) on disk, so without this
+            // `ScriptRouter.onFileOpened` would early-return on re-open and never
+            // re-adopt. All `untrack` callers are EDT-confined; `putUserData(key,
+            // null)` is atomic.
+            it.file.putUserData(SCRIPT_ID_KEY, null)
+            Disposer.dispose(it.listener)
+        }
     }
 }

@@ -48,7 +48,15 @@ export function readScriptContent(
         return undefined;
     }
     if (kind === "script-task") {
-        return element.businessObject?.script ?? "";
+        // A replace-menu morph keeps the element id but drops the ScriptTask
+        // surface, so `script` is gone. Report the surface as absent (→ close
+        // the tab) rather than `""`, which would strand an editable-looking but
+        // detached buffer. Mirrors `collectInlineScriptTasks`, which likewise
+        // filters on `$type === "bpmn:ScriptTask"`.
+        if (element.businessObject?.$type !== "bpmn:ScriptTask") {
+            return undefined;
+        }
+        return element.businessObject.script ?? "";
     }
     const listenerType =
         kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";

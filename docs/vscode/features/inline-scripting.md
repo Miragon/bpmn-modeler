@@ -167,6 +167,13 @@ two listeners on the same task do not collide:
   — as long as the buffer has no unsaved edits of its own; a dirty buffer
   is never auto-reloaded by VS Code.
 
+**Known limitation — renaming an element with an open script tab.** If you
+rename the **id** of an element whose script tab is open, the tab closes
+(the old id no longer resolves in the model). Your script is **not lost** —
+it survives in the diagram under the new id; just re-open it from the
+element to resume editing. Seamless rename would require the id change to
+propagate to the host, which owns the tab-to-element mapping.
+
 ## Single Writer
 
 While a script editor tab is open, that tab is the **single writer** for

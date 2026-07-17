@@ -143,6 +143,21 @@ beforeEach(() => {
     );
 });
 
+describe("ScriptLockPropertiesProvider registration", () => {
+    it("registers below the stock Camunda provider (priority 500) with a strictly lower number", () => {
+        const registerProvider = vi.fn();
+        new ScriptLockPropertiesProvider(
+            { registerProvider },
+            store,
+            eventBus,
+            (template: string) => template,
+        );
+        // A genuinely lower number runs last (after the stock groups are built)
+        // instead of tying 500 and relying on insertion order.
+        expect(registerProvider).toHaveBeenCalledWith(250, expect.anything());
+    });
+});
+
 describe("ScriptLockPropertiesProvider (script task)", () => {
     it("leaves the script entry editable when nothing is open", () => {
         const groups = scriptTaskGroups();

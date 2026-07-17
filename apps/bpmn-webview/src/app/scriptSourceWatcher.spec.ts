@@ -29,7 +29,9 @@ function createEventBus() {
 }
 
 function scriptTaskElement(script: string | undefined) {
-    return { businessObject: { script } };
+    // `$type` is required: `readScriptContent` now treats a business object that
+    // is not a `bpmn:ScriptTask` as a morphed-away surface (→ undefined).
+    return { businessObject: { $type: "bpmn:ScriptTask", script } };
 }
 
 const REF: OpenScriptEditorRef = {

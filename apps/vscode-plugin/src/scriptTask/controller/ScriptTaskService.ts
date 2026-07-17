@@ -353,7 +353,10 @@ export class ScriptTaskService {
             eventName,
             lang.extension,
         );
-        const baseDir = await this.scriptsBaseDir(editorId);
+        // Write path: sweep the base dir once (first use this process) before
+        // the file lands, so a crashed window's orphans are cleared but live
+        // scripts of this session are not.
+        const baseDir = await this.prepareBaseDir(editorId);
         const scriptUri = toUri(posix.join(baseDir, script.relativePath()));
         return { scriptUri, lang, baseDir };
     }
@@ -371,6 +374,18 @@ export class ScriptTaskService {
             baseDir = await this.scriptFiles.resolveBaseDir(editorId);
             this.baseDirByEditor.set(editorId, baseDir);
         }
+        return baseDir;
+    }
+
+    /**
+     * Resolves the editor's base dir (via {@link scriptsBaseDir}) and runs the
+     * one-shot orphan sweep for it. The write paths use this; adoption must not,
+     * since sweeping would delete the very file being opened — it calls
+     * {@link ScriptFileStore.markSwept} instead.
+     */
+    private async prepareBaseDir(editorId: string): Promise<string> {
+        const baseDir = await this.scriptsBaseDir(editorId);
+        await this.scriptFiles.prepareBaseDir(baseDir);
         return baseDir;
     }
 
@@ -442,10 +457,16 @@ export class ScriptTaskService {
 
         // The tmp/scripting marker alone is a heuristic any same-named user
         // directory satisfies; the resolved base dir is the exact containment.
+        // Resolve without sweeping — the adopted file lives in this dir, so a
+        // sweep here would delete it.
         const baseDir = await this.scriptsBaseDir(match.editorId);
         if (!uri.path.startsWith(`${baseDir}/`)) {
             return;
         }
+
+        // Mark the base dir swept so a later write-path sweep spares this
+        // adopted, live file.
+        this.scriptFiles.markSwept(baseDir);
 
         // Re-check after the awaits: our own open of the same path could have
         // raced in and tracked it already.
@@ -865,7 +886,13 @@ export class ScriptTaskService {
     }
 
     private findOpenTextDocument(uri: Uri): TextDocument | undefined {
-        return workspace.textDocuments.find((doc) => doc.uri.path === uri.path);
+        // Guard the scheme: a `git:` diff view of the same path would otherwise
+        // match, and a dispose-time write-back against it reads HEAD content
+        // (wrong range) then throws on `save()` (the doc is readonly). Aligns
+        // with `EditorSessionStore.findEditorIdByPath`.
+        return workspace.textDocuments.find(
+            (doc) => doc.uri.path === uri.path && doc.uri.scheme === "file",
+        );
     }
 
     /**
@@ -944,7 +971,8 @@ export class ScriptTaskService {
      * must succeed, and its content is refreshed from the current model on
      * reopen ({@link openScriptEditor} rewrites through the rewrite branch once
      * the path is gone from {@link openDocuments}). Deletion happens only on
-     * element deletion, editor dispose, and the activation orphan sweep.
+     * element deletion, editor dispose, and the first-open-per-base-dir orphan
+     * sweep ({@link ScriptFileStore.prepareBaseDir}).
      */
     private performCleanup(uri: Uri): void {
         // Capture the owning editor before removing so the lock broadcast below

@@ -166,6 +166,46 @@ describe("asyncDebounce", () => {
         expect(debounced.pending()).toBe(false); // settled
     });
 
+    it("a call scheduled during an in-flight run does not settle on the older result", async () => {
+        // Each invocation returns its own controllable promise so the two
+        // generations can be settled independently.
+        const settlers = new Map<string, (value: string) => void>();
+        const spy = vi.fn(
+            (arg: string) =>
+                new Promise<string>((resolve) => {
+                    settlers.set(arg, resolve);
+                }),
+        );
+        const debounced = asyncDebounce(spy, 300);
+
+        // "a" fires and is left in flight (unsettled).
+        const aPromise = debounced("a");
+        await vi.advanceTimersByTimeAsync(300);
+        expect(spy).toHaveBeenCalledWith("a");
+
+        // "b" arrives while "a" is still running — it must accumulate into the
+        // *next* generation, never "a"'s snapshot.
+        let bResolvedWith: unknown;
+        const bPromise = debounced("b").then((value) => {
+            bResolvedWith = value;
+            return value;
+        });
+
+        // Settling "a" resolves only "a"'s caller; "b" stays pending with the
+        // timer still armed. (Under the shared-set bug this drained "b" too.)
+        settlers.get("a")?.("resultA");
+        await aPromise;
+        await Promise.resolve();
+        expect(bResolvedWith).toBeUndefined();
+        expect(debounced.pending()).toBe(true);
+
+        // "b" fires on its own trailing edge and settles with its own result.
+        await vi.advanceTimersByTimeAsync(300);
+        expect(spy).toHaveBeenCalledWith("b");
+        settlers.get("b")?.("resultB");
+        await expect(bPromise).resolves.toBe("resultB");
+    });
+
     it("pending() is false after cancel", async () => {
         const spy = vi.fn().mockResolvedValue("x");
         const debounced = asyncDebounce(spy, 300);

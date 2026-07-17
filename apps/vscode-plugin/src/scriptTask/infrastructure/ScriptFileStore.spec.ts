@@ -67,12 +67,34 @@ describe("ScriptFileStore.ensureGitignore", () => {
     });
 });
 
-describe("ScriptFileStore.sweepOrphans", () => {
-    it("sweeps every workspace folder's scripting dir plus the tmpdir fallback", async () => {
-        const { store, deleted } = createStore({ workspaceFolders: ["/ws", "/other"] });
-        await store.sweepOrphans();
-        expect(deleted).toContain("/ws/.camunda/tmp/scripting");
-        expect(deleted).toContain("/other/.camunda/tmp/scripting");
-        expect(deleted.some((path) => path.includes("miragon-bpmn-modeler"))).toBe(true);
+describe("ScriptFileStore.prepareBaseDir", () => {
+    it("sweeps the base dir the first time it is used", async () => {
+        const { store, deleted } = createStore();
+        await store.prepareBaseDir("/ws/.camunda/tmp/scripting");
+        expect(deleted).toEqual(["/ws/.camunda/tmp/scripting"]);
+    });
+
+    it("sweeps each base dir only once per process", async () => {
+        const { store, deleted } = createStore();
+        await store.prepareBaseDir("/ws/.camunda/tmp/scripting");
+        await store.prepareBaseDir("/ws/.camunda/tmp/scripting");
+        expect(deleted).toEqual(["/ws/.camunda/tmp/scripting"]);
+    });
+
+    it("does not sweep a base dir that was already marked swept", async () => {
+        const { store, deleted } = createStore();
+        store.markSwept("/ws/.camunda/tmp/scripting");
+        await store.prepareBaseDir("/ws/.camunda/tmp/scripting");
+        expect(deleted).toEqual([]);
+    });
+
+    it("swallows a sweep failure so it cannot block a script write", async () => {
+        const { store, workspace, deleted } = createStore();
+        workspace.deleteDirectory.mockRejectedValueOnce(new Error("EBUSY"));
+        await expect(store.prepareBaseDir("/ws/.camunda/tmp/scripting")).resolves.toBeUndefined();
+        // Marked swept despite the failure — a re-attempt is a no-op (no retry
+        // storm on the next write).
+        await store.prepareBaseDir("/ws/.camunda/tmp/scripting");
+        expect(deleted).toEqual([]);
     });
 });

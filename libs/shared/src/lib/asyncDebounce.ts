@@ -18,10 +18,12 @@ export interface AsyncDebounced<F extends (...args: any[]) => Promise<unknown>> 
     cancel(): void;
     /**
      * True while a trailing call is scheduled *or* an invocation is in flight;
-     * false once every outstanding call has settled or been cancelled. Backed by
-     * `resolveSet.size`, whose entries live from a wrapper call until its promise
-     * settles — so it covers the whole scheduled→running→done arc, not just the
-     * lodash timer. Used by the flush protocol to decide whether the webview
+     * false once every outstanding call has settled or been cancelled. Two
+     * sources because firing snapshots the scheduled resolvers out of
+     * `resolveSet` into the running generation: `resolveSet.size` covers callers
+     * still waiting on the timer, and `inFlight` covers the invocation currently
+     * running. Together they span the whole scheduled→running→done arc, not just
+     * the lodash timer. Used by the flush protocol to decide whether the webview
      * holds unsynced changes worth exporting.
      */
     pending(): boolean;
@@ -39,32 +41,46 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
     wait?: number,
     options?: { maxWait?: number },
 ): AsyncDebounced<F> {
-    const resolveSet = new Set<(p: unknown) => void>();
-    const rejectSet = new Set<(p: unknown) => void>();
+    // Reassigned on every fire: the running generation drains its own snapshot
+    // while callers arriving mid-run accumulate into the fresh live sets.
+    let resolveSet = new Set<(p: unknown) => void>();
+    let rejectSet = new Set<(p: unknown) => void>();
 
     // The promise of the most recent fired invocation, so `flush` can await
     // work already running — not just trip a pending timer.
     let inFlight: Promise<unknown> | undefined;
 
     const debounced = debounce((args: Parameters<F>) => {
+        // Snapshot this generation's resolvers and hand the wrapper fresh sets
+        // *before* running `func`. A call landing during the async run must
+        // settle with the *next* result, not this one; sharing the sets let an
+        // older settle drain a newer scheduled call's resolvers — flipping
+        // `pending()` false while its timer was still armed and resolving it
+        // early with the stale value.
+        const runResolves = resolveSet;
+        const runRejects = rejectSet;
+        resolveSet = new Set<(p: unknown) => void>();
+        rejectSet = new Set<(p: unknown) => void>();
+
         const run = func(...args);
         inFlight = run;
+        const clearInFlight = (): void => {
+            // Guard against a newer invocation having replaced us: clearing
+            // unconditionally would strand the newer `inFlight` if an older
+            // call settled last. Cleared here (not in a trailing `.finally`) so
+            // `pending()` — which reads `inFlight` — flips false the moment this
+            // generation settles, not a microtask later.
+            if (inFlight === run) {
+                inFlight = undefined;
+            }
+        };
         run.then((...res) => {
-            resolveSet.forEach((resolve) => resolve(...res));
-            resolveSet.clear();
-        })
-            .catch((...res) => {
-                rejectSet.forEach((reject) => reject(...res));
-                rejectSet.clear();
-            })
-            .finally(() => {
-                // Guard against a newer invocation having replaced us: clearing
-                // unconditionally would strand the newer `inFlight` if an older
-                // call settled last.
-                if (inFlight === run) {
-                    inFlight = undefined;
-                }
-            });
+            clearInFlight();
+            runResolves.forEach((resolve) => resolve(...res));
+        }).catch((...res) => {
+            clearInFlight();
+            runRejects.forEach((reject) => reject(...res));
+        });
     }, wait, options);
 
     const wrapper = (...args: Parameters<F>): ReturnType<F> =>
@@ -86,12 +102,14 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
         debounced.cancel();
         // A dropped invocation still has callers awaiting its promise; settle
         // them with `undefined` rather than leaking pending promises forever.
+        // Only the current (not-yet-fired) generation is drained here — an
+        // in-flight run owns its own snapshot and settles it independently.
         resolveSet.forEach((resolve) => resolve(undefined));
-        resolveSet.clear();
-        rejectSet.clear();
+        resolveSet = new Set<(p: unknown) => void>();
+        rejectSet = new Set<(p: unknown) => void>();
     };
 
-    wrapper.pending = (): boolean => resolveSet.size > 0;
+    wrapper.pending = (): boolean => resolveSet.size > 0 || inFlight !== undefined;
 
     return wrapper as AsyncDebounced<F>;
 }

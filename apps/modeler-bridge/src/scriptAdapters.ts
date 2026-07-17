@@ -102,6 +102,15 @@ export class BridgeScriptEditor {
      */
     private readonly pendingCloseAcks = new Map<string, () => void>();
 
+    /**
+     * scriptIds whose *next* `script/didClose` must be ignored. Armed when a
+     * re-open cancels an in-flight close-ack: the host still emits exactly one
+     * `didClose` for the pre-empted close (single-shot host contract — one
+     * `didClose` per `close`), and letting it run would delete the freshly
+     * re-tracked entry and broadcast a lock set missing the re-opened tab.
+     */
+    private readonly swallowNextDidClose = new Set<string>();
+
     /** How long host keystrokes coalesce before one streams into the webview model. */
     private static readonly STREAM_DEBOUNCE_MS = 300;
 
@@ -319,6 +328,9 @@ export class BridgeScriptEditor {
 
         if (this.pendingCloseAcks.delete(scriptId)) {
             this.filePathByScript.delete(scriptId);
+            // The close we just pre-empted still yields one host `didClose`;
+            // swallow it so it can't tear down this re-tracked script.
+            this.swallowNextDidClose.add(scriptId);
         }
         return { scriptId, uri, lang };
     }
@@ -350,6 +362,10 @@ export class BridgeScriptEditor {
         if (!normalized.startsWith(`${baseDir}/`)) {
             return;
         }
+
+        // Mark the base dir swept: adoption tracks a live file in it, so a later
+        // `prepareBaseDir` for this editor must not wipe it as an orphan.
+        this.sweptBaseDirs.add(baseDir);
 
         // scriptId is the ScriptUri relative path — identical to what open() keys
         // by, so a subsequent didChange/close maps to the same tracked entry.
@@ -663,6 +679,12 @@ export class BridgeScriptEditor {
      * editor dispose.
      */
     async didClose(scriptId: string): Promise<void> {
+        // A re-open cancelled the pending close-ack, but the host still emits one
+        // `didClose` for that pre-empted close. Swallow it *before* touching the
+        // sender so the re-opened tab's live sender and tracking are preserved.
+        if (this.swallowNextDidClose.delete(scriptId)) {
+            return;
+        }
         // Force the last <300 ms of typing into the model before tearing the
         // script down, then drop the sender. On the ack branch the sender was
         // already cancelled by applyModelChange/disposeEditor, so this is a

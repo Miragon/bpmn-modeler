@@ -98,6 +98,14 @@ export class ScriptSourceWatcher {
                 continue;
             }
             this.lastKnown.set(key, current);
+            // Known limitation: renaming an open script's element id makes
+            // `read` return `undefined` (the old id no longer resolves), so the
+            // tab is closed rather than re-homed onto the new id. Seamless
+            // rename would need end-to-end id propagation because the *host*,
+            // not the webview, is the source of truth for which id a tab tracks
+            // (`OpenScriptEditorsStore` is a mirror the host re-broadcasts). The
+            // inline script survives in the diagram under the new id — reopening
+            // regenerates the file — so this is a UX gap, not data loss.
             const event: ScriptSourceChangedEvent = {
                 elementId: ref.elementId,
                 kind: ref.kind,

@@ -413,5 +413,84 @@ describe("BridgeScriptEditor materialise + adopt-on-open", () => {
             expect(scriptOpenCall(rpc)).toBeUndefined();
             expect(workspace.readFile).not.toHaveBeenCalled();
         });
+
+        it("marks the base dir swept so a later write path spares the adopted file", async () => {
+            const { editor, workspace } = createFullEditor();
+            await editor.adoptExternalOpen(scriptFilePath("Task_1", "groovy"));
+            workspace.deleteDirectory.mockClear();
+
+            // A later materialise of a *different* script must not sweep the dir
+            // the adopted, live file sits in.
+            const cmd = new OpenScriptEditorCommand(
+                "Task_2",
+                "script-task",
+                undefined,
+                undefined,
+                "groovy",
+                "y = 2",
+                [] as never,
+            );
+            await editor.materialize(cmd, FULL_EDITOR);
+
+            expect(workspace.deleteDirectory).not.toHaveBeenCalled();
+            expect(workspace.writeFile).toHaveBeenCalledWith(
+                scriptFilePath("Task_2", "groovy"),
+                "y = 2",
+            );
+        });
+    });
+
+    describe("re-open within the close window", () => {
+        /** The last open-script lock broadcast, or undefined if none was posted. */
+        function lastLockRefs(store: {
+            postMessage: { mock: { calls: unknown[][] } };
+        }): unknown[] | undefined {
+            const calls = store.postMessage.mock.calls.filter(
+                ([, message]) =>
+                    (message as { type: string })?.type === "UpdateOpenScriptEditorsQuery",
+            );
+            const last = calls[calls.length - 1];
+            return (last?.[1] as { openScripts: unknown[] } | undefined)?.openScripts;
+        }
+
+        it("swallows the late didClose so the re-tracked script and its lock survive", async () => {
+            const { editor, store, internals, workspace } = createFullEditor();
+            const scriptId = new ScriptUri(
+                FULL_EDITOR,
+                "Task_1",
+                "script-task",
+                undefined,
+                undefined,
+                "groovy",
+            ).toString();
+
+            // 1. Open the script (tracks + writes + locks).
+            await editor.open(openCommand("groovy", "v1"), FULL_EDITOR);
+            expect(internals.scripts.has(scriptId)).toBe(true);
+
+            // 2. Element deletion requests a close — the file deletion is deferred
+            //    to the host's didClose ack.
+            editor.applyModelChange(
+                new UpdateScriptSourceCommand("Task_1", "script-task", undefined, undefined),
+                FULL_EDITOR,
+            );
+            expect(internals.scripts.has(scriptId)).toBe(false);
+
+            // 3. The script re-opens inside that window: the pending ack is
+            //    cancelled and the next didClose is armed to be swallowed.
+            await editor.open(openCommand("groovy", "v2"), FULL_EDITOR);
+            expect(internals.scripts.has(scriptId)).toBe(true);
+            workspace.deleteDirectory.mockClear();
+
+            // 4. The host still emits one late didClose for the pre-empted close.
+            await editor.didClose(scriptId);
+
+            // The re-tracked entry, its file path, and the lock all survive; no
+            // deferred deletion ran.
+            expect(internals.scripts.has(scriptId)).toBe(true);
+            expect(internals.filePathByScript.has(scriptId)).toBe(true);
+            expect(workspace.deleteDirectory).not.toHaveBeenCalled();
+            expect(lastLockRefs(store)).toHaveLength(1);
+        });
     });
 });
