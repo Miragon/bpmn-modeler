@@ -1,9 +1,15 @@
 .canvas-focus-indicator {
     position: absolute;
-    left: 16px;
-    bottom: 16px; /* same baseline as the lint chip (bottom-center) */
-    width: 24px;
-    height: 24px;
+    /* Sits top-left, flush-right of the "Token Simulation" toggle
+       (.bts-toggle-mode at top:20px; left:20px), height-matched to its grey
+       pill. Moved off the bottom-left: on short viewports the palette grows
+       down far enough to overlap a bottom-left reticle; the top-left region is
+       empty apart from the toggle. `left` clears the toggle's ~180px content
+       width plus a small gap that still clears the wider Windows/Arial render. */
+    top: 20px;
+    left: 190px;
+    width: 31px;
+    height: 31px;
     z-index: 10;
     pointer-events: none;
     color: rgba(85, 85, 85, 0.55); /* theme-neutral base = light-canvas idle grey */

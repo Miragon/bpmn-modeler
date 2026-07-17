@@ -33,7 +33,8 @@ const FOCUS_WEAK_SVG = `<svg class="canvas-focus-indicator__off" viewBox="0 -960
 const FOCUS_STRONG_SVG = `<svg class="canvas-focus-indicator__on" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M200-120q-33 0-56.5-23.5T120-200v-160h80v160h160v80H200Zm400 0v-80h160v-160h80v160q0 33-23.5 56.5T760-120H600ZM120-600v-160q0-33 23.5-56.5T200-840h160v80H200v160h-80Zm640 0v-160H600v-80h160q33 0 56.5 23.5T840-760v160h-80ZM338.5-338.5Q280-397 280-480t58.5-141.5Q397-680 480-680t141.5 58.5Q680-563 680-480t-58.5 141.5Q563-280 480-280t-141.5-58.5Z"/></svg>`;
 
 /**
- * Installs a focus reticle in the canvas's bottom-left corner that lights up
+ * Installs a focus reticle in the canvas's top-left corner, immediately to the
+ * right of the Token Simulation toggle, that lights up
  * brand-green with a solid center while the canvas holds keyboard focus *and*
  * no element is selected, and shows a faint hollow reticle otherwise. On
  * focus gain the glow briefly pulses (the "you're back" moment), then settles
