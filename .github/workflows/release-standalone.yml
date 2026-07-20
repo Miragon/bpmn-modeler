@@ -3,7 +3,8 @@ name: Release Standalone
 # Manual publish orchestrator for the standalone app. The shared version and
 # `vscode-v<version>` tag are produced by release-please (release-please.yml); this
 # workflow only *publishes* against an existing release. It chains
-# publish-standalone.yml (DMG + Windows installer) → publish-standalone-homebrew.yml.
+# publish-standalone.yml (DMG + Windows installer + Flatpak) →
+# publish-standalone-homebrew.yml.
 # Each sub-workflow is also runnable on its own via workflow_dispatch for
 # debugging or partial reruns. Dry-run propagates to both steps.
 
@@ -57,7 +58,7 @@ jobs:
       dry-run: ${{ inputs.dry-run }}
       # Real runs check out the release tag so the bundled version matches the
       # release; dry-runs build from the triggering SHA (no tag required).
-      ref: ${{ inputs.dry-run && '' || format('vscode-v{0}', inputs.version) }}
+      ref: ${{ inputs.dry-run && github.sha || format('vscode-v{0}', inputs.version) }}
     secrets: inherit
 
   homebrew:

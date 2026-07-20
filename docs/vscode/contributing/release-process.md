@@ -11,7 +11,7 @@ longer forces a release of the others:
 
 | Line | Tag | Covers | Publishes to |
 |---|---|---|---|
-| **`vscode`** (path `.`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS) + Homebrew |
+| **`vscode`** (path `.`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS/Flatpak) + Homebrew |
 | **`intellij`** (path `apps/intellij-plugin`) | `intellij-v<version>` | IntelliJ plugin | JetBrains Marketplace + `updatePlugins.xml` |
 
 VS Code, Open VSX and Standalone stay on **one** shared version because they are
@@ -71,7 +71,7 @@ flowchart LR
 
     p_vscode --> a_vscode[(VS Code Marketplace)]
     p_ovsx --> a_ovsx[(Open VSX)]
-    p_standalone --> a_standalone[(DMG / NSIS + Homebrew)]
+    p_standalone --> a_standalone[(DMG / NSIS / Flatpak + Homebrew)]
     p_intellij --> a_intellij[(updatePlugins.xml + ZIP)]
 ```
 
@@ -112,7 +112,7 @@ Merging a Release PR fans out via `release-please.yml`:
 
 | Line | Auto-publishes | Notes |
 |---|---|---|
-| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX + DMG/NSIS + Homebrew. |
+| `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX + DMG/NSIS/Flatpak + Homebrew. |
 | `intellij` | `publish-intellij.yml` | Multi-platform ZIP → JetBrains Marketplace, refreshes `docs/public/updatePlugins.xml`. |
 
 Each `publish-*` workflow is also runnable on its own via `workflow_dispatch`
@@ -148,13 +148,14 @@ then shows the last-published version per host.
   release and `docs/public/updatePlugins.xml` (served via GitHub Pages) points
   the IDE's custom-repository updater at it — a **legacy/fallback channel** that
   still runs on every release but is no longer the recommended install path.
-- **Standalone** → DMG / NSIS installers attach to the `vscode-v<version>`
-  release, and the Homebrew Cask in
+- **Standalone** → DMG / NSIS installers and the x86_64 Flatpak bundle attach to
+  the `vscode-v<version>` release, and the Homebrew Cask in
   [Miragon/homebrew-tap](https://github.com/Miragon/homebrew-tap) is updated for
   `brew upgrade --cask miragon-bpmn-modeler`. **Auto-update** uses a
   `electron-updater` **generic feed**: each publish also mirrors the installers +
   `latest-mac.yml` / `latest.yml` onto a rolling `standalone-latest` prerelease,
   which the app reads from a fixed URL (the repo-wide `/releases/latest` can't be
-  used — it is often an IntelliJ release with no DMG). The docs download page
-  resolves the most recent release that carries an arm64 DMG, independent of the
-  tag scheme.
+  used — it is often an IntelliJ release with no DMG). Flatpak updates remain
+  manual, so the bundle is not mirrored to `standalone-latest`. The docs download
+  page resolves the most recent release that carries an arm64 DMG, independent
+  of the tag scheme.
