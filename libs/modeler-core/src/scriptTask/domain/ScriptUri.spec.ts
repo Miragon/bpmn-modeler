@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ScriptUri } from "./ScriptUri";
+import { parseScriptSlug, ScriptUri } from "./ScriptUri";
 import { parseKindFromUri } from "./scriptCompletion";
 
 /**
@@ -66,22 +66,81 @@ describe("ScriptUri.hashEditorId", () => {
     });
 });
 
-describe("ScriptUri.toString round-trip with parseKindFromUri", () => {
-    it("round-trips a script-task URI", () => {
+describe("parseScriptSlug", () => {
+    it("returns the script-task shape for a script task", () => {
+        expect(parseScriptSlug("script-task")).toEqual({
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+        });
+    });
+
+    it("round-trips an execution-listener slug with index and event", () => {
+        const slug = new ScriptUri("e", "Task_1", "execution-listener", 1, "start", "js").slug;
+        expect(parseScriptSlug(slug)).toEqual({
+            kind: "execution-listener",
+            listenerIndex: 1,
+            eventName: "start",
+        });
+    });
+
+    it("round-trips a task-listener slug at index 0 with an event", () => {
+        const slug = new ScriptUri("e", "UserTask_1", "task-listener", 0, "create", "groovy").slug;
+        expect(parseScriptSlug(slug)).toEqual({
+            kind: "task-listener",
+            listenerIndex: 0,
+            eventName: "create",
+        });
+    });
+
+    it("recovers a listener slug that carries no event", () => {
+        const slug = new ScriptUri("e", "Task_1", "task-listener", 2, undefined, "js").slug;
+        expect(parseScriptSlug(slug)).toEqual({
+            kind: "task-listener",
+            listenerIndex: 2,
+            eventName: undefined,
+        });
+    });
+
+    it("keeps a hyphenated event name intact", () => {
+        expect(parseScriptSlug("execution-listener-0-take-flow")).toEqual({
+            kind: "execution-listener",
+            listenerIndex: 0,
+            eventName: "take-flow",
+        });
+    });
+
+    it.each(["", "unknown", "execution-listener", "execution-listener-x", "task-listener-"])(
+        "returns undefined for the malformed slug %o",
+        (slug) => {
+            expect(parseScriptSlug(slug)).toBeUndefined();
+        },
+    );
+});
+
+describe("ScriptUri.relativePath round-trip with parseKindFromUri", () => {
+    // The parsers anchor on the on-disk `tmp/scripting/` marker, so the
+    // round-trip goes through a realistic absolute path.
+    const onDisk = (uri: ScriptUri) => `/ws/.camunda/tmp/scripting/${uri.relativePath()}`;
+
+    it("round-trips a script-task path", () => {
         const uri = new ScriptUri("e", "Task_1", "script-task", undefined, undefined, "js");
-        const path = uri.toString().replace(/^bpmn-script:/, "");
-        expect(parseKindFromUri(path)).toBe("script-task");
+        expect(parseKindFromUri(onDisk(uri))).toBe("script-task");
     });
 
-    it("round-trips an execution-listener URI", () => {
+    it("round-trips an execution-listener path", () => {
         const uri = new ScriptUri("e", "Task_1", "execution-listener", 0, "start", "groovy");
-        const path = uri.toString().replace(/^bpmn-script:/, "");
-        expect(parseKindFromUri(path)).toBe("execution-listener");
+        expect(parseKindFromUri(onDisk(uri))).toBe("execution-listener");
     });
 
-    it("round-trips a task-listener URI", () => {
+    it("round-trips a task-listener path", () => {
         const uri = new ScriptUri("e", "UserTask_1", "task-listener", 2, "create", "groovy");
-        const path = uri.toString().replace(/^bpmn-script:/, "");
-        expect(parseKindFromUri(path)).toBe("task-listener");
+        expect(parseKindFromUri(onDisk(uri))).toBe("task-listener");
+    });
+
+    it("equals toString — the segments are the script's identity", () => {
+        const uri = new ScriptUri("e", "Task_1", "script-task", undefined, undefined, "js");
+        expect(uri.toString()).toBe(uri.relativePath());
+        expect(uri.relativePath()).toBe(`${uri.editorHash}/Task_1/script-task/Task_1.js`);
     });
 });

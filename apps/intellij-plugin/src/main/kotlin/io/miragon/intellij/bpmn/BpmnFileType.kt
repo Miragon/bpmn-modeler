@@ -34,9 +34,9 @@ object BpmnFileType : LanguageFileType(XMLLanguage.INSTANCE) {
     // asset is a 40×40 badge tuned for the Plugins/Marketplace listing, and the
     // platform downscales the file-type icon to 16×16 for tree rows and editor
     // tabs, where the badge turned into an illegible blob. `/icons/bpmn.svg` is
-    // a dedicated 16×16 glyph. The "B" is baked to a `<path>` (not `<text>`) so
-    // it renders identically regardless of the fonts available to IntelliJ's
-    // SVG icon loader.
+    // a dedicated 16×16 gear glyph; IconLoader automatically substitutes the
+    // sibling `bpmn_dark.svg` under dark themes, so only the light path is
+    // referenced here.
     override fun getIcon(): Icon =
         IconLoader.getIcon("/icons/bpmn.svg", BpmnFileType::class.java)
 

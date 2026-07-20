@@ -14,6 +14,18 @@ import { ArtifactService } from "../../shared/service/ArtifactService";
 const VARS_DIR = "vars";
 
 /**
+ * The outcome of a manifest load, carrying the resolved lookup path so hosts can
+ * log *where* the extension looked — the most common trip (a mislocated
+ * manifest) is otherwise undebuggable.
+ */
+export interface ManifestLoadResult {
+    readonly manifestPath: string;
+    /** `false` when no manifest file exists; a present-but-malformed manifest is `found: true` with `[]`. */
+    readonly found: boolean;
+    readonly variables: VariableDef[];
+}
+
+/**
  * Reads (and watches) the `*.bpmn.vars.json` process-variable manifest, turning
  * it into the `authored`-tier variable model that overrides heuristic
  * extraction. Both hosts reuse it because it depends only on the shared
@@ -50,19 +62,36 @@ export class ScriptVariableManifestService {
      * propagate, so the host can surface them.
      */
     async load(documentPath: string): Promise<VariableDef[]> {
-        const manifestPath = await this.manifestPathFor(documentPath);
+        return (await this.loadWithStatus(documentPath)).variables;
+    }
+
+    /**
+     * Status-carrying variant of {@link load}: returns the resolved
+     * `manifestPath` and whether a file was `found`, so a host can log the
+     * lookup location and distinguish "no manifest" from "loaded N variables".
+     * `load` delegates here (single read, no double-parse).
+     *
+     * `FileNotFound` degrades to `{ found: false, variables: [] }`; any other
+     * read error propagates so the host can surface it.
+     */
+    async loadWithStatus(documentPath: string): Promise<ManifestLoadResult> {
+        const manifestPath = await this.resolveManifestPath(documentPath);
         let jsonText: string;
         try {
             jsonText = await this.workspace.readFile(manifestPath);
         } catch (error) {
             if (error instanceof FileNotFound) {
-                return [];
+                return { manifestPath, found: false, variables: [] };
             }
             throw error;
         }
         // The origin label uses the bare manifest basename, unchanged by the
         // relocation (`order.bpmn.vars.json`), so origin strings stay stable.
-        return parseVariableManifest(jsonText, posix.basename(manifestPath));
+        return {
+            manifestPath,
+            found: true,
+            variables: parseVariableManifest(jsonText, posix.basename(manifestPath)),
+        };
     }
 
     /**
@@ -79,7 +108,7 @@ export class ScriptVariableManifestService {
      * clobbering hand-edited content the author would lose.
      */
     async upsert(documentPath: string, entry: VariableManifestEntry): Promise<string> {
-        const manifestPath = await this.manifestPathFor(documentPath);
+        const manifestPath = await this.resolveManifestPath(documentPath);
         const manifest = await this.readRawManifest(manifestPath);
 
         if (!manifest.variables.some((existing) => existing.name === entry.name)) {
@@ -125,7 +154,7 @@ export class ScriptVariableManifestService {
     async createWatcher(documentPath: string, onChange: () => void): Promise<{ dispose(): void }> {
         const documentDir = this.workspace.getDocumentDirectory(documentPath);
         const workspaceRoot = await this.artifactSvc.getWorkspaceRoot(documentDir);
-        const manifestPath = await this.manifestPathFor(documentPath);
+        const manifestPath = await this.resolveManifestPath(documentPath);
         // The chokidar/node adapter anchors the glob (`^…$`) and matches against
         // absolute paths, so a root-relative glob must be prefixed `**/` to match
         // the bridge the same way VS Code does (the template watcher does the same).
@@ -140,8 +169,11 @@ export class ScriptVariableManifestService {
     /**
      * `<root>/src/foo.bpmn` → `<root>/<configFolder>/vars/src/foo.bpmn.vars.json`,
      * mirroring the diagram's workspace-relative path under the config folder.
+     *
+     * Public so hosts can log/inspect the exact lookup location — a mislocated
+     * manifest is the most common trip and is otherwise undebuggable.
      */
-    private async manifestPathFor(documentPath: string): Promise<string> {
+    async resolveManifestPath(documentPath: string): Promise<string> {
         // Compute everything in the `uri.path` space `getDocumentDirectory`
         // returns: on Windows the raw `documentPath` is `fsPath` (`c:\a\b`) while
         // the directory is `uri.path` (`/c:/a/b`), so a relative path derived

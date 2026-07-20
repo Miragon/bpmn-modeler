@@ -13,9 +13,18 @@ import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
 
 import { EditorSubscription } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
+import {
+    BPMN_VIEW_TYPE,
+    BpmnDocument,
+    DMN_VIEW_TYPE,
+    EMPTY_DMN_DIAGRAM,
+    getLatestVersion,
+    UserCancelledError,
+} from "@miragon/bpmn-modeler-core";
 import { VsCodeDocument } from "../../../shared/infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../../../shared/infrastructure/VsCodeNotifier";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
+import { VsCodePicker } from "../../../shared/infrastructure/VsCodePicker";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
 
@@ -33,6 +42,14 @@ export const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 export const MIGRATE_ALL_CMD = "bpmn-modeler.migrateAllDiagrams";
 // VS Code command ID for changing the modeler language.
 export const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
+// VS Code command ID for scaffolding a new BPMN model.
+export const NEW_BPMN_MODEL_CMD = "bpmn-modeler.newBpmnModel";
+// VS Code command ID for scaffolding a new DMN model.
+export const NEW_DMN_MODEL_CMD = "bpmn-modeler.newDmnModel";
+// VS Code command ID for reloading the active modeler webview. Manual fallback
+// for setups where the element-template file watcher never fires (WSL +
+// symlinked workspace): a reload re-requests the templates from the host.
+export const RELOAD_MODELER_CMD = "bpmn-modeler.reloadModeler";
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
@@ -52,6 +69,7 @@ export class CommandController {
      * @param textEditor Toggles the companion text editor pane for the active document.
      * @param bpmnService BPMN-specific business logic for engine version changes.
      * @param migrationSvc Workspace-wide BPMN migration orchestrator.
+     * @param picker Engine quick-pick used when scaffolding a new BPMN model.
      */
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -60,6 +78,7 @@ export class CommandController {
         private readonly textEditor: VsCodeTextEditor,
         private readonly bpmnService: BpmnModelerService,
         private readonly migrationSvc: BpmnMigrationService,
+        private readonly picker: VsCodePicker,
     ) {}
 
     /**
@@ -77,6 +96,9 @@ export class CommandController {
             commands.registerCommand(CHANGE_ENGINE_VERSION_CMD, this.changeEngineVersion, this),
             commands.registerCommand(MIGRATE_ALL_CMD, this.migrateAllDiagrams, this),
             commands.registerCommand(CHANGE_LANGUAGE_CMD, this.changeLanguage, this),
+            commands.registerCommand(NEW_BPMN_MODEL_CMD, this.newBpmnModel, this),
+            commands.registerCommand(NEW_DMN_MODEL_CMD, this.newDmnModel, this),
+            commands.registerCommand(RELOAD_MODELER_CMD, this.reloadModeler, this),
         );
     }
 
@@ -89,6 +111,17 @@ export class CommandController {
         const activeId = this.editorStore.getActiveEditorId();
         const documentPath = this.vsDocument.getFilePath(activeId);
         return this.textEditor.toggle(documentPath);
+    }
+
+    /**
+     * Restarts the active modeler webview so it re-requests the diagram,
+     * element templates, and settings — the manual workaround for setups where
+     * the element-template file watcher never delivers events (WSL + symlinked
+     * workspace). Unsaved edits survive: the `TextDocument` is the source of
+     * truth and the restarted webview re-imports its (dirty) text.
+     */
+    reloadModeler(): void {
+        this.editorStore.reload(this.editorStore.getActiveEditorId());
     }
 
     /**
@@ -149,6 +182,78 @@ export class CommandController {
             // so record it to explain later "why is the panel in German?" reports.
             this.notifier.logInfo(`Modeler language changed to ${picked.description}`);
         });
+    }
+
+    /**
+     * Prompts for a save location, picks the engine, then scaffolds a new BPMN
+     * model there and opens it in the custom editor.
+     *
+     * The engine is chosen *before* the file is written so a cancelled quick-pick
+     * leaves nothing behind — the alternative (write empty, seed on open) orphans
+     * a blank `.bpmn` on cancel.
+     */
+    newBpmnModel(): Promise<void> {
+        return this.logAndRethrow(async () => {
+            const target = await this.promptNewModelTarget("New BPMN Model", "BPMN", "bpmn");
+            if (!target) {
+                return; // dialog dismissed — silent no-op
+            }
+
+            let doc: BpmnDocument;
+            try {
+                const engine = await this.picker.pickExecutionPlatform("Select the engine.", [
+                    "Camunda 7",
+                    "Camunda 8",
+                ]);
+                doc = BpmnDocument.empty(engine, getLatestVersion(engine));
+            } catch (error) {
+                if (error instanceof UserCancelledError) {
+                    return; // no file created
+                }
+                throw error;
+            }
+
+            await workspace.fs.writeFile(target, Buffer.from(doc.xml));
+            await commands.executeCommand("vscode.openWith", target, BPMN_VIEW_TYPE);
+        });
+    }
+
+    /**
+     * Prompts for a save location, then scaffolds a new DMN model there and opens
+     * it in the custom editor. DMN has no engine choice, so no quick-pick.
+     */
+    newDmnModel(): Promise<void> {
+        return this.logAndRethrow(async () => {
+            const target = await this.promptNewModelTarget("New DMN Model", "DMN", "dmn");
+            if (!target) {
+                return;
+            }
+            await workspace.fs.writeFile(target, Buffer.from(EMPTY_DMN_DIAGRAM));
+            await commands.executeCommand("vscode.openWith", target, DMN_VIEW_TYPE);
+        });
+    }
+
+    /**
+     * Single native prompt for name + location. Works without a workspace folder
+     * open (the `defaultUri` is simply omitted); the OS dialog owns overwrite
+     * confirmation. Appends the extension when the dialog did not (some Linux
+     * dialogs don't enforce the filter), so `openWith` matches on `.bpmn`/`.dmn`.
+     */
+    private async promptNewModelTarget(
+        title: string,
+        filterLabel: string,
+        ext: string,
+    ): Promise<Uri | undefined> {
+        const folder = workspace.workspaceFolders?.[0];
+        const uri = await window.showSaveDialog({
+            title,
+            defaultUri: folder ? Uri.joinPath(folder.uri, `new-diagram.${ext}`) : undefined,
+            filters: { [filterLabel]: [ext] },
+        });
+        if (!uri) {
+            return undefined;
+        }
+        return uri.path.endsWith(`.${ext}`) ? uri : uri.with({ path: `${uri.path}.${ext}` });
     }
 
     /**

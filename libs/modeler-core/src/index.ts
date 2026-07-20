@@ -19,6 +19,7 @@ export * from "./shared/domain/viewTypes";
 // ── shared: service + vscode-free infrastructure ────────────────────────────
 export * from "./shared/service/ArtifactService";
 export * from "./shared/service/BpmnLintConfigLocator";
+export * from "./shared/service/DocumentFlushService";
 export * from "./shared/infrastructure/EditorSessionStore";
 export * from "./shared/infrastructure/WebviewMessageRouter";
 export * from "./shared/infrastructure/webviewLogHandlers";
@@ -32,6 +33,7 @@ export * from "./modeler/bpmn/service/BpmnLintConfigService";
 export * from "./modeler/bpmn/service/BpmnClipboardMediator";
 export * from "./modeler/bpmn/service/BpmnPropertiesPanelService";
 export * from "./modeler/bpmn/service/BpmnSettingsBroadcaster";
+export * from "./modeler/dmn/domain/emptyDmn";
 export * from "./modeler/dmn/service/DmnModelerService";
 export * from "./modeler/dmn/service/DmnSettingsBroadcaster";
 
@@ -79,9 +81,15 @@ export * from "./template-marketplace/service/TemplateMarketplaceService";
 // ── scriptTask: domain ───────────────────────────────────────────────────────
 export * from "./scriptTask/domain/ScriptUri";
 export * from "./scriptTask/domain/ScriptVariableStore";
+export * from "./scriptTask/domain/camundaDts";
+export * from "./scriptTask/domain/groovyImports";
+export * from "./scriptTask/domain/localDeclarations";
 export * from "./scriptTask/domain/scriptApi";
 export * from "./scriptTask/domain/scriptCompletion";
+export * from "./scriptTask/domain/scriptFileMatching";
 export * from "./scriptTask/domain/scriptLanguage";
 
 // ── scriptTask: service ──────────────────────────────────────────────────────
 export * from "./scriptTask/service/ScriptVariableManifestService";
+export * from "./scriptTask/service/ScriptXmlService";
+export * from "./scriptTask/service/scriptBatch";

@@ -82,6 +82,18 @@ module.exports = (env, argv) => {
                         to: "assets",
                     },
                     {
+                        // File-explorer icons referenced by contributes.languages[].icon,
+                        // resolved relative to the packaged extension root.
+                        from: path.resolve(__dirname, "icons"),
+                        to: "icons",
+                    },
+                    {
+                        // TextMate grammars + shared language configuration referenced by
+                        // contributes.grammars/languages, resolved relative to the root.
+                        from: path.resolve(__dirname, "syntaxes"),
+                        to: "syntaxes",
+                    },
+                    {
                         // Walkthrough markdown referenced by contributes.walkthroughs.
                         from: path.resolve(__dirname, "media"),
                         to: "media",

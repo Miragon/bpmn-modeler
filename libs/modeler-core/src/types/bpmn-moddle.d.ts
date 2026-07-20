@@ -1,7 +1,7 @@
 /**
  * Ambient type declaration for `bpmn-moddle`.  The published package ships
- * without `.d.ts` files, and we only consume two surfaces — the factory and
- * the shape of `fromXML`'s result — so a minimal shim is enough.
+ * without `.d.ts` files, and we only consume a few surfaces — the factory, the
+ * shape of `fromXML`'s result, and `toXML` — so a minimal shim is enough.
  *
  * The real package exports `SimpleBpmnModdle` under the name `BpmnModdle`
  * (ESM named export) and has no `default` export.  Consumers call it as a
@@ -10,17 +10,29 @@
  * they must tolerate `default` being `undefined`.
  */
 declare module "bpmn-moddle" {
+    /** A parsed moddle element; only `$type` is guaranteed, rest is open. */
+    interface ModdleElement {
+        $type: string;
+        [key: string]: unknown;
+    }
+
     interface ParseResult {
-        rootElement: {
-            $type: string;
-            [key: string]: unknown;
-        };
+        rootElement: ModdleElement;
+        // Index of every element carrying an `id`, keyed by that id — the
+        // fast path for addressing a script's host element without walking
+        // the tree.
+        elementsById: Record<string, ModdleElement>;
         references: unknown[];
         warnings: unknown[];
     }
 
+    interface SerializeResult {
+        xml: string;
+    }
+
     interface BpmnModdleInstance {
         fromXML(xml: string): Promise<ParseResult>;
+        toXML(element: ModdleElement, options?: { format?: boolean }): Promise<SerializeResult>;
     }
 
     type BpmnModdleFactory = (

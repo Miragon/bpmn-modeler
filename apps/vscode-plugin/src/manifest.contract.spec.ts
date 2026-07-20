@@ -19,6 +19,9 @@ import {
     COPY_SVG_CMD,
     LOGGING_CMD,
     MIGRATE_ALL_CMD,
+    NEW_BPMN_MODEL_CMD,
+    NEW_DMN_MODEL_CMD,
+    RELOAD_MODELER_CMD,
     SAVE_SVG_CMD,
     TOGGLE_CMD,
 } from "./modeler/bpmn/controller/CommandController";
@@ -33,6 +36,7 @@ import {
     REMOVE_MARKETPLACE_CMD,
     UPDATE_MARKETPLACES_CMD,
 } from "./templateMarketplace/controller/TemplateMarketplaceController";
+import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 const SRC_DIR = __dirname;
@@ -60,9 +64,13 @@ const CODE_COMMAND_IDS = [
     LOGGING_CMD,
     COPY_SVG_CMD,
     SAVE_SVG_CMD,
+    OPEN_ALL_SCRIPT_TASKS_CMD,
     CHANGE_ENGINE_VERSION_CMD,
     MIGRATE_ALL_CMD,
     CHANGE_LANGUAGE_CMD,
+    NEW_BPMN_MODEL_CMD,
+    NEW_DMN_MODEL_CMD,
+    RELOAD_MODELER_CMD,
     SELECT_FOR_COMPARE_CMD,
     COMPARE_WITH_SELECTED_CMD,
     COMPARE_SELECTED_CMD,

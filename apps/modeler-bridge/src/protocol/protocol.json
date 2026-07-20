@@ -136,6 +136,20 @@
         ]
     },
     {
+        "method": "script/openAll",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "script/didOpenExternal",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "filePath"
+        ]
+    },
+    {
         "method": "marketplace/add",
         "direction": "hostToCore",
         "kind": "notification",
@@ -160,6 +174,22 @@
         "paramKeys": [
             "removedCount",
             "settings"
+        ]
+    },
+    {
+        "method": "modeler/changeEngineVersion",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "editorId"
+        ]
+    },
+    {
+        "method": "migration/migrateAll",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "workspaceRoot"
         ]
     },
     {
@@ -461,6 +491,7 @@
             "completion",
             "content",
             "fileName",
+            "filePath",
             "languageId",
             "scriptId"
         ]
@@ -472,6 +503,15 @@
         "paramKeys": [
             "scriptId",
             "variables"
+        ]
+    },
+    {
+        "method": "script/updateContent",
+        "direction": "coreToHost",
+        "kind": "notification",
+        "paramKeys": [
+            "content",
+            "scriptId"
         ]
     },
     {

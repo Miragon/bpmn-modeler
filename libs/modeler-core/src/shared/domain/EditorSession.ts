@@ -61,6 +61,14 @@ export interface EditorHandle {
 
     postMessage(message: Command | Query): Promise<boolean>;
 
+    /**
+     * Reloads the webview UI in place, re-requesting document content, element
+     * templates, and settings from the host — the same startup handshake a
+     * tab-switch-back triggers on a non-retained webview. Optional so hosts that
+     * cannot restart a webview (e.g. the IntelliJ bridge) simply omit it.
+     */
+    reload?(): void;
+
     /** Whether this session's panel currently holds focus. */
     isActive(): boolean;
 

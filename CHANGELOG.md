@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.5.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.4.0...vscode-v1.5.0) (2026-07-17)
+
+
+### 🎉 New Features
+
+* add Reload Modeler command and port modeler commands to IntelliJ ([#1271](https://github.com/Miragon/bpmn-modeler/issues/1271)) ([4a02932](https://github.com/Miragon/bpmn-modeler/commit/4a029329b13252698b9bbc246c03727bca85ff90))
+* **bpmn-webview:** add canvas focus indicator ([#1277](https://github.com/Miragon/bpmn-modeler/issues/1277)) ([edac76c](https://github.com/Miragon/bpmn-modeler/commit/edac76c98f12d145fc74bdfd3cdc03bdb0f72e58))
+* **bpmn-webview:** add keyboard focus and append-menu arrow navigation ([#1269](https://github.com/Miragon/bpmn-modeler/issues/1269)) ([a0df4a0](https://github.com/Miragon/bpmn-modeler/commit/a0df4a0d9a700f694a893abd54cb6a1df20d748a))
+* **demo-webapp:** add static online demo of the BPMN/DMN modeler ([#1270](https://github.com/Miragon/bpmn-modeler/issues/1270)) ([3a6a290](https://github.com/Miragon/bpmn-modeler/commit/3a6a290b9dd9b7f3b502b76636ff3161dc0e6a5f))
+* **docs:** link intellij jetbrains marketplace download ([#1257](https://github.com/Miragon/bpmn-modeler/issues/1257)) ([ac6a6df](https://github.com/Miragon/bpmn-modeler/commit/ac6a6df1bfaa714c27e7474f480b0315f9b433ac))
+* edit inline scripts in real files with a single-writer lock ([#1264](https://github.com/Miragon/bpmn-modeler/issues/1264)) ([970ef1f](https://github.com/Miragon/bpmn-modeler/commit/970ef1fd4f49bf49ae4167021e861d5e521c4ee7))
+* **intellij:** modernize the .bpmn file icon in the project tree ([#1276](https://github.com/Miragon/bpmn-modeler/issues/1276)) ([7c98ddb](https://github.com/Miragon/bpmn-modeler/commit/7c98ddbc9a742c61021d44bf9d715ef5b0ba458d))
+* **vscode-plugin:** add new bpmn/dmn model commands under a shared palette category ([#1256](https://github.com/Miragon/bpmn-modeler/issues/1256)) ([4df40fd](https://github.com/Miragon/bpmn-modeler/commit/4df40fd0a9e27862a187a4f2e34202bd31ec8fe5))
+* **vscode-plugin:** improve inline-script intellisense and manifest robustness ([#1262](https://github.com/Miragon/bpmn-modeler/issues/1262)) ([2a026af](https://github.com/Miragon/bpmn-modeler/commit/2a026afd2ac96cbee16e71243e82ea48aaea9d2d))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** move focus indicator to top right corner ([#1278](https://github.com/Miragon/bpmn-modeler/issues/1278)) ([0f60900](https://github.com/Miragon/bpmn-modeler/commit/0f60900b4c646a9af692dd7f24df4c991ff3a1d1))
+* **demo-webapp:** make the Netlify monorepo build install cleanly ([#1272](https://github.com/Miragon/bpmn-modeler/issues/1272)) ([6a9a774](https://github.com/Miragon/bpmn-modeler/commit/6a9a774ca2be40dee4702d279823c54b6445188f))
+* **demo-webapp:** point the Netlify publish dir at the repo-root dist/demo ([#1273](https://github.com/Miragon/bpmn-modeler/issues/1273)) ([9793975](https://github.com/Miragon/bpmn-modeler/commit/9793975c0858a81c015d24fc5acfb748ef02fb91))
+* **release:** repair vscode auto-publish and intellij release line ([#1249](https://github.com/Miragon/bpmn-modeler/issues/1249)) ([323847c](https://github.com/Miragon/bpmn-modeler/commit/323847c0b5e0c1c444f695cf12ca6efb36fe3cb6))
+* **templates:** stop keychain popup when adding a public marketplace ([#1253](https://github.com/Miragon/bpmn-modeler/issues/1253)) ([b59dddc](https://github.com/Miragon/bpmn-modeler/commit/b59dddc30b89500bb0eb1f5a6073d95a13243084))
+* **vscode:** recover from unregistered marketplaces settings key ([#1252](https://github.com/Miragon/bpmn-modeler/issues/1252)) ([222ec01](https://github.com/Miragon/bpmn-modeler/commit/222ec0149e4bebad36ed98bf122d6149b9d57338))
+
+
+### 🔨 Refactoring
+
+* **bpmn-i18n:** enforce locale key-parity and fix key drift ([#1254](https://github.com/Miragon/bpmn-modeler/issues/1254)) ([a8fee1f](https://github.com/Miragon/bpmn-modeler/commit/a8fee1ffdca28543e303b41f259457d8a9cd7967))
+
+
+### 📔 Documentation
+
+* add apps and libs overview readmes ([#1268](https://github.com/Miragon/bpmn-modeler/issues/1268)) ([53c7ee5](https://github.com/Miragon/bpmn-modeler/commit/53c7ee5c3eadc12c23687e67dff3a759c7313147))
+
+
+### 🛠️ Misc
+
+* **agent:** refresh stale settings, docs and gitignore ([#1263](https://github.com/Miragon/bpmn-modeler/issues/1263)) ([15552b7](https://github.com/Miragon/bpmn-modeler/commit/15552b7630048975edd4840768e30c6457286bd9))
+* **conductor:** add run targets for dmn and deployment webviews ([#1258](https://github.com/Miragon/bpmn-modeler/issues/1258)) ([1b13af9](https://github.com/Miragon/bpmn-modeler/commit/1b13af954848f5a6368635d52eb5ced96ac67906))
+* **deps:** bump the github-actions-all group with 4 updates ([#1266](https://github.com/Miragon/bpmn-modeler/issues/1266)) ([88057a2](https://github.com/Miragon/bpmn-modeler/commit/88057a275ac158c1ed80449de7a9dce7e2dd4eeb))
+
 ## [1.4.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.3.0...vscode-v1.4.0) (2026-07-08)
 
 

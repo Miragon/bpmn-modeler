@@ -109,9 +109,24 @@ export interface ScriptDidChangeParams {
     content: string;
 }
 
-/** `script/didClose` — the user closed a script tab on the host. */
+/**
+ * `script/didClose` — the host reports a script tab is closed: user-initiated,
+ * or the completion ack of a core-initiated `script/close`. Sent only after
+ * the host flush-saved the closing document, so the core may delete the
+ * on-disk file on receipt without racing that save.
+ */
 export interface ScriptCloseParams {
     scriptId: string;
+}
+
+/**
+ * `script/didOpenExternal` — the host reports a script file was opened outside
+ * the core's own `script/open` flow (Project view, Explorer, Quick Open, or the
+ * panel button on an untracked file). The core adopts it into live sync; a
+ * system-independent path lets `parseScriptPath` match regardless of separator.
+ */
+export interface ScriptDidOpenExternalParams {
+    filePath: string;
 }
 
 /**
@@ -163,6 +178,17 @@ export interface MarketplaceUpdateParams {
 export interface MarketplaceRemoveParams {
     settings: Partial<SettingsSnapshot>;
     removedCount: number;
+}
+
+/**
+ * `migration/migrateAll` — migrate every `.bpmn` under a workspace root to a
+ * user-picked engine version. Carries the root explicitly because the action can
+ * fire with no editor open, so no `session/register` has registered it yet and
+ * `NodeWorkspace.findFiles` only globs registered roots. (`modeler/changeEngineVersion`
+ * needs no dedicated params — it reuses {@link EditorRefParams}.)
+ */
+export interface MigrateAllParams {
+    workspaceRoot: string;
 }
 
 // ── Core → Host requests (params + results) ──────────────────────────────────
@@ -356,6 +382,13 @@ export interface ScriptOpenParams {
     scriptId: string;
     fileName: string;
     languageId: string;
+    /**
+     * Absolute path of the real script file the bridge wrote under
+     * `<configFolder>/tmp/scripting/`. The host opens this file (re-enabling
+     * IdeaVim and file-based tooling) and falls back to an in-memory
+     * `LightVirtualFile` from `content` only if the path fails to resolve.
+     */
+    filePath: string;
     content: string;
     completion: {
         beans: readonly ScriptCompletionBean[];
@@ -377,7 +410,22 @@ export interface ScriptUpdateVariablesParams {
     variables: VariableDef[];
 }
 
-/** `script/close` — the core tells the host to close a script tab it opened. */
+/**
+ * `script/updateContent` — the core overwrites an open tab's content because
+ * the script changed on the *model* side (canvas undo/redo, document reload).
+ * The host must guard its document listener so the write doesn't echo back as
+ * a `script/didChange`.
+ */
+export interface ScriptUpdateContentParams {
+    scriptId: string;
+    content: string;
+}
+
+/**
+ * `script/close` — the core tells the host to close a script tab it opened.
+ * The host flushes and closes the tab, then acks with `script/didClose`; the
+ * core defers deleting the script's on-disk file until that ack.
+ */
 export interface ScriptCloseNotifyParams {
     scriptId: string;
 }

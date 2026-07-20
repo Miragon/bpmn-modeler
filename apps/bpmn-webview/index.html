@@ -1,33 +1,32 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <link href="/favicon.ico" rel="icon" />
-    <link href="src/styles/light-theme/index.css" id="theme-link" rel="stylesheet" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>BPMN Modeler</title>
-</head>
-<body>
-<div id="app" style="height: 100vh">
-    <div class="content with-diagram" id="js-drop-zone">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link href="src/styles/light-theme/index.css" id="theme-link" rel="stylesheet" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>BPMN Modeler</title>
+    </head>
+    <body>
+        <div id="app" style="height: 100vh">
+            <div class="content with-diagram" id="js-drop-zone">
+                <div class="message error">
+                    <div class="note">
+                        <p>Ooops, we could not display the BPMN 2.0 diagram.</p>
 
-        <div class="message error">
-            <div class="note">
-                <p>Ooops, we could not display the BPMN 2.0 diagram.</p>
-
-                <div class="details">
-                    <span>Import Error Details</span>
-                    <pre></pre>
+                        <div class="details">
+                            <span>Import Error Details</span>
+                            <pre></pre>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="canvas" id="js-canvas"></div>
+                <div class="panel-resizer" id="js-panel-resizer"></div>
+                <div class="properties-panel-parent" id="js-properties-panel"></div>
             </div>
         </div>
-
-        <div class="canvas" id="js-canvas"></div>
-        <div class="panel-resizer" id="js-panel-resizer"></div>
-        <div class="properties-panel-parent" id="js-properties-panel"></div>
-    </div>
-</div>
-<!--
+        <!--
     Dev-only theme switch for the standalone browser preview (`yarn ... serve`).
     Hosts (VS Code / IntelliJ / Theia) inject their own HTML and never load this
     shell, so this affects local preview only. Open `?theme=dark` to exercise the
@@ -35,13 +34,14 @@
     without launching a host, since FakeHost otherwise forces the light theme.
     Runs before the deferred module below, so initTheme() sees `vscode-dark`.
 -->
-<script>
-    if (new URLSearchParams(location.search).get("theme") === "dark") {
-        document.body.classList.add("vscode-dark");
-        const link = document.getElementById("theme-link");
-        if (link) link.href = link.getAttribute("href").replace("light-theme", "dark-theme");
-    }
-</script>
-<script src="/src/main.ts" type="module"></script>
-</body>
+        <script>
+            if (new URLSearchParams(location.search).get("theme") === "dark") {
+                document.body.classList.add("vscode-dark");
+                const link = document.getElementById("theme-link");
+                if (link)
+                    link.href = link.getAttribute("href").replace("light-theme", "dark-theme");
+            }
+        </script>
+        <script src="/src/main.ts" type="module"></script>
+    </body>
 </html>

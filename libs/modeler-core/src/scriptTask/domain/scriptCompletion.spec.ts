@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { matchVariableStringArg, parseEditorHashFromUri } from "./scriptCompletion";
+import {
+    matchVariableStringArg,
+    parseEditorHashFromUri,
+    parseScriptPath,
+} from "./scriptCompletion";
 
 /**
  * Pure-function tests for the variable-completion helpers behind the script
@@ -43,9 +47,50 @@ describe("matchVariableStringArg", () => {
     });
 });
 
+describe("parseScriptPath", () => {
+    it("anchors on the tmp/scripting marker regardless of the base directory", () => {
+        expect(
+            parseScriptPath("/ws/.camunda/tmp/scripting/abc123/Task_1/script-task/Task_1.groovy"),
+        ).toEqual({
+            editorHash: "abc123",
+            elementId: "Task_1",
+            slug: "script-task",
+            filename: "Task_1.groovy",
+        });
+    });
+
+    it("accepts Windows separators (fsPath form)", () => {
+        expect(
+            parseScriptPath(
+                "c:\\ws\\.camunda\\tmp\\scripting\\abc123\\Task_1\\script-task\\Task_1.js",
+            )?.editorHash,
+        ).toBe("abc123");
+    });
+
+    it("anchors on the innermost marker when a folder is itself named tmp/scripting", () => {
+        expect(
+            parseScriptPath("/tmp/scripting/.camunda/tmp/scripting/h/Task_1/script-task/Task_1.js")
+                ?.editorHash,
+        ).toBe("h");
+    });
+
+    it("returns undefined without the marker", () => {
+        expect(parseScriptPath("/abc123/Task_1/script-task/Task_1.groovy")).toBeUndefined();
+    });
+
+    it("returns undefined when the marker isn't followed by exactly four segments", () => {
+        expect(parseScriptPath("/ws/tmp/scripting/abc123/Task_1/Task_1.groovy")).toBeUndefined();
+        expect(
+            parseScriptPath("/ws/tmp/scripting/a/b/c/script-task/Task_1.groovy"),
+        ).toBeUndefined();
+    });
+});
+
 describe("parseEditorHashFromUri", () => {
-    it("returns the first path segment", () => {
-        expect(parseEditorHashFromUri("/abc123/Task_1/script-task/Task_1.groovy")).toBe("abc123");
+    it("returns the editor-hash segment after the marker", () => {
+        expect(
+            parseEditorHashFromUri("/ws/.camunda/tmp/scripting/abc123/Task_1/script-task/T.groovy"),
+        ).toBe("abc123");
     });
 
     it("returns undefined for an empty path", () => {

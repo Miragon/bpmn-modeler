@@ -221,18 +221,24 @@ host.setState(state);            // Write persisted state
 
 ### Detection
 
-VS Code sets `data-vscode-theme-kind` on `document.body`:
+VS Code adds a theme **class** to `document.body` (not a `data-` attribute):
 - `vscode-light` — light theme
 - `vscode-dark` — dark theme
 - `vscode-high-contrast` — high contrast
+
+`libs/shared/src/lib/theme.ts` reads these with
+`document.body.classList.contains("vscode-dark")` /
+`"vscode-high-contrast")` and installs a `MutationObserver` on the body
+`class` attribute to re-apply the theme when the user switches it live.
 
 ### Stylesheet Swap
 
 The webview ships two CSS files (`lightTheme.css`, `darkTheme.css`). On initialization:
 
-1. Read `document.body.dataset.vscodeThemeKind`
+1. Read the body theme classes (`classList.contains("vscode-dark")` / `"vscode-high-contrast"`)
 2. Set the `<link>` element's `href` to the matching stylesheet
 3. The initial HTML always references `lightTheme.css`; the JS swaps if needed
+4. A `MutationObserver` on the body `class` attribute repeats the swap on live theme changes
 
 ### CSS Custom Properties
 
@@ -243,12 +249,14 @@ VS Code also exposes theme colors as CSS custom properties (e.g., `--vscode-edit
 Files bundled with the extension must be converted to webview-safe URIs:
 
 ```typescript
-const scriptUri = webview.asWebviewUri(
-  vscode.Uri.joinPath(extensionUri, 'dist', 'apps', 'bpmn-modeler', 'bpmn-webview', 'index.js')
-);
+// BPMN_WEBVIEW_PATH === "bpmn-webview"; extensionUri already points at the
+// packaged extension root (dist/apps/vscode-plugin), so it is not re-joined.
+const baseUri = vscode.Uri.joinPath(extensionUri, BPMN_WEBVIEW_PATH);
+const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(baseUri, 'index.js'));
 ```
 
 This converts `file://` paths to `vscode-resource:` URIs that pass the webview's CSP.
+See `apps/vscode-plugin/src/shared/infrastructure/WebviewHtml.ts`.
 
 ## Key Files
 

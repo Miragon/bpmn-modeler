@@ -43,6 +43,7 @@ import {
     MarketplaceRemoveParams,
     MarketplaceStateSaveParams,
     MarketplaceUpdateParams,
+    MigrateAllParams,
     NotifierLogParams,
     NotifierMessageParams,
     NotifierNotifyErrorParams,
@@ -56,7 +57,9 @@ import {
     ScriptCloseNotifyParams,
     ScriptCloseParams,
     ScriptDidChangeParams,
+    ScriptDidOpenExternalParams,
     ScriptOpenParams,
+    ScriptUpdateContentParams,
     ScriptUpdateVariablesParams,
     SettingsDidChangeParams,
     StatusBarEngineVersionParams,
@@ -97,9 +100,13 @@ export const METHODS = {
     scriptDidChange: "script/didChange",
     scriptDidClose: "script/didClose",
     scriptAppendToManifest: "script/appendToManifest",
+    scriptOpenAll: "script/openAll",
+    scriptDidOpenExternal: "script/didOpenExternal",
     marketplaceAdd: "marketplace/add",
     marketplaceUpdate: "marketplace/update",
     marketplaceRemove: "marketplace/remove",
+    modelerChangeEngineVersion: "modeler/changeEngineVersion",
+    migrationMigrateAll: "migration/migrateAll",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -139,6 +146,7 @@ export const METHODS = {
     deploymentPostMessage: "deployment/postMessage",
     scriptOpen: "script/open",
     scriptUpdateVariables: "script/updateVariables",
+    scriptUpdateContent: "script/updateContent",
     scriptClose: "script/close",
 } as const;
 
@@ -272,6 +280,20 @@ export const PROTOCOL = [
         } satisfies ScriptAppendToManifestParams,
     },
     {
+        method: METHODS.scriptOpenAll,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
+        method: METHODS.scriptDidOpenExternal,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {
+            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/e.js",
+        } satisfies ScriptDidOpenExternalParams,
+    },
+    {
         method: METHODS.marketplaceAdd,
         direction: "hostToCore",
         kind: "notification",
@@ -292,6 +314,18 @@ export const PROTOCOL = [
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { settings: {}, removedCount: 1 } satisfies MarketplaceRemoveParams,
+    },
+    {
+        method: METHODS.modelerChangeEngineVersion,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { editorId: "e1" } satisfies EditorRefParams,
+    },
+    {
+        method: METHODS.migrationMigrateAll,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies MigrateAllParams,
     },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
@@ -544,6 +578,7 @@ export const PROTOCOL = [
             scriptId: "s1",
             fileName: "script.js",
             languageId: "javascript",
+            filePath: "/ws/.camunda/tmp/scripting/h/e/script-task/script.js",
             content: "x",
             completion: { beans: [], variables: [], globals: [], types: {} },
         } satisfies ScriptOpenParams,
@@ -553,6 +588,12 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: { scriptId: "s1", variables: [] } satisfies ScriptUpdateVariablesParams,
+    },
+    {
+        method: METHODS.scriptUpdateContent,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: { scriptId: "s1", content: "x" } satisfies ScriptUpdateContentParams,
     },
     {
         method: METHODS.scriptClose,

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="categorizeApplicantDefinitions" name="Categorize Applicant" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="categorizeApplicant" name="Categorize Applicant" camunda:historyTimeToLive="180">
+    <decisionTable id="decisionTable_categorizeApplicant" hitPolicy="FIRST">
+      <input id="input_age" label="Age">
+        <inputExpression id="inputExpression_age" typeRef="integer">
+          <text>age</text>
+        </inputExpression>
+      </input>
+      <output id="output_isHighValue" label="Is High Value?" name="isHighValue" typeRef="boolean" />
+      <rule id="rule_quarterlifeCrisis">
+        <description>Quarter-life crisis: age between 21 and 29 (inclusive)</description>
+        <inputEntry id="inputEntry_quarterlifeCrisis">
+          <text>[21..29]</text>
+        </inputEntry>
+        <outputEntry id="outputEntry_highValue">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+      <rule id="rule_default">
+        <description>All other ages: low value</description>
+        <inputEntry id="inputEntry_default">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="outputEntry_lowValue">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="categorizeApplicant">
+        <dc:Bounds height="80" width="180" x="200" y="210" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

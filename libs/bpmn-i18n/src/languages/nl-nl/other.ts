@@ -16,6 +16,9 @@
 
 // This file contains translations that were used in other components.
 const translations: Record<string, string> = {
+    "Read-only": "Alleen-lezen",
+    "Being edited in": "Wordt bewerkt in",
+    "click to focus": "klik om te focussen",
     "Open minimap": "Open minimap",
     "Open properties panel": "Eigenschappenpaneel openen",
     "Close properties panel": "Eigenschappenpaneel sluiten",

@@ -1,9 +1,15 @@
 /**
  * Pure, dependency-free parser for a `*.bpmn.vars.json` manifest — the explicit,
- * author-written override that sits next to a diagram and declares process
- * variables the heuristic extraction (see {@link import("./processVariables")})
- * can't see: variables injected from outside the model (REST start, message
- * correlation, a parent process) plus author-supplied types and docs.
+ * author-written override that declares process variables the heuristic
+ * extraction (see {@link import("./processVariables")}) can't see: variables
+ * injected from outside the model (REST start, message correlation, a parent
+ * process) plus author-supplied types and docs.
+ *
+ * The manifest lives at
+ * `<workspaceRoot>/<configFolder>/vars/<workspace-relative-diagram-path>.vars.json`
+ * (config folder defaults to `.camunda`, overridable via the
+ * `miragon.bpmnModeler.configFolder` setting) — never beside the diagram. Path
+ * resolution lives in `ScriptVariableManifestService.resolveManifestPath`.
  *
  * The parser deliberately never throws. A malformed or hand-edited manifest must
  * not break completion for the whole diagram, so any structural problem (bad

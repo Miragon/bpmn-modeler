@@ -1,5 +1,6 @@
 import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
 import { EDITOR_ICON_SVG } from "./editorIcon";
+import { readScriptTaskFormat } from "./scriptModel";
 
 /**
  * bpmn-js context pad provider that adds an "Edit Script" entry for
@@ -73,8 +74,7 @@ class ScriptTaskContextPadProvider {
                 title: "Edit Script",
                 action: {
                     click: () => {
-                        const scriptFormat =
-                            bo.get("camunda:scriptFormat") || bo.get("scriptFormat") || "";
+                        const scriptFormat = readScriptTaskFormat(bo);
                         const content = bo.script || "";
 
                         this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {

@@ -14,6 +14,15 @@ const showSiteFooter = computed(() =>
     <Layout>
         <template #nav-bar-content-after>
             <div class="nav-extras">
+                <a
+                    class="demo-btn"
+                    href="https://miragon-bpmn-modeler-demo.netlify.app"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <svg class="play-ico" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                    Live demo
+                </a>
                 <a class="install-btn" :href="withBase('/download')">
                     <span class="ico">↓</span> Install
                 </a>
@@ -35,6 +44,15 @@ const showSiteFooter = computed(() =>
                 <a class="btn btn-primary" :href="withBase('/download')">
                     <span class="vscode-icon" aria-hidden="true">↓</span>
                     Download
+                </a>
+                <a
+                    class="btn btn-demo"
+                    href="https://miragon-bpmn-modeler-demo.netlify.app"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <svg class="play-ico" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                    Live demo
                 </a>
                 <a
                     class="btn btn-tertiary"

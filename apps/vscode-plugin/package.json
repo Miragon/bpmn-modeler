@@ -40,7 +40,7 @@
     "displayName": "BPMN Modeler",
     "description": "Create and edit BPMN 2.0 and DMN diagrams in VS Code. Supports Camunda 7 and Camunda 8.",
     "license": "SEE LICENSE IN LICENSE",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "publisher": "miragon-gmbh",
     "homepage": "https://www.miragon.io/",
     "galleryBanner": {
@@ -135,6 +135,48 @@
                 "url": "./schemas/bpmn-vars.schema.json"
             }
         ],
+        "languages": [
+            {
+                "id": "bpmn",
+                "aliases": [
+                    "BPMN"
+                ],
+                "extensions": [
+                    ".bpmn"
+                ],
+                "icon": {
+                    "light": "./icons/bpmn-light.svg",
+                    "dark": "./icons/bpmn-dark.svg"
+                },
+                "configuration": "./syntaxes/xml.language-configuration.json"
+            },
+            {
+                "id": "dmn",
+                "aliases": [
+                    "DMN"
+                ],
+                "extensions": [
+                    ".dmn"
+                ],
+                "icon": {
+                    "light": "./icons/dmn-light.svg",
+                    "dark": "./icons/dmn-dark.svg"
+                },
+                "configuration": "./syntaxes/xml.language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "bpmn",
+                "scopeName": "text.xml.bpmn",
+                "path": "./syntaxes/bpmn.tmLanguage.json"
+            },
+            {
+                "language": "dmn",
+                "scopeName": "text.xml.dmn",
+                "path": "./syntaxes/dmn.tmLanguage.json"
+            }
+        ],
         "customEditors": [
             {
                 "id": "bpmn-modeler.bpmn",
@@ -159,6 +201,12 @@
                 "priority": "default"
             }
         ],
+        "configurationDefaults": {
+            "workbench.editorAssociations": {
+                "*.bpmn": "bpmn-modeler.bpmn",
+                "*.dmn": "bpmn-modeler.dmn"
+            }
+        },
         "viewsContainers": {
             "activitybar": [
                 {
@@ -181,62 +229,99 @@
         "commands": [
             {
                 "command": "bpmn-modeler.toggleTextEditor",
-                "title": "BPMN Modeler: Toggle Standard Text Editor",
+                "title": "Toggle Standard Text Editor",
+                "category": "Miragon BPMN Modeler",
                 "icon": "$(notebook-mimetype)"
             },
             {
                 "command": "bpmn-modeler.openLoggingConsole",
-                "title": "BPMN Modeler: Display Logging Information",
+                "title": "Display Logging Information",
+                "category": "Miragon BPMN Modeler",
                 "icon": "$(callstack-view-session)"
             },
             {
                 "command": "bpmn-modeler.copyDiagramAsSvg",
-                "title": "BPMN Modeler: Copy Diagram as SVG"
+                "title": "Copy Diagram as SVG",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.saveDiagramAsSvgCommand",
-                "title": "BPMN Modeler: Save Diagram as SVG"
+                "title": "Save Diagram as SVG",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.openAllScriptTasks",
+                "title": "Generate Script Files for Script Tasks",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.deployDiagram",
-                "title": "BPMN Modeler: Deploy Diagram",
+                "title": "Deploy Diagram",
+                "category": "Miragon BPMN Modeler",
                 "icon": "$(rocket)"
             },
             {
                 "command": "bpmn-modeler.changeEngineVersion",
-                "title": "BPMN Modeler: Change Engine Version"
+                "title": "Change Engine Version",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.migrateAllDiagrams",
-                "title": "BPMN Modeler: Migrate All BPMN Diagrams"
+                "title": "Migrate All BPMN Diagrams",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.changeLanguage",
-                "title": "BPMN Modeler: Change Modeler Language"
+                "title": "Change Modeler Language",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.addMarketplace",
-                "title": "BPMN Modeler: Add Marketplace"
+                "title": "Add Marketplace",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.updateMarketplaces",
-                "title": "BPMN Modeler: Update Marketplaces"
+                "title": "Update Marketplaces",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.removeMarketplace",
-                "title": "BPMN Modeler: Remove Marketplace"
+                "title": "Remove Marketplace",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.selectForCompare",
-                "title": "BPMN Modeler: Select for Compare"
+                "title": "Select for Compare",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.compareWithSelected",
-                "title": "BPMN Modeler: Compare with Selected"
+                "title": "Compare with Selected",
+                "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.compareSelected",
-                "title": "BPMN Modeler: Compare Selected"
+                "title": "Compare Selected",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.newBpmnModel",
+                "title": "New BPMN Model",
+                "shortTitle": "BPMN Model",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.newDmnModel",
+                "title": "New DMN Model",
+                "shortTitle": "DMN Model",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.reloadModeler",
+                "title": "Reload Modeler",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(refresh)"
             }
         ],
         "keybindings": [
@@ -265,6 +350,10 @@
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {
+                    "command": "bpmn-modeler.openAllScriptTasks",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
                     "command": "bpmn-modeler.deployDiagram",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
@@ -278,6 +367,10 @@
                 },
                 {
                     "command": "bpmn-modeler.changeLanguage",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.reloadModeler",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {
@@ -320,6 +413,16 @@
                     "command": "bpmn-modeler.deployDiagram",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                }
+            ],
+            "file/newFile": [
+                {
+                    "command": "bpmn-modeler.newBpmnModel",
+                    "group": "file"
+                },
+                {
+                    "command": "bpmn-modeler.newDmnModel",
+                    "group": "file"
                 }
             ]
         },

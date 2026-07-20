@@ -59,4 +59,30 @@ describe("ScriptLanguage", () => {
             ]);
         });
     });
+
+    describe("fromExtension", () => {
+        it.each([
+            ["js", "javascript"],
+            ["groovy", "groovy"],
+            ["py", "python"],
+            ["rb", "ruby"],
+        ])("maps the %s extension back to its language", (extension, languageId) => {
+            const language = ScriptLanguage.fromExtension(extension);
+            expect(language?.languageId).toBe(languageId);
+            expect(language?.extension).toBe(extension);
+        });
+
+        it("normalizes case and whitespace before matching", () => {
+            expect(ScriptLanguage.fromExtension("  GROOVY ")?.languageId).toBe("groovy");
+        });
+
+        // `ts`/`json` back the ambient files (`camunda.d.ts`, `jsconfig.json`);
+        // they must not resolve, so adoption skips them rather than tracking them.
+        it.each(["ts", "json", "txt", "", "javascript"])(
+            "returns undefined for the non-language extension %o",
+            (extension) => {
+                expect(ScriptLanguage.fromExtension(extension)).toBeUndefined();
+            },
+        );
+    });
 });

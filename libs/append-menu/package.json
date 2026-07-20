@@ -3,7 +3,8 @@
     "version": "0.0.1",
     "private": true,
     "scripts": {
-        "build": "tsc --noEmit"
+        "build": "tsc --noEmit",
+        "test": "vitest run"
     },
     "dependencies": {
         "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
@@ -14,6 +15,7 @@
     },
     "devDependencies": {
         "bpmn-js": "18.19.0",
-        "typescript": "6.0.3"
+        "typescript": "6.0.3",
+        "vitest": "4.1.9"
     }
 }

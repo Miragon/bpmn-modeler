@@ -259,6 +259,43 @@ export class UpdateScriptContentQuery extends Query {
 }
 
 /**
+ * Identifies a single inline script that currently has an editor tab open on
+ * the host, so the webview can lock the matching properties-panel field.
+ *
+ * `fileName` is the host editor's tab name (last URI/path segment) — shown in
+ * the "being edited in …" hint so the user knows which tab owns the write.
+ * The `(elementId, kind, listenerIndex)` triple is the same addressing scheme
+ * {@link UpdateScriptContentQuery} uses, so the webview can key the lock on it.
+ */
+export interface OpenScriptEditorRef {
+    readonly elementId: string;
+    readonly kind: ScriptKind;
+    readonly listenerIndex: number | undefined;
+    readonly fileName: string;
+}
+
+/**
+ * Broadcasts the host's *full* set of currently-open inline-script editors for
+ * one BPMN editor so the webview can make the matching properties-panel script
+ * fields read-only (single-writer arbitration): while a script tab owns the
+ * content, a panel edit would be silently clobbered by the next keystroke
+ * streamed from that tab.
+ *
+ * A full-set broadcast (not a delta) is sent on every open/close/handshake:
+ * the webview reloads whenever the host hides and re-shows it, wiping any
+ * incremental lock state, so only an idempotent replace stays correct across
+ * reloads. An empty array means nothing is open — the panel is fully editable.
+ */
+export class UpdateOpenScriptEditorsQuery extends Query {
+    public readonly openScripts: OpenScriptEditorRef[];
+
+    constructor(openScripts: OpenScriptEditorRef[]) {
+        super("UpdateOpenScriptEditorsQuery");
+        this.openScripts = openScripts;
+    }
+}
+
+/**
  * Delivers the user's language selection to the webview for live translation.
  */
 export class LanguageQuery extends Query {
@@ -513,7 +550,8 @@ export class SetTextClipboardCommand extends Command {
  * Sent by the BPMN webview when the user activates "Edit Script" on a
  * scriptable element (script task, execution listener, or task listener).
  *
- * The host opens the inline script in a virtual `bpmn-script://` editor and
+ * The host opens the inline script in an editor tab (backed by a real file
+ * under the config folder's `tmp/scripting/` directory) and
  * streams edits back via {@link UpdateScriptContentQuery}. {@link kind} and
  * {@link listenerIndex} together address which script's content is being
  * edited so the host can supply the correct type stubs and the webview can
@@ -558,6 +596,93 @@ export class OpenScriptEditorCommand extends Command {
         this.scriptFormat = scriptFormat;
         this.content = content;
         this.variables = variables;
+    }
+}
+
+/**
+ * Host → webview: asks the active BPMN editor for every `bpmn:ScriptTask` that
+ * carries an inline script, so the "Generate Script Files for Script Tasks"
+ * command can materialise them all at once. Carries no payload — the webview
+ * owns the element scan and replies with a single {@link OpenScriptEditorsCommand}.
+ */
+export class OpenAllScriptTasksQuery extends Query {
+    constructor() {
+        super("OpenAllScriptTasksQuery");
+    }
+}
+
+/**
+ * One inline script-task entry in an {@link OpenScriptEditorsCommand} batch.
+ *
+ * Only `script-task` is in scope for the bulk command, so — unlike
+ * {@link OpenScriptEditorCommand} — there is no `kind`/`listenerIndex`/
+ * `eventName`; the host fills those in with the script-task defaults.
+ */
+export interface ScriptTaskScript {
+    readonly elementId: string;
+    readonly scriptFormat: string;
+    readonly content: string;
+}
+
+/**
+ * Webview → host: the batch reply to {@link OpenAllScriptTasksQuery}, carrying
+ * every inline script task in the diagram plus one shared process-variable model.
+ *
+ * A single bulk reply (rather than the webview re-firing N
+ * {@link OpenScriptEditorCommand}s) lets the host materialise the script files
+ * sequentially with a `for … await` loop: {@link ModelerEditorController}
+ * dispatches incoming messages concurrently, so N separate commands would stack
+ * the per-script format quick-picks. The command only writes files to disk — no
+ * tabs are opened; live sync begins when the user opens a generated file.
+ * {@link variables} is sent once because it is identical for every script in the
+ * same diagram.
+ */
+export class OpenScriptEditorsCommand extends Command {
+    public readonly scripts: ScriptTaskScript[];
+
+    public readonly variables: VariableDef[];
+
+    constructor(scripts: ScriptTaskScript[], variables: VariableDef[] = []) {
+        super("OpenScriptEditorsCommand");
+        this.scripts = scripts;
+        this.variables = variables;
+    }
+}
+
+/**
+ * Sent by the BPMN webview when a script's content changed in the *model*
+ * while a host editor tab owns it — canvas undo/redo or an external document
+ * reload rewrites the moddle property underneath the tab. The host overwrites
+ * the open buffer with {@link content} so the tab reflects what the user asked
+ * for (single-writer: the model side wins for non-keystroke mutations).
+ *
+ * `content === undefined` means the element or its script no longer exists
+ * (deletion, element replace): the host closes the tab and deletes the file.
+ *
+ * The webview only posts on a real difference against the last content it
+ * applied or received for that script, so keystrokes the tab itself streamed
+ * in via {@link UpdateScriptContentQuery} never echo back.
+ */
+export class UpdateScriptSourceCommand extends Command {
+    public readonly elementId: string;
+
+    public readonly kind: ScriptKind;
+
+    public readonly listenerIndex: number | undefined;
+
+    public readonly content: string | undefined;
+
+    constructor(
+        elementId: string,
+        kind: ScriptKind,
+        listenerIndex: number | undefined,
+        content: string | undefined,
+    ) {
+        super("UpdateScriptSourceCommand");
+        this.elementId = elementId;
+        this.kind = kind;
+        this.listenerIndex = listenerIndex;
+        this.content = content;
     }
 }
 

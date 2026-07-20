@@ -11,6 +11,7 @@
     "@miragon/bpmn-modeler-shared": "workspace:*",
     "bpmn-js-differ": "3.2.0",
     "bpmn-moddle": "10.0.0",
+    "camunda-bpmn-moddle": "7.0.1",
     "tslib": "2.8.1"
   },
   "devDependencies": {

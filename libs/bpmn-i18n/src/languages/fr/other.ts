@@ -16,6 +16,9 @@
 
 // This file contains translations that were used in other components.
 const translations: Record<string, string> = {
+    "Read-only": "Lecture seule",
+    "Being edited in": "En cours d'édition dans",
+    "click to focus": "cliquer pour afficher",
     "Open minimap": "Ouvrir la mini-carte",
     "Open properties panel": "Ouvrir le panneau de propriétés",
     "Close properties panel": "Fermer le panneau de propriétés",

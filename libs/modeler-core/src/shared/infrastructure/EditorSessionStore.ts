@@ -163,6 +163,21 @@ export class EditorSessionStore {
         return this.requireHandle(editorId).postMessage(message);
     }
 
+    /**
+     * Restarts the addressed editor's webview so it re-requests document,
+     * element templates, and settings — the workaround for hosts/setups where
+     * the element-template file watcher never fires (WSL + symlinked workspace).
+     *
+     * @throws If the host's handle does not support in-place reload.
+     */
+    reload(editorId: string): void {
+        const handle = this.requireHandle(editorId);
+        if (!handle.reload) {
+            throw new Error("This host does not support reloading the editor.");
+        }
+        handle.reload();
+    }
+
     requireHandle(editorId: string): EditorHandle {
         const handle = this.editors.get(editorId);
         if (!handle) {

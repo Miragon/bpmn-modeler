@@ -14,9 +14,20 @@ import {
     BpmnModelerSetting,
     Engine,
     NoModelerError,
+    OpenScriptEditorRef,
     ScriptKind,
+    ScriptTaskScript,
 } from "@miragon/bpmn-modeler-shared";
 import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
+import { OpenScriptEditorsStore, OpenScriptEditorsStoreModule } from "./openScriptEditorsStore";
+import { ScriptLockPropertiesProviderModule } from "./scriptLockPropertiesProvider";
+import { collectInlineScriptTasks, findListenerAt } from "./scriptModel";
+import {
+    SCRIPT_SOURCE_CHANGED_EVENT,
+    ScriptSourceChangedEvent,
+    ScriptSourceWatcher,
+    ScriptSourceWatcherModule,
+} from "./scriptSourceWatcher";
 import {
     OPEN_SCRIPT_EDITOR_EVENT,
     OpenScriptEditorEvent,
@@ -130,6 +141,9 @@ export class BpmnModeler {
                         TransactionBoundariesModule,
                         ScriptTaskContextPadModule,
                         ScriptEditorButtonsModule,
+                        OpenScriptEditorsStoreModule,
+                        ScriptLockPropertiesProviderModule,
+                        ScriptSourceWatcherModule,
                         ...extra,
                     ],
                 });
@@ -194,6 +208,18 @@ export class BpmnModeler {
      */
     getDefinitions(): any {
         return this.getModeler().getDefinitions();
+    }
+
+    /**
+     * Returns every `bpmn:ScriptTask` in the diagram that carries an inline
+     * script, for the host's "Generate Script Files for Script Tasks" command. The
+     * scan and filtering rules live in {@link collectInlineScriptTasks} so the
+     * bulk path and the single-open path stay in agreement.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    collectInlineScriptTasks(): ScriptTaskScript[] {
+        return collectInlineScriptTasks(this.getModeler().get<any>("elementRegistry"));
     }
 
     /**
@@ -422,6 +448,14 @@ export class BpmnModeler {
             return;
         }
 
+        // Pre-declare this write as tab-originated *before* the moddle write:
+        // `commandStack.changed` fires synchronously inside it, and the watcher
+        // must see the new content as its baseline or it would report our own
+        // keystroke back to the host as a model-side change.
+        modeler
+            .get<ScriptSourceWatcher>("scriptSourceWatcher", false)
+            ?.noteApplied(elementId, kind, listenerIndex, content);
+
         if (kind === "script-task") {
             modeling.updateModdleProperties(element, element.businessObject, {
                 script: content,
@@ -442,6 +476,17 @@ export class BpmnModeler {
     }
 
     /**
+     * Hands the host's current set of open inline-script editors to the
+     * {@link OpenScriptEditorsStore}, which locks the matching properties-panel
+     * script fields (single-writer arbitration). C7-only: the store/provider
+     * modules are not registered for C8, so the service is resolved defensively
+     * and the call is a no-op there.
+     */
+    applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
+        this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
+    }
+
+    /**
      * Registers a callback for the unified `scriptEditor.open` event.
      *
      * Three sources fire it: the canvas context pad on script tasks
@@ -454,6 +499,21 @@ export class BpmnModeler {
         this.getModeler()
             .get<any>("eventBus")
             .on(OPEN_SCRIPT_EDITOR_EVENT, (event: OpenScriptEditorEvent) => {
+                callback(event);
+            });
+    }
+
+    /**
+     * Registers a callback for the {@link ScriptSourceWatcher}'s divergence
+     * event, fired when an open script's model content changed underneath its
+     * editor tab (canvas undo/redo, document reload, element deletion). The
+     * entry point forwards it to the host, which overwrites — or, for a
+     * deleted element, closes — the tab.
+     */
+    onScriptSourceChanged(callback: (data: ScriptSourceChangedEvent) => void): void {
+        this.getModeler()
+            .get<any>("eventBus")
+            .on(SCRIPT_SOURCE_CHANGED_EVENT, (event: ScriptSourceChangedEvent) => {
                 callback(event);
             });
     }
@@ -530,25 +590,4 @@ export class UnsupportedEngineError extends Error {
     constructor(engine: string) {
         super(`Unsupported engine: ${engine}`);
     }
-}
-
-/**
- * Returns the `index`-th listener of `listenerType` from the element's
- * extension elements, or undefined if not found.
- *
- * Mirrors the upstream filtering bpmn-js-properties-panel does in
- * `ExecutionListenerProps` / `TaskListenerProps` so indices stay aligned
- * with what the user sees in the properties panel.
- */
-function findListenerAt(
-    bo: any,
-    listenerType: "camunda:ExecutionListener" | "camunda:TaskListener",
-    index: number | undefined,
-): any {
-    if (index === undefined) {
-        return undefined;
-    }
-    const values = bo?.extensionElements?.values ?? [];
-    const filtered = values.filter((v: any) => v.$type === listenerType);
-    return filtered[index];
 }

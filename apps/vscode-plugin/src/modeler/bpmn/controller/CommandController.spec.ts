@@ -16,25 +16,62 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({
 // Hoisted because `vi.mock` is hoisted above imports; the factory closes over
 // these so each test can drive the vscode surface the controller touches.
 const showQuickPickMock = vi.fn();
+const showSaveDialogMock = vi.fn();
+const executeCommandMock = vi.fn();
 const clipboardWriteTextMock = vi.fn();
 const configUpdateMock = vi.fn();
 const getConfigurationMock = vi.fn((_section: string) => ({ update: configUpdateMock }));
 const fsWriteFileMock = vi.fn();
 const uriFileMock = vi.fn((path: string) => ({ scheme: "file", path, fsPath: path }));
+// Mutable so tests can toggle "no folder open" vs. a folder-backed default URI.
+const workspaceState: { folders: readonly { uri: unknown }[] | undefined } = { folders: undefined };
+
+/**
+ * Minimal `Uri`-like fake: enough `path`/`with` surface for the new-model
+ * commands, which build a save target and re-suffix it when the dialog omits
+ * the extension.
+ */
+function fakeUri(path: string): {
+    scheme: string;
+    path: string;
+    fsPath: string;
+    with: (change: { path: string }) => ReturnType<typeof fakeUri>;
+} {
+    return {
+        scheme: "file",
+        path,
+        fsPath: path,
+        with: (change) => fakeUri(change.path),
+    };
+}
 
 vi.mock("vscode", () => ({
-    commands: { registerCommand: vi.fn() },
-    window: { showQuickPick: (...args: unknown[]) => showQuickPickMock(...args) },
+    commands: {
+        registerCommand: vi.fn(),
+        executeCommand: (...args: unknown[]) => executeCommandMock(...args),
+    },
+    window: {
+        showQuickPick: (...args: unknown[]) => showQuickPickMock(...args),
+        showSaveDialog: (...args: unknown[]) => showSaveDialogMock(...args),
+    },
     workspace: {
+        get workspaceFolders() {
+            return workspaceState.folders;
+        },
         getConfiguration: (...args: unknown[]) => getConfigurationMock(...(args as [string])),
         fs: { writeFile: (...args: unknown[]) => fsWriteFileMock(...args) },
     },
     env: { clipboard: { writeText: (...args: unknown[]) => clipboardWriteTextMock(...args) } },
-    Uri: { file: (path: string) => uriFileMock(path) },
+    Uri: {
+        file: (path: string) => uriFileMock(path),
+        joinPath: (base: { path: string }, ...segments: string[]) =>
+            fakeUri(`${base.path}/${segments.join("/")}`),
+    },
     ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
 }));
 
 import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
+import { getLatestVersion, UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import { CommandController } from "./CommandController";
 
@@ -51,6 +88,7 @@ function createController() {
     const editorStore = {
         getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
         postMessage: vi.fn().mockResolvedValue(true),
+        reload: vi.fn(),
         subscribeToActiveEditorMessage: vi.fn((cb: (message: unknown) => void) => {
             captured.onMessage = cb;
             const dispose = vi.fn();
@@ -63,6 +101,7 @@ function createController() {
     const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
+    const picker = { pickExecutionPlatform: vi.fn() };
 
     const controller = new CommandController(
         editorStore as never,
@@ -71,6 +110,7 @@ function createController() {
         textEditor as never,
         bpmnService as never,
         migrationSvc as never,
+        picker as never,
     );
 
     return {
@@ -81,6 +121,7 @@ function createController() {
         textEditor,
         bpmnService,
         migrationSvc,
+        picker,
         captured,
         subscriptionDisposes,
     };
@@ -95,6 +136,7 @@ function svgReply(svg?: string): GetDiagramAsSVGCommand {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    workspaceState.folders = undefined;
 });
 
 describe("CommandController.toggle", () => {
@@ -105,6 +147,17 @@ describe("CommandController.toggle", () => {
 
         expect(vsDocument.getFilePath).toHaveBeenCalledWith("editor-1");
         expect(textEditor.toggle).toHaveBeenCalledWith("/work/diagram.bpmn");
+        expect(editorStore.getActiveEditorId).toHaveBeenCalled();
+    });
+});
+
+describe("CommandController.reloadModeler", () => {
+    it("reloads the active editor's webview", () => {
+        const { controller, editorStore } = createController();
+
+        controller.reloadModeler();
+
+        expect(editorStore.reload).toHaveBeenCalledWith("editor-1");
         expect(editorStore.getActiveEditorId).toHaveBeenCalled();
     });
 });
@@ -310,5 +363,77 @@ describe("CommandController command error surfacing", () => {
 
         await expect(controller.changeEngineVersion()).rejects.toThrow(failure);
         expect(notifier.logError).toHaveBeenCalledWith(failure);
+    });
+});
+
+describe("CommandController.newBpmnModel", () => {
+    it("writes and opens nothing when the save dialog is dismissed", async () => {
+        const { controller, picker } = createController();
+        showSaveDialogMock.mockResolvedValue(undefined);
+
+        await controller.newBpmnModel();
+
+        expect(picker.pickExecutionPlatform).not.toHaveBeenCalled();
+        expect(fsWriteFileMock).not.toHaveBeenCalled();
+        expect(executeCommandMock).not.toHaveBeenCalled();
+    });
+
+    it("scaffolds a c7 model at the chosen target and opens it in the bpmn editor", async () => {
+        const { controller, picker } = createController();
+        const target = fakeUri("/work/new-diagram.bpmn");
+        showSaveDialogMock.mockResolvedValue(target);
+        picker.pickExecutionPlatform.mockResolvedValue("c7");
+
+        await controller.newBpmnModel();
+
+        const [uriArg, bufferArg] = fsWriteFileMock.mock.calls[0];
+        expect(uriArg).toBe(target);
+        const xml = (bufferArg as Buffer).toString();
+        // Namespace + latest-version marker prove the c7 template was seeded.
+        expect(xml).toContain("xmlns:camunda");
+        expect(xml).toContain(`modeler:executionPlatformVersion="${getLatestVersion("c7")}"`);
+        expect(executeCommandMock).toHaveBeenCalledWith(
+            "vscode.openWith",
+            target,
+            "bpmn-modeler.bpmn",
+        );
+    });
+
+    it("creates nothing and does not rethrow when the engine pick is cancelled", async () => {
+        const { controller, picker } = createController();
+        showSaveDialogMock.mockResolvedValue(fakeUri("/work/new-diagram.bpmn"));
+        picker.pickExecutionPlatform.mockRejectedValue(new UserCancelledError());
+
+        await expect(controller.newBpmnModel()).resolves.toBeUndefined();
+        expect(fsWriteFileMock).not.toHaveBeenCalled();
+        expect(executeCommandMock).not.toHaveBeenCalled();
+    });
+});
+
+describe("CommandController.newDmnModel", () => {
+    it("scaffolds a dmn model at the chosen target and opens it in the dmn editor", async () => {
+        const { controller } = createController();
+        const target = fakeUri("/work/new-diagram.dmn");
+        showSaveDialogMock.mockResolvedValue(target);
+
+        await controller.newDmnModel();
+
+        const xml = (fsWriteFileMock.mock.calls[0][1] as Buffer).toString();
+        expect(xml).toContain("DMN/20191111/MODEL");
+        expect(executeCommandMock).toHaveBeenCalledWith(
+            "vscode.openWith",
+            target,
+            "bpmn-modeler.dmn",
+        );
+    });
+
+    it("appends the extension when the dialog returns a path without one", async () => {
+        const { controller } = createController();
+        showSaveDialogMock.mockResolvedValue(fakeUri("/work/new-diagram"));
+
+        await controller.newDmnModel();
+
+        const [uriArg] = fsWriteFileMock.mock.calls[0];
+        expect((uriArg as { path: string }).path).toBe("/work/new-diagram.dmn");
     });
 });

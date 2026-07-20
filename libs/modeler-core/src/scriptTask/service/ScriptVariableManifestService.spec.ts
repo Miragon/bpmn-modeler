@@ -101,6 +101,62 @@ describe("ScriptVariableManifestService", () => {
         expect(await service(ws).load(DOCUMENT)).toEqual([]);
     });
 
+    it("resolves the manifest path under <configFolder>/vars/ mirroring the diagram path", async () => {
+        expect(await service(ws).resolveManifestPath(DOCUMENT)).toBe(MANIFEST_PATH);
+    });
+
+    describe("loadWithStatus", () => {
+        it("reports found: true with the variables when the manifest is present", async () => {
+            ws.files.set(
+                MANIFEST_PATH,
+                JSON.stringify({ variables: [{ name: "orderId", type: "String" }] }),
+            );
+
+            const result = await service(ws).loadWithStatus(DOCUMENT);
+
+            expect(result).toEqual({
+                manifestPath: MANIFEST_PATH,
+                found: true,
+                variables: [
+                    {
+                        name: "orderId",
+                        origin: "declared in diagram.bpmn.vars.json",
+                        typeHint: "String",
+                        description: undefined,
+                        confidence: "authored",
+                    },
+                ],
+            });
+        });
+
+        it("reports found: false with [] when the manifest is absent", async () => {
+            expect(await service(ws).loadWithStatus(DOCUMENT)).toEqual({
+                manifestPath: MANIFEST_PATH,
+                found: false,
+                variables: [],
+            });
+        });
+
+        it("reports found: true with [] for a malformed manifest (present but unparseable)", async () => {
+            ws.files.set(MANIFEST_PATH, "{ not json");
+
+            expect(await service(ws).loadWithStatus(DOCUMENT)).toEqual({
+                manifestPath: MANIFEST_PATH,
+                found: true,
+                variables: [],
+            });
+        });
+    });
+
+    it("propagates a non-FileNotFound read error from load and loadWithStatus", async () => {
+        // Pins the contract this fix hangs on: only FileNotFound means "no
+        // manifest"; a real read failure must reach the host to be surfaced.
+        ws.readFile = () => Promise.reject(new Error("EACCES"));
+
+        await expect(service(ws).load(DOCUMENT)).rejects.toThrow(/EACCES/);
+        await expect(service(ws).loadWithStatus(DOCUMENT)).rejects.toThrow(/EACCES/);
+    });
+
     it("watches the config folder for the manifest path", async () => {
         const onChange = vi.fn();
         await service(ws).createWatcher(DOCUMENT, onChange);

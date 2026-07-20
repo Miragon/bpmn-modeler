@@ -182,8 +182,13 @@ describe("NodeWorkspace folder lookups", () => {
  * recursive `fs.watch`.
  */
 
-/** The element-templates glob the adapter compiles to match changed paths against. */
-const PATTERN = "**/.camunda/element-templates/**/*.json";
+/**
+ * The element-templates glob the adapter compiles to match changed paths
+ * against — extension-less so a one-shot folder copy (which can surface only as
+ * a directory-create event) still triggers a refresh. Kept in sync with
+ * `ArtifactService.createWatcher`.
+ */
+const PATTERN = "**/.camunda/element-templates/**";
 
 // chokidar needs a moment to arm its watchers; the adapter debounces ~50ms on
 // top of that. Timeouts are deliberately generous to keep CI off the flake line.
@@ -267,7 +272,7 @@ describe("NodeWorkspace.createWatcher", () => {
         expect(onDelete).toHaveBeenCalled();
     }, 15000);
 
-    it("ignores non-json files and json files outside element-templates", async () => {
+    it("ignores json files outside element-templates", async () => {
         const onCreate = vi.fn();
         const onChange = vi.fn();
         handle = workspace.createWatcher(root, PATTERN, { onCreate, onChange });
@@ -276,13 +281,26 @@ describe("NodeWorkspace.createWatcher", () => {
         // JSON under the config folder but not in element-templates → ignored.
         await fs.mkdir(join(root, ".camunda"), { recursive: true });
         await fs.writeFile(join(root, ".camunda", "config.json"), "{}", "utf8");
-        // Non-JSON inside element-templates → ignored.
-        await fs.mkdir(templatesDir, { recursive: true });
-        await fs.writeFile(join(templatesDir, "notes.txt"), "hi", "utf8");
 
         await sleep(SETTLE_MS);
         expect(onCreate).not.toHaveBeenCalled();
         expect(onChange).not.toHaveBeenCalled();
+    }, 15000);
+
+    it("fires for any file inside element-templates, not only json", async () => {
+        // The extension-less glob deliberately over-fires: a one-shot folder
+        // copy can surface as a bare directory event, so the watcher must catch
+        // more than `*.json`. The refresh re-scans from disk and filters `.json`
+        // itself, so a non-json event is a harmless redundant re-push.
+        const onCreate = vi.fn();
+        handle = workspace.createWatcher(root, PATTERN, { onCreate });
+        await sleep(SETTLE_MS);
+
+        await fs.mkdir(templatesDir, { recursive: true });
+        await fs.writeFile(join(templatesDir, "notes.txt"), "hi", "utf8");
+
+        await waitForCall(onCreate);
+        expect(onCreate).toHaveBeenCalled();
     }, 15000);
 
     it("stops firing after dispose", async () => {

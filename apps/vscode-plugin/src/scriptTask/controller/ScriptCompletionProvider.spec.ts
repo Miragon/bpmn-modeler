@@ -13,13 +13,15 @@ import { matchMemberAccess, parseKindFromUri } from "@miragon/bpmn-modeler-core"
  */
 describe("parseKindFromUri", () => {
     it("recognises a script-task slug", () => {
-        expect(parseKindFromUri("/abc/Task_1/script-task/Task_1.groovy")).toBe("script-task");
+        expect(
+            parseKindFromUri("/ws/.camunda/tmp/scripting/abc/Task_1/script-task/Task_1.groovy"),
+        ).toBe("script-task");
     });
 
     it("recognises an execution-listener slug with index and event", () => {
         expect(
             parseKindFromUri(
-                "/abc/Task_1/execution-listener-0-start/Task_1.execution-start.groovy",
+                "/ws/.camunda/tmp/scripting/abc/Task_1/execution-listener-0-start/Task_1.execution-start.groovy",
             ),
         ).toBe("execution-listener");
     });
@@ -27,17 +29,19 @@ describe("parseKindFromUri", () => {
     it("recognises a task-listener slug", () => {
         expect(
             parseKindFromUri(
-                "/abc/UserTask_1/task-listener-2-create/UserTask_1.task-create-2.groovy",
+                "/ws/.camunda/tmp/scripting/abc/UserTask_1/task-listener-2-create/UserTask_1.task-create-2.groovy",
             ),
         ).toBe("task-listener");
     });
 
     it("returns undefined for an unknown slug", () => {
-        expect(parseKindFromUri("/abc/Task_1/unknown-kind/Task_1.groovy")).toBeUndefined();
+        expect(
+            parseKindFromUri("/ws/.camunda/tmp/scripting/abc/Task_1/unknown-kind/Task_1.groovy"),
+        ).toBeUndefined();
     });
 
     it("returns undefined when the path is too shallow", () => {
-        expect(parseKindFromUri("/Task_1.groovy")).toBeUndefined();
+        expect(parseKindFromUri("/ws/tmp/scripting/Task_1.groovy")).toBeUndefined();
     });
 });
 

@@ -4,14 +4,13 @@ import { ScriptKind } from "@miragon/bpmn-modeler-shared";
  * Domain model describing the Camunda 7 JSR-223 script execution context.
  *
  * Single source of truth for the bean/method API surface exposed to inline
- * scripts. {@link ScriptCompletionProvider} reads this catalog to drive
- * autocomplete for every supported language (JavaScript, Groovy, Python,
- * Ruby) — VS Code's `tsserver` doesn't enumerate the `bpmn-script://`
- * virtual filesystem, so we can't rely on TypeScript ambient `.d.ts`
- * stubs and route all four languages through the same provider.
+ * scripts, consumed through three renderers: {@link ScriptCompletionProvider}
+ * for Groovy/Python/Ruby completion in VS Code, `generateCamundaDts` for the
+ * ambient `camunda.d.ts` tsserver serves to JavaScript, and the bridge's
+ * `script/open` payload feeding IntelliJ's completion contributors.
  *
- * Adding a new method: extend the appropriate `*_TYPE.methods` list. The
- * completion provider picks up the change automatically.
+ * Adding a new method: extend the appropriate `*_TYPE.methods` list. All
+ * renderers pick up the change automatically.
  */
 
 /**
@@ -37,12 +36,20 @@ export interface MethodDef {
 
 /**
  * A global function callable at script root with no receiver (e.g. Camunda
- * SPIN's `S(…)` / `JSON(…)`). Structurally identical to {@link MethodDef} —
- * the distinction is purely positional: a {@link MethodDef} is reached through
+ * SPIN's `S(…)` / `JSON(…)`). Structurally a {@link MethodDef} — the
+ * distinction is purely positional: a {@link MethodDef} is reached through
  * `<receiver>.method(…)`, a `GlobalFunctionDef` is reached bare. Sharing the
  * shape keeps a single renderer and one snippet convention.
  */
-export type GlobalFunctionDef = MethodDef;
+export interface GlobalFunctionDef extends MethodDef {
+    /**
+     * Groovy import statement that makes the bare symbol resolvable. Camunda's
+     * `SpinScriptEnv` prepends the SPIN static import at runtime, so scripts run
+     * without it — completion still offers to insert it so the script is
+     * self-contained and external Groovy tooling can resolve the symbol.
+     */
+    readonly groovyImport?: string;
+}
 
 /**
  * Describes a complex Camunda type (e.g. `DelegateExecution`) — the bag
@@ -55,6 +62,10 @@ export interface TypeDef {
     readonly description: string;
     // Methods callable on instances of this type.
     readonly methods: readonly MethodDef[];
+    // Groovy import that resolves the bare type name (see
+    // GlobalFunctionDef.groovyImport). Absent for context-injected types like
+    // DelegateExecution that scripts never name explicitly.
+    readonly groovyImport?: string;
 }
 
 /**
@@ -333,6 +344,7 @@ const SPIN_JSON_NODE_TYPE: TypeDef = {
     name: "SpinJsonNode",
     description: "Camunda SPIN wrapper for reading and writing JSON variables.",
     methods: SPIN_JSON_NODE_METHODS,
+    groovyImport: "import org.camunda.spin.json.SpinJsonNode",
 };
 
 const DELEGATE_EXECUTION_TYPE: TypeDef = {
@@ -431,12 +443,14 @@ const SPIN_GLOBAL_FUNCTIONS: readonly GlobalFunctionDef[] = [
         params: [{ name: "input", type: "Object" }],
         returnType: "SpinJsonNode",
         description: "Camunda SPIN: wraps a JSON string or value as a SpinJsonNode.",
+        groovyImport: "import static org.camunda.spin.Spin.S",
     },
     {
         name: "JSON",
         params: [{ name: "input", type: "Object" }],
         returnType: "SpinJsonNode",
         description: "Camunda SPIN: parses a JSON string or value into a SpinJsonNode.",
+        groovyImport: "import static org.camunda.spin.Spin.JSON",
     },
 ];
 

@@ -1,0 +1,16 @@
+# Netlify config for the static BPMN/DMN modeler demo.
+
+[build]
+  base = "apps/demo-webapp"
+  command = "cd ../.. && corepack enable && YARN_ENABLE_SCRIPTS=true corepack yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-demo-webapp && corepack yarn build:demo"
+  publish = "../../dist/demo"
+
+[build.environment]
+  NODE_VERSION = "22"
+  YARN_ENABLE_SCRIPTS = "false"
+
+[[redirects]]
+  from = "/"
+  to = "/bpmn/?model=newsletter"
+  status = 302
+  force = false

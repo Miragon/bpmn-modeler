@@ -61,6 +61,7 @@ vitest.config.*.timestamp*
 docs/.vitepress/dist
 docs/.vitepress/cache
 .gstack/
-.agent/
+.agent/logs/
+.agent/settings.local.json
 .claude/logs/
 .flatpak-builder/

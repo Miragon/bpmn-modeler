@@ -4,9 +4,28 @@
  * Renders a positioned panel anchored near the trigger point (context pad
  * or palette toolbar) with a two-panel layout: templates on the left and
  * a collapsible BPMN element palette on the right.
+ *
+ * The overlay owns all filter *inputs* (search, category, template selection)
+ * and derives both columns' navigable order once (see {@link ../filtering}),
+ * driving a single keyboard highlight (see {@link ../navigation}). The panels
+ * are thin renderers. Keyboard: the search input keeps focus permanently while
+ * ↑/↓ move a highlight in the active column, ←/→ switch columns, Enter selects.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
 import type { EnrichedTemplateEntry, BpmnElementGroup, PopupMenuEntryAction } from "../types";
+import {
+    filterTemplates,
+    extractCategories,
+    processPaletteGroups,
+    flattenPaletteItems,
+} from "../filtering";
+import {
+    initialHighlight,
+    moveVertical,
+    moveHorizontal,
+    type Highlight,
+    type NavColumns,
+} from "../navigation";
 import { TemplatePanel } from "./TemplatePanel";
 import { BpmnElementPalette } from "./BpmnElementPalette";
 
@@ -52,14 +71,6 @@ function clampToCanvas(
  * Positioned panel that presents the append/create menu anchored near the
  * trigger point.
  *
- * The search bar is shared across both panels: it filters templates on the
- * left and BPMN elements on the right.  Searching for a BPMN type name
- * (e.g. "service task") also surfaces templates that apply to that type.
- *
- * Clicking a single-type template immediately creates the element.
- * Clicking a multi-type template selects it and filters the BPMN palette
- * to only show the matching element types.
- *
  * @param props.templateEntries Enriched element template entries for the left panel.
  * @param props.bpmnGroups BPMN element entries grouped by category for the right panel.
  * @param props.position Viewport coordinates to anchor the panel near.
@@ -84,6 +95,11 @@ export function AppendMenuOverlay({
     // palette so users see the full BPMN element list instead of an awkward
     // icon-only column next to an empty template panel.
     const [paletteExpanded, setPaletteExpanded] = useState(!hasTemplates);
+    // Separate transient hover-peek flag. Kept apart from `paletteExpanded`
+    // (the pinned state) so leaving the palette only collapses a hover-peek,
+    // never a palette the user pinned via chevron/keyboard/template selection.
+    const [palettePeek, setPalettePeek] = useState(false);
+    const [highlight, setHighlight] = useState<Highlight | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [panelStyle, setPanelStyle] = useState<{ left: number; top: number } | null>(null);
@@ -96,6 +112,36 @@ export function AppendMenuOverlay({
         return new Set(selectedTemplate.template.appliesTo);
     }, [selectedTemplate]);
 
+    // --- Derived, shared filter state (single source of truth) -------------
+    const filteredTemplates = useMemo(
+        () => filterTemplates(templateEntries, search, activeCategory),
+        [templateEntries, search, activeCategory],
+    );
+    const categories = useMemo(() => extractCategories(templateEntries), [templateEntries]);
+    const processedPalette = useMemo(
+        () => processPaletteGroups(bpmnGroups, favourites, search, appliesToFilter),
+        [bpmnGroups, favourites, search, appliesToFilter],
+    );
+    const paletteItems = useMemo(() => flattenPaletteItems(processedPalette), [processedPalette]);
+    // Only visible (non-hidden) items are navigable; disabled ones stay in the
+    // list so navigation can skip over them but the highlight can still land
+    // adjacent to them.
+    const paletteNav = useMemo(() => paletteItems.filter((i) => !i.hidden), [paletteItems]);
+    const navColumns = useMemo<NavColumns>(
+        () => ({
+            templates: filteredTemplates.map(() => ({ disabled: false })),
+            palette: paletteNav.map((i) => ({ disabled: i.disabled })),
+        }),
+        [filteredTemplates, paletteNav],
+    );
+
+    // Refs let the stable Escape capture listener read the latest values
+    // without re-registering on every keystroke.
+    const navColumnsRef = useRef(navColumns);
+    navColumnsRef.current = navColumns;
+    const selectedTemplateRef = useRef(selectedTemplate);
+    selectedTemplateRef.current = selectedTemplate;
+
     /**
      * Position the panel after initial render, clamped to canvas area.
      */
@@ -107,19 +153,67 @@ export function AppendMenuOverlay({
     }, [position, canvasBounds]);
 
     /**
-     * Auto-focus the search input on mount.
+     * Auto-focus the search input on mount. The input keeps focus for the
+     * whole session; navigation keydowns bubble from it up to the panel.
      */
     useEffect(() => {
         searchRef.current?.focus();
     }, []);
 
+    // A signature of the *visible* items in both columns. Changes only when
+    // filtering reshuffles membership (search/category), not when selecting a
+    // template merely toggles palette entries' disabled state — so an
+    // intentional programmatic highlight move survives a template selection.
+    const listsSignature = useMemo(
+        () =>
+            filteredTemplates.map((t) => t.id).join("|") +
+            "##" +
+            paletteNav.map((i) => i.key).join("|"),
+        [filteredTemplates, paletteNav],
+    );
+
     /**
-     * Close on Escape key.
+     * Re-seed the highlight to the first enabled item whenever the visible
+     * lists change. Default = first item (like the standard popup) so `A`
+     * then `Enter` appends the top hit immediately.
+     */
+    useEffect(() => {
+        // Re-run on membership change only; navColumns is read via ref.
+        setHighlight(initialHighlight(navColumnsRef.current));
+    }, [listsSignature]);
+
+    /**
+     * Selecting a multi-type template always leads to picking the concrete
+     * type next, so expand the palette and move the highlight to its first
+     * enabled item (icon-only highlight would be unreadable).
+     */
+    useEffect(() => {
+        if (!selectedTemplate) {
+            return;
+        }
+        setPaletteExpanded(true);
+        const idx = navColumnsRef.current.palette.findIndex((i) => !i.disabled);
+        if (idx >= 0) {
+            setHighlight({ column: "palette", index: idx });
+        }
+    }, [selectedTemplate]);
+
+    /**
+     * Staged Escape. Registered in the capture phase with `stopPropagation`
+     * so it fires before — and shields — the webview-level "Escape → focus
+     * canvas" handler. A first Escape with a template selected only clears
+     * that selection (back to the templates column); otherwise it cancels.
      */
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                e.stopPropagation();
+            if (e.key !== "Escape") {
+                return;
+            }
+            e.stopPropagation();
+            if (selectedTemplateRef.current) {
+                setSelectedTemplate(null);
+                setHighlight(initialHighlight(navColumnsRef.current));
+            } else {
                 onCancel();
             }
         };
@@ -128,10 +222,10 @@ export function AppendMenuOverlay({
     }, [onCancel]);
 
     /**
-     * Handles a template card click.
+     * Handles a template card click / Enter.
      *
-     * Single-type templates are applied immediately.
-     * Multi-type templates are selected so the palette can be filtered.
+     * Single-type templates are applied immediately. Multi-type templates are
+     * selected so the palette can be filtered (see the selection effect).
      */
     const handleTemplateClick = useCallback(
         (enriched: EnrichedTemplateEntry, event: Event) => {
@@ -147,7 +241,7 @@ export function AppendMenuOverlay({
     );
 
     /**
-     * Handles a BPMN element button click in the palette.
+     * Handles a BPMN element button click / Enter in the palette.
      *
      * If a multi-type template is selected, creates the element using
      * the template's action.  Otherwise, creates a plain BPMN element.
@@ -163,6 +257,81 @@ export function AppendMenuOverlay({
         [onSelect, selectedTemplate],
     );
 
+    /**
+     * Activates the currently highlighted item (Enter).
+     */
+    const activateHighlight = useCallback(
+        (event: Event) => {
+            if (!highlight) {
+                return;
+            }
+            if (highlight.column === "templates") {
+                const enriched = filteredTemplates[highlight.index];
+                if (enriched) {
+                    handleTemplateClick(enriched, event);
+                }
+            } else {
+                const item = paletteNav[highlight.index];
+                if (item && !item.disabled) {
+                    handleBpmnSelect(item.entry.action, event);
+                }
+            }
+        },
+        [highlight, filteredTemplates, paletteNav, handleTemplateClick, handleBpmnSelect],
+    );
+
+    /**
+     * Keyboard navigation for the whole overlay.
+     *
+     * Bound on the panel div, not the input, so the search field keeps focus
+     * while its keydowns bubble up here — the trick the diagram-js standard
+     * popup uses. ←/→ deliberately sacrifice the input's caret movement (same
+     * trade-off as the standard popup); Home/End/Backspace still work.
+     */
+    const handlePanelKeyDown = useCallback(
+        (e: KeyboardEvent) => {
+            if (!highlight) {
+                return;
+            }
+            switch (e.key) {
+                case "ArrowDown":
+                    e.preventDefault();
+                    setHighlight(moveVertical(highlight, 1, navColumns));
+                    break;
+                case "ArrowUp":
+                    e.preventDefault();
+                    setHighlight(moveVertical(highlight, -1, navColumns));
+                    break;
+                case "ArrowRight": {
+                    e.preventDefault();
+                    const next = moveHorizontal(highlight, 1, navColumns);
+                    setHighlight(next);
+                    // Expand on arrival: an icon-only highlight is unreadable.
+                    if (next.column === "palette" && !paletteExpanded) {
+                        setPaletteExpanded(true);
+                    }
+                    break;
+                }
+                case "ArrowLeft":
+                    e.preventDefault();
+                    setHighlight(moveHorizontal(highlight, -1, navColumns));
+                    break;
+                case "Enter":
+                    e.preventDefault();
+                    activateHighlight(e as unknown as Event);
+                    break;
+            }
+        },
+        [highlight, navColumns, paletteExpanded, activateHighlight],
+    );
+
+    // Pinned expansion OR a transient hover-peek both render the palette expanded.
+    const paletteExpandedVisual = paletteExpanded || palettePeek;
+
+    const highlightedTemplateIndex = highlight?.column === "templates" ? highlight.index : -1;
+    const highlightedPaletteKey =
+        highlight?.column === "palette" ? (paletteNav[highlight.index]?.key ?? null) : null;
+
     return (
         <div class="am-click-away" onClick={onCancel}>
             <div
@@ -174,6 +343,7 @@ export function AppendMenuOverlay({
                         : { left: `${position.x}px`, top: `${position.y}px` }
                 }
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={handlePanelKeyDown}
             >
                 {/* Search bar */}
                 <div class="am-search-wrapper">
@@ -213,21 +383,23 @@ export function AppendMenuOverlay({
                 <div class="am-body">
                     {hasTemplates && (
                         <TemplatePanel
-                            entries={templateEntries}
+                            entries={filteredTemplates}
+                            categories={categories}
                             search={search}
                             activeCategory={activeCategory}
                             selectedTemplateId={selectedTemplate?.id ?? null}
+                            highlightedIndex={highlightedTemplateIndex}
                             onCategoryChange={setActiveCategory}
                             onTemplateClick={handleTemplateClick}
                         />
                     )}
                     <BpmnElementPalette
-                        groups={bpmnGroups}
-                        favourites={favourites}
-                        search={search}
-                        appliesToFilter={appliesToFilter}
-                        expanded={paletteExpanded}
+                        favouriteEntries={processedPalette.favouriteEntries}
+                        groups={processedPalette.groups}
+                        expanded={paletteExpandedVisual}
+                        highlightedKey={highlightedPaletteKey}
                         onToggleExpand={() => setPaletteExpanded((prev) => !prev)}
+                        onPeekChange={setPalettePeek}
                         onSelect={handleBpmnSelect}
                     />
                 </div>

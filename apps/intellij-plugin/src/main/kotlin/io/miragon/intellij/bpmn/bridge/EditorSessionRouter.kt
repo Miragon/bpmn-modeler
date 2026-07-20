@@ -1,5 +1,6 @@
 package io.miragon.intellij.bpmn.bridge
 
+import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
@@ -11,9 +12,11 @@ import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Routes the BPMN-editor feature: open-session registration, document-port
@@ -50,6 +53,22 @@ internal class EditorSessionRouter(
     // crucially a host write, whose echo the bridge drops by causation — never gets
     // re-rendered as a stale external edit. Bumped and read only on the EDT.
     private val changeSeq = ConcurrentHashMap<String, Long>()
+
+    // Per-editor pending SVG-export callback. `GetDiagramAsSVGCommand` round-trips
+    // straight through the JS↔JVM webview pipe (no bridge/protocol involvement): the
+    // host posts the command, the webview echoes it back with the rendered `svg`,
+    // and [forwardWebviewMessage] intercepts that echo and invokes the callback. A
+    // newer request replaces the pending one (mirrors VS Code disposing the previous).
+    private val pendingSvgRequests = ConcurrentHashMap<String, (String) -> Unit>()
+
+    // Per-editor close-flush latch. Armed by [flushBeforeClose] on the EDT before a
+    // tab closes, resolved by [resolveCloseFlush] on the JCEF handler thread when the
+    // webview's `DocumentFlushedCommand` lands. Kept off [sessions] because its
+    // lifetime is a single ≤250ms close round-trip, not the whole session.
+    private val closeFlushLatches = ConcurrentHashMap<String, CloseFlush>()
+
+    // Monotonic token so a late flush reply can't satisfy a newer close request.
+    private val closeFlushToken = AtomicLong(0)
 
     fun register() {
         deps.handlers
@@ -130,6 +149,25 @@ internal class EditorSessionRouter(
             log.warn("Discarding non-JSON webview message: $rawMessage")
             return
         }
+        // An SVG-export echo is the host's own round trip, not a core message: if a
+        // request is pending for this editor, extract the `svg` and consume it here.
+        // Forwarding it on would ship the whole SVG through the RPC pipe for nothing
+        // (the core has no handler for it). An echo with no pending callback (e.g. a
+        // stale one already replaced) falls through and forwards like any message.
+        if (trimmed.contains(SVG_COMMAND_MARKER) && pendingSvgRequests.containsKey(editorId)) {
+            val callback = pendingSvgRequests.remove(editorId)
+            val svg = runCatching { deps.gson.fromJson(rawMessage, JsonObject::class.java).get("svg") }
+                .getOrNull()
+                ?.takeIf { !it.isJsonNull }
+                ?.asString
+            if (callback != null && svg != null) callback(svg)
+            return
+        }
+        // Resolve a close-flush reply (only while a close is in progress for this
+        // editor) so the blocked EDT in [flushBeforeClose] can wake and write. The
+        // message is still forwarded to the core below, which drops the unknown
+        // command as a no-op — the bridge never initiates flushes.
+        resolveCloseFlush(editorId, trimmed)
         // Document syncs fire once per diagram edit and supersede each other — only
         // the latest XML matters for write-back — so collapse queued ones.
         val coalesceKey =
@@ -208,11 +246,30 @@ internal class EditorSessionRouter(
         deps.channel.notify("session/setActive", linkedMapOf("editorId" to editorId))
     }
 
+    /**
+     * Requests an SVG export of the open diagram: posts `GetDiagramAsSVGCommand`
+     * into the webview and stores [onSvg] to be invoked with the rendered SVG when
+     * the webview echoes it back (intercepted in [forwardWebviewMessage]). Returns
+     * `false` when no session is open for [editorId] (nothing to ask). A newer
+     * request replaces any pending one. No timeout: a webview error surfaces as a
+     * `LogErrorCommand`, and a stale pending callback is simply overwritten.
+     */
+    fun requestDiagramSvg(editorId: String, onSvg: (String) -> Unit): Boolean {
+        val session = sessions[editorId] ?: return false
+        pendingSvgRequests[editorId] = onSvg
+        session.postToWebview(GET_DIAGRAM_SVG_COMMAND)
+        return true
+    }
+
     fun disposeSession(editorId: String) {
         sessions.remove(editorId)
         pendingCausation.remove(editorId)
         debounceTimers.remove(editorId)?.cancel(false)
         changeSeq.remove(editorId)
+        pendingSvgRequests.remove(editorId)
+        // Unblock any close-flush still awaiting a reply so a disposed editor
+        // never strands the EDT for the full timeout.
+        closeFlushLatches.remove(editorId)?.latch?.countDown()
         deps.channel.notify("session/dispose", linkedMapOf("editorId" to editorId))
     }
 
@@ -230,7 +287,10 @@ internal class EditorSessionRouter(
         }
     }
 
-    fun clear() = sessions.clear()
+    fun clear() {
+        sessions.clear()
+        pendingSvgRequests.clear()
+    }
 
     // ── core → host ────────────────────────────────────────────────────────────
 
@@ -289,16 +349,136 @@ internal class EditorSessionRouter(
         }
     }
 
+    // ── close flush ──────────────────────────────────────────────────────────────
+
+    /**
+     * Flushes the webview's debounced-but-unsynced changes into the Document
+     * before the tab closes, so a close never drops the sub-debounce tail of
+     * edits. Called on the EDT from `beforeFileClosed`. Two constraints force
+     * this exact shape:
+     *
+     *  - **`beforeFileClosed`, not `dispose()`.** IntelliJ's Disposer tears down
+     *    the editor's children (the JCEF browser) *before* the editor's own
+     *    `dispose()` body runs, so a dispose-time post would hit a dead browser.
+     *    In `beforeFileClosed` the browser is still alive.
+     *  - **no bridge round-trip here.** The reply is applied straight to the
+     *    IntelliJ Document; routing it through the bridge's `document/write` would
+     *    end in a `WriteCommandAction` that needs the very EDT this method blocks
+     *    — a deadlock.
+     *
+     * Blocks the EDT on a latch ≤[CLOSE_FLUSH_TIMEOUT_MS]; the reply lands on the
+     * JCEF handler thread (see [forwardWebviewMessage] → [resolveCloseFlush]), so
+     * the block cannot self-deadlock. On XML received we write inline — already on
+     * the EDT — before disposal begins. Timeout / no reply / no session simply
+     * proceeds with the close; the ≤300ms staleness then self-heals via autosave.
+     */
+    fun flushBeforeClose(editorId: String) {
+        val session = sessions[editorId] ?: return
+        val token = closeFlushToken.incrementAndGet()
+        val flush = CloseFlush(token)
+        closeFlushLatches[editorId] = flush
+        try {
+            session.postToWebview("{\"type\":\"FlushDocumentQuery\",\"token\":$token}")
+            val replied = flush.latch.await(CLOSE_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            val content = flush.content
+            if (replied && content != null && !session.project.isDisposed) {
+                writeIfChanged(session, content)
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+        } finally {
+            closeFlushLatches.remove(editorId)
+        }
+    }
+
+    /**
+     * Resolves the armed close-flush latch for [editorId] from a webview message,
+     * if that message is the matching `DocumentFlushedCommand`. Cheap-guarded:
+     * only parses when a close is actually in progress and the marker is present,
+     * so the hot forward path is untouched during normal editing.
+     */
+    private fun resolveCloseFlush(editorId: String, trimmedMessage: String) {
+        val pending = closeFlushLatches[editorId] ?: return
+        if (!trimmedMessage.contains(FLUSH_COMMAND_MARKER)) return
+        val reply = parseDocumentFlushedReply(trimmedMessage, deps.gson) ?: return
+        if (reply.token != pending.token) return
+        pending.content = reply.content
+        pending.latch.countDown()
+    }
+
+    /** Writes [rawContent] into the Document unless byte-identical (line-normalised). */
+    private fun writeIfChanged(session: CoreSession, rawContent: String) {
+        // IntelliJ Documents require `\n`; webview XML may carry `\r\n` (as handleWrite does).
+        val content = StringUtil.convertLineSeparators(rawContent)
+        val document = FileDocumentManager.getInstance().getDocument(session.file) ?: return
+        if (StringUtil.equals(document.charsSequence, content)) return
+        WriteCommandAction.runWriteCommandAction(session.project) {
+            document.setText(content)
+        }
+    }
+
+    /** One in-flight close-flush round-trip: its token, the EDT's latch, and the reply. */
+    private class CloseFlush(val token: Long) {
+        val latch = CountDownLatch(1)
+
+        @Volatile
+        var content: String? = null
+    }
+
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
+
+        // Posted into the webview to request an SVG export; the webview echoes the
+        // same command back with the rendered `svg` field populated.
+        const val GET_DIAGRAM_SVG_COMMAND = "{\"type\":\"GetDiagramAsSVGCommand\"}"
+
+        // The webview shim's compact JSON.stringify emits exactly this substring for
+        // the echoed GetDiagramAsSVGCommand, so a substring match spots the echo
+        // without a full parse on the forward thread (same pattern as the sync marker).
+        const val SVG_COMMAND_MARKER = "\"type\":\"GetDiagramAsSVGCommand\""
 
         // The webview shim's compact JSON.stringify emits exactly this substring for
         // a SyncDocumentCommand, so a substring match replaces a full JSON parse on
         // the forward thread.
         const val SYNC_COMMAND_MARKER = "\"type\":\"SyncDocumentCommand\""
 
+        // The webview's compact JSON.stringify emits exactly this substring for a
+        // DocumentFlushedCommand, so a substring test gates the parse on the close path.
+        const val FLUSH_COMMAND_MARKER = "\"type\":\"DocumentFlushedCommand\""
+
         // Long enough to collapse a typing burst into one re-render, short enough
         // that an external edit (git checkout) feels immediate.
         const val EXTERNAL_DEBOUNCE_MS = 150L
+
+        // Upper bound the EDT will block on a close flush. The webview export is
+        // ~10-50ms; this leaves margin without a perceptible freeze on tab close.
+        const val CLOSE_FLUSH_TIMEOUT_MS = 250L
     }
 }
+
+/** Parsed `DocumentFlushedCommand`; `content` is null when the webview had nothing to flush. */
+internal data class DocumentFlushedReply(val token: Long, val content: String?)
+
+/**
+ * Parses a webview message as a `DocumentFlushedCommand`, or returns null if it
+ * is not one / is malformed. Extracted as a pure function so the close-flush
+ * reply handling is unit-testable without a running bridge or EDT.
+ */
+internal fun parseDocumentFlushedReply(raw: String, gson: Gson): DocumentFlushedReply? =
+    try {
+        val obj = gson.fromJson(raw, JsonObject::class.java)
+        val token = obj?.get("token")
+        when {
+            obj?.get("type")?.asString != "DocumentFlushedCommand" -> null
+            token == null || token.isJsonNull -> null
+            else -> {
+                val content = obj.get("content")
+                DocumentFlushedReply(
+                    token.asLong,
+                    if (content == null || content.isJsonNull) null else content.asString,
+                )
+            }
+        }
+    } catch (e: Exception) {
+        null
+    }
