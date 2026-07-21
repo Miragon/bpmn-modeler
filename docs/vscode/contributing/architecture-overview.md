@@ -53,7 +53,7 @@ libs/
 | `@miragon/bpmn-modeler-webview` | `apps/bpmn-webview` | BPMN editor UI + diff viewer |
 | `@miragon/dmn-modeler-webview` | `apps/dmn-webview` | DMN editor UI |
 | `@miragon/bpmn-modeler-deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
-| `@miragon/bpmn-modeler-standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into a signed macOS DMG |
+| `@miragon/bpmn-modeler-standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into macOS DMG, Windows NSIS, and Linux Flatpak packages |
 | `@miragon/bpmn-modeler-bridge` | `apps/modeler-bridge` | Out-of-process stdio JSON-RPC bridge running `modeler-core` for the IntelliJ host; ships as a Node-free Bun binary |
 | `@miragon/bpmn-modeler-shared` | `libs/shared` | Message types, cross-process utilities |
 | `@miragon/bpmn-modeler-core` | `libs/modeler-core` | Host-agnostic modeling engine (domain + services + ports), consumed by the VS Code plugin and the IntelliJ bridge |
@@ -194,7 +194,7 @@ method rather than adding a new service — e.g. `AppendMenuOverride` wraps
 | BPMN webview | Vite | `apps/bpmn-webview/vite.config.mts` |
 | DMN webview | Vite | `apps/dmn-webview/vite.config.mts` |
 | Deployment webview | Vite | `apps/deployment-webview/vite.config.mts` |
-| Standalone macOS DMG | `@theia/cli` + electron-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml` |
+| Standalone desktop packages (DMG / NSIS / Flatpak) | `@theia/cli` + electron-builder + flatpak-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml`, `apps/standalone/flatpak/io.miragon.BpmnModeler.yml` |
 | Shared lib (`@miragon/bpmn-modeler-shared`) | tsc | `libs/shared/tsconfig.lib.json` |
 | Tests | Vitest | `apps/vscode-plugin/vitest.config.ts` |
 | Path alias resolution | `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) | `tsconfig.base.json` |

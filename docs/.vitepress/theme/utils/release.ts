@@ -26,6 +26,7 @@ const RELEASES_PAGE_BASE = `https://github.com/${REPO}/releases/tag`;
 const ARM64_DMG = /-arm64\.dmg$/i;
 const INTEL_DMG = /-(x64|intel)\.dmg$/i;
 const WIN_EXE = /-x64\.exe$/i;
+const FLATPAK_X86_64 = /-x86_64\.flatpak$/i;
 // The version is the segment between the product name and the arch suffix.
 // Greedy so prerelease versions with their own hyphen (1.3.1-beta.1) survive;
 // the product name has no hyphens, so the leftmost match starts after it.
@@ -51,6 +52,7 @@ export interface StandaloneRelease {
     dmgArm64Url: string;
     dmgIntelUrl: string | null;
     exeX64Url: string | null;
+    flatpakX86_64Url: string | null;
     releasePageUrl: string;
 }
 
@@ -92,6 +94,7 @@ export function parseStandaloneRelease(r: GitHubRelease): StandaloneRelease | nu
         dmgArm64Url: arm64.browser_download_url,
         dmgIntelUrl: findAssetUrl(r.assets, INTEL_DMG),
         exeX64Url: findAssetUrl(r.assets, WIN_EXE),
+        flatpakX86_64Url: findAssetUrl(r.assets, FLATPAK_X86_64),
         releasePageUrl: r.html_url ?? `${RELEASES_PAGE_BASE}/${r.tag_name}`,
     };
 }

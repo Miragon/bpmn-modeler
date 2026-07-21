@@ -75,3 +75,9 @@ win:
   # Mirror the DMG naming; GitHub Releases rewrites spaces in uploaded asset
   # names to dots, so we pre-flatten to keep download URLs stable.
   artifactName: Miragon.BPMN.Modeler-${version}-${arch}.${ext}
+linux:
+  target:
+    - dir
+  icon: resources/icon.png
+  executableName: miragon-bpmn-modeler
+  category: Development

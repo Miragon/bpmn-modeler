@@ -64,3 +64,4 @@ docs/.vitepress/cache
 .agent/logs/
 .agent/settings.local.json
 .claude/logs/
+.flatpak-builder/

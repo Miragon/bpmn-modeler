@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Miragon BPMN Modeler
+Comment=Model BPMN and DMN diagrams
+Exec=miragon-bpmn-modeler %U
+Icon=io.miragon.BpmnModeler
+Terminal=false
+Categories=Development;IDE;
+MimeType=application/bpmn+xml;application/dmn+xml;
+StartupNotify=true

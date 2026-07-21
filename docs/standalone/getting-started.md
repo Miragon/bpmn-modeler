@@ -5,14 +5,17 @@ built on [Eclipse Theia](https://theia-ide.org/). Same modeler as the
 [VS Code extension](/vscode/getting-started), packaged as a native Electron
 app for when you don't want to run a full IDE.
 
-The standalone app currently ships for **macOS** and **Windows**.
-A Linux build may follow.
+The standalone app ships for **macOS**, **Windows**, and **Linux x86_64**.
 
 ## Install
 
-Grab the latest signed, notarized `.dmg` from the
-[**Download** page](/download), or install straight from the terminal with
-Homebrew:
+Grab the latest package for your platform from the [**Download** page](/download):
+
+- macOS: signed and notarized `.dmg`
+- Windows: NSIS `.exe` installer
+- Linux x86_64: `.flatpak` bundle
+
+On macOS, you can also install from the terminal with Homebrew:
 
 ```bash
 brew tap miragon/tap
@@ -20,9 +23,14 @@ brew install --cask miragon-bpmn-modeler
 ```
 
 Every asset also lives on
-[GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases). Both
-options install the same build; the app auto-updates from GitHub Releases on
-each launch, regardless of how it was installed.
+[GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
+
+Install and launch the Linux bundle with:
+
+```bash
+flatpak install --user --bundle Miragon.BPMN.Modeler-<version>-x86_64.flatpak
+flatpak run io.miragon.BpmnModeler
+```
 
 ### Upgrade later
 
@@ -32,17 +40,18 @@ If you installed via Homebrew:
 brew upgrade --cask miragon-bpmn-modeler
 ```
 
-For the manual install, the in-app auto-updater handles new versions on
-launch — there's nothing to do.
+DMG and NSIS installs use the in-app auto-updater. Flatpak updates remain
+manual: download the newer bundle and run the `flatpak install --user --bundle`
+command again.
 
 ### Build from source
 
-If you'd rather build it yourself, see
+If you would rather build it yourself, see
 [`apps/standalone/README.md`](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md).
-A locally-built `.dmg` (without the Apple credentials the release pipeline
-uses) is unsigned. macOS Gatekeeper will block the first launch —
-right-click the app in `/Applications` → **Open** → confirm. After that
-one-time bypass, the app launches normally.
+On macOS, a locally built `.dmg` without the release pipeline's Apple
+credentials is unsigned. Gatekeeper will block the first launch; right-click
+the app in `/Applications` → **Open** → confirm. After that one-time bypass,
+the app launches normally.
 
 ## Open a diagram
 
@@ -111,6 +120,10 @@ diagrams. Git operations rely on the system `git` binary:
 - **macOS** — install Xcode Command Line Tools (`xcode-select --install`)
   or [git-scm.com](https://git-scm.com/).
 - **Windows** — [git-scm.com](https://git-scm.com/).
+
+The Flatpak sandbox does not expose the host's `git` executable, so the Source
+Control view is currently unavailable in the Linux package. Host-side Git tools
+can still manage the same workspace files.
 
 If `git --version` works in your terminal, the standalone app will pick it
 up on launch.

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue";
 import { withBase } from "vitepress";
 import AppleIcon from "../icons/AppleIcon.vue";
 import WindowsIcon from "../icons/WindowsIcon.vue";
+import LinuxIcon from "../icons/LinuxIcon.vue";
 import VSCodeIcon from "../icons/VSCodeIcon.vue";
 import IntelliJIcon from "../icons/IntelliJIcon.vue";
 import {
@@ -27,8 +28,9 @@ const macPrimaryUrl = computed(() => release.value?.dmgArm64Url ?? RELEASES_URL)
 const macAltUrl = computed(() => release.value?.dmgIntelUrl ?? null);
 const macPrimaryLabel = "↓ Download for macOS";
 
-// Windows installer rides along with the macOS DMG on the same release.
+// Windows and Linux packages ride along with the macOS DMG on the same release.
 const winUrl = computed(() => release.value?.exeX64Url ?? RELEASES_URL);
+const linuxUrl = computed(() => release.value?.flatpakX86_64Url ?? RELEASES_URL);
 
 onMounted(async () => {
     release.value = await fetchLatestStandaloneRelease();
@@ -130,6 +132,18 @@ async function copyHomebrew() {
                     <tr>
                         <td class="dl-platform-cell">
                             <span class="dl-ico">
+                                <span class="dl-icon-sq"><LinuxIcon /></span>
+                                Linux (x86_64)
+                            </span>
+                        </td>
+                        <td>Flatpak bundle</td>
+                        <td class="dl-right">
+                            <a class="dl-btn dl-btn-primary" :href="linuxUrl">↓ Download</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="dl-platform-cell">
+                            <span class="dl-ico">
                                 <span class="dl-icon-sq"><VSCodeIcon /></span>
                                 VS Code extension
                             </span>
@@ -184,6 +198,16 @@ async function copyHomebrew() {
                         </div>
                     </div>
                     <a class="dl-btn dl-btn-primary dl-btn-block" :href="winUrl">↓ Download</a>
+                </div>
+                <div class="dl-card-platform">
+                    <div class="dl-card-row1">
+                        <span class="dl-icon-sq"><LinuxIcon /></span>
+                        <div>
+                            <div class="dl-card-name">Linux (x86_64)</div>
+                            <div class="dl-card-format">Flatpak bundle</div>
+                        </div>
+                    </div>
+                    <a class="dl-btn dl-btn-primary dl-btn-block" :href="linuxUrl">↓ Download</a>
                 </div>
                 <div class="dl-card-platform">
                     <div class="dl-card-row1">

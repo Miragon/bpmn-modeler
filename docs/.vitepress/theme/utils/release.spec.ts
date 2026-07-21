@@ -10,6 +10,7 @@ import {
     ARM64_URL,
     INTEL_URL,
     WIN_EXE_URL,
+    FLATPAK_X86_64_URL,
     standaloneFull,
     standaloneArm64Only,
     standaloneHalfFailed,
@@ -28,6 +29,7 @@ describe("parseStandaloneRelease", () => {
             dmgArm64Url: ARM64_URL,
             dmgIntelUrl: INTEL_URL,
             exeX64Url: WIN_EXE_URL,
+            flatpakX86_64Url: FLATPAK_X86_64_URL,
             releasePageUrl:
                 "https://github.com/Miragon/bpmn-modeler/releases/tag/vscode-v0.9.2",
         });
@@ -55,6 +57,13 @@ describe("parseStandaloneRelease", () => {
     it("exposes the Windows exe when present, null otherwise", () => {
         expect(parseStandaloneRelease(standaloneFull)!.exeX64Url).toBe(WIN_EXE_URL);
         expect(parseStandaloneRelease(standaloneArm64Only)!.exeX64Url).toBeNull();
+    });
+
+    it("exposes the x86_64 Flatpak when present, null otherwise", () => {
+        expect(parseStandaloneRelease(standaloneFull)!.flatpakX86_64Url).toBe(
+            FLATPAK_X86_64_URL,
+        );
+        expect(parseStandaloneRelease(standaloneArm64Only)!.flatpakX86_64Url).toBeNull();
     });
 
     it("derives the version from the DMG filename, independent of the tag", () => {
