@@ -105,12 +105,14 @@
 }
 
 .bio-properties-panel-textarea textarea,
-.bio-properties-panel-textfield input {
+.bio-properties-panel-textfield input,
+.bio-properties-panel-numberfield input {
     color: var(--dt-surface-a60) !important;
 }
 
 .bio-properties-panel-textarea > textarea:focus,
-.bio-properties-panel-textfield > input:focus {
+.bio-properties-panel-textfield > input:focus,
+.bio-properties-panel-numberfield > input:focus {
     color: var(--dt-surface-a70) !important;
 }
 
