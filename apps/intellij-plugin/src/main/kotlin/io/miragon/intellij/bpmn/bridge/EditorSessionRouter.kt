@@ -10,6 +10,7 @@ import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.util.concurrency.AppExecutorUtil
 import io.miragon.intellij.bpmn.CoreSession
+import io.miragon.intellij.bpmn.ModelerKind
 import io.miragon.intellij.bpmn.ModelerSettingsStore
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
@@ -117,6 +118,8 @@ internal class EditorSessionRouter(
                 // very first discovery uses the configured folder, not the default.
                 "settings" to ModelerSettingsStore.getInstance().snapshotMap(deps.project),
                 "content" to content,
+                // Routes the session to the BPMN or DMN service in the bridge.
+                "kind" to session.kind.wire,
             ),
         )
     }
@@ -283,7 +286,9 @@ internal class EditorSessionRouter(
         if (!deps.isProcessAlive()) return
         sessions.values.forEach { session ->
             sendRegister(session)
-            forwardWebviewMessage(session.editorId, GET_BPMN_FILE_COMMAND)
+            val replay =
+                if (session.kind == ModelerKind.DMN) GET_DMN_FILE_COMMAND else GET_BPMN_FILE_COMMAND
+            forwardWebviewMessage(session.editorId, replay)
         }
     }
 
@@ -427,6 +432,9 @@ internal class EditorSessionRouter(
 
     private companion object {
         const val GET_BPMN_FILE_COMMAND = "{\"type\":\"GetBpmnFileCommand\"}"
+
+        // The DMN twin, replayed on respawn so a live `.dmn` page re-renders.
+        const val GET_DMN_FILE_COMMAND = "{\"type\":\"GetDmnFileCommand\"}"
 
         // Posted into the webview to request an SVG export; the webview echoes the
         // same command back with the rendered `svg` field populated.

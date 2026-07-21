@@ -10,6 +10,13 @@ export interface RegisterParams extends SessionMeta {
     content: string;
     /** Full `miragon.bpmnModeler.*` snapshot; seeds settings before template discovery. */
     settings?: Partial<SettingsSnapshot>;
+    /**
+     * Which modeler drives this session. Absent means `bpmn` so an older host that
+     * predates DMN support keeps registering BPMN sessions unchanged. Only `dmn`
+     * routes document sync/render to {@link DmnModelerService} and skips the
+     * BPMN-only session hooks (template watcher, script tabs, code-link).
+     */
+    kind?: "bpmn" | "dmn";
 }
 
 /**

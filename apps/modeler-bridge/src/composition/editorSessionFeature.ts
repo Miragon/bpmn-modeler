@@ -1,7 +1,12 @@
 import { basename } from "node:path";
 
 import { Command, Query, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
-import { BpmnModelerService, registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
+import {
+    BpmnModelerService,
+    DmnModelerService,
+    DmnSettingsBroadcaster,
+    registerWebviewLogHandlers,
+} from "@miragon/bpmn-modeler-core";
 
 import { RpcEditorHandle } from "../adapters";
 import { METHODS } from "../protocol/descriptor";
@@ -27,8 +32,14 @@ function query(type: string, fields: Record<string, unknown>): Query {
  * so this module drives the lifecycle without importing any of them — hooks flow
  * backward, handles flow forward.
  *
- * Webview messages: GetBpmnFileCommand, SyncDocumentCommand,
- * GetPropertiesPanelStateCommand.
+ * Both the BPMN and the DMN modeler ride this one lifecycle hub. The session's
+ * {@link RegisterParams.kind} (from `session/register`) decides which service a
+ * given editor's render/sync routes to; the DMN path additionally skips the
+ * BPMN-only session hooks (template watcher, script tabs, code-link) since none
+ * of them apply to a decision table.
+ *
+ * Webview messages: GetBpmnFileCommand, GetDmnFileCommand,
+ * GetDmnModelerSettingCommand, SyncDocumentCommand, GetPropertiesPanelStateCommand.
  * RPC (Host → Core): session/register, session/setActive, session/dispose,
  * webview/message, document/didChange.
  */
@@ -43,8 +54,16 @@ export function register(
         deps.statusBar,
         deps.notifier,
     );
+    const dmnService = new DmnModelerService(deps.store, deps.documentPort, deps.notifier);
+    const dmnSettings = new DmnSettingsBroadcaster(deps.store, deps.settings, deps.notifier);
 
     const handles = new Map<string, RpcEditorHandle>();
+
+    // Which modeler owns each open editor. Seeded on register, read by the shared
+    // SyncDocumentCommand / document/didChange paths to pick the right service.
+    // Absent ⇒ bpmn (see RegisterParams.kind).
+    const sessionKinds = new Map<string, "bpmn" | "dmn">();
+    const kindOf = (editorId: string): "bpmn" | "dmn" => sessionKinds.get(editorId) ?? "bpmn";
 
     deps.router
         .on("GetBpmnFileCommand", async (_message: Command, editorId: string) => {
@@ -52,8 +71,27 @@ export function register(
                 deps.notifier.logDebug("BPMN modeler is ready");
             }
         })
+        .on("GetDmnFileCommand", async (_message: Command, editorId: string) => {
+            if (await dmnService.display(editorId)) {
+                deps.notifier.logDebug("DMN modeler is ready");
+            }
+        })
+        // The DMN webview asks for its color-theme preference during bootstrap;
+        // without a reply its `Promise.all` over file+settings+panel-state never
+        // resolves and the editor stays blank (same handshake contract as BPMN).
+        .on("GetDmnModelerSettingCommand", async (_message: Command, editorId: string) => {
+            await dmnSettings.setSettings(editorId);
+        })
+        // Both modelers emit SyncDocumentCommand; route to the service that owns
+        // this editor so a DMN write can't run through the BPMN service (its
+        // session guard / status bar) and vice versa.
         .on("SyncDocumentCommand", async (message: Command, editorId: string) => {
-            await bpmnService.sync(editorId, (message as SyncDocumentCommand).content);
+            const content = (message as SyncDocumentCommand).content;
+            if (kindOf(editorId) === "dmn") {
+                await dmnService.sync(editorId, content);
+            } else {
+                await bpmnService.sync(editorId, content);
+            }
         })
         // The remaining handshake reply is a bridge-level stub because its real
         // service (properties panel) is not wired on this host path. It must still
@@ -84,6 +122,9 @@ export function register(
             deps.settings.apply(params.settings);
         }
 
+        const kind = params.kind ?? "bpmn";
+        sessionKinds.set(params.editorId, kind);
+
         deps.mirror.register(params, params.content);
         const handle = new RpcEditorHandle(params, deps.mirror, deps.rpc, deps.settings);
         handles.set(params.editorId, handle);
@@ -100,6 +141,17 @@ export function register(
                 deps.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             }),
         );
+
+        if (kind === "dmn") {
+            // The DMN surface only needs render-guard tracking and the theme
+            // broadcaster; element templates, script tabs and code-link are BPMN
+            // concepts, so their hooks stay out of the DMN path entirely.
+            dmnService.registerSession(params.editorId);
+            dmnSettings.subscribe(params.editorId);
+            deps.log(`session registered (dmn): ${params.editorId}`);
+            return;
+        }
+
         bpmnService.registerSession(params.editorId);
 
         // Seed discovery with the host's authoritative root before the hooks run.
@@ -137,7 +189,11 @@ export function register(
             return; // our own write echoed back — re-rendering would loop
         }
         deps.mirror.setContent(params.editorId, params.content);
-        await bpmnService.display(params.editorId);
+        if (kindOf(params.editorId) === "dmn") {
+            await dmnService.display(params.editorId);
+        } else {
+            await bpmnService.display(params.editorId);
+        }
     });
 
     // The host reports which editor tab is focused so the store's active-editor
@@ -148,6 +204,21 @@ export function register(
     });
 
     deps.rpc.on(METHODS.sessionDispose, (params: EditorRefParams) => {
+        const kind = kindOf(params.editorId);
+        sessionKinds.delete(params.editorId);
+
+        if (kind === "dmn") {
+            // Mirror of the DMN register branch: only the render-guard session was
+            // created (the theme subscription is torn down with the store handle
+            // below), so no BPMN hooks / workspace-root unregister run here.
+            dmnService.disposeSession(params.editorId);
+            handles.get(params.editorId)?.dispose();
+            handles.delete(params.editorId);
+            deps.mirror.remove(params.editorId);
+            deps.log(`session disposed (dmn): ${params.editorId}`);
+            return;
+        }
+
         bpmnService.disposeSession(params.editorId);
 
         // Per-session teardown owned by sibling features (script tabs, code-link

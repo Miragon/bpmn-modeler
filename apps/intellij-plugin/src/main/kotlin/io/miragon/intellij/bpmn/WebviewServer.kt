@@ -44,6 +44,17 @@ class WebviewServer : Disposable {
     @Volatile
     private var origin: String? = null
 
+    // The DMN bundle gets its OWN loopback origin rather than a path prefix on the
+    // bpmn server. The dmn-webview is built with Vite `base: "/"`, so its emitted
+    // assets reference each other and their fonts with absolute paths
+    // (`/index.js`, `url(/dmn.eot)`); the bpmn server already claims `/` as the
+    // bpmn bundle's catch-all, so those DMN roots would 404 against it. A separate
+    // origin lets the DMN bundle own its own `/` and resolve every absolute URL.
+    private var dmnServer: HttpServer? = null
+
+    @Volatile
+    private var dmnBaseUrl: String? = null
+
     /**
      * Starts the server on first call and returns the URL of the synthesised
      * bpmn editor shell. Idempotent — later calls return the already-bound URL.
@@ -83,6 +94,32 @@ class WebviewServer : Disposable {
         return "${origin}/deployment.html"
     }
 
+    /**
+     * Starts the dedicated DMN server on first call and returns the DMN editor
+     * shell URL. Idempotent. Kept on its own origin (not a path on the bpmn
+     * server) so the `base: "/"` dmn bundle's absolute asset/font URLs resolve —
+     * see [dmnServer].
+     */
+    @Synchronized
+    fun dmnUrl(): String {
+        dmnBaseUrl?.let { return it }
+
+        // Same loopback/IPv4 rationale as [ensureStarted]; a distinct ephemeral port.
+        val httpServer = HttpServer.create(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0)
+        httpServer.createContext("/") { exchange -> handleDmn(exchange) }
+        httpServer.executor =
+            Executors.newCachedThreadPool { runnable ->
+                Thread(runnable, "modeler-dmn-webview-http").apply { isDaemon = true }
+            }
+        httpServer.start()
+
+        val url = "http://127.0.0.1:${httpServer.address.port}/index.html"
+        dmnServer = httpServer
+        dmnBaseUrl = url
+        log.info("Miragon DMN webview server started at $url")
+        return url
+    }
+
     private fun handle(exchange: HttpExchange) {
         try {
             val path = exchange.requestURI.path
@@ -117,6 +154,75 @@ class WebviewServer : Disposable {
         } finally {
             exchange.close()
         }
+    }
+
+    /**
+     * Serves the DMN bundle on its own origin: the synthesised shell at `/` and
+     * every other request straight from the `/webview-dmn/...` classpath root
+     * (staged by the Gradle `copyDmnWebview` task). Because this origin only ever
+     * serves the DMN bundle, the bundle's absolute `/…` asset and font URLs map
+     * 1:1 onto the classpath — no path rewriting needed.
+     */
+    private fun handleDmn(exchange: HttpExchange) {
+        try {
+            val path = exchange.requestURI.path
+            if (path == "/" || path == "/index.html") {
+                respond(exchange, 200, "text/html; charset=utf-8", dmnHtml().toByteArray(StandardCharsets.UTF_8))
+                return
+            }
+            val decoded = URLDecoder.decode(path, StandardCharsets.UTF_8)
+            val bytes = javaClass.getResourceAsStream("/webview-dmn$decoded")?.use { it.readBytes() }
+            if (bytes == null) {
+                respond(exchange, 404, "text/plain; charset=utf-8", "Not found: $path".toByteArray())
+                return
+            }
+            respond(exchange, 200, mimeType(path), bytes)
+        } catch (e: Exception) {
+            log.warn("Error serving DMN ${exchange.requestURI}", e)
+            runCatching { respond(exchange, 500, "text/plain; charset=utf-8", (e.message ?: "error").toByteArray()) }
+        } finally {
+            exchange.close()
+        }
+    }
+
+    /**
+     * Synthesises the DMN editor shell, mirroring [indexHtml]: same DOM skeleton
+     * (dmn-js reuses the bpmn-js `#js-canvas` / properties-panel layout), the same
+     * `#theme-link` swap contract, `#ide-theme-vars` block, and shim. It carries
+     * no bpmn icon-font link — the dmn bundle's own stylesheets pull the dmn font
+     * from this origin (`url(/dmn.eot)` → `/webview-dmn/dmn.eot`). Assets are
+     * root-absolute because this shell is served on the dedicated DMN origin.
+     *
+     * The off-EDT palette read on the HTTP pool thread is safe for the same reason
+     * documented on [indexHtml].
+     */
+    private fun dmnHtml(): String {
+        val signal = service<IdeThemeSignal>()
+        return listOf(
+            "<!DOCTYPE html>",
+            "<html lang=\"en\">",
+            "<head>",
+            "  <meta charset=\"UTF-8\"/>",
+            "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
+            "  <link href=\"/index.css\" rel=\"stylesheet\"/>",
+            "  <link href=\"/lightTheme.css\" rel=\"stylesheet\" id=\"theme-link\"/>",
+            "  <title>DMN Modeler</title>",
+            "  <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
+            "  <style id=\"ide-theme-vars\">${signal.themeVarsCss()}</style>",
+            "  <script>$SHIM</script>",
+            "</head>",
+            "<body class=\"${signal.bodyClass()}\">",
+            "  <div id=\"app\">",
+            "    <div class=\"content with-diagram\" id=\"js-drop-zone\">",
+            "      <div class=\"canvas\" id=\"js-canvas\"></div>",
+            "      <div id=\"js-panel-resizer\" class=\"panel-resizer\"></div>",
+            "      <div class=\"properties-panel-parent\" id=\"js-properties-panel\"></div>",
+            "    </div>",
+            "  </div>",
+            "  <script type=\"module\" src=\"/index.js\"></script>",
+            "</body>",
+            "</html>",
+        ).joinToString("\n")
     }
 
     /**
@@ -221,6 +327,9 @@ class WebviewServer : Disposable {
         server = null
         baseUrl = null
         origin = null
+        dmnServer?.stop(0)
+        dmnServer = null
+        dmnBaseUrl = null
     }
 
     private companion object {

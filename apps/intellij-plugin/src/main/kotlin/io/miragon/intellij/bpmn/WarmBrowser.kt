@@ -13,13 +13,17 @@ import org.cef.browser.CefFrame
 import org.cef.handler.CefLoadHandlerAdapter
 
 /**
- * A JCEF browser pre-loaded with the bpmn-webview, ready to be handed to a
- * [BpmnFileEditor] the moment a `.bpmn` tab opens.
+ * A JCEF browser pre-loaded with a modeler webview ([shellUrl] selects the BPMN
+ * or DMN shell), ready to be handed to a [BpmnFileEditor] / [DmnFileEditor] the
+ * moment a modeler tab opens.
  *
- * **Why it exists.** The first `.bpmn` open otherwise pays, serially, for
- * `JBCefBrowser()` init + the loopback fetch of the heavy bpmn-js bundle + bpmn-js
+ * **Why it exists.** The first modeler open otherwise pays, serially, for
+ * `JBCefBrowser()` init + the loopback fetch of the heavy modeler bundle + its
  * init — the most perceptible startup latency. Building this ahead of time (at
  * project open, via [BrowserPrewarmService]) moves all of that off the open path.
+ * The BPMN path pre-warms one of these per project; the DMN path builds one
+ * inline on open (a `.dmn` tab is opened rarely enough not to justify a second
+ * always-warm browser).
  *
  * **The forwarder indirection.** The JS→JVM [JBCefJSQuery] must be created *before*
  * the browser's CEF process starts: its handler registers a `CefMessageRouter` on
@@ -36,7 +40,7 @@ import org.cef.handler.CefLoadHandlerAdapter
  * now-set forwarder. The sink is deliberately *not* injected during pre-warm, so
  * nothing flushes to a null forwarder.
  */
-class WarmBrowser : Disposable {
+class WarmBrowser(private val shellUrl: String) : Disposable {
     val browser = createModelerBrowser()
 
     // Set by bind() once the owning editor is known; read from the CEF query
@@ -105,7 +109,7 @@ class WarmBrowser : Disposable {
         // pre-warm instead of waiting for the component to be shown in a tab. Order
         // matters: jsQuery.create() above ran before this, so its router is bound.
         browser.createImmediately()
-        browser.loadURL(service<WebviewServer>().ensureStarted())
+        browser.loadURL(shellUrl)
     }
 
     /**

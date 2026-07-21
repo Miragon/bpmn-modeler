@@ -110,6 +110,21 @@
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
 
         <!--
+            The DMN twin of the BPMN registration above: `.dmn` becomes a real file
+            type (Marketplace indexing + project-tree icon + XML highlighting on the
+            secondary text tab) and the JCEF DMN editor binds ahead of the plain XML
+            editor. Same rationale as BPMN; see the comment on the BPMN fileType.
+        -->
+        <fileType
+            name="DMN"
+            implementationClass="io.miragon.intellij.bpmn.DmnFileType"
+            fieldName="INSTANCE"
+            language="XML"
+            extensions="dmn"/>
+
+        <fileEditorProvider implementation="io.miragon.intellij.bpmn.DmnFileEditorProvider"/>
+
+        <!--
             Pre-warms the out-of-process bridge + asset server off the EDT after a
             project opens, so the first `.bpmn` tab renders against a live process
             instead of a cold spawn. The spawn itself is already moved off the EDT

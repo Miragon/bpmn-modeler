@@ -25,7 +25,7 @@
         "demo:app": "npm-run-all -s build:demo preview:demo",
         "build:bridge": "corepack yarn workspace @miragon/bpmn-modeler-bridge build",
         "build:bridge:compile": "corepack yarn workspace @miragon/bpmn-modeler-bridge compile",
-        "intellij:build": "npm-run-all -s build:libs -p build:bpmn-webview build:deployment-webview build:bridge:compile",
+        "intellij:build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview build:deployment-webview build:bridge:compile",
         "intellij:runide": "cd apps/intellij-plugin && ./gradlew runIde",
         "intellij:run": "npm-run-all -s intellij:build intellij:runide",
         "dev:libs": "npm-run-all dev:lib:shared dev:lib:modeler-core",

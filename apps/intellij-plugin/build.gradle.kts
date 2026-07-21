@@ -146,6 +146,7 @@ intellijPlatform {
 // already-built artefacts so `runIde` and the distributable zip carry them. See
 // apps/modeler-bridge/README.md.
 val webviewDist = layout.projectDirectory.dir("../../dist/webview-staging/bpmn-webview")
+val dmnWebviewDist = layout.projectDirectory.dir("../../dist/webview-staging/dmn-webview")
 val deploymentWebviewDist =
     layout.projectDirectory.dir("../../dist/webview-staging/deployment-webview")
 val bridgeBinary = layout.projectDirectory.file("../../apps/modeler-bridge/dist/modeler-bridge")
@@ -215,6 +216,22 @@ val copyWebview =
         from(webviewDist)
         // Nest under `webview/` so the served classpath path is `/webview/...`.
         into(stagedResourcesRoot.map { it.dir("webview") })
+    }
+
+val copyDmnWebview =
+    tasks.register<Copy>("copyDmnWebview") {
+        description = "Stages the pre-built dmn-webview bundle into plugin resources (served from the classpath at runtime)."
+        doFirst {
+            if (!dmnWebviewDist.asFile.exists()) {
+                throw GradleException(
+                    "DMN webview bundle not found at ${dmnWebviewDist.asFile}.\n" +
+                        "Run `corepack yarn build:dmn-webview` from the repo root first.",
+                )
+            }
+        }
+        from(dmnWebviewDist)
+        // Nest under `webview-dmn/` so the served classpath path is `/webview-dmn/...`.
+        into(stagedResourcesRoot.map { it.dir("webview-dmn") })
     }
 
 val copyDeploymentWebview =
@@ -306,12 +323,12 @@ sourceSets.named("main") {
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDmnWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
 }
 
 // The sandbox for `runIde` is assembled from the jar, which already contains the
 // staged resources, so no extra sandbox wiring is needed — but make the
 // dependency explicit so a clean `runIde` always stages the bundles first.
 tasks.withType<PrepareSandboxTask>().configureEach {
-    dependsOn(copyWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
+    dependsOn(copyWebview, copyDmnWebview, copyDeploymentWebview, copyBridge, copySchema, writeBridgeVersion)
 }

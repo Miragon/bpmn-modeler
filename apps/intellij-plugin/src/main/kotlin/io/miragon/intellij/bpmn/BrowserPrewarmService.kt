@@ -3,6 +3,7 @@ package io.miragon.intellij.bpmn
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -59,7 +60,7 @@ class BrowserPrewarmService(private val project: Project) : Disposable {
     fun take(): WarmBrowser {
         val ready = synchronized(lock) { warm.also { warm = null } }
         ensureWarm()
-        return ready ?: WarmBrowser()
+        return ready ?: WarmBrowser(service<WebviewServer>().ensureStarted())
     }
 
     private fun ensureWarm() {
@@ -72,7 +73,7 @@ class BrowserPrewarmService(private val project: Project) : Disposable {
                 // the user through BpmnFileEditor). Nothing here has a caller to throw
                 // to — this runs from an invokeLater.
                 warm =
-                    runCatching { WarmBrowser() }
+                    runCatching { WarmBrowser(service<WebviewServer>().ensureStarted()) }
                         .onFailure { log.warn("Failed to pre-warm a JCEF browser; will retry on next open", it) }
                         .getOrNull()
             }
