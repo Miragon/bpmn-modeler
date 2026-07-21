@@ -66,6 +66,12 @@ class IdeThemeSignal : Disposable {
      * they're inert under a light LaF. The `.bio-properties-panel` block applies
      * to both stylesheets, which is why it overrides directly with `!important`
      * instead of riding the dark-only `--vscode-*` mapping.
+     *
+     * `color-scheme` is the other signal VS Code injects that JCEF does not:
+     * without it Chromium treats the page as light and paints native form
+     * controls (`<input>`/`<select>`/`<textarea>`) with the light-scheme system
+     * text color (black), unreadable on a dark panel. Setting it to match the
+     * LaF makes their default text follow the theme, mirroring VS Code.
      */
     fun themeVarsCss(): String {
         val scheme = EditorColorsManager.getInstance().globalScheme
@@ -86,6 +92,7 @@ class IdeThemeSignal : Disposable {
             ColorUtil.toHtmlColor(if (isDark()) ColorUtil.brighter(panelBg, 2) else ColorUtil.darker(panelBg, 1))
         return listOf(
             ":root {",
+            "  color-scheme: ${if (isDark()) "dark" else "light"};",
             "  --vscode-editor-background: $editorBackground;",
             "  --vscode-editor-foreground: $editorForeground;",
             "  --vscode-editorWidget-background: $widgetBackground;",
@@ -143,6 +150,7 @@ class IdeThemeSignal : Disposable {
 
         return listOf(
             ":root {",
+            "  color-scheme: ${if (isDark()) "dark" else "light"};",
             "  --vscode-foreground: $foreground;",
             "  --vscode-descriptionForeground: $descriptionForeground;",
             "  --vscode-icon-foreground: $foreground;",
