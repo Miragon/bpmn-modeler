@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.1](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.6.0...intellij-v1.6.1) (2026-07-21)
+
+
+### 🐞 Bug Fixes
+
+* **intellij:** sync bundled webview (8a81d8d) ([cda29c3](https://github.com/Miragon/bpmn-modeler/commit/cda29c333ddee153918a3cfb2b62dfe928f3a883))
+* **intellij:** theme properties-panel input text for JCEF dark mode ([#1290](https://github.com/Miragon/bpmn-modeler/issues/1290)) ([7b41c85](https://github.com/Miragon/bpmn-modeler/commit/7b41c853bb844eacbc16f81ef3f17f2f44b632e0))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the gradle-minor-patch group in /apps/intellij-plugin with 3 updates ([#1285](https://github.com/Miragon/bpmn-modeler/issues/1285)) ([35d97ce](https://github.com/Miragon/bpmn-modeler/commit/35d97ce8e2be301b72623bcc6f92294663d01afe))
+
 ## [1.6.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.5.0...intellij-v1.6.0) (2026-07-17)
 
 
