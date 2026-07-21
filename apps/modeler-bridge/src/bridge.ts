@@ -41,6 +41,7 @@ import * as templatesSettingsFeature from "./composition/templatesSettingsFeatur
 import * as clipboardFeature from "./composition/clipboardFeature";
 import * as navigationFeature from "./composition/navigationFeature";
 import * as codeLinkFeature from "./composition/codeLinkFeature";
+import * as bpmnlintFeature from "./composition/bpmnlintFeature";
 import * as scriptFeature from "./composition/scriptFeature";
 import * as editorSessionFeature from "./composition/editorSessionFeature";
 import * as commandsFeature from "./composition/commandsFeature";
@@ -94,12 +95,15 @@ export function createBridge(
     clipboardFeature.register(deps);
     navigationFeature.register(deps);
     const codeLink = codeLinkFeature.register(deps);
+    const bpmnlint = bpmnlintFeature.register(deps);
     const script = scriptFeature.register(deps);
     // Hook order is the per-session teardown order: script → code-link →
-    // templates, reproducing the original inline dispose sequence.
+    // bpmnlint → templates, reproducing the original inline dispose sequence
+    // (bpmnlint slots next to code-link — both are per-editor file watchers).
     const editorSession = editorSessionFeature.register(deps, [
         script.sessionHooks,
         codeLink.sessionHooks,
+        bpmnlint.sessionHooks,
         templates.sessionHooks,
     ]);
     // Portable modeler commands (change engine version, migrate all). Registered
