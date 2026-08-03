@@ -2488,6 +2488,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@emaarco/dmn-js-simulation@npm:0.1.0":
+  version: 0.1.0
+  resolution: "@emaarco/dmn-js-simulation@npm:0.1.0"
+  dependencies:
+    feelin: "npm:7.0.1"
+  peerDependencies:
+    diagram-js: ">=15"
+    dmn-js: ">=17"
+    inferno: ">=5.6 <6"
+  peerDependenciesMeta:
+    diagram-js:
+      optional: true
+    dmn-js:
+      optional: true
+    inferno:
+      optional: true
+  checksum: 10c0/f175d496ff1ce351e26d155bba192f7f3dbbde78154c9a5a6cdfd44e9f298320d6f4085e7f252175976036fbc6bb28804639d15df86fa5cc656e336c26f3d14e
+  languageName: node
+  linkType: hard
+
 "@emnapi/core@npm:1.10.0":
   version: 1.10.0
   resolution: "@emnapi/core@npm:1.10.0"
@@ -3237,7 +3257,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lezer/common@npm:^1.2.0":
+"@lezer/common@npm:^1.2.0, @lezer/common@npm:^1.5.2":
   version: 1.5.2
   resolution: "@lezer/common@npm:1.5.2"
   checksum: 10c0/e39b46d74899409eab549df7942f00cd8c7f46c81ef0e2f079654ca96d262fca009927328bcd500d69270f5f09986e74768bed19c0acaadbd22f1a6c7dd9bd85
@@ -3776,6 +3796,7 @@ __metadata:
   dependencies:
     "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/properties-panel": "npm:3.46.0"
+    "@emaarco/dmn-js-simulation": "npm:0.1.0"
     "@miragon/bpmn-modeler-i18n": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/vscode-webview": "npm:1.57.5"
@@ -12823,6 +12844,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"feelin@npm:7.0.1":
+  version: 7.0.1
+  resolution: "feelin@npm:7.0.1"
+  dependencies:
+    "@lezer/common": "npm:^1.5.2"
+    lezer-feel: "npm:^3.0.1"
+    luxon: "npm:^3.7.2"
+    min-dash: "npm:^5.0.0"
+  checksum: 10c0/aae2ae7db9fc7831209a10282ffd09c68ba3a579df8e1bdd07cab77d31ee584b125a23eb666502b84e8707b91f40829e2bafdb987a99eb79063f0b0cd30d681d
+  languageName: node
+  linkType: hard
+
 "file-entry-cache@npm:^8.0.0":
   version: 8.0.0
   resolution: "file-entry-cache@npm:8.0.0"
@@ -15198,6 +15231,17 @@ __metadata:
     prelude-ls: "npm:^1.2.1"
     type-check: "npm:~0.4.0"
   checksum: 10c0/effb03cad7c89dfa5bd4f6989364bfc79994c2042ec5966cb9b95990e2edee5cd8969ddf42616a0373ac49fac1403437deaf6e9050fbbaa3546093a59b9ac94e
+  languageName: node
+  linkType: hard
+
+"lezer-feel@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "lezer-feel@npm:3.0.1"
+  dependencies:
+    "@lezer/highlight": "npm:^1.2.3"
+    "@lezer/lr": "npm:^1.4.10"
+    min-dash: "npm:^5.0.0"
+  checksum: 10c0/ffb8bf26e80cd2e845a623ada2f250695eda745d3cae5f17fbe2cdf5a29a1391ebba2186f56636a99f0dc1525dfe74ea4eeaa3bb9c3529eda362c5540d34ff5c
   languageName: node
   linkType: hard
 
