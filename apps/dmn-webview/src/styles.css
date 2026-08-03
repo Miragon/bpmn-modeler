@@ -69,6 +69,10 @@ a:link {
     width: 100%;
 }
 
+.content .canvas:has(.dmn-decision-table-container) {
+    padding: 16px 20px;
+}
+
 .content .canvas,
 .content .panel-resizer,
 .content .properties-panel-parent {
@@ -89,8 +93,6 @@ a:link {
     border-left: 1px solid #e0e0e0;
     transition: background-color 0.15s ease, width 0.15s ease;
     position: relative;
-    /* Declared here (0,1,0) so a future `.collapsed` theme override (0,2,0)
-     * wins regardless of stylesheet load order. */
     --panel-resizer-accent-color: rgba(0, 120, 212, 0.4);
     --panel-resizer-accent-hover-color: rgba(0, 120, 212, 0.8);
 }
@@ -109,10 +111,6 @@ a:link {
 
 .panel-resizer.collapsed {
     width: 8px;
-    /* Draw the accent line via `::before`/`::after` instead of `border-left`:
-     * the toggle button can't reliably cover a real border (Chromium layer
-     * paint order), so two segments stop above and resume below it. Zero the
-     * border width so `:hover` can't recolor a leftover 1px border. */
     border-left-width: 0;
 }
 
@@ -160,8 +158,6 @@ a:link {
 .panel-resizer-toggle {
     display: flex;
     position: absolute;
-    /* Center via top + margin, not `transform: translateY(-50%)`: a transform
-     * isolates a layer that lets the resizer border bleed through the button. */
     top: 50%;
     margin-top: -20px;
     right: 0;
