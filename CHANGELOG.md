@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.6.0...vscode-v1.6.1) (2026-08-03)
+
+
+### 🐞 Bug Fixes
+
+* standalone release action fails ([#1296](https://github.com/Miragon/bpmn-modeler/issues/1296)) ([efa429a](https://github.com/Miragon/bpmn-modeler/commit/efa429a3a051d65cd8866fd1b8ed6642bb677376))
+
 ## [1.6.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.5.0...vscode-v1.6.0) (2026-08-03)
 
 
