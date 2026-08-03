@@ -350,7 +350,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            flatpak flatpak-builder \
+            flatpak flatpak-builder elfutils \
             build-essential python3 make g++ pkg-config \
             libx11-dev libxkbfile-dev libsecret-1-dev \
             desktop-file-utils appstream libxml2-utils
