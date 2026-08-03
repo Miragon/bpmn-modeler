@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.6.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.5.0...vscode-v1.6.0) (2026-08-03)
+
+
+### 🎉 New Features
+
+* **dmn-webview:** integrate DMN decision-table simulation ([#1295](https://github.com/Miragon/bpmn-modeler/issues/1295)) ([0b9f655](https://github.com/Miragon/bpmn-modeler/commit/0b9f655c7bd4868269514fbe3b9c052a71a3afed))
+* **modeler-bridge:** apply .bpmnlintrc in the IntelliJ host ([#1291](https://github.com/Miragon/bpmn-modeler/issues/1291)) ([8a81d8d](https://github.com/Miragon/bpmn-modeler/commit/8a81d8defad3a0953f12f1826e797ff0c005ce09))
+* package standalone modeler for linux ([#1260](https://github.com/Miragon/bpmn-modeler/issues/1260)) ([4a6d17c](https://github.com/Miragon/bpmn-modeler/commit/4a6d17cb7fa7cebf65a46817fb257a7ec05ad6c4))
+
+
+### 🐞 Bug Fixes
+
+* **intellij:** theme properties-panel input text for JCEF dark mode ([#1290](https://github.com/Miragon/bpmn-modeler/issues/1290)) ([7b41c85](https://github.com/Miragon/bpmn-modeler/commit/7b41c853bb844eacbc16f81ef3f17f2f44b632e0))
+* **release:** sync intellij manifest to released 1.6.0 ([#1289](https://github.com/Miragon/bpmn-modeler/issues/1289)) ([2dd3e15](https://github.com/Miragon/bpmn-modeler/commit/2dd3e158a57673078d17fb71d0e0c26eda258bdc))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the github-actions-all group with 3 updates ([#1292](https://github.com/Miragon/bpmn-modeler/issues/1292)) ([363d9bd](https://github.com/Miragon/bpmn-modeler/commit/363d9bdf0f22baf234bf16e34ebf3c081f18dc72))
+* **deps:** bump the github-actions-all group with 5 updates ([#1284](https://github.com/Miragon/bpmn-modeler/issues/1284)) ([d4d96b3](https://github.com/Miragon/bpmn-modeler/commit/d4d96b38769903a74e62d944f1fb8cb21b28c471))
+* **intellij:** commit one bundled-webview marker per release cycle ([#1280](https://github.com/Miragon/bpmn-modeler/issues/1280)) ([883136a](https://github.com/Miragon/bpmn-modeler/commit/883136a827dda030c2b42b78cced1042b9ae4f12))
+* **main:** release intellij 1.6.1 ([#1279](https://github.com/Miragon/bpmn-modeler/issues/1279)) ([2584d31](https://github.com/Miragon/bpmn-modeler/commit/2584d31c67e0dffbf4ff561d4df5ce1cac47e900))
+
 ## [1.5.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.4.0...vscode-v1.5.0) (2026-07-17)
 
 
