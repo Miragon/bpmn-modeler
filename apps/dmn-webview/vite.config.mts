@@ -11,14 +11,9 @@ export default defineConfig({
     cacheDir: "../../node_modules/.vite/dmn-webview",
     plugins: [tsconfigPaths()],
     resolve: {
-        // The dependency tree pulls in several CodeMirror/Lezer copies at
-        // overlapping ^6 ranges (feel-editor, properties-panel, feelers, …).
-        // CodeMirror identifies extensions via `instanceof` against its own
-        // `@codemirror/state`, so two copies make the FEEL editor's
-        // `EditorState.create` throw "Unrecognized extension value". Forcing a
-        // single copy of each fixes it. Mirrors the bpmn-webview config.
         dedupe: [
             "preact",
+            "inferno",
             "@bpmn-io/properties-panel",
             "@codemirror/state",
             "@codemirror/view",

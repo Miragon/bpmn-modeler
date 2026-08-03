@@ -4,6 +4,7 @@ import {
     DmnPropertiesPanelModule,
     DmnPropertiesProviderModule,
 } from "dmn-js-properties-panel";
+import DmnSimulationModule from "@emaarco/dmn-js-simulation";
 import camundaModdleDescriptors from "camunda-dmn-moddle/resources/camunda.json";
 
 import { NoModelerError } from "@miragon/bpmn-modeler-shared";
@@ -20,7 +21,11 @@ export function createModeler(): DmnModeler {
                 DmnPropertiesPanelModule,
                 DmnPropertiesProviderModule,
                 CamundaPropertiesProviderModule,
+                DmnSimulationModule.decisionRequirementsDiagram,
             ],
+        },
+        decisionTable: {
+            additionalModules: [DmnSimulationModule.decisionTable],
         },
         common: {
             expressionLanguages: {
