@@ -13,7 +13,7 @@ Grab the latest package for your platform from the [**Download** page](/download
 
 - macOS: signed and notarized `.dmg`
 - Windows: NSIS `.exe` installer
-- Linux x86_64: `.flatpak` bundle
+- Linux x86_64: Flatpak from the Miragon repository or a `.flatpak` bundle
 
 On macOS, you can also install from the terminal with Homebrew:
 
@@ -25,24 +25,77 @@ brew install --cask miragon-bpmn-modeler
 Every asset also lives on
 [GitHub Releases](https://github.com/Miragon/bpmn-modeler/releases).
 
-Install and launch the Linux bundle with:
+### Install on Linux with Flatpak
+
+Install [Flatpak](https://flatpak.org/setup/) for your Linux distribution before
+continuing.
+
+Miragon publishes the app through a [custom Flatpak repository](https://miragon.github.io/bpmn-modeler-flatpak-repo/)
+instead of Flathub because the [Flathub Generative AI policy](https://docs.flathub.org/docs/for-app-authors/requirements#generative-ai-policy)
+does not accept applications that contain AI-generated or AI-assisted code or
+documentation.
+
+Install the app for your current user. This option does not require root
+privileges:
 
 ```bash
-flatpak install --user --bundle Miragon.BPMN.Modeler-<version>-x86_64.flatpak
+flatpak remote-add --user --if-not-exists miragon https://miragon.github.io/bpmn-modeler-flatpak-repo/miragon.flatpakrepo
+flatpak install --user miragon io.miragon.BpmnModeler
+```
+
+To make the app available to every user on the system, install it system-wide:
+
+```bash
+sudo flatpak remote-add --system --if-not-exists miragon https://miragon.github.io/bpmn-modeler-flatpak-repo/miragon.flatpakrepo
+sudo flatpak install --system miragon io.miragon.BpmnModeler
+```
+
+Launch the app:
+
+```bash
 flatpak run io.miragon.BpmnModeler
 ```
 
-### Upgrade later
+The [Download page](/download) also provides a standalone `.flatpak` bundle.
+Use the repository installation when possible so Flatpak can discover updates
+automatically.
 
-If you installed via Homebrew:
+### Update
+
+#### macOS
+
+If you installed the app with Homebrew, run:
 
 ```bash
 brew upgrade --cask miragon-bpmn-modeler
 ```
 
-DMG and NSIS installs use the in-app auto-updater. Flatpak updates remain
-manual: download the newer bundle and run the `flatpak install --user --bundle`
-command again.
+If you installed the app from a `.dmg`, use the in-app auto-updater.
+
+#### Linux (Flatpak)
+
+Update an installation for your current user with:
+
+```bash
+flatpak update --user io.miragon.BpmnModeler
+```
+
+Update a system-wide Flatpak installation with:
+
+```bash
+sudo flatpak update --system io.miragon.BpmnModeler
+```
+
+If you installed a downloaded `.flatpak` bundle instead of using the
+repository, download the newer bundle and install it again:
+
+```bash
+flatpak install --user --bundle Miragon.BPMN.Modeler-<version>-x86_64.flatpak
+```
+
+#### Windows
+
+The Windows NSIS installation uses the in-app auto-updater.
 
 ### Build from source
 
