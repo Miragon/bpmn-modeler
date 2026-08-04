@@ -38,6 +38,7 @@ jobs:
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
+      standalone-extension: ${{ steps.filter.outputs.standalone-extension }}
       docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -91,6 +92,8 @@ jobs:
               - 'apps/dmn-webview/**'
             deployment-webview:
               - 'apps/deployment-webview/**'
+            standalone-extension:
+              - '{apps/standalone/package.json,libs/standalone-extension/**}'
             docs:
               - 'docs/**'
 
@@ -134,6 +137,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn npm audit --all --severity high
+
+  test-standalone-extension:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.standalone-extension == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install Linux build deps for Theia native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-standalone-extension
+      - run: yarn workspace @miragon/bpmn-modeler-standalone-extension test
+      - run: yarn workspace @miragon/bpmn-modeler-standalone-extension build
 
   build-shared:
     needs: detect-changes
@@ -636,6 +659,7 @@ jobs:
       - e2e-vscode-plugin
       - test-bpmn-webview
       - test-bpmn-i18n
+      - test-standalone-extension
       - build-bpmn-webview
       - build-dmn-webview
       - build-deployment-webview
