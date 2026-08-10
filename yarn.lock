@@ -2488,9 +2488,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@emaarco/dmn-js-simulation@npm:0.1.0":
-  version: 0.1.0
-  resolution: "@emaarco/dmn-js-simulation@npm:0.1.0"
+"@emaarco/dmn-js-simulation@npm:0.2.0":
+  version: 0.2.0
+  resolution: "@emaarco/dmn-js-simulation@npm:0.2.0"
   dependencies:
     feelin: "npm:7.0.1"
   peerDependencies:
@@ -2504,7 +2504,7 @@ __metadata:
       optional: true
     inferno:
       optional: true
-  checksum: 10c0/f175d496ff1ce351e26d155bba192f7f3dbbde78154c9a5a6cdfd44e9f298320d6f4085e7f252175976036fbc6bb28804639d15df86fa5cc656e336c26f3d14e
+  checksum: 10c0/f43e95572732116325397aab7c68bd5f3f9fce67b0d7996cd12cb1f6e62ea8afe664697013b8eaa78f7d70cecafa5c764d9e7867d733e59370a2b04acd2a9a7f
   languageName: node
   linkType: hard
 
@@ -3799,7 +3799,7 @@ __metadata:
   dependencies:
     "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/properties-panel": "npm:3.46.0"
-    "@emaarco/dmn-js-simulation": "npm:0.1.0"
+    "@emaarco/dmn-js-simulation": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/vscode-webview": "npm:1.57.5"

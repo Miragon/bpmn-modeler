@@ -14,7 +14,7 @@
     "dependencies": {
         "@bpmn-io/cm-theme": "0.2.2",
         "@bpmn-io/properties-panel": "3.46.0",
-        "@emaarco/dmn-js-simulation": "0.1.0",
+        "@emaarco/dmn-js-simulation": "0.2.0",
         "@miragon/bpmn-modeler-i18n": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "camunda-dmn-moddle": "1.3.1",
