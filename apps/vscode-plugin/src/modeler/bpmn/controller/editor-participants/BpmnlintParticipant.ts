@@ -11,14 +11,26 @@ import {
 } from "../../../editor-session/EditorSessionParticipant";
 
 /**
- * Keeps the `.bpmnlintrc` config in sync for a BPMN session: re-discovers on
- * `configFolder` setting changes and starts the filesystem watcher over the
- * config file. Watcher disposables join the session bag; setup errors surface to
- * the user. The host status item tracks editor focus and is cleared on dispose so
- * it does not show another editor's state or linger once the editor closes
- * (mirrors {@link EngineVersionStatusBarParticipant}).
+ * Coalescing window for re-linting on diagram edits. Linting runs in the host
+ * (parse + resolve + traverse), so debouncing keeps a burst of keystroke-driven
+ * document syncs from triggering a lint per change.
+ */
+const RELINT_DEBOUNCE_MS = 400;
+
+/**
+ * Drives host-side bpmnlint for a BPMN session: re-lints on document change
+ * (debounced), on `configFolder` setting changes, and whenever the `.bpmnlintrc`
+ * changes on disk; the initial lint is triggered by the webview's
+ * `GetBpmnlintConfigCommand` on load. The status item tracks editor focus and is
+ * cleared — along with the published diagnostics — on dispose so neither lingers
+ * for a closed editor (mirrors {@link EngineVersionStatusBarParticipant}).
+ *
+ * A single instance serves every editor, so the debounce timers are keyed by
+ * editorId.
  */
 export class BpmnlintParticipant implements EditorSessionParticipant {
+    private readonly relintTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
     constructor(
         private readonly lintSvc: BpmnLintConfigService,
         private readonly locator: BpmnLintConfigLocator,
@@ -30,6 +42,19 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
         session.onSettingChange((event, editorId) => {
             if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
                 this.lintSvc.setBpmnlintConfig(editorId, session.panel.active);
+            }
+        });
+
+        // Re-lint on edits: the custom text editor syncs webview edits into the
+        // TextDocument, so the host always lints the current XML. Filter to this
+        // session's `.bpmn` document so an edit elsewhere never re-lints it.
+        session.onDocumentChange((event) => {
+            if (
+                event.hasContentChanges() &&
+                event.documentPath().endsWith(".bpmn") &&
+                session.editorId === event.documentUriString()
+            ) {
+                this.scheduleRelint(session);
             }
         });
 
@@ -58,6 +83,28 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
             this.notifier.logError(error);
         }
 
-        session.onDispose(() => this.statusBar.hideBpmnlintStatus());
+        session.onDispose(() => {
+            const timer = this.relintTimers.get(session.editorId);
+            if (timer) {
+                clearTimeout(timer);
+                this.relintTimers.delete(session.editorId);
+            }
+            this.statusBar.hideBpmnlintStatus();
+            this.lintSvc.clearDiagnostics(session.editorId);
+        });
+    }
+
+    private scheduleRelint(session: EditorSessionContext): void {
+        const existing = this.relintTimers.get(session.editorId);
+        if (existing) {
+            clearTimeout(existing);
+        }
+        this.relintTimers.set(
+            session.editorId,
+            setTimeout(() => {
+                this.relintTimers.delete(session.editorId);
+                this.lintSvc.setBpmnlintConfig(session.editorId, session.panel.active);
+            }, RELINT_DEBOUNCE_MS),
+        );
     }
 }

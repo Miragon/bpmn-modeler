@@ -7,7 +7,7 @@ import "./styles/canvasFocusIndicator.css";
 
 import {
     BpmnFileQuery,
-    BpmnlintConfigQuery,
+    BpmnlintResultsQuery,
     BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
@@ -565,16 +565,12 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
             break;
         }
-        case queryOrCommand.type === "BpmnlintConfigQuery": {
+        case queryOrCommand.type === "BpmnlintResultsQuery": {
             try {
-                const query = message.data as BpmnlintConfigQuery;
-                const warnings = bpmnModeler
+                const query = message.data as BpmnlintResultsQuery;
+                bpmnModeler
                     .getService<LintConfigService>("bpmnLintConfig")
-                    .apply(query.config);
-
-                for (const warning of warnings) {
-                    host.postMessage(new LogWarningCommand(warning));
-                }
+                    .render(query.results);
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

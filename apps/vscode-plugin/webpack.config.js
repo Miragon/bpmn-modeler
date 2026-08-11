@@ -44,6 +44,16 @@ module.exports = (env, argv) => {
             // The vscode module is provided by VS Code at runtime and must not be bundled.
             vscode: "commonjs vscode",
         },
+        // bpmnlint's NodeResolver resolves workspace rule modules through a runtime
+        // `Module.createRequire` (scoped to the .bpmnlintrc dir) that we always pass
+        // in, so its `|| require` fallback is dead code webpack can't statically
+        // analyse. The "Critical dependency" warning it raises is expected, not a bug.
+        ignoreWarnings: [
+            {
+                module: /bpmnlint[\\/]lib[\\/]resolver[\\/]node-resolver\.js$/,
+                message: /Critical dependency: require function is used/,
+            },
+        ],
         module: {
             rules: [
                 {

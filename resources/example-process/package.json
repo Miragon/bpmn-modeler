@@ -1,0 +1,10 @@
+{
+    "name": "bpmn-modeler-example-process",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Example workspace demonstrating custom bpmnlint rules in the BPMN Modeler. Run `npm install` here (or add the plugin to your own node_modules) so the modeler can resolve `bpmnlint-plugin-custom-rules`.",
+    "devDependencies": {
+        "bpmnlint": "^11.12.1",
+        "bpmnlint-plugin-custom-rules": "file:./bpmnlint-custom-rules"
+    }
+}

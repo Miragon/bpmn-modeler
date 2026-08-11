@@ -39,7 +39,9 @@ Here's what you get, roughly in the order you reach for it.
 - **[Linting](/vscode/features/linting)** — validate your diagram live with
   [bpmnlint](https://github.com/bpmn-io/bpmnlint), the same linter you run in
   CI. Drop a `.bpmnlintrc` in your project and rule violations show up as
-  ⚠️/❌ overlays plus a status-bar summary while you edit.
+  ⚠️/❌ overlays, Problems-panel entries, and a status-bar summary while you
+  edit — including your own `bpmnlint-plugin-*` custom rules, resolved from the
+  workspace just like the CLI.
 
 ## Configure
 

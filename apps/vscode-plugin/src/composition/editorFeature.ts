@@ -19,6 +19,8 @@ import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
 import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { DocumentSaveFlushController } from "../modeler/editor-session/DocumentSaveFlushController";
+import { NodeBpmnLinter } from "@miragon/bpmn-modeler-core";
+import { VsCodeDiagnostics } from "../shared/infrastructure/VsCodeDiagnostics";
 import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
 import { ElementTemplatesParticipant } from "../modeler/bpmn/controller/editor-participants/ElementTemplatesParticipant";
 import { BpmnlintParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnlintParticipant";
@@ -126,6 +128,8 @@ export function register(
         deps.editorStore,
         deps.vsDocument,
         lintConfigLocator,
+        new NodeBpmnLinter(),
+        new VsCodeDiagnostics(),
         deps.statusBar,
         deps.notifier,
     );

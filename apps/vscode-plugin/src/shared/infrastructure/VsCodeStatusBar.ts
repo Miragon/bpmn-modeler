@@ -1,4 +1,4 @@
-import { StatusBarAlignment, StatusBarItem, window } from "vscode";
+import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 
 import { Engine } from "@miragon/bpmn-modeler-shared";
 
@@ -50,6 +50,17 @@ export class VsCodeStatusBar implements StatusBarPort {
         const item = this.getOrCreateBpmnlintStatusItem();
         item.text = "$(check) BPMNlint";
         item.tooltip = configPath;
+        item.backgroundColor = undefined;
+        item.show();
+    }
+
+    showBpmnlintUnresolved(configPath: string, unresolved: string[]): void {
+        const item = this.getOrCreateBpmnlintStatusItem();
+        item.text = `$(warning) BPMNlint: ${unresolved.length} rule${unresolved.length === 1 ? "" : "s"} skipped`;
+        // A warning background so a partly-applied config can't be mistaken for the
+        // fully-green tick — the exact ambiguity this state exists to remove.
+        item.backgroundColor = new ThemeColor("statusBarItem.warningBackground");
+        item.tooltip = `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`;
         item.show();
     }
 
@@ -57,6 +68,7 @@ export class VsCodeStatusBar implements StatusBarPort {
         const item = this.getOrCreateBpmnlintStatusItem();
         item.text = "$(info) BPMNlint: no .bpmnlintrc";
         item.tooltip = undefined;
+        item.backgroundColor = undefined;
         item.show();
     }
 

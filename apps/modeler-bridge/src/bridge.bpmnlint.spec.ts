@@ -1,13 +1,15 @@
 /**
- * End-to-end coverage for the bpmnlint config path on the bridge.
+ * End-to-end coverage for the bpmnlint path on the bridge.
  *
  * Same harness style as `bridge.navigate.spec.ts`: the real bridge
  * (`createBridge`) runs against a fake transport (a frames array) over a real
- * temp filesystem, so the `BpmnLintConfigLocator` + `BpmnLintConfigService` do an
- * actual nearest-`.bpmnlintrc` walk and read. Covers the two branches the
- * webview's `GetBpmnlintConfigCommand` exposes: a discovered config is parsed and
- * pushed as `BpmnlintConfigQuery`, and no config pushes `config: null` so the
- * webview deactivates linting.
+ * temp filesystem, so the `BpmnLintConfigLocator` + `BpmnLintConfigService` +
+ * `NodeBpmnLinter` do an actual nearest-`.bpmnlintrc` walk and run bpmnlint.
+ * Covers the two branches the webview's `GetBpmnlintConfigCommand` exposes: a
+ * discovered config is linted and the findings pushed as `BpmnlintResultsQuery`,
+ * and no config pushes `results: null` so the webview deactivates linting. The
+ * temp dir has no `node_modules`, so built-in rules resolve from the bundled
+ * fallback resolver — the same path a workspace without `bpmnlint` installed hits.
  */
 
 import { promises as fs } from "node:fs";
@@ -19,9 +21,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
 
+// A process with a task but no start/end event, so bpmnlint:recommended reports
+// (start-event-required, end-event-required, …) — proving the host actually linted.
 const BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="true" />
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:task id="Task_1" name="Do the thing" />
+  </bpmn:process>
 </bpmn:definitions>`;
 
 function registerParams(editorId: string, root: string, fsPath: string) {
@@ -50,8 +56,9 @@ async function waitForFrame(
     throw new Error("waitForFrame timed out");
 }
 
-const isLintConfigFrame = (frame: any): boolean =>
-    frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintConfigQuery";
+const isLintResultsFrame = (frame: any): boolean =>
+    frame.method === "editor/postMessage" &&
+    frame.params?.message?.type === "BpmnlintResultsQuery";
 
 describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     const cleanups: Array<() => Promise<void> | void> = [];
@@ -91,7 +98,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         );
     }
 
-    it("pushes the nearest .bpmnlintrc contents to the webview", async () => {
+    it("lints against the nearest .bpmnlintrc and pushes the findings to the webview", async () => {
         const { rpc, frames, root, editorId } = await setup();
         await fs.writeFile(
             join(root, ".bpmnlintrc"),
@@ -101,16 +108,19 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
 
         await requestConfig(rpc, editorId);
 
-        const frame = await waitForFrame(frames, isLintConfigFrame);
-        expect(frame.params.message.config).toEqual({ extends: "bpmnlint:recommended" });
+        const frame = await waitForFrame(frames, isLintResultsFrame);
+        const results = frame.params.message.results;
+        expect(results).not.toBeNull();
+        // recommended flags the missing start event on the process containing Task_1.
+        expect(Object.keys(results)).toContain("start-event-required");
     });
 
-    it("pushes a null config when no .bpmnlintrc exists so linting deactivates", async () => {
+    it("pushes null results when no .bpmnlintrc exists so linting deactivates", async () => {
         const { rpc, frames, editorId } = await setup();
 
         await requestConfig(rpc, editorId);
 
-        const frame = await waitForFrame(frames, isLintConfigFrame);
-        expect(frame.params.message.config).toBeNull();
+        const frame = await waitForFrame(frames, isLintResultsFrame);
+        expect(frame.params.message.results).toBeNull();
     });
 });

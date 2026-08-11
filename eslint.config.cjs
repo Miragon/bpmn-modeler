@@ -24,6 +24,9 @@ module.exports = [
             "**/gen-webpack*.js",
             "**/.browser_modules",
             "docs/**",
+            // Sample workspaces shipped for manual testing (e.g. the example
+            // bpmnlint plugin) — CommonJS content users copy, not repo source.
+            "resources/**",
             // Compiled Extension-Host e2e tests — generated CommonJS, not source.
             "apps/vscode-plugin/test/e2e/out/**",
             // The @vscode/test-electron download — the entire VS Code app. Lives

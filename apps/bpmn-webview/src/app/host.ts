@@ -2,7 +2,7 @@ import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
     BpmnModelerSettingQuery,
-    BpmnlintConfigQuery,
+    BpmnlintResultsQuery,
     buildFlowOrder,
     buildRemovedAnchors,
     ClipboardQuery,
@@ -233,7 +233,9 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case message.type === "GetBpmnlintConfigCommand": {
-                dispatchEvent(new BpmnlintConfigQuery(null));
+                // Standalone browser preview: no extension host runs the linter,
+                // so report "no results" and linting stays inactive.
+                dispatchEvent(new BpmnlintResultsQuery(null));
                 break;
             }
             default: {

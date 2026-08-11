@@ -1,0 +1,6 @@
+{
+    "extends": ["bpmnlint:recommended", "plugin:custom-rules/recommended"],
+    "rules": {
+        "custom-rules/no-todo-in-name": "error"
+    }
+}

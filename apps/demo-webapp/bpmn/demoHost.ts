@@ -1,6 +1,6 @@
 import {
     BpmnFileQuery,
-    BpmnlintConfigQuery,
+    BpmnlintResultsQuery,
     BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
@@ -61,7 +61,7 @@ export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
                 dispatch(new ClipboardQuery(""));
                 break;
             case "GetBpmnlintConfigCommand":
-                dispatch(new BpmnlintConfigQuery(null));
+                dispatch(new BpmnlintResultsQuery(null));
                 break;
             case "NavigateToReferencedModelCommand": {
                 const cmd = message as NavigateToReferencedModelCommand;
