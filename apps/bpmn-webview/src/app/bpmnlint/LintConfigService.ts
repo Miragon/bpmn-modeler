@@ -1,6 +1,19 @@
 import { LintResults } from "@miragon/bpmn-modeler-shared";
 
 /**
+ * The subset of `bpmn-js-bpmnlint`'s `linting` module this service drives. The
+ * package ships no types, so we declare only the members we touch: `lint` is
+ * overridden to return host-computed results, and `update`/`isActive`/`toggle`
+ * repaint or clear the overlays.
+ */
+interface Linting {
+    lint: () => Promise<LintResults>;
+    update(): void;
+    isActive(): boolean;
+    toggle(active: boolean): void;
+}
+
+/**
  * bpmn-js DI service (registered by {@link LintModule}) that renders
  * host-computed bpmnlint results in the canvas. The extension host now runs the
  * linter (a full Node context, so it resolves custom `bpmnlint-plugin-*` rules
@@ -17,7 +30,7 @@ export class LintConfigService {
 
     private results: LintResults = {};
 
-    constructor(private readonly linting: any) {
+    constructor(private readonly linting: Linting) {
         // Replace the browser-side lint run with the host's precomputed results.
         // `update()` calls `this.lint()`; returning the stored results makes every
         // relint (import.done / elements.changed) repaint them until the host,
