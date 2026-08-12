@@ -2,18 +2,13 @@ name: Build
 
 on:
   push:
+    branches: [ main ]
   pull_request:
     types: [ opened, reopened, synchronize ]
 
 permissions:
   contents: read
 
-# Workflow-level so a superseded PR run is cancelled as a single unit: the `ci`
-# rollup then resolves to `cancelled` (not `failure`), and branch protection only
-# evaluates the latest SHA's run — no spurious gate failure. `main` pushes are
-# never cancelled (the expression is false on `refs/heads/main`), so back-stop
-# runs always complete. Also frees CI minutes by cancelling every superseded job,
-# not just the e2e smoke test.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -45,10 +40,6 @@ jobs:
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         id: filter
         with:
-          # `every` makes the `!`-negation patterns in the `*-src` filters below
-          # actually exclude — without it negations are inert. Safe globally
-          # because every other filter is a single positive pattern, for which
-          # `every` is identical to the default `any`.
           predicate-quantifier: 'every'
           filters: |
             shared:
@@ -263,8 +254,6 @@ jobs:
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n == 'true'
     runs-on: ubuntu-latest
-    # `pull-requests: write` lets the coverage-report step post/update its
-    # sticky PR comment; job-level scope keeps the broader workflow read-only.
     permissions:
       contents: read
       pull-requests: write
@@ -284,13 +273,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler test
-      # Post the coverage table as a sticky PR comment, but only when this
-      # project's own files changed — a core/shared-only PR still runs these
-      # tests (the plugin depends on them) yet should not surface a plugin
-      # coverage comment. `if: always()` so it still reports when the per-layer
-      # thresholds fail the test step above — that is exactly when you want to
-      # see which layer dropped. `continue-on-error` so a read-only token on
-      # fork PRs can't fail CI.
       - name: Report coverage on the PR
         if: >-
           always() && github.event_name == 'pull_request' &&
@@ -298,8 +280,6 @@ jobs:
         continue-on-error: true
         uses: davelosert/vitest-coverage-report-action@8b157684c6a6b259b97d45e72b44242865c0f6a5 # v2.12.2
         with:
-          # Paths resolve relative to working-directory; vitest writes the
-          # reports to the repo-root coverage/ dir, two levels up.
           working-directory: apps/vscode-plugin
           json-summary-path: ../../coverage/apps/vscode-plugin/coverage-summary.json
           json-final-path: ../../coverage/apps/vscode-plugin/coverage-final.json
@@ -317,15 +297,10 @@ jobs:
 
   test-modeler-core:
     needs: detect-changes
-    # Runs on its own changes and on shared (the engine depends on it). The
-    # coverage report below is gated to this project's own files so a
-    # shared-only PR doesn't surface a modeler-core coverage comment.
     if: >-
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
-    # `pull-requests: write` lets the coverage-report step post/update its
-    # sticky PR comment; job-level scope keeps the broader workflow read-only.
     permissions:
       contents: read
       pull-requests: write
@@ -341,10 +316,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace @miragon/bpmn-modeler-core test
-      # Sticky PR comment, only when this package's own files changed (see the
-      # plugin job for the rationale). `if: always()` so a failed threshold
-      # still reports which layer dropped; `continue-on-error` so a read-only
-      # fork token can't fail CI.
       - name: Report coverage on the PR
         if: >-
           always() && github.event_name == 'pull_request' &&
@@ -369,16 +340,11 @@ jobs:
 
   test-modeler-bridge:
     needs: detect-changes
-    # Runs when the bridge, core, or shared changes — the bridge specs alias
-    # both @miragon/bpmn-modeler-core and @miragon/bpmn-modeler-shared to their
-    # TS sources, so a core/shared change can break the bridge tests too.
     if: >-
       needs.detect-changes.outputs.modeler-bridge == 'true' ||
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
-    # `pull-requests: write` lets the coverage-report step post/update its
-    # sticky PR comment; job-level scope keeps the broader workflow read-only.
     permissions:
       contents: read
       pull-requests: write
@@ -394,9 +360,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace @miragon/bpmn-modeler-bridge test
-      # Post the coverage table as a sticky PR comment, but only when the
-      # bridge's own files changed — a core/shared-only PR still runs these
-      # tests yet should not surface a bridge coverage comment.
       - name: Report coverage on the PR
         if: >-
           always() && github.event_name == 'pull_request' &&
@@ -421,10 +384,6 @@ jobs:
 
   test-intellij-plugin:
     needs: detect-changes
-    # The IntelliJ plugin is a standalone Gradle/Kotlin build whose unit tests are
-    # pure-JVM and depend only on its own sources (it bundles the pre-built bridge
-    # and webviews at packaging time, not at test time), so trigger solely on its
-    # own files — unlike the VS Code plugin it shares no TS deps with core/shared.
     if: needs.detect-changes.outputs.intellij-plugin == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -436,16 +395,9 @@ jobs:
           java-version: '21'
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
-      # `jacocoTestReport` depends on `test`, so this runs the JUnit 5 suite and
-      # then writes the coverage XML. Resources (bridge binary, webview bundles)
-      # are absent on a clean checkout, so their Copy tasks are NO-SOURCE and the
-      # pure-JVM tests run without the JS/Bun toolchain.
       - name: Run unit tests with coverage
         working-directory: apps/intellij-plugin
         run: ./gradlew jacocoTestReport --no-daemon
-      # Gate the upload on the plugin's own sources so a release-please
-      # version-bump PR (gradle.properties only) skips the redundant report
-      # while the build+test step above still runs via the broad filter.
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.intellij-plugin-src == 'true'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -456,35 +408,19 @@ jobs:
           flags: intellij-plugin
           name: intellij-plugin
           verbose: true
-      # Binary-compatibility gate. We build against the 242 floor but claim
-      # compatibility up to the latest (untilBuild = null), so the verifier checks
-      # the plugin against both the floor and a current release (2026.1), failing
-      # only on real breakage (removed/changed APIs) — see the `failureLevel` in
-      # build.gradle.kts. Runs last so the unit-test signal and coverage land
-      # first; it downloads the verified IDEs (~1 GB), which setup-gradle caches
-      # under ~/.gradle across runs.
       - name: Verify plugin binary compatibility
         working-directory: apps/intellij-plugin
         run: ./gradlew verifyPlugin --no-daemon
 
-  # Extension-Host smoke test: the only job that runs the composition root
-  # (`activate()` + custom-editor registration) end-to-end in a real VS Code.
-  # Kept separate from lint/unit so their fast feedback is never delayed by
-  # the heavy Electron launch.
   e2e-vscode-plugin:
     needs: detect-changes
-    # Gate PRs (catch a dead extension before it lands) and back-stop pushes to
-    # `main` only — the workflow's unfiltered `push:` trigger would otherwise run
-    # this heavy job a second time on every PR branch. Path-filtered to anything
-    # that can change the bundle or activation.
     if: >-
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main') &&
-      (needs.detect-changes.outputs.vscode-plugin == 'true' ||
-       needs.detect-changes.outputs.modeler-core == 'true' ||
-       needs.detect-changes.outputs.bpmn-webview == 'true' ||
-       needs.detect-changes.outputs.dmn-webview == 'true' ||
-       needs.detect-changes.outputs.deployment-webview == 'true' ||
-       needs.detect-changes.outputs.shared == 'true')
+      needs.detect-changes.outputs.vscode-plugin == 'true' ||
+      needs.detect-changes.outputs.modeler-core == 'true' ||
+      needs.detect-changes.outputs.bpmn-webview == 'true' ||
+      needs.detect-changes.outputs.dmn-webview == 'true' ||
+      needs.detect-changes.outputs.deployment-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -502,12 +438,8 @@ jobs:
         run: yarn install --immutable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # The test points at dist/apps/vscode-plugin, which only exists after a
-      # full build (libs → webviews + plugin); `main: "main.js"` won't resolve
-      # against the source tree.
       - name: Build the extension
         run: corepack yarn build
-      # Cache the downloaded VS Code/Electron so reruns skip the ~150 MB fetch.
       - name: Cache VS Code download
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
