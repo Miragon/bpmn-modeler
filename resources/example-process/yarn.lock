@@ -36,7 +36,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "bpmn-modeler-example-process@workspace:."
   dependencies:
-    bpmnlint: "npm:^11.12.1"
+    bpmnlint: "npm:11.12.1"
     bpmnlint-plugin-custom-rules: "file:./bpmnlint-custom-rules"
   languageName: unknown
   linkType: soft
@@ -55,7 +55,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmnlint@npm:^11.12.1":
+"bpmnlint@npm:11.12.1":
   version: 11.12.1
   resolution: "bpmnlint@npm:11.12.1"
   dependencies:
