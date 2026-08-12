@@ -58,14 +58,16 @@ export class CompositeResolver implements Resolver {
     }
 
     /**
-     * Workspace-first, built-in-fallback. Each resolver throws (or returns falsy)
-     * on a miss, so a throw is a normal miss, not an error to propagate.
+     * Workspace-first, built-in-fallback. Each resolver throws (or returns
+     * null/undefined) on a miss, so a throw is a normal miss, not an error to
+     * propagate. A resolved rule/config is always an object, so only nullish
+     * counts as a miss — a hypothetical falsy-but-valid result still passes.
      */
     private tryResolve(resolve: (r: Resolver) => unknown): unknown {
         for (const resolver of [this.workspace, this.builtin]) {
             try {
                 const resolved = resolve(resolver);
-                if (resolved) {
+                if (resolved != null) {
                     return resolved;
                 }
             } catch {
