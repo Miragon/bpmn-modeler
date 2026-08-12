@@ -8,7 +8,7 @@
  */
 
 /** The two navigable columns. `templates` is left, `palette` is right. */
-export type ColumnId = "templates" | "palette";
+type ColumnId = "templates" | "palette";
 
 /** One navigable slot. Disabled slots render but are skipped by movement. */
 export interface NavItem {

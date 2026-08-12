@@ -5,7 +5,7 @@ import { KNOWN_EXTENDS, KNOWN_RULES } from "./LintingRuleResolver";
  * config names plus inline rule overrides. This is the `config` half of the
  * `{ config, resolver }` pair `linting.setLinterConfig` expects.
  */
-export interface BpmnlintRuntimeConfig {
+interface BpmnlintRuntimeConfig {
     extends: string[];
     rules: Record<string, unknown>;
 }

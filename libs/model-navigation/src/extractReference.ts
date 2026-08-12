@@ -20,7 +20,7 @@ export interface BusinessObjectLike {
     extensionElements?: { values?: ExtensionElementLike[] };
 }
 
-export interface ExtensionElementLike {
+interface ExtensionElementLike {
     $type?: string;
     processId?: string;
     decisionId?: string;

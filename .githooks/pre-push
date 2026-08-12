@@ -7,9 +7,12 @@ corepack yarn install --immutable
 echo "▶ Pre-push: lint"
 corepack yarn lint
 
+echo "▶ Pre-push: knip"
+corepack yarn knip
+
 # Tests and library/plugin builds are intentionally NOT run here: the Build CI
-# workflow (.github/workflows/build.yml) already runs `yarn lint`, every lib
-# compile, the plugin build, and `yarn test` on every PR. Re-running them on
-# each push only added minutes of redundant local work, so pre-push is kept to
-# the cheap, fast-feedback gate (lockfile drift + lint).
+# workflow (.github/workflows/build.yml) already runs `yarn lint`, `yarn knip`,
+# every lib compile, the plugin build, and `yarn test` on every PR. Re-running
+# them on each push only added minutes of redundant local work, so pre-push is
+# kept to the cheap, fast-feedback gate (lockfile drift + lint + knip).
 echo "✓ Pre-push checks passed (tests + builds run in CI)."

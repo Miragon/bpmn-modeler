@@ -26,7 +26,7 @@ export interface BusinessObjectLike {
     extensionElements?: { values?: ExtensionElementLike[] };
 }
 
-export interface ExtensionElementLike {
+interface ExtensionElementLike {
     $type?: string;
     // `zeebe:TaskDefinition` carries the C8 job type here.
     type?: string;

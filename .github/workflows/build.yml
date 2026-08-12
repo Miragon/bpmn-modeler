@@ -108,6 +108,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn lint
       - run: yarn format:check
+      - name: Unused files/deps/exports (knip)
+        run: yarn knip
 
   audit:
     runs-on: ubuntu-latest
