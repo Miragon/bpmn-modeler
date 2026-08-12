@@ -37,7 +37,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           predicate-quantifier: 'every'
@@ -396,7 +396,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
       - name: Run unit tests with coverage
         working-directory: apps/intellij-plugin
         run: ./gradlew jacocoTestReport --no-daemon
