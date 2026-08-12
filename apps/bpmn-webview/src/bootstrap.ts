@@ -568,9 +568,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
         case queryOrCommand.type === "BpmnlintResultsQuery": {
             try {
                 const query = message.data as BpmnlintResultsQuery;
-                bpmnModeler
-                    .getService<LintConfigService>("bpmnLintConfig")
-                    .render(query.results);
+                bpmnModeler.getService<LintConfigService>("bpmnLintConfig").render(query.results);
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

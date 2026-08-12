@@ -142,10 +142,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      */
     private async pushResults(editorId: string, results: LintResults | null): Promise<boolean> {
         try {
-            return await this.editorStore.postMessage(
-                editorId,
-                new BpmnlintResultsQuery(results),
-            );
+            return await this.editorStore.postMessage(editorId, new BpmnlintResultsQuery(results));
         } catch (error) {
             this.notifier.logWarning(
                 `[bpmnlint] results push skipped: ${(error as Error).message}`,

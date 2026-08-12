@@ -57,8 +57,7 @@ async function waitForFrame(
 }
 
 const isLintResultsFrame = (frame: any): boolean =>
-    frame.method === "editor/postMessage" &&
-    frame.params?.message?.type === "BpmnlintResultsQuery";
+    frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintResultsQuery";
 
 describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     const cleanups: Array<() => Promise<void> | void> = [];

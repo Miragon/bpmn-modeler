@@ -48,7 +48,10 @@ function createServices(watcher: WatcherResult) {
     const lintSvc = {
         setBpmnlintConfig: vi.fn(),
         clearDiagnostics: vi.fn(),
-    } as Pick<BpmnLintConfigService, "setBpmnlintConfig" | "clearDiagnostics"> as BpmnLintConfigService;
+    } as Pick<
+        BpmnLintConfigService,
+        "setBpmnlintConfig" | "clearDiagnostics"
+    > as BpmnLintConfigService;
     const locator = {
         createWatcher: vi.fn().mockResolvedValue(watcher),
     } as Pick<BpmnLintConfigLocator, "createWatcher"> as BpmnLintConfigLocator;

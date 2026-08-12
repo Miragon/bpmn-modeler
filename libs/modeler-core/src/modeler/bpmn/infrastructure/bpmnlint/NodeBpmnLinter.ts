@@ -99,7 +99,9 @@ export class NodeBpmnLinter implements LintRunnerPort {
         };
         const factory = mod.default ?? mod.BpmnModdle;
         if (typeof factory !== "function") {
-            throw new Error("bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.");
+            throw new Error(
+                "bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.",
+            );
         }
         return factory;
     }

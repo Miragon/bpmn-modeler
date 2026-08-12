@@ -11,7 +11,9 @@ import { BpmnLintConfigService } from "./BpmnLintConfigService";
 
 const EDITOR = "file:///work/diagram.bpmn";
 const XML = "<xml/>";
-const RESULTS = { "label-required": [{ id: "Task_1", message: "Element requires a label", category: "warn" }] };
+const RESULTS = {
+    "label-required": [{ id: "Task_1", message: "Element requires a label", category: "warn" }],
+};
 
 function createService() {
     const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
@@ -50,7 +52,16 @@ function createService() {
         notifier as never,
     );
 
-    return { service, editorStore, vsDocument, locator, lintRunner, diagnostics, statusBar, notifier };
+    return {
+        service,
+        editorStore,
+        vsDocument,
+        locator,
+        lintRunner,
+        diagnostics,
+        statusBar,
+        notifier,
+    };
 }
 
 beforeEach(() => {
