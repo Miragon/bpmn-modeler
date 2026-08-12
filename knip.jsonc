@@ -1,0 +1,24 @@
+{
+    "$schema": "https://unpkg.com/knip@6/schema.json",
+    "ignoreDependencies": [
+        "tslib", // injected by TS `importHelpers` (tsconfig.base.json), not imported
+        "preact", // provided via `jsxImportSource: "preact"` in tsconfig.base.json
+        "lint-staged", // invoked by .githooks/pre-commit, which knip does not parse
+        "@types/vscode-webview", // ambient types for `acquireVsCodeApi`, no import site
+        "@vscode/test-electron", // runtime of the @vscode/test-cli e2e toolchain
+        "@bpmn-io/cm-theme" // version pin: @bpmn-io/feelers-editor needs 0.2.2's feelLight/feelDark
+    ],
+    "ignoreWorkspaces": ["apps/standalone"],
+    "workspaces": {
+        "apps/vscode-plugin": {
+            "entry": [
+                "src/**/index.ts",
+                "test/e2e/.vscode-test.mjs",
+                "test/e2e/**/*.test.ts"
+            ]
+        },
+        "apps/demo-webapp": {
+            "entry": ["dmn/main.ts"]
+        }
+    }
+}

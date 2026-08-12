@@ -44,7 +44,7 @@ export interface CodeLinkMapEntry {
 }
 
 /** One entry as persisted: identical to {@link CodeLinkMapEntry} but with workspace-relative paths. */
-export interface CodeLinkMapJsonEntry {
+interface CodeLinkMapJsonEntry {
     activityId: string;
     kind: ImplementationKind;
     reference: string;

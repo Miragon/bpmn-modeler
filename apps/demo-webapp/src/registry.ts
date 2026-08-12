@@ -46,9 +46,7 @@ export const MODELS: DemoModel[] = [
     },
 ];
 
-export const DEFAULT_MODEL_ID = "newsletter";
-
-export function getModelById(id: string | null | undefined): DemoModel | undefined {
+function getModelById(id: string | null | undefined): DemoModel | undefined {
     return id ? MODELS.find((m) => m.id === id) : undefined;
 }
 
