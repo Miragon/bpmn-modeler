@@ -105,7 +105,7 @@ nothing untrusted runs in the webview.
 A **runnable example** lives in
 [`resources/example-process/`](https://github.com/Miragon/bpmn-modeler/tree/main/resources/example-process):
 a tiny `bpmnlint-plugin-custom-rules` plugin, a `.bpmnlintrc` that uses it, and a
-`lint-demo.bpmn` whose task triggers the custom rule.
+`c7/lint-demo.bpmn` whose task triggers the custom rule.
 
 ### When a plugin can't be resolved
 

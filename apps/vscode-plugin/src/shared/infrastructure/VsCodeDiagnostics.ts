@@ -26,6 +26,24 @@ export class VsCodeDiagnostics implements DiagnosticsPort {
         languages.createDiagnosticCollection("bpmnlint");
 
     publish(documentUri: string, xml: string, results: LintResults): void {
+        // TEMP DEBUG (#1304): write ground-truth to a file I can read directly.
+        try {
+            const findings = Object.values(results).flat();
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            require("fs").appendFileSync(
+                "/tmp/bpmnlint-debug.log",
+                `publish uri=${documentUri} xmlLen=${xml.length} hasTODO=${xml.includes(
+                    "TODO",
+                )} findings=${findings.length} rules=[${Object.keys(results).join(
+                    ",",
+                )}] taskName=${JSON.stringify(
+                    (xml.match(/bpmn:task[^>]*name="([^"]*)"/) || [])[1] ?? null,
+                )}\n`,
+            );
+        } catch {
+            /* debug best-effort */
+        }
+
         const uri = Uri.parse(documentUri);
         const diagnostics: Diagnostic[] = [];
 

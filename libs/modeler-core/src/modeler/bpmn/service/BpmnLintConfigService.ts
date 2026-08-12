@@ -86,6 +86,15 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                     config,
                 );
 
+                // TEMP DEBUG (#1304): ground-truth what the host actually linted.
+                this.notifier.logInfo(
+                    `[bpmnlint-debug] config=${configPath} xmlLen=${xml.length} hasTODO=${xml.includes(
+                        "TODO",
+                    )} findings=${Object.values(lintResults).flat().length} rules=[${Object.keys(
+                        lintResults,
+                    ).join(",")}] unresolved=[${unresolved.join(",")}]`,
+                );
+
                 this.diagnostics.publish(editorId, xml, lintResults);
                 if (reflectInStatusBar) {
                     if (unresolved.length > 0) {

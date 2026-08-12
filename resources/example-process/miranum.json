@@ -8,24 +8,14 @@
         "extension": ".bpmn"
       },
       {
-        "type": "dmn",
-        "path": "",
-        "extension": ".dmn"
-      },
-      {
         "type": "form",
         "path": "forms",
         "extension": ".form"
       },
       {
         "type": "element-template",
-        "path": ".camunda/element-templates",
+        "path": "",
         "extension": ".json"
-      },
-      {
-        "type": "config",
-        "path": "configs",
-        "extension": ".config.json"
       }
     ],
     "deployment": [
