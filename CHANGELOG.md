@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.7.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.6.1...vscode-v1.7.0) (2026-08-13)
+
+
+### 🎉 New Features
+
+* support custom bpmnlint ([#1308](https://github.com/Miragon/bpmn-modeler/issues/1308)) ([ed54f73](https://github.com/Miragon/bpmn-modeler/commit/ed54f7364bf101c72b2eec7934df6e97557680b1))
+
+
+### 🐞 Bug Fixes
+
+* [#1300](https://github.com/Miragon/bpmn-modeler/issues/1300) color theme resets ([#1301](https://github.com/Miragon/bpmn-modeler/issues/1301)) ([062c3f8](https://github.com/Miragon/bpmn-modeler/commit/062c3f85b90e95235a4b61ac8c8164f0bd5c356f))
+
+
+### 🛠️ Misc
+
+* **ci:** scope build push trigger to main ([#1310](https://github.com/Miragon/bpmn-modeler/issues/1310)) ([aaa6f18](https://github.com/Miragon/bpmn-modeler/commit/aaa6f186f8ea1e242b47062349fcf40b5c4168c4))
+* **deps:** bump @emaarco/dmn-js-simulation to 0.2.0 ([#1303](https://github.com/Miragon/bpmn-modeler/issues/1303)) ([d61e260](https://github.com/Miragon/bpmn-modeler/commit/d61e2605443eca8f77374baa7d6f8dec832664d2))
+* **deps:** bump the github-actions-all group across 1 directory with 4 updates ([#1305](https://github.com/Miragon/bpmn-modeler/issues/1305)) ([6553e61](https://github.com/Miragon/bpmn-modeler/commit/6553e618c9a8de8d39f1dc8968ad05c697d36cba))
+* **deps:** bump the github-actions-all group with 3 updates ([#1298](https://github.com/Miragon/bpmn-modeler/issues/1298)) ([d6357e3](https://github.com/Miragon/bpmn-modeler/commit/d6357e374f7a25709f574f4f804fc1fc879a0856))
+* **repo:** add knip unused-code guardrail ([#1311](https://github.com/Miragon/bpmn-modeler/issues/1311)) ([1b35a62](https://github.com/Miragon/bpmn-modeler/commit/1b35a623889a1b90b78b04efe4b86e02ff99879e))
+
 ## [1.6.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.6.0...vscode-v1.6.1) (2026-08-03)
 
 
