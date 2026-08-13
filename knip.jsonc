@@ -8,6 +8,16 @@
         "@vscode/test-electron", // runtime of the @vscode/test-cli e2e toolchain
         "@bpmn-io/cm-theme" // version pin: @bpmn-io/feelers-editor needs 0.2.2's feelLight/feelDark
     ],
+    "ignore": [
+        // bpmnlint plugin fixture: resolved at runtime by bpmnlint via the
+        // `file:` dep + `.bpmnlintrc` (dynamic string require), which knip
+        // cannot see statically. On CI the fixture's node_modules is absent,
+        // so knip flags these unless ignored outright.
+        "resources/example-process/bpmnlint-custom-rules/**",
+        // Gradle build output (gitignored, absent on CI); the staged webview
+        // bundles here would otherwise read as unused source locally.
+        "apps/intellij-plugin/build/**"
+    ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {
         "apps/vscode-plugin": {
