@@ -63,7 +63,7 @@ export interface SettingsDidChangeParams {
 }
 
 /** One side of a diff: a diff-scoped pane uri plus its cached XML. */
-export interface DiffPaneInput {
+interface DiffPaneInput {
     /** Stable, diff-scoped pane identity (host appends `#<diffId>-<role>`). */
     uri: string;
     content: string;
@@ -216,7 +216,7 @@ export interface DocumentSaveResult {
 }
 
 /** One row offered to the host popup: a label plus optional greyed detail. */
-export interface PickItem {
+interface PickItem {
     label: string;
     description?: string;
 }
@@ -370,7 +370,7 @@ export interface DeploymentPostMessageParams {
 }
 
 /** Completion bean shipped to the host so it never needs BPMN/PSI knowledge. */
-export interface ScriptCompletionBean {
+interface ScriptCompletionBean {
     name: string;
     type: string;
     description: string;

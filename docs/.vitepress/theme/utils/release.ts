@@ -32,7 +32,7 @@ const FLATPAK_X86_64 = /-x86_64\.flatpak$/i;
 // the product name has no hyphens, so the leftmost match starts after it.
 const DMG_VERSION = /-(.+)-arm64\.dmg$/i;
 
-export interface GitHubReleaseAsset {
+interface GitHubReleaseAsset {
     name?: string;
     browser_download_url?: string;
 }

@@ -73,10 +73,10 @@ import {
 } from "./types";
 
 /** Which peer initiates the call. Requests are only ever Core→Host (see the contract test). */
-export type Direction = "hostToCore" | "coreToHost";
+type Direction = "hostToCore" | "coreToHost";
 
 /** Whether a reply is expected. */
-export type Kind = "notification" | "request";
+type Kind = "notification" | "request";
 
 /**
  * Ergonomic name constants for call-sites (`METHODS.sessionRegister`). Hand-kept
@@ -602,18 +602,6 @@ export const PROTOCOL = [
         paramsFixture: { scriptId: "s1" } satisfies ScriptCloseNotifyParams,
     },
 ] as const;
-
-/** One descriptor entry, with literal `method`/`direction`/`kind`. */
-export type ProtocolEntry = (typeof PROTOCOL)[number];
-
-/** Union of every RPC method name. */
-export type RpcMethod = ProtocolEntry["method"];
-
-/** Methods the host sends to the core. */
-export type HostToCoreMethod = Extract<ProtocolEntry, { direction: "hostToCore" }>["method"];
-
-/** Methods the core sends to the host. */
-export type CoreToHostMethod = Extract<ProtocolEntry, { direction: "coreToHost" }>["method"];
 
 /** Language-neutral, per-method key contract — what the Kotlin host verifies against. */
 export interface ProtocolSnapshotEntry {
