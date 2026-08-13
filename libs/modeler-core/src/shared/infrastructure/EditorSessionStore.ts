@@ -66,6 +66,11 @@ export class EditorSessionStore {
         return Array.from(this.editors.keys());
     }
 
+    /** Whether an editor with this id is currently registered (not yet disposed). */
+    hasEditor(editorId: string): boolean {
+        return this.editors.has(editorId);
+    }
+
     getActiveEditorId(): string {
         if (!this.activeEditorId) {
             throw new Error("No active editor.");
