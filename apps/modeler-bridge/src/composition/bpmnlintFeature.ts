@@ -1,19 +1,27 @@
 import { Command } from "@miragon/bpmn-modeler-shared";
-import { BpmnLintConfigLocator, BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
+import {
+    BpmnLintConfigLocator,
+    BpmnLintConfigService,
+    NodeBpmnLinter,
+    NoopDiagnostics,
+} from "@miragon/bpmn-modeler-core";
 
 import { BridgeSharedDeps } from "./sharedDeps";
 import { RegisterParams, SessionHooks } from "./sessionHooks";
 
 /**
  * The bpmnlint feature discovers the nearest `.bpmnlintrc` for an open BPMN
- * document and pushes its raw contents to the webview, which owns the rule
- * allow-list and the in-canvas violation markers. It reuses the host-agnostic
- * core stack unchanged ({@link BpmnLintConfigLocator} + {@link BpmnLintConfigService})
- * over the Workspace/Settings/Document/StatusBar ports the bridge already
- * implements — the bridge analogue of the VS Code `BpmnlintParticipant`.
+ * document, runs bpmnlint in the bridge (a full Bun/Node context, so custom
+ * `bpmnlint-plugin-*` rules resolve against the workspace exactly like in VS
+ * Code), and pushes the findings to the webview, which only renders the in-canvas
+ * markers. It reuses the host-agnostic core stack ({@link BpmnLintConfigLocator} +
+ * {@link BpmnLintConfigService} + {@link NodeBpmnLinter}) over the
+ * Workspace/Settings/Document/StatusBar ports the bridge already implements — the
+ * bridge analogue of the VS Code `BpmnlintParticipant`. There is no Problems-panel
+ * equivalent here, so {@link NoopDiagnostics} stands in.
  *
  * Webview messages: GetBpmnlintConfigCommand.
- * Session hooks: a per-editor `.bpmnlintrc` watcher that re-pushes on change.
+ * Session hooks: a per-editor `.bpmnlintrc` watcher that re-lints on change.
  */
 export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks } {
     const locator = new BpmnLintConfigLocator(deps.nodeWorkspace, deps.settings, deps.artifactSvc);
@@ -21,6 +29,8 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         deps.store,
         deps.documentPort,
         locator,
+        new NodeBpmnLinter(),
+        new NoopDiagnostics(),
         deps.statusBar,
         deps.notifier,
     );

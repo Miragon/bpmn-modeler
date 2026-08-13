@@ -1,41 +1,66 @@
-import { LintConfigSanitizerService } from "./LintConfigSanitizerService";
-import { lintingRuleResolver } from "./LintingRuleResolver";
+import { LintResults } from "@miragon/bpmn-modeler-shared";
 
 /**
- * bpmn-js DI service (registered by {@link LintModule}) that applies a discovered
- * `.bpmnlintrc` to the `bpmn-js-bpmnlint` linter at runtime. Injected with the
- * `linting` service and the {@link LintConfigSanitizerService}, so the whole bpmnlint
- * concern stays composed inside the DI module — the host's config is routed here
- * from the webview message hub.
+ * The subset of `bpmn-js-bpmnlint`'s `linting` module this service drives. The
+ * package ships no types, so we declare only the members we touch: `lint` is
+ * overridden to return host-computed results, and `update`/`isActive`/`toggle`
+ * repaint or clear the overlays.
+ */
+interface Linting {
+    lint: () => Promise<LintResults>;
+    update(): void;
+    isActive(): boolean;
+    toggle(active: boolean): void;
+}
+
+/**
+ * bpmn-js DI service (registered by {@link LintModule}) that renders
+ * host-computed bpmnlint results in the canvas. The extension host now runs the
+ * linter (a full Node context, so it resolves custom `bpmnlint-plugin-*` rules
+ * against the workspace); the webview only paints overlays.
+ *
+ * It feeds results into `bpmn-js-bpmnlint`'s `linting` module by overriding the
+ * module's `lint()` to return whatever the host last sent, instead of running a
+ * browser-side `Linter`. The module's own `update()` — fired on import, element
+ * changes, and toggles — then diffs and draws the overlays exactly as before, so
+ * no overlay/rendering code changes.
  */
 export class LintConfigService {
-    static $inject = ["linting", "bpmnLintSanitizer"];
+    static $inject = ["linting"];
 
-    constructor(
-        private readonly linting: any,
-        private readonly sanitizer: LintConfigSanitizerService,
-    ) {}
+    private results: LintResults = {};
+
+    constructor(private readonly linting: Linting) {
+        // Replace the browser-side lint run with the host's precomputed results.
+        // `update()` calls `this.lint()`; returning the stored results makes every
+        // relint (import.done / elements.changed) repaint them until the host,
+        // which re-lints on document change, sends a fresh set.
+        this.linting.lint = () => Promise.resolve(this.results);
+    }
 
     /**
-     * Applies the discovered `.bpmnlintrc` (`raw`, sanitised by the injected
-     * {@link LintConfigSanitizerService}) to the linter, or deactivates linting
-     * when `raw` is `null`. Returns warnings for any dropped entries.
+     * Renders `results`, or deactivates linting when `results` is `null` (no
+     * `.bpmnlintrc`, or a host read/lint failure) — keeping the no-config
+     * experience identical to before linting moved to the host.
      */
-    apply(raw: Record<string, unknown> | null): string[] {
-        if (!raw) {
+    render(results: LintResults | null): void {
+        if (!results) {
+            this.results = {};
             if (this.linting.isActive()) {
+                // Fires `linting.toggle`, which clears the overlays via `update()`.
                 this.linting.toggle(false);
             }
             document.body.classList.remove("bpmnlint-active");
-            return [];
+            return;
         }
 
-        const { config, warnings } = this.sanitizer.sanitize(raw);
-        this.linting.setLinterConfig({ config, resolver: lintingRuleResolver });
-        if (!this.linting.isActive()) {
+        this.results = results;
+        document.body.classList.add("bpmnlint-active");
+        if (this.linting.isActive()) {
+            this.linting.update();
+        } else {
+            // Activating fires `linting.toggle`, which triggers the first `update()`.
             this.linting.toggle(true);
         }
-        document.body.classList.add("bpmnlint-active");
-        return warnings;
     }
 }

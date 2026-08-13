@@ -1,14 +1,19 @@
 /**
- * Runtime replacement for `bpmnlint-loader`.
+ * A `StaticResolver` over bpmnlint's built-in rules and configs, statically
+ * imported so every bundler (webpack for VS Code, Bun for the IntelliJ bridge)
+ * includes them deterministically.
  *
- * bpmnlint's normal config resolution (`bpmnlint-loader`) bundles rule modules
- * at *build* time from a `.bpmnlintrc` known to the bundler.
- * We discover the config at *runtime*, so the loader cannot run.
- * Thus, we statically import every built-in rule
+ * It is the fallback half of {@link CompositeResolver}: built-in `bpmnlint/*`
+ * rules resolve from here even when the workspace has no `bpmnlint` installed, so
+ * the zero-config case never regresses. Custom `bpmnlint-plugin-*` rules are
+ * intentionally absent — those come from the workspace via `NodeResolver`.
  *
- * This cache is the single source of truth for what the current scope supports:
- * custom / 3rd-party rule packages are intentionally absent and are dropped (with a warning)
+ * bpmnlint ships no type declarations; its deep entry points are typed by the
+ * ambient shim in `src/types/bpmnlint.d.ts`, which every consuming tsconfig picks
+ * up through its `include`.
  */
+import type { Resolver } from "./CompositeResolver";
+
 import StaticResolver from "bpmnlint/lib/resolver/static-resolver";
 
 import recommended from "bpmnlint/config/recommended";
@@ -42,11 +47,6 @@ import subProcessBlankStartEvent from "bpmnlint/rules/sub-process-blank-start-ev
 import superfluousGateway from "bpmnlint/rules/superfluous-gateway";
 import superfluousTermination from "bpmnlint/rules/superfluous-termination";
 
-/**
- * The full built-in rule + config cache.
- * Explicit imports (rather than `import.meta.glob`) are preferred so this file doubles as the current-scope allow-list
- * and bundles deterministically.
- */
 const cache: Record<string, unknown> = {
     "config:bpmnlint/recommended": recommended,
     "config:bpmnlint/all": all,
@@ -79,27 +79,4 @@ const cache: Record<string, unknown> = {
     "rule:bpmnlint/superfluous-termination": superfluousTermination,
 };
 
-export const lintingRuleResolver = new StaticResolver(cache);
-
-const RULE_PREFIX = "rule:bpmnlint/";
-const CONFIG_PREFIX = "config:bpmnlint/";
-
-/**
- * Bare rule names supported in the current scope (e.g. `label-required`). Derived
- * from the cache so the allow-list can never drift from what the resolver can resolve.
- */
-export const KNOWN_RULES: ReadonlySet<string> = new Set(
-    Object.keys(cache)
-        .filter((key) => key.startsWith(RULE_PREFIX))
-        .map((key) => key.slice(RULE_PREFIX.length)),
-);
-
-/**
- * Supported `extends` values in `.bpmnlintrc` syntax (e.g.
- * `bpmnlint:recommended`). Built from the config cache keys.
- */
-export const KNOWN_EXTENDS: ReadonlySet<string> = new Set(
-    Object.keys(cache)
-        .filter((key) => key.startsWith(CONFIG_PREFIX))
-        .map((key) => "bpmnlint:" + key.slice(CONFIG_PREFIX.length)),
-);
+export const builtinResolver: Resolver = new StaticResolver(cache);

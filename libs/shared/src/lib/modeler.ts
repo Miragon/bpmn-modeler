@@ -8,7 +8,7 @@
  * - {@link BpmnFileQuery}                 — deliver BPMN XML and detected engine type for rendering
  * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
- * - {@link BpmnlintConfigQuery}           — deliver the raw .bpmnlintrc config (or null when none found)
+ * - {@link BpmnlintResultsQuery}          — deliver host-computed bpmnlint results (or null to deactivate)
  * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
  * - {@link DmnModelerSettingQuery}         — deliver DMN modeler settings (colorTheme only)
  * - {@link PropertiesPanelStateQuery}     — deliver the global default visibility of the properties panel
@@ -21,7 +21,7 @@
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
  * - {@link GetDmnFileCommand}                 — webview is ready; request the DMN file
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
- * - {@link GetBpmnlintConfigCommand}          — request the current .bpmnlintrc config
+ * - {@link GetBpmnlintConfigCommand}          — webview is ready; trigger a host lint pass
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
  * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
  * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
@@ -99,21 +99,44 @@ export class ElementTemplatesQuery extends Query {
 }
 
 /**
- * Delivers the raw, parsed `.bpmnlintrc` JSON the host discovered for the open
- * document, or `null` when no config exists anywhere up the workspace tree.
- *
- * The host stays oblivious to bpmnlint's resolver semantics: it ships the file
- * verbatim and the webview turns it into a runtime `{ config, resolver }` — the
- * resolver (and the current-scope built-in-rules-only allow-list) live entirely in the
- * webview. A `null` config tells the webview to deactivate linting and hide the
- * lint button, keeping the no-config experience pixel-identical to today.
+ * A single bpmnlint finding as bpmnlint's own `Linter` emits it: the offending
+ * element `id`, a human-readable `message`, and a `category` (`error` / `warn` /
+ * `info`). `rule`/`meta` ride along when present so the webview overlay can link
+ * to a rule's documentation. Kept structurally identical to bpmnlint's report so
+ * `bpmn-js-bpmnlint`'s `linting` module can render it without translation.
  */
-export class BpmnlintConfigQuery extends Query {
-    public readonly config: Record<string, unknown> | null;
+export interface LintReport {
+    readonly id?: string;
+    readonly message: string;
+    readonly category: string;
+    readonly path?: string[];
+    readonly rule?: string;
+    readonly meta?: { documentation?: { url?: string } };
+}
 
-    constructor(config: Record<string, unknown> | null) {
-        super("BpmnlintConfigQuery");
-        this.config = config;
+/**
+ * bpmnlint's lint result: findings keyed by rule name, exactly the shape
+ * `bpmn-js-bpmnlint`'s `Linting._formatIssues` consumes.
+ */
+export type LintResults = Record<string, LintReport[]>;
+
+/**
+ * Delivers the host-computed bpmnlint results for the open document so the
+ * webview only renders overlays — it no longer runs the linter itself.
+ *
+ * Linting moved to the extension host (a full Node context) so it can resolve
+ * custom `bpmnlint-plugin-*` rules and `plugin:<pkg>/recommended` configs against the
+ * workspace `node_modules` exactly like the bpmnlint CLI — the browser bundle
+ * could only ever see the built-in rules baked into it. A `null` result tells the
+ * webview to deactivate linting and hide the lint button (no `.bpmnlintrc` found,
+ * or a read/parse failure), keeping the no-config experience identical to today.
+ */
+export class BpmnlintResultsQuery extends Query {
+    public readonly results: LintResults | null;
+
+    constructor(results: LintResults | null) {
+        super("BpmnlintResultsQuery");
+        this.results = results;
     }
 }
 
@@ -364,10 +387,11 @@ export class GetElementTemplatesCommand extends Command {
 }
 
 /**
- * Sent by the BPMN webview on (re)load to request the current `.bpmnlintrc`
- * config. The host answers with {@link BpmnlintConfigQuery}. Hosts that do not
- * implement lint config discovery (e.g. the IntelliJ bridge) simply have no
- * handler for it, so linting stays dormant and the webview is unaffected.
+ * Sent by the BPMN webview on (re)load to trigger a host lint pass. The host
+ * discovers the nearest `.bpmnlintrc`, runs bpmnlint, and answers with
+ * {@link BpmnlintResultsQuery}. Hosts that do not implement lint discovery (e.g.
+ * the IntelliJ bridge) simply have no handler for it, so linting stays dormant
+ * and the webview is unaffected.
  */
 export class GetBpmnlintConfigCommand extends Command {
     constructor() {

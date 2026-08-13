@@ -40,13 +40,28 @@ function settingChange(affected: string): SettingChange {
     return { affectsConfiguration: (section: string) => section === affected };
 }
 
+// The collaborators are classes with private fields, so a structural stub can't
+// be assigned to them directly — but casting through a `Pick` of the methods the
+// participant actually calls stays type-checked (a typo in a method name fails to
+// compile) and documents the seam, without a blanket `as unknown as`.
 function createServices(watcher: WatcherResult) {
-    const lintSvc = { setBpmnlintConfig: vi.fn() } as unknown as BpmnLintConfigService;
+    const lintSvc = {
+        setBpmnlintConfig: vi.fn(),
+        clearDiagnostics: vi.fn(),
+    } as Pick<
+        BpmnLintConfigService,
+        "setBpmnlintConfig" | "clearDiagnostics"
+    > as BpmnLintConfigService;
     const locator = {
         createWatcher: vi.fn().mockResolvedValue(watcher),
-    } as unknown as BpmnLintConfigLocator;
-    const statusBar = { hideBpmnlintStatus: vi.fn() } as unknown as VsCodeStatusBar;
-    const notifier = { showError: vi.fn(), logError: vi.fn() } as unknown as VsCodeNotifier;
+    } as Pick<BpmnLintConfigLocator, "createWatcher"> as BpmnLintConfigLocator;
+    const statusBar = {
+        hideBpmnlintStatus: vi.fn(),
+    } as Pick<VsCodeStatusBar, "hideBpmnlintStatus"> as VsCodeStatusBar;
+    const notifier = {
+        showError: vi.fn(),
+        logError: vi.fn(),
+    } as Pick<VsCodeNotifier, "showError" | "logError"> as VsCodeNotifier;
     return { lintSvc, locator, statusBar, notifier };
 }
 
@@ -119,7 +134,7 @@ describe("BpmnlintParticipant", () => {
         expect(notifier.logError).toHaveBeenCalledWith(error);
     });
 
-    it("clears the status item when the session is disposed", async () => {
+    it("clears the status item and the diagnostics when the session is disposed", async () => {
         const { lintSvc, locator, statusBar, notifier } = createServices({
             disposables: [],
             errors: [],
@@ -131,6 +146,7 @@ describe("BpmnlintParticipant", () => {
         expect(statusBar.hideBpmnlintStatus).not.toHaveBeenCalled();
         captured.dispose?.();
         expect(statusBar.hideBpmnlintStatus).toHaveBeenCalledOnce();
+        expect(lintSvc.clearDiagnostics).toHaveBeenCalledWith(EDITOR_ID);
     });
 
     it("tracks editor focus: re-discovers on activate, hides on blur", async () => {
