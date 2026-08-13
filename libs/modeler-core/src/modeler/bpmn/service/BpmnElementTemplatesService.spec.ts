@@ -17,7 +17,10 @@ const EDITOR = "file:///work/.camunda/diagram.bpmn";
  * resolves whatever JSON text the test stages per path.
  */
 function createService() {
-    const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
+    const editorStore = {
+        postMessage: vi.fn().mockResolvedValue(true),
+        hasEditor: vi.fn().mockReturnValue(true),
+    };
     const vsDocument = { getFilePath: vi.fn().mockReturnValue(EDITOR) };
     const artifactSvc = {
         getArtifactPaths: vi.fn().mockResolvedValue([[], ".json"]),
@@ -163,5 +166,31 @@ describe("BpmnElementTemplatesService.setElementTemplates", () => {
         expect(result).toBe(false);
         expect(statusBar.hideElementTemplatesStatus).toHaveBeenCalledOnce();
         expect(notifier.notifyError).toHaveBeenCalledOnce();
+    });
+
+    it("skips quietly for a disposed editor without touching the status bar or webview", async () => {
+        const { service, editorStore, statusBar, notifier } = createService();
+        editorStore.hasEditor.mockReturnValue(false);
+
+        const result = await service.setElementTemplates(EDITOR);
+
+        expect(result).toBe(false);
+        expect(notifier.notifyError).not.toHaveBeenCalled();
+        expect(editorStore.postMessage).not.toHaveBeenCalled();
+        expect(statusBar.showElementTemplatesLoading).not.toHaveBeenCalled();
+        expect(notifier.logDebug).toHaveBeenCalledOnce();
+    });
+
+    it("does not notify when the editor is disposed mid-load", async () => {
+        const { service, editorStore, artifactSvc, notifier } = createService();
+        // Editor is present at entry but gone by the time the awaited read throws.
+        editorStore.hasEditor.mockReturnValueOnce(true).mockReturnValue(false);
+        artifactSvc.getArtifactPaths.mockRejectedValue(new Error("read raced a close"));
+
+        const result = await service.setElementTemplates(EDITOR);
+
+        expect(result).toBe(false);
+        expect(notifier.notifyError).not.toHaveBeenCalled();
+        expect(notifier.logDebug).toHaveBeenCalledOnce();
     });
 });

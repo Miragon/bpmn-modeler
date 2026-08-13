@@ -36,6 +36,13 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
     ) {}
 
     async setElementTemplates(editorId: string): Promise<boolean> {
+        if (!this.editorStore.hasEditor(editorId)) {
+            this.notifier.logDebug(
+                `Skipping element-template load for disposed editor: ${editorId}`,
+            );
+            return false;
+        }
+
         this.statusBar.showElementTemplatesLoading();
         try {
             const documentDir = posix.dirname(this.vsDocument.getFilePath(editorId));
@@ -75,10 +82,6 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             if (await this.editorStore.postMessage(editorId, new ElementTemplatesQuery(sorted))) {
                 this.statusBar.showElementTemplatesReady(sorted.length);
                 if (all.length > 0) {
-                    // Report templates loaded vs. files scanned separately — a
-                    // file can hold several templates, so conflating the two (the
-                    // old message reported the file count as the template count)
-                    // misled anyone cross-checking the status-bar count.
                     this.notifier.logInfo(
                         `${sorted.length} element template(s) loaded from ${all.length} file(s).`,
                     );
@@ -90,6 +93,12 @@ export class BpmnElementTemplatesService implements ArtifactChangeTarget {
             }
         } catch (error) {
             this.statusBar.hideElementTemplatesStatus();
+            if (!this.editorStore.hasEditor(editorId)) {
+                this.notifier.logDebug(
+                    `Element-template load aborted; editor disposed mid-load: ${editorId}`,
+                );
+                return false;
+            }
             return this.handleError(error as Error);
         }
     }
