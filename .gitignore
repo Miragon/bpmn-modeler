@@ -17,7 +17,7 @@ node_modules
 .yarn/install-state.gz
 
 # IDEs and editors
-/.idea
+.idea/
 .project
 .classpath
 .c9/
