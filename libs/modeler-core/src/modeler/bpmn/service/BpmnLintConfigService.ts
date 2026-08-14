@@ -14,6 +14,7 @@ import {
     BpmnLintConfigLocator,
     BpmnlintChangeTarget,
 } from "../../../shared/service/BpmnLintConfigLocator";
+import { DEFAULT_BPMNLINT_CONFIG, defaultConfigPathFor } from "./defaultBpmnlintConfig";
 
 /**
  * Discovers the nearest `.bpmnlintrc` for an open BPMN document, runs bpmnlint
@@ -22,6 +23,13 @@ import {
  * custom `bpmnlint-plugin-*` rules and `plugin:<pkg>/recommended` configs resolve
  * against the workspace `node_modules` — the browser webview only ever saw the
  * built-in rules bundled into it.
+ *
+ * When no `.bpmnlintrc` is found, this does **not** leave linting dormant: it
+ * lints against {@link DEFAULT_BPMNLINT_CONFIG} instead, so every diagram gets
+ * baseline execution-safety checks (disconnected flows, missing start/end
+ * events, fake joins, …) with zero setup — the gap that otherwise only surfaces
+ * as a deployment failure. Any `.bpmnlintrc` the workspace adds — even an empty
+ * `{}` — takes over completely, per the locator's nearest-config-wins semantics.
  *
  * The same findings are also published as host diagnostics (Problems panel) and
  * summarised in the status bar. Filesystem discovery / reading / watching lives
@@ -56,62 +64,68 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     }
 
     /**
-     * Resolves the nearest `.bpmnlintrc`, lints the current document XML against
-     * it, then pushes the findings to the webview and publishes them as
-     * diagnostics. A missing config deactivates linting; a read/parse/lint
-     * failure degrades to the no-config state rather than crashing the editor.
+     * Resolves the nearest `.bpmnlintrc` — falling back to
+     * {@link DEFAULT_BPMNLINT_CONFIG} when none exists — lints the current
+     * document XML against it, then pushes the findings to the webview and
+     * publishes them as diagnostics. A read/parse/lint failure against a
+     * *found* `.bpmnlintrc` degrades to the no-config state rather than
+     * crashing the editor; it never falls back to the default in that case, so
+     * a broken config fails loudly instead of silently swapping in different
+     * rules than the workspace asked for.
      */
     private async lintAndPush(editorId: string, reflectInStatusBar: boolean): Promise<boolean> {
         let results: LintResults | null;
         try {
             const dir = posix.dirname(this.vsDocument.getFilePath(editorId));
             const configPath = await this.locator.findNearestConfig(dir);
+            const usingDefault = configPath === undefined;
 
-            if (!configPath) {
-                if (reflectInStatusBar) {
-                    this.statusBar.showBpmnlintNoConfig();
-                }
-                this.diagnostics.clear(editorId);
-                this.notifier.logDebug("No .bpmnlintrc found; linting inactive");
-                results = null;
-            } else {
-                const config = JSON.parse(await this.locator.readConfig(configPath)) as Record<
-                    string,
-                    unknown
-                >;
-                const xml = this.vsDocument.getContent(editorId);
-                const { results: lintResults, unresolved } = await this.lintRunner.lint(
-                    xml,
-                    configPath,
-                    config,
-                );
+            const effectiveConfigPath = configPath ?? defaultConfigPathFor(dir);
+            const config = configPath
+                ? (JSON.parse(await this.locator.readConfig(configPath)) as Record<
+                      string,
+                      unknown
+                  >)
+                : DEFAULT_BPMNLINT_CONFIG;
 
-                this.diagnostics.publish(editorId, xml, lintResults);
-                if (reflectInStatusBar) {
-                    if (unresolved.length > 0) {
-                        this.statusBar.showBpmnlintUnresolved(configPath, unresolved);
-                    } else {
-                        this.statusBar.showBpmnlintActive(configPath);
-                    }
-                }
+            const xml = this.vsDocument.getContent(editorId);
+            const { results: lintResults, unresolved } = await this.lintRunner.lint(
+                xml,
+                effectiveConfigPath,
+                config,
+            );
+
+            this.diagnostics.publish(editorId, xml, lintResults);
+            if (reflectInStatusBar) {
                 if (unresolved.length > 0) {
-                    // The finding was previously buried in the output channel while
-                    // the status bar still showed a green tick — surface it plainly.
-                    this.notifier.logWarning(
-                        `bpmnlint: ${unresolved.length} rule(s)/config(s) could not be resolved and were skipped: ${unresolved.join(
-                            ", ",
-                        )}`,
-                    );
+                    this.statusBar.showBpmnlintUnresolved(effectiveConfigPath, unresolved);
+                } else if (usingDefault) {
+                    this.statusBar.showBpmnlintDefault();
+                } else {
+                    this.statusBar.showBpmnlintActive(effectiveConfigPath);
                 }
-                this.notifier.logInfo(`bpmnlint applied from ${configPath}`);
-                results = lintResults;
             }
+            if (unresolved.length > 0) {
+                // The finding was previously buried in the output channel while
+                // the status bar still showed a green tick — surface it plainly.
+                this.notifier.logWarning(
+                    `bpmnlint: ${unresolved.length} rule(s)/config(s) could not be resolved and were skipped: ${unresolved.join(
+                        ", ",
+                    )}`,
+                );
+            }
+            this.notifier.logInfo(
+                usingDefault
+                    ? "No .bpmnlintrc found; linting with the bundled default correctness rules"
+                    : `bpmnlint applied from ${effectiveConfigPath}`,
+            );
+            results = lintResults;
         } catch (error) {
-            // A malformed .bpmnlintrc or a linter blow-up must not crash the
-            // editor — warn, fall back to the no-config state, and tell the
-            // webview to deactivate linting.
+            // A malformed .bpmnlintrc, unparsable diagram XML, or a linter
+            // blow-up must not crash the editor — warn, fall back to the
+            // no-config state, and tell the webview to deactivate linting.
             this.notifier.logError(
-                new Error(`Failed to lint against .bpmnlintrc: ${(error as Error).message}`),
+                new Error(`Failed to lint diagram: ${(error as Error).message}`),
             );
             if (reflectInStatusBar) {
                 this.statusBar.showBpmnlintNoConfig();

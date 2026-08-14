@@ -7,6 +7,7 @@ vi.mock("vscode", () => ({}));
 
 import { BpmnlintResultsQuery } from "@miragon/bpmn-modeler-shared";
 
+import { DEFAULT_BPMNLINT_CONFIG } from "./defaultBpmnlintConfig";
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
 
 const EDITOR = "file:///work/diagram.bpmn";
@@ -32,6 +33,7 @@ function createService() {
     const statusBar = {
         showBpmnlintActive: vi.fn(),
         showBpmnlintUnresolved: vi.fn(),
+        showBpmnlintDefault: vi.fn(),
         showBpmnlintNoConfig: vi.fn(),
         hideBpmnlintStatus: vi.fn(),
     };
@@ -107,7 +109,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(notifier.logWarning).toHaveBeenCalledWith(expect.stringContaining("custom/x"));
     });
 
-    it("posts null, clears diagnostics, and shows the no-config status when nothing is found", async () => {
+    it("lints with the bundled default config and shows the default status when no .bpmnlintrc is found", async () => {
         const { service, editorStore, locator, lintRunner, diagnostics, statusBar, notifier } =
             createService();
         locator.findNearestConfig.mockResolvedValue(undefined);
@@ -115,12 +117,21 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         const result = await service.setBpmnlintConfig(EDITOR);
 
         expect(result).toBe(true);
-        expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
-        expect(statusBar.showBpmnlintNoConfig).toHaveBeenCalledOnce();
-        expect(notifier.logDebug).toHaveBeenCalledWith("No .bpmnlintrc found; linting inactive");
+        expect(locator.readConfig).not.toHaveBeenCalled();
+        expect(lintRunner.lint).toHaveBeenCalledWith(
+            XML,
+            expect.stringContaining("/work/"),
+            DEFAULT_BPMNLINT_CONFIG,
+        );
+        expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledOnce();
+        expect(statusBar.showBpmnlintActive).not.toHaveBeenCalled();
+        expect(statusBar.showBpmnlintNoConfig).not.toHaveBeenCalled();
+        expect(notifier.logInfo).toHaveBeenCalledWith(
+            "No .bpmnlintrc found; linting with the bundled default correctness rules",
+        );
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintResultsQuery;
-        expect(msg.results).toBeNull();
+        expect(msg.results).toEqual(RESULTS);
     });
 
     it("still posts results but leaves the status bar untouched when reflectInStatusBar is false", async () => {

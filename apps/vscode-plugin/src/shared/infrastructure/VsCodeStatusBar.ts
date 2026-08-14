@@ -64,6 +64,17 @@ export class VsCodeStatusBar implements StatusBarPort {
         item.show();
     }
 
+    showBpmnlintDefault(): void {
+        const item = this.getOrCreateBpmnlintStatusItem();
+        item.text = "$(shield) BPMNlint (default)";
+        item.tooltip =
+            "No .bpmnlintrc found — linting with the bundled default correctness rules" +
+            " (bpmnlint:recommended, minus style-only rules)." +
+            " Add a .bpmnlintrc to customize the rules or opt out.";
+        item.backgroundColor = undefined;
+        item.show();
+    }
+
     showBpmnlintNoConfig(): void {
         const item = this.getOrCreateBpmnlintStatusItem();
         item.text = "$(info) BPMNlint: no .bpmnlintrc";

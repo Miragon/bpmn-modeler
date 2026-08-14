@@ -2,11 +2,22 @@
 
 The BPMN Modeler can validate your diagram **while you edit** using
 [bpmnlint](https://github.com/bpmn-io/bpmnlint) — the same linter you can run in
-CI. When a `.bpmnlintrc` is found, rule violations appear as ⚠️/❌ overlays on the
-offending elements, a summary button (error/warning counts) is shown on the
-canvas, and each finding is also published to the VS Code **Problems** panel
-(searchable and clickable, even without the diagram open). If no `.bpmnlintrc`
-exists, the feature stays dormant and the modeler looks exactly as it did before.
+CI. Rule violations appear as ⚠️/❌ overlays on the offending elements, a summary
+button (error/warning counts) is shown on the canvas, and each finding is also
+published to the VS Code **Problems** panel (searchable and clickable, even
+without the diagram open).
+
+**This runs out of the box, with no setup.** If no `.bpmnlintrc` is found, the
+modeler lints against a bundled default — the
+[`bpmnlint:recommended`](https://github.com/bpmn-io/bpmnlint/blob/main/docs/rules/README.md)
+preset, minus its three purely authoring/style rules (`label-required`,
+`no-overlapping-elements`, `global`) — so structural problems that would
+otherwise only surface as a deployment failure (disconnected flows, a missing
+start/end event, a fake join, …) are caught while you model, without opinions
+on labeling or layout you never asked for. The status bar shows `$(shield)
+BPMNlint (default)` in this state. Add a `.bpmnlintrc` at any level (see below)
+to customize the rules or take full control — even an empty `{}` file fully
+replaces the default with your own choices.
 
 The lint runs in the **extension host** (a full Node.js context), not in the
 webview. That is what lets it resolve your workspace's own
@@ -16,21 +27,24 @@ built-ins. See [Custom rules & plugins](#custom-rules-plugins) below.
 
 ## Usage
 
-1. Add a `.bpmnlintrc` at your workspace root (or under your
-   [`configFolder`](/vscode/configuration), default `.camunda/`):
+Open (or reopen) a `.bpmn` file with a structural issue — e.g. a disconnected
+element or a process missing an end event. Violations show up as overlays on
+the diagram, and the in-canvas lint button summarises the counts. The status
+bar shows `$(shield) BPMNlint (default)` while linting against the bundled
+default. Fix the issue and the overlay clears **live** — no save required.
 
-   ```json
-   {
-       "extends": "bpmnlint:recommended"
-   }
-   ```
+To customize the rules (e.g. also enforce labels on every task, or add
+project-specific checks), add a `.bpmnlintrc` at your workspace root or under
+your [`configFolder`](/vscode/configuration) (default `.camunda/`):
 
-2. Open (or reopen) a `.bpmn` file with a known issue — e.g. a task without a
-   label or a process missing an end event. Violations show up as overlays on
-   the diagram, and the in-canvas lint button summarises the counts. The VS Code
-   status bar shows `$(check) BPMNlint` (hover for the config path).
+```json
+{
+    "extends": "bpmnlint:recommended"
+}
+```
 
-3. Fix the issue and the overlay clears **live** — no save required.
+Once a `.bpmnlintrc` is found, it fully replaces the default — the VS Code
+status bar switches to `$(check) BPMNlint` (hover for the config path).
 
 ## Configuring rules
 

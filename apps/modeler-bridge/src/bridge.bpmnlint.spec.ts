@@ -6,10 +6,11 @@
  * temp filesystem, so the `BpmnLintConfigLocator` + `BpmnLintConfigService` +
  * `NodeBpmnLinter` do an actual nearest-`.bpmnlintrc` walk and run bpmnlint.
  * Covers the two branches the webview's `GetBpmnlintConfigCommand` exposes: a
- * discovered config is linted and the findings pushed as `BpmnlintResultsQuery`,
- * and no config pushes `results: null` so the webview deactivates linting. The
- * temp dir has no `node_modules`, so built-in rules resolve from the bundled
- * fallback resolver — the same path a workspace without `bpmnlint` installed hits.
+ * discovered `.bpmnlintrc` is linted and its findings pushed as
+ * `BpmnlintResultsQuery`, and no config falls back to the bundled default rule
+ * set rather than deactivating linting. The temp dir has no `node_modules`, so
+ * built-in rules resolve from the bundled fallback resolver — the same path a
+ * workspace without `bpmnlint` installed hits.
  */
 
 import { promises as fs } from "node:fs";
@@ -114,12 +115,16 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         expect(Object.keys(results)).toContain("start-event-required");
     });
 
-    it("pushes null results when no .bpmnlintrc exists so linting deactivates", async () => {
+    it("lints with the bundled default rules when no .bpmnlintrc exists", async () => {
         const { rpc, frames, editorId } = await setup();
 
         await requestConfig(rpc, editorId);
 
         const frame = await waitForFrame(frames, isLintResultsFrame);
-        expect(frame.params.message.results).toBeNull();
+        const results = frame.params.message.results;
+        expect(results).not.toBeNull();
+        // The bundled default flags the missing start/end events even with no config.
+        expect(Object.keys(results)).toContain("start-event-required");
+        expect(Object.keys(results)).toContain("end-event-required");
     });
 });

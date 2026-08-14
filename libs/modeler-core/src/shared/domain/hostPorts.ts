@@ -205,6 +205,13 @@ export interface StatusBarPort {
      * never masks silently-dropped rules — `unresolved` lists them for the tooltip.
      */
     showBpmnlintUnresolved(configPath: string, unresolved: string[]): void;
+    /**
+     * No `.bpmnlintrc` was found, so the bundled default (`bpmnlint:correctness`)
+     * is linting instead — distinct from {@link showBpmnlintActive} so a
+     * project-defined config is never visually confused with the zero-setup
+     * default that runs in its absence.
+     */
+    showBpmnlintDefault(): void;
     showBpmnlintNoConfig(): void;
     hideBpmnlintStatus(): void;
 }
