@@ -1,30 +1,30 @@
 package io.miragon.intellij.bpmn
 
 import com.intellij.diff.DiffContext
-import com.intellij.diff.DiffTool
 import com.intellij.diff.FrameDiffTool
-import com.intellij.diff.SuppressiveDiffTool
 import com.intellij.diff.contents.DiffContent
 import com.intellij.diff.contents.DocumentContent
 import com.intellij.diff.contents.FileContent
 import com.intellij.diff.requests.ContentDiffRequest
 import com.intellij.diff.requests.DiffRequest
-import com.intellij.diff.tools.fragmented.UnifiedDiffTool
-import com.intellij.diff.tools.simple.SimpleDiffTool
 
 /**
  * Registers the JCEF BPMN diff viewer with IntelliJ's `DiffManager`.
  *
  * Both targeted entry points — VCS "Show Diff" on a `.bpmn` change and "Compare
  * Files" on two `.bpmn` files — produce a two-content [ContentDiffRequest] and
- * route it through `DiffManager`, which selects among registered [DiffTool]s. So
+ * route it through `DiffManager`, which selects among registered `DiffTool`s. So
  * this single registration covers both paths; no VCS-specific extension point is
  * needed there (those wrap or produce requests, they do not replace the viewer).
  *
- * Implements [SuppressiveDiffTool] to hide the built-in text diff tools for
- * `.bpmn`, making the diagram viewer the default rather than a dropdown choice.
+ * Registered `DiffTool`s are tried before the platform's built-in text tools, so
+ * the diagram diff is the default viewer. It deliberately does **not** suppress
+ * those built-ins: keeping `SimpleDiffTool`/`UnifiedDiffTool` in the diff
+ * viewer-chooser lets the user switch to the raw XML text diff — the only way to
+ * see changes a diagram can't surface, e.g. inside a script task's body (#1282).
+ * The platform remembers the last-picked viewer per diff place.
  */
-class BpmnDiffTool : FrameDiffTool, SuppressiveDiffTool {
+class BpmnDiffTool : FrameDiffTool {
     override fun getName(): String = "BPMN Diagram Diff"
 
     /**
@@ -46,9 +46,6 @@ class BpmnDiffTool : FrameDiffTool, SuppressiveDiffTool {
 
     override fun createComponent(context: DiffContext, request: DiffRequest): FrameDiffTool.DiffViewer =
         BpmnDiffViewer(context.project, request as ContentDiffRequest)
-
-    override fun getSuppressedTools(): List<Class<out DiffTool>> =
-        listOf(SimpleDiffTool::class.java, UnifiedDiffTool::class.java)
 
     /**
      * `.bpmn` detection by filename. The content type is unreliable here — BPMN
