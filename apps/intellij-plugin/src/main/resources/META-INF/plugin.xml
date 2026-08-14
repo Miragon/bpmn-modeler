@@ -45,61 +45,33 @@
     ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
-    <!--
-        The Groovy binding resolver (ScriptBindingMembersContributor, loaded via
-        modeler-groovy.xml) builds synthetic Java PSI — JavaPsiFacade, PsiClass,
-        PsiElementFactory — so the Java plugin must be present. Groovy already
-        pulls Java transitively, but the plugin verifier only honours an explicit
-        declaration, and it documents the real requirement. Java also brings the
-        XML module, so the explicit modules.xml below is belt-and-braces.
-    -->
+    <!-- Groovy's script-tab binding resolver builds synthetic Java PSI (JavaPsiFacade,
+         PsiClass), so Java must be present. Explicit because the verifier ignores Groovy's
+         transitive pull; Java also brings the XML module. -->
     <depends>com.intellij.modules.java</depends>
-    <!--
-        XMLLanguage (BpmnFileType's base language) lives in the bundled XML
-        module. Declared explicitly so a future drop of the Java dependency
-        above wouldn't silently take XML highlighting with it.
-    -->
+    <!-- XMLLanguage (BpmnFileType's base) lives in the XML module; explicit so dropping the
+         Java dependency above can't silently take XML highlighting with it. -->
     <depends>com.intellij.modules.xml</depends>
 
-    <!--
-        Optional: when the Groovy plugin is present, load the Groovy-only script-tab
-        support (modeler-groovy.xml) — the binding resolver, the semantic-colour
-        annotator, and the inspection suppressor for our inline "Edit Script" tabs.
-        Absent Groovy, the config file is skipped and the rest of the plugin is
-        unaffected.
-    -->
+    <!-- Optional: with the Groovy plugin present, load script-tab support (binding resolver,
+         colour annotator, inspection suppressor); skipped otherwise. -->
     <depends optional="true" config-file="modeler-groovy.xml">org.intellij.groovy</depends>
 
-    <!--
-        Optional: when the JSON module is present (it is in every IntelliJ-based
-        IDE), register the JSON Schema for `*.bpmn.vars.json` manifests so authors
-        get validation + completion (modeler-json.xml). Optional so a hypothetical
-        JSON-less host still loads the rest of the plugin.
-    -->
+    <!-- Optional: register the JSON Schema for `*.bpmn.vars.json` manifests (validation +
+         completion) when the JSON module is present. -->
     <depends optional="true" config-file="modeler-json.xml">com.intellij.modules.json</depends>
 
-    <!--
-        2026.2 split JCEF out of the core class path into its own plugin, so without
-        this the plugin's class loader can't see JBCefApp and crashes at startup.
-        Optional because that plugin is absent on the 242 floor (JCEF still core
-        there); where present it becomes a class-loader parent. Depend on the plugin
-        (com.intellij.modules.jcef), not its content module intellij.platform.ui.jcef
-        — a v1 <depends> only wires a plugin's class loader, not a bare content module.
-    -->
+    <!-- 2026.2 moved JCEF into its own plugin; without this the class loader can't see JBCefApp
+         and crashes at startup. Optional because JCEF is still core on the 242 floor. Depend on
+         the plugin (com.intellij.modules.jcef), not its content module. -->
     <depends optional="true" config-file="modeler-jcef.xml">com.intellij.modules.jcef</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!--
-            Registers `.bpmn` as a real file type so (a) JetBrains Marketplace's
-            Feature Extractor (static bytecode analysis of the `extensions`
-            attribute) can index this plugin as a handler for `.bpmn`, enabling
-            the "Plugins supporting *.bpmn files found" editor banner once
-            published, and (b) `.bpmn` files render with the BPMN icon in the
-            project tree and the secondary text tab keeps XML highlighting.
-            `.bpmn20.xml` is intentionally not listed here — `extensions` only
-            matches the final segment; that variant stays handled by
-            `BpmnFileEditorProvider.accept()` and the platform's plain XML.
-        -->
+        <!-- Registers `.bpmn` as a real file type so Marketplace's Feature Extractor indexes
+             this plugin as its handler (enabling the "supporting *.bpmn" editor banner), and
+             `.bpmn` gets the BPMN icon + XML highlighting on the text tab. `.bpmn20.xml` isn't
+             listed — `extensions` matches only the final segment; BpmnFileEditorProvider.accept()
+             handles that variant. -->
         <fileType
             name="BPMN"
             implementationClass="io.miragon.intellij.bpmn.BpmnFileType"
@@ -109,38 +81,20 @@
 
         <fileEditorProvider implementation="io.miragon.intellij.bpmn.BpmnFileEditorProvider"/>
 
-        <!--
-            Pre-warms the out-of-process bridge + asset server off the EDT after a
-            project opens, so the first `.bpmn` tab renders against a live process
-            instead of a cold spawn. The spawn itself is already moved off the EDT
-            in CoreProcess; this just gets ahead of the first open.
-        -->
+        <!-- Pre-warms the bridge + asset server off the EDT after project open, so the first
+             `.bpmn` tab renders against a live process instead of a cold spawn. -->
         <postStartupActivity implementation="io.miragon.intellij.bpmn.BridgeWarmupActivity"/>
 
-        <!--
-            JCEF two-pane diagram diff. Both targeted entry points — Git "Show
-            Diff" (VCS/SCM) and "Compare Files" — build a two-content
-            ContentDiffRequest and route it through DiffManager, which selects
-            among registered DiffTools; the VCS changes/log/commit diff previews
-            use the same DiffRequestProcessor → DiffManager path. So this single
-            registration makes the diagram diff the default for `.bpmn` across all
-            of them. BpmnDiffTool is a SuppressiveDiffTool, hiding the text diff
-            for `.bpmn`. (The platform diff framework lives under
-            com.intellij.modules.platform, so no extra <depends> is needed.)
-        -->
+        <!-- JCEF two-pane diagram diff. Both Git "Show Diff" and "Compare Files" build a
+             two-content ContentDiffRequest routed through DiffManager, so this one registration
+             is the default `.bpmn` diff everywhere (EP tools sort ahead of the built-in text
+             tools). It does NOT suppress those built-ins, so the viewer-chooser still offers the
+             raw XML side-by-side / unified diff (e.g. to inspect script-task changes). -->
         <diff.DiffTool implementation="io.miragon.intellij.bpmn.BpmnDiffTool"/>
-        <!--
-            On the changes view (commit / Local Changes / Log diff preview): the
-            EP `openapi.vcs.changes.actions.diff.ChangeDiffViewerWrapperProvider`
-            (in com.intellij.modules.vcs) does NOT replace the viewer — its
-            `process(...)` returns a DiffViewerWrapper that *decorates* a base
-            viewer with VCS line-staging/revert gutters. That chrome is
-            meaningless for a diagram diff, so we deliberately do not register it;
-            the diagram viewer reaches the changes view through the same
-            DiffManager → diff.DiffTool selection above. If a future change needs
-            changes-view-specific decoration, that is the hook (verified present
-            in 2024.2's intellij.platform.vcs.impl).
-        -->
+        <!-- Not registering ChangeDiffViewerWrapperProvider (com.intellij.modules.vcs): it only
+             *decorates* a base viewer with VCS staging/revert gutters, meaningless for a diagram
+             diff. The changes view reaches the diagram viewer via DiffManager above; this is the
+             hook if changes-view decoration is ever needed. -->
 
         <!-- Engine version + element-template count, driven by the core's StatusBarPort. -->
         <statusBarWidgetFactory
@@ -150,44 +104,37 @@
         <!-- Balloons for the core's NotifierPort (showInfo / showError / notifyError). -->
         <notificationGroup id="Miragon BPMN Modeler" displayType="BALLOON"/>
 
-        <!-- Settings ▸ Tools ▸ Miragon BPMN Modeler; persisted via PropertiesComponent
-             and pushed to the core so open editors react live. -->
+        <!-- Settings ▸ Tools; persisted via PropertiesComponent and pushed to the core so
+             open editors react live. -->
         <applicationConfigurable
             parentId="tools"
             id="io.miragon.bpmn-modeler.settings"
             displayName="Miragon BPMN Modeler"
             instance="io.miragon.intellij.bpmn.ModelerSettingsConfigurable"/>
 
-        <!-- Camunda IntelliSense for the inline "Edit Script" editor. `language="any"`
-             fires the contributor for every file type (the script tab may be
-             PLAIN_TEXT when no JS/Python plugin is installed); it scopes itself to
-             modeler script tabs via the SCRIPT_COMPLETION_KEY UserData.
-             `order="first"`: the Groovy binding resolver injects each catalog
-             symbol as synthetic PSI so it resolves, which makes Groovy's native
-             completion re-emit it as a duplicate. Running first lets the
-             contributor treat Groovy as a "remaining" contributor and filter those
-             duplicates while keeping its keywords/stdlib. -->
+        <!-- Camunda IntelliSense for the inline "Edit Script" editor. `language="any"` fires for
+             every file type (script tabs may be PLAIN_TEXT); it scopes itself via
+             SCRIPT_COMPLETION_KEY. `order="first"` lets it filter the duplicates Groovy re-emits
+             from the synthetic PSI the binding resolver injects, while keeping Groovy's own
+             keywords/stdlib. -->
         <completion.contributor
             language="any"
             order="first"
             implementationClass="io.miragon.intellij.bpmn.ScriptCompletionContributor"/>
 
-        <!-- Quick-doc (Ctrl-Q) for the script completions above. Application-level
-             and language-agnostic (NOT lang.documentationProvider) so it also fires
-             on PLAIN_TEXT script tabs where no per-language provider would. -->
+        <!-- Quick-doc (Ctrl-Q) for the script completions. Application-level and language-agnostic
+             (NOT lang.documentationProvider) so it also fires on PLAIN_TEXT script tabs. -->
         <documentationProvider
             implementation="io.miragon.intellij.bpmn.ScriptDocumentationProvider"/>
 
-        <!-- Drops the Groovy annotator's "Cannot resolve symbol" greying on our
-             inline script tabs for anything still unresolved. The bindings/script
-             methods are resolved by the Groovy membersContributor in
-             modeler-groovy.xml; this is the highlight safety net. -->
+        <!-- Suppresses the Groovy annotator's "Cannot resolve symbol" greying on inline script
+             tabs; the bindings are resolved by the membersContributor in modeler-groovy.xml. -->
         <daemon.highlightInfoFilter
             implementation="io.miragon.intellij.bpmn.ScriptHighlightFilter"/>
 
-        <!-- Camunda 7/8 deployment panel: a JCEF tool window hosting the deployment
-             webview, driven by the shared core over the bridge (the IntelliJ
-             counterpart of the VS Code deployment sidebar). -->
+        <!-- Camunda 7/8 deployment panel: a JCEF tool window hosting the deployment webview,
+             driven by the shared core over the bridge (the IntelliJ counterpart of the VS Code
+             sidebar). -->
         <toolWindow
             id="Miragon Deployment"
             anchor="right"
@@ -195,19 +142,16 @@
             factoryClass="io.miragon.intellij.bpmn.DeploymentToolWindowFactory"/>
     </extensions>
 
-    <!-- One popup subgroup under Tools gathers every portable modeler command (the
-         IntelliJ counterparts of the VS Code palette entries). A flat list of ~11
-         actions would clutter the Tools menu, so they live in a single komet-branded
-         submenu; each action also carries the komet icon so it is recognisable in
-         Search Everywhere / Find Action, where the group chrome is absent. -->
+    <!-- One popup subgroup under Tools gathers the ~11 portable modeler commands so they don't
+         clutter the Tools menu; each carries the komet icon so it stays recognisable in Search
+         Everywhere / Find Action, where the group chrome is absent. -->
     <actions>
         <group id="MiragonBpmn.Tools" text="Miragon BPMN Modeler" popup="true"
                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
 
-            <!-- Template marketplace: the list is edited on the Settings page; these
-                 add a new source, refresh all of them, or prune one, delegating every
-                 fetch/validation to the shared core. -->
+            <!-- Template marketplace: sources are edited on the Settings page; these add,
+                 refresh, or prune one, delegating fetch/validation to the core. -->
             <action
                 id="io.miragon.bpmn-modeler.addMarketplace"
                 class="io.miragon.intellij.bpmn.AddMarketplaceAction"
@@ -275,8 +219,8 @@
 
             <separator/>
 
-            <!-- New-file actions. Also added to Project view ▸ New (NewGroup) below,
-                 the IntelliJ-native discovery path for creating a model. -->
+            <!-- New-file actions. Also added to Project view ▸ New (NewGroup), the native
+                 discovery path for creating a model. -->
             <action
                 id="io.miragon.bpmn-modeler.newBpmnModel"
                 class="io.miragon.intellij.bpmn.NewBpmnModelAction"
