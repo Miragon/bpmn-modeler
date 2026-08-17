@@ -37,6 +37,7 @@ import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { deriveEngines } from "./engines";
 import LintModule from "./bpmnlint";
+import { PaletteLayoutFixModule } from "./palette/PaletteLayoutFix";
 import { setColorThemeMode } from "@miragon/bpmn-modeler-shared";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
@@ -121,6 +122,7 @@ export class BpmnModeler {
         const commonModules = [
             TokenSimulationModule,
             LintModule,
+            PaletteLayoutFixModule,
             ElementTemplateChooserModule,
             AppendMenuModule,
             NavigateToReferencedModelModule,
