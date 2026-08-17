@@ -3692,6 +3692,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-standalone-extension@workspace:libs/standalone-extension"
   dependencies:
     "@theia/core": "npm:1.73.0"
+    "@theia/editor": "npm:1.73.0"
     "@theia/monaco": "npm:1.73.0"
     "@vitest/coverage-v8": "npm:4.1.9"
     jsdom: "npm:30.0.1"

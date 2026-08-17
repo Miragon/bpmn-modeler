@@ -44,6 +44,16 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone build
 corepack yarn workspace @miragon/bpmn-modeler-standalone start
 ```
 
+On Linux systems where Electron's setuid sandbox helper cannot be configured,
+use the dedicated local-development command instead of running the app as root:
+
+```bash
+corepack yarn workspace @miragon/bpmn-modeler-standalone dev:no-sandbox
+```
+
+This disables Chromium's sandbox only for the local Electron process. Packaged
+applications and the normal `start` command keep their existing sandbox behavior.
+
 > **Note:** step 3 must be invoked as `yarn ... run rebuild`, not `yarn ...
 > rebuild` — Yarn 4 reserves `rebuild` as a built-in command and won't dispatch
 > to our script otherwise.

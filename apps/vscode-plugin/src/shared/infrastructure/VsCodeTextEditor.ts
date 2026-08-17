@@ -1,4 +1,4 @@
-import { Tab, TabInputText, ViewColumn, window, workspace } from "vscode";
+import { commands, Tab, TabInputText, ViewColumn, window, workspace } from "vscode";
 
 import { getContext } from "./extensionContext";
 
@@ -50,7 +50,12 @@ export class VsCodeTextEditor {
     private async open(documentPath: string): Promise<boolean> {
         try {
             const textDocument = await workspace.openTextDocument(documentPath);
-            await window.showTextDocument(textDocument, ViewColumn.Beside);
+            await commands.executeCommand(
+                "vscode.openWith",
+                textDocument.uri,
+                "default",
+                ViewColumn.Beside,
+            );
             return true;
         } catch {
             return false;
@@ -61,7 +66,8 @@ export class VsCodeTextEditor {
         const tab = this.getTab(documentPath);
 
         if (tab) {
-            return !window.tabGroups.close(tab);
+            await window.tabGroups.close(tab);
+            return window.tabGroups.all.some((tabGroup) => tabGroup.tabs.includes(tab));
         } else {
             return false;
         }
