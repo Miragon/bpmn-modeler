@@ -157,6 +157,20 @@ the real differ's output. All mock code and its dependencies are gated on
 `NODE_ENV === "development"` and tree-shaken out of the production webview
 bundle.
 
+In `modeler` mode a second query parameter controls linting, since no extension
+host runs the linter here:
+
+| URL                   | What renders                                                                                                 |
+|-----------------------|--------------------------------------------------------------------------------------------------------------|
+| `/` (or `?lint=real`) | bpmnlint's built-in `recommended` rules run **in the browser** against the live diagram, re-linting on every edit — genuine findings, so you can exercise the Problems panel and overlays. |
+| `/?lint=off`          | No linting, exactly like a workspace without a `.bpmnlintrc` (the default in diff modes).                     |
+| `/?overlays=off`      | Linting stays on, but the on-diagram overlays start hidden (the Problems panel's eye toggle writes this param, so a reload keeps your choice). |
+
+The browser runner (`apps/bpmn-webview/src/app/browserLintRunner.ts`) can only
+run the built-in rules — workspace `bpmnlint-plugin-*` rules need the extension
+host and are unavailable in the standalone preview. Like the diff mocks, it is
+tree-shaken from the production bundle.
+
 ## Testing & Linting
 
 ```bash

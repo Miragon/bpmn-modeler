@@ -224,6 +224,13 @@ const translations: Record<string, string> = {
     "Copy": "Copy",
     "Paste": "Paste",
     "No errors defined.": "No errors defined.",
+    // bpmnlint problems panel
+    "Problems": "Problems",
+    "No problems found.": "No problems found.",
+    "Warnings": "Warnings",
+    "Information": "Information",
+    "Show lint overlays": "Show lint overlays",
+    "Hide lint overlays": "Hide lint overlays",
 };
 
 export default translations;

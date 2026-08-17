@@ -3,10 +3,17 @@
 The BPMN Modeler can validate your diagram **while you edit** using
 [bpmnlint](https://github.com/bpmn-io/bpmnlint) — the same linter you can run in
 CI. When a `.bpmnlintrc` is found, rule violations appear as ⚠️/❌ overlays on the
-offending elements, a summary button (error/warning counts) is shown on the
-canvas, and each finding is also published to the VS Code **Problems** panel
+offending elements and are listed in a **Problems panel** docked below the
+diagram; each finding is also published to the VS Code **Problems** panel
 (searchable and clickable, even without the diagram open). If no `.bpmnlintrc`
 exists, the feature stays dormant and the modeler looks exactly as it did before.
+
+The in-canvas Problems panel summarises the counts per severity in its header;
+clicking the header expands the full list, and clicking a finding selects the
+offending element and scrolls it into view. An eye toggle in the header hides or
+shows the on-diagram overlays without dismissing the panel. This panel ships in
+the webview itself, so it appears in every host (VS Code, IntelliJ, standalone),
+whereas the VS Code Problems panel is a VS-Code-only addition.
 
 The lint runs in the **extension host** (a full Node.js context), not in the
 webview. That is what lets it resolve your workspace's own
@@ -27,8 +34,8 @@ built-ins. See [Custom rules & plugins](#custom-rules-plugins) below.
 
 2. Open (or reopen) a `.bpmn` file with a known issue — e.g. a task without a
    label or a process missing an end event. Violations show up as overlays on
-   the diagram, and the in-canvas lint button summarises the counts. The VS Code
-   status bar shows `$(check) BPMNlint` (hover for the config path).
+   the diagram and in the Problems panel docked below it. The VS Code status bar
+   shows `$(check) BPMNlint` (hover for the config path).
 
 3. Fix the issue and the overlay clears **live** — no save required.
 

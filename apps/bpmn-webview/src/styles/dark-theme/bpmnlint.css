@@ -1,0 +1,33 @@
+/**
+ * Dark-mode palette for the docked lint problems panel. The structural rules
+ * (and the light defaults of these variables) live in
+ * apps/bpmn-webview/src/app/bpmnlint/bpmnlint.css, which is injected after
+ * this theme stylesheet — `:root .lint-problems` out-specifies the defaults
+ * there, so only the variables need overriding (same pattern as
+ * diagram-js.css). Badge tints mirror the --dt-color-red-a20 recipe: severity
+ * foreground mixed onto the widget surface.
+ */
+:root .lint-problems {
+    --lint-panel-border-color: var(--dt-surface-a20);
+    --lint-panel-bg: var(--dt-surface-a10);
+    --lint-panel-fg: var(--dt-surface-a60);
+    --lint-panel-hover-bg: var(--dt-surface-a20);
+    --lint-panel-muted-fg: var(--dt-surface-a50);
+    --lint-panel-faint-fg: var(--dt-surface-a50);
+    --lint-error-fg: var(--vscode-errorForeground, #e65c57);
+    --lint-error-bg: color-mix(
+        in srgb,
+        var(--vscode-errorForeground, #e65c57) 22%,
+        var(--dt-surface-a10)
+    );
+    --lint-error-border: transparent;
+    --lint-warn-fg: #e2b23e;
+    --lint-warn-bg: color-mix(in srgb, #e2b23e 22%, var(--dt-surface-a10));
+    --lint-warn-border: transparent;
+    --lint-info-fg: var(--dt-color-blue-a50);
+    --lint-info-bg: color-mix(in srgb, var(--dt-color-blue-a50) 22%, var(--dt-surface-a10));
+    --lint-info-border: transparent;
+    --lint-success-fg: #6cc06c;
+    --lint-success-bg: color-mix(in srgb, #6cc06c 22%, var(--dt-surface-a10));
+    --lint-success-border: transparent;
+}

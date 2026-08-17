@@ -95,26 +95,55 @@ function readDevMode(): DevMode {
 }
 
 /**
+ * Dev-only lint behaviour, driven by `?lint=` in the URL.
+ *
+ * `real` (default in `modeler` mode) — runs bpmnlint's built-in `recommended`
+ *   rules in the browser against the live diagram, re-linting on every edit.
+ * `off` — reports no config, exactly like a workspace without `.bpmnlintrc`;
+ *   the default outside `modeler` mode (diff panes never lint).
+ */
+type LintMode = "real" | "off";
+
+function readLintMode(devMode: DevMode): LintMode {
+    const raw = new URLSearchParams(window.location.search).get("lint");
+    if (raw === "real" || raw === "off") {
+        return raw;
+    }
+    if (raw !== null && raw !== "") {
+        console.warn(`[dev] Unknown ?lint=${raw}; falling back to default. Known: real, off.`);
+    }
+    return devMode === "modeler" ? "real" : "off";
+}
+
+/**
  * Development-only mock that simulates the host application by dispatching
  * synthetic `MessageEvent`s in response to outbound commands.
  *
  * Selects behaviour from a {@link DevMode} derived from the URL.  Diff modes
  * lazily import `bpmn-moddle` + `bpmn-js-differ` on the first
- * `DiffReadyCommand` so those dependencies stay out of the production bundle
- * (dead-code-eliminated along with the whole class when `NODE_ENV` is
- * production).
+ * `DiffReadyCommand`, and `real` linting lazy-imports the browser lint runner,
+ * so those dependencies stay out of the production bundle (dead-code-eliminated
+ * along with the whole class when `NODE_ENV` is production).
  */
 class MockHost extends MockHostApi<StateType, MessageType> {
     private readonly devMode: DevMode = readDevMode();
 
+    private readonly lintMode: LintMode = readLintMode(this.devMode);
+
     private cachedDiff: CachedDiff | undefined;
+
+    // Latest diagram XML, tracked so `real` linting re-runs on each edit. Seeded
+    // from the served fixture and refreshed by every `SyncDocumentCommand`.
+    private lastXml = MOCK_BPMN_XML;
 
     constructor() {
         super();
         console.info(
             "[dev] bpmn-webview mock ready.  Mode:",
             this.devMode,
-            "\nURL variants: /, /?mode=diff-before, /?mode=diff-after",
+            "| lint:",
+            this.lintMode,
+            "\nURL variants: /, /?mode=diff-before, /?mode=diff-after, /?lint=off",
         );
     }
 
@@ -185,10 +214,12 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case message.type === "SyncDocumentCommand": {
-                console.debug(
-                    "[DEBUG] SyncDocumentCommand",
-                    (message as SyncDocumentCommand).content,
-                );
+                const { content } = message as SyncDocumentCommand;
+                console.debug("[DEBUG] SyncDocumentCommand", content);
+                // Mirror the host's relint-on-change: re-run over the edited XML
+                // so the problems panel updates live as the diagram is modeled.
+                this.lastXml = content;
+                void this.pushLintResults();
                 break;
             }
             case message.type === "LogDebugCommand": {
@@ -233,13 +264,15 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case message.type === "GetBpmnlintConfigCommand": {
-                // Standalone browser preview: no extension host runs the linter,
-                // so report "no results" and linting stays inactive.
-                dispatchEvent(new BpmnlintResultsQuery(null));
+                void this.pushLintResults();
                 break;
             }
             default: {
-                throw new Error(`Unknown message type: ${(message as MessageType).type}`);
+                // The modeler emits host-directed commands this single-pane mock
+                // has no use for (e.g. SyncActivitiesCommand,
+                // UpdateScriptVariablesCommand). Ignore them rather than throwing,
+                // which would surface as noise in the preview console.
+                console.debug("[DEBUG] Ignored command", (message as MessageType).type);
             }
         }
 
@@ -263,6 +296,26 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             case "modeler":
                 dispatch(new BpmnFileQuery(MOCK_BPMN_XML, "c7"));
                 return;
+        }
+    }
+
+    /**
+     * Answers a lint request (or a relint after an edit) per {@link LintMode}:
+     * `null` when off, or a real in-browser bpmnlint run over {@link lastXml} for
+     * `real`. A failed run reports `null` (panel hidden) rather than surfacing as
+     * an unhandled rejection.
+     */
+    private async pushLintResults(): Promise<void> {
+        if (this.lintMode === "off") {
+            dispatch(new BpmnlintResultsQuery(null));
+            return;
+        }
+        try {
+            const { lintBpmnXml } = await import("./browserLintRunner");
+            dispatch(new BpmnlintResultsQuery(await lintBpmnXml(this.lastXml)));
+        } catch (error) {
+            console.warn("[dev] browser bpmnlint run failed", error);
+            dispatch(new BpmnlintResultsQuery(null));
         }
     }
 

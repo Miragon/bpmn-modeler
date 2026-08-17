@@ -1,88 +1,262 @@
 /**
- * Hide-until-configured: the bpmn-js-bpmnlint status button is hidden until a
- * `.bpmnlintrc` is applied, so a workspace with no lint config looks exactly as
- * it did before this feature. LintConfigService.apply() toggles
- * `.bpmnlint-active` on <body> (add on config, remove on null).
+ * bpmn-js-bpmnlint's own status button is replaced entirely by the docked
+ * problems panel below — its click toggled the overlays, which read as
+ * "my errors disappeared" instead of "show me the errors". The library offers
+ * no way to disable the button, so it is hidden unconditionally.
  */
 .bjsl-button {
-    display: none;
+    display: none !important;
 }
 
 /**
- * Flat, chip-like restyle of the in-canvas lint summary button.
- *
- * Replaces bpmn-js-bpmnlint's saturated pill (bold white-on-red/amber/green)
- * with a compact tinted chip: soft state-coloured fill, matching text, hairline
- * border, no depth. `inline-flex` (not the vendor's `flex`, and crucially not
- * `block`, which stacked the icon above the count) keeps icon and count on one
- * row and shrink-wraps the chip to its content. The icon is a `currentColor`
- * SVG, so the per-state text colour repaints it for free. The canvas stays white
- * in every VS Code theme, so the palette is tuned for a light background and
- * needs no dark-mode variant.
+ * Column wrapper LintConfigService re-parents the canvas host into so the
+ * problems panel docks below the diagram while the properties panel keeps its
+ * full height. `min-width: 0` lets the column shrink inside the .content flex
+ * row; `min-height: 0` lets the canvas give up height to the panel.
  */
-body.bpmnlint-active .bjsl-button {
+.lint-problems-column {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.lint-problems-column .canvas {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/**
+ * All colours route through custom properties with light-theme defaults; the
+ * dark theme re-tints by overriding only the variables (see
+ * styles/dark-theme/bpmnlint.css). This module's stylesheet is injected after
+ * the swappable theme <link>, so plain same-specificity overrides there would
+ * lose the cascade — the variable indirection sidesteps the ordering entirely,
+ * the same way diagram-js theming works.
+ */
+.lint-problems {
+    --lint-panel-border-color: #e4e4e4;
+    --lint-panel-bg: #fff;
+    --lint-panel-fg: #444;
+    --lint-panel-hover-bg: #f5f5f5;
+    --lint-panel-muted-fg: #888;
+    --lint-panel-faint-fg: #999;
+    --lint-error-fg: #c0392b;
+    --lint-error-bg: #fbe6e6;
+    --lint-error-border: #f1c2c0;
+    --lint-warn-fg: #7a5d10;
+    --lint-warn-bg: #fbf1d3;
+    --lint-warn-border: #f0dfa3;
+    --lint-info-fg: #1f5fa8;
+    --lint-info-bg: #e8f0fb;
+    --lint-info-border: #c5d8f0;
+    --lint-success-fg: #2e7d22;
+    --lint-success-bg: #eaf6ea;
+    --lint-success-border: #cbe7c4;
+
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--lint-panel-border-color);
+    background-color: var(--lint-panel-bg);
+    color: var(--lint-panel-fg);
+    font-size: 12px;
+}
+
+.lint-problems--visible {
+    display: flex;
+}
+
+.lint-problems__header {
+    display: flex;
+    align-items: center;
+}
+
+.lint-problems__toggle {
+    flex: 1 1 auto;
     display: inline-flex;
     align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+
+.lint-problems__toggle:hover {
+    background-color: var(--lint-panel-hover-bg);
+}
+
+.lint-problems__chevron {
+    display: inline-flex;
+    transition: transform 0.12s ease;
+}
+
+.lint-problems--expanded .lint-problems__chevron {
+    transform: rotate(90deg);
+}
+
+.lint-problems__badges {
+    display: inline-flex;
     gap: 6px;
-    bottom: 16px;
-    padding: 4px 10px;
+}
+
+/* Same tinted-chip palette the old summary button used, one badge per severity. */
+.lint-problems__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 7px;
     border: 1px solid transparent;
     border-radius: 6px;
-    background-color: #f0f0f0;
-    color: #555;
     font-weight: 500;
-    font-size: 12px;
-    line-height: 1.4;
-    transition:
-        background-color 0.12s ease,
-        border-color 0.12s ease,
-        color 0.12s ease;
 }
 
-body.bpmnlint-active .bjsl-button .icon {
-    margin: 0;
-    width: 13px;
-    height: 13px;
+.lint-problems__badge--error {
+    background-color: var(--lint-error-bg);
+    border-color: var(--lint-error-border);
+    color: var(--lint-error-fg);
 }
 
-body.bpmnlint-active .bjsl-button-success {
-    background-color: #eaf6ea;
-    border-color: #cbe7c4;
-    color: #2e7d22;
+.lint-problems__badge--warning {
+    background-color: var(--lint-warn-bg);
+    border-color: var(--lint-warn-border);
+    color: var(--lint-warn-fg);
 }
 
-body.bpmnlint-active .bjsl-button-warning {
-    background-color: #fbf1d3;
-    border-color: #f0dfa3;
-    color: #7a5d10;
+.lint-problems__badge--info {
+    background-color: var(--lint-info-bg);
+    border-color: var(--lint-info-border);
+    color: var(--lint-info-fg);
 }
 
-body.bpmnlint-active .bjsl-button-error {
-    background-color: #fbe6e6;
-    border-color: #f1c2c0;
-    color: #c0392b;
+.lint-problems__badge--success {
+    background-color: var(--lint-success-bg);
+    border-color: var(--lint-success-border);
+    color: var(--lint-success-fg);
 }
 
-body.bpmnlint-active .bjsl-button-success:hover {
-    background-color: #e0f0df;
+.lint-problems__overlays {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+    padding: 4px;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--lint-panel-muted-fg);
+    cursor: pointer;
 }
 
-body.bpmnlint-active .bjsl-button-warning:hover {
-    background-color: #f7e9bf;
+.lint-problems__overlays:hover {
+    background-color: var(--lint-panel-hover-bg);
 }
 
-body.bpmnlint-active .bjsl-button-error:hover {
-    background-color: #f7d9d7;
+/* Overlays-hidden state: strike the eye instead of swapping in a second icon. */
+.lint-problems__overlays--off::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 50%;
+    height: 1.5px;
+    background-color: currentColor;
+    transform: rotate(-45deg);
 }
 
-body.bpmnlint-active .bjsl-button:focus-visible {
+.lint-problems__toggle:focus-visible,
+.lint-problems__overlays:focus-visible,
+.lint-problems__row:focus-visible {
     outline: 2px solid rgba(0, 120, 212, 0.7);
-    outline-offset: 1px;
+    outline-offset: -2px;
+}
+
+.lint-problems__body {
+    max-height: 220px;
+    overflow-y: auto;
+    border-top: 1px solid var(--lint-panel-border-color);
+}
+
+.lint-problems__list {
+    margin: 0;
+    padding: 4px 0;
+    list-style: none;
+}
+
+.lint-problems__row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    padding: 4px 10px 4px 14px;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.lint-problems__row:hover:not(:disabled) {
+    background-color: var(--lint-panel-hover-bg);
+}
+
+.lint-problems__row:disabled {
+    cursor: default;
+}
+
+.lint-problems__icon {
+    display: inline-flex;
+    flex: none;
+    /* Optically centers the 12px glyph on the first text line. */
+    margin-top: 2px;
+}
+
+.lint-problems__icon--error {
+    color: var(--lint-error-fg);
+}
+
+.lint-problems__icon--warn {
+    color: var(--lint-warn-fg);
+}
+
+.lint-problems__icon--info {
+    color: var(--lint-info-fg);
+}
+
+.lint-problems__row-message {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.lint-problems__row-element {
+    flex: none;
+    color: var(--lint-panel-muted-fg);
+}
+
+.lint-problems__row-rule {
+    flex: none;
+    color: var(--lint-panel-faint-fg);
+    font-size: 11px;
+}
+
+.lint-problems__empty {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    color: var(--lint-success-fg);
 }
 
 /**
- * Match the issues dropdown to the chip: flat panel, soft hairline border, and a
- * gentle lift so it stays legible floating over the diagram.
+ * Match the per-element issues dropdown (still rendered by bpmn-js-bpmnlint as
+ * canvas overlays) to the panel: flat, soft hairline border, and a gentle lift
+ * so it stays legible floating over the diagram.
  */
 body.bpmnlint-active .bjsl-issues {
     padding: 10px 12px;

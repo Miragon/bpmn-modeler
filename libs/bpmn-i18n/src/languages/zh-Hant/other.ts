@@ -219,6 +219,13 @@ const translations: Record<string, string> = {
     "Variable Listener": "變數監聽器",
     "Variable Listeners": "變數監聽器",
     "Create new BPMN Diagram (Camunda Platform)": "建立新的 BPMN 流程圖（Camunda Platform）",
+    // bpmnlint problems panel
+    "Problems": "問題",
+    "No problems found.": "未發現問題。",
+    "Warnings": "警告",
+    "Information": "資訊",
+    "Show lint overlays": "顯示 lint 標記",
+    "Hide lint overlays": "隱藏 lint 標記",
 };
 
 export default translations;

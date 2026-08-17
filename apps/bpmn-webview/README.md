@@ -25,7 +25,10 @@ corepack yarn workspace @miragon/bpmn-modeler-webview serve  # standalone Vite d
 ```
 
 `watch` is what you want when developing the full extension. `serve` is for
-isolated UI work without launching VS Code.
+isolated UI work without launching VS Code. The standalone server runs against a
+mocked host; URL query parameters select what it renders (`?mode=` for the
+modeler vs. diff panes, `?lint=` for in-browser linting) — see
+[Preview the BPMN webview in a plain browser](../../docs/vscode/contributing/development.md#preview-the-bpmn-webview-in-a-plain-browser).
 
 ## Build output
 
