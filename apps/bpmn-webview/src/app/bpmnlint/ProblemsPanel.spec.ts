@@ -88,10 +88,34 @@ describe("ProblemsPanel", () => {
     it("navigates to the affected element when a problem row is clicked", () => {
         const { panel, parent, callbacks } = makePanel();
         panel.update([issue({ elementId: "Task_7" })]);
+        const row = parent.querySelector<HTMLElement>(".lint-problems__row")!;
 
-        parent.querySelector<HTMLButtonElement>(".lint-problems__row")!.click();
+        expect(row.tagName).toBe("BUTTON");
+        expect((row as HTMLButtonElement).type).toBe("button");
+        row.click();
 
         expect(callbacks.onSelectIssue).toHaveBeenCalledWith("Task_7");
+    });
+
+    it("renders non-navigable problems as static list content", () => {
+        const { panel, parent, callbacks } = makePanel();
+        panel.update([
+            issue({
+                elementId: undefined,
+                elementLabel: "Process_1",
+                message: "Process-level problem",
+            }),
+        ]);
+
+        const list = parent.querySelector(".lint-problems__list");
+        const row = list?.querySelector<HTMLElement>(".lint-problems__row");
+        expect(list?.getAttribute("role")).toBe("list");
+        expect(row?.tagName).toBe("DIV");
+        expect(row?.querySelector("button")).toBeNull();
+        expect(row?.textContent).toContain("Errors: Process-level problem");
+
+        row?.click();
+        expect(callbacks.onSelectIssue).not.toHaveBeenCalled();
     });
 
     it("exposes each problem severity to assistive technology", () => {

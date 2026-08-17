@@ -200,8 +200,9 @@ describe("LintConfigService problems panel", () => {
             "some-rule": [{ id: "Process_1", message: "Process-level problem", category: "error" }],
         });
 
-        const row = document.querySelector<HTMLButtonElement>(".lint-problems__row");
-        expect(row?.disabled).toBe(true);
+        const row = document.querySelector<HTMLElement>(".lint-problems__row");
+        expect(row?.tagName).toBe("DIV");
+        expect(row?.querySelector("button")).toBeNull();
         row?.click();
         expect(selection.select).not.toHaveBeenCalled();
     });

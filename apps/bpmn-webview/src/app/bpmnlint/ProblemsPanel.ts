@@ -197,6 +197,7 @@ export class ProblemsPanel {
         }
 
         const list = makeElement("ul", "lint-problems__list");
+        list.setAttribute("role", "list");
         for (const issue of this.issues) {
             const item = document.createElement("li");
             item.append(this.makeRow(issue));
@@ -205,9 +206,9 @@ export class ProblemsPanel {
         this.body.append(list);
     }
 
-    private makeRow(issue: ProblemsPanelIssue): HTMLButtonElement {
-        const row = makeElement("button", "lint-problems__row") as HTMLButtonElement;
-        row.type = "button";
+    private makeRow(issue: ProblemsPanelIssue): HTMLElement {
+        const { elementId } = issue;
+        const row = makeElement(elementId ? "button" : "div", "lint-problems__row");
         const messageText = i18n.translate(issue.message);
         row.title = messageText;
         const severityLabel = i18n.translate(
@@ -223,6 +224,16 @@ export class ProblemsPanel {
                 .filter(Boolean)
                 .join(", "),
         );
+
+        if (elementId) {
+            (row as HTMLButtonElement).type = "button";
+            row.addEventListener("click", () => this.callbacks.onSelectIssue(elementId));
+        } else {
+            row.removeAttribute("aria-label");
+            const severity = makeElement("span", "lint-problems__sr-only");
+            severity.textContent = `${severityLabel}: `;
+            row.append(severity);
+        }
 
         const icon = makeElement(
             "span",
@@ -241,13 +252,6 @@ export class ProblemsPanel {
         const rule = makeElement("span", "lint-problems__row-rule");
         rule.textContent = issue.rule;
         row.append(rule);
-
-        const { elementId } = issue;
-        if (elementId) {
-            row.addEventListener("click", () => this.callbacks.onSelectIssue(elementId));
-        } else {
-            row.disabled = true;
-        }
         return row;
     }
 

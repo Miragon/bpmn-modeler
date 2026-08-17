@@ -79,7 +79,7 @@
 
 .lint-problems__toggle:hover,
 .lint-problems__overlays:hover,
-.lint-problems__row:hover:not(:disabled) {
+button.lint-problems__row:hover {
     background-color: var(--lint-panel-hover-bg);
 }
 
@@ -165,7 +165,7 @@
 
 .lint-problems__toggle:focus-visible,
 .lint-problems__overlays:focus-visible,
-.lint-problems__row:focus-visible {
+button.lint-problems__row:focus-visible {
     outline: 2px solid var(--vscode-focusBorder, rgba(0, 120, 212, 0.7));
     outline-offset: -2px;
 }
@@ -193,13 +193,23 @@
     color: inherit;
     font: inherit;
     text-align: left;
+    cursor: default;
+}
+
+button.lint-problems__row {
     cursor: pointer;
 }
 
-.lint-problems__row:disabled {
-    color: inherit;
-    opacity: 1;
-    cursor: default;
+.lint-problems__sr-only {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    border: 0;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
 }
 
 .lint-problems__icon {
