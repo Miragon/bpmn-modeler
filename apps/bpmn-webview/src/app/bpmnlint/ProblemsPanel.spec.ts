@@ -41,11 +41,7 @@ describe("ProblemsPanel", () => {
     it("renders one count badge per severity that occurs", () => {
         const { panel, parent } = makePanel();
 
-        panel.update([
-            issue(),
-            issue({ severity: "warn" }),
-            issue({ severity: "warn" }),
-        ]);
+        panel.update([issue(), issue({ severity: "warn" }), issue({ severity: "warn" })]);
 
         const badges = parent.querySelectorAll(".lint-problems__badge");
         expect(badges).toHaveLength(2);

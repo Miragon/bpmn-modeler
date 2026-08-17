@@ -176,10 +176,14 @@ export class ProblemsPanel {
             this.badgesEl.append(this.makeBadge("error", i18n.translate("Errors"), counts.error));
         }
         if (counts.warn > 0) {
-            this.badgesEl.append(this.makeBadge("warning", i18n.translate("Warnings"), counts.warn));
+            this.badgesEl.append(
+                this.makeBadge("warning", i18n.translate("Warnings"), counts.warn),
+            );
         }
         if (counts.info > 0) {
-            this.badgesEl.append(this.makeBadge("info", i18n.translate("Information"), counts.info));
+            this.badgesEl.append(
+                this.makeBadge("info", i18n.translate("Information"), counts.info),
+            );
         }
     }
 

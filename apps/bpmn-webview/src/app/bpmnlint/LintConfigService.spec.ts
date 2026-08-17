@@ -51,7 +51,12 @@ function makeService(
     elements: Record<string, { businessObject?: { name?: string } }> = {},
     selection = { select: vi.fn() },
 ) {
-    const service = new LintConfigService(linting, canvas, fakeElementRegistry(elements), selection);
+    const service = new LintConfigService(
+        linting,
+        canvas,
+        fakeElementRegistry(elements),
+        selection,
+    );
     return { service, linting, canvas, selection };
 }
 
@@ -140,8 +145,12 @@ describe("LintConfigService problems panel", () => {
         const { service } = makeService(fakeLinting(), canvas, { Task_1: task }, selection);
 
         service.render({
-            "label-required": [{ id: "Task_1", message: "Element is missing label", category: "warn" }],
-            "no-implementation": [{ id: "Task_1", message: "Missing implementation", category: "error" }],
+            "label-required": [
+                { id: "Task_1", message: "Element is missing label", category: "warn" },
+            ],
+            "no-implementation": [
+                { id: "Task_1", message: "Missing implementation", category: "error" },
+            ],
         });
 
         const rows = [...document.querySelectorAll<HTMLButtonElement>(".lint-problems__row")];
