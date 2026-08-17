@@ -10,6 +10,7 @@
  *     general-purpose IDE.
  *   - Wire `MiragonThemeContribution` which registers the Miragon Light/Dark
  *     color themes and shows the first-run picker.
+ *   - Override Theia's default-editor resolution for the modeler's source toggle.
  *   - Load the brand stylesheet (`./styles/miragon.css`) for small UI
  *     polish that themes alone cannot express (font weights, indicator bars).
  *
@@ -24,6 +25,7 @@ import { ContainerModule } from "@theia/core/shared/inversify";
 import { FrontendApplicationContribution } from "@theia/core/lib/browser";
 import { HideBuiltinViewsContribution } from "./hide-builtin-views-contribution";
 import { MiragonThemeContribution } from "./miragon-theme-contribution";
+import { StandardTextEditorContribution } from "./standard-text-editor-contribution";
 
 export default new ContainerModule((bind) => {
     bind(HideBuiltinViewsContribution).toSelf().inSingletonScope();
@@ -31,4 +33,7 @@ export default new ContainerModule((bind) => {
 
     bind(MiragonThemeContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(MiragonThemeContribution);
+
+    bind(StandardTextEditorContribution).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(StandardTextEditorContribution);
 });
