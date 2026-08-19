@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.7.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.6.1...intellij-v1.7.0) (2026-08-19)
+
+
+### 🎉 New Features
+
+* **intellij:** offer raw XML text diff in the BPMN diff view ([#1282](https://github.com/Miragon/bpmn-modeler/issues/1282)) ([#1318](https://github.com/Miragon/bpmn-modeler/issues/1318)) ([25a640e](https://github.com/Miragon/bpmn-modeler/commit/25a640ea9027542b4833f213930601fa7d37f6d6))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** render diagrams when the canvas mounts at zero size ([#1338](https://github.com/Miragon/bpmn-modeler/issues/1338)) ([3642a8f](https://github.com/Miragon/bpmn-modeler/commit/3642a8fdfb7514e899fac7c2a2b8f7285f628ab1))
+* **intellij:** sync bundled webview (1b35a62) ([7c00551](https://github.com/Miragon/bpmn-modeler/commit/7c0055104dd2054ab66a5ef2cd6cc7a480f31085))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the gradle-minor-patch group across 1 directory with 2 updates ([#1313](https://github.com/Miragon/bpmn-modeler/issues/1313)) ([5fdebd1](https://github.com/Miragon/bpmn-modeler/commit/5fdebd117202964f16d7da4598e7f5e86d692262))
+
 ## [1.6.1](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.6.0...intellij-v1.6.1) (2026-07-21)
 
 
