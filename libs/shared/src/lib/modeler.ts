@@ -155,6 +155,20 @@ export class BpmnlintResultsQuery extends Query {
     }
 }
 
+/**
+ * Centres the canvas on an element by id. VS Code strips the range for custom
+ * editors and fires no diagnostic-click event, so a Problems-panel bpmnlint
+ * finding reaches its element through a command link that posts this instead.
+ */
+export class FocusElementQuery extends Query {
+    public readonly elementId: string;
+
+    constructor(elementId: string) {
+        super("FocusElementQuery");
+        this.elementId = elementId;
+    }
+}
+
 export interface BpmnModelerSetting {
     readonly alignToOrigin: boolean;
     readonly showTransactionBoundaries: boolean;

@@ -20,6 +20,10 @@ import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
 import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
 import { DocumentSaveFlushController } from "../modeler/editor-session/DocumentSaveFlushController";
+import {
+    FocusLintElementController,
+    FOCUS_LINT_ELEMENT_CMD,
+} from "../modeler/bpmn/controller/FocusLintElementController";
 import { NodeBpmnLinter } from "@miragon/bpmn-modeler-core";
 import { VsCodeDiagnostics } from "../shared/infrastructure/VsCodeDiagnostics";
 import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
@@ -130,7 +134,7 @@ export function register(
         deps.vsDocument,
         lintConfigLocator,
         new NodeBpmnLinter(),
-        new VsCodeDiagnostics(),
+        new VsCodeDiagnostics(FOCUS_LINT_ELEMENT_CMD),
         deps.statusBar,
         deps.notifier,
         new DefaultBpmnlintConfigService(),
@@ -286,6 +290,10 @@ export function register(
         ],
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
+
+    // Turns each element-specific bpmnlint diagnostic into a click-to-centre
+    // action; the diagnostics carry a command link to this controller.
+    new FocusLintElementController(deps.editorStore, deps.notifier).register(context);
 
     // Flush debounced webview changes into the buffer before every save so a
     // persist never writes XML that trails the live model by the debounce window.

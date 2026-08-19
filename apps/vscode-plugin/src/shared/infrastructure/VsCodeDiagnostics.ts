@@ -20,10 +20,18 @@ import { DiagnosticsPort } from "@miragon/bpmn-modeler-core";
  * best-effort scan for the element's `id="…"` in the XML, falling back to the
  * document start. That is enough for the Problems entry to open the file; the
  * precise on-canvas location is still shown by the in-diagram overlay.
+ *
+ * Element-specific findings additionally get a clickable `code` link to a host
+ * command that centres the element — the only handle a Problems entry has,
+ * since VS Code discards the range for custom editors. The command id is
+ * injected so this shared adapter stays decoupled from the feature that owns it.
  */
 export class VsCodeDiagnostics implements DiagnosticsPort {
     private readonly collection: DiagnosticCollection =
         languages.createDiagnosticCollection("bpmnlint");
+
+    // focusCommandId is called with (editorId, elementId); omitted → no link.
+    constructor(private readonly focusCommandId?: string) {}
 
     publish(documentUri: string, xml: string, results: LintResults): void {
         const uri = Uri.parse(documentUri);
@@ -38,7 +46,15 @@ export class VsCodeDiagnostics implements DiagnosticsPort {
                     this.severity(report.category),
                 );
                 diagnostic.source = "bpmnlint";
-                if (report.rule) {
+                const target =
+                    report.id && this.focusCommandId
+                        ? this.focusCommandTarget(documentUri, report.id)
+                        : undefined;
+                if (target) {
+                    // Fallback label keeps the code link clickable when a finding
+                    // carries no rule.
+                    diagnostic.code = { value: report.rule ?? "bpmnlint", target };
+                } else if (report.rule) {
                     diagnostic.code = report.rule;
                 }
                 diagnostics.push(diagnostic);
@@ -50,6 +66,13 @@ export class VsCodeDiagnostics implements DiagnosticsPort {
 
     clear(documentUri: string): void {
         this.collection.delete(Uri.parse(documentUri));
+    }
+
+    // Args are a JSON array in the query string (VS Code command-URI
+    // convention), URI-encoded so reserved characters in ids survive.
+    private focusCommandTarget(editorId: string, elementId: string): Uri {
+        const args = encodeURIComponent(JSON.stringify([editorId, elementId]));
+        return Uri.parse(`command:${this.focusCommandId}?${args}`);
     }
 
     private severity(category: string): DiagnosticSeverity {

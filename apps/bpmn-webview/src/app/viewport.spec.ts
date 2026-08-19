@@ -198,3 +198,93 @@ describe("ViewportManager.onViewportChanged", () => {
         vi.useRealTimers();
     });
 });
+
+// The viewbox getter reports the current box; the setter is a spy so the
+// centred box can be asserted.
+function setupFocus(
+    current: { x: number; y: number; width: number; height: number },
+    outer: { width: number; height: number },
+    elements: Record<string, unknown>,
+) {
+    const viewbox = vi.fn((box?: unknown) => (box ? undefined : { ...current, outer }));
+    const canvas = { viewbox };
+    const registry = { get: (id: string) => elements[id] };
+    const manager = new ViewportManager((name: string) => {
+        if (name === "canvas") return canvas as any;
+        if (name === "elementRegistry") return registry as any;
+        throw new Error(`unexpected service: ${name}`);
+    });
+    return { manager, viewbox };
+}
+
+describe("ViewportManager.centerOnElement", () => {
+    it("centres a shape on the current zoom when already zoomed in enough", () => {
+        const { manager, viewbox } = setupFocus(
+            { x: 0, y: 0, width: 1000, height: 800 }, // scale 1.0 ≥ floor
+            { width: 1000, height: 800 },
+            { Task_1: { x: 100, y: 100, width: 100, height: 100 } },
+        );
+
+        expect(manager.centerOnElement("Task_1")).toBe(true);
+
+        // Centre (150,150), box unchanged in size, positioned so the centre sits
+        // in the middle of the viewport.
+        expect(viewbox.mock.calls.at(-1)?.[0]).toEqual({
+            x: 150 - 500,
+            y: 150 - 400,
+            width: 1000,
+            height: 800,
+        });
+    });
+
+    it("pulls in to the minimum zoom when far zoomed out", () => {
+        const { manager, viewbox } = setupFocus(
+            { x: 0, y: 0, width: 2000, height: 1600 }, // scale 0.5 < floor 0.75
+            { width: 1000, height: 800 },
+            { Task_1: { x: 100, y: 100, width: 100, height: 100 } },
+        );
+
+        manager.centerOnElement("Task_1");
+
+        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
+        // Widened to the floor: outer / 0.75.
+        expect(box.width).toBeCloseTo(1000 / 0.75);
+        expect(box.height).toBeCloseTo(800 / 0.75);
+        // Still centred on the element centre (150,150).
+        expect(box.x + box.width / 2).toBeCloseTo(150);
+        expect(box.y + box.height / 2).toBeCloseTo(150);
+    });
+
+    it("centres a connection on its waypoint-bbox midpoint", () => {
+        const { manager, viewbox } = setupFocus(
+            { x: 0, y: 0, width: 1000, height: 800 },
+            { width: 1000, height: 800 },
+            {
+                Flow_1: {
+                    waypoints: [
+                        { x: 100, y: 100 },
+                        { x: 300, y: 300 },
+                    ],
+                },
+            },
+        );
+
+        manager.centerOnElement("Flow_1");
+
+        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
+        expect(box.x + box.width / 2).toBeCloseTo(200);
+        expect(box.y + box.height / 2).toBeCloseTo(200);
+    });
+
+    it("leaves the viewport untouched for an unknown element", () => {
+        const { manager, viewbox } = setupFocus(
+            { x: 0, y: 0, width: 1000, height: 800 },
+            { width: 1000, height: 800 },
+            {},
+        );
+
+        expect(manager.centerOnElement("missing")).toBe(false);
+        // Only the getter (if at all); never the setter.
+        expect(viewbox.mock.calls.every((call) => call[0] === undefined)).toBe(true);
+    });
+});
