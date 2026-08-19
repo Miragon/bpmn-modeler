@@ -31,7 +31,24 @@ const BPMN_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
-function registerParams(editorId: string, root: string, fsPath: string) {
+// Same process, now with DI whose task shape is far from the modeler default
+// (100×80) — so the miragon layer's `standard-size` rule fires. Missing DI is
+// valid for that rule, hence the explicit shape here.
+const BPMN_XML_OVERSIZED = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:task id="Task_1" name="Do the thing" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="160" y="80" width="200" height="200" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+function registerParams(editorId: string, root: string, fsPath: string, content = BPMN_XML) {
     return {
         editorId,
         uriString: editorId,
@@ -39,7 +56,7 @@ function registerParams(editorId: string, root: string, fsPath: string) {
         fsPath,
         scheme: "file",
         workspaceRoot: root,
-        content: BPMN_XML,
+        content,
     };
 }
 
@@ -69,10 +86,12 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         }
     });
 
-    async function setup(): Promise<{ rpc: Rpc; frames: any[]; root: string; editorId: string }> {
+    async function setup(
+        content = BPMN_XML,
+    ): Promise<{ rpc: Rpc; frames: any[]; root: string; editorId: string }> {
         const root = await fs.mkdtemp(join(tmpdir(), "modeler-bridge-lint-"));
         const sourcePath = join(root, "source.bpmn");
-        await fs.writeFile(sourcePath, BPMN_XML, "utf8");
+        await fs.writeFile(sourcePath, content, "utf8");
 
         const frames: any[] = [];
         const { rpc } = createBridge((line) => frames.push(JSON.parse(line)));
@@ -81,7 +100,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, sourcePath),
+                params: registerParams(editorId, root, sourcePath, content),
             }),
         );
 
@@ -124,5 +143,16 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         const results = frame.params.message.results;
         expect(results).not.toBeNull();
         expect(Object.keys(results)).toContain("start-event-required");
+    });
+
+    it("enforces the miragon standard-size layer through the bundled default", async () => {
+        const { rpc, frames, editorId } = await setup(BPMN_XML_OVERSIZED);
+
+        await requestConfig(rpc, editorId);
+
+        const frame = await waitForFrame(frames, isLintResultsFrame);
+        const results = frame.params.message.results;
+        expect(results).not.toBeNull();
+        expect(Object.keys(results)).toContain("standard-size");
     });
 });
