@@ -48,6 +48,7 @@ import {
     formatErrors,
     initResizer,
     initTheme,
+    observeCanvasSize,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
@@ -58,7 +59,7 @@ import {
     installKeyboardFocus,
     UnsupportedEngineError,
 } from "./app";
-import type { HostApi } from "@miragon/bpmn-modeler-shared";
+import type { HostApi, ResizableCanvas } from "@miragon/bpmn-modeler-shared";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
 import type { LintConfigService } from "./app/bpmnlint";
@@ -345,8 +346,14 @@ async function run(): Promise<void> {
 
     stateManager = new WebviewStateManager(host, bpmnModeler);
 
-    // Phase 1: restore viewport (canvas exists after openXml)
+    // Phase 1: restore viewport (canvas exists after openXml). Retried from the
+    // observer because hosts mount the webview before laying it out, and the
+    // observer then keeps the cached viewbox in sync for the rest of the session.
     stateManager.restoreViewport();
+    const canvas = bpmnModeler.getService<ResizableCanvas & { getContainer(): Element }>("canvas");
+    observeCanvasSize(canvas, canvas.getContainer(), {
+        applyInitialViewport: () => stateManager.restoreViewport(),
+    });
 
     // Surface templates bpmn-js rejects (invalid schema, bad `appliesTo`, …).
     // Subscribed *before* GetElementTemplatesCommand so the errors fired while

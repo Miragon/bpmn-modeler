@@ -7,10 +7,10 @@ import { WebviewStateManager } from "./state";
  * `restoreViewport` touches: `host.getState` (the saved-state source that
  * discriminates fresh open from tab-switch rebuild) and the viewport methods.
  */
-function setup(savedState: unknown) {
+function setup(savedState: unknown, applied = true) {
     const getState = vi.fn().mockReturnValue(savedState);
-    const setViewport = vi.fn();
-    const fitViewport = vi.fn();
+    const setViewport = vi.fn().mockReturnValue(applied);
+    const fitViewport = vi.fn().mockReturnValue(applied);
     const host = { getState } as any;
     const modeler = { viewport: { setViewport, fitViewport } } as any;
     return {
@@ -47,5 +47,24 @@ describe("WebviewStateManager.restoreViewport", () => {
 
         expect(fitViewport).toHaveBeenCalledOnce();
         expect(setViewport).not.toHaveBeenCalled();
+    });
+
+    it("applies the viewbox only once across repeated calls", () => {
+        const { manager, fitViewport } = setup(undefined);
+
+        expect(manager.restoreViewport()).toBe(true);
+        expect(manager.restoreViewport()).toBe(true);
+
+        // Re-fitting on every later resize would discard the user's own zoom.
+        expect(fitViewport).toHaveBeenCalledOnce();
+    });
+
+    it("keeps retrying while the canvas is still unsized", () => {
+        const { manager, fitViewport } = setup(undefined, false);
+
+        expect(manager.restoreViewport()).toBe(false);
+        expect(manager.restoreViewport()).toBe(false);
+
+        expect(fitViewport).toHaveBeenCalledTimes(2);
     });
 });

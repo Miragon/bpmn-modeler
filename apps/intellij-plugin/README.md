@@ -170,12 +170,10 @@ modeler core or the bridge.
 > key above — it is the platform's master switch.
 
 > **Leave `ide.browser.jcef.osr.enabled` alone.** While out-of-process JCEF is
-> active, setting it to `false` does not give you windowed rendering — it makes
-> **every** `JBCefBrowser` construction throw, so the modeler, diff viewer, and
-> deployment tool window all fail to start (the editor then shows a "could not
-> start" label instead of the diagram). Once out-of-process JCEF is off, `false`
-> does yield windowed rendering, but it measured no better than in-process OSR at
-> the plugin's 60 fps — so there is no reason to touch it either way.
+> active, `false` makes **every** `JBCefBrowser` construction throw, so the
+> modeler, diff viewer, and deployment tool window all fail to start. With
+> out-of-process JCEF off it does yield windowed rendering, but that measured no
+> better than in-process OSR at the plugin's 60 fps.
 
 ## Scope
 

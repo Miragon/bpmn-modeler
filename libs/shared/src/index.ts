@@ -6,6 +6,7 @@ export * from "./lib/messages";
 export * from "./lib/documentFlush";
 export * from "./lib/modeler";
 export * from "./lib/theme";
+export * from "./lib/canvasResize";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/processVariables";
 export * from "./lib/variableManifest";
