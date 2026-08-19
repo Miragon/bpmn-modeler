@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.8.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.7.0...vscode-v1.8.0) (2026-08-19)
+
+
+### 🎉 New Features
+
+* **bpmn:** enable uniform standard-size lint rule in the miragon layer ([#1335](https://github.com/Miragon/bpmn-modeler/issues/1335)) ([2ca96c7](https://github.com/Miragon/bpmn-modeler/commit/2ca96c7ce74992460dbd49c16812d994baff932b))
+* **bpmn:** lint diagrams by default, per execution platform ([#1334](https://github.com/Miragon/bpmn-modeler/issues/1334)) ([a729fd5](https://github.com/Miragon/bpmn-modeler/commit/a729fd5acb4cb499ebdcffc0bfc05ecaca646234))
+* **vscode-plugin:** focus a BPMN lint finding's element on the canvas ([#1339](https://github.com/Miragon/bpmn-modeler/issues/1339)) ([cebe5c6](https://github.com/Miragon/bpmn-modeler/commit/cebe5c6adfd550df5de412fd6c514e21cde3f1ec))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** render diagrams when the canvas mounts at zero size ([#1338](https://github.com/Miragon/bpmn-modeler/issues/1338)) ([3642a8f](https://github.com/Miragon/bpmn-modeler/commit/3642a8fdfb7514e899fac7c2a2b8f7285f628ab1))
+* **service:** skip element-template load for disposed editors ([#1315](https://github.com/Miragon/bpmn-modeler/issues/1315)) ([e51b3a6](https://github.com/Miragon/bpmn-modeler/commit/e51b3a625b5f853c64e5a95aafdedd886d8587e6))
+* standalone toggle standard texteditor ([#1323](https://github.com/Miragon/bpmn-modeler/issues/1323)) ([7226b49](https://github.com/Miragon/bpmn-modeler/commit/7226b498271cf9fe30d66b95509c133c86c5df7e))
+
+
+### 🔨 Refactoring
+
+* **shared:** centralize engine label and execution-platform mappings ([#1329](https://github.com/Miragon/bpmn-modeler/issues/1329)) ([b0caba2](https://github.com/Miragon/bpmn-modeler/commit/b0caba2c2345283fd0b27a6f4d769b0fc8eafb66))
+
+
+### 📔 Documentation
+
+* condense comment-style guidance to favor clean code ([#1337](https://github.com/Miragon/bpmn-modeler/issues/1337)) ([060fe48](https://github.com/Miragon/bpmn-modeler/commit/060fe488837179dbd3f428655e0fd607db319ba0))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the github-actions-all group with 2 updates ([#1325](https://github.com/Miragon/bpmn-modeler/issues/1325)) ([e5dc84e](https://github.com/Miragon/bpmn-modeler/commit/e5dc84e8731d02f632756d466b9a353284b90414))
+* **deps:** bump the npm-major group across 1 directory with 8 updates ([#1314](https://github.com/Miragon/bpmn-modeler/issues/1314)) ([dcf42b9](https://github.com/Miragon/bpmn-modeler/commit/dcf42b9cfa3cbc4160720a7fdee90f9f801bc05c))
+* **main:** release intellij 1.7.0 ([#1312](https://github.com/Miragon/bpmn-modeler/issues/1312)) ([dd6f22f](https://github.com/Miragon/bpmn-modeler/commit/dd6f22fe2d590e00c8d327e0aecd4629bd426a63))
+* **release:** gate release publishing behind a single approval ([#1317](https://github.com/Miragon/bpmn-modeler/issues/1317)) ([c2ff14e](https://github.com/Miragon/bpmn-modeler/commit/c2ff14e07635fc37955c895434787c19ad33012f))
+
 ## [1.7.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.6.1...vscode-v1.7.0) (2026-08-13)
 
 
