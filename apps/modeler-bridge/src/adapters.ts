@@ -16,7 +16,13 @@
 
 import { posix } from "node:path";
 
-import { AuthTypePayload, Command, Engine, Query } from "@miragon/bpmn-modeler-shared";
+import {
+    AuthTypePayload,
+    Command,
+    Engine,
+    ENGINE_LABEL,
+    Query,
+} from "@miragon/bpmn-modeler-shared";
 import {
     ClipboardPort,
     DeploymentStatePort,
@@ -694,28 +700,26 @@ export class RpcPicker implements PickerPort {
         return result?.selected ?? null;
     }
 
-    async pickExecutionPlatform(placeHolder: string, items: string[]): Promise<Engine> {
+    async pickExecutionPlatform(placeHolder: string, engines: Engine[]): Promise<Engine> {
         const selected = await this.show({
             placeholder: placeHolder,
             canPickMany: false,
-            items: items.map((label) => ({ label })),
+            items: engines.map((engine) => ({ label: ENGINE_LABEL[engine] })),
         });
         if (selected === null) {
             throw new UserCancelledError();
         }
-        const result = items[selected[0]];
-        if (result === "Camunda 7") {
-            return "c7";
-        } else if (result === "Camunda 8") {
-            return "c8";
+        const engine = engines[selected[0]];
+        if (!engine) {
+            throw new Error(`No engine at index ${selected[0]}`);
         }
-        throw new Error(`Unknown execution platform version: "${result}"`);
+        return engine;
     }
 
     async pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope> {
         const items = [
-            `Camunda 7 only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
-            `Camunda 8 only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
+            `${ENGINE_LABEL.c7} only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
+            `${ENGINE_LABEL.c8} only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
             `Both (${c7Count + c8Count} diagram${c7Count + c8Count !== 1 ? "s" : ""})`,
         ];
         const selected = await this.show({
@@ -727,16 +731,16 @@ export class RpcPicker implements PickerPort {
             throw new UserCancelledError();
         }
         const result = items[selected[0]];
-        if (result.startsWith("Camunda 7")) {
+        if (result.startsWith(ENGINE_LABEL.c7)) {
             return "c7";
-        } else if (result.startsWith("Camunda 8")) {
+        } else if (result.startsWith(ENGINE_LABEL.c8)) {
             return "c8";
         }
         return "both";
     }
 
     async pickEngineVersion(platform: Engine, versions: readonly string[]): Promise<string> {
-        const label = platform === "c7" ? "Camunda 7" : "Camunda 8";
+        const label = ENGINE_LABEL[platform];
         const selected = await this.show({
             placeholder: `Select ${label} engine version`,
             canPickMany: false,

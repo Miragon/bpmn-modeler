@@ -1,4 +1,4 @@
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine, ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-shared";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { UserCancelledError } from "../../shared/domain/errors";
@@ -150,7 +150,7 @@ export class BpmnMigrationService {
 
             let updatedDoc: BpmnDocument;
             if (currentVersion === undefined) {
-                const platformName = platform === "c7" ? "Camunda Platform" : "Camunda Cloud";
+                const platformName = ENGINE_EXECUTION_PLATFORM[platform];
                 const schema =
                     platform === "c7"
                         ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`

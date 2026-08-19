@@ -572,9 +572,9 @@ describe("RpcPicker", () => {
         return { ...h, finder, picker: new RpcPicker(h.rpc, finder) };
     }
 
-    it("pickExecutionPlatform maps the chosen label to an engine", async () => {
+    it("pickExecutionPlatform maps the chosen engine to a label and returns the id", async () => {
         const { frames, picker, answerLast } = setup();
-        const pending = picker.pickExecutionPlatform("Pick a platform", ["Camunda 7", "Camunda 8"]);
+        const pending = picker.pickExecutionPlatform("Pick a platform", ["c7", "c8"]);
         expect(last(frames)).toMatchObject({
             method: "picker/show",
             params: {
@@ -589,7 +589,7 @@ describe("RpcPicker", () => {
 
     it("pickExecutionPlatform throws UserCancelledError on dismissal", async () => {
         const { picker, answerLast } = setup();
-        const pending = picker.pickExecutionPlatform("Pick", ["Camunda 7"]);
+        const pending = picker.pickExecutionPlatform("Pick", ["c7"]);
         await answerLast({ selected: null });
         await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
     });

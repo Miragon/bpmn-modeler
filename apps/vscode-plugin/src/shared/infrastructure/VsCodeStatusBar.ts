@@ -1,6 +1,6 @@
 import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-shared";
 
 import { StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
@@ -31,7 +31,7 @@ export class VsCodeStatusBar implements StatusBarPort {
 
     showEngineVersion(platform: Engine, version: string): void {
         const item = this.getOrCreateEngineVersionStatusItem();
-        const label = platform === "c7" ? "Camunda 7" : "Camunda 8";
+        const label = ENGINE_LABEL[platform];
         item.text = `$(server-environment) ${label} (${version})`;
         item.tooltip = "Click to change engine version";
         item.show();

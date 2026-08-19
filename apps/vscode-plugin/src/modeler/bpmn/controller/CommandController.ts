@@ -202,8 +202,8 @@ export class CommandController {
             let doc: BpmnDocument;
             try {
                 const engine = await this.picker.pickExecutionPlatform("Select the engine.", [
-                    "Camunda 7",
-                    "Camunda 8",
+                    "c7",
+                    "c8",
                 ]);
                 doc = BpmnDocument.empty(engine, getLatestVersion(engine));
             } catch (error) {
