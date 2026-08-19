@@ -42,6 +42,7 @@ import noInclusiveGateway from "bpmnlint/rules/no-inclusive-gateway";
 import noOverlappingElements from "bpmnlint/rules/no-overlapping-elements";
 import singleBlankStartEvent from "bpmnlint/rules/single-blank-start-event";
 import singleEventDefinition from "bpmnlint/rules/single-event-definition";
+import standardSize from "bpmnlint/rules/standard-size";
 import startEventRequired from "bpmnlint/rules/start-event-required";
 import subProcessBlankStartEvent from "bpmnlint/rules/sub-process-blank-start-event";
 import superfluousGateway from "bpmnlint/rules/superfluous-gateway";
@@ -73,6 +74,7 @@ const cache: Record<string, unknown> = {
     "rule:bpmnlint/no-overlapping-elements": noOverlappingElements,
     "rule:bpmnlint/single-blank-start-event": singleBlankStartEvent,
     "rule:bpmnlint/single-event-definition": singleEventDefinition,
+    "rule:bpmnlint/standard-size": standardSize,
     "rule:bpmnlint/start-event-required": startEventRequired,
     "rule:bpmnlint/sub-process-blank-start-event": subProcessBlankStartEvent,
     "rule:bpmnlint/superfluous-gateway": superfluousGateway,

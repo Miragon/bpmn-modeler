@@ -22,11 +22,11 @@ describe("bundledDefaultResolver", () => {
         expect(bundledDefaultResolver.resolveRule(COMPAT, "implementation")).toBeTruthy();
     });
 
-    it("resolves the miragon layer, which is wired in but currently empty", () => {
+    it("resolves the miragon layer, which enables the standard-size convention", () => {
         const config = bundledDefaultResolver.resolveConfig(MIRAGON, "recommended") as {
             rules: Record<string, unknown>;
         };
-        expect(config.rules).toEqual({});
+        expect(config.rules).toEqual({ "bpmnlint/standard-size": "warn" });
     });
 
     it("bundles every camunda-compat rule the pinned configs reference (guards plugin bumps)", () => {
