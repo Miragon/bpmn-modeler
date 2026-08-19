@@ -8,6 +8,8 @@ import {
     observeCanvasSize,
 } from "@miragon/bpmn-modeler-shared";
 
+import { centreOf } from "../elementGeometry";
+
 /**
  * CSS class applied to each element category on the canvas.
  */
@@ -254,39 +256,4 @@ export class DiffViewer {
     private getCanvas(): any {
         return this.viewer.get<any>("canvas");
     }
-}
-
-/**
- * Returns the geometric centre of a bpmn-js element, or `undefined` when the
- * element has neither shape bounds nor waypoints to derive a position from.
- */
-function centreOf(element: {
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-    waypoints?: ReadonlyArray<{ x: number; y: number }>;
-}): { x: number; y: number } | undefined {
-    if (typeof element.x === "number" && typeof element.y === "number") {
-        return {
-            x: element.x + (element.width ?? 0) / 2,
-            y: element.y + (element.height ?? 0) / 2,
-        };
-    }
-    const wps = element.waypoints;
-    if (wps && wps.length > 0) {
-        let minX = wps[0].x;
-        let maxX = wps[0].x;
-        let minY = wps[0].y;
-        let maxY = wps[0].y;
-        for (let i = 1; i < wps.length; i++) {
-            const p = wps[i];
-            if (p.x < minX) minX = p.x;
-            if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y;
-            if (p.y > maxY) maxY = p.y;
-        }
-        return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
-    }
-    return undefined;
 }

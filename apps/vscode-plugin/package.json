@@ -314,6 +314,11 @@
                 "title": "Reload Modeler",
                 "category": "Miragon BPMN Modeler",
                 "icon": "$(refresh)"
+            },
+            {
+                "command": "bpmn-modeler.focusLintElement",
+                "title": "Focus Lint Element",
+                "category": "Miragon BPMN Modeler"
             }
         ],
         "keybindings": [
@@ -375,6 +380,10 @@
                 },
                 {
                     "command": "bpmn-modeler.compareSelected",
+                    "when": "false"
+                },
+                {
+                    "command": "bpmn-modeler.focusLintElement",
                     "when": "false"
                 }
             ],

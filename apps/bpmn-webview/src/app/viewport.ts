@@ -1,6 +1,7 @@
 import { MIN_CANVAS_SIZE_PX, isUsableViewbox } from "@miragon/bpmn-modeler-shared";
 
 import { ViewportData } from "./webviewState";
+import { centreOf } from "./elementGeometry";
 
 /**
  * Function type for accessing a service from the bpmn-js DI container.
@@ -9,6 +10,10 @@ import { ViewportData } from "./webviewState";
  * @param name The DI service name.
  */
 type ServiceAccessor = <T>(name: string) => T;
+
+// Zoom floor when focusing an element, so a far-zoomed-out view still shows it
+// legibly. Never zooms out past the user's current level.
+const MIN_FOCUS_ZOOM = 0.75;
 
 /**
  * Reads, writes, and subscribes to canvas viewbox changes.
@@ -122,6 +127,40 @@ export class ViewportManager {
             y: inner.y - marginY / scale,
             width: outer.width / scale,
             height: outer.height / scale,
+        });
+        return true;
+    }
+
+    /**
+     * Centres the viewport on `id`, enforcing {@link MIN_FOCUS_ZOOM}. Returns
+     * `false` when the element is not on the canvas (e.g. a stale lint finding),
+     * leaving the viewport untouched. Unlike the diff pane's variant it lets the
+     * `viewbox.changed` event through, so the focused position is persisted.
+     */
+    centerOnElement(id: string): boolean {
+        const canvas = this.getService<any>("canvas");
+        const element = this.getService<any>("elementRegistry").get(id);
+        if (!element) {
+            return false;
+        }
+        const centre = centreOf(element);
+        if (!centre) {
+            return false;
+        }
+
+        const viewbox = canvas.viewbox();
+        // scale = outer/viewbox width; below the floor, widen the box (smaller
+        // viewbox = higher zoom).
+        const scale = viewbox.width > 0 ? viewbox.outer.width / viewbox.width : MIN_FOCUS_ZOOM;
+        const width = scale < MIN_FOCUS_ZOOM ? viewbox.outer.width / MIN_FOCUS_ZOOM : viewbox.width;
+        const height =
+            scale < MIN_FOCUS_ZOOM ? viewbox.outer.height / MIN_FOCUS_ZOOM : viewbox.height;
+
+        canvas.viewbox({
+            x: centre.x - width / 2,
+            y: centre.y - height / 2,
+            width,
+            height,
         });
         return true;
     }

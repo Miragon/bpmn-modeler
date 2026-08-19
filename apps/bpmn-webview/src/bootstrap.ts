@@ -14,6 +14,7 @@ import {
     ElementTemplatesQuery,
     Engine,
     FlushDocumentQuery,
+    FocusElementQuery,
     GetBpmnFileCommand,
     GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
@@ -145,6 +146,10 @@ const respondToFlush = createFlushResponder(
 const bpmnFileResolver = createResolver<BpmnFileQuery>();
 
 let modelerIsInitialized = false;
+
+// A FocusElementQuery can arrive before the import finishes (host opens the
+// editor and focuses in one tick); apply it once the modeler is ready.
+let pendingFocusId: string | undefined;
 
 // Separate resolvers for element clipboard and text (label) clipboard.
 let elementClipboardResolver = createResolver<ClipboardQuery>();
@@ -284,6 +289,11 @@ async function run(): Promise<void> {
     ];
     await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
     modelerIsInitialized = true;
+
+    if (pendingFocusId !== undefined) {
+        bpmnModeler.viewport.centerOnElement(pendingFocusId);
+        pendingFocusId = undefined;
+    }
 
     /**
      * Bridge "Edit Script" / "Open in Editor" triggers (script-task context
@@ -689,6 +699,19 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             try {
                 const query = message.data as ImplementationStatusQuery;
                 bpmnModeler.applyImplementationStatus(query.resolved);
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
+        case queryOrCommand.type === "FocusElementQuery": {
+            try {
+                const { elementId } = message.data as FocusElementQuery;
+                if (modelerIsInitialized) {
+                    bpmnModeler.viewport.centerOnElement(elementId);
+                } else {
+                    pendingFocusId = elementId;
+                }
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }

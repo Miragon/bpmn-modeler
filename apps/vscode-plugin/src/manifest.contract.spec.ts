@@ -37,6 +37,7 @@ import {
     UPDATE_MARKETPLACES_CMD,
 } from "./templateMarketplace/controller/TemplateMarketplaceController";
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
+import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 const SRC_DIR = __dirname;
@@ -78,6 +79,7 @@ const CODE_COMMAND_IDS = [
     ADD_MARKETPLACE_CMD,
     UPDATE_MARKETPLACES_CMD,
     REMOVE_MARKETPLACE_CMD,
+    FOCUS_LINT_ELEMENT_CMD,
 ];
 
 const CONFIG_NAMESPACE = "miragon.bpmnModeler";
