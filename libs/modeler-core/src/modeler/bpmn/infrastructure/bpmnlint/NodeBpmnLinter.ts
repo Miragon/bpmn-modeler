@@ -4,6 +4,7 @@ import { LintResults } from "@miragon/bpmn-modeler-shared";
 
 import { LintRunnerPort } from "../../../../shared/domain/hostPorts";
 import { builtinResolver } from "./builtinResolver";
+import { bundledDefaultResolver } from "./bundledDefaultResolver";
 import { CompositeResolver } from "./CompositeResolver";
 
 // bpmnlint ships no type declarations; its entry points are typed by the ambient
@@ -41,6 +42,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
         xml: string,
         configPath: string,
         config: Record<string, unknown>,
+        useBundledDefaults = false,
     ): Promise<{ results: LintResults; unresolved: string[] }> {
         const configDir = dirname(uriPathToFsPath(configPath));
         const scopedRequire = createScopedRequire(configDir);
@@ -48,6 +50,7 @@ export class NodeBpmnLinter implements LintRunnerPort {
         const resolver = new CompositeResolver(
             new NodeResolver({ require: scopedRequire, requireLocal: scopedRequire }),
             builtinResolver,
+            ...(useBundledDefaults ? [bundledDefaultResolver] : []),
         );
 
         const moddleExtensions = this.loadModdleExtensions(config, scopedRequire, resolver);
@@ -61,9 +64,14 @@ export class NodeBpmnLinter implements LintRunnerPort {
     }
 
     /**
-     * Resolves the config's `moddleExtensions` (`{ prefix: modulePath }`) against
-     * the workspace so custom rules that inspect Camunda properties see the same
-     * typed model the CLI does. A module that fails to load is skipped and
+     * Resolves the config's `moddleExtensions` (`{ prefix: value }`) so rules that
+     * inspect Camunda/Zeebe properties see the same typed model the CLI does.
+     *
+     * A workspace `.bpmnlintrc` declares each extension as a module-path string,
+     * `require`d from the workspace. The zero-config default instead embeds the
+     * descriptor object directly (see {@link DefaultBpmnlintConfigService}) because
+     * a config-less workspace has no `node_modules` to resolve it from — those
+     * pass straight through. A string module that fails to load is skipped and
      * recorded rather than aborting the lint.
      */
     private loadModdleExtensions(
@@ -77,9 +85,13 @@ export class NodeBpmnLinter implements LintRunnerPort {
         }
 
         const extensions: Record<string, unknown> = {};
-        for (const [prefix, modulePath] of Object.entries(declared as Record<string, unknown>)) {
+        for (const [prefix, value] of Object.entries(declared as Record<string, unknown>)) {
+            if (value && typeof value === "object") {
+                extensions[prefix] = value;
+                continue;
+            }
             try {
-                extensions[prefix] = scopedRequire(String(modulePath));
+                extensions[prefix] = scopedRequire(String(value));
             } catch {
                 resolver.unresolved.push(`moddleExtension:${prefix}`);
             }

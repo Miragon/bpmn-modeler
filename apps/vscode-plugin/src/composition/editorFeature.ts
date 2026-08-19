@@ -11,6 +11,7 @@ import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigLocator } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
+import { DefaultBpmnlintConfigService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
@@ -132,6 +133,7 @@ export function register(
         new VsCodeDiagnostics(),
         deps.statusBar,
         deps.notifier,
+        new DefaultBpmnlintConfigService(),
     );
     const clipboardMediator = new BpmnClipboardMediator(
         deps.editorStore,

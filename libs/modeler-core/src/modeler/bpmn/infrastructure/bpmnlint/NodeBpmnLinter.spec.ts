@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { DefaultBpmnlintConfigService } from "../../service/DefaultBpmnlintConfigService";
 import { NodeBpmnLinter } from "./NodeBpmnLinter";
 
 // A tmp dir has no `node_modules` up its tree, so the workspace NodeResolver
@@ -50,5 +51,46 @@ describe("NodeBpmnLinter", () => {
         });
 
         expect(unresolved).toContain("plugin:bpmnlint-plugin-custom-plugin/recommended");
+    });
+
+    // A connected C8 service task with no `zeebe:taskDefinition` — a canonical
+    // deploy-breaker the camunda-compat `implementation` rule flags.
+    const BPMN_C8_UNIMPLEMENTED_SERVICE_TASK = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="Start_1" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
+    <bpmn:serviceTask id="Task_1" name="Do the thing" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
+    <bpmn:endEvent id="End_1" />
+  </bpmn:process>
+</bpmn:definitions>`;
+
+    it("lints against the bundled default and fires a camunda-compat C8 rule with everything resolved", async () => {
+        const config = await new DefaultBpmnlintConfigService().build("c8");
+
+        const { results, unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_C8_UNIMPLEMENTED_SERVICE_TASK,
+            CONFIG_PATH,
+            config,
+            true,
+        );
+
+        expect(unresolved).toEqual([]);
+        expect(Object.keys(results)).toContain("camunda-compat/implementation");
+    });
+
+    it("reports base bpmnlint:recommended findings under the bundled default", async () => {
+        const config = await new DefaultBpmnlintConfigService().build(undefined);
+
+        const { results, unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_WITH_TASK,
+            CONFIG_PATH,
+            config,
+            true,
+        );
+
+        expect(unresolved).toEqual([]);
+        expect(Object.keys(results)).toContain("start-event-required");
     });
 });

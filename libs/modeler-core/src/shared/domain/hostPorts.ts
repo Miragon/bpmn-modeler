@@ -205,6 +205,13 @@ export interface StatusBarPort {
      * never masks silently-dropped rules — `unresolved` lists them for the tooltip.
      */
     showBpmnlintUnresolved(configPath: string, unresolved: string[]): void;
+    /**
+     * State for the zero-config **bundled default** — visually distinct from a
+     * project's own `.bpmnlintrc` ({@link showBpmnlintActive}) so the two are never
+     * confused. `platform` is the detected engine whose deployability layer is
+     * applied, or `undefined` for the structural-only base on a platform-less file.
+     */
+    showBpmnlintDefault(platform: Engine | undefined): void;
     showBpmnlintNoConfig(): void;
     hideBpmnlintStatus(): void;
 }
@@ -223,8 +230,13 @@ export interface LintRunnerPort {
     /**
      * @param xml the diagram XML to lint.
      * @param configPath absolute path of the resolved `.bpmnlintrc`; its
-     *   directory anchors module resolution for custom rules/plugins.
-     * @param config the parsed `.bpmnlintrc` contents.
+     *   directory anchors module resolution for custom rules/plugins. For the
+     *   zero-config default this is the document's own path (a resolution anchor
+     *   only — the default references no workspace modules).
+     * @param config the parsed `.bpmnlintrc` contents, or the bundled default.
+     * @param useBundledDefaults when true, the host's bundled camunda-compat and
+     *   miragon layers back rule/config resolution — for the zero-config default
+     *   only, so a workspace `.bpmnlintrc` never resolves against them.
      * @returns the findings keyed by rule name, plus the names of any
      *   rules/configs that could not be resolved (skipped, never thrown).
      */
@@ -232,6 +244,7 @@ export interface LintRunnerPort {
         xml: string,
         configPath: string,
         config: Record<string, unknown>,
+        useBundledDefaults?: boolean,
     ): Promise<{ results: LintResults; unresolved: string[] }>;
 }
 

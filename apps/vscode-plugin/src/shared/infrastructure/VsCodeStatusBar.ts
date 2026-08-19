@@ -64,6 +64,17 @@ export class VsCodeStatusBar implements StatusBarPort {
         item.show();
     }
 
+    showBpmnlintDefault(platform: Engine | undefined): void {
+        const item = this.getOrCreateBpmnlintStatusItem();
+        // A shield (not the green tick) so a bundled default is never mistaken for
+        // a project's own `.bpmnlintrc`.
+        item.text = "$(shield) BPMNlint (default)";
+        const engine = platform ? ENGINE_LABEL[platform] : "no execution platform";
+        item.tooltip = `Linting against the bundled default (${engine}).\nAdd a .bpmnlintrc to your workspace to override it.`;
+        item.backgroundColor = undefined;
+        item.show();
+    }
+
     showBpmnlintNoConfig(): void {
         const item = this.getOrCreateBpmnlintStatusItem();
         item.text = "$(info) BPMNlint: no .bpmnlintrc";

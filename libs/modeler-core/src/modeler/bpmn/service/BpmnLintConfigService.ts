@@ -1,7 +1,9 @@
 import { posix } from "path";
 
-import { BpmnlintResultsQuery, LintResults } from "@miragon/bpmn-modeler-shared";
+import { BpmnlintResultsQuery, Engine, LintResults } from "@miragon/bpmn-modeler-shared";
 
+import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
+import { ExecutionPlatformNotDetectedError } from "../../../shared/domain/errors";
 import {
     DiagnosticsPort,
     DocumentPort,
@@ -14,6 +16,7 @@ import {
     BpmnLintConfigLocator,
     BpmnlintChangeTarget,
 } from "../../../shared/service/BpmnLintConfigLocator";
+import { DefaultBpmnlintConfigService } from "./DefaultBpmnlintConfigService";
 
 /**
  * Discovers the nearest `.bpmnlintrc` for an open BPMN document, runs bpmnlint
@@ -38,6 +41,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly diagnostics: DiagnosticsPort,
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
+        private readonly defaultConfig: DefaultBpmnlintConfigService,
     ) {}
 
     /**
@@ -58,8 +62,10 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     /**
      * Resolves the nearest `.bpmnlintrc`, lints the current document XML against
      * it, then pushes the findings to the webview and publishes them as
-     * diagnostics. A missing config deactivates linting; a read/parse/lint
-     * failure degrades to the no-config state rather than crashing the editor.
+     * diagnostics. When none is found, lints against a bundled default selected
+     * per execution platform instead of staying dormant (#1327). A read/parse/lint
+     * failure — including a malformed `.bpmnlintrc` — degrades to the no-config
+     * state rather than crashing the editor or silently swapping in the default.
      */
     private async lintAndPush(editorId: string, reflectInStatusBar: boolean): Promise<boolean> {
         let results: LintResults | null;
@@ -68,12 +74,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             const configPath = await this.locator.findNearestConfig(dir);
 
             if (!configPath) {
-                if (reflectInStatusBar) {
-                    this.statusBar.showBpmnlintNoConfig();
-                }
-                this.diagnostics.clear(editorId);
-                this.notifier.logDebug("No .bpmnlintrc found; linting inactive");
-                results = null;
+                results = await this.lintWithBundledDefault(editorId, reflectInStatusBar);
             } else {
                 const config = JSON.parse(await this.locator.readConfig(configPath)) as Record<
                     string,
@@ -121,6 +122,62 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         }
 
         return this.pushResults(editorId, results);
+    }
+
+    /**
+     * Lints against the host-bundled default when the workspace has no
+     * `.bpmnlintrc`. The engine layer is chosen from the document's detected
+     * execution platform (re-detected here so a mid-edit platform change is
+     * reflected); a platform-less document gets the structural base only.
+     */
+    private async lintWithBundledDefault(
+        editorId: string,
+        reflectInStatusBar: boolean,
+    ): Promise<LintResults> {
+        const xml = this.vsDocument.getContent(editorId);
+        const platform = this.detectPlatform(xml);
+        const config = await this.defaultConfig.build(platform);
+
+        // The default references only host-bundled rules, so the path is a mere
+        // resolution anchor — the document's own path keeps it valid.
+        const anchorPath = this.vsDocument.getFilePath(editorId);
+        const { results, unresolved } = await this.lintRunner.lint(xml, anchorPath, config, true);
+
+        this.diagnostics.publish(editorId, xml, results);
+        if (reflectInStatusBar) {
+            this.statusBar.showBpmnlintDefault(platform);
+        }
+        if (unresolved.length > 0) {
+            // The bundled default should resolve entirely from the host; anything
+            // unresolved is a packaging bug, not a workspace one — flag it loudly.
+            this.notifier.logWarning(
+                `bpmnlint default: ${unresolved.length} bundled rule(s)/config(s) unresolved: ${unresolved.join(
+                    ", ",
+                )}`,
+            );
+        }
+        // Debug-level: this fires on every re-lint (each edit), so it belongs with
+        // the other high-frequency lifecycle noise, not the always-on info log.
+        this.notifier.logDebug(
+            `bpmnlint applied bundled default (platform: ${platform ?? "generic"})`,
+        );
+        return results;
+    }
+
+    /**
+     * Detects the execution platform for engine-layer selection, mapping an
+     * undetectable document to `undefined` (the structural-only default) rather
+     * than propagating {@link ExecutionPlatformNotDetectedError}.
+     */
+    private detectPlatform(xml: string): Engine | undefined {
+        try {
+            return new BpmnDocument(xml).detectPlatform();
+        } catch (error) {
+            if (error instanceof ExecutionPlatformNotDetectedError) {
+                return undefined;
+            }
+            throw error;
+        }
     }
 
     /**

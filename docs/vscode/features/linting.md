@@ -5,14 +5,44 @@ The BPMN Modeler can validate your diagram **while you edit** using
 CI. When a `.bpmnlintrc` is found, rule violations appear as ⚠️/❌ overlays on the
 offending elements, a summary button (error/warning counts) is shown on the
 canvas, and each finding is also published to the VS Code **Problems** panel
-(searchable and clickable, even without the diagram open). If no `.bpmnlintrc`
-exists, the feature stays dormant and the modeler looks exactly as it did before.
+(searchable and clickable, even without the diagram open). Even with **no
+`.bpmnlintrc` at all**, the modeler lints against a bundled default so every
+diagram gets baseline validation for free — see
+[Zero-config default](#zero-config-default). Any `.bpmnlintrc` the workspace adds
+still takes over completely.
 
 The lint runs in the **extension host** (a full Node.js context), not in the
 webview. That is what lets it resolve your workspace's own
 `bpmnlint-plugin-*` packages and `plugin:*` configs against `node_modules` —
 exactly like the `bpmnlint` CLI — so custom rules work in the modeler, not just
 built-ins. See [Custom rules & plugins](#custom-rules-plugins) below.
+
+## Zero-config default
+
+With no `.bpmnlintrc` found anywhere from the diagram's folder up to the
+workspace root, the modeler lints against a **bundled default** instead of
+staying silent. The status bar shows `$(shield) BPMNlint (default)` — distinct
+from the `$(check) BPMNlint` shown for a project's own config — so you always
+know which is in effect.
+
+The default is layered, and its engine layer is chosen from the diagram's
+**detected execution platform** (re-evaluated on every edit, so switching engines
+mid-model switches the rules too):
+
+- **Shared base** — `bpmnlint:recommended`. Catches the execution-breaking basics
+  on every diagram: missing start/end event, disconnected element, fake join,
+  implicit split/join, and so on.
+- **Miragon layer** — a thin, additive slot for Miragon-specific conventions. Wired
+  into the default but currently empty; rules will be added here over time.
+- **Engine layer** — when the diagram targets Camunda 7 or Camunda 8, the
+  matching [`bpmnlint-plugin-camunda-compat`](https://github.com/camunda/bpmnlint-plugin-camunda-compat)
+  deployability rules are added (the same rules the Camunda Modeler ships), so a
+  construct the target engine can't run is flagged while you model instead of at
+  deploy time. A file with no detectable platform gets the structural base only.
+
+Everything resolves from rules bundled into the extension — no workspace
+`bpmnlint` install, and it works offline. To change or silence anything, add a
+`.bpmnlintrc` (below); even an empty `{}` fully overrides the default.
 
 ## Usage
 

@@ -1746,6 +1746,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-io/feel-analyzer@npm:^0.3.0":
+  version: 0.3.0
+  resolution: "@bpmn-io/feel-analyzer@npm:0.3.0"
+  dependencies:
+    "@bpmn-io/lezer-feel": "npm:^2.1.0"
+  checksum: 10c0/9eec8317150c02d474d3aeff52769f90419d3eca472cc3039bb026ea1353aceeb6ae879c8c4d255071e34e0e4165faf8f47c23da337231b721560f1981275858
+  languageName: node
+  linkType: hard
+
 "@bpmn-io/feel-editor@npm:^2.5.2":
   version: 2.5.2
   resolution: "@bpmn-io/feel-editor@npm:2.5.2"
@@ -1868,6 +1877,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-io/lezer-feel@npm:^2.5.0":
+  version: 2.5.0
+  resolution: "@bpmn-io/lezer-feel@npm:2.5.0"
+  dependencies:
+    "@lezer/highlight": "npm:^1.2.3"
+    "@lezer/lr": "npm:^1.4.10"
+    min-dash: "npm:^5.0.0"
+  checksum: 10c0/83a40f159be35924845355a04b57c30908865b3226733c70e41f08415946d52ef77c510fff7b5635028d6ceded31fd96a62249f74c6a2993cfac561c57685d3d
+  languageName: node
+  linkType: hard
+
 "@bpmn-io/lezer-feel@npm:^3.0.0":
   version: 3.0.1
   resolution: "@bpmn-io/lezer-feel@npm:3.0.1"
@@ -1939,6 +1959,15 @@ __metadata:
     min-dash: "npm:^5.0.0"
     min-dom: "npm:^5.3.0"
   checksum: 10c0/2220aeb35eba4d35bf318bdc5931a6bfd413518b7d0b6c02ba86ca53d1c54395538e30aae2c218f90dffccf17b9dec0fbddf23049ea7eb95e712d64f4c13f338
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/semver-compat@npm:^0.1.0":
+  version: 0.1.0
+  resolution: "@bpmn-io/semver-compat@npm:0.1.0"
+  dependencies:
+    semver: "npm:^7.7.2"
+  checksum: 10c0/de2b07340032903b0a768ed5570b6c98cd9bb6d9b37cd07c8b6a306cb718057c2168cb1a15e5824bfed5dbd0948dca74e88b3bf2a9955b0aaecb3bf4af7ea45c
   languageName: node
   linkType: hard
 
@@ -2018,6 +2047,13 @@ __metadata:
   version: 1.0.0
   resolution: "@camunda/feel-builtins@npm:1.0.0"
   checksum: 10c0/6690b135ebd2560bc8d3282b75877f5d6fe40b8f8a6efaed4e4d32c3dcee8e8f2005c7e28ec63fbb8bbb17fb4002bac42ff65e9825f740021aa4568d1c06113a
+  languageName: node
+  linkType: hard
+
+"@camunda/feel-builtins@npm:^1.2.0":
+  version: 1.4.0
+  resolution: "@camunda/feel-builtins@npm:1.4.0"
+  checksum: 10c0/ba9807eb98c12e14e4fc1a4403e4b01e2fd539ef5501d7e18963f806bc47b16157f8ec37b3eea9d46cd43e909972719416e9662e75b2ca1f24a0ba95ccf9f6db
   languageName: node
   linkType: hard
 
@@ -3603,10 +3639,12 @@ __metadata:
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.0.0"
     bpmnlint: "npm:11.12.1"
+    bpmnlint-plugin-camunda-compat: "npm:2.59.2"
     camunda-bpmn-moddle: "npm:7.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"
+    zeebe-bpmn-moddle: "npm:1.15.0"
   languageName: unknown
   linkType: soft
 
@@ -9229,6 +9267,24 @@ __metadata:
     vitest: "npm:4.1.9"
   languageName: unknown
   linkType: soft
+
+"bpmnlint-plugin-camunda-compat@npm:2.59.2":
+  version: 2.59.2
+  resolution: "bpmnlint-plugin-camunda-compat@npm:2.59.2"
+  dependencies:
+    "@bpmn-io/feel-analyzer": "npm:^0.3.0"
+    "@bpmn-io/lezer-feel": "npm:^2.5.0"
+    "@bpmn-io/moddle-utils": "npm:^0.3.0"
+    "@bpmn-io/semver-compat": "npm:^0.1.0"
+    "@camunda/feel-builtins": "npm:^1.2.0"
+    bpmnlint-utils: "npm:^1.1.1"
+    min-dash: "npm:^5.0.0"
+    semver-compare: "npm:^1.0.0"
+  peerDependencies:
+    bpmnlint: ">= 11.6.0"
+  checksum: 10c0/db237830ac8bc96d4042d7da96a17f3331b879ca9e552b382dc53bc4590e4b1ba8061434065886fc264242a78439740818e5f3d67d5954167da202fbd7785967
+  languageName: node
+  linkType: hard
 
 "bpmnlint-utils@npm:^1.1.1":
   version: 1.1.1
@@ -19803,7 +19859,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.8.1":
+"semver@npm:^7.7.2, semver@npm:^7.8.1":
   version: 7.8.5
   resolution: "semver@npm:7.8.5"
   bin:

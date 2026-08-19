@@ -20,7 +20,7 @@
         "build:demo": "npm-run-all -s build:demo:bpmn-webview build:demo:dmn-webview",
         "build:demo:bpmn-webview": "corepack yarn workspace @miragon/bpmn-modeler-demo-webapp build:bpmn",
         "build:demo:dmn-webview": "corepack yarn workspace @miragon/bpmn-modeler-demo-webapp build:dmn",
-        "preview:demo": "node scripts/serve-demo.mjs",
+        "preview:demo": "corepack yarn workspace @miragon/bpmn-modeler-demo-webapp preview",
         "demo": "portless",
         "demo:app": "npm-run-all -s build:demo preview:demo",
         "build:bridge": "corepack yarn workspace @miragon/bpmn-modeler-bridge build",

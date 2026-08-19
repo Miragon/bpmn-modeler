@@ -2,6 +2,7 @@ import { Command } from "@miragon/bpmn-modeler-shared";
 import {
     BpmnLintConfigLocator,
     BpmnLintConfigService,
+    DefaultBpmnlintConfigService,
     NodeBpmnLinter,
     NoopDiagnostics,
 } from "@miragon/bpmn-modeler-core";
@@ -33,6 +34,7 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         new NoopDiagnostics(),
         deps.statusBar,
         deps.notifier,
+        new DefaultBpmnlintConfigService(),
     );
 
     // The webview posts this once on load (fire-and-forget, not part of the
