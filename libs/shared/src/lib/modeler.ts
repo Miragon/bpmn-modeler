@@ -57,6 +57,21 @@ export type BpmnViewerMode = "modeler" | "viewer";
  */
 export type Engine = "c7" | "c8";
 
+/** Display names for UI surfaces (status bar, pickers, labels). */
+export const ENGINE_LABEL: Record<Engine, string> = {
+    c7: "Camunda 7",
+    c8: "Camunda 8",
+};
+
+/**
+ * Execution-platform names written into BPMN XML (`modeler:executionPlatform`).
+ * These are spec-defined strings — do not change them independently of the BPMN spec.
+ */
+export const ENGINE_EXECUTION_PLATFORM: Record<Engine, string> = {
+    c7: "Camunda Platform",
+    c8: "Camunda Cloud",
+};
+
 export class BpmnFileQuery extends Query {
     public readonly content: string;
 

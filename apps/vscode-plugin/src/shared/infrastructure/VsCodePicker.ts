@@ -8,7 +8,7 @@ import { MigrationScope } from "@miragon/bpmn-modeler-core";
 import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-shared";
 
 /**
  * Adapter around `window.showQuickPick` for the domain-aware prompts the
@@ -24,21 +24,20 @@ export class VsCodePicker implements PickerPort {
     /**
      * @throws {UserCancelledError} If the user dismisses the quick pick.
      */
-    async pickExecutionPlatform(placeHolder: string, items: string[]): Promise<Engine> {
-        const result = await window.showQuickPick(items, {
-            placeHolder,
-            onDidSelectItem: (item) => item,
-        });
+    async pickExecutionPlatform(placeHolder: string, engines: Engine[]): Promise<Engine> {
+        interface EngineItem extends QuickPickItem {
+            engine: Engine;
+        }
+        const qpItems: EngineItem[] = engines.map((engine) => ({
+            label: ENGINE_LABEL[engine],
+            engine,
+        }));
+        const result = await window.showQuickPick(qpItems, { placeHolder });
 
         if (result === undefined) {
             throw new UserCancelledError();
-        } else if (result === "Camunda 7") {
-            return "c7";
-        } else if (result === "Camunda 8") {
-            return "c8";
-        } else {
-            throw new Error(`Unknown execution platform version: "${result}"`);
         }
+        return result.engine;
     }
 
     /**
@@ -46,8 +45,8 @@ export class VsCodePicker implements PickerPort {
      */
     async pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope> {
         const items = [
-            `Camunda 7 only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
-            `Camunda 8 only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
+            `${ENGINE_LABEL.c7} only (${c7Count} diagram${c7Count !== 1 ? "s" : ""})`,
+            `${ENGINE_LABEL.c8} only (${c8Count} diagram${c8Count !== 1 ? "s" : ""})`,
             `Both (${c7Count + c8Count} diagram${c7Count + c8Count !== 1 ? "s" : ""})`,
         ];
 
@@ -57,9 +56,9 @@ export class VsCodePicker implements PickerPort {
 
         if (result === undefined) {
             throw new UserCancelledError();
-        } else if (result.startsWith("Camunda 7")) {
+        } else if (result.startsWith(ENGINE_LABEL.c7)) {
             return "c7";
-        } else if (result.startsWith("Camunda 8")) {
+        } else if (result.startsWith(ENGINE_LABEL.c8)) {
             return "c8";
         } else {
             return "both";
@@ -70,7 +69,7 @@ export class VsCodePicker implements PickerPort {
      * @throws {UserCancelledError} If the user dismisses the quick pick.
      */
     async pickEngineVersion(platform: Engine, versions: readonly string[]): Promise<string> {
-        const label = platform === "c7" ? "Camunda 7" : "Camunda 8";
+        const label = ENGINE_LABEL[platform];
         const result = await window.showQuickPick([...versions], {
             placeHolder: `Select ${label} engine version`,
         });

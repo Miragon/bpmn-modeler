@@ -62,7 +62,7 @@ export interface NotifierPort extends LoggerPort {
  */
 export interface PickerPort {
     /** @throws {UserCancelledError} on dismissal. */
-    pickExecutionPlatform(placeHolder: string, items: string[]): Promise<Engine>;
+    pickExecutionPlatform(placeHolder: string, engines: Engine[]): Promise<Engine>;
     /** @throws {UserCancelledError} on dismissal. */
     pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope>;
     /** @throws {UserCancelledError} on dismissal. */

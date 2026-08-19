@@ -1,4 +1,4 @@
-import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
+import { BpmnFileQuery, ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-shared";
 
 import { ModelerSession } from "../../../shared/domain/session";
 import {
@@ -53,8 +53,8 @@ export class BpmnModelerService {
 
             if (doc.isEmpty()) {
                 const ep = await this.picker.pickExecutionPlatform("Select the engine.", [
-                    "Camunda 7",
-                    "Camunda 8",
+                    "c7",
+                    "c8",
                 ]);
 
                 doc = BpmnDocument.empty(ep, getLatestVersion(ep));
@@ -81,22 +81,17 @@ export class BpmnModelerService {
                 } else if (error instanceof ExecutionPlatformNotDetectedError) {
                     const ep = await this.picker.pickExecutionPlatform(
                         "Select the execution platform.",
-                        ["Camunda 7", "Camunda 8"],
+                        ["c7", "c8"],
                     );
 
                     const latestVersion = getLatestVersion(ep);
-                    const newDoc =
+                    const newDoc = doc.withExecutionPlatform(
+                        ENGINE_EXECUTION_PLATFORM[ep],
+                        latestVersion,
                         ep === "c7"
-                            ? doc.withExecutionPlatform(
-                                  "Camunda Platform",
-                                  latestVersion,
-                                  `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`,
-                              )
-                            : doc.withExecutionPlatform(
-                                  "Camunda Cloud",
-                                  latestVersion,
-                                  `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`,
-                              );
+                            ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
+                            : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`,
+                    );
 
                     await this.editorStore.postMessage(editorId, new BpmnFileQuery(newDoc.xml, ep));
                     this.statusBar.showEngineVersion(ep, latestVersion);
