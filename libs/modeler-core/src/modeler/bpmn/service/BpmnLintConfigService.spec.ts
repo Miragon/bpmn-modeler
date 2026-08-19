@@ -8,9 +8,13 @@ vi.mock("vscode", () => ({}));
 import { BpmnlintResultsQuery } from "@miragon/bpmn-modeler-shared";
 
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
+import { DefaultBpmnlintConfigService } from "./DefaultBpmnlintConfigService";
 
 const EDITOR = "file:///work/diagram.bpmn";
+// No platform markers → detectPlatform() throws → structural-only default.
 const XML = "<xml/>";
+const XML_C7 = '<definitions modeler:executionPlatformVersion="7.20.0" />';
+const XML_C8 = '<definitions modeler:executionPlatformVersion="8.6.0" />';
 const RESULTS = {
     "label-required": [{ id: "Task_1", message: "Element requires a label", category: "warn" }],
 };
@@ -32,6 +36,7 @@ function createService() {
     const statusBar = {
         showBpmnlintActive: vi.fn(),
         showBpmnlintUnresolved: vi.fn(),
+        showBpmnlintDefault: vi.fn(),
         showBpmnlintNoConfig: vi.fn(),
         hideBpmnlintStatus: vi.fn(),
     };
@@ -50,6 +55,8 @@ function createService() {
         diagnostics as never,
         statusBar as never,
         notifier as never,
+        // The real builder: the c7/c8 cases assert the exact layered config it emits.
+        new DefaultBpmnlintConfigService(),
     );
 
     return {
@@ -107,20 +114,64 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(notifier.logWarning).toHaveBeenCalledWith(expect.stringContaining("custom/x"));
     });
 
-    it("posts null, clears diagnostics, and shows the no-config status when nothing is found", async () => {
-        const { service, editorStore, locator, lintRunner, diagnostics, statusBar, notifier } =
+    it("lints against the bundled default (structural only) for a platform-less file when no config is found", async () => {
+        const { service, editorStore, locator, lintRunner, diagnostics, statusBar } =
             createService();
         locator.findNearestConfig.mockResolvedValue(undefined);
 
         const result = await service.setBpmnlintConfig(EDITOR);
 
         expect(result).toBe(true);
-        expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
-        expect(statusBar.showBpmnlintNoConfig).toHaveBeenCalledOnce();
-        expect(notifier.logDebug).toHaveBeenCalledWith("No .bpmnlintrc found; linting inactive");
+        expect(lintRunner.lint).toHaveBeenCalledWith(
+            XML,
+            EDITOR,
+            { extends: ["bpmnlint:recommended", "plugin:miragon/recommended"] },
+            true,
+        );
+        expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
+        expect(statusBar.showBpmnlintNoConfig).not.toHaveBeenCalled();
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintResultsQuery;
-        expect(msg.results).toBeNull();
+        expect(msg.results).toEqual(RESULTS);
+    });
+
+    it("adds the C7 engine layer to the default when the document targets Camunda 7", async () => {
+        const { service, locator, lintRunner, statusBar, vsDocument } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        vsDocument.getContent.mockReturnValue(XML_C7);
+
+        await service.setBpmnlintConfig(EDITOR);
+
+        const [xml, anchor, config, useBundled] = lintRunner.lint.mock.calls[0];
+        expect(xml).toBe(XML_C7);
+        expect(anchor).toBe(EDITOR);
+        expect(useBundled).toBe(true);
+        expect((config as { extends: string[] }).extends).toEqual([
+            "bpmnlint:recommended",
+            "plugin:miragon/recommended",
+            "plugin:camunda-compat/camunda-platform-7-24",
+        ]);
+        expect((config as { moddleExtensions: Record<string, unknown> }).moddleExtensions).toEqual({
+            camunda: expect.anything(),
+        });
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith("c7");
+    });
+
+    it("adds the C8 engine layer to the default when the document targets Camunda 8", async () => {
+        const { service, locator, lintRunner, statusBar, vsDocument } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        vsDocument.getContent.mockReturnValue(XML_C8);
+
+        await service.setBpmnlintConfig(EDITOR);
+
+        const [, , config] = lintRunner.lint.mock.calls[0];
+        expect((config as { extends: string[] }).extends).toContain(
+            "plugin:camunda-compat/camunda-cloud-8-10",
+        );
+        expect((config as { moddleExtensions: Record<string, unknown> }).moddleExtensions).toEqual({
+            zeebe: expect.anything(),
+        });
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith("c8");
     });
 
     it("still posts results but leaves the status bar untouched when reflectInStatusBar is false", async () => {

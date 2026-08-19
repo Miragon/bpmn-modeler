@@ -30,6 +30,7 @@ export * from "./modeler/bpmn/domain/model";
 export * from "./modeler/bpmn/service/BpmnModelerService";
 export * from "./modeler/bpmn/service/BpmnElementTemplatesService";
 export * from "./modeler/bpmn/service/BpmnLintConfigService";
+export * from "./modeler/bpmn/service/DefaultBpmnlintConfigService";
 export * from "./modeler/bpmn/infrastructure/bpmnlint/NodeBpmnLinter";
 export * from "./modeler/bpmn/infrastructure/bpmnlint/NoopDiagnostics";
 export * from "./modeler/bpmn/service/BpmnClipboardMediator";

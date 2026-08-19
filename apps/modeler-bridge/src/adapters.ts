@@ -449,6 +449,10 @@ export class RpcStatusBar implements StatusBarPort {
         /* not supported yet for intellij */
     }
 
+    showBpmnlintDefault(): void {
+        /* not supported yet for intellij */
+    }
+
     showBpmnlintNoConfig(): void {
         /* not supported yet for intellij */
     }

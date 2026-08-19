@@ -5,5 +5,11 @@
         "types": ["node"],
         "esModuleInterop": true
     },
-    "include": ["src/**/*.ts", "../../libs/modeler-core/src/types/bpmnlint.d.ts"]
+    "include": [
+        "src/**/*.ts",
+        "../../libs/modeler-core/src/types/bpmnlint.d.ts",
+        "../../libs/modeler-core/src/types/bpmnlint-plugin-camunda-compat.d.ts",
+        "../../libs/modeler-core/src/types/camunda-bpmn-moddle.d.ts",
+        "../../libs/modeler-core/src/types/zeebe-bpmn-moddle.d.ts"
+    ]
 }

@@ -21,11 +21,14 @@ const NOOP_RULE = () => ({ check: () => undefined });
 const NOOP_CONFIG = { rules: {} };
 
 /**
- * Resolves bpmnlint rules and configs by trying the workspace first (custom
- * `bpmnlint-plugin-*` packages, and the workspace's own `bpmnlint` if installed),
- * then falling back to the built-in rules bundled into the host.
+ * Resolves bpmnlint rules and configs by trying each delegate in order — the
+ * workspace first (custom `bpmnlint-plugin-*` packages, and the workspace's own
+ * `bpmnlint` if installed), then the built-in rules bundled into the host, then
+ * any further fallbacks (e.g. the {@link bundledDefaultResolver}, added only for
+ * the zero-config default run so an explicit workspace config never resolves
+ * against our bundled camunda-compat copy).
  *
- * A rule/config that neither side can resolve is *skipped*, not thrown: its name
+ * A rule/config that no delegate can resolve is *skipped*, not thrown: its name
  * is collected in {@link unresolved} and a no-op is returned so the rest of the
  * lint still runs. This is what turns the old "unknown rule → whole lint fails"
  * (or the webview's silent drop) into a visible, non-fatal "N rules skipped".
@@ -34,10 +37,11 @@ export class CompositeResolver implements Resolver {
     /** Names of rules/configs that could not be resolved this run. */
     readonly unresolved: string[] = [];
 
-    constructor(
-        private readonly workspace: Resolver,
-        private readonly builtin: Resolver,
-    ) {}
+    private readonly resolvers: Resolver[];
+
+    constructor(...resolvers: Resolver[]) {
+        this.resolvers = resolvers;
+    }
 
     resolveRule(pkg: string, ruleName: string): unknown {
         const resolved = this.tryResolve((r) => r.resolveRule(pkg, ruleName));
@@ -58,13 +62,13 @@ export class CompositeResolver implements Resolver {
     }
 
     /**
-     * Workspace-first, built-in-fallback. Each resolver throws (or returns
+     * Tries each delegate in registration order. Each resolver throws (or returns
      * null/undefined) on a miss, so a throw is a normal miss, not an error to
      * propagate. A resolved rule/config is always an object, so only nullish
      * counts as a miss — a hypothetical falsy-but-valid result still passes.
      */
     private tryResolve(resolve: (r: Resolver) => unknown): unknown {
-        for (const resolver of [this.workspace, this.builtin]) {
+        for (const resolver of this.resolvers) {
             try {
                 const resolved = resolve(resolver);
                 if (resolved != null) {

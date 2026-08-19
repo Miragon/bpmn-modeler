@@ -7,7 +7,8 @@
         "build:bpmn": "vite build --mode bpmn",
         "build:dmn": "vite build --mode dmn",
         "build": "npm-run-all -s build:bpmn build:dmn",
-        "serve:bpmn": "vite --mode bpmn"
+        "serve:bpmn": "vite --mode bpmn",
+        "preview": "node serve-demo.mjs"
     },
     "dependencies": {
         "@miragon/bpmn-modeler-shared": "workspace:*",

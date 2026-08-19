@@ -58,6 +58,7 @@ module.exports = [
             ".github/scripts/**/*.mjs",
             "apps/standalone/scripts/**/*.mjs",
             "libs/standalone-extension/scripts/**/*.mjs",
+            "apps/demo-webapp/serve-demo.mjs",
         ],
         languageOptions: {
             globals: {

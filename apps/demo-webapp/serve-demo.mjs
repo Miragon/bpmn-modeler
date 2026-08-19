@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Dependency-free static server for the built demo (dist/demo).
-// Used by `yarn demo` / the Conductor run target.
+// Used by `yarn demo` / the Conductor run target, via this workspace's
+// `preview` script (the root `preview:demo` delegates here).
 import { createReadStream, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = resolve(fileURLToPath(import.meta.url), "..", "..");
+// This file lives in apps/demo-webapp/, so the repo root is three levels up.
+const repoRoot = resolve(fileURLToPath(import.meta.url), "..", "..", "..");
 const webroot = resolve(repoRoot, "dist/demo");
 const port = Number(process.env.PORT ?? 4321);
 const host = process.env.HOST ?? "127.0.0.1";
