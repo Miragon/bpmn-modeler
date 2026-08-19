@@ -1,3 +1,5 @@
+import { MIN_CANVAS_SIZE_PX, isUsableViewbox } from "@miragon/bpmn-modeler-shared";
+
 import { ViewportData } from "./webviewState";
 
 /**
@@ -26,12 +28,32 @@ export class ViewportManager {
     }
 
     /**
+     * Whether the host has laid the canvas out at a size worth fitting into.
+     *
+     * Every viewbox operation divides by these dimensions, so an unlaid-out
+     * container yields a NaN transform, which SVG renders as nothing.
+     */
+    isCanvasSized(): boolean {
+        const { outer } = this.getService<any>("canvas").viewbox();
+        return outer.width >= MIN_CANVAS_SIZE_PX && outer.height >= MIN_CANVAS_SIZE_PX;
+    }
+
+    /**
      * Restores the canvas to a previously saved viewbox.
      *
+     * Falls back to {@link fitViewport} for a box that cannot be applied
+     * safely, which also recovers tabs whose persisted viewbox was written
+     * while the canvas had no size.
+     *
      * @param viewport The viewbox to apply.
+     * @returns `false` if nothing was applied, so the caller can retry.
      */
-    setViewport(viewport: ViewportData): void {
+    setViewport(viewport: ViewportData): boolean {
+        if (!isUsableViewbox(viewport) || !this.isCanvasSized()) {
+            return this.fitViewport();
+        }
         this.getService<any>("canvas").viewbox(viewport);
+        return true;
     }
 
     /**
@@ -48,24 +70,43 @@ export class ViewportManager {
      * excluded from `outer` and needs no inset.
      *
      * Scale is capped at 1.0 to match fit-to-page semantics — never zoom in.
+     *
+     * @returns `false` if nothing was applied, so the caller can retry.
      */
-    fitViewport(): void {
+    fitViewport(): boolean {
         const canvas = this.getService<any>("canvas");
         const { inner, outer } = canvas.viewbox();
 
-        // No elements (or canvas not laid out yet) — nothing to fit; let
-        // bpmn-js handle the degenerate case.
-        if (!inner.width || !inner.height || !outer.width || !outer.height) {
-            canvas.zoom("fit-viewport");
-            return;
+        // Leaving bpmn-js's identity transform alone keeps the diagram
+        // visible, just not centred; fitting against an unlaid-out container
+        // would divide by it and blank the canvas instead.
+        if (!this.isCanvasSized()) {
+            return false;
         }
 
+        // No elements — nothing to fit; let bpmn-js handle the degenerate case.
+        if (!inner.width || !inner.height) {
+            canvas.zoom("fit-viewport");
+            return true;
+        }
+
+        // Insets are margins, not hard constraints. A palette whose stylesheet
+        // has not been applied yet measures as a full-width block, which would
+        // swallow the viewport and shrink the diagram to nothing; capping each
+        // inset keeps half the canvas available whatever the chrome reports.
+        const maxInsetX = outer.width / 4;
+        const maxInsetY = outer.height / 4;
         const paletteWidth =
             document.querySelector(".djs-palette")?.getBoundingClientRect().width ?? 50;
-        const inset = { top: 40, right: 40, bottom: 40, left: paletteWidth + 20 };
+        const inset = {
+            top: Math.min(40, maxInsetY),
+            right: Math.min(40, maxInsetX),
+            bottom: Math.min(40, maxInsetY),
+            left: Math.min(paletteWidth + 20, maxInsetX),
+        };
 
-        const availableWidth = Math.max(1, outer.width - inset.left - inset.right);
-        const availableHeight = Math.max(1, outer.height - inset.top - inset.bottom);
+        const availableWidth = outer.width - inset.left - inset.right;
+        const availableHeight = outer.height - inset.top - inset.bottom;
 
         const scale = Math.min(1, availableWidth / inner.width, availableHeight / inner.height);
 
@@ -82,6 +123,7 @@ export class ViewportManager {
             width: outer.width / scale,
             height: outer.height / scale,
         });
+        return true;
     }
 
     /**
@@ -89,6 +131,9 @@ export class ViewportManager {
      *
      * The debounce prevents a flood of state writes while the user is actively
      * panning or zooming; only the final position after the gesture is persisted.
+     *
+     * Degenerate viewboxes are dropped: persisting one makes the failure stick,
+     * since every later rebuild of that tab would restore an unusable box.
      *
      * @param cb Callback invoked with the new {@link ViewportData} after each change.
      */
@@ -98,7 +143,10 @@ export class ViewportManager {
             clearTimeout(timer);
             timer = setTimeout(() => {
                 const { x, y, width, height } = event.viewbox;
-                cb({ x, y, width, height });
+                const viewport = { x, y, width, height };
+                if (isUsableViewbox(viewport)) {
+                    cb(viewport);
+                }
             }, 100);
         });
     }

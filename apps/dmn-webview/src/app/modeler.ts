@@ -7,7 +7,11 @@ import {
 import DmnSimulationModule from "@emaarco/dmn-js-simulation";
 import camundaModdleDescriptors from "camunda-dmn-moddle/resources/camunda.json";
 
-import { NoModelerError } from "@miragon/bpmn-modeler-shared";
+import {
+    NoModelerError,
+    type ResizableCanvas,
+    observeCanvasSize,
+} from "@miragon/bpmn-modeler-shared";
 
 let modeler: DmnModeler | undefined;
 
@@ -120,6 +124,28 @@ export async function exportDiagram(): Promise<string> {
     }
 
     throw Error("Failed to save changes made to the diagram!");
+}
+
+/**
+ * Keeps the active view's cached canvas size in sync with its container.
+ *
+ * dmn-js only re-measures when a view is attached, so a host that lays the
+ * webview out after the open leaves the DRD canvas on a stale box, throwing
+ * off hit-testing and drag coordinates.
+ *
+ * @param container The element whose size drives the active view.
+ * @returns A disposer that stops observing.
+ * @throws NoModelerError if the modeler is not initialized
+ */
+export function syncCanvasSize(container: Element): () => void {
+    getModeler();
+    return observeCanvasSize({ resized: () => getActiveCanvas()?.resized() }, container);
+}
+
+/** `undefined` for the decision-table and literal-expression views. */
+function getActiveCanvas(): ResizableCanvas | undefined {
+    const viewer = getModeler().getActiveViewer();
+    return viewer?.get("canvas", false) ?? undefined;
 }
 
 export function onCommandStackChanged(cb: () => void): void {

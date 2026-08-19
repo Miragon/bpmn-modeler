@@ -1,7 +1,12 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
-import { Viewport } from "@miragon/bpmn-modeler-shared";
+import {
+    MIN_CANVAS_SIZE_PX,
+    Viewport,
+    isUsableViewbox,
+    observeCanvasSize,
+} from "@miragon/bpmn-modeler-shared";
 
 /**
  * CSS class applied to each element category on the canvas.
@@ -45,14 +50,41 @@ export class DiffViewer {
      */
     private selectedId: string | undefined;
 
+    /** Disposes the canvas-size observer installed by {@link importXML}. */
+    private stopObservingSize: (() => void) | undefined;
+
     constructor(container: string) {
         this.viewer = new NavigatedViewer({ container });
     }
 
     async importXML(xml: string): Promise<ImportXMLResult> {
         const result = await this.viewer.importXML(xml);
-        this.getCanvas().zoom("fit-viewport", "auto");
+
+        // Panes open side by side, so one regularly has no box yet when the
+        // import lands; the fit retries until it does.
+        this.stopObservingSize?.();
+        const canvas = this.getCanvas();
+        this.stopObservingSize = observeCanvasSize(canvas, canvas.getContainer(), {
+            applyInitialViewport: () => this.fitViewport(),
+        });
+        this.fitViewport();
+
         return result;
+    }
+
+    /**
+     * Fits the diagram into the pane.
+     *
+     * @returns `false` if the pane has no usable box yet.
+     */
+    private fitViewport(): boolean {
+        const canvas = this.getCanvas();
+        const { outer } = canvas.viewbox();
+        if (outer.width < MIN_CANVAS_SIZE_PX || outer.height < MIN_CANVAS_SIZE_PX) {
+            return false;
+        }
+        canvas.zoom("fit-viewport", "auto");
+        return true;
     }
 
     /**
@@ -97,6 +129,9 @@ export class DiffViewer {
     }
 
     setViewport(viewport: Viewport): void {
+        if (!isUsableViewbox(viewport)) {
+            return;
+        }
         this.suppressNextChangeEvent = true;
         this.getCanvas().viewbox({ ...viewport });
     }
@@ -114,8 +149,12 @@ export class DiffViewer {
                 return;
             }
             const { x, y, width, height } = event.viewbox;
+            const viewport = { x, y, width, height };
+            if (!isUsableViewbox(viewport)) {
+                return;
+            }
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => cb({ x, y, width, height }), 80);
+            debounceTimer = setTimeout(() => cb(viewport), 80);
         });
     }
 

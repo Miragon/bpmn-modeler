@@ -28,6 +28,9 @@ function isGroupOpen(group: HTMLElement): boolean {
  * 4. {@link startPersisting}       — subscribes to change events
  */
 export class WebviewStateManager {
+    /** Latches once {@link restoreViewport} has applied a viewbox. */
+    private viewportRestored = false;
+
     constructor(
         private readonly host: HostApi<WebviewState, Command | Query>,
         private readonly modeler: BpmnModeler,
@@ -41,14 +44,24 @@ export class WebviewStateManager {
      * absence of a saved viewport discriminates a genuine fresh open, where we
      * fit the diagram — bpmn-js leaves the canvas at the origin on importXML,
      * which renders a diagram moved far from the origin off-screen (#1149).
+     *
+     * Safe to call repeatedly: nothing happens until the host has laid the
+     * canvas out, and then it applies exactly once — re-fitting on every later
+     * resize would discard the zoom the user chose.
+     *
+     * @returns `true` once a viewbox has been applied, `false` while the
+     *   caller should keep retrying.
      */
-    restoreViewport(): void {
-        const saved = this.getSavedState();
-        if (saved?.viewport) {
-            this.modeler.viewport.setViewport(saved.viewport);
-        } else {
-            this.modeler.viewport.fitViewport();
+    restoreViewport(): boolean {
+        if (this.viewportRestored) {
+            return true;
         }
+
+        const saved = this.getSavedState();
+        this.viewportRestored = saved?.viewport
+            ? this.modeler.viewport.setViewport(saved.viewport)
+            : this.modeler.viewport.fitViewport();
+        return this.viewportRestored;
     }
 
     /**

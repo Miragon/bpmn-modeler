@@ -34,6 +34,7 @@ import {
     exportDiagram,
     loadDiagram,
     onCommandStackChanged,
+    syncCanvasSize,
     WebviewStateManager,
 } from "./app";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
@@ -168,6 +169,10 @@ async function initializeModeler(dmnFile: string | undefined) {
     try {
         createModeler();
         onCommandStackChanged(() => void debouncedSendChanges());
+        const canvasElement = document.querySelector("#js-canvas");
+        if (canvasElement) {
+            syncCanvasSize(canvasElement);
+        }
         await openXML(dmnFile);
     } catch (error) {
         if (error instanceof NoModelerError) {
