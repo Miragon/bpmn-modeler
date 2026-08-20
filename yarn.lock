@@ -3644,7 +3644,6 @@ __metadata:
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"
-    zeebe-bpmn-moddle: "npm:1.15.0"
   languageName: unknown
   linkType: soft
 

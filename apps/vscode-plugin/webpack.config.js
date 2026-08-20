@@ -33,7 +33,6 @@ module.exports = (env, argv) => {
         resolve: {
             extensions: [".ts", ".js"],
             plugins: [
-                // Resolves @bpmn-modeler/* path aliases from tsconfig.app.json.
                 new TsconfigPathsPlugin({
                     configFile: path.resolve(__dirname, "tsconfig.app.json"),
                     baseUrl: path.resolve(__dirname, "../.."),
@@ -41,13 +40,8 @@ module.exports = (env, argv) => {
             ],
         },
         externals: {
-            // The vscode module is provided by VS Code at runtime and must not be bundled.
             vscode: "commonjs vscode",
         },
-        // bpmnlint's NodeResolver resolves workspace rule modules through a runtime
-        // `Module.createRequire` (scoped to the .bpmnlintrc dir) that we always pass
-        // in, so its `|| require` fallback is dead code webpack can't statically
-        // analyse. The "Critical dependency" warning it raises is expected, not a bug.
         ignoreWarnings: [
             {
                 module: /bpmnlint[\\/]lib[\\/]resolver[\\/]node-resolver\.js$/,
@@ -67,12 +61,6 @@ module.exports = (env, argv) => {
                     exclude: /node_modules/,
                 },
                 {
-                    // `@miragon/bpmnlint-plugin-rules`' ESM build (`"type": "module"`) uses
-                    // extensionless deep imports into `bpmnlint`/`camunda-compat`.
-                    // Webpack 5 enforces "fully specified" resolution for ESM
-                    // origins and rejects them; relax it for this package so its
-                    // extensionless requests resolve (upstream should ship the
-                    // extensions — see the migration notes).
                     test: /\.m?js$/,
                     include: /node_modules[\\/]@miragon[\\/]bpmnlint-plugin-rules/,
                     resolve: { fullySpecified: false },
@@ -83,8 +71,6 @@ module.exports = (env, argv) => {
             new CopyWebpackPlugin({
                 patterns: [
                     {
-                        // Copy the extension manifest, stripping devDependencies and scripts
-                        // to keep the distributable package.json lean.
                         from: path.resolve(__dirname, "package.json"),
                         to: ".",
                         transform: (content) => {

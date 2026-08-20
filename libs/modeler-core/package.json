@@ -14,8 +14,7 @@
     "bpmn-moddle": "10.0.0",
     "bpmnlint": "11.13.0",
     "camunda-bpmn-moddle": "7.0.1",
-    "tslib": "2.8.1",
-    "zeebe-bpmn-moddle": "1.15.0"
+    "tslib": "2.8.1"
   },
   "devDependencies": {
     "@types/node": "26.1.2",
