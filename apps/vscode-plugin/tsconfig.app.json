@@ -10,7 +10,6 @@
     "src/**/*.ts",
     "src/**/*.d.ts",
     "../../libs/modeler-core/src/types/bpmnlint.d.ts",
-    "../../libs/modeler-core/src/types/bpmnlint-plugin-camunda-compat.d.ts",
     "../../libs/modeler-core/src/types/camunda-bpmn-moddle.d.ts",
     "../../libs/modeler-core/src/types/zeebe-bpmn-moddle.d.ts"
   ]

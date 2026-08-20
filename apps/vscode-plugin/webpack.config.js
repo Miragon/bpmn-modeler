@@ -66,6 +66,17 @@ module.exports = (env, argv) => {
                     },
                     exclude: /node_modules/,
                 },
+                {
+                    // `@miragon/bpmnlint-plugin-rules`' ESM build (`"type": "module"`) uses
+                    // extensionless deep imports into `bpmnlint`/`camunda-compat`.
+                    // Webpack 5 enforces "fully specified" resolution for ESM
+                    // origins and rejects them; relax it for this package so its
+                    // extensionless requests resolve (upstream should ship the
+                    // extensions — see the migration notes).
+                    test: /\.m?js$/,
+                    include: /node_modules[\\/]@miragon[\\/]bpmnlint-plugin-rules/,
+                    resolve: { fullySpecified: false },
+                },
             ],
         },
         plugins: [

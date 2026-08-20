@@ -9,6 +9,13 @@ export default defineConfig({
         // global `expect` to exist, so enable Vitest's globals for this project.
         globals: true,
         include: ["src/**/*.{spec,test}.ts"],
+        // `@miragon/bpmnlint-plugin-rules`' pre-built ESM has one extensionless deep
+        // import (`bpmnlint/lib/resolver/static-resolver`) that strict native
+        // Node ESM rejects. Inlining routes it through Vite's resolver — the same
+        // lenient resolution webpack (VS Code) and Bun (bridge) already apply — so
+        // the tests exercise the real bundler path. (Upstream should ship the
+        // extension; see the migration notes.)
+        server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
             // Engine specs import message classes from the shared package; resolve
             // it to source so it works without a prior build. `vscode` needs no
