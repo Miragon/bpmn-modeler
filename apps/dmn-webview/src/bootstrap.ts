@@ -7,6 +7,7 @@ import "./styles.css";
 import {
     asyncDebounce,
     Command,
+    commitActiveEditor,
     createFlushResponder,
     createResolver,
     DmnFileQuery,
@@ -18,6 +19,7 @@ import {
     GetPropertiesPanelStateCommand,
     initResizer,
     initTheme,
+    installUndoRedoKeydownGuard,
     LogErrorCommand,
     LogWarningCommand,
     NoModelerError,
@@ -96,14 +98,14 @@ const debouncedSendChanges = asyncDebounce(sendChanges, 300, { maxWait: 1000 });
 
 /**
  * Answers a host {@link FlushDocumentQuery} on the save/close path. Before the
- * first diagram loads `exportDiagram()` throws, which the responder maps to a
- * nothing-pending reply. Rationale for the gate lives in {@link createFlushResponder}.
+ * first diagram loads `exportDiagram()` throws, which the responder reports as
+ * failed. Rationale for the gate lives in {@link createFlushResponder}.
  */
 const respondToFlush = createFlushResponder(
     {
         isReady: () => modelerIsInitialized,
+        prepareFlush: () => commitActiveEditor(document),
         hasPendingSync: () => debouncedSendChanges.pending(),
-        cancelPendingSync: () => debouncedSendChanges.cancel(),
         exportXml: () => exportDiagram(),
     },
     (reply) => host.postMessage(reply),
@@ -128,6 +130,7 @@ let modelerIsInitialized = false;
 async function run(): Promise<void> {
     const stateManager = new WebviewStateManager(host);
     window.addEventListener("message", onReceiveMessage);
+    installUndoRedoKeydownGuard(document);
 
     // Merge the modeler's local overlay (resizer toggle + dmn-js labels) onto
     // the shared library's dictionaries before anything translates. The shared

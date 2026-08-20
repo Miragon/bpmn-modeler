@@ -11,6 +11,7 @@
  *   - Wire `MiragonThemeContribution` which registers the Miragon Light/Dark
  *     color themes and shows the first-run picker.
  *   - Override Theia's default-editor resolution for the modeler's source toggle.
+ *   - Flush pending modeler changes before a secondary window is re-docked.
  *   - Load the brand stylesheet (`./styles/miragon.css`) for small UI
  *     polish that themes alone cannot express (font weights, indicator bars).
  *
@@ -23,11 +24,25 @@ import "./styles/miragon.css";
 
 import { ContainerModule } from "@theia/core/shared/inversify";
 import { FrontendApplicationContribution } from "@theia/core/lib/browser";
+import { SecondaryWindowHandler } from "@theia/core/lib/browser/secondary-window-handler";
+import { SecondaryWindowService } from "@theia/core/lib/browser/window/secondary-window-service";
 import { HideBuiltinViewsContribution } from "./hide-builtin-views-contribution";
 import { MiragonThemeContribution } from "./miragon-theme-contribution";
+import { ModelerSecondaryWindowCloseContribution } from "./modeler-secondary-window-close-contribution";
+import { ModelerSecondaryWindowHandler } from "./modeler-secondary-window-handler";
+import { ModelerSecondaryWindowService } from "./modeler-secondary-window-service";
 import { StandardTextEditorContribution } from "./standard-text-editor-contribution";
 
-export default new ContainerModule((bind) => {
+export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
+    bind(ModelerSecondaryWindowHandler).toSelf().inSingletonScope();
+    rebind(SecondaryWindowHandler).toService(ModelerSecondaryWindowHandler);
+
+    bind(ModelerSecondaryWindowService).toSelf().inSingletonScope();
+    rebind(SecondaryWindowService).toService(ModelerSecondaryWindowService);
+
+    bind(ModelerSecondaryWindowCloseContribution).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(ModelerSecondaryWindowCloseContribution);
+
     bind(HideBuiltinViewsContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(HideBuiltinViewsContribution);
 

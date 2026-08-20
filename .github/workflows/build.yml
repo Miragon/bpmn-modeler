@@ -89,7 +89,10 @@ jobs:
             deployment-webview:
               - 'apps/deployment-webview/**'
             standalone-extension:
-              - '{apps/standalone/package.json,libs/standalone-extension/**}'
+              - 'apps/standalone/**'
+              - 'libs/standalone-extension/**'
+              - 'package.json'
+              - 'yarn.lock'
             docs:
               - 'docs/**'
 
@@ -152,9 +155,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-standalone-extension
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-standalone @miragon/bpmn-modeler-standalone-extension
       - run: yarn workspace @miragon/bpmn-modeler-standalone-extension test
-      - run: yarn workspace @miragon/bpmn-modeler-standalone-extension build
+      - run: yarn workspace @miragon/bpmn-modeler-standalone build
+      - name: Verify secondary-window bundle
+        run: test -f apps/standalone/lib/frontend/secondary-window.html
 
   build-shared:
     needs: detect-changes
@@ -391,7 +396,10 @@ jobs:
 
   test-intellij-plugin:
     needs: detect-changes
-    if: needs.detect-changes.outputs.intellij-plugin == 'true'
+    if: >-
+      needs.detect-changes.outputs.intellij-plugin == 'true' ||
+      needs.detect-changes.outputs.bpmn-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -58,6 +58,23 @@ applications and the normal `start` command keep their existing sandbox behavior
 > rebuild` — Yarn 4 reserves `rebuild` as a built-in command and won't dispatch
 > to our script otherwise.
 
+## Detaching editors
+
+BPMN and DMN editors can run in native secondary windows for multi-monitor
+workflows. Click the window icon in the editor toolbar (`Move View to Secondary
+Window`), then move or resize the resulting window like any other desktop
+window.
+
+Closing the secondary window moves its editor back into the main application
+window without closing the document. Closing the editor tab inside the
+secondary window closes the document normally, including the usual unsaved-file
+handling.
+
+Dragging a tab out of the main window and restoring detached windows after an
+application restart are not currently supported by Theia. The Linux Flatpak
+runs through X11/XWayland, so mixed-DPI behavior should be verified in that
+environment rather than native Wayland.
+
 ## Building installers
 
 The packaging scripts produce a platform-appropriate installer for whichever

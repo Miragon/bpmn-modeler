@@ -4,6 +4,8 @@ import com.google.gson.Gson
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Pure-parse coverage for the close-flush reply. The latch/EDT flow around it is
@@ -13,21 +15,32 @@ import org.junit.jupiter.api.Test
  */
 class DocumentFlushedReplyParseTest {
     private val gson = Gson()
+    private val flushedCommandFixture = Files.readString(
+        Path.of(
+            System.getProperty("user.dir"),
+            "..",
+            "..",
+            "libs",
+            "shared",
+            "test-fixtures",
+            "document-flushed-command.json",
+        ).normalize(),
+    ).trim()
 
     @Test
-    fun `parses token and content`() {
+    fun `parses flushed result content`() {
         val reply = parseDocumentFlushedReply(
-            """{"type":"DocumentFlushedCommand","token":7,"content":"<xml/>"}""",
+            flushedCommandFixture,
             gson,
         )
-        assertEquals(7L, reply?.token)
+        assertEquals(3L, reply?.token)
         assertEquals("<xml/>", reply?.content)
     }
 
     @Test
-    fun `null content is preserved as nothing-to-flush`() {
+    fun `idle result is preserved as nothing-to-flush`() {
         val reply = parseDocumentFlushedReply(
-            """{"type":"DocumentFlushedCommand","token":3}""",
+            """{"type":"DocumentFlushedCommand","token":3,"result":{"status":"idle"}}""",
             gson,
         )
         assertEquals(3L, reply?.token)
@@ -35,13 +48,33 @@ class DocumentFlushedReplyParseTest {
     }
 
     @Test
-    fun `explicit json null content parses to null`() {
+    fun `failed result is preserved without content`() {
         val reply = parseDocumentFlushedReply(
-            """{"type":"DocumentFlushedCommand","token":3,"content":null}""",
+            """{"type":"DocumentFlushedCommand","token":3,"result":{"status":"failed"}}""",
             gson,
         )
         assertEquals(3L, reply?.token)
         assertNull(reply?.content)
+    }
+
+    @Test
+    fun `flushed result without content is rejected`() {
+        assertNull(
+            parseDocumentFlushedReply(
+                """{"type":"DocumentFlushedCommand","token":3,"result":{"status":"flushed"}}""",
+                gson,
+            ),
+        )
+    }
+
+    @Test
+    fun `unknown result status is rejected`() {
+        assertNull(
+            parseDocumentFlushedReply(
+                """{"type":"DocumentFlushedCommand","token":3,"result":{"status":"unknown"}}""",
+                gson,
+            ),
+        )
     }
 
     @Test

@@ -1,7 +1,7 @@
 appId: io.miragon.bpmn-modeler
 productName: Miragon BPMN Modeler
 copyright: Copyright (c) Miragon
-electronVersion: 39.8.9
+electronVersion: 42.3.0
 directories:
   buildResources: resources
   output: dist

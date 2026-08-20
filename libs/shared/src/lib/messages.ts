@@ -49,8 +49,8 @@ export class SyncDocumentCommand extends Command {
 /**
  * Host → webview: asks the webview to flush any debounced-but-unsynced document
  * changes *now* and reply with a {@link DocumentFlushedCommand} carrying the
- * same `token`. Sent on a save (VS Code) or tab-close (IntelliJ) so the persist
- * path never races the outbound sync debounce and writes stale XML.
+ * same `token`. Sent before save or teardown so the host never races the
+ * outbound sync debounce with stale XML.
  */
 export class FlushDocumentQuery extends Query {
     public readonly token: number;
@@ -61,23 +61,25 @@ export class FlushDocumentQuery extends Query {
     }
 }
 
+export type DocumentFlushResult =
+    | { readonly status: "idle" }
+    | { readonly status: "flushed"; readonly content: string }
+    | { readonly status: "failed" };
+
 /**
- * Webview → host reply to a {@link FlushDocumentQuery}. `content` carries the
- * freshly exported full-document XML; `undefined` means the webview had nothing
- * pending, was not ready, or the export failed — in every case the host must
- * leave its buffer untouched (the host copy is already authoritative). `token`
- * echoes the query so the host can match the reply to its outstanding request
- * and drop stale replies that arrive after a timeout.
+ * Webview → host reply to a {@link FlushDocumentQuery}. The explicit result lets
+ * teardown paths distinguish a safe idle webview from a failed export or message
+ * round trip. `token` echoes the query so the host can match/expire replies.
  */
 export class DocumentFlushedCommand extends Command {
     public readonly token: number;
 
-    public readonly content?: string;
+    public readonly result: DocumentFlushResult;
 
-    constructor(token: number, content?: string) {
+    constructor(token: number, result: DocumentFlushResult) {
         super("DocumentFlushedCommand");
         this.token = token;
-        this.content = content;
+        this.result = result;
     }
 }
 
