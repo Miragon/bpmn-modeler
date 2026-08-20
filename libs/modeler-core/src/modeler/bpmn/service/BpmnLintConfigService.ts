@@ -141,7 +141,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         // The default references only host-bundled rules, so the path is a mere
         // resolution anchor — the document's own path keeps it valid.
         const anchorPath = this.vsDocument.getFilePath(editorId);
-        const { results, unresolved } = await this.lintRunner.lint(xml, anchorPath, config, true);
+        const { results, unresolved } = await this.lintRunner.lint(xml, anchorPath, config);
 
         this.diagnostics.publish(editorId, xml, results);
         if (reflectInStatusBar) {

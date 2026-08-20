@@ -122,12 +122,10 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         const result = await service.setBpmnlintConfig(EDITOR);
 
         expect(result).toBe(true);
-        expect(lintRunner.lint).toHaveBeenCalledWith(
-            XML,
-            EDITOR,
-            { extends: ["bpmnlint:recommended", "plugin:miragon/recommended"] },
-            true,
-        );
+        expect(lintRunner.lint).toHaveBeenCalledWith(XML, EDITOR, {
+            extends: ["bpmnlint:recommended", "plugin:@miragon/rules/recommended"],
+            rules: { "@miragon/rules/flow-through-element": "warn" },
+        });
         expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
         expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
         expect(statusBar.showBpmnlintNoConfig).not.toHaveBeenCalled();
@@ -142,13 +140,12 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
 
         await service.setBpmnlintConfig(EDITOR);
 
-        const [xml, anchor, config, useBundled] = lintRunner.lint.mock.calls[0];
+        const [xml, anchor, config] = lintRunner.lint.mock.calls[0];
         expect(xml).toBe(XML_C7);
         expect(anchor).toBe(EDITOR);
-        expect(useBundled).toBe(true);
         expect((config as { extends: string[] }).extends).toEqual([
             "bpmnlint:recommended",
-            "plugin:miragon/recommended",
+            "plugin:@miragon/rules/recommended",
             "plugin:camunda-compat/camunda-platform-7-24",
         ]);
         expect((config as { moddleExtensions: Record<string, unknown> }).moddleExtensions).toEqual({

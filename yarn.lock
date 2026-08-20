@@ -3634,17 +3634,16 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-core@workspace:libs/modeler-core"
   dependencies:
     "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.2.0"
     "@types/node": "npm:26.1.2"
     "@vitest/coverage-v8": "npm:4.1.9"
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.0.0"
     bpmnlint: "npm:11.13.0"
-    bpmnlint-plugin-camunda-compat: "npm:2.59.2"
     camunda-bpmn-moddle: "npm:7.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"
-    zeebe-bpmn-moddle: "npm:1.15.0"
   languageName: unknown
   linkType: soft
 
@@ -3819,6 +3818,20 @@ __metadata:
     zeebe-bpmn-moddle: "npm:1.15.0"
   languageName: unknown
   linkType: soft
+
+"@miragon/bpmnlint-plugin-rules@npm:0.2.0":
+  version: 0.2.0
+  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.2.0"
+  dependencies:
+    bpmnlint-plugin-camunda-compat: "npm:2.59.2"
+    bpmnlint-utils: "npm:1.1.1"
+    camunda-bpmn-moddle: "npm:7.0.1"
+    zeebe-bpmn-moddle: "npm:1.17.0"
+  peerDependencies:
+    bpmnlint: ">=11"
+  checksum: 10c0/4b2f6ff5c106f9b42df5b318da9df70126acfe992b6647bb0d29b5beb7b858b0953a82856016f7aa2382b1c63b7d09f34fa695a5852684596d098680e847b099
+  languageName: node
+  linkType: hard
 
 "@miragon/create-append-c7@npm:0.1.0":
   version: 0.1.0
@@ -9297,7 +9310,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmnlint-utils@npm:^1.1.1":
+"bpmnlint-utils@npm:1.1.1, bpmnlint-utils@npm:^1.1.1":
   version: 1.1.1
   resolution: "bpmnlint-utils@npm:1.1.1"
   checksum: 10c0/bdb7cbd1d72d4740aeed3c7e1d9a37e2f773b142ccb15f6ad940d8a604af9027141736f97f8b03dfb7a824d0d280211497c4b71b2063139704d0b13df73f5e0f
@@ -23498,6 +23511,13 @@ __metadata:
   version: 1.15.0
   resolution: "zeebe-bpmn-moddle@npm:1.15.0"
   checksum: 10c0/9e0f703b1a14405d739bcb086eb01db1c56db17b5d7219b6a46054e93f40235985a33b68a76feed199f1f48102e4027b000feca7f1ab7dfbe48d4094a63b25c3
+  languageName: node
+  linkType: hard
+
+"zeebe-bpmn-moddle@npm:1.17.0":
+  version: 1.17.0
+  resolution: "zeebe-bpmn-moddle@npm:1.17.0"
+  checksum: 10c0/c2f35b88cff143d52fb0910db214a5f55c77d10df37889e2eebc433c3d48b2a0b5a1fee39b367e9b7b8be153d18645b468386eb5d0dd226bf076ab9674963101
   languageName: node
   linkType: hard
 

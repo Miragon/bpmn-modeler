@@ -234,9 +234,6 @@ export interface LintRunnerPort {
      *   zero-config default this is the document's own path (a resolution anchor
      *   only — the default references no workspace modules).
      * @param config the parsed `.bpmnlintrc` contents, or the bundled default.
-     * @param useBundledDefaults when true, the host's bundled camunda-compat and
-     *   miragon layers back rule/config resolution — for the zero-config default
-     *   only, so a workspace `.bpmnlintrc` never resolves against them.
      * @returns the findings keyed by rule name, plus the names of any
      *   rules/configs that could not be resolved (skipped, never thrown).
      */
@@ -244,7 +241,6 @@ export interface LintRunnerPort {
         xml: string,
         configPath: string,
         config: Record<string, unknown>,
-        useBundledDefaults?: boolean,
     ): Promise<{ results: LintResults; unresolved: string[] }>;
 }
 

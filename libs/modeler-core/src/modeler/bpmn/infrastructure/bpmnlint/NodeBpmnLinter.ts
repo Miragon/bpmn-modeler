@@ -2,10 +2,10 @@ import { dirname } from "path";
 
 import { LintResults } from "@miragon/bpmn-modeler-shared";
 
+import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
+
 import { LintRunnerPort } from "../../../../shared/domain/hostPorts";
-import { builtinResolver } from "./builtinResolver";
-import { bundledDefaultResolver } from "./bundledDefaultResolver";
-import { CompositeResolver } from "./CompositeResolver";
+import { CompositeResolver, Resolver } from "./CompositeResolver";
 
 // bpmnlint ships no type declarations; its entry points are typed by the ambient
 // shim in `src/types/bpmnlint.d.ts`, picked up through each tsconfig's `include`.
@@ -29,10 +29,11 @@ type BpmnModdleFactory = (extensions?: Record<string, unknown>) => {
  * workspace `node_modules`, rooted at the `.bpmnlintrc` directory (so monorepos
  * with per-module configs keep working).
  *
- * Resolution is a {@link CompositeResolver}: workspace `NodeResolver` first, the
- * bundled built-ins as fallback so a workspace without `bpmnlint` installed still
- * lints against built-in rules. A rule the workspace declares but cannot provide
- * (plugin not installed) is skipped and reported, never fatal.
+ * Resolution is a {@link CompositeResolver}: workspace `NodeResolver` first, then
+ * `@miragon/bpmnlint-plugin-rules`' bundled resolver (bpmnlint built-ins + camunda-compat
+ * engine layers + the Miragon rules) as fallback, so a workspace without those
+ * installed still lints. A rule the workspace declares but cannot provide (plugin
+ * not installed) is skipped and reported, never fatal.
  *
  * Host-agnostic on purpose (no `vscode` import): the IntelliJ bridge, a Bun
  * process, reuses it verbatim.
@@ -42,15 +43,13 @@ export class NodeBpmnLinter implements LintRunnerPort {
         xml: string,
         configPath: string,
         config: Record<string, unknown>,
-        useBundledDefaults = false,
     ): Promise<{ results: LintResults; unresolved: string[] }> {
         const configDir = dirname(uriPathToFsPath(configPath));
         const scopedRequire = createScopedRequire(configDir);
 
         const resolver = new CompositeResolver(
             new NodeResolver({ require: scopedRequire, requireLocal: scopedRequire }),
-            builtinResolver,
-            ...(useBundledDefaults ? [bundledDefaultResolver] : []),
+            createBundledResolver() as Resolver,
         );
 
         const moddleExtensions = this.loadModdleExtensions(config, scopedRequire, resolver);
