@@ -111,12 +111,26 @@ document.addEventListener("visibilitychange", () => {
 const bpmnModeler = new BpmnModeler();
 
 /**
+ * Re-imports the XML while preserving the user's drill-down plane,
+ * viewbox, and selection. The snapshot is taken from the live canvas
+ * inside the debounced function so a burst of host pushes captures
+ * once, not from a half-imported intermediate.
+ */
+async function reloadXmlPreservingView(bpmn: string): Promise<void> {
+    const snapshot = stateManager?.captureViewState();
+    await openXml(bpmn);
+    if (snapshot) {
+        stateManager.applyViewState(snapshot);
+    }
+}
+
+/**
  * Debounce the update of the XML content to avoid too many updates.
  *
  * @param bpmn Latest BPMN XML string received from the backend.
  * @throws {NoModelerError} If the modeler is not available.
  */
-const debouncedUpdateXML = asyncDebounce(openXml, 100);
+const debouncedUpdateXML = asyncDebounce(reloadXmlPreservingView, 100);
 
 /**
  * Debounces the outbound document sync so a burst of model changes (e.g.
@@ -739,15 +753,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
 /**
  * Re-renders the diagram by exporting and re-importing the XML.
  *
- * Preserves the current viewport (position and zoom) so the user does not
- * lose their place.  Used after a language switch to force bpmn-js to
- * re-invoke `translate()` for all UI elements.
+ * Preserves the current drill-down plane, viewport, and selection so the
+ * user does not lose their place.  Used after a language switch to force
+ * bpmn-js to re-invoke `translate()` for all UI elements.
  */
 async function refreshDiagram(): Promise<void> {
     const xml = await bpmnModeler.exportDiagram();
-    const viewport = bpmnModeler.viewport.getViewport();
+    const snapshot = stateManager.captureViewState();
     await bpmnModeler.loadDiagram(xml);
-    bpmnModeler.viewport.setViewport(viewport);
+    stateManager.applyViewState(snapshot);
 }
 
 /**
