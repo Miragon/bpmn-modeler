@@ -22,15 +22,15 @@ The left pane shows the **before** version (e.g. `HEAD` or the merge-base) and t
 When the two files are visible side by side in the Explorer:
 
 1. Hold <kbd>Cmd</kbd> / <kbd>Ctrl</kbd> and click the two `.bpmn` files so both are selected.
-2. Right-click either one → **BPMN Modeler: Compare Selected**.
+2. Right-click either one → **Compare Selected (BPMN)**.
 3. A diff tab opens with two BPMN canvases — the first-selected file on the left (`before`), the second on the right (`after`).
 
 ### Pick them one at a time
 
 Useful when the two files live in different Explorer folders, or when you want to pair a file you selected earlier against another one you find later.
 
-1. Right-click the first `.bpmn` file → **BPMN Modeler: Select for Compare**. A status-bar note confirms the pick.
-2. Right-click the second `.bpmn` file → **BPMN Modeler: Compare with Selected**.
+1. Right-click the first `.bpmn` file → **Select for Compare (BPMN)**. A status-bar note confirms the pick.
+2. Right-click the second `.bpmn` file → **Compare with Selected (BPMN)**.
 3. The diff tab opens as above.
 
 Selection is in-memory only; reloading the window or running the compare clears it. The menu mirrors VS Code's built-in compare UX: **Select for Compare** and **Compare with Selected** disappear while two files are multi-selected — **Compare Selected** takes their place. Selecting three or more `.bpmn` files hides every compare entry (there is no meaningful three-way compare).
