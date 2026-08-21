@@ -28,8 +28,8 @@ export class ViewportManager {
      * Returns the current canvas viewbox (position and zoom level).
      */
     getViewport(): ViewportData {
-        const { x, y, width, height } = this.getService<any>("canvas").viewbox();
-        return { x, y, width, height };
+        const { x, y, width, height, scale } = this.getService<any>("canvas").viewbox();
+        return { x, y, width, height, scale };
     }
 
     /**
@@ -57,7 +57,21 @@ export class ViewportManager {
         if (!isUsableViewbox(viewport) || !this.isCanvasSized()) {
             return this.fitViewport();
         }
-        this.getService<any>("canvas").viewbox(viewport);
+        const canvas = this.getService<any>("canvas");
+        // The container size at restore time is not the size at save time
+        // (VS Code re-show / panel layout race), so zoom must be pinned
+        // explicitly rather than derived from width/height.
+        if (viewport.scale !== undefined && Number.isFinite(viewport.scale) && viewport.scale > 0) {
+            const { outer } = canvas.viewbox();
+            canvas.viewbox({
+                x: viewport.x,
+                y: viewport.y,
+                width: outer.width / viewport.scale,
+                height: outer.height / viewport.scale,
+            });
+        } else {
+            canvas.viewbox(viewport);
+        }
         return true;
     }
 
@@ -181,8 +195,8 @@ export class ViewportManager {
         this.getService<any>("eventBus").on("canvas.viewbox.changed", (event: any) => {
             clearTimeout(timer);
             timer = setTimeout(() => {
-                const { x, y, width, height } = event.viewbox;
-                const viewport = { x, y, width, height };
+                const { x, y, width, height, scale } = event.viewbox;
+                const viewport: ViewportData = { x, y, width, height, scale };
                 if (isUsableViewbox(viewport)) {
                     cb(viewport);
                 }
