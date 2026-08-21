@@ -7,6 +7,8 @@ The diff view opens from two entry points, which share the same UI:
 - **Source Control / Git** — any place VS Code opens a text diff for a `.bpmn` file.
 - **Explorer context menu** — pick two `.bpmn` files, either with a multi-selection or one right-click at a time.
 
+> **Note:** Since VS Code 1.129 custom editors are no longer used for diffs unless they opt in. The extension declares `"priority": { "textEditor": "default", "diffEditor": "default" }` for `.bpmn` so both Git diffs and `vscode.diff` render in the BPMN viewer. If you ever see a plain XML diff instead, check `workbench.diffEditorAssociations` in your settings — a `*.bpmn` entry there overrides the extension's default.
+
 ## Usage — Source Control
 
 1. Open the **Source Control** panel in VS Code.

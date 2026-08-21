@@ -54,7 +54,10 @@ interface Manifest {
         commands: { command: string; title: string }[];
         keybindings: { command: string }[];
         menus: Record<string, { command: string }[]>;
-        customEditors: { viewType: string }[];
+        customEditors: {
+            viewType: string;
+            priority: string | { textEditor: string; diffEditor?: string };
+        }[];
         configuration: { properties: Record<string, unknown> };
     };
 }
@@ -123,6 +126,15 @@ describe("package.json ↔ code contract", () => {
         const declared = manifest.contributes.customEditors.map((e) => e.viewType);
 
         expect(new Set(declared)).toEqual(new Set([BPMN_VIEW_TYPE, DMN_VIEW_TYPE]));
+    });
+
+    it("opts the BPMN editor into diffs explicitly", () => {
+        // Since VS Code 1.129 a custom editor is excluded from `vscode.diff`
+        // unless `priority.diffEditor` opts in; the string form silently drops
+        // the BPMN diff view back to the text diff.
+        const bpmn = manifest.contributes.customEditors.find((e) => e.viewType === BPMN_VIEW_TYPE);
+
+        expect(bpmn?.priority).toEqual({ textEditor: "default", diffEditor: "default" });
     });
 
     it("keeps config keys in sync between manifest and VsCodeSettings", () => {

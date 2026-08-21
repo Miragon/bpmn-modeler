@@ -30,21 +30,46 @@ function getExtension(): vscode.Extension<TestApi> {
     return ext;
 }
 
-/** Polls `vscode.window.tabGroups` until a tab with the expected label appears. */
-async function waitForTab(label: string, timeoutMs = 10_000): Promise<void> {
+/** Polls until `predicate` holds; fails with `describe()` on timeout. */
+async function waitFor(
+    predicate: () => boolean,
+    describe: () => string,
+    timeoutMs = 10_000,
+): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-        const found = vscode.window.tabGroups.all
-            .flatMap((g) => g.tabs)
-            .some((t) => t.label === label);
-        if (found) {
+        if (predicate()) {
             return;
         }
         await new Promise((r) => setTimeout(r, 250));
     }
-    const open = vscode.window.tabGroups.all.flatMap((g) => g.tabs).map((t) => t.label);
-    assert.fail(
-        `tab "${label}" did not appear within ${timeoutMs}ms — open tabs: ${open.join(", ")}`,
+    assert.fail(`${describe()} (waited ${timeoutMs}ms)`);
+}
+
+/** Polls `vscode.window.tabGroups` until a tab with the expected label appears. */
+function waitForTab(label: string): Promise<void> {
+    const tabs = () => vscode.window.tabGroups.all.flatMap((g) => g.tabs);
+    return waitFor(
+        () => tabs().some((t) => t.label === label),
+        () =>
+            `tab "${label}" did not appear — open tabs: ${tabs()
+                .map((t) => t.label)
+                .join(", ")}`,
+    );
+}
+
+/**
+ * The only observable that proves VS Code routed `vscode.diff` into *our*
+ * custom editor: panes attach to the session solely from our resolve path.
+ * A text diff (the fallback since VS Code 1.129 unless the manifest opts in
+ * via `priority.diffEditor`) leaves the session registered but pane-less.
+ */
+function waitForBothPanes(api: TestApi, uri: string): Promise<void> {
+    return waitFor(
+        () => api.diff.sessionFor(uri)?.paneCount === 2,
+        () =>
+            `diff panes never attached — session: ${JSON.stringify(api.diff.sessionFor(uri))}; ` +
+            `the diff likely opened in the text editor instead of the BPMN viewer`,
     );
 }
 
@@ -66,24 +91,18 @@ suite("BPMN compare commands", () => {
         await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     });
 
-    test("two-step flow opens a diff tab", async () => {
+    test("two-step flow opens the BPMN diff with both panes attached", async () => {
         await vscode.commands.executeCommand("bpmn-modeler.selectForCompare", uriA);
         await vscode.commands.executeCommand("bpmn-modeler.compareWithSelected", uriB);
         await waitForTab(DIFF_TAB_LABEL);
+        await waitForBothPanes(api, uriA.toString());
+
+        assert.strictEqual(api.diff.sessionFor(uriA.toString())?.origin, "compare-files");
     });
 
-    test("single-step flow opens a diff tab", async () => {
+    test("single-step flow opens the BPMN diff with both panes attached", async () => {
         await vscode.commands.executeCommand("bpmn-modeler.compareSelected", uriA, [uriA, uriB]);
         await waitForTab(DIFF_TAB_LABEL);
-    });
-
-    test("two-step flow creates a compare-files session", async () => {
-        await vscode.commands.executeCommand("bpmn-modeler.selectForCompare", uriA);
-        await vscode.commands.executeCommand("bpmn-modeler.compareWithSelected", uriB);
-        await waitForTab(DIFF_TAB_LABEL);
-
-        const session = api.diff.sessionFor(uriA.toString());
-        assert.ok(session, "no session found for the left-hand URI");
-        assert.strictEqual(session.origin, "compare-files");
+        await waitForBothPanes(api, uriA.toString());
     });
 });
