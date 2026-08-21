@@ -14,12 +14,12 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
-): { diffController: BpmnDiffController } {
+): { diffController: BpmnDiffController; diffStore: DiffPaneStore } {
     const diffStore = new DiffPaneStore();
     context.subscriptions.push(diffStore);
     const diffService = new BpmnDiffService(deps.notifier, deps.vsSettings, diffStore);
     const diffController = new BpmnDiffController(diffStore, diffService, deps.notifier);
     diffController.register(context);
 
-    return { diffController };
+    return { diffController, diffStore };
 }

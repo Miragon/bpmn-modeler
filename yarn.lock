@@ -7509,16 +7509,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vscode/test-electron@npm:3.0.0":
-  version: 3.0.0
-  resolution: "@vscode/test-electron@npm:3.0.0"
+"@vscode/test-electron@npm:3.1.0":
+  version: 3.1.0
+  resolution: "@vscode/test-electron@npm:3.1.0"
   dependencies:
     http-proxy-agent: "npm:^7.0.2"
     https-proxy-agent: "npm:^7.0.5"
     jszip: "npm:^3.10.1"
     ora: "npm:^8.1.0"
     semver: "npm:^7.6.2"
-  checksum: 10c0/8672a6a1496e41cd7ae1675f3d1894f20895fc72eba66d4a9547c7bc5887c8e726f6972a8852df2598ed3a50f3bd9d6d762e99dd1a1c5ae2cb485f21e69c9f81
+  checksum: 10c0/94dec0f45cc35ad50bdff982b377c3160de340af92e4fb5e1fe161e6ecc9bbd3718ecf33f8776da1cfb4b80930d7e9141031ee8ae264465c86c71c99923fa9e4
   languageName: node
   linkType: hard
 
@@ -22643,7 +22643,7 @@ __metadata:
     "@types/vscode": "npm:1.93.0"
     "@vitest/coverage-v8": "npm:4.1.9"
     "@vscode/test-cli": "npm:0.0.15"
-    "@vscode/test-electron": "npm:3.0.0"
+    "@vscode/test-electron": "npm:3.1.0"
     archunit: "npm:2.3.0"
     copy-webpack-plugin: "npm:14.0.0"
     ts-loader: "npm:9.6.2"

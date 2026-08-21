@@ -101,7 +101,7 @@ export class BpmnCompareController {
         const leftUri = this.selection.get();
         if (!leftUri) {
             this.notifier.showInfo(
-                'No file selected for compare. Right-click a .bpmn file and choose "Select for Compare" first.',
+                'No file selected for compare. Right-click a .bpmn file and choose "Select for Compare (BPMN)" first.',
             );
             return;
         }

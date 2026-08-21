@@ -28,7 +28,10 @@ module.exports = [
             // bpmnlint plugin) — CommonJS content users copy, not repo source.
             "resources/**",
             // Compiled Extension-Host e2e tests — generated CommonJS, not source.
-            "apps/vscode-plugin/test/e2e/out/**",
+            // Unanchored on purpose: the nested apps/vscode-plugin config reuses
+            // this list with its own base path, where a repo-rooted path never
+            // matches.
+            "**/test/e2e/out/**",
             // The @vscode/test-electron download — the entire VS Code app. Lives
             // here after a local `test:e2e` run; linting it explodes the heap and
             // emits 500k+ spurious errors. Flat config ignores `.gitignore`, so

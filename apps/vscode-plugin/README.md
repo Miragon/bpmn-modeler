@@ -76,8 +76,8 @@ the decision is that".
   or 8. Supports no auth, Basic Auth, and OAuth2 Client Credentials; payload
   files are discovered by convention from `<configFolder>/payloads/`.
 - **Compare two diagrams** — select two `.bpmn` files in the Explorer (or
-  right-click one, **BPMN Modeler: Select for Compare**, then **Compare with
-  Selected** on another) to open a side-by-side read-only diff with element-level
+  right-click one, **Select for Compare (BPMN)**, then **Compare with
+  Selected (BPMN)** on another) to open a side-by-side read-only diff with element-level
   colour coding (added / removed / changed / moved) via
   [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ), synchronized
   pan/zoom, and a prev/next change navigator.
@@ -102,8 +102,8 @@ Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`
 | BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the BPMN modeler                |
 | BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
 
-The compare commands — **Select for Compare**, **Compare with Selected**, and
-**Compare Selected** — are available from the Explorer right-click menu on
+The compare commands — **Select for Compare (BPMN)**, **Compare with Selected (BPMN)**, and
+**Compare Selected (BPMN)** — are available from the Explorer right-click menu on
 `.bpmn` files rather than the Command Palette.
 
 ### Settings

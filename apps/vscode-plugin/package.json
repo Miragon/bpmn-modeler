@@ -19,7 +19,7 @@
         "@types/vscode": "1.93.0",
         "@vitest/coverage-v8": "4.1.9",
         "@vscode/test-cli": "0.0.15",
-        "@vscode/test-electron": "3.0.0",
+        "@vscode/test-electron": "3.1.0",
         "archunit": "2.3.0",
         "copy-webpack-plugin": "14.0.0",
         "ts-loader": "9.6.2",
@@ -179,7 +179,10 @@
                         "filenamePattern": "*.bpmn"
                     }
                 ],
-                "priority": "default"
+                "priority": {
+                    "textEditor": "default",
+                    "diffEditor": "default"
+                }
             },
             {
                 "id": "bpmn-modeler.dmn",
@@ -284,17 +287,17 @@
             },
             {
                 "command": "bpmn-modeler.selectForCompare",
-                "title": "Select for Compare",
+                "title": "Select for Compare (BPMN)",
                 "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.compareWithSelected",
-                "title": "Compare with Selected",
+                "title": "Compare with Selected (BPMN)",
                 "category": "Miragon BPMN Modeler"
             },
             {
                 "command": "bpmn-modeler.compareSelected",
-                "title": "Compare Selected",
+                "title": "Compare Selected (BPMN)",
                 "category": "Miragon BPMN Modeler"
             },
             {

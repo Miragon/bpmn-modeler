@@ -12,6 +12,13 @@ import * as commandsFeature from "./composition/commandsFeature";
 import * as deploymentFeature from "./composition/deploymentFeature";
 import * as templateMarketplaceFeature from "./composition/templateMarketplaceFeature";
 
+/** Narrow API surface returned by `activate()` for e2e tests only. */
+export interface TestApi {
+    diff: {
+        sessionFor(uri: string): { origin: string; paneCount: number } | undefined;
+    };
+}
+
 /**
  * Activation is now pure composition: build the shared collaborators once, then
  * let each feature wire itself via its own `register()`. Adding a feature means
@@ -24,13 +31,13 @@ import * as templateMarketplaceFeature from "./composition/templateMarketplaceFe
  * diff's controller, script's service, code-link's handles, and the marketplace
  * service; later features reuse handles the earlier ones returned.
  */
-export function activate(context: ExtensionContext): void {
+export function activate(context: ExtensionContext): TestApi {
     setContext(context);
 
     const deps = buildSharedDeps(context);
     // Below buildSharedDeps so the release check can log through the notifier.
     notifyIfNewRelease(context, deps.notifier);
-    const { diffController } = diffFeature.register(context, deps);
+    const { diffController, diffStore } = diffFeature.register(context, deps);
     const { scriptTaskSvc, scriptVariableStore, scriptManifestParticipant } =
         scriptFeature.register(context, deps);
     const codeLink = codeLinkFeature.register(context, deps);
@@ -49,6 +56,18 @@ export function activate(context: ExtensionContext): void {
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, { bpmnService });
     deploymentFeature.register(context, deps);
+
+    return {
+        diff: {
+            sessionFor(uri: string) {
+                const session = diffStore.findByUri(uri);
+                if (!session) {
+                    return undefined;
+                }
+                return { origin: session.origin, paneCount: session.attachedPanes().length };
+            },
+        },
+    };
 }
 
 const RELEASES_BASE = "https://github.com/Miragon/bpmn-modeler/releases/tag";

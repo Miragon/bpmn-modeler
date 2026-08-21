@@ -51,10 +51,13 @@ const manifest = JSON.parse(
 
 interface Manifest {
     contributes: {
-        commands: { command: string }[];
+        commands: { command: string; title: string }[];
         keybindings: { command: string }[];
         menus: Record<string, { command: string }[]>;
-        customEditors: { viewType: string }[];
+        customEditors: {
+            viewType: string;
+            priority: string | { textEditor: string; diffEditor?: string };
+        }[];
         configuration: { properties: Record<string, unknown> };
     };
 }
@@ -125,6 +128,15 @@ describe("package.json ↔ code contract", () => {
         expect(new Set(declared)).toEqual(new Set([BPMN_VIEW_TYPE, DMN_VIEW_TYPE]));
     });
 
+    it("opts the BPMN editor into diffs explicitly", () => {
+        // Since VS Code 1.129 a custom editor is excluded from `vscode.diff`
+        // unless `priority.diffEditor` opts in; the string form silently drops
+        // the BPMN diff view back to the text diff.
+        const bpmn = manifest.contributes.customEditors.find((e) => e.viewType === BPMN_VIEW_TYPE);
+
+        expect(bpmn?.priority).toEqual({ textEditor: "default", diffEditor: "default" });
+    });
+
     it("keeps config keys in sync between manifest and VsCodeSettings", () => {
         const declaredKeys = Object.keys(manifest.contributes.configuration.properties)
             .filter((key) => key.startsWith(`${CONFIG_NAMESPACE}.`))
@@ -152,6 +164,52 @@ describe("package.json ↔ code contract", () => {
         );
 
         expect(offenders).toEqual([]);
+    });
+
+    // Context menus render only `title`, not `category` — a title identical to a
+    // VS Code built-in in the same menu group is visually indistinguishable.
+    it("never shadows a built-in VS Code title in a shared context menu", () => {
+        const VSCODE_BUILTIN_MENU_TITLES = new Set(
+            [
+                "Select for Compare",
+                "Compare with Selected",
+                "Compare Selected",
+                "Open to the Side",
+                "Open With...",
+                "Open Timeline",
+                "Copy Path",
+                "Copy Relative Path",
+                "Rename...",
+                "Delete",
+                "Cut",
+                "Copy",
+                "Paste",
+                "Find in Folder...",
+                "Reveal in Finder",
+                "Reveal in File Explorer",
+                "Open in Integrated Terminal",
+            ].map((t) => t.toLowerCase().trim()),
+        );
+
+        const SHARED_MENUS = ["explorer/context", "editor/title", "editor/title/context"];
+
+        const commandsInSharedMenus = new Set(
+            SHARED_MENUS.flatMap(
+                (menu) => manifest.contributes.menus[menu]?.map((e) => e.command) ?? [],
+            ),
+        );
+
+        const titleByCommand = new Map(
+            manifest.contributes.commands.map((c) => [c.command, c.title]),
+        );
+
+        const collisions = [...commandsInSharedMenus]
+            .map((cmd) => ({ cmd, title: titleByCommand.get(cmd) }))
+            .filter(
+                ({ title }) => title && VSCODE_BUILTIN_MENU_TITLES.has(title.toLowerCase().trim()),
+            );
+
+        expect(collisions).toEqual([]);
     });
 
     it("actually sets every custom when-clause context key it gates UI on", () => {
