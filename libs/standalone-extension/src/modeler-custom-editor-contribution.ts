@@ -13,8 +13,7 @@ import {
 const FLUSH_TIMEOUT_MS = 500;
 const PROPERTIES_PANEL_INPUT_DEBOUNCE_MS = 600;
 const DOCUMENT_SYNC_DEBOUNCE_MS = 300;
-const PENDING_SYNC_GRACE_MS =
-    PROPERTIES_PANEL_INPUT_DEBOUNCE_MS + DOCUMENT_SYNC_DEBOUNCE_MS + 100;
+const PENDING_SYNC_GRACE_MS = PROPERTIES_PANEL_INPUT_DEBOUNCE_MS + DOCUMENT_SYNC_DEBOUNCE_MS + 100;
 const SYNC_QUIET_MS = DOCUMENT_SYNC_DEBOUNCE_MS + 100;
 const HOST_SYNC_POLL_MS = 10;
 const SYNC_FAILURE_PREFIX = "Failed to sync diagram changes:";
@@ -210,10 +209,7 @@ export class ModelerCustomEditorContribution
             }
             drainDeadline = Math.max(drainDeadline, deadline);
             clearTimeout(cleanup.timer);
-            cleanup.timer = setTimeout(
-                settleDrain,
-                Math.max(0, drainDeadline - Date.now()),
-            );
+            cleanup.timer = setTimeout(settleDrain, Math.max(0, drainDeadline - Date.now()));
         };
 
         if (onMessage) {
