@@ -8,15 +8,19 @@ import { WebviewStateManager } from "./state";
  */
 function setup(savedState: unknown, applied = true) {
     const getState = vi.fn().mockReturnValue(savedState);
+    const updateState = vi.fn();
+    const setState = vi.fn();
     const setViewport = vi.fn().mockReturnValue(applied);
     const fitViewport = vi.fn().mockReturnValue(applied);
-    const getViewport = vi.fn().mockReturnValue({ x: 0, y: 0, width: 1000, height: 800 });
+    const getViewport = vi
+        .fn()
+        .mockReturnValue({ x: 5, y: 10, width: 400, height: 300, scale: 1.2 });
     const setRootElementById = vi.fn().mockReturnValue(true);
     const getRootElementId = vi.fn().mockReturnValue(undefined);
     const onRootChanged = vi.fn();
     const getSelectedElementIds = vi.fn().mockReturnValue([]);
     const selectElementsByIds = vi.fn();
-    const host = { getState } as any;
+    const host = { getState, updateState, setState } as any;
     const modeler = {
         viewport: { setViewport, fitViewport, getViewport },
         rootElement: { setRootElementById, getRootElementId, onRootChanged },
@@ -31,6 +35,7 @@ function setup(savedState: unknown, applied = true) {
         getViewport,
         getSelectedElementIds,
         selectElementsByIds,
+        updateState,
     };
 }
 
@@ -176,5 +181,27 @@ describe("WebviewStateManager.captureViewState / applyViewState", () => {
         manager.applyViewState(snapshot);
         // setRootElementById(undefined) returns false — no plane switch
         expect(setRootElementById).toHaveBeenCalledWith(undefined);
+    });
+});
+
+describe("WebviewStateManager.flushViewport", () => {
+    it("persists the current viewbox synchronously", () => {
+        const { manager, getViewport, updateState } = setup(undefined);
+
+        manager.flushViewport();
+
+        expect(getViewport).toHaveBeenCalledOnce();
+        expect(updateState).toHaveBeenCalledWith({
+            viewport: { x: 5, y: 10, width: 400, height: 300, scale: 1.2 },
+        });
+    });
+
+    it("skips persistence when the viewbox is degenerate", () => {
+        const { manager, getViewport, updateState } = setup(undefined);
+        getViewport.mockReturnValue({ x: NaN, y: NaN, width: NaN, height: NaN });
+
+        manager.flushViewport();
+
+        expect(updateState).not.toHaveBeenCalled();
     });
 });

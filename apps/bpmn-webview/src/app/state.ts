@@ -1,4 +1,4 @@
-import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
+import { Command, Query, HostApi, isUsableViewbox } from "@miragon/bpmn-modeler-shared";
 import { CanvasViewState, WebviewState } from "./webviewState";
 import { BpmnModeler } from "./modeler";
 
@@ -136,6 +136,19 @@ export class WebviewStateManager {
                 });
             }
         });
+    }
+
+    /**
+     * Writes the current viewport to persisted state immediately, bypassing the
+     * 100 ms debounce in {@link ViewportManager.onViewportChanged}. Called on
+     * `visibilitychange → hidden` so a tab switch right after a gesture does
+     * not lose the last position.
+     */
+    flushViewport(): void {
+        const viewport = this.modeler.viewport.getViewport();
+        if (isUsableViewbox(viewport)) {
+            this.persistPartialState({ viewport });
+        }
     }
 
     startPersisting(): void {

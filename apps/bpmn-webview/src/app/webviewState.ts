@@ -3,6 +3,8 @@ export interface ViewportData {
     y: number;
     width: number;
     height: number;
+    /** Persisted so the exact zoom survives a container-size change on restore. */
+    scale?: number;
 }
 
 /**

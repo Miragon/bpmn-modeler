@@ -101,6 +101,7 @@ function registerGlobalErrorHandlers(): void {
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
         void debouncedSendXmlChanges.flush();
+        stateManager?.flushViewport();
     }
 });
 
