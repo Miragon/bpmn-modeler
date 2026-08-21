@@ -39,66 +39,60 @@ describe("DocumentFlushService", () => {
         return posted.filter((p) => p.editorId === editorId)[index].query.token;
     }
 
-    function reply(
-        editorId: string,
-        result: DocumentFlushedCommand["result"],
-        token = tokenFor(editorId),
-    ): void {
-        svc.handleReply({ token, result } as DocumentFlushedCommand, editorId);
-    }
-
-    it("resolves with the result of a matching reply", async () => {
+    it("resolves with the content of a matching reply", async () => {
         const promise = svc.requestFlush("e1");
-        reply("e1", { status: "flushed", content: "<xml/>" });
+        svc.handleReply(new DocumentFlushedCommand(tokenFor("e1"), "<xml/>"), "e1");
 
-        await expect(promise).resolves.toEqual({ status: "flushed", content: "<xml/>" });
+        await expect(promise).resolves.toBe("<xml/>");
     });
 
-    it("ignores a mismatched-token reply and then times out as failed", async () => {
+    it("ignores a mismatched-token reply and then times out to undefined", async () => {
         const promise = svc.requestFlush("e1", 500);
 
-        reply("e1", { status: "flushed", content: "<stale/>" }, 9999);
+        svc.handleReply(new DocumentFlushedCommand(9999, "<stale/>"), "e1");
         expect(notifier.logDebug).toHaveBeenCalled();
 
         await vi.advanceTimersByTimeAsync(500);
-        await expect(promise).resolves.toEqual({ status: "failed" });
+        await expect(promise).resolves.toBeUndefined();
     });
 
-    it("times out as failed and treats a late matching reply as a no-op", async () => {
+    it("times out to undefined and treats a late matching reply as a no-op", async () => {
         const promise = svc.requestFlush("e1", 500);
         const token = tokenFor("e1");
 
         await vi.advanceTimersByTimeAsync(500);
-        await expect(promise).resolves.toEqual({ status: "failed" });
+        await expect(promise).resolves.toBeUndefined();
 
         // Late reply after the timeout must not throw.
-        expect(() => reply("e1", { status: "flushed", content: "<late/>" }, token)).not.toThrow();
+        expect(() =>
+            svc.handleReply(new DocumentFlushedCommand(token, "<late/>"), "e1"),
+        ).not.toThrow();
     });
 
-    it("resolves failed when the post rejects (hidden webview)", async () => {
+    it("resolves undefined when the post rejects (hidden webview)", async () => {
         postMessage.mockReturnValueOnce(Promise.reject(new Error("The active editor is hidden.")));
 
-        await expect(svc.requestFlush("e1")).resolves.toEqual({ status: "failed" });
+        await expect(svc.requestFlush("e1")).resolves.toBeUndefined();
     });
 
-    it("supersedes an earlier request for the same editor, resolving it failed", async () => {
+    it("supersedes an earlier request for the same editor, resolving it undefined", async () => {
         const first = svc.requestFlush("e1");
         const second = svc.requestFlush("e1");
 
-        await expect(first).resolves.toEqual({ status: "failed" });
+        await expect(first).resolves.toBeUndefined();
 
-        reply("e1", { status: "flushed", content: "<second/>" }, tokenFor("e1", 1));
-        await expect(second).resolves.toEqual({ status: "flushed", content: "<second/>" });
+        svc.handleReply(new DocumentFlushedCommand(tokenFor("e1", 1), "<second/>"), "e1");
+        await expect(second).resolves.toBe("<second/>");
     });
 
     it("keeps requests for different editors independent", async () => {
         const a = svc.requestFlush("a");
         const b = svc.requestFlush("b");
 
-        reply("a", { status: "flushed", content: "<a/>" });
-        await expect(a).resolves.toEqual({ status: "flushed", content: "<a/>" });
+        svc.handleReply(new DocumentFlushedCommand(tokenFor("a"), "<a/>"), "a");
+        await expect(a).resolves.toBe("<a/>");
 
-        reply("b", { status: "idle" });
-        await expect(b).resolves.toEqual({ status: "idle" });
+        svc.handleReply(new DocumentFlushedCommand(tokenFor("b"), "<b/>"), "b");
+        await expect(b).resolves.toBe("<b/>");
     });
 });

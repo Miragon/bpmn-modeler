@@ -82,6 +82,7 @@ type TestModelerWidget = ExtractableWidget & SaveableWidget;
 function modelerWidget(viewType: string, extension: string): TestModelerWidget {
     const closeWithSaving = vi.fn().mockResolvedValue(undefined);
     return {
+        element: {},
         id: "modeler",
         isDisposed: false,
         isExtractable: true,

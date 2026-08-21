@@ -1,15 +1,7 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
-import { commitActiveEditor, createFlushResponder, FlushSource } from "./documentFlush";
-import { FlushDocumentQuery } from "./messages";
-
-const flushedCommandFixture = JSON.parse(
-    readFileSync(
-        new URL("../../test-fixtures/document-flushed-command.json", import.meta.url),
-        "utf8",
-    ),
-) as unknown;
+import { createFlushResponder, FlushSource } from "./documentFlush";
+import { DocumentFlushedCommand, FlushDocumentQuery } from "./messages";
 
 /**
  * Covers the webview-side flush responder — the piece both the BPMN and (untested
@@ -20,8 +12,8 @@ describe("createFlushResponder", () => {
     function makeSource(overrides: Partial<FlushSource> = {}): FlushSource {
         return {
             isReady: () => true,
-            prepareFlush: vi.fn().mockResolvedValue(undefined),
             hasPendingSync: () => true,
+            cancelPendingSync: vi.fn(),
             exportXml: vi.fn().mockResolvedValue("<xml/>"),
             ...overrides,
         };
@@ -29,61 +21,44 @@ describe("createFlushResponder", () => {
 
     it("replies undefined without exporting when not ready", async () => {
         const exportXml = vi.fn().mockResolvedValue("<xml/>");
-        const source = makeSource({ isReady: () => false, exportXml });
+        const cancelPendingSync = vi.fn();
+        const source = makeSource({ isReady: () => false, exportXml, cancelPendingSync });
         const post = vi.fn();
 
         await createFlushResponder(source, post)(new FlushDocumentQuery(1));
 
-        expect(post).toHaveBeenCalledWith(
-            expect.objectContaining({ token: 1, result: { status: "idle" } }),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(1, undefined));
         expect(exportXml).not.toHaveBeenCalled();
+        expect(cancelPendingSync).not.toHaveBeenCalled();
     });
 
     it("replies undefined without exporting when nothing is pending", async () => {
         const exportXml = vi.fn().mockResolvedValue("<xml/>");
-        const source = makeSource({ hasPendingSync: () => false, exportXml });
+        const cancelPendingSync = vi.fn();
+        const source = makeSource({ hasPendingSync: () => false, exportXml, cancelPendingSync });
         const post = vi.fn();
 
         await createFlushResponder(source, post)(new FlushDocumentQuery(2));
 
-        expect(post).toHaveBeenCalledWith(
-            expect.objectContaining({ token: 2, result: { status: "idle" } }),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(2, undefined));
         expect(exportXml).not.toHaveBeenCalled();
+        expect(cancelPendingSync).not.toHaveBeenCalled();
     });
 
-    it("exports and posts the pending XML", async () => {
+    it("cancels the pending sync, then exports, then posts the XML", async () => {
+        const order: string[] = [];
+        const cancelPendingSync = vi.fn(() => void order.push("cancel"));
         const exportXml = vi.fn(async () => {
+            order.push("export");
             return "<xml/>";
         });
-        const source = makeSource({ exportXml });
+        const source = makeSource({ cancelPendingSync, exportXml });
         const post = vi.fn();
 
         await createFlushResponder(source, post)(new FlushDocumentQuery(3));
 
-        expect(JSON.parse(JSON.stringify(post.mock.calls[0][0]))).toEqual(flushedCommandFixture);
-    });
-
-    it("commits the active editor before checking for pending sync", async () => {
-        let pending = false;
-        const prepareFlush = vi.fn(async () => {
-            pending = true;
-        });
-        const exportXml = vi.fn().mockResolvedValue("<xml/>");
-        const source = {
-            ...makeSource({ hasPendingSync: () => pending, exportXml }),
-            prepareFlush,
-        };
-        const post = vi.fn();
-
-        await createFlushResponder(source, post)(new FlushDocumentQuery(4));
-
-        expect(prepareFlush).toHaveBeenCalledOnce();
-        expect(exportXml).toHaveBeenCalledOnce();
-        expect(post).toHaveBeenCalledWith(
-            expect.objectContaining({ token: 4, result: { status: "flushed", content: "<xml/>" } }),
-        );
+        expect(order).toEqual(["cancel", "export"]);
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(3, "<xml/>"));
     });
 
     it("replies undefined when the export throws (e.g. empty DMN diagram)", async () => {
@@ -92,11 +67,9 @@ describe("createFlushResponder", () => {
         });
         const post = vi.fn();
 
-        await createFlushResponder(source, post)(new FlushDocumentQuery(5));
+        await createFlushResponder(source, post)(new FlushDocumentQuery(4));
 
-        expect(post).toHaveBeenCalledWith(
-            expect.objectContaining({ token: 5, result: { status: "failed" } }),
-        );
+        expect(post).toHaveBeenCalledWith(new DocumentFlushedCommand(4, undefined));
     });
 
     it("echoes the query token verbatim", async () => {
@@ -106,41 +79,5 @@ describe("createFlushResponder", () => {
         await createFlushResponder(source, post)(new FlushDocumentQuery(99));
 
         expect(post.mock.calls[0][0].token).toBe(99);
-    });
-});
-
-describe("commitActiveEditor", () => {
-    it("blurs an editable element and waits for its commit task", async () => {
-        let committed = false;
-        const blur = vi.fn(() => {
-            setTimeout(() => {
-                committed = true;
-            }, 0);
-        });
-        const document = {
-            activeElement: {
-                matches: () => true,
-                blur,
-            },
-        } as unknown as Document;
-
-        await commitActiveEditor(document);
-
-        expect(blur).toHaveBeenCalledOnce();
-        expect(committed).toBe(true);
-    });
-
-    it("leaves non-editable focus unchanged", async () => {
-        const blur = vi.fn();
-        const document = {
-            activeElement: {
-                matches: () => false,
-                blur,
-            },
-        } as unknown as Document;
-
-        await commitActiveEditor(document);
-
-        expect(blur).not.toHaveBeenCalled();
     });
 });

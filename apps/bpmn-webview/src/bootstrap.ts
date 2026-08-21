@@ -11,7 +11,6 @@ import {
     BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
-    commitActiveEditor,
     ElementTemplatesQuery,
     Engine,
     FlushDocumentQuery,
@@ -50,7 +49,6 @@ import {
     formatErrors,
     initResizer,
     initTheme,
-    installUndoRedoKeydownGuard,
     observeCanvasSize,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
@@ -148,13 +146,13 @@ const debouncedSendXmlChanges = asyncDebounce(sendXmlChanges, 300, { maxWait: 10
 /**
  * Answers a host {@link FlushDocumentQuery} on the save/close path: exports and
  * returns the pending XML (or reports nothing-pending). The `pending()` gate and
- * fallback-sync rationale live in {@link createFlushResponder}.
+ * cancel-and-carry rationale live in {@link createFlushResponder}.
  */
 const respondToFlush = createFlushResponder(
     {
         isReady: () => modelerIsInitialized,
-        prepareFlush: () => commitActiveEditor(document),
         hasPendingSync: () => debouncedSendXmlChanges.pending(),
+        cancelPendingSync: () => debouncedSendXmlChanges.cancel(),
         exportXml: () => bpmnModeler.exportDiagram(),
     },
     (reply) => host.postMessage(reply),
@@ -297,8 +295,6 @@ async function run(): Promise<void> {
         await diffMode.startWith(bpmnFileQuery.content);
         return;
     }
-
-    installUndoRedoKeydownGuard(document);
 
     const propertiesPanelHandle = initResizer({
         getToggleLabel: (state) =>

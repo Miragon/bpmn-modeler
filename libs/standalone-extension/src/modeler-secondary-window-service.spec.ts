@@ -103,6 +103,7 @@ class TestModelerSecondaryWindowService extends ModelerSecondaryWindowService {
 
 function modelerWidget(viewType: string, extension: string): ExtractableWidget {
     return {
+        element: {},
         id: "modeler",
         isDisposed: false,
         isExtractable: true,

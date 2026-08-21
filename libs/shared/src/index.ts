@@ -11,4 +11,3 @@ export * from "./lib/propertiesPanelResizer";
 export * from "./lib/processVariables";
 export * from "./lib/variableManifest";
 export * from "./lib/bpmnFlowOrder";
-export * from "./lib/modelerKeyboard";

@@ -456,7 +456,7 @@ internal class EditorSessionRouter(
     }
 }
 
-/** Parsed `DocumentFlushedCommand`; `content` is null for idle or failed results. */
+/** Parsed `DocumentFlushedCommand`; `content` is null when the webview had nothing to flush. */
 internal data class DocumentFlushedReply(val token: Long, val content: String?)
 
 /**
@@ -468,22 +468,15 @@ internal fun parseDocumentFlushedReply(raw: String, gson: Gson): DocumentFlushed
     try {
         val obj = gson.fromJson(raw, JsonObject::class.java)
         val token = obj?.get("token")
-        val result = obj?.get("result")
         when {
             obj?.get("type")?.asString != "DocumentFlushedCommand" -> null
             token == null || token.isJsonNull -> null
-            result == null || result.isJsonNull || !result.isJsonObject -> null
-            else -> when (result.asJsonObject.get("status")?.asString) {
-                "idle", "failed" -> DocumentFlushedReply(token.asLong, null)
-                "flushed" -> {
-                    val content = result.asJsonObject.get("content")
-                    if (content == null || content.isJsonNull) {
-                        null
-                    } else {
-                        DocumentFlushedReply(token.asLong, content.asString)
-                    }
-                }
-                else -> null
+            else -> {
+                val content = obj.get("content")
+                DocumentFlushedReply(
+                    token.asLong,
+                    if (content == null || content.isJsonNull) null else content.asString,
+                )
             }
         }
     } catch (e: Exception) {

@@ -396,10 +396,7 @@ jobs:
 
   test-intellij-plugin:
     needs: detect-changes
-    if: >-
-      needs.detect-changes.outputs.intellij-plugin == 'true' ||
-      needs.detect-changes.outputs.bpmn-webview == 'true' ||
-      needs.detect-changes.outputs.shared == 'true'
+    if: needs.detect-changes.outputs.intellij-plugin == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
