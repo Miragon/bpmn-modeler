@@ -14,10 +14,7 @@ import { CommandRegistry } from "@theia/core/lib/common/command";
 import { inject, injectable } from "@theia/core/shared/inversify";
 import { ModelerSecondaryWindowHandler } from "./modeler-secondary-window-handler";
 import { flushModelerWidget, isModelerWidget } from "./modeler-widget-flush";
-import {
-    quiesceModelerWidget,
-    runModelerWidgetTransitions,
-} from "./modeler-widget-lifecycle";
+import { quiesceModelerWidget, runModelerWidgetTransitions } from "./modeler-widget-lifecycle";
 
 @injectable()
 export class ModelerSecondaryWindowCloseContribution implements FrontendApplicationContribution {
