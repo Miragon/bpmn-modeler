@@ -136,7 +136,7 @@ describe("ModelerSecondaryWindowService", () => {
                 closeWidget: vi.fn().mockResolvedValue(undefined),
             } as unknown as ApplicationShell;
 
-            const secondaryWindow = service.createSecondaryWindow(widget, shell)!;
+            service.createSecondaryWindow(widget, shell);
 
             expect(electronTheiaCore.setSecondaryWindowCloseRequestHandler).toHaveBeenCalledOnce();
             expect(electronTheiaCore.setSecondaryWindowCloseRequestHandler).toHaveBeenCalledWith(

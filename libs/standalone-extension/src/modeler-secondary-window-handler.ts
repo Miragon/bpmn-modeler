@@ -80,13 +80,15 @@ export class ModelerSecondaryWindowHandler extends SecondaryWindowHandler {
                     return;
                 }
 
-                let expectedWindow: Window | undefined;
                 let addedWindow: Window | undefined;
                 addListener = this.onWillAddWidget(([candidate, candidateWindow]) => {
                     if (candidate === widget) {
                         addedWindow = candidateWindow;
                     }
-                    if (candidate === widget && candidateWindow === expectedWindow) {
+                    if (
+                        candidate === widget &&
+                        candidateWindow === this.extractionWindows.get(widget)
+                    ) {
                         this.extractionWindows.delete(widget);
                         restoreInteraction();
                     }
@@ -104,7 +106,6 @@ export class ModelerSecondaryWindowHandler extends SecondaryWindowHandler {
                     restoreInteraction();
                     return;
                 }
-                expectedWindow = newWindow;
                 this.extractionWindows.set(widget, newWindow);
                 if (addedWindow === newWindow) {
                     this.extractionWindows.delete(widget);
