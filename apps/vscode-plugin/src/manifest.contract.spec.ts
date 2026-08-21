@@ -8,10 +8,10 @@ import { describe, expect, it, vi } from "vitest";
 // command-ID consts as the single source of truth. Same trick the service
 // specs use (see BpmnModelerService.spec.ts).
 vi.mock("vscode", () => ({}));
-// CommandController imports the real i18n entry, which declares no
-// `main`/`exports` and so cannot resolve under vitest; a stub keeps the
+// CommandController imports the i18n-extras entry (which declares no
+// `main`/`exports` and so cannot resolve under vitest); a stub keeps the
 // module-load import satisfied without affecting these manifest assertions.
-vi.mock("@miragon/bpmn-modeler-i18n", () => ({ supportedLanguages: [] }));
+vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({ supportedModelerLanguages: [] }));
 
 import {
     CHANGE_ENGINE_VERSION_CMD,

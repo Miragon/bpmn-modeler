@@ -9,7 +9,7 @@ import {
 } from "vscode";
 
 import { Command, GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
-import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
+import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 
 import { EditorSubscription } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
@@ -159,7 +159,7 @@ export class CommandController {
      */
     changeLanguage(): Promise<void> {
         return this.logAndRethrow(async () => {
-            const items = supportedLanguages.map((lang) => ({
+            const items = supportedModelerLanguages.map((lang) => ({
                 label: lang.label,
                 description: lang.locale,
             }));

@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GetDiagramAsSVGCommand } from "@miragon/bpmn-modeler-shared";
 
-// The i18n package declares no `main`/`exports`, so Vite cannot resolve its
-// real entry under vitest. A small fixture keeps the language list deterministic
-// while letting the subject's module-level import resolve. The literal is inlined
-// because the mock factory is hoisted above any top-level binding it might close over.
-vi.mock("@miragon/bpmn-modeler-i18n", () => ({
-    supportedLanguages: [
+// The i18n-extras package declares no `main`/`exports`, so Vite cannot resolve
+// its real entry under vitest. A small fixture keeps the language list
+// deterministic while letting the subject's module-level import resolve. The
+// literal is inlined because the mock factory is hoisted above any top-level
+// binding it might close over.
+vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({
+    supportedModelerLanguages: [
         { label: "Deutsch", locale: "de" },
         { label: "English", locale: "en" },
     ],
@@ -70,7 +71,7 @@ vi.mock("vscode", () => ({
     ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
 }));
 
-import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
+import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
 import { getLatestVersion, UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import { CommandController } from "./CommandController";
@@ -203,10 +204,10 @@ describe("CommandController.changeLanguage", () => {
             label: string;
             description: string;
         }[];
-        expect(items).toHaveLength(supportedLanguages.length);
+        expect(items).toHaveLength(supportedModelerLanguages.length);
         expect(items[0]).toEqual({
-            label: supportedLanguages[0].label,
-            description: supportedLanguages[0].locale,
+            label: supportedModelerLanguages[0].label,
+            description: supportedModelerLanguages[0].locale,
         });
     });
 

@@ -9,7 +9,7 @@
     },
     "dependencies": {
         "@miragon/bpmn-modeler-core": "workspace:*",
-        "@miragon/bpmn-modeler-i18n": "workspace:*",
+        "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "tslib": "2.8.1"
     },

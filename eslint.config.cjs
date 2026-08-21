@@ -125,15 +125,15 @@ module.exports = [
             "@typescript-eslint/no-require-imports": "off",
         },
     },
-    // Public-API barrel guardrail (BND-PUBLIC-API-BARREL): external code must
-    // reach the i18n library only through its `@miragon/bpmn-modeler-i18n`
-    // entry point, never deep-import `languages/**` or `TranslateModule`. The
-    // curated barrel is the single seam; deep imports couple callers to locale
-    // internals and defeat the parity/structure guardrails. Scoped to exclude
-    // the package itself, whose internal relative imports are legitimate.
+    // Public-API barrel guardrail (BND-PUBLIC-API-BARREL): code must reach the
+    // shared i18n library and the local overlay only through their package
+    // entry points, never deep-import their `languages/**` internals. The
+    // curated barrels are the single seam; deep imports couple callers to locale
+    // internals and defeat the parity guardrails. Scoped to exclude the overlay
+    // package itself, whose internal relative imports are legitimate.
     {
         files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.vue"],
-        ignores: ["libs/bpmn-i18n/**"],
+        ignores: ["libs/bpmn-i18n-extras/**"],
         rules: {
             "no-restricted-imports": [
                 "error",
@@ -142,12 +142,12 @@ module.exports = [
                         {
                             group: [
                                 "@miragon/bpmn-modeler-i18n/*",
-                                "**/bpmn-i18n/src/languages",
-                                "**/bpmn-i18n/src/languages/**",
-                                "**/bpmn-i18n/src/TranslateModule",
+                                "@miragon/bpmn-modeler-i18n-extras/*",
+                                "**/bpmn-i18n-extras/src/languages",
+                                "**/bpmn-i18n-extras/src/languages/**",
                             ],
                             message:
-                                "Import from the '@miragon/bpmn-modeler-i18n' barrel only; languages/** and TranslateModule are private (BND-PUBLIC-API-BARREL).",
+                                "Import from the '@miragon/bpmn-modeler-i18n' / '@miragon/bpmn-modeler-i18n-extras' barrels only; languages/** internals are private (BND-PUBLIC-API-BARREL).",
                         },
                     ],
                 },

@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       shared: ${{ steps.filter.outputs.shared }}
-      bpmn-i18n: ${{ steps.filter.outputs.bpmn-i18n }}
+      bpmn-i18n-extras: ${{ steps.filter.outputs.bpmn-i18n-extras }}
       element-template-chooser: ${{ steps.filter.outputs.element-template-chooser }}
       append-menu: ${{ steps.filter.outputs.append-menu }}
       bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
@@ -44,8 +44,13 @@ jobs:
           filters: |
             shared:
               - 'libs/shared/**'
-            bpmn-i18n:
-              - 'libs/bpmn-i18n/**'
+            # Covers the overlay and its pin of the shared @miragon/bpmn-modeler-i18n
+            # npm package (this package.json). A lib bump lands as a version change
+            # here, re-running the i18n coverage/overlay tests and every bundler that
+            # ships it — so a key we depend on that upstream drops or renames turns
+            # CI red instead of silently falling back to English.
+            bpmn-i18n-extras:
+              - 'libs/bpmn-i18n-extras/**'
             element-template-chooser:
               - 'libs/element-template-chooser/**'
             append-menu:
@@ -165,9 +170,9 @@ jobs:
       - run: yarn workspaces focus @miragon/bpmn-modeler-shared
       - run: yarn workspace @miragon/bpmn-modeler-shared build
 
-  build-bpmn-i18n:
+  build-bpmn-i18n-extras:
     needs: detect-changes
-    if: needs.detect-changes.outputs.bpmn-i18n == 'true'
+    if: needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -176,8 +181,8 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: yarn workspaces focus @miragon/bpmn-modeler-i18n
-      - run: yarn workspace @miragon/bpmn-modeler-i18n build
+      - run: yarn workspaces focus @miragon/bpmn-modeler-i18n-extras
+      - run: yarn workspace @miragon/bpmn-modeler-i18n-extras build
 
   build-element-template-chooser:
     needs: detect-changes
@@ -229,7 +234,7 @@ jobs:
       needs.detect-changes.outputs.vscode-plugin == 'true' ||
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
-      needs.detect-changes.outputs.bpmn-i18n == 'true'
+      needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -243,7 +248,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
+        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler build
@@ -254,7 +259,7 @@ jobs:
       needs.detect-changes.outputs.vscode-plugin == 'true' ||
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
-      needs.detect-changes.outputs.bpmn-i18n == 'true'
+      needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -271,7 +276,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler test
@@ -455,7 +460,7 @@ jobs:
     if: >-
       needs.detect-changes.outputs.bpmn-webview == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
-      needs.detect-changes.outputs.bpmn-i18n == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n-extras == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
       needs.detect-changes.outputs.element-template-chooser == 'true' ||
       needs.detect-changes.outputs.bpmn-clipboard == 'true'
@@ -468,7 +473,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -480,9 +485,9 @@ jobs:
           name: bpmn-webview
           verbose: true
 
-  test-bpmn-i18n:
+  test-bpmn-i18n-extras:
     needs: detect-changes
-    if: needs.detect-changes.outputs.bpmn-i18n == 'true'
+    if: needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -492,16 +497,16 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-i18n
-      - run: yarn workspace @miragon/bpmn-modeler-i18n test
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-i18n-extras
+      - run: yarn workspace @miragon/bpmn-modeler-i18n-extras test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: "./coverage/libs/bpmn-i18n"
+          directory: "./coverage/libs/bpmn-i18n-extras"
           fail_ci_if_error: false
-          flags: bpmn-i18n
-          name: bpmn-i18n
+          flags: bpmn-i18n-extras
+          name: bpmn-i18n-extras
           verbose: true
 
   build-bpmn-webview:
@@ -509,7 +514,7 @@ jobs:
     if: >-
       needs.detect-changes.outputs.bpmn-webview == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
-      needs.detect-changes.outputs.bpmn-i18n == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n-extras == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
       needs.detect-changes.outputs.element-template-chooser == 'true' ||
       needs.detect-changes.outputs.bpmn-clipboard == 'true'
@@ -522,14 +527,15 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
+        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview build
 
   build-dmn-webview:
     needs: detect-changes
     if: >-
       needs.detect-changes.outputs.dmn-webview == 'true' ||
-      needs.detect-changes.outputs.shared == 'true'
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -581,7 +587,7 @@ jobs:
       - lint
       - audit
       - build-shared
-      - build-bpmn-i18n
+      - build-bpmn-i18n-extras
       - build-element-template-chooser
       - build-append-menu
       - build-bpmn-clipboard
@@ -592,7 +598,7 @@ jobs:
       - test-intellij-plugin
       - e2e-vscode-plugin
       - test-bpmn-webview
-      - test-bpmn-i18n
+      - test-bpmn-i18n-extras
       - test-standalone-extension
       - build-bpmn-webview
       - build-dmn-webview

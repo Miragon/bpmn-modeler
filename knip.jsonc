@@ -16,7 +16,11 @@
         "resources/example-process/bpmnlint-custom-rules/**",
         // Gradle build output (gitignored, absent on CI); the staged webview
         // bundles here would otherwise read as unused source locally.
-        "apps/intellij-plugin/build/**"
+        "apps/intellij-plugin/build/**",
+        // Standalone i18n-overlay dev scripts: build-overlay.mjs runs via `bun`
+        // by hand, harvest-drain.js is pasted into the dev webview / driven by
+        // Playwright. Neither is imported, so knip reads them as unused.
+        "libs/bpmn-i18n-extras/tools/**"
     ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {
