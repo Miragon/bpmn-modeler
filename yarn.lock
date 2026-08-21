@@ -3699,15 +3699,23 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmn-modeler-i18n@workspace:*, @miragon/bpmn-modeler-i18n@workspace:libs/bpmn-i18n":
+"@miragon/bpmn-modeler-i18n-extras@workspace:*, @miragon/bpmn-modeler-i18n-extras@workspace:libs/bpmn-i18n-extras":
   version: 0.0.0-use.local
-  resolution: "@miragon/bpmn-modeler-i18n@workspace:libs/bpmn-i18n"
+  resolution: "@miragon/bpmn-modeler-i18n-extras@workspace:libs/bpmn-i18n-extras"
   dependencies:
+    "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@vitest/coverage-v8": "npm:4.1.9"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"
   languageName: unknown
   linkType: soft
+
+"@miragon/bpmn-modeler-i18n@npm:0.2.0":
+  version: 0.2.0
+  resolution: "@miragon/bpmn-modeler-i18n@npm:0.2.0"
+  checksum: 10c0/30930f65c66e28e85f9229cd00963358bd624b8ff0f1248bdea24239890006e5fe3795fc6f6d6fa40116d8c8ab60859a2c4efb26b90ad5e60a33747257518eee
+  languageName: node
+  linkType: hard
 
 "@miragon/bpmn-modeler-shared@workspace:*, @miragon/bpmn-modeler-shared@workspace:libs/shared":
   version: 0.0.0-use.local
@@ -3790,7 +3798,8 @@ __metadata:
     "@miragon/bpmn-modeler-clipboard": "workspace:*"
     "@miragon/bpmn-modeler-code-link": "workspace:*"
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
-    "@miragon/bpmn-modeler-i18n": "workspace:*"
+    "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/create-append-c7": "npm:0.1.0"
     "@types/vscode-webview": "npm:1.57.5"
@@ -3850,7 +3859,8 @@ __metadata:
     "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/properties-panel": "npm:3.46.0"
     "@emaarco/dmn-js-simulation": "npm:0.2.0"
-    "@miragon/bpmn-modeler-i18n": "workspace:*"
+    "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/vscode-webview": "npm:1.57.5"
     camunda-dmn-moddle: "npm:1.3.1"
@@ -22626,7 +22636,7 @@ __metadata:
   resolution: "vs-code-bpmn-modeler@workspace:apps/vscode-plugin"
   dependencies:
     "@miragon/bpmn-modeler-core": "workspace:*"
-    "@miragon/bpmn-modeler-i18n": "workspace:*"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@types/mocha": "npm:10.0.10"
     "@types/node": "npm:26.1.2"
