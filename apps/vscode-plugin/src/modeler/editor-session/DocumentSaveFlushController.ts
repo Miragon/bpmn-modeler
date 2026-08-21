@@ -8,7 +8,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import type { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 
-export const FLUSH_DOCUMENT_COMMAND = "bpmn-modeler.flushDocument";
+const FLUSH_DOCUMENT_COMMAND = "bpmn-modeler.flushDocument";
 
 /**
  * Closes the save-time staleness gap the outbound sync debounce introduces.
