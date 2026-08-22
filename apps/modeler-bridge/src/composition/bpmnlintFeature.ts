@@ -35,6 +35,7 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         deps.statusBar,
         deps.notifier,
         new DefaultBpmnlintConfigService(),
+        deps.settings,
     );
 
     // The webview posts this once on load (fire-and-forget, not part of the

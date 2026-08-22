@@ -81,6 +81,12 @@ the decision is that".
   colour coding (added / removed / changed / moved) via
   [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ), synchronized
   pan/zoom, and a prev/next change navigator.
+- **Linting** — diagrams are checked with [bpmnlint](https://github.com/bpmn-io/bpmnlint)
+  (a bundled default, or a `.bpmnlintrc` found in your workspace); findings show as
+  hints on the canvas, in the **Problems** panel, and in the status bar. Only
+  drawing processes, not automating them? Turn linting off — for all your files —
+  from the switch on the lint hint, the **BPMN Modeler: Toggle Linting** command,
+  the status-bar badge, or the `miragon.bpmnModeler.linting.enabled` setting.
 - **Export** — copy the current diagram to the clipboard as SVG, or save an SVG
   next to the source file, via the SVG commands below.
 - **Multi-language UI** — palette, context pad, and properties panel available
@@ -99,6 +105,7 @@ Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`
 | BPMN Modeler: Change Engine Version       |                | Switch between engine versions (within a platform)               |
 | BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
 | BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
+| BPMN Modeler: Toggle Linting              |                | Turn BPMN linting on or off (applies to all files)               |
 | BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the BPMN modeler                |
 | BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
 
@@ -113,6 +120,7 @@ Search for "BPMN Modeler" in Settings (`Ctrl+,` / `Cmd+,`).
 | Setting                                         | Default                     | Description                                                             |
 |-------------------------------------------------|-----------------------------|-------------------------------------------------------------------------|
 | `miragon.bpmnModeler.configFolder`              | `.camunda`                  | Folder name used for element template and payload file discovery        |
+| `miragon.bpmnModeler.linting.enabled`           | `true`                      | Run BPMN linting; turn off to hide all lint hints (design-only users)   |
 | `miragon.bpmnModeler.language`                  | `en`                        | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)                |
 | `miragon.bpmnModeler.colorTheme`                | `automatic`                 | Color theme for the BPMN canvas (`automatic` or `light`)                |
 | `miragon.bpmnModeler.favouriteBpmnElements`     | `["bpmn:ServiceTask", ...]` | BPMN element types pinned at the top of the append menu palette (max 6) |

@@ -40,7 +40,10 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
 
     async onResolve(session: EditorSessionContext): Promise<void> {
         session.onSettingChange((event, editorId) => {
-            if (event.affectsConfiguration("miragon.bpmnModeler.configFolder")) {
+            if (
+                event.affectsConfiguration("miragon.bpmnModeler.configFolder") ||
+                event.affectsConfiguration("miragon.bpmnModeler.linting.enabled")
+            ) {
                 this.lintSvc.setBpmnlintConfig(editorId, session.panel.active);
             }
         });
