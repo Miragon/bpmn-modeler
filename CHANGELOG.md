@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.9.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.8.0...vscode-v1.9.0) (2026-08-22)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** persist drill-down plane across tab switches and re-imports ([#1352](https://github.com/Miragon/bpmn-modeler/issues/1352)) ([df1fa2e](https://github.com/Miragon/bpmn-modeler/commit/df1fa2ea3e86eb9fdee135bb24f945151847a474))
+* **editor:** let users turn BPMN linting off ([#1358](https://github.com/Miragon/bpmn-modeler/issues/1358)) ([2a66c5f](https://github.com/Miragon/bpmn-modeler/commit/2a66c5ff89b12799365f1d74fa947b497d65407f))
+* **i18n:** consume shared @miragon/bpmn-modeler-i18n, shrink local overlay ([#1348](https://github.com/Miragon/bpmn-modeler/issues/1348)) ([9b3b847](https://github.com/Miragon/bpmn-modeler/commit/9b3b847799276f1a229f904d5c0e7179530e6018))
+* **infrastructure:** source bpmnlint rules from @miragon/bpmnlint-plugin-rules ([#1344](https://github.com/Miragon/bpmn-modeler/issues/1344)) ([380ea88](https://github.com/Miragon/bpmn-modeler/commit/380ea8827c0e327d93e35c92542c5cb3c121f372))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-webview:** keep zoom stable across VS Code tab switches ([#1353](https://github.com/Miragon/bpmn-modeler/issues/1353)) ([a91c5cd](https://github.com/Miragon/bpmn-modeler/commit/a91c5cd6085cac323c3ed4ea4c246f3fcdb869e8))
+* **bpmn-webview:** make optional-FEEL inputs legible in dark mode ([#1350](https://github.com/Miragon/bpmn-modeler/issues/1350)) ([83c72ce](https://github.com/Miragon/bpmn-modeler/commit/83c72cecdfc9601d5dad6ca2f30e56ee2e4bf9e2))
+* **diff:** opt the BPMN editor into VS Code diff resolution ([#1349](https://github.com/Miragon/bpmn-modeler/issues/1349)) ([de74772](https://github.com/Miragon/bpmn-modeler/commit/de74772a150be43baaec8532595d17a8db2ed1f1))
+
+
+### 🛠️ Misc
+
+* **deps:** bump @miragon/bpmnlint-plugin-rules to 0.10.0 ([#1356](https://github.com/Miragon/bpmn-modeler/issues/1356)) ([e76f823](https://github.com/Miragon/bpmn-modeler/commit/e76f823c3986af654325ef81b767c677cf02a277))
+
 ## [1.8.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.7.0...vscode-v1.8.0) (2026-08-20)
 
 
