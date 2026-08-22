@@ -123,8 +123,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
 
         expect(result).toBe(true);
         expect(lintRunner.lint).toHaveBeenCalledWith(XML, EDITOR, {
-            extends: ["bpmnlint:recommended", "plugin:@miragon/rules/recommended"],
-            rules: { "@miragon/rules/flow-through-element": "warn" },
+            extends: ["bpmnlint:recommended", "plugin:@miragon/rules/recommended-for-modeling"],
         });
         expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
         expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
@@ -145,7 +144,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(anchor).toBe(EDITOR);
         expect((config as { extends: string[] }).extends).toEqual([
             "bpmnlint:recommended",
-            "plugin:@miragon/rules/recommended",
+            "plugin:@miragon/rules/recommended-for-modeling",
             "plugin:camunda-compat/camunda-platform-7-24",
         ]);
         expect((config as { moddleExtensions: Record<string, unknown> }).moddleExtensions).toEqual({
