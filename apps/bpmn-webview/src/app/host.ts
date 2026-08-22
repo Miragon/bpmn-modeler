@@ -233,14 +233,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case message.type === "GetBpmnlintConfigCommand": {
-                // Standalone browser preview: no extension host runs the linter,
-                // so report "no results" and linting stays inactive.
                 dispatchEvent(new BpmnlintResultsQuery(null));
                 break;
             }
             case message.type === "SetLintingEnabledCommand": {
-                // No settings backend in the browser preview; linting is inactive
-                // here anyway, so there is nothing to toggle.
                 console.debug("[DEBUG] SetLintingEnabledCommand", message);
                 break;
             }

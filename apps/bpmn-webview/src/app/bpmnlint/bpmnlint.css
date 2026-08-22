@@ -203,35 +203,3 @@ body.bpmnlint-disabled .lint-enable-button {
 body.bpmnlint-disabled .lint-enable-button:hover {
     text-decoration: underline;
 }
-
-/**
- * One-time nudge pointing first-time users at the off-switch. Shown once (a
- * webview-state flag guards it), auto-dismissed, and anchored just above the
- * lint toolbar with a small downward caret.
- */
-.lint-nudge {
-    position: absolute;
-    bottom: 52px;
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: 230px;
-    padding: 8px 10px;
-    background-color: #1f1f1f;
-    color: #fff;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.4;
-    text-align: center;
-    z-index: 200;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-}
-
-.lint-nudge::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: #1f1f1f;
-}

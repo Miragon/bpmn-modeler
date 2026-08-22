@@ -28,6 +28,4 @@ export interface WebviewState {
     selectedElementIds?: string[];
     panelScroll?: number;
     expandedGroupIndexes?: number[];
-    /** Set once the "you can turn linting off here" nudge has been shown. */
-    lintOffHintSeen?: boolean;
 }

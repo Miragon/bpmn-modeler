@@ -42,8 +42,6 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
         session.onSettingChange((event, editorId) => {
             if (
                 event.affectsConfiguration("miragon.bpmnModeler.configFolder") ||
-                // Toggling linting on/off must re-run the pass: off pushes the
-                // disabled state and clears diagnostics, on re-lints from scratch.
                 event.affectsConfiguration("miragon.bpmnModeler.linting.enabled")
             ) {
                 this.lintSvc.setBpmnlintConfig(editorId, session.panel.active);

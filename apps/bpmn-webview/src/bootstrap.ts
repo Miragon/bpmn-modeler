@@ -111,48 +111,6 @@ document.addEventListener("visibilitychange", () => {
  */
 const bpmnModeler = new BpmnModeler();
 
-/** Whether the one-time "you can turn linting off" nudge has already been shown. */
-function hasSeenLintOffHint(): boolean {
-    try {
-        return host.getState()?.lintOffHintSeen === true;
-    } catch {
-        return false;
-    }
-}
-
-function markLintOffHintSeen(): void {
-    try {
-        host.updateState({ lintOffHintSeen: true });
-    } catch {
-        // No prior state yet — nothing to preserve, so seed it with just the flag.
-        host.setState({ lintOffHintSeen: true });
-    }
-}
-
-/**
- * Shows a subtle, self-dismissing callout above the lint toolbar the first time
- * linting surfaces, telling design-only users they can turn it off there. Guarded
- * by a persisted flag so it appears once, not on every relint or reopen.
- */
-function maybeShowLintOffNudge(): void {
-    if (hasSeenLintOffHint()) {
-        return;
-    }
-    const toolbar = document.querySelector<HTMLElement>(".lint-toolbar");
-    const anchor = toolbar?.parentElement;
-    if (!anchor) {
-        return;
-    }
-    markLintOffHintSeen();
-    const nudge = document.createElement("div");
-    nudge.className = "lint-nudge";
-    nudge.textContent = i18n.translate("Not automating? You can turn linting off here.");
-    anchor.appendChild(nudge);
-    const dismiss = () => nudge.remove();
-    nudge.addEventListener("click", dismiss);
-    window.setTimeout(dismiss, 6000);
-}
-
 /**
  * Re-imports the XML while preserving the user's drill-down plane,
  * viewbox, and selection. The snapshot is taken from the live canvas
@@ -653,9 +611,6 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             try {
                 const query = message.data as BpmnlintResultsQuery;
                 bpmnModeler.getService<LintConfigService>("bpmnLintConfig").render(query.results);
-                if (query.results) {
-                    maybeShowLintOffNudge();
-                }
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
             }
