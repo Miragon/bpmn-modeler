@@ -521,6 +521,14 @@ export class BridgeSettings implements SettingsPort {
         return this.snapshot.language;
     }
     /**
+     * IntelliJ has no linting-off toggle yet (out of scope), so linting stays on
+     * in the bridge — the VS Code / standalone `linting.enabled` setting drives
+     * the opt-out on those hosts.
+     */
+    getLintingEnabled(): boolean {
+        return true;
+    }
+    /**
      * Whether to ship the Camunda SPIN globals (`S`/`JSON`) and the
      * `SpinJsonNode` member table to the host. The gate lives here in the bridge
      * (single source) so the thin Kotlin completion contributor needs no toggle

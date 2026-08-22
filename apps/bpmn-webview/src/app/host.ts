@@ -238,6 +238,12 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 dispatchEvent(new BpmnlintResultsQuery(null));
                 break;
             }
+            case message.type === "SetLintingEnabledCommand": {
+                // No settings backend in the browser preview; linting is inactive
+                // here anyway, so there is nothing to toggle.
+                console.debug("[DEBUG] SetLintingEnabledCommand", message);
+                break;
+            }
             default: {
                 throw new Error(`Unknown message type: ${(message as MessageType).type}`);
             }

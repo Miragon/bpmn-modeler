@@ -43,6 +43,7 @@ import {
     resyncScriptTasksHandler,
     getPropertiesPanelStateHandler,
     setPropertiesPanelStateHandler,
+    setLintingEnabledHandler,
     getClipboardHandler,
     setClipboardHandler,
     getTextClipboardHandler,
@@ -138,6 +139,7 @@ export function register(
         deps.statusBar,
         deps.notifier,
         new DefaultBpmnlintConfigService(),
+        deps.vsSettings,
     );
     const clipboardMediator = new BpmnClipboardMediator(
         deps.editorStore,
@@ -191,6 +193,7 @@ export function register(
         .on("GetBpmnlintConfigCommand", getBpmnlintConfigHandler(lintConfigSvc))
         .on("GetBpmnModelerSettingCommand", getBpmnModelerSettingHandler(settingsBroadcaster))
         .on("GetBpmnModelerSettingCommand", resyncScriptTasksHandler(scriptTaskSvc))
+        .on("SetLintingEnabledCommand", setLintingEnabledHandler())
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(panelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(panelSvc))
         .on("GetClipboardCommand", getClipboardHandler(clipboardMediator))

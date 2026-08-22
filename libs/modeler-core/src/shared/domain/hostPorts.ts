@@ -129,6 +129,12 @@ export interface SettingsPort {
     getShowTransactionBoundaries(): boolean;
     getConfigFolder(): string;
     getC8ApiVersion(): string;
+    /**
+     * Whether bpmnlint runs at all. `false` suppresses every lint surface
+     * (overlays, Problems entries, status bar) so design-only users are not
+     * shown automation rules they do not care about. Defaults to `true`.
+     */
+    getLintingEnabled(): boolean;
     getColorTheme(): "automatic" | "light";
     getFavouriteBpmnElements(): string[];
     getLanguage(): string;
@@ -212,6 +218,13 @@ export interface StatusBarPort {
      * applied, or `undefined` for the structural-only base on a platform-less file.
      */
     showBpmnlintDefault(platform: Engine | undefined): void;
+    /**
+     * State for linting switched off by the user
+     * (`miragon.bpmnModeler.linting.enabled` = `false`). Distinct from
+     * {@link showBpmnlintNoConfig} — nothing is wrong; the user opted out — and
+     * offers a click target to switch it back on.
+     */
+    showBpmnlintDisabled(): void;
     showBpmnlintNoConfig(): void;
     hideBpmnlintStatus(): void;
 }
