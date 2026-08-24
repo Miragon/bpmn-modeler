@@ -16,9 +16,9 @@ import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import {
     BPMN_VIEW_TYPE,
     BpmnDocument,
+    createEmptyForm,
     DMN_VIEW_TYPE,
     EMPTY_DMN_DIAGRAM,
-    EMPTY_FORM,
     FORM_VIEW_TYPE,
     getLatestVersion,
     UserCancelledError,
@@ -287,7 +287,7 @@ export class CommandController {
             if (!target) {
                 return;
             }
-            await workspace.fs.writeFile(target, Buffer.from(EMPTY_FORM));
+            await workspace.fs.writeFile(target, Buffer.from(createEmptyForm()));
             await commands.executeCommand("vscode.openWith", target, FORM_VIEW_TYPE);
         });
     }

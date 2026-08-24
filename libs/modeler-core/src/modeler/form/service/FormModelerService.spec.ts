@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FormFileQuery } from "@miragon/bpmn-modeler-shared";
 
-import { EMPTY_FORM } from "../domain/emptyForm";
 import { FormModelerService } from "./FormModelerService";
 
 const EDITOR = "file:///work/request.form";
@@ -57,9 +56,13 @@ describe("FormModelerService", () => {
         document.getContent.mockReturnValue("");
 
         expect(await service.display(EDITOR)).toBe(true);
-        expect(document.write).toHaveBeenCalledWith(EDITOR, EMPTY_FORM, 0);
+        const emptyForm = document.write.mock.calls[0][1] as string;
+        expect(document.write).toHaveBeenCalledWith(EDITOR, emptyForm, 0);
+        expect(JSON.parse(emptyForm)).toEqual(
+            expect.objectContaining({ id: expect.stringMatching(/^Form_[A-Za-z0-9]{8}$/) }),
+        );
         expect(document.save).toHaveBeenCalledWith(EDITOR);
-        expect(editorStore.postMessage).toHaveBeenCalledWith(EDITOR, new FormFileQuery(EMPTY_FORM));
+        expect(editorStore.postMessage).toHaveBeenCalledWith(EDITOR, new FormFileQuery(emptyForm));
     });
 
     it("does not render or save a fallback form when its host write is rejected", async () => {
@@ -72,6 +75,58 @@ describe("FormModelerService", () => {
         expect(document.save).not.toHaveBeenCalled();
         expect(editorStore.postMessage).not.toHaveBeenCalled();
         expect(notifier.notifyError).toHaveBeenCalledOnce();
+    });
+
+    it("uses one form id when blank initialization overlaps", async () => {
+        const { service, editorStore, document } = createService();
+        service.registerSession(EDITOR);
+        document.getContent.mockReturnValue("");
+        let finishWrite: (changed: boolean) => void = () => {};
+        document.write.mockReturnValueOnce(
+            new Promise<boolean>((resolve) => {
+                finishWrite = resolve;
+            }),
+        );
+
+        const firstDisplay = service.display(EDITOR);
+
+        expect(await service.display(EDITOR)).toBe(false);
+        expect(document.write).toHaveBeenCalledOnce();
+        finishWrite(true);
+        expect(await firstDisplay).toBe(true);
+
+        const emptyForm = document.write.mock.calls[0][1] as string;
+        expect(editorStore.postMessage).toHaveBeenCalledOnce();
+        expect(editorStore.postMessage).toHaveBeenCalledWith(EDITOR, new FormFileQuery(emptyForm));
+    });
+
+    it("supersedes blank initialization after a host update", async () => {
+        const { service, editorStore, document, notifier } = createService();
+        service.registerSession(EDITOR);
+        document.getContent.mockReturnValue("");
+        let finishFirstWrite: (changed: boolean) => void = () => {};
+        document.write.mockReturnValueOnce(
+            new Promise<boolean>((resolve) => {
+                finishFirstWrite = resolve;
+            }),
+        );
+
+        const firstDisplay = service.display(EDITOR);
+
+        expect(await service.display(EDITOR, true)).toBe(true);
+        finishFirstWrite(false);
+        expect(await firstDisplay).toBe(false);
+
+        const updatedForm = document.write.mock.calls[1][1] as string;
+        expect(editorStore.markHostDocumentUpdated).toHaveBeenCalledWith(EDITOR);
+        expect(document.write).toHaveBeenCalledTimes(2);
+        expect(document.save).toHaveBeenCalledOnce();
+        expect(editorStore.postMessage).toHaveBeenCalledOnce();
+        expect(editorStore.postMessage).toHaveBeenCalledWith(
+            EDITOR,
+            new FormFileQuery(updatedForm, 1),
+        );
+        expect(notifier.notifyError).not.toHaveBeenCalled();
     });
 
     it("does not save or render an initialized form into a replacement session", async () => {

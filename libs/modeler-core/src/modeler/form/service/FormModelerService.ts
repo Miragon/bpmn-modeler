@@ -4,10 +4,11 @@ import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/
 import { DocumentPort, NotifierPort } from "../../../shared/domain/hostPorts";
 import { ModelerSession } from "../../../shared/domain/session";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
-import { EMPTY_FORM } from "../domain/emptyForm";
+import { createEmptyForm } from "../domain/emptyForm";
 
 export class FormModelerService {
     private readonly sessions = new Map<string, ModelerSession>();
+    private readonly initializations = new Map<string, object>();
 
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -17,10 +18,12 @@ export class FormModelerService {
 
     registerSession(editorId: string): void {
         this.sessions.set(editorId, new ModelerSession(editorId));
+        this.initializations.delete(editorId);
     }
 
     disposeSession(editorId: string): void {
         this.sessions.delete(editorId);
+        this.initializations.delete(editorId);
     }
 
     async display(editorId: string, hostUpdated = false): Promise<boolean> {
@@ -32,22 +35,33 @@ export class FormModelerService {
             const documentRevision = this.editorStore.currentHostDocumentRevision(editorId);
             const editorSession = this.editorStore.captureEditorSession(editorId);
             if (content === "") {
-                content = EMPTY_FORM;
-                session?.acquireGuard(content);
-                let changed: boolean;
+                if (!hostUpdated && this.initializations.has(editorId)) return false;
+                const initialization = {};
+                this.initializations.set(editorId, initialization);
                 try {
-                    changed = await this.document.write(editorId, content, documentRevision);
+                    content = createEmptyForm();
+                    session?.acquireGuard(content);
+                    let changed: boolean;
+                    try {
+                        changed = await this.document.write(editorId, content, documentRevision);
+                    } finally {
+                        session?.releaseGuard(content);
+                    }
+                    if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision))
+                        return false;
+                    if (!changed && this.document.getContent(editorId) !== content) {
+                        return this.handleError(
+                            new Error("The empty form could not be initialized."),
+                        );
+                    }
+                    await this.document.save(editorId);
+                    if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision))
+                        return false;
                 } finally {
-                    session?.releaseGuard(content);
+                    if (this.initializations.get(editorId) === initialization) {
+                        this.initializations.delete(editorId);
+                    }
                 }
-                if (!changed && this.document.getContent(editorId) !== content) {
-                    return this.handleError(new Error("The empty form could not be initialized."));
-                }
-                if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision))
-                    return false;
-                await this.document.save(editorId);
-                if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision))
-                    return false;
             }
             return await this.editorStore.postMessage(
                 editorId,

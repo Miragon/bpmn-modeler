@@ -72,7 +72,7 @@ vi.mock("vscode", () => ({
 }));
 
 import { supportedModelerLanguages } from "@miragon/bpmn-modeler-i18n-extras";
-import { EMPTY_FORM, getLatestVersion, UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { getLatestVersion, UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import { CommandController } from "./CommandController";
 
@@ -499,7 +499,10 @@ describe("CommandController.newFormModel", () => {
 
         await controller.newFormModel();
 
-        expect((fsWriteFileMock.mock.calls[0][1] as Buffer).toString()).toBe(EMPTY_FORM);
+        const form = JSON.parse((fsWriteFileMock.mock.calls[0][1] as Buffer).toString()) as {
+            id: string;
+        };
+        expect(form.id).toMatch(/^Form_[A-Za-z0-9]{8}$/);
         expect(executeCommandMock).toHaveBeenCalledWith(
             "vscode.openWith",
             target,
