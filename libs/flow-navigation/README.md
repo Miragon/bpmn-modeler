@@ -25,19 +25,34 @@ new BpmnModeler({ additionalModules: [FlowNavigationModule] });
 
 | Key | Selection | Action |
 |---|---|---|
-| Tab | Shape (1 outgoing) | Jump to target shape |
-| Tab | Shape (N outgoing) | Select first outgoing flow |
-| Tab | Flow (in fan) | Cycle to next sibling flow |
+| Tab | Shape (1 outgoing, 0 boundaries) | Jump to target shape |
+| Tab | Shape (N outgoing + boundaries) | Select first candidate in mixed fan |
+| Tab | Shape (0 outgoing, 1 boundary) | Jump to boundary (committed) |
+| Tab | Flow or boundary candidate (in fan) | Cycle to next candidate |
+| Tab | Committed boundary event | Step along its own outgoing flows |
 | Shift+Tab | Shape (1 incoming) | Jump to source shape |
 | Shift+Tab | Shape (N incoming) | Select first incoming flow |
 | Shift+Tab | Flow (in fan) | Cycle to previous sibling flow |
 | Shift+Tab | Boundary event (0 incoming) | Jump to host shape |
 | Enter | Sequence flow | Jump to flow target |
+| Enter | Boundary candidate | Commit (stay selected, navigate from it) |
 | Shift+Enter | Sequence flow | Jump to flow source |
 | Ctrl/Cmd+Tab | — | Pass through to VS Code / OS |
 
 When nothing is selected, Tab picks the first start event (sorted top-left);
 Shift+Tab picks the first end event.
+
+The **mixed fan** (C) for a shape is defined as the union of its outgoing
+sequence flows and its attached boundary events, sorted y-then-x by
+*representative shape* (flow → its target, boundary event → itself). Tab from
+the shape or any candidate in the fan cycles through C; Enter on a boundary
+candidate *commits* it — the boundary stays selected and subsequent navigation
+continues from the boundary's own outgoing flows.
+
+**Behaviour change (v2):** a 1-to-1 sequence flow whose source has attached
+boundary events now cycles within the mixed fan on Tab instead of jumping to
+its target. Enter still follows the flow. Diagrams without boundary events
+behave identically to v1.
 
 ## Known limitations (v1)
 

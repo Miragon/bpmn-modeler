@@ -22,9 +22,24 @@ export interface NavElement {
     host?: NavElement;
     parent?: NavElement;
     children?: NavElement[];
+    /** Inverse of `host` — diagram-js maintains it on every shape. */
+    attachers?: NavElement[];
 }
 
 export type Direction = "forward" | "backward";
+
+/**
+ * Result of a step/follow resolution.
+ *
+ * `boundaryCandidate` distinguishes a boundary event being previewed
+ * in a mixed fan (true) from one the user has committed to (false).
+ * The caller holds this flag as state so the next keypress knows
+ * whether to cycle within the host fan or step from the boundary.
+ */
+export interface StepResult {
+    element: NavElement;
+    boundaryCandidate: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -49,18 +64,41 @@ function byBounds(a: NavElement, b: NavElement): number {
     return dy !== 0 ? dy : a.x - b.x;
 }
 
+/** Flows sort by their target shape; boundary events represent themselves. */
+function representative(candidate: NavElement): NavElement {
+    return candidate.target ?? candidate;
+}
+
+/**
+ * Outgoing sequence flows ∪ attached boundary events, sorted y-then-x
+ * by representative shape — the mixed fan a user cycles through.
+ */
+function fanOutCandidates(shape: NavElement): NavElement[] {
+    const flows = sequenceFlows(shape.outgoing);
+    const boundaries = shape.attachers ?? [];
+    return [...flows, ...boundaries].sort((a, b) => byBounds(representative(a), representative(b)));
+}
+
+/** Boundary events produce candidate results; flows do not. */
+function toStepResult(candidate: NavElement): StepResult {
+    return {
+        element: candidate,
+        boundaryCandidate: candidate.source == null && candidate.host != null,
+    };
+}
+
 function sortByEndpoint(flows: NavElement[], endpoint: "source" | "target"): NavElement[] {
     return [...flows].sort((a, b) => byBounds(a[endpoint]!, b[endpoint]!));
 }
 
-function cycleInFan(
-    flows: NavElement[],
-    sortEndpoint: "source" | "target",
+function cycleBy(
+    items: NavElement[],
+    keyOf: (item: NavElement) => NavElement,
     current: NavElement,
     direction: Direction,
 ): NavElement {
-    const sorted = sortByEndpoint(flows, sortEndpoint);
-    const idx = sorted.findIndex((f) => f.id === current.id);
+    const sorted = [...items].sort((a, b) => byBounds(keyOf(a), keyOf(b)));
+    const idx = sorted.findIndex((item) => item.id === current.id);
     const step = direction === "forward" ? 1 : -1;
     const next = (idx + step + sorted.length) % sorted.length;
     return sorted[next];
@@ -70,35 +108,45 @@ function cycleInFan(
 // Shape / flow step (Tab / Shift+Tab)
 // ---------------------------------------------------------------------------
 
-function stepFromShape(shape: NavElement, direction: Direction): NavElement | null {
+function stepFromShape(shape: NavElement, direction: Direction): StepResult | null {
     if (direction === "forward") {
-        const out = sequenceFlows(shape.outgoing);
-        if (out.length === 0) return null;
-        if (out.length === 1) return out[0].target!;
-        // Fan-out: select the first outgoing flow so the user can cycle/confirm.
-        return sortByEndpoint(out, "target")[0];
+        const candidates = fanOutCandidates(shape);
+        if (candidates.length === 0) return null;
+        if (candidates.length === 1) {
+            const only = candidates[0];
+            // Single flow, no boundaries: jump straight to target (unchanged shortcut).
+            if (only.target) return { element: only.target, boundaryCandidate: false };
+            // Single boundary, no flows: committed jump (single-path semantics).
+            return { element: only, boundaryCandidate: false };
+        }
+        return toStepResult(candidates[0]);
     }
 
     const inc = sequenceFlows(shape.incoming);
-    if (inc.length === 0) return shape.host ?? null;
-    if (inc.length === 1) return inc[0].source!;
-    return sortByEndpoint(inc, "source")[0];
+    if (inc.length === 0)
+        return shape.host ? { element: shape.host, boundaryCandidate: false } : null;
+    if (inc.length === 1) return { element: inc[0].source!, boundaryCandidate: false };
+    return { element: sortByEndpoint(inc, "source")[0], boundaryCandidate: false };
 }
 
-function stepFromFlow(flow: NavElement, direction: Direction): NavElement | null {
-    const srcOut = sequenceFlows(flow.source!.outgoing);
+function stepFromFlow(flow: NavElement, direction: Direction): StepResult | null {
+    const srcCandidates = fanOutCandidates(flow.source!);
     const tgtIn = sequenceFlows(flow.target!.incoming);
 
-    // Source fan takes priority (documented v1 limitation when both ends fan).
-    if (srcOut.length > 1) {
-        return cycleInFan(srcOut, "target", flow, direction);
+    // Source fan (including boundary events) takes priority.
+    if (srcCandidates.length > 1) {
+        const next = cycleBy(srcCandidates, representative, flow, direction);
+        return toStepResult(next);
     }
     if (tgtIn.length > 1) {
-        return cycleInFan(tgtIn, "source", flow, direction);
+        const next = cycleBy(tgtIn, (f) => f.source!, flow, direction);
+        return { element: next, boundaryCandidate: false };
     }
 
     // No fan — linear traversal.
-    return direction === "forward" ? flow.target! : flow.source!;
+    return direction === "forward"
+        ? { element: flow.target!, boundaryCandidate: false }
+        : { element: flow.source!, boundaryCandidate: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -125,13 +173,26 @@ function gatherFlowNodes(children: NavElement[]): NavElement[] {
 /**
  * Resolve the next element for Tab / Shift+Tab.
  *
- * Shapes with a single sequence-flow connection jump straight to the
- * opposite shape. Shapes at a fan-out/-in select the first flow so the
- * user can cycle through siblings. Flows in a fan cycle with wrap;
- * 1-to-1 flows step to their target/source directly.
+ * When `currentIsBoundaryCandidate` is true the current element is a
+ * boundary event being previewed in its host's mixed fan — Tab cycles
+ * within the fan instead of stepping along the boundary's own flows.
+ * A stale flag (host fan collapsed to ≤ 1) falls through to normal
+ * shape step as self-healing.
  */
-export function resolveStep(current: NavElement, direction: Direction): NavElement | null {
+export function resolveStep(
+    current: NavElement,
+    direction: Direction,
+    currentIsBoundaryCandidate = false,
+): StepResult | null {
     const el = normalize(current);
+
+    if (currentIsBoundaryCandidate && el.host) {
+        const hostCandidates = fanOutCandidates(el.host);
+        if (hostCandidates.length > 1) {
+            const next = cycleBy(hostCandidates, representative, el, direction);
+            return toStepResult(next);
+        }
+    }
 
     if (el.source != null && el.target != null) {
         return stepFromFlow(el, direction);
@@ -140,16 +201,32 @@ export function resolveStep(current: NavElement, direction: Direction): NavEleme
 }
 
 /**
- * Resolve the element for Enter / Shift+Enter on a sequence flow.
+ * Resolve the element for Enter / Shift+Enter.
  *
- * Enter jumps to the flow's target, Shift+Enter to its source.
- * Returns `null` for non-sequence-flow elements so the caller can
- * decide not to consume the key.
+ * On a sequence flow Enter jumps to the target, Shift+Enter to the
+ * source. On a boundary candidate Enter commits it (element stays
+ * selected, candidate state cleared). Returns `null` for non-flow
+ * non-candidate elements so the key bubbles to direct editing.
  */
-export function resolveFollow(current: NavElement, direction: Direction): NavElement | null {
+export function resolveFollow(
+    current: NavElement,
+    direction: Direction,
+    currentIsBoundaryCandidate = false,
+): StepResult | null {
     const el = normalize(current);
-    if (el.type !== "bpmn:SequenceFlow" || !el.source || !el.target) return null;
-    return direction === "forward" ? el.target : el.source;
+
+    if (el.type === "bpmn:SequenceFlow" && el.source && el.target) {
+        return {
+            element: direction === "forward" ? el.target : el.source,
+            boundaryCandidate: false,
+        };
+    }
+
+    if (currentIsBoundaryCandidate) {
+        return { element: el, boundaryCandidate: false };
+    }
+
+    return null;
 }
 
 /**

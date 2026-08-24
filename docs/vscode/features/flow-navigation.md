@@ -12,8 +12,13 @@ Navigate the BPMN diagram along sequence flows using the keyboard.
 | **Shift+Tab** | Shape with 1 incoming | Jump backward to the source shape |
 | **Shift+Tab** | Shape with N incoming (fan-in) | Select the first incoming flow |
 | **Shift+Tab** | Flow in a fan | Cycle to the previous sibling flow (wraps) |
+| **Tab** | Shape with outgoing + boundary events (mixed fan) | Select the first candidate (flow or boundary) |
+| **Tab** | Flow or boundary candidate in a mixed fan | Cycle to the next candidate (wraps) |
+| **Tab** | Shape with 0 outgoing, 1 boundary | Jump to the boundary event (committed) |
+| **Tab** | Committed boundary event | Step along its own outgoing flows |
 | **Shift+Tab** | Boundary event (0 incoming) | Jump to the host shape |
 | **Enter** | Sequence flow | Follow the flow to its target |
+| **Enter** | Boundary event (candidate) | Commit the boundary (stay selected, resume navigation from it) |
 | **Shift+Enter** | Sequence flow | Follow the flow to its source |
 | **Tab** _(nothing selected)_ | Canvas | Select the first start event |
 | **Shift+Tab** _(nothing selected)_ | Canvas | Select the first end event |
@@ -33,6 +38,26 @@ tab switching and OS window switching keep working.
 5. Append elements with **a**, then press **Shift+Tab** to walk back to the
    gateway.
 6. Repeat from step 3 for the next branch.
+
+## Boundary-event walkthrough
+
+1. Model a task with one outgoing sequence flow and one or two attached
+   boundary events.
+2. Select the task and press **Tab** — the first candidate in the mixed fan
+   (sorted top-left by representative position) is selected. Boundary events
+   show as *candidates*; flows show as normal fan entries.
+3. Press **Tab** to cycle through the candidates (flows and boundary events
+   together, wrapping at the end).
+4. When a boundary event is highlighted, press **Enter** to *commit* — the
+   boundary stays selected and subsequent Tab/Shift+Tab navigate from the
+   boundary's own outgoing flows.
+5. Press **Shift+Tab** on a boundary with no incoming flows to jump back to
+   the host task.
+
+**Behaviour change:** a 1-to-1 sequence flow whose source has attached
+boundary events now cycles within the mixed fan on Tab instead of jumping
+straight to its target. **Enter** still follows the flow. Diagrams without
+boundary events behave identically to before.
 
 ## Interaction with other keyboard features
 

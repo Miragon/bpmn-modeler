@@ -32,6 +32,20 @@ function flow(id: string, src: NavElement, tgt: NavElement): NavElement {
     return f;
 }
 
+function attach(id: string, host: NavElement, x: number, y: number): NavElement {
+    const boundary: NavElement = {
+        id,
+        type: "bpmn:BoundaryEvent",
+        x,
+        y,
+        incoming: [],
+        outgoing: [],
+        host,
+    };
+    (host.attachers ??= []).push(boundary);
+    return boundary;
+}
+
 // ---------------------------------------------------------------------------
 // resolveStep — Tab / Shift+Tab
 // ---------------------------------------------------------------------------
@@ -42,7 +56,7 @@ describe("resolveStep", () => {
         const b = shape("b", "bpmn:Task", 200, 100);
         flow("f1", a, b);
 
-        expect(resolveStep(a, "forward")).toBe(b);
+        expect(resolveStep(a, "forward")?.element).toBe(b);
     });
 
     it("linear backward: single incoming jumps to source shape", () => {
@@ -50,7 +64,7 @@ describe("resolveStep", () => {
         const b = shape("b", "bpmn:Task", 200, 100);
         flow("f1", a, b);
 
-        expect(resolveStep(b, "backward")).toBe(a);
+        expect(resolveStep(b, "backward")?.element).toBe(a);
     });
 
     it("fan-out: Tab from gateway selects first outgoing flow (sorted by target y-then-x)", () => {
@@ -62,7 +76,7 @@ describe("resolveStep", () => {
         flow("f2", gw, mid);
         flow("f3", gw, bot);
 
-        expect(resolveStep(gw, "forward")).toBe(f1);
+        expect(resolveStep(gw, "forward")?.element).toBe(f1);
     });
 
     it("fan cycling forward: Tab on flow cycles to next sibling with wrap", () => {
@@ -74,9 +88,9 @@ describe("resolveStep", () => {
         const f2 = flow("f2", gw, t2);
         const f3 = flow("f3", gw, t3);
 
-        expect(resolveStep(f1, "forward")).toBe(f2);
-        expect(resolveStep(f2, "forward")).toBe(f3);
-        expect(resolveStep(f3, "forward")).toBe(f1);
+        expect(resolveStep(f1, "forward")?.element).toBe(f2);
+        expect(resolveStep(f2, "forward")?.element).toBe(f3);
+        expect(resolveStep(f3, "forward")?.element).toBe(f1);
     });
 
     it("fan cycling backward: Shift+Tab on flow cycles to previous sibling with wrap", () => {
@@ -88,9 +102,9 @@ describe("resolveStep", () => {
         const f2 = flow("f2", gw, t2);
         const f3 = flow("f3", gw, t3);
 
-        expect(resolveStep(f3, "backward")).toBe(f2);
-        expect(resolveStep(f2, "backward")).toBe(f1);
-        expect(resolveStep(f1, "backward")).toBe(f3);
+        expect(resolveStep(f3, "backward")?.element).toBe(f2);
+        expect(resolveStep(f2, "backward")?.element).toBe(f1);
+        expect(resolveStep(f1, "backward")?.element).toBe(f3);
     });
 
     it("round-trip identity: Tab then Shift+Tab returns to the same flow", () => {
@@ -101,7 +115,7 @@ describe("resolveStep", () => {
         flow("f2", gw, t2);
 
         const next = resolveStep(f1, "forward");
-        expect(resolveStep(next!, "backward")).toBe(f1);
+        expect(resolveStep(next!.element, "backward")?.element).toBe(f1);
     });
 
     it("fan-in merge: Tab on flow cycles through target's incoming", () => {
@@ -111,8 +125,8 @@ describe("resolveStep", () => {
         const f1 = flow("f1", t1, merge);
         const f2 = flow("f2", t2, merge);
 
-        expect(resolveStep(f1, "forward")).toBe(f2);
-        expect(resolveStep(f2, "forward")).toBe(f1);
+        expect(resolveStep(f1, "forward")?.element).toBe(f2);
+        expect(resolveStep(f2, "forward")?.element).toBe(f1);
     });
 
     it("1-to-1 flow (mouse-selected): Tab → target, Shift+Tab → source", () => {
@@ -120,8 +134,8 @@ describe("resolveStep", () => {
         const b = shape("b", "bpmn:Task", 200, 100);
         const f = flow("f1", a, b);
 
-        expect(resolveStep(f, "forward")).toBe(b);
-        expect(resolveStep(f, "backward")).toBe(a);
+        expect(resolveStep(f, "forward")?.element).toBe(b);
+        expect(resolveStep(f, "backward")?.element).toBe(a);
     });
 
     it("end shape forward → null", () => {
@@ -143,7 +157,7 @@ describe("resolveStep", () => {
             host: task,
         };
 
-        expect(resolveStep(boundary, "backward")).toBe(task);
+        expect(resolveStep(boundary, "backward")?.element).toBe(task);
     });
 
     it("label normalization: resolves through labelTarget", () => {
@@ -155,7 +169,7 @@ describe("resolveStep", () => {
             labelTarget: a,
         };
 
-        expect(resolveStep(label, "forward")).toBe(b);
+        expect(resolveStep(label, "forward")?.element).toBe(b);
     });
 
     it("message flows are filtered: only bpmn:SequenceFlow counts", () => {
@@ -175,6 +189,115 @@ describe("resolveStep", () => {
         b.incoming.push(mf);
 
         expect(resolveStep(a, "forward")).toBeNull();
+    });
+
+    // --- Boundary-event fan-out tests ---
+
+    it("mixed fan: Tab from shape with flow + boundary enters fan (boundary first by y)", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const end = shape("end", "bpmn:Task", 400, 200);
+        const be = attach("be", task, 200, 100);
+        flow("f1", task, end);
+
+        const result = resolveStep(task, "forward");
+        // Boundary at y=100 sorts before flow target at y=200.
+        expect(result?.element).toBe(be);
+        expect(result?.boundaryCandidate).toBe(true);
+    });
+
+    it("mixed fan cycling: Tab on flow cycles to boundary candidate, then wraps", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const end = shape("end", "bpmn:Task", 400, 300);
+        const be = attach("be", task, 200, 100);
+        const f1 = flow("f1", task, end);
+
+        // Sorted by representative: be(200,100), f1→end(400,300).
+        // From f1 forward → wraps to be.
+        const r1 = resolveStep(f1, "forward");
+        expect(r1?.element).toBe(be);
+        expect(r1?.boundaryCandidate).toBe(true);
+
+        // From be (as candidate) forward → cycles to f1.
+        const r2 = resolveStep(be, "forward", true);
+        expect(r2?.element).toBe(f1);
+        expect(r2?.boundaryCandidate).toBe(false);
+    });
+
+    it("mixed fan cycling backward: Shift+Tab reverses the ring", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const end = shape("end", "bpmn:Task", 400, 300);
+        const be = attach("be", task, 200, 100);
+        const f1 = flow("f1", task, end);
+
+        // From f1 backward → be (reverse of forward wrap).
+        const r1 = resolveStep(f1, "backward");
+        expect(r1?.element).toBe(be);
+        expect(r1?.boundaryCandidate).toBe(true);
+
+        // From be (candidate) backward → f1.
+        const r2 = resolveStep(be, "backward", true);
+        expect(r2?.element).toBe(f1);
+        expect(r2?.boundaryCandidate).toBe(false);
+    });
+
+    it("F=0, B=1: single boundary jumps committed (single-path semantics)", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const be = attach("be", task, 200, 280);
+
+        const result = resolveStep(task, "forward");
+        expect(result?.element).toBe(be);
+        expect(result?.boundaryCandidate).toBe(false);
+    });
+
+    it("F=0, B≥2: Tab from shape enters boundary-only fan as candidate", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const be1 = attach("be1", task, 200, 100);
+        attach("be2", task, 200, 300);
+
+        const result = resolveStep(task, "forward");
+        // be1 at y=100 sorts first.
+        expect(result?.element).toBe(be1);
+        expect(result?.boundaryCandidate).toBe(true);
+    });
+
+    it("committed boundary steps along its own outgoing flows", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const be = attach("be", task, 200, 280);
+        const end = shape("end", "bpmn:EndEvent", 400, 280);
+        flow("f2", be, end);
+
+        // Not a candidate — stepping from the boundary as a normal shape.
+        const result = resolveStep(be, "forward", false);
+        expect(result?.element).toBe(end);
+        expect(result?.boundaryCandidate).toBe(false);
+    });
+
+    it("stale boundary candidate flag: host fan ≤ 1, falls through to shape step", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const be = attach("be", task, 200, 280);
+        const end = shape("end", "bpmn:EndEvent", 400, 280);
+        flow("f2", be, end);
+        // Host fan = [be] only (no outgoing flows on task), length 1 → stale.
+
+        const result = resolveStep(be, "forward", true);
+        // Falls through to stepFromShape → boundary's own outgoing.
+        expect(result?.element).toBe(end);
+        expect(result?.boundaryCandidate).toBe(false);
+    });
+
+    it("gateway without boundaries: regression check — behaves as pure flow fan", () => {
+        const gw = shape("gw", "bpmn:ExclusiveGateway", 200, 200);
+        const t1 = shape("t1", "bpmn:Task", 300, 100);
+        const t2 = shape("t2", "bpmn:Task", 300, 300);
+        const f1 = flow("f1", gw, t1);
+        const f2 = flow("f2", gw, t2);
+
+        const r1 = resolveStep(gw, "forward");
+        expect(r1?.element).toBe(f1);
+        expect(r1?.boundaryCandidate).toBe(false);
+
+        expect(resolveStep(f1, "forward")?.element).toBe(f2);
+        expect(resolveStep(f2, "forward")?.element).toBe(f1);
     });
 });
 
@@ -286,7 +409,7 @@ describe("resolveFollow", () => {
         const b = shape("b", "bpmn:Task", 200, 100);
         const f = flow("f1", a, b);
 
-        expect(resolveFollow(f, "forward")).toBe(b);
+        expect(resolveFollow(f, "forward")?.element).toBe(b);
     });
 
     it("Shift+Enter on flow → source", () => {
@@ -294,7 +417,7 @@ describe("resolveFollow", () => {
         const b = shape("b", "bpmn:Task", 200, 100);
         const f = flow("f1", a, b);
 
-        expect(resolveFollow(f, "backward")).toBe(a);
+        expect(resolveFollow(f, "backward")?.element).toBe(a);
     });
 
     it("Enter on shape → null", () => {
@@ -329,7 +452,23 @@ describe("resolveFollow", () => {
             labelTarget: f,
         };
 
-        expect(resolveFollow(label, "forward")).toBe(b);
+        expect(resolveFollow(label, "forward")?.element).toBe(b);
+    });
+
+    it("Enter commits boundary candidate (stays selected, candidate cleared)", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const be = attach("be", task, 200, 280);
+
+        const result = resolveFollow(be, "forward", true);
+        expect(result?.element).toBe(be);
+        expect(result?.boundaryCandidate).toBe(false);
+    });
+
+    it("Enter on boundary without candidate flag → null", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const be = attach("be", task, 200, 280);
+
+        expect(resolveFollow(be, "forward", false)).toBeNull();
     });
 });
 

@@ -13,6 +13,7 @@ import {
     resolveStep,
     type Direction,
     type NavElement,
+    type StepResult,
 } from "./traversal";
 
 // ---------------------------------------------------------------------------
@@ -40,25 +41,44 @@ interface Injector {
     get(name: string, strict: false): unknown;
 }
 
+interface EventBus {
+    on(event: string, callback: () => void): void;
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
 export class FlowNavigation {
-    static $inject = ["keyboard", "selection", "canvas", "injector"];
+    static $inject = ["keyboard", "selection", "canvas", "injector", "eventBus"];
 
     private readonly keyboard: Keyboard;
     private readonly selection: Selection;
     private readonly canvas: Canvas;
     private readonly injector: Injector;
 
-    constructor(keyboard: Keyboard, selection: Selection, canvas: Canvas, injector: Injector) {
+    private boundaryCandidateId: string | null = null;
+    private applyingSelection = false;
+
+    constructor(
+        keyboard: Keyboard,
+        selection: Selection,
+        canvas: Canvas,
+        injector: Injector,
+        eventBus: EventBus,
+    ) {
         this.keyboard = keyboard;
         this.selection = selection;
         this.canvas = canvas;
         this.injector = injector;
 
         keyboard.addListener((ctx) => this.handleKeyDown(ctx.keyEvent));
+
+        eventBus.on("selection.changed", () => {
+            if (!this.applyingSelection) {
+                this.boundaryCandidateId = null;
+            }
+        });
     }
 
     private handleKeyDown(event: KeyboardEvent): boolean | undefined {
@@ -106,26 +126,32 @@ export class FlowNavigation {
 
     private handleEmpty(root: NavElement, direction: Direction, key: string): boolean | undefined {
         const entry = resolveEntry(root.children ?? [], direction);
-        if (entry) this.applySelection(entry);
+        if (entry) this.applySelection({ element: entry, boundaryCandidate: false });
         // Tab is always consumed so focus never leaves the canvas.
         return key === "Tab" ? true : undefined;
     }
 
     private handleTab(anchor: NavElement, direction: Direction): true {
-        const next = resolveStep(anchor, direction);
+        const next = resolveStep(anchor, direction, anchor.id === this.boundaryCandidateId);
         if (next) this.applySelection(next);
         return true;
     }
 
     private handleEnter(anchor: NavElement, direction: Direction): boolean | undefined {
-        const next = resolveFollow(anchor, direction);
+        const next = resolveFollow(anchor, direction, anchor.id === this.boundaryCandidateId);
         if (!next) return undefined;
         this.applySelection(next);
         return true;
     }
 
-    private applySelection(element: NavElement): void {
-        this.selection.select(element);
-        this.canvas.scrollToElement(element);
+    private applySelection(result: StepResult): void {
+        this.boundaryCandidateId = result.boundaryCandidate ? result.element.id : null;
+        this.applyingSelection = true;
+        try {
+            this.selection.select(result.element);
+        } finally {
+            this.applyingSelection = false;
+        }
+        this.canvas.scrollToElement(result.element);
     }
 }

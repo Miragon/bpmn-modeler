@@ -27,12 +27,27 @@ function flow(id: string, src: NavElement, tgt: NavElement): NavElement {
     return f;
 }
 
+function attach(id: string, host: NavElement, x: number, y: number): NavElement {
+    const boundary: NavElement = {
+        id,
+        type: "bpmn:BoundaryEvent",
+        x,
+        y,
+        incoming: [],
+        outgoing: [],
+        host,
+    };
+    (host.attachers ??= []).push(boundary);
+    return boundary;
+}
+
 // ---------------------------------------------------------------------------
 // Test harness — mirrors NavigateContextPadProvider.spec.ts style.
 // ---------------------------------------------------------------------------
 
 function build() {
     let listener!: (ctx: { keyEvent: KeyboardEvent }) => boolean | undefined;
+    let selectionChangedHandler: (() => void) | undefined;
 
     const keyboard = {
         addListener: vi.fn((l: typeof listener) => {
@@ -67,7 +82,21 @@ function build() {
         get: vi.fn((name: string) => services[name] ?? null),
     };
 
-    new FlowNavigation(keyboard as never, selection as never, canvas as never, injector as never);
+    const eventBus = {
+        on: vi.fn((event: string, cb: () => void) => {
+            if (event === "selection.changed") {
+                selectionChangedHandler = cb;
+            }
+        }),
+    };
+
+    new FlowNavigation(
+        keyboard as never,
+        selection as never,
+        canvas as never,
+        injector as never,
+        eventBus as never,
+    );
 
     function dispatch(
         key: string,
@@ -84,6 +113,10 @@ function build() {
         });
     }
 
+    function fireSelectionChanged(): void {
+        selectionChangedHandler?.();
+    }
+
     return {
         keyboard,
         selection,
@@ -92,6 +125,8 @@ function build() {
         services,
         rootElement,
         dispatch,
+        eventBus,
+        fireSelectionChanged,
     };
 }
 
@@ -226,5 +261,96 @@ describe("FlowNavigation", () => {
         expect(dispatch("a")).toBeUndefined();
         expect(dispatch("Escape")).toBeUndefined();
         expect(dispatch(" ")).toBeUndefined();
+    });
+
+    // --- Boundary-event candidate state tests ---
+
+    it("Tab→Enter→Tab: boundary candidate → commit → step from boundary", () => {
+        const { selection, dispatch } = build();
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const end = shape("end", "bpmn:Task", 400, 300);
+        const be = attach("be", task, 200, 100);
+        const beEnd = shape("beEnd", "bpmn:EndEvent", 400, 100);
+        flow("f1", task, end);
+        flow("f2", be, beEnd);
+        selection.get.mockReturnValue([task]);
+
+        // Tab enters the mixed fan — boundary at y=100 sorts first → candidate.
+        dispatch("Tab");
+        expect(selection.select).toHaveBeenCalledWith(be);
+
+        // Enter commits the boundary event.
+        selection.get.mockReturnValue([be]);
+        selection.select.mockClear();
+        const enterResult = dispatch("Enter");
+        expect(enterResult).toBe(true);
+        expect(selection.select).toHaveBeenCalledWith(be);
+
+        // Tab from committed boundary follows its own outgoing flow.
+        selection.select.mockClear();
+        dispatch("Tab");
+        expect(selection.select).toHaveBeenCalledWith(beEnd);
+    });
+
+    it("Enter on boundary without candidate state → undefined", () => {
+        const { selection, dispatch } = build();
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const be = attach("be", task, 200, 280);
+        selection.get.mockReturnValue([be]);
+
+        expect(dispatch("Enter")).toBeUndefined();
+    });
+
+    it("external selection.changed clears boundary candidate state", () => {
+        const { selection, dispatch, fireSelectionChanged } = build();
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const end = shape("end", "bpmn:Task", 400, 300);
+        const be = attach("be", task, 200, 100);
+        flow("f1", task, end);
+        selection.get.mockReturnValue([task]);
+
+        // Tab enters the mixed fan — boundary is candidate.
+        dispatch("Tab");
+        expect(selection.select).toHaveBeenCalledWith(be);
+
+        // External selection change (e.g. mouse click) clears candidate.
+        selection.get.mockReturnValue([be]);
+        fireSelectionChanged();
+
+        // Enter on boundary without candidate state → undefined.
+        selection.select.mockClear();
+        expect(dispatch("Enter")).toBeUndefined();
+    });
+
+    it("selection.changed during applySelection does not clear candidate state", () => {
+        const { selection, dispatch, fireSelectionChanged } = build();
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const end = shape("end", "bpmn:Task", 400, 300);
+        const be = attach("be", task, 200, 100);
+        const beEnd = shape("beEnd", "bpmn:EndEvent", 400, 100);
+        flow("f1", task, end);
+        flow("f2", be, beEnd);
+
+        // selection.select triggers selection.changed synchronously.
+        selection.select.mockImplementation(() => fireSelectionChanged());
+        selection.get.mockReturnValue([task]);
+
+        // Tab enters the fan — selection.changed fires during applySelection.
+        dispatch("Tab");
+        expect(selection.select).toHaveBeenCalledWith(be);
+
+        // boundaryCandidateId survived — Enter commits.
+        selection.get.mockReturnValue([be]);
+        selection.select.mockClear();
+        selection.select.mockImplementation(() => {});
+        const enterResult = dispatch("Enter");
+        expect(enterResult).toBe(true);
+        expect(selection.select).toHaveBeenCalledWith(be);
+    });
+
+    it("registers selection.changed listener on eventBus", () => {
+        const { eventBus } = build();
+
+        expect(eventBus.on).toHaveBeenCalledWith("selection.changed", expect.any(Function));
     });
 });
