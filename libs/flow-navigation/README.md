@@ -46,6 +46,11 @@ Shift+Tab picks the first end event.
   root plane (expanded inline subprocesses work normally).
 - No visual "Enter follows this" affordance yet — a future iteration can reuse
   the `canvasFocusIndicator.ts` pattern.
-- Consuming Tab on the focused canvas removes Tab-to-properties-panel as an
-  escape route. Ctrl/Cmd/Alt+Tab are deliberately passed through; mouse focus
-  is unaffected.
+- Tab on the focused canvas no longer escapes to the properties panel — use
+  `p` to focus it, `Shift+P` to toggle visibility, and Escape to return.
+  Ctrl/Cmd/Alt+Tab are deliberately passed through; mouse focus is unaffected.
+
+## Related shortcuts
+
+`p` (focus panel), `Shift+P` (toggle panel), and Escape (return to canvas) are
+wired in `libs/shared/src/lib/propertiesPanelFocus.ts`, not in this module.

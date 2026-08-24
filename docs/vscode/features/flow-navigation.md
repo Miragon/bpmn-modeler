@@ -17,6 +17,9 @@ Navigate the BPMN diagram along sequence flows using the keyboard.
 | **Shift+Enter** | Sequence flow | Follow the flow to its source |
 | **Tab** _(nothing selected)_ | Canvas | Select the first start event |
 | **Shift+Tab** _(nothing selected)_ | Canvas | Select the first end event |
+| **p** | Canvas | Focus the properties panel (expands if collapsed) |
+| **Shift+P** | Anywhere (not text field) | Toggle properties panel visibility |
+| **Escape** | Properties panel | Return focus to the canvas |
 
 **Ctrl/Cmd+Tab** and **Alt+Tab** are deliberately passed through so VS Code
 tab switching and OS window switching keep working.
@@ -38,8 +41,12 @@ tab switching and OS window switching keep working.
 - **Canvas focus** (`Escape`): pressing Escape refocuses the canvas SVG from
   the properties panel. Once the canvas has focus, Tab/Shift+Tab navigate the
   diagram instead of cycling form fields.
-- **Properties panel**: Tab inside the properties panel still performs native
-  field traversal — flow navigation only fires while the canvas SVG has focus.
+- **Properties panel** (`p` / `Shift+P`): `p` on the canvas focuses the first
+  field in the properties panel (expanding it if collapsed); `Shift+P` toggles
+  panel visibility from anywhere except text fields; Escape returns to the
+  canvas. The round-trip is `p` → edit properties → Escape → resume navigation.
+  Tab inside the properties panel still performs native field traversal — flow
+  navigation only fires while the canvas SVG has focus.
 
 ## Known limitations (v1)
 
@@ -48,5 +55,5 @@ tab switching and OS window switching keep working.
   root plane (expanded inline subprocesses work normally).
 - No visual affordance for "Enter will follow this flow" — a future iteration
   can reuse the `canvasFocusIndicator.ts` pattern.
-- Consuming Tab on the canvas means Tab no longer escapes to the properties
-  panel. Use Escape + mouse click or Ctrl+Tab to reach other panels.
+- Tab on the canvas no longer escapes to the properties panel — use `p` to
+  focus it, `Shift+P` to toggle visibility, and Escape to return to the canvas.

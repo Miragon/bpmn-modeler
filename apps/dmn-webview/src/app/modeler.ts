@@ -142,6 +142,19 @@ export function syncCanvasSize(container: Element): () => void {
     return observeCanvasSize({ resized: () => getActiveCanvas()?.resized() }, container);
 }
 
+/** True only when the DRD (diagram) view is active — not decision-table or literal-expression. */
+export function isDrdViewActive(): boolean {
+    return modeler?.getActiveView()?.type === "drd";
+}
+
+/** DRD canvas with focus methods; `undefined` outside the DRD view. */
+export function getActiveFocusableCanvas():
+    | (ResizableCanvas & { focus(): void; isFocused(): boolean })
+    | undefined {
+    const viewer = getModeler().getActiveViewer();
+    return viewer?.get("canvas", false) ?? undefined;
+}
+
 /** `undefined` for the decision-table and literal-expression views. */
 function getActiveCanvas(): ResizableCanvas | undefined {
     const viewer = getModeler().getActiveViewer();
