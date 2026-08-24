@@ -153,6 +153,45 @@ export function resolveFollow(current: NavElement, direction: Direction): NavEle
 }
 
 /**
+ * Resolve which element to select after a delete operation.
+ *
+ * Uses the first deleted element as the primary anchor: for shapes,
+ * prefers the first surviving incoming source (y-then-x order), then
+ * outgoing target, then boundary-event host. For connections, prefers
+ * the surviving source, then target.
+ */
+export function resolveDeleteAnchor(deleted: NavElement[]): NavElement | null {
+    if (deleted.length === 0) return null;
+
+    const deletedIds = new Set(deleted.map((el) => el.id));
+    const primary = normalize(deleted[0]);
+
+    // Connection: prefer surviving source, then target.
+    if (primary.source != null && primary.target != null) {
+        if (!deletedIds.has(primary.source.id)) return primary.source;
+        if (!deletedIds.has(primary.target.id)) return primary.target;
+        return null;
+    }
+
+    // Shape: first surviving incoming source (y-then-x order).
+    const inc = sortByEndpoint(sequenceFlows(primary.incoming), "source");
+    for (const f of inc) {
+        if (!deletedIds.has(f.source!.id)) return f.source!;
+    }
+
+    // Fallback: first surviving outgoing target.
+    const out = sortByEndpoint(sequenceFlows(primary.outgoing), "target");
+    for (const f of out) {
+        if (!deletedIds.has(f.target!.id)) return f.target!;
+    }
+
+    // Boundary event: host.
+    if (primary.host && !deletedIds.has(primary.host.id)) return primary.host;
+
+    return null;
+}
+
+/**
  * Pick an entry point when no element is selected.
  *
  * Forward prefers start events (sorted y-then-x), then nodes with

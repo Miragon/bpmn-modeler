@@ -66,7 +66,7 @@ const sharedByNorm = new Set(Object.keys(shared.en).map(norm));
 // that the harvest driver never reaches — it doesn't exercise the script-lock /
 // code-link feature, so these are absent from harvested.json but genuinely
 // needed and absent from the shared library. Keep them until upstreamed.
-const SOURCE_ONLY = new Set(["Read-only", "Being edited in"]);
+const SOURCE_ONLY = new Set(["Read-only", "Being edited in", "Element actions"]);
 
 const load = async (locale) => (await import(join(LANG_DIR, `${locale}.ts`))).default;
 const en = await load("en");

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveEntry, resolveFollow, resolveStep, type NavElement } from "./traversal";
+import {
+    resolveDeleteAnchor,
+    resolveEntry,
+    resolveFollow,
+    resolveStep,
+    type NavElement,
+} from "./traversal";
 
 // ---------------------------------------------------------------------------
 // Graph builders — plain objects satisfying NavElement structurally.
@@ -169,6 +175,104 @@ describe("resolveStep", () => {
         b.incoming.push(mf);
 
         expect(resolveStep(a, "forward")).toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// resolveDeleteAnchor — select predecessor after delete
+// ---------------------------------------------------------------------------
+
+describe("resolveDeleteAnchor", () => {
+    it("single incoming → source", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+        const b = shape("b", "bpmn:Task", 200, 100);
+        flow("f1", a, b);
+
+        expect(resolveDeleteAnchor([b])).toBe(a);
+    });
+
+    it("fan-in → first by y-then-x", () => {
+        const t1 = shape("t1", "bpmn:Task", 100, 200);
+        const t2 = shape("t2", "bpmn:Task", 100, 100);
+        const merge = shape("merge", "bpmn:ExclusiveGateway", 200, 150);
+        flow("f1", t1, merge);
+        flow("f2", t2, merge);
+
+        expect(resolveDeleteAnchor([merge])).toBe(t2);
+    });
+
+    it("deleted-set skip → next surviving incoming source", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+        const b = shape("b", "bpmn:Task", 100, 200);
+        const c = shape("c", "bpmn:Task", 200, 150);
+        flow("f1", a, c);
+        flow("f2", b, c);
+
+        expect(resolveDeleteAnchor([c, a])).toBe(b);
+    });
+
+    it("all incoming deleted → first outgoing target", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+        const b = shape("b", "bpmn:Task", 200, 100);
+        const c = shape("c", "bpmn:Task", 300, 100);
+        flow("f1", a, b);
+        flow("f2", b, c);
+
+        expect(resolveDeleteAnchor([b, a])).toBe(c);
+    });
+
+    it("boundary event → host", () => {
+        const task = shape("task", "bpmn:Task", 200, 200);
+        const boundary: NavElement = {
+            ...shape("be", "bpmn:BoundaryEvent", 200, 280),
+            host: task,
+        };
+
+        expect(resolveDeleteAnchor([boundary])).toBe(task);
+    });
+
+    it("isolated element → null", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+
+        expect(resolveDeleteAnchor([a])).toBeNull();
+    });
+
+    it("deleted connection → source", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+        const b = shape("b", "bpmn:Task", 200, 100);
+        const f = flow("f1", a, b);
+
+        expect(resolveDeleteAnchor([f])).toBe(a);
+    });
+
+    it("deleted connection with deleted source → target", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+        const b = shape("b", "bpmn:Task", 200, 100);
+        const f = flow("f1", a, b);
+
+        expect(resolveDeleteAnchor([f, a])).toBe(b);
+    });
+
+    it("label → resolves through labelTarget", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+        const b = shape("b", "bpmn:Task", 200, 100);
+        flow("f1", a, b);
+        const label: NavElement = {
+            ...shape("lbl", "label", 200, 80),
+            labelTarget: b,
+        };
+
+        expect(resolveDeleteAnchor([label])).toBe(a);
+    });
+
+    it("multi-delete chain [B, C] of A→B→C → A", () => {
+        const a = shape("a", "bpmn:Task", 100, 100);
+        const b = shape("b", "bpmn:Task", 200, 100);
+        const c = shape("c", "bpmn:Task", 300, 100);
+        flow("f1", a, b);
+        flow("f2", b, c);
+
+        expect(resolveDeleteAnchor([b, c])).toBe(a);
     });
 });
 

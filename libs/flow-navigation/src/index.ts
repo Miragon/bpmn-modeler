@@ -9,9 +9,13 @@
  * new BpmnModeler({ additionalModules: [FlowNavigationModule] });
  * ```
  */
+import { ContextPadKeyboard } from "./ContextPadKeyboard";
+import { DeleteSelectionBehavior } from "./DeleteSelectionBehavior";
 import { FlowNavigation } from "./FlowNavigation";
 
 export const FlowNavigationModule = {
-    __init__: ["flowNavigation"],
+    __init__: ["flowNavigation", "deleteSelectionBehavior", "contextPadKeyboard"],
     flowNavigation: ["type", FlowNavigation],
+    deleteSelectionBehavior: ["type", DeleteSelectionBehavior],
+    contextPadKeyboard: ["type", ContextPadKeyboard],
 };
