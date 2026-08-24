@@ -1,5 +1,5 @@
-import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
-import { WebviewState } from "./webviewState";
+import { Command, Query, HostApi, isUsableViewbox } from "@miragon/bpmn-modeler-shared";
+import { CanvasViewState, WebviewState } from "./webviewState";
 import { BpmnModeler } from "./modeler";
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
@@ -26,6 +26,10 @@ function isGroupOpen(group: HTMLElement): boolean {
  * 2. {@link restoreSelection}      — after element templates + settings applied
  * 3. {@link restorePanelUiState}   — after properties panel is rendered
  * 4. {@link startPersisting}       — subscribes to change events
+ *
+ * For mid-session re-imports (undo/redo, XML push, language switch), use
+ * {@link captureViewState} / {@link applyViewState} to snapshot and
+ * restore the drill-down plane, viewbox, and selection.
  */
 export class WebviewStateManager {
     /** Latches once {@link restoreViewport} has applied a viewbox. */
@@ -58,6 +62,17 @@ export class WebviewStateManager {
         }
 
         const saved = this.getSavedState();
+
+        // Restore the drill-down plane before the viewbox — viewbox
+        // coordinates are plane-relative, and applying them against the
+        // wrong root would pan to a nonsensical position. If the
+        // sub-process no longer exists (removed by an undo before the
+        // tab was revisited), setRootElementById returns false and the
+        // canvas stays on the top-level process root.
+        if (saved?.rootElementId) {
+            this.modeler.rootElement.setRootElementById(saved.rootElementId);
+        }
+
         this.viewportRestored = saved?.viewport
             ? this.modeler.viewport.setViewport(saved.viewport)
             : this.modeler.viewport.fitViewport();
@@ -123,7 +138,24 @@ export class WebviewStateManager {
         });
     }
 
+    /**
+     * Writes the current viewport to persisted state immediately, bypassing the
+     * 100 ms debounce in {@link ViewportManager.onViewportChanged}. Called on
+     * `visibilitychange → hidden` so a tab switch right after a gesture does
+     * not lose the last position.
+     */
+    flushViewport(): void {
+        const viewport = this.modeler.viewport.getViewport();
+        if (isUsableViewbox(viewport)) {
+            this.persistPartialState({ viewport });
+        }
+    }
+
     startPersisting(): void {
+        this.modeler.rootElement.onRootChanged((rootElementId) => {
+            this.persistPartialState({ rootElementId });
+        });
+
         this.modeler.viewport.onViewportChanged((viewport) => {
             this.persistPartialState({ viewport });
         });
@@ -134,6 +166,31 @@ export class WebviewStateManager {
 
         this.subscribePanelScroll();
         this.subscribeGroupExpansion();
+    }
+
+    /**
+     * Snapshots the live canvas state — drill-down plane, viewbox, and
+     * selection — so it can be re-applied after a destructive re-import
+     * (undo/redo host push, language switch).
+     */
+    captureViewState(): CanvasViewState {
+        return {
+            rootElementId: this.modeler.rootElement.getRootElementId(),
+            viewport: this.modeler.viewport.getViewport(),
+            selectedElementIds: this.modeler.selection.getSelectedElementIds(),
+        };
+    }
+
+    /**
+     * Re-applies a previously captured view state after a re-import.
+     *
+     * Order matters: root first (viewbox coordinates are plane-relative),
+     * then viewbox, then selection.
+     */
+    applyViewState(snapshot: CanvasViewState): void {
+        this.modeler.rootElement.setRootElementById(snapshot.rootElementId);
+        this.modeler.viewport.setViewport(snapshot.viewport);
+        this.modeler.selection.selectElementsByIds(snapshot.selectedElementIds);
     }
 
     private getSavedState(): WebviewState | undefined {

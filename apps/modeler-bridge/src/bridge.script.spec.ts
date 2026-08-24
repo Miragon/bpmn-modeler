@@ -98,9 +98,7 @@ describe("bridge script editor (real core over a fake transport)", () => {
         }
     });
 
-    async function setup(options?: {
-        manifest?: string;
-    }): Promise<{
+    async function setup(options?: { manifest?: string }): Promise<{
         rpc: Rpc;
         frames: any[];
         editorId: string;

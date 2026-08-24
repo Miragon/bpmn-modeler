@@ -9,6 +9,10 @@ export default defineConfig({
         // global `expect` to exist, so enable Vitest's globals for this project.
         globals: true,
         include: ["src/**/*.{spec,test}.ts"],
+        // `@miragon/bpmnlint-plugin-rules`' pre-built ESM has one extensionless deep
+        // import (`bpmnlint/lib/resolver/static-resolver`) that strict native
+        // Node ESM rejects; inline it through Vite's resolver (as webpack/Bun do).
+        server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
             "@miragon/bpmn-modeler-core": resolve(

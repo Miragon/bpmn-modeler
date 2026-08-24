@@ -57,6 +57,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
+import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     BpmnModeler,
     installCanvasFocusIndicator,
@@ -104,6 +105,7 @@ function registerGlobalErrorHandlers(): void {
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
         void debouncedSendXmlChanges.flush();
+        stateManager?.flushViewport();
     }
 });
 
@@ -114,12 +116,29 @@ document.addEventListener("visibilitychange", () => {
 const bpmnModeler = new BpmnModeler();
 
 /**
+ * Re-imports the XML while preserving the user's drill-down plane,
+ * viewbox, and selection. The snapshot is taken from the live canvas
+ * inside the debounced function so a burst of host pushes captures
+ * once, not from a half-imported intermediate.
+ */
+async function reloadXmlPreservingView(
+    bpmn: string | undefined,
+    documentRevision: number,
+): Promise<void> {
+    const snapshot = stateManager?.captureViewState();
+    await openHostXml(bpmn, documentRevision);
+    if (snapshot) {
+        stateManager.applyViewState(snapshot);
+    }
+}
+
+/**
  * Debounce the update of the XML content to avoid too many updates.
  *
  * @param bpmn Latest BPMN XML string received from the backend.
  * @throws {NoModelerError} If the modeler is not available.
  */
-const serializedOpenXml = serializeAsync(openHostXml);
+const serializedOpenXml = serializeAsync(reloadXmlPreservingView);
 const debouncedUpdateXML = asyncDebounce(serializedOpenXml, 100);
 
 /**
@@ -230,6 +249,15 @@ let stateManager: WebviewStateManager;
  */
 async function run(): Promise<void> {
     window.addEventListener("message", onReceiveMessage);
+
+    // Merge the modeler's Camunda-7 / dmn-js / internal strings onto the shared
+    // library's dictionaries before anything translates. The shared package is
+    // C8-seeded and lacks these keys; without this bridge they would render as
+    // English. extend() persists across setLanguage(), so this single call at
+    // startup covers every later language switch and both the modeler and the
+    // viewer-mode diff legend below.
+    i18n.extend(i18nExtras);
+
     initTheme();
 
     // Viewer mode (one side of a diff view) skips the resizer + properties
@@ -664,6 +692,14 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
             break;
         }
+        case queryOrCommand.type === "BpmnLintDisabledQuery": {
+            try {
+                bpmnModeler.getService<LintConfigService>("bpmnLintConfig").renderDisabled();
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
         case queryOrCommand.type === "BpmnModelerSettingQuery": {
             try {
                 const setting = (message.data as BpmnModelerSettingQuery).setting;
@@ -809,15 +845,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
 /**
  * Re-renders the diagram by exporting and re-importing the XML.
  *
- * Preserves the current viewport (position and zoom) so the user does not
- * lose their place.  Used after a language switch to force bpmn-js to
- * re-invoke `translate()` for all UI elements.
+ * Preserves the current drill-down plane, viewport, and selection so the
+ * user does not lose their place.  Used after a language switch to force
+ * bpmn-js to re-invoke `translate()` for all UI elements.
  */
 async function refreshDiagram(): Promise<void> {
     const xml = await bpmnModeler.exportDiagram();
-    const viewport = bpmnModeler.viewport.getViewport();
+    const snapshot = stateManager.captureViewState();
     await bpmnModeler.loadDiagram(xml);
-    bpmnModeler.viewport.setViewport(viewport);
+    stateManager.applyViewState(snapshot);
 }
 
 /**

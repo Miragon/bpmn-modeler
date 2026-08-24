@@ -129,6 +129,12 @@ export interface SettingsPort {
     getShowTransactionBoundaries(): boolean;
     getConfigFolder(): string;
     getC8ApiVersion(): string;
+    /**
+     * Whether bpmnlint runs at all. `false` suppresses every lint surface
+     * (overlays, Problems entries, status bar) so design-only users are not
+     * shown automation rules they do not care about. Defaults to `true`.
+     */
+    getLintingEnabled(): boolean;
     getColorTheme(): "automatic" | "light";
     getFavouriteBpmnElements(): string[];
     getLanguage(): string;
@@ -198,20 +204,9 @@ export interface StatusBarPort {
     hideEngineVersion(): void;
     disposeEngineVersionStatus(): void;
     showBpmnlintActive(configPath: string): void;
-    /**
-     * Distinct state for a config the host applied but could not fully resolve:
-     * one or more referenced rules/configs (typically `bpmnlint-plugin-*` not
-     * installed in the workspace) were skipped. Surfaced so the "✓ BPMNlint" tick
-     * never masks silently-dropped rules — `unresolved` lists them for the tooltip.
-     */
     showBpmnlintUnresolved(configPath: string, unresolved: string[]): void;
-    /**
-     * State for the zero-config **bundled default** — visually distinct from a
-     * project's own `.bpmnlintrc` ({@link showBpmnlintActive}) so the two are never
-     * confused. `platform` is the detected engine whose deployability layer is
-     * applied, or `undefined` for the structural-only base on a platform-less file.
-     */
     showBpmnlintDefault(platform: Engine | undefined): void;
+    showBpmnlintDisabled(): void;
     showBpmnlintNoConfig(): void;
     hideBpmnlintStatus(): void;
 }
@@ -234,9 +229,6 @@ export interface LintRunnerPort {
      *   zero-config default this is the document's own path (a resolution anchor
      *   only — the default references no workspace modules).
      * @param config the parsed `.bpmnlintrc` contents, or the bundled default.
-     * @param useBundledDefaults when true, the host's bundled camunda-compat and
-     *   miragon layers back rule/config resolution — for the zero-config default
-     *   only, so a workspace `.bpmnlintrc` never resolves against them.
      * @returns the findings keyed by rule name, plus the names of any
      *   rules/configs that could not be resolved (skipped, never thrown).
      */
@@ -244,7 +236,6 @@ export interface LintRunnerPort {
         xml: string,
         configPath: string,
         config: Record<string, unknown>,
-        useBundledDefaults?: boolean,
     ): Promise<{ results: LintResults; unresolved: string[] }>;
 }
 

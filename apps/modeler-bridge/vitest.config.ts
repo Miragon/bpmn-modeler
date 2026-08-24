@@ -6,6 +6,10 @@ export default defineConfig({
         name: "modeler-bridge",
         environment: "node",
         include: ["src/**/*.{spec,test}.ts"],
+        // `@miragon/bpmnlint-plugin-rules`' pre-built ESM has one extensionless deep
+        // import (`bpmnlint/lib/resolver/static-resolver`) that strict native
+        // Node ESM rejects; inline it through Vite's resolver (as webpack/Bun do).
+        server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         // Resolve the workspace packages to their TypeScript sources so the
         // bridge's specs run against the live core, not a stale built artifact.
         alias: {

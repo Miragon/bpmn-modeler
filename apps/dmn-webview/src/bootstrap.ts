@@ -30,6 +30,7 @@ import {
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
+import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 
 import {
     createModeler,
@@ -167,6 +168,12 @@ let modelerIsInitialized = false;
 async function run(): Promise<void> {
     const stateManager = new WebviewStateManager(host);
     window.addEventListener("message", onReceiveMessage);
+
+    // Merge the modeler's local overlay (resizer toggle + dmn-js labels) onto
+    // the shared library's dictionaries before anything translates. The shared
+    // package is C8-seeded and lacks these keys; extend() persists across any
+    // later setLanguage().
+    i18n.extend(i18nExtras);
 
     // Follow the VS Code theme immediately; the host's `colorTheme` preference
     // (which may force light) is applied once the setting query arrives below.

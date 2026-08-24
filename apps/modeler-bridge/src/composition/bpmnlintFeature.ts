@@ -35,6 +35,7 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         deps.statusBar,
         deps.notifier,
         new DefaultBpmnlintConfigService(),
+        deps.settings,
     );
 
     // The webview posts this once on load (fire-and-forget, not part of the
@@ -50,10 +51,7 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     const refreshWatcher = async (params: RegisterParams): Promise<void> => {
         watchers.get(params.editorId)?.forEach((disposable) => disposable.dispose());
         watchers.delete(params.editorId);
-        const { disposables, errors } = await locator.createWatcher(
-            params.editorId,
-            lintSvc,
-        );
+        const { disposables, errors } = await locator.createWatcher(params.editorId, lintSvc);
         watchers.set(params.editorId, disposables);
         for (const error of errors) deps.notifier.logError(error);
     };

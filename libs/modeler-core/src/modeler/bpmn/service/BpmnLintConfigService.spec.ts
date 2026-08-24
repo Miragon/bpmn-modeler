@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // still resolve under vitest.
 vi.mock("vscode", () => ({}));
 
-import { BpmnlintResultsQuery } from "@miragon/bpmn-modeler-shared";
+import { BpmnLintDisabledQuery, BpmnlintResultsQuery } from "@miragon/bpmn-modeler-shared";
 
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
 import { DefaultBpmnlintConfigService } from "./DefaultBpmnlintConfigService";
@@ -37,6 +37,7 @@ function createService() {
         showBpmnlintActive: vi.fn(),
         showBpmnlintUnresolved: vi.fn(),
         showBpmnlintDefault: vi.fn(),
+        showBpmnlintDisabled: vi.fn(),
         showBpmnlintNoConfig: vi.fn(),
         hideBpmnlintStatus: vi.fn(),
     };
@@ -45,6 +46,9 @@ function createService() {
         logInfo: vi.fn(),
         logDebug: vi.fn(),
         logWarning: vi.fn(),
+    };
+    const settings = {
+        getLintingEnabled: vi.fn().mockReturnValue(true),
     };
 
     const service = new BpmnLintConfigService(
@@ -57,6 +61,7 @@ function createService() {
         notifier as never,
         // The real builder: the c7/c8 cases assert the exact layered config it emits.
         new DefaultBpmnlintConfigService(),
+        settings as never,
     );
 
     return {
@@ -68,6 +73,7 @@ function createService() {
         diagnostics,
         statusBar,
         notifier,
+        settings,
     };
 }
 
@@ -99,6 +105,34 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(msg.results).toEqual(RESULTS);
     });
 
+    it("skips linting and pushes the disabled state when linting is turned off", async () => {
+        const { service, editorStore, locator, lintRunner, diagnostics, statusBar, settings } =
+            createService();
+        settings.getLintingEnabled.mockReturnValue(false);
+
+        const result = await service.setBpmnlintConfig(EDITOR);
+
+        expect(result).toBe(true);
+        // The gate short-circuits before any config discovery or lint run.
+        expect(locator.findNearestConfig).not.toHaveBeenCalled();
+        expect(lintRunner.lint).not.toHaveBeenCalled();
+        expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
+        expect(statusBar.showBpmnlintDisabled).toHaveBeenCalledOnce();
+        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnLintDisabledQuery;
+        expect(msg.type).toBe("BpmnLintDisabledQuery");
+    });
+
+    it("leaves the status bar untouched when disabled and reflectInStatusBar is false", async () => {
+        const { service, editorStore, statusBar, settings } = createService();
+        settings.getLintingEnabled.mockReturnValue(false);
+
+        await service.setBpmnlintConfig(EDITOR, false);
+
+        expect(statusBar.showBpmnlintDisabled).not.toHaveBeenCalled();
+        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnLintDisabledQuery;
+        expect(msg.type).toBe("BpmnLintDisabledQuery");
+    });
+
     it("shows the unresolved status and warns when rules could not be resolved", async () => {
         const { service, locator, lintRunner, statusBar, notifier } = createService();
         locator.findNearestConfig.mockResolvedValue("/work/.bpmnlintrc");
@@ -122,12 +156,9 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         const result = await service.setBpmnlintConfig(EDITOR);
 
         expect(result).toBe(true);
-        expect(lintRunner.lint).toHaveBeenCalledWith(
-            XML,
-            EDITOR,
-            { extends: ["bpmnlint:recommended", "plugin:miragon/recommended"] },
-            true,
-        );
+        expect(lintRunner.lint).toHaveBeenCalledWith(XML, EDITOR, {
+            extends: ["bpmnlint:recommended", "plugin:@miragon/rules/recommended-for-modeling"],
+        });
         expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
         expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
         expect(statusBar.showBpmnlintNoConfig).not.toHaveBeenCalled();
@@ -142,13 +173,12 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
 
         await service.setBpmnlintConfig(EDITOR);
 
-        const [xml, anchor, config, useBundled] = lintRunner.lint.mock.calls[0];
+        const [xml, anchor, config] = lintRunner.lint.mock.calls[0];
         expect(xml).toBe(XML_C7);
         expect(anchor).toBe(EDITOR);
-        expect(useBundled).toBe(true);
         expect((config as { extends: string[] }).extends).toEqual([
             "bpmnlint:recommended",
-            "plugin:miragon/recommended",
+            "plugin:@miragon/rules/recommended-for-modeling",
             "plugin:camunda-compat/camunda-platform-7-24",
         ]);
         expect((config as { moddleExtensions: Record<string, unknown> }).moddleExtensions).toEqual({

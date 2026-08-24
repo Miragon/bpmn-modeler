@@ -1,6 +1,7 @@
 export * from "./modeler";
 export * from "./viewport";
 export * from "./selection";
+export * from "./rootElement";
 export * from "./state";
 export * from "./propertiesPanelClipboard";
 export * from "./keyboardFocus";

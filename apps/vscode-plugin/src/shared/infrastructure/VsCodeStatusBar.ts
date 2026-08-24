@@ -4,6 +4,7 @@ import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-shared";
 
 import { StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
+const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
 
 export class VsCodeStatusBar implements StatusBarPort {
     private templateStatusItem: StatusBarItem | undefined;
@@ -51,6 +52,7 @@ export class VsCodeStatusBar implements StatusBarPort {
         item.text = "$(check) BPMNlint";
         item.tooltip = configPath;
         item.backgroundColor = undefined;
+        item.command = undefined;
         item.show();
     }
 
@@ -61,6 +63,7 @@ export class VsCodeStatusBar implements StatusBarPort {
         // fully-green tick — the exact ambiguity this state exists to remove.
         item.backgroundColor = new ThemeColor("statusBarItem.warningBackground");
         item.tooltip = `${configPath}\n\nUnresolved (install the plugin providing these): ${unresolved.join(", ")}`;
+        item.command = undefined;
         item.show();
     }
 
@@ -72,6 +75,18 @@ export class VsCodeStatusBar implements StatusBarPort {
         const engine = platform ? ENGINE_LABEL[platform] : "no execution platform";
         item.tooltip = `Linting against the bundled default (${engine}).\nAdd a .bpmnlintrc to your workspace to override it.`;
         item.backgroundColor = undefined;
+        item.command = undefined;
+        item.show();
+    }
+
+    showBpmnlintDisabled(): void {
+        const item = this.getOrCreateBpmnlintStatusItem();
+        // Circle-slash (not the info `i`) reads as "deliberately off", and the
+        // command turns it back on with one click for users who never open settings.
+        item.text = "$(circle-slash) BPMNlint: off";
+        item.tooltip = "BPMN linting is turned off — click to turn it back on.";
+        item.backgroundColor = undefined;
+        item.command = TOGGLE_LINTING_CMD;
         item.show();
     }
 
@@ -80,6 +95,7 @@ export class VsCodeStatusBar implements StatusBarPort {
         item.text = "$(info) BPMNlint: no .bpmnlintrc";
         item.tooltip = undefined;
         item.backgroundColor = undefined;
+        item.command = undefined;
         item.show();
     }
 

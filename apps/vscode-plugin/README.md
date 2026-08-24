@@ -90,11 +90,17 @@ the decision is that".
   or 8. Supports no auth, Basic Auth, and OAuth2 Client Credentials; payload
   files are discovered by convention from `<configFolder>/payloads/`.
 - **Compare two diagrams** — select two `.bpmn` files in the Explorer (or
-  right-click one, **BPMN Modeler: Select for Compare**, then **Compare with
-  Selected** on another) to open a side-by-side read-only diff with element-level
+  right-click one, **Select for Compare (BPMN)**, then **Compare with
+  Selected (BPMN)** on another) to open a side-by-side read-only diff with element-level
   colour coding (added / removed / changed / moved) via
   [`bpmn-js-differ`](https://github.com/bpmn-io/bpmn-js-differ), synchronized
   pan/zoom, and a prev/next change navigator.
+- **Linting** — diagrams are checked with [bpmnlint](https://github.com/bpmn-io/bpmnlint)
+  (a bundled default, or a `.bpmnlintrc` found in your workspace); findings show as
+  hints on the canvas, in the **Problems** panel, and in the status bar. Only
+  drawing processes, not automating them? Turn linting off — for all your files —
+  from the switch on the lint hint, the **BPMN Modeler: Toggle Linting** command,
+  the status-bar badge, or the `miragon.bpmnModeler.linting.enabled` setting.
 - **Export** — copy the current diagram to the clipboard as SVG, or save an SVG
   next to the source file, via the SVG commands below.
 - **Multi-language UI** — palette, context pad, and properties panel available
@@ -114,11 +120,12 @@ Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`
 | BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
 | BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
 | BPMN Modeler: New Form                    |                | Create a valid Camunda Form and open its visual editor           |
+| BPMN Modeler: Toggle Linting              |                | Turn BPMN linting on or off (applies to all files)               |
 | BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML or JSON text editor next to the visual editor       |
 | BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
 
-The compare commands — **Select for Compare**, **Compare with Selected**, and
-**Compare Selected** — are available from the Explorer right-click menu on
+The compare commands — **Select for Compare (BPMN)**, **Compare with Selected (BPMN)**, and
+**Compare Selected (BPMN)** — are available from the Explorer right-click menu on
 `.bpmn` files rather than the Command Palette.
 
 ### Settings
@@ -128,6 +135,7 @@ Search for "BPMN Modeler" in Settings (`Ctrl+,` / `Cmd+,`).
 | Setting                                         | Default                     | Description                                                             |
 |-------------------------------------------------|-----------------------------|-------------------------------------------------------------------------|
 | `miragon.bpmnModeler.configFolder`              | `.camunda`                  | Folder name used for element template and payload file discovery        |
+| `miragon.bpmnModeler.linting.enabled`           | `true`                      | Run BPMN linting; turn off to hide all lint hints (design-only users)   |
 | `miragon.bpmnModeler.language`                  | `en`                        | UI language for the modeler (e.g. `de`, `fr`, `zh-Hans`)                |
 | `miragon.bpmnModeler.colorTheme`                | `automatic`                 | Color theme for the BPMN canvas (`automatic` or `light`)                |
 | `miragon.bpmnModeler.favouriteBpmnElements`     | `["bpmn:ServiceTask", ...]` | BPMN element types pinned at the top of the append menu palette (max 6) |

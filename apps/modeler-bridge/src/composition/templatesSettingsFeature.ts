@@ -52,10 +52,7 @@ export function register(
     const refreshWatcher = async (params: RegisterParams): Promise<void> => {
         watchers.get(params.editorId)?.forEach((disposable) => disposable.dispose());
         watchers.delete(params.editorId);
-        const { disposables } = await deps.artifactSvc.createWatcher(
-            params.editorId,
-            templatesSvc,
-        );
+        const { disposables } = await deps.artifactSvc.createWatcher(params.editorId, templatesSvc);
         watchers.set(params.editorId, disposables);
     };
 

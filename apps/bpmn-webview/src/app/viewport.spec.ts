@@ -28,7 +28,7 @@ function setup(inner: Rect, outer: { width: number; height: number }) {
     return { manager, viewbox, zoom, emitViewboxChanged };
 }
 
-type Rect = { x: number; y: number; width: number; height: number };
+type Rect = { x: number; y: number; width: number; height: number; scale?: number };
 
 /** Calls that *set* a viewbox, i.e. that passed a box to the accessor. */
 function setterCalls(viewbox: ReturnType<typeof vi.fn>): unknown[] {
@@ -159,6 +159,28 @@ describe("ViewportManager.setViewport", () => {
         expect(applied[0].width).toBeGreaterThan(0);
     });
 
+    it("restores the same zoom when outer differs from save-time size", () => {
+        const saveOuter = { width: 1200, height: 900 };
+        const restoreOuter = { width: 800, height: 600 };
+        const savedScale = 1.5;
+        const saved = {
+            x: 10,
+            y: 20,
+            width: saveOuter.width / savedScale,
+            height: saveOuter.height / savedScale,
+            scale: savedScale,
+        };
+        const { manager, viewbox } = setup(inner, restoreOuter);
+
+        expect(manager.setViewport(saved)).toBe(true);
+
+        const applied = setterCalls(viewbox).at(-1) as [Rect];
+        const appliedScale = restoreOuter.width / applied[0].width;
+        expect(appliedScale).toBeCloseTo(savedScale);
+        expect(applied[0].x).toBe(saved.x);
+        expect(applied[0].y).toBe(saved.y);
+    });
+
     it("applies nothing while the canvas is unsized", () => {
         const { manager, viewbox } = setup(inner, { width: 0, height: 0 });
 
@@ -171,16 +193,16 @@ describe("ViewportManager.setViewport", () => {
 describe("ViewportManager.onViewportChanged", () => {
     const inner = { x: 150, y: 80, width: 600, height: 300 };
 
-    it("reports a usable viewbox after the debounce", () => {
+    it("reports a usable viewbox with scale after the debounce", () => {
         vi.useFakeTimers();
         const { manager, emitViewboxChanged } = setup(inner, { width: 1000, height: 800 });
         const cb = vi.fn();
         manager.onViewportChanged(cb);
 
-        emitViewboxChanged({ x: 1, y: 2, width: 300, height: 200 });
+        emitViewboxChanged({ x: 1, y: 2, width: 300, height: 200, scale: 2.5 });
         vi.advanceTimersByTime(100);
 
-        expect(cb).toHaveBeenCalledWith({ x: 1, y: 2, width: 300, height: 200 });
+        expect(cb).toHaveBeenCalledWith({ x: 1, y: 2, width: 300, height: 200, scale: 2.5 });
         vi.useRealTimers();
     });
 

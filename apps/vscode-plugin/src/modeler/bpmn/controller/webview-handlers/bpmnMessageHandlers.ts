@@ -5,6 +5,7 @@ import {
     NavigateToImplementationCommand,
     NavigateToReferencedModelCommand,
     SetClipboardCommand,
+    SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncActivitiesCommand,
@@ -12,6 +13,8 @@ import {
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
+
+import { ConfigurationTarget, workspace } from "vscode";
 
 import { posix } from "path";
 
@@ -116,6 +119,27 @@ export function getPropertiesPanelStateHandler(
 ): MessageHandler {
     return (_message: Command, editorId: string) => {
         panelSvc.sendPropertiesPanelState(editorId);
+    };
+}
+
+/**
+ * `SetLintingEnabledCommand` → persist the user's linting on/off choice.
+ *
+ * Written at Global (User) scope so a design-only user silences linting across
+ * every project in one switch — matching the intent of a personal preference,
+ * like {@link CommandController.changeLanguage}. The config write re-triggers a
+ * lint (via {@link BpmnlintParticipant}'s change listener), which pushes the new
+ * state back to the webview; the webview never flips its own overlays.
+ */
+export function setLintingEnabledHandler(): MessageHandler {
+    return async (message: Command) => {
+        await workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .update(
+                "linting.enabled",
+                (message as SetLintingEnabledCommand).enabled,
+                ConfigurationTarget.Global,
+            );
     };
 }
 

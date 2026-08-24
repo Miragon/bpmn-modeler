@@ -8,7 +8,7 @@ export default defineConfig({
             "apps/bpmn-webview",
             "apps/form-webview",
             "libs/append-menu",
-            "libs/bpmn-i18n",
+            "libs/bpmn-i18n-extras",
             "libs/element-template-chooser",
             "libs/modeler-core",
             "libs/model-navigation",

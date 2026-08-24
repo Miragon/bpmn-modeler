@@ -73,7 +73,6 @@ describe("NodeBpmnLinter", () => {
             BPMN_C8_UNIMPLEMENTED_SERVICE_TASK,
             CONFIG_PATH,
             config,
-            true,
         );
 
         expect(unresolved).toEqual([]);
@@ -87,7 +86,6 @@ describe("NodeBpmnLinter", () => {
             BPMN_WITH_TASK,
             CONFIG_PATH,
             config,
-            true,
         );
 
         expect(unresolved).toEqual([]);

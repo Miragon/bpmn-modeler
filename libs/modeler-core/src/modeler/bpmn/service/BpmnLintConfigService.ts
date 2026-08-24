@@ -1,6 +1,11 @@
 import { posix } from "path";
 
-import { BpmnlintResultsQuery, Engine, LintResults } from "@miragon/bpmn-modeler-shared";
+import {
+    BpmnLintDisabledQuery,
+    BpmnlintResultsQuery,
+    Engine,
+    LintResults,
+} from "@miragon/bpmn-modeler-shared";
 
 import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
 import { ExecutionPlatformNotDetectedError } from "../../../shared/domain/errors";
@@ -9,6 +14,7 @@ import {
     DocumentPort,
     LintRunnerPort,
     NotifierPort,
+    SettingsPort,
     StatusBarPort,
 } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
@@ -42,6 +48,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
         private readonly defaultConfig: DefaultBpmnlintConfigService,
+        private readonly settings: SettingsPort,
     ) {}
 
     /**
@@ -68,6 +75,18 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
      * state rather than crashing the editor or silently swapping in the default.
      */
     private async lintAndPush(editorId: string, reflectInStatusBar: boolean): Promise<boolean> {
+        // User opted out of linting entirely: skip the run and clear every
+        // surface (overlays, Problems entries), so design-only users are not
+        // shown automation rules. Distinct from the no-config state — nothing
+        // failed — so the webview can offer a re-enable affordance.
+        if (!this.settings.getLintingEnabled()) {
+            if (reflectInStatusBar) {
+                this.statusBar.showBpmnlintDisabled();
+            }
+            this.diagnostics.clear(editorId);
+            return this.pushDisabled(editorId);
+        }
+
         let results: LintResults | null;
         try {
             const dir = posix.dirname(this.vsDocument.getFilePath(editorId));
@@ -141,7 +160,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         // The default references only host-bundled rules, so the path is a mere
         // resolution anchor — the document's own path keeps it valid.
         const anchorPath = this.vsDocument.getFilePath(editorId);
-        const { results, unresolved } = await this.lintRunner.lint(xml, anchorPath, config, true);
+        const { results, unresolved } = await this.lintRunner.lint(xml, anchorPath, config);
 
         this.diagnostics.publish(editorId, xml, results);
         if (reflectInStatusBar) {
@@ -194,6 +213,23 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
         } catch (error) {
             this.notifier.logWarning(
                 `[bpmnlint] results push skipped: ${(error as Error).message}`,
+            );
+            return false;
+        }
+    }
+
+    /**
+     * Tells the webview linting is user-disabled so it shows the re-enable chip
+     * rather than hiding the pill (which {@link BpmnlintResultsQuery} `null`
+     * does). Same recoverable-drop handling as {@link pushResults}: a hidden
+     * panel makes the post reject, and the webview re-requests on reload.
+     */
+    private async pushDisabled(editorId: string): Promise<boolean> {
+        try {
+            return await this.editorStore.postMessage(editorId, new BpmnLintDisabledQuery());
+        } catch (error) {
+            this.notifier.logWarning(
+                `[bpmnlint] disabled push skipped: ${(error as Error).message}`,
             );
             return false;
         }

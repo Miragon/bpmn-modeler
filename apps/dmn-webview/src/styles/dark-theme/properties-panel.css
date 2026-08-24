@@ -112,13 +112,17 @@
 
 .bio-properties-panel-textarea textarea,
 .bio-properties-panel-textfield input,
-.bio-properties-panel-numberfield input {
+.bio-properties-panel-numberfield input,
+.bio-properties-panel-feel-entry input,
+.bio-properties-panel-feel-entry textarea {
     color: var(--dt-surface-a60) !important;
 }
 
 .bio-properties-panel-textarea > textarea:focus,
 .bio-properties-panel-textfield > input:focus,
-.bio-properties-panel-numberfield > input:focus {
+.bio-properties-panel-numberfield > input:focus,
+.bio-properties-panel-feel-entry input:focus,
+.bio-properties-panel-feel-entry textarea:focus {
     color: var(--dt-surface-a70) !important;
 }
 

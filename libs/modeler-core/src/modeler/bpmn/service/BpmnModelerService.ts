@@ -166,12 +166,7 @@ export class BpmnModelerService {
 
             const updatedDoc = doc.withVersion(newVersion);
             if (
-                !(await this.writeGuarded(
-                    session,
-                    editorId,
-                    updatedDoc.xml,
-                    documentRevision,
-                )) ||
+                !(await this.writeGuarded(session, editorId, updatedDoc.xml, documentRevision)) ||
                 !this.isSnapshotCurrent(editorId, editorSession, documentRevision)
             ) {
                 return false;

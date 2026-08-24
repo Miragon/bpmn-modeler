@@ -77,7 +77,8 @@ libs/
   shared/                # Shared webview utilities and message types
   append-menu/           # bpmn-js append-menu module
   bpmn-clipboard/        # bpmn-js clipboard modules
-  bpmn-i18n/             # BPMN/DMN i18n
+  bpmn-i18n-extras/      # C7/dmn-js/internal translation overlay merged onto
+                         # the shared @miragon/bpmn-modeler-i18n npm package
   code-link/             # Code-link feature
   element-template-chooser/ # Element-template chooser module
   model-navigation/      # Model navigation module
@@ -99,8 +100,9 @@ build → package plugin → bundle → start chain.
 - **Extension host**: Webpack + `ts-loader` — `apps/vscode-plugin/webpack.config.js`
 - **Webviews**: Vite — `apps/{bpmn,dmn,form,deployment}-webview/vite.config.mts`
 - **Tests**: Vitest — root `vitest.config.ts` aggregates per-workspace projects
-  (vscode-plugin, modeler-bridge, bpmn-webview, form-webview, bpmn-i18n,
-  element-template-chooser, model-navigation, modeler-core, shared); root `test` =
+  (vscode-plugin, modeler-bridge, bpmn-webview, form-webview, append-menu,
+  bpmn-i18n-extras, element-template-chooser, model-navigation, modeler-core,
+  shared); root `test` =
   `vitest run --coverage`
 - **Output**: `dist/apps/vscode-plugin/`
 
@@ -111,7 +113,10 @@ Each `@miragon/...` alias maps to `libs/<dir>/src/index.ts`:
 - `@miragon/bpmn-modeler-shared` → `libs/shared`
 - `@miragon/bpmn-modeler-core` → `libs/modeler-core`
 - `@miragon/bpmn-modeler-clipboard` → `libs/bpmn-clipboard`
-- `@miragon/bpmn-modeler-i18n` → `libs/bpmn-i18n`
+- `@miragon/bpmn-modeler-i18n-extras` → `libs/bpmn-i18n-extras`
+- `@miragon/bpmn-modeler-i18n` → external npm package (shared translations),
+  resolved from node_modules; the local `@miragon/bpmn-modeler-i18n-extras`
+  overlay fills the modeler-internal strings it does not ship
 - `@miragon/bpmn-modeler-element-template-chooser` → `libs/element-template-chooser`
 - `@miragon/bpmn-modeler-append-menu` → `libs/append-menu`
 - `@miragon/bpmn-model-navigation` → `libs/model-navigation`

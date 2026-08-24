@@ -38,6 +38,7 @@ import {
 } from "./scriptTaskContextPad";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
+import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
 import LintModule from "./bpmnlint";
 import { setColorThemeMode } from "@miragon/bpmn-modeler-shared";
@@ -83,6 +84,8 @@ export class BpmnModeler {
 
     private _selection: SelectionManager | undefined;
 
+    private _rootElement: RootElementManager | undefined;
+
     // Optional host sink for non-fatal warnings (element-not-found, missing
     // inline script). Kept as an injected callback rather than a host import so
     // the modeler stays constructible in tests and the standalone dev browser.
@@ -110,6 +113,18 @@ export class BpmnModeler {
             throw new NoModelerError();
         }
         return this._selection;
+    }
+
+    /**
+     * Access the root element manager after {@link create}.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    get rootElement(): RootElementManager {
+        if (!this._rootElement) {
+            throw new NoModelerError();
+        }
+        return this._rootElement;
     }
 
     /**
@@ -167,6 +182,7 @@ export class BpmnModeler {
         const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
         this._viewport = new ViewportManager(accessor);
         this._selection = new SelectionManager(accessor);
+        this._rootElement = new RootElementManager(accessor);
 
         /**
          * Apply default favourites immediately after creation.

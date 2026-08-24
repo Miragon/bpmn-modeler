@@ -21,7 +21,7 @@ on:
       - 'apps/modeler-bridge/**'
       - 'libs/append-menu/**'
       - 'libs/bpmn-clipboard/**'
-      - 'libs/bpmn-i18n/**'
+      - 'libs/bpmn-i18n-extras/**'
       - 'libs/code-link/**'
       - 'libs/element-template-chooser/**'
       - 'libs/model-navigation/**'

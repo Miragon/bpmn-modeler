@@ -174,6 +174,23 @@ export class BpmnlintResultsQuery extends Query {
 }
 
 /**
+ * Tells the webview the user has switched linting **off** (the
+ * `miragon.bpmnModeler.linting.enabled` setting is `false`), as opposed to
+ * linting merely being inactive (no `.bpmnlintrc`, or a host failure), which
+ * {@link BpmnlintResultsQuery} with `null` already signals.
+ *
+ * The distinction matters for the webview affordance: an *inactive* linter
+ * hides its chip entirely, but a *disabled* one shows a muted "Linting off"
+ * chip so the user can turn it back on from inside the canvas — the pill they
+ * would otherwise use is gone. Carries no payload; the state is the message.
+ */
+export class BpmnLintDisabledQuery extends Query {
+    constructor() {
+        super("BpmnLintDisabledQuery");
+    }
+}
+
+/**
  * Centres the canvas on an element by id. VS Code strips the range for custom
  * editors and fires no diagnostic-click event, so a Problems-panel bpmnlint
  * finding reaches its element through a command link that posts this instead.
@@ -497,6 +514,24 @@ export class SetPropertiesPanelStateCommand extends Command {
     constructor(visible: boolean) {
         super("SetPropertiesPanelStateCommand");
         this.visible = visible;
+    }
+}
+
+/**
+ * Sent by the BPMN webview when the user toggles linting from inside the canvas
+ * — the "Turn off linting" affordance on the lint pill, or the "Enable" action
+ * on the disabled chip. The host persists the choice to the
+ * `miragon.bpmnModeler.linting.enabled` User setting (the single source of
+ * truth), which re-lints and pushes the new state back down, so the webview
+ * never flips its own overlays optimistically. Hosts without the setting (e.g.
+ * the IntelliJ bridge) simply ignore it and linting is unaffected.
+ */
+export class SetLintingEnabledCommand extends Command {
+    public readonly enabled: boolean;
+
+    constructor(enabled: boolean) {
+        super("SetLintingEnabledCommand");
+        this.enabled = enabled;
     }
 }
 

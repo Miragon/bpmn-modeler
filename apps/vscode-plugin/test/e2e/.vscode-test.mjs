@@ -23,10 +23,18 @@ const extensionDevelopmentPath = resolve(repoRoot, "dist/apps/vscode-plugin");
 // inheriting any user/project settings that could perturb activation.
 const workspace = mkdtempSync(resolve(tmpdir(), "bpmn-modeler-e2e-"));
 
-// `@vscode/test-cli` has no teardown hook, so the temp workspace would otherwise
-// accumulate one orphaned dir per local run. Remove it when the test process
+// Electron opens a unix socket under the user-data dir; macOS limits socket
+// paths to 103 chars, so the default `.vscode-test/user-data` under a deep
+// checkout fails with `listen EINVAL`. A short temp dir sidesteps that.
+const userDataDir = mkdtempSync(resolve(tmpdir(), "bpmn-modeler-ud-"));
+
+// `@vscode/test-cli` has no teardown hook, so the temp dirs would otherwise
+// accumulate one orphaned dir per local run. Remove them when the test process
 // exits (any cause); `force` swallows the already-gone case.
-process.on("exit", () => rmSync(workspace, { recursive: true, force: true }));
+process.on("exit", () => {
+    rmSync(workspace, { recursive: true, force: true });
+    rmSync(userDataDir, { recursive: true, force: true });
+});
 
 const testConfiguration = {
     // Must stay relative: @vscode/test-cli only glob-expands relative `files`
@@ -35,7 +43,7 @@ const testConfiguration = {
     extensionDevelopmentPath,
     // `--disable-extensions` isolates from any other installed extensions; the
     // extension under test still loads via `extensionDevelopmentPath`.
-    launchArgs: [workspace, "--disable-extensions"],
+    launchArgs: [workspace, "--disable-extensions", "--user-data-dir", userDataDir],
     mocha: {
         ui: "tdd",
         // Electron's first launch downloads + unpacks; the activation path also
