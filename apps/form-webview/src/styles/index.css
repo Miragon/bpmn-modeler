@@ -71,8 +71,15 @@ button {
     overflow: hidden;
 }
 
+.form-surface,
+.fjs-powered-by-lightbox {
+    color-scheme: light;
+    color: hsl(225, 10%, 15%);
+}
+
 .form-surface {
     overflow: auto;
+    background: #ffffff;
 }
 
 .form-error {
