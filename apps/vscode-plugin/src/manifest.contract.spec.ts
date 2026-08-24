@@ -24,6 +24,7 @@ import {
     RELOAD_MODELER_CMD,
     SAVE_SVG_CMD,
     TOGGLE_CMD,
+    TOGGLE_LINTING_CMD,
 } from "./modeler/bpmn/controller/CommandController";
 import {
     COMPARE_SELECTED_CMD,
@@ -72,6 +73,7 @@ const CODE_COMMAND_IDS = [
     CHANGE_ENGINE_VERSION_CMD,
     MIGRATE_ALL_CMD,
     CHANGE_LANGUAGE_CMD,
+    TOGGLE_LINTING_CMD,
     NEW_BPMN_MODEL_CMD,
     NEW_DMN_MODEL_CMD,
     RELOAD_MODELER_CMD,

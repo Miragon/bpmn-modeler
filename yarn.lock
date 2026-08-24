@@ -3653,7 +3653,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-core@workspace:libs/modeler-core"
   dependencies:
     "@miragon/bpmn-modeler-shared": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.2.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@types/node": "npm:26.1.2"
     "@vitest/coverage-v8": "npm:4.1.9"
     bpmn-js-differ: "npm:3.2.0"
@@ -3849,9 +3849,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmnlint-plugin-rules@npm:0.2.0":
-  version: 0.2.0
-  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.2.0"
+"@miragon/bpmnlint-plugin-rules@npm:0.10.0":
+  version: 0.10.0
+  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.10.0"
   dependencies:
     bpmnlint-plugin-camunda-compat: "npm:2.59.2"
     bpmnlint-utils: "npm:1.1.1"
@@ -3859,7 +3859,7 @@ __metadata:
     zeebe-bpmn-moddle: "npm:1.17.0"
   peerDependencies:
     bpmnlint: ">=11"
-  checksum: 10c0/4b2f6ff5c106f9b42df5b318da9df70126acfe992b6647bb0d29b5beb7b858b0953a82856016f7aa2382b1c63b7d09f34fa695a5852684596d098680e847b099
+  checksum: 10c0/ce196d4acb336bf49376602b134fe5fb25a0016b4b3bbb35fc27d72947b45c7f0e49e18341194c121a13028fc647a08b9977365398bd644346b38188425f10bd
   languageName: node
   linkType: hard
 

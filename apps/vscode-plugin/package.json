@@ -32,7 +32,7 @@
     "displayName": "BPMN Modeler",
     "description": "Create and edit BPMN 2.0 and DMN diagrams in VS Code. Supports Camunda 7 and Camunda 8.",
     "license": "SEE LICENSE IN LICENSE",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "publisher": "miragon-gmbh",
     "homepage": "https://www.miragon.io/",
     "galleryBanner": {
@@ -271,6 +271,11 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
+                "command": "bpmn-modeler.toggleLinting",
+                "title": "Toggle Linting",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.addMarketplace",
                 "title": "Add Marketplace",
                 "category": "Miragon BPMN Modeler"
@@ -442,6 +447,12 @@
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Offer Camunda SPIN globals (`S(…)`, `JSON(…)`) and SpinJsonNode member completion in inline Camunda 7 scripts. Disable if your project does not have camunda-spin on the classpath."
+                },
+                "miragon.bpmnModeler.linting.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "scope": "application",
+                    "markdownDescription": "Run BPMN linting (in-canvas hints, Problems entries, and the status-bar badge). Turn this off if you only design processes and do not want automation/execution rules. You can also toggle it from the lint hint in the modeler or via the **BPMN: Toggle Linting** command."
                 },
                 "miragon.bpmnModeler.configFolder": {
                     "type": "string",

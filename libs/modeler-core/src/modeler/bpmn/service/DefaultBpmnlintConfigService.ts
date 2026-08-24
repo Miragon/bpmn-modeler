@@ -7,23 +7,20 @@ import { Engine } from "@miragon/bpmn-modeler-shared";
  * validation for free (issue #1327). A workspace `.bpmnlintrc` — even `{}` — is
  * still nearest-config-wins and never reaches here.
  *
- * The layered config (`bpmnlint:recommended` + `plugin:@miragon/rules/recommended` + the
- * matching `plugin:camunda-compat/*` engine layer, with the engine's moddle
- * descriptor embedded) now comes from `@miragon/bpmnlint-plugin-rules`'
- * {@link getDefaultLintConfig}. All of it resolves from the bundled resolver in
- * {@link NodeBpmnLinter} (the workspace has none installed).
- *
- * On top of the package default, the Miragon `flow-through-element` rule — a
- * sequence flow routed through an unrelated shape's body — is switched on; the
- * other Miragon rules stay off (their package default).
+ * The layered config comes from `@miragon/bpmnlint-plugin-rules`'
+ * {@link getDefaultLintConfig}. We always request the `modeling` Miragon layer
+ * (`plugin:@miragon/rules/recommended-for-modeling` — layout hints at `warn`, id
+ * conventions off), decoupled from the engine so a Camunda diagram is not held to
+ * the stricter automation bar in the zero-config path. The engine still adds its
+ * `plugin:camunda-compat/*` deployability layer and typed moddle descriptor when
+ * given. All of it resolves from the bundled resolver in {@link NodeBpmnLinter}
+ * (the workspace has none installed).
  */
 export class DefaultBpmnlintConfigService {
     async build(platform: Engine | undefined): Promise<Record<string, unknown>> {
-        const config = getDefaultLintConfig({ engine: platform }) as Record<string, unknown>;
-        const rules = (config.rules ?? {}) as Record<string, unknown>;
-        return {
-            ...config,
-            rules: { ...rules, "@miragon/rules/flow-through-element": "warn" },
-        };
+        return getDefaultLintConfig({ engine: platform, preset: "modeling" }) as Record<
+            string,
+            unknown
+        >;
     }
 }

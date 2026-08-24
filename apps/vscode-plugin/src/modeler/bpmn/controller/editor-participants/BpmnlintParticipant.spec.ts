@@ -66,7 +66,7 @@ function createServices(watcher: WatcherResult) {
 }
 
 describe("BpmnlintParticipant", () => {
-    it("re-discovers the config only when the configFolder setting changes", async () => {
+    it("re-lints when the configFolder or linting.enabled setting changes, but not on others", async () => {
         const { lintSvc, locator, statusBar, notifier } = createServices({
             disposables: [],
             errors: [],
@@ -80,6 +80,9 @@ describe("BpmnlintParticipant", () => {
 
         captured.settingChange?.(settingChange("miragon.bpmnModeler.configFolder"), EDITOR_ID);
         expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(EDITOR_ID, false);
+
+        captured.settingChange?.(settingChange("miragon.bpmnModeler.linting.enabled"), EDITOR_ID);
+        expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledTimes(2);
     });
 
     it("joins watcher disposables to the session bag", async () => {

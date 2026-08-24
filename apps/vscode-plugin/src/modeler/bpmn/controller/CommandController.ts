@@ -42,6 +42,8 @@ export const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 export const MIGRATE_ALL_CMD = "bpmn-modeler.migrateAllDiagrams";
 // VS Code command ID for changing the modeler language.
 export const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
+// VS Code command ID for turning BPMN linting on/off (the design-only opt-out).
+export const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
 // VS Code command ID for scaffolding a new BPMN model.
 export const NEW_BPMN_MODEL_CMD = "bpmn-modeler.newBpmnModel";
 // VS Code command ID for scaffolding a new DMN model.
@@ -96,6 +98,7 @@ export class CommandController {
             commands.registerCommand(CHANGE_ENGINE_VERSION_CMD, this.changeEngineVersion, this),
             commands.registerCommand(MIGRATE_ALL_CMD, this.migrateAllDiagrams, this),
             commands.registerCommand(CHANGE_LANGUAGE_CMD, this.changeLanguage, this),
+            commands.registerCommand(TOGGLE_LINTING_CMD, this.toggleLinting, this),
             commands.registerCommand(NEW_BPMN_MODEL_CMD, this.newBpmnModel, this),
             commands.registerCommand(NEW_DMN_MODEL_CMD, this.newDmnModel, this),
             commands.registerCommand(RELOAD_MODELER_CMD, this.reloadModeler, this),
@@ -181,6 +184,22 @@ export class CommandController {
             // Breadcrumb: a language switch changes UI strings across the modeler,
             // so record it to explain later "why is the panel in German?" reports.
             this.notifier.logInfo(`Modeler language changed to ${picked.description}`);
+        });
+    }
+
+    /**
+     * Flips `miragon.bpmnModeler.linting.enabled` (default on) at Global (User)
+     * scope — the design-only opt-out. Reachable from the command palette and
+     * the "BPMNlint: off" status-bar badge; the webview pill writes the same
+     * setting directly. The config change re-lints every open editor, so no
+     * webview message is sent from here.
+     */
+    toggleLinting(): Promise<void> {
+        return this.logAndRethrow(async () => {
+            const config = workspace.getConfiguration("miragon.bpmnModeler");
+            const enabled = config.get<boolean>("linting.enabled") ?? true;
+            await config.update("linting.enabled", !enabled, ConfigurationTarget.Global);
+            this.notifier.logInfo(`BPMN linting ${!enabled ? "enabled" : "disabled"}`);
         });
     }
 

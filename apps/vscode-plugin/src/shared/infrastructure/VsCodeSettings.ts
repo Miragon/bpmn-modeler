@@ -29,6 +29,18 @@ export class VsCodeSettings implements SettingsPort {
     }
 
     /**
+     * Whether bpmnlint runs. Defaults to `true`, so automation users keep the
+     * zero-config lint experience; design-only users flip it off (globally, from
+     * the webview pill or the settings UI) to silence rules they do not use.
+     */
+    getLintingEnabled(): boolean {
+        return (
+            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("linting.enabled") ??
+            true
+        );
+    }
+
+    /**
      * Reads the config folder name from VS Code configuration.
      *
      * Defaults to `.camunda` if the setting is not configured.

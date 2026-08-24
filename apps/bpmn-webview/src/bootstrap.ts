@@ -616,6 +616,14 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
             break;
         }
+        case queryOrCommand.type === "BpmnLintDisabledQuery": {
+            try {
+                bpmnModeler.getService<LintConfigService>("bpmnLintConfig").renderDisabled();
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
         case queryOrCommand.type === "BpmnModelerSettingQuery": {
             try {
                 const setting = (message.data as BpmnModelerSettingQuery).setting;
