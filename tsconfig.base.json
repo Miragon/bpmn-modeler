@@ -31,6 +31,9 @@
             "@miragon/bpmn-modeler-append-menu": ["./libs/append-menu/src/index.ts"],
             "@miragon/bpmn-model-navigation": ["./libs/model-navigation/src/index.ts"],
             "@miragon/bpmn-modeler-code-link": ["./libs/code-link/src/index.ts"],
+            "@miragon/bpmn-modeler-flow-navigation": [
+                "./libs/flow-navigation/src/index.ts"
+            ],
             "@miragon/bpmn-modeler-webview": ["./apps/bpmn-webview/src/index.ts"],
             "@miragon/dmn-modeler-webview": ["./apps/dmn-webview/src/index.ts"]
         }

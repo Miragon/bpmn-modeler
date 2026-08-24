@@ -8,6 +8,9 @@ Here's what you get, roughly in the order you reach for it.
 - **[Append Menu](/vscode/features/append-menu)** — a two-panel popup that
   combines element templates and standard BPMN elements. Searchable,
   keyboard-driven, favourites pinned on top.
+- **[Flow Navigation](/vscode/features/flow-navigation)** — traverse the
+  diagram along sequence flows with Tab / Shift+Tab and follow branches
+  with Enter. Complements the append menu for fully keyboard-driven modeling.
 - **[Element Template Chooser](/vscode/features/element-template-chooser)** —
   browse, preview, and apply Camunda element templates from the properties
   panel. Category filters, instant search, full template preview.

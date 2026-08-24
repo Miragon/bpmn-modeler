@@ -11,6 +11,8 @@ export default defineConfig({
             "libs/element-template-chooser",
             "libs/modeler-core",
             "libs/shared",
+            "libs/flow-navigation",
+            "libs/model-navigation",
         ],
         coverage: {
             provider: "v8",

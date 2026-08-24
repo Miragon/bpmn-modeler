@@ -47,6 +47,10 @@ By default, the BPMN palette shows only icons to keep the panel compact. Click t
 
 Clicking anywhere outside the panel also closes it.
 
+> **See also:** [Flow Navigation](/vscode/features/flow-navigation) adds
+> Tab / Shift+Tab / Enter traversal along sequence flows — complementary to
+> the append menu for fully keyboard-driven modeling.
+
 ## Search
 
 The search bar filters both panels simultaneously:

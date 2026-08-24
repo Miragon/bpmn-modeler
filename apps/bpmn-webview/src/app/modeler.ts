@@ -9,6 +9,7 @@ import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anythi
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
 import { CodeLinkModule, type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import {
     BpmnModelerSetting,
@@ -140,6 +141,7 @@ export class BpmnModeler {
             AppendMenuModule,
             NavigateToReferencedModelModule,
             CodeLinkModule,
+            FlowNavigationModule,
         ];
         const extra = extraModules ?? [];
 
