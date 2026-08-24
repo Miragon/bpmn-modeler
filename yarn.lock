@@ -4183,6 +4183,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/form-modeler-webview@workspace:apps/form-webview"
   dependencies:
+    "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/form-js-editor": "npm:1.25.0"
     "@bpmn-io/form-js-viewer": "npm:1.25.0"
     "@codemirror/state": "npm:6.7.1"
