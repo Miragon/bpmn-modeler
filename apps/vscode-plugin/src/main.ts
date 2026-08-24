@@ -37,7 +37,7 @@ export function activate(context: ExtensionContext): void {
     // Service built before the editor feature (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
     const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
-    const { bpmnService, templatesSvc } = editorFeature.register(context, deps, {
+    const { bpmnService, templatesSvc, documentFlush } = editorFeature.register(context, deps, {
         diffController,
         scriptTaskSvc,
         scriptVariableStore,
@@ -47,7 +47,7 @@ export function activate(context: ExtensionContext): void {
     });
     templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });
     compareFeature.register(context, deps, { diffController });
-    commandsFeature.register(context, deps, { bpmnService });
+    commandsFeature.register(context, deps, { bpmnService, documentFlush });
     deploymentFeature.register(context, deps);
 }
 

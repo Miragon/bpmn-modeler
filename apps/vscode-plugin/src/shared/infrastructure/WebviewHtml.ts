@@ -6,6 +6,8 @@ import { getNonce } from "@miragon/bpmn-modeler-core";
 const BPMN_WEBVIEW_PATH = "bpmn-webview";
 // Output directory name for the DMN webview build artefacts.
 const DMN_WEBVIEW_PATH = "dmn-webview";
+// Output directory name for the form webview build artefacts.
+const FORM_WEBVIEW_PATH = "form-webview";
 
 /**
  * Generates the HTML content for the BPMN modeler webview.
@@ -119,4 +121,29 @@ export function dmnModelerHtml(
             </body>
             </html>
         `;
+}
+
+/** Generates the sandboxed HTML shell for the form editor webview. */
+export function formEditorHtml(webview: Webview, extensionUri: Uri): string {
+    const baseUri = Uri.joinPath(extensionUri, FORM_WEBVIEW_PATH);
+    const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
+    const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "styles.css"));
+    const nonce = getNonce();
+
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data: blob: https:; font-src ${webview.cspSource} data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src https:; frame-src https:; object-src blob:;" />
+                <link href="${styleUri}" rel="stylesheet" />
+                <title>Form Editor</title>
+            </head>
+            <body>
+                <div id="app"></div>
+                <script nonce="${nonce}" src="${scriptUri}"></script>
+            </body>
+        </html>
+    `;
 }

@@ -3,7 +3,7 @@
 
 ### BPMN Modeler
 
-BPMN 2.0 and DMN modeling for Camunda 7 and Camunda 8 — directly in VS Code.
+BPMN 2.0, DMN, and Camunda Form modeling for Camunda 7 and Camunda 8 — directly in VS Code.
 
 [Documentation](https://miragon.github.io/bpmn-modeler/) · [Report Bug](https://github.com/Miragon/bpmn-modeler/issues) · [Request Feature](https://github.com/Miragon/bpmn-modeler/pulls)
 </div>
@@ -14,17 +14,19 @@ BPMN 2.0 and DMN modeling for Camunda 7 and Camunda 8 — directly in VS Code.
 
 A **BPMN** (Business Process Model and Notation) diagram describes a business
 process as a flowchart of events, tasks, and decisions; a **DMN** (Decision
-Model and Notation) diagram captures the decision logic behind it as tables —
-both are open standards you can run on a workflow engine such as Camunda.
+Model and Notation) diagram captures the decision logic behind it as tables. A
+**Camunda Form** defines the user-facing fields for a Camunda 8 user task.
 
-This extension opens `.bpmn` and `.dmn` files in a graphical editor inside VS
-Code, while the text file stays the source of truth — so save, Git, and diff
-keep working, and diagrams are versioned and reviewed in the same workflow as
-the rest of your project. No context switch into a separate desktop modeler.
+This extension opens `.bpmn`, `.dmn`, and `.form` files in graphical editors
+inside VS Code, while the text file stays the source of truth — so save, Git,
+and diff keep working, and models are versioned and reviewed in the same
+workflow as the rest of your project. No context switch into a separate desktop
+modeler.
 
 > **Powered by [bpmn.io](https://bpmn.io/)** — built on
 > [bpmn-js](https://github.com/bpmn-io/bpmn-js) and
-> [dmn-js](https://github.com/bpmn-io/dmn-js).
+> [dmn-js](https://github.com/bpmn-io/dmn-js), plus
+> [form-js](https://github.com/bpmn-io/form-js).
 
 ![BPMN VS Code Modeler Preview](https://raw.githubusercontent.com/Miragon/bpmn-modeler/main/images/modeler-preview.png)
 
@@ -37,10 +39,10 @@ Marketplace, then get oriented in a couple of minutes:
    Modeler** walkthrough is the recommended first stop — open it from
    **Help: Get Started** in the Command Palette. It walks you through creating,
    editing, and deploying a diagram.
-2. **Create a diagram.** Make a new file ending in `.bpmn` (a BPMN 2.0 process)
-   or `.dmn` (a DMN decision table). VS Code opens it straight in the graphical
-   modeler instead of the plain text editor.
-3. **Open an existing one.** Any `.bpmn` or `.dmn` file opens the same way.
+2. **Create a model.** Make a new file ending in `.bpmn` (a BPMN 2.0 process),
+   `.dmn` (a DMN decision table), or `.form` (a Camunda Form). VS Code opens it
+   straight in the matching graphical editor instead of the plain text editor.
+3. **Open an existing one.** Any `.bpmn`, `.dmn`, or `.form` file opens the same way.
 
 ## Reading a diagram
 
@@ -67,6 +69,18 @@ the decision is that".
   **Properties panel**. Everything is written straight back into the underlying
   XML. Flip to the raw XML at any time with **BPMN Modeler: Toggle Standard
   Text Editor** (`Ctrl+Shift+E`); it also sits in the editor title bar.
+- **Visual editor and preview for `.form`.** Build a Camunda Form visually and
+  switch to **Preview** without losing edits. Use **BPMN Modeler: New Form** to
+  create a valid starter form. Toggle the standard text editor to edit the raw
+  JSON; VS Code validates it against the form-js JSON Schema and displays
+  problems in the editor and Problems panel.
+- **Navigate from a C8 User Task to its linked form.** A User Task whose
+  `formId` resolves to a workspace `.form` file shows a link action in its
+  context pad. Select it to open the form in a separate editor tab.
+- **Review forms as JSON.** Current VS Code releases open `.form` comparisons in
+  the standard text diff editor. VS Code 1.76–1.128 can still route custom-editor
+  comparisons to the visual editor; use **Reopen Editor With… → Text Editor** on
+  those legacy releases.
 - **Element templates** — convention-based discovery: drop templates under
   `<configFolder>/element-templates/` anywhere between your BPMN file and the
   workspace root. No extra project config needed.
@@ -99,7 +113,8 @@ Search for "BPMN Modeler" in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`
 | BPMN Modeler: Change Engine Version       |                | Switch between engine versions (within a platform)               |
 | BPMN Modeler: Migrate All BPMN Diagrams   |                | Switch the engine versions of all BPMN diagrams in the workspace |
 | BPMN Modeler: Change Modeler Language     |                | Change the UI language of the modeler                            |
-| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML text editor next to the BPMN modeler                |
+| BPMN Modeler: New Form                    |                | Create a valid Camunda Form and open its visual editor           |
+| BPMN Modeler: Toggle Standard Text Editor | `Ctrl+Shift+E` | Open the XML or JSON text editor next to the visual editor       |
 | BPMN Modeler: Display Logging Information |                | Open a console showing modeler log output                        |
 
 The compare commands — **Select for Compare**, **Compare with Selected**, and

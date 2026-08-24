@@ -22,6 +22,7 @@ jobs:
       element-template-chooser: ${{ steps.filter.outputs.element-template-chooser }}
       append-menu: ${{ steps.filter.outputs.append-menu }}
       bpmn-clipboard: ${{ steps.filter.outputs.bpmn-clipboard }}
+      model-navigation: ${{ steps.filter.outputs.model-navigation }}
       modeler-core: ${{ steps.filter.outputs.modeler-core }}
       modeler-bridge: ${{ steps.filter.outputs.modeler-bridge }}
       vscode-plugin: ${{ steps.filter.outputs.vscode-plugin }}
@@ -32,6 +33,7 @@ jobs:
       modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
+      form-webview: ${{ steps.filter.outputs.form-webview }}
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
       standalone-extension: ${{ steps.filter.outputs.standalone-extension }}
       docs: ${{ steps.filter.outputs.docs }}
@@ -52,6 +54,8 @@ jobs:
               - 'libs/append-menu/**'
             bpmn-clipboard:
               - 'libs/bpmn-clipboard/**'
+            model-navigation:
+              - 'libs/model-navigation/**'
             modeler-core:
               - 'libs/modeler-core/**'
             modeler-bridge:
@@ -81,6 +85,8 @@ jobs:
               - 'apps/bpmn-webview/**'
             dmn-webview:
               - 'apps/dmn-webview/**'
+            form-webview:
+              - 'apps/form-webview/**'
             deployment-webview:
               - 'apps/deployment-webview/**'
             standalone-extension:
@@ -421,7 +427,9 @@ jobs:
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.bpmn-webview == 'true' ||
       needs.detect-changes.outputs.dmn-webview == 'true' ||
+      needs.detect-changes.outputs.form-webview == 'true' ||
       needs.detect-changes.outputs.deployment-webview == 'true' ||
+      needs.detect-changes.outputs.model-navigation == 'true' ||
       needs.detect-changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -458,7 +466,8 @@ jobs:
       needs.detect-changes.outputs.bpmn-i18n == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
       needs.detect-changes.outputs.element-template-chooser == 'true' ||
-      needs.detect-changes.outputs.bpmn-clipboard == 'true'
+      needs.detect-changes.outputs.bpmn-clipboard == 'true' ||
+      needs.detect-changes.outputs.model-navigation == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -479,6 +488,50 @@ jobs:
           flags: bpmn-webview
           name: bpmn-webview
           verbose: true
+
+  test-form-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.form-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus bpmn-modeler @miragon/form-modeler-webview @miragon/bpmn-modeler-shared
+      - run: yarn workspace @miragon/form-modeler-webview test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/apps/form-webview"
+          fail_ci_if_error: false
+          flags: form-webview
+          name: form-webview
+          verbose: true
+
+  test-model-navigation:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.model-navigation == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/bpmn-model-navigation @miragon/bpmn-modeler-shared
+      - run: yarn workspace @miragon/bpmn-model-navigation test
+      - run: yarn workspace @miragon/bpmn-model-navigation build
 
   test-bpmn-i18n:
     needs: detect-changes
@@ -512,7 +565,8 @@ jobs:
       needs.detect-changes.outputs.bpmn-i18n == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
       needs.detect-changes.outputs.element-template-chooser == 'true' ||
-      needs.detect-changes.outputs.bpmn-clipboard == 'true'
+      needs.detect-changes.outputs.bpmn-clipboard == 'true' ||
+      needs.detect-changes.outputs.model-navigation == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -541,6 +595,23 @@ jobs:
       - name: Install dependencies (focused)
         run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/bpmn-modeler-shared
       - run: yarn workspace @miragon/dmn-modeler-webview build
+
+  build-form-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.form-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/form-modeler-webview @miragon/bpmn-modeler-shared
+      - run: yarn workspace @miragon/form-modeler-webview build
 
   build-deployment-webview:
     needs: detect-changes
@@ -592,10 +663,13 @@ jobs:
       - test-intellij-plugin
       - e2e-vscode-plugin
       - test-bpmn-webview
+      - test-form-webview
+      - test-model-navigation
       - test-bpmn-i18n
       - test-standalone-extension
       - build-bpmn-webview
       - build-dmn-webview
+      - build-form-webview
       - build-deployment-webview
       - verify-docs
     runs-on: ubuntu-latest

@@ -14,6 +14,8 @@
         "tslib": "2.8.1"
     },
     "devDependencies": {
+        "@bpmn-io/form-js": "1.25.0",
+        "@bpmn-io/form-json-schema": "1.18.0",
         "@types/mocha": "10.0.10",
         "@types/node": "26.1.2",
         "@types/vscode": "1.93.0",
@@ -30,7 +32,7 @@
         "webpack-cli": "7.2.2"
     },
     "displayName": "BPMN Modeler",
-    "description": "Create and edit BPMN 2.0 and DMN diagrams in VS Code. Supports Camunda 7 and Camunda 8.",
+    "description": "Create and edit BPMN 2.0, DMN, and Camunda Form models in VS Code. Supports Camunda 7 and Camunda 8.",
     "license": "SEE LICENSE IN LICENSE",
     "version": "1.8.0",
     "publisher": "miragon-gmbh",
@@ -75,7 +77,8 @@
         "Camunda Modeler",
         "Automation",
         "business process",
-        "decision table"
+        "decision table",
+        "form"
     ],
     "main": "main.js",
     "contributes": {
@@ -83,12 +86,12 @@
             {
                 "id": "getStarted",
                 "title": "Get Started with BPMN Modeler",
-                "description": "Create, edit, and deploy BPMN 2.0 and DMN diagrams directly in VS Code.",
+                "description": "Create, edit, and deploy BPMN 2.0, DMN, and Camunda Form models directly in VS Code.",
                 "steps": [
                     {
                         "id": "create",
                         "title": "Create your first diagram",
-                        "description": "Create a new file and save it as `.bpmn` (process) or `.dmn` (decision) — VS Code opens it in the graphical modeler.\n[New file](command:workbench.action.files.newUntitledFile)",
+                        "description": "Create a new file and save it as `.bpmn` (process), `.dmn` (decision), or `.form` (Camunda Form) — VS Code opens it in the graphical editor.\n[New file](command:workbench.action.files.newUntitledFile)",
                         "media": {
                             "markdown": "media/walkthrough/create.md"
                         },
@@ -125,6 +128,10 @@
             {
                 "fileMatch": "*.bpmn.vars.json",
                 "url": "./schemas/bpmn-vars.schema.json"
+            },
+            {
+                "fileMatch": "**/*.form",
+                "url": "./schemas/form.schema.json"
             }
         ],
         "languages": [
@@ -191,12 +198,27 @@
                     }
                 ],
                 "priority": "default"
+            },
+            {
+                "id": "bpmn-modeler.form",
+                "viewType": "bpmn-modeler.form",
+                "displayName": "Form Editor",
+                "selector": [
+                    {
+                        "filenamePattern": "*.form"
+                    }
+                ],
+                "priority": "default"
             }
         ],
         "configurationDefaults": {
             "workbench.editorAssociations": {
                 "*.bpmn": "bpmn-modeler.bpmn",
-                "*.dmn": "bpmn-modeler.dmn"
+                "*.dmn": "bpmn-modeler.dmn",
+                "*.form": "bpmn-modeler.form"
+            },
+            "files.associations": {
+                "*.form": "json"
             }
         },
         "viewsContainers": {
@@ -310,6 +332,12 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
+                "command": "bpmn-modeler.newFormModel",
+                "title": "New Form",
+                "shortTitle": "Camunda Form",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.reloadModeler",
                 "title": "Reload Modeler",
                 "category": "Miragon BPMN Modeler",
@@ -408,7 +436,7 @@
                 {
                     "command": "bpmn-modeler.toggleTextEditor",
                     "group": "navigation",
-                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' || activeWebviewPanelId == 'bpmn-modeler.dmn'"
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn' || activeWebviewPanelId == 'bpmn-modeler.dmn' || activeWebviewPanelId == 'bpmn-modeler.form'"
                 },
                 {
                     "command": "bpmn-modeler.deployDiagram",
@@ -423,6 +451,10 @@
                 },
                 {
                     "command": "bpmn-modeler.newDmnModel",
+                    "group": "file"
+                },
+                {
+                    "command": "bpmn-modeler.newFormModel",
                     "group": "file"
                 }
             ]

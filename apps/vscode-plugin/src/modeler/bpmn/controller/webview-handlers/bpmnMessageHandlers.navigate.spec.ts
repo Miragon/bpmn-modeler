@@ -4,9 +4,15 @@ vi.mock("vscode", () => ({
     Uri: { file: (path: string) => ({ scheme: "file", path, fsPath: path }) },
 }));
 
-import { NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
+import {
+    GetFormReferenceStatusCommand,
+    NavigateToReferencedModelCommand,
+} from "@miragon/bpmn-modeler-shared";
 
-import { navigateToReferencedModelHandler } from "./bpmnMessageHandlers";
+import {
+    getFormReferenceStatusHandler,
+    navigateToReferencedModelHandler,
+} from "./bpmnMessageHandlers";
 
 function createHandler() {
     const editorStore = { requireHandle: vi.fn() };
@@ -59,6 +65,22 @@ describe("navigateToReferencedModelHandler", () => {
         );
     });
 
+    it("forwards a form-kind command unchanged", async () => {
+        const { handler, editorStore, modelNavigationService } = createHandler();
+        editorStore.requireHandle.mockReturnValue({ documentFsPath: () => "/src/a.bpmn" });
+
+        await handler(
+            new NavigateToReferencedModelCommand("Form_Request", "form"),
+            "file:///src/a.bpmn",
+        );
+
+        expect(modelNavigationService.navigate).toHaveBeenCalledWith(
+            "Form_Request",
+            "form",
+            "/src/a.bpmn",
+        );
+    });
+
     it("rejects unknown referenceKind values with a logWarning and no service call", async () => {
         const { handler, notifier, modelNavigationService } = createHandler();
         // Simulate protocol drift / a hostile webview sending an unexpected
@@ -75,5 +97,16 @@ describe("navigateToReferencedModelHandler", () => {
             expect.stringContaining("unknown kind: anything"),
         );
         expect(modelNavigationService.navigate).not.toHaveBeenCalled();
+    });
+});
+
+describe("getFormReferenceStatusHandler", () => {
+    it("requests a status snapshot for the current editor", async () => {
+        const statusService = { requestStatus: vi.fn().mockResolvedValue(undefined) };
+        const handler = getFormReferenceStatusHandler(statusService as never);
+
+        await handler(new GetFormReferenceStatusCommand(), "file:///src/a.bpmn");
+
+        expect(statusService.requestStatus).toHaveBeenCalledWith("file:///src/a.bpmn");
     });
 });

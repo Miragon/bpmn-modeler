@@ -23,6 +23,8 @@ import {
     NoModelerError,
     PropertiesPanelStateQuery,
     Query,
+    ReleaseDocumentFlushQuery,
+    serializeAsync,
     setColorThemeMode,
     SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
@@ -69,7 +71,8 @@ function registerGlobalErrorHandlers(): void {
  * @returns ImportWarning with warnings if any
  * @throws NoModelerError if the modeler is not initialized
  */
-const debouncedUpdateXML = asyncDebounce(openXML, 100);
+const serializedOpenXML = serializeAsync(openHostXML);
+const debouncedUpdateXML = asyncDebounce(serializedOpenXML, 100);
 
 // Best-effort flush of the outbound sync debounce when the webview is hidden
 // (tab switch / close). Reliable in the persistent JCEF host; in VS Code the
@@ -93,17 +96,54 @@ document.addEventListener("visibilitychange", () => {
  */
 const debouncedSendChanges = asyncDebounce(sendChanges, 300, { maxWait: 1000 });
 
+let inertBeforeDestructiveFlush: boolean | undefined;
+let hostUpdateVersion = 0;
+let hostDocumentRevision = 0;
+let latestHostDocumentRevision = 0;
+let initialDmnFileReceived = false;
+
+async function flushPendingChanges(): Promise<void> {
+    while (debouncedSendChanges.pending()) {
+        await debouncedSendChanges.flush();
+    }
+}
+
+async function flushPendingHostUpdates(): Promise<void> {
+    while (debouncedUpdateXML.pending()) {
+        try {
+            await debouncedUpdateXML.flush();
+        } catch {
+            // The message handler reports the import error; keep draining so a
+            // later valid host update can still complete bootstrap.
+        }
+    }
+}
+
 /**
  * Answers a host {@link FlushDocumentQuery} on the save/close path. Before the
- * first diagram loads `exportDiagram()` throws, which the responder maps to a
- * nothing-pending reply. Rationale for the gate lives in {@link createFlushResponder}.
+ * first diagram loads `exportDiagram()` throws, so the responder leaves the
+ * request unconfirmed. Rationale for the gate lives in {@link createFlushResponder}.
  */
 const respondToFlush = createFlushResponder(
     {
         isReady: () => modelerIsInitialized,
         hasPendingSync: () => debouncedSendChanges.pending(),
-        cancelPendingSync: () => debouncedSendChanges.cancel(),
-        exportXml: () => exportDiagram(),
+        hasPendingHostUpdate: () => debouncedUpdateXML.pending(),
+        hostUpdateVersion: () => hostUpdateVersion,
+        documentRevision: () => hostDocumentRevision,
+        flushPendingSync: flushPendingChanges,
+        beginDestructiveFlush: () => {
+            if (inertBeforeDestructiveFlush === undefined) {
+                inertBeforeDestructiveFlush = Boolean(document.body.inert);
+                document.body.inert = true;
+            }
+        },
+        endDestructiveFlush: () => {
+            if (inertBeforeDestructiveFlush === undefined) return;
+            document.body.inert = inertBeforeDestructiveFlush;
+            inertBeforeDestructiveFlush = undefined;
+        },
+        exportContent: () => exportDiagram(),
     },
     (reply) => host.postMessage(reply),
 );
@@ -146,7 +186,8 @@ async function run(): Promise<void> {
     host.postMessage(new GetPropertiesPanelStateCommand());
     host.postMessage(new GetDmnModelerSettingCommand());
     const dmnFile = await dmnFileResolver.wait();
-    await initializeModeler(dmnFile?.content);
+    await initializeModeler(dmnFile?.content, dmnFile?.documentRevision);
+    await flushPendingHostUpdates();
     modelerIsInitialized = true;
 
     // Block until the host's color-theme preference has been applied (the
@@ -165,7 +206,7 @@ async function run(): Promise<void> {
     stateManager.startPersisting();
 }
 
-async function initializeModeler(dmnFile: string | undefined) {
+async function initializeModeler(dmnFile: string | undefined, documentRevision = 0) {
     try {
         createModeler();
         onCommandStackChanged(() => void debouncedSendChanges());
@@ -173,7 +214,7 @@ async function initializeModeler(dmnFile: string | undefined) {
         if (canvasElement) {
             syncCanvasSize(canvasElement);
         }
-        await openXML(dmnFile);
+        await serializedOpenXML(dmnFile, documentRevision);
     } catch (error) {
         if (error instanceof NoModelerError) {
             host.postMessage(new LogErrorCommand(error.message));
@@ -207,13 +248,22 @@ async function openXML(dmn: string | undefined) {
     }
 }
 
+async function openHostXML(dmn: string | undefined, documentRevision: number): Promise<void> {
+    await openXML(dmn);
+    if (documentRevision === latestHostDocumentRevision) {
+        hostDocumentRevision = documentRevision;
+    }
+}
+
 async function sendChanges() {
     // A rejection here only reaches the global unhandledrejection hook (the
     // dmn-js event bus discards the returned promise) as a context-free line —
     // catch it so the failure is named and deterministic on the channel.
     try {
+        const version = hostUpdateVersion;
         const dmn = await exportDiagram();
-        host.postMessage(new SyncDocumentCommand(dmn));
+        if (version !== hostUpdateVersion || debouncedUpdateXML.pending()) return;
+        host.postMessage(new SyncDocumentCommand(dmn, hostDocumentRevision));
     } catch (error) {
         const e = error instanceof Error ? error : new Error(String(error));
         host.postMessage(
@@ -229,13 +279,18 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
         case queryOrCommand.type === "DmnFileQuery": {
             try {
                 const dmnFileQuery = message.data as DmnFileQuery;
-                if (modelerIsInitialized) {
+                const documentRevision = dmnFileQuery.documentRevision ?? 0;
+                if (documentRevision < latestHostDocumentRevision) break;
+                latestHostDocumentRevision = documentRevision;
+                hostUpdateVersion++;
+                if (!initialDmnFileReceived) {
+                    initialDmnFileReceived = true;
+                    dmnFileResolver.done(dmnFileQuery);
+                } else {
                     // A host push is authoritative; drop any pending outbound
                     // sync so a stale export can't clobber it after re-import.
                     debouncedSendChanges.cancel();
-                    await debouncedUpdateXML(dmnFileQuery.content);
-                } else {
-                    dmnFileResolver.done(dmnFileQuery);
+                    await debouncedUpdateXML(dmnFileQuery.content, documentRevision);
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : `${error}`;
@@ -259,10 +314,8 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
             settingsResolver.done(settingQuery);
             break;
         }
-        case queryOrCommand.type === "FlushDocumentQuery": {
-            // The responder owns its own error handling (replies `undefined` on
-            // export failure), so it never throws into this dispatch.
-            await respondToFlush(message.data as FlushDocumentQuery);
+        case ["FlushDocumentQuery", "ReleaseDocumentFlushQuery"].includes(queryOrCommand.type): {
+            await respondToFlush(message.data as FlushDocumentQuery | ReleaseDocumentFlushQuery);
             break;
         }
     }

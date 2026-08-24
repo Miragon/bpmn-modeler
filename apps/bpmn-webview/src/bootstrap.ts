@@ -15,12 +15,14 @@ import {
     Engine,
     FlushDocumentQuery,
     FocusElementQuery,
+    FormReferenceStatusQuery,
     GetBpmnFileCommand,
     GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
     GetDiagramAsSVGCommand,
     GetElementTemplatesCommand,
+    GetFormReferenceStatusCommand,
     GetPropertiesPanelStateCommand,
     GetTextClipboardCommand,
     ImplementationStatusQuery,
@@ -32,6 +34,7 @@ import {
     OpenScriptEditorsCommand,
     PropertiesPanelStateQuery,
     Query,
+    ReleaseDocumentFlushQuery,
     SetClipboardCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
@@ -50,6 +53,7 @@ import {
     initResizer,
     initTheme,
     observeCanvasSize,
+    serializeAsync,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
@@ -115,7 +119,8 @@ const bpmnModeler = new BpmnModeler();
  * @param bpmn Latest BPMN XML string received from the backend.
  * @throws {NoModelerError} If the modeler is not available.
  */
-const debouncedUpdateXML = asyncDebounce(openXml, 100);
+const serializedOpenXml = serializeAsync(openHostXml);
+const debouncedUpdateXML = asyncDebounce(serializedOpenXml, 100);
 
 /**
  * Debounces the outbound document sync so a burst of model changes (e.g.
@@ -127,17 +132,56 @@ const debouncedUpdateXML = asyncDebounce(openXml, 100);
  */
 const debouncedSendXmlChanges = asyncDebounce(sendXmlChanges, 300, { maxWait: 1000 });
 
+let inertBeforeDestructiveFlush: boolean | undefined;
+let hostUpdateVersion = 0;
+let hostDocumentRevision = 0;
+let latestHostDocumentRevision = 0;
+let initialBpmnFileReceived = false;
+let initialViewerMode = false;
+let latestBpmnFileQuery: BpmnFileQuery | undefined;
+
+async function flushPendingXmlChanges(): Promise<void> {
+    while (debouncedSendXmlChanges.pending()) {
+        await debouncedSendXmlChanges.flush();
+    }
+}
+
+async function flushPendingHostUpdates(): Promise<void> {
+    while (debouncedUpdateXML.pending()) {
+        try {
+            await debouncedUpdateXML.flush();
+        } catch {
+            // The message handler reports the import error; keep draining so a
+            // later valid host update can still complete bootstrap.
+        }
+    }
+}
+
 /**
  * Answers a host {@link FlushDocumentQuery} on the save/close path: exports and
  * returns the pending XML (or reports nothing-pending). The `pending()` gate and
- * cancel-and-carry rationale live in {@link createFlushResponder}.
+ * normal-sync fallback rationale live in {@link createFlushResponder}.
  */
 const respondToFlush = createFlushResponder(
     {
         isReady: () => modelerIsInitialized,
         hasPendingSync: () => debouncedSendXmlChanges.pending(),
-        cancelPendingSync: () => debouncedSendXmlChanges.cancel(),
-        exportXml: () => bpmnModeler.exportDiagram(),
+        hasPendingHostUpdate: () => debouncedUpdateXML.pending(),
+        hostUpdateVersion: () => hostUpdateVersion,
+        documentRevision: () => hostDocumentRevision,
+        flushPendingSync: flushPendingXmlChanges,
+        beginDestructiveFlush: () => {
+            if (inertBeforeDestructiveFlush === undefined) {
+                inertBeforeDestructiveFlush = Boolean(document.body.inert);
+                document.body.inert = true;
+            }
+        },
+        endDestructiveFlush: () => {
+            if (inertBeforeDestructiveFlush === undefined) return;
+            document.body.inert = inertBeforeDestructiveFlush;
+            inertBeforeDestructiveFlush = undefined;
+        },
+        exportContent: () => bpmnModeler.exportDiagram(),
     },
     (reply) => host.postMessage(reply),
 );
@@ -287,8 +331,20 @@ async function run(): Promise<void> {
         ...(clipboardModules ?? []),
         ...((injectedModules as any[]) ?? []),
     ];
-    await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
+    await initializeModeler(
+        bpmnFileQuery?.content,
+        bpmnFileQuery?.engine,
+        extraModules,
+        bpmnFileQuery?.documentRevision,
+    );
+    await flushPendingHostUpdates();
     modelerIsInitialized = true;
+
+    const currentBpmnFileQuery = latestBpmnFileQuery ?? bpmnFileQuery;
+
+    if (currentBpmnFileQuery?.engine === "c8") {
+        host.postMessage(new GetFormReferenceStatusCommand());
+    }
 
     if (pendingFocusId !== undefined) {
         bpmnModeler.viewport.centerOnElement(pendingFocusId);
@@ -301,7 +357,7 @@ async function run(): Promise<void> {
      * extension can open the inline script in a virtual VS Code editor.
      * Listeners are wired only on C7; C8 is intentionally out of scope.
      */
-    if (bpmnFileQuery?.engine === "c7") {
+    if (currentBpmnFileQuery?.engine === "c7") {
         bpmnModeler.onOpenScriptEditor((data) => {
             host.postMessage(
                 new OpenScriptEditorCommand(
@@ -419,6 +475,7 @@ async function initializeModeler(
     bpmn: string | undefined,
     engine: Engine | undefined,
     extraModules?: any[],
+    documentRevision = 0,
 ): Promise<void> {
     if (!engine) {
         host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
@@ -484,7 +541,7 @@ async function initializeModeler(
         // inline script) to the output channel — they were console-only before.
         bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
         bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
-        await openXml(bpmn);
+        await serializedOpenXml(bpmn, documentRevision);
     } catch (error: any) {
         if (error instanceof NoModelerError) {
             host.postMessage(new LogErrorCommand(error.message));
@@ -517,6 +574,13 @@ async function openXml(bpmn?: string): Promise<void> {
     }
 }
 
+async function openHostXml(bpmn: string | undefined, documentRevision: number): Promise<void> {
+    await openXml(bpmn);
+    if (documentRevision === latestHostDocumentRevision) {
+        hostDocumentRevision = documentRevision;
+    }
+}
+
 /**
  * Exports the current diagram XML and sends it to the backend to persist the
  * changes, then triggers an align-to-origin pass if the setting is enabled.
@@ -532,8 +596,10 @@ async function sendXmlChanges(): Promise<void> {
     // discards the returned promise) as a context-free line — catch it so the
     // failure is named and deterministic on the channel.
     try {
+        const version = hostUpdateVersion;
         const bpmn = await bpmnModeler.exportDiagram();
-        host.postMessage(new SyncDocumentCommand(bpmn));
+        if (version !== hostUpdateVersion || debouncedUpdateXML.pending()) return;
+        host.postMessage(new SyncDocumentCommand(bpmn, hostDocumentRevision));
         bpmnModeler.alignElementsToOrigin();
     } catch (error) {
         const e = error instanceof Error ? error : new Error(String(error));
@@ -557,14 +623,21 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
         case queryOrCommand.type === "BpmnFileQuery": {
             try {
                 const bpmnFileQuery = message.data as BpmnFileQuery;
-                if (modelerIsInitialized) {
+                const documentRevision = bpmnFileQuery.documentRevision ?? 0;
+                if (documentRevision < latestHostDocumentRevision) break;
+                latestHostDocumentRevision = documentRevision;
+                hostUpdateVersion++;
+                latestBpmnFileQuery = bpmnFileQuery;
+                if (!initialBpmnFileReceived) {
+                    initialBpmnFileReceived = true;
+                    initialViewerMode = bpmnFileQuery.viewerMode === "viewer";
+                    bpmnFileResolver.done(bpmnFileQuery);
+                } else if (!initialViewerMode) {
                     // A host push (e.g. a raw-XML side-by-side edit) is
                     // authoritative. Drop any pending outbound sync first so a
                     // stale export firing after the re-import can't clobber it.
                     debouncedSendXmlChanges.cancel();
-                    await debouncedUpdateXML(bpmnFileQuery.content);
-                } else {
-                    bpmnFileResolver.done(bpmnFileQuery);
+                    await debouncedUpdateXML(bpmnFileQuery.content, documentRevision);
                 }
             } catch (error: any) {
                 host.postMessage(new LogErrorCommand(errorPrefix + error.message));
@@ -704,6 +777,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
             break;
         }
+        case queryOrCommand.type === "FormReferenceStatusQuery": {
+            try {
+                const query = message.data as FormReferenceStatusQuery;
+                bpmnModeler.applyFormReferenceStatus(query.formIds);
+            } catch (error: any) {
+                host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+            }
+            break;
+        }
         case queryOrCommand.type === "FocusElementQuery": {
             try {
                 const { elementId } = message.data as FocusElementQuery;
@@ -717,10 +799,8 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>): Promise
             }
             break;
         }
-        case queryOrCommand.type === "FlushDocumentQuery": {
-            // The responder owns its own error handling (replies `undefined` on
-            // export failure), so it never throws into this dispatch.
-            await respondToFlush(message.data as FlushDocumentQuery);
+        case ["FlushDocumentQuery", "ReleaseDocumentFlushQuery"].includes(queryOrCommand.type): {
+            await respondToFlush(message.data as FlushDocumentQuery | ReleaseDocumentFlushQuery);
             break;
         }
     }

@@ -2,7 +2,7 @@
 
 Shared message types and utilities used by both the VS Code extension host
 (`apps/vscode-plugin`) and the webviews (`apps/bpmn-webview`,
-`apps/dmn-webview`, `apps/deployment-webview`).
+`apps/dmn-webview`, `apps/form-webview`, `apps/deployment-webview`).
 
 ## Usage
 

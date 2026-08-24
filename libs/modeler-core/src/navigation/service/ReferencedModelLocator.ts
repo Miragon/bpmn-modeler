@@ -1,4 +1,5 @@
 import { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
 import {
     escapeRegex,
     findFilesExcluding,
@@ -9,7 +10,7 @@ import {
 const ID_DISPLAY_LIMIT = 100;
 
 /**
- * Outcome of locating models that declare a process or decision id.
+ * Outcome of locating models that declare a process, decision, or form id.
  *
  * - `no-search-scope` — nothing to search: no workspace folder open and no
  *   source URI to fall back to.
@@ -22,13 +23,22 @@ export type LocateResult =
     | { kind: "all-unreadable"; attempted: number; failures: string[] }
     | { kind: "matches"; paths: string[]; readFailures: string[] };
 
+export interface FormDeclaration {
+    id: string;
+    path: string;
+}
+
+export type FormDeclarationsResult =
+    | { kind: "no-search-scope" }
+    | { kind: "all-unreadable"; attempted: number; failures: string[] }
+    | { kind: "matches"; declarations: FormDeclaration[]; readFailures: string[] };
+
 /**
- * Locates BPMN/DMN files that declare a given `<process id="…">` or
- * `<decision id="…">`.
+ * Locates BPMN, DMN, or form files that declare the requested top-level id.
  *
  * The workspace search itself (findFiles + fs-walk fallback, parallel content
  * search) lives in {@link findFilesExcluding} / {@link searchFilesContent}
- * under `shared/`; this class only owns the BPMN/DMN-specific glob and id regex.
+ * under `shared/`; this class only owns the model-specific glob and id lookup.
  */
 export class ReferencedModelLocator {
     constructor(
@@ -38,15 +48,27 @@ export class ReferencedModelLocator {
 
     async findDeclaringFiles(
         referenceId: string,
-        kind: "process" | "decision",
+        kind: ReferenceKind,
         sourceDocumentPath?: string,
     ): Promise<LocateResult> {
-        const extension = kind === "process" ? ".bpmn" : ".dmn";
         const id = truncate(referenceId, ID_DISPLAY_LIMIT);
         this.notifier.logInfo(
             `[nav] resolving ${kind} id="${id}" sourceUri=${sourceDocumentPath ?? "<none>"}`,
         );
 
+        if (kind === "form") {
+            const result = await this.findFormDeclarations(sourceDocumentPath);
+            if (result.kind !== "matches") return result;
+            return {
+                kind: "matches",
+                paths: result.declarations
+                    .filter((declaration) => declaration.id === referenceId)
+                    .map((declaration) => declaration.path),
+                readFailures: result.readFailures,
+            };
+        }
+
+        const extension = kind === "process" ? ".bpmn" : ".dmn";
         const paths = await findFilesExcluding(this.vsWorkspace, `**/*${extension}`, {
             sourceDocumentPath,
             logger: this.notifier,
@@ -68,6 +90,47 @@ export class ReferencedModelLocator {
             return { kind: "all-unreadable", attempted: paths.length, failures: readFailures };
         }
         return { kind: "matches", paths: matches, readFailures };
+    }
+
+    /** Parses every candidate `.form` once and returns its top-level non-empty id. */
+    async findFormDeclarations(sourceDocumentPath?: string): Promise<FormDeclarationsResult> {
+        const paths = await findFilesExcluding(this.vsWorkspace, "**/*.form", {
+            sourceDocumentPath,
+            logger: this.notifier,
+            matchesWalkedFile: (path) => path.endsWith(".form"),
+        });
+        if (paths === undefined) {
+            return { kind: "no-search-scope" };
+        }
+
+        const readFailures: string[] = [];
+        const declarations = (
+            await Promise.all(
+                paths.map(async (path): Promise<FormDeclaration | undefined> => {
+                    let content: string;
+                    try {
+                        content = await this.vsWorkspace.readFile(path);
+                    } catch (error) {
+                        readFailures.push(`Could not read ${path}: ${(error as Error).message}`);
+                        return undefined;
+                    }
+
+                    try {
+                        const parsed = JSON.parse(content) as { id?: unknown };
+                        return typeof parsed.id === "string" && parsed.id.length > 0
+                            ? { id: parsed.id, path }
+                            : undefined;
+                    } catch {
+                        return undefined;
+                    }
+                }),
+            )
+        ).filter((value): value is FormDeclaration => value !== undefined);
+
+        if (paths.length > 0 && readFailures.length === paths.length) {
+            return { kind: "all-unreadable", attempted: paths.length, failures: readFailures };
+        }
+        return { kind: "matches", declarations, readFailures };
     }
 
     /**

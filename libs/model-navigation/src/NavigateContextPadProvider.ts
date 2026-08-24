@@ -2,12 +2,13 @@
  * bpmn-js context-pad provider that contributes a "Navigate to referenced
  * model" action.  The action appears on the floating context pad around the
  * selected element for Call Activities (with a resolvable
- * `calledElement` / `zeebe:calledElement processId`) and Business Rule
- * Tasks (with `camunda:decisionRef` / `zeebe:calledDecision decisionId`).
+ * `calledElement` / `zeebe:calledElement processId`), Business Rule Tasks
+ * (with `camunda:decisionRef` / `zeebe:calledDecision decisionId`), and C8 User
+ * Tasks whose `zeebe:formDefinition formId` resolves to a workspace form.
  *
  * Clicking the entry sends a {@link NavigateToReferencedModelCommand} to
  * the extension host, which performs the workspace lookup and opens the
- * referenced `.bpmn` or `.dmn` file.
+ * referenced `.bpmn`, `.dmn`, or `.form` file.
  *
  * The entry is rendered as an inline `html` fragment with an embedded SVG
  * (same approach as the `append` entry from `bpmn-js-create-append-anything`)
@@ -22,9 +23,10 @@
  */
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
-import { NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
+import { NavigateToReferencedModelCommand, type ReferenceKind } from "@miragon/bpmn-modeler-shared";
 
-import { BusinessObjectLike, extractReference, ReferenceKind } from "./extractReference";
+import { BusinessObjectLike, extractReference } from "./extractReference";
+import { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 
 interface ContextPad {
     registerProvider(provider: NavigateContextPadProvider): void;
@@ -69,13 +71,18 @@ const NAVIGATE_ICON_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill=
  * itself (it may only be invoked once per webview).
  */
 export class NavigateContextPadProvider {
-    static $inject = ["contextPad", "translate", "vsCodeBridge"];
+    static $inject = ["contextPad", "translate", "vsCodeBridge", "formReferenceStatusClient"];
 
     private readonly translate: Translate;
 
     private readonly vsCodeBridge: VsCodeBridge;
 
-    constructor(contextPad: ContextPad, translate: Translate, vsCodeBridge: VsCodeBridge) {
+    constructor(
+        contextPad: ContextPad,
+        translate: Translate,
+        vsCodeBridge: VsCodeBridge,
+        private readonly formReferenceStatusClient: FormReferenceStatusClient,
+    ) {
         this.translate = translate;
         this.vsCodeBridge = vsCodeBridge;
         contextPad.registerProvider(this);
@@ -83,7 +90,7 @@ export class NavigateContextPadProvider {
 
     /**
      * Called by the context pad for the selected element.  Returns a single
-     * entry when the element has a resolvable process / decision reference,
+     * entry when the element has a resolvable process, decision, or form reference,
      * or an empty object otherwise (no contribution).
      *
      * @param element The currently selected element.
@@ -93,7 +100,11 @@ export class NavigateContextPadProvider {
         if (!kind) {
             return {};
         }
-        if (!extractReference(element.businessObject, kind)) {
+        const reference = extractReference(element.businessObject, kind);
+        if (
+            !reference ||
+            (kind === "form" && !this.formReferenceStatusClient.isResolved(reference))
+        ) {
             return {};
         }
 
@@ -114,7 +125,10 @@ export class NavigateContextPadProvider {
                     // navigates to the current id, not a stale one.
                     click: (_event, clickedElement) => {
                         const current = extractReference(clickedElement.businessObject, kind);
-                        if (current) {
+                        if (
+                            current &&
+                            (kind !== "form" || this.formReferenceStatusClient.isResolved(current))
+                        ) {
                             postMessage(current);
                         }
                     },
@@ -129,6 +143,9 @@ export class NavigateContextPadProvider {
         }
         if (is(element, "bpmn:BusinessRuleTask")) {
             return "decision";
+        }
+        if (is(element, "bpmn:UserTask")) {
+            return "form";
         }
         return undefined;
     }

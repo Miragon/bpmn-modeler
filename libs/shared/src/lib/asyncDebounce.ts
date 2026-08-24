@@ -29,6 +29,16 @@ export interface AsyncDebounced<F extends (...args: any[]) => Promise<unknown>> 
     pending(): boolean;
 }
 
+/** Runs async calls in invocation order, even when earlier calls are still pending. */
+export function serializeAsync<F extends (...args: any[]) => Promise<unknown>>(func: F): F {
+    let tail: Promise<unknown> = Promise.resolve();
+    return ((...args: Parameters<F>): ReturnType<F> => {
+        const result = tail.then(() => func(...args));
+        tail = result.catch(() => undefined);
+        return result as ReturnType<F>;
+    }) as unknown as F;
+}
+
 /**
  * Makes the [lodash.debounce](https://lodash.com/docs/4.17.15#debounce) function async-friendly
  * @param func The function to debounce
@@ -48,7 +58,7 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
 
     // The promise of the most recent fired invocation, so `flush` can await
     // work already running — not just trip a pending timer.
-    let inFlight: Promise<unknown> | undefined;
+    const inFlight = new Set<Promise<unknown>>();
 
     const debounced = debounce((args: Parameters<F>) => {
         // Snapshot this generation's resolvers and hand the wrapper fresh sets
@@ -63,16 +73,9 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
         rejectSet = new Set<(p: unknown) => void>();
 
         const run = func(...args);
-        inFlight = run;
+        inFlight.add(run);
         const clearInFlight = (): void => {
-            // Guard against a newer invocation having replaced us: clearing
-            // unconditionally would strand the newer `inFlight` if an older
-            // call settled last. Cleared here (not in a trailing `.finally`) so
-            // `pending()` — which reads `inFlight` — flips false the moment this
-            // generation settles, not a microtask later.
-            if (inFlight === run) {
-                inFlight = undefined;
-            }
+            inFlight.delete(run);
         };
         run.then((...res) => {
             clearInFlight();
@@ -92,10 +95,10 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
 
     wrapper.flush = async (): Promise<void> => {
         // `debounced.flush()` runs the pending trailing call synchronously
-        // (setting `inFlight`); awaiting it lets callers sequence teardown
+        // (adding to `inFlight`); awaiting it lets callers sequence teardown
         // after the model has actually been updated.
         debounced.flush();
-        await inFlight;
+        await Promise.all(inFlight);
     };
 
     wrapper.cancel = (): void => {
@@ -109,7 +112,7 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
         rejectSet = new Set<(p: unknown) => void>();
     };
 
-    wrapper.pending = (): boolean => resolveSet.size > 0 || inFlight !== undefined;
+    wrapper.pending = (): boolean => resolveSet.size > 0 || inFlight.size > 0;
 
     return wrapper as AsyncDebounced<F>;
 }

@@ -9,7 +9,7 @@
 
 **BPMN, where your work already happens.**
 
-A growing family of BPMN/DMN tools built around a shared modeler core — in VS Code, on the desktop, and (soon) talking to your AI assistant.
+A growing family of BPMN/DMN and Camunda Form tools built around a shared modeler core — in VS Code, on the desktop, and (soon) talking to your AI assistant.
 
 [Documentation](https://miragon.github.io/bpmn-modeler/) · [Install on Marketplace](https://marketplace.visualstudio.com/items?itemName=miragon-gmbh.vs-code-bpmn-modeler) · [Issues](https://github.com/Miragon/bpmn-modeler/issues)
 
@@ -46,6 +46,8 @@ Different surfaces, one modeling engine, one repo.
 - **Full BPMN 2.0 + DMN modeling** for **Camunda 7** and **Camunda 8**
   (plus compatible forks like **Operaton** and **CIB7**) — engine-aware
   properties, no profile switching ceremony.
+- **Camunda Form editing** — design and preview `.form` files visually, edit
+  their validated JSON source, and navigate from linked Camunda 8 User Tasks.
 - **Element templates by convention** — drop them in `.camunda/element-templates/`
   next to your BPMN file, the modeler picks them up. No project config required.
 - **Deploy from the editor** — a sidebar that pushes your diagram to C7 or
@@ -64,7 +66,7 @@ Different surfaces, one modeling engine, one repo.
 ### Try it in 30 seconds
 
 > Install **[BPMN Modeler][marketplace-url]** from the VS Code
-> Marketplace, open any `.bpmn` or `.dmn` file — the modeler opens
+> Marketplace, open any `.bpmn`, `.dmn`, or `.form` file — the modeler opens
 > automatically as a custom editor. That's it.
 
 For settings, commands, and the full feature tour see
@@ -78,10 +80,11 @@ surfaces; each one has its own README with its own pitch.
 
 | Module | What it is | Status |
 |---|---|---|
-| [`apps/vscode-plugin`](apps/vscode-plugin/README.md) | The VS Code extension — the public BPMN/DMN modeler. | Published on the [Marketplace][marketplace-url] |
+| [`apps/vscode-plugin`](apps/vscode-plugin/README.md) | The VS Code extension — the public BPMN/DMN and Camunda Form modeler. | Published on the [Marketplace][marketplace-url] |
 | [`apps/standalone`](apps/standalone/README.md) | Theia/Electron desktop shell wrapping the same modeler — same features, no VS Code required. | Build-from-source, unreleased |
 | [`apps/bpmn-webview`](apps/bpmn-webview/README.md) | BPMN canvas webview embedded in the extension host. | Internal |
 | [`apps/dmn-webview`](apps/dmn-webview/README.md) | DMN canvas webview embedded in the extension host. | Internal |
+| [`apps/form-webview`](apps/form-webview/README.md) | Camunda Form editor and preview webview embedded in the extension host. | Internal |
 | [`apps/deployment-webview`](apps/deployment-webview/README.md) | Deployment sidebar webview. | Internal |
 | [`libs/shared`](libs/shared/README.md) | Shared message types and webview utilities. | Internal |
 

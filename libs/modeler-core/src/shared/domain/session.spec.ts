@@ -8,17 +8,18 @@ describe("ModelerSession", () => {
     });
 
     it("is not guarded when fresh", () => {
-        expect(new ModelerSession("s").isGuarded()).toBe(false);
+        expect(new ModelerSession("s").isGuarded("<host/>")).toBe(false);
     });
 
-    it("guards after a single acquire and unguards after release", () => {
+    it("guards matching content after acquire and unguards after release", () => {
         const session = new ModelerSession("s");
 
-        session.acquireGuard();
-        expect(session.isGuarded()).toBe(true);
+        session.acquireGuard("<write/>");
+        expect(session.isGuarded("<write/>")).toBe(true);
+        expect(session.isGuarded("<host-edit/>")).toBe(false);
 
-        session.releaseGuard();
-        expect(session.isGuarded()).toBe(false);
+        session.releaseGuard("<write/>");
+        expect(session.isGuarded("<write/>")).toBe(false);
     });
 
     // The guard is a counter, not a boolean: overlapping async writes nest,
@@ -26,14 +27,14 @@ describe("ModelerSession", () => {
     it("requires one release per acquire when nested", () => {
         const session = new ModelerSession("s");
 
-        session.acquireGuard();
-        session.acquireGuard();
+        session.acquireGuard("<write/>");
+        session.acquireGuard("<write/>");
 
-        session.releaseGuard();
-        expect(session.isGuarded()).toBe(true);
+        session.releaseGuard("<write/>");
+        expect(session.isGuarded("<write/>")).toBe(true);
 
-        session.releaseGuard();
-        expect(session.isGuarded()).toBe(false);
+        session.releaseGuard("<write/>");
+        expect(session.isGuarded("<write/>")).toBe(false);
     });
 
     // A release on a zero counter must not drive it negative, or a later single
@@ -41,10 +42,18 @@ describe("ModelerSession", () => {
     it("ignores underflow so a later acquire still guards", () => {
         const session = new ModelerSession("s");
 
-        session.releaseGuard();
-        expect(session.isGuarded()).toBe(false);
+        session.releaseGuard("<write/>");
+        expect(session.isGuarded("<write/>")).toBe(false);
 
-        session.acquireGuard();
-        expect(session.isGuarded()).toBe(true);
+        session.acquireGuard("<write/>");
+        expect(session.isGuarded("<write/>")).toBe(true);
+    });
+
+    it("matches echoes after line-ending normalization", () => {
+        const session = new ModelerSession("s");
+
+        session.acquireGuard("<xml/>\r\n");
+
+        expect(session.isGuarded("<xml/>\n")).toBe(true);
     });
 });

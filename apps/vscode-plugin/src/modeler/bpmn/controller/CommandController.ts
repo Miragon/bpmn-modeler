@@ -18,6 +18,8 @@ import {
     BpmnDocument,
     DMN_VIEW_TYPE,
     EMPTY_DMN_DIAGRAM,
+    EMPTY_FORM,
+    FORM_VIEW_TYPE,
     getLatestVersion,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
@@ -27,6 +29,7 @@ import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEdito
 import { VsCodePicker } from "../../../shared/infrastructure/VsCodePicker";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
+import type { EditorFlushResult } from "../../editor-session/DocumentSaveFlushController";
 
 // VS Code command ID for toggling the text editor.
 export const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
@@ -46,10 +49,17 @@ export const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
 export const NEW_BPMN_MODEL_CMD = "bpmn-modeler.newBpmnModel";
 // VS Code command ID for scaffolding a new DMN model.
 export const NEW_DMN_MODEL_CMD = "bpmn-modeler.newDmnModel";
+// VS Code command ID for scaffolding a new Camunda Form.
+export const NEW_FORM_MODEL_CMD = "bpmn-modeler.newFormModel";
 // VS Code command ID for reloading the active modeler webview. Manual fallback
 // for setups where the element-template file watcher never fires (WSL +
 // symlinked workspace): a reload re-requests the templates from the host.
 export const RELOAD_MODELER_CMD = "bpmn-modeler.reloadModeler";
+
+export interface DocumentFlusher {
+    flush(editorId: string, destructive?: boolean): Promise<EditorFlushResult>;
+    release(editorId: string, session: object): void;
+}
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
@@ -79,6 +89,7 @@ export class CommandController {
         private readonly bpmnService: BpmnModelerService,
         private readonly migrationSvc: BpmnMigrationService,
         private readonly picker: VsCodePicker,
+        private readonly documentFlush: DocumentFlusher,
     ) {}
 
     /**
@@ -98,6 +109,7 @@ export class CommandController {
             commands.registerCommand(CHANGE_LANGUAGE_CMD, this.changeLanguage, this),
             commands.registerCommand(NEW_BPMN_MODEL_CMD, this.newBpmnModel, this),
             commands.registerCommand(NEW_DMN_MODEL_CMD, this.newDmnModel, this),
+            commands.registerCommand(NEW_FORM_MODEL_CMD, this.newFormModel, this),
             commands.registerCommand(RELOAD_MODELER_CMD, this.reloadModeler, this),
         );
     }
@@ -120,8 +132,19 @@ export class CommandController {
      * workspace). Unsaved edits survive: the `TextDocument` is the source of
      * truth and the restarted webview re-imports its (dirty) text.
      */
-    reloadModeler(): void {
-        this.editorStore.reload(this.editorStore.getActiveEditorId());
+    async reloadModeler(): Promise<void> {
+        const editorId = this.editorStore.getActiveEditorId();
+        const result = await this.documentFlush.flush(editorId, true);
+        if (result.status !== "safe") return;
+        if (!this.editorStore.isCurrentEditorSession(editorId, result.session)) {
+            this.documentFlush.release(editorId, result.session);
+            return;
+        }
+        try {
+            this.editorStore.reload(editorId);
+        } finally {
+            this.documentFlush.release(editorId, result.session);
+        }
     }
 
     /**
@@ -233,21 +256,39 @@ export class CommandController {
         });
     }
 
+    /** Creates a valid Camunda Form and opens it in the visual editor. */
+    newFormModel(): Promise<void> {
+        return this.logAndRethrow(async () => {
+            const target = await this.promptNewModelTarget(
+                "New Camunda Form",
+                "Camunda Form",
+                "form",
+                "new-form",
+            );
+            if (!target) {
+                return;
+            }
+            await workspace.fs.writeFile(target, Buffer.from(EMPTY_FORM));
+            await commands.executeCommand("vscode.openWith", target, FORM_VIEW_TYPE);
+        });
+    }
+
     /**
      * Single native prompt for name + location. Works without a workspace folder
      * open (the `defaultUri` is simply omitted); the OS dialog owns overwrite
      * confirmation. Appends the extension when the dialog did not (some Linux
-     * dialogs don't enforce the filter), so `openWith` matches on `.bpmn`/`.dmn`.
+     * dialogs don't enforce the filter), so `openWith` matches the custom editor.
      */
     private async promptNewModelTarget(
         title: string,
         filterLabel: string,
         ext: string,
+        defaultName = "new-diagram",
     ): Promise<Uri | undefined> {
         const folder = workspace.workspaceFolders?.[0];
         const uri = await window.showSaveDialog({
             title,
-            defaultUri: folder ? Uri.joinPath(folder.uri, `new-diagram.${ext}`) : undefined,
+            defaultUri: folder ? Uri.joinPath(folder.uri, `${defaultName}.${ext}`) : undefined,
             filters: { [filterLabel]: [ext] },
         });
         if (!uri) {

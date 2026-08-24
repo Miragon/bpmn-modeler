@@ -7,7 +7,7 @@ import {
     window,
 } from "vscode";
 
-import { Command } from "@miragon/bpmn-modeler-shared";
+import { Command, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
 
 import { DocumentChangeEvent, EditorSubscription, SettingChange } from "@miragon/bpmn-modeler-core";
 import { basenameOfUriString, EditorSessionStore } from "@miragon/bpmn-modeler-core";
@@ -16,10 +16,12 @@ import { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier";
 import { WebviewMessageRouter } from "@miragon/bpmn-modeler-core";
 import { EditorSessionContext, EditorSessionParticipant } from "./EditorSessionParticipant";
 
+const ORDERED_DOCUMENT_MESSAGES = new Set(["SyncDocumentCommand"]);
+
 /**
  * Per-`viewType` configuration for {@link ModelerEditorController}. Everything
- * that differs between the BPMN and DMN editors is data here, so one controller
- * class serves both.
+ * that differs between the modeler editors is data here, so one controller
+ * class serves all of them.
  */
 export interface ModelerEditorOptions {
     viewType: string;
@@ -27,12 +29,12 @@ export interface ModelerEditorOptions {
     participants: readonly EditorSessionParticipant[];
 
     /**
-     * BPMN-only diff routing. Returning `true` means this resolve was handled
+     * Optional diff routing. Returning `true` means this resolve was handled
      * elsewhere (a diff pane), so the editor session must not be created.
      */
     delegateResolve?: (document: TextDocument, panel: WebviewPanel) => boolean;
 
-    /** Persisted properties-panel visibility, pre-applied to the HTML (BPMN & DMN). */
+    /** Persisted properties-panel visibility, pre-applied where supported. */
     initialPanelVisible?: () => boolean;
 }
 
@@ -90,22 +92,26 @@ export class ModelerEditorController implements CustomTextEditorProvider {
             }
 
             const editorId = document.uri.toString();
-            this.editorStore.register(
-                VsCodeEditorHandle.create(
-                    this.options.viewType,
-                    editorId,
-                    webviewPanel,
-                    document,
-                    this.options.initialPanelVisible?.(),
-                ),
+            const editorHandle = VsCodeEditorHandle.create(
+                this.options.viewType,
+                editorId,
+                webviewPanel,
+                document,
+                this.options.initialPanelVisible?.(),
             );
+            this.editorStore.register(editorHandle);
             // Reproduction breadcrumb: the open/close pair frames a session in the
             // channel so a bug report reads as a sequence of user steps.
             this.notifier.logInfo(
                 `Editor opened: ${basenameOfUriString(editorId)} (${this.options.viewType})`,
             );
 
-            const context = new EditorSessionContextImpl(this.editorStore, editorId, webviewPanel);
+            const context = new EditorSessionContextImpl(
+                this.editorStore,
+                editorHandle,
+                editorId,
+                webviewPanel,
+            );
 
             // Wire message/tab/dispose synchronously, before running any
             // participant. `register` set the webview HTML, so the webview is
@@ -138,11 +144,14 @@ export class ModelerEditorController implements CustomTextEditorProvider {
             // status bar, and (worst) the inline-script teardown never registers,
             // leaking on editor close. Order-independent and future-proof.
             for (const participant of this.options.participants) {
+                if (!context.isCurrent()) break;
                 try {
                     await participant.onResolve(context);
                 } catch (error) {
-                    this.notifier.showError((error as Error).message);
-                    this.notifier.logError(error as Error);
+                    if (context.isCurrent()) {
+                        this.notifier.showError((error as Error).message);
+                        this.notifier.logError(error as Error);
+                    }
                 }
             }
         } catch (error) {
@@ -160,18 +169,37 @@ export class ModelerEditorController implements CustomTextEditorProvider {
      */
     private subscribeToMessageEvent(editorId: string): void {
         this.editorStore.subscribeToMessageEvent(editorId, async (message: Command, id: string) => {
-            // Per-message transport tracing: useful when diagnosing a stuck
-            // webview handshake, but far too frequent for the default level.
-            this.notifier.logDebug(`Message received -> ${message.type}`);
-            try {
-                await this.options.messageRouter.dispatch(message, id);
-                this.notifier.logDebug(`Message processed -> ${message.type}`);
-            } catch (error) {
-                // VS Code's event emitter does not await this async listener, so
-                // a rejected dispatch would otherwise surface as an unhandled
-                // promise rejection. Log it — one handler's failure must never
-                // crash the host.
-                this.notifier.logError(error as Error);
+            const session = this.editorStore.captureEditorSession(id);
+            if (!session) return;
+            const dispatch = async (): Promise<void> => {
+                // Per-message transport tracing: useful when diagnosing a stuck
+                // webview handshake, but far too frequent for the default level.
+                this.notifier.logDebug(`Message received -> ${message.type}`);
+                try {
+                    await this.options.messageRouter.dispatch(message, id);
+                    this.notifier.logDebug(`Message processed -> ${message.type}`);
+                } catch (error) {
+                    // VS Code's event emitter does not await this async listener, so
+                    // a rejected dispatch would otherwise surface as an unhandled
+                    // promise rejection. Log it — one handler's failure must never
+                    // crash the host.
+                    this.notifier.logError(error as Error);
+                }
+            };
+
+            if (ORDERED_DOCUMENT_MESSAGES.has(message.type)) {
+                const sync = message as SyncDocumentCommand;
+                if (!this.editorStore.isHostDocumentRevisionCurrent(id, sync.documentRevision)) {
+                    return;
+                }
+                await this.editorStore.runInEditorQueue(id, async () => {
+                    await dispatch();
+                    if (this.editorStore.isHostDocumentRevisionCurrent(id, sync.documentRevision)) {
+                        this.editorStore.recordDocumentSync(id, session, sync.content);
+                    }
+                });
+            } else {
+                await dispatch();
             }
         });
     }
@@ -186,32 +214,52 @@ export class ModelerEditorController implements CustomTextEditorProvider {
  */
 class EditorSessionContextImpl implements EditorSessionContext {
     private readonly disposeCallbacks: (() => void)[] = [];
+    private disposed = false;
 
     constructor(
         private readonly editorStore: EditorSessionStore,
+        private readonly session: object,
         readonly editorId: string,
         readonly panel: WebviewPanel,
     ) {}
 
     onDocumentChange(callback: (event: DocumentChangeEvent) => void): void {
+        if (!this.isCurrent()) return;
         this.editorStore.subscribeToDocumentChangeEvent(this.editorId, callback);
     }
 
     onSettingChange(callback: (event: SettingChange, editorId: string) => void): void {
+        if (!this.isCurrent()) return;
         this.editorStore.subscribeToSettingChangeEvent(this.editorId, callback);
     }
 
     onDispose(callback: () => void): void {
+        if (this.disposed || !this.isCurrent()) {
+            callback();
+            return;
+        }
         this.disposeCallbacks.push(callback);
     }
 
     addDisposable(disposable: EditorSubscription): void {
+        if (!this.isCurrent()) {
+            disposable.dispose();
+            return;
+        }
         this.editorStore.addToDisposals(this.editorId, disposable);
+    }
+
+    isCurrent(): boolean {
+        return (
+            !this.disposed && this.editorStore.isCurrentEditorSession(this.editorId, this.session)
+        );
     }
 
     /** Runs the collected teardown callbacks in registration order. */
     runDisposeCallbacks(): void {
-        for (const callback of this.disposeCallbacks) {
+        if (this.disposed) return;
+        this.disposed = true;
+        for (const callback of this.disposeCallbacks.splice(0)) {
             callback();
         }
     }

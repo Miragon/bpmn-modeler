@@ -2,11 +2,12 @@
  * Modeler-specific messages for the VS Code extension ↔ webview communication protocol.
  *
  * Extends the base {@link Query} and {@link Command} abstractions from {@link messages.ts}
- * with all concrete message types required by the BPMN and DMN modeler features:
+ * with all concrete message types required by the BPMN, DMN, and form modeler features:
  *
  * Queries (extension host → webview):
  * - {@link BpmnFileQuery}                 — deliver BPMN XML and detected engine type for rendering
  * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
+ * - {@link FormFileQuery}                 — deliver Camunda Form JSON for rendering
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
  * - {@link BpmnlintResultsQuery}          — deliver host-computed bpmnlint results (or null to deactivate)
  * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
@@ -20,6 +21,7 @@
  * Commands (webview → extension host):
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
  * - {@link GetDmnFileCommand}                 — webview is ready; request the DMN file
+ * - {@link GetFormFileCommand}                — webview is ready; request the form file
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
  * - {@link GetBpmnlintConfigCommand}          — webview is ready; trigger a host lint pass
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
@@ -31,7 +33,7 @@
  * - {@link GetDiagramAsSVGCommand}            — request an SVG export of the current diagram
  * - {@link OpenScriptEditorCommand}           — request the host to open a script task in a VS Code editor
  * - {@link UpdateScriptVariablesCommand}      — push the re-extracted process-variable model to the host
- * - {@link NavigateToReferencedModelCommand}  — jump to the referenced BPMN/DMN file
+ * - {@link NavigateToReferencedModelCommand}  — jump to the referenced BPMN/DMN/form file
  * - {@link NavigateToImplementationCommand}   — jump to the source file implementing a task
  * - {@link SyncActivitiesCommand}             — push the diagram's task implementation references so the host maintains the activity→code map
  *
@@ -82,25 +84,41 @@ export class BpmnFileQuery extends Query {
      * to `"viewer"` when the pane is one half of a git diff view.
      */
     public readonly viewerMode: BpmnViewerMode;
+    public readonly documentRevision: number;
 
     constructor(
         content: string,
         engine: Engine,
         viewerMode: BpmnViewerMode = "modeler",
+        documentRevision = 0,
     ) {
         super("BpmnFileQuery");
         this.content = content;
         this.engine = engine;
         this.viewerMode = viewerMode;
+        this.documentRevision = documentRevision;
     }
 }
 
 export class DmnFileQuery extends Query {
     public readonly content: string;
+    public readonly documentRevision: number;
 
-    constructor(content: string) {
+    constructor(content: string, documentRevision = 0) {
         super("DmnFileQuery");
         this.content = content;
+        this.documentRevision = documentRevision;
+    }
+}
+
+export class FormFileQuery extends Query {
+    public readonly content: string;
+    public readonly documentRevision: number;
+
+    constructor(content: string, documentRevision = 0) {
+        super("FormFileQuery");
+        this.content = content;
+        this.documentRevision = documentRevision;
     }
 }
 
@@ -384,6 +402,16 @@ export class ImplementationStatusQuery extends Query {
     }
 }
 
+/** Resolvable top-level form ids in the current workspace search scope. */
+export class FormReferenceStatusQuery extends Query {
+    public readonly formIds: string[];
+
+    constructor(formIds: string[]) {
+        super("FormReferenceStatusQuery");
+        this.formIds = formIds;
+    }
+}
+
 /**
  * <================================== Queries ===================================
  *
@@ -406,6 +434,12 @@ export class GetDiagramAsSVGCommand extends Command {
 export class GetDmnFileCommand extends Command {
     constructor() {
         super("GetDmnFileCommand");
+    }
+}
+
+export class GetFormFileCommand extends Command {
+    constructor() {
+        super("GetFormFileCommand");
     }
 }
 
@@ -474,21 +508,30 @@ export class GetClipboardCommand extends Command {
 
 /**
  * Sent by the BPMN webview when the user clicks the "Navigate to referenced
- * model" link on the properties panel for a Call Activity or Business Rule
- * Task.  The host searches the workspace for `.bpmn` / `.dmn` files declaring
- * a `process` / `decision` with the given id and either opens the unique
+ * model" context-pad entry for a Call Activity, Business Rule Task, or User
+ * Task. The host searches the workspace for `.bpmn`, `.dmn`, or `.form` files
+ * declaring the requested id and either opens the unique
  * match, shows a QuickPick when several files match, or shows an info
  * notification when no match is found.
  */
+export type ReferenceKind = "process" | "decision" | "form";
+
 export class NavigateToReferencedModelCommand extends Command {
     public readonly referenceId: string;
 
-    public readonly referenceKind: "process" | "decision";
+    public readonly referenceKind: ReferenceKind;
 
-    constructor(referenceId: string, referenceKind: "process" | "decision") {
+    constructor(referenceId: string, referenceKind: ReferenceKind) {
         super("NavigateToReferencedModelCommand");
         this.referenceId = referenceId;
         this.referenceKind = referenceKind;
+    }
+}
+
+/** Requests the resolvable Camunda Form ids for context-pad visibility. */
+export class GetFormReferenceStatusCommand extends Command {
+    constructor() {
+        super("GetFormReferenceStatusCommand");
     }
 }
 

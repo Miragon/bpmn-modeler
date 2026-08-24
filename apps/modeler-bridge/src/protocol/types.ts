@@ -37,13 +37,17 @@ export type EmptyParams = Record<string, never>;
 /** `webview/message` — a webview {@link Command} the host forwards into the core. */
 export interface WebviewMessageParams {
     editorId: string;
+    sessionId?: number;
     message: Command;
 }
 
 /** `document/didChange` — the host reports new on-disk/editor text for an editor. */
 export interface DocumentDidChangeParams {
     editorId: string;
+    sessionId?: number;
     content: string;
+    /** Host-owned document revision after applying this external change. */
+    documentRevision?: number;
     /**
      * Set iff this change is the host's echo of a core-originated
      * `document/write`, carrying that write's {@link DocumentWriteParams.revision}
@@ -52,9 +56,10 @@ export interface DocumentDidChangeParams {
     causedBy?: number;
 }
 
-/** `session/setActive`, `session/dispose` — address an editor by id alone. */
+/** `session/setActive`, `session/dispose` — address one exact editor session. */
 export interface EditorRefParams {
     editorId: string;
+    sessionId?: number;
 }
 
 /** `settings/didChange` — a fresh `miragon.bpmnModeler.*` snapshot from the host. */
@@ -196,7 +201,10 @@ export interface MigrateAllParams {
 /** `document/write` — push core-originated text; result reports whether it changed. */
 export interface DocumentWriteParams {
     editorId: string;
+    sessionId?: number;
     content: string;
+    /** Host document revision on which this write was based. */
+    expectedDocumentRevision?: number;
     /**
      * Per-editor monotonic id the host echoes back as
      * {@link DocumentDidChangeParams.causedBy}, letting the bridge recognise the
@@ -207,6 +215,8 @@ export interface DocumentWriteParams {
 }
 export interface DocumentWriteResult {
     changed?: boolean;
+    /** False when the host rejected a stale session or document revision. */
+    accepted?: boolean;
 }
 
 /** `document/save` — persist the editor; result reports whether a save happened. */
@@ -295,6 +305,7 @@ export interface TokenPromptShowResult {
 /** `editor/postMessage` — the core drives the host's editor browser. */
 export interface EditorPostMessageParams {
     editorId: string;
+    sessionId?: number;
     message: Command | Query;
 }
 

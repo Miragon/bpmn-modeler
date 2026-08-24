@@ -7,7 +7,10 @@ import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-temp
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
+import {
+    FormReferenceStatusClient,
+    NavigateToReferencedModelModule,
+} from "@miragon/bpmn-model-navigation";
 import { CodeLinkModule, type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import {
@@ -537,6 +540,13 @@ export class BpmnModeler {
      */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getService<CodeLinkMapClient>("codeLinkMapClient").applyStatus(resolved);
+    }
+
+    /** Applies the host's resolvable Camunda Form ids to the navigation provider. */
+    applyFormReferenceStatus(formIds: string[]): void {
+        this.getService<FormReferenceStatusClient>("formReferenceStatusClient").applyStatus(
+            formIds,
+        );
     }
 
     /**

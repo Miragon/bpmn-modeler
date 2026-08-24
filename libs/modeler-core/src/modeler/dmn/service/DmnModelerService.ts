@@ -23,23 +23,29 @@ export class DmnModelerService {
         this.sessions.delete(editorId);
     }
 
-    async display(editorId: string): Promise<boolean> {
-        // Skip echoed document changes caused by our own write.
-        const session = this.sessions.get(editorId);
-        if (session?.isGuarded()) {
-            return false;
-        }
-
+    async display(editorId: string, hostUpdated = false): Promise<boolean> {
         try {
+            const session = this.sessions.get(editorId);
             let dmnFile = this.vsDocument.getContent(editorId);
+            if (session?.isGuarded(dmnFile)) return false;
+            if (hostUpdated) this.editorStore.markHostDocumentUpdated(editorId);
+            const documentRevision = this.editorStore.currentHostDocumentRevision(editorId);
 
             if (dmnFile === "") {
                 dmnFile = EMPTY_DMN_DIAGRAM;
-                await this.vsDocument.write(editorId, dmnFile);
+                session?.acquireGuard(dmnFile);
+                try {
+                    await this.vsDocument.write(editorId, dmnFile, documentRevision);
+                } finally {
+                    session?.releaseGuard(dmnFile);
+                }
                 await this.vsDocument.save(editorId);
             }
 
-            return await this.editorStore.postMessage(editorId, new DmnFileQuery(dmnFile));
+            return await this.editorStore.postMessage(
+                editorId,
+                new DmnFileQuery(dmnFile, documentRevision),
+            );
         } catch (error) {
             if (error instanceof UserCancelledError) {
                 return false;
@@ -51,17 +57,20 @@ export class DmnModelerService {
         }
     }
 
-    async sync(editorId: string, content: string): Promise<boolean> {
+    async sync(editorId: string, content: string, documentRevision?: number): Promise<boolean> {
         const session = this.sessions.get(editorId);
+        if (!this.editorStore.isHostDocumentRevisionCurrent(editorId, documentRevision)) {
+            return false;
+        }
         // Guard around the write so the resulting document-change event is
         // recognised as our own echo and not re-rendered.
-        session?.acquireGuard();
+        session?.acquireGuard(content);
         try {
-            return await this.vsDocument.write(editorId, content);
+            return await this.vsDocument.write(editorId, content, documentRevision);
         } catch (error) {
             return this.handleSyncError(error as Error);
         } finally {
-            session?.releaseGuard();
+            session?.releaseGuard(content);
         }
     }
 

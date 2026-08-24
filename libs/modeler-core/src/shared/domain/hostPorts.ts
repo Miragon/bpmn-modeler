@@ -181,7 +181,7 @@ export interface DocumentPort {
     getContent(editorId: string): string;
     getFilePath(editorId: string): string;
     /** @returns `true` if applied, `false` if content was unchanged. */
-    write(editorId: string, content: string): Promise<boolean>;
+    write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean>;
     save(editorId: string): Promise<boolean>;
 }
 

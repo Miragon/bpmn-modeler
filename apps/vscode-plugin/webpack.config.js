@@ -121,6 +121,13 @@ module.exports = (env, argv) => {
                         to: "schemas/bpmn-vars.schema.json",
                     },
                     {
+                        from: path.resolve(
+                            __dirname,
+                            "../../node_modules/@bpmn-io/form-json-schema/resources/schema.json",
+                        ),
+                        to: "schemas/form.schema.json",
+                    },
+                    {
                         from: path.resolve(__dirname, "../../images/miragon-logo.png"),
                         to: "assets",
                         noErrorOnMissing: true,
@@ -154,6 +161,27 @@ module.exports = (env, argv) => {
                         to: "dmn-webview",
                         noErrorOnMissing: true,
                         info: { minimized: true },
+                    },
+                    {
+                        // Copy the form webview build artefacts into the extension output.
+                        from: path.resolve(__dirname, "../../dist/webview-staging/form-webview"),
+                        to: "form-webview",
+                        noErrorOnMissing: true,
+                        info: { minimized: true },
+                    },
+                    {
+                        from: path.resolve(
+                            __dirname,
+                            "../../node_modules/@bpmn-io/form-js/LICENSE",
+                        ),
+                        to: "licenses/form-js.LICENSE",
+                    },
+                    {
+                        from: path.resolve(
+                            __dirname,
+                            "../../node_modules/@bpmn-io/form-json-schema/LICENSE",
+                        ),
+                        to: "licenses/form-json-schema.LICENSE",
                     },
                     {
                         // Copy the deployment webview build artefacts into the extension output.

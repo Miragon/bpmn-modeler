@@ -1,34 +1,56 @@
-import { DocumentFlushedCommand, FlushDocumentQuery } from "@miragon/bpmn-modeler-shared";
+import {
+    DocumentFlushedCommand,
+    FlushDocumentQuery,
+    ReleaseDocumentFlushQuery,
+} from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort } from "../domain/hostPorts";
 import { EditorSessionStore } from "../infrastructure/EditorSessionStore";
 import { MessageHandler } from "../infrastructure/WebviewMessageRouter";
 
+export type DocumentFlushResult =
+    | { status: "clean" }
+    | { status: "flushed"; content: string; documentRevision?: number }
+    | { status: "host-updated" }
+    | { status: "unavailable" };
+
+type PendingFlush = {
+    token: number;
+    session: object;
+    destructive: boolean;
+    promise: Promise<DocumentFlushResult>;
+    settle(result: DocumentFlushResult): void;
+};
+
+export interface DocumentFlushOptions {
+    timeoutMs?: number;
+    destructive?: boolean;
+}
+
 /**
  * Host-side half of the flush protocol: round-trips a {@link FlushDocumentQuery}
- * to a webview and resolves with the XML the webview flushes back, so a
- * save/close path can persist the freshest document instead of racing the
+ * to a webview and resolves with the content the webview flushes back, so a
+ * save/reload path can persist the freshest document instead of racing the
  * webview's outbound sync debounce.
  *
  * Host-agnostic by construction — it names only `setTimeout`, the shared
- * messages, the editor store, and the logger port — so the VS Code save hook and
- * the IntelliJ close hook can both drive it. `requestFlush` **never rejects**:
- * every failure mode (timeout, hidden/undeliverable webview, "nothing pending"
- * reply, superseded request) resolves `undefined`, which every caller reads as
- * "leave the host buffer untouched". That is always safe because a missed sync
- * self-heals on the next model change and the host copy is authoritative when
- * the webview reports nothing pending.
+ * messages, the editor store, and the logger port. `requestFlush` **never rejects**:
+ * every failure mode resolves an `unavailable` result. A matching reply without
+ * content is a distinct `clean` result, so destructive callers can require a
+ * confirmed flush while save paths remain best-effort. A persistence caller
+ * must still drain the editor's task queue: a sync posted immediately before a
+ * clean reply may still be applying to the host document.
  */
 export class DocumentFlushService {
     private nextToken = 1;
 
     /**
-     * One outstanding request per editor. A second `requestFlush` for the same
-     * editor supersedes the first (resolving it `undefined`) so a stale reply
-     * can never satisfy the newer request. `token` disambiguates a late reply
-     * that arrives after this entry was replaced or timed out.
+     * Concurrent requests for one editor session share a single round-trip. A
+     * replacement session with the same editor id invalidates the old request
+     * and starts its own. `token` disambiguates late replies.
      */
-    private readonly pending = new Map<string, { token: number; settle(xml?: string): void }>();
+    private readonly pending = new Map<string, PendingFlush>();
+    private readonly locked = new Map<string, { token: number; session: object }>();
 
     constructor(
         private readonly editorStore: EditorSessionStore,
@@ -36,39 +58,72 @@ export class DocumentFlushService {
     ) {}
 
     /**
-     * Asks the webview owning `editorId` to flush and resolves with its XML, or
-     * `undefined` on timeout / undeliverable post / nothing-pending / supersede.
-     * Never rejects.
+     * Asks the webview owning `editorId` to flush. Concurrent callers for the
+     * same session share one promise. A destructive request supersedes a normal
+     * one because only the former establishes the mutation lock reload requires.
      */
-    requestFlush(editorId: string, timeoutMs = 500): Promise<string | undefined> {
-        // Supersede any in-flight request for this editor before issuing a new
-        // token, so only the latest request can be satisfied.
-        this.pending.get(editorId)?.settle(undefined);
+    requestFlush(
+        editorId: string,
+        options: DocumentFlushOptions = {},
+    ): Promise<DocumentFlushResult> {
+        const { timeoutMs = 500, destructive = false } = options;
+        const session = this.editorStore.captureEditorSession(editorId);
+        if (!session) {
+            return Promise.resolve({ status: "unavailable" });
+        }
+        const heldLock = this.locked.get(editorId);
+        if (heldLock && heldLock.session !== session) {
+            this.locked.delete(editorId);
+        } else if (heldLock && destructive) {
+            this.releaseFlush(editorId, session);
+        }
+        const existing = this.pending.get(editorId);
+        if (existing?.session === session && (existing.destructive || !destructive)) {
+            return existing.promise;
+        }
+        existing?.settle({ status: "unavailable" });
 
+        let resolveRequest!: (result: DocumentFlushResult) => void;
+        let settled = false;
         const token = this.nextToken++;
-        return new Promise<string | undefined>((resolve) => {
-            const settle = (xml?: string): void => {
-                clearTimeout(timer);
-                // Only clear the map slot if it still holds *this* request; a
-                // superseding request may already have taken ownership.
-                if (this.pending.get(editorId)?.token === token) {
-                    this.pending.delete(editorId);
-                }
-                resolve(xml);
-            };
-            this.pending.set(editorId, { token, settle });
-            const timer = setTimeout(() => settle(undefined), timeoutMs);
-            // postMessage can reject (hidden VS Code webview throws "The active
-            // editor is hidden.") or throw synchronously (requireHandle for an
-            // already-gone editor). Both mean nothing to flush — never rejects.
-            try {
-                void this.editorStore
-                    .postMessage(editorId, new FlushDocumentQuery(token))
-                    .catch(() => settle(undefined));
-            } catch {
-                settle(undefined);
-            }
+        const promise = new Promise<DocumentFlushResult>((resolve) => {
+            resolveRequest = resolve;
         });
+        const settle = (result: DocumentFlushResult): void => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (this.pending.get(editorId)?.token === token) {
+                this.pending.delete(editorId);
+            }
+            if (destructive && result.status === "unavailable") {
+                this.postRelease(editorId, session, token);
+            }
+            resolveRequest(result);
+        };
+        this.pending.set(editorId, { token, session, destructive, promise, settle });
+        const timer = setTimeout(() => settle({ status: "unavailable" }), timeoutMs);
+        try {
+            void this.editorStore
+                .postMessage(editorId, new FlushDocumentQuery(token, destructive))
+                .then(
+                    (delivered) => {
+                        if (!delivered) settle({ status: "unavailable" });
+                    },
+                    () => settle({ status: "unavailable" }),
+                );
+        } catch {
+            settle({ status: "unavailable" });
+        }
+        return promise;
+    }
+
+    /** Releases a mutation lock held by a successful destructive flush. */
+    releaseFlush(editorId: string, session: object): void {
+        const lock = this.locked.get(editorId);
+        if (!lock || lock.session !== session) return;
+        this.locked.delete(editorId);
+        this.postRelease(editorId, session, lock.token);
     }
 
     /**
@@ -84,7 +139,38 @@ export class DocumentFlushService {
             );
             return;
         }
-        entry.settle(command.content);
+        const status = command.status ?? (command.content === undefined ? "clean" : "flushed");
+        const result: DocumentFlushResult =
+            status === "unavailable"
+                ? { status: "unavailable" }
+                : status === "flushed" && command.content !== undefined
+                  ? command.documentRevision === undefined
+                      ? { status: "flushed", content: command.content }
+                      : {
+                            status: "flushed",
+                            content: command.content,
+                            documentRevision: command.documentRevision,
+                        }
+                  : status === "host-updated"
+                    ? { status: "host-updated" }
+                    : status === "clean"
+                      ? { status: "clean" }
+                      : { status: "unavailable" };
+        if (entry.destructive && result.status !== "unavailable") {
+            this.locked.set(editorId, { token: entry.token, session: entry.session });
+        }
+        entry.settle(result);
+    }
+
+    private postRelease(editorId: string, session: object, token: number): void {
+        if (!this.editorStore.isCurrentEditorSession(editorId, session)) return;
+        try {
+            void this.editorStore
+                .postMessage(editorId, new ReleaseDocumentFlushQuery(token))
+                .catch(() => undefined);
+        } catch {
+            // The editor may be disposing; there is then no live webview to unlock.
+        }
     }
 }
 

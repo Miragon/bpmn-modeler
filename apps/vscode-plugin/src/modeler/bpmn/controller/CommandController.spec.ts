@@ -71,7 +71,7 @@ vi.mock("vscode", () => ({
 }));
 
 import { supportedLanguages } from "@miragon/bpmn-modeler-i18n";
-import { getLatestVersion, UserCancelledError } from "@miragon/bpmn-modeler-core";
+import { EMPTY_FORM, getLatestVersion, UserCancelledError } from "@miragon/bpmn-modeler-core";
 
 import { CommandController } from "./CommandController";
 
@@ -84,9 +84,12 @@ import { CommandController } from "./CommandController";
 function createController() {
     const captured: { onMessage?: (message: unknown) => void } = {};
     const subscriptionDisposes: ReturnType<typeof vi.fn>[] = [];
+    const session = {};
 
     const editorStore = {
         getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
+        hasEditor: vi.fn().mockReturnValue(true),
+        isCurrentEditorSession: vi.fn().mockReturnValue(true),
         postMessage: vi.fn().mockResolvedValue(true),
         reload: vi.fn(),
         subscribeToActiveEditorMessage: vi.fn((cb: (message: unknown) => void) => {
@@ -102,6 +105,10 @@ function createController() {
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
     const picker = { pickExecutionPlatform: vi.fn() };
+    const documentFlush = {
+        flush: vi.fn().mockResolvedValue({ status: "safe" as const, session }),
+        release: vi.fn(),
+    };
 
     const controller = new CommandController(
         editorStore as never,
@@ -111,6 +118,7 @@ function createController() {
         bpmnService as never,
         migrationSvc as never,
         picker as never,
+        documentFlush as never,
     );
 
     return {
@@ -122,6 +130,8 @@ function createController() {
         bpmnService,
         migrationSvc,
         picker,
+        documentFlush,
+        session,
         captured,
         subscriptionDisposes,
     };
@@ -152,13 +162,55 @@ describe("CommandController.toggle", () => {
 });
 
 describe("CommandController.reloadModeler", () => {
-    it("reloads the active editor's webview", () => {
-        const { controller, editorStore } = createController();
+    it("flushes the active document before reloading its webview", async () => {
+        const { controller, editorStore, documentFlush } = createController();
+        let finishFlush: () => void = () => {};
+        documentFlush.flush.mockReturnValue(
+            new Promise((resolve) => {
+                finishFlush = () => resolve({ status: "safe", session: {} });
+            }),
+        );
 
-        controller.reloadModeler();
+        const reloading = Promise.resolve(controller.reloadModeler());
+
+        expect(documentFlush.flush).toHaveBeenCalledWith("editor-1", true);
+        expect(editorStore.reload).not.toHaveBeenCalled();
+        finishFlush();
+        await reloading;
 
         expect(editorStore.reload).toHaveBeenCalledWith("editor-1");
+        expect(documentFlush.release).toHaveBeenCalledWith("editor-1", expect.any(Object));
         expect(editorStore.getActiveEditorId).toHaveBeenCalled();
+    });
+
+    it("does not reload when the webview cannot confirm the flush", async () => {
+        const { controller, editorStore, documentFlush } = createController();
+        documentFlush.flush.mockResolvedValueOnce({ status: "unavailable" });
+
+        await controller.reloadModeler();
+
+        expect(editorStore.reload).not.toHaveBeenCalled();
+    });
+
+    it("does not reload a replacement session with the same editor id", async () => {
+        const { controller, editorStore, documentFlush, session } = createController();
+        editorStore.isCurrentEditorSession.mockReturnValue(false);
+
+        await controller.reloadModeler();
+
+        expect(editorStore.reload).not.toHaveBeenCalled();
+        expect(documentFlush.release).toHaveBeenCalledWith("editor-1", session);
+    });
+
+    it("releases the mutation lock when reloading throws", async () => {
+        const { controller, editorStore, documentFlush, session } = createController();
+        editorStore.reload.mockImplementation(() => {
+            throw new Error("reload failed");
+        });
+
+        await expect(controller.reloadModeler()).rejects.toThrow("reload failed");
+
+        expect(documentFlush.release).toHaveBeenCalledWith("editor-1", session);
     });
 });
 
@@ -435,5 +487,46 @@ describe("CommandController.newDmnModel", () => {
 
         const [uriArg] = fsWriteFileMock.mock.calls[0];
         expect((uriArg as { path: string }).path).toBe("/work/new-diagram.dmn");
+    });
+});
+
+describe("CommandController.newFormModel", () => {
+    it("writes a valid default form and opens it in the form editor", async () => {
+        const { controller } = createController();
+        const target = fakeUri("/work/new-form.form");
+        showSaveDialogMock.mockResolvedValue(target);
+
+        await controller.newFormModel();
+
+        expect((fsWriteFileMock.mock.calls[0][1] as Buffer).toString()).toBe(EMPTY_FORM);
+        expect(executeCommandMock).toHaveBeenCalledWith(
+            "vscode.openWith",
+            target,
+            "bpmn-modeler.form",
+        );
+    });
+
+    it("creates nothing when the save dialog is dismissed", async () => {
+        const { controller } = createController();
+        showSaveDialogMock.mockResolvedValue(undefined);
+
+        await controller.newFormModel();
+
+        expect(fsWriteFileMock).not.toHaveBeenCalled();
+        expect(executeCommandMock).not.toHaveBeenCalled();
+    });
+
+    it("uses new-form.form as the workspace default", async () => {
+        const { controller } = createController();
+        workspaceState.folders = [{ uri: fakeUri("/work") }];
+        showSaveDialogMock.mockResolvedValue(undefined);
+
+        await controller.newFormModel();
+
+        expect(showSaveDialogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                defaultUri: expect.objectContaining({ path: "/work/new-form.form" }),
+            }),
+        );
     });
 });

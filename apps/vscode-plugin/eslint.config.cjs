@@ -2,7 +2,7 @@ const baseConfig = require("../../eslint.config.cjs");
 
 module.exports = [
     {
-        ignores: ["**/dist"],
+        ignores: ["**/dist", "test/e2e/out/**"],
     },
     ...baseConfig,
     {

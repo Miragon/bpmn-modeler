@@ -9,12 +9,13 @@
         "docs"
     ],
     "scripts": {
-        "build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview build:deployment-webview -s build:plugin",
+        "build": "npm-run-all -s build:libs -p build:bpmn-webview build:dmn-webview build:form-webview build:deployment-webview -s build:plugin",
         "build:libs": "npm-run-all build:lib:shared build:lib:modeler-core",
         "build:lib:shared": "corepack yarn workspace @miragon/bpmn-modeler-shared build",
         "build:lib:modeler-core": "corepack yarn workspace @miragon/bpmn-modeler-core build",
         "build:bpmn-webview": "corepack yarn workspace @miragon/bpmn-modeler-webview build",
         "build:dmn-webview": "corepack yarn workspace @miragon/dmn-modeler-webview build",
+        "build:form-webview": "corepack yarn workspace @miragon/form-modeler-webview build",
         "build:deployment-webview": "corepack yarn workspace @miragon/bpmn-modeler-deployment-webview build",
         "build:plugin": "corepack yarn workspace vs-code-bpmn-modeler build",
         "build:demo": "npm-run-all -s build:demo:bpmn-webview build:demo:dmn-webview",
@@ -33,11 +34,13 @@
         "dev:lib:modeler-core": "corepack yarn workspace @miragon/bpmn-modeler-core dev",
         "dev:bpmn-webview": "corepack yarn workspace @miragon/bpmn-modeler-webview dev",
         "dev:dmn-webview": "corepack yarn workspace @miragon/dmn-modeler-webview dev",
+        "dev:form-webview": "corepack yarn workspace @miragon/form-modeler-webview dev",
         "dev:deployment-webview": "corepack yarn workspace @miragon/bpmn-modeler-deployment-webview dev",
         "dev:plugin": "corepack yarn workspace vs-code-bpmn-modeler dev",
-        "watch": "npm-run-all -s build:libs build:bpmn-webview build:dmn-webview build:deployment-webview -p dev:libs watch:bpmn-webview watch:dmn-webview watch:deployment-webview dev:plugin",
+        "watch": "npm-run-all -s build:libs build:bpmn-webview build:dmn-webview build:form-webview build:deployment-webview -p dev:libs watch:bpmn-webview watch:dmn-webview watch:form-webview watch:deployment-webview dev:plugin",
         "watch:bpmn-webview": "corepack yarn workspace @miragon/bpmn-modeler-webview watch",
         "watch:dmn-webview": "corepack yarn workspace @miragon/dmn-modeler-webview watch",
+        "watch:form-webview": "corepack yarn workspace @miragon/form-modeler-webview watch",
         "watch:deployment-webview": "corepack yarn workspace @miragon/bpmn-modeler-deployment-webview watch",
         "docs:dev": "corepack yarn workspace @miragon/bpmn-modeler-docs dev",
         "docs:build": "corepack yarn workspace @miragon/bpmn-modeler-docs build",
@@ -77,7 +80,7 @@
         "vitest": "4.1.9"
     },
     "resolutions": {
-        "preact": "10.29.3",
+        "preact": "10.29.8",
         "webpack": "5.108.1",
         "webpack-cli": "7.2.2"
     },

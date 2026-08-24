@@ -1,7 +1,7 @@
 /**
  * bpmn-js DI module that adds a "Navigate to referenced model" entry to the
- * context pad around Call Activities (BPMN→BPMN) and Business Rule Tasks
- * (BPMN→DMN).
+ * context pad around Call Activities (BPMN→BPMN), Business Rule Tasks
+ * (BPMN→DMN), and C8 User Tasks with a resolvable linked form (BPMN→form).
  *
  * Register as an `additionalModule` when creating the bpmn-js modeler:
  *
@@ -16,11 +16,13 @@
  * is reused).
  */
 import { NavigateContextPadProvider } from "./NavigateContextPadProvider";
+import { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 
 export { extractReference } from "./extractReference";
-export type { ReferenceKind } from "./extractReference";
+export { FormReferenceStatusClient } from "./FormReferenceStatusClient";
 
 export const NavigateToReferencedModelModule = {
-    __init__: ["navigateContextPadProvider"],
+    __init__: ["formReferenceStatusClient", "navigateContextPadProvider"],
+    formReferenceStatusClient: ["type", FormReferenceStatusClient],
     navigateContextPadProvider: ["type", NavigateContextPadProvider],
 };

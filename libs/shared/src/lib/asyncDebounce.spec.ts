@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { asyncDebounce } from "./asyncDebounce";
+import { asyncDebounce, serializeAsync } from "./asyncDebounce";
 
 /**
  * Fake timers drive the lodash `debounce` core deterministically; each test
@@ -206,6 +206,30 @@ describe("asyncDebounce", () => {
         await expect(bPromise).resolves.toBe("resultB");
     });
 
+    it("pending remains true until every overlapping invocation settles", async () => {
+        const settlers = new Map<string, () => void>();
+        const debounced = asyncDebounce(
+            (arg: string) =>
+                new Promise<void>((resolve) => {
+                    settlers.set(arg, resolve);
+                }),
+            0,
+        );
+
+        const first = debounced("a");
+        await vi.advanceTimersByTimeAsync(0);
+        const second = debounced("b");
+        await vi.advanceTimersByTimeAsync(0);
+
+        settlers.get("b")?.();
+        await second;
+        expect(debounced.pending()).toBe(true);
+
+        settlers.get("a")?.();
+        await first;
+        expect(debounced.pending()).toBe(false);
+    });
+
     it("pending() is false after cancel", async () => {
         const spy = vi.fn().mockResolvedValue("x");
         const debounced = asyncDebounce(spy, 300);
@@ -215,5 +239,30 @@ describe("asyncDebounce", () => {
 
         debounced.cancel();
         expect(debounced.pending()).toBe(false);
+    });
+});
+
+describe("serializeAsync", () => {
+    it("does not start a newer invocation before the previous one settles", async () => {
+        const order: string[] = [];
+        let finishFirst: () => void = () => {};
+        const serialized = serializeAsync(async (value: string) => {
+            order.push(`start:${value}`);
+            if (value === "a") {
+                await new Promise<void>((resolve) => {
+                    finishFirst = resolve;
+                });
+            }
+            order.push(`end:${value}`);
+        });
+
+        const first = serialized("a");
+        const second = serialized("b");
+        await Promise.resolve();
+        expect(order).toEqual(["start:a"]);
+
+        finishFirst();
+        await Promise.all([first, second]);
+        expect(order).toEqual(["start:a", "end:a", "start:b", "end:b"]);
     });
 });
