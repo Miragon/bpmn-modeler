@@ -23,6 +23,7 @@ Navigate the BPMN diagram along sequence flows using the keyboard.
 | **Enter** | Collapsed subprocess | Drill into the subprocess plane, select first start event |
 | **u** | Inside a subprocess plane | Drill out one level, re-select the subprocess shape |
 | **g** | Call activity / business-rule / service / send task with a link | Jump to the referenced model or implementation file |
+| **o** | Script task, or task with execution/task listeners (Camunda 7) | Open the first script in an editor tab (same as the "Open script in editor" button) |
 | **Tab** _(nothing selected)_ | Canvas | Select the first start event |
 | **Shift+Tab** _(nothing selected)_ | Canvas | Select the first end event |
 | **p** | Canvas | Focus the properties panel (expands if collapsed) |

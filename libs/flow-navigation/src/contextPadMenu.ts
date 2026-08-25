@@ -32,6 +32,7 @@ const SHORTCUT_HINTS: Record<string, string> = {
     "delete": "Del",
     "navigate-to-referenced-model": "G",
     "go-to-implementation": "G",
+    "edit-script": "O",
 };
 
 /**
