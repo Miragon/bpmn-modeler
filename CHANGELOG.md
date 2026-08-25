@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.10.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.9.0...vscode-v1.10.0) (2026-08-25)
+
+
+### 🎉 New Features
+
+* **bpmn-webview:** navigate diagrams with tab/shift+tab along flows ([#1362](https://github.com/Miragon/bpmn-modeler/issues/1362)) ([2ea565c](https://github.com/Miragon/bpmn-modeler/commit/2ea565ccd354531b4e79f6bf2369cea6217deb52))
+* standalone app open editors on a second screen ([#1346](https://github.com/Miragon/bpmn-modeler/issues/1346)) ([c9a21d1](https://github.com/Miragon/bpmn-modeler/commit/c9a21d1c81d8caf9e86445567a02ff5345e41a17))
+
+
+### 🐞 Bug Fixes
+
+* **ci:** focus renamed i18n-extras/core workspaces in publish jobs ([#1359](https://github.com/Miragon/bpmn-modeler/issues/1359)) ([c742eec](https://github.com/Miragon/bpmn-modeler/commit/c742eec52a72d0659167a72002a6b1f3d82fa737))
+
+
+### 🛠️ Misc
+
+* **main:** release intellij 1.7.1 ([#1340](https://github.com/Miragon/bpmn-modeler/issues/1340)) ([a853296](https://github.com/Miragon/bpmn-modeler/commit/a853296a9da28c22ffd72b0944c5b70d619f4bc1))
+
 ## [1.9.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.8.0...vscode-v1.9.0) (2026-08-22)
 
 
