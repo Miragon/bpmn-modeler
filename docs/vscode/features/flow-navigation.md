@@ -20,6 +20,9 @@ Navigate the BPMN diagram along sequence flows using the keyboard.
 | **Enter** | Sequence flow | Follow the flow to its target |
 | **Enter** | Boundary event (candidate) | Commit the boundary (stay selected, resume navigation from it) |
 | **Shift+Enter** | Sequence flow | Follow the flow to its source |
+| **Enter** | Collapsed subprocess | Drill into the subprocess plane, select first start event |
+| **u** | Inside a subprocess plane | Drill out one level, re-select the subprocess shape |
+| **g** | Call activity / business-rule / service / send task with a link | Jump to the referenced model or implementation file |
 | **Tab** _(nothing selected)_ | Canvas | Select the first start event |
 | **Shift+Tab** _(nothing selected)_ | Canvas | Select the first end event |
 | **p** | Canvas | Focus the properties panel (expands if collapsed) |
@@ -66,6 +69,12 @@ boundary events behave identically to before.
 - **Canvas focus** (`Escape`): pressing Escape refocuses the canvas SVG from
   the properties panel. Once the canvas has focus, Tab/Shift+Tab navigate the
   diagram instead of cycling form fields.
+- **Go to linked file** (`g`): triggers the jump-to-file context-pad entry on
+  the selected element — referenced model on call activities or implementation
+  file on service/send tasks. When an element has no link (or the host reported
+  the reference as unresolvable), the key does nothing. If both a referenced
+  model and an implementation link exist (theoretically on a business-rule task),
+  the referenced model takes precedence.
 - **Properties panel** (`p` / `Shift+P`): `p` on the canvas focuses the first
   field in the properties panel (expanding it if collapsed); `Shift+P` toggles
   panel visibility from anywhere except text fields; Escape returns to the
@@ -73,10 +82,19 @@ boundary events behave identically to before.
   Tab inside the properties panel still performs native field traversal — flow
   navigation only fires while the canvas SVG has focus.
 
-## Known limitations (v1)
+## Subprocess walkthrough
 
-- Subprocess drill-down/up is not wired — navigation stays within the current
-  root plane (expanded inline subprocesses work normally).
+1. Model a collapsed subprocess containing a start event.
+2. Select the collapsed subprocess and press **Enter** — the view drills into
+   the subprocess plane and auto-selects the first start event inside.
+3. Navigate inside the subprocess with **Tab** / **Shift+Tab** as usual.
+4. Press **u** to drill out — the view returns to the parent plane with the
+   subprocess shape selected. Works from any selection state, and from nested
+   subprocesses (one level per press). At the top-level process, **u** does
+   nothing. Breadcrumbs stay in sync automatically.
+
+## Known limitations
+
 - No visual affordance for "Enter will follow this flow" — a future iteration
   can reuse the `canvasFocusIndicator.ts` pattern.
 - Tab on the canvas no longer escapes to the properties panel — use `p` to

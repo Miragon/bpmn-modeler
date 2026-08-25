@@ -27,9 +27,11 @@ export interface MenuEntry {
 }
 
 const SHORTCUT_HINTS: Record<string, string> = {
-    append: "A",
-    replace: "R",
-    delete: "Del",
+    "append": "A",
+    "replace": "R",
+    "delete": "Del",
+    "navigate-to-referenced-model": "G",
+    "go-to-implementation": "G",
 };
 
 /**

@@ -37,6 +37,9 @@ new BpmnModeler({ additionalModules: [FlowNavigationModule] });
 | Enter | Sequence flow | Jump to flow target |
 | Enter | Boundary candidate | Commit (stay selected, navigate from it) |
 | Shift+Enter | Sequence flow | Jump to flow source |
+| Enter | Collapsed subprocess (1 selected) | Drill into its plane, select first start event |
+| u | Inside a subprocess plane | Drill out one level, re-select the subprocess |
+| g | Element with a link (call activity, service/send/business-rule task) | Jump to referenced model or implementation file |
 | Ctrl/Cmd+Tab | — | Pass through to VS Code / OS |
 
 When nothing is selected, Tab picks the first start event (sorted top-left);
@@ -54,10 +57,8 @@ boundary events now cycles within the mixed fan on Tab instead of jumping to
 its target. Enter still follows the flow. Diagrams without boundary events
 behave identically to v1.
 
-## Known limitations (v1)
+## Known limitations
 
-- Subprocess drill-down/up is not wired — navigation stays within the current
-  root plane (expanded inline subprocesses work normally).
 - No visual "Enter follows this" affordance yet — a future iteration can reuse
   the `canvasFocusIndicator.ts` pattern.
 - Tab on the focused canvas no longer escapes to the properties panel — use
