@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.7.0...intellij-v1.7.1) (2026-08-25)
+
+
+### 🐞 Bug Fixes
+
+* **intellij:** sync bundled webview (cebe5c6) ([fa5a5d3](https://github.com/Miragon/bpmn-modeler/commit/fa5a5d39714972959b4056b7015d182f59cd4900))
+
 ## [1.7.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.6.1...intellij-v1.7.0) (2026-08-19)
 
 
