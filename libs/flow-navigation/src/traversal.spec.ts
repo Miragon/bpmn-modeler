@@ -118,15 +118,40 @@ describe("resolveStep", () => {
         expect(resolveStep(next!.element, "backward")?.element).toBe(f1);
     });
 
-    it("fan-in merge: Tab on flow cycles through target's incoming", () => {
+    it("fan-in: Tab on flow goes to target, Shift+Tab goes to source", () => {
         const t1 = shape("t1", "bpmn:Task", 100, 100);
         const t2 = shape("t2", "bpmn:Task", 100, 200);
         const merge = shape("merge", "bpmn:ExclusiveGateway", 200, 150);
         const f1 = flow("f1", t1, merge);
-        const f2 = flow("f2", t2, merge);
+        flow("f2", t2, merge);
 
-        expect(resolveStep(f1, "forward")?.element).toBe(f2);
-        expect(resolveStep(f2, "forward")?.element).toBe(f1);
+        expect(resolveStep(f1, "forward")?.element).toBe(merge);
+        expect(resolveStep(f1, "backward")?.element).toBe(t1);
+    });
+
+    it("fan-in backward: Shift+Tab from merge jumps to first source (y-then-x)", () => {
+        const t1 = shape("t1", "bpmn:Task", 100, 100);
+        const t2 = shape("t2", "bpmn:Task", 100, 200);
+        const merge = shape("merge", "bpmn:ExclusiveGateway", 200, 150);
+        flow("f1", t1, merge);
+        flow("f2", t2, merge);
+
+        const result = resolveStep(merge, "backward");
+        expect(result?.element).toBe(t1);
+        expect(result?.boundaryCandidate).toBe(false);
+    });
+
+    it("fan-in regression: backward from merge yields shape, Enter cannot bounce back", () => {
+        const t1 = shape("t1", "bpmn:Task", 100, 100);
+        const t2 = shape("t2", "bpmn:Task", 100, 200);
+        const merge = shape("merge", "bpmn:ExclusiveGateway", 200, 150);
+        flow("f1", t1, merge);
+        flow("f2", t2, merge);
+
+        const step = resolveStep(merge, "backward");
+        expect(step?.element).toBe(t1);
+
+        expect(resolveFollow(step!.element, "forward")).toBeNull();
     });
 
     it("1-to-1 flow (mouse-selected): Tab → target, Shift+Tab → source", () => {

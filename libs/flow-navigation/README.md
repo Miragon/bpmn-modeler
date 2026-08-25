@@ -31,8 +31,8 @@ new BpmnModeler({ additionalModules: [FlowNavigationModule] });
 | Tab | Flow or boundary candidate (in fan) | Cycle to next candidate |
 | Tab | Committed boundary event | Step along its own outgoing flows |
 | Shift+Tab | Shape (1 incoming) | Jump to source shape |
-| Shift+Tab | Shape (N incoming) | Select first incoming flow |
-| Shift+Tab | Flow (in fan) | Cycle to previous sibling flow |
+| Shift+Tab | Shape (N incoming) | Jump to the source of the first incoming flow (sorted top-left) |
+| Shift+Tab | Flow in a source fan | Cycle to previous sibling flow |
 | Shift+Tab | Boundary event (0 incoming) | Jump to host shape |
 | Enter | Sequence flow | Jump to flow target |
 | Enter | Boundary candidate | Commit (stay selected, navigate from it) |
@@ -56,7 +56,6 @@ behave identically to v1.
 
 ## Known limitations (v1)
 
-- A flow whose source **and** target both fan always cycles the source fan.
 - Subprocess drill-down/up is not wired — navigation stays within the current
   root plane (expanded inline subprocesses work normally).
 - No visual "Enter follows this" affordance yet — a future iteration can reuse

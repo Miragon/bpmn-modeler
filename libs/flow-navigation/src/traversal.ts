@@ -125,22 +125,16 @@ function stepFromShape(shape: NavElement, direction: Direction): StepResult | nu
     const inc = sequenceFlows(shape.incoming);
     if (inc.length === 0)
         return shape.host ? { element: shape.host, boundaryCandidate: false } : null;
-    if (inc.length === 1) return { element: inc[0].source!, boundaryCandidate: false };
-    return { element: sortByEndpoint(inc, "source")[0], boundaryCandidate: false };
+    return { element: sortByEndpoint(inc, "source")[0].source!, boundaryCandidate: false };
 }
 
 function stepFromFlow(flow: NavElement, direction: Direction): StepResult | null {
     const srcCandidates = fanOutCandidates(flow.source!);
-    const tgtIn = sequenceFlows(flow.target!.incoming);
 
     // Source fan (including boundary events) takes priority.
     if (srcCandidates.length > 1) {
         const next = cycleBy(srcCandidates, representative, flow, direction);
         return toStepResult(next);
-    }
-    if (tgtIn.length > 1) {
-        const next = cycleBy(tgtIn, (f) => f.source!, flow, direction);
-        return { element: next, boundaryCandidate: false };
     }
 
     // No fan — linear traversal.

@@ -10,8 +10,8 @@ Navigate the BPMN diagram along sequence flows using the keyboard.
 | **Tab** | Shape with N outgoing (fan-out) | Select the first outgoing flow |
 | **Tab** | Flow in a fan | Cycle to the next sibling flow (wraps) |
 | **Shift+Tab** | Shape with 1 incoming | Jump backward to the source shape |
-| **Shift+Tab** | Shape with N incoming (fan-in) | Select the first incoming flow |
-| **Shift+Tab** | Flow in a fan | Cycle to the previous sibling flow (wraps) |
+| **Shift+Tab** | Shape with N incoming (fan-in) | Jump to the source of the first incoming flow (sorted top-left) |
+| **Shift+Tab** | Flow in a source fan | Cycle to the previous sibling flow (wraps) |
 | **Tab** | Shape with outgoing + boundary events (mixed fan) | Select the first candidate (flow or boundary) |
 | **Tab** | Flow or boundary candidate in a mixed fan | Cycle to the next candidate (wraps) |
 | **Tab** | Shape with 0 outgoing, 1 boundary | Jump to the boundary event (committed) |
@@ -75,7 +75,6 @@ boundary events behave identically to before.
 
 ## Known limitations (v1)
 
-- A flow whose source **and** target both fan always cycles the source fan.
 - Subprocess drill-down/up is not wired — navigation stays within the current
   root plane (expanded inline subprocesses work normally).
 - No visual affordance for "Enter will follow this flow" — a future iteration

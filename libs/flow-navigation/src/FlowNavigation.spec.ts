@@ -348,6 +348,22 @@ describe("FlowNavigation", () => {
         expect(selection.select).toHaveBeenCalledWith(be);
     });
 
+    it("Shift+Tab from merge with two incoming selects first source shape", () => {
+        const { selection, canvas, dispatch } = build();
+        const t1 = shape("t1", "bpmn:Task", 100, 100);
+        const t2 = shape("t2", "bpmn:Task", 100, 200);
+        const merge = shape("merge", "bpmn:ExclusiveGateway", 200, 150);
+        flow("f1", t1, merge);
+        flow("f2", t2, merge);
+        selection.get.mockReturnValue([merge]);
+
+        const result = dispatch("Tab", { shift: true });
+
+        expect(result).toBe(true);
+        expect(selection.select).toHaveBeenCalledWith(t1);
+        expect(canvas.scrollToElement).toHaveBeenCalledWith(t1);
+    });
+
     it("registers selection.changed listener on eventBus", () => {
         const { eventBus } = build();
 
