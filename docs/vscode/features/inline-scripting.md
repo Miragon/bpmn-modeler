@@ -38,7 +38,7 @@ written back into the BPMN model so subsequent opens skip the prompt.
 
 ## Usage
 
-There are three entry points. They all open the same kind of editor tab
+There are four entry points. They all open the same kind of editor tab
 beside the diagram.
 
 ### 1. Script Task — Context Pad
@@ -84,6 +84,14 @@ implementation. Clicking it converts the listener to an inline
 > (e.g. a Java class reference) with an empty inline script. Press
 > <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>+<kbd>Z</kbd> on the diagram to revert if
 > you opened the editor by mistake.
+
+### 4. Keyboard Shortcut — <kbd>o</kbd>
+
+With a single element selected on the canvas, press <kbd>o</kbd> to open
+its first script — the same action as clicking the button. "First" follows
+the properties-panel order: the script task's inline script, then execution
+listeners, then task listeners. On elements without any script the key does
+nothing. The same listener-conversion heads-up as above applies.
 
 ## Generate Script Files for Script Tasks
 

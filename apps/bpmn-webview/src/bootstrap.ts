@@ -49,6 +49,7 @@ import {
     formatErrors,
     initResizer,
     initTheme,
+    installPanelShortcuts,
     observeCanvasSize,
 } from "@miragon/bpmn-modeler-shared";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
@@ -300,7 +301,7 @@ async function run(): Promise<void> {
         getToggleLabel: (state) =>
             i18n.translate(
                 state === "collapsed" ? "Open properties panel" : "Close properties panel",
-            ),
+            ) + " (Shift+P)",
         onLabelChange: (apply) => i18n.onChange(apply),
     });
     const vsCodeBridgeModule = {
@@ -423,6 +424,16 @@ async function run(): Promise<void> {
     // latest preference across all BPMN editors.
     propertiesPanelHandle.onVisibilityChanged((visible) => {
         host.postMessage(new SetPropertiesPanelStateCommand(visible));
+    });
+
+    // `p` focuses the properties panel (expanding it first if collapsed);
+    // `Shift+P` toggles panel visibility from anywhere except text fields.
+    // Escape stays with keyboardFocus.ts in BPMN — no escapeToCanvas here.
+    installPanelShortcuts({
+        handle: propertiesPanelHandle,
+        focusCanvas: () => bpmnModeler.getService<{ focus(): void }>("canvas").focus(),
+        isCanvasFocused: () =>
+            bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
     });
 
     // Phase 2: restore selection + panel-side UI state (safe now — side-effects done)

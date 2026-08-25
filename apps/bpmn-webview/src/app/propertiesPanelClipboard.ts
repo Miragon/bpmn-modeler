@@ -1,18 +1,5 @@
-/**
- * Returns true if `el` is a surface where the user is editing text
- * (`<input>`, `<textarea>`, or any `contenteditable` element).
- *
- * The webview-level keyboard guard uses this predicate to decide whether
- * bpmn-js should be allowed to receive a Ctrl/Cmd+A keystroke: text surfaces
- * own their own selection, so the event must not reach bpmn-js's Keyboard
- * service.
- */
-export function isTextEditingSurface(el: Element | null): boolean {
-    if (el instanceof HTMLInputElement) return true;
-    if (el instanceof HTMLTextAreaElement) return true;
-    if (el instanceof HTMLElement && el.contentEditable === "true") return true;
-    return false;
-}
+import { isTextEditingSurface } from "@miragon/bpmn-modeler-shared";
+export { isTextEditingSurface };
 
 /**
  * Writes the current text selection to the extension-host clipboard.

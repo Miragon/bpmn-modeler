@@ -8,6 +8,7 @@
  */
 const dictionary: Record<string, string> = {
     "Being edited in": "Wordt bewerkt in",
+    "Element actions": "Elementacties",
     "Read-only": "Alleen-lezen",
 };
 

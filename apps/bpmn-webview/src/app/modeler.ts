@@ -9,6 +9,7 @@ import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anythi
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
 import { CodeLinkModule, type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import {
     BpmnModelerSetting,
@@ -19,6 +20,8 @@ import {
     ScriptTaskScript,
 } from "@miragon/bpmn-modeler-shared";
 import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
+import { ScriptEditorKeyboardModule } from "./scriptEditorKeyboard";
+import { ScriptEditorOpenerModule } from "./scriptEditorOpener";
 import { OpenScriptEditorsStore, OpenScriptEditorsStoreModule } from "./openScriptEditorsStore";
 import { ScriptLockPropertiesProviderModule } from "./scriptLockPropertiesProvider";
 import { collectInlineScriptTasks, findListenerAt } from "./scriptModel";
@@ -140,6 +143,7 @@ export class BpmnModeler {
             AppendMenuModule,
             NavigateToReferencedModelModule,
             CodeLinkModule,
+            FlowNavigationModule,
         ];
         const extra = extraModules ?? [];
 
@@ -155,7 +159,9 @@ export class BpmnModeler {
                         CreateAppendC7ElementTemplatesModule,
                         TransactionBoundariesModule,
                         ScriptTaskContextPadModule,
+                        ScriptEditorOpenerModule,
                         ScriptEditorButtonsModule,
+                        ScriptEditorKeyboardModule,
                         OpenScriptEditorsStoreModule,
                         ScriptLockPropertiesProviderModule,
                         ScriptSourceWatcherModule,
@@ -505,11 +511,12 @@ export class BpmnModeler {
     /**
      * Registers a callback for the unified `scriptEditor.open` event.
      *
-     * Three sources fire it: the canvas context pad on script tasks
+     * Four sources fire it: the canvas context pad on script tasks
      * ({@link ScriptTaskContextPadModule}), the Script-group header icon
-     * on the properties panel for script tasks, and the per-listener icon
+     * on the properties panel for script tasks, the per-listener icon
      * on each script-typed listener row (both via
-     * {@link ScriptEditorButtonsModule}).
+     * {@link ScriptEditorButtonsModule}), and the `o` keyboard shortcut
+     * ({@link ScriptEditorKeyboardModule}).
      */
     onOpenScriptEditor(callback: (data: OpenScriptEditorEvent) => void): void {
         this.getModeler()

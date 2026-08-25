@@ -32,7 +32,7 @@ const norm = (value: string): string =>
         .replace(/[.\s]+$/, "");
 
 // Kept in sync with SOURCE_ONLY in tools/build-overlay.mjs.
-const SOURCE_ONLY = new Set(["Read-only", "Being edited in"]);
+const SOURCE_ONLY = new Set(["Read-only", "Being edited in", "Element actions"]);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { keys: harvested } = JSON.parse(
