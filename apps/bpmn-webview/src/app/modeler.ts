@@ -19,23 +19,17 @@ import {
     ScriptKind,
     ScriptTaskScript,
 } from "@miragon/bpmn-modeler-shared";
-import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
-import { ScriptEditorKeyboardModule } from "./scriptEditorKeyboard";
-import { ScriptEditorOpenerModule } from "./scriptEditorOpener";
-import { OpenScriptEditorsStore, OpenScriptEditorsStoreModule } from "./openScriptEditorsStore";
-import { ScriptLockPropertiesProviderModule } from "./scriptLockPropertiesProvider";
-import { collectInlineScriptTasks, findListenerAt } from "./scriptModel";
 import {
-    SCRIPT_SOURCE_CHANGED_EVENT,
-    ScriptSourceChangedEvent,
-    ScriptSourceWatcher,
-    ScriptSourceWatcherModule,
-} from "./scriptSourceWatcher";
-import {
+    collectInlineScriptTasks,
+    findListenerAt,
+    InlineScriptingModules,
     OPEN_SCRIPT_EDITOR_EVENT,
-    OpenScriptEditorEvent,
-    ScriptTaskContextPadModule,
-} from "./scriptTaskContextPad";
+    type OpenScriptEditorEvent,
+    OpenScriptEditorsStore,
+    SCRIPT_SOURCE_CHANGED_EVENT,
+    type ScriptSourceChangedEvent,
+    ScriptSourceWatcher,
+} from "@miragon/bpmn-modeler-inline-scripting";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
@@ -158,13 +152,7 @@ export class BpmnModeler {
                         CreateAppendElementTemplatesModule,
                         CreateAppendC7ElementTemplatesModule,
                         TransactionBoundariesModule,
-                        ScriptTaskContextPadModule,
-                        ScriptEditorOpenerModule,
-                        ScriptEditorButtonsModule,
-                        ScriptEditorKeyboardModule,
-                        OpenScriptEditorsStoreModule,
-                        ScriptLockPropertiesProviderModule,
-                        ScriptSourceWatcherModule,
+                        ...InlineScriptingModules,
                         ...extra,
                     ],
                 });

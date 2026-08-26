@@ -3747,6 +3747,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@miragon/bpmn-modeler-inline-scripting@workspace:*, @miragon/bpmn-modeler-inline-scripting@workspace:libs/inline-scripting":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-inline-scripting@workspace:libs/inline-scripting"
+  dependencies:
+    "@bpmn-io/properties-panel": "npm:3.46.0"
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    jsdom: "npm:30.0.1"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.9"
+  peerDependencies:
+    "@bpmn-io/properties-panel": 3.46.0
+    bpmn-js: 18.19.0
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-shared@workspace:*, @miragon/bpmn-modeler-shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-shared@workspace:libs/shared"
@@ -3833,6 +3848,7 @@ __metadata:
     "@miragon/bpmn-modeler-flow-navigation": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
+    "@miragon/bpmn-modeler-inline-scripting": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/create-append-c7": "npm:0.1.0"
     "@types/vscode-webview": "npm:1.57.5"

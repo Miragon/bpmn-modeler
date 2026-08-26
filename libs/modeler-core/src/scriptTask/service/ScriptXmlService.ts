@@ -2,8 +2,9 @@ import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
 
 /**
  * One script surface's new content, addressed exactly as the webview addresses
- * it (see `scriptModel.ts`): element id + kind, plus the filtered listener
- * index for the two listener kinds (`undefined` for a script task).
+ * it (see `libs/inline-scripting/src/scriptModel.ts`): element id + kind, plus
+ * the filtered listener index for the two listener kinds (`undefined` for a
+ * script task).
  */
 export interface ScriptContentUpdate {
     elementId: string;
@@ -51,7 +52,8 @@ interface ModdleInstance {
  * normally stream into the *webview's* model. When the diagram tab is closed
  * before a buffered edit can be replayed, that path is gone; this service is
  * the host-only fallback that re-parses the `.bpmn`, applies the pending script
- * values through the same addressing the webview uses (`scriptModel.ts` /
+ * values through the same addressing the webview uses
+ * (`libs/inline-scripting/src/scriptModel.ts` /
  * `modeler.ts#updateScriptContent`), and re-serialises.
  *
  * It compares *parsed values*, never strings, and returns `undefined` when

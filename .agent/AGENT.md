@@ -80,6 +80,7 @@ libs/
                          # the shared @miragon/bpmn-modeler-i18n npm package
   code-link/             # Code-link feature
   element-template-chooser/ # Element-template chooser module
+  inline-scripting/      # Inline-script editing (C7 script tasks/listeners)
   model-navigation/      # Model navigation module
   standalone-extension/  # Theia frontend extension consumed by
                          # `apps/standalone/` (Miragon themes, splash,
@@ -99,9 +100,9 @@ build → package plugin → bundle → start chain.
 - **Extension host**: Webpack + `ts-loader` — `apps/vscode-plugin/webpack.config.js`
 - **Webviews**: Vite — `apps/{bpmn,dmn,deployment}-webview/vite.config.mts`
 - **Tests**: Vitest — root `vitest.config.ts` aggregates per-workspace projects
-  (vscode-plugin, modeler-bridge, bpmn-webview, bpmn-i18n-extras,
-  element-template-chooser, modeler-core, shared); root `test` =
-  `vitest run --coverage`
+  (vscode-plugin, modeler-bridge, bpmn-webview, append-menu, bpmn-i18n-extras,
+  code-link, element-template-chooser, inline-scripting, modeler-core, shared,
+  flow-navigation, model-navigation); root `test` = `vitest run --coverage`
 - **Output**: `dist/apps/vscode-plugin/`
 
 ## Path Aliases (`tsconfig.base.json`)
@@ -119,6 +120,7 @@ Each `@miragon/...` alias maps to `libs/<dir>/src/index.ts`:
 - `@miragon/bpmn-modeler-append-menu` → `libs/append-menu`
 - `@miragon/bpmn-model-navigation` → `libs/model-navigation`
 - `@miragon/bpmn-modeler-code-link` → `libs/code-link`
+- `@miragon/bpmn-modeler-inline-scripting` → `libs/inline-scripting`
 - Resolved by `TsconfigPathsPlugin` (webpack) and `vite-tsconfig-paths` (Vite)
 
 ## Configuration Namespace

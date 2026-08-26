@@ -1,0 +1,22 @@
+{
+    "name": "@miragon/bpmn-modeler-inline-scripting",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "build": "tsc --noEmit",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@miragon/bpmn-modeler-shared": "workspace:*"
+    },
+    "peerDependencies": {
+        "@bpmn-io/properties-panel": "3.46.0",
+        "bpmn-js": "18.19.0"
+    },
+    "devDependencies": {
+        "@bpmn-io/properties-panel": "3.46.0",
+        "jsdom": "30.0.1",
+        "typescript": "6.0.3",
+        "vitest": "4.1.9"
+    }
+}
