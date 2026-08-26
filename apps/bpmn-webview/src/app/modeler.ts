@@ -7,8 +7,7 @@ import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-temp
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
-import { CodeLinkModule, type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import { type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import {
@@ -22,14 +21,11 @@ import {
 import {
     collectInlineScriptTasks,
     findListenerAt,
-    InlineScriptingModules,
-    OPEN_SCRIPT_EDITOR_EVENT,
-    type OpenScriptEditorEvent,
     OpenScriptEditorsStore,
-    SCRIPT_SOURCE_CHANGED_EVENT,
-    type ScriptSourceChangedEvent,
     ScriptSourceWatcher,
 } from "@miragon/bpmn-modeler-inline-scripting";
+import type { ModelerCapabilities } from "./capabilities";
+import { capabilityModules } from "./capabilityModules";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
@@ -127,18 +123,19 @@ export class BpmnModeler {
      * @param engine Camunda engine version — `"c7"` for Camunda Platform 7,
      *   `"c8"` for Camunda Cloud 8.
      * @param extraModules Optional bpmn-js DI modules (e.g. clipboard bridges).
+     * @param capabilities Optional per-feature host ports; each present port
+     *   registers its feature's DI module (see {@link capabilityModules}).
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
-    create(engine: Engine, extraModules?: any[]): void {
+    create(engine: Engine, extraModules?: any[], capabilities?: ModelerCapabilities): void {
         const commonModules = [
             TokenSimulationModule,
             LintModule,
             ElementTemplateChooserModule,
             AppendMenuModule,
-            NavigateToReferencedModelModule,
-            CodeLinkModule,
             FlowNavigationModule,
         ];
+        const capModules = capabilityModules(engine, capabilities);
         const extra = extraModules ?? [];
 
         this.engine = engine;
@@ -152,7 +149,7 @@ export class BpmnModeler {
                         CreateAppendElementTemplatesModule,
                         CreateAppendC7ElementTemplatesModule,
                         TransactionBoundariesModule,
-                        ...InlineScriptingModules,
+                        ...capModules,
                         ...extra,
                     ],
                 });
@@ -161,7 +158,7 @@ export class BpmnModeler {
             case "c8": {
                 this.modeler = new BpmnModeler8({
                     ...MODELER_OPTIONS,
-                    additionalModules: [...commonModules, ...extra],
+                    additionalModules: [...commonModules, ...capModules, ...extra],
                 });
                 break;
             }
@@ -497,39 +494,6 @@ export class BpmnModeler {
     }
 
     /**
-     * Registers a callback for the unified `scriptEditor.open` event.
-     *
-     * Four sources fire it: the canvas context pad on script tasks
-     * ({@link ScriptTaskContextPadModule}), the Script-group header icon
-     * on the properties panel for script tasks, the per-listener icon
-     * on each script-typed listener row (both via
-     * {@link ScriptEditorButtonsModule}), and the `o` keyboard shortcut
-     * ({@link ScriptEditorKeyboardModule}).
-     */
-    onOpenScriptEditor(callback: (data: OpenScriptEditorEvent) => void): void {
-        this.getModeler()
-            .get<any>("eventBus")
-            .on(OPEN_SCRIPT_EDITOR_EVENT, (event: OpenScriptEditorEvent) => {
-                callback(event);
-            });
-    }
-
-    /**
-     * Registers a callback for the {@link ScriptSourceWatcher}'s divergence
-     * event, fired when an open script's model content changed underneath its
-     * editor tab (canvas undo/redo, document reload, element deletion). The
-     * entry point forwards it to the host, which overwrites — or, for a
-     * deleted element, closes — the tab.
-     */
-    onScriptSourceChanged(callback: (data: ScriptSourceChangedEvent) => void): void {
-        this.getModeler()
-            .get<any>("eventBus")
-            .on(SCRIPT_SOURCE_CHANGED_EVENT, (event: ScriptSourceChangedEvent) => {
-                callback(event);
-            });
-    }
-
-    /**
      * Registers a sink for non-fatal warnings so the host can forward them to the
      * output channel. Without it these only reached the webview console, invisible
      * in a bug report.
@@ -544,10 +508,14 @@ export class BpmnModeler {
      * "Go to implementation" entry hides for tasks whose implementation does not
      * exist in the workspace.
      *
+     * The service is resolved defensively (`get(..., false)`): a consumer that
+     * omits the codeLink capability registers no `codeLinkMapClient`, and a
+     * stray status push must then be a no-op rather than throw.
+     *
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
-        this.getService<CodeLinkMapClient>("codeLinkMapClient").applyStatus(resolved);
+        this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
     }
 
     /**

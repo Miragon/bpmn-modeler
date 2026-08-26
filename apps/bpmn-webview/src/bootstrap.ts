@@ -27,14 +27,18 @@ import {
     LanguageQuery,
     LogErrorCommand,
     LogWarningCommand,
+    NavigateToImplementationCommand,
+    NavigateToReferencedModelCommand,
     NoModelerError,
     OpenScriptEditorCommand,
     OpenScriptEditorsCommand,
     PropertiesPanelStateQuery,
     Query,
     SetClipboardCommand,
+    SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
+    SyncActivitiesCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
     UpdateOpenScriptEditorsQuery,
@@ -63,6 +67,7 @@ import {
     UnsupportedEngineError,
 } from "./app";
 import type { HostApi, ResizableCanvas } from "@miragon/bpmn-modeler-shared";
+import type { ModelerCapabilities } from "./app/capabilities";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
 import type { LintConfigService } from "./app/bpmnlint";
@@ -72,6 +77,9 @@ import { WebviewStateManager } from "./app/state";
 // Injected by bootstrap(); the app/demo entry chooses the concrete host.
 let host: HostApi<WebviewState, Command | Query>;
 let injectedModules: unknown[] | undefined;
+// Injected capabilities, or undefined ⇒ the full protocol adapter is used, so
+// every real host (VS Code, IntelliJ, Theia) keeps all features unchanged.
+let injectedCapabilities: ModelerCapabilities | undefined;
 
 // Global safety net for throws the per-message try/catch in onReceiveMessage
 // can't reach — bpmn-js event-bus callbacks (e.g. onCommandStackChanged) run
@@ -190,6 +198,54 @@ const panelStateResolver = createResolver<PropertiesPanelStateQuery>();
 let stateManager: WebviewStateManager;
 
 /**
+ * The default capability adapter: each port posts the existing protocol command
+ * to the host. Used whenever `bootstrap()` is called without explicit
+ * capabilities, so VS Code / IntelliJ / Theia are unaffected by the port
+ * indirection. Closes over the module-level {@link host} and {@link bpmnModeler}.
+ *
+ * `scripting` is always populated here even though its DI cluster is C7-only;
+ * `capabilityModules` gates the registration, so the surplus port on C8 is inert.
+ */
+function createProtocolCapabilities(): ModelerCapabilities {
+    return {
+        modelNavigation: {
+            openReference: ({ id, kind }) =>
+                host.postMessage(new NavigateToReferencedModelCommand(id, kind)),
+        },
+        codeLink: {
+            navigateToImplementation: (reference, kind) =>
+                host.postMessage(new NavigateToImplementationCommand(reference, kind)),
+            syncActivities: (entries) => host.postMessage(new SyncActivitiesCommand(entries)),
+        },
+        scripting: {
+            // The process-variable model is re-extracted per open so completion
+            // reflects the diagram at the moment the tab opens.
+            openScriptEditor: (event) =>
+                host.postMessage(
+                    new OpenScriptEditorCommand(
+                        event.elementId,
+                        event.kind,
+                        event.listenerIndex,
+                        event.eventName,
+                        event.scriptFormat,
+                        event.content,
+                        extractProcessVariables(bpmnModeler.getDefinitions()),
+                    ),
+                ),
+            scriptSourceChanged: (event) =>
+                host.postMessage(
+                    new UpdateScriptSourceCommand(
+                        event.elementId,
+                        event.kind,
+                        event.listenerIndex,
+                        event.content,
+                    ),
+                ),
+        },
+    };
+}
+
+/**
  * Entry point executed once the webview DOM is fully loaded.
  *
  * Registers the message listener first so no backend messages are missed,
@@ -304,16 +360,32 @@ async function run(): Promise<void> {
             ) + " (Shift+P)",
         onLabelChange: (apply) => i18n.onChange(apply),
     });
-    const vsCodeBridgeModule = {
-        vsCodeBridge: ["value", { postMessage: (m: unknown) => host.postMessage(m as never) }],
+    // The linting toggle is a webview-internal service (always registered via
+    // LintModule), so its host port is wired unconditionally — never gated on a
+    // capability. A missing `lintingHost` value would break LintConfigService's
+    // DI at construction.
+    const lintingHostModule = {
+        lintingHost: [
+            "value",
+            {
+                setLintingEnabled: (enabled: boolean) =>
+                    host.postMessage(new SetLintingEnabledCommand(enabled)),
+            },
+        ],
     };
+    const capabilities = injectedCapabilities ?? createProtocolCapabilities();
     const extraModules = [
         TranslateModule,
-        vsCodeBridgeModule,
+        lintingHostModule,
         ...(clipboardModules ?? []),
         ...((injectedModules as any[]) ?? []),
     ];
-    await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine, extraModules);
+    await initializeModeler(
+        bpmnFileQuery?.content,
+        bpmnFileQuery?.engine,
+        extraModules,
+        capabilities,
+    );
     modelerIsInitialized = true;
 
     if (pendingFocusId !== undefined) {
@@ -321,41 +393,13 @@ async function run(): Promise<void> {
         pendingFocusId = undefined;
     }
 
-    /**
-     * Bridge "Edit Script" / "Open in Editor" triggers (script-task context
-     * pad + listener properties-panel buttons) into a host command so the
-     * extension can open the inline script in a virtual VS Code editor.
-     * Listeners are wired only on C7; C8 is intentionally out of scope.
-     */
-    if (bpmnFileQuery?.engine === "c7") {
-        bpmnModeler.onOpenScriptEditor((data) => {
-            host.postMessage(
-                new OpenScriptEditorCommand(
-                    data.elementId,
-                    data.kind,
-                    data.listenerIndex,
-                    data.eventName,
-                    data.scriptFormat,
-                    data.content,
-                    extractProcessVariables(bpmnModeler.getDefinitions()),
-                ),
-            );
-        });
-
-        // Model-side script changes (canvas undo/redo, document reload,
-        // element deletion) must reach the host so it can overwrite — or
-        // close — the owning editor tab; see ScriptSourceWatcher.
-        bpmnModeler.onScriptSourceChanged((data) => {
-            host.postMessage(
-                new UpdateScriptSourceCommand(
-                    data.elementId,
-                    data.kind,
-                    data.listenerIndex,
-                    data.content,
-                ),
-            );
-        });
-
+    // The "Edit Script" / divergence bridge now lives entirely in the scripting
+    // capability port (InlineScriptingPortForwarder → createProtocolCapabilities),
+    // registered by capabilityModules on C7. Only the process-variable publisher
+    // stays here because it drives the host from a commandStack subscription
+    // rather than a lib-owned event. It belongs to the scripting capability, so
+    // gate it on both the engine and the port being present.
+    if (bpmnFileQuery?.engine === "c7" && capabilities.scripting) {
         // Publish the process-variable model to the host so open script editors
         // get live variable completion. The chain is a feedback loop, not an echo
         // loop — a keystroke in a script edits the moddle, which fires
@@ -450,11 +494,13 @@ async function run(): Promise<void> {
  * @param bpmn Initial BPMN XML, or `undefined` to create a blank diagram.
  * @param engine Execution platform identifier (`"c7"` or `"c8"`).
  * @param extraModules Optional bpmn-js DI modules (e.g. clipboard bridges).
+ * @param capabilities Per-feature host ports gating the capability modules.
  */
 async function initializeModeler(
     bpmn: string | undefined,
     engine: Engine | undefined,
     extraModules?: any[],
+    capabilities?: ModelerCapabilities,
 ): Promise<void> {
     if (!engine) {
         host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
@@ -462,7 +508,7 @@ async function initializeModeler(
     }
 
     try {
-        bpmnModeler.create(engine, extraModules);
+        bpmnModeler.create(engine, extraModules, capabilities);
         // Lets the IntelliJ JCEF host drive undo/redo: it swallows Ctrl+Z/Ctrl+Y
         // at the IDE level before bpmn-js sees them (works fine in VS Code/Theia).
         installHostEditorActions((action) =>
@@ -786,14 +832,18 @@ async function refreshDiagram(): Promise<void> {
 
 /**
  * Starts the BPMN webview against the given host. The entry (real or demo)
- * chooses the host and any host-specific bpmn-js modules.
+ * chooses the host, any host-specific bpmn-js modules, and — optionally — the
+ * per-feature {@link ModelerCapabilities}. Omitting `capabilities` selects the
+ * full protocol adapter, so every real host keeps all features; passing a
+ * partial object turns off the features whose ports it omits.
  */
 export function bootstrap(
     injectedHost: HostApi<WebviewState, Command | Query>,
-    opts: { extraModules?: unknown[] } = {},
+    opts: { extraModules?: unknown[]; capabilities?: ModelerCapabilities } = {},
 ): void {
     host = injectedHost;
     injectedModules = opts.extraModules;
+    injectedCapabilities = opts.capabilities;
     registerGlobalErrorHandlers();
     if (document.readyState === "complete") {
         void run();

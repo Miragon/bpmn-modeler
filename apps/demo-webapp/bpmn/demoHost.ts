@@ -6,11 +6,10 @@ import {
     Command,
     ElementTemplatesQuery,
     MockHostApi,
-    NavigateToReferencedModelCommand,
     PropertiesPanelStateQuery,
     Query,
 } from "@miragon/bpmn-modeler-shared";
-import { getActiveModel, modelHref, resolveReference } from "../src";
+import { getActiveModel } from "../src";
 import type { WebviewState } from "@miragon/bpmn-modeler-webview";
 
 type MessageType = Command | Query;
@@ -20,11 +19,11 @@ function dispatch(event: MessageType): void {
 }
 
 /**
- * Client-side host for the static BPMN demo: serves the active bundled model,
- * and resolves Call-Activity / Business-Rule navigation against the model
- * registry (a real host would open another file). Everything a real host does
- * over the extension boundary — deployment, code-link, script editor,
- * clipboard, persistence — is a no-op here.
+ * Client-side host for the static BPMN demo: serves the active bundled model.
+ * Model navigation is wired through the `modelNavigation` capability in
+ * `main.ts` (which resolves against the model registry and swaps the page), so
+ * it no longer crosses this message boundary. Everything else a real host does —
+ * deployment, code-link, script editor, clipboard, persistence — is a no-op here.
  */
 export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
     override updateState(state: Partial<WebviewState>): void {
@@ -63,14 +62,6 @@ export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
             case "GetBpmnlintConfigCommand":
                 dispatch(new BpmnlintResultsQuery(null));
                 break;
-            case "NavigateToReferencedModelCommand": {
-                const cmd = message as NavigateToReferencedModelCommand;
-                const target = resolveReference(cmd.referenceId, cmd.referenceKind);
-                if (target) {
-                    window.location.href = modelHref(target);
-                }
-                break;
-            }
         }
     }
 }

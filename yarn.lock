@@ -3584,7 +3584,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-model-navigation@workspace:libs/model-navigation"
   dependencies:
-    "@miragon/bpmn-modeler-shared": "workspace:*"
     bpmn-js: "npm:18.19.0"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"

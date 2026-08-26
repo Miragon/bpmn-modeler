@@ -6,9 +6,9 @@
  * `camunda:expression` / external `camunda:topic` (C7) or a
  * `zeebe:taskDefinition type` (C8).
  *
- * Clicking the entry sends a {@link NavigateToImplementationCommand} to the
- * extension host, which resolves the reference to a workspace source file and
- * opens it (or shows a QuickPick / info notification on N / 0 matches).
+ * Clicking the entry calls {@link CodeLinkPort.navigateToImplementation}; the
+ * consumer resolves the reference to a workspace source file and opens it (or
+ * shows a QuickPick / info notification on N / 0 matches).
  *
  * The entry mirrors `NavigateContextPadProvider`: an inline `html` fragment
  * with an embedded SVG, placed in the `connect` group so it shares a row with
@@ -18,11 +18,10 @@
  */
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
-import { NavigateToImplementationCommand } from "@miragon/bpmn-modeler-shared";
-
 import { BusinessObjectLike, extractImplementation } from "./extractImplementation";
 import { IMPLEMENTABLE_TYPES } from "./collectImplementations";
 import type { CodeLinkMapClient } from "./CodeLinkMapClient";
+import type { CodeLinkPort } from "./CodeLinkPort";
 
 interface ContextPad {
     registerProvider(provider: CodeLinkContextPadProvider): void;
@@ -40,10 +39,6 @@ export interface Element {
     id?: string;
     type?: string;
     businessObject?: BusinessObjectLike;
-}
-
-interface VsCodeBridge {
-    postMessage(message: unknown): void;
 }
 
 interface ContextPadEntry {
@@ -69,27 +64,27 @@ const CODE_ICON_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="non
  * contributes only when the selected element is an implementable task with a
  * resolvable implementation reference.
  *
- * The `vsCodeBridge` DI value is supplied by the bpmn-webview during modeler
- * construction so this library never calls `acquireVsCodeApi` itself (it may
- * only be invoked once per webview).
+ * The `codeLinkPort` DI value is supplied by the consumer during modeler
+ * construction; the module cannot be registered without it (see
+ * {@link createCodeLinkModule}), so the library stays free of the host protocol.
  */
 export class CodeLinkContextPadProvider {
-    static $inject = ["contextPad", "translate", "vsCodeBridge", "codeLinkMapClient"];
+    static $inject = ["contextPad", "translate", "codeLinkPort", "codeLinkMapClient"];
 
     private readonly translate: Translate;
 
-    private readonly vsCodeBridge: VsCodeBridge;
+    private readonly port: CodeLinkPort;
 
     private readonly client: CodeLinkMapClient;
 
     constructor(
         contextPad: ContextPad,
         translate: Translate,
-        vsCodeBridge: VsCodeBridge,
+        codeLinkPort: CodeLinkPort,
         codeLinkMapClient: CodeLinkMapClient,
     ) {
         this.translate = translate;
-        this.vsCodeBridge = vsCodeBridge;
+        this.port = codeLinkPort;
         this.client = codeLinkMapClient;
         contextPad.registerProvider(this);
     }
@@ -127,12 +122,7 @@ export class CodeLinkContextPadProvider {
                     click: (_event, clickedElement) => {
                         const current = extractImplementation(clickedElement.businessObject);
                         if (current) {
-                            this.vsCodeBridge.postMessage(
-                                new NavigateToImplementationCommand(
-                                    current.reference,
-                                    current.kind,
-                                ),
-                            );
+                            this.port.navigateToImplementation(current.reference, current.kind);
                         }
                     },
                 },

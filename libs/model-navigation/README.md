@@ -15,8 +15,8 @@ or from a Business Rule Task to the referenced DMN decision.
 - **Resolution is workspace-driven.** The actual file lookup
   (`workspace.findFiles`, opening via `vscode.open`) only makes sense on
   the extension host.  Keeping the click target in a small webview-side
-  library lets the modeler stay agnostic of VS Code APIs — it just posts
-  a `NavigateToReferencedModelCommand`.
+  library lets the modeler stay agnostic of VS Code APIs — it just calls
+  the injected `ModelNavigationPort`.
 - **Context-pad placement is opinionated.** The bpmn-js context pad
   wraps entries 3-per-row within each `data-group` div.  Putting the
   icon under the existing `connect` group avoids an orphan row; that
@@ -25,12 +25,21 @@ or from a Business Rule Task to the referenced DMN decision.
 ## Usage
 
 ```ts
-import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
+import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 
-new BpmnModeler({ additionalModules: [NavigateToReferencedModelModule] });
+new BpmnModeler({
+    additionalModules: [
+        createModelNavigationModule({
+            openReference: ({ id, kind }) => {
+                /* resolve id/kind to a file and open it */
+            },
+        }),
+    ],
+});
 ```
 
-The module expects a `vsCodeBridge` DI value with a `postMessage` method
-so it never has to call `acquireVsCodeApi()` directly (which can only be
-invoked once per webview).
+`createModelNavigationModule(port)` embeds the `ModelNavigationPort` as the
+`modelNavigationPort` DI value, so the module can only be registered together
+with its host capability. A consumer that has no host omits the module entirely
+and the context-pad entry never appears.
 
