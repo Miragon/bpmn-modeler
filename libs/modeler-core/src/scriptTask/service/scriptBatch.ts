@@ -1,4 +1,4 @@
-import type { ScriptTaskScript } from "@miragon/bpmn-modeler-shared";
+import type { ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
 /** Counts of one "Generate Script Files" batch run. */
 export interface ScriptBatchOutcome {

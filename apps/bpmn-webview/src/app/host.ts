@@ -3,13 +3,9 @@ import {
     BpmnFileQuery,
     BpmnModelerSettingQuery,
     BpmnlintResultsQuery,
-    buildFlowOrder,
-    buildRemovedAnchors,
     ClipboardQuery,
     Command,
     CursorChangedCommand,
-    DiffCounts,
-    DiffSide,
     ElementTemplatesQuery,
     LogDebugCommand,
     LogErrorCommand,
@@ -17,13 +13,19 @@ import {
     LogWarningCommand,
     PropertiesPanelStateQuery,
     Query,
-    sortIdsByOrder,
     SyncDocumentCommand,
     HostApi,
     HostApiImpl,
     MockHostApi,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
+import {
+    buildFlowOrder,
+    buildRemovedAnchors,
+    DiffCounts,
+    DiffSide,
+    sortIdsByOrder,
+} from "@miragon/bpmn-modeler-types";
 
 import c7Samples from "./__fixtures__/c7-samples.json";
 import c8Samples from "./__fixtures__/c8-samples.json";

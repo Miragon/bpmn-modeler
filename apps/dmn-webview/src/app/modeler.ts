@@ -11,7 +11,7 @@ import {
     NoModelerError,
     type ResizableCanvas,
     observeCanvasSize,
-} from "@miragon/bpmn-modeler-shared";
+} from "@miragon/bpmn-modeler-types";
 
 let modeler: DmnModeler | undefined;
 

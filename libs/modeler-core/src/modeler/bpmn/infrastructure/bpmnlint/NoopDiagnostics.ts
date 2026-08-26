@@ -1,4 +1,4 @@
-import { LintResults } from "@miragon/bpmn-modeler-shared";
+import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { DiagnosticsPort } from "../../../../shared/domain/hostPorts";
 

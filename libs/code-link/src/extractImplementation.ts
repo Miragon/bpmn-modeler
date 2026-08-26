@@ -12,7 +12,7 @@
  * `undefined` here — that DMN link is model-navigation's job, so the two
  * context-pad entries never collide.
  */
-import type { ImplementationKind } from "@miragon/bpmn-modeler-shared";
+import type { ImplementationKind } from "@miragon/bpmn-modeler-types";
 
 export type { ImplementationKind };
 

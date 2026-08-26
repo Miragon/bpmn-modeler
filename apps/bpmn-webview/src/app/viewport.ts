@@ -1,4 +1,4 @@
-import { MIN_CANVAS_SIZE_PX, isUsableViewbox } from "@miragon/bpmn-modeler-shared";
+import { MIN_CANVAS_SIZE_PX, isUsableViewbox } from "@miragon/bpmn-modeler-types";
 
 import { ViewportData } from "./webviewState";
 import { centreOf } from "./elementGeometry";

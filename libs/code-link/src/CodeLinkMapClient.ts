@@ -13,8 +13,8 @@
  * does not run the command stack — so a status push can't loop back into a
  * `commandStack.changed` event and re-trigger a sync.
  */
-import { implementationStatusKey } from "@miragon/bpmn-modeler-shared";
-import type { ImplementationEntry } from "@miragon/bpmn-modeler-shared";
+import { implementationStatusKey } from "@miragon/bpmn-modeler-types";
+import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { collectImplementations, ElementRegistryLike } from "./collectImplementations";
 import { extractImplementation } from "./extractImplementation";

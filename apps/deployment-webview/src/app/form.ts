@@ -5,13 +5,13 @@ import {
     DeploymentConfigPayload,
     DeploymentFormDefaults,
     DeploymentResultQuery,
-    Engine,
     LogInfoCommand,
     Query,
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
     HostApi,
 } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { WebviewState } from "./host";
 

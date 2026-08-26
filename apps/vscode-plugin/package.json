@@ -11,6 +11,7 @@
         "@miragon/bpmn-modeler-core": "workspace:*",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
+        "@miragon/bpmn-modeler-types": "workspace:*",
         "tslib": "2.8.1"
     },
     "devDependencies": {

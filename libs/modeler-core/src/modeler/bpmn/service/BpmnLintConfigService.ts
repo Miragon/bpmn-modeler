@@ -1,11 +1,7 @@
 import { posix } from "path";
 
-import {
-    BpmnLintDisabledQuery,
-    BpmnlintResultsQuery,
-    Engine,
-    LintResults,
-} from "@miragon/bpmn-modeler-shared";
+import { BpmnLintDisabledQuery, BpmnlintResultsQuery } from "@miragon/bpmn-modeler-shared";
+import { Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
 import { ExecutionPlatformNotDetectedError } from "../../../shared/domain/errors";

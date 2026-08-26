@@ -157,6 +157,66 @@ module.exports = [
             ],
         },
     },
+    // Protocol-boundary guardrail (BND-PROTOCOL-PRIVATE): the publishable
+    // libraries and the webview `app/` feature layers (#1293 / #1371) may import
+    // the public `@miragon/bpmn-modeler-types` package, but never the private
+    // `@miragon/bpmn-modeler-shared` protocol package (Query/Command bases,
+    // `HostApi`, document-flush plumbing). The types package itself is included
+    // so it can never depend on the protocol side, keeping the split acyclic.
+    {
+        files: [
+            "libs/modeler-types/**",
+            "libs/append-menu/**",
+            "libs/bpmn-clipboard/**",
+            "libs/code-link/**",
+            "libs/element-template-chooser/**",
+            "libs/inline-scripting/**",
+            "libs/model-navigation/**",
+            "libs/flow-navigation/**",
+            "apps/bpmn-webview/src/app/**",
+            "apps/dmn-webview/src/app/**",
+        ],
+        // Host-adapter layer inside `app/` still speaks the protocol; it is
+        // relocated out of the publishable boundary in #1377. Exempt until then.
+        ignores: [
+            "apps/bpmn-webview/src/app/host.ts",
+            "apps/bpmn-webview/src/app/state.ts",
+            "apps/bpmn-webview/src/app/diff/DiffMode.ts",
+            "apps/dmn-webview/src/app/host.ts",
+            "apps/dmn-webview/src/app/state.ts",
+        ],
+        rules: {
+            // This block wins `no-restricted-imports` for its files (ESLint flat
+            // config replaces, not merges, a rule's options on the last match), so
+            // the BND-PUBLIC-API-BARREL i18n patterns are repeated here to keep
+            // that guard active for the guarded libs too.
+            "no-restricted-imports": [
+                "error",
+                {
+                    patterns: [
+                        {
+                            group: [
+                                "@miragon/bpmn-modeler-shared",
+                                "@miragon/bpmn-modeler-shared/*",
+                            ],
+                            message:
+                                "Import public types/utilities from '@miragon/bpmn-modeler-types'; the '@miragon/bpmn-modeler-shared' host protocol (Query/Command/HostApi) is private to the bootstrap/host layers (BND-PROTOCOL-PRIVATE).",
+                        },
+                        {
+                            group: [
+                                "@miragon/bpmn-modeler-i18n/*",
+                                "@miragon/bpmn-modeler-i18n-extras/*",
+                                "**/bpmn-i18n-extras/src/languages",
+                                "**/bpmn-i18n-extras/src/languages/**",
+                            ],
+                            message:
+                                "Import from the '@miragon/bpmn-modeler-i18n' / '@miragon/bpmn-modeler-i18n-extras' barrels only; languages/** internals are private (BND-PUBLIC-API-BARREL).",
+                        },
+                    ],
+                },
+            ],
+        },
+    },
     // Must come last: turns off ESLint rules that would conflict with Prettier.
     eslintConfigPrettier,
 ];

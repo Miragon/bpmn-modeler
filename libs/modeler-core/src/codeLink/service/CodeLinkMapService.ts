@@ -1,12 +1,11 @@
 import { posix } from "path";
 
+import { asyncDebounce, ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import {
-    asyncDebounce,
     ImplementationEntry,
     ImplementationKind,
-    ImplementationStatusQuery,
     implementationStatusKey,
-} from "@miragon/bpmn-modeler-shared";
+} from "@miragon/bpmn-modeler-types";
 
 import { EditorHandle } from "../../shared/domain/EditorSession";
 import { pathIsInsideExcludedDir } from "../../shared/domain/excludedDirs";

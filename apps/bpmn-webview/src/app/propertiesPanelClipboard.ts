@@ -1,4 +1,4 @@
-import { isTextEditingSurface } from "@miragon/bpmn-modeler-shared";
+import { isTextEditingSurface } from "@miragon/bpmn-modeler-types";
 export { isTextEditingSurface };
 
 /**

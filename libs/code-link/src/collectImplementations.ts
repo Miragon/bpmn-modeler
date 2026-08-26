@@ -8,7 +8,7 @@
  */
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
-import type { ImplementationEntry } from "@miragon/bpmn-modeler-shared";
+import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { BusinessObjectLike, extractImplementation } from "./extractImplementation";
 

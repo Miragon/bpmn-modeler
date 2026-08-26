@@ -16,7 +16,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { implementationStatusKey } from "@miragon/bpmn-modeler-shared";
+import { implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";

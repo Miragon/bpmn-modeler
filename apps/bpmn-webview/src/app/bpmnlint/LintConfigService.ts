@@ -1,4 +1,4 @@
-import { LintResults } from "@miragon/bpmn-modeler-shared";
+import { LintResults } from "@miragon/bpmn-modeler-types";
 
 /**
  * The subset of `bpmn-js-bpmnlint`'s `linting` module this service drives. The

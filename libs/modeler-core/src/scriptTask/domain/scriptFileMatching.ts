@@ -1,4 +1,4 @@
-import { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import { parseScriptPath } from "./scriptCompletion";
 import { ScriptLanguage } from "./scriptLanguage";

@@ -17,7 +17,7 @@ import {
     OpenScriptEditorRef,
     ScriptKind,
     ScriptTaskScript,
-} from "@miragon/bpmn-modeler-shared";
+} from "@miragon/bpmn-modeler-types";
 import {
     collectInlineScriptTasks,
     findListenerAt,
@@ -31,7 +31,7 @@ import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
 import LintModule from "./bpmnlint";
-import { setColorThemeMode } from "@miragon/bpmn-modeler-shared";
+import { setColorThemeMode } from "@miragon/bpmn-modeler-types";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,

@@ -59,9 +59,7 @@ export interface FlowPosition {
  * (including nested SubProcesses), plus orphan nodes appended at the end in
  * visual top-left → bottom-right order.
  */
-export function buildFlowOrder(
-    root: ModdleElement,
-): Map<string, FlowPosition> {
+export function buildFlowOrder(root: ModdleElement): Map<string, FlowPosition> {
     const containers = collectContainers(root);
     const bounds = collectBounds(root);
 
@@ -202,10 +200,7 @@ export function buildRemovedAnchors(
         }
     }
 
-    const anchorAfter = (
-        baseId: string,
-        offset: number,
-    ): FlowPosition | undefined => {
+    const anchorAfter = (baseId: string, offset: number): FlowPosition | undefined => {
         const p = afterOrder.get(baseId);
         return p && { flowIndex: p.flowIndex + offset, y: p.y, x: p.x };
     };
@@ -283,11 +278,7 @@ export function sortIdsByOrder(
         const pa = positionOf(a);
         const pb = positionOf(b);
         if (pa && pb) {
-            return (
-                pa.flowIndex - pb.flowIndex ||
-                pa.y - pb.y ||
-                pa.x - pb.x
-            );
+            return pa.flowIndex - pb.flowIndex || pa.y - pb.y || pa.x - pb.x;
         }
         /**
          * Unknown ids sink to the end while keeping their relative order.
@@ -336,9 +327,7 @@ function isContainer(el: ModdleElement): boolean {
  * Reads BPMNDI bounds keyed by `bpmnElement.id`, using waypoint midpoints as
  * a fallback for edges (which carry `waypoint` instead of `bounds`).
  */
-function collectBounds(
-    root: ModdleElement,
-): Map<string, { x: number; y: number }> {
+function collectBounds(root: ModdleElement): Map<string, { x: number; y: number }> {
     const result = new Map<string, { x: number; y: number }>();
     for (const diagram of readArray<ModdleElement>(root.diagrams)) {
         const plane = diagram.plane as ModdleElement | undefined;
@@ -348,14 +337,8 @@ function collectBounds(
             const id = target?.id;
             if (!id) continue;
 
-            const b = pe.bounds as
-                | { x?: number; y?: number }
-                | undefined;
-            if (
-                b &&
-                typeof b.x === "number" &&
-                typeof b.y === "number"
-            ) {
+            const b = pe.bounds as { x?: number; y?: number } | undefined;
+            if (b && typeof b.x === "number" && typeof b.y === "number") {
                 result.set(id, { x: b.x, y: b.y });
                 continue;
             }

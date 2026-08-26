@@ -1,4 +1,5 @@
-import { Command, Query, HostApi, isUsableViewbox } from "@miragon/bpmn-modeler-shared";
+import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
+import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";
 import { BpmnModeler } from "./modeler";
 

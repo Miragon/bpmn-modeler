@@ -114,10 +114,7 @@ export interface PanelShortcutDeps {
  * (return to canvas). The same handler serves both BPMN and DMN; host-
  * specific gating is injected via {@link PanelShortcutDeps}.
  */
-export function installPanelShortcuts(
-    deps: PanelShortcutDeps,
-    opts?: PanelFocusOptions,
-): void {
+export function installPanelShortcuts(deps: PanelShortcutDeps, opts?: PanelFocusOptions): void {
     document.addEventListener("keydown", (e: KeyboardEvent) => {
         if (deps.isEnabled && !deps.isEnabled()) return;
 

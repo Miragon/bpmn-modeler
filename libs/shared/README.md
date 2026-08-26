@@ -1,12 +1,29 @@
 # `@miragon/bpmn-modeler-shared`
 
-Shared message types and utilities used by both the VS Code extension host
-(`apps/vscode-plugin`) and the webviews (`apps/bpmn-webview`,
-`apps/dmn-webview`, `apps/deployment-webview`).
+The **private** webview ↔ host **message protocol** for the BPMN/DMN modeler:
+the `Query`/`Command` base classes and every concrete message type, `HostApi`,
+document-flush plumbing, the async-debounce/resolver helpers, and the
+process-variable / variable-manifest types the hosts exchange.
+
+Used by both the extension host (`apps/vscode-plugin`), the modeler-bridge, and
+the webview bootstrap/host-adapter layers. It is **not** publishable: it encodes
+the internal transport contract.
+
+## The public/protocol split (#1371)
+
+The publishable, host-agnostic types and browser utilities that used to live
+here (engine/lint/settings/scripting/implementation/diff types, `theme`,
+`canvasResize`, `propertiesPanelFocus`/`Resizer`, `bpmnFlowOrder`) now live in
+[`@miragon/bpmn-modeler-types`](../modeler-types/README.md). This package
+imports those types where its message payloads reference them, but never the
+reverse — a `no-restricted-imports` eslint rule (`BND-PROTOCOL-PRIVATE`) keeps
+the publishable libraries and webview `app/` layers off this protocol package.
+
+Reach for `@miragon/bpmn-modeler-types` for anything a future
+`@miragon/bpmn-modeler` npm package could need; reach for this package only from
+the bootstrap/host layers, `modeler-core`, and the hosts.
 
 ## Usage
-
-Add a workspace dependency in the consuming workspace's `package.json`:
 
 ```json
 {
@@ -16,10 +33,8 @@ Add a workspace dependency in the consuming workspace's `package.json`:
 }
 ```
 
-Then import normally:
-
 ```ts
-import { someUtil, SomeMessageType } from "@miragon/bpmn-modeler-shared";
+import { BpmnFileQuery, HostApi } from "@miragon/bpmn-modeler-shared";
 ```
 
 Path resolution is handled by `tsconfig.base.json` (via `paths`) plus

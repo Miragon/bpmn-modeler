@@ -12,16 +12,18 @@ import { diff } from "bpmn-js-differ";
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
-    DiffCounts,
-    Engine,
     LanguageQuery,
     SyncCursorQuery,
     SyncViewportQuery,
     ViewportChangedCommand,
+} from "@miragon/bpmn-modeler-shared";
+import {
+    DiffCounts,
+    Engine,
     buildFlowOrder,
     buildRemovedAnchors,
     sortIdsByOrder,
-} from "@miragon/bpmn-modeler-shared";
+} from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";

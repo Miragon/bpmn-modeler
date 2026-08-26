@@ -15,6 +15,10 @@ export default defineConfig({
         server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
+            "@miragon/bpmn-modeler-types": resolve(
+                __dirname,
+                "../../libs/modeler-types/src/index.ts",
+            ),
             "@miragon/bpmn-modeler-core": resolve(
                 __dirname,
                 "../../libs/modeler-core/src/index.ts",

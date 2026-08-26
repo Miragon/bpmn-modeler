@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-shared";
+import { ImplementationEntry, implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
 import { buildMapJson } from "../domain/CodeLinkMap";
 import { CodeLinkMapService } from "./CodeLinkMapService";
