@@ -43,8 +43,6 @@ import {
     asyncDebounce,
     dedupeVariables,
     OpenScriptEditorCommand,
-    OpenScriptEditorRef,
-    ScriptKind,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
@@ -52,6 +50,7 @@ import {
     VariableDef,
     VariableManifestEntry,
 } from "@miragon/bpmn-modeler-shared";
+import { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import { BridgeSettings } from "./nodeAdapters";
 import { Rpc } from "./rpc";

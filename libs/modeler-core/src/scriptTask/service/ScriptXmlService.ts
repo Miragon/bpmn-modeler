@@ -1,4 +1,4 @@
-import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
  * One script surface's new content, addressed exactly as the webview addresses

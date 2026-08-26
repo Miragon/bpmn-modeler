@@ -1,9 +1,9 @@
 import {
     Command,
-    ImplementationKind,
     NavigateToImplementationCommand,
     SyncActivitiesCommand,
 } from "@miragon/bpmn-modeler-shared";
+import { ImplementationKind } from "@miragon/bpmn-modeler-types";
 import {
     CodeLinkMapService,
     ImplementationLocator,

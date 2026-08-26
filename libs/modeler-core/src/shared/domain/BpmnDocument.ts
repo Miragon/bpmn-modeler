@@ -7,7 +7,7 @@
  * `BpmnDocument` instead of mutating `this.xml`.
  */
 
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { ExecutionPlatformNotDetectedError } from "./errors";
 

@@ -1,4 +1,4 @@
-import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import {
     OPEN_SCRIPT_EDITORS_CHANGED_EVENT,

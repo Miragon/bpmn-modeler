@@ -1,4 +1,4 @@
-import { DiffCounts, DiffOrigin } from "@miragon/bpmn-modeler-shared";
+import { DiffCounts, DiffOrigin } from "@miragon/bpmn-modeler-types";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 export interface DiffLegendCallbacks {

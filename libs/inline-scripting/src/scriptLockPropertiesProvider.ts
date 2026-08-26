@@ -1,5 +1,5 @@
 import { Fragment, jsx, jsxs } from "@bpmn-io/properties-panel/preact/jsx-runtime";
-import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";

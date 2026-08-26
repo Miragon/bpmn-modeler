@@ -1,5 +1,5 @@
 import type { ImplementationKind } from "./extractImplementation";
-import type { ImplementationEntry } from "@miragon/bpmn-modeler-shared";
+import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 /**
  * The host capabilities this library needs. The consumer supplies an
@@ -8,8 +8,8 @@ import type { ImplementationEntry } from "@miragon/bpmn-modeler-shared";
  * providers without a host is unrepresentable — no port, no module (see
  * {@link createCodeLinkModule}).
  *
- * `ImplementationEntry` is a type-only import from the shared package until the
- * public/protocol split (#1371) gives it a protocol-free home.
+ * `ImplementationEntry` is a type-only import from the protocol-free
+ * `@miragon/bpmn-modeler-types` package (#1371).
  */
 export interface CodeLinkPort {
     /** Open the workspace source file the reference resolves to. */

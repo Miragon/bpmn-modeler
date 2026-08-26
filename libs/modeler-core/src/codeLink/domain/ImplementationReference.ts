@@ -3,7 +3,7 @@
  * filename / package shapes the workspace search needs. No `vscode` / `node`
  * dependencies — these are plain string transforms, unit-tested directly.
  */
-import type { ImplementationKind } from "@miragon/bpmn-modeler-shared";
+import type { ImplementationKind } from "@miragon/bpmn-modeler-types";
 
 export type { ImplementationKind };
 

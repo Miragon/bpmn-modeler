@@ -8,6 +8,10 @@ export default defineConfig({
         include: ["src/**/*.{spec,test}.ts"],
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
+            "@miragon/bpmn-modeler-types": resolve(
+                __dirname,
+                "../../libs/modeler-types/src/index.ts",
+            ),
             // These workspace libs have no package entry point, so specs that
             // import them by name (e.g. capabilityModules.spec) need the path
             // mapped explicitly — the build/dev use vite-tsconfig-paths instead.

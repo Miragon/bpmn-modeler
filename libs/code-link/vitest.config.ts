@@ -7,7 +7,10 @@ export default defineConfig({
         environment: "node",
         include: ["src/**/*.{spec,test}.ts"],
         alias: {
-            "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
+            "@miragon/bpmn-modeler-types": resolve(
+                __dirname,
+                "../../libs/modeler-types/src/index.ts",
+            ),
         },
     },
 });

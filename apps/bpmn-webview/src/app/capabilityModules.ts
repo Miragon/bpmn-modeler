@@ -1,7 +1,7 @@
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { createCodeLinkModule } from "@miragon/bpmn-modeler-code-link";
 import { createInlineScriptingModules } from "@miragon/bpmn-modeler-inline-scripting";
-import type { Engine } from "@miragon/bpmn-modeler-shared";
+import type { Engine } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./capabilities";
 
 /**

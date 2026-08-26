@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { ImplementationEntry } from "@miragon/bpmn-modeler-shared";
+import { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { NotifierPort, WorkspacePort } from "../../shared/domain/hostPorts";
 import {

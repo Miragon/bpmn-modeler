@@ -12,7 +12,6 @@ import {
     ClipboardQuery,
     Command,
     ElementTemplatesQuery,
-    Engine,
     FlushDocumentQuery,
     FocusElementQuery,
     GetBpmnFileCommand,
@@ -29,7 +28,6 @@ import {
     LogWarningCommand,
     NavigateToImplementationCommand,
     NavigateToReferencedModelCommand,
-    NoModelerError,
     OpenScriptEditorCommand,
     OpenScriptEditorsCommand,
     PropertiesPanelStateQuery,
@@ -50,12 +48,16 @@ import {
     createFlushResponder,
     createResolver,
     extractProcessVariables,
+} from "@miragon/bpmn-modeler-shared";
+import {
+    Engine,
+    NoModelerError,
     formatErrors,
     initResizer,
     initTheme,
     installPanelShortcuts,
     observeCanvasSize,
-} from "@miragon/bpmn-modeler-shared";
+} from "@miragon/bpmn-modeler-types";
 import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
@@ -66,7 +68,8 @@ import {
     installKeyboardFocus,
     UnsupportedEngineError,
 } from "./app";
-import type { HostApi, ResizableCanvas } from "@miragon/bpmn-modeler-shared";
+import type { HostApi } from "@miragon/bpmn-modeler-shared";
+import type { ResizableCanvas } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./app/capabilities";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";

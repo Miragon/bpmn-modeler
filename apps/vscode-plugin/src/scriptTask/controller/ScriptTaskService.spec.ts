@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-    OpenScriptEditorRef,
-    ScriptKind,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
 } from "@miragon/bpmn-modeler-shared";
+import { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 // `ScriptTaskService` reaches into vscode directly (`Uri`, `languages`,
 // `window`, `workspace`, `ViewColumn`, `TabInputText`, `WorkspaceEdit`), so

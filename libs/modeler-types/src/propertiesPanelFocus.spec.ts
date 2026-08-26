@@ -13,7 +13,9 @@ import type { PanelFocusOptions } from "./propertiesPanelFocus";
 /** Runs the scheduled callback synchronously instead of via rAF. */
 const syncSchedule: PanelFocusOptions["schedule"] = (cb) => cb();
 
-function createHandle(visible = true): PropertiesPanelHandle & { setVisible: ReturnType<typeof vi.fn> } {
+function createHandle(
+    visible = true,
+): PropertiesPanelHandle & { setVisible: ReturnType<typeof vi.fn> } {
     let state = visible;
     const setVisible = vi.fn((v: boolean) => {
         state = v;
@@ -241,7 +243,13 @@ describe("installPanelShortcuts", () => {
 
     function dispatchKeydown(
         key: string,
-        modifiers: { shift?: boolean; ctrl?: boolean; meta?: boolean; alt?: boolean; defaultPrevented?: boolean } = {},
+        modifiers: {
+            shift?: boolean;
+            ctrl?: boolean;
+            meta?: boolean;
+            alt?: boolean;
+            defaultPrevented?: boolean;
+        } = {},
     ): KeyboardEvent {
         const event = new KeyboardEvent("keydown", {
             key,
@@ -262,10 +270,7 @@ describe("installPanelShortcuts", () => {
         const panelSetup = createPanel("input", "select");
         opts = panelSetup.opts;
 
-        installPanelShortcuts(
-            { handle, focusCanvas, isCanvasFocused, isEnabled },
-            opts,
-        );
+        installPanelShortcuts({ handle, focusCanvas, isCanvasFocused, isEnabled }, opts);
     });
 
     beforeEach(() => {
@@ -403,10 +408,7 @@ describe("installPanelShortcuts (escapeToCanvas)", () => {
         isCanvasFocused.mockReset();
     });
 
-    function dispatchKeydown(
-        key: string,
-        modifiers: { defaultPrevented?: boolean } = {},
-    ): void {
+    function dispatchKeydown(key: string, modifiers: { defaultPrevented?: boolean } = {}): void {
         const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
         if (modifiers.defaultPrevented) event.preventDefault();
         document.dispatchEvent(event);
@@ -418,7 +420,11 @@ describe("installPanelShortcuts (escapeToCanvas)", () => {
     });
 
     it("Escape is passive (does not call preventDefault)", () => {
-        const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+        const event = new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+        });
         document.dispatchEvent(event);
         expect(event.defaultPrevented).toBe(false);
     });

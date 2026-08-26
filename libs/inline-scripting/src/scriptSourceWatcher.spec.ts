@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { OpenScriptEditorRef } from "@miragon/bpmn-modeler-shared";
+import type { OpenScriptEditorRef } from "@miragon/bpmn-modeler-types";
 
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
 import {

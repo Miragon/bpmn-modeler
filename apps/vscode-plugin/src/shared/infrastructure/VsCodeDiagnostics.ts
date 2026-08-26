@@ -8,7 +8,7 @@ import {
     Uri,
 } from "vscode";
 
-import { LintResults } from "@miragon/bpmn-modeler-shared";
+import { LintResults } from "@miragon/bpmn-modeler-types";
 import { DiagnosticsPort } from "@miragon/bpmn-modeler-core";
 
 /**

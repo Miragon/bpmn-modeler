@@ -1,4 +1,4 @@
-import { Engine, ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-shared";
+import { Engine, ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { UserCancelledError } from "../../shared/domain/errors";

@@ -1,4 +1,5 @@
-import { BpmnFileQuery, ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-shared";
+import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
+import { ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types";
 
 import { ModelerSession } from "../../../shared/domain/session";
 import {

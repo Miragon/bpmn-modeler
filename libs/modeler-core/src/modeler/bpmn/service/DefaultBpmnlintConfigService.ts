@@ -1,5 +1,5 @@
 import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 /**
  * Builds the zero-config **default** bpmnlint config, used when no `.bpmnlintrc`

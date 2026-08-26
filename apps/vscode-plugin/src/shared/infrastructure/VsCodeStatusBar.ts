@@ -1,6 +1,6 @@
 import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 
-import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-shared";
+import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
 import { StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";

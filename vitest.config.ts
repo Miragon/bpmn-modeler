@@ -12,6 +12,7 @@ export default defineConfig({
             "libs/element-template-chooser",
             "libs/inline-scripting",
             "libs/modeler-core",
+            "libs/modeler-types",
             "libs/shared",
             "libs/flow-navigation",
             "libs/model-navigation",

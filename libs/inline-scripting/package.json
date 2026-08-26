@@ -7,7 +7,7 @@
         "test": "vitest run"
     },
     "dependencies": {
-        "@miragon/bpmn-modeler-shared": "workspace:*"
+        "@miragon/bpmn-modeler-types": "workspace:*"
     },
     "peerDependencies": {
         "@bpmn-io/properties-panel": "3.46.0",

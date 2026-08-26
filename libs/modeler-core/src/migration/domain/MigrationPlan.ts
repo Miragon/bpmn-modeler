@@ -4,7 +4,7 @@
  * about which files to update.
  */
 
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 

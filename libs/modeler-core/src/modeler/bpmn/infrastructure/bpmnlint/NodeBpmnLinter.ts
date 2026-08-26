@@ -1,6 +1,6 @@
 import { dirname } from "path";
 
-import { LintResults } from "@miragon/bpmn-modeler-shared";
+import { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { createBundledResolver } from "@miragon/bpmnlint-plugin-rules";
 

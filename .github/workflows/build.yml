@@ -44,6 +44,7 @@ jobs:
           filters: |
             shared:
               - 'libs/shared/**'
+              - 'libs/modeler-types/**'
             # Covers the overlay and its pin of the shared @miragon/bpmn-modeler-i18n
             # npm package (this package.json). A lib bump lands as a version change
             # here, re-running the i18n coverage/overlay tests and every bundler that
@@ -172,7 +173,8 @@ jobs:
         with:
           node-version: '22'
           cache: yarn
-      - run: yarn workspaces focus @miragon/bpmn-modeler-shared
+      - run: yarn workspaces focus @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types
+      - run: yarn workspace @miragon/bpmn-modeler-types build
       - run: yarn workspace @miragon/bpmn-modeler-shared build
 
   build-bpmn-i18n-extras:
@@ -253,7 +255,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras
+        run: yarn workspaces focus vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler build
@@ -281,7 +283,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev libxkbfile-dev libsecret-1-dev
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras
+        run: yarn workspaces focus bpmn-modeler vs-code-bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace vs-code-bpmn-modeler test
@@ -324,7 +326,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace @miragon/bpmn-modeler-core test
@@ -368,7 +370,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-bridge @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-bridge @miragon/bpmn-modeler-core @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace @miragon/bpmn-modeler-bridge test
@@ -478,7 +480,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -532,7 +534,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
+        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview build
 
   build-dmn-webview:
@@ -550,7 +552,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/bpmn-modeler-shared
+        run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types
       - run: yarn workspace @miragon/dmn-modeler-webview build
 
   build-deployment-webview:
@@ -567,7 +569,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared
+        run: yarn workspaces focus @miragon/bpmn-modeler-deployment-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types
       - run: yarn workspace @miragon/bpmn-modeler-deployment-webview build
 
   verify-docs:

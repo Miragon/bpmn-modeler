@@ -1,4 +1,4 @@
-import { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-shared";
+import { DiffOrigin, DiffSide } from "@miragon/bpmn-modeler-types";
 
 export { DiffOrigin };
 

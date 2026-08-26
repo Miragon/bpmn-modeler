@@ -4,7 +4,7 @@ vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
     is: (element: { type?: string } | undefined, type: string) => element?.type === type,
 }));
 
-import { implementationStatusKey } from "@miragon/bpmn-modeler-shared";
+import { implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
 import { CodeLinkMapClient } from "./CodeLinkMapClient";
 
