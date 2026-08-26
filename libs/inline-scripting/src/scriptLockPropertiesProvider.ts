@@ -101,7 +101,7 @@ export function LockedScriptEntry(props: any): unknown {
         // `readOnly` (not `disabled`) keeps the text focusable/selectable so
         // users can copy the script while the tab owns the write path.
         "readOnly": true,
-        "spellCheck": "false",
+        "spellCheck": false,
         "rows": clampRows(value),
         value,
         "title": lockHintText,
