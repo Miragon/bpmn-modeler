@@ -95,7 +95,7 @@ function notifyIfNewRelease(context: ExtensionContext, logger: LoggerPort): void
         )
         .then((selection) => {
             if (selection === "View Release Notes") {
-                return env.openExternal(Uri.parse(`${RELEASES_BASE}/v${current}`));
+                return env.openExternal(Uri.parse(`${RELEASES_BASE}/vscode-v${current}`));
             }
             return undefined;
         })
