@@ -240,6 +240,34 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 console.debug("[DEBUG] SetLintingEnabledCommand", message);
                 break;
             }
+            // Capability-port commands. Dev keeps all capabilities so every
+            // feature's UI stays testable; there is no real host to act on them,
+            // so log-only cases replace the default throw that used to crash the
+            // first SyncActivitiesCommand on load.
+            case message.type === "NavigateToReferencedModelCommand": {
+                console.debug("[DEBUG] NavigateToReferencedModelCommand", message);
+                break;
+            }
+            case message.type === "NavigateToImplementationCommand": {
+                console.debug("[DEBUG] NavigateToImplementationCommand", message);
+                break;
+            }
+            case message.type === "SyncActivitiesCommand": {
+                console.debug("[DEBUG] SyncActivitiesCommand", message);
+                break;
+            }
+            case message.type === "OpenScriptEditorCommand": {
+                console.debug("[DEBUG] OpenScriptEditorCommand", message);
+                break;
+            }
+            case message.type === "UpdateScriptSourceCommand": {
+                console.debug("[DEBUG] UpdateScriptSourceCommand", message);
+                break;
+            }
+            case message.type === "UpdateScriptVariablesCommand": {
+                console.debug("[DEBUG] UpdateScriptVariablesCommand", message);
+                break;
+            }
             default: {
                 throw new Error(`Unknown message type: ${(message as MessageType).type}`);
             }

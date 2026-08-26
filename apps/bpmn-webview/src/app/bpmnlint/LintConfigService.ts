@@ -1,4 +1,4 @@
-import { LintResults, SetLintingEnabledCommand } from "@miragon/bpmn-modeler-shared";
+import { LintResults } from "@miragon/bpmn-modeler-shared";
 
 /**
  * The subset of `bpmn-js-bpmnlint`'s `linting` module this service drives. The
@@ -13,9 +13,13 @@ interface Linting {
     toggle(active: boolean): void;
 }
 
-/** The webview→host channel registered as the `vsCodeBridge` DI value in bootstrap. */
-interface VsCodeBridge {
-    postMessage(message: unknown): void;
+/**
+ * The single host capability this service needs, registered as the `lintingHost`
+ * DI value in bootstrap. Narrow on purpose so the service never touches the
+ * postMessage protocol — bootstrap translates the call into the host command.
+ */
+interface LintingHost {
+    setLintingEnabled(enabled: boolean): void;
 }
 
 type Translate = (template: string) => string;
@@ -45,7 +49,7 @@ const OFF_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" st
  * its own overlays optimistically.
  */
 export class LintConfigService {
-    static $inject = ["linting", "vsCodeBridge", "translate"];
+    static $inject = ["linting", "lintingHost", "translate"];
 
     private results: LintResults = {};
 
@@ -57,7 +61,7 @@ export class LintConfigService {
 
     constructor(
         private readonly linting: Linting,
-        private readonly bridge: VsCodeBridge,
+        private readonly lintingHost: LintingHost,
         private readonly translate: Translate,
     ) {
         // Replace the browser-side lint run with the host's precomputed results.
@@ -155,7 +159,7 @@ export class LintConfigService {
             button.title = label;
             button.setAttribute("aria-label", label);
             button.addEventListener("click", () => {
-                this.bridge.postMessage(new SetLintingEnabledCommand(false));
+                this.lintingHost.setLintingEnabled(false);
             });
             this.offButton = button;
         }
@@ -193,7 +197,7 @@ export class LintConfigService {
             enable.className = "lint-enable-button";
             enable.textContent = this.translate("Enable");
             enable.addEventListener("click", () => {
-                this.bridge.postMessage(new SetLintingEnabledCommand(true));
+                this.lintingHost.setLintingEnabled(true);
             });
 
             chip.appendChild(text);

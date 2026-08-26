@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LintConfigService } from "./LintConfigService";
 
+/** The narrow host port; these render tests never reach its off/enable clicks. */
+const lintingHost = { setLintingEnabled: vi.fn() };
+
 /** Minimal stand-in for the bpmn-js-bpmnlint `linting` DI service. */
 function fakeLinting() {
     return {
@@ -25,7 +28,7 @@ beforeEach(() => {
 describe("LintConfigService.render", () => {
     it("overrides linting.lint to return the host-provided results", async () => {
         const linting = fakeLinting();
-        const svc = new LintConfigService(linting);
+        const svc = new LintConfigService(linting, lintingHost, (s) => s);
 
         const results = { "label-required": [{ id: "Task_1", message: "x", category: "warn" }] };
         svc.render(results);
@@ -37,7 +40,7 @@ describe("LintConfigService.render", () => {
     it("activates linting and reveals the button when results arrive", () => {
         const linting = fakeLinting();
 
-        new LintConfigService(linting).render({});
+        new LintConfigService(linting, lintingHost, (s) => s).render({});
 
         expect(linting.isActive()).toBe(true);
         expect(document.body.classList.contains("bpmnlint-active")).toBe(true);
@@ -46,7 +49,7 @@ describe("LintConfigService.render", () => {
     it("re-renders via update() when already active", () => {
         const linting = fakeLinting();
         linting.active = true;
-        const svc = new LintConfigService(linting);
+        const svc = new LintConfigService(linting, lintingHost, (s) => s);
 
         svc.render({});
 
@@ -59,7 +62,7 @@ describe("LintConfigService.render", () => {
         linting.active = true;
         document.body.classList.add("bpmnlint-active");
 
-        new LintConfigService(linting).render(null);
+        new LintConfigService(linting, lintingHost, (s) => s).render(null);
 
         expect(linting.toggle).toHaveBeenCalledWith(false);
         expect(document.body.classList.contains("bpmnlint-active")).toBe(false);
@@ -68,7 +71,7 @@ describe("LintConfigService.render", () => {
     it("does not toggle when already inactive and results are null", () => {
         const linting = fakeLinting();
 
-        new LintConfigService(linting).render(null);
+        new LintConfigService(linting, lintingHost, (s) => s).render(null);
 
         expect(linting.toggle).not.toHaveBeenCalled();
     });

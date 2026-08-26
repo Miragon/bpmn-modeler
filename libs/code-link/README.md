@@ -7,19 +7,19 @@ implementation does not exist in the workspace.
 
 ## The always-on activity→code map
 
-`CodeLinkMapClient` (a bpmn-js DI service registered by `CodeLinkModule`) keeps
+`CodeLinkMapClient` (a bpmn-js DI service registered by `createCodeLinkModule`) keeps
 the host's activity→code map in sync with the live diagram so the context-pad
 entry's visibility is correct without the user clicking:
 
 - On `import.done` and after edits (`commandStack.changed`, debounced and
   skip-if-unchanged) it ships the diagram's `(activityId, kind, reference)` list
-  to the host via `SyncActivitiesCommand`. **The host never parses the BPMN
-  XML** — bpmn-js already parsed it, so the webview reads the model and sends
-  cheap strings.
-- The host resolves only the delta and pushes back a
-  `key → resolved` lookup (`ImplementationStatusQuery`), which the modeler hands
-  to `applyStatus`. The provider then asks `isResolved(element)` per element:
-  unknown ⇒ shown optimistically (flash-free), cached `false` ⇒ hidden.
+  to the host via `CodeLinkPort.syncActivities`. **The host never parses the
+  BPMN XML** — bpmn-js already parsed it, so the webview reads the model and
+  sends cheap strings.
+- The host resolves only the delta and pushes back a `key → resolved` lookup,
+  which the modeler hands to `applyStatus`. The provider then asks
+  `isResolved(element)` per element: unknown ⇒ shown optimistically
+  (flash-free), cached `false` ⇒ hidden.
 
 The client never mutates bpmn-js model state (forcing a context-pad re-render
 does not run the command stack), so a status push cannot loop back into a
@@ -36,9 +36,9 @@ does not run the command stack), so a status push cannot loop back into a
 - **Resolution is workspace-driven and host-side.** Mapping a reference to a
   source file (`workspace.findFiles`, content search, `vscode.open`) only makes
   sense on the extension host. Keeping the click target in a small webview-side
-  library lets the modeler stay agnostic of VS Code APIs — it just posts a
-  `NavigateToImplementationCommand` carrying the reference string and its kind.
-  Workspace paths never leave the host.
+  library lets the modeler stay agnostic of VS Code APIs — it just calls
+  `CodeLinkPort.navigateToImplementation` with the reference string and its
+  kind. Workspace paths never leave the host.
 - **Context-pad placement is opinionated.** The bpmn-js context pad wraps
   entries 3-per-row within each `data-group` div. The icon sits under the
   existing `connect` group to avoid an orphan row; that choice is documented
@@ -49,11 +49,28 @@ does not run the command stack), so a status push cannot loop back into a
 ## Usage
 
 ```ts
-import { CodeLinkModule } from "@miragon/bpmn-modeler-code-link";
+import { createCodeLinkModule } from "@miragon/bpmn-modeler-code-link";
 
-new BpmnModeler({ additionalModules: [CodeLinkModule] });
+new BpmnModeler({
+    additionalModules: [
+        createCodeLinkModule({
+            navigateToImplementation: (reference, kind) => {
+                /* open the source file */
+            },
+            syncActivities: (entries) => {
+                /* ship entries for status resolution */
+            },
+        }),
+    ],
+});
 ```
 
-The module expects a `vsCodeBridge` DI value with a `postMessage` method so it
-never has to call `acquireVsCodeApi()` directly (which can only be invoked once
-per webview).
+`createCodeLinkModule(port)` embeds the `CodeLinkPort` as the `codeLinkPort` DI
+value, so the module can only be registered together with its host capability. A
+consumer that has no host omits the module entirely and neither the entry nor
+the sync runs.
+
+The library keeps a runtime import of `implementationStatusKey` from
+`@miragon/bpmn-modeler-shared` (the composite status-map key both sides must
+agree on byte-for-byte) until the public/protocol split (#1371); everything else
+it takes from shared is `import type`.

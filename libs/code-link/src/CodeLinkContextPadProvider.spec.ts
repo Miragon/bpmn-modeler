@@ -7,8 +7,6 @@ vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
     is: (_element: unknown, type: string) => isMatchers.has(type),
 }));
 
-import { NavigateToImplementationCommand } from "@miragon/bpmn-modeler-shared";
-
 import { CodeLinkContextPadProvider } from "./CodeLinkContextPadProvider";
 
 interface MutableElement {
@@ -37,7 +35,7 @@ function build(
 
     const contextPad = { registerProvider: vi.fn() };
     const translate = vi.fn((template: string) => `t(${template})`);
-    const vsCodeBridge = { postMessage: vi.fn() };
+    const port = { navigateToImplementation: vi.fn(), syncActivities: vi.fn() };
     // The map client gates visibility; default to "resolved" so the existing
     // (pre-map) cases behave exactly as before.
     const client = { isResolved: vi.fn().mockReturnValue(opts.resolved ?? true) };
@@ -45,11 +43,11 @@ function build(
     const provider = new CodeLinkContextPadProvider(
         contextPad as never,
         translate as never,
-        vsCodeBridge as never,
+        port as never,
         client as never,
     );
 
-    return { provider, contextPad, translate, vsCodeBridge, client, element, attrs };
+    return { provider, contextPad, translate, port, client, element, attrs };
 }
 
 beforeEach(() => {
@@ -176,7 +174,7 @@ describe("CodeLinkContextPadProvider", () => {
     });
 
     it("re-extracts the reference on click — not the value captured at render time", () => {
-        const { provider, vsCodeBridge, element, attrs } = build({
+        const { provider, port, element, attrs } = build({
             types: ["bpmn:ServiceTask"],
             initialAttrs: { "camunda:class": "com.example.Original" },
         });
@@ -185,15 +183,15 @@ describe("CodeLinkContextPadProvider", () => {
         attrs["camunda:class"] = "com.example.Updated";
         entry.action.click({} as never, element as never);
 
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
-        const posted = vsCodeBridge.postMessage.mock.calls[0][0];
-        expect(posted).toBeInstanceOf(NavigateToImplementationCommand);
-        expect((posted as NavigateToImplementationCommand).reference).toBe("com.example.Updated");
-        expect((posted as NavigateToImplementationCommand).kind).toBe("javaClass");
+        expect(port.navigateToImplementation).toHaveBeenCalledTimes(1);
+        expect(port.navigateToImplementation).toHaveBeenCalledWith(
+            "com.example.Updated",
+            "javaClass",
+        );
     });
 
     it("does nothing when the binding was cleared between render and click", () => {
-        const { provider, vsCodeBridge, element, attrs } = build({
+        const { provider, port, element, attrs } = build({
             types: ["bpmn:ServiceTask"],
             initialAttrs: { "camunda:class": "com.example.Original" },
         });
@@ -202,10 +200,10 @@ describe("CodeLinkContextPadProvider", () => {
         attrs["camunda:class"] = "";
         entry.action.click({} as never, element as never);
 
-        expect(vsCodeBridge.postMessage).not.toHaveBeenCalled();
+        expect(port.navigateToImplementation).not.toHaveBeenCalled();
     });
 
-    it("posts a jobType command for a C8 task definition", () => {
+    it("navigates with a jobType kind for a C8 task definition", () => {
         isMatchers.clear();
         isMatchers.add("bpmn:ServiceTask");
         const element = {
@@ -217,20 +215,18 @@ describe("CodeLinkContextPadProvider", () => {
             },
         };
         const contextPad = { registerProvider: vi.fn() };
-        const vsCodeBridge = { postMessage: vi.fn() };
+        const port = { navigateToImplementation: vi.fn(), syncActivities: vi.fn() };
         const client = { isResolved: vi.fn().mockReturnValue(true) };
         const provider = new CodeLinkContextPadProvider(
             contextPad as never,
             ((s: string) => s) as never,
-            vsCodeBridge as never,
+            port as never,
             client as never,
         );
 
         const entry = provider.getContextPadEntries(element as never)["go-to-implementation"];
         entry.action.click({} as never, element as never);
 
-        const posted = vsCodeBridge.postMessage.mock.calls[0][0] as NavigateToImplementationCommand;
-        expect(posted.kind).toBe("jobType");
-        expect(posted.reference).toBe("payment-service");
+        expect(port.navigateToImplementation).toHaveBeenCalledWith("payment-service", "jobType");
     });
 });

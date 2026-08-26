@@ -5,9 +5,9 @@
  * `calledElement` / `zeebe:calledElement processId`) and Business Rule
  * Tasks (with `camunda:decisionRef` / `zeebe:calledDecision decisionId`).
  *
- * Clicking the entry sends a {@link NavigateToReferencedModelCommand} to
- * the extension host, which performs the workspace lookup and opens the
- * referenced `.bpmn` or `.dmn` file.
+ * Clicking the entry calls {@link ModelNavigationPort.openReference}; the
+ * consumer performs the workspace lookup and opens the referenced `.bpmn` or
+ * `.dmn` file (the VS Code webview does this by posting a protocol command).
  *
  * The entry is rendered as an inline `html` fragment with an embedded SVG
  * (same approach as the `append` entry from `bpmn-js-create-append-anything`)
@@ -22,9 +22,8 @@
  */
 import { is } from "bpmn-js/lib/util/ModelUtil";
 
-import { NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
-
 import { BusinessObjectLike, extractReference, ReferenceKind } from "./extractReference";
+import type { ModelNavigationPort } from "./ModelNavigationPort";
 
 interface ContextPad {
     registerProvider(provider: NavigateContextPadProvider): void;
@@ -37,10 +36,6 @@ interface Translate {
 interface Element {
     type?: string;
     businessObject?: BusinessObjectLike;
-}
-
-interface VsCodeBridge {
-    postMessage(message: unknown): void;
 }
 
 interface ContextPadEntry {
@@ -64,20 +59,25 @@ const NAVIGATE_ICON_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill=
  * by calling {@link getContextPadEntries} on every registered provider; we
  * only contribute when the selected element actually references a model.
  *
- * The `vsCodeBridge` DI value is supplied by the bpmn-webview during
- * modeler construction so this library does not call `acquireVsCodeApi`
- * itself (it may only be invoked once per webview).
+ * The `modelNavigationPort` DI value is supplied by the consumer during
+ * modeler construction; the module cannot be registered without it (see
+ * {@link createModelNavigationModule}), so the library stays free of the
+ * host protocol.
  */
 export class NavigateContextPadProvider {
-    static $inject = ["contextPad", "translate", "vsCodeBridge"];
+    static $inject = ["contextPad", "translate", "modelNavigationPort"];
 
     private readonly translate: Translate;
 
-    private readonly vsCodeBridge: VsCodeBridge;
+    private readonly port: ModelNavigationPort;
 
-    constructor(contextPad: ContextPad, translate: Translate, vsCodeBridge: VsCodeBridge) {
+    constructor(
+        contextPad: ContextPad,
+        translate: Translate,
+        modelNavigationPort: ModelNavigationPort,
+    ) {
         this.translate = translate;
-        this.vsCodeBridge = vsCodeBridge;
+        this.port = modelNavigationPort;
         contextPad.registerProvider(this);
     }
 
@@ -97,12 +97,6 @@ export class NavigateContextPadProvider {
             return {};
         }
 
-        const postMessage = (latestReferenceId: string) => {
-            this.vsCodeBridge.postMessage(
-                new NavigateToReferencedModelCommand(latestReferenceId, kind),
-            );
-        };
-
         return {
             "navigate-to-referenced-model": {
                 group: "connect",
@@ -115,7 +109,7 @@ export class NavigateContextPadProvider {
                     click: (_event, clickedElement) => {
                         const current = extractReference(clickedElement.businessObject, kind);
                         if (current) {
-                            postMessage(current);
+                            this.port.openReference({ id: current, kind });
                         }
                     },
                 },

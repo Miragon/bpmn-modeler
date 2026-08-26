@@ -32,8 +32,10 @@ The modules never import host code; they communicate over the bpmn-js event bus.
 | `scriptEditor.sourceChanged` | out | An open script's model content diverged. |
 | `openScriptEditors.changed` | internal | The open-editors set changed (lock refresh). |
 
-The webview facade (`apps/bpmn-webview/src/app/modeler.ts`) subscribes to the
-first two and forwards them to whichever host is running.
+`InlineScriptingPortForwarder` (registered by `createInlineScriptingModules`)
+subscribes to the first two and calls the `InlineScriptingPort` the consumer
+supplies. The library never imports the host protocol; in the VS Code webview
+the port's implementation posts the corresponding protocol commands.
 
 ## Usage
 
@@ -41,10 +43,14 @@ Camunda-7 only — register the aggregate on the C7 modeler's `additionalModules
 (the C8 modeler leaves it unregistered):
 
 ```ts
-import { InlineScriptingModules } from "@miragon/bpmn-modeler-inline-scripting";
+import { createInlineScriptingModules } from "@miragon/bpmn-modeler-inline-scripting";
 
-new BpmnModeler7({ additionalModules: [...InlineScriptingModules] });
+new BpmnModeler7({ additionalModules: [...createInlineScriptingModules(port)] });
 ```
+
+`createInlineScriptingModules(port)` embeds the `InlineScriptingPort` as the
+`inlineScriptingPort` DI value, so the cluster can only be registered together
+with its host capability.
 
 ## Known coupling
 

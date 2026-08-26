@@ -7,8 +7,6 @@ vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
     is: (_element: unknown, type: string) => isMatchers.has(type),
 }));
 
-import { NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
-
 import { NavigateContextPadProvider } from "./NavigateContextPadProvider";
 
 interface MutableElement {
@@ -36,15 +34,15 @@ function build(
 
     const contextPad = { registerProvider: vi.fn() };
     const translate = vi.fn((template: string) => `t(${template})`);
-    const vsCodeBridge = { postMessage: vi.fn() };
+    const port = { openReference: vi.fn() };
 
     const provider = new NavigateContextPadProvider(
         contextPad as never,
         translate as never,
-        vsCodeBridge as never,
+        port as never,
     );
 
-    return { provider, contextPad, translate, vsCodeBridge, element, attrs };
+    return { provider, contextPad, translate, port, element, attrs };
 }
 
 beforeEach(() => {
@@ -116,8 +114,8 @@ describe("NavigateContextPadProvider", () => {
 
     it("re-extracts the reference id on click — not the value captured at render time", () => {
         // Build the pad while the id is "Original".  Mutate to "Updated"
-        // before invoking click — the posted command must carry "Updated".
-        const { provider, vsCodeBridge, element, attrs } = build({
+        // before invoking click — the port must be called with "Updated".
+        const { provider, port, element, attrs } = build({
             types: ["bpmn:CallActivity"],
             initialAttrs: { calledElement: "Original" },
         });
@@ -128,15 +126,12 @@ describe("NavigateContextPadProvider", () => {
         attrs.calledElement = "Updated";
         entry.action.click({} as never, element as never);
 
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
-        const posted = vsCodeBridge.postMessage.mock.calls[0][0];
-        expect(posted).toBeInstanceOf(NavigateToReferencedModelCommand);
-        expect((posted as NavigateToReferencedModelCommand).referenceId).toBe("Updated");
-        expect((posted as NavigateToReferencedModelCommand).referenceKind).toBe("process");
+        expect(port.openReference).toHaveBeenCalledTimes(1);
+        expect(port.openReference).toHaveBeenCalledWith({ id: "Updated", kind: "process" });
     });
 
     it("does nothing when the reference id was cleared between render and click", () => {
-        const { provider, vsCodeBridge, element, attrs } = build({
+        const { provider, port, element, attrs } = build({
             types: ["bpmn:CallActivity"],
             initialAttrs: { calledElement: "Original" },
         });
@@ -147,11 +142,11 @@ describe("NavigateContextPadProvider", () => {
         attrs.calledElement = "";
         entry.action.click({} as never, element as never);
 
-        expect(vsCodeBridge.postMessage).not.toHaveBeenCalled();
+        expect(port.openReference).not.toHaveBeenCalled();
     });
 
-    it("posts a decision-kind command for Business Rule Tasks", () => {
-        const { provider, vsCodeBridge, element } = build({
+    it("opens a decision-kind reference for Business Rule Tasks", () => {
+        const { provider, port, element } = build({
             types: ["bpmn:BusinessRuleTask"],
             initialAttrs: { "camunda:decisionRef": "Decision_1" },
         });
@@ -161,9 +156,6 @@ describe("NavigateContextPadProvider", () => {
 
         entry.action.click({} as never, element as never);
 
-        const posted = vsCodeBridge.postMessage.mock
-            .calls[0][0] as NavigateToReferencedModelCommand;
-        expect(posted.referenceKind).toBe("decision");
-        expect(posted.referenceId).toBe("Decision_1");
+        expect(port.openReference).toHaveBeenCalledWith({ id: "Decision_1", kind: "decision" });
     });
 });
