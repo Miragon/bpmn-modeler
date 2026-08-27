@@ -17,16 +17,22 @@ declare global {
 /**
  * Installs {@link Window.__modelerTriggerEditorAction}.
  *
- * Skips text-editing surfaces so a host-issued undo never clobbers the diagram's
- * command stack while the caret sits in a property field — mirroring how a real
- * Ctrl+Z would be owned by the focused input rather than the canvas.
+ * Text-editing surfaces never reach the diagram's command stack: while the
+ * caret sits in a property field, a host-issued undo runs the browser's native
+ * text undo instead — mirroring how a real Ctrl+Z would be owned by the focused
+ * input rather than the canvas. Since the host swallowed the real keystroke,
+ * skipping outright would leave the chord doing nothing at all until the field
+ * is blurred. The action names double as `execCommand` ids.
  *
  * @param trigger Runs the bpmn-js editor action (typically
  *   `editorActions.trigger(action)`).
  */
 export function installHostEditorActions(trigger: (action: HostEditorAction) => void): void {
     window.__modelerTriggerEditorAction = (action) => {
-        if (isTextEditingSurface(document.activeElement)) return;
+        if (isTextEditingSurface(document.activeElement)) {
+            document.execCommand?.(action);
+            return;
+        }
         trigger(action);
     };
 }

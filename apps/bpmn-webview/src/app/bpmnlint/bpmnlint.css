@@ -1,8 +1,10 @@
 /**
  * Hide-until-configured: the bpmn-js-bpmnlint status button is hidden until a
  * `.bpmnlintrc` is applied, so a workspace with no lint config looks exactly as
- * it did before this feature. LintConfigService.apply() toggles
- * `.bpmnlint-active` on <body> (add on config, remove on null).
+ * it did before this feature. LintConfigService toggles `.bpmnlint-active` on
+ * this modeler's canvas container `.djs-container` (add on config, remove on
+ * null) — container-scoped, not on <body>, so two modelers on one page keep
+ * independent lint chrome.
  */
 .bjsl-button {
     display: none;
@@ -20,7 +22,7 @@
  * in every VS Code theme, so the palette is tuned for a light background and
  * needs no dark-mode variant.
  */
-body.bpmnlint-active .bjsl-button {
+.djs-container.bpmnlint-active .bjsl-button {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -39,43 +41,43 @@ body.bpmnlint-active .bjsl-button {
         color 0.12s ease;
 }
 
-body.bpmnlint-active .bjsl-button .icon {
+.djs-container.bpmnlint-active .bjsl-button .icon {
     margin: 0;
     width: 13px;
     height: 13px;
 }
 
-body.bpmnlint-active .bjsl-button-success {
+.djs-container.bpmnlint-active .bjsl-button-success {
     background-color: #eaf6ea;
     border-color: #cbe7c4;
     color: #2e7d22;
 }
 
-body.bpmnlint-active .bjsl-button-warning {
+.djs-container.bpmnlint-active .bjsl-button-warning {
     background-color: #fbf1d3;
     border-color: #f0dfa3;
     color: #7a5d10;
 }
 
-body.bpmnlint-active .bjsl-button-error {
+.djs-container.bpmnlint-active .bjsl-button-error {
     background-color: #fbe6e6;
     border-color: #f1c2c0;
     color: #c0392b;
 }
 
-body.bpmnlint-active .bjsl-button-success:hover {
+.djs-container.bpmnlint-active .bjsl-button-success:hover {
     background-color: #e0f0df;
 }
 
-body.bpmnlint-active .bjsl-button-warning:hover {
+.djs-container.bpmnlint-active .bjsl-button-warning:hover {
     background-color: #f7e9bf;
 }
 
-body.bpmnlint-active .bjsl-button-error:hover {
+.djs-container.bpmnlint-active .bjsl-button-error:hover {
     background-color: #f7d9d7;
 }
 
-body.bpmnlint-active .bjsl-button:focus-visible {
+.djs-container.bpmnlint-active .bjsl-button:focus-visible {
     outline: 2px solid rgba(0, 120, 212, 0.7);
     outline-offset: 1px;
 }
@@ -84,14 +86,14 @@ body.bpmnlint-active .bjsl-button:focus-visible {
  * Match the issues dropdown to the chip: flat panel, soft hairline border, and a
  * gentle lift so it stays legible floating over the diagram.
  */
-body.bpmnlint-active .bjsl-issues {
+.djs-container.bpmnlint-active .bjsl-issues {
     padding: 10px 12px;
     border: 1px solid #e4e4e4;
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-body.bpmnlint-active .bjsl-id-hint {
+.djs-container.bpmnlint-active .bjsl-id-hint {
     padding: 1px 6px;
     background-color: #ededed;
     color: #555;
@@ -113,7 +115,7 @@ body.bpmnlint-active .bjsl-id-hint {
     display: none;
 }
 
-body.bpmnlint-active .lint-toolbar {
+.djs-container.bpmnlint-active .lint-toolbar {
     position: absolute;
     bottom: 16px;
     left: 50%;
@@ -124,14 +126,14 @@ body.bpmnlint-active .lint-toolbar {
     z-index: 100;
 }
 
-body.bpmnlint-active .lint-toolbar .bjsl-button {
+.djs-container.bpmnlint-active .lint-toolbar .bjsl-button {
     position: static;
     bottom: auto;
     left: auto;
     transform: none;
 }
 
-body.bpmnlint-active .lint-off-button {
+.djs-container.bpmnlint-active .lint-off-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -149,13 +151,13 @@ body.bpmnlint-active .lint-off-button {
         color 0.12s ease;
 }
 
-body.bpmnlint-active .lint-off-button:hover {
+.djs-container.bpmnlint-active .lint-off-button:hover {
     background-color: #f7d9d7;
     border-color: #f1c2c0;
     color: #c0392b;
 }
 
-body.bpmnlint-active .lint-off-button:focus-visible {
+.djs-container.bpmnlint-active .lint-off-button:focus-visible {
     outline: 2px solid rgba(0, 120, 212, 0.7);
     outline-offset: 1px;
 }
@@ -168,7 +170,7 @@ body.bpmnlint-active .lint-off-button:focus-visible {
     display: none;
 }
 
-body.bpmnlint-disabled .lint-disabled-chip {
+.djs-container.bpmnlint-disabled .lint-disabled-chip {
     position: absolute;
     bottom: 16px;
     left: 50%;
@@ -190,7 +192,7 @@ body.bpmnlint-disabled .lint-disabled-chip {
     display: none;
 }
 
-body.bpmnlint-disabled .lint-enable-button {
+.djs-container.bpmnlint-disabled .lint-enable-button {
     border: none;
     background: transparent;
     padding: 2px 4px;
@@ -200,6 +202,6 @@ body.bpmnlint-disabled .lint-enable-button {
     cursor: pointer;
 }
 
-body.bpmnlint-disabled .lint-enable-button:hover {
+.djs-container.bpmnlint-disabled .lint-enable-button:hover {
     text-decoration: underline;
 }
