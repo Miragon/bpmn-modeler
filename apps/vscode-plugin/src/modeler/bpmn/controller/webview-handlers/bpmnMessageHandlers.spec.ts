@@ -15,6 +15,7 @@ import {
     SetPropertiesPanelStateCommand,
     SetTextClipboardCommand,
     SyncDocumentCommand,
+    UpdateLintResultsCommand,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -34,6 +35,7 @@ import {
     setPropertiesPanelStateHandler,
     setTextClipboardHandler,
     syncDocumentHandler,
+    updateLintResultsHandler,
     updateScriptSourceHandler,
     updateScriptVariablesHandler,
 } from "./bpmnMessageHandlers";
@@ -391,6 +393,23 @@ describe("Pattern B: a rejecting service promise propagates through the handler"
         ).rejects.toThrow(boom);
         // Language is posted before settings is awaited, so it still fires.
         expect(broadcaster.setLanguage).toHaveBeenCalledWith(EDITOR);
+    });
+});
+
+describe("updateLintResultsHandler", () => {
+    it("forwards the webview's in-page findings to applyWebviewLintResults", () => {
+        const lintSvc = { applyWebviewLintResults: vi.fn() };
+        const results = {
+            "label-required": [{ id: "Task_1", message: "needs a label", category: "warn" }],
+        };
+        const unresolved = ["some-plugin/some-rule"];
+
+        updateLintResultsHandler(lintSvc as never)(
+            new UpdateLintResultsCommand(results, unresolved),
+            EDITOR,
+        );
+
+        expect(lintSvc.applyWebviewLintResults).toHaveBeenCalledWith(EDITOR, results, unresolved);
     });
 });
 

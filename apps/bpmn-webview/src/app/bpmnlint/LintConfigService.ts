@@ -134,8 +134,18 @@ export class LintConfigService {
 
     private state: LintTierState;
 
-    // Present only in the in-page tier; undefined for external instances.
-    private readonly browserLinter?: BrowserLinter;
+    // Present once the in-page tier is live; undefined for a purely external
+    // instance. Mutable because the host can hand linting back to the webview
+    // after construction (#1373 Phase B) via {@link startInPageLinting}, which
+    // lazily builds it — the constructor only builds it for an up-front in-page tier.
+    private browserLinter?: BrowserLinter;
+
+    // Kept from `tierInit` so a later {@link startInPageLinting} can construct a
+    // BrowserLinter with the same engine (and the original explicit config when
+    // the handback carries none).
+    private readonly engine: Engine;
+
+    private readonly explicitConfig?: BpmnlintConfig;
 
     private results: LintResults = {};
 
@@ -155,25 +165,55 @@ export class LintConfigService {
         eventBus: EventBus,
     ) {
         this.state = tierInit.tier === "in-page" ? "in-page" : "external";
+        this.engine = tierInit.engine;
+        this.explicitConfig = tierInit.config;
         if (tierInit.tier === "in-page") {
-            this.browserLinter = new BrowserLinter(tierInit.engine, tierInit.config);
+            this.browserLinter = new BrowserLinter(this.engine, this.explicitConfig);
         }
 
         // One `lint` override for every tier; {@link runLint} branches on state.
         // The vendor calls it from `update()` on import.done / elements.changed.
         this.linting.lint = () => this.runLint();
 
-        // In-page linting switches itself on once a diagram is present. Guarded on
-        // the current state so a re-import never resurrects a user-disabled linter.
-        if (tierInit.tier === "in-page") {
-            eventBus.on("import.done", () => {
-                if (this.state === "in-page") {
-                    this.activateInPage();
-                }
-            });
-            if (this.bpmnjs.getDefinitions()) {
+        // Registered unconditionally so a post-handback re-import re-activates the
+        // in-page tier too (an external instance can later become in-page via
+        // {@link startInPageLinting}). Guarded on the current state so it never
+        // activates an external instance and never resurrects a user-disabled one.
+        eventBus.on("import.done", () => {
+            if (this.state === "in-page") {
                 this.activateInPage();
             }
+        });
+        if (tierInit.tier === "in-page" && this.bpmnjs.getDefinitions()) {
+            this.activateInPage();
+        }
+    }
+
+    /**
+     * Starts (or restarts) the in-page linter on host instruction — the #1373
+     * Phase B handback when the host finds no workspace `.bpmnlintrc`. Lazily
+     * builds the {@link BrowserLinter} (the constructor only builds it for an
+     * up-front in-page tier) and activates it if a diagram is already imported;
+     * otherwise the unconditional `import.done` listener activates it.
+     *
+     * No-ops when the user has disabled linting from the canvas — a host
+     * instruction must never silently re-enable a user-disabled linter; the
+     * chip's own click handler owns re-enable. Also no-ops when already in-page
+     * with no new config (a duplicate instruction). Precedence is unchanged:
+     * {@link applyLintResults}/{@link applyLintingDisabled} still hard-set
+     * `"external"`, so any host push still wins over this.
+     */
+    startInPageLinting(config?: BpmnlintConfig): void {
+        if (this.state === "in-page-disabled") {
+            return;
+        }
+        if (this.state === "in-page" && this.browserLinter && config === undefined) {
+            return;
+        }
+        this.browserLinter = new BrowserLinter(this.engine, config ?? this.explicitConfig);
+        this.state = "in-page";
+        if (this.bpmnjs.getDefinitions()) {
+            this.activateInPage();
         }
     }
 

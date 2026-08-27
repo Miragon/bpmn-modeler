@@ -11,6 +11,7 @@ import { type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import {
+    BpmnlintConfig,
     BpmnModelerSetting,
     Engine,
     LintResults,
@@ -290,6 +291,27 @@ export class BpmnModeler {
             return;
         }
         service.applyLintingDisabled();
+    }
+
+    /**
+     * Starts (or restarts) the in-page linter on host instruction — the #1373
+     * Phase B handback when the host finds no workspace `.bpmnlintrc`. Mirrors
+     * {@link applyLintResults}: a no-op with a warning when the instance was
+     * created with `linting: false` (no lint service). Never re-enables a
+     * user-disabled linter (the service guards that); any later host push still
+     * wins over the in-page run.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    startInPageLinting(config?: BpmnlintConfig): void {
+        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
+        if (!service) {
+            console.warn(
+                "startInPageLinting ignored: this modeler was created with linting: false",
+            );
+            return;
+        }
+        service.startInPageLinting(config);
     }
 
     /**

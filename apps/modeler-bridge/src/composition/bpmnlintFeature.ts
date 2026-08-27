@@ -1,8 +1,7 @@
-import { Command } from "@miragon/bpmn-modeler-shared";
+import { Command, UpdateLintResultsCommand } from "@miragon/bpmn-modeler-shared";
 import {
     BpmnLintConfigLocator,
     BpmnLintConfigService,
-    DefaultBpmnlintConfigService,
     NodeBpmnLinter,
     NoopDiagnostics,
 } from "@miragon/bpmn-modeler-core";
@@ -12,16 +11,20 @@ import { RegisterParams, SessionHooks } from "./sessionHooks";
 
 /**
  * The bpmnlint feature discovers the nearest `.bpmnlintrc` for an open BPMN
- * document, runs bpmnlint in the bridge (a full Bun/Node context, so custom
- * `bpmnlint-plugin-*` rules resolve against the workspace exactly like in VS
- * Code), and pushes the findings to the webview, which only renders the in-canvas
- * markers. It reuses the host-agnostic core stack ({@link BpmnLintConfigLocator} +
+ * document. When one is found it runs bpmnlint in the bridge (a full Bun/Node
+ * context, so custom `bpmnlint-plugin-*` rules resolve against the workspace
+ * exactly like in VS Code) and pushes the findings to the webview, which only
+ * renders the in-canvas markers. When none is found it tells the webview to run
+ * its own engine-aware default in-page (#1373 Phase B) and accepts the findings
+ * back via {@link UpdateLintResultsCommand} — the same core behaviour as VS Code,
+ * arriving here structurally (Phase C formally asserts it). It reuses the
+ * host-agnostic core stack ({@link BpmnLintConfigLocator} +
  * {@link BpmnLintConfigService} + {@link NodeBpmnLinter}) over the
  * Workspace/Settings/Document/StatusBar ports the bridge already implements — the
  * bridge analogue of the VS Code `BpmnlintParticipant`. There is no Problems-panel
  * equivalent here, so {@link NoopDiagnostics} stands in.
  *
- * Webview messages: GetBpmnlintConfigCommand.
+ * Webview messages: GetBpmnlintConfigCommand, UpdateLintResultsCommand.
  * Session hooks: a per-editor `.bpmnlintrc` watcher that re-lints on change.
  */
 export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks } {
@@ -34,7 +37,6 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         new NoopDiagnostics(),
         deps.statusBar,
         deps.notifier,
-        new DefaultBpmnlintConfigService(),
         deps.settings,
     );
 
@@ -43,6 +45,14 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     // inside the service, so this never throws into the dispatcher.
     deps.router.on("GetBpmnlintConfigCommand", async (_message: Command, editorId: string) => {
         await lintSvc.setBpmnlintConfig(editorId);
+    });
+
+    // The webview posts its own in-page default findings back after each run
+    // (#1373 Phase B). The service ignores it once a workspace-config takeover
+    // has flipped the editor to the external path.
+    deps.router.on("UpdateLintResultsCommand", (message: Command, editorId: string) => {
+        const cmd = message as UpdateLintResultsCommand;
+        lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved);
     });
 
     // Per-editor `.bpmnlintrc` watcher so edits to the rules re-lint the open

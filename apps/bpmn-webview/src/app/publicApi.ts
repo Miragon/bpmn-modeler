@@ -219,6 +219,13 @@ export interface BpmnModelerHandle {
     /** [B] Turn off the in-webview linter and clear its overlay (#1373). */
     applyLintingDisabled(): void;
 
+    /**
+     * [B] Start (or restart) the in-webview linter — the host's no-workspace-config
+     * handback (#1373 Phase B). Optional `config` overrides the engine-aware
+     * default. Never re-enables a user-disabled linter.
+     */
+    startInPageLinting(config?: BpmnlintConfig): void;
+
     // ── Escape hatch ────────────────────────────────────────────────────────
     /**
      * Unstable escape hatch: reach a bpmn-js DI service by name. Not covered by
