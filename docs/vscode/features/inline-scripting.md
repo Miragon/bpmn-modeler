@@ -387,7 +387,3 @@ on-disk copy to reflect your latest keystrokes.
   each window's model still receives its own keystrokes. Avoid editing the
   same script from two windows at once.
 
----
-
-For implementation details, see
-[Contributing → Inline Scripting internals](/vscode/contributing/architecture/inline-scripting).

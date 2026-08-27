@@ -60,7 +60,7 @@ assumptions — so every future host inherits it.
 
 The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
 checklist for adding the next synchronous port) is written up once in
-`docs/vscode/contributing/architecture/host-replicated-state.md`.
+`docs/adr/0005-host-replicated-state.md`.
 
 > **Why not a WebSocket seam between the webview and the server?** That would be
 > the right tool for a plain browser host, where the webview talks to the server
@@ -68,7 +68,7 @@ checklist for adding the next synchronous port) is written up once in
 > webview messages over the *same* stdio pipe keeps the transport single and
 > supervised (one crash signal, no WS-reconnect ↔ stdio-restart reconciliation)
 > and keeps this binary free of a bundled HTTP/WS server and any open TCP port.
-> See `docs/vscode/contributing/architecture/intellij-host-foundation.md`.
+> See `docs/adr/0004-intellij-host-foundation.md`.
 
 ## Scope
 

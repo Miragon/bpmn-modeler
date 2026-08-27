@@ -71,6 +71,3 @@ A floating legend sits at the top-centre of **both panes**:
 
 Pan or zoom in either pane and the other pane follows. Click **Prev** / **Next** in either legend and both panes advance together — keeping the same element (or its nearest neighbour) centred on both sides.
 
----
-
-For implementation details, see [Contributing → BPMN Diff internals](/vscode/contributing/architecture/bpmn-diff).

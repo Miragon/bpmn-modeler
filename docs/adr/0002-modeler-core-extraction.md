@@ -1,9 +1,10 @@
-# `modeler-core` extraction & the host-protocol seam
+# 0002 — Extract `@miragon/bpmn-modeler-core` and fix the host-protocol seam
 
-## Status
+- Status: accepted (#1060)
+- Date: 2026-06-08
+- Category: modeler-core
 
-Accepted (#1060). Carries the host-protocol decision from the IntelliJ
-host-parity track (#920).
+Carries the host-protocol decision from the IntelliJ host-parity track (#920).
 
 ## Context
 

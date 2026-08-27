@@ -111,6 +111,3 @@ The sidebar supports three authentication modes, selectable in the form:
 
 Credentials are stored securely using VS Code's encrypted `SecretStorage` API and restored automatically on the next deployment.
 
----
-
-For implementation details, see [Contributing → Deployment internals](/vscode/contributing/architecture/deployment).
