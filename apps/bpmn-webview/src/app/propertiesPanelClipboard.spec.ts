@@ -147,6 +147,25 @@ describe("copy and paste in the FEEL expression editor", () => {
     });
 });
 
+describe("idempotent install", () => {
+    it("a second install registers no additional handlers", () => {
+        // The polyfill acts on `document` and monkey-patches execCommand, so a
+        // repeat call must be a no-op rather than stack a second handler.
+        const secondRequest = vi.fn().mockResolvedValue("");
+        installContentEditableClipboardPolyfill(
+            () => secondRequest(),
+            () => undefined,
+        );
+
+        focusedEditor().dispatchEvent(ctrl("v"));
+
+        // Only the original install's handler fired; the second install's own
+        // request fn is never wired.
+        expect(secondRequest).not.toHaveBeenCalled();
+        expect(mocks.requestClipboard).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe("paste triggered via the VS Code command palette", () => {
     it("writes clipboard text into the focused FEEL editor", () => {
         focusedEditor();

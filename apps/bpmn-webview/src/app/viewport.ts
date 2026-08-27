@@ -115,8 +115,12 @@ export class ViewportManager {
         // inset keeps half the canvas available whatever the chrome reports.
         const maxInsetX = outer.width / 4;
         const maxInsetY = outer.height / 4;
+        // Scope the palette lookup to this modeler's own container: with two
+        // modelers on a page a bare `document.querySelector` would measure the
+        // first palette, insetting the wrong canvas.
         const paletteWidth =
-            document.querySelector(".djs-palette")?.getBoundingClientRect().width ?? 50;
+            canvas.getContainer().querySelector(".djs-palette")?.getBoundingClientRect().width ??
+            50;
         const inset = {
             top: Math.min(40, maxInsetY),
             right: Math.min(40, maxInsetX),

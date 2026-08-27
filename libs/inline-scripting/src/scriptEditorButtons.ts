@@ -51,19 +51,29 @@ const INJECTED_MARKER = "data-script-btn-injected";
 class ScriptEditorButtons {
     private observer: MutationObserver | undefined;
 
-    static $inject = ["eventBus", "selection", "scriptEditorOpener"];
+    // The properties-panel host element to observe. Resolved from the optional
+    // `propertiesPanelRoot` DI value (the modeler facade registers it per
+    // instance) so two modelers on one page each watch their own panel; falls
+    // back to the legacy `#js-properties-panel` id for hosts that register none.
+    private readonly panelRoot: Element | null;
+
+    static $inject = ["eventBus", "selection", "scriptEditorOpener", "injector"];
 
     constructor(
         private readonly eventBus: any,
         private readonly selection: any,
         private readonly opener: ScriptEditorOpener,
+        injector: { get(name: string, strict: false): HTMLElement | null | undefined },
     ) {
+        this.panelRoot =
+            injector.get("propertiesPanelRoot", false) ??
+            document.querySelector("#js-properties-panel");
         this.startObserving();
         this.eventBus.on("diagram.destroy", () => this.stopObserving());
     }
 
     private startObserving(): void {
-        const container = document.querySelector("#js-properties-panel");
+        const container = this.panelRoot;
         if (!container) {
             return;
         }

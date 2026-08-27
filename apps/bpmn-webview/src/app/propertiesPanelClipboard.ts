@@ -54,10 +54,22 @@ function handlePaste(el: HTMLElement, requestClipboard: () => Promise<string>): 
  * @param requestClipboard Async callback that reads clipboard text via the extension host.
  * @param writeClipboard Callback that writes text to the extension host clipboard.
  */
+let polyfillInstalled = false;
+
 export function installContentEditableClipboardPolyfill(
     requestClipboard: () => Promise<string>,
     writeClipboard: (text: string) => void,
 ): void {
+    // Page-global by nature: the two document listeners and the execCommand
+    // monkey-patch below act on `document`, so a second install would stack
+    // duplicate handlers and double-wrap execCommand. This stays owned by the
+    // single-instance bootstrap (not the per-instance facade); the guard makes
+    // a repeat call a no-op should a multi-instance consumer wire it twice.
+    if (polyfillInstalled) {
+        return;
+    }
+    polyfillInstalled = true;
+
     let handled = false;
 
     document.addEventListener(

@@ -59,6 +59,18 @@ export default defineConfig(({ mode }) => {
             chunkSizeWarningLimit: 1200,
             outDir: resolve(__dirname, `../../dist/demo/${target}`),
             emptyOutDir: true,
+            // The bpmn page ships a second entry — the two-instance regression
+            // proof at /bpmn/dual.html (issue #1372). The dev server serves it
+            // automatically; only the build needs the extra rollup input.
+            rollupOptions:
+                target === "bpmn"
+                    ? {
+                          input: {
+                              index: resolve(__dirname, "bpmn/index.html"),
+                              dual: resolve(__dirname, "bpmn/dual.html"),
+                          },
+                      }
+                    : undefined,
         },
         define: {
             "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),

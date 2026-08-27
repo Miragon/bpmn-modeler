@@ -6,6 +6,16 @@
  * exist until the modeler is created).
  */
 export interface KeyboardFocusDeps {
+    /**
+     * The DOM subtrees this instance owns — the canvas container and its
+     * properties-panel parent. An Escape is only handled when it originates
+     * inside one of these, so multiple modelers on one page never cross-fire:
+     * an Escape in panel A re-homes canvas A, not canvas B. Escape must be
+     * caught in the properties panel (a *sibling* of the canvas, not a
+     * descendant), which is why this is a document listener scoped by roots
+     * rather than a container listener.
+     */
+    roots: HTMLElement[];
     /** Moves DOM focus onto the canvas SVG (`canvas.focus()`). */
     focusCanvas: () => void;
     /** Whether the canvas SVG currently holds DOM focus (`canvas.isFocused()`). */
@@ -18,6 +28,13 @@ export interface KeyboardFocusDeps {
     isSearchPadOpen: () => boolean;
     /** Closes the SearchPad (restores the cached selection). */
     closeSearchPad: () => void;
+    /**
+     * When `true`, an Escape fired with focus on `<body>` (nothing focused) is
+     * also handled — the single-instance host wants a stray Escape anywhere on
+     * the page to re-home the canvas. Defaults to `false` so a library consumer
+     * hosting several modelers only reacts to Escapes inside its own roots.
+     */
+    handleGlobalEscape?: boolean;
 }
 
 /**
@@ -40,11 +57,22 @@ export interface KeyboardFocusDeps {
  * The listener runs in the **bubble** phase and stays deliberately passive
  * (no preventDefault/stopPropagation) so host Escape behaviour is untouched.
  *
- * @param deps Injected focus/selection/search-pad closures (see {@link KeyboardFocusDeps}).
+ * @param deps Injected roots + focus/selection/search-pad closures (see {@link KeyboardFocusDeps}).
+ * @returns A disposer that removes the document listener, so a destroyed
+ *   modeler instance stops reacting to Escapes.
  */
-export function installKeyboardFocus(deps: KeyboardFocusDeps): void {
-    document.addEventListener("keydown", (e: KeyboardEvent) => {
+export function installKeyboardFocus(deps: KeyboardFocusDeps): () => void {
+    const handler = (e: KeyboardEvent): void => {
         if (e.key !== "Escape") return;
+
+        // Scope to this instance's own subtrees: an Escape targeting another
+        // modeler (or unrelated page chrome) must not re-home our canvas. The
+        // single-instance host opts into also handling body-targeted Escapes so
+        // a keystroke with nothing focused still returns to the canvas.
+        const target = e.target;
+        const inRoots = target instanceof Node && deps.roots.some((root) => root.contains(target));
+        const isGlobalBody = deps.handleGlobalEscape === true && target === document.body;
+        if (!inRoots && !isGlobalBody) return;
 
         // Something already handled this Escape. Covers CodeMirror 6 (FEEL
         // editor), whose Escape binding preventDefault-s only while its
@@ -83,5 +111,7 @@ export function installKeyboardFocus(deps: KeyboardFocusDeps): void {
         }
 
         deps.focusCanvas();
-    });
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
 }

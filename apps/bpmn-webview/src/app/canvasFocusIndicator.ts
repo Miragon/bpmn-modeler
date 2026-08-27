@@ -60,12 +60,14 @@ const FOCUS_STRONG_SVG = `<svg class="canvas-focus-indicator__on" viewBox="0 -96
  *
  * Purely decorative: `aria-hidden` + `pointer-events: none`. The focus move
  * itself already conveys the state to assistive tech, and a clickable glyph
- * would need a tab stop and would steal canvas clicks. There is no dispose
- * API — the indicator lives as long as the webview document.
+ * would need a tab stop and would steal canvas clicks.
  *
  * @param deps Injected parent/focus closures (see {@link CanvasFocusIndicatorDeps}).
+ * @returns A disposer that removes the reticle from the DOM, so a destroyed
+ *   modeler instance leaves no orphaned overlay in its (shared-page) container.
+ *   The event subscriptions die with the modeler's own event bus on destroy.
  */
-export function installCanvasFocusIndicator(deps: CanvasFocusIndicatorDeps): void {
+export function installCanvasFocusIndicator(deps: CanvasFocusIndicatorDeps): () => void {
     const root = document.createElement("div");
     root.className = "canvas-focus-indicator";
     root.setAttribute("aria-hidden", "true");
@@ -91,4 +93,6 @@ export function installCanvasFocusIndicator(deps: CanvasFocusIndicatorDeps): voi
     });
 
     deps.parent.append(root);
+
+    return () => root.remove();
 }
