@@ -120,6 +120,8 @@ export class BpmnModeler {
     /**
      * Access the root element manager after {@link create}.
      *
+     * @internal Host-adapter surface (drill-down state restore); not part of the
+     *   designed public handle (#1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     get rootElement(): RootElementManager {
@@ -137,6 +139,10 @@ export class BpmnModeler {
      * the facade (flush responder, protocol capabilities) are wired before that.
      * The per-instance DI extras and capabilities come from the constructor
      * options. Re-`create()` disposes the prior instance's focus installs first.
+     *
+     * @internal Migration-only two-step construction. The designed public API
+     *   takes the engine up front and returns a ready handle from an async
+     *   `createModeler` (#1375); #1376 collapses this second step into it.
      *
      * @param engine Camunda engine version — `"c7"` for Camunda Platform 7,
      *   `"c8"` for Camunda Cloud 8.
@@ -318,6 +324,8 @@ export class BpmnModeler {
     /**
      * Subscribes to the `commandStack.changed` event on the modeler's event bus.
      *
+     * @internal Raw change hook. The designed API exposes the debounced
+     *   `onContentSaved` event instead; this stays for the host adapter (#1375).
      * @param cb Callback invoked whenever the command stack changes.
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
@@ -342,6 +350,7 @@ export class BpmnModeler {
      * scan and filtering rules live in {@link collectInlineScriptTasks} so the
      * bulk path and the single-open path stay in agreement.
      *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     collectInlineScriptTasks(): ScriptTaskScript[] {
@@ -480,6 +489,9 @@ export class BpmnModeler {
     /**
      * Triggers the align-to-origin plugin if the setting is enabled.
      *
+     * @internal Host-adapter surface (invoked on save by the VS Code editor
+     *   controller); folded behind the `alignToOrigin` setting in the designed
+     *   API (#1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     alignElementsToOrigin(): void {
@@ -491,6 +503,10 @@ export class BpmnModeler {
     /**
      * Returns a service from the modeler's dependency injection container.
      *
+     * @remarks Unstable escape hatch — kept public deliberately (see the
+     *   ADR 0007, `docs/adr`) so advanced integrations are not blocked, but
+     *   not covered by semver: DI service names can change across minor
+     *   versions. Prefer a typed option/method where one exists.
      * @param name The DI service name (e.g. `"customTranslator"`).
      * @returns The service instance.
      * @throws {NoModelerError} If the modeler has not been created yet.
@@ -509,6 +525,7 @@ export class BpmnModeler {
      * - `execution-listener` / `task-listener`: writes to the listener's
      *   nested `camunda:Script.scriptFormat`.
      *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     updateScriptFormat(
@@ -559,6 +576,7 @@ export class BpmnModeler {
      *   `listenerIndex` within the parent's filtered list of that listener
      *   type, then writes to its nested `camunda:Script` element's `value`.
      *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     updateScriptContent(
@@ -609,6 +627,8 @@ export class BpmnModeler {
      * script fields (single-writer arbitration). C7-only: the store/provider
      * modules are not registered for C8, so the service is resolved defensively
      * and the call is a no-op there.
+     *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      */
     applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
         this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
@@ -633,6 +653,7 @@ export class BpmnModeler {
      * omits the codeLink capability registers no `codeLinkMapClient`, and a
      * stray status push must then be a no-op rather than throw.
      *
+     * @internal Host-adapter surface (code-link capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     applyImplementationStatus(resolved: Record<string, boolean>): void {

@@ -18,5 +18,12 @@ export interface ModelReference {
  * host is unrepresentable — no port, no module (see {@link createModelNavigationModule}).
  */
 export interface ModelNavigationPort {
-    openReference(reference: ModelReference): void;
+    /**
+     * Fire-and-forget from the modeler's side: the return type is widened to
+     * `void | Promise<void>` so a host can resolve the target asynchronously
+     * (e.g. a GitHub-API lookup before opening a tab) without changing the
+     * contract — the modeler never awaits it. Popup-blocker handling stays the
+     * host's problem.
+     */
+    openReference(reference: ModelReference): void | Promise<void>;
 }

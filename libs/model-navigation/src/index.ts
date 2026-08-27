@@ -27,6 +27,10 @@ export type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort"
  * Builds the DI bundle for the given host port. The port rides along as a
  * `value` so the provider's `["contextPad", "translate", "modelNavigationPort"]`
  * injection resolves.
+ *
+ * @internal Package-internal composition wiring: consumers enable this feature
+ *   through the modeler's `capabilities.modelNavigation` port, not by calling
+ *   this factory directly (#1375).
  */
 export function createModelNavigationModule(port: ModelNavigationPort) {
     return {

@@ -1,4 +1,9 @@
 /**
+ * @internal Package-internal wiring — the green canvas focus reticle the
+ * factory installs per instance. Not part of the designed public API (#1375).
+ */
+
+/**
  * Injected dependencies for the canvas focus indicator.
  *
  * Closures rather than a live modeler handle so this stays testable under

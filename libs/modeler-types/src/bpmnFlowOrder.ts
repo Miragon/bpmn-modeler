@@ -30,9 +30,12 @@
  */
 
 /**
- * Minimal subset of a parsed bpmn-moddle element used by this module.
+ * Minimal subset of a parsed bpmn-moddle element used by this module. Exported
+ * because it appears in the signatures of the exported `buildFlowOrder` /
+ * `buildRemovedAnchors` functions — leaving it unexported forced callers to
+ * reference an anonymous, unnameable structural type at the boundary.
  */
-interface ModdleElement {
+export interface ModdleElement {
     $type: string;
     id?: string;
     [key: string]: unknown;

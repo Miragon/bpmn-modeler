@@ -62,6 +62,10 @@ export type { OpenScriptEditorEvent, ScriptSourceChangedEvent, InlineScriptingPo
  * order — spread into `additionalModules`. The eighth bundle carries the
  * {@link InlineScriptingPortForwarder} together with the `inlineScriptingPort`
  * DI value, so the cluster and its host capability are registered as a unit.
+ *
+ * @internal Package-internal composition wiring: consumers enable this feature
+ *   through the modeler's `capabilities.scripting` port (C7 only), not by
+ *   calling this factory directly (#1375).
  */
 export function createInlineScriptingModules(port: InlineScriptingPort) {
     return [

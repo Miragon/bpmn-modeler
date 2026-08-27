@@ -1,5 +1,6 @@
 export * from "./modeler";
 export * from "./createModeler";
+export * from "./publicApi";
 export * from "./capabilities";
 export * from "./viewport";
 export * from "./selection";

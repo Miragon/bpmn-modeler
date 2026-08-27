@@ -7,6 +7,12 @@
  *
  * VS Code injects `vscode-dark`, `vscode-light`, or `vscode-high-contrast`
  * onto `<body>` in every webview.
+ *
+ * @internal Host-specific and module-singleton — reads VS Code `<body>` classes
+ *   and mutates a single `#theme-link`, so it is not part of the designed
+ *   public API (#1375). Follow-up (#1376/#1377): replace with an injected
+ *   per-instance `theme` mode + `setTheme()`, moving the `<body>`-class watcher
+ *   to the host adapter.
  */
 
 let currentMode: "automatic" | "light" = "automatic";

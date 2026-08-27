@@ -1,4 +1,9 @@
 /**
+ * @internal Package-internal wiring — the canvas-focus keyboard guard the
+ * factory installs per instance. Not part of the designed public API (#1375).
+ */
+
+/**
  * Injected dependencies for the webview-level "Escape → focus canvas" guard.
  *
  * Closures rather than a service handle so this stays testable without a live

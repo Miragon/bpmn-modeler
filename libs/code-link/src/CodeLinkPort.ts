@@ -12,9 +12,13 @@ import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
  * `@miragon/bpmn-modeler-types` package (#1371).
  */
 export interface CodeLinkPort {
-    /** Open the workspace source file the reference resolves to. */
-    navigateToImplementation(reference: string, kind: ImplementationKind): void;
+    /**
+     * Open the workspace source file the reference resolves to. Widened to
+     * `void | Promise<void>` so a host may resolve the location asynchronously;
+     * the modeler treats the call as fire-and-forget and never awaits it.
+     */
+    navigateToImplementation(reference: string, kind: ImplementationKind): void | Promise<void>;
 
     /** Ship the diagram's current implementation references for status resolution. */
-    syncActivities(entries: ImplementationEntry[]): void;
+    syncActivities(entries: ImplementationEntry[]): void | Promise<void>;
 }

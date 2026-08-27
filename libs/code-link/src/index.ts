@@ -35,6 +35,10 @@ export type { CodeLinkPort } from "./CodeLinkPort";
  * first in `__init__` so it is constructed (and subscribed to import/edit
  * events) before the provider that depends on it; the port rides along as a
  * `value` so both `codeLinkPort` injections resolve.
+ *
+ * @internal Package-internal composition wiring: consumers enable this feature
+ *   through the modeler's `capabilities.codeLink` port, not by calling this
+ *   factory directly (#1375).
  */
 export function createCodeLinkModule(port: CodeLinkPort) {
     return {
