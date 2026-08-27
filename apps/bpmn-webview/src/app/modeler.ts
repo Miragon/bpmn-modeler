@@ -13,6 +13,7 @@ import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7"
 import {
     BpmnModelerSetting,
     Engine,
+    LintResults,
     NoModelerError,
     OpenScriptEditorRef,
     ScriptKind,
@@ -29,10 +30,11 @@ import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
-import LintModule from "./bpmnlint";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 import type { CreateModelerOptions } from "./createModeler";
+// Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
+import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
@@ -148,17 +150,9 @@ export class BpmnModeler {
      *   `"c8"` for Camunda Cloud 8.
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
-    create(engine: Engine): void {
+    async create(engine: Engine): Promise<void> {
         this.disposeFocusFeatures();
 
-        // The linting toggle is always registered (LintModule) but its host port
-        // is optional; a no-op keeps LintConfigService's DI resolvable host-less.
-        const lintingHostModule = {
-            lintingHost: [
-                "value",
-                this.options.lintingHost ?? { setLintingEnabled: () => undefined },
-            ],
-        };
         // Per-instance panel host, so id-coupled DI services (scriptEditorButtons)
         // observe this modeler's own panel instead of the first `#js-properties-panel`.
         const propertiesPanelRootModule = {
@@ -166,11 +160,10 @@ export class BpmnModeler {
         };
         const commonModules = [
             TokenSimulationModule,
-            LintModule,
+            ...(await this.buildLintModules(engine)),
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
-            lintingHostModule,
             propertiesPanelRootModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
@@ -227,6 +220,76 @@ export class BpmnModeler {
                 appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
             }
         }
+    }
+
+    /**
+     * Resolves the bpmnlint DI module(s) for the chosen tier, importing the lint
+     * chunk only when linting is not disabled (#1373, AC 6). `linting: false`
+     * returns no modules — the chunk, and the whole bpmnlint/rules stack, is never
+     * fetched. Every other value dynamically imports {@link createLintModule} and
+     * registers one instance-scoped module carrying the tier, engine, explicit
+     * config, and the facade callbacks.
+     */
+    private async buildLintModules(engine: Engine): Promise<unknown[]> {
+        const linting = this.options.linting;
+        if (linting === false) {
+            return [];
+        }
+        // `undefined` and `{ config }` are in-page; only `{ results: "external" }`
+        // opts out. Narrowing on `results` keeps `config` off the external variant.
+        let tier: "external" | "in-page" = "in-page";
+        let config;
+        if (typeof linting === "object") {
+            if (linting.results === "external") {
+                tier = "external";
+            } else {
+                config = linting.config;
+            }
+        }
+        const { createLintModule } = await import("./bpmnlint");
+        return [
+            createLintModule(
+                { tier, engine, config },
+                {
+                    onLintResults: this.options.onLintResults,
+                    onLintingToggled: this.options.onLintingToggled,
+                },
+            ),
+        ];
+    }
+
+    /**
+     * Feeds host-computed lint results to the in-canvas overlays (external tier).
+     * Any push switches an in-page instance to the external tier. `null`
+     * deactivates linting (no `.bpmnlintrc` / read failure). A no-op with a warning
+     * when the instance was created with `linting: false` (no lint service).
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    applyLintResults(results: LintResults | null): void {
+        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
+        if (!service) {
+            console.warn("applyLintResults ignored: this modeler was created with linting: false");
+            return;
+        }
+        service.applyLintResults(results);
+    }
+
+    /**
+     * Renders the host's user-disabled lint state (external tier): clears overlays
+     * and shows the re-enable chip. A no-op with a warning when `linting: false`.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    applyLintingDisabled(): void {
+        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
+        if (!service) {
+            console.warn(
+                "applyLintingDisabled ignored: this modeler was created with linting: false",
+            );
+            return;
+        }
+        service.applyLintingDisabled();
     }
 
     /**

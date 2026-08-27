@@ -140,7 +140,6 @@ class WebviewServer : Disposable {
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
             "  <link href=\"/index.css\" rel=\"stylesheet\"/>",
             "  <link href=\"/lightTheme.css\" rel=\"stylesheet\" id=\"theme-link\"/>",
-            "  <link href=\"$FONT_CSS\" rel=\"stylesheet\"/>",
             "  <title>BPMN Modeler</title>",
             "  <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
             "  <style id=\"ide-theme-vars\">${signal.themeVarsCss()}</style>",
@@ -224,16 +223,6 @@ class WebviewServer : Disposable {
     }
 
     private companion object {
-        /**
-         * bpmn-js icon font. The Vite `viteStaticCopy` glob preserves the source
-         * `node_modules/...` path, so the font CSS lands at this nested location.
-         * The embedded variant inlines the font as base64, so palette/context-pad
-         * icons render even though its sibling `../font` URLs don't resolve under
-         * this layout.
-         */
-        const val FONT_CSS =
-            "/css/node_modules/camunda-bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css"
-
         /**
          * The `acquireVsCodeApi()` shim. Runs as a classic (non-module) script so
          * the global exists before the deferred ES module calls `getVsCodeApi()` at

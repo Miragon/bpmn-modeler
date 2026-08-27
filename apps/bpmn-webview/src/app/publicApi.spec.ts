@@ -33,8 +33,8 @@ const _conformance = (modeler: BpmnModeler): StableModelerSurface => modeler;
 void _conformance;
 
 // The full target handle is a superset the current class does *not* yet meet
-// (setTheme / applyLintResults / applyLintingDisabled are target-only), so we
-// only assert the stable subset above — this keeps the two facts distinct.
+// (setTheme is target-only; #1376), so we only assert the stable subset above
+// — this keeps the two facts distinct.
 type _HandleIsSuperset = BpmnModelerHandle extends StableModelerSurface ? true : never;
 const _handleSuperset: _HandleIsSuperset = true;
 void _handleSuperset;

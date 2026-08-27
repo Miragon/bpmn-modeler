@@ -69,11 +69,11 @@ import {
     UnsupportedEngineError,
 } from "./app";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
-import type { ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./app/capabilities";
+import type { LintingOptions } from "./app";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
-import type { LintConfigService } from "./app/bpmnlint";
 import { installHostEditorActions } from "./app/hostEditorActions";
 import { WebviewStateManager } from "./app/state";
 
@@ -86,9 +86,20 @@ import { WebviewStateManager } from "./app/state";
  */
 export function bootstrap(
     injectedHost: HostApi<WebviewState, Command | Query>,
-    opts: { extraModules?: unknown[]; capabilities?: ModelerCapabilities } = {},
+    opts: {
+        extraModules?: unknown[];
+        capabilities?: ModelerCapabilities;
+        linting?: LintingOptions;
+        onLintResults?: (event: LintRunEvent) => void;
+    } = {},
 ): void {
-    startSession(injectedHost, opts.extraModules, opts.capabilities);
+    startSession(
+        injectedHost,
+        opts.extraModules,
+        opts.capabilities,
+        opts.linting,
+        opts.onLintResults,
+    );
 }
 
 /**
@@ -103,11 +114,17 @@ export function bootstrap(
  * @param injectedModules Host-specific extra bpmn-js DI modules.
  * @param injectedCapabilities Explicit per-feature ports; `undefined` selects
  *   the full protocol adapter so every real host keeps all features.
+ * @param injectedLinting The bpmnlint tier; `undefined` selects the external
+ *   (host-pushed) tier so every real host stays byte-identical to today.
+ * @param injectedOnLintResults In-page lint-run sink; only a consumer opting into
+ *   in-page linting (the demo) passes one. Real hosts run the linter themselves.
  */
 function startSession(
     host: HostApi<WebviewState, Command | Query>,
     injectedModules: unknown[] | undefined,
     injectedCapabilities: ModelerCapabilities | undefined,
+    injectedLinting: LintingOptions | undefined,
+    injectedOnLintResults: ((event: LintRunEvent) => void) | undefined,
 ): void {
     // Assigned in run() once the engine is known — flush/capability callbacks
     // only fire post-init, so the definite-assignment assertion is safe.
@@ -391,18 +408,19 @@ function startSession(
             ...(clipboardModules ?? []),
             ...((injectedModules as any[]) ?? []),
         ];
-        // The linting toggle is a webview-internal service (always registered via
-        // LintModule), so its host port is wired unconditionally — never gated on
-        // a capability. The facade registers a no-op when omitted, so a host-less
-        // consumer still resolves LintConfigService's DI.
+        // Real hosts run the linter themselves and push results, so the default
+        // tier is external — keeping VS Code / IntelliJ / Theia byte-identical to
+        // today. A consumer (or the demo) can opt into in-page linting by passing
+        // an explicit `linting`. The user's in-canvas toggle is relayed to the host
+        // as before; the host re-lints and pushes the new state down.
         bpmnModeler = createModeler(canvasEl, {
             propertiesPanelParent,
             extraModules,
             capabilities,
-            lintingHost: {
-                setLintingEnabled: (enabled: boolean) =>
-                    host.postMessage(new SetLintingEnabledCommand(enabled)),
-            },
+            linting: injectedLinting ?? { results: "external" },
+            onLintResults: injectedOnLintResults,
+            onLintingToggled: (enabled: boolean) =>
+                host.postMessage(new SetLintingEnabledCommand(enabled)),
             applyColorThemeMode: setColorThemeMode,
             handleGlobalEscape: true,
         });
@@ -533,7 +551,10 @@ function startSession(
         }
 
         try {
-            bpmnModeler.create(engine);
+            // Async now: the engine-aware step awaits the lazy lint chunk before
+            // constructing bpmn-js. A rejection (e.g. UnsupportedEngineError) is
+            // caught below exactly as the sync throw was.
+            await bpmnModeler.create(engine);
             // Lets the IntelliJ JCEF host drive undo/redo: it swallows
             // Ctrl+Z/Ctrl+Y at the IDE level before bpmn-js sees them (works fine
             // in VS Code/Theia).
@@ -648,9 +669,7 @@ function startSession(
             case queryOrCommand.type === "BpmnlintResultsQuery": {
                 try {
                     const query = message.data as BpmnlintResultsQuery;
-                    bpmnModeler
-                        .getService<LintConfigService>("bpmnLintConfig")
-                        .render(query.results);
+                    bpmnModeler.applyLintResults(query.results);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -658,7 +677,7 @@ function startSession(
             }
             case queryOrCommand.type === "BpmnLintDisabledQuery": {
                 try {
-                    bpmnModeler.getService<LintConfigService>("bpmnLintConfig").renderDisabled();
+                    bpmnModeler.applyLintingDisabled();
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }

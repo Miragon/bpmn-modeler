@@ -26,6 +26,7 @@
         "@miragon/bpmn-modeler-inline-scripting": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
+        "@miragon/bpmnlint-plugin-rules": "0.10.0",
         "@miragon/create-append-c7": "0.1.0",
         "bpmn-js": "18.19.0",
         "bpmn-js-bpmnlint": "0.24.0",
@@ -49,7 +50,6 @@
         "jsdom": "30.0.1",
         "typescript": "6.0.3",
         "vite": "8.1.0",
-        "vite-plugin-static-copy": "4.1.1",
         "vite-tsconfig-paths": "6.1.1",
         "vitest": "4.1.9"
     }
