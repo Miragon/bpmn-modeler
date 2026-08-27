@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
-import { viteStaticCopy } from "vite-plugin-static-copy";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
@@ -8,23 +7,13 @@ import { resolve } from "path";
 // The static browser demo lives in apps/demo-webapp (which reuses this app's bootstrap()).
 export default defineConfig({
     root: __dirname,
-    base: "/",
+    // Relative base: the preload helper bakes `base` into async-chunk dep URLs
+    // (e.g. bpmnlint.css). With "/" they resolve to the host's origin root —
+    // a 404 under VS Code's vscode-resource scheme, rejecting the dynamic
+    // import. Relative deps resolve against import.meta.url in every host.
+    base: "./",
     cacheDir: "../../node_modules/.vite/bpmn-webview",
-    plugins: [
-        tsconfigPaths(),
-        viteStaticCopy({
-            targets: [
-                {
-                    src: "../../node_modules/camunda-bpmn-js/dist/assets/bpmn-font/css/**",
-                    dest: "css/",
-                },
-                {
-                    src: "../../node_modules/camunda-bpmn-js/dist/assets/bpmn-font/font/**",
-                    dest: "font/",
-                },
-            ],
-        }),
-    ],
+    plugins: [tsconfigPaths()],
     esbuild: {
         jsx: "automatic",
         jsxImportSource: "preact",

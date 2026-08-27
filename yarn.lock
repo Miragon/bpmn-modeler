@@ -3676,7 +3676,6 @@ __metadata:
     "@miragon/dmn-modeler-webview": "workspace:*"
     npm-run-all: "npm:4.1.5"
     vite: "npm:8.1.0"
-    vite-plugin-static-copy: "npm:4.1.1"
     vite-tsconfig-paths: "npm:6.1.1"
   languageName: unknown
   linkType: soft
@@ -3885,7 +3884,6 @@ __metadata:
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vite: "npm:8.1.0"
-    vite-plugin-static-copy: "npm:4.1.1"
     vite-tsconfig-paths: "npm:6.1.1"
     vitest: "npm:4.1.9"
     zeebe-bpmn-moddle: "npm:1.15.0"
@@ -10051,7 +10049,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chokidar@npm:^3.5.3, chokidar@npm:^3.6.0":
+"chokidar@npm:^3.5.3":
   version: 3.6.0
   resolution: "chokidar@npm:3.6.0"
   dependencies:
@@ -17900,7 +17898,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"p-map@npm:^7.0.3, p-map@npm:^7.0.4":
+"p-map@npm:^7.0.3":
   version: 7.0.4
   resolution: "p-map@npm:7.0.4"
   checksum: 10c0/a5030935d3cb2919d7e89454d1ce82141e6f9955413658b8c9403cfe379283770ed3048146b44cde168aa9e8c716505f196d5689db0ae3ce9a71521a2fef3abd
@@ -22404,20 +22402,6 @@ __metadata:
   version: 3.0.2
   resolution: "vhost@npm:3.0.2"
   checksum: 10c0/a8cc383d66c20cd41433fd153106186d6b37b65f1fccce10f51d78a40c3ef8004003f8b4739e64f5819807a97d9ff0310a1672297a9e6fa8799b6ad34ba040d3
-  languageName: node
-  linkType: hard
-
-"vite-plugin-static-copy@npm:4.1.1":
-  version: 4.1.1
-  resolution: "vite-plugin-static-copy@npm:4.1.1"
-  dependencies:
-    chokidar: "npm:^3.6.0"
-    p-map: "npm:^7.0.4"
-    picocolors: "npm:^1.1.1"
-    tinyglobby: "npm:^0.2.17"
-  peerDependencies:
-    vite: ^6.0.0 || ^7.0.0 || ^8.0.0
-  checksum: 10c0/71ddeeed556275ef95c13e2b1d2af081603a98921fe4d58a91e0d64afc8e122c94f1310e4eec70e0c78118b9667e94b251cbb0ca38e2eeed220be84628b4cd82
   languageName: node
   linkType: hard
 
