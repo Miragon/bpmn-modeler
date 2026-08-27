@@ -19,11 +19,11 @@ apps/modeler-bridge/       Bun binary: stdio JSON-RPC server wrapping the TS cor
 
 Read the two READMEs first — they are authoritative and kept current:
 `apps/intellij-plugin/README.md`, `apps/modeler-bridge/README.md`. Deeper
-rationale lives in the ADRs under
-`docs/vscode/contributing/architecture/`: `intellij-host-foundation.md`
-(transport + topology), `runtime-distribution.md` (Bun binary), and
-`host-replicated-state.md` (the synchronous-read mirrors). For the engine those
-two consume, use the `architecture` skill.
+rationale lives in the decision log under `docs/adr/`:
+`0004-intellij-host-foundation.md` (transport + topology),
+`0003-runtime-distribution.md` (Bun binary), and
+`0005-host-replicated-state.md` (the synchronous-read mirrors). For the engine
+those two consume, use the `architecture` skill.
 
 ## Two design decisions (know these)
 

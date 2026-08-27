@@ -236,6 +236,3 @@ In the chooser, this template would show:
 - **Card**: "Send E-Mail" with description, "Communication" badge, "4 properties" count (the Hidden property is excluded)
 - **Preview**: name, description, documentation link, category badge, template ID, then Properties (none visible), Input Parameters (Recipient *required*, Subject *required*, Body *required* with description), Output Parameters (Send Result with default value `emailSentStatus`)
 
----
-
-For implementation details, see [Contributing → Element Template Chooser internals](/vscode/contributing/architecture/element-template-chooser).

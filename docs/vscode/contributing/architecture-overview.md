@@ -1,8 +1,9 @@
 # Architecture overview
 
-This page is the gateway to the feature-internals docs. Every
-`contributing/architecture/<feature>.md` page assumes the mental model below.
-Read this once, then dive into a specific feature.
+This page gives contributors the mental model of how the modeler is put
+together. Deeper rationale for the big structural decisions lives in the
+[decision log (`docs/adr/`)](https://github.com/Miragon/bpmn-modeler/tree/main/docs/adr)
+in the repository.
 
 ## Mental model
 
@@ -13,7 +14,8 @@ A Miragon BPMN Modeler session is two cooperating processes:
   wires the host-agnostic modeling engine (`@miragon/bpmn-modeler-core`) to VS
   Code through port adapters. The engine itself — the long-lived domain services
   — lives in that `vscode`-free package; see
-  [`architecture/modeler-core-extraction.md`](./architecture/modeler-core-extraction.md).
+  [ADR 0002](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/0002-modeler-core-extraction.md)
+  in the repository's decision log.
 - A **webview** (browser iframe, built with Vite) runs the bpmn-js / dmn-js
   modeler itself. Each open `.bpmn` or `.dmn` file has its own webview. A diff
   produces two webviews for one file.
@@ -178,8 +180,8 @@ new BpmnModeler({ additionalModules: [MyModule, ...] });
 **Event priorities.** Many bpmn-js services use `EventBus` handlers with a
 numeric priority. Higher priority runs first. Returning a non-`undefined` value
 (including `false`) stops propagation. This is how `VsCodeClipboardModule`
-intercepts copy at priority 2051 (above `NativeCopyPaste`'s 2050) — see the
-[Copy & Paste internals](./architecture/copy-paste).
+intercepts copy at priority 2051 (above `NativeCopyPaste`'s 2050) — see
+`libs/bpmn-clipboard/` in the repository.
 
 **Patching existing services.** Several of our modules decorate a core bpmn-js
 method rather than adding a new service — e.g. `AppendMenuOverride` wraps
@@ -214,22 +216,7 @@ the watch build.
 | Wire a new bpmn-js DI module | Create `libs/<name>/src/index.ts`, export the module, pass to `BpmnModeler.create({ additionalModules: [...] })` in `apps/bpmn-webview/src/app/modeler.ts` |
 | Debug extension code | VS Code Debug → "Run vscode-plugin" → F5, breakpoints work in `apps/vscode-plugin/src/**` |
 | Debug webview code | Reload extension host, open the webview, use Developer: Open Webview Developer Tools |
-| Understand a specific feature | See Feature internals below |
-
-## Feature internals
-
-Architecture deep-dives live under `contributing/architecture/`:
-
-- [Append Menu internals](./architecture/append-menu)
-- [BPMN Diff internals](./architecture/bpmn-diff)
-- [Copy & Paste internals](./architecture/copy-paste)
-- [Deployment internals](./architecture/deployment)
-- [Element Template Chooser internals](./architecture/element-template-chooser)
-- [Language Support internals](./architecture/language-support)
-
-Each page follows the same shape: Overview → System overview → Entry points →
-Key files → Message protocol (if applicable) → Interaction flow → Gotchas →
-Related.
+| Understand a specific feature | Start at the feature's `libs/<name>/README.md` or the feature folder in `apps/vscode-plugin/src/` |
 
 ## Related
 

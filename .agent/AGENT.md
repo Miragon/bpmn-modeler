@@ -9,6 +9,13 @@ Detailed architecture knowledge is available via skills — invoke `/architectur
 `/bpmn-js`, `/vscode-custom-editors`, `/vscode-webviews`, `/vscode-ux-guidelines`,
 `/intellij-plugin`, `/i18n-translate`, or `/bpmn-browser-testing`.
 
+Architecture decisions are recorded in **`docs/adr/`** (Nygard format,
+categorized by module — see `docs/adr/README.md`). When a change moves a
+package boundary, public API, dependency, protocol, or another hard-to-reverse
+choice, add an ADR in the same PR — invoke `/adr` for the rules and template.
+The log is contributor-facing and deliberately excluded from the published
+VitePress site.
+
 ## Commands
 
 Use `corepack yarn` as the package manager. Build orchestration uses `npm-run-all`.
@@ -72,7 +79,7 @@ apps/
   standalone/            # Theia/Electron desktop host shell
 libs/
   modeler-core/          # Host-agnostic engine core (domain/service/
-                         # infrastructure), consumed by all hosts (ADR #1060)
+                         # infrastructure), consumed by all hosts (ADR 0002)
   modeler-types/         # Public, host-agnostic modeler types + browser
                          # utilities (engine/lint/settings/scripting/diff,
                          # theme, canvas-resize, panel focus/resizer). No

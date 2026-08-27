@@ -5,6 +5,8 @@ export default withMermaid(defineConfig({
     title: "Miragon BPMN Modeler",
     description: "Professional BPMN/DMN process modeling — as a VS Code extension or a standalone desktop app",
     base: "/bpmn-modeler/",
+    // The decision log is contributor-facing, not user documentation (ADR 0001).
+    srcExclude: ["adr/**"],
     vite: {
         server: {
             // portless proxies the dev server behind a `<name>.localhost` host;
@@ -82,40 +84,6 @@ export default withMermaid(defineConfig({
                         {
                             text: "Architecture",
                             link: "/vscode/contributing/architecture-overview",
-                        },
-                        {
-                            text: "Internals",
-                            collapsed: true,
-                            items: [
-                                {
-                                    text: "Append Menu",
-                                    link: "/vscode/contributing/architecture/append-menu",
-                                },
-                                {
-                                    text: "BPMN Diff",
-                                    link: "/vscode/contributing/architecture/bpmn-diff",
-                                },
-                                {
-                                    text: "Inline Scripting",
-                                    link: "/vscode/contributing/architecture/inline-scripting",
-                                },
-                                {
-                                    text: "Copy & Paste",
-                                    link: "/vscode/contributing/architecture/copy-paste",
-                                },
-                                {
-                                    text: "Deployment",
-                                    link: "/vscode/contributing/architecture/deployment",
-                                },
-                                {
-                                    text: "Element Template Chooser",
-                                    link: "/vscode/contributing/architecture/element-template-chooser",
-                                },
-                                {
-                                    text: "Language Support",
-                                    link: "/vscode/contributing/architecture/language-support",
-                                },
-                            ],
                         },
                         {
                             text: "Release process",
