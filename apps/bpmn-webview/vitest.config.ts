@@ -6,6 +6,10 @@ export default defineConfig({
         name: "bpmn-webview",
         environment: "jsdom",
         include: ["src/**/*.{spec,test}.ts"],
+        // The rules plugin ships pure ESM with a subpath `exports` map Vitest's
+        // default externalisation mishandles; inline it so the in-page linter
+        // specs import it the same way the bundle does (mirrors modeler-core).
+        server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
             "@miragon/bpmn-modeler-types": resolve(

@@ -3864,6 +3864,7 @@ __metadata:
     "@miragon/bpmn-modeler-inline-scripting": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@miragon/create-append-c7": "npm:0.1.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.9"

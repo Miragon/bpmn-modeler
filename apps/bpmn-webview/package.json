@@ -26,6 +26,7 @@
         "@miragon/bpmn-modeler-inline-scripting": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
+        "@miragon/bpmnlint-plugin-rules": "0.10.0",
         "@miragon/create-append-c7": "0.1.0",
         "bpmn-js": "18.19.0",
         "bpmn-js-bpmnlint": "0.24.0",

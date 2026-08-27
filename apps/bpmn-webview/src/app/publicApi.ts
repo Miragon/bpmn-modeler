@@ -60,8 +60,14 @@ export type ThemeMode = "light" | "dark" | "automatic";
  * - `{ results: "external" }` — the modeler renders results the host computes
  *   and pushes through {@link BpmnModelerHandle.applyLintResults}; no in-webview
  *   linter runs.
+ *
+ * `results?: never` on the config variant makes the union discriminable on
+ * `results`, so the runtime tier selection narrows without type guards.
  */
-export type LintingOptions = false | { config?: BpmnlintConfig } | { results: "external" };
+export type LintingOptions =
+    | false
+    | { config?: BpmnlintConfig; results?: never }
+    | { results: "external" };
 
 /**
  * [B] Clipboard override. Default (option omitted) is the native browser
@@ -166,10 +172,10 @@ export interface ModelerOptions {
  * The instance handle {@link createModeler} resolves to — the designed
  * replacement for today's {@link BpmnModeler} class surface. Members are the
  * union of the **stable subset** (already implemented and frozen in shape) and
- * the **target-only** additions (`setTheme`, `applyLintResults`,
- * `applyLintingDisabled`) that #1373/#1376 add. `publicApi.spec.ts` asserts the
- * current facade satisfies the stable subset; the additions are documented in
- * the ADR's rename/reshape map.
+ * the **target-only** addition (`setTheme`) that #1376 adds
+ * (`applyLintResults` / `applyLintingDisabled` landed with #1373's tier
+ * ladder). `publicApi.spec.ts` asserts the current facade satisfies the stable
+ * subset; the additions are documented in the ADR's rename/reshape map.
  */
 export interface BpmnModelerHandle {
     // ── [A] Engine-intrinsic ────────────────────────────────────────────────
@@ -206,11 +212,11 @@ export interface BpmnModelerHandle {
 
     /**
      * [B] Render host-computed lint results, or clear them with `null`
-     * (target-only; #1373's `results: "external"` tier).
+     * (#1373's `results: "external"` tier).
      */
     applyLintResults(results: LintResults | null): void;
 
-    /** [B] Turn off the in-webview linter and clear its overlay (target-only; #1373). */
+    /** [B] Turn off the in-webview linter and clear its overlay (#1373). */
     applyLintingDisabled(): void;
 
     // ── Escape hatch ────────────────────────────────────────────────────────
@@ -260,4 +266,6 @@ export type StableModelerSurface = Pick<
     | "selection"
     | "destroy"
     | "getService"
+    | "applyLintResults"
+    | "applyLintingDisabled"
 >;

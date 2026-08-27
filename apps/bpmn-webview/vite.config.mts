@@ -30,7 +30,7 @@ export default defineConfig({
         jsxImportSource: "preact",
     },
     optimizeDeps: {
-        include: ["bpmnlint", "bpmn-js-bpmnlint"],
+        include: ["bpmnlint", "bpmn-js-bpmnlint", "@miragon/bpmnlint-plugin-rules"],
     },
     resolve: {
         dedupe: [

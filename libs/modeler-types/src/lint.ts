@@ -34,10 +34,14 @@ export type BpmnlintRuleConfig = BpmnlintRuleSeverity | readonly [BpmnlintRuleSe
  * import of bpmnlint's own types — so the published API surface does not leak a
  * transitive bpmnlint dependency. Unresolvable `extends`/`rules` degrade
  * gracefully at load and surface via {@link LintRunEvent.unresolved}.
+ * Serializable when `moddleExtensions` is omitted or carries only string module
+ * paths — so it can cross the webview↔host protocol as a plain data value; a
+ * browser lint run reports unhonourable entries as `moddleExtension:<prefix>`.
  */
 export interface BpmnlintConfig {
     readonly extends?: string | readonly string[];
     readonly rules?: Readonly<Record<string, BpmnlintRuleConfig>>;
+    readonly moddleExtensions?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -45,7 +49,9 @@ export interface BpmnlintConfig {
  * the findings the overlay renders plus the rule names that could not be
  * resolved from the supplied {@link BpmnlintConfig}. `unresolved` is how the
  * modeler reports graceful degradation instead of failing the whole run when a
- * `{ config }` references a rule the bundled resolver does not carry.
+ * `{ config }` references a rule the bundled resolver does not carry. Emitted
+ * only after an in-page run — never for an external push, so a host feeding
+ * the webview its own results does not echo them back.
  */
 export interface LintRunEvent {
     readonly results: LintResults;

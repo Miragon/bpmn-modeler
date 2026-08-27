@@ -1,6 +1,5 @@
 import {
     BpmnFileQuery,
-    BpmnlintResultsQuery,
     BpmnModelerSettingQuery,
     ClipboardQuery,
     Command,
@@ -59,9 +58,9 @@ export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
             case "GetClipboardCommand":
                 dispatch(new ClipboardQuery(""));
                 break;
-            case "GetBpmnlintConfigCommand":
-                dispatch(new BpmnlintResultsQuery(null));
-                break;
+            // Deliberately no GetBpmnlintConfigCommand reply: the demo lints
+            // in-page (`linting: {}`), and an external results/null push would
+            // switch the instance to the external tier and suspend that.
         }
     }
 }
