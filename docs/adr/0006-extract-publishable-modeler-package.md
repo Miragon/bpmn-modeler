@@ -28,16 +28,33 @@ npm package (working name `@miragon/bpmn-modeler`), and turn
 IntelliJ-specific parts (Query/Command dispatch, `HostApi`, webview state
 persistence, HTML shell).
 
-Two design choices within the epic:
+Design choices fixed within the epic:
 
 - **Externalize the bpmn-io stack** (bpmn-js, diagram-js, camunda-bpmn-js,
   properties-panel, preact, codemirror) as real `dependencies` rather than
   bundling — consumers writing custom bpmn-js plugins import these packages
-  themselves and must share one instance.
+  themselves and must share one instance. Externalizing also keeps
+  bpmn.io-licensed code out of what we redistribute; the watermark
+  requirement and third-party license notices still need documenting in the
+  package README.
 - **Split the shared types first** (#1371): `libs/modeler-types` holds the
   public, host-agnostic modeler types and browser utilities with no protocol
   dependency; `libs/shared` keeps the private webview↔host protocol. Only the
   former can ship with a published package.
+- **The public API is the facade, not the protocol.** The semver commitment
+  applies to the deliberately designed `createModeler` surface; the
+  Query/Command message protocol stays internal and remains freely
+  refactorable across all hosts in a single PR.
+- **The package lives in a new root dir `packages/bpmn-modeler/`** (#1376),
+  not `libs/` — preserving the invariant that everything in `libs/` is
+  private and inlinable. Import direction: `packages` may import from `libs`
+  only; `apps` may import from both; `libs` from neither. The future React
+  adapter is the expected second resident of `packages/`.
+
+The public API taxonomy (pure host-free / default + optional override /
+capability-gated) and the opinionated-defaults corollary (e.g. linting on by
+default) are deliberately **not** recorded here — they get their own ADR from
+the API design pass (#1375).
 
 ## Alternatives considered
 
@@ -48,6 +65,11 @@ unaffordable.
 **Publish the webview app as-is.** Rejected: its Query/Command postMessage
 surface presumes a VS Code/IntelliJ-style host and is unusable as an
 embeddable API.
+
+**Publish the private `libs/*` individually.** Rejected: they are
+implementation detail, not public API — publishing each one multiplies the
+semver surface and forces consumers to keep a constellation of versions
+aligned. They get inlined into the package's lib build instead.
 
 ## Consequences
 
@@ -61,3 +83,7 @@ embeddable API.
 - Moving Vite-app modules into tsc-checked libraries surfaces latent type
   errors even on pure renames; each extracted lib's own `tsc` build must pass
   before a move counts as clean.
+- Version skew becomes possible between the package's externalized
+  `dependencies` and the versions the monorepo hosts resolve. While both live
+  in this repo the root lockfile keeps them aligned; once external consumers
+  exist, keeping the ranges honest is a real coordination cost we accept.
