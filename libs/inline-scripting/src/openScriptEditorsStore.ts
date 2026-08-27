@@ -1,4 +1,4 @@
-import type { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-shared";
+import type { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
  * Fired after the store replaced its open-script set, so listeners that keep

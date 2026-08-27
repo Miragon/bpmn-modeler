@@ -6,7 +6,7 @@ import {
     Viewport,
     isUsableViewbox,
     observeCanvasSize,
-} from "@miragon/bpmn-modeler-shared";
+} from "@miragon/bpmn-modeler-types";
 
 import { centreOf } from "../elementGeometry";
 

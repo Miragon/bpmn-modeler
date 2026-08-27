@@ -1,6 +1,5 @@
-import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
 import { EDITOR_ICON_SVG } from "./editorIcon";
-import { readScriptTaskFormat } from "./scriptModel";
+import type { ScriptEditorOpener } from "./scriptEditorOpener";
 
 /**
  * bpmn-js DI module that injects "Open script in editor" icon buttons into
@@ -9,22 +8,18 @@ import { readScriptTaskFormat } from "./scriptModel";
  *   - One button on the **Script** group header for `bpmn:ScriptTask`
  *     elements.
  *   - One button per listener row in the **Execution Listeners** /
- *     **Task Listeners** groups. The button is always rendered; if the
- *     listener is not yet an inline `<camunda:script>` (e.g. Java class,
- *     expression, delegate expression, or external-resource script), the
- *     click handler converts it via the command stack before opening the
- *     editor — making the conversion a single undoable user action.
+ *     **Task Listeners** groups. The button is always rendered; the
+ *     {@link ScriptEditorOpener} converts non-inline-script listeners via
+ *     the command stack before opening the editor.
  *
  * Implementation: a {@link MutationObserver} watches the properties-panel
  * container and runs the injection scan on every DOM mutation. The scan is
  * idempotent — already-processed elements are tagged with
  * `data-script-btn-injected="true"` so subsequent passes are no-ops.
  *
- * Click handlers fire {@link OPEN_SCRIPT_EDITOR_EVENT} on the bpmn-js event
- * bus with a {@link OpenScriptEditorEvent} payload. The webview entry point
- * forwards it to the extension host as `OpenScriptEditorCommand`, which
- * opens the inline script in an editor tab with
- * kind-aware completion suggestions for the bound Camunda beans.
+ * Click handlers delegate to {@link ScriptEditorOpener}, which fires the
+ * unified open-editor event the webview entry point forwards to the
+ * extension host as `OpenScriptEditorCommand`.
  *
  * The listener-row buttons read the listener identity (element id, type,
  * index) from the entry's `data-entry-id` attribute at *click time* rather
@@ -56,21 +51,29 @@ const INJECTED_MARKER = "data-script-btn-injected";
 class ScriptEditorButtons {
     private observer: MutationObserver | undefined;
 
-    static $inject = ["eventBus", "selection", "elementRegistry", "modeling", "bpmnFactory"];
+    // The properties-panel host element to observe. Resolved from the optional
+    // `propertiesPanelRoot` DI value (the modeler facade registers it per
+    // instance) so two modelers on one page each watch their own panel; falls
+    // back to the legacy `#js-properties-panel` id for hosts that register none.
+    private readonly panelRoot: Element | null;
+
+    static $inject = ["eventBus", "selection", "scriptEditorOpener", "injector"];
 
     constructor(
         private readonly eventBus: any,
         private readonly selection: any,
-        private readonly elementRegistry: any,
-        private readonly modeling: any,
-        private readonly bpmnFactory: any,
+        private readonly opener: ScriptEditorOpener,
+        injector: { get(name: string, strict: false): HTMLElement | null | undefined },
     ) {
+        this.panelRoot =
+            injector.get("propertiesPanelRoot", false) ??
+            document.querySelector("#js-properties-panel");
         this.startObserving();
         this.eventBus.on("diagram.destroy", () => this.stopObserving());
     }
 
     private startObserving(): void {
-        const container = document.querySelector("#js-properties-panel");
+        const container = this.panelRoot;
         if (!container) {
             return;
         }
@@ -174,46 +177,21 @@ class ScriptEditorButtons {
     }
 
     /**
-     * Handler for the script-task **Script** group header button. Reads the
-     * currently selected element's inline script and fires the unified
-     * open-editor event with `kind: "script-task"`.
+     * Handler for the script-task **Script** group header button. Opens the
+     * currently selected element's inline script.
      */
     private handleScriptHeaderClick(): void {
         const selected = this.selection.get();
         if (!selected || selected.length === 0) {
             return;
         }
-
-        const element = selected[0];
-        const bo = element.businessObject;
-        if (!bo) {
-            return;
-        }
-
-        const scriptFormat = readScriptTaskFormat(bo);
-        const content = bo.script || "";
-
-        this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
-            elementId: element.id,
-            kind: "script-task",
-            listenerIndex: undefined,
-            eventName: undefined,
-            scriptFormat,
-            content,
-        } as OpenScriptEditorEvent);
+        this.opener.openScriptTask(selected[0]);
     }
 
     /**
-     * Handler for a listener-row icon button.
-     *
-     * Reads the listener identity from the closest `[data-entry-id]`
-     * ancestor and looks up the listener via the element registry — using
-     * the registry rather than `selection.get()` because the properties
-     * panel also displays the implicit root process when nothing is
-     * selected, in which case the selection service returns an empty array.
-     *
-     * If the listener is not yet an inline `<camunda:script>`, converts it
-     * via the command stack so the user can edit it in a virtual document.
+     * Handler for a listener-row icon button. Reads the listener identity
+     * from the closest `[data-entry-id]` ancestor and delegates to the
+     * opener, which resolves the listener via the element registry.
      */
     private handleListenerItemClick(button: HTMLElement): void {
         const entry = button.closest("[data-entry-id]");
@@ -222,94 +200,11 @@ class ScriptEditorButtons {
         if (!match) {
             return;
         }
-        const elementId = match[1];
-        const listenerType = match[2] as "executionListener" | "taskListener";
-        const listenerIndex = parseInt(match[3], 10);
-
-        const element = this.elementRegistry.get(elementId);
-        const listener = this.lookupListener(elementId, listenerType, listenerIndex);
-        if (!element || !listener) {
-            return;
-        }
-
-        this.ensureInlineScript(element, listener);
-
-        const kind = listenerType === "executionListener" ? "execution-listener" : "task-listener";
-
-        this.eventBus.fire(OPEN_SCRIPT_EDITOR_EVENT, {
-            elementId,
-            kind,
-            listenerIndex,
-            eventName: listener.get?.("event") ?? listener.event ?? undefined,
-            scriptFormat:
-                listener.script.get?.("scriptFormat") ?? listener.script.scriptFormat ?? "",
-            content: listener.script.get?.("value") ?? listener.script.value ?? "",
-        } as OpenScriptEditorEvent);
-    }
-
-    /**
-     * Converts a listener's implementation to an inline `<camunda:script>`
-     * if it isn't one already. No-op when the listener already uses an
-     * inline script.
-     *
-     * Two paths:
-     * - The listener has a `<camunda:script>` with a `resource` attribute
-     *   (external-resource implementation): strip `resource` and seed an
-     *   empty `value` on the existing element.
-     * - The listener has no script element (Java class / expression /
-     *   delegate expression): create a fresh `<camunda:script>` and clear
-     *   the other implementation attributes in the same update so the
-     *   entire switch is one undoable command.
-     */
-    private ensureInlineScript(element: any, listener: any): void {
-        const existingScript = listener.script;
-        const existingValue = existingScript?.get?.("value") ?? existingScript?.value;
-        if (typeof existingValue === "string") {
-            return;
-        }
-
-        if (existingScript) {
-            this.modeling.updateModdleProperties(element, listener, {
-                class: undefined,
-                expression: undefined,
-                delegateExpression: undefined,
-            });
-            this.modeling.updateModdleProperties(element, existingScript, {
-                resource: undefined,
-                value: "",
-            });
-            return;
-        }
-
-        const script = this.bpmnFactory.create("camunda:Script", {
-            scriptFormat: "",
-            value: "",
-        });
-        this.modeling.updateModdleProperties(element, listener, {
-            class: undefined,
-            expression: undefined,
-            delegateExpression: undefined,
-            script,
-        });
-    }
-
-    private lookupListener(
-        elementId: string,
-        listenerType: "executionListener" | "taskListener",
-        listenerIndex: number,
-    ): any {
-        const element = this.elementRegistry.get(elementId);
-        if (!element) {
-            return undefined;
-        }
-        const extensionType =
-            listenerType === "executionListener"
-                ? "camunda:ExecutionListener"
-                : "camunda:TaskListener";
-        const listeners = (element.businessObject?.extensionElements?.values || []).filter(
-            (e: any) => e.$type === extensionType,
+        this.opener.openListener(
+            match[1],
+            match[2] as "executionListener" | "taskListener",
+            parseInt(match[3], 10),
         );
-        return listeners[listenerIndex];
     }
 }
 

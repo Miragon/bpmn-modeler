@@ -18,6 +18,7 @@
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
+        "@miragon/bpmn-modeler-types": "workspace:*",
         "camunda-dmn-moddle": "1.3.1",
         "diagram-js": "15.18.0",
         "dmn-js": "17.8.1",

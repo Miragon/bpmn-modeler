@@ -1,6 +1,7 @@
 import * as path from "path";
 
-import { AuthConfigPayload, DeploymentFormDefaults, Engine } from "@miragon/bpmn-modeler-shared";
+import { AuthConfigPayload, DeploymentFormDefaults } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { DeploymentConfig, DeploymentResult } from "../domain/deployment";
 import {

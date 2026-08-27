@@ -9,7 +9,7 @@
  * Camunda 8 linked forms use `zeebe:formDefinition formId`.
  */
 
-import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
+export type ReferenceKind = "process" | "decision" | "form";
 
 /**
  * The shape this module needs from a bpmn-js business object.  Kept loose so

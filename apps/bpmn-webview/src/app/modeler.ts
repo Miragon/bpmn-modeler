@@ -7,11 +7,9 @@ import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-temp
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import {
-    FormReferenceStatusClient,
-    NavigateToReferencedModelModule,
-} from "@miragon/bpmn-model-navigation";
-import { CodeLinkModule, type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import type { FormReferenceStatusClient } from "@miragon/bpmn-model-navigation";
+import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import {
     BpmnModelerSetting,
@@ -20,28 +18,22 @@ import {
     OpenScriptEditorRef,
     ScriptKind,
     ScriptTaskScript,
-} from "@miragon/bpmn-modeler-shared";
-import { ScriptEditorButtonsModule } from "./scriptEditorButtons";
-import { OpenScriptEditorsStore, OpenScriptEditorsStoreModule } from "./openScriptEditorsStore";
-import { ScriptLockPropertiesProviderModule } from "./scriptLockPropertiesProvider";
-import { collectInlineScriptTasks, findListenerAt } from "./scriptModel";
+} from "@miragon/bpmn-modeler-types";
 import {
-    SCRIPT_SOURCE_CHANGED_EVENT,
-    ScriptSourceChangedEvent,
+    collectInlineScriptTasks,
+    findListenerAt,
+    OpenScriptEditorsStore,
     ScriptSourceWatcher,
-    ScriptSourceWatcherModule,
-} from "./scriptSourceWatcher";
-import {
-    OPEN_SCRIPT_EDITOR_EVENT,
-    OpenScriptEditorEvent,
-    ScriptTaskContextPadModule,
-} from "./scriptTaskContextPad";
+} from "@miragon/bpmn-modeler-inline-scripting";
+import { capabilityModules } from "./capabilityModules";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
 import LintModule from "./bpmnlint";
-import { setColorThemeMode } from "@miragon/bpmn-modeler-shared";
+import { installKeyboardFocus } from "./keyboardFocus";
+import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
+import type { CreateModelerOptions } from "./createModeler";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
@@ -49,24 +41,22 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     colorTheme: "automatic",
 };
 
-const MODELER_OPTIONS = {
-    container: "#js-canvas",
-    propertiesPanel: {
-        parent: "#js-properties-panel",
-    },
-    alignToOrigin: {
-        alignOnSave: false,
-        offset: 150,
-        tolerance: 50,
-    },
+// Align-to-origin plugin config; the container / panel parent are per-instance
+// HTMLElements resolved from the constructor options in {@link BpmnModeler.create}.
+const ALIGN_TO_ORIGIN_OPTIONS = {
+    alignOnSave: false,
+    offset: 150,
+    tolerance: 50,
 };
 
 /**
- * Encapsulates the bpmn-js modeler instance and all operations on it.
+ * Encapsulates one bpmn-js modeler instance and all operations on it.
  *
- * A single instance is created at application startup and shared via the
- * module-level export in {@link index.ts}.  All methods throw
- * {@link NoModelerError} if called before {@link create}.
+ * Per-instance by construction: it is bound to its own `container` and
+ * `propertiesPanelParent` (see {@link CreateModelerOptions}), so several
+ * modelers can coexist on a page — the future in-page diff view wants two. Use
+ * {@link createModeler} as the factory. All methods throw {@link NoModelerError}
+ * if called before {@link create}, and {@link destroy} tears the instance down.
  *
  * Viewport and selection concerns are delegated to {@link ViewportManager}
  * and {@link SelectionManager}, accessible via the corresponding getters
@@ -90,6 +80,19 @@ export class BpmnModeler {
     // inline script). Kept as an injected callback rather than a host import so
     // the modeler stays constructible in tests and the standalone dev browser.
     private onWarningSink?: (message: string) => void;
+
+    // Teardown for the container-scoped focus features installed in create();
+    // run on re-create (to avoid stacking) and on destroy().
+    private focusDisposers: Array<() => void> = [];
+
+    /**
+     * @param container The canvas host element (bpmn-js `container`).
+     * @param options Per-instance config — see {@link CreateModelerOptions}.
+     */
+    constructor(
+        private readonly container: HTMLElement,
+        private readonly options: CreateModelerOptions,
+    ) {}
 
     /**
      * Access the viewport manager after {@link create}.
@@ -128,40 +131,64 @@ export class BpmnModeler {
     }
 
     /**
-     * Creates and mounts a new bpmn-js modeler for the given execution engine.
+     * Creates and mounts the bpmn-js modeler for the given execution engine.
+     *
+     * Engine selection is a second step (not a constructor arg) because the host
+     * detects the engine only after the file arrives, while closures that need
+     * the facade (flush responder, protocol capabilities) are wired before that.
+     * The per-instance DI extras and capabilities come from the constructor
+     * options. Re-`create()` disposes the prior instance's focus installs first.
      *
      * @param engine Camunda engine version — `"c7"` for Camunda Platform 7,
      *   `"c8"` for Camunda Cloud 8.
-     * @param extraModules Optional bpmn-js DI modules (e.g. clipboard bridges).
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
-    create(engine: Engine, extraModules?: any[]): void {
+    create(engine: Engine): void {
+        this.disposeFocusFeatures();
+
+        // The linting toggle is always registered (LintModule) but its host port
+        // is optional; a no-op keeps LintConfigService's DI resolvable host-less.
+        const lintingHostModule = {
+            lintingHost: [
+                "value",
+                this.options.lintingHost ?? { setLintingEnabled: () => undefined },
+            ],
+        };
+        // Per-instance panel host, so id-coupled DI services (scriptEditorButtons)
+        // observe this modeler's own panel instead of the first `#js-properties-panel`.
+        const propertiesPanelRootModule = {
+            propertiesPanelRoot: ["value", this.options.propertiesPanelParent],
+        };
         const commonModules = [
             TokenSimulationModule,
             LintModule,
             ElementTemplateChooserModule,
             AppendMenuModule,
-            NavigateToReferencedModelModule,
-            CodeLinkModule,
+            FlowNavigationModule,
+            lintingHostModule,
+            propertiesPanelRootModule,
         ];
-        const extra = extraModules ?? [];
+        const capModules = capabilityModules(engine, this.options.capabilities);
+        const extra = (this.options.extraModules as any[]) ?? [];
+
+        const modelerOptions = {
+            container: this.container,
+            propertiesPanel: { parent: this.options.propertiesPanelParent },
+            alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
+        };
 
         this.engine = engine;
 
         switch (engine) {
             case "c7": {
                 this.modeler = new BpmnModeler7({
-                    ...MODELER_OPTIONS,
+                    ...modelerOptions,
                     additionalModules: [
                         ...commonModules,
                         CreateAppendElementTemplatesModule,
                         CreateAppendC7ElementTemplatesModule,
                         TransactionBoundariesModule,
-                        ScriptTaskContextPadModule,
-                        ScriptEditorButtonsModule,
-                        OpenScriptEditorsStoreModule,
-                        ScriptLockPropertiesProviderModule,
-                        ScriptSourceWatcherModule,
+                        ...capModules,
                         ...extra,
                     ],
                 });
@@ -169,8 +196,8 @@ export class BpmnModeler {
             }
             case "c8": {
                 this.modeler = new BpmnModeler8({
-                    ...MODELER_OPTIONS,
-                    additionalModules: [...commonModules, ...extra],
+                    ...modelerOptions,
+                    additionalModules: [...commonModules, ...capModules, ...extra],
                 });
                 break;
             }
@@ -184,6 +211,8 @@ export class BpmnModeler {
         this._selection = new SelectionManager(accessor);
         this._rootElement = new RootElementManager(accessor);
 
+        this.installFocusFeatures();
+
         /**
          * Apply default favourites immediately after creation.
          */
@@ -193,6 +222,85 @@ export class BpmnModeler {
                 appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
             }
         }
+    }
+
+    /**
+     * Composes the container-scopable focus features onto the fresh modeler:
+     * the "Escape → focus canvas" guard and the canvas focus reticle. Both are
+     * scoped to this instance's canvas container and panel parent so several
+     * modelers on one page never cross-fire. Disposers are recorded so a
+     * re-`create()` or {@link destroy} tears them down.
+     */
+    private installFocusFeatures(): void {
+        const canvas = this.getModeler().get<{
+            getContainer(): HTMLElement;
+            focus(): void;
+            isFocused(): boolean;
+        }>("canvas");
+        const canvasContainer = canvas.getContainer();
+        const eventBus = () => this.getModeler().get<any>("eventBus");
+        const selection = () => this.getModeler().get<{ get(): unknown[] }>("selection");
+
+        // Escape re-homes focus onto the canvas so keyboard-driven modelling
+        // (A/N/arrows, owned by bpmn-js's canvas-scoped Keyboard service) works
+        // even from the panel or a search field; a further Escape on the focused
+        // canvas clears the selection. Roots scope the guard to this instance.
+        this.focusDisposers.push(
+            installKeyboardFocus({
+                roots: [canvasContainer, this.options.propertiesPanelParent],
+                handleGlobalEscape: this.options.handleGlobalEscape ?? false,
+                focusCanvas: () => canvas.focus(),
+                isCanvasFocused: () => canvas.isFocused(),
+                hasSelection: () => selection().get().length > 0,
+                clearSelection: () =>
+                    this.getModeler()
+                        .get<{ select(elements: null): void }>("selection")
+                        .select(null),
+                isSearchPadOpen: () =>
+                    this.getModeler().get<{ isOpen(): boolean }>("searchPad").isOpen(),
+                closeSearchPad: () => this.getModeler().get<{ close(): void }>("searchPad").close(),
+            }),
+        );
+
+        // The reticle beside the "Open minimap" control lights up green while the
+        // canvas holds keyboard focus with nothing selected. It subscribes to
+        // diagram-js's deduplicated `canvas.focus.changed` rather than a
+        // container-level focusin (which would false-positive on the lint chip).
+        this.focusDisposers.push(
+            installCanvasFocusIndicator({
+                parent: canvasContainer,
+                isFocused: () => canvas.isFocused(),
+                onFocusChanged: (listener) =>
+                    eventBus().on("canvas.focus.changed", (e: { focused: boolean }) =>
+                        listener(e.focused),
+                    ),
+                hasSelection: () => selection().get().length > 0,
+                onSelectionChanged: (listener) =>
+                    eventBus().on("selection.changed", (e: { newSelection: unknown[] }) =>
+                        listener(e.newSelection.length > 0),
+                    ),
+            }),
+        );
+    }
+
+    private disposeFocusFeatures(): void {
+        for (const dispose of this.focusDisposers.splice(0)) {
+            dispose();
+        }
+    }
+
+    /**
+     * Tears the instance down: disposes the focus features and destroys the
+     * underlying bpmn-js modeler (which frees its event bus, DI graph, and DOM).
+     * A destroyed facade throws {@link NoModelerError} from every accessor.
+     */
+    destroy(): void {
+        this.disposeFocusFeatures();
+        this.modeler?.destroy();
+        this.modeler = undefined;
+        this._viewport = undefined;
+        this._selection = undefined;
+        this._rootElement = undefined;
     }
 
     /**
@@ -342,10 +450,12 @@ export class BpmnModeler {
         this.settings = { ...this.settings, ...settings };
 
         /**
-         * Apply color theme mode change immediately.
+         * Apply color theme mode change immediately. Page-level theme state
+         * lives outside the facade (shared with the dmn-webview), so we call the
+         * host-provided sink rather than the module singleton directly.
          */
         if (settings.colorTheme !== undefined) {
-            setColorThemeMode(this.settings.colorTheme);
+            this.options.applyColorThemeMode?.(this.settings.colorTheme);
         }
 
         /**
@@ -506,38 +616,6 @@ export class BpmnModeler {
     }
 
     /**
-     * Registers a callback for the unified `scriptEditor.open` event.
-     *
-     * Three sources fire it: the canvas context pad on script tasks
-     * ({@link ScriptTaskContextPadModule}), the Script-group header icon
-     * on the properties panel for script tasks, and the per-listener icon
-     * on each script-typed listener row (both via
-     * {@link ScriptEditorButtonsModule}).
-     */
-    onOpenScriptEditor(callback: (data: OpenScriptEditorEvent) => void): void {
-        this.getModeler()
-            .get<any>("eventBus")
-            .on(OPEN_SCRIPT_EDITOR_EVENT, (event: OpenScriptEditorEvent) => {
-                callback(event);
-            });
-    }
-
-    /**
-     * Registers a callback for the {@link ScriptSourceWatcher}'s divergence
-     * event, fired when an open script's model content changed underneath its
-     * editor tab (canvas undo/redo, document reload, element deletion). The
-     * entry point forwards it to the host, which overwrites — or, for a
-     * deleted element, closes — the tab.
-     */
-    onScriptSourceChanged(callback: (data: ScriptSourceChangedEvent) => void): void {
-        this.getModeler()
-            .get<any>("eventBus")
-            .on(SCRIPT_SOURCE_CHANGED_EVENT, (event: ScriptSourceChangedEvent) => {
-                callback(event);
-            });
-    }
-
-    /**
      * Registers a sink for non-fatal warnings so the host can forward them to the
      * output channel. Without it these only reached the webview console, invisible
      * in a bug report.
@@ -552,17 +630,21 @@ export class BpmnModeler {
      * "Go to implementation" entry hides for tasks whose implementation does not
      * exist in the workspace.
      *
+     * The service is resolved defensively (`get(..., false)`): a consumer that
+     * omits the codeLink capability registers no `codeLinkMapClient`, and a
+     * stray status push must then be a no-op rather than throw.
+     *
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
-        this.getService<CodeLinkMapClient>("codeLinkMapClient").applyStatus(resolved);
+        this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
     }
 
     /** Applies the host's resolvable Camunda Form ids to the navigation provider. */
     applyFormReferenceStatus(formIds: string[]): void {
-        this.getService<FormReferenceStatusClient>("formReferenceStatusClient").applyStatus(
-            formIds,
-        );
+        this.getModeler()
+            .get<FormReferenceStatusClient>("formReferenceStatusClient", false)
+            ?.applyStatus(formIds);
     }
 
     /**

@@ -14,7 +14,8 @@
  * (`ports.ts`) and `DiffPaneHandle` (`DiffSession.ts`).
  */
 
-import { AuthTypePayload, Engine, LintResults } from "@miragon/bpmn-modeler-shared";
+import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
+import { Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { MigrationScope } from "../../migration/domain/MigrationPlan";
 

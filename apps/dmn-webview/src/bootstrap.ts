@@ -12,29 +12,34 @@ import {
     DmnFileQuery,
     DmnModelerSettingQuery,
     FlushDocumentQuery,
-    formatErrors,
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
-    initResizer,
-    initTheme,
     LogErrorCommand,
     LogWarningCommand,
-    NoModelerError,
     PropertiesPanelStateQuery,
     Query,
     ReleaseDocumentFlushQuery,
     serializeAsync,
-    setColorThemeMode,
     SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
+import {
+    formatErrors,
+    initResizer,
+    initTheme,
+    installPanelShortcuts,
+    NoModelerError,
+    setColorThemeMode,
+} from "@miragon/bpmn-modeler-types";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 
 import {
     createModeler,
     exportDiagram,
+    getActiveFocusableCanvas,
+    isDrdViewActive,
     loadDiagram,
     onCommandStackChanged,
     syncCanvasSize,
@@ -185,7 +190,7 @@ async function run(): Promise<void> {
         getToggleLabel: (state) =>
             i18n.translate(
                 state === "collapsed" ? "Open properties panel" : "Close properties panel",
-            ),
+            ) + " (Shift+P)",
         onLabelChange: (apply) => i18n.onChange(apply),
     });
 
@@ -207,6 +212,17 @@ async function run(): Promise<void> {
     propertiesPanelHandle.setVisible(panelState?.visible ?? true);
     propertiesPanelHandle.onVisibilityChanged((visible) => {
         host.postMessage(new SetPropertiesPanelStateCommand(visible));
+    });
+
+    // `p` / `Shift+P` / Escape shortcuts for the properties panel, gated to
+    // the DRD view so they stay inert in decision-table and literal-expression
+    // views (where Escape must not steal focus from cell editing).
+    installPanelShortcuts({
+        handle: propertiesPanelHandle,
+        focusCanvas: () => getActiveFocusableCanvas()?.focus(),
+        isCanvasFocused: () => getActiveFocusableCanvas()?.isFocused() ?? false,
+        isEnabled: () => isDrdViewActive(),
+        escapeToCanvas: true,
     });
 
     stateManager.restorePanelUiState();

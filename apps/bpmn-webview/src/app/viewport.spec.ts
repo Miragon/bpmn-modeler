@@ -8,9 +8,12 @@ import { ViewportManager } from "./viewport";
  * size (`outer`). The setter is a spy so the computed viewbox can be asserted.
  */
 function setup(inner: Rect, outer: { width: number; height: number }) {
+    // The palette lookup is scoped to this canvas's own container, so the fake
+    // canvas carries one; tests append their palette into it (or a decoy outside).
+    const container = document.createElement("div");
     const viewbox = vi.fn((box?: unknown) => (box ? undefined : { inner, outer }));
     const zoom = vi.fn();
-    const canvas = { viewbox, zoom };
+    const canvas = { viewbox, zoom, getContainer: () => container };
     const listeners: Record<string, (event: any) => void> = {};
     const eventBus = {
         on: (event: string, handler: (event: any) => void) => {
@@ -25,7 +28,7 @@ function setup(inner: Rect, outer: { width: number; height: number }) {
     /** Fires a `canvas.viewbox.changed` event at the manager's subscriber. */
     const emitViewboxChanged = (box: Partial<Rect>) =>
         listeners["canvas.viewbox.changed"]({ viewbox: box });
-    return { manager, viewbox, zoom, emitViewboxChanged };
+    return { manager, viewbox, zoom, emitViewboxChanged, container };
 }
 
 type Rect = { x: number; y: number; width: number; height: number; scale?: number };
@@ -94,14 +97,14 @@ describe("ViewportManager.fitViewport", () => {
 
     // An unstyled palette is a full-width block; reserving it collapsed the
     // fit to an invisible diagram on a perfectly sized canvas.
-    it("ignores an unstyled, full-width palette", () => {
+    it("ignores an unstyled, full-width palette inside its own container", () => {
+        const inner = { x: 0, y: 0, width: 1176, height: 537 };
+        const { manager, viewbox, container } = setup(inner, { width: 1000, height: 800 });
+
         const palette = document.createElement("div");
         palette.className = "djs-palette";
-        document.body.appendChild(palette);
+        container.appendChild(palette);
         vi.spyOn(palette, "getBoundingClientRect").mockReturnValue({ width: 1000 } as DOMRect);
-
-        const inner = { x: 0, y: 0, width: 1176, height: 537 };
-        const { manager, viewbox } = setup(inner, { width: 1000, height: 800 });
 
         manager.fitViewport();
 
@@ -109,7 +112,30 @@ describe("ViewportManager.fitViewport", () => {
         const scale = 1000 / box.width;
         // At least half the canvas stays available, so the diagram is visible.
         expect(inner.width * scale).toBeGreaterThan(400);
-        palette.remove();
+    });
+
+    // With two modelers on a page a bare document query would measure the
+    // first (foreign) palette; scoping to the container ignores it entirely.
+    it("ignores a palette that belongs to another modeler's container", () => {
+        const inner = { x: 5000, y: 4000, width: 400, height: 200 };
+        const { manager, viewbox } = setup(inner, { width: 1000, height: 800 });
+
+        // A full-width decoy palette elsewhere in the document (not in our
+        // container). If the query were unscoped it would collapse the fit.
+        const decoy = document.createElement("div");
+        decoy.className = "djs-palette";
+        document.body.appendChild(decoy);
+        vi.spyOn(decoy, "getBoundingClientRect").mockReturnValue({ width: 1000 } as DOMRect);
+
+        manager.fitViewport();
+
+        const box = viewbox.mock.calls.at(-1)?.[0] as Rect;
+        const scale = 1000 / box.width;
+        // The 50px fallback is used (our container has no palette), not the decoy.
+        expect(scale).toBe(1);
+        const leftPx = project(inner.x, box.x, scale);
+        expect(leftPx).toBeGreaterThanOrEqual(70);
+        decoy.remove();
     });
 
     it("zooms out a diagram larger than the inset area to fit", () => {

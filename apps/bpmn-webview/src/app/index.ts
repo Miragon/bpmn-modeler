@@ -1,4 +1,6 @@
 export * from "./modeler";
+export * from "./createModeler";
+export * from "./capabilities";
 export * from "./viewport";
 export * from "./selection";
 export * from "./rootElement";

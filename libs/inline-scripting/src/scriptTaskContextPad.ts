@@ -1,4 +1,4 @@
-import type { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 import { EDITOR_ICON_SVG } from "./editorIcon";
 import { readScriptTaskFormat } from "./scriptModel";
 

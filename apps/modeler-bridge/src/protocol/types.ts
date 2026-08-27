@@ -11,14 +11,8 @@
  */
 
 import { GlobalFunctionDef, MethodDef } from "@miragon/bpmn-modeler-core";
-import {
-    AuthTypePayload,
-    Command,
-    DiffOrigin,
-    Engine,
-    Query,
-    VariableDef,
-} from "@miragon/bpmn-modeler-shared";
+import { AuthTypePayload, Command, Query, VariableDef } from "@miragon/bpmn-modeler-shared";
+import { DiffOrigin, Engine } from "@miragon/bpmn-modeler-types";
 
 import { DeploymentStateSnapshot } from "../adapters";
 import { SettingsSnapshot } from "../nodeAdapters";

@@ -1,0 +1,97 @@
+/* Script editor button injected into properties panel group headers. */
+.script-editor-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    height: 22px;
+    min-width: 22px;
+    margin: 5px 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--color-grey-225-10-75, #666);
+    border-radius: 2px;
+}
+
+.script-editor-button:hover {
+    background-color: var(--color-grey-225-10-90, #e1e1e1);
+}
+
+/* Compact variant injected into a listener row's collapsible-entry header.
+   `margin-right: auto` consumes the remaining flex space so the button
+   sits right after the title text and the delete icon stays at the row's
+   right edge. */
+.script-editor-button.is-list-item {
+    width: 22px;
+    height: 22px;
+    margin: 0 auto 0 0;
+    flex-shrink: 0;
+}
+
+/* Clickable hint shown under a script field that is locked because a host
+   editor tab owns it. Styled as a link so "click to focus" reads as actionable;
+   it reveals the owning tab rather than editing the field in place. */
+.bio-properties-panel .script-lock-hint {
+    margin-top: 4px;
+    color: var(--color-blue-205-100-50, #4d90ff);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.bio-properties-panel .script-lock-hint:hover,
+.bio-properties-panel .script-lock-hint:focus-visible {
+    text-decoration: underline;
+    outline: none;
+}
+
+/* Tint the locked textarea like a disabled field so it reads as non-editable,
+   but keep the normal text color and a text cursor: the content stays readable
+   and selectable so users can copy it. The disabled-* vars are already mapped
+   by both themes, so no theme-specific rule is needed here. */
+.bio-properties-panel .script-lock-textarea textarea[readonly] {
+    background-color: var(--input-disabled-background-color);
+    border-color: var(--input-disabled-border-color);
+    cursor: text;
+    resize: none;
+    overflow: auto;
+}
+
+/* Muted pill next to the label marking the field as read-only ("that" it is
+   locked); the adjacent hint explains "why". Uses panel color vars so it
+   follows the active theme. */
+.bio-properties-panel .script-lock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background-color: var(--input-disabled-background-color);
+    color: var(--description-color);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+}
+
+.bio-properties-panel .script-lock-badge-icon {
+    flex-shrink: 0;
+}
+
+/* Trim the title's right-padding (24px by default) so our icon sits close
+   to the title text instead of with a visible gap from the padding. */
+.bio-properties-panel-collapsible-entry-header[data-script-btn-injected="true"]
+    > .bio-properties-panel-collapsible-entry-header-title {
+    padding-right: 4px;
+}
+
+/* Center the inline editor SVG inside the 22x22 context-pad entry. The
+   default .entry rule centers font-icons via text-align/font-size, which
+   does not apply to a child <svg>. */
+.djs-context-pad .edit-script-entry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}

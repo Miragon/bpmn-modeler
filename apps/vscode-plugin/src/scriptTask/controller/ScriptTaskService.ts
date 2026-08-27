@@ -18,12 +18,11 @@ import {
 import {
     AsyncDebounced,
     asyncDebounce,
-    OpenScriptEditorRef,
-    ScriptKind,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
+import { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
 
 import {
     EditorSessionStore,

@@ -74,13 +74,20 @@ apps/
 libs/
   modeler-core/          # Host-agnostic engine core (domain/service/
                          # infrastructure), consumed by all hosts (ADR #1060)
-  shared/                # Shared webview utilities and message types
+  modeler-types/         # Public, host-agnostic modeler types + browser
+                         # utilities (engine/lint/settings/scripting/diff,
+                         # theme, canvas-resize, panel focus/resizer). No
+                         # protocol dependency — the publishable half of the
+                         # old `shared` split out in #1371 (epic #1293)
+  shared/                # Private webview ↔ host protocol: Query/Command
+                         # message classes, HostApi, document-flush plumbing
   append-menu/           # bpmn-js append-menu module
   bpmn-clipboard/        # bpmn-js clipboard modules
   bpmn-i18n-extras/      # C7/dmn-js/internal translation overlay merged onto
                          # the shared @miragon/bpmn-modeler-i18n npm package
   code-link/             # Code-link feature
   element-template-chooser/ # Element-template chooser module
+  inline-scripting/      # Inline-script editing (C7 script tasks/listeners)
   model-navigation/      # Model navigation module
   standalone-extension/  # Theia frontend extension consumed by
                          # `apps/standalone/` (Miragon themes, splash,
@@ -101,16 +108,18 @@ build → package plugin → bundle → start chain.
 - **Webviews**: Vite — `apps/{bpmn,dmn,form,deployment}-webview/vite.config.mts`
 - **Tests**: Vitest — root `vitest.config.ts` aggregates per-workspace projects
   (vscode-plugin, modeler-bridge, bpmn-webview, form-webview, append-menu,
-  bpmn-i18n-extras, element-template-chooser, model-navigation, modeler-core,
-  shared); root `test` =
-  `vitest run --coverage`
+  bpmn-i18n-extras, code-link, element-template-chooser, inline-scripting,
+  modeler-core, modeler-types, shared, flow-navigation, model-navigation); root
+  `test` = `vitest run --coverage`
 - **Output**: `dist/apps/vscode-plugin/`
 
 ## Path Aliases (`tsconfig.base.json`)
 
 Each `@miragon/...` alias maps to `libs/<dir>/src/index.ts`:
 
-- `@miragon/bpmn-modeler-shared` → `libs/shared`
+- `@miragon/bpmn-modeler-shared` → `libs/shared` (private host protocol)
+- `@miragon/bpmn-modeler-types` → `libs/modeler-types` (public modeler types +
+  browser utilities; publishable, no protocol dependency — #1371)
 - `@miragon/bpmn-modeler-core` → `libs/modeler-core`
 - `@miragon/bpmn-modeler-clipboard` → `libs/bpmn-clipboard`
 - `@miragon/bpmn-modeler-i18n-extras` → `libs/bpmn-i18n-extras`
@@ -121,6 +130,7 @@ Each `@miragon/...` alias maps to `libs/<dir>/src/index.ts`:
 - `@miragon/bpmn-modeler-append-menu` → `libs/append-menu`
 - `@miragon/bpmn-model-navigation` → `libs/model-navigation`
 - `@miragon/bpmn-modeler-code-link` → `libs/code-link`
+- `@miragon/bpmn-modeler-inline-scripting` → `libs/inline-scripting`
 - Resolved by `TsconfigPathsPlugin` (webpack) and `vite-tsconfig-paths` (Vite)
 
 ## Configuration Namespace

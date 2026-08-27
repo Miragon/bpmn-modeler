@@ -1,4 +1,4 @@
-import { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
  * Directory (relative to the config folder) that holds all on-disk inline

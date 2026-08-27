@@ -1,4 +1,4 @@
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 /**
  * Hardcoded engine version registry for Camunda 7 and 8.
  *

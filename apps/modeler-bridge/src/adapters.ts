@@ -16,13 +16,8 @@
 
 import { posix } from "node:path";
 
-import {
-    AuthTypePayload,
-    Command,
-    Engine,
-    ENGINE_LABEL,
-    Query,
-} from "@miragon/bpmn-modeler-shared";
+import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
+import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
     ClipboardPort,
     DeploymentStatePort,

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@miragon/bpmn-modeler-shared": "workspace:*",
+    "@miragon/bpmn-modeler-types": "workspace:*",
     "@miragon/bpmnlint-plugin-rules": "0.10.0",
     "bpmn-js-differ": "3.2.0",
     "bpmn-moddle": "10.0.0",

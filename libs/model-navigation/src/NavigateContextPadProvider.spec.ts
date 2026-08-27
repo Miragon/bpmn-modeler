@@ -7,8 +7,6 @@ vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
     is: (_element: unknown, type: string) => isMatchers.has(type),
 }));
 
-import { NavigateToReferencedModelCommand } from "@miragon/bpmn-modeler-shared";
-
 import { NavigateContextPadProvider } from "./NavigateContextPadProvider";
 
 interface MutableElement {
@@ -36,7 +34,7 @@ function build(
 
     const contextPad = { registerProvider: vi.fn() };
     const translate = vi.fn((template: string) => `t(${template})`);
-    const vsCodeBridge = { postMessage: vi.fn() };
+    const port = { openReference: vi.fn() };
     const formReferenceStatusClient = {
         isResolved: vi.fn((formId: string) => formId === "Form_Request"),
     };
@@ -44,7 +42,7 @@ function build(
     const provider = new NavigateContextPadProvider(
         contextPad as never,
         translate as never,
-        vsCodeBridge as never,
+        port as never,
         formReferenceStatusClient as never,
     );
 
@@ -52,7 +50,7 @@ function build(
         provider,
         contextPad,
         translate,
-        vsCodeBridge,
+        port,
         formReferenceStatusClient,
         element,
         attrs,
@@ -128,8 +126,8 @@ describe("NavigateContextPadProvider", () => {
 
     it("re-extracts the reference id on click — not the value captured at render time", () => {
         // Build the pad while the id is "Original".  Mutate to "Updated"
-        // before invoking click — the posted command must carry "Updated".
-        const { provider, vsCodeBridge, element, attrs } = build({
+        // before invoking click — the port must be called with "Updated".
+        const { provider, port, element, attrs } = build({
             types: ["bpmn:CallActivity"],
             initialAttrs: { calledElement: "Original" },
         });
@@ -140,15 +138,12 @@ describe("NavigateContextPadProvider", () => {
         attrs.calledElement = "Updated";
         entry.action.click({} as never, element as never);
 
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
-        const posted = vsCodeBridge.postMessage.mock.calls[0][0];
-        expect(posted).toBeInstanceOf(NavigateToReferencedModelCommand);
-        expect((posted as NavigateToReferencedModelCommand).referenceId).toBe("Updated");
-        expect((posted as NavigateToReferencedModelCommand).referenceKind).toBe("process");
+        expect(port.openReference).toHaveBeenCalledTimes(1);
+        expect(port.openReference).toHaveBeenCalledWith({ id: "Updated", kind: "process" });
     });
 
     it("does nothing when the reference id was cleared between render and click", () => {
-        const { provider, vsCodeBridge, element, attrs } = build({
+        const { provider, port, element, attrs } = build({
             types: ["bpmn:CallActivity"],
             initialAttrs: { calledElement: "Original" },
         });
@@ -159,11 +154,11 @@ describe("NavigateContextPadProvider", () => {
         attrs.calledElement = "";
         entry.action.click({} as never, element as never);
 
-        expect(vsCodeBridge.postMessage).not.toHaveBeenCalled();
+        expect(port.openReference).not.toHaveBeenCalled();
     });
 
-    it("posts a decision-kind command for Business Rule Tasks", () => {
-        const { provider, vsCodeBridge, element } = build({
+    it("opens a decision-kind reference for Business Rule Tasks", () => {
+        const { provider, port, element } = build({
             types: ["bpmn:BusinessRuleTask"],
             initialAttrs: { "camunda:decisionRef": "Decision_1" },
         });
@@ -173,10 +168,7 @@ describe("NavigateContextPadProvider", () => {
 
         entry.action.click({} as never, element as never);
 
-        const posted = vsCodeBridge.postMessage.mock
-            .calls[0][0] as NavigateToReferencedModelCommand;
-        expect(posted.referenceKind).toBe("decision");
-        expect(posted.referenceId).toBe("Decision_1");
+        expect(port.openReference).toHaveBeenCalledWith({ id: "Decision_1", kind: "decision" });
     });
 
     it("contributes form navigation only for a resolvable C8 User Task form", () => {
@@ -205,7 +197,7 @@ describe("NavigateContextPadProvider", () => {
     });
 
     it("posts the latest resolvable form id when the form action is clicked", () => {
-        const { provider, element, vsCodeBridge, formReferenceStatusClient } = build({
+        const { provider, element, port, formReferenceStatusClient } = build({
             types: ["bpmn:UserTask"],
         });
         const formDefinition = { $type: "zeebe:FormDefinition", formId: "Form_Request" };
@@ -220,14 +212,11 @@ describe("NavigateContextPadProvider", () => {
         );
         entry.action.click({} as never, element as never);
 
-        const posted = vsCodeBridge.postMessage.mock
-            .calls[0][0] as NavigateToReferencedModelCommand;
-        expect(posted.referenceKind).toBe("form");
-        expect(posted.referenceId).toBe("Form_Updated");
+        expect(port.openReference).toHaveBeenCalledWith({ id: "Form_Updated", kind: "form" });
     });
 
     it("does not navigate when the form id becomes unresolvable before click", () => {
-        const { provider, element, vsCodeBridge } = build({ types: ["bpmn:UserTask"] });
+        const { provider, element, port } = build({ types: ["bpmn:UserTask"] });
         const formDefinition = { $type: "zeebe:FormDefinition", formId: "Form_Request" };
         element.businessObject.extensionElements = { values: [formDefinition] };
         const entry = provider.getContextPadEntries(element as never)[
@@ -237,6 +226,6 @@ describe("NavigateContextPadProvider", () => {
         formDefinition.formId = "Form_Missing";
         entry.action.click({} as never, element as never);
 
-        expect(vsCodeBridge.postMessage).not.toHaveBeenCalled();
+        expect(port.openReference).not.toHaveBeenCalled();
     });
 });

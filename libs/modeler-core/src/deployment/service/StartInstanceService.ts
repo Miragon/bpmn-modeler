@@ -12,7 +12,7 @@ import { CamundaEnginePort } from "../domain/ports";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 /**
  * Orchestrates the "Start Process Instance" workflow.
  *

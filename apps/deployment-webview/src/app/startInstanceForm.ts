@@ -1,7 +1,6 @@
 import {
     AuthConfigPayload,
     Command,
-    Engine,
     LogInfoCommand,
     Query,
     RequestPayloadFilesCommand,
@@ -10,6 +9,7 @@ import {
     StartInstanceResultQuery,
     HostApi,
 } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 
 /**
  * Manages the Start Instance tab DOM state: populating fields, collecting

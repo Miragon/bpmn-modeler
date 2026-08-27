@@ -1,6 +1,6 @@
 import { AuthConfig, NoAuth } from "./deployment";
 
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 /**
  * Value object representing a validated configuration for starting a process instance.
  *

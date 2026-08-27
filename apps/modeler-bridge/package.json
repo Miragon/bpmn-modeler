@@ -26,6 +26,7 @@
     "dependencies": {
         "@miragon/bpmn-modeler-core": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
+        "@miragon/bpmn-modeler-types": "workspace:*",
         "chokidar": "5.0.0"
     },
     "devDependencies": {

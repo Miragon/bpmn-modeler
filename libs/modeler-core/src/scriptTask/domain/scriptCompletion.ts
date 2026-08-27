@@ -1,4 +1,4 @@
-import { ScriptKind } from "@miragon/bpmn-modeler-shared";
+import { ScriptKind } from "@miragon/bpmn-modeler-types";
 
 /**
  * Pure helpers backing {@link ScriptCompletionProvider}.

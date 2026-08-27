@@ -4,8 +4,13 @@ import { installHostEditorActions } from "./hostEditorActions";
 
 const trigger = vi.fn<(action: "undo" | "redo") => void>();
 
+// jsdom ships no execCommand; stub it so the native-text-undo fallback is observable.
+const execCommand = vi.fn<(commandId: string) => boolean>().mockReturnValue(true);
+
 beforeEach(() => {
     trigger.mockReset();
+    execCommand.mockClear();
+    document.execCommand = execCommand as unknown as typeof document.execCommand;
     document.body.innerHTML = "";
     installHostEditorActions((action) => trigger(action));
 });
@@ -25,7 +30,7 @@ describe("installHostEditorActions", () => {
         expect(trigger).toHaveBeenCalledWith("redo");
     });
 
-    it("skips while an input owns the caret so the diagram isn't clobbered", () => {
+    it("runs native text undo instead while an input owns the caret", () => {
         const input = document.createElement("input");
         document.body.appendChild(input);
         input.focus();
@@ -33,17 +38,19 @@ describe("installHostEditorActions", () => {
         window.__modelerTriggerEditorAction!("undo");
 
         expect(trigger).not.toHaveBeenCalled();
+        expect(execCommand).toHaveBeenCalledWith("undo");
     });
 
-    it("skips while a contenteditable surface owns the caret", () => {
+    it("runs native text redo instead while a contenteditable surface owns the caret", () => {
         const editable = document.createElement("div");
         editable.contentEditable = "true";
         editable.tabIndex = 0;
         document.body.appendChild(editable);
         editable.focus();
 
-        window.__modelerTriggerEditorAction!("undo");
+        window.__modelerTriggerEditorAction!("redo");
 
         expect(trigger).not.toHaveBeenCalled();
+        expect(execCommand).toHaveBeenCalledWith("redo");
     });
 });

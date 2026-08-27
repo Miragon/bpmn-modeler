@@ -34,7 +34,9 @@
             ]
         },
         "apps/demo-webapp": {
-            "entry": ["dmn/main.ts"]
+            // dual.ts is reached only via bpmn/dual.html, which the vite plugin
+            // does not walk (single-mode root), so list it explicitly.
+            "entry": ["dmn/main.ts", "bpmn/dual.ts"]
         }
     }
 }

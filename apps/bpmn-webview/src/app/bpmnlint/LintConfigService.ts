@@ -1,4 +1,4 @@
-import { LintResults, SetLintingEnabledCommand } from "@miragon/bpmn-modeler-shared";
+import { LintResults } from "@miragon/bpmn-modeler-types";
 
 /**
  * The subset of `bpmn-js-bpmnlint`'s `linting` module this service drives. The
@@ -13,9 +13,23 @@ interface Linting {
     toggle(active: boolean): void;
 }
 
-/** The webview→host channel registered as the `vsCodeBridge` DI value in bootstrap. */
-interface VsCodeBridge {
-    postMessage(message: unknown): void;
+/**
+ * The single host capability this service needs, registered as the `lintingHost`
+ * DI value in bootstrap. Narrow on purpose so the service never touches the
+ * postMessage protocol — bootstrap translates the call into the host command.
+ */
+interface LintingHost {
+    setLintingEnabled(enabled: boolean): void;
+}
+
+/**
+ * The slice of diagram-js's `Canvas` this service needs. The state classes and
+ * the vendor pill are scoped to this container (`.djs-container`) rather than
+ * `document.body`, so two modelers on one page never toggle each other's lint
+ * chrome.
+ */
+interface Canvas {
+    getContainer(): HTMLElement;
 }
 
 type Translate = (template: string) => string;
@@ -45,7 +59,7 @@ const OFF_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" st
  * its own overlays optimistically.
  */
 export class LintConfigService {
-    static $inject = ["linting", "vsCodeBridge", "translate"];
+    static $inject = ["linting", "lintingHost", "translate", "canvas"];
 
     private results: LintResults = {};
 
@@ -57,8 +71,9 @@ export class LintConfigService {
 
     constructor(
         private readonly linting: Linting,
-        private readonly bridge: VsCodeBridge,
+        private readonly lintingHost: LintingHost,
         private readonly translate: Translate,
+        private readonly canvas: Canvas,
     ) {
         // Replace the browser-side lint run with the host's precomputed results.
         // `update()` calls `this.lint()`; returning the stored results makes every
@@ -80,13 +95,13 @@ export class LintConfigService {
                 // Fires `linting.toggle`, which clears the overlays via `update()`.
                 this.linting.toggle(false);
             }
-            document.body.classList.remove("bpmnlint-active");
+            this.canvas.getContainer().classList.remove("bpmnlint-active");
             this.hideOffButton();
             return;
         }
 
         this.results = results;
-        document.body.classList.add("bpmnlint-active");
+        this.canvas.getContainer().classList.add("bpmnlint-active");
         if (this.linting.isActive()) {
             this.linting.update();
         } else {
@@ -107,17 +122,18 @@ export class LintConfigService {
         if (this.linting.isActive()) {
             this.linting.toggle(false);
         }
-        document.body.classList.remove("bpmnlint-active");
+        this.canvas.getContainer().classList.remove("bpmnlint-active");
         this.hideOffButton();
         this.showDisabledChip();
     }
 
     /**
-     * The bpmn-js canvas container, located via the vendor summary pill (created
-     * on module init, so it is present from the first render even while hidden).
+     * The vendor summary pill (created on module init, so it is present from the
+     * first render even while hidden). Scoped to this modeler's canvas container
+     * so a sibling modeler's pill is never picked up.
      */
     private pill(): HTMLElement | null {
-        return document.querySelector<HTMLElement>(".bjsl-button");
+        return this.canvas.getContainer().querySelector<HTMLElement>(".bjsl-button");
     }
 
     /**
@@ -155,7 +171,7 @@ export class LintConfigService {
             button.title = label;
             button.setAttribute("aria-label", label);
             button.addEventListener("click", () => {
-                this.bridge.postMessage(new SetLintingEnabledCommand(false));
+                this.lintingHost.setLintingEnabled(false);
             });
             this.offButton = button;
         }
@@ -193,7 +209,7 @@ export class LintConfigService {
             enable.className = "lint-enable-button";
             enable.textContent = this.translate("Enable");
             enable.addEventListener("click", () => {
-                this.bridge.postMessage(new SetLintingEnabledCommand(true));
+                this.lintingHost.setLintingEnabled(true);
             });
 
             chip.appendChild(text);
@@ -204,11 +220,11 @@ export class LintConfigService {
             container.appendChild(this.disabledChip);
         }
         this.disabledChip.hidden = false;
-        document.body.classList.add("bpmnlint-disabled");
+        this.canvas.getContainer().classList.add("bpmnlint-disabled");
     }
 
     private hideDisabledChip(): void {
-        document.body.classList.remove("bpmnlint-disabled");
+        this.canvas.getContainer().classList.remove("bpmnlint-disabled");
         if (this.disabledChip) {
             this.disabledChip.hidden = true;
         }

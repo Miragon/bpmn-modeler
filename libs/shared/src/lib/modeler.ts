@@ -41,39 +41,24 @@
  */
 import { Command, Query } from "./messages";
 import { VariableDef } from "./processVariables";
+import type {
+    BpmnModelerSetting,
+    BpmnViewerMode,
+    DiffCounts,
+    DiffOrigin,
+    DiffSide,
+    DmnModelerSetting,
+    Engine,
+    ImplementationEntry,
+    ImplementationKind,
+    LintResults,
+    OpenScriptEditorRef,
+    ScriptKind,
+    ScriptTaskScript,
+    Viewport,
+} from "@miragon/bpmn-modeler-types";
 
 // =================================== Queries ==================================>
-/**
- * The webview can either host the full editable modeler or a readonly viewer
- * used for side-by-side diff rendering.
- */
-export type BpmnViewerMode = "modeler" | "viewer";
-
-/**
- * Camunda engine identifier used by the BPMN modeler.
- *
- * `"c7"` — Camunda Platform 7. `"c8"` — Camunda Cloud 8.
- *
- * Defined as a string union so values stay JSON-serializable across the
- * extension-host ↔ webview message protocol.
- */
-export type Engine = "c7" | "c8";
-
-/** Display names for UI surfaces (status bar, pickers, labels). */
-export const ENGINE_LABEL: Record<Engine, string> = {
-    c7: "Camunda 7",
-    c8: "Camunda 8",
-};
-
-/**
- * Execution-platform names written into BPMN XML (`modeler:executionPlatform`).
- * These are spec-defined strings — do not change them independently of the BPMN spec.
- */
-export const ENGINE_EXECUTION_PLATFORM: Record<Engine, string> = {
-    c7: "Camunda Platform",
-    c8: "Camunda Cloud",
-};
-
 export class BpmnFileQuery extends Query {
     public readonly content: string;
 
@@ -132,28 +117,6 @@ export class ElementTemplatesQuery extends Query {
 }
 
 /**
- * A single bpmnlint finding as bpmnlint's own `Linter` emits it: the offending
- * element `id`, a human-readable `message`, and a `category` (`error` / `warn` /
- * `info`). `rule`/`meta` ride along when present so the webview overlay can link
- * to a rule's documentation. Kept structurally identical to bpmnlint's report so
- * `bpmn-js-bpmnlint`'s `linting` module can render it without translation.
- */
-export interface LintReport {
-    readonly id?: string;
-    readonly message: string;
-    readonly category: string;
-    readonly path?: string[];
-    readonly rule?: string;
-    readonly meta?: { documentation?: { url?: string } };
-}
-
-/**
- * bpmnlint's lint result: findings keyed by rule name, exactly the shape
- * `bpmn-js-bpmnlint`'s `Linting._formatIssues` consumes.
- */
-export type LintResults = Record<string, LintReport[]>;
-
-/**
  * Delivers the host-computed bpmnlint results for the open document so the
  * webview only renders overlays — it no longer runs the linter itself.
  *
@@ -204,14 +167,6 @@ export class FocusElementQuery extends Query {
     }
 }
 
-export interface BpmnModelerSetting {
-    readonly alignToOrigin: boolean;
-    readonly showTransactionBoundaries: boolean;
-    readonly colorTheme: "automatic" | "light";
-    // BPMN type strings to pin at the top of the append menu palette (max 6).
-    readonly favouriteBpmnElements?: string[];
-}
-
 export class BpmnModelerSettingQuery extends Query {
     public readonly setting: BpmnModelerSetting;
 
@@ -219,16 +174,6 @@ export class BpmnModelerSettingQuery extends Query {
         super("BpmnModelerSettingQuery");
         this.setting = setting;
     }
-}
-
-/**
- * Settings the DMN modeler honours. Deliberately leaner than
- * {@link BpmnModelerSetting}: the decision-table/DRD surfaces only react to the
- * shared `colorTheme` preference, so BPMN-only fields (alignToOrigin,
- * favouriteBpmnElements, …) are omitted rather than carried unused.
- */
-export interface DmnModelerSetting {
-    readonly colorTheme: "automatic" | "light";
 }
 
 export class DmnModelerSettingQuery extends Query {
@@ -273,17 +218,6 @@ export class TextClipboardQuery extends Query {
         this.text = text;
     }
 }
-
-/**
- * Distinguishes the surface a virtual script editor was opened from so the
- * extension host can pick the right type stubs and the webview can write the
- * update back to the correct moddle property.
- *
- * - `script-task`: `bpmn:ScriptTask`'s direct `script` string property.
- * - `execution-listener`: `camunda:ExecutionListener` at `listenerIndex`.
- * - `task-listener`: `camunda:TaskListener` at `listenerIndex` (UserTask only).
- */
-export type ScriptKind = "script-task" | "execution-listener" | "task-listener";
 
 /**
  * Persists a script-format choice (e.g. picked via Quick-Pick when the
@@ -346,22 +280,6 @@ export class UpdateScriptContentQuery extends Query {
 }
 
 /**
- * Identifies a single inline script that currently has an editor tab open on
- * the host, so the webview can lock the matching properties-panel field.
- *
- * `fileName` is the host editor's tab name (last URI/path segment) — shown in
- * the "being edited in …" hint so the user knows which tab owns the write.
- * The `(elementId, kind, listenerIndex)` triple is the same addressing scheme
- * {@link UpdateScriptContentQuery} uses, so the webview can key the lock on it.
- */
-export interface OpenScriptEditorRef {
-    readonly elementId: string;
-    readonly kind: ScriptKind;
-    readonly listenerIndex: number | undefined;
-    readonly fileName: string;
-}
-
-/**
  * Broadcasts the host's *full* set of currently-open inline-script editors for
  * one BPMN editor so the webview can make the matching properties-panel script
  * fields read-only (single-writer arbitration): while a script tab owns the
@@ -399,7 +317,8 @@ export class LanguageQuery extends Query {
  * `key → resolved` lookup so the "Go to implementation" context-pad entry can
  * hide for tasks whose implementation does not exist in the workspace.
  *
- * Keys are built with {@link implementationStatusKey} — `${activityId}::${reference}`,
+ * Keys are built with `implementationStatusKey` (from
+ * `@miragon/bpmn-modeler-types`) — `${activityId}::${reference}`,
  * not the bare activity id. Folding the reference into the key makes a reference
  * edit self-invalidating: the new reference produces a key the webview has not
  * seen yet, so the entry shows optimistically until the host's next push lands,
@@ -571,49 +490,6 @@ export class GetFormReferenceStatusCommand extends Command {
 }
 
 /**
- * Discriminates how a task's Camunda implementation reference must be resolved
- * to a workspace source file. The webview classifies the selected element's
- * reference; the host picks the matching resolution strategy per kind.
- *
- * - `javaClass` — `camunda:class` FQCN → deterministic class-file glob.
- * - `delegateExpression` — `camunda:delegateExpression="${bean}"` → bean id → class.
- * - `expression` — `camunda:expression="${svc.run()}"` → leading id → class (lowest confidence).
- * - `externalTopic` — C7 external-task `camunda:topic` → content search for the literal.
- * - `jobType` — C8 `zeebe:taskDefinition type` → content search for the literal.
- */
-export type ImplementationKind =
-    | "javaClass"
-    | "delegateExpression"
-    | "expression"
-    | "externalTopic"
-    | "jobType";
-
-/**
- * One task's implementation binding as the webview reads it from the bpmn-js
- * model: the activity's id plus the {@link ImplementationKind} / reference the
- * host needs to resolve it to a source file.
- *
- * The host never parses the BPMN XML — bpmn-js has already parsed it for
- * rendering, so the webview extracts these cheap strings and ships the list,
- * keeping the (possibly huge) XML out of the host entirely.
- */
-export interface ImplementationEntry {
-    readonly activityId: string;
-    readonly kind: ImplementationKind;
-    readonly reference: string;
-}
-
-/**
- * Composite key for {@link ImplementationStatusQuery}'s lookup, shared by both
- * sides of the protocol so they agree byte-for-byte. The reference is part of
- * the key on purpose — see {@link ImplementationStatusQuery} for why a bare
- * activity id would briefly reuse a stale resolution after a reference edit.
- */
-export function implementationStatusKey(activityId: string, reference: string): string {
-    return `${activityId}::${reference}`;
-}
-
-/**
  * Sent by the BPMN webview when the user clicks "Go to implementation" on a
  * service / send / business-rule task that carries a Camunda implementation
  * reference. The host resolves the {@link reference} according to {@link kind}
@@ -743,19 +619,6 @@ export class OpenAllScriptTasksQuery extends Query {
 }
 
 /**
- * One inline script-task entry in an {@link OpenScriptEditorsCommand} batch.
- *
- * Only `script-task` is in scope for the bulk command, so — unlike
- * {@link OpenScriptEditorCommand} — there is no `kind`/`listenerIndex`/
- * `eventName`; the host fills those in with the script-task defaults.
- */
-export interface ScriptTaskScript {
-    readonly elementId: string;
-    readonly scriptFormat: string;
-    readonly content: string;
-}
-
-/**
  * Webview → host: the batch reply to {@link OpenAllScriptTasksQuery}, carrying
  * every inline script task in the diagram plus one shared process-variable model.
  *
@@ -833,34 +696,6 @@ export class UpdateScriptVariablesCommand extends Command {
 }
 
 // <================================== Commands ===================================
-
-/**
- * =================================== Errors ==================================>
- */
-export class NoModelerError extends Error {
-    constructor() {
-        super("Modeler is not initialized!");
-    }
-}
-
-// <================================== Errors ===================================
-
-// =================================== Functions ==================================>
-/**
- * Create a list of information that will be sent to the backend and get logged.
- * @param errors A list of further information.
- */
-export function formatErrors(errors: string[]): string {
-    let msg = "";
-    if (errors && errors.length > 0) {
-        for (const message of errors) {
-            msg += `\n- ${message}`;
-        }
-    }
-    return msg;
-}
-
-// <================================== Functions ===================================
 
 // =================================== Deployment ==================================>
 
@@ -1102,41 +937,6 @@ export class ProcessDefinitionKeyQuery extends Query {
 // <================================== Start Instance ===================================
 
 // =================================== BPMN Diff ==================================>
-
-/**
- * Which side of the diff a webview pane represents.
- */
-export type DiffSide = "before" | "after";
-
-/**
- * How a diff session was opened.
- *
- * Surfaces in the legend UI so that compare-files panes can show the origin-
- * specific affordances (filename label, swap button) that don't apply to an
- * SCM diff, where VS Code already owns the tab title and the two URIs may
- * share the same basename.
- */
-export type DiffOrigin = "scm" | "compare-files";
-
-/**
- * Summary counts used for the diff legend chip.
- */
-export interface DiffCounts {
-    readonly added: number;
-    readonly removed: number;
-    readonly changed: number;
-    readonly layoutChanged: number;
-}
-
-/**
- * Canvas viewbox used for pan/zoom synchronisation between panes.
- */
-export interface Viewport {
-    readonly x: number;
-    readonly y: number;
-    readonly width: number;
-    readonly height: number;
-}
 
 /**
  * Sent from the extension host to each webview pane once a diff pair is armed

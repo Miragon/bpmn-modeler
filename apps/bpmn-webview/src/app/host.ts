@@ -3,13 +3,9 @@ import {
     BpmnFileQuery,
     BpmnModelerSettingQuery,
     BpmnlintResultsQuery,
-    buildFlowOrder,
-    buildRemovedAnchors,
     ClipboardQuery,
     Command,
     CursorChangedCommand,
-    DiffCounts,
-    DiffSide,
     ElementTemplatesQuery,
     LogDebugCommand,
     LogErrorCommand,
@@ -17,13 +13,19 @@ import {
     LogWarningCommand,
     PropertiesPanelStateQuery,
     Query,
-    sortIdsByOrder,
     SyncDocumentCommand,
     HostApi,
     HostApiImpl,
     MockHostApi,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
+import {
+    buildFlowOrder,
+    buildRemovedAnchors,
+    DiffCounts,
+    DiffSide,
+    sortIdsByOrder,
+} from "@miragon/bpmn-modeler-types";
 
 import c7Samples from "./__fixtures__/c7-samples.json";
 import c8Samples from "./__fixtures__/c8-samples.json";
@@ -238,6 +240,34 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
             case message.type === "SetLintingEnabledCommand": {
                 console.debug("[DEBUG] SetLintingEnabledCommand", message);
+                break;
+            }
+            // Capability-port commands. Dev keeps all capabilities so every
+            // feature's UI stays testable; there is no real host to act on them,
+            // so log-only cases replace the default throw that used to crash the
+            // first SyncActivitiesCommand on load.
+            case message.type === "NavigateToReferencedModelCommand": {
+                console.debug("[DEBUG] NavigateToReferencedModelCommand", message);
+                break;
+            }
+            case message.type === "NavigateToImplementationCommand": {
+                console.debug("[DEBUG] NavigateToImplementationCommand", message);
+                break;
+            }
+            case message.type === "SyncActivitiesCommand": {
+                console.debug("[DEBUG] SyncActivitiesCommand", message);
+                break;
+            }
+            case message.type === "OpenScriptEditorCommand": {
+                console.debug("[DEBUG] OpenScriptEditorCommand", message);
+                break;
+            }
+            case message.type === "UpdateScriptSourceCommand": {
+                console.debug("[DEBUG] UpdateScriptSourceCommand", message);
+                break;
+            }
+            case message.type === "UpdateScriptVariablesCommand": {
+                console.debug("[DEBUG] UpdateScriptVariablesCommand", message);
                 break;
             }
             default: {

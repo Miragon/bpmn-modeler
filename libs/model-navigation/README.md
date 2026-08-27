@@ -17,8 +17,8 @@ User Task to a workspace `.form` file whose top-level `id` matches its `formId`.
 - **Resolution is workspace-driven.** The actual file lookup
   (`workspace.findFiles`, opening via `vscode.open`) only makes sense on
   the extension host.  Keeping the click target in a small webview-side
-  library lets the modeler stay agnostic of VS Code APIs — it just posts
-  a `NavigateToReferencedModelCommand`.
+  library lets the modeler stay agnostic of VS Code APIs — it just calls
+  the injected `ModelNavigationPort`.
 - **Form actions are pessimistic.** The host sends the set of resolvable form
   IDs after scanning the workspace and keeps it current with ref-counted file
   watchers. A User Task never shows a link action until its form is known to
@@ -31,11 +31,20 @@ User Task to a workspace `.form` file whose top-level `id` matches its `formId`.
 ## Usage
 
 ```ts
-import { NavigateToReferencedModelModule } from "@miragon/bpmn-model-navigation";
+import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 
-new BpmnModeler({ additionalModules: [NavigateToReferencedModelModule] });
+new BpmnModeler({
+    additionalModules: [
+        createModelNavigationModule({
+            openReference: ({ id, kind }) => {
+                /* resolve id/kind to a file and open it */
+            },
+        }),
+    ],
+});
 ```
 
-The module expects a `vsCodeBridge` DI value with a `postMessage` method
-so it never has to call `acquireVsCodeApi()` directly (which can only be
-invoked once per webview).
+`createModelNavigationModule(port)` embeds the `ModelNavigationPort` as the
+`modelNavigationPort` DI value, so the module can only be registered together
+with its host capability. A consumer that has no host omits the module entirely
+and the context-pad entry never appears.

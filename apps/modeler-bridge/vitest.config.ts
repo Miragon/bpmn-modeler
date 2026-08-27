@@ -14,6 +14,10 @@ export default defineConfig({
         // bridge's specs run against the live core, not a stale built artifact.
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
+            "@miragon/bpmn-modeler-types": resolve(
+                __dirname,
+                "../../libs/modeler-types/src/index.ts",
+            ),
             "@miragon/bpmn-modeler-core": resolve(
                 __dirname,
                 "../../libs/modeler-core/src/index.ts",

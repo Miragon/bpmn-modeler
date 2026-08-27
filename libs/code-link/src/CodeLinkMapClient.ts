@@ -5,23 +5,21 @@
  *
  * It is the webview half of the always-on map: on import and after edits it
  * ships the diagram's implementation references to the host
- * ({@link SyncActivitiesCommand}); the host resolves the delta and pushes back a
- * `key → resolved` lookup ({@link ImplementationStatusQuery}) consumed by
- * {@link applyStatus}. The provider then calls {@link isResolved} per element.
+ * ({@link CodeLinkPort.syncActivities}); the host resolves the delta and pushes
+ * back a `key → resolved` lookup consumed by {@link applyStatus}. The provider
+ * then calls {@link isResolved} per element.
  *
  * It never mutates bpmn-js model state — forcing the context pad to re-render
  * does not run the command stack — so a status push can't loop back into a
  * `commandStack.changed` event and re-trigger a sync.
  */
-import {
-    ImplementationEntry,
-    implementationStatusKey,
-    SyncActivitiesCommand,
-} from "@miragon/bpmn-modeler-shared";
+import { implementationStatusKey } from "@miragon/bpmn-modeler-types";
+import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { collectImplementations, ElementRegistryLike } from "./collectImplementations";
 import { extractImplementation } from "./extractImplementation";
 import type { Element } from "./CodeLinkContextPadProvider";
+import type { CodeLinkPort } from "./CodeLinkPort";
 
 interface EventBus {
     on(event: string, callback: (event?: unknown) => void): void;
@@ -30,10 +28,6 @@ interface EventBus {
 interface ContextPad {
     isOpen(): boolean;
     open(target: unknown, force?: boolean): void;
-}
-
-interface VsCodeBridge {
-    postMessage(message: unknown): void;
 }
 
 // Coalesce the bursts of `commandStack.changed` a single gesture fires (drag,
@@ -55,13 +49,13 @@ function singleTarget(current: unknown): Element | undefined {
 }
 
 export class CodeLinkMapClient {
-    static $inject = ["eventBus", "elementRegistry", "contextPad", "vsCodeBridge"];
+    static $inject = ["eventBus", "elementRegistry", "contextPad", "codeLinkPort"];
 
     private readonly elementRegistry: ElementRegistryLike;
 
     private readonly contextPad: ContextPad;
 
-    private readonly vsCodeBridge: VsCodeBridge;
+    private readonly port: CodeLinkPort;
 
     // Resolution status keyed by `${activityId}::${reference}`. Absent key ⇒
     // unknown ⇒ shown optimistically; explicit `false` ⇒ hidden.
@@ -81,11 +75,11 @@ export class CodeLinkMapClient {
         eventBus: EventBus,
         elementRegistry: ElementRegistryLike,
         contextPad: ContextPad,
-        vsCodeBridge: VsCodeBridge,
+        codeLinkPort: CodeLinkPort,
     ) {
         this.elementRegistry = elementRegistry;
         this.contextPad = contextPad;
-        this.vsCodeBridge = vsCodeBridge;
+        this.port = codeLinkPort;
 
         eventBus.on("import.done", () => this.sendNow());
         eventBus.on("commandStack.changed", () => this.sendDebounced());
@@ -151,6 +145,6 @@ export class CodeLinkMapClient {
             return;
         }
         this.lastSentSignature = signature;
-        this.vsCodeBridge.postMessage(new SyncActivitiesCommand(entries));
+        this.port.syncActivities(entries);
     }
 }

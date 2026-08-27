@@ -8,7 +8,7 @@ import { MigrationScope } from "@miragon/bpmn-modeler-core";
 import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
-import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-shared";
+import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
 /**
  * Adapter around `window.showQuickPick` for the domain-aware prompts the

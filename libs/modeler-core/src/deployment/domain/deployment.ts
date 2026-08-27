@@ -1,6 +1,6 @@
 import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
 
-import { Engine } from "@miragon/bpmn-modeler-shared";
+import { Engine } from "@miragon/bpmn-modeler-types";
 export type AuthConfig = NoAuth | BasicAuth | OAuth2Auth;
 
 export class NoAuth {

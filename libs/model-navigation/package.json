@@ -6,9 +6,6 @@
         "build": "tsc --noEmit",
         "test": "vitest run"
     },
-    "dependencies": {
-        "@miragon/bpmn-modeler-shared": "workspace:*"
-    },
     "peerDependencies": {
         "bpmn-js": "18.19.0"
     },

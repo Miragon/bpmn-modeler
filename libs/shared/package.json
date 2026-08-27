@@ -8,6 +8,7 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
+    "@miragon/bpmn-modeler-types": "workspace:*",
     "lodash": "4.18.1",
     "tslib": "2.8.1"
   },

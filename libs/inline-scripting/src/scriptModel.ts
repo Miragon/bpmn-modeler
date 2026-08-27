@@ -1,4 +1,4 @@
-import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-shared";
+import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
 /**
  * Model-side script lookups shared by {@link BpmnModeler}'s write path and the

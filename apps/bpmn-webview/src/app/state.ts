@@ -1,4 +1,5 @@
-import { Command, Query, HostApi, isUsableViewbox } from "@miragon/bpmn-modeler-shared";
+import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
+import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";
 import { BpmnModeler } from "./modeler";
 
@@ -38,6 +39,10 @@ export class WebviewStateManager {
     constructor(
         private readonly host: HostApi<WebviewState, Command | Query>,
         private readonly modeler: BpmnModeler,
+        // The properties-panel host element. The scroll container is looked up
+        // within it rather than via `document` so a second modeler's panel on
+        // the same page is never mistaken for this one's.
+        private readonly panelRoot: HTMLElement,
     ) {}
 
     /**
@@ -109,7 +114,7 @@ export class WebviewStateManager {
             return;
         }
         requestAnimationFrame(() => {
-            const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
+            const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
             if (!container) {
                 return;
             }
@@ -217,7 +222,7 @@ export class WebviewStateManager {
      * `setState` synchronously writes to VS Code workspace storage.
      */
     private subscribePanelScroll(): void {
-        const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
+        const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
         if (!container) {
             return;
         }
@@ -237,7 +242,7 @@ export class WebviewStateManager {
      * discarded by filtering for `.bio-properties-panel-group-header`.
      */
     private subscribeGroupExpansion(): void {
-        const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
+        const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
         if (!container) {
             return;
         }

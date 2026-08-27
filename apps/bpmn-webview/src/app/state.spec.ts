@@ -6,7 +6,11 @@ import { WebviewStateManager } from "./state";
  * Builds a `WebviewStateManager` wired to spies for the collaborators
  * that `restoreViewport`, `captureViewState`, and `applyViewState` touch.
  */
-function setup(savedState: unknown, applied = true) {
+function setup(
+    savedState: unknown,
+    applied = true,
+    panelRoot: HTMLElement = document.createElement("div"),
+) {
     const getState = vi.fn().mockReturnValue(savedState);
     const updateState = vi.fn();
     const setState = vi.fn();
@@ -18,16 +22,18 @@ function setup(savedState: unknown, applied = true) {
     const setRootElementById = vi.fn().mockReturnValue(true);
     const getRootElementId = vi.fn().mockReturnValue(undefined);
     const onRootChanged = vi.fn();
+    const onViewportChanged = vi.fn();
+    const onSelectionChanged = vi.fn();
     const getSelectedElementIds = vi.fn().mockReturnValue([]);
     const selectElementsByIds = vi.fn();
     const host = { getState, updateState, setState } as any;
     const modeler = {
-        viewport: { setViewport, fitViewport, getViewport },
+        viewport: { setViewport, fitViewport, getViewport, onViewportChanged },
         rootElement: { setRootElementById, getRootElementId, onRootChanged },
-        selection: { getSelectedElementIds, selectElementsByIds },
+        selection: { getSelectedElementIds, selectElementsByIds, onSelectionChanged },
     } as any;
     return {
-        manager: new WebviewStateManager(host, modeler),
+        manager: new WebviewStateManager(host, modeler, panelRoot),
         setViewport,
         fitViewport,
         setRootElementById,
@@ -181,6 +187,48 @@ describe("WebviewStateManager.captureViewState / applyViewState", () => {
         manager.applyViewState(snapshot);
         // setRootElementById(undefined) returns false — no plane switch
         expect(setRootElementById).toHaveBeenCalledWith(undefined);
+    });
+});
+
+describe("WebviewStateManager panel scoping", () => {
+    /** A panel host with a scroll container, plus a decoy panel elsewhere. */
+    function panels() {
+        const panelRoot = document.createElement("div");
+        const scroll = document.createElement("div");
+        scroll.className = "bio-properties-panel-scroll-container";
+        panelRoot.appendChild(scroll);
+        document.body.appendChild(panelRoot);
+
+        const otherPanel = document.createElement("div");
+        const otherScroll = document.createElement("div");
+        otherScroll.className = "bio-properties-panel-scroll-container";
+        otherPanel.appendChild(otherScroll);
+        document.body.appendChild(otherPanel);
+
+        return { panelRoot, scroll, otherScroll, otherPanel };
+    }
+
+    it("binds scroll persistence to the scroll container within the passed panelRoot", () => {
+        vi.useFakeTimers();
+        const { panelRoot, scroll, otherScroll } = panels();
+        const { manager, updateState } = setup(undefined, true, panelRoot);
+
+        manager.startPersisting();
+
+        Object.defineProperty(scroll, "scrollTop", { value: 42, configurable: true });
+        scroll.dispatchEvent(new Event("scroll"));
+        vi.advanceTimersByTime(100);
+        expect(updateState).toHaveBeenCalledWith({ panelScroll: 42 });
+
+        // A scroll in a foreign panel must not be persisted as ours.
+        updateState.mockClear();
+        Object.defineProperty(otherScroll, "scrollTop", { value: 99, configurable: true });
+        otherScroll.dispatchEvent(new Event("scroll"));
+        vi.advanceTimersByTime(100);
+        expect(updateState).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
+        document.body.innerHTML = "";
     });
 });
 

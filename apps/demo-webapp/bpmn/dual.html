@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link
+            href="../../bpmn-webview/src/styles/light-theme/index.css"
+            id="theme-link"
+            rel="stylesheet"
+        />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>Miragon Modeler — Dual Instance Demo</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            /* Two independent modelers side by side — no #js-canvas ids. */
+            .dual {
+                display: flex;
+                height: 100vh;
+            }
+            .pane {
+                display: flex;
+                flex: 1 1 50%;
+                min-width: 0;
+                border-right: 1px solid #ddd;
+            }
+            .pane:last-child {
+                border-right: none;
+            }
+            .pane .canvas {
+                position: relative;
+                flex: 1 1 auto;
+                min-width: 0;
+                height: 100%;
+            }
+            .pane .properties-panel-parent {
+                width: 260px;
+                overflow: auto;
+                border-left: 1px solid #eee;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="dual">
+            <div class="pane">
+                <div class="canvas" id="canvas-a"></div>
+                <div class="properties-panel-parent" id="panel-a"></div>
+            </div>
+            <div class="pane">
+                <div class="canvas" id="canvas-b"></div>
+                <div class="properties-panel-parent" id="panel-b"></div>
+            </div>
+        </div>
+        <script src="/dual.ts" type="module"></script>
+    </body>
+</html>

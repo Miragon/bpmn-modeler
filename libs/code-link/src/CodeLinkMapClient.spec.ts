@@ -4,7 +4,7 @@ vi.mock("bpmn-js/lib/util/ModelUtil", () => ({
     is: (element: { type?: string } | undefined, type: string) => element?.type === type,
 }));
 
-import { implementationStatusKey, SyncActivitiesCommand } from "@miragon/bpmn-modeler-shared";
+import { implementationStatusKey } from "@miragon/bpmn-modeler-types";
 
 import { CodeLinkMapClient } from "./CodeLinkMapClient";
 
@@ -35,22 +35,21 @@ function setup(elements: FakeElement[] = []) {
     const registryElements = [...elements];
     const elementRegistry = { getAll: () => registryElements as never };
     const contextPad = { isOpen: vi.fn().mockReturnValue(false), open: vi.fn() };
-    const vsCodeBridge = { postMessage: vi.fn() };
+    const port = { navigateToImplementation: vi.fn(), syncActivities: vi.fn() };
 
     const client = new CodeLinkMapClient(
         eventBus as never,
         elementRegistry,
         contextPad as never,
-        vsCodeBridge as never,
+        port as never,
     );
 
     const lastSentEntries = () => {
-        const calls = vsCodeBridge.postMessage.mock.calls;
-        const command = calls[calls.length - 1][0] as SyncActivitiesCommand;
-        return command.entries;
+        const calls = port.syncActivities.mock.calls;
+        return calls[calls.length - 1][0];
     };
 
-    return { client, fire, contextPad, vsCodeBridge, registryElements, lastSentEntries };
+    return { client, fire, contextPad, port, registryElements, lastSentEntries };
 }
 
 afterEach(() => {
@@ -58,50 +57,47 @@ afterEach(() => {
 });
 
 describe("CodeLinkMapClient — syncing", () => {
-    it("posts a SyncActivitiesCommand immediately on import.done", () => {
-        const { fire, vsCodeBridge, lastSentEntries } = setup([
-            serviceTask("Activity_1", "com.example.A"),
-        ]);
+    it("syncs the activities immediately on import.done", () => {
+        const { fire, port, lastSentEntries } = setup([serviceTask("Activity_1", "com.example.A")]);
 
         fire("import.done");
 
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
-        expect(vsCodeBridge.postMessage.mock.calls[0][0]).toBeInstanceOf(SyncActivitiesCommand);
+        expect(port.syncActivities).toHaveBeenCalledTimes(1);
         expect(lastSentEntries()).toEqual([
             { activityId: "Activity_1", kind: "javaClass", reference: "com.example.A" },
         ]);
     });
 
-    it("debounces a burst of commandStack.changed into a single post", () => {
+    it("debounces a burst of commandStack.changed into a single sync", () => {
         vi.useFakeTimers();
-        const { fire, vsCodeBridge } = setup([serviceTask("Activity_1", "com.example.A")]);
+        const { fire, port } = setup([serviceTask("Activity_1", "com.example.A")]);
 
         fire("commandStack.changed");
         fire("commandStack.changed");
         fire("commandStack.changed");
-        expect(vsCodeBridge.postMessage).not.toHaveBeenCalled();
+        expect(port.syncActivities).not.toHaveBeenCalled();
 
         vi.advanceTimersByTime(400);
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
+        expect(port.syncActivities).toHaveBeenCalledTimes(1);
     });
 
-    it("skips the post when the implementation list is unchanged", () => {
+    it("skips the sync when the implementation list is unchanged", () => {
         vi.useFakeTimers();
-        const { fire, vsCodeBridge } = setup([serviceTask("Activity_1", "com.example.A")]);
+        const { fire, port } = setup([serviceTask("Activity_1", "com.example.A")]);
 
         fire("import.done");
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
+        expect(port.syncActivities).toHaveBeenCalledTimes(1);
 
         // An edit that did not touch any implementation binding.
         fire("commandStack.changed");
         vi.advanceTimersByTime(400);
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(1);
+        expect(port.syncActivities).toHaveBeenCalledTimes(1);
     });
 
-    it("posts again once a binding actually changes", () => {
+    it("syncs again once a binding actually changes", () => {
         vi.useFakeTimers();
         const element = serviceTask("Activity_1", "com.example.A");
-        const { fire, vsCodeBridge, registryElements, lastSentEntries } = setup([element]);
+        const { fire, port, registryElements, lastSentEntries } = setup([element]);
 
         fire("import.done");
         registryElements[0] = serviceTask("Activity_1", "com.example.B");
@@ -109,7 +105,7 @@ describe("CodeLinkMapClient — syncing", () => {
         fire("commandStack.changed");
         vi.advanceTimersByTime(400);
 
-        expect(vsCodeBridge.postMessage).toHaveBeenCalledTimes(2);
+        expect(port.syncActivities).toHaveBeenCalledTimes(2);
         expect(lastSentEntries()).toEqual([
             { activityId: "Activity_1", kind: "javaClass", reference: "com.example.B" },
         ]);
