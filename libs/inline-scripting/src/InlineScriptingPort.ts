@@ -11,9 +11,13 @@ import type { ScriptSourceChangedEvent } from "./scriptSourceWatcher";
  * `createInlineScriptingModules`).
  */
 export interface InlineScriptingPort {
-    /** A surface requested its editor tab be opened. */
-    openScriptEditor(event: OpenScriptEditorEvent): void;
+    /**
+     * A surface requested its editor tab be opened. Widened to
+     * `void | Promise<void>` so a host may open the tab asynchronously; the
+     * forwarder invokes it fire-and-forget and never awaits it.
+     */
+    openScriptEditor(event: OpenScriptEditorEvent): void | Promise<void>;
 
     /** An open script's model content diverged from its editor tab. */
-    scriptSourceChanged(event: ScriptSourceChangedEvent): void;
+    scriptSourceChanged(event: ScriptSourceChangedEvent): void | Promise<void>;
 }

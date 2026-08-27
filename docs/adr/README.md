@@ -44,3 +44,4 @@ contributor-facing record, not user documentation.
 | ADR | Decision | Status |
 | --- | --- | --- |
 | [0006](0006-extract-publishable-modeler-package.md) | Extract the host-free modeler composition into a publishable npm package | accepted |
+| [0007](0007-public-modeler-api.md) | Fix the public `@miragon/bpmn-modeler` API surface before extraction | accepted |

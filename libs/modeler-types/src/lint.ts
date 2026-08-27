@@ -19,3 +19,35 @@ export interface LintReport {
  * `bpmn-js-bpmnlint`'s `Linting._formatIssues` consumes.
  */
 export type LintResults = Record<string, LintReport[]>;
+
+/**
+ * A single rule's severity in a {@link BpmnlintConfig}: bpmnlint accepts both
+ * the string form (`"error"` / `"warn"` / `"off"`) and the legacy numeric form
+ * (`2` / `1` / `0`), optionally paired with a rule-specific config object.
+ */
+export type BpmnlintRuleSeverity = "off" | "warn" | "error" | 0 | 1 | 2;
+export type BpmnlintRuleConfig = BpmnlintRuleSeverity | readonly [BpmnlintRuleSeverity, unknown];
+
+/**
+ * Structural mirror of a bpmnlint configuration (`.bpmnlintrc`) as the public
+ * `linting: { config }` option accepts it (#1373). Kept structural — not an
+ * import of bpmnlint's own types — so the published API surface does not leak a
+ * transitive bpmnlint dependency. Unresolvable `extends`/`rules` degrade
+ * gracefully at load and surface via {@link LintRunEvent.unresolved}.
+ */
+export interface BpmnlintConfig {
+    readonly extends?: string | readonly string[];
+    readonly rules?: Readonly<Record<string, BpmnlintRuleConfig>>;
+}
+
+/**
+ * Outbound notification payload for one lint pass (#1373's `onLintResults`):
+ * the findings the overlay renders plus the rule names that could not be
+ * resolved from the supplied {@link BpmnlintConfig}. `unresolved` is how the
+ * modeler reports graceful degradation instead of failing the whole run when a
+ * `{ config }` references a rule the bundled resolver does not carry.
+ */
+export interface LintRunEvent {
+    readonly results: LintResults;
+    readonly unresolved: readonly string[];
+}
