@@ -3949,6 +3949,7 @@ __metadata:
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@miragon/create-append-c7": "npm:0.1.0"
+    "@types/node": "npm:26.1.2"
     "@vitest/coverage-v8": "npm:4.1.9"
     bpmn-js: "npm:18.19.0"
     bpmn-js-bpmnlint: "npm:0.24.0"

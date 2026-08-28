@@ -67,6 +67,7 @@
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-inline-scripting": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
+        "@types/node": "26.1.2",
         "@vitest/coverage-v8": "4.1.9",
         "didi": "11.0.0",
         "jsdom": "30.0.1",
