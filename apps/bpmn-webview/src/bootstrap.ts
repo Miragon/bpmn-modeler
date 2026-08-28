@@ -51,7 +51,6 @@ import {
     extractProcessVariables,
 } from "@miragon/bpmn-modeler-shared";
 import {
-    Engine,
     NoModelerError,
     asyncDebounce,
     formatErrors,
@@ -59,10 +58,9 @@ import {
     initTheme,
     installPanelShortcuts,
     observeCanvasSize,
-    setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
-import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
+import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     BpmnModeler,
@@ -429,43 +427,90 @@ function startSession(
                 ) + " (Shift+P)",
             onLabelChange: (apply) => i18n.onChange(apply),
         });
+        // The engine is known here (the file handshake above completed), so the
+        // former two-step createModeler + create(engine) collapses into one async
+        // call. A missing engine is fatal — bail before construction.
+        const engine = bpmnFileQuery?.engine;
+        if (!engine) {
+            host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
+            return;
+        }
+
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
-        const extraModules = [
-            TranslateModule,
-            ...(clipboardModules ?? []),
-            ...((injectedModules as any[]) ?? []),
-        ];
+        const extraModules = [...(clipboardModules ?? []), ...((injectedModules as any[]) ?? [])];
         // Real hosts run the linter themselves and push results, so the default
         // tier is external — keeping VS Code / IntelliJ / Theia byte-identical to
         // today. A consumer (or the demo) can opt into in-page linting by passing
         // an explicit `linting`. The user's in-canvas toggle is relayed to the host
         // as before; the host re-lints and pushes the new state down.
-        bpmnModeler = createModeler(canvasEl, {
-            propertiesPanelParent,
-            extraModules,
-            capabilities,
-            linting: injectedLinting ?? { results: "external" },
-            // A real host activates in-page linting only after it answers the
-            // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
-            // config, #1373 Phase B); the webview then pushes its findings back
-            // so the host feeds its Problems panel + status bar. `??` keeps the
-            // demo's injected sink authoritative when one is supplied.
-            onLintResults:
-                injectedOnLintResults ??
-                ((e: LintRunEvent) =>
-                    host.postMessage(
-                        new UpdateLintResultsCommand(
-                            e.results,
-                            [...e.unresolved],
-                            currentLintConfigToken,
-                        ),
-                    )),
-            onLintingToggled: (enabled: boolean) =>
-                host.postMessage(new SetLintingEnabledCommand(enabled)),
-            applyColorThemeMode: setColorThemeMode,
-            handleGlobalEscape: true,
-        });
-        await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine);
+        try {
+            bpmnModeler = await createModeler(canvasEl, {
+                engine,
+                propertiesPanel: { parent: propertiesPanelParent },
+                additionalModules: extraModules,
+                capabilities,
+                linting: injectedLinting ?? { results: "external" },
+                // A real host activates in-page linting only after it answers the
+                // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
+                // config, #1373 Phase B); the webview then pushes its findings back
+                // so the host feeds its Problems panel + status bar. `??` keeps the
+                // demo's injected sink authoritative when one is supplied.
+                onLintResults:
+                    injectedOnLintResults ??
+                    ((e: LintRunEvent) =>
+                        host.postMessage(
+                            new UpdateLintResultsCommand(
+                                e.results,
+                                [...e.unresolved],
+                                currentLintConfigToken,
+                            ),
+                        )),
+                onLintingToggled: (enabled: boolean) =>
+                    host.postMessage(new SetLintingEnabledCommand(enabled)),
+                // Forward the modeler's non-fatal warnings (element-not-found,
+                // missing inline script) to the output channel — console-only before.
+                onWarning: (warning: string) => host.postMessage(new LogWarningCommand(warning)),
+                // Surface templates bpmn-js rejects (invalid schema, bad
+                // `appliesTo`, …). Subscribed inside init() *before* the first
+                // template push (GetElementTemplatesCommand's reply below), so
+                // those errors are observed. It's a warning, not an error: bpmn-js
+                // skips an invalid template non-fatally, and its message already
+                // carries the offending template's id/name.
+                onElementTemplatesErrors: (errors: unknown[]) => {
+                    for (const error of errors ?? []) {
+                        const message = error instanceof Error ? error.message : String(error);
+                        host.postMessage(
+                            new LogWarningCommand(`Element template rejected: ${message}`),
+                        );
+                    }
+                },
+                handleGlobalEscape: true,
+            });
+        } catch (error: any) {
+            if (error instanceof NoModelerError || error instanceof UnsupportedEngineError) {
+                host.postMessage(new LogErrorCommand(error.message));
+            } else {
+                host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
+            }
+            return;
+        }
+
+        // Lets the IntelliJ JCEF host drive undo/redo: it swallows Ctrl+Z/Ctrl+Y
+        // at the IDE level before bpmn-js sees them (works fine in VS Code/Theia).
+        installHostEditorActions((action) =>
+            bpmnModeler
+                .getService<{ trigger(action: string): void }>("editorActions")
+                .trigger(action),
+        );
+        bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
+
+        try {
+            await openXml(bpmnFileQuery?.content);
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : String(error);
+            host.postMessage(new LogErrorCommand(`Unable to open XML\n${message}`));
+        }
+
         modelerIsInitialized = true;
 
         if (pendingFocusId !== undefined) {
@@ -519,18 +564,6 @@ function startSession(
             applyInitialViewport: () => stateManager.restoreViewport(),
         });
 
-        // Surface templates bpmn-js rejects (invalid schema, bad `appliesTo`, …).
-        // Subscribed *before* GetElementTemplatesCommand so the errors fired
-        // while the loader validates the reply are observed. It's a warning, not
-        // an error: bpmn-js skips an invalid template non-fatally, and its
-        // message already carries the offending template's id/name.
-        bpmnModeler.onElementTemplatesErrors((errors) => {
-            for (const error of errors ?? []) {
-                const message = error instanceof Error ? error.message : String(error);
-                host.postMessage(new LogWarningCommand(`Element template rejected: ${message}`));
-            }
-        });
-
         // Request templates + settings + panel state, wait for all to apply
         host.postMessage(new GetElementTemplatesCommand());
         host.postMessage(new GetBpmnModelerSettingCommand());
@@ -570,54 +603,6 @@ function startSession(
 
         // Phase 3: begin persisting changes
         stateManager.startPersisting();
-    }
-
-    /**
-     * Creates the modeler for the given engine and loads the initial diagram.
-     * The container-scoped focus features (Escape guard + focus reticle) and the
-     * lint host / theme wiring are composed inside {@link BpmnModeler.create};
-     * this function only adds the host-driven bits: editor-action relay, warning
-     * sink, and the outbound-sync command-stack subscription.
-     *
-     * @param bpmn Initial BPMN XML, or `undefined` to create a blank diagram.
-     * @param engine Execution platform identifier (`"c7"` or `"c8"`).
-     */
-    async function initializeModeler(
-        bpmn: string | undefined,
-        engine: Engine | undefined,
-    ): Promise<void> {
-        if (!engine) {
-            host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
-            return;
-        }
-
-        try {
-            // Async now: the engine-aware step awaits the lazy lint chunk before
-            // constructing bpmn-js. A rejection (e.g. UnsupportedEngineError) is
-            // caught below exactly as the sync throw was.
-            await bpmnModeler.create(engine);
-            // Lets the IntelliJ JCEF host drive undo/redo: it swallows
-            // Ctrl+Z/Ctrl+Y at the IDE level before bpmn-js sees them (works fine
-            // in VS Code/Theia).
-            installHostEditorActions((action) =>
-                bpmnModeler
-                    .getService<{ trigger(action: string): void }>("editorActions")
-                    .trigger(action),
-            );
-            // Forward the modeler's non-fatal warnings (element-not-found,
-            // missing inline script) to the output channel — console-only before.
-            bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
-            bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
-            await openXml(bpmn);
-        } catch (error: any) {
-            if (error instanceof NoModelerError) {
-                host.postMessage(new LogErrorCommand(error.message));
-            } else if (error instanceof UnsupportedEngineError) {
-                host.postMessage(new LogErrorCommand(error.message));
-            } else {
-                host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
-            }
-        }
     }
 
     /**

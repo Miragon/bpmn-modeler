@@ -11,7 +11,10 @@ import { type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
+import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
+    asyncDebounce,
+    type AsyncDebounced,
     BpmnlintConfig,
     BpmnModelerSetting,
     Engine,
@@ -20,6 +23,7 @@ import {
     OpenScriptEditorRef,
     ScriptKind,
     ScriptTaskScript,
+    setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
 import {
     collectInlineScriptTasks,
@@ -35,6 +39,7 @@ import { deriveEngines } from "./engines";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 import type { CreateModelerOptions } from "./createModeler";
+import type { ThemeMode } from "./publicApi";
 // Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
@@ -45,7 +50,7 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
 };
 
 // Align-to-origin plugin config; the container / panel parent are per-instance
-// HTMLElements resolved from the constructor options in {@link BpmnModeler.create}.
+// HTMLElements resolved from the constructor options in {@link BpmnModeler.init}.
 const ALIGN_TO_ORIGIN_OPTIONS = {
     alignOnSave: false,
     offset: 150,
@@ -56,14 +61,14 @@ const ALIGN_TO_ORIGIN_OPTIONS = {
  * Encapsulates one bpmn-js modeler instance and all operations on it.
  *
  * Per-instance by construction: it is bound to its own `container` and
- * `propertiesPanelParent` (see {@link CreateModelerOptions}), so several
+ * `propertiesPanel.parent` (see {@link CreateModelerOptions}), so several
  * modelers can coexist on a page — the future in-page diff view wants two. Use
  * {@link createModeler} as the factory. All methods throw {@link NoModelerError}
- * if called before {@link create}, and {@link destroy} tears the instance down.
+ * if called before {@link init}, and {@link destroy} tears the instance down.
  *
  * Viewport and selection concerns are delegated to {@link ViewportManager}
  * and {@link SelectionManager}, accessible via the corresponding getters
- * after {@link create} has been called.
+ * after {@link init} has been called.
  */
 export class BpmnModeler {
     private modeler: Modeler | undefined = undefined;
@@ -84,9 +89,13 @@ export class BpmnModeler {
     // the modeler stays constructible in tests and the standalone dev browser.
     private onWarningSink?: (message: string) => void;
 
-    // Teardown for the container-scoped focus features installed in create();
+    // Teardown for the container-scoped focus features installed in init();
     // run on re-create (to avoid stacking) and on destroy().
     private focusDisposers: Array<() => void> = [];
+
+    // The debounced content-saved emitter, live only when `onContentSaved` was
+    // supplied. Held so {@link destroy} can cancel a pending trailing export.
+    private contentSaved?: AsyncDebounced<() => Promise<void>>;
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -95,10 +104,12 @@ export class BpmnModeler {
     constructor(
         private readonly container: HTMLElement,
         private readonly options: CreateModelerOptions,
-    ) {}
+    ) {
+        this.onWarningSink = options.onWarning;
+    }
 
     /**
-     * Access the viewport manager after {@link create}.
+     * Access the viewport manager after {@link init}.
      *
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
@@ -110,7 +121,7 @@ export class BpmnModeler {
     }
 
     /**
-     * Access the selection manager after {@link create}.
+     * Access the selection manager after {@link init}.
      *
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
@@ -122,7 +133,7 @@ export class BpmnModeler {
     }
 
     /**
-     * Access the root element manager after {@link create}.
+     * Access the root element manager after {@link init}.
      *
      * @internal Host-adapter surface (drill-down state restore); not part of the
      *   designed public handle (#1375).
@@ -136,31 +147,33 @@ export class BpmnModeler {
     }
 
     /**
-     * Creates and mounts the bpmn-js modeler for the given execution engine.
+     * Creates and mounts the bpmn-js modeler for the engine in `options.engine`,
+     * then wires the per-instance subscriptions (element-template errors,
+     * debounced content-saved). The DI extras, capabilities, and page-level
+     * side-effect callbacks all come from the constructor options.
      *
-     * Engine selection is a second step (not a constructor arg) because the host
-     * detects the engine only after the file arrives, while closures that need
-     * the facade (flush responder, protocol capabilities) are wired before that.
-     * The per-instance DI extras and capabilities come from the constructor
-     * options. Re-`create()` disposes the prior instance's focus installs first.
+     * Async because the engine-aware step awaits the lazy bpmnlint chunk before
+     * constructing bpmn-js. Re-`init()` disposes the prior instance's focus
+     * installs first.
      *
-     * @internal Migration-only two-step construction. The designed public API
-     *   takes the engine up front and returns a ready handle from an async
-     *   `createModeler` (#1375); #1376 collapses this second step into it.
-     *
-     * @param engine Camunda engine version — `"c7"` for Camunda Platform 7,
-     *   `"c8"` for Camunda Cloud 8.
+     * @internal Construction step invoked by {@link createModeler}; not part of
+     *   the designed public handle (#1375).
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
-    async create(engine: Engine): Promise<void> {
+    async init(): Promise<void> {
+        const engine = this.options.engine;
         this.disposeFocusFeatures();
 
         // Per-instance panel host, so id-coupled DI services (scriptEditorButtons)
         // observe this modeler's own panel instead of the first `#js-properties-panel`.
         const propertiesPanelRootModule = {
-            propertiesPanelRoot: ["value", this.options.propertiesPanelParent],
+            propertiesPanelRoot: ["value", this.options.propertiesPanel.parent],
         };
+        // TranslateModule is an opinionated built-in registered on every instance
+        // (the host-set locale is page-global), so the demo modeler gains
+        // translations too — intended.
         const commonModules = [
+            TranslateModule,
             TokenSimulationModule,
             ...(await this.buildLintModules(engine)),
             ElementTemplateChooserModule,
@@ -175,11 +188,11 @@ export class BpmnModeler {
         const clipModules = this.options.clipboard
             ? createClipboardModules({ element: this.options.clipboard.bridge })
             : [];
-        const extra = (this.options.extraModules as any[]) ?? [];
+        const extra = (this.options.additionalModules as any[]) ?? [];
 
         const modelerOptions = {
             container: this.container,
-            propertiesPanel: { parent: this.options.propertiesPanelParent },
+            propertiesPanel: { parent: this.options.propertiesPanel.parent },
             alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
         };
 
@@ -228,6 +241,28 @@ export class BpmnModeler {
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
             }
+        }
+
+        // Subscribe *before* the factory pushes the initial templates so the
+        // errors fired while the loader validates them are observed.
+        const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
+        if (onElementTemplatesErrors) {
+            this.getModeler().on("elementTemplates.errors", (event: any) => {
+                onElementTemplatesErrors(event.errors ?? []);
+            });
+        }
+
+        // The package-owned debounced content event: one full export per burst of
+        // model changes (300ms / 1000ms maxWait — the shape battle-tested in
+        // bootstrap). destroy() cancels a pending trailing export.
+        const onContentSaved = this.options.onContentSaved;
+        if (onContentSaved) {
+            this.contentSaved = asyncDebounce(
+                async () => onContentSaved({ xml: await this.exportDiagram() }),
+                300,
+                { maxWait: 1000 },
+            );
+            this.onCommandStackChanged(() => void this.contentSaved!());
         }
     }
 
@@ -345,7 +380,7 @@ export class BpmnModeler {
         // canvas clears the selection. Roots scope the guard to this instance.
         this.focusDisposers.push(
             installKeyboardFocus({
-                roots: [canvasContainer, this.options.propertiesPanelParent],
+                roots: [canvasContainer, this.options.propertiesPanel.parent],
                 handleGlobalEscape: this.options.handleGlobalEscape ?? false,
                 focusCanvas: () => canvas.focus(),
                 isCanvasFocused: () => canvas.isFocused(),
@@ -393,25 +428,13 @@ export class BpmnModeler {
      * A destroyed facade throws {@link NoModelerError} from every accessor.
      */
     destroy(): void {
+        this.contentSaved?.cancel();
         this.disposeFocusFeatures();
         this.modeler?.destroy();
         this.modeler = undefined;
         this._viewport = undefined;
         this._selection = undefined;
         this._rootElement = undefined;
-    }
-
-    /**
-     * Subscribes to the `elementTemplates.errors` event.
-     *
-     * @param cb Callback invoked with the array of template errors.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
-    onElementTemplatesErrors(cb: (errors: any) => void): void {
-        this.getModeler().on("elementTemplates.errors", (event: any) => {
-            const { errors } = event;
-            cb(errors);
-        });
     }
 
     /**
@@ -524,15 +547,13 @@ export class BpmnModeler {
     }
 
     /**
-     * Pushes a new set of element templates to the modeler's template loader.
+     * Pushes a new set of element templates (as data) to the modeler's template
+     * loader.
      *
-     * @param templates Array of element template objects, or `undefined` (no-op).
+     * @param templates Array of element template objects.
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
-    setElementTemplates(templates: JSON[] | undefined): void {
-        if (!templates) {
-            return;
-        }
+    setElementTemplates(templates: object[]): void {
         this.getModeler().get<any>("elementTemplatesLoader").setTemplates(templates);
     }
 
@@ -551,12 +572,10 @@ export class BpmnModeler {
         this.settings = { ...this.settings, ...settings };
 
         /**
-         * Apply color theme mode change immediately. Page-level theme state
-         * lives outside the facade (shared with the dmn-webview), so we call the
-         * host-provided sink rather than the module singleton directly.
+         * Apply color theme mode change immediately.
          */
         if (settings.colorTheme !== undefined) {
-            this.options.applyColorThemeMode?.(this.settings.colorTheme);
+            this.setTheme(this.settings.colorTheme);
         }
 
         /**
@@ -728,12 +747,13 @@ export class BpmnModeler {
     }
 
     /**
-     * Registers a sink for non-fatal warnings so the host can forward them to the
-     * output channel. Without it these only reached the webview console, invisible
-     * in a bug report.
+     * Switches the colour theme live. Page-level theme state is a module
+     * singleton shared with the dmn-webview (one `#theme-link`), so `"automatic"`
+     * follows the host's light/dark signal while `"light"`/`"dark"` force a fixed
+     * stylesheet.
      */
-    onWarning(sink: (message: string) => void): void {
-        this.onWarningSink = sink;
+    setTheme(theme: ThemeMode): void {
+        setColorThemeMode(theme);
     }
 
     /**
@@ -755,7 +775,7 @@ export class BpmnModeler {
 
     /**
      * Emits a non-fatal warning to the console (preserved for dev/tests) and, if
-     * a host sink is wired via {@link onWarning}, forwards it to the channel.
+     * a host sink is wired via the `onWarning` option, forwards it to the channel.
      */
     private warn(message: string): void {
         console.warn(message);
@@ -784,7 +804,7 @@ export class BpmnModeler {
     }
 
     /**
-     * @throws {NoModelerError} If {@link create} has not been called.
+     * @throws {NoModelerError} If {@link init} has not been called.
      */
     private getModeler(): Modeler {
         if (!this.modeler) {
@@ -795,7 +815,7 @@ export class BpmnModeler {
 }
 
 /**
- * Thrown by {@link BpmnModeler.create} when an unknown engine string is passed.
+ * Thrown by {@link BpmnModeler.init} when an unknown engine string is passed.
  */
 export class UnsupportedEngineError extends Error {
     /**

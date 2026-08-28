@@ -55,10 +55,12 @@ async function mount(
     // No host wiring: `linting` is omitted, so each pane lints in-page with the
     // engine-aware default config (the multi-instance proof — both panes lint
     // independently). handleGlobalEscape stays off so each instance only reacts
-    // to Escapes in its own subtrees. `create` is async now (it awaits the lazy
-    // lint chunk), so it must be awaited before loading the diagram.
-    const modeler = createModeler(container, { propertiesPanelParent });
-    await modeler.create(engine);
+    // to Escapes in its own subtrees. `createModeler` is async now (it awaits the
+    // lazy lint chunk and stands the modeler up), so it is awaited before loading.
+    const modeler = await createModeler(container, {
+        engine,
+        propertiesPanel: { parent: propertiesPanelParent },
+    });
     await modeler.loadDiagram(xml);
 }
 
