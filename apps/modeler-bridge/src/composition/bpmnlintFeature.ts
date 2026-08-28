@@ -17,7 +17,7 @@ import { RegisterParams, SessionHooks } from "./sessionHooks";
  * renders the in-canvas markers. When none is found it tells the webview to run
  * its own engine-aware default in-page (#1373 Phase B) and accepts the findings
  * back via {@link UpdateLintResultsCommand} — the same core behaviour as VS Code,
- * arriving here structurally (Phase C formally asserts it). It reuses the
+ * arriving here structurally. It reuses the
  * host-agnostic core stack ({@link BpmnLintConfigLocator} +
  * {@link BpmnLintConfigService} + {@link NodeBpmnLinter}) over the
  * Workspace/Settings/Document/StatusBar ports the bridge already implements — the

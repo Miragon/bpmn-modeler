@@ -13,6 +13,11 @@
  * `UpdateLintResultsCommand`. The temp dir has no `node_modules`, so the
  * workspace-config path resolves built-in and camunda-compat rules from the
  * bundled resolvers — the same path a workspace without `bpmnlint` installed hits.
+ *
+ * Phase C additionally asserts the mid-session transitions the `.bpmnlintrc`
+ * watcher drives: a config that *appears* takes the editor over to the host
+ * path (and drops a stale in-page push arriving after the flip), and a config
+ * that is *deleted* hands linting back to the webview's in-page default.
  */
 
 import { promises as fs } from "node:fs";
@@ -62,15 +67,24 @@ function registerParams(editorId: string, root: string, fsPath: string, content 
     };
 }
 
+/**
+ * Polls `frames` for the first entry (at or after `fromIndex`) matching
+ * `predicate`. `onPoll` runs each miss — the watcher-driven tests re-touch the
+ * `.bpmnlintrc` there, because fsevents can drop the first `add` after a
+ * freshly-armed chokidar watch.
+ */
 async function waitForFrame(
     frames: any[],
     predicate: (frame: any) => boolean,
     timeoutMs = 2000,
+    onPoll?: () => Promise<void> | void,
+    fromIndex = 0,
 ): Promise<any> {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
-        const match = frames.find(predicate);
+        const match = frames.slice(fromIndex).find(predicate);
         if (match) return match;
+        await onPoll?.();
         await new Promise((resolve) => setTimeout(resolve, 10));
     }
     throw new Error("waitForFrame timed out");
@@ -186,5 +200,69 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         );
 
         await waitForFrame(frames, isInPageResultsLog);
+    });
+
+    it("takes the editor over to the host path when a .bpmnlintrc appears mid-session", async () => {
+        // Start with no config: the editor is on the in-page path.
+        const { rpc, frames, root, editorId } = await setup();
+        await requestConfig(rpc, editorId);
+        await waitForFrame(frames, isInPageInstructionFrame);
+
+        // The watcher re-lints host-side the moment the config lands. fsevents
+        // can drop the first `add` after a fresh watch, so re-write inside the
+        // wait loop until the host results frame arrives.
+        const writeConfig = () =>
+            fs.writeFile(
+                join(root, ".bpmnlintrc"),
+                JSON.stringify({ extends: "bpmnlint:recommended" }),
+                "utf8",
+            );
+        await writeConfig();
+        const frame = await waitForFrame(frames, isLintResultsFrame, 5000, writeConfig);
+        expect(Object.keys(frame.params.message.results)).toContain("start-event-required");
+
+        // The takeover flipped the mode to "external" *before* the results push,
+        // so a webview in-page push arriving now is stale and must be dropped —
+        // no "in-page results" debug log should follow.
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "UpdateLintResultsCommand",
+                        results: {
+                            "start-event-required": [
+                                { id: "Process_1", message: "stale", category: "error" },
+                            ],
+                        },
+                        unresolved: [],
+                    },
+                },
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        expect(frames.find(isInPageResultsLog)).toBeUndefined();
+    });
+
+    it("hands linting back to the webview in-page when the .bpmnlintrc is deleted mid-session", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        const configPath = join(root, ".bpmnlintrc");
+        await fs.writeFile(configPath, JSON.stringify({ extends: "bpmnlint:recommended" }), "utf8");
+
+        await requestConfig(rpc, editorId);
+        await waitForFrame(frames, isLintResultsFrame);
+
+        // Only frames emitted *after* the deletion count — the deletion must
+        // produce a fresh in-page handback, not the pre-existing results frame.
+        const baseline = frames.length;
+        await fs.rm(configPath);
+        await waitForFrame(
+            frames,
+            (frame) => isInPageInstructionFrame(frame),
+            5000,
+            undefined,
+            baseline,
+        );
     });
 });
