@@ -46,7 +46,6 @@ import {
     UpdateScriptFormatQuery,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
-    asyncDebounce,
     createFlushResponder,
     createResolver,
     extractProcessVariables,
@@ -54,6 +53,7 @@ import {
 import {
     Engine,
     NoModelerError,
+    asyncDebounce,
     formatErrors,
     initResizer,
     initTheme,

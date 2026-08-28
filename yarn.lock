@@ -3768,11 +3768,9 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-shared@workspace:libs/shared"
   dependencies:
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@types/lodash": "npm:4.17.24"
     "@types/node": "npm:26.1.2"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.9"
-    lodash: "npm:4.18.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"
@@ -3840,7 +3838,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-types@workspace:libs/modeler-types"
   dependencies:
+    "@types/lodash": "npm:4.17.24"
     jsdom: "npm:30.0.1"
+    lodash: "npm:4.18.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.9"
   languageName: unknown

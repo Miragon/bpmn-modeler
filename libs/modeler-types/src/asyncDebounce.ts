@@ -50,38 +50,42 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
     // work already running — not just trip a pending timer.
     let inFlight: Promise<unknown> | undefined;
 
-    const debounced = debounce((args: Parameters<F>) => {
-        // Snapshot this generation's resolvers and hand the wrapper fresh sets
-        // *before* running `func`. A call landing during the async run must
-        // settle with the *next* result, not this one; sharing the sets let an
-        // older settle drain a newer scheduled call's resolvers — flipping
-        // `pending()` false while its timer was still armed and resolving it
-        // early with the stale value.
-        const runResolves = resolveSet;
-        const runRejects = rejectSet;
-        resolveSet = new Set<(p: unknown) => void>();
-        rejectSet = new Set<(p: unknown) => void>();
+    const debounced = debounce(
+        (args: Parameters<F>) => {
+            // Snapshot this generation's resolvers and hand the wrapper fresh sets
+            // *before* running `func`. A call landing during the async run must
+            // settle with the *next* result, not this one; sharing the sets let an
+            // older settle drain a newer scheduled call's resolvers — flipping
+            // `pending()` false while its timer was still armed and resolving it
+            // early with the stale value.
+            const runResolves = resolveSet;
+            const runRejects = rejectSet;
+            resolveSet = new Set<(p: unknown) => void>();
+            rejectSet = new Set<(p: unknown) => void>();
 
-        const run = func(...args);
-        inFlight = run;
-        const clearInFlight = (): void => {
-            // Guard against a newer invocation having replaced us: clearing
-            // unconditionally would strand the newer `inFlight` if an older
-            // call settled last. Cleared here (not in a trailing `.finally`) so
-            // `pending()` — which reads `inFlight` — flips false the moment this
-            // generation settles, not a microtask later.
-            if (inFlight === run) {
-                inFlight = undefined;
-            }
-        };
-        run.then((...res) => {
-            clearInFlight();
-            runResolves.forEach((resolve) => resolve(...res));
-        }).catch((...res) => {
-            clearInFlight();
-            runRejects.forEach((reject) => reject(...res));
-        });
-    }, wait, options);
+            const run = func(...args);
+            inFlight = run;
+            const clearInFlight = (): void => {
+                // Guard against a newer invocation having replaced us: clearing
+                // unconditionally would strand the newer `inFlight` if an older
+                // call settled last. Cleared here (not in a trailing `.finally`) so
+                // `pending()` — which reads `inFlight` — flips false the moment this
+                // generation settles, not a microtask later.
+                if (inFlight === run) {
+                    inFlight = undefined;
+                }
+            };
+            run.then((...res) => {
+                clearInFlight();
+                runResolves.forEach((resolve) => resolve(...res));
+            }).catch((...res) => {
+                clearInFlight();
+                runRejects.forEach((reject) => reject(...res));
+            });
+        },
+        wait,
+        options,
+    );
 
     const wrapper = (...args: Parameters<F>): ReturnType<F> =>
         new Promise((resolve, reject) => {

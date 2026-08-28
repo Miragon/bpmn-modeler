@@ -5,7 +5,6 @@ import { DiagramWarning } from "dmn-js/lib/Modeler";
 import "./styles.css";
 
 import {
-    asyncDebounce,
     Command,
     createFlushResponder,
     createResolver,
@@ -23,6 +22,7 @@ import {
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 import {
+    asyncDebounce,
     formatErrors,
     initResizer,
     initTheme,
