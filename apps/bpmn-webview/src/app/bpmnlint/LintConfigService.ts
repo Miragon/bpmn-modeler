@@ -147,6 +147,12 @@ export class LintConfigService {
 
     private readonly explicitConfig?: BpmnlintConfig;
 
+    // The config-version token of the last in-page instruction (#1384). Used to
+    // dedup a repeat covered instruction, but only while actually `"in-page"`:
+    // any disabled/external push in between leaves this stale, and the state
+    // guard below stops that stale token from dropping a genuine re-enable.
+    private lastConfigToken?: string;
+
     private results: LintResults = {};
 
     private toolbar?: HTMLElement;
@@ -199,17 +205,27 @@ export class LintConfigService {
      * No-ops when the user has disabled linting from the canvas — a host
      * instruction must never silently re-enable a user-disabled linter; the
      * chip's own click handler owns re-enable. Also no-ops when already in-page
-     * with no new config (a duplicate instruction). Precedence is unchanged:
-     * {@link applyLintResults}/{@link applyLintingDisabled} still hard-set
-     * `"external"`, so any host push still wins over this.
+     * with a duplicate instruction (no new config, or the same `configToken` as
+     * the live run — the host re-sends on panel re-activation and rebuilding the
+     * {@link BrowserLinter} would churn the lint chrome for nothing). The dedup
+     * is gated on `state === "in-page"` so a token left stale by an intervening
+     * disabled/external push can never drop a genuine re-enable. Precedence is
+     * unchanged: {@link applyLintResults}/{@link applyLintingDisabled} still
+     * hard-set `"external"`, so any host push still wins over this.
      */
-    startInPageLinting(config?: BpmnlintConfig): void {
+    startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
         if (this.state === "in-page-disabled") {
             return;
         }
-        if (this.state === "in-page" && this.browserLinter && config === undefined) {
-            return;
+        if (this.state === "in-page" && this.browserLinter) {
+            if (config === undefined) {
+                return;
+            }
+            if (configToken !== undefined && configToken === this.lastConfigToken) {
+                return;
+            }
         }
+        this.lastConfigToken = configToken;
         this.browserLinter = new BrowserLinter(this.engine, config ?? this.explicitConfig);
         this.state = "in-page";
         if (this.bpmnjs.getDefinitions()) {

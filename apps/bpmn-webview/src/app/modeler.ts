@@ -303,7 +303,7 @@ export class BpmnModeler {
      *
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
-    startInPageLinting(config?: BpmnlintConfig): void {
+    startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
         const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
         if (!service) {
             console.warn(
@@ -311,7 +311,7 @@ export class BpmnModeler {
             );
             return;
         }
-        service.startInPageLinting(config);
+        service.startInPageLinting(config, configToken);
     }
 
     /**

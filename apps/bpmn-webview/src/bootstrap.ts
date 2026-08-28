@@ -714,24 +714,16 @@ function startSession(
             case queryOrCommand.type === "BpmnlintInPageQuery": {
                 try {
                     const q = message.data as BpmnlintInPageQuery;
-                    // Dedup a repeat covered instruction (same config version): the
-                    // host re-sends on panel re-activation, and rebuilding the
-                    // BrowserLinter would churn the lint chrome for nothing. A
-                    // payload-free default (token undefined) always resets and
-                    // re-runs so a config→no-config transition takes effect.
-                    if (
-                        q.config &&
-                        q.configToken !== undefined &&
-                        q.configToken === currentLintConfigToken
-                    ) {
-                        break;
-                    }
+                    // The token stays current for the onLintResults echo. Dedup of
+                    // a repeat covered instruction now lives in LintConfigService,
+                    // where the tier state is known — a stale token from an
+                    // intervening disabled push can no longer drop a re-enable.
                     currentLintConfigToken = q.configToken;
                     // No workspace config → engine-aware default (#1373 Phase B);
                     // a covered config (#1384) → lint it in-page. Either way
                     // onLintResults pushes the findings back so the host feeds its
                     // Problems panel + status bar.
-                    bpmnModeler.startInPageLinting(q.config);
+                    bpmnModeler.startInPageLinting(q.config, q.configToken);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
