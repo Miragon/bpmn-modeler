@@ -13,11 +13,11 @@
     "tslib": "2.8.1"
   },
   "devDependencies": {
-    "@types/lodash": "4.17.24",
-    "@types/node": "26.1.2",
+    "@types/lodash": "4.17.25",
+    "@types/node": "26.2.0",
     "@types/vscode-webview": "1.57.5",
-    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/coverage-v8": "4.1.11",
     "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "vitest": "4.1.11"
   }
 }
