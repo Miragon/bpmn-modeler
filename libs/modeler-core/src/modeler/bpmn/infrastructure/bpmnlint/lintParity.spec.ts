@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { Engine, LintResults } from "@miragon/bpmn-modeler-types";
+import { BpmnlintConfig, Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { DefaultBpmnlintConfigService } from "../../service/DefaultBpmnlintConfigService";
 import { NodeBpmnLinter } from "./NodeBpmnLinter";
@@ -83,6 +83,30 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
 
         // The oversized task must actually trip a rule, else "parity" is vacuous.
         expect(Object.keys(nodeOut.results)).toContain("standard-size");
+
+        expect(browserOut.results as LintResults).toEqual(nodeOut.results);
+        expect(nodeOut.unresolved).toEqual([]);
+        expect(browserOut.unresolved).toEqual([]);
+    });
+
+    // #1384: a covered *workspace* config (a real `.bpmnlintrc`, not the
+    // zero-config default) that the bundled resolver can fully honour must lint
+    // identically host-side and in-page — so a user who edits `bpmnlint:recommended`
+    // into their config sees the exact same findings the host would have produced.
+    it("produces identical findings and no unresolved rules for a covered workspace config", async () => {
+        const config: BpmnlintConfig = { extends: "bpmnlint:recommended" };
+
+        const anchor = resolve(__dirname, ".bpmnlintrc");
+        const nodeOut = await new NodeBpmnLinter().lint(BPMN_XML, anchor, config);
+
+        const root = await parseModdleRoot(
+            BPMN_XML,
+            config.moddleExtensions as Record<string, unknown> | undefined,
+        );
+        const browserOut = await new BrowserLinter(PLATFORM, config).run(root);
+
+        // recommended flags the missing start event — else "parity" is vacuous.
+        expect(Object.keys(nodeOut.results)).toContain("start-event-required");
 
         expect(browserOut.results as LintResults).toEqual(nodeOut.results);
         expect(nodeOut.unresolved).toEqual([]);

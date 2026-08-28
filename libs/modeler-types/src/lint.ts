@@ -34,14 +34,56 @@ export type BpmnlintRuleConfig = BpmnlintRuleSeverity | readonly [BpmnlintRuleSe
  * import of bpmnlint's own types — so the published API surface does not leak a
  * transitive bpmnlint dependency. Unresolvable `extends`/`rules` degrade
  * gracefully at load and surface via {@link LintRunEvent.unresolved}.
- * Serializable when `moddleExtensions` is omitted or carries only string module
- * paths — so it can cross the webview↔host protocol as a plain data value; a
- * browser lint run reports unhonourable entries as `moddleExtension:<prefix>`.
+ * Serializable across the webview↔host protocol when `moddleExtensions` is
+ * omitted or carries only object-valued entries decoded from JSON — a
+ * string-valued entry is a Node-only module path, so it never crosses the wire:
+ * it makes {@link staticUnresolvedModdleExtensions} non-empty and escalates the
+ * session to the host linter before any config would be pushed. A browser lint
+ * run reports unhonourable entries as `moddleExtension:<prefix>`.
  */
 export interface BpmnlintConfig {
     readonly extends?: string | readonly string[];
     readonly rules?: Readonly<Record<string, BpmnlintRuleConfig>>;
     readonly moddleExtensions?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * The moddle prefixes the live bpmn-js tree already registers. The webview lints
+ * the in-memory definitions (not re-parsed XML), so any `moddleExtensions` entry
+ * targeting one of these is already satisfied — the typed properties the rules
+ * inspect are present on the tree. Everything else cannot be honoured in a
+ * browser (no `require`), so it is reported, never loaded.
+ */
+const LIVE_MODDLE_PREFIXES = new Set(["bpmn", "bpmndi", "dc", "di", "camunda", "zeebe", "modeler"]);
+
+/**
+ * The `moddleExtensions` a browser lint run cannot honour, in the same
+ * `moddleExtension:<prefix>` form the Node linter reports. A string value is a
+ * module path only Node can `require`; an object value is only usable when its
+ * prefix is one the live tree already registers (otherwise its typed properties
+ * were never parsed onto the model). Everything unhonourable is returned so it
+ * can be merged into the run's `unresolved` list — informational, never fatal.
+ *
+ * Shared verbatim by the webview (merged into every in-page run's `unresolved`)
+ * and the host ({@link BpmnLintConfigService} escalates to the Node linter
+ * without a round trip whenever this returns non-empty). Identical logic on both
+ * sides *is* the parity guarantee — the engine-blind `zeebe`/`camunda` and
+ * possibly-unregistered `modeler` caveats are intentional and must stay in sync.
+ */
+export function staticUnresolvedModdleExtensions(config: BpmnlintConfig): string[] {
+    const declared = config.moddleExtensions;
+    if (!declared || typeof declared !== "object") {
+        return [];
+    }
+    const unresolved: string[] = [];
+    for (const [prefix, value] of Object.entries(declared)) {
+        const honoured =
+            value != null && typeof value === "object" && LIVE_MODDLE_PREFIXES.has(prefix);
+        if (!honoured) {
+            unresolved.push(`moddleExtension:${prefix}`);
+        }
+    }
+    return unresolved;
 }
 
 /**

@@ -132,7 +132,7 @@ export function getPropertiesPanelStateHandler(
 export function updateLintResultsHandler(lintSvc: BpmnLintConfigService): MessageHandler {
     return (message: Command, editorId: string) => {
         const cmd = message as UpdateLintResultsCommand;
-        lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved);
+        lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved, cmd.configToken);
     };
 }
 

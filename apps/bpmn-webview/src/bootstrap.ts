@@ -15,6 +15,7 @@ import {
     FlushDocumentQuery,
     FocusElementQuery,
     GetBpmnFileCommand,
+    BpmnlintInPageQuery,
     GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
@@ -136,6 +137,18 @@ function startSession(
     // A FocusElementQuery can arrive before the import finishes (host opens the
     // editor and focuses in one tick); apply it once the modeler is ready.
     let pendingFocusId: string | undefined;
+
+    // The opaque config-version token from the host's last BpmnlintInPageQuery
+    // (#1384), echoed back on every UpdateLintResultsCommand so the host can pair
+    // a run with the config version it linted and drop a stale run. `undefined`
+    // for the payload-free #1373 default tier (and reset to it on config→no-config).
+    //
+    // Pairing is race-free without any per-run plumbing: BrowserLinter.run is a
+    // pure microtask chain (bpmnlint over the in-memory tree, no I/O), so it
+    // drains to its onLintResults synchronously-after-await, before the next host
+    // message can be delivered as a fresh macrotask and swap this closure. So the
+    // token read here always belongs to the config that drove this very run.
+    let currentLintConfigToken: string | undefined;
 
     // Separate resolvers for element clipboard and text (label) clipboard.
     let elementClipboardResolver = createResolver<ClipboardQuery>();
@@ -427,7 +440,13 @@ function startSession(
             onLintResults:
                 injectedOnLintResults ??
                 ((e: LintRunEvent) =>
-                    host.postMessage(new UpdateLintResultsCommand(e.results, [...e.unresolved]))),
+                    host.postMessage(
+                        new UpdateLintResultsCommand(
+                            e.results,
+                            [...e.unresolved],
+                            currentLintConfigToken,
+                        ),
+                    )),
             onLintingToggled: (enabled: boolean) =>
                 host.postMessage(new SetLintingEnabledCommand(enabled)),
             applyColorThemeMode: setColorThemeMode,
@@ -694,10 +713,25 @@ function startSession(
             }
             case queryOrCommand.type === "BpmnlintInPageQuery": {
                 try {
-                    // No workspace config: run our own default in-page (#1373
-                    // Phase B). onLintResults then pushes the findings back so the
-                    // host feeds its Problems panel + status bar.
-                    bpmnModeler.startInPageLinting();
+                    const q = message.data as BpmnlintInPageQuery;
+                    // Dedup a repeat covered instruction (same config version): the
+                    // host re-sends on panel re-activation, and rebuilding the
+                    // BrowserLinter would churn the lint chrome for nothing. A
+                    // payload-free default (token undefined) always resets and
+                    // re-runs so a config→no-config transition takes effect.
+                    if (
+                        q.config &&
+                        q.configToken !== undefined &&
+                        q.configToken === currentLintConfigToken
+                    ) {
+                        break;
+                    }
+                    currentLintConfigToken = q.configToken;
+                    // No workspace config → engine-aware default (#1373 Phase B);
+                    // a covered config (#1384) → lint it in-page. Either way
+                    // onLintResults pushes the findings back so the host feeds its
+                    // Problems panel + status bar.
+                    bpmnModeler.startInPageLinting(q.config);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }

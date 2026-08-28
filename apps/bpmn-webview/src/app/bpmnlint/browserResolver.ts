@@ -1,5 +1,10 @@
-import type { BpmnlintConfig } from "@miragon/bpmn-modeler-types";
+import { staticUnresolvedModdleExtensions } from "@miragon/bpmn-modeler-types";
 import { createBundledResolver, type Resolver } from "@miragon/bpmnlint-plugin-rules";
+
+// Re-exported so `browserLinter.ts` and `browserResolver.spec.ts` keep importing
+// it from here; the implementation moved to modeler-types so the host's
+// escalation pre-check shares the exact same logic (#1384).
+export { staticUnresolvedModdleExtensions };
 
 /**
  * A bpmnlint rule that reports nothing. Substituted for a rule/config the bundled
@@ -13,15 +18,6 @@ const NOOP_RULE = () => ({ check: () => undefined });
 
 /** An empty shareable config — the `resolveConfig` fallback for a missing plugin config. */
 const NOOP_CONFIG = { rules: {} };
-
-/**
- * The moddle prefixes the live bpmn-js tree already registers. The webview lints
- * the in-memory definitions (not re-parsed XML), so any `moddleExtensions` entry
- * targeting one of these is already satisfied — the typed properties the rules
- * inspect are present on the tree. Everything else cannot be honoured in a
- * browser (no `require`), so it is reported, never loaded.
- */
-const LIVE_MODDLE_PREFIXES = new Set(["bpmn", "bpmndi", "dc", "di", "camunda", "zeebe", "modeler"]);
 
 /**
  * Wraps `@miragon/bpmnlint-plugin-rules`' bundled resolver (bpmnlint built-ins +
@@ -76,28 +72,4 @@ export class RecordingBrowserResolver implements Resolver {
             return undefined;
         }
     }
-}
-
-/**
- * The `moddleExtensions` a browser lint run cannot honour, in the same
- * `moddleExtension:<prefix>` form the Node linter reports. A string value is a
- * module path only Node can `require`; an object value is only usable when its
- * prefix is one the live tree already registers (otherwise its typed properties
- * were never parsed onto the model). Everything unhonourable is returned so it
- * can be merged into the run's `unresolved` list — informational, never fatal.
- */
-export function staticUnresolvedModdleExtensions(config: BpmnlintConfig): string[] {
-    const declared = config.moddleExtensions;
-    if (!declared || typeof declared !== "object") {
-        return [];
-    }
-    const unresolved: string[] = [];
-    for (const [prefix, value] of Object.entries(declared)) {
-        const honoured =
-            value != null && typeof value === "object" && LIVE_MODDLE_PREFIXES.has(prefix);
-        if (!honoured) {
-            unresolved.push(`moddleExtension:${prefix}`);
-        }
-    }
-    return unresolved;
 }

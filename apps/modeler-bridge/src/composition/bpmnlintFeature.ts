@@ -11,13 +11,15 @@ import { RegisterParams, SessionHooks } from "./sessionHooks";
 
 /**
  * The bpmnlint feature discovers the nearest `.bpmnlintrc` for an open BPMN
- * document. When one is found it runs bpmnlint in the bridge (a full Bun/Node
- * context, so custom `bpmnlint-plugin-*` rules resolve against the workspace
- * exactly like in VS Code) and pushes the findings to the webview, which only
- * renders the in-canvas markers. When none is found it tells the webview to run
- * its own engine-aware default in-page (#1373 Phase B) and accepts the findings
- * back via {@link UpdateLintResultsCommand} — the same core behaviour as VS Code,
- * arriving here structurally. It reuses the
+ * document and drives the shared three-tier policy in {@link BpmnLintConfigService}:
+ * no config → the webview's engine-aware default in-page (#1373 Phase B); a
+ * config the bundled resolver covers → the webview lints it in-page against the
+ * pushed config (#1384); a config it cannot cover → the bridge runs bpmnlint in
+ * a full Bun/Node context (so custom `bpmnlint-plugin-*` rules resolve against
+ * the workspace exactly like in VS Code) and pushes the findings to the webview,
+ * which only renders the in-canvas markers. In-page runs come back via
+ * {@link UpdateLintResultsCommand} — the same core behaviour as VS Code, arriving
+ * here structurally. It reuses the
  * host-agnostic core stack ({@link BpmnLintConfigLocator} +
  * {@link BpmnLintConfigService} + {@link NodeBpmnLinter}) over the
  * Workspace/Settings/Document/StatusBar ports the bridge already implements — the
@@ -52,7 +54,7 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     // has flipped the editor to the external path.
     deps.router.on("UpdateLintResultsCommand", (message: Command, editorId: string) => {
         const cmd = message as UpdateLintResultsCommand;
-        lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved);
+        lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved, cmd.configToken);
     });
 
     // Per-editor `.bpmnlintrc` watcher so edits to the rules re-lint the open
@@ -74,6 +76,10 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
             onSessionDisposed: (editorId: string) => {
                 watchers.get(editorId)?.forEach((disposable) => disposable.dispose());
                 watchers.delete(editorId);
+                // Also frees the service's per-editor mode/cache/negotiation maps
+                // (a pre-existing leak — nothing evicted them before) alongside
+                // the watcher.
+                lintSvc.clearDiagnostics(editorId);
                 deps.statusBar.hideBpmnlintStatus();
             },
         },

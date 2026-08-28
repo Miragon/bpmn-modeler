@@ -3,10 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // The tier state machine is the unit under test; the actual browser lint run is
 // mocked so these tests never spin up bpmnlint. `runMock` is hoisted so the
 // `vi.mock` factory (itself hoisted) can close over it.
-const { runMock } = vi.hoisted(() => ({ runMock: vi.fn() }));
+const { runMock, ctorMock } = vi.hoisted(() => ({ runMock: vi.fn(), ctorMock: vi.fn() }));
 vi.mock("./browserLinter", () => ({
-    // A class (not an arrow) so `new BrowserLinter()` constructs.
+    // A class (not an arrow) so `new BrowserLinter()` constructs. `ctorMock`
+    // records the (engine, config) args so a test can assert the handed-back
+    // config reaches the linter (#1384).
     BrowserLinter: class {
+        constructor(...args: unknown[]) {
+            ctorMock(...args);
+        }
         run = runMock;
     },
 }));
@@ -210,6 +215,17 @@ describe("LintConfigService: startInPageLinting (host handback)", () => {
         expect(runMock).toHaveBeenCalled();
         expect(onLintResults).toHaveBeenCalledWith(LINT_EVENT);
         expect(returned).toEqual(LINT_EVENT.results);
+    });
+
+    it("builds the browser linter with the handed-back workspace config (#1384)", () => {
+        ctorMock.mockClear();
+        const { service } = makeService({ tier: "external", imported: true });
+        const config = { extends: "bpmnlint:recommended" };
+
+        service.startInPageLinting(config);
+
+        // The covered workspace config the host pushed is linted, not the default.
+        expect(ctorMock).toHaveBeenLastCalledWith("c7", config);
     });
 
     it("defers activation to import.done when no diagram is imported yet", () => {
