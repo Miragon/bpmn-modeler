@@ -39,6 +39,7 @@ import {
     SyncActivitiesCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
+    UpdateLintResultsCommand,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
@@ -418,7 +419,15 @@ function startSession(
             extraModules,
             capabilities,
             linting: injectedLinting ?? { results: "external" },
-            onLintResults: injectedOnLintResults,
+            // A real host activates in-page linting only after it answers the
+            // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
+            // config, #1373 Phase B); the webview then pushes its findings back
+            // so the host feeds its Problems panel + status bar. `??` keeps the
+            // demo's injected sink authoritative when one is supplied.
+            onLintResults:
+                injectedOnLintResults ??
+                ((e: LintRunEvent) =>
+                    host.postMessage(new UpdateLintResultsCommand(e.results, [...e.unresolved]))),
             onLintingToggled: (enabled: boolean) =>
                 host.postMessage(new SetLintingEnabledCommand(enabled)),
             applyColorThemeMode: setColorThemeMode,
@@ -678,6 +687,17 @@ function startSession(
             case queryOrCommand.type === "BpmnLintDisabledQuery": {
                 try {
                     bpmnModeler.applyLintingDisabled();
+                } catch (error: any) {
+                    host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                }
+                break;
+            }
+            case queryOrCommand.type === "BpmnlintInPageQuery": {
+                try {
+                    // No workspace config: run our own default in-page (#1373
+                    // Phase B). onLintResults then pushes the findings back so the
+                    // host feeds its Problems panel + status bar.
+                    bpmnModeler.startInPageLinting();
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }

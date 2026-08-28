@@ -11,7 +11,6 @@ import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigLocator } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
-import { DefaultBpmnlintConfigService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
@@ -44,6 +43,7 @@ import {
     getPropertiesPanelStateHandler,
     setPropertiesPanelStateHandler,
     setLintingEnabledHandler,
+    updateLintResultsHandler,
     getClipboardHandler,
     setClipboardHandler,
     getTextClipboardHandler,
@@ -138,7 +138,6 @@ export function register(
         new VsCodeDiagnostics(FOCUS_LINT_ELEMENT_CMD),
         deps.statusBar,
         deps.notifier,
-        new DefaultBpmnlintConfigService(),
         deps.vsSettings,
     );
     const clipboardMediator = new BpmnClipboardMediator(
@@ -194,6 +193,7 @@ export function register(
         .on("GetBpmnModelerSettingCommand", getBpmnModelerSettingHandler(settingsBroadcaster))
         .on("GetBpmnModelerSettingCommand", resyncScriptTasksHandler(scriptTaskSvc))
         .on("SetLintingEnabledCommand", setLintingEnabledHandler())
+        .on("UpdateLintResultsCommand", updateLintResultsHandler(lintConfigSvc))
         .on("GetPropertiesPanelStateCommand", getPropertiesPanelStateHandler(panelSvc))
         .on("SetPropertiesPanelStateCommand", setPropertiesPanelStateHandler(panelSvc))
         .on("GetClipboardCommand", getClipboardHandler(clipboardMediator))

@@ -6,11 +6,13 @@
  * temp filesystem, so the `BpmnLintConfigLocator` + `BpmnLintConfigService` +
  * `NodeBpmnLinter` do an actual nearest-`.bpmnlintrc` walk and run bpmnlint.
  * Covers the two branches the webview's `GetBpmnlintConfigCommand` exposes: a
- * discovered config is linted and the findings pushed as `BpmnlintResultsQuery`,
- * and no config falls back to the bundled default (#1327) rather than deactivating.
- * The temp dir has no `node_modules`, so built-in and camunda-compat rules resolve
- * from the bundled resolvers — the same path a workspace without `bpmnlint`
- * installed hits.
+ * discovered config is linted host-side and the findings pushed as
+ * `BpmnlintResultsQuery`, and no config hands linting to the webview's in-page
+ * default (#1373 Phase B) — the bridge posts a `BpmnlintInPageQuery` instead of
+ * linting host-side, then accepts the webview's own findings back through
+ * `UpdateLintResultsCommand`. The temp dir has no `node_modules`, so the
+ * workspace-config path resolves built-in and camunda-compat rules from the
+ * bundled resolvers — the same path a workspace without `bpmnlint` installed hits.
  */
 
 import { promises as fs } from "node:fs";
@@ -77,6 +79,14 @@ async function waitForFrame(
 const isLintResultsFrame = (frame: any): boolean =>
     frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintResultsQuery";
 
+const isInPageInstructionFrame = (frame: any): boolean =>
+    frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintInPageQuery";
+
+const isInPageResultsLog = (frame: any): boolean =>
+    frame.method === "notifier/log" &&
+    typeof frame.params?.message === "string" &&
+    frame.params.message.includes("in-page results");
+
 describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     const cleanups: Array<() => Promise<void> | void> = [];
 
@@ -134,25 +144,47 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         expect(Object.keys(results)).toContain("start-event-required");
     });
 
-    it("lints against the bundled default when no .bpmnlintrc exists", async () => {
+    it("hands linting to the webview in-page (no host lint) when no .bpmnlintrc exists", async () => {
         const { rpc, frames, editorId } = await setup();
 
         await requestConfig(rpc, editorId);
 
-        const frame = await waitForFrame(frames, isLintResultsFrame);
-        const results = frame.params.message.results;
-        expect(results).not.toBeNull();
-        expect(Object.keys(results)).toContain("start-event-required");
+        // The bridge tells the webview to run its own default rather than linting
+        // host-side, so it posts a BpmnlintInPageQuery and never a results query.
+        await waitForFrame(frames, isInPageInstructionFrame);
+        expect(frames.find(isLintResultsFrame)).toBeUndefined();
     });
 
-    it("enforces the miragon standard-size layer through the bundled default", async () => {
+    it("accepts the webview's in-page findings back over UpdateLintResultsCommand", async () => {
+        // Rule coverage for the bundled default now lives in the AC5 parity spec;
+        // here we prove the webview→host results command is wired: after the
+        // no-config in-page handback, a pushed UpdateLintResultsCommand is
+        // accepted and applied (the debug log confirms the round-trip). The
+        // bridge has no Problems panel / status bar, so the log is the only
+        // observable effect.
         const { rpc, frames, editorId } = await setup(BPMN_XML_OVERSIZED);
 
         await requestConfig(rpc, editorId);
+        await waitForFrame(frames, isInPageInstructionFrame);
 
-        const frame = await waitForFrame(frames, isLintResultsFrame);
-        const results = frame.params.message.results;
-        expect(results).not.toBeNull();
-        expect(Object.keys(results)).toContain("standard-size");
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "UpdateLintResultsCommand",
+                        results: {
+                            "standard-size": [
+                                { id: "Task_1", message: "Task too large", category: "warn" },
+                            ],
+                        },
+                        unresolved: [],
+                    },
+                },
+            }),
+        );
+
+        await waitForFrame(frames, isInPageResultsLog);
     });
 });

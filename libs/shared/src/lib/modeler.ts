@@ -9,6 +9,7 @@
  * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
  * - {@link BpmnlintResultsQuery}          — deliver host-computed bpmnlint results (or null to deactivate)
+ * - {@link BpmnlintInPageQuery}           — tell the webview to run its in-page default linter (no workspace config)
  * - {@link BpmnModelerSettingQuery}       — deliver modeler settings (e.g. alignToOrigin)
  * - {@link DmnModelerSettingQuery}         — deliver DMN modeler settings (colorTheme only)
  * - {@link PropertiesPanelStateQuery}     — deliver the global default visibility of the properties panel
@@ -26,6 +27,7 @@
  * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
  * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
  * - {@link SetPropertiesPanelStateCommand}    — report a user toggle so the host can update the global default
+ * - {@link UpdateLintResultsCommand}          — push the webview's own in-page lint findings back to the host
  * - {@link GetClipboardCommand}               — request clipboard text from the host
  * - {@link SetClipboardCommand}               — ask the host to write text to the clipboard
  * - {@link GetDiagramAsSVGCommand}            — request an SVG export of the current diagram
@@ -132,6 +134,26 @@ export class BpmnlintResultsQuery extends Query {
 export class BpmnLintDisabledQuery extends Query {
     constructor() {
         super("BpmnLintDisabledQuery");
+    }
+}
+
+/**
+ * Tells the webview to run its **own in-page default** linter because the host
+ * found no workspace `.bpmnlintrc` (#1373 Phase B). Carries no payload: the
+ * webview's {@link BrowserLinter} derives the engine-aware zero-config default
+ * from the live modeler itself, so nothing has to travel. The webview then
+ * pushes its findings back through {@link UpdateLintResultsCommand}.
+ *
+ * This replaces the previous no-config behaviour where the host lint against a
+ * bundled default and pushed a {@link BpmnlintResultsQuery}. A workspace-config
+ * session still lints host-side and pushes results, and any such push wins:
+ * {@link BpmnlintResultsQuery} / {@link BpmnLintDisabledQuery} switch the webview
+ * back to the external tier and supersede an in-page run. A later refinement
+ * (#1384) may add an optional `config` here to escalate the in-page ruleset.
+ */
+export class BpmnlintInPageQuery extends Query {
+    constructor() {
+        super("BpmnlintInPageQuery");
     }
 }
 
@@ -417,6 +439,28 @@ export class SetLintingEnabledCommand extends Command {
     constructor(enabled: boolean) {
         super("SetLintingEnabledCommand");
         this.enabled = enabled;
+    }
+}
+
+/**
+ * Sent by the BPMN webview after every **in-page** lint pass (the #1373 Phase B
+ * default path) so the host can feed its own chrome — the VS Code Problems panel
+ * and status bar — from results the webview computed. Only fired when the host
+ * activated in-page linting via {@link BpmnlintInPageQuery}; a workspace-config
+ * session lints host-side instead and never receives this. `unresolved` carries
+ * the rules the browser resolver could not honour (informational, never fatal).
+ * Hosts without a Problems surface (the IntelliJ bridge) accept it and update
+ * whatever chrome they have.
+ */
+export class UpdateLintResultsCommand extends Command {
+    public readonly results: LintResults;
+
+    public readonly unresolved: readonly string[];
+
+    constructor(results: LintResults, unresolved: readonly string[]) {
+        super("UpdateLintResultsCommand");
+        this.results = results;
+        this.unresolved = unresolved;
     }
 }
 

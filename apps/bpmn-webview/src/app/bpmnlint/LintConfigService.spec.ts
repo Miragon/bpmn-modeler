@@ -188,6 +188,74 @@ describe("LintConfigService: precedence (any push wins)", () => {
     });
 });
 
+describe("LintConfigService: startInPageLinting (host handback)", () => {
+    it("switches an external instance to in-page, activating and emitting on the next run", async () => {
+        const onLintResults = vi.fn();
+        const { service, linting, canvas } = makeService({
+            tier: "external",
+            imported: true,
+            callbacks: { onLintResults },
+        });
+        expect(linting.isActive()).toBe(false);
+
+        service.startInPageLinting();
+
+        // A diagram is already imported, so it activates immediately.
+        expect(linting.isActive()).toBe(true);
+        expect(canvas.getContainer().classList.contains("bpmnlint-active")).toBe(true);
+        expect(canvas.getContainer().querySelector(".lint-off-button")).not.toBeNull();
+
+        // Now on the in-page path: a relint runs the browser linter and echoes.
+        const returned = await linting.lint();
+        expect(runMock).toHaveBeenCalled();
+        expect(onLintResults).toHaveBeenCalledWith(LINT_EVENT);
+        expect(returned).toEqual(LINT_EVENT.results);
+    });
+
+    it("defers activation to import.done when no diagram is imported yet", () => {
+        const { service, linting, bus } = makeService({ tier: "external", imported: false });
+
+        service.startInPageLinting();
+        expect(linting.isActive()).toBe(false);
+
+        bus.fire("import.done");
+        expect(linting.isActive()).toBe(true);
+    });
+
+    it("no-ops when the user has disabled linting from the canvas", async () => {
+        const { service, canvas, bus, linting } = makeService({ tier: "in-page" });
+        bus.fire("import.done");
+        clickOffButton(canvas.getContainer());
+        expect(linting.isActive()).toBe(false);
+        linting.toggle.mockClear();
+
+        // A host instruction must never silently re-enable a user-disabled linter.
+        service.startInPageLinting();
+
+        expect(linting.isActive()).toBe(false);
+        expect(linting.toggle).not.toHaveBeenCalled();
+        expect(canvas.getContainer().querySelector(".lint-disabled-chip")).not.toBeNull();
+        await expect(linting.lint()).resolves.toEqual({});
+    });
+
+    it("still lets a later external push win over the in-page handback", async () => {
+        const onLintResults = vi.fn();
+        const { service, linting } = makeService({
+            tier: "external",
+            imported: true,
+            callbacks: { onLintResults },
+        });
+        service.startInPageLinting();
+        onLintResults.mockClear();
+
+        const pushed = { "rule-y": [{ id: "B", message: "y", category: "error" }] };
+        service.applyLintResults(pushed);
+
+        await expect(linting.lint()).resolves.toEqual(pushed);
+        expect(onLintResults).not.toHaveBeenCalled();
+    });
+});
+
 describe("LintConfigService: toggle matrix", () => {
     it("in-page off-button disables optimistically and reports the toggle", async () => {
         const onLintingToggled = vi.fn();

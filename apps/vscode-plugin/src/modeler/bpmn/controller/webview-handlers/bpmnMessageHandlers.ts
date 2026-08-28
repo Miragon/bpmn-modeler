@@ -10,6 +10,7 @@ import {
     SetTextClipboardCommand,
     SyncActivitiesCommand,
     SyncDocumentCommand,
+    UpdateLintResultsCommand,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -119,6 +120,19 @@ export function getPropertiesPanelStateHandler(
 ): MessageHandler {
     return (_message: Command, editorId: string) => {
         panelSvc.sendPropertiesPanelState(editorId);
+    };
+}
+
+/**
+ * `UpdateLintResultsCommand` → feed the host's Problems panel + status bar from
+ * findings the webview computed in its in-page default run (#1373 Phase B). The
+ * service ignores the push when the editor is no longer on the in-page path (a
+ * workspace-config takeover) or when linting is disabled.
+ */
+export function updateLintResultsHandler(lintSvc: BpmnLintConfigService): MessageHandler {
+    return (message: Command, editorId: string) => {
+        const cmd = message as UpdateLintResultsCommand;
+        lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved);
     };
 }
 

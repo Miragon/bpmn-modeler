@@ -5,10 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // still resolve under vitest.
 vi.mock("vscode", () => ({}));
 
-import { BpmnLintDisabledQuery, BpmnlintResultsQuery } from "@miragon/bpmn-modeler-shared";
+import {
+    BpmnLintDisabledQuery,
+    BpmnlintInPageQuery,
+    BpmnlintResultsQuery,
+} from "@miragon/bpmn-modeler-shared";
 
 import { BpmnLintConfigService } from "./BpmnLintConfigService";
-import { DefaultBpmnlintConfigService } from "./DefaultBpmnlintConfigService";
 
 const EDITOR = "file:///work/diagram.bpmn";
 // No platform markers → detectPlatform() throws → structural-only default.
@@ -20,7 +23,10 @@ const RESULTS = {
 };
 
 function createService() {
-    const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
+    const editorStore = {
+        postMessage: vi.fn().mockResolvedValue(true),
+        getActiveEditorId: vi.fn().mockReturnValue(EDITOR),
+    };
     const vsDocument = {
         getFilePath: vi.fn().mockReturnValue(EDITOR),
         getContent: vi.fn().mockReturnValue(XML),
@@ -59,8 +65,6 @@ function createService() {
         diagnostics as never,
         statusBar as never,
         notifier as never,
-        // The real builder: the c7/c8 cases assert the exact layered config it emits.
-        new DefaultBpmnlintConfigService(),
         settings as never,
     );
 
@@ -77,11 +81,20 @@ function createService() {
     };
 }
 
+/** True when no `BpmnlintResultsQuery` was ever posted (the in-page path must not push one). */
+function noResultsQueryPosted(editorStore: {
+    postMessage: { mock: { calls: unknown[][] } };
+}): boolean {
+    return editorStore.postMessage.mock.calls.every(
+        (call) => (call[1] as { type: string }).type !== "BpmnlintResultsQuery",
+    );
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
 });
 
-describe("BpmnLintConfigService.setBpmnlintConfig", () => {
+describe("BpmnLintConfigService.setBpmnlintConfig — workspace config (external)", () => {
     it("lints the document and posts the results with the active status when a config is found", async () => {
         const { service, editorStore, locator, lintRunner, diagnostics, statusBar, notifier } =
             createService();
@@ -100,37 +113,10 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(statusBar.showBpmnlintActive).toHaveBeenCalledWith("/work/.bpmnlintrc");
         expect(statusBar.showBpmnlintUnresolved).not.toHaveBeenCalled();
         expect(notifier.logInfo).toHaveBeenCalledWith("bpmnlint applied from /work/.bpmnlintrc");
+        expect(service.getLintMode(EDITOR)).toBe("external");
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintResultsQuery;
         expect(msg.type).toBe("BpmnlintResultsQuery");
         expect(msg.results).toEqual(RESULTS);
-    });
-
-    it("skips linting and pushes the disabled state when linting is turned off", async () => {
-        const { service, editorStore, locator, lintRunner, diagnostics, statusBar, settings } =
-            createService();
-        settings.getLintingEnabled.mockReturnValue(false);
-
-        const result = await service.setBpmnlintConfig(EDITOR);
-
-        expect(result).toBe(true);
-        // The gate short-circuits before any config discovery or lint run.
-        expect(locator.findNearestConfig).not.toHaveBeenCalled();
-        expect(lintRunner.lint).not.toHaveBeenCalled();
-        expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
-        expect(statusBar.showBpmnlintDisabled).toHaveBeenCalledOnce();
-        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnLintDisabledQuery;
-        expect(msg.type).toBe("BpmnLintDisabledQuery");
-    });
-
-    it("leaves the status bar untouched when disabled and reflectInStatusBar is false", async () => {
-        const { service, editorStore, statusBar, settings } = createService();
-        settings.getLintingEnabled.mockReturnValue(false);
-
-        await service.setBpmnlintConfig(EDITOR, false);
-
-        expect(statusBar.showBpmnlintDisabled).not.toHaveBeenCalled();
-        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnLintDisabledQuery;
-        expect(msg.type).toBe("BpmnLintDisabledQuery");
     });
 
     it("shows the unresolved status and warns when rules could not be resolved", async () => {
@@ -146,62 +132,6 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         ]);
         expect(statusBar.showBpmnlintActive).not.toHaveBeenCalled();
         expect(notifier.logWarning).toHaveBeenCalledWith(expect.stringContaining("custom/x"));
-    });
-
-    it("lints against the bundled default (structural only) for a platform-less file when no config is found", async () => {
-        const { service, editorStore, locator, lintRunner, diagnostics, statusBar } =
-            createService();
-        locator.findNearestConfig.mockResolvedValue(undefined);
-
-        const result = await service.setBpmnlintConfig(EDITOR);
-
-        expect(result).toBe(true);
-        expect(lintRunner.lint).toHaveBeenCalledWith(XML, EDITOR, {
-            extends: ["bpmnlint:recommended", "plugin:@miragon/rules/recommended-for-modeling"],
-        });
-        expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
-        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
-        expect(statusBar.showBpmnlintNoConfig).not.toHaveBeenCalled();
-        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintResultsQuery;
-        expect(msg.results).toEqual(RESULTS);
-    });
-
-    it("adds the C7 engine layer to the default when the document targets Camunda 7", async () => {
-        const { service, locator, lintRunner, statusBar, vsDocument } = createService();
-        locator.findNearestConfig.mockResolvedValue(undefined);
-        vsDocument.getContent.mockReturnValue(XML_C7);
-
-        await service.setBpmnlintConfig(EDITOR);
-
-        const [xml, anchor, config] = lintRunner.lint.mock.calls[0];
-        expect(xml).toBe(XML_C7);
-        expect(anchor).toBe(EDITOR);
-        expect((config as { extends: string[] }).extends).toEqual([
-            "bpmnlint:recommended",
-            "plugin:@miragon/rules/recommended-for-modeling",
-            "plugin:camunda-compat/camunda-platform-7-24",
-        ]);
-        expect((config as { moddleExtensions: Record<string, unknown> }).moddleExtensions).toEqual({
-            camunda: expect.anything(),
-        });
-        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith("c7");
-    });
-
-    it("adds the C8 engine layer to the default when the document targets Camunda 8", async () => {
-        const { service, locator, lintRunner, statusBar, vsDocument } = createService();
-        locator.findNearestConfig.mockResolvedValue(undefined);
-        vsDocument.getContent.mockReturnValue(XML_C8);
-
-        await service.setBpmnlintConfig(EDITOR);
-
-        const [, , config] = lintRunner.lint.mock.calls[0];
-        expect((config as { extends: string[] }).extends).toContain(
-            "plugin:camunda-compat/camunda-cloud-8-10",
-        );
-        expect((config as { moddleExtensions: Record<string, unknown> }).moddleExtensions).toEqual({
-            zeebe: expect.anything(),
-        });
-        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith("c8");
     });
 
     it("still posts results but leaves the status bar untouched when reflectInStatusBar is false", async () => {
@@ -229,6 +159,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         expect(notifier.logError).toHaveBeenCalledOnce();
         expect(statusBar.showBpmnlintNoConfig).toHaveBeenCalledOnce();
         expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
+        expect(service.getLintMode(EDITOR)).toBe("external");
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintResultsQuery;
         expect(msg.results).toBeNull();
     });
@@ -250,5 +181,198 @@ describe("BpmnLintConfigService.setBpmnlintConfig", () => {
         // The lint succeeded — the transport failure must not be logged as one.
         expect(notifier.logError).not.toHaveBeenCalled();
         expect(editorStore.postMessage).toHaveBeenCalledOnce();
+    });
+});
+
+describe("BpmnLintConfigService.setBpmnlintConfig — no config (in-page handback)", () => {
+    it("instructs the webview to run in-page, does not lint host-side, and posts no results query", async () => {
+        const { service, editorStore, locator, lintRunner, diagnostics, statusBar } =
+            createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+
+        const result = await service.setBpmnlintConfig(EDITOR);
+
+        expect(result).toBe(true);
+        expect(lintRunner.lint).not.toHaveBeenCalled();
+        expect(service.getLintMode(EDITOR)).toBe("in-page");
+        // Provisional: clear stale diagnostics + a default status while the
+        // webview's first run is in flight (no cached event yet).
+        expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
+        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintInPageQuery;
+        expect(msg.type).toBe("BpmnlintInPageQuery");
+        expect(noResultsQueryPosted(editorStore)).toBe(true);
+    });
+
+    it("reflects the detected platform in the provisional status (C7)", async () => {
+        const { service, locator, statusBar, vsDocument } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        vsDocument.getContent.mockReturnValue(XML_C7);
+
+        await service.setBpmnlintConfig(EDITOR);
+
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith("c7");
+    });
+
+    it("reflects the detected platform in the provisional status (C8)", async () => {
+        const { service, locator, statusBar, vsDocument } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        vsDocument.getContent.mockReturnValue(XML_C8);
+
+        await service.setBpmnlintConfig(EDITOR);
+
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith("c8");
+    });
+
+    it("leaves the status bar untouched when reflectInStatusBar is false", async () => {
+        const { service, editorStore, locator, statusBar } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+
+        await service.setBpmnlintConfig(EDITOR, false);
+
+        expect(statusBar.showBpmnlintDefault).not.toHaveBeenCalled();
+        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnlintInPageQuery;
+        expect(msg.type).toBe("BpmnlintInPageQuery");
+    });
+
+    it("replays the last cached in-page event on re-instruct (panel re-activation)", async () => {
+        const { service, locator, diagnostics, statusBar, vsDocument } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+
+        await service.setBpmnlintConfig(EDITOR); // in-page, no cache yet
+        service.applyWebviewLintResults(EDITOR, RESULTS, []); // caches the event
+        vi.clearAllMocks();
+        vsDocument.getContent.mockReturnValue(XML);
+        locator.findNearestConfig.mockResolvedValue(undefined);
+
+        await service.setBpmnlintConfig(EDITOR); // re-instruct
+
+        // Cached findings are restored instead of a blank provisional state.
+        expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
+    });
+});
+
+describe("BpmnLintConfigService.applyWebviewLintResults", () => {
+    async function inPageService() {
+        const ctx = createService();
+        ctx.locator.findNearestConfig.mockResolvedValue(undefined);
+        await ctx.service.setBpmnlintConfig(EDITOR); // flip to in-page
+        vi.clearAllMocks();
+        ctx.editorStore.getActiveEditorId.mockReturnValue(EDITOR);
+        ctx.settings.getLintingEnabled.mockReturnValue(true);
+        ctx.vsDocument.getContent.mockReturnValue(XML);
+        return ctx;
+    }
+
+    it("publishes diagnostics, shows the default status, warns on unresolved, and caches", async () => {
+        const { service, diagnostics, statusBar, notifier } = await inPageService();
+
+        service.applyWebviewLintResults(EDITOR, RESULTS, ["some-plugin/some-rule"]);
+
+        expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
+        expect(notifier.logWarning).toHaveBeenCalledWith(
+            expect.stringContaining("some-plugin/some-rule"),
+        );
+    });
+
+    it("publishes diagnostics but skips the status bar when the editor is not active", async () => {
+        const { service, editorStore, diagnostics, statusBar } = await inPageService();
+        editorStore.getActiveEditorId.mockReturnValue("file:///other.bpmn");
+
+        service.applyWebviewLintResults(EDITOR, RESULTS, []);
+
+        // The Problems panel is global, so diagnostics always publish...
+        expect(diagnostics.publish).toHaveBeenCalledWith(EDITOR, XML, RESULTS);
+        // ...but a background editor's push must not steal the visible status.
+        expect(statusBar.showBpmnlintDefault).not.toHaveBeenCalled();
+    });
+
+    it("ignores a push when the editor is on the external path (default)", () => {
+        const { service, diagnostics } = createService();
+
+        service.applyWebviewLintResults(EDITOR, RESULTS, []);
+
+        expect(diagnostics.publish).not.toHaveBeenCalled();
+    });
+
+    it("ignores a push when linting is disabled", async () => {
+        const { service, diagnostics, settings } = await inPageService();
+        settings.getLintingEnabled.mockReturnValue(false);
+
+        service.applyWebviewLintResults(EDITOR, RESULTS, []);
+
+        expect(diagnostics.publish).not.toHaveBeenCalled();
+    });
+
+    it("ignores a stale in-page push after a workspace-config takeover", async () => {
+        const { service, locator, diagnostics } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        await service.setBpmnlintConfig(EDITOR); // in-page
+
+        // Config appears — the mode flips to external before the takeover push.
+        locator.findNearestConfig.mockResolvedValue("/work/.bpmnlintrc");
+        locator.readConfig.mockResolvedValue(JSON.stringify({ extends: "bpmnlint:recommended" }));
+        await service.setBpmnlintConfig(EDITOR);
+        expect(service.getLintMode(EDITOR)).toBe("external");
+        diagnostics.publish.mockClear();
+
+        // A webview push already in flight arrives late — it must be dropped.
+        service.applyWebviewLintResults(EDITOR, RESULTS, []);
+        expect(diagnostics.publish).not.toHaveBeenCalled();
+    });
+});
+
+describe("BpmnLintConfigService.setBpmnlintConfig — disabled", () => {
+    it("skips linting and pushes the disabled state when linting is turned off", async () => {
+        const { service, editorStore, locator, lintRunner, diagnostics, statusBar, settings } =
+            createService();
+        settings.getLintingEnabled.mockReturnValue(false);
+
+        const result = await service.setBpmnlintConfig(EDITOR);
+
+        expect(result).toBe(true);
+        // The gate short-circuits before any config discovery or lint run.
+        expect(locator.findNearestConfig).not.toHaveBeenCalled();
+        expect(lintRunner.lint).not.toHaveBeenCalled();
+        expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
+        expect(statusBar.showBpmnlintDisabled).toHaveBeenCalledOnce();
+        expect(service.getLintMode(EDITOR)).toBe("external");
+        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnLintDisabledQuery;
+        expect(msg.type).toBe("BpmnLintDisabledQuery");
+    });
+
+    it("leaves the status bar untouched when disabled and reflectInStatusBar is false", async () => {
+        const { service, editorStore, statusBar, settings } = createService();
+        settings.getLintingEnabled.mockReturnValue(false);
+
+        await service.setBpmnlintConfig(EDITOR, false);
+
+        expect(statusBar.showBpmnlintDisabled).not.toHaveBeenCalled();
+        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnLintDisabledQuery;
+        expect(msg.type).toBe("BpmnLintDisabledQuery");
+    });
+
+    it("clears the cached in-page event so a re-instruct does not replay stale findings", async () => {
+        const { service, locator, diagnostics, statusBar, settings } = createService();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        await service.setBpmnlintConfig(EDITOR); // in-page
+        service.applyWebviewLintResults(EDITOR, RESULTS, []); // cache an event
+
+        // User disables linting — the cache is dropped (external mode).
+        settings.getLintingEnabled.mockReturnValue(false);
+        await service.setBpmnlintConfig(EDITOR);
+
+        // Re-enable + no config → in-page again, but with no cached event to
+        // replay: back to the provisional (blank) state.
+        settings.getLintingEnabled.mockReturnValue(true);
+        vi.clearAllMocks();
+        locator.findNearestConfig.mockResolvedValue(undefined);
+        await service.setBpmnlintConfig(EDITOR);
+
+        expect(diagnostics.publish).not.toHaveBeenCalled();
+        expect(diagnostics.clear).toHaveBeenCalledWith(EDITOR);
+        expect(statusBar.showBpmnlintDefault).toHaveBeenCalledWith(undefined);
     });
 });
