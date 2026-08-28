@@ -3965,6 +3965,7 @@ __metadata:
     diagram-js: "npm:15.18.0"
     didi: "npm:11.0.0"
     jsdom: "npm:30.0.1"
+    lodash: "npm:4.18.1"
     minisearch: "npm:7.2.0"
     npm-run-all: "npm:4.1.5"
     preact: "npm:10.29.3"

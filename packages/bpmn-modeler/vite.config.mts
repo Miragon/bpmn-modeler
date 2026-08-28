@@ -41,10 +41,14 @@ function isInlined(id: string): boolean {
 
 // Bundle relatives, absolute (alias-resolved) paths, the inlined libs, and CSS;
 // externalise every other bare specifier so the bpmn-io stack is never bundled.
+// `@oxc-project/runtime` is Vite 8's oxc transform-helper runtime (the tslib
+// analogue for its own lowering) — inline it so consumers never take a
+// dependency on our build tool's internals.
 function isExternal(id: string): boolean {
     if (id.startsWith(".") || isAbsolute(id)) return false;
     if (id.endsWith(".css")) return false;
     if (isInlined(id)) return false;
+    if (id === "@oxc-project/runtime" || id.startsWith("@oxc-project/runtime/")) return false;
     return true;
 }
 
