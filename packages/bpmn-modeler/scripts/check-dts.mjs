@@ -48,7 +48,8 @@ for (const lib of PRIVATE_LIBS) {
     // Match only as a real module specifier — single/double quoted, never a
     // backtick (JSDoc wraps `@miragon/...` prose mentions in backticks, and
     // d.ts import specifiers are never template literals).
-    if (new RegExp(`["']${lib.replace(/[/-]/g, "\\$&")}(/[^"']*)?["']`).test(dts)) {
+    const escaped = lib.replace(/[.*+?^${}()|[\]\\/-]/g, "\\$&");
+    if (new RegExp(`["']${escaped}(/[^"']*)?["']`).test(dts)) {
         failures.push(`leaked private-lib import: ${lib}`);
     }
 }
