@@ -3631,7 +3631,7 @@ __metadata:
     bpmn-js-native-copy-paste: "npm:0.3.0"
     typescript: "npm:6.0.3"
   peerDependencies:
-    bpmn-js: 18.15.0
+    bpmn-js: 18.19.0
   languageName: unknown
   linkType: soft
 
@@ -3871,6 +3871,7 @@ __metadata:
     bpmn-js-bpmnlint: "npm:0.24.0"
     bpmn-js-create-append-anything: "npm:2.0.0"
     bpmn-js-differ: "npm:3.2.0"
+    bpmn-js-native-copy-paste: "npm:0.3.0"
     bpmn-js-properties-panel: "npm:5.60.0"
     bpmn-js-token-simulation: "npm:0.39.4"
     bpmn-moddle: "npm:10.0.0"
@@ -3880,6 +3881,7 @@ __metadata:
     camunda-bpmn-moddle: "npm:7.0.1"
     camunda-transaction-boundaries: "npm:1.1.2"
     diagram-js: "npm:15.18.0"
+    didi: "npm:11.0.0"
     jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
@@ -11609,7 +11611,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"didi@npm:^11.0.0":
+"didi@npm:11.0.0, didi@npm:^11.0.0":
   version: 11.0.0
   resolution: "didi@npm:11.0.0"
   checksum: 10c0/e4516b9a5189b1803cfbcce2f520d625c172fa124ee1e7f74c54ae123ff202cb80175be93fca6cfe4e332003e0a0bf2a782de2813f2d78508b4115e5d7cd6bf1

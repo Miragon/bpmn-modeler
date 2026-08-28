@@ -14,6 +14,10 @@ mountDemoHeader("bpmn");
 bootstrap(new BpmnDemoHost(), {
     extraModules: [DemoGrayoutModule],
     linting: {},
+    // Plain-browser demo: use the native browser clipboard (#1374). The stub
+    // host cannot serve a real clipboard, so the protocol-bridge default would
+    // leave paste dead in the production build.
+    clipboard: "native",
     onLintResults: ({ results, unresolved }) => {
         console.debug("[demo] in-page lint", { results, unresolved });
     },

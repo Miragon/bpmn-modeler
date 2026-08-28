@@ -70,30 +70,36 @@ Services are accessed via `modeler.get('serviceName')`. Key services used:
 bpmn-js events use a priority system. Higher priority listeners fire first and can prevent lower-priority listeners from executing by returning `false` or calling `event.stopPropagation()`.
 
 - Default priority: `1000`
-- The element-clipboard interceptor in `VsCodeClipboardModule` uses priority
+- The element-clipboard interceptor in `BridgedClipboardModule` uses priority
   **`2051`** — intentionally above bpmn-js's `NativeCopyPaste` (priority `2050`)
   to intercept `copyPaste.elementsCopied` / `copyPaste.pasteElements` before the
   default handler runs
 
 ## Copy-Paste Architecture (Three Layers)
 
-Copy-paste in this project operates at three distinct layers. The first two are
-**bpmn-js DI modules** extracted into the shared `libs/bpmn-clipboard` package
-(`@miragon/bpmn-modeler-clipboard`) and installed as `additionalModules` in
-`apps/bpmn-webview/src/main.ts`; the third is a webview-local polyfill. The two
-DI modules receive their host bridges through didi value injection —
-`elementClipboardBridge` (element JSON) and `textClipboardBridge` (plain text),
-each a `{ requestClipboard, writeClipboard }` pair wired in `main.ts` to the
-host clipboard commands. Because bpmn-js's own `NativeCopyPaste` still handles
-the canvas natively in a plain browser, the interception only matters inside the
-sandboxed VS Code / IntelliJ webview, where the iframe has no clipboard access.
+Copy-paste in this project operates at three distinct layers. The **default is
+the native browser clipboard** — camunda-bpmn-js always registers bpmn-js's
+`NativeCopyPaste`, so a plain browser (the demo, `serve`) needs nothing extra
+(#1374). The first two layers below are the **host-bridge override**: bpmn-js DI
+modules in the shared `libs/bpmn-clipboard` package
+(`@miragon/bpmn-modeler-clipboard`), built by its `createClipboardModules({
+element, text? })` factory and registered only when the webview can't reach the
+system clipboard; the third is a webview-local polyfill. `apps/bpmn-webview/src/bootstrap.ts`
+selects between them (native for dev / `clipboard: "native"`, otherwise the
+protocol bridge). The two DI modules receive their host bridges through didi
+value injection — `elementClipboardBridge` (element JSON) and
+`textClipboardBridge` (plain text), each a `{ requestClipboard, writeClipboard }`
+pair the factory binds; `text` defaults to `element`. When registered, the
+override disables `NativeCopyPaste` (`nativeCopyPaste.toggle(false)`) and takes
+over inside the sandboxed VS Code / IntelliJ webview, where the iframe has no
+clipboard access.
 
 > Two separate host round-trips: **element** clipboard uses
 > `GetClipboardCommand` / `SetClipboardCommand` → `ClipboardQuery`; **text**
 > clipboard (labels, FEEL editor) uses `GetTextClipboardCommand` /
 > `SetTextClipboardCommand` → `TextClipboardQuery`.
 
-### Layer 1: Diagram Elements (`VsCodeClipboardModule`)
+### Layer 1: Diagram Elements (`BridgedClipboardModule`)
 
 Handles copying/pasting of BPMN shapes and connections on the canvas.
 
@@ -165,7 +171,7 @@ Theme detection uses `document.body.classList` — checking for `vscode-dark` or
 
 - **Modeler wrapper**: `apps/bpmn-webview/src/app/modeler.ts`
 - **Webview entry** (installs the clipboard modules): `apps/bpmn-webview/src/main.ts`
-- **Element clipboard module** (priority 2051, `createReviver`): `libs/bpmn-clipboard/src/VsCodeClipboardModule.ts`
+- **Element clipboard module** (priority 2051, `createReviver`): `libs/bpmn-clipboard/src/BridgedClipboardModule.ts` (built via `createClipboardModules`)
 - **Label overlay clipboard module**: `libs/bpmn-clipboard/src/LabelClipboardModule.ts`
 - **FEEL editor + Ctrl+A polyfill**: `apps/bpmn-webview/src/app/propertiesPanelClipboard.ts`
 - **Barrel exports**: `apps/bpmn-webview/src/app/index.ts`

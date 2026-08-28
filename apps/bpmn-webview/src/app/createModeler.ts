@@ -1,6 +1,6 @@
 import type { BpmnModelerSetting, LintRunEvent } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./capabilities";
-import type { LintingOptions } from "./publicApi";
+import type { ClipboardOptions, LintingOptions } from "./publicApi";
 import { BpmnModeler } from "./modeler";
 
 /**
@@ -22,6 +22,8 @@ export interface CreateModelerOptions {
      * in-page linting is on with the engine-aware default config.
      */
     linting?: LintingOptions;
+    /** [B] Clipboard override — omit for the native browser clipboard (#1374). */
+    clipboard?: ClipboardOptions;
     /**
      * Fired after every in-page lint run with the raw rule-keyed results and the
      * rules the bundled resolver could not cover. Never fires for an external

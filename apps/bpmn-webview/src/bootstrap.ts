@@ -61,7 +61,7 @@ import {
     observeCanvasSize,
     setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
-import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
+import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
@@ -73,7 +73,7 @@ import {
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
 import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./app/capabilities";
-import type { LintingOptions } from "./app";
+import type { ClipboardOptions, LintingOptions } from "./app";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
 import { installHostEditorActions } from "./app/hostEditorActions";
@@ -92,6 +92,7 @@ export function bootstrap(
         extraModules?: unknown[];
         capabilities?: ModelerCapabilities;
         linting?: LintingOptions;
+        clipboard?: ClipboardOptions | "native";
         onLintResults?: (event: LintRunEvent) => void;
     } = {},
 ): void {
@@ -100,6 +101,7 @@ export function bootstrap(
         opts.extraModules,
         opts.capabilities,
         opts.linting,
+        opts.clipboard,
         opts.onLintResults,
     );
 }
@@ -118,6 +120,10 @@ export function bootstrap(
  *   the full protocol adapter so every real host keeps all features.
  * @param injectedLinting The bpmnlint tier; `undefined` selects the external
  *   (host-pushed) tier so every real host stays byte-identical to today.
+ * @param injectedClipboard The clipboard tier; `undefined` keeps today's
+ *   behaviour (dev-build native, otherwise the protocol bridge). `"native"`
+ *   forces the browser clipboard (demo/browser consumers, #1374); `{ bridge }`
+ *   routes through a caller-supplied override.
  * @param injectedOnLintResults In-page lint-run sink; only a consumer opting into
  *   in-page linting (the demo) passes one. Real hosts run the linter themselves.
  */
@@ -126,6 +132,7 @@ function startSession(
     injectedModules: unknown[] | undefined,
     injectedCapabilities: ModelerCapabilities | undefined,
     injectedLinting: LintingOptions | undefined,
+    injectedClipboard: ClipboardOptions | "native" | undefined,
     injectedOnLintResults: ((event: LintRunEvent) => void) | undefined,
 ): void {
     // Assigned in run() once the engine is known — flush/capability callbacks
@@ -318,11 +325,25 @@ function startSession(
         // hidden by .viewer-mode CSS once we confirm the mode below. For the
         // modeler path, initResizer() is called after the branch check.
 
-        // Build clipboard DI modules conditionally.
-        // In development (plain browser) NativeCopyPaste handles clipboard natively.
-        let clipboardModules: any[] | undefined;
+        // Build clipboard DI modules.
+        //
+        // - `undefined` (default): today's behavior — in dev (plain-browser
+        //   `serve`) the native browser clipboard handles copy/paste, so no
+        //   modules load; otherwise route through the host protocol bridge.
+        // - `"native"`: force the browser clipboard (demo/browser consumers) —
+        //   no modules, no polyfill.
+        // - `{ bridge }`: public override — one bridge drives both the element
+        //   modules and the contenteditable polyfill.
+        let clipboardModules: unknown[] | undefined;
 
-        if (process.env.NODE_ENV !== "development") {
+        if (injectedClipboard === "native") {
+            // Native browser clipboard: register nothing so bpmn-js's
+            // NativeCopyPaste stays in charge (#1374).
+        } else if (injectedClipboard) {
+            const { bridge } = injectedClipboard;
+            clipboardModules = createClipboardModules({ element: bridge });
+            installContentEditableClipboardPolyfill(bridge.requestClipboard, bridge.writeClipboard);
+        } else if (process.env.NODE_ENV !== "development") {
             const requestElementClipboard = async (): Promise<string> => {
                 elementClipboardResolver = createResolver<ClipboardQuery>();
                 host.postMessage(new GetClipboardCommand());
@@ -343,26 +364,18 @@ function startSession(
                 host.postMessage(new SetTextClipboardCommand(text));
             };
 
-            clipboardModules = [
-                VsCodeClipboardModule,
-                LabelClipboardModule,
-                {
-                    elementClipboardBridge: [
-                        "value",
-                        {
-                            requestClipboard: requestElementClipboard,
-                            writeClipboard: writeElementClipboard,
-                        },
-                    ],
-                    textClipboardBridge: [
-                        "value",
-                        {
-                            requestClipboard: requestTextClipboard,
-                            writeClipboard: writeTextClipboard,
-                        },
-                    ],
+            // Two independent protocol channels so element and label clipboards
+            // stay separate — byte-identical to today's real-host wiring.
+            clipboardModules = createClipboardModules({
+                element: {
+                    requestClipboard: requestElementClipboard,
+                    writeClipboard: writeElementClipboard,
                 },
-            ];
+                text: {
+                    requestClipboard: requestTextClipboard,
+                    writeClipboard: writeTextClipboard,
+                },
+            });
 
             /**
              * The FEEL editor (CodeMirror 6) in the C8 properties panel lives

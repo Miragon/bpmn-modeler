@@ -19,8 +19,15 @@ declare module "bpmn-moddle" {
         warnings: unknown[];
     }
 
+    interface ModdleElement {
+        $type: string;
+        [key: string]: unknown;
+    }
+
     interface BpmnModdleInstance {
         fromXML(xml: string): Promise<ParseResult>;
+        create(type: string, attrs?: Record<string, unknown>): ModdleElement;
+        getTypeDescriptor(type: string): unknown;
     }
 
     type BpmnModdleFactory = (

@@ -127,8 +127,8 @@ its host bridge through didi value injection — a `{ requestClipboard,
 writeClipboard }` pair — rather than the old `installClipboardInterceptor(...)`
 call, which no longer exists.
 
-**1. Diagram element copy/paste** (`VsCodeClipboardModule`,
-`libs/bpmn-clipboard/src/VsCodeClipboardModule.ts`, injected
+**1. Diagram element copy/paste** (`BridgedClipboardModule`,
+`libs/bpmn-clipboard/src/BridgedClipboardModule.ts`, injected
 `elementClipboardBridge`):
 
 Intercepts bpmn-js `copyPaste.elementsCopied` / `copyPaste.pasteElements` at
@@ -151,33 +151,35 @@ calls `stopPropagation()`.
 See the `/bpmn-js` skill for the full three-layer copy-paste architecture (the
 third layer is a webview-local FEEL-editor polyfill).
 
-### Wiring (Production Only)
+### Wiring (bridge override only)
 
-The bridges are wired in `apps/bpmn-webview/src/main.ts` using a promise-based
-resolver pattern, then injected as `value` providers:
+The native browser clipboard is the default (#1374); the bridge modules are only
+built when the webview can't reach the system clipboard. `apps/bpmn-webview/src/bootstrap.ts`
+wires the bridges with a promise-based resolver pattern and hands them to
+`createClipboardModules`, which returns the two DI modules + their `value`
+bindings:
 
 ```typescript
 const requestElementClipboard = async (): Promise<string> => {
-    clipboardResolver = createResolver<ClipboardQuery>();
+    elementClipboardResolver = createResolver<ClipboardQuery>();
     host.postMessage(new GetClipboardCommand());
-    return (await clipboardResolver.wait())?.text ?? "";
+    return (await elementClipboardResolver.wait())?.text ?? "";
 };
 const writeElementClipboard = (text: string): void => {
     host.postMessage(new SetClipboardCommand(text));
 };
 // (text bridge mirrors this with the *Text* commands / TextClipboardQuery)
 
-clipboardModules = [
-    VsCodeClipboardModule,
-    LabelClipboardModule,
-    {
-        elementClipboardBridge: ["value", { requestClipboard: requestElementClipboard, writeClipboard: writeElementClipboard }],
-        textClipboardBridge: ["value", { requestClipboard: requestTextClipboard, writeClipboard: writeTextClipboard }],
-    },
-];
+clipboardModules = createClipboardModules({
+    element: { requestClipboard: requestElementClipboard, writeClipboard: writeElementClipboard },
+    text: { requestClipboard: requestTextClipboard, writeClipboard: writeTextClipboard },
+});
 ```
 
-These modules are only added in production (not development) because in dev mode the webview runs in a regular browser with native clipboard access.
+bootstrap selects the native path (no modules) for dev builds and for a
+`clipboard: "native"` consumer (the demo); a real host gets the protocol bridge
+above. The single-bridge public override (`clipboard: { bridge }`) maps onto both
+channels because `createClipboardModules` defaults `text` to `element`.
 
 ## Webview Theming
 

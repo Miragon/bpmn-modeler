@@ -59,7 +59,7 @@ libs/
 | `@miragon/bpmn-modeler-bridge` | `apps/modeler-bridge` | Out-of-process stdio JSON-RPC bridge running `modeler-core` for the IntelliJ host; ships as a Node-free Bun binary |
 | `@miragon/bpmn-modeler-shared` | `libs/shared` | Message types, cross-process utilities |
 | `@miragon/bpmn-modeler-core` | `libs/modeler-core` | Host-agnostic modeling engine (domain + services + ports), consumed by the VS Code plugin and the IntelliJ bridge |
-| `@miragon/bpmn-modeler-clipboard` | `libs/bpmn-clipboard` | bpmn-js DI module for clipboard integration |
+| `@miragon/bpmn-modeler-clipboard` | `libs/bpmn-clipboard` | Host-bridge clipboard override (native browser clipboard is the default; registered only when the webview can't reach the system clipboard) |
 | `@miragon/bpmn-modeler-i18n` | `libs/bpmn-i18n` | bpmn-js DI module for translations |
 | `@miragon/bpmn-modeler-append-menu` | `libs/append-menu` | Preact-based append menu overlay |
 | `@miragon/bpmn-modeler-element-template-chooser` | `libs/element-template-chooser` | Preact-based template chooser overlay |
@@ -179,9 +179,10 @@ new BpmnModeler({ additionalModules: [MyModule, ...] });
 
 **Event priorities.** Many bpmn-js services use `EventBus` handlers with a
 numeric priority. Higher priority runs first. Returning a non-`undefined` value
-(including `false`) stops propagation. This is how `VsCodeClipboardModule`
-intercepts copy at priority 2051 (above `NativeCopyPaste`'s 2050) — see
-`libs/bpmn-clipboard/` in the repository.
+(including `false`) stops propagation. This is how `BridgedClipboardModule`
+(the host-bridge clipboard override, registered only when the webview can't
+reach the system clipboard) intercepts copy at priority 2051 (above
+`NativeCopyPaste`'s 2050) — see `libs/bpmn-clipboard/` in the repository.
 
 **Patching existing services.** Several of our modules decorate a core bpmn-js
 method rather than adding a new service — e.g. `AppendMenuOverride` wraps
