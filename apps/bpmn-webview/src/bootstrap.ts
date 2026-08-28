@@ -1,9 +1,5 @@
 // bpmn.js
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
-// css
-import "./styles/default.css";
-import "./styles/diff.css";
-import "./styles/canvasFocusIndicator.css";
 
 import {
     BpmnFileQuery,
@@ -67,11 +63,10 @@ import {
     createModeler,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
-} from "./app";
+} from "@miragon/bpmn-modeler";
+import type { ClipboardOptions, LintingOptions, ModelerCapabilities } from "@miragon/bpmn-modeler";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
 import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
-import type { ModelerCapabilities } from "./app/capabilities";
-import type { ClipboardOptions, LintingOptions } from "./app";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
 import { installHostEditorActions } from "./app/hostEditorActions";

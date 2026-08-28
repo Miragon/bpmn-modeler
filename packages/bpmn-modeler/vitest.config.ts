@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 export default defineConfig({
     test: {
-        name: "bpmn-webview",
+        name: "bpmn-modeler",
         environment: "jsdom",
         include: ["src/**/*.{spec,test}.ts"],
         // The rules plugin ships pure ESM with a subpath `exports` map Vitest's
@@ -11,15 +11,13 @@ export default defineConfig({
         // specs import it the same way the bundle does (mirrors modeler-core).
         server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
-            "@miragon/bpmn-modeler": resolve(__dirname, "../../packages/bpmn-modeler/src/index.ts"),
-            "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
             "@miragon/bpmn-modeler-types": resolve(
                 __dirname,
                 "../../libs/modeler-types/src/index.ts",
             ),
             // These workspace libs have no package entry point, so specs that
-            // import them by name (e.g. capabilityModules.spec) need the path
-            // mapped explicitly — the build/dev use vite-tsconfig-paths instead.
+            // load them at runtime (capabilityModules, clipboard) need the path
+            // mapped explicitly — the lib build uses vite-tsconfig-paths instead.
             "@miragon/bpmn-model-navigation": resolve(
                 __dirname,
                 "../../libs/model-navigation/src/index.ts",
@@ -39,7 +37,7 @@ export default defineConfig({
         },
         coverage: {
             provider: "v8",
-            reportsDirectory: "../../coverage/apps/bpmn-webview",
+            reportsDirectory: "../../coverage/packages/bpmn-modeler",
             reporter: ["text", "html", "lcov", "clover", "json"],
         },
     },

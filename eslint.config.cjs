@@ -61,6 +61,7 @@ module.exports = [
             ".github/scripts/**/*.mjs",
             "apps/standalone/scripts/**/*.mjs",
             "libs/standalone-extension/scripts/**/*.mjs",
+            "packages/*/scripts/**/*.mjs",
             "apps/demo-webapp/serve-demo.mjs",
         ],
         languageOptions: {
@@ -173,6 +174,7 @@ module.exports = [
             "libs/inline-scripting/**",
             "libs/model-navigation/**",
             "libs/flow-navigation/**",
+            "packages/bpmn-modeler/**",
             "apps/bpmn-webview/src/app/**",
             "apps/dmn-webview/src/app/**",
         ],

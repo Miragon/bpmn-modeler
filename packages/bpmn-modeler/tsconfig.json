@@ -1,0 +1,17 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "lib": ["ESNext", "DOM"],
+        "types": ["node", "vite/client", "vitest"],
+        "esModuleInterop": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "useDefineForClassFields": true
+    },
+    "include": ["src"]
+}

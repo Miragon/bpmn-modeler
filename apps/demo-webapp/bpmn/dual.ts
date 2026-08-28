@@ -1,4 +1,4 @@
-import { createModeler } from "@miragon/bpmn-modeler-webview";
+import { createModeler } from "@miragon/bpmn-modeler";
 import { getActiveModel } from "../src";
 
 /**

@@ -7,7 +7,7 @@
 import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
 import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";
-import { BpmnModeler } from "./modeler";
+import { BpmnModeler } from "@miragon/bpmn-modeler";
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
 const PANEL_GROUP = ".bio-properties-panel-group";

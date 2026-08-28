@@ -3,14 +3,7 @@
  * `WebviewStateManager`. Not part of the designed public API (#1375).
  */
 
-export interface ViewportData {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    /** Persisted so the exact zoom survives a container-size change on restore. */
-    scale?: number;
-}
+import type { ViewportData } from "@miragon/bpmn-modeler";
 
 /**
  * Snapshot of the canvas view that can be captured from the live

@@ -11,6 +11,7 @@
         "preview": "node serve-demo.mjs"
     },
     "dependencies": {
+        "@miragon/bpmn-modeler": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-webview": "workspace:*",
         "@miragon/dmn-modeler-webview": "workspace:*"
