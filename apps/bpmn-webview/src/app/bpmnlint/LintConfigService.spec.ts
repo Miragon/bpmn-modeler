@@ -3,10 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // The tier state machine is the unit under test; the actual browser lint run is
 // mocked so these tests never spin up bpmnlint. `runMock` is hoisted so the
 // `vi.mock` factory (itself hoisted) can close over it.
-const { runMock } = vi.hoisted(() => ({ runMock: vi.fn() }));
+const { runMock, ctorMock } = vi.hoisted(() => ({ runMock: vi.fn(), ctorMock: vi.fn() }));
 vi.mock("./browserLinter", () => ({
-    // A class (not an arrow) so `new BrowserLinter()` constructs.
+    // A class (not an arrow) so `new BrowserLinter()` constructs. `ctorMock`
+    // records the (engine, config) args so a test can assert the handed-back
+    // config reaches the linter (#1384).
     BrowserLinter: class {
+        constructor(...args: unknown[]) {
+            ctorMock(...args);
+        }
         run = runMock;
     },
 }));
@@ -212,6 +217,17 @@ describe("LintConfigService: startInPageLinting (host handback)", () => {
         expect(returned).toEqual(LINT_EVENT.results);
     });
 
+    it("builds the browser linter with the handed-back workspace config (#1384)", () => {
+        ctorMock.mockClear();
+        const { service } = makeService({ tier: "external", imported: true });
+        const config = { extends: "bpmnlint:recommended" };
+
+        service.startInPageLinting(config);
+
+        // The covered workspace config the host pushed is linted, not the default.
+        expect(ctorMock).toHaveBeenLastCalledWith("c7", config);
+    });
+
     it("defers activation to import.done when no diagram is imported yet", () => {
         const { service, linting, bus } = makeService({ tier: "external", imported: false });
 
@@ -253,6 +269,62 @@ describe("LintConfigService: startInPageLinting (host handback)", () => {
 
         await expect(linting.lint()).resolves.toEqual(pushed);
         expect(onLintResults).not.toHaveBeenCalled();
+    });
+});
+
+describe("LintConfigService: covered-config re-enable (token dedup)", () => {
+    const CONFIG = { extends: "bpmnlint:recommended" };
+    const TOKEN = "cfg-v1";
+
+    it("re-activates after a host disabled push when the same token is re-sent", async () => {
+        // Regression for the covered `.bpmnlintrc` re-enable no-op: disable hard-sets
+        // the tier to `external`, so the next covered instruction must not be dedup'd
+        // away even though the token is unchanged from the pre-disable run.
+        const onLintResults = vi.fn();
+        const { service, linting, canvas } = makeService({
+            tier: "external",
+            imported: true,
+            callbacks: { onLintResults },
+        });
+        service.startInPageLinting(CONFIG, TOKEN);
+        expect(linting.isActive()).toBe(true);
+
+        // Host's user-disabled push (chip off → SetLintingEnabledCommand → pushDisabled).
+        service.applyLintingDisabled();
+        expect(linting.isActive()).toBe(false);
+        linting.toggle.mockClear();
+
+        // Host re-enables and re-sends the covered query with the SAME token.
+        service.startInPageLinting(CONFIG, TOKEN);
+
+        expect(linting.toggle).toHaveBeenCalledWith(true);
+        expect(linting.isActive()).toBe(true);
+        expect(canvas.getContainer().querySelector(".lint-off-button")).not.toBeNull();
+        await expect(linting.lint()).resolves.toEqual(LINT_EVENT.results);
+    });
+
+    it("dedups a repeat covered instruction with the same token while in-page-active", () => {
+        const { service, linting } = makeService({ tier: "external", imported: true });
+        service.startInPageLinting(CONFIG, TOKEN);
+        ctorMock.mockClear();
+        linting.toggle.mockClear();
+
+        // Host re-sends on panel re-activation; the live run must not churn.
+        service.startInPageLinting(CONFIG, TOKEN);
+
+        expect(ctorMock).not.toHaveBeenCalled();
+        expect(linting.toggle).not.toHaveBeenCalled();
+    });
+
+    it("rebuilds when a new token arrives while in-page-active (config version change)", () => {
+        const { service } = makeService({ tier: "external", imported: true });
+        service.startInPageLinting(CONFIG, TOKEN);
+        ctorMock.mockClear();
+
+        const nextConfig = { extends: "bpmnlint:all" };
+        service.startInPageLinting(nextConfig, "cfg-v2");
+
+        expect(ctorMock).toHaveBeenLastCalledWith("c7", nextConfig);
     });
 });
 

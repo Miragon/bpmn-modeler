@@ -409,7 +409,29 @@ describe("updateLintResultsHandler", () => {
             EDITOR,
         );
 
-        expect(lintSvc.applyWebviewLintResults).toHaveBeenCalledWith(EDITOR, results, unresolved);
+        expect(lintSvc.applyWebviewLintResults).toHaveBeenCalledWith(
+            EDITOR,
+            results,
+            unresolved,
+            undefined,
+        );
+    });
+
+    it("forwards the config token so the service can pair the run with its config version (#1384)", () => {
+        const lintSvc = { applyWebviewLintResults: vi.fn() };
+        const results = {};
+
+        updateLintResultsHandler(lintSvc as never)(
+            new UpdateLintResultsCommand(results, [], "lint-cfg-7"),
+            EDITOR,
+        );
+
+        expect(lintSvc.applyWebviewLintResults).toHaveBeenCalledWith(
+            EDITOR,
+            results,
+            [],
+            "lint-cfg-7",
+        );
     });
 });
 

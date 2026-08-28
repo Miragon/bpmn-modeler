@@ -222,9 +222,11 @@ export interface BpmnModelerHandle {
     /**
      * [B] Start (or restart) the in-webview linter — the host's no-workspace-config
      * handback (#1373 Phase B). Optional `config` overrides the engine-aware
-     * default. Never re-enables a user-disabled linter.
+     * default; optional `configToken` (#1384) lets a repeat instruction with the
+     * same version dedup while linting is live. Never re-enables a user-disabled
+     * linter.
      */
-    startInPageLinting(config?: BpmnlintConfig): void;
+    startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
 
     // ── Escape hatch ────────────────────────────────────────────────────────
     /**

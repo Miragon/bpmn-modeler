@@ -5,14 +5,16 @@
  * (`createBridge`) runs against a fake transport (a frames array) over a real
  * temp filesystem, so the `BpmnLintConfigLocator` + `BpmnLintConfigService` +
  * `NodeBpmnLinter` do an actual nearest-`.bpmnlintrc` walk and run bpmnlint.
- * Covers the two branches the webview's `GetBpmnlintConfigCommand` exposes: a
- * discovered config is linted host-side and the findings pushed as
- * `BpmnlintResultsQuery`, and no config hands linting to the webview's in-page
- * default (#1373 Phase B) — the bridge posts a `BpmnlintInPageQuery` instead of
- * linting host-side, then accepts the webview's own findings back through
- * `UpdateLintResultsCommand`. The temp dir has no `node_modules`, so the
- * workspace-config path resolves built-in and camunda-compat rules from the
- * bundled resolvers — the same path a workspace without `bpmnlint` installed hits.
+ * Covers the three tiers the webview's `GetBpmnlintConfigCommand` exposes: no
+ * config hands linting to the webview's in-page default (#1373 Phase B); a
+ * *covered* config is pushed down for the webview to lint in-page (#1384, a
+ * config-carrying `BpmnlintInPageQuery`, no host lint) and escalates to a host
+ * `BpmnlintResultsQuery` only once the webview reports it cannot cover a rule; an
+ * *escalating* config (a Node-only string moddleExtension) is linted host-side
+ * straight away. The temp dir has no `node_modules`, so the host path resolves
+ * built-in and camunda-compat rules from the bundled resolvers — the same path a
+ * workspace without `bpmnlint` installed hits, and an unresolvable string
+ * moddleExtension is recorded (never fatal), so the lint still produces findings.
  *
  * Phase C additionally asserts the mid-session transitions the `.bpmnlintrc`
  * watcher drives: a config that *appears* takes the editor over to the host
@@ -96,6 +98,11 @@ const isLintResultsFrame = (frame: any): boolean =>
 const isInPageInstructionFrame = (frame: any): boolean =>
     frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintInPageQuery";
 
+// A #1384 covered-config instruction: an in-page instruction that carries the
+// workspace config + version token (vs. the payload-free zero-config default).
+const isInPageConfigInstructionFrame = (frame: any): boolean =>
+    isInPageInstructionFrame(frame) && frame.params?.message?.config != null;
+
 const isInPageResultsLog = (frame: any): boolean =>
     frame.method === "notifier/log" &&
     typeof frame.params?.message === "string" &&
@@ -141,7 +148,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         );
     }
 
-    it("lints against the nearest .bpmnlintrc and pushes the findings to the webview", async () => {
+    it("lints a covered .bpmnlintrc in-page — pushes the config, not host findings (#1384)", async () => {
         const { rpc, frames, root, editorId } = await setup();
         await fs.writeFile(
             join(root, ".bpmnlintrc"),
@@ -151,11 +158,65 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
 
         await requestConfig(rpc, editorId);
 
-        const frame = await waitForFrame(frames, isLintResultsFrame);
-        const results = frame.params.message.results;
-        expect(results).not.toBeNull();
-        // recommended flags the missing start event on the process containing Task_1.
-        expect(Object.keys(results)).toContain("start-event-required");
+        // The bundled resolver covers `bpmnlint:recommended`, so the bridge pushes
+        // the config down for the webview to lint in-page instead of running the
+        // Node linter — a config-carrying instruction, never a results frame.
+        const frame = await waitForFrame(frames, isInPageConfigInstructionFrame);
+        expect(frame.params.message.config).toEqual({ extends: "bpmnlint:recommended" });
+        expect(typeof frame.params.message.configToken).toBe("string");
+        expect(frames.find(isLintResultsFrame)).toBeUndefined();
+    });
+
+    it("escalates a covered config to a host lint when the webview reports unresolved (#1384)", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        await fs.writeFile(
+            join(root, ".bpmnlintrc"),
+            JSON.stringify({ extends: "bpmnlint:recommended" }),
+            "utf8",
+        );
+
+        await requestConfig(rpc, editorId);
+        const instruction = await waitForFrame(frames, isInPageConfigInstructionFrame);
+        const token = instruction.params.message.configToken;
+
+        // The webview reports a rule the bundled resolver could not cover, so the
+        // bridge escalates that session to a host-side Node lint (results frame).
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "UpdateLintResultsCommand",
+                        results: {},
+                        unresolved: ["bpmnlint-plugin-acme/foo"],
+                        configToken: token,
+                    },
+                },
+            }),
+        );
+        const resultsFrame = await waitForFrame(frames, isLintResultsFrame);
+        expect(Object.keys(resultsFrame.params.message.results)).toContain("start-event-required");
+
+        // The session is now escalated, so a later clean same-token in-page event
+        // is stale and must be dropped — no "in-page results" debug log follows.
+        const baseline = frames.length;
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: {
+                        type: "UpdateLintResultsCommand",
+                        results: {},
+                        unresolved: [],
+                        configToken: token,
+                    },
+                },
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        expect(frames.slice(baseline).find(isInPageResultsLog)).toBeUndefined();
     });
 
     it("hands linting to the webview in-page (no host lint) when no .bpmnlintrc exists", async () => {
@@ -208,13 +269,18 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         await requestConfig(rpc, editorId);
         await waitForFrame(frames, isInPageInstructionFrame);
 
-        // The watcher re-lints host-side the moment the config lands. fsevents
-        // can drop the first `add` after a fresh watch, so re-write inside the
-        // wait loop until the host results frame arrives.
+        // An *escalating* config (a Node-only string moddleExtension) so the
+        // watcher takes the editor host-side and emits a results frame — a covered
+        // config would only push an in-page instruction. The watcher re-lints the
+        // moment the config lands; fsevents can drop the first `add` after a fresh
+        // watch, so re-write inside the wait loop until the host results frame arrives.
         const writeConfig = () =>
             fs.writeFile(
                 join(root, ".bpmnlintrc"),
-                JSON.stringify({ extends: "bpmnlint:recommended" }),
+                JSON.stringify({
+                    extends: "bpmnlint:recommended",
+                    moddleExtensions: { acme: "./acme.json" },
+                }),
                 "utf8",
             );
         await writeConfig();
@@ -248,7 +314,16 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     it("hands linting back to the webview in-page when the .bpmnlintrc is deleted mid-session", async () => {
         const { rpc, frames, root, editorId } = await setup();
         const configPath = join(root, ".bpmnlintrc");
-        await fs.writeFile(configPath, JSON.stringify({ extends: "bpmnlint:recommended" }), "utf8");
+        // Escalating config so the initial request lints host-side (results frame);
+        // deleting it must then hand linting back to the in-page default.
+        await fs.writeFile(
+            configPath,
+            JSON.stringify({
+                extends: "bpmnlint:recommended",
+                moddleExtensions: { acme: "./acme.json" },
+            }),
+            "utf8",
+        );
 
         await requestConfig(rpc, editorId);
         await waitForFrame(frames, isLintResultsFrame);
