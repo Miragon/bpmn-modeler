@@ -191,7 +191,7 @@ follow-up (see below).
   | `setElementTemplates(JSON[] \| undefined)` | `setElementTemplates(object[])` | #1376 |
   | page-level `initTheme`/`setColorThemeMode` | `theme` option + `setTheme()` | #1376/#1377 |
   | page-level `i18n.setLanguage` + `TranslateModule` | `locale` option | #1376 |
-  | `VsCodeClipboardModule` via `extraModules` | `clipboard: { bridge }` | #1374 |
+  | `BridgedClipboardModule` (was `VsCodeClipboardModule`) via `extraModules`, built by `createClipboardModules` | `clipboard: { bridge }` | #1374 ✅ |
 
 - The capability ports widen to `void | Promise<void>` now (a small, real,
   behaviour-neutral change — all callers already ignore the return value), so
@@ -208,7 +208,9 @@ follow-up (see below).
 ## Follow-ups
 
 - #1373 — linting tier ladder + `onLintResults`/`onLintingToggled` runtime.
-- #1374 — clipboard polarity flip (native default, `clipboard: { bridge }`).
+- #1374 — clipboard polarity flip (native default, `clipboard: { bridge }`). ✅
+  Landed: `createClipboardModules` factory + `BridgedClipboardModule`;
+  `libs/bpmn-clipboard/README.md` documents the wire format as a public contract.
 - #1376 — package workspace; collapse `create(engine)` into the async factory;
   apply the rename/reshape map; wire a `tsc` type-check gate for the package.
 - #1377 — relocate the VS Code `<body>`-class theme watcher to the host adapter;

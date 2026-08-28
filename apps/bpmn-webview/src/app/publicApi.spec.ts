@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import { BpmnModeler } from "./modeler";
+import type { CreateModelerOptions } from "./createModeler";
 import type {
     BpmnModelerHandle,
     ClipboardOptions,
@@ -89,6 +90,17 @@ void [_lintOff, _lintExternal, _lintConfig];
 const _clipboard: ClipboardOptions = {
     bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
 };
+// The runtime factory (#1374) accepts the same clipboard override — omit it for
+// the native browser clipboard, or pass `{ bridge }` to route through a host.
+const _createWithClipboard = {
+    propertiesPanelParent: document.createElement("div"),
+    clipboard: _clipboard,
+} satisfies CreateModelerOptions;
+void _createWithClipboard;
+const _createNativeClipboard = {
+    propertiesPanelParent: document.createElement("div"),
+} satisfies CreateModelerOptions;
+void _createNativeClipboard;
 const _builtinsShape = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },

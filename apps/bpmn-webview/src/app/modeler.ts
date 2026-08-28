@@ -10,6 +10,7 @@ import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
+import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -168,6 +169,12 @@ export class BpmnModeler {
             propertiesPanelRootModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
+        // Clipboard is a [B] built-in: omitting `clipboard` registers nothing, so
+        // bpmn-js's native (browser) clipboard stays in charge (#1374); a host that
+        // can't reach the system clipboard from its webview supplies a bridge.
+        const clipModules = this.options.clipboard
+            ? createClipboardModules({ element: this.options.clipboard.bridge })
+            : [];
         const extra = (this.options.extraModules as any[]) ?? [];
 
         const modelerOptions = {
@@ -188,6 +195,7 @@ export class BpmnModeler {
                         CreateAppendC7ElementTemplatesModule,
                         TransactionBoundariesModule,
                         ...capModules,
+                        ...clipModules,
                         ...extra,
                     ],
                 });
@@ -196,7 +204,7 @@ export class BpmnModeler {
             case "c8": {
                 this.modeler = new BpmnModeler8({
                     ...modelerOptions,
-                    additionalModules: [...commonModules, ...capModules, ...extra],
+                    additionalModules: [...commonModules, ...capModules, ...clipModules, ...extra],
                 });
                 break;
             }

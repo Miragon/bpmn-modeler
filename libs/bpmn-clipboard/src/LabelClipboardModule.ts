@@ -13,7 +13,7 @@
  * Uses proper didi DI value injection (`textClipboardBridge`) instead of
  * `config.*` to ensure the bridge is always available when the module loads.
  */
-import { ClipboardBridge } from "./VsCodeClipboardModule";
+import { ClipboardBridge } from "./BridgedClipboardModule";
 
 /**
  * Dispatches a synthetic `ClipboardEvent("paste")` with the given text.
@@ -57,8 +57,6 @@ class LabelClipboard {
     private activeElement: HTMLElement | null = null;
 
     constructor(bridge: ClipboardBridge, eventBus: any, directEditing: any) {
-        console.debug("[LabelClipboard] Module initialized");
-
         const { requestClipboard, writeClipboard } = bridge;
 
         eventBus.on("directEditing.activate", () => {

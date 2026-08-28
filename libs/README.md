@@ -22,7 +22,7 @@ can be composed into a webview and unit-tested in isolation.
 | --- | --- |
 | `append-menu` | This replaces the flat "Append element" dropdown with a two-panel Preact overlay. |
 | `element-template-chooser` | This provides a richer, searchable overlay for picking an element template. |
-| `bpmn-clipboard` | This makes copy and paste of elements and label text work inside the sandboxed webview iframe. |
+| `bpmn-clipboard` | Host-bridge override for element and label-text copy/paste; the native browser clipboard is the default, this routes it through the host when a sandboxed webview iframe can't reach the system clipboard. |
 | `code-link` | This adds a "Go to implementation" context-pad action that jumps to the task's source file. |
 | `inline-scripting` | This lets the user edit a Camunda 7 script task's (or script-typed listener's) inline script in a real host editor tab, arbitrating a single writer per script surface and keeping the panel field in sync. |
 | `model-navigation` | This adds a "Navigate to referenced model" action, jumping from a Call Activity to its BPMN process or from a Business Rule Task to its DMN decision. |
