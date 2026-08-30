@@ -1,5 +1,5 @@
 // bpmn.js
-import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
 import {
     BpmnFileQuery,
@@ -54,23 +54,17 @@ import {
     initTheme,
     installPanelShortcuts,
     observeCanvasSize,
+    setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
-import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
-import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
-import {
-    BpmnModeler,
-    createModeler,
-    installContentEditableClipboardPolyfill,
-    UnsupportedEngineError,
-} from "@miragon/bpmn-modeler";
+import { BpmnModeler, createModeler, UnsupportedEngineError } from "@miragon/bpmn-modeler";
 import type { ClipboardOptions, LintingOptions, ModelerCapabilities } from "@miragon/bpmn-modeler";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
 import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
-import type { WebviewState } from "./app/webviewState";
-import { DiffMode } from "./app/diff/DiffMode";
-import { installHostEditorActions } from "./app/hostEditorActions";
-import { readSavedPanelVisibility, WebviewStateManager } from "./app/state";
+import type { WebviewState } from "./webviewState";
+import { DiffMode } from "./diffMode";
+import { installHostEditorActions } from "./hostEditorActions";
+import { readSavedPanelVisibility, WebviewStateManager } from "./state";
 
 /**
  * Upper bound (ms) on how long bootstrap waits for a host reply before
@@ -319,13 +313,11 @@ function startSession(
     async function run(): Promise<void> {
         window.addEventListener("message", onReceiveMessage);
 
-        // Merge the modeler's Camunda-7 / dmn-js / internal strings onto the
-        // shared library's dictionaries before anything translates. The shared
-        // package is C8-seeded and lacks these keys; without this bridge they
-        // would render as English. extend() persists across setLanguage(), so
-        // this single call at startup covers every later language switch and
-        // both the modeler and the viewer-mode diff legend below.
-        i18n.extend(i18nExtras);
+        // The modeler's Camunda-7 / dmn-js / internal translation overlay is
+        // merged onto the shared dictionaries inside createModeler(). Viewer
+        // (diff) mode never calls it, but its only translated surface is the diff
+        // legend, whose keys ship in the base @miragon/bpmn-modeler-i18n package
+        // — not the overlay — so it needs no extend here.
 
         initTheme();
 
@@ -334,24 +326,25 @@ function startSession(
         // hidden by .viewer-mode CSS once we confirm the mode below. For the
         // modeler path, initResizer() is called after the branch check.
 
-        // Build clipboard DI modules.
+        // Resolve the clipboard option passed to createModeler. The package
+        // builds the DI modules and installs the contenteditable/FEEL polyfill
+        // from it (the polyfill therefore installs during createModeler rather
+        // than here — an invisible timing change).
         //
         // - `undefined` (default): today's behavior — in dev (plain-browser
         //   `serve`) the native browser clipboard handles copy/paste, so no
-        //   modules load; otherwise route through the host protocol bridge.
+        //   option is passed; otherwise route both channels through the host.
         // - `"native"`: force the browser clipboard (demo/browser consumers) —
-        //   no modules, no polyfill.
-        // - `{ bridge }`: public override — one bridge drives both the element
-        //   modules and the contenteditable polyfill.
-        let clipboardModules: unknown[] | undefined;
+        //   no option, no polyfill.
+        // - `{ bridge }`: public override — passed through unchanged; the
+        //   package uses the single bridge for both element and text surfaces.
+        let clipboard: ClipboardOptions | undefined;
 
         if (injectedClipboard === "native") {
-            // Native browser clipboard: register nothing so bpmn-js's
+            // Native browser clipboard: pass no option so bpmn-js's
             // NativeCopyPaste stays in charge (#1374).
         } else if (injectedClipboard) {
-            const { bridge } = injectedClipboard;
-            clipboardModules = createClipboardModules({ element: bridge });
-            installContentEditableClipboardPolyfill(bridge.requestClipboard, bridge.writeClipboard);
+            clipboard = injectedClipboard;
         } else if (process.env.NODE_ENV !== "development") {
             const requestElementClipboard = async (): Promise<string> => {
                 elementClipboardResolver = createResolver<ClipboardQuery>();
@@ -373,10 +366,12 @@ function startSession(
                 host.postMessage(new SetTextClipboardCommand(text));
             };
 
-            // Two independent protocol channels so element and label clipboards
-            // stay separate — byte-identical to today's real-host wiring.
-            clipboardModules = createClipboardModules({
-                element: {
+            // Two independent protocol channels so element and label/FEEL
+            // clipboards stay separate — byte-identical to today's real-host
+            // wiring. The package installs the contenteditable polyfill off the
+            // `text` bridge.
+            clipboard = {
+                bridge: {
                     requestClipboard: requestElementClipboard,
                     writeClipboard: writeElementClipboard,
                 },
@@ -384,18 +379,7 @@ function startSession(
                     requestClipboard: requestTextClipboard,
                     writeClipboard: writeTextClipboard,
                 },
-            });
-
-            /**
-             * The FEEL editor (CodeMirror 6) in the C8 properties panel lives
-             * outside the bpmn-js DI context, so the DI clipboard modules above
-             * don't reach it. This polyfill intercepts Cmd/Ctrl+C/V on
-             * contenteditable elements and bridges them through the extension
-             * host clipboard, and guards Ctrl+A in text-editing surfaces from
-             * being stolen by bpmn-js's Keyboard service (canvas Ctrl+A is owned
-             * by bpmn-js's SelectionKeyBindings).
-             */
-            installContentEditableClipboardPolyfill(requestTextClipboard, writeTextClipboard);
+            };
         }
 
         host.postMessage(new GetBpmnFileCommand());
@@ -461,7 +445,7 @@ function startSession(
         }
 
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
-        const extraModules = [...(clipboardModules ?? []), ...((injectedModules as any[]) ?? [])];
+        const extraModules = (injectedModules as unknown[]) ?? [];
         // Real hosts run the linter themselves and push results, so the default
         // tier is external — keeping VS Code / IntelliJ / Theia byte-identical to
         // today. A consumer (or the demo) can opt into in-page linting by passing
@@ -472,6 +456,7 @@ function startSession(
                 engine,
                 propertiesPanel: { parent: propertiesPanelParent },
                 additionalModules: extraModules,
+                clipboard,
                 capabilities,
                 linting: injectedLinting ?? { results: "external" },
                 // A real host activates in-page linting only after it answers the
@@ -771,6 +756,10 @@ function startSession(
             case queryOrCommand.type === "BpmnModelerSettingQuery": {
                 const query = message.data as BpmnModelerSettingQuery;
                 try {
+                    // Theme is host policy: the adapter drives the page theme off
+                    // the VS Code `<body>`-class watcher (initTheme) here, since
+                    // the package's setSettings no longer applies `colorTheme`.
+                    setColorThemeMode(query.setting.colorTheme);
                     bpmnModeler.setSettings(query.setting);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));

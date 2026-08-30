@@ -159,11 +159,18 @@ module.exports = [
         },
     },
     // Protocol-boundary guardrail (BND-PROTOCOL-PRIVATE): the publishable
-    // libraries and the webview `app/` feature layers (#1293 / #1371) may import
-    // the public `@miragon/bpmn-modeler-types` package, but never the private
-    // `@miragon/bpmn-modeler-shared` protocol package (Query/Command bases,
-    // `HostApi`, document-flush plumbing). The types package itself is included
-    // so it can never depend on the protocol side, keeping the split acyclic.
+    // libraries and the remaining webview `app/` feature layer (dmn, #1293 /
+    // #1371) may import the public `@miragon/bpmn-modeler-types` package, but
+    // never the private `@miragon/bpmn-modeler-shared` protocol package
+    // (Query/Command bases, `HostApi`, document-flush plumbing). The types
+    // package itself is included so it can never depend on the protocol side,
+    // keeping the split acyclic.
+    //
+    // The bpmn-webview adapter root (`apps/bpmn-webview/src/**`) is deliberately
+    // absent: #1377 made it a thin host layer that speaks the protocol by
+    // design. AC3 (protocol types reach only the adapter + hosts) is carried by
+    // the rule's libs/packages coverage plus `packages/bpmn-modeler/src/
+    // architecture.spec.ts`, which forbids the package from naming the protocol.
     {
         files: [
             "libs/modeler-types/**",
@@ -175,18 +182,11 @@ module.exports = [
             "libs/model-navigation/**",
             "libs/flow-navigation/**",
             "packages/bpmn-modeler/**",
-            "apps/bpmn-webview/src/app/**",
             "apps/dmn-webview/src/app/**",
         ],
-        // Host-adapter layer inside `app/` still speaks the protocol; it is
-        // relocated out of the publishable boundary in #1377. Exempt until then.
-        ignores: [
-            "apps/bpmn-webview/src/app/host.ts",
-            "apps/bpmn-webview/src/app/state.ts",
-            "apps/bpmn-webview/src/app/diff/DiffMode.ts",
-            "apps/dmn-webview/src/app/host.ts",
-            "apps/dmn-webview/src/app/state.ts",
-        ],
+        // Host-adapter layer inside dmn `app/` still speaks the protocol; it is
+        // relocated out of the publishable boundary in a follow-up. Exempt until then.
+        ignores: ["apps/dmn-webview/src/app/host.ts", "apps/dmn-webview/src/app/state.ts"],
         rules: {
             // This block wins `no-restricted-imports` for its files (ESLint flat
             // config replaces, not merges, a rule's options on the last match), so

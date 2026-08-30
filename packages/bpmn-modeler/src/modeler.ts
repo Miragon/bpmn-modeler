@@ -15,6 +15,8 @@ import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
+import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
+import { setThemeMode } from "./theme";
 import {
     asyncDebounce,
     type AsyncDebounced,
@@ -26,7 +28,6 @@ import {
     OpenScriptEditorRef,
     ScriptKind,
     ScriptTaskScript,
-    setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
 import {
     collectInlineScriptTasks,
@@ -188,9 +189,25 @@ export class BpmnModeler {
         // Clipboard is a [B] built-in: omitting `clipboard` registers nothing, so
         // bpmn-js's native (browser) clipboard stays in charge (#1374); a host that
         // can't reach the system clipboard from its webview supplies a bridge.
-        const clipModules = this.options.clipboard
-            ? createClipboardModules({ element: this.options.clipboard.bridge })
+        // A distinct `text` bridge routes label + contenteditable/FEEL surfaces
+        // through the host's text channel; it defaults to the element bridge.
+        const clip = this.options.clipboard;
+        const clipModules = clip
+            ? createClipboardModules({ element: clip.bridge, text: clip.text })
             : [];
+        if (clip) {
+            // The FEEL editor (CodeMirror 6) and diagram-js label overlay live
+            // outside the bpmn-js DI context, so the DI clipboard modules above
+            // don't reach them; this document-level polyfill bridges their
+            // Cmd/Ctrl+C/V (and guards Ctrl+A) through the text bridge. Arrow-
+            // wrapped so the bridge keeps its own `this`. Idempotent by its own
+            // install guard, so a re-init() never stacks handlers.
+            const textBridge = clip.text ?? clip.bridge;
+            installContentEditableClipboardPolyfill(
+                () => textBridge.requestClipboard(),
+                (text) => textBridge.writeClipboard(text),
+            );
+        }
         const extra = (this.options.additionalModules as any[]) ?? [];
 
         const modelerOptions = {
@@ -574,12 +591,9 @@ export class BpmnModeler {
         this.getModeler();
         this.settings = { ...this.settings, ...settings };
 
-        /**
-         * Apply color theme mode change immediately.
-         */
-        if (settings.colorTheme !== undefined) {
-            this.setTheme(this.settings.colorTheme);
-        }
+        // `colorTheme` is deliberately not applied here: the page theme is host
+        // policy driven through `theme` / {@link setTheme} (#1377). It stays in
+        // the settings type/defaults but is inert on this path.
 
         /**
          * Apply transaction boundary visibility change immediately for C7.
@@ -751,12 +765,13 @@ export class BpmnModeler {
 
     /**
      * Switches the colour theme live. Page-level theme state is a module
-     * singleton shared with the dmn-webview (one `#theme-link`), so `"automatic"`
-     * follows the host's light/dark signal while `"light"`/`"dark"` force a fixed
-     * stylesheet.
+     * singleton (one `#theme-link`), so `"automatic"` follows the OS/browser
+     * `prefers-color-scheme` live while `"light"`/`"dark"` force a fixed
+     * stylesheet. A host that themes off its own chrome maps that signal to a
+     * forced mode at the adapter (#1377).
      */
     setTheme(theme: ThemeMode): void {
-        setColorThemeMode(theme);
+        setThemeMode(theme);
     }
 
     /**

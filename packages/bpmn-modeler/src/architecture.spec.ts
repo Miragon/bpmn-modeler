@@ -80,6 +80,25 @@ describe("bpmn-modeler import direction", () => {
         ).toEqual([]);
     });
 
+    it("package TS source reads no VS Code `<body>` theme classes", () => {
+        // Theme is host policy (#1377): the package resolves light/dark from
+        // `prefers-color-scheme` or an injected mode, never by reading the host's
+        // chrome. A `vscode-*` body class in TS source would mean the watcher
+        // leaked back in. (CSS files legitimately style `body.vscode-dark`; this
+        // gate is TS-only, matching listSourceFiles.)
+        const VSCODE_CLASS = /vscode-(dark|light|high-contrast)/;
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (VSCODE_CLASS.test(readFileSync(file, "utf8"))) {
+                offenders.push(file.slice(PKG_SRC.length + 1));
+            }
+        }
+        expect(
+            offenders,
+            `package TS source must not read VS Code body theme classes:\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
     it("no libs/* source imports @miragon/bpmn-modeler", () => {
         const offenders: string[] = [];
         for (const file of listSourceFiles(LIBS_ROOT)) {
