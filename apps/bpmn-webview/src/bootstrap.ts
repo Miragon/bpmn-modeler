@@ -70,7 +70,17 @@ import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types"
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
 import { installHostEditorActions } from "./app/hostEditorActions";
-import { WebviewStateManager } from "./app/state";
+import { readSavedPanelVisibility, WebviewStateManager } from "./app/state";
+
+/**
+ * Upper bound (ms) on how long bootstrap waits for a host reply before
+ * continuing without it. A dropped element-templates / settings / panel-state
+ * reply would otherwise stall the whole restore chain (selection, panel UI
+ * state, and — critically — {@link WebviewStateManager.startPersisting}, without
+ * which nothing is ever written back to webview state). Late replies still apply
+ * through their normal message handlers.
+ */
+const RESOLVER_TIMEOUT_MS = 5000;
 
 /**
  * Starts the BPMN webview against the given host. The entry (real or demo)
@@ -234,9 +244,15 @@ function startSession(
      */
     async function reloadXmlPreservingView(bpmn: string): Promise<void> {
         const snapshot = stateManager?.captureViewState();
-        await openXml(bpmn);
-        if (snapshot) {
-            stateManager.applyViewState(snapshot);
+        try {
+            await openXml(bpmn);
+        } finally {
+            // Re-apply even when a post-import side-effect threw — the import
+            // itself already reset the canvas to the top-level plane, and
+            // skipping the restore would strand the user there.
+            if (snapshot) {
+                stateManager.applyViewState(snapshot);
+            }
         }
     }
 
@@ -422,6 +438,19 @@ function startSession(
                 ) + " (Shift+P)",
             onLabelChange: (apply) => i18n.onChange(apply),
         });
+
+        // Early-apply this editor's own saved panel visibility (if any) before
+        // diagram import so the panel snaps straight to the correct per-editor
+        // state — no flash, no wait on the host round-trip, and it neutralizes
+        // the stale global-default hint baked into the pre-rendered HTML. When
+        // absent, the host global default is applied later (once its reply
+        // arrives). Applied via the handle so the resizer's DOM-seeded
+        // `isCollapsed` stays in sync.
+        const savedPanelVisible = readSavedPanelVisibility(host);
+        if (savedPanelVisible !== undefined) {
+            propertiesPanelHandle.setVisible(savedPanelVisible);
+        }
+
         // The engine is known here (the file handshake above completed), so the
         // former two-step createModeler + create(engine) collapses into one async
         // call. A missing engine is fatal — bail before construction.
@@ -565,32 +594,47 @@ function startSession(
         host.postMessage(new GetPropertiesPanelStateCommand());
         host.postMessage(new GetBpmnlintConfigCommand());
 
-        const [, , panelStateQuery] = await Promise.all([
-            elementTemplatesResolver.wait(),
-            settingsResolver.wait(),
-            panelStateResolver.wait(),
-        ]);
+        // Panel visibility: this editor's own saved entry (applied early above)
+        // wins. Only when absent do we fall back to the host's global default —
+        // the seed for a first-ever open. This branch is deliberately *not*
+        // gated on templates/settings, so a slow or dropped templates reply can
+        // no longer leave the panel stuck at the pre-rendered default.
+        if (savedPanelVisible === undefined) {
+            const panelStateQuery = await panelStateResolver.wait(RESOLVER_TIMEOUT_MS);
+            stateManager.restorePanelVisibility(
+                propertiesPanelHandle,
+                panelStateQuery?.visible ?? true,
+            );
+        }
 
-        // Apply the host's global properties-panel default. A missing query
-        // (unlikely but possible if the resolver was cancelled) falls back to a
-        // visible panel so the user is never stranded without properties editing.
-        propertiesPanelHandle.setVisible(panelStateQuery?.visible ?? true);
-
-        // Report user toggles back to the host so the global default tracks the
-        // latest preference across all BPMN editors.
+        // Report user toggles: persist this editor's own state AND update the
+        // host's global default so the latest preference seeds new editors.
+        // Registered after restore so the restore itself can't echo back.
         propertiesPanelHandle.onVisibilityChanged((visible) => {
+            stateManager.persistPanelVisibility(visible);
             host.postMessage(new SetPropertiesPanelStateCommand(visible));
         });
 
         // `p` focuses the properties panel (expanding it first if collapsed);
         // `Shift+P` toggles panel visibility from anywhere except text fields.
         // Escape stays with keyboardFocus.ts in BPMN — no escapeToCanvas here.
+        // Registered off the panel branch (not behind the templates/settings
+        // await) so Shift+P works during slow loads.
         installPanelShortcuts({
             handle: propertiesPanelHandle,
             focusCanvas: () => bpmnModeler.getService<{ focus(): void }>("canvas").focus(),
             isCanvasFocused: () =>
                 bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
         });
+
+        // Selection + panel-side UI state must wait until element-template and
+        // settings side-effects have run (they clear selection; group indexes are
+        // positional per selected element). The timeouts guarantee this chain
+        // always reaches startPersisting even if a host reply is dropped.
+        await Promise.all([
+            elementTemplatesResolver.wait(RESOLVER_TIMEOUT_MS),
+            settingsResolver.wait(RESOLVER_TIMEOUT_MS),
+        ]);
 
         // Phase 2: restore selection + panel-side UI state (side-effects done)
         stateManager.restoreSelection();
@@ -676,14 +720,16 @@ function startSession(
                 break;
             }
             case queryOrCommand.type === "ElementTemplatesQuery": {
+                const query = message.data as ElementTemplatesQuery;
                 try {
-                    const elementTemplates = (message.data as ElementTemplatesQuery)
-                        .elementTemplates;
-                    console.debug("Received element templates: ", elementTemplates);
-                    bpmnModeler.setElementTemplates(elementTemplates);
-                    elementTemplatesResolver.done(message.data as ElementTemplatesQuery);
+                    console.debug("Received element templates: ", query.elementTemplates);
+                    bpmnModeler.setElementTemplates(query.elementTemplates);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                } finally {
+                    // Resolve even on a facade throw — otherwise the bootstrap
+                    // await starves and startPersisting never runs.
+                    elementTemplatesResolver.done(query);
                 }
                 break;
             }
@@ -723,12 +769,15 @@ function startSession(
                 break;
             }
             case queryOrCommand.type === "BpmnModelerSettingQuery": {
+                const query = message.data as BpmnModelerSettingQuery;
                 try {
-                    const setting = (message.data as BpmnModelerSettingQuery).setting;
-                    bpmnModeler.setSettings(setting);
-                    settingsResolver.done(message.data as BpmnModelerSettingQuery);
+                    bpmnModeler.setSettings(query.setting);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                } finally {
+                    // Resolve even on a facade throw — otherwise the bootstrap
+                    // await starves and startPersisting never runs.
+                    settingsResolver.done(query);
                 }
                 break;
             }
@@ -752,8 +801,13 @@ function startSession(
                     // bpmn-js itself still needs a diagram re-import to re-invoke
                     // translate() for already-rendered elements — skipped in
                     // viewer mode where there is no editable modeler.
+                    // The host pushes the language on every (re)load, not only on
+                    // change. Compare resolved locales (setLanguage falls back to
+                    // "en" for unknown codes) and skip the destructive re-import
+                    // when nothing changed — a tab re-show must not re-import.
+                    const localeBefore = i18n.getLocale();
                     i18n.setLanguage(query.locale as SupportedLocale);
-                    if (modelerIsInitialized) {
+                    if (modelerIsInitialized && i18n.getLocale() !== localeBefore) {
                         await refreshDiagram();
                     }
                 } catch (error: any) {
@@ -867,8 +921,13 @@ function startSession(
     async function refreshDiagram(): Promise<void> {
         const xml = await bpmnModeler.exportDiagram();
         const snapshot = stateManager.captureViewState();
-        await bpmnModeler.loadDiagram(xml);
-        stateManager.applyViewState(snapshot);
+        try {
+            await bpmnModeler.loadDiagram(xml);
+        } finally {
+            // Same rationale as reloadXmlPreservingView: the re-import has
+            // already reset the plane, so restore even on a late throw.
+            stateManager.applyViewState(snapshot);
+        }
     }
 
     // Best-effort flush of the outbound sync debounce when the webview is hidden

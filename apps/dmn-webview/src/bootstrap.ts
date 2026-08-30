@@ -40,6 +40,7 @@ import {
     isDrdViewActive,
     loadDiagram,
     onCommandStackChanged,
+    readSavedPanelVisibility,
     syncCanvasSize,
     WebviewStateManager,
 } from "./app";
@@ -124,6 +125,13 @@ const settingsResolver = createResolver<DmnModelerSettingQuery>();
 let modelerIsInitialized = false;
 
 /**
+ * Upper bound (ms) on how long bootstrap waits for a host reply before
+ * continuing without it, so a dropped settings / panel-state reply can no longer
+ * stall the restore chain (`restorePanelUiState` / `startPersisting`).
+ */
+const RESOLVER_TIMEOUT_MS = 5000;
+
+/**
  * The Main function that gets executed after the webview is fully loaded.
  * This way we can ensure that when the backend sends a message, it is caught.
  * There are two reasons why a webview gets build:
@@ -154,6 +162,15 @@ async function run(): Promise<void> {
         onLabelChange: (apply) => i18n.onChange(apply),
     });
 
+    // Early-apply this editor's own saved panel visibility (if any) so the panel
+    // snaps to the correct per-editor state without waiting on the host and
+    // without flashing the pre-rendered global default. Applied via the handle
+    // so the resizer's DOM-seeded `isCollapsed` stays in sync.
+    const savedPanelVisible = readSavedPanelVisibility(host);
+    if (savedPanelVisible !== undefined) {
+        propertiesPanelHandle.setVisible(savedPanelVisible);
+    }
+
     host.postMessage(new GetDmnFileCommand());
     host.postMessage(new GetPropertiesPanelStateCommand());
     host.postMessage(new GetDmnModelerSettingCommand());
@@ -163,13 +180,20 @@ async function run(): Promise<void> {
 
     // Block until the host's color-theme preference has been applied (the
     // handler in onReceiveMessage swaps the stylesheet) so the modeler doesn't
-    // settle on the wrong theme before the user setting arrives.
-    await settingsResolver.wait();
+    // settle on the wrong theme before the user setting arrives. Timed out so a
+    // dropped reply can't stall the restore chain below.
+    await settingsResolver.wait(RESOLVER_TIMEOUT_MS);
 
-    // Apply the host's global default, then report toggles back to persist it.
-    const panelState = await panelStateResolver.wait();
-    propertiesPanelHandle.setVisible(panelState?.visible ?? true);
+    // Panel visibility: this editor's own saved entry (applied early above) wins;
+    // only when absent do we fall back to the host's global default. Then report
+    // toggles back — persisting per-editor state and seeding the global default.
+    // Registered after restore so the restore itself can't echo back.
+    if (savedPanelVisible === undefined) {
+        const panelState = await panelStateResolver.wait(RESOLVER_TIMEOUT_MS);
+        stateManager.restorePanelVisibility(propertiesPanelHandle, panelState?.visible ?? true);
+    }
     propertiesPanelHandle.onVisibilityChanged((visible) => {
+        stateManager.persistPanelVisibility(visible);
         host.postMessage(new SetPropertiesPanelStateCommand(visible));
     });
 

@@ -26,4 +26,11 @@ export interface WebviewState {
     selectedElementIds?: string[];
     panelScroll?: number;
     expandedGroupIndexes?: number[];
+    /**
+     * Per-editor properties-panel visibility. Absent until the user first
+     * toggles the panel in this editor; while absent the editor follows the
+     * host's global default (`propertiesPanelVisible`). Present entry wins over
+     * that default so two tabs in one group keep independent panel state.
+     */
+    panelVisible?: boolean;
 }
