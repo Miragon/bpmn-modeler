@@ -1,5 +1,13 @@
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
 import { DiffLegend, DiffPaneCoordinator, DiffViewer } from "@miragon/bpmn-modeler";
+import { mountDemoHeader } from "../src";
+
+// The diff page uses bare DiffViewers, which never swap `#theme-link`, so the
+// engine (Camunda C7/C8) + token-sim stylesheets must be imported here. A JS
+// import lets Vite process it (and its node_modules `@import`s) in both dev and
+// build — a raw `<link>` to this source path escapes the dev-server root and
+// 404s. The base modeler CSS ships via the `@miragon/bpmn-modeler` side effects.
+import "../../../packages/bpmn-modeler/src/styles/light-theme/index.css";
 
 import { DIFF_AFTER_XML, DIFF_BEFORE_XML } from "./diffFixtures";
 
@@ -16,6 +24,8 @@ import { DIFF_AFTER_XML, DIFF_BEFORE_XML } from "./diffFixtures";
  * step lands on an added/removed element that exists on only one side).
  */
 async function main(): Promise<void> {
+    mountDemoHeader("diff");
+
     const canvasBefore = document.getElementById("canvas-before");
     const canvasAfter = document.getElementById("canvas-after");
     const paneBefore = document.getElementById("pane-before");

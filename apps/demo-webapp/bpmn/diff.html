@@ -3,21 +3,21 @@
     <head>
         <meta charset="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <link
-            href="../../../packages/bpmn-modeler/src/styles/light-theme/index.css"
-            id="theme-link"
-            rel="stylesheet"
-        />
+        <!-- The engine + theme CSS is imported from diff.ts so Vite serves it in
+             dev (a raw <link> to the package source escapes the dev-server root
+             and 404s). The diff view is light-only and never swaps themes. -->
         <meta content="width=device-width, initial-scale=1.0" name="viewport" />
         <title>Miragon Modeler — Two-Pane Diff Demo</title>
         <style>
             body {
                 margin: 0;
             }
-            /* Two read-only diff panes side by side — no properties panels. */
+            /* Two read-only diff panes side by side — no properties panels.
+               #app is sized by the shared demo header (viewport minus the
+               header + footer bars); the diff fills it. */
             .diff {
                 display: flex;
-                height: 100vh;
+                height: 100%;
             }
             .pane {
                 position: relative;
@@ -35,12 +35,14 @@
         </style>
     </head>
     <body>
-        <div class="diff">
-            <div class="pane" id="pane-before">
-                <div class="canvas" id="canvas-before"></div>
-            </div>
-            <div class="pane" id="pane-after">
-                <div class="canvas" id="canvas-after"></div>
+        <div id="app" style="height: 100vh">
+            <div class="diff">
+                <div class="pane" id="pane-before">
+                    <div class="canvas" id="canvas-before"></div>
+                </div>
+                <div class="pane" id="pane-after">
+                    <div class="canvas" id="canvas-after"></div>
+                </div>
             </div>
         </div>
         <script src="/diff.ts" type="module"></script>
