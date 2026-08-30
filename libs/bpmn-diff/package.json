@@ -1,5 +1,5 @@
 {
-    "name": "@miragon/bpmn-modeler-types",
+    "name": "@miragon/bpmn-modeler-diff",
     "types": "./src/index.ts",
     "version": "0.0.1",
     "private": true,
@@ -8,12 +8,10 @@
         "test": "vitest run"
     },
     "dependencies": {
-        "@miragon/bpmn-modeler-diff": "workspace:*",
-        "lodash": "4.18.1"
+        "bpmn-js-differ": "3.2.0",
+        "bpmn-moddle": "10.0.0"
     },
     "devDependencies": {
-        "@types/lodash": "4.17.24",
-        "jsdom": "30.0.1",
         "typescript": "6.0.3",
         "vitest": "4.1.9"
     }

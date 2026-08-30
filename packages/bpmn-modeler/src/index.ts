@@ -44,16 +44,21 @@ export { ViewportManager } from "./viewport";
 export type { ViewportData } from "./viewport";
 export { SelectionManager } from "./selection";
 
+// ── Diff view — public rendering primitives + in-page coordinator (#1378) ─────
+// The data layer (`computeDiff`/`sideView` + result types) is the Node-safe
+// `@miragon/bpmn-modeler/diff` subpath; these are the browser-only primitives.
+export { DiffViewer } from "./diff/DiffViewer";
+export type { DiffMarkerClass } from "./diff/DiffViewer";
+export { DiffLegend } from "./diff/DiffLegend";
+export type { DiffLegendCallbacks, DiffLegendContext } from "./diff/DiffLegend";
+export { DiffNavigator } from "./diff/DiffNavigator";
+export { DiffPaneCoordinator } from "./diff/DiffPaneCoordinator";
+
 // ── @internal — host-only surface the thin bpmn-webview adapter still needs ───
 // The adapter reaches the raw {@link BpmnModeler} class (host-only methods:
 // onCommandStackChanged, applyImplementationStatus, drill-down restore, …) and
-// its `CreateModelerOptions`. `DiffViewer`/`DiffLegend` stay internal until the
-// diff view moves behind the designed surface (#1378).
+// its `CreateModelerOptions`.
 /** @internal */
 export { BpmnModeler } from "./modeler";
 /** @internal */
 export type { CreateModelerOptions } from "./createModeler";
-/** @internal */
-export { DiffViewer } from "./diff/DiffViewer";
-/** @internal */
-export { DiffLegend } from "./diff/DiffLegend";

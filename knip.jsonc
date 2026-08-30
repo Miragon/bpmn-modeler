@@ -32,20 +32,22 @@
             ]
         },
         "apps/demo-webapp": {
-            // dual.ts is reached only via bpmn/dual.html, which the vite plugin
-            // does not walk (single-mode root), so list it explicitly.
-            "entry": ["dmn/main.ts", "bpmn/dual.ts"]
+            // dual.ts / diff.ts are reached only via their .html files, which the
+            // vite plugin does not walk (single-mode root), so list them.
+            "entry": ["dmn/main.ts", "bpmn/dual.ts", "bpmn/diff.ts"]
         },
         "packages/bpmn-modeler": {
             // The lazy bpmnlint chunk is reached via `await import("./bpmnlint")`
             // in modeler.ts; list its barrel so knip does not read the whole
-            // chunk as unused.
-            "entry": ["src/index.ts", "src/bpmnlint/index.ts"],
-            // minisearch (via model-navigation) and lodash (via modeler-types'
-            // asyncDebounce) are pulled in only through inlined workspace libs;
-            // the Vite lib build externalises them, so the published package must
-            // declare them even though no package source imports them directly.
-            "ignoreDependencies": ["minisearch", "lodash"]
+            // chunk as unused. `src/diff/index.ts` is the public `./diff`
+            // subpath entry (package.json exports), so its exports are API.
+            "entry": ["src/index.ts", "src/bpmnlint/index.ts", "src/diff/index.ts"],
+            // minisearch (via model-navigation), lodash (via modeler-types'
+            // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)
+            // are pulled in only through inlined workspace libs; the Vite lib
+            // build externalises them, so the published package must declare them
+            // even though no package source imports them directly.
+            "ignoreDependencies": ["minisearch", "lodash", "bpmn-js-differ"]
         }
     }
 }

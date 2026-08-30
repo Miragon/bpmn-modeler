@@ -9,6 +9,7 @@ import dts from "unplugin-dts/vite";
 // `devDependencies` `workspace:*` entries and the architecture spec.
 const INLINED_LIBS = [
     "@miragon/bpmn-modeler-types",
+    "@miragon/bpmn-modeler-diff",
     "@miragon/bpmn-modeler-clipboard",
     "@miragon/bpmn-modeler-i18n-extras",
     "@miragon/bpmn-modeler-element-template-chooser",
@@ -20,11 +21,13 @@ const INLINED_LIBS = [
 ];
 
 // The source roots of the inlined libs — their per-file declarations must be
-// emitted so api-extractor can flatten them into `dist/index.d.ts` (they carry
-// no built `types` entry of their own). Only these nine; globbing all of
-// `libs/*` would drag in the engine core's declaration errors too.
+// emitted so api-extractor can flatten them into `dist/index.d.ts` /
+// `dist/diff.d.ts` (they carry no built `types` entry of their own). Only these
+// ten; globbing all of `libs/*` would drag in the engine core's declaration
+// errors too.
 const INLINED_LIB_SRC = [
     "../../libs/modeler-types/src",
+    "../../libs/bpmn-diff/src",
     "../../libs/bpmn-clipboard/src",
     "../../libs/bpmn-i18n-extras/src",
     "../../libs/element-template-chooser/src",
@@ -81,7 +84,12 @@ export default defineConfig({
         commonjsOptions: { transformMixedEsModules: true },
         chunkSizeWarningLimit: 1200,
         lib: {
-            entry: { index: resolve(__dirname, "src/index.ts") },
+            entry: {
+                index: resolve(__dirname, "src/index.ts"),
+                // Data-layer subpath (`@miragon/bpmn-modeler/diff`): no CSS,
+                // bpmn-js, i18n, or preact — Node-safe (check-diff-node.mjs).
+                diff: resolve(__dirname, "src/diff/index.ts"),
+            },
             formats: ["es"],
             cssFileName: "bpmn-modeler",
         },

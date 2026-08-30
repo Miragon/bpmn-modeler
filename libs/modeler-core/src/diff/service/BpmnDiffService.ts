@@ -1,14 +1,3 @@
-// Bundler (webpack + ts-loader) does not pick up ambient module declarations
-// from `src/types/*.d.ts` via tsconfig `include` alone — it honours explicit
-// triple-slash references though.  `tsc --noEmit` handles both, but the
-// bundler path is the one that ships the extension, so the references are
-// required for the production build.
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="../../types/bpmn-js-differ.d.ts" />
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="../../types/bpmn-moddle.d.ts" />
-import { diff } from "bpmn-js-differ";
-
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,
@@ -17,13 +6,8 @@ import {
     SyncViewportQuery,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
-import {
-    DiffCounts,
-    Engine,
-    buildFlowOrder,
-    buildRemovedAnchors,
-    sortIdsByOrder,
-} from "@miragon/bpmn-modeler-types";
+import { Engine } from "@miragon/bpmn-modeler-types";
+import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { DiffPaneHandle, DiffSession, basenameOfUriString } from "../domain/DiffSession";
@@ -165,106 +149,43 @@ export class BpmnDiffService {
     }
 
     /**
-     * Parses both panes' XML, runs `bpmn-js-differ`, and posts a side-targeted
-     * {@link ApplyDiffHighlightsQuery} to each webview.  Each side receives
-     * only the ids present on its own canvas:
-     *   - `_removed` elements exist only on `before`.
-     *   - `_added` elements exist only on `after`.
-     *   - `_changed` and `_layoutChanged` elements exist on both.
+     * Delegates the computation to the shared {@link computeDiff} data layer,
+     * then posts a side-targeted {@link ApplyDiffHighlightsQuery} to each
+     * webview via {@link sideView}.  Each side receives only the ids present on
+     * its own canvas:
+     *   - removed elements exist only on `before`.
+     *   - added elements exist only on `after`.
+     *   - changed and layoutChanged elements exist on both.
+     *
+     * A `computeDiff` failure is logged and dropped — the panes simply render
+     * without highlights rather than surfacing a hard error to the user.
      */
     private async computeAndBroadcast(
         session: DiffSession,
         before: DiffPaneHandle,
         after: DiffPaneHandle,
     ): Promise<void> {
-        const beforeXml = before.getText();
-        const afterXml = after.getText();
-
-        let beforeDefs: unknown;
-        let afterDefs: unknown;
+        let result: DiffResult;
         try {
-            // `bpmn-moddle` has no `default` export — its ESM dist only
-            // re-exports the factory as `BpmnModdle`.  Webpack's ESM→CJS
-            // interop does not synthesize `.default`, so we accept both
-            // shapes for forward-compat across bundler upgrades.
-            const moddleMod = (await import("bpmn-moddle")) as unknown as {
-                default?: () => {
-                    fromXML: (xml: string) => Promise<{ rootElement: unknown }>;
-                };
-                BpmnModdle?: () => {
-                    fromXML: (xml: string) => Promise<{ rootElement: unknown }>;
-                };
-            };
-            const createBpmnModdle = moddleMod.default ?? moddleMod.BpmnModdle;
-            if (typeof createBpmnModdle !== "function") {
-                throw new Error(
-                    "bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.",
-                );
-            }
-            const moddle = createBpmnModdle();
-            beforeDefs = (await moddle.fromXML(beforeXml)).rootElement;
-            afterDefs = (await moddle.fromXML(afterXml)).rootElement;
+            result = await computeDiff(before.getText(), after.getText());
         } catch (error) {
             this.notifier.logError(error as Error);
             return;
         }
 
-        const result = diff(
-            beforeDefs as Parameters<typeof diff>[0],
-            afterDefs as Parameters<typeof diff>[1],
-        );
-
-        const added = Object.keys(result._added);
-        const removed = Object.keys(result._removed);
-        const changed = Object.keys(result._changed);
-        const layoutChanged = Object.keys(result._layoutChanged);
-        const counts: DiffCounts = {
-            added: added.length,
-            removed: removed.length,
-            changed: changed.length,
-            layoutChanged: layoutChanged.length,
-        };
-
-        // Order all id arrays by sequence-flow position so the diff stepper
-        // walks from start event to end event instead of in the differ's
-        // arbitrary insertion order.  Removed elements live only on the
-        // before canvas; anchor each one next to a surviving neighbour in the
-        // after order so it appears near where it used to be in the flow.
-        const afterOrder = buildFlowOrder(afterDefs as never);
-        const removedAnchors = buildRemovedAnchors(removed, beforeDefs as never, afterOrder);
-        const sortedAdded = sortIdsByOrder(added, afterOrder);
-        const sortedRemoved = sortIdsByOrder(removed, removedAnchors);
-        const sortedChanged = sortIdsByOrder(changed, afterOrder);
-        const sortedLayoutChanged = sortIdsByOrder(layoutChanged, afterOrder);
-
-        // Merged navigation order: dedup across categories, then sort once
-        // more so removed elements interleave with added/changed at their
-        // anchored positions instead of sitting in their own block.
-        const merged: string[] = [];
-        const seen = new Set<string>();
-        for (const id of [
-            ...sortedAdded,
-            ...sortedRemoved,
-            ...sortedChanged,
-            ...sortedLayoutChanged,
-        ]) {
-            if (!seen.has(id)) {
-                seen.add(id);
-                merged.push(id);
-            }
-        }
-        const navigationOrder = sortIdsByOrder(merged, afterOrder, removedAnchors);
+        const beforeView = sideView(result, "before");
+        const afterView = sideView(result, "after");
 
         await this.postHighlights(
             before,
             new ApplyDiffHighlightsQuery(
                 "before",
-                [],
-                sortedRemoved,
-                sortedChanged,
-                sortedLayoutChanged,
-                counts,
-                navigationOrder,
+                beforeView.added,
+                beforeView.removed,
+                beforeView.changed,
+                beforeView.layoutChanged,
+                result.counts,
+                result.navigationOrder,
                 session.origin,
                 basenameOfUriString(before.uri),
             ),
@@ -273,12 +194,12 @@ export class BpmnDiffService {
             after,
             new ApplyDiffHighlightsQuery(
                 "after",
-                sortedAdded,
-                [],
-                sortedChanged,
-                sortedLayoutChanged,
-                counts,
-                navigationOrder,
+                afterView.added,
+                afterView.removed,
+                afterView.changed,
+                afterView.layoutChanged,
+                result.counts,
+                result.navigationOrder,
                 session.origin,
                 basenameOfUriString(after.uri),
             ),

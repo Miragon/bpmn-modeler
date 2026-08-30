@@ -11,12 +11,19 @@ export default defineConfig({
         // specs import it the same way the bundle does (mirrors modeler-core).
         server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
+            // The subpath alias must precede the root key: Vite matches aliases
+            // in order and the root prefix would otherwise swallow `/diff`.
+            "@miragon/bpmn-modeler/diff": resolve(
+                __dirname,
+                "../../packages/bpmn-modeler/src/diff/index.ts",
+            ),
             "@miragon/bpmn-modeler": resolve(__dirname, "../../packages/bpmn-modeler/src/index.ts"),
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
             "@miragon/bpmn-modeler-types": resolve(
                 __dirname,
                 "../../libs/modeler-types/src/index.ts",
             ),
+            "@miragon/bpmn-modeler-diff": resolve(__dirname, "../../libs/bpmn-diff/src/index.ts"),
             // These workspace libs have no package entry point, so specs that
             // import them by name (e.g. capabilityModules.spec) need the path
             // mapped explicitly — the build/dev use vite-tsconfig-paths instead.

@@ -15,6 +15,7 @@ export default defineConfig({
                 __dirname,
                 "../../libs/modeler-types/src/index.ts",
             ),
+            "@miragon/bpmn-modeler-diff": resolve(__dirname, "../../libs/bpmn-diff/src/index.ts"),
             // These workspace libs have no package entry point, so specs that
             // load them at runtime (capabilityModules, clipboard) need the path
             // mapped explicitly — the lib build uses vite-tsconfig-paths instead.

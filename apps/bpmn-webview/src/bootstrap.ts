@@ -398,7 +398,7 @@ function startSession(
                 console.error("Diff mode: missing #js-canvas or #js-drop-zone");
                 return;
             }
-            const diffMode = new DiffMode("#js-canvas", dropZone, host);
+            const diffMode = new DiffMode(canvas, dropZone, host);
             await diffMode.startWith(bpmnFileQuery.content);
             return;
         }

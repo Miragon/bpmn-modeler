@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link
+            href="../../../packages/bpmn-modeler/src/styles/light-theme/index.css"
+            id="theme-link"
+            rel="stylesheet"
+        />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>Miragon Modeler — Two-Pane Diff Demo</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            /* Two read-only diff panes side by side — no properties panels. */
+            .diff {
+                display: flex;
+                height: 100vh;
+            }
+            .pane {
+                position: relative;
+                flex: 1 1 50%;
+                min-width: 0;
+                border-right: 1px solid #ddd;
+            }
+            .pane:last-child {
+                border-right: none;
+            }
+            .pane .canvas {
+                position: absolute;
+                inset: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="diff">
+            <div class="pane" id="pane-before">
+                <div class="canvas" id="canvas-before"></div>
+            </div>
+            <div class="pane" id="pane-after">
+                <div class="canvas" id="canvas-after"></div>
+            </div>
+        </div>
+        <script src="/diff.ts" type="module"></script>
+    </body>
+</html>
