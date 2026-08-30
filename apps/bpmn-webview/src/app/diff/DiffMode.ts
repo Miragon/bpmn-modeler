@@ -13,8 +13,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 
 import { WebviewState } from "../host";
-import { DiffLegend } from "./DiffLegend";
-import { DiffViewer } from "./DiffViewer";
+import { DiffLegend, DiffViewer } from "@miragon/bpmn-modeler";
 
 type MessageType = Query | Command;
 

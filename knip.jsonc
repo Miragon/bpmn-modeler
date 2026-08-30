@@ -35,6 +35,17 @@
             // dual.ts is reached only via bpmn/dual.html, which the vite plugin
             // does not walk (single-mode root), so list it explicitly.
             "entry": ["dmn/main.ts", "bpmn/dual.ts"]
+        },
+        "packages/bpmn-modeler": {
+            // The lazy bpmnlint chunk is reached via `await import("./bpmnlint")`
+            // in modeler.ts; list its barrel so knip does not read the whole
+            // chunk as unused.
+            "entry": ["src/index.ts", "src/bpmnlint/index.ts"],
+            // minisearch (via model-navigation) and lodash (via modeler-types'
+            // asyncDebounce) are pulled in only through inlined workspace libs;
+            // the Vite lib build externalises them, so the published package must
+            // declare them even though no package source imports them directly.
+            "ignoreDependencies": ["minisearch", "lodash"]
         }
     }
 }

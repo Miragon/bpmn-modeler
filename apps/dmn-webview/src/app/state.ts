@@ -1,5 +1,21 @@
 import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
+import { PropertiesPanelHandle } from "@miragon/bpmn-modeler-types";
 import { WebviewState } from "./host";
+
+/**
+ * Reads the per-editor properties-panel visibility from persisted state.
+ * Returns `undefined` when this editor has no saved entry yet (so the caller
+ * falls back to the host's global default); used for the pre-import early-apply.
+ */
+export function readSavedPanelVisibility(
+    host: HostApi<WebviewState, Command | Query>,
+): boolean | undefined {
+    try {
+        return host.getState()?.panelVisible;
+    } catch {
+        return undefined;
+    }
+}
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
 const PANEL_GROUP = ".bio-properties-panel-group";
@@ -73,6 +89,24 @@ export class WebviewStateManager {
                 });
             }
         });
+    }
+
+    /**
+     * Applies the per-editor panel visibility through the resizer handle: this
+     * editor's saved entry wins, falling back to `fallbackVisible` (the host's
+     * global default) only when absent. Driven via the handle rather than raw
+     * DOM manipulation so the resizer's DOM-seeded `isCollapsed` stays in sync.
+     */
+    restorePanelVisibility(handle: PropertiesPanelHandle, fallbackVisible: boolean): void {
+        handle.setVisible(this.getSavedState()?.panelVisible ?? fallbackVisible);
+    }
+
+    /**
+     * Persists this editor's panel visibility so a later tab-switch rebuild
+     * restores it independently of the host's global default.
+     */
+    persistPanelVisibility(visible: boolean): void {
+        this.persistPartialState({ panelVisible: visible });
     }
 
     startPersisting(): void {

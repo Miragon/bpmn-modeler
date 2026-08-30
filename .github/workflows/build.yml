@@ -30,6 +30,7 @@ jobs:
       intellij-plugin-src: ${{ steps.filter.outputs.intellij-plugin-src }}
       modeler-core-src: ${{ steps.filter.outputs.modeler-core-src }}
       modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
+      bpmn-modeler: ${{ steps.filter.outputs.bpmn-modeler }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
@@ -83,6 +84,8 @@ jobs:
             modeler-bridge-src:
               - 'apps/modeler-bridge/**'
               - '!apps/modeler-bridge/package.json'
+            bpmn-modeler:
+              - 'packages/bpmn-modeler/**'
             bpmn-webview:
               - 'apps/bpmn-webview/**'
             dmn-webview:
@@ -431,6 +434,7 @@ jobs:
     if: >-
       needs.detect-changes.outputs.vscode-plugin == 'true' ||
       needs.detect-changes.outputs.modeler-core == 'true' ||
+      needs.detect-changes.outputs.bpmn-modeler == 'true' ||
       needs.detect-changes.outputs.bpmn-webview == 'true' ||
       needs.detect-changes.outputs.dmn-webview == 'true' ||
       needs.detect-changes.outputs.deployment-webview == 'true' ||
@@ -466,6 +470,7 @@ jobs:
     needs: detect-changes
     if: >-
       needs.detect-changes.outputs.bpmn-webview == 'true' ||
+      needs.detect-changes.outputs.bpmn-modeler == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n-extras == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
@@ -480,7 +485,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
+        run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -520,6 +525,7 @@ jobs:
     needs: detect-changes
     if: >-
       needs.detect-changes.outputs.bpmn-webview == 'true' ||
+      needs.detect-changes.outputs.bpmn-modeler == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n-extras == 'true' ||
       needs.detect-changes.outputs.append-menu == 'true' ||
@@ -534,8 +540,56 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
+        run: yarn workspaces focus @miragon/bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview build
+
+  test-bpmn-modeler:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bpmn-modeler == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/bpmn-modeler
+      - run: yarn workspace @miragon/bpmn-modeler test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/packages/bpmn-modeler"
+          fail_ci_if_error: false
+          flags: bpmn-modeler
+          name: bpmn-modeler
+          verbose: true
+
+  build-bpmn-modeler:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.bpmn-modeler == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/bpmn-modeler
+      # Full package build: tsc typecheck + Vite lib + theme CSS + the
+      # check-dts gate (no private protocol symbols in the published d.ts).
+      - run: yarn workspace @miragon/bpmn-modeler build
+      - name: Verify published dist artefacts
+        run: |
+          test -f packages/bpmn-modeler/dist/index.js
+          test -f packages/bpmn-modeler/dist/index.d.ts
+          test -f packages/bpmn-modeler/dist/bpmn-modeler.css
+          test -f packages/bpmn-modeler/dist/lightTheme.css
+          test -f packages/bpmn-modeler/dist/darkTheme.css
 
   build-dmn-webview:
     needs: detect-changes
@@ -607,6 +661,8 @@ jobs:
       - test-bpmn-webview
       - test-bpmn-i18n-extras
       - test-standalone-extension
+      - test-bpmn-modeler
+      - build-bpmn-modeler
       - build-bpmn-webview
       - build-dmn-webview
       - build-deployment-webview

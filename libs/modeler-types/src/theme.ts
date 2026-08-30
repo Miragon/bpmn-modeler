@@ -1,9 +1,11 @@
 /**
  * Manages the BPMN modeler color theme based on VS Code theme or user preference.
  *
- * Supports two modes:
+ * Supports three modes:
  * - `"automatic"`: follows the VS Code theme via a MutationObserver on `<body>`.
  * - `"light"`: always uses the default bpmn-js light theme.
+ * - `"dark"`: always forces the dark theme (the injected per-instance `theme`
+ *   option, #1376).
  *
  * VS Code injects `vscode-dark`, `vscode-light`, or `vscode-high-contrast`
  * onto `<body>` in every webview.
@@ -15,7 +17,7 @@
  *   to the host adapter.
  */
 
-let currentMode: "automatic" | "light" = "automatic";
+let currentMode: "automatic" | "light" | "dark" = "automatic";
 let observer: MutationObserver | undefined;
 
 /**
@@ -34,20 +36,24 @@ export function initTheme(): void {
 /**
  * Switches the color theme mode.
  *
- * @param mode `"automatic"` to follow VS Code theme, `"light"` to force light.
+ * @param mode `"automatic"` to follow VS Code theme, `"light"` to force light,
+ *   `"dark"` to force dark.
  */
-export function setColorThemeMode(mode: "automatic" | "light"): void {
+export function setColorThemeMode(mode: "automatic" | "light" | "dark"): void {
     if (mode === currentMode) {
         return;
     }
     currentMode = mode;
 
-    if (mode === "light") {
-        stopObserver();
-        applyTheme(false);
-    } else {
+    if (mode === "automatic") {
         applyThemeFromVsCode();
         startObserver();
+    } else {
+        // A forced light/dark mode owns the stylesheet outright, so the VS Code
+        // observer must stop or it would fight the fixed choice on the next
+        // `<body>`-class mutation.
+        stopObserver();
+        applyTheme(mode === "dark");
     }
 }
 

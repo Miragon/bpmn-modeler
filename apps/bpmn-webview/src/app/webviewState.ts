@@ -3,14 +3,7 @@
  * `WebviewStateManager`. Not part of the designed public API (#1375).
  */
 
-export interface ViewportData {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    /** Persisted so the exact zoom survives a container-size change on restore. */
-    scale?: number;
-}
+import type { ViewportData } from "@miragon/bpmn-modeler";
 
 /**
  * Snapshot of the canvas view that can be captured from the live
@@ -33,4 +26,11 @@ export interface WebviewState {
     selectedElementIds?: string[];
     panelScroll?: number;
     expandedGroupIndexes?: number[];
+    /**
+     * Per-editor properties-panel visibility. Absent until the user first
+     * toggles the panel in this editor; while absent the editor follows the
+     * host's global default (`propertiesPanelVisible`). Present entry wins over
+     * that default so two tabs in one group keep independent panel state.
+     */
+    panelVisible?: boolean;
 }

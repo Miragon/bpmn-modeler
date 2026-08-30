@@ -1,9 +1,5 @@
 // bpmn.js
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
-// css
-import "./styles/default.css";
-import "./styles/diff.css";
-import "./styles/canvasFocusIndicator.css";
 
 import {
     BpmnFileQuery,
@@ -46,38 +42,45 @@ import {
     UpdateScriptFormatQuery,
     UpdateScriptSourceCommand,
     UpdateScriptVariablesCommand,
-    asyncDebounce,
     createFlushResponder,
     createResolver,
     extractProcessVariables,
 } from "@miragon/bpmn-modeler-shared";
 import {
-    Engine,
     NoModelerError,
+    asyncDebounce,
     formatErrors,
     initResizer,
     initTheme,
     installPanelShortcuts,
     observeCanvasSize,
-    setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
-import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
+import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
     BpmnModeler,
     createModeler,
     installContentEditableClipboardPolyfill,
     UnsupportedEngineError,
-} from "./app";
+} from "@miragon/bpmn-modeler";
+import type { ClipboardOptions, LintingOptions, ModelerCapabilities } from "@miragon/bpmn-modeler";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
 import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
-import type { ModelerCapabilities } from "./app/capabilities";
-import type { ClipboardOptions, LintingOptions } from "./app";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
 import { installHostEditorActions } from "./app/hostEditorActions";
-import { WebviewStateManager } from "./app/state";
+import { readSavedPanelVisibility, WebviewStateManager } from "./app/state";
+
+/**
+ * Upper bound (ms) on how long bootstrap waits for a host reply before
+ * continuing without it. A dropped element-templates / settings / panel-state
+ * reply would otherwise stall the whole restore chain (selection, panel UI
+ * state, and — critically — {@link WebviewStateManager.startPersisting}, without
+ * which nothing is ever written back to webview state). Late replies still apply
+ * through their normal message handlers.
+ */
+const RESOLVER_TIMEOUT_MS = 5000;
 
 /**
  * Starts the BPMN webview against the given host. The entry (real or demo)
@@ -241,9 +244,15 @@ function startSession(
      */
     async function reloadXmlPreservingView(bpmn: string): Promise<void> {
         const snapshot = stateManager?.captureViewState();
-        await openXml(bpmn);
-        if (snapshot) {
-            stateManager.applyViewState(snapshot);
+        try {
+            await openXml(bpmn);
+        } finally {
+            // Re-apply even when a post-import side-effect threw — the import
+            // itself already reset the canvas to the top-level plane, and
+            // skipping the restore would strand the user there.
+            if (snapshot) {
+                stateManager.applyViewState(snapshot);
+            }
         }
     }
 
@@ -429,43 +438,103 @@ function startSession(
                 ) + " (Shift+P)",
             onLabelChange: (apply) => i18n.onChange(apply),
         });
+
+        // Early-apply this editor's own saved panel visibility (if any) before
+        // diagram import so the panel snaps straight to the correct per-editor
+        // state — no flash, no wait on the host round-trip, and it neutralizes
+        // the stale global-default hint baked into the pre-rendered HTML. When
+        // absent, the host global default is applied later (once its reply
+        // arrives). Applied via the handle so the resizer's DOM-seeded
+        // `isCollapsed` stays in sync.
+        const savedPanelVisible = readSavedPanelVisibility(host);
+        if (savedPanelVisible !== undefined) {
+            propertiesPanelHandle.setVisible(savedPanelVisible);
+        }
+
+        // The engine is known here (the file handshake above completed), so the
+        // former two-step createModeler + create(engine) collapses into one async
+        // call. A missing engine is fatal — bail before construction.
+        const engine = bpmnFileQuery?.engine;
+        if (!engine) {
+            host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
+            return;
+        }
+
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
-        const extraModules = [
-            TranslateModule,
-            ...(clipboardModules ?? []),
-            ...((injectedModules as any[]) ?? []),
-        ];
+        const extraModules = [...(clipboardModules ?? []), ...((injectedModules as any[]) ?? [])];
         // Real hosts run the linter themselves and push results, so the default
         // tier is external — keeping VS Code / IntelliJ / Theia byte-identical to
         // today. A consumer (or the demo) can opt into in-page linting by passing
         // an explicit `linting`. The user's in-canvas toggle is relayed to the host
         // as before; the host re-lints and pushes the new state down.
-        bpmnModeler = createModeler(canvasEl, {
-            propertiesPanelParent,
-            extraModules,
-            capabilities,
-            linting: injectedLinting ?? { results: "external" },
-            // A real host activates in-page linting only after it answers the
-            // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
-            // config, #1373 Phase B); the webview then pushes its findings back
-            // so the host feeds its Problems panel + status bar. `??` keeps the
-            // demo's injected sink authoritative when one is supplied.
-            onLintResults:
-                injectedOnLintResults ??
-                ((e: LintRunEvent) =>
-                    host.postMessage(
-                        new UpdateLintResultsCommand(
-                            e.results,
-                            [...e.unresolved],
-                            currentLintConfigToken,
-                        ),
-                    )),
-            onLintingToggled: (enabled: boolean) =>
-                host.postMessage(new SetLintingEnabledCommand(enabled)),
-            applyColorThemeMode: setColorThemeMode,
-            handleGlobalEscape: true,
-        });
-        await initializeModeler(bpmnFileQuery?.content, bpmnFileQuery?.engine);
+        try {
+            bpmnModeler = await createModeler(canvasEl, {
+                engine,
+                propertiesPanel: { parent: propertiesPanelParent },
+                additionalModules: extraModules,
+                capabilities,
+                linting: injectedLinting ?? { results: "external" },
+                // A real host activates in-page linting only after it answers the
+                // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
+                // config, #1373 Phase B); the webview then pushes its findings back
+                // so the host feeds its Problems panel + status bar. `??` keeps the
+                // demo's injected sink authoritative when one is supplied.
+                onLintResults:
+                    injectedOnLintResults ??
+                    ((e: LintRunEvent) =>
+                        host.postMessage(
+                            new UpdateLintResultsCommand(
+                                e.results,
+                                [...e.unresolved],
+                                currentLintConfigToken,
+                            ),
+                        )),
+                onLintingToggled: (enabled: boolean) =>
+                    host.postMessage(new SetLintingEnabledCommand(enabled)),
+                // Forward the modeler's non-fatal warnings (element-not-found,
+                // missing inline script) to the output channel — console-only before.
+                onWarning: (warning: string) => host.postMessage(new LogWarningCommand(warning)),
+                // Surface templates bpmn-js rejects (invalid schema, bad
+                // `appliesTo`, …). Subscribed inside init() *before* the first
+                // template push (GetElementTemplatesCommand's reply below), so
+                // those errors are observed. It's a warning, not an error: bpmn-js
+                // skips an invalid template non-fatally, and its message already
+                // carries the offending template's id/name.
+                onElementTemplatesErrors: (errors: unknown[]) => {
+                    for (const error of errors ?? []) {
+                        const message = error instanceof Error ? error.message : String(error);
+                        host.postMessage(
+                            new LogWarningCommand(`Element template rejected: ${message}`),
+                        );
+                    }
+                },
+                handleGlobalEscape: true,
+            });
+        } catch (error: any) {
+            if (error instanceof NoModelerError || error instanceof UnsupportedEngineError) {
+                host.postMessage(new LogErrorCommand(error.message));
+            } else {
+                host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
+            }
+            return;
+        }
+
+        // Lets the IntelliJ JCEF host drive undo/redo: it swallows Ctrl+Z/Ctrl+Y
+        // at the IDE level before bpmn-js sees them (works fine in VS Code/Theia).
+        installHostEditorActions((action) =>
+            bpmnModeler
+                .getService<{ trigger(action: string): void }>("editorActions")
+                .trigger(action),
+        );
+        bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
+
+        try {
+            await openXml(bpmnFileQuery?.content);
+        } catch (error: any) {
+            const message = error instanceof Error ? error.message : String(error);
+            host.postMessage(new LogErrorCommand(`Unable to open XML\n${message}`));
+        }
+
         modelerIsInitialized = true;
 
         if (pendingFocusId !== undefined) {
@@ -519,44 +588,38 @@ function startSession(
             applyInitialViewport: () => stateManager.restoreViewport(),
         });
 
-        // Surface templates bpmn-js rejects (invalid schema, bad `appliesTo`, …).
-        // Subscribed *before* GetElementTemplatesCommand so the errors fired
-        // while the loader validates the reply are observed. It's a warning, not
-        // an error: bpmn-js skips an invalid template non-fatally, and its
-        // message already carries the offending template's id/name.
-        bpmnModeler.onElementTemplatesErrors((errors) => {
-            for (const error of errors ?? []) {
-                const message = error instanceof Error ? error.message : String(error);
-                host.postMessage(new LogWarningCommand(`Element template rejected: ${message}`));
-            }
-        });
-
         // Request templates + settings + panel state, wait for all to apply
         host.postMessage(new GetElementTemplatesCommand());
         host.postMessage(new GetBpmnModelerSettingCommand());
         host.postMessage(new GetPropertiesPanelStateCommand());
         host.postMessage(new GetBpmnlintConfigCommand());
 
-        const [, , panelStateQuery] = await Promise.all([
-            elementTemplatesResolver.wait(),
-            settingsResolver.wait(),
-            panelStateResolver.wait(),
-        ]);
+        // Panel visibility: this editor's own saved entry (applied early above)
+        // wins. Only when absent do we fall back to the host's global default —
+        // the seed for a first-ever open. This branch is deliberately *not*
+        // gated on templates/settings, so a slow or dropped templates reply can
+        // no longer leave the panel stuck at the pre-rendered default.
+        if (savedPanelVisible === undefined) {
+            const panelStateQuery = await panelStateResolver.wait(RESOLVER_TIMEOUT_MS);
+            stateManager.restorePanelVisibility(
+                propertiesPanelHandle,
+                panelStateQuery?.visible ?? true,
+            );
+        }
 
-        // Apply the host's global properties-panel default. A missing query
-        // (unlikely but possible if the resolver was cancelled) falls back to a
-        // visible panel so the user is never stranded without properties editing.
-        propertiesPanelHandle.setVisible(panelStateQuery?.visible ?? true);
-
-        // Report user toggles back to the host so the global default tracks the
-        // latest preference across all BPMN editors.
+        // Report user toggles: persist this editor's own state AND update the
+        // host's global default so the latest preference seeds new editors.
+        // Registered after restore so the restore itself can't echo back.
         propertiesPanelHandle.onVisibilityChanged((visible) => {
+            stateManager.persistPanelVisibility(visible);
             host.postMessage(new SetPropertiesPanelStateCommand(visible));
         });
 
         // `p` focuses the properties panel (expanding it first if collapsed);
         // `Shift+P` toggles panel visibility from anywhere except text fields.
         // Escape stays with keyboardFocus.ts in BPMN — no escapeToCanvas here.
+        // Registered off the panel branch (not behind the templates/settings
+        // await) so Shift+P works during slow loads.
         installPanelShortcuts({
             handle: propertiesPanelHandle,
             focusCanvas: () => bpmnModeler.getService<{ focus(): void }>("canvas").focus(),
@@ -564,60 +627,21 @@ function startSession(
                 bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
         });
 
+        // Selection + panel-side UI state must wait until element-template and
+        // settings side-effects have run (they clear selection; group indexes are
+        // positional per selected element). The timeouts guarantee this chain
+        // always reaches startPersisting even if a host reply is dropped.
+        await Promise.all([
+            elementTemplatesResolver.wait(RESOLVER_TIMEOUT_MS),
+            settingsResolver.wait(RESOLVER_TIMEOUT_MS),
+        ]);
+
         // Phase 2: restore selection + panel-side UI state (side-effects done)
         stateManager.restoreSelection();
         stateManager.restorePanelUiState();
 
         // Phase 3: begin persisting changes
         stateManager.startPersisting();
-    }
-
-    /**
-     * Creates the modeler for the given engine and loads the initial diagram.
-     * The container-scoped focus features (Escape guard + focus reticle) and the
-     * lint host / theme wiring are composed inside {@link BpmnModeler.create};
-     * this function only adds the host-driven bits: editor-action relay, warning
-     * sink, and the outbound-sync command-stack subscription.
-     *
-     * @param bpmn Initial BPMN XML, or `undefined` to create a blank diagram.
-     * @param engine Execution platform identifier (`"c7"` or `"c8"`).
-     */
-    async function initializeModeler(
-        bpmn: string | undefined,
-        engine: Engine | undefined,
-    ): Promise<void> {
-        if (!engine) {
-            host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
-            return;
-        }
-
-        try {
-            // Async now: the engine-aware step awaits the lazy lint chunk before
-            // constructing bpmn-js. A rejection (e.g. UnsupportedEngineError) is
-            // caught below exactly as the sync throw was.
-            await bpmnModeler.create(engine);
-            // Lets the IntelliJ JCEF host drive undo/redo: it swallows
-            // Ctrl+Z/Ctrl+Y at the IDE level before bpmn-js sees them (works fine
-            // in VS Code/Theia).
-            installHostEditorActions((action) =>
-                bpmnModeler
-                    .getService<{ trigger(action: string): void }>("editorActions")
-                    .trigger(action),
-            );
-            // Forward the modeler's non-fatal warnings (element-not-found,
-            // missing inline script) to the output channel — console-only before.
-            bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
-            bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
-            await openXml(bpmn);
-        } catch (error: any) {
-            if (error instanceof NoModelerError) {
-                host.postMessage(new LogErrorCommand(error.message));
-            } else if (error instanceof UnsupportedEngineError) {
-                host.postMessage(new LogErrorCommand(error.message));
-            } else {
-                host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
-            }
-        }
     }
 
     /**
@@ -696,14 +720,16 @@ function startSession(
                 break;
             }
             case queryOrCommand.type === "ElementTemplatesQuery": {
+                const query = message.data as ElementTemplatesQuery;
                 try {
-                    const elementTemplates = (message.data as ElementTemplatesQuery)
-                        .elementTemplates;
-                    console.debug("Received element templates: ", elementTemplates);
-                    bpmnModeler.setElementTemplates(elementTemplates);
-                    elementTemplatesResolver.done(message.data as ElementTemplatesQuery);
+                    console.debug("Received element templates: ", query.elementTemplates);
+                    bpmnModeler.setElementTemplates(query.elementTemplates);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                } finally {
+                    // Resolve even on a facade throw — otherwise the bootstrap
+                    // await starves and startPersisting never runs.
+                    elementTemplatesResolver.done(query);
                 }
                 break;
             }
@@ -743,12 +769,15 @@ function startSession(
                 break;
             }
             case queryOrCommand.type === "BpmnModelerSettingQuery": {
+                const query = message.data as BpmnModelerSettingQuery;
                 try {
-                    const setting = (message.data as BpmnModelerSettingQuery).setting;
-                    bpmnModeler.setSettings(setting);
-                    settingsResolver.done(message.data as BpmnModelerSettingQuery);
+                    bpmnModeler.setSettings(query.setting);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                } finally {
+                    // Resolve even on a facade throw — otherwise the bootstrap
+                    // await starves and startPersisting never runs.
+                    settingsResolver.done(query);
                 }
                 break;
             }
@@ -772,8 +801,13 @@ function startSession(
                     // bpmn-js itself still needs a diagram re-import to re-invoke
                     // translate() for already-rendered elements — skipped in
                     // viewer mode where there is no editable modeler.
+                    // The host pushes the language on every (re)load, not only on
+                    // change. Compare resolved locales (setLanguage falls back to
+                    // "en" for unknown codes) and skip the destructive re-import
+                    // when nothing changed — a tab re-show must not re-import.
+                    const localeBefore = i18n.getLocale();
                     i18n.setLanguage(query.locale as SupportedLocale);
-                    if (modelerIsInitialized) {
+                    if (modelerIsInitialized && i18n.getLocale() !== localeBefore) {
                         await refreshDiagram();
                     }
                 } catch (error: any) {
@@ -887,8 +921,13 @@ function startSession(
     async function refreshDiagram(): Promise<void> {
         const xml = await bpmnModeler.exportDiagram();
         const snapshot = stateManager.captureViewState();
-        await bpmnModeler.loadDiagram(xml);
-        stateManager.applyViewState(snapshot);
+        try {
+            await bpmnModeler.loadDiagram(xml);
+        } finally {
+            // Same rationale as reloadXmlPreservingView: the re-import has
+            // already reset the plane, so restore even on a late throw.
+            stateManager.applyViewState(snapshot);
+        }
     }
 
     // Best-effort flush of the outbound sync debounce when the webview is hidden

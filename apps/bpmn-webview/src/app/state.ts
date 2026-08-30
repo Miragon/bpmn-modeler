@@ -5,9 +5,9 @@
  * #1377.
  */
 import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
-import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
+import { isUsableViewbox, PropertiesPanelHandle } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";
-import { BpmnModeler } from "./modeler";
+import { BpmnModeler } from "@miragon/bpmn-modeler";
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
 const PANEL_GROUP = ".bio-properties-panel-group";
@@ -28,11 +28,30 @@ function isGroupOpen(group: HTMLElement): boolean {
 }
 
 /**
+ * Reads the per-editor properties-panel visibility from persisted state without
+ * needing a full {@link WebviewStateManager}. Returns `undefined` when this
+ * editor has no saved entry yet (so the caller falls back to the host's global
+ * default); used for the pre-import early-apply before the modeler exists.
+ */
+export function readSavedPanelVisibility(
+    host: HostApi<WebviewState, Command | Query>,
+): boolean | undefined {
+    try {
+        return host.getState()?.panelVisible;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
  * Lifecycle phases (call in order):
  * 1. {@link restoreViewport}       — after importXML (canvas must exist)
  * 2. {@link restoreSelection}      — after element templates + settings applied
  * 3. {@link restorePanelUiState}   — after properties panel is rendered
  * 4. {@link startPersisting}       — subscribes to change events
+ *
+ * Panel visibility is handled out-of-band via {@link restorePanelVisibility}
+ * (saved-wins-over-host-default) and {@link persistPanelVisibility}.
  *
  * For mid-session re-imports (undo/redo, XML push, language switch), use
  * {@link captureViewState} / {@link applyViewState} to snapshot and
@@ -102,6 +121,25 @@ export class WebviewStateManager {
     }
 
     /**
+     * Applies the per-editor panel visibility through the resizer handle: this
+     * editor's saved entry wins, and only when it is absent does the caller's
+     * `fallbackVisible` (the host's global default) apply. Must be driven via the
+     * handle rather than raw DOM manipulation — the resizer seeds `isCollapsed`
+     * from the DOM and would otherwise desync.
+     */
+    restorePanelVisibility(handle: PropertiesPanelHandle, fallbackVisible: boolean): void {
+        handle.setVisible(this.getSavedState()?.panelVisible ?? fallbackVisible);
+    }
+
+    /**
+     * Persists this editor's panel visibility so a later tab-switch rebuild
+     * restores it independently of the host's global default.
+     */
+    persistPanelVisibility(visible: boolean): void {
+        this.persistPartialState({ panelVisible: visible });
+    }
+
+    /**
      * Must be called after the resizer has made the panel visible — the
      * scroll container does not exist in the DOM before then.
      *
@@ -158,7 +196,14 @@ export class WebviewStateManager {
     flushViewport(): void {
         const viewport = this.modeler.viewport.getViewport();
         if (isUsableViewbox(viewport)) {
-            this.persistPartialState({ viewport });
+            // Persist the drill-down plane alongside the viewbox — a viewbox
+            // captured inside a sub-process plane is meaningless against the
+            // top-level plane on restore. `getRootElementId` already returns
+            // `undefined` for the implicit root, so implicit ids are never saved.
+            this.persistPartialState({
+                viewport,
+                rootElementId: this.modeler.rootElement.getRootElementId(),
+            });
         }
     }
 

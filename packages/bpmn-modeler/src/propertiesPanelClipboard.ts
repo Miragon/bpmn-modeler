@@ -4,7 +4,6 @@
  * API (#1375); folded behind the `clipboard` option's bridge.
  */
 import { isTextEditingSurface } from "@miragon/bpmn-modeler-types";
-export { isTextEditingSurface };
 
 /**
  * Writes the current text selection to the extension-host clipboard.

@@ -233,14 +233,30 @@ describe("WebviewStateManager panel scoping", () => {
 });
 
 describe("WebviewStateManager.flushViewport", () => {
-    it("persists the current viewbox synchronously", () => {
-        const { manager, getViewport, updateState } = setup(undefined);
+    it("persists the current viewbox and drill-down plane synchronously", () => {
+        const { manager, getViewport, getRootElementId, updateState } = setup(undefined);
+        getRootElementId.mockReturnValue("SubProcess_1_plane");
 
         manager.flushViewport();
 
         expect(getViewport).toHaveBeenCalledOnce();
         expect(updateState).toHaveBeenCalledWith({
             viewport: { x: 5, y: 10, width: 400, height: 300, scale: 1.2 },
+            rootElementId: "SubProcess_1_plane",
+        });
+    });
+
+    it("persists no plane id at the top-level (implicit) root", () => {
+        // getRootElementId already returns undefined for the implicit root, so
+        // a top-level flush clears any stale plane rather than saving one.
+        const { manager, getRootElementId, updateState } = setup(undefined);
+        getRootElementId.mockReturnValue(undefined);
+
+        manager.flushViewport();
+
+        expect(updateState).toHaveBeenCalledWith({
+            viewport: { x: 5, y: 10, width: 400, height: 300, scale: 1.2 },
+            rootElementId: undefined,
         });
     });
 
@@ -251,5 +267,52 @@ describe("WebviewStateManager.flushViewport", () => {
         manager.flushViewport();
 
         expect(updateState).not.toHaveBeenCalled();
+    });
+});
+
+describe("WebviewStateManager panel visibility", () => {
+    function panelHandle() {
+        const setVisible = vi.fn();
+        const handle = {
+            isVisible: () => true,
+            setVisible,
+            onVisibilityChanged: vi.fn(),
+        } as any;
+        return { handle, setVisible };
+    }
+
+    it("applies the saved panelVisible entry over the fallback (saved false)", () => {
+        const { manager } = setup({ panelVisible: false });
+        const { handle, setVisible } = panelHandle();
+
+        manager.restorePanelVisibility(handle, true);
+
+        expect(setVisible).toHaveBeenCalledWith(false);
+    });
+
+    it("applies the saved panelVisible entry over the fallback (saved true)", () => {
+        const { manager } = setup({ panelVisible: true });
+        const { handle, setVisible } = panelHandle();
+
+        manager.restorePanelVisibility(handle, false);
+
+        expect(setVisible).toHaveBeenCalledWith(true);
+    });
+
+    it("falls back to the host default when no saved entry exists", () => {
+        const { manager } = setup(undefined);
+        const { handle, setVisible } = panelHandle();
+
+        manager.restorePanelVisibility(handle, false);
+
+        expect(setVisible).toHaveBeenCalledWith(false);
+    });
+
+    it("merges the panel visibility into persisted state", () => {
+        const { manager, updateState } = setup({ viewport: { x: 0, y: 0, width: 1, height: 1 } });
+
+        manager.persistPanelVisibility(true);
+
+        expect(updateState).toHaveBeenCalledWith({ panelVisible: true });
     });
 });

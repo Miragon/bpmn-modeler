@@ -9,7 +9,7 @@ import { NodeBpmnLinter } from "./NodeBpmnLinter";
 // Cross-package relative import (spec-only): the in-page linter lives in the
 // bpmn-webview app. modeler-core vitest runs in node and inlines the rules
 // plugin, so BrowserLinter runs here exactly as it does in the browser bundle.
-import { BrowserLinter } from "../../../../../../../apps/bpmn-webview/src/app/bpmnlint/browserLinter";
+import { BrowserLinter } from "../../../../../../../packages/bpmn-modeler/src/bpmnlint/browserLinter";
 
 /**
  * AC5 parity: the host-side {@link NodeBpmnLinter} default run and the webview's
