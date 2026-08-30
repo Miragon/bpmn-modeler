@@ -1,6 +1,6 @@
 # @miragon/bpmn-modeler
 
-A host-free, embeddable BPMN modeler for **Camunda 7 & 8**, built on
+A opinionated, embeddable BPMN modeler for **Camunda 7 & 8**, built on
 [bpmn-js](https://github.com/bpmn-io/bpmn-js). One `createModeler(container,
 options)` call stands up an independent modeler — properties panel, linting,
 clipboard, theming, and the Camunda element-template stack — with no VS Code /
