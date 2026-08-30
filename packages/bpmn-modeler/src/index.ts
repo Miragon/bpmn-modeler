@@ -39,22 +39,21 @@ export type {
 export { NoModelerError } from "@miragon/bpmn-modeler-types";
 export type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 
-// ── @internal — consumed by the bpmn-webview bootstrap until #1377 ───────────
+// ── Viewport / selection — public, referenced by the designed handle ─────────
+export { ViewportManager } from "./viewport";
+export type { ViewportData } from "./viewport";
+export { SelectionManager } from "./selection";
+
+// ── @internal — host-only surface the thin bpmn-webview adapter still needs ───
+// The adapter reaches the raw {@link BpmnModeler} class (host-only methods:
+// onCommandStackChanged, applyImplementationStatus, drill-down restore, …) and
+// its `CreateModelerOptions`. `DiffViewer`/`DiffLegend` stay internal until the
+// diff view moves behind the designed surface (#1378).
 /** @internal */
 export { BpmnModeler } from "./modeler";
 /** @internal */
 export type { CreateModelerOptions } from "./createModeler";
 /** @internal */
-export { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
-/** @internal */
 export { DiffViewer } from "./diff/DiffViewer";
 /** @internal */
 export { DiffLegend } from "./diff/DiffLegend";
-/** @internal */
-export { ViewportManager } from "./viewport";
-/** @internal */
-export type { ViewportData } from "./viewport";
-/** @internal */
-export { SelectionManager } from "./selection";
-/** @internal */
-export { RootElementManager } from "./rootElement";

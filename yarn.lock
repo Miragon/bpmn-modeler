@@ -3904,12 +3904,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview"
   dependencies:
-    "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/properties-panel": "npm:3.46.0"
     "@miragon/bpmn-modeler": "workspace:*"
-    "@miragon/bpmn-modeler-clipboard": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
-    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
@@ -3920,7 +3917,6 @@ __metadata:
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.0.0"
     bpmnlint: "npm:11.13.0"
-    diagram-js: "npm:15.18.0"
     jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"

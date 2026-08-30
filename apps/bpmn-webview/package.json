@@ -13,12 +13,9 @@
         "test": "vitest run --coverage"
     },
     "dependencies": {
-        "@bpmn-io/cm-theme": "0.2.2",
         "@bpmn-io/properties-panel": "3.46.0",
         "@miragon/bpmn-modeler": "workspace:*",
-        "@miragon/bpmn-modeler-clipboard": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
-        "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/bpmnlint-plugin-rules": "0.10.0",
@@ -27,7 +24,6 @@
         "bpmn-js-differ": "3.2.0",
         "bpmn-moddle": "10.0.0",
         "bpmnlint": "11.13.0",
-        "diagram-js": "15.18.0",
         "tslib": "2.8.1"
     },
     "devDependencies": {

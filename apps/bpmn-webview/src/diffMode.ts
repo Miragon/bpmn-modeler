@@ -12,8 +12,8 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { WebviewState } from "../host";
 import { DiffLegend, DiffViewer } from "@miragon/bpmn-modeler";
+import type { WebviewState } from "./webviewState";
 
 type MessageType = Query | Command;
 

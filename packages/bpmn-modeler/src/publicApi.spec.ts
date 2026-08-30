@@ -90,6 +90,14 @@ void [_lintOff, _lintExternal, _lintConfig];
 const _clipboard: ClipboardOptions = {
     bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
 };
+// A host with two protocol channels (VS Code) supplies a separate `text`
+// bridge; the package forwards it to createClipboardModules' text binding and
+// drives the contenteditable polyfill from it (#1377).
+const _clipboardWithText: ClipboardOptions = {
+    bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
+    text: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
+};
+void _clipboardWithText;
 // The runtime factory accepts the same clipboard override — omit it for the
 // native browser clipboard (#1374), or pass `{ bridge }` to route through a
 // host. The runtime options now implement the designed {@link ModelerOptions}
