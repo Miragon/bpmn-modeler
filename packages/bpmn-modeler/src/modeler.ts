@@ -4,7 +4,10 @@ import BpmnModeler8 from "camunda-bpmn-js/lib/camunda-cloud/Modeler";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
 import TokenSimulationModule from "bpmn-js-token-simulation";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
-import TransactionBoundariesModule from "camunda-transaction-boundaries";
+// Deep ESM import: the package's CJS entry (`index.js` requiring an ESM `lib/`)
+// yields `{ default: <module> }` under Vite 8's require-of-ESM interop, so the
+// DI module never registers and every `get("transactionBoundaries")` throws.
+import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
