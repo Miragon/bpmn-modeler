@@ -38,15 +38,17 @@ export default defineConfig(({ mode }) => {
             chunkSizeWarningLimit: 1200,
             outDir: resolve(__dirname, `../../dist/demo/${target}`),
             emptyOutDir: true,
-            // The bpmn page ships a second entry — the two-instance regression
-            // proof at /bpmn/dual.html (issue #1372). The dev server serves it
-            // automatically; only the build needs the extra rollup input.
+            // The bpmn page ships extra entries — the two-instance regression
+            // proof at /bpmn/dual.html (issue #1372) and the two-pane diff demo
+            // at /bpmn/diff.html (issue #1378). The dev server serves them
+            // automatically; only the build needs the extra rollup inputs.
             rollupOptions:
                 target === "bpmn"
                     ? {
                           input: {
                               index: resolve(__dirname, "bpmn/index.html"),
                               dual: resolve(__dirname, "bpmn/dual.html"),
+                              diff: resolve(__dirname, "bpmn/diff.html"),
                           },
                       }
                     : undefined,

@@ -55,7 +55,7 @@ export class DiffViewer {
     /** Disposes the canvas-size observer installed by {@link importXML}. */
     private stopObservingSize: (() => void) | undefined;
 
-    constructor(container: string) {
+    constructor(container: HTMLElement) {
         this.viewer = new NavigatedViewer({ container });
     }
 
@@ -142,10 +142,14 @@ export class DiffViewer {
      * Subscribes to user-driven viewport changes.  Calls to
      * {@link setViewport} are filtered out by the internal suppression
      * guard so the partner pane doesn't bounce the sync back.
+     *
+     * @returns a disposer that unsubscribes the listener and cancels any
+     *   pending debounced callback — call it when tearing the pane down.
      */
-    onViewportChanged(cb: (viewport: Viewport) => void): void {
+    onViewportChanged(cb: (viewport: Viewport) => void): () => void {
         let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-        this.viewer.get<any>("eventBus").on("canvas.viewbox.changed", (event: any) => {
+        const eventBus = this.viewer.get<any>("eventBus");
+        const handler = (event: any): void => {
             if (this.suppressNextChangeEvent) {
                 this.suppressNextChangeEvent = false;
                 return;
@@ -157,7 +161,12 @@ export class DiffViewer {
             }
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => cb(viewport), 80);
-        });
+        };
+        eventBus.on("canvas.viewbox.changed", handler);
+        return () => {
+            clearTimeout(debounceTimer);
+            eventBus.off("canvas.viewbox.changed", handler);
+        };
     }
 
     /**
@@ -251,6 +260,17 @@ export class DiffViewer {
         const registry = this.viewer.get<any>("elementRegistry");
         const element = registry.get(id);
         return !!element && Array.isArray(element.waypoints);
+    }
+
+    /**
+     * Tears the pane down: stops the canvas-size observer and destroys the
+     * underlying bpmn-js viewer (detaches its DOM and event listeners). The
+     * instance must not be used afterwards.
+     */
+    destroy(): void {
+        this.stopObservingSize?.();
+        this.stopObservingSize = undefined;
+        this.viewer.destroy();
     }
 
     private getCanvas(): any {

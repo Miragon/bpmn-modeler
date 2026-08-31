@@ -12,6 +12,7 @@ export default defineConfig({
             "libs/code-link",
             "libs/element-template-chooser",
             "libs/inline-scripting",
+            "libs/bpmn-diff",
             "libs/modeler-core",
             "libs/modeler-types",
             "libs/shared",

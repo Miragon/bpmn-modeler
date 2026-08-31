@@ -21,8 +21,6 @@
         "@miragon/bpmnlint-plugin-rules": "0.10.0",
         "bpmn-js": "18.19.0",
         "bpmn-js-bpmnlint": "0.24.0",
-        "bpmn-js-differ": "3.2.0",
-        "bpmn-moddle": "10.0.0",
         "bpmnlint": "11.13.0",
         "tslib": "2.8.1"
     },

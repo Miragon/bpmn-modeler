@@ -94,5 +94,6 @@ server.listen(port, host, () => {
     const base = process.env.PORTLESS_URL ?? `http://${host}:${port}`;
     console.log(`\n  Miragon Modeler demo → ${base}/`);
     console.log(`  BPMN: ${base}/bpmn/?model=newsletter`);
-    console.log(`  DMN:  ${base}/dmn/?model=categorize-applicant\n`);
+    console.log(`  DMN:  ${base}/dmn/?model=categorize-applicant`);
+    console.log(`  Diff: ${base}/bpmn/diff.html\n`);
 });

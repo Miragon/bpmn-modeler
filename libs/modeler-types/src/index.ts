@@ -20,4 +20,3 @@ export * from "./theme";
 export * from "./canvasResize";
 export * from "./propertiesPanelResizer";
 export * from "./propertiesPanelFocus";
-export * from "./bpmnFlowOrder";

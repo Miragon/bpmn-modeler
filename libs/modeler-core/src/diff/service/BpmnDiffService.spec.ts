@@ -154,6 +154,18 @@ describe("BpmnDiffService", () => {
         expect(afterHighlights?.added).toContain("Task_1");
     });
 
+    it("logs and posts no highlights when computeDiff rejects on invalid XML", async () => {
+        const { service, store, notifier } = createService();
+        const { before, after } = attachedPair(store, "not valid bpmn xml", afterBpmn);
+
+        await service.markReady(before);
+        await service.markReady(after);
+
+        expect(notifier.logError).toHaveBeenCalled();
+        expect(messageTypes(before)).not.toContain("ApplyDiffHighlightsQuery");
+        expect(messageTypes(after)).not.toContain("ApplyDiffHighlightsQuery");
+    });
+
     // ─── Language re-broadcast ──────────────────────────────────────────────────
 
     it("rebroadcastLanguage posts a LanguageQuery only to ready panes", () => {

@@ -977,13 +977,13 @@ export class ProcessDefinitionKeyQuery extends Query {
 export class ApplyDiffHighlightsQuery extends Query {
     public readonly side: DiffSide;
 
-    public readonly added: string[];
+    public readonly added: readonly string[];
 
-    public readonly removed: string[];
+    public readonly removed: readonly string[];
 
-    public readonly changed: string[];
+    public readonly changed: readonly string[];
 
-    public readonly layoutChanged: string[];
+    public readonly layoutChanged: readonly string[];
 
     public readonly counts: DiffCounts;
 
@@ -993,7 +993,7 @@ export class ApplyDiffHighlightsQuery extends Query {
      * anchored next to surviving neighbours).  Both panes receive the same
      * array so Next/Prev keeps the two cursors in lockstep.
      */
-    public readonly navigationOrder: string[];
+    public readonly navigationOrder: readonly string[];
 
     /**
      * How the diff was opened.  Drives origin-specific legend affordances:
@@ -1013,12 +1013,12 @@ export class ApplyDiffHighlightsQuery extends Query {
 
     constructor(
         side: DiffSide,
-        added: string[],
-        removed: string[],
-        changed: string[],
-        layoutChanged: string[],
+        added: readonly string[],
+        removed: readonly string[],
+        changed: readonly string[],
+        layoutChanged: readonly string[],
         counts: DiffCounts,
-        navigationOrder: string[],
+        navigationOrder: readonly string[],
         origin: DiffOrigin,
         paneFilename: string,
     ) {

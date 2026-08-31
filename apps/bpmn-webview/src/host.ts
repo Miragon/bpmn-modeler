@@ -24,13 +24,7 @@ import {
     MockHostApi,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
-import {
-    buildFlowOrder,
-    buildRemovedAnchors,
-    DiffCounts,
-    DiffSide,
-    sortIdsByOrder,
-} from "@miragon/bpmn-modeler-types";
+import type { DiffResult, DiffSide } from "@miragon/bpmn-modeler/diff";
 
 import c7Samples from "./__fixtures__/c7-samples.json";
 import c8Samples from "./__fixtures__/c8-samples.json";
@@ -68,25 +62,6 @@ export function getHostApi(): HostApi<StateType, MessageType> {
  */
 type DevMode = "modeler" | "diff-before" | "diff-after";
 
-/**
- * Pre-computed diff sliced per side — cached on the mock instance.
- */
-interface CachedDiff {
-    before: {
-        removed: string[];
-        changed: string[];
-        layoutChanged: string[];
-    };
-    after: {
-        added: string[];
-        changed: string[];
-        layoutChanged: string[];
-    };
-    counts: DiffCounts;
-    // Pre-merged sequence-flow order shared by both panes.
-    navigationOrder: string[];
-}
-
 function readDevMode(): DevMode {
     const raw = new URLSearchParams(window.location.search).get("mode");
     if (raw === "diff-before" || raw === "diff-after" || raw === "modeler") {
@@ -106,15 +81,15 @@ function readDevMode(): DevMode {
  * synthetic `MessageEvent`s in response to outbound commands.
  *
  * Selects behaviour from a {@link DevMode} derived from the URL.  Diff modes
- * lazily import `bpmn-moddle` + `bpmn-js-differ` on the first
- * `DiffReadyCommand` so those dependencies stay out of the production bundle
- * (dead-code-eliminated along with the whole class when `NODE_ENV` is
- * production).
+ * lazily import the public `@miragon/bpmn-modeler/diff` data layer on the first
+ * `DiffReadyCommand` so its `bpmn-moddle`/`bpmn-js-differ` deps stay out of the
+ * production bundle (dead-code-eliminated along with the whole class when
+ * `NODE_ENV` is production).
  */
 class MockHost extends MockHostApi<StateType, MessageType> {
     private readonly devMode: DevMode = readDevMode();
 
-    private cachedDiff: CachedDiff | undefined;
+    private cachedDiff: DiffResult | undefined;
 
     constructor() {
         super();
@@ -315,27 +290,26 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             return;
         }
 
-        let cached: CachedDiff;
+        let result: DiffResult;
         try {
-            cached = await this.ensureCachedDiff();
+            result = await this.ensureCachedDiff();
         } catch (error) {
             console.error("[dev] Failed to compute mock diff; diff highlights unavailable.", error);
             return;
         }
 
-        const slice = cached[side];
-        const added = side === "after" ? (slice as { added: string[] }).added : [];
-        const removed = side === "before" ? (slice as { removed: string[] }).removed : [];
+        const { sideView } = await import("@miragon/bpmn-modeler/diff");
+        const view = sideView(result, side);
 
         dispatch(
             new ApplyDiffHighlightsQuery(
                 side,
-                added,
-                removed,
-                slice.changed,
-                slice.layoutChanged,
-                cached.counts,
-                cached.navigationOrder,
+                view.added,
+                view.removed,
+                view.changed,
+                view.layoutChanged,
+                result.counts,
+                result.navigationOrder,
                 // Dev preview mimics the "Compare Files" entry point so the legend
                 // renders its filename, the branch that exercises the most chrome.
                 "compare-files",
@@ -344,93 +318,17 @@ class MockHost extends MockHostApi<StateType, MessageType> {
         );
     }
 
-    private async ensureCachedDiff(): Promise<CachedDiff> {
+    private async ensureCachedDiff(): Promise<DiffResult> {
         if (this.cachedDiff) {
             return this.cachedDiff;
         }
 
-        // Dynamic imports keep these ~200 KB of dev-only dependencies out of
-        // the production webview bundle (Rollup emits them as separate chunks
-        // that the dead-code-eliminated MockHost never loads).
-        //
-        // `bpmn-moddle`'s default export is the `simple` factory, not a class —
-        // it must be called without `new` (call it as a plain function).
-        // Under Vite's ESM interop the `.default` lives on the module
-        // namespace, while some bundlers place it on a nested `.default` —
-        // handle both shapes.
-        // Vite's dep optimizer pre-bundles `bpmn-moddle` such that the
-        // factory is exposed as a named export `BpmnModdle`, while the
-        // webpack/CJS shape exposes it as `.default`.  Accept both.
-        const moddleMod = (await import("bpmn-moddle")) as unknown as {
-            default?: () => {
-                fromXML: (xml: string) => Promise<{ rootElement: unknown }>;
-            };
-            BpmnModdle?: () => {
-                fromXML: (xml: string) => Promise<{ rootElement: unknown }>;
-            };
-        };
-        const createBpmnModdle = moddleMod.default ?? moddleMod.BpmnModdle;
-        if (typeof createBpmnModdle !== "function") {
-            throw new Error(
-                "bpmn-moddle did not expose a factory under `default` or `BpmnModdle`.",
-            );
-        }
-
-        const { diff } = await import("bpmn-js-differ");
-
-        const moddle = createBpmnModdle();
-        const beforeDefs = (await moddle.fromXML(MOCK_DIFF_BEFORE_XML)).rootElement;
-        const afterDefs = (await moddle.fromXML(MOCK_DIFF_AFTER_XML)).rootElement;
-        const result = diff(
-            beforeDefs as Parameters<typeof diff>[0],
-            afterDefs as Parameters<typeof diff>[1],
-        );
-
-        const added = Object.keys(result._added);
-        const removed = Object.keys(result._removed);
-        const changed = Object.keys(result._changed);
-        const layoutChanged = Object.keys(result._layoutChanged);
-
-        const afterOrder = buildFlowOrder(afterDefs as never);
-        const removedAnchors = buildRemovedAnchors(removed, beforeDefs as never, afterOrder);
-        const sortedAdded = sortIdsByOrder(added, afterOrder);
-        const sortedRemoved = sortIdsByOrder(removed, removedAnchors);
-        const sortedChanged = sortIdsByOrder(changed, afterOrder);
-        const sortedLayoutChanged = sortIdsByOrder(layoutChanged, afterOrder);
-        const merged: string[] = [];
-        const seen = new Set<string>();
-        for (const id of [
-            ...sortedAdded,
-            ...sortedRemoved,
-            ...sortedChanged,
-            ...sortedLayoutChanged,
-        ]) {
-            if (!seen.has(id)) {
-                seen.add(id);
-                merged.push(id);
-            }
-        }
-        const navigationOrder = sortIdsByOrder(merged, afterOrder, removedAnchors);
-
-        this.cachedDiff = {
-            before: {
-                removed: sortedRemoved,
-                changed: sortedChanged,
-                layoutChanged: sortedLayoutChanged,
-            },
-            after: {
-                added: sortedAdded,
-                changed: sortedChanged,
-                layoutChanged: sortedLayoutChanged,
-            },
-            counts: {
-                added: added.length,
-                removed: removed.length,
-                changed: changed.length,
-                layoutChanged: layoutChanged.length,
-            },
-            navigationOrder,
-        };
+        // Dynamic import keeps the diff data layer (and its ~200 KB of
+        // bpmn-moddle/bpmn-js-differ deps) out of the production webview bundle:
+        // Rollup emits it as a separate chunk that the dead-code-eliminated
+        // MockHost never loads when NODE_ENV is production.
+        const { computeDiff } = await import("@miragon/bpmn-modeler/diff");
+        this.cachedDiff = await computeDiff(MOCK_DIFF_BEFORE_XML, MOCK_DIFF_AFTER_XML);
         return this.cachedDiff;
     }
 }
