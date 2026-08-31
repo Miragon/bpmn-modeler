@@ -1,12 +1,13 @@
-# Host-replicated state — the bridge's synchronous-mirror pattern
+# 0005 — Host-replicated state: the bridge's synchronous-mirror pattern
 
-## Status
+- Status: accepted (#1106)
+- Date: 2026-06-28
+- Category: modeler-bridge
 
-Accepted (#1106). Builds on
-[`intellij-host-foundation.md`](./intellij-host-foundation.md) (#1062, the stdio
-JSON-RPC transport + process supervision) and the deployment work in
-[`deployment.md`](./deployment.md). This ADR documents a pattern that already
-exists in three places; it forces no new abstraction.
+Builds on [ADR 0004](0004-intellij-host-foundation.md) (#1062, the stdio
+JSON-RPC transport + process supervision) and the deployment feature's
+host-side state work. This ADR documents a pattern that already exists in
+three places; it forces no new abstraction.
 
 ## Context
 

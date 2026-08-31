@@ -1,5 +1,6 @@
-import type { BpmnModelerSetting } from "@miragon/bpmn-modeler-types";
+import type { BpmnModelerSetting, LintRunEvent } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./capabilities";
+import type { ClipboardOptions, LintingOptions } from "./publicApi";
 import { BpmnModeler } from "./modeler";
 
 /**
@@ -17,10 +18,23 @@ export interface CreateModelerOptions {
     /** Per-feature host ports; each present port registers its feature's module. */
     capabilities?: ModelerCapabilities;
     /**
-     * Lint on/off chip port. Defaults to a no-op so a host-less consumer works
-     * — `LintConfigService.$inject` requires the `lintingHost` DI value.
+     * The bpmnlint tier — see {@link LintingOptions}. Omitted (`undefined`) means
+     * in-page linting is on with the engine-aware default config.
      */
-    lintingHost?: { setLintingEnabled(enabled: boolean): void };
+    linting?: LintingOptions;
+    /** [B] Clipboard override — omit for the native browser clipboard (#1374). */
+    clipboard?: ClipboardOptions;
+    /**
+     * Fired after every in-page lint run with the raw rule-keyed results and the
+     * rules the bundled resolver could not cover. Never fires for an external
+     * push, so a host feeding results does not echo them back.
+     */
+    onLintResults?: (event: LintRunEvent) => void;
+    /**
+     * Fired when the user toggles linting via the in-canvas chrome, in every
+     * active tier. bootstrap forwards it to the host as `SetLintingEnabledCommand`.
+     */
+    onLintingToggled?: (enabled: boolean) => void;
     /**
      * Page-level colour theme stays outside the facade (it is shared with the
      * dmn-webview and owns a single `#theme-link`). bootstrap passes

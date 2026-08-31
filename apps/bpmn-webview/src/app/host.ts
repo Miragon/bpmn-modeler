@@ -1,3 +1,8 @@
+/**
+ * @internal Host-adapter surface — the VS Code protocol adapter (Query/Command
+ * wiring, `bootstrap`'s host handshake). Not part of the designed public API
+ * (#1375); relocated out of the publishable boundary in #1377.
+ */
 import {
     ApplyDiffHighlightsQuery,
     BpmnFileQuery,

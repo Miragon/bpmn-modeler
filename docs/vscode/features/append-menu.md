@@ -108,6 +108,3 @@ You can pin up to 6 frequently used BPMN elements at the top of the palette by c
 
 Favourites appear in a separate "Favourites" section above the regular BPMN element groups, separated by a divider line. They are subject to the same search filtering and `appliesTo` filtering as regular entries.
 
----
-
-For implementation details, see [Contributing → Append Menu internals](/vscode/contributing/architecture/append-menu).

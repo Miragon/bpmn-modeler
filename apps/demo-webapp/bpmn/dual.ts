@@ -52,11 +52,13 @@ async function mount(
     if (!container || !propertiesPanelParent) {
         throw new Error(`Missing #${canvasId} or #${panelId}`);
     }
-    // No host wiring: the default no-op lintingHost keeps DI resolvable, and
-    // handleGlobalEscape stays off so each instance only reacts to Escapes in
-    // its own subtrees.
+    // No host wiring: `linting` is omitted, so each pane lints in-page with the
+    // engine-aware default config (the multi-instance proof — both panes lint
+    // independently). handleGlobalEscape stays off so each instance only reacts
+    // to Escapes in its own subtrees. `create` is async now (it awaits the lazy
+    // lint chunk), so it must be awaited before loading the diagram.
     const modeler = createModeler(container, { propertiesPanelParent });
-    modeler.create(engine);
+    await modeler.create(engine);
     await modeler.loadDiagram(xml);
 }
 

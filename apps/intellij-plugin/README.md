@@ -49,7 +49,7 @@ flowchart TD
 
 ### Two key decisions (see the ADR)
 
-`docs/vscode/contributing/architecture/intellij-host-foundation.md` records:
+`docs/adr/0004-intellij-host-foundation.md` records:
 
 - **Transport — one stdio JSON-RPC pipe.** Core↔host *and* the webview-message
   relay ride a single supervised NDJSON pipe (not a webview↔server WebSocket

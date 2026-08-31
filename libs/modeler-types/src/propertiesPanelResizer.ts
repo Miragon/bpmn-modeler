@@ -1,4 +1,10 @@
 /**
+ * @internal Page-level webview chrome bound to hard-coded DOM ids
+ * (`js-panel-resizer`, `js-properties-panel`). Not part of the designed public
+ * API (#1375); the multi-instance facade owns its own panel host instead.
+ */
+
+/**
  * Minimum width (px) the properties panel can be resized to.
  * Dragging below this threshold collapses the panel entirely.
  */

@@ -1,4 +1,9 @@
 /**
+ * @internal Host-adapter surface — drill-down root tracking used for canvas
+ * view-state restore. Not part of the designed public API (#1375).
+ */
+
+/**
  * Function type for accessing a service from the bpmn-js DI container.
  *
  * @template T The service type to retrieve.

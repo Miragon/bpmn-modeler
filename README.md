@@ -109,7 +109,8 @@ corepack yarn watch      # F5 in VS Code → "Run vscode-plugin"
 For the full setup, PR flow, and commit conventions see
 **[`CONTRIBUTING.md`](CONTRIBUTING.md)**. For architecture, build system,
 and contributor walkthroughs see **[`docs/`](docs/)** (also published at
-<https://miragon.github.io/bpmn-modeler/>).
+<https://miragon.github.io/bpmn-modeler/>). Architecture decisions are
+recorded in **[`docs/adr/`](docs/adr/)**.
 
 ## Support
 

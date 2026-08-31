@@ -36,7 +36,6 @@ export function bpmnEditorUi(
 
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
-    const fontUri = webview.asWebviewUri(Uri.joinPath(baseUri, "css", "bpmn.css"));
     const themeUri = webview.asWebviewUri(Uri.joinPath(baseUri, "lightTheme.css"));
 
     const nonce = getNonce();
@@ -46,6 +45,9 @@ export function bpmnEditorUi(
     const resizerClass = initialPanelVisible ? "panel-resizer" : "panel-resizer collapsed";
     const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
 
+    // The script must load as a module: the bundle code-splits the lazy
+    // bpmnlint chunk, whose URL is resolved via import.meta.url — a syntax
+    // error in a classic script. Matches the IntelliJ host.
     return `
         <!DOCTYPE html>
         <html lang="en">
@@ -54,7 +56,6 @@ export function bpmnEditorUi(
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
                 <link href="${styleUri}" rel="stylesheet"/>
                 <link href="${themeUri}" rel="stylesheet" id="theme-link"/>
-                <link href="${fontUri}" rel="stylesheet"/>
                 <title>BPMN Modeler</title>
             </head>
             <body>
@@ -63,7 +64,7 @@ export function bpmnEditorUi(
                     <div id="js-panel-resizer" class="${resizerClass}"></div>
                     <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>
                 </div>
-                <script nonce="${nonce}" src="${scriptUri}"></script>
+                <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
             </body>
         </html>
     `;

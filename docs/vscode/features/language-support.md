@@ -24,6 +24,3 @@ There are two ways to change the modeler language:
 
 The language change takes effect immediately on all open modeler tabs.
 
----
-
-For implementation details, see [Contributing → Language Support internals](/vscode/contributing/architecture/language-support).

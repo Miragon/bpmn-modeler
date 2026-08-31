@@ -1,3 +1,2 @@
-export { VsCodeClipboardModule } from "./VsCodeClipboardModule";
-export type { ClipboardBridge } from "./VsCodeClipboardModule";
-export { LabelClipboardModule } from "./LabelClipboardModule";
+export { createClipboardModules } from "./createClipboardModules";
+export type { ClipboardBridge } from "./BridgedClipboardModule";

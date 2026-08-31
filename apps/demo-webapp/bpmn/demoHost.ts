@@ -1,8 +1,6 @@
 import {
     BpmnFileQuery,
-    BpmnlintResultsQuery,
     BpmnModelerSettingQuery,
-    ClipboardQuery,
     Command,
     ElementTemplatesQuery,
     MockHostApi,
@@ -23,7 +21,9 @@ function dispatch(event: MessageType): void {
  * Model navigation is wired through the `modelNavigation` capability in
  * `main.ts` (which resolves against the model registry and swaps the page), so
  * it no longer crosses this message boundary. Everything else a real host does —
- * deployment, code-link, script editor, clipboard, persistence — is a no-op here.
+ * deployment, code-link, script editor, persistence — is a no-op here. Clipboard
+ * is not bridged at all: the demo opts into the native browser clipboard
+ * (`clipboard: "native"` in main.ts, #1374).
  */
 export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
     override updateState(state: Partial<WebviewState>): void {
@@ -56,12 +56,9 @@ export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
             case "GetPropertiesPanelStateCommand":
                 dispatch(new PropertiesPanelStateQuery(true));
                 break;
-            case "GetClipboardCommand":
-                dispatch(new ClipboardQuery(""));
-                break;
-            case "GetBpmnlintConfigCommand":
-                dispatch(new BpmnlintResultsQuery(null));
-                break;
+            // Deliberately no GetBpmnlintConfigCommand reply: the demo lints
+            // in-page (`linting: {}`), and an external results/null push would
+            // switch the instance to the external tier and suspend that.
         }
     }
 }

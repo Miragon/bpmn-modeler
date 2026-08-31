@@ -1,11 +1,13 @@
-# Runtime distribution — shipping the modeler without a system Node
+# 0003 — Ship the modeler runtime as a self-contained Bun binary
 
-## Status
+- Status: accepted (#1061)
+- Date: 2026-06-08
+- Category: modeler-bridge
 
-Accepted (#1061). Parent: epic #920 (IntelliJ host parity). Unblocks the
-JetBrains Marketplace publish gate. The transport-hardening work in the host
-foundation (#1062) depends on this decision; the IntelliJ plugin packaging that
-ships the artifact is also #1062.
+Parent: epic #920 (IntelliJ host parity). Unblocks the JetBrains Marketplace
+publish gate. The transport-hardening work in the host foundation
+([ADR 0004](0004-intellij-host-foundation.md), #1062) depends on this decision;
+the IntelliJ plugin packaging that ships the artifact is also #1062.
 
 ## Context
 

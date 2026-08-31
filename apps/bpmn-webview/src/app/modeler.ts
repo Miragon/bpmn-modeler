@@ -7,13 +7,15 @@ import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-temp
 import TransactionBoundariesModule from "camunda-transaction-boundaries";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import type { FormReferenceStatusClient } from "@miragon/bpmn-model-navigation";
 import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
+import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import {
+    BpmnlintConfig,
     BpmnModelerSetting,
     Engine,
+    LintResults,
     NoModelerError,
     OpenScriptEditorRef,
     ScriptKind,
@@ -30,10 +32,11 @@ import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
-import LintModule from "./bpmnlint";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 import type { CreateModelerOptions } from "./createModeler";
+// Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
+import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
@@ -121,6 +124,8 @@ export class BpmnModeler {
     /**
      * Access the root element manager after {@link create}.
      *
+     * @internal Host-adapter surface (drill-down state restore); not part of the
+     *   designed public handle (#1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     get rootElement(): RootElementManager {
@@ -139,21 +144,17 @@ export class BpmnModeler {
      * The per-instance DI extras and capabilities come from the constructor
      * options. Re-`create()` disposes the prior instance's focus installs first.
      *
+     * @internal Migration-only two-step construction. The designed public API
+     *   takes the engine up front and returns a ready handle from an async
+     *   `createModeler` (#1375); #1376 collapses this second step into it.
+     *
      * @param engine Camunda engine version — `"c7"` for Camunda Platform 7,
      *   `"c8"` for Camunda Cloud 8.
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
-    create(engine: Engine): void {
+    async create(engine: Engine): Promise<void> {
         this.disposeFocusFeatures();
 
-        // The linting toggle is always registered (LintModule) but its host port
-        // is optional; a no-op keeps LintConfigService's DI resolvable host-less.
-        const lintingHostModule = {
-            lintingHost: [
-                "value",
-                this.options.lintingHost ?? { setLintingEnabled: () => undefined },
-            ],
-        };
         // Per-instance panel host, so id-coupled DI services (scriptEditorButtons)
         // observe this modeler's own panel instead of the first `#js-properties-panel`.
         const propertiesPanelRootModule = {
@@ -161,14 +162,19 @@ export class BpmnModeler {
         };
         const commonModules = [
             TokenSimulationModule,
-            LintModule,
+            ...(await this.buildLintModules(engine)),
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
-            lintingHostModule,
             propertiesPanelRootModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
+        // Clipboard is a [B] built-in: omitting `clipboard` registers nothing, so
+        // bpmn-js's native (browser) clipboard stays in charge (#1374); a host that
+        // can't reach the system clipboard from its webview supplies a bridge.
+        const clipModules = this.options.clipboard
+            ? createClipboardModules({ element: this.options.clipboard.bridge })
+            : [];
         const extra = (this.options.extraModules as any[]) ?? [];
 
         const modelerOptions = {
@@ -189,6 +195,7 @@ export class BpmnModeler {
                         CreateAppendC7ElementTemplatesModule,
                         TransactionBoundariesModule,
                         ...capModules,
+                        ...clipModules,
                         ...extra,
                     ],
                 });
@@ -197,7 +204,7 @@ export class BpmnModeler {
             case "c8": {
                 this.modeler = new BpmnModeler8({
                     ...modelerOptions,
-                    additionalModules: [...commonModules, ...capModules, ...extra],
+                    additionalModules: [...commonModules, ...capModules, ...clipModules, ...extra],
                 });
                 break;
             }
@@ -222,6 +229,97 @@ export class BpmnModeler {
                 appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
             }
         }
+    }
+
+    /**
+     * Resolves the bpmnlint DI module(s) for the chosen tier, importing the lint
+     * chunk only when linting is not disabled (#1373, AC 6). `linting: false`
+     * returns no modules — the chunk, and the whole bpmnlint/rules stack, is never
+     * fetched. Every other value dynamically imports {@link createLintModule} and
+     * registers one instance-scoped module carrying the tier, engine, explicit
+     * config, and the facade callbacks.
+     */
+    private async buildLintModules(engine: Engine): Promise<unknown[]> {
+        const linting = this.options.linting;
+        if (linting === false) {
+            return [];
+        }
+        // `undefined` and `{ config }` are in-page; only `{ results: "external" }`
+        // opts out. Narrowing on `results` keeps `config` off the external variant.
+        let tier: "external" | "in-page" = "in-page";
+        let config;
+        if (typeof linting === "object") {
+            if (linting.results === "external") {
+                tier = "external";
+            } else {
+                config = linting.config;
+            }
+        }
+        const { createLintModule } = await import("./bpmnlint");
+        return [
+            createLintModule(
+                { tier, engine, config },
+                {
+                    onLintResults: this.options.onLintResults,
+                    onLintingToggled: this.options.onLintingToggled,
+                },
+            ),
+        ];
+    }
+
+    /**
+     * Feeds host-computed lint results to the in-canvas overlays (external tier).
+     * Any push switches an in-page instance to the external tier. `null`
+     * deactivates linting (no `.bpmnlintrc` / read failure). A no-op with a warning
+     * when the instance was created with `linting: false` (no lint service).
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    applyLintResults(results: LintResults | null): void {
+        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
+        if (!service) {
+            console.warn("applyLintResults ignored: this modeler was created with linting: false");
+            return;
+        }
+        service.applyLintResults(results);
+    }
+
+    /**
+     * Renders the host's user-disabled lint state (external tier): clears overlays
+     * and shows the re-enable chip. A no-op with a warning when `linting: false`.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    applyLintingDisabled(): void {
+        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
+        if (!service) {
+            console.warn(
+                "applyLintingDisabled ignored: this modeler was created with linting: false",
+            );
+            return;
+        }
+        service.applyLintingDisabled();
+    }
+
+    /**
+     * Starts (or restarts) the in-page linter on host instruction — the #1373
+     * Phase B handback when the host finds no workspace `.bpmnlintrc`. Mirrors
+     * {@link applyLintResults}: a no-op with a warning when the instance was
+     * created with `linting: false` (no lint service). Never re-enables a
+     * user-disabled linter (the service guards that); any later host push still
+     * wins over the in-page run.
+     *
+     * @throws {NoModelerError} If the modeler has not been created yet.
+     */
+    startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
+        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
+        if (!service) {
+            console.warn(
+                "startInPageLinting ignored: this modeler was created with linting: false",
+            );
+            return;
+        }
+        service.startInPageLinting(config, configToken);
     }
 
     /**
@@ -319,6 +417,8 @@ export class BpmnModeler {
     /**
      * Subscribes to the `commandStack.changed` event on the modeler's event bus.
      *
+     * @internal Raw change hook. The designed API exposes the debounced
+     *   `onContentSaved` event instead; this stays for the host adapter (#1375).
      * @param cb Callback invoked whenever the command stack changes.
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
@@ -343,6 +443,7 @@ export class BpmnModeler {
      * scan and filtering rules live in {@link collectInlineScriptTasks} so the
      * bulk path and the single-open path stay in agreement.
      *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     collectInlineScriptTasks(): ScriptTaskScript[] {
@@ -481,6 +582,9 @@ export class BpmnModeler {
     /**
      * Triggers the align-to-origin plugin if the setting is enabled.
      *
+     * @internal Host-adapter surface (invoked on save by the VS Code editor
+     *   controller); folded behind the `alignToOrigin` setting in the designed
+     *   API (#1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     alignElementsToOrigin(): void {
@@ -492,6 +596,10 @@ export class BpmnModeler {
     /**
      * Returns a service from the modeler's dependency injection container.
      *
+     * @remarks Unstable escape hatch — kept public deliberately (see the
+     *   ADR 0007, `docs/adr`) so advanced integrations are not blocked, but
+     *   not covered by semver: DI service names can change across minor
+     *   versions. Prefer a typed option/method where one exists.
      * @param name The DI service name (e.g. `"customTranslator"`).
      * @returns The service instance.
      * @throws {NoModelerError} If the modeler has not been created yet.
@@ -510,6 +618,7 @@ export class BpmnModeler {
      * - `execution-listener` / `task-listener`: writes to the listener's
      *   nested `camunda:Script.scriptFormat`.
      *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     updateScriptFormat(
@@ -560,6 +669,7 @@ export class BpmnModeler {
      *   `listenerIndex` within the parent's filtered list of that listener
      *   type, then writes to its nested `camunda:Script` element's `value`.
      *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     updateScriptContent(
@@ -610,6 +720,8 @@ export class BpmnModeler {
      * script fields (single-writer arbitration). C7-only: the store/provider
      * modules are not registered for C8, so the service is resolved defensively
      * and the call is a no-op there.
+     *
+     * @internal Host-adapter surface (inline-scripting capability, #1375).
      */
     applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
         this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
@@ -634,17 +746,11 @@ export class BpmnModeler {
      * omits the codeLink capability registers no `codeLinkMapClient`, and a
      * stray status push must then be a no-op rather than throw.
      *
+     * @internal Host-adapter surface (code-link capability, #1375).
      * @throws {NoModelerError} If the modeler has not been created yet.
      */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
-    }
-
-    /** Applies the host's resolvable Camunda Form ids to the navigation provider. */
-    applyFormReferenceStatus(formIds: string[]): void {
-        this.getModeler()
-            .get<FormReferenceStatusClient>("formReferenceStatusClient", false)
-            ?.applyStatus(formIds);
     }
 
     /**

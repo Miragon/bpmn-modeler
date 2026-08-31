@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SettingChange } from "@miragon/bpmn-modeler-core";
+import { DocumentChangeEvent, SettingChange } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigLocator, WatcherResult } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
 import { VsCodeNotifier } from "../../../../shared/infrastructure/VsCodeNotifier";
@@ -13,6 +13,7 @@ const EDITOR_ID = "file:///diagram.bpmn";
 function createContext() {
     const captured: {
         settingChange?: (event: SettingChange, id: string) => void;
+        documentChange?: (event: DocumentChangeEvent) => void;
         dispose?: () => void;
         viewState?: () => void;
     } = {};
@@ -29,12 +30,21 @@ function createContext() {
         editorId: EDITOR_ID,
         panel: panel as never,
         isCurrent: () => true,
-        onDocumentChange: vi.fn(),
+        onDocumentChange: (cb) => void (captured.documentChange = cb),
         onSettingChange: (cb) => void (captured.settingChange = cb),
         onDispose: (cb) => void (captured.dispose = cb),
         addDisposable,
     };
     return { context, captured, addDisposable, panel, viewStateSubscription };
+}
+
+/** A `.bpmn` content-change event for this session's document. */
+function bpmnChange(): DocumentChangeEvent {
+    return {
+        hasContentChanges: () => true,
+        documentPath: () => "/diagram.bpmn",
+        documentUriString: () => EDITOR_ID,
+    } as DocumentChangeEvent;
 }
 
 function settingChange(affected: string): SettingChange {
@@ -49,9 +59,10 @@ function createServices(watcher: WatcherResult) {
     const lintSvc = {
         setBpmnlintConfig: vi.fn(),
         clearDiagnostics: vi.fn(),
+        getLintMode: vi.fn().mockReturnValue("external"),
     } as Pick<
         BpmnLintConfigService,
-        "setBpmnlintConfig" | "clearDiagnostics"
+        "setBpmnlintConfig" | "clearDiagnostics" | "getLintMode"
     > as BpmnLintConfigService;
     const locator = {
         createWatcher: vi.fn().mockResolvedValue(watcher),
@@ -151,6 +162,48 @@ describe("BpmnlintParticipant", () => {
         captured.dispose?.();
         expect(statusBar.hideBpmnlintStatus).toHaveBeenCalledOnce();
         expect(lintSvc.clearDiagnostics).toHaveBeenCalledWith(EDITOR_ID);
+    });
+
+    describe("document-change re-lint (debounced), gated by lint mode", () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it("re-lints after the debounce when the editor is on the external path", async () => {
+            const { lintSvc, locator, statusBar, notifier } = createServices({
+                disposables: [],
+                errors: [],
+            });
+            (lintSvc.getLintMode as ReturnType<typeof vi.fn>).mockReturnValue("external");
+            const { context, captured } = createContext();
+
+            await new BpmnlintParticipant(lintSvc, locator, statusBar, notifier).onResolve(context);
+            captured.documentChange?.(bpmnChange());
+
+            // Debounced: nothing fires immediately.
+            expect(lintSvc.setBpmnlintConfig).not.toHaveBeenCalled();
+            vi.advanceTimersByTime(400);
+            expect(lintSvc.setBpmnlintConfig).toHaveBeenCalledWith(EDITOR_ID, false);
+        });
+
+        it("does not re-lint on document change when the editor is in-page", async () => {
+            const { lintSvc, locator, statusBar, notifier } = createServices({
+                disposables: [],
+                errors: [],
+            });
+            // In-page sessions lint in the webview already — a host re-lint is churn.
+            (lintSvc.getLintMode as ReturnType<typeof vi.fn>).mockReturnValue("in-page");
+            const { context, captured } = createContext();
+
+            await new BpmnlintParticipant(lintSvc, locator, statusBar, notifier).onResolve(context);
+            captured.documentChange?.(bpmnChange());
+            vi.advanceTimersByTime(400);
+
+            expect(lintSvc.setBpmnlintConfig).not.toHaveBeenCalled();
+        });
     });
 
     it("tracks editor focus: re-discovers on activate, hides on blur", async () => {

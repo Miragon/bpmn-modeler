@@ -1,12 +1,11 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import { viteStaticCopy } from "vite-plugin-static-copy";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 // One app, two demo pages: `--mode bpmn` / `--mode dmn`. Each page folder is
 // the Vite build root, so it emits a flat static site under dist/demo/<mode>/
 // (served at /<mode>/). Because the demo builds the webview apps' source, it
-// mirrors their build essentials (bpmn-font assets, preact JSX, dedupe).
+// mirrors their build essentials (preact JSX, dedupe).
 export default defineConfig(({ mode }) => {
     const target = mode === "dmn" ? "dmn" : "bpmn";
     return {
@@ -14,27 +13,7 @@ export default defineConfig(({ mode }) => {
         base: `/${target}/`,
         publicDir: resolve(__dirname, "public"),
         cacheDir: resolve(__dirname, `../../node_modules/.vite/demo-${target}`),
-        plugins: [
-            tsconfigPaths(),
-            viteStaticCopy({
-                targets: [
-                    {
-                        src: resolve(
-                            __dirname,
-                            "../../node_modules/camunda-bpmn-js/dist/assets/bpmn-font/css/**",
-                        ),
-                        dest: "css/",
-                    },
-                    {
-                        src: resolve(
-                            __dirname,
-                            "../../node_modules/camunda-bpmn-js/dist/assets/bpmn-font/font/**",
-                        ),
-                        dest: "font/",
-                    },
-                ],
-            }),
-        ],
+        plugins: [tsconfigPaths()],
         esbuild: { jsx: "automatic", jsxImportSource: "preact" },
         optimizeDeps: { include: ["bpmnlint", "bpmn-js-bpmnlint"] },
         resolve: {

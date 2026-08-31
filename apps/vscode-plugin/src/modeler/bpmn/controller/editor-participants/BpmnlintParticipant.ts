@@ -51,11 +51,15 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
         // Re-lint on edits: the custom text editor syncs webview edits into the
         // TextDocument, so the host always lints the current XML. Filter to this
         // session's `.bpmn` document so an edit elsewhere never re-lints it.
+        // In-page sessions (no workspace config, #1373 Phase B) lint in the
+        // webview on every diagram change already, so a host re-lint would be
+        // pure churn — skip it and let the webview's own push drive the chrome.
         session.onDocumentChange((event) => {
             if (
                 event.hasContentChanges() &&
                 event.documentPath().endsWith(".bpmn") &&
-                session.editorId === event.documentUriString()
+                session.editorId === event.documentUriString() &&
+                this.lintSvc.getLintMode(session.editorId) !== "in-page"
             ) {
                 this.scheduleRelint(session);
             }

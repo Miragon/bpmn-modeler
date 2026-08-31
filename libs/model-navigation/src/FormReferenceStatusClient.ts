@@ -1,4 +1,5 @@
 import { extractReference } from "./extractReference";
+import type { ModelNavigationPort } from "./ModelNavigationPort";
 
 interface EventBus {
     on(event: string, callback: (event?: unknown) => void): void;
@@ -20,14 +21,14 @@ function singleTarget(current: unknown): Element | undefined {
 
 /** Caches host-resolvable form ids for the context-pad provider. */
 export class FormReferenceStatusClient {
-    static $inject = ["eventBus", "contextPad"];
+    static $inject = ["eventBus", "contextPad", "modelNavigationPort"];
 
-    private formIds = new Set<string>();
     private currentPadTarget: Element | undefined;
 
     constructor(
         eventBus: EventBus,
         private readonly contextPad: ContextPad,
+        private readonly modelNavigationPort: ModelNavigationPort,
     ) {
         eventBus.on("contextPad.open", (event) => {
             this.currentPadTarget = singleTarget((event as { current?: unknown })?.current);
@@ -35,27 +36,29 @@ export class FormReferenceStatusClient {
         eventBus.on("contextPad.close", () => {
             this.currentPadTarget = undefined;
         });
-    }
 
-    applyStatus(formIds: string[]): void {
-        const previous = this.formIds;
-        const next = new Set(formIds);
-        const target = this.currentPadTarget;
-        const changed =
-            target !== undefined && this.lookup(previous, target) !== this.lookup(next, target);
-        this.formIds = next;
-
-        if (changed && target && this.contextPad.isOpen()) {
-            this.contextPad.open(target, true);
+        const unsubscribe = modelNavigationPort.onReferenceAvailabilityChanged?.(() =>
+            this.refreshContextPad(),
+        );
+        if (unsubscribe) {
+            eventBus.on("diagram.destroy", unsubscribe);
         }
     }
 
     isResolved(formId: string): boolean {
-        return this.formIds.has(formId);
+        return (
+            this.modelNavigationPort.isReferenceAvailable?.({ id: formId, kind: "form" }) ?? true
+        );
     }
 
-    private lookup(ids: Set<string>, element: Element): boolean {
-        const formId = extractReference(element.businessObject, "form");
-        return formId !== undefined && ids.has(formId);
+    private refreshContextPad(): void {
+        const target = this.currentPadTarget;
+        if (
+            target &&
+            extractReference(target.businessObject, "form") !== undefined &&
+            this.contextPad.isOpen()
+        ) {
+            this.contextPad.open(target, true);
+        }
     }
 }

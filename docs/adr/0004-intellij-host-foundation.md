@@ -1,11 +1,13 @@
-# IntelliJ host foundation — transport & process supervision
+# 0004 — IntelliJ host foundation: stdio JSON-RPC transport & process supervision
 
-## Status
+- Status: accepted (#1062)
+- Date: 2026-06-08
+- Category: intellij-plugin
 
-Accepted (#1062). Parent: epic #920 (IntelliJ host parity). Builds on
-[`modeler-core-extraction.md`](./modeler-core-extraction.md) (#1060, the engine
-package + host-protocol seam) and [`runtime-distribution.md`](./runtime-distribution.md)
-(#1061, the Node-free Bun binary). It is the foundation the per-feature host work
+Parent: epic #920 (IntelliJ host parity). Builds on
+[ADR 0002](0002-modeler-core-extraction.md) (#1060, the engine package +
+host-protocol seam) and [ADR 0003](0003-runtime-distribution.md) (#1061, the
+Node-free Bun binary). It is the foundation the per-feature host work
 (editor, navigation, diff, deployment, scriptTask) builds on.
 
 ## Context
@@ -33,7 +35,7 @@ relays its messages over the same pipe (webview → `acquireVsCodeApi` shim →
 
 Rationale:
 
-- **It is the designed protocol.** `modeler-core-extraction.md`'s RPC table
+- **It is the designed protocol.** [ADR 0002](0002-modeler-core-extraction.md)'s RPC table
   already maps `webview/message` + `editor/postMessage` onto stdio; the spike
   proved it end-to-end.
 - **Single supervised transport ⇒ robust recovery.** One EOF signal detects a

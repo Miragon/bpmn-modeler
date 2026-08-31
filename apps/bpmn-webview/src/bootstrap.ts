@@ -16,6 +16,7 @@ import {
     FocusElementQuery,
     FormReferenceStatusQuery,
     GetBpmnFileCommand,
+    BpmnlintInPageQuery,
     GetBpmnlintConfigCommand,
     GetBpmnModelerSettingCommand,
     GetClipboardCommand,
@@ -42,6 +43,7 @@ import {
     SyncActivitiesCommand,
     SyncDocumentCommand,
     TextClipboardQuery,
+    UpdateLintResultsCommand,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
@@ -63,7 +65,7 @@ import {
     observeCanvasSize,
     setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
-import { VsCodeClipboardModule, LabelClipboardModule } from "@miragon/bpmn-modeler-clipboard";
+import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule, i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import {
@@ -73,11 +75,11 @@ import {
     UnsupportedEngineError,
 } from "./app";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
-import type { ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
 import type { ModelerCapabilities } from "./app/capabilities";
+import type { ClipboardOptions, LintingOptions } from "./app";
 import type { WebviewState } from "./app/webviewState";
 import { DiffMode } from "./app/diff/DiffMode";
-import type { LintConfigService } from "./app/bpmnlint";
 import { installHostEditorActions } from "./app/hostEditorActions";
 import { WebviewStateManager } from "./app/state";
 
@@ -90,9 +92,22 @@ import { WebviewStateManager } from "./app/state";
  */
 export function bootstrap(
     injectedHost: HostApi<WebviewState, Command | Query>,
-    opts: { extraModules?: unknown[]; capabilities?: ModelerCapabilities } = {},
+    opts: {
+        extraModules?: unknown[];
+        capabilities?: ModelerCapabilities;
+        linting?: LintingOptions;
+        clipboard?: ClipboardOptions | "native";
+        onLintResults?: (event: LintRunEvent) => void;
+    } = {},
 ): void {
-    startSession(injectedHost, opts.extraModules, opts.capabilities);
+    startSession(
+        injectedHost,
+        opts.extraModules,
+        opts.capabilities,
+        opts.linting,
+        opts.clipboard,
+        opts.onLintResults,
+    );
 }
 
 /**
@@ -107,17 +122,29 @@ export function bootstrap(
  * @param injectedModules Host-specific extra bpmn-js DI modules.
  * @param injectedCapabilities Explicit per-feature ports; `undefined` selects
  *   the full protocol adapter so every real host keeps all features.
+ * @param injectedLinting The bpmnlint tier; `undefined` selects the external
+ *   (host-pushed) tier so every real host stays byte-identical to today.
+ * @param injectedClipboard The clipboard tier; `undefined` keeps today's
+ *   behaviour (dev-build native, otherwise the protocol bridge). `"native"`
+ *   forces the browser clipboard (demo/browser consumers, #1374); `{ bridge }`
+ *   routes through a caller-supplied override.
+ * @param injectedOnLintResults In-page lint-run sink; only a consumer opting into
+ *   in-page linting (the demo) passes one. Real hosts run the linter themselves.
  */
 function startSession(
     host: HostApi<WebviewState, Command | Query>,
     injectedModules: unknown[] | undefined,
     injectedCapabilities: ModelerCapabilities | undefined,
+    injectedLinting: LintingOptions | undefined,
+    injectedClipboard: ClipboardOptions | "native" | undefined,
+    injectedOnLintResults: ((event: LintRunEvent) => void) | undefined,
 ): void {
     // Assigned in run() once the engine is known — flush/capability callbacks
     // only fire post-init, so the definite-assignment assertion is safe.
     let bpmnModeler!: BpmnModeler;
 
     let modelerIsInitialized = false;
+    let modelerCanImportHostUpdates = false;
     let inertBeforeDestructiveFlush: boolean | undefined;
     let hostUpdateVersion = 0;
     let hostDocumentRevision = 0;
@@ -125,10 +152,26 @@ function startSession(
     let initialBpmnFileReceived = false;
     let initialViewerMode = false;
     let latestBpmnFileQuery: BpmnFileQuery | undefined;
+    let refreshDiagramWhenReady = false;
+    let pendingSessionActionDrain: Promise<void> | undefined;
+    let availableProtocolFormIds = new Set<string>();
+    const referenceAvailabilityListeners = new Set<() => void>();
 
     // A FocusElementQuery can arrive before the import finishes (host opens the
     // editor and focuses in one tick); apply it once the modeler is ready.
     let pendingFocusId: string | undefined;
+
+    // The opaque config-version token from the host's last BpmnlintInPageQuery
+    // (#1384), echoed back on every UpdateLintResultsCommand so the host can pair
+    // a run with the config version it linted and drop a stale run. `undefined`
+    // for the payload-free #1373 default tier (and reset to it on config→no-config).
+    //
+    // Pairing is race-free without any per-run plumbing: BrowserLinter.run is a
+    // pure microtask chain (bpmnlint over the in-memory tree, no I/O), so it
+    // drains to its onLintResults synchronously-after-await, before the next host
+    // message can be delivered as a fresh macrotask and swap this closure. So the
+    // token read here always belongs to the config that drove this very run.
+    let currentLintConfigToken: string | undefined;
 
     // Separate resolvers for element clipboard and text (label) clipboard.
     let elementClipboardResolver = createResolver<ClipboardQuery>();
@@ -158,7 +201,11 @@ function startSession(
     /**
      * Debounce the update of the XML content to avoid too many updates.
      */
-    const serializedOpenXml = serializeAsync(reloadXmlPreservingView);
+    const serializedModelerOperation = serializeAsync(
+        async (operation: () => Promise<void>): Promise<void> => operation(),
+    );
+    const serializedOpenXml = (bpmn: string | undefined, documentRevision: number): Promise<void> =>
+        serializedModelerOperation(() => reloadXmlPreservingView(bpmn, documentRevision));
     const debouncedUpdateXML = asyncDebounce(serializedOpenXml, 100);
 
     /**
@@ -177,14 +224,60 @@ function startSession(
         }
     }
 
+    function reportHostImportError(error: unknown): void {
+        const cause = error instanceof Error ? error : new Error(String(error));
+        host.postMessage(
+            new LogErrorCommand(`Unable to open host XML\n${cause.message}`, cause.stack),
+        );
+    }
+
     async function flushPendingHostUpdates(): Promise<void> {
         while (debouncedUpdateXML.pending()) {
             try {
                 await debouncedUpdateXML.flush();
-            } catch {
-                // The message handler reports import failures; keep draining later updates.
+            } catch (error) {
+                reportHostImportError(error);
             }
         }
+    }
+
+    function drainPendingSessionActions(): Promise<void> {
+        if (!pendingSessionActionDrain) {
+            pendingSessionActionDrain = (async () => {
+                while (true) {
+                    await flushPendingHostUpdates();
+
+                    if (refreshDiagramWhenReady) {
+                        refreshDiagramWhenReady = false;
+                        try {
+                            await refreshDiagram();
+                        } catch (error) {
+                            const cause = error instanceof Error ? error : new Error(String(error));
+                            host.postMessage(
+                                new LogErrorCommand(
+                                    `Unable to refresh diagram\n${cause.message}`,
+                                    cause.stack,
+                                ),
+                            );
+                        }
+                        continue;
+                    }
+
+                    if (debouncedUpdateXML.pending()) {
+                        continue;
+                    }
+
+                    if (pendingFocusId !== undefined) {
+                        bpmnModeler.viewport.centerOnElement(pendingFocusId);
+                        pendingFocusId = undefined;
+                    }
+                    return;
+                }
+            })().finally(() => {
+                pendingSessionActionDrain = undefined;
+            });
+        }
+        return pendingSessionActionDrain;
     }
 
     /**
@@ -268,6 +361,12 @@ function startSession(
             modelNavigation: {
                 openReference: ({ id, kind }) =>
                     host.postMessage(new NavigateToReferencedModelCommand(id, kind)),
+                isReferenceAvailable: ({ id, kind }) =>
+                    kind !== "form" || availableProtocolFormIds.has(id),
+                onReferenceAvailabilityChanged: (listener) => {
+                    referenceAvailabilityListeners.add(listener);
+                    return () => referenceAvailabilityListeners.delete(listener);
+                },
             },
             codeLink: {
                 navigateToImplementation: (reference, kind) =>
@@ -332,11 +431,25 @@ function startSession(
         // hidden by .viewer-mode CSS once we confirm the mode below. For the
         // modeler path, initResizer() is called after the branch check.
 
-        // Build clipboard DI modules conditionally.
-        // In development (plain browser) NativeCopyPaste handles clipboard natively.
-        let clipboardModules: any[] | undefined;
+        // Build clipboard DI modules.
+        //
+        // - `undefined` (default): today's behavior — in dev (plain-browser
+        //   `serve`) the native browser clipboard handles copy/paste, so no
+        //   modules load; otherwise route through the host protocol bridge.
+        // - `"native"`: force the browser clipboard (demo/browser consumers) —
+        //   no modules, no polyfill.
+        // - `{ bridge }`: public override — one bridge drives both the element
+        //   modules and the contenteditable polyfill.
+        let clipboardModules: unknown[] | undefined;
 
-        if (process.env.NODE_ENV !== "development") {
+        if (injectedClipboard === "native") {
+            // Native browser clipboard: register nothing so bpmn-js's
+            // NativeCopyPaste stays in charge (#1374).
+        } else if (injectedClipboard) {
+            const { bridge } = injectedClipboard;
+            clipboardModules = createClipboardModules({ element: bridge });
+            installContentEditableClipboardPolyfill(bridge.requestClipboard, bridge.writeClipboard);
+        } else if (process.env.NODE_ENV !== "development") {
             const requestElementClipboard = async (): Promise<string> => {
                 elementClipboardResolver = createResolver<ClipboardQuery>();
                 host.postMessage(new GetClipboardCommand());
@@ -357,26 +470,18 @@ function startSession(
                 host.postMessage(new SetTextClipboardCommand(text));
             };
 
-            clipboardModules = [
-                VsCodeClipboardModule,
-                LabelClipboardModule,
-                {
-                    elementClipboardBridge: [
-                        "value",
-                        {
-                            requestClipboard: requestElementClipboard,
-                            writeClipboard: writeElementClipboard,
-                        },
-                    ],
-                    textClipboardBridge: [
-                        "value",
-                        {
-                            requestClipboard: requestTextClipboard,
-                            writeClipboard: writeTextClipboard,
-                        },
-                    ],
+            // Two independent protocol channels so element and label clipboards
+            // stay separate — byte-identical to today's real-host wiring.
+            clipboardModules = createClipboardModules({
+                element: {
+                    requestClipboard: requestElementClipboard,
+                    writeClipboard: writeElementClipboard,
                 },
-            ];
+                text: {
+                    requestClipboard: requestTextClipboard,
+                    writeClipboard: writeTextClipboard,
+                },
+            });
 
             /**
              * The FEEL editor (CodeMirror 6) in the C8 properties panel lives
@@ -436,38 +541,61 @@ function startSession(
             ...(clipboardModules ?? []),
             ...((injectedModules as any[]) ?? []),
         ];
-        // The linting toggle is a webview-internal service (always registered via
-        // LintModule), so its host port is wired unconditionally — never gated on
-        // a capability. The facade registers a no-op when omitted, so a host-less
-        // consumer still resolves LintConfigService's DI.
+        // Real hosts run the linter themselves and push results, so the default
+        // tier is external — keeping VS Code / IntelliJ / Theia byte-identical to
+        // today. A consumer (or the demo) can opt into in-page linting by passing
+        // an explicit `linting`. The user's in-canvas toggle is relayed to the host
+        // as before; the host re-lints and pushes the new state down.
         bpmnModeler = createModeler(canvasEl, {
             propertiesPanelParent,
             extraModules,
             capabilities,
-            lintingHost: {
-                setLintingEnabled: (enabled: boolean) =>
-                    host.postMessage(new SetLintingEnabledCommand(enabled)),
-            },
+            linting: injectedLinting ?? { results: "external" },
+            // A real host activates in-page linting only after it answers the
+            // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
+            // config, #1373 Phase B); the webview then pushes its findings back
+            // so the host feeds its Problems panel + status bar. `??` keeps the
+            // demo's injected sink authoritative when one is supplied.
+            onLintResults:
+                injectedOnLintResults ??
+                ((e: LintRunEvent) =>
+                    host.postMessage(
+                        new UpdateLintResultsCommand(
+                            e.results,
+                            [...e.unresolved],
+                            currentLintConfigToken,
+                        ),
+                    )),
+            onLintingToggled: (enabled: boolean) =>
+                host.postMessage(new SetLintingEnabledCommand(enabled)),
             applyColorThemeMode: setColorThemeMode,
             handleGlobalEscape: true,
         });
-        await initializeModeler(
+        const initialized = await initializeModeler(
             bpmnFileQuery?.content,
             bpmnFileQuery?.engine,
             bpmnFileQuery?.documentRevision,
         );
+        if (!initialized) return;
+
+        modelerCanImportHostUpdates = true;
+
+        if (latestBpmnFileQuery && latestBpmnFileQuery !== bpmnFileQuery) {
+            try {
+                await debouncedUpdateXML(
+                    latestBpmnFileQuery.content,
+                    latestBpmnFileQuery.documentRevision,
+                );
+            } catch (error) {
+                reportHostImportError(error);
+            }
+        }
         await flushPendingHostUpdates();
-        modelerIsInitialized = true;
 
         const currentBpmnFileQuery = latestBpmnFileQuery ?? bpmnFileQuery;
 
-        if (currentBpmnFileQuery?.engine === "c8" && capabilities.modelNavigation) {
+        if (currentBpmnFileQuery?.engine === "c8" && injectedCapabilities === undefined) {
             host.postMessage(new GetFormReferenceStatusCommand());
-        }
-
-        if (pendingFocusId !== undefined) {
-            bpmnModeler.viewport.centerOnElement(pendingFocusId);
-            pendingFocusId = undefined;
         }
 
         // The "Edit Script" / divergence bridge now lives entirely in the
@@ -515,6 +643,9 @@ function startSession(
         observeCanvasSize(canvas, canvas.getContainer(), {
             applyInitialViewport: () => stateManager.restoreViewport(),
         });
+
+        await drainPendingSessionActions();
+        modelerIsInitialized = true;
 
         // Surface templates bpmn-js rejects (invalid schema, bad `appliesTo`, …).
         // Subscribed *before* GetElementTemplatesCommand so the errors fired
@@ -583,14 +714,17 @@ function startSession(
         bpmn: string | undefined,
         engine: Engine | undefined,
         documentRevision = 0,
-    ): Promise<void> {
+    ): Promise<boolean> {
         if (!engine) {
             host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
-            return;
+            return false;
         }
 
         try {
-            bpmnModeler.create(engine);
+            // Async now: the engine-aware step awaits the lazy lint chunk before
+            // constructing bpmn-js. A rejection (e.g. UnsupportedEngineError) is
+            // caught below exactly as the sync throw was.
+            await bpmnModeler.create(engine);
             // Lets the IntelliJ JCEF host drive undo/redo: it swallows
             // Ctrl+Z/Ctrl+Y at the IDE level before bpmn-js sees them (works fine
             // in VS Code/Theia).
@@ -604,6 +738,7 @@ function startSession(
             bpmnModeler.onWarning((warning) => host.postMessage(new LogWarningCommand(warning)));
             bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
             await serializedOpenXml(bpmn, documentRevision);
+            return true;
         } catch (error: any) {
             if (error instanceof NoModelerError) {
                 host.postMessage(new LogErrorCommand(error.message));
@@ -612,6 +747,7 @@ function startSession(
             } else {
                 host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
             }
+            return false;
         }
     }
 
@@ -706,7 +842,15 @@ function startSession(
                         // authoritative. Drop any pending outbound sync first so a
                         // stale export firing after the re-import can't clobber it.
                         debouncedSendXmlChanges.cancel();
-                        await debouncedUpdateXML(bpmnFileQuery.content, documentRevision);
+                        if (modelerCanImportHostUpdates) {
+                            try {
+                                await debouncedUpdateXML(bpmnFileQuery.content, documentRevision);
+                            } finally {
+                                if (modelerIsInitialized) {
+                                    await drainPendingSessionActions();
+                                }
+                            }
+                        }
                     }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
@@ -728,9 +872,7 @@ function startSession(
             case queryOrCommand.type === "BpmnlintResultsQuery": {
                 try {
                     const query = message.data as BpmnlintResultsQuery;
-                    bpmnModeler
-                        .getService<LintConfigService>("bpmnLintConfig")
-                        .render(query.results);
+                    bpmnModeler.applyLintResults(query.results);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -738,7 +880,25 @@ function startSession(
             }
             case queryOrCommand.type === "BpmnLintDisabledQuery": {
                 try {
-                    bpmnModeler.getService<LintConfigService>("bpmnLintConfig").renderDisabled();
+                    bpmnModeler.applyLintingDisabled();
+                } catch (error: any) {
+                    host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                }
+                break;
+            }
+            case queryOrCommand.type === "BpmnlintInPageQuery": {
+                try {
+                    const q = message.data as BpmnlintInPageQuery;
+                    // The token stays current for the onLintResults echo. Dedup of
+                    // a repeat covered instruction now lives in LintConfigService,
+                    // where the tier state is known — a stale token from an
+                    // intervening disabled push can no longer drop a re-enable.
+                    currentLintConfigToken = q.configToken;
+                    // No workspace config → engine-aware default (#1373 Phase B);
+                    // a covered config (#1384) → lint it in-page. Either way
+                    // onLintResults pushes the findings back so the host feeds its
+                    // Problems panel + status bar.
+                    bpmnModeler.startInPageLinting(q.config, q.configToken);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -775,8 +935,9 @@ function startSession(
                     // translate() for already-rendered elements — skipped in
                     // viewer mode where there is no editable modeler.
                     i18n.setLanguage(query.locale as SupportedLocale);
+                    refreshDiagramWhenReady = !initialViewerMode;
                     if (modelerIsInitialized) {
-                        await refreshDiagram();
+                        await drainPendingSessionActions();
                     }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
@@ -860,7 +1021,14 @@ function startSession(
             case queryOrCommand.type === "FormReferenceStatusQuery": {
                 try {
                     const query = message.data as FormReferenceStatusQuery;
-                    bpmnModeler.applyFormReferenceStatus(query.formIds);
+                    const nextFormIds = new Set(query.formIds);
+                    const changed =
+                        nextFormIds.size !== availableProtocolFormIds.size ||
+                        [...nextFormIds].some((formId) => !availableProtocolFormIds.has(formId));
+                    availableProtocolFormIds = nextFormIds;
+                    if (changed) {
+                        referenceAvailabilityListeners.forEach((listener) => listener());
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -869,10 +1037,9 @@ function startSession(
             case queryOrCommand.type === "FocusElementQuery": {
                 try {
                     const { elementId } = message.data as FocusElementQuery;
+                    pendingFocusId = elementId;
                     if (modelerIsInitialized) {
-                        bpmnModeler.viewport.centerOnElement(elementId);
-                    } else {
-                        pendingFocusId = elementId;
+                        await drainPendingSessionActions();
                     }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));

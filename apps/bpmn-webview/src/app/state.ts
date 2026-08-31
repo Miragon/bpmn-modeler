@@ -1,3 +1,9 @@
+/**
+ * @internal Host-adapter surface — `WebviewStateManager` speaks the private
+ * Query/Command protocol and persists panel/canvas UI state. Not part of the
+ * designed public API (#1375); relocated out of the publishable boundary in
+ * #1377.
+ */
 import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
 import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";

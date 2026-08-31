@@ -19,10 +19,11 @@ User Task to a workspace `.form` file whose top-level `id` matches its `formId`.
   the extension host.  Keeping the click target in a small webview-side
   library lets the modeler stay agnostic of VS Code APIs — it just calls
   the injected `ModelNavigationPort`.
-- **Form actions are pessimistic.** The host sends the set of resolvable form
-  IDs after scanning the workspace and keeps it current with ref-counted file
-  watchers. A User Task never shows a link action until its form is known to
-  exist, so the context pad cannot expose a broken navigation target.
+- **Hosted Form actions are pessimistic.** The VS Code host keeps a cache of
+  resolvable Form IDs and exposes it through the port's optional availability
+  hooks. A User Task in that host never shows a link action until its form is
+  known to exist. Consumers that omit the hooks treat valid references as
+  available and can resolve them only when clicked.
 - **Context-pad placement is opinionated.** The bpmn-js context pad
   wraps entries 3-per-row within each `data-group` div.  Putting the
   icon under the existing `connect` group avoids an orphan row; that
@@ -47,4 +48,8 @@ new BpmnModeler({
 `createModelNavigationModule(port)` embeds the `ModelNavigationPort` as the
 `modelNavigationPort` DI value, so the module can only be registered together
 with its host capability. A consumer that has no host omits the module entirely
-and the context-pad entry never appears.
+and the context-pad entry never appears. A host with a live workspace index can
+also implement `isReferenceAvailable(reference)` and call listeners registered
+through `onReferenceAvailabilityChanged(listener)` after its cache changes. The
+subscription returns an unsubscribe function, which the modeler calls when its
+diagram is destroyed.

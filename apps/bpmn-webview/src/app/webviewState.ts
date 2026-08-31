@@ -1,3 +1,8 @@
+/**
+ * @internal Host-adapter surface — persisted webview UI state shapes consumed by
+ * `WebviewStateManager`. Not part of the designed public API (#1375).
+ */
+
 export interface ViewportData {
     x: number;
     y: number;

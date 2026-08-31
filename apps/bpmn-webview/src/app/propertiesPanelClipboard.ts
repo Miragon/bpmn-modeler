@@ -1,3 +1,8 @@
+/**
+ * @internal Host-adapter surface — routes the panel's plain-text copy/paste
+ * through the extension-host clipboard bridge. Not part of the designed public
+ * API (#1375); folded behind the `clipboard` option's bridge.
+ */
 import { isTextEditingSurface } from "@miragon/bpmn-modeler-types";
 export { isTextEditingSurface };
 

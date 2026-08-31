@@ -1,10 +1,14 @@
 /**
- * bpmn-js DI module that intercepts element copy/paste operations and routes
- * them through the VS Code extension host clipboard.
+ * bpmn-js DI module: host-bridge override for element copy/paste in sandboxed
+ * webviews.
  *
- * Replaces the broken `NativeCopyPaste` layer (which activates in VS Code
- * webviews but cannot actually read/write the clipboard due to missing
- * iframe permissions) with extension-host-mediated clipboard access.
+ * The default clipboard path is bpmn-js's own `NativeCopyPaste` — registered by
+ * camunda-bpmn-js and emitting a wire-compatible payload; this module is only
+ * registered when the host cannot reach the system clipboard from the webview
+ * (e.g. a VS Code iframe lacking `clipboard-read`/`clipboard-write`). It
+ * disables `NativeCopyPaste` and routes copy/paste through a {@link ClipboardBridge}
+ * the host wires to its extension-host clipboard, keeping the same prefixed-JSON
+ * payload so webview-copy ↔ browser-paste stays interoperable.
  *
  * Uses proper didi DI value injection (`elementClipboardBridge`) instead of
  * `config.*` to ensure the bridge is always available when the module loads.
@@ -12,14 +16,15 @@
 import { createReviver } from "bpmn-js-native-copy-paste/lib/PasteUtil.js";
 
 /**
- * Bridge interface for clipboard operations routed through the VS Code
- * extension host.
+ * Bridge interface for clipboard operations routed through the host (e.g. the
+ * VS Code extension host) when the webview cannot reach the system clipboard.
  */
 export interface ClipboardBridge {
-    // Reads clipboard text from the extension host.
+    // Reads clipboard text from the host.
     requestClipboard: () => Promise<string>;
-    // Writes text to the system clipboard via the extension host.
-    writeClipboard: (text: string) => void;
+    // Writes text to the system clipboard via the host. May be async; the return
+    // is ignored, so a host may fire-and-forget or await internally.
+    writeClipboard: (text: string) => void | Promise<void>;
 }
 
 const CLIP_PREFIX = "bpmn-js-clip----";
@@ -27,16 +32,16 @@ const CLIP_PREFIX = "bpmn-js-clip----";
 /**
  * Intercepts `copyPaste.elementsCopied` and `copyPaste.pasteElements` at
  * priority 2051 (above NativeCopyPaste's 2050) to route element clipboard
- * operations through the extension host.
+ * operations through the host bridge.
  *
- * Disables `NativeCopyPaste` on construction so no broken
- * `navigator.clipboard` calls are made.
+ * Disables `NativeCopyPaste` on construction so no `navigator.clipboard` calls
+ * are made from the sandboxed webview (where they would be denied).
  *
  * Re-focuses the canvas SVG after keyboard-triggered selection changes
  * (e.g. Cmd+A) to prevent subsequent Cmd+C from silently failing when the
  * properties panel steals focus.
  */
-class VsCodeClipboard {
+class BridgedClipboard {
     static $inject = [
         "elementClipboardBridge",
         "eventBus",
@@ -135,6 +140,10 @@ class VsCodeClipboard {
         // (e.g. Cmd+A), the properties panel re-render can steal focus,
         // causing subsequent Cmd+C to silently fail.
         //
+        // This focus repair is bridge-path-only by design: it was never active
+        // on the native path (the module is not registered there), and it fixes
+        // side-by-side webview focus theft that only arises in a host shell.
+        //
         // The `hasFocus()` guard prevents cross-pane focus theft: every
         // external XML edit (e.g. typing in a side-by-side text editor)
         // re-imports the diagram, and importXML fires `selection.changed`
@@ -161,7 +170,7 @@ class VsCodeClipboard {
     }
 }
 
-export const VsCodeClipboardModule = {
-    __init__: ["vsCodeClipboard"],
-    vsCodeClipboard: ["type", VsCodeClipboard],
+export const BridgedClipboardModule = {
+    __init__: ["bridgedClipboard"],
+    bridgedClipboard: ["type", BridgedClipboard],
 };
