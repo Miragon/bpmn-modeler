@@ -1,6 +1,6 @@
 /**
  * @internal Host-adapter surface — persisted webview UI state shapes consumed by
- * `WebviewStateManager`. Not part of the designed public API (#1375).
+ * `WebviewStateManager`. Not part of the public modeler API.
  */
 
 import type { ViewportData } from "@miragon/bpmn-modeler";

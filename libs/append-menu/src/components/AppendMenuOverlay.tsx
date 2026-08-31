@@ -221,12 +221,8 @@ export function AppendMenuOverlay({
         return () => document.removeEventListener("keydown", handleKey, true);
     }, [onCancel]);
 
-    /**
-     * Handles a template card click / Enter.
-     *
-     * Single-type templates are applied immediately. Multi-type templates are
-     * selected so the palette can be filtered (see the selection effect).
-     */
+    // Single-type templates apply immediately; multi-type ones become selected
+    // so the palette can be filtered (see the selection effect).
     const handleTemplateClick = useCallback(
         (enriched: EnrichedTemplateEntry, event: Event) => {
             const appliesTo = enriched.template?.appliesTo ?? [];
@@ -240,12 +236,8 @@ export function AppendMenuOverlay({
         [onSelect],
     );
 
-    /**
-     * Handles a BPMN element button click / Enter in the palette.
-     *
-     * If a multi-type template is selected, creates the element using
-     * the template's action.  Otherwise, creates a plain BPMN element.
-     */
+    // With a multi-type template selected, creates the element via the template's
+    // action; otherwise creates a plain BPMN element.
     const handleBpmnSelect = useCallback(
         (action: PopupMenuEntryAction, event: Event) => {
             if (selectedTemplate) {

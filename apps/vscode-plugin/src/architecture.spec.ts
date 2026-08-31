@@ -15,12 +15,12 @@ import type { FileInfo } from "archunit";
  * reach a sibling only through its `index.ts` barrel).
  *
  * archunit resolves the import graph from a TypeScript project. The config is
- * pinned explicitly because the AC runs this via the *root* `vitest run`, whose
- * cwd is the repo root where archunit's auto-detect (walk up for a
- * `tsconfig.json`) finds none. Pinning the workspace config also fixes the
- * `rootDir`. Layer globs are written as recursive `<layer>` matchers (rather
- * than anchored at `src/<layer>`) because each layer subfolder now lives under
- * a feature prefix (`src/<feature>/<layer>/…`) after the Stage-3 reorg.
+ * pinned explicitly because the root `vitest run` runs this with its cwd at the
+ * repo root, where archunit's auto-detect (walk up for a `tsconfig.json`) finds
+ * none. Pinning the workspace config also fixes the `rootDir`. Layer globs are
+ * written as recursive `<layer>` matchers (rather than anchored at
+ * `src/<layer>`) because each layer subfolder lives under a feature prefix
+ * (`src/<feature>/<layer>/…`).
  */
 const WORKSPACE_ROOT = resolve(__dirname, "..");
 const TSCONFIG = resolve(WORKSPACE_ROOT, "tsconfig.json");
@@ -30,8 +30,8 @@ const TSCONFIG = resolve(WORKSPACE_ROOT, "tsconfig.json");
  *
  * archunit hands custom rules a `FileInfo` whose `path` is project-relative
  * (`src/…`) and populates `content` via cwd-relative `fs.readFileSync`. Under
- * the AC's `corepack yarn test` (root `vitest run`, cwd = repo root) that read
- * misses and `content` is silently `""` — which would make every custom rule
+ * the root `vitest run` (cwd = repo root) that read misses and `content` is
+ * silently `""` — which would make every custom rule
  * pass vacuously. Re-reading from `WORKSPACE_ROOT` keeps the host-module bans
  * real regardless of cwd. `resolve` leaves an already-absolute path untouched.
  */

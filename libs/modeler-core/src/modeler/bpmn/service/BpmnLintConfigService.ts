@@ -32,9 +32,9 @@ import {
  * Where a set of findings came from, so {@link BpmnLintConfigService.applyFindings}
  * can pick the right status-bar indicator and log line. `"workspace"` is a
  * host-side (escalated) Node run against a discovered `.bpmnlintrc`; `"in-page"`
- * is a webview run — either the zero-config default (#1373 Phase B, no
- * `configPath`) or the #1384 covered workspace tier (`configPath` set, so it
- * shows the `showBpmnlintActive` indicator rather than `showBpmnlintDefault`).
+ * is a webview run — either the zero-config default tier (no `configPath`) or the
+ * covered workspace tier (`configPath` set, so it shows the `showBpmnlintActive`
+ * indicator rather than `showBpmnlintDefault`).
  */
 type LintFindingsSource =
     | { kind: "workspace"; configPath: string }
@@ -45,8 +45,8 @@ type LintFindingsSource =
  * so a panel re-activation (`setBpmnlintConfig` from the panel-active hook) can
  * restore the Problems panel + status bar instead of going blank until the next
  * edit re-runs the webview linter. `configPath` records which tier produced it
- * (set = #1384 covered workspace config; undefined = #1373 zero-config default)
- * so a replay restores the right status-bar indicator.
+ * (set = covered workspace config; undefined = zero-config default) so a replay
+ * restores the right status-bar indicator.
  */
 interface CachedInPageEvent {
     readonly xml: string;
@@ -58,7 +58,7 @@ interface CachedInPageEvent {
 
 /**
  * The per-(editor × config-version) escalation decision for a workspace
- * `.bpmnlintrc` (#1384). Version identity is `configPath` + `rawConfig` (the
+ * `.bpmnlintrc`. Version identity is `configPath` + `rawConfig` (the
  * exact bytes read from disk): editing either mints a fresh decision. `decision`
  * starts `"in-page"` (the webview lints the covered config itself) and only ever
  * flips forward to `"escalated"` — when the static pre-check, or the webview's
@@ -82,13 +82,13 @@ interface LintNegotiation {
  *
  * Three tiers, chosen per document:
  *
- *  - **No config** (#1373 Phase B) — no workspace `.bpmnlintrc`: the host tells
+ *  - **Zero-config default tier** — no workspace `.bpmnlintrc`: the host tells
  *    the webview to run its own engine-aware default in-page (payload-free
  *    {@link BpmnlintInPageQuery}); the webview pushes findings back through
  *    {@link applyWebviewLintResults}. The host does not lint, so a non-workspace
  *    diagram never pays for a host-side re-lint.
- *  - **Covered workspace config** (#1384) — a `.bpmnlintrc` exists and the
- *    bundled resolver can cover it: the host pushes the config down
+ *  - **Covered workspace tier** — a `.bpmnlintrc` exists and the bundled
+ *    resolver can cover it: the host pushes the config down
  *    ({@link BpmnlintInPageQuery} carrying `config`) and the webview lints it
  *    in-page, so a covered config also skips the host re-lint per edit. A static
  *    pre-check ({@link staticUnresolvedModdleExtensions}) escalates immediately;
@@ -164,8 +164,8 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     }
 
     /**
-     * Applies findings the webview computed in an in-page run (the #1373 default
-     * tier or the #1384 covered workspace tier) to the host's chrome. Guarded so
+     * Applies findings the webview computed in an in-page run (the zero-config
+     * default tier or the covered workspace tier) to the host's chrome. Guarded so
      * a push that arrives after an escalation or a workspace-config takeover — or
      * while linting is disabled — is ignored: the mode flips to `"external"`
      * *before* the takeover push, so a late in-page push finds the wrong mode.
@@ -195,7 +195,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
         const negotiation = this.negotiations.get(editorId);
         if (negotiation) {
-            // Workspace-config in-page tier (#1384). Drop a run paired with a
+            // Covered workspace tier. Drop a run paired with a
             // superseded config version, or one arriving after this version
             // already escalated (the synchronous double-event guard).
             if (configToken !== negotiation.token) {
@@ -239,7 +239,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
             return;
         }
 
-        // No negotiation: the #1373 payload-free default tier. A token here means
+        // No negotiation: the payload-free zero-config default tier. A token here means
         // the run belongs to a since-deleted config era — drop it.
         if (configToken !== undefined) {
             this.notifier.logDebug(
@@ -259,11 +259,11 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
 
     /**
      * Resolves the nearest `.bpmnlintrc` and drives the right tier. No config →
-     * the webview's in-page default (#1373 Phase B). A config → consult the
-     * per-editor negotiation: a cached decision re-lints in its settled tier
-     * (in-page instruction or Node run); a new/changed version re-negotiates,
-     * escalating immediately when the static pre-check proves the bundled
-     * resolver cannot cover it, otherwise lints it in-page (#1384). A
+     * the webview's in-page default. A config → consult the per-editor
+     * negotiation: a cached decision re-lints in its settled tier (in-page
+     * instruction or Node run); a new/changed version re-negotiates, escalating
+     * immediately when the static pre-check proves the bundled resolver cannot
+     * cover it, otherwise lints it in-page. A
      * read/parse/lint failure — including a malformed `.bpmnlintrc` — degrades to
      * the no-config-*failure* state (linting off in the webview) rather than
      * crashing the editor, and forgets the negotiation so a later valid edit
@@ -485,7 +485,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     /**
      * The single results→chrome mapping shared by the workspace-config run and
      * the in-page webview push, so both feed the Problems panel, status bar, and
-     * unresolved warning identically (AC5 parity is structural). The status bar
+     * unresolved warning identically. The status bar
      * is only touched when `reflectInStatusBar`; diagnostics always publish.
      */
     private applyFindings(
@@ -506,7 +506,7 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
                     this.statusBar.showBpmnlintActive(source.configPath);
                 }
             } else if (source.configPath !== undefined) {
-                // #1384 covered workspace tier: linted in-page, but against a real
+                // Covered workspace tier: linted in-page, but against a real
                 // .bpmnlintrc — surface it as Active, not the zero-config default.
                 this.statusBar.showBpmnlintActive(source.configPath);
             } else {
@@ -591,9 +591,9 @@ export class BpmnLintConfigService implements BpmnlintChangeTarget {
     }
 
     /**
-     * Tells the webview to run its in-page linter. Payload-free = the #1373
-     * engine-aware default (no workspace config); with `config` + `configToken` =
-     * the #1384 covered workspace tier, the config to lint plus the version stamp
+     * Tells the webview to run its in-page linter. Payload-free = the engine-aware
+     * default (no workspace config); with `config` + `configToken` = the covered
+     * workspace tier, the config to lint plus the version stamp
      * the webview echoes back on {@link UpdateLintResultsCommand}. Same
      * recoverable-drop handling as {@link pushResults}: a hidden panel makes the
      * post reject, and the webview re-requests on reload.

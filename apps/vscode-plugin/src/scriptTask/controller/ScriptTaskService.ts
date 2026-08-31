@@ -214,16 +214,10 @@ export class ScriptTaskService {
      * For JavaScript, a kind-scoped `camunda.d.ts` + `jsconfig.json` are
      * placed next to the script so tsserver serves typed bean/SPIN completion.
      *
-     * @param editorId Document URI of the BPMN editor.
-     * @param elementId The BPMN element ID hosting the script (parent
-     *   element for listener kinds).
-     * @param kind Which surface the script lives on.
-     * @param listenerIndex For listener kinds, the index within the parent's
-     *   filtered list of listeners of that type. Undefined for `script-task`.
-     * @param eventName For listener kinds, the listener's `event` attribute
-     *   (e.g. `"start"`, `"create"`); used for the editor tab title.
-     * @param scriptFormat The Camunda `scriptFormat` value (e.g. `"javascript"`).
-     * @param content The current inline script content.
+     * `elementId` is the parent element for listener kinds; `listenerIndex` is
+     * the position within the parent's filtered list of listeners of that type
+     * (undefined for `script-task`); `eventName` is the listener's `event`
+     * attribute, used for the editor tab title.
      */
     async openScriptEditor(
         editorId: string,

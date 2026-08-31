@@ -3,7 +3,7 @@ import { createBundledResolver, type Resolver } from "@miragon/bpmnlint-plugin-r
 
 // Re-exported so `browserLinter.ts` and `browserResolver.spec.ts` keep importing
 // it from here; the implementation moved to modeler-types so the host's
-// escalation pre-check shares the exact same logic (#1384).
+// escalation pre-check shares the exact same logic.
 export { staticUnresolvedModdleExtensions };
 
 /**
@@ -55,7 +55,6 @@ export class RecordingBrowserResolver implements Resolver {
         return NOOP_CONFIG;
     }
 
-    /** Clears the recorded misses so a fresh run starts from an empty list. */
     reset(): void {
         this.unresolved.length = 0;
     }

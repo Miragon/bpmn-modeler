@@ -81,8 +81,8 @@
  * scoping each rule to the known value. A blanket `*` override would beat — via
  * `!important` — the inline style bpmn-js writes for a user's "Set color" choice.
  * Value-scoping also handles two cases for free: `fill: none` (bpmn:Group, text
- * annotations) matches nothing and stays transparent (#1056), and filled throw
- * markers are covered by the rules below (#1017).
+ * annotations) matches nothing and stays transparent, and filled throw markers
+ * are covered by the rules below.
  */
 
 /* defaultFillColor (white) → dark surface */

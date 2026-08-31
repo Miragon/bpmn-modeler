@@ -12,20 +12,14 @@ import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
 
 /**
- * The designed public TypeScript surface of the future `@miragon/bpmn-modeler`
- * npm package (#1375, epic #1293). This file is a **type-only skeleton**: it
- * fixes the shape of `createModeler(container, options)`, the instance handle,
- * and the outbound event model *before* the package is extracted, so the
- * extraction moves code into a designed API instead of freezing today's
- * accidental facade. No runtime lives here — the current {@link BpmnModeler}
- * satisfies the stable subset (proved in `publicApi.spec.ts`), and #1373/#1376
- * grow the runtime up to the rest of this shape.
+ * The public TypeScript surface of the `@miragon/bpmn-modeler` package:
+ * `createModeler(container, options)`, the instance handle, and the outbound
+ * event model.
  *
  * ## Feature taxonomy
  *
  * Every capability the modeler exposes falls into exactly one of three
- * categories, and each declaration below is tagged with its category so the
- * ADR's taxonomy table has a machine-anchored home:
+ * categories, and each declaration below is tagged with its category:
  *
  * - **[A] Engine-intrinsic** — the diagram surface itself. Always present; not
  *   a toggle. Loading/exporting XML, the viewport, the selection, the engine.
@@ -46,13 +40,13 @@ import type { SelectionManager } from "./selection";
  * [B] Theme selection for a single instance. `"automatic"` follows the
  * OS/browser `prefers-color-scheme` live; `"light"`/`"dark"` force a fixed
  * stylesheet. A host that themes off its own chrome (VS Code `<body>` classes)
- * maps that signal to a forced mode in its adapter — the package no longer reads
- * host chrome (#1377).
+ * maps that signal to a forced mode in its adapter — the package does not read
+ * host chrome.
  */
 export type ThemeMode = "light" | "dark" | "automatic";
 
 /**
- * [B] Linting configuration, adopting #1373's tier ladder verbatim:
+ * [B] Linting configuration tiers:
  *
  * - `undefined` — linting on with the bundled default ruleset.
  * - `false` — linting off entirely (no chip, no overlay).
@@ -73,9 +67,9 @@ export type LintingOptions =
 
 /**
  * [B] Clipboard override. Default (option omitted) is the native browser
- * clipboard (#1374). A sandboxed host that cannot reach the system clipboard
- * from the webview supplies a {@link ClipboardBridge} to route copy/paste
- * through its extension host.
+ * clipboard. A sandboxed host that cannot reach the system clipboard from the
+ * webview supplies a {@link ClipboardBridge} to route copy/paste through its
+ * extension host.
  */
 export interface ClipboardOptions {
     /** Bridge for diagram-element copy/paste; also the default for `text`. */
@@ -91,10 +85,10 @@ export interface ClipboardOptions {
 
 /**
  * Outbound content notification. Debounced and owned by the package (300ms,
- * 1000ms maxWait — the shape battle-tested in `bootstrap`), because every
- * consumer needs exactly that debounce; raw `commandStack.changed` stays
- * reachable through the {@link BpmnModelerHandle.getService} escape hatch for
- * the rare consumer that wants it un-debounced.
+ * 1000ms maxWait), because every consumer needs exactly that debounce; raw
+ * `commandStack.changed` stays reachable through the
+ * {@link BpmnModelerHandle.getService} escape hatch for the rare consumer that
+ * wants it un-debounced.
  */
 export interface ContentSavedEvent {
     readonly xml: string;
@@ -109,23 +103,20 @@ export interface ContentSavedEvent {
 export interface ModelerOptions {
     // ── [A] Engine-intrinsic ────────────────────────────────────────────────
     /**
-     * [A] Camunda engine version. Required and known up front in the target
-     * shape (the current two-step `create(engine)` is the internal migration
-     * path; #1373/#1376 collapse it). Switching engines = `destroy()` + a new
+     * [A] Camunda engine version. Switching engines = `destroy()` + a new
      * instance.
      */
     engine: Engine;
 
     /**
      * [A] The panel host. Each instance owns its own properties-panel parent so
-     * several modelers can coexist on one page (rename of today's flat
-     * `propertiesPanelParent`).
+     * several modelers can coexist on one page.
      */
     propertiesPanel: { parent: HTMLElement };
 
     /**
-     * [A] Initial element templates as **data**, never a path (bpm-iq scenario
-     * 1): the host fetches the JSON and hands it in. Live updates go through
+     * [A] Initial element templates as **data**, never a path: the host fetches
+     * the JSON and hands it in. Live updates go through
      * {@link BpmnModelerHandle.setElementTemplates}.
      */
     elementTemplates?: object[];
@@ -135,8 +126,8 @@ export interface ModelerOptions {
 
     /**
      * [A] Escape hatch: extra bpmn-js DI modules. Unstable/advanced — the
-     * supported knobs are the typed options above. Renamed from the current
-     * `extraModules` to match bpmn-js's own `additionalModules`.
+     * supported knobs are the typed options above. Matches bpmn-js's own
+     * `additionalModules`.
      */
     additionalModules?: unknown[];
 
@@ -144,13 +135,13 @@ export interface ModelerOptions {
     /** [B] Linting tier — see {@link LintingOptions}. Omit for the bundled default. */
     linting?: LintingOptions;
 
-    /** [B] Clipboard override — omit for the native clipboard (#1374). */
+    /** [B] Clipboard override — omit for the native clipboard. */
     clipboard?: ClipboardOptions;
 
     /** [B] Colour theme — defaults to `"automatic"`. */
     theme?: ThemeMode;
 
-    /** [B] UI locale (BCP-47-ish tag) — defaults to `"en"`. Absorbs the page-level `TranslateModule` + `i18n.setLanguage` wiring. */
+    /** [B] UI locale (BCP-47-ish tag) — defaults to `"en"`. */
     locale?: string;
 
     // ── [C] Host capabilities ───────────────────────────────────────────────
@@ -165,10 +156,10 @@ export interface ModelerOptions {
     /** Debounced diagram content — see {@link ContentSavedEvent}. */
     onContentSaved?: (event: ContentSavedEvent) => void;
 
-    /** One lint pass completed — findings + gracefully-degraded rules (#1373). */
+    /** One lint pass completed — findings + gracefully-degraded rules. */
     onLintResults?: (event: LintRunEvent) => void;
 
-    /** The in-canvas lint chip was toggled on/off (absorbs today's `lintingHost`, #1373). */
+    /** The in-canvas lint chip was toggled on/off. */
     onLintingToggled?: (enabled: boolean) => void;
 
     /** A non-fatal warning (element-not-found, missing inline script) for the host log. */
@@ -179,13 +170,7 @@ export interface ModelerOptions {
 }
 
 /**
- * The instance handle {@link createModeler} resolves to — the designed
- * replacement for today's {@link BpmnModeler} class surface. Members are the
- * union of the **stable subset** (already implemented and frozen in shape) and
- * the **target-only** addition (`setTheme`) that #1376 adds
- * (`applyLintResults` / `applyLintingDisabled` landed with #1373's tier
- * ladder). `publicApi.spec.ts` asserts the current facade satisfies the stable
- * subset; the additions are documented in the ADR's rename/reshape map.
+ * The instance handle {@link createModeler} resolves to.
  */
 export interface BpmnModelerHandle {
     // ── [A] Engine-intrinsic ────────────────────────────────────────────────
@@ -221,23 +206,22 @@ export interface BpmnModelerHandle {
     destroy(): void;
 
     // ── [B] Opinionated built-ins ───────────────────────────────────────────
-    /** [B] Switch the colour theme live (target-only; #1376/#1377). */
+    /** [B] Switch the colour theme live. */
     setTheme(theme: ThemeMode): void;
 
     /**
-     * [B] Render host-computed lint results, or clear them with `null`
-     * (#1373's `results: "external"` tier).
+     * [B] Render host-computed lint results, or clear them with `null`.
      */
     applyLintResults(results: LintResults | null): void;
 
-    /** [B] Turn off the in-webview linter and clear its overlay (#1373). */
+    /** [B] Turn off the in-webview linter and clear its overlay. */
     applyLintingDisabled(): void;
 
     /**
-     * [B] Start (or restart) the in-webview linter — the host's no-workspace-config
-     * handback (#1373 Phase B). Optional `config` overrides the engine-aware
-     * default; optional `configToken` (#1384) lets a repeat instruction with the
-     * same version dedup while linting is live. Never re-enables a user-disabled
+     * [B] Start (or restart) the in-webview linter with the host's
+     * no-workspace-config handback. Optional `config` overrides the engine-aware
+     * default; optional `configToken` lets a repeat instruction with the same
+     * version dedup while linting is live. Never re-enables a user-disabled
      * linter.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
@@ -246,8 +230,8 @@ export interface BpmnModelerHandle {
     /**
      * Unstable escape hatch: reach a bpmn-js DI service by name. Not covered by
      * semver — plugin authors accept breakage across minor versions. Kept
-     * public deliberately (ADR decision) so advanced integrations are not
-     * blocked while the typed surface catches up.
+     * public deliberately so advanced integrations are not blocked while the
+     * typed surface catches up.
      *
      * @remarks Unstable. Prefer a typed option/method; open an issue if one is missing.
      */
@@ -255,15 +239,10 @@ export interface BpmnModelerHandle {
 }
 
 /**
- * [A] The designed package entry point: stand up one modeler bound to
- * `container` and resolve its {@link BpmnModelerHandle}. Async because #1373's
- * lazy lint chunk forces a construction await anyway; a host that learns the
- * engine late simply calls this late (today's `bootstrap` already constructs
- * after the file handshake).
- *
- * Type-only in this spike — the runtime factory is still
- * {@link createModeler} + the two-step `create(engine)`; #1376 collapses the
- * two into this signature.
+ * [A] The package entry point: stand up one modeler bound to `container` and
+ * resolve its {@link BpmnModelerHandle}. Async because the lazy lint chunk
+ * forces a construction await; a host that learns the engine late simply calls
+ * this late.
  */
 export type CreateModeler = (
     container: HTMLElement,
@@ -271,12 +250,8 @@ export type CreateModeler = (
 ) => Promise<BpmnModelerHandle>;
 
 /**
- * The stable subset of {@link BpmnModelerHandle}: the members the current
- * {@link BpmnModeler} already implements with target-final signatures, so their
- * shape is frozen and the extraction cannot silently reshape them.
- * `setElementTemplates` is intentionally excluded — its param widens from
- * `JSON[] | undefined` to `object[]` (see the ADR's reshape map), so it is not
- * yet stable.
+ * The subset of {@link BpmnModelerHandle} whose signatures are frozen, asserted
+ * against the runtime handle in `publicApi.spec.ts`.
  */
 export type StableModelerSurface = Pick<
     BpmnModelerHandle,

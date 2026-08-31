@@ -7,7 +7,7 @@ const { runMock, ctorMock } = vi.hoisted(() => ({ runMock: vi.fn(), ctorMock: vi
 vi.mock("./browserLinter", () => ({
     // A class (not an arrow) so `new BrowserLinter()` constructs. `ctorMock`
     // records the (engine, config) args so a test can assert the handed-back
-    // config reaches the linter (#1384).
+    // config reaches the linter.
     BrowserLinter: class {
         constructor(...args: unknown[]) {
             ctorMock(...args);
@@ -217,7 +217,7 @@ describe("LintConfigService: startInPageLinting (host handback)", () => {
         expect(returned).toEqual(LINT_EVENT.results);
     });
 
-    it("builds the browser linter with the handed-back workspace config (#1384)", () => {
+    it("builds the browser linter with the handed-back workspace config", () => {
         ctorMock.mockClear();
         const { service } = makeService({ tier: "external", imported: true });
         const config = { extends: "bpmnlint:recommended" };

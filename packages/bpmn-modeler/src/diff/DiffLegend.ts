@@ -13,9 +13,6 @@ export interface DiffLegendCallbacks {
     onSwap?: () => void;
 }
 
-/**
- * Dictionary key rendered as a count slot's label.
- */
 type SlotKey = "Added" | "Removed" | "Changed" | "Moved";
 
 /**
@@ -122,12 +119,6 @@ export class DiffLegend {
         this.disposeI18n = i18n.onChange(() => this.renderLabels());
     }
 
-    /**
-     * Reveals the legend and renders the given context.  Disables the nav
-     * buttons when there are no changes at all; shows the filename subtitle
-     * when a `filename` is given and the swap button when `showSwap` is set
-     * (and an `onSwap` callback was supplied).
-     */
     update(context: DiffLegendContext): void {
         this.context = context;
         this.renderLabels();
@@ -182,11 +173,6 @@ export class DiffLegend {
         return btn;
     }
 
-    /**
-     * Redraws every translated label from the current {@link context} and
-     * {@link i18n} locale.  Called on init, on {@link update}, and whenever
-     * {@link i18n} notifies of a language switch.
-     */
     private renderLabels(): void {
         const { counts, filename } = this.context;
         const countFor: Record<SlotKey, number> = {
@@ -204,10 +190,6 @@ export class DiffLegend {
         this.filenameEl.textContent = filename ?? "";
     }
 
-    /**
-     * Unsubscribes the language-change listener and removes the legend from the
-     * DOM.  The instance must not be used afterwards.
-     */
     destroy(): void {
         this.disposeI18n();
         this.root.remove();

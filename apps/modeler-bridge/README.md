@@ -5,9 +5,8 @@ plugin). A stdio JSON-RPC server that runs the **unmodified**
 `@miragon/bpmn-modeler-core` engine and exposes it to a host that owns the editor
 and the webview, shipped as a **Node-free Bun binary**.
 
-This is the production bridge promised by the #920 spike and the #1060 / #1061
-ADRs. This package imports only the `@miragon/bpmn-modeler-core` public
-entrypoint, never deep plugin paths.
+This package imports only the `@miragon/bpmn-modeler-core` public entrypoint,
+never deep plugin paths.
 
 ## Transport — one stdio NDJSON JSON-RPC pipe
 
@@ -82,9 +81,9 @@ BPMN editor render + `Ctrl+S` write-back + element templates (real, filesystem-
 backed) + the Notifier/StatusBar display ports + diff + Camunda 7/8 deployment
 (the shared `DeploymentMessageDispatcher` + REST stack, driven by the IntelliJ
 deployment tool window) + the template marketplace (add/update GitHub/GitLab/local
-sources into the element-template cache, with per-host PATs in `PasswordSafe`).
-DMN and scriptTask are their own follow-up issues and are intentionally not wired
-here.
+sources into the element-template cache, with per-host PATs in `PasswordSafe`) +
+inline script editing (C7 script tasks/listeners, via `scriptFeature`). The DMN
+editor is not wired here.
 
 ## Build & run
 

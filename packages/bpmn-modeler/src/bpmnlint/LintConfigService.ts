@@ -44,7 +44,7 @@ type Translate = (template: string) => string;
 
 /**
  * The per-instance tier decision, registered as the `lintTier` DI value by
- * {@link createLintModule}. `"external"` keeps today's host-pushed flow;
+ * {@link createLintModule}. `"external"` renders host-pushed results;
  * `"in-page"` runs {@link BrowserLinter} in the webview against the given
  * `engine` (and optional explicit `config`). `false`/off never reaches here — a
  * disabled instance registers no lint module at all.
@@ -106,20 +106,18 @@ function shallowCopyResults(results: LintResults): LintResults {
  *
  * It drives `bpmn-js-bpmnlint`'s `linting` module by overriding its `lint()` —
  * the module's own `update()` (fired on import, element changes, toggles) then
- * diffs and draws the overlays exactly as before, so no overlay/rendering code
- * changes across tiers. The override's body depends on the tier: `external`
- * returns the host's last-pushed results; `in-page` runs {@link BrowserLinter}
- * against the live tree and emits the raw result through `onLintResults`;
- * `in-page-disabled` returns nothing so the linter, which the vendor keeps
- * running even while inactive, does no real work.
+ * diffs and draws the overlays, so no overlay/rendering code changes across
+ * tiers. The override's body depends on the tier: `external` returns the host's
+ * last-pushed results; `in-page` runs {@link BrowserLinter} against the live
+ * tree and emits the raw result through `onLintResults`; `in-page-disabled`
+ * returns nothing so the linter, which the vendor keeps running even while
+ * inactive, does no real work.
  *
- * It also owns the in-canvas **disable affordance**: an "off" button beside the
+ * It also owns the in-canvas disable affordance: an "off" button beside the
  * lint summary pill, and a muted "Linting off" chip with an "Enable" action in
- * its place once disabled — the entry points a non-technical user needs, since
- * they may never open host settings. In the in-page tier the toggle is applied
+ * its place once disabled. In the in-page tier the toggle is applied
  * optimistically (the webview owns the linter); in the external tier it is
- * reported through `onLintingToggled` and the overlays wait for the host's push,
- * exactly as before.
+ * reported through `onLintingToggled` and the overlays wait for the host's push.
  */
 export class LintConfigService {
     static $inject = [
@@ -136,8 +134,8 @@ export class LintConfigService {
 
     // Present once the in-page tier is live; undefined for a purely external
     // instance. Mutable because the host can hand linting back to the webview
-    // after construction (#1373 Phase B) via {@link startInPageLinting}, which
-    // lazily builds it — the constructor only builds it for an up-front in-page tier.
+    // after construction via {@link startInPageLinting}, which lazily builds it —
+    // the constructor only builds it for an up-front in-page tier.
     private browserLinter?: BrowserLinter;
 
     // Kept from `tierInit` so a later {@link startInPageLinting} can construct a
@@ -147,10 +145,10 @@ export class LintConfigService {
 
     private readonly explicitConfig?: BpmnlintConfig;
 
-    // The config-version token of the last in-page instruction (#1384). Used to
-    // dedup a repeat covered instruction, but only while actually `"in-page"`:
-    // any disabled/external push in between leaves this stale, and the state
-    // guard below stops that stale token from dropping a genuine re-enable.
+    // The config-version token of the last in-page instruction. Used to dedup a
+    // repeat covered instruction, but only while actually `"in-page"`: any
+    // disabled/external push in between leaves this stale, and the state guard
+    // below stops that stale token from dropping a genuine re-enable.
     private lastConfigToken?: string;
 
     private results: LintResults = {};
@@ -196,10 +194,10 @@ export class LintConfigService {
     }
 
     /**
-     * Starts (or restarts) the in-page linter on host instruction — the #1373
-     * Phase B handback when the host finds no workspace `.bpmnlintrc`. Lazily
-     * builds the {@link BrowserLinter} (the constructor only builds it for an
-     * up-front in-page tier) and activates it if a diagram is already imported;
+     * Starts (or restarts) the in-page linter on host instruction — the handback
+     * when the host finds no workspace `.bpmnlintrc`. Lazily builds the
+     * {@link BrowserLinter} (the constructor only builds it for an up-front
+     * in-page tier) and activates it if a diagram is already imported;
      * otherwise the unconditional `import.done` listener activates it.
      *
      * No-ops when the user has disabled linting from the canvas — a host
@@ -236,7 +234,7 @@ export class LintConfigService {
     /**
      * Applies host-pushed results (external tier). Any push wins: an in-page
      * instance switches to `external` and its in-page run is suspended. `null`
-     * deactivates linting — the no-config experience, unchanged from before.
+     * deactivates linting — the no-config experience.
      */
     applyLintResults(results: LintResults | null): void {
         this.state = "external";
@@ -289,8 +287,7 @@ export class LintConfigService {
 
     /**
      * Renders `results`, or deactivates linting when `results` is `null` (no
-     * `.bpmnlintrc`, or a host read/lint failure) — keeping the no-config
-     * experience identical to before linting moved to the host.
+     * `.bpmnlintrc`, or a host read/lint failure).
      */
     private render(results: LintResults | null): void {
         this.hideDisabledChip();
@@ -336,7 +333,7 @@ export class LintConfigService {
      * Handles the off button. Reports the toggle to the host in every tier; in the
      * in-page tier it also flips the state and clears the overlays optimistically
      * (the webview owns the linter). In the external tier the render waits for the
-     * host's disabled push — today's behaviour.
+     * host's disabled push.
      */
     private handleOffClick(): void {
         this.callbacks.onLintingToggled?.(false);

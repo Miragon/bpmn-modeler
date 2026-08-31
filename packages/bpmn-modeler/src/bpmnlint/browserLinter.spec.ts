@@ -7,8 +7,8 @@ type ModdleFactory = (ext?: Record<string, unknown>) => {
 };
 
 /**
- * The browser-compat gate for #1373: `@miragon/bpmnlint-plugin-rules` and
- * bpmnlint's `Linter` have only ever run in Node here. This drives the real stack
+ * The browser-compat gate: `@miragon/bpmnlint-plugin-rules` and bpmnlint's
+ * `Linter` have only ever run in Node here. This drives the real stack
  * (no mocks) over a parsed moddle tree in jsdom, so a rule reaching for a Node API
  * fails here — the earliest signal — rather than blank in a host webview. A rule
  * the bundled resolver cannot cover would degrade to `unresolved`, never throw.

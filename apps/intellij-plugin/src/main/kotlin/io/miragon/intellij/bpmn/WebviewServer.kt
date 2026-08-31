@@ -163,8 +163,8 @@ class WebviewServer : Disposable {
      * Synthesises the deployment tool-window shell with the IDE theme baked in,
      * mirroring [indexHtml]: the [IdeThemeSignal.bodyClass] on `<body>` and an
      * `#ide-theme-vars` block carrying the deployment form's mapped `--vscode-*`
-     * colors (the id `applyJs` rewrites live). Replaces the former static
-     * system-color block so the form follows the IDE theme, not the OS. The body
+     * colors (the id `applyJs` rewrites live) so the form follows the IDE theme,
+     * not the OS. The body
      * is just `<div id="app"></div>` because the deployment bundle
      * (`src/app/formTemplate.ts`) renders the form itself. Assets resolve under
      * `/deployment/...` → classpath `/webview-deployment`.

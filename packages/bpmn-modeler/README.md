@@ -7,8 +7,8 @@ clipboard, theming, and the Camunda element-template stack — with no VS Code /
 IntelliJ host required.
 
 > Extracted from the [miranum-ide](https://github.com/Miragon/miranum-ide)
-> modeler (epic #1293). `0.1.0` is the first standalone release; the public
-> surface is described by the TypeScript types shipped in `dist/index.d.ts`.
+> modeler. `0.1.0` is the first standalone release; the public surface is
+> described by the TypeScript types shipped in `dist/index.d.ts`.
 
 ## Install
 
@@ -93,14 +93,14 @@ Linting is an opinionated built-in with a tier ladder, selected via
 | `{ results: "external" }` | The modeler only *paints* results the host computes and pushes through `handle.applyLintResults(...)`; no in-webview linter runs. |
 
 The linting stack (`bpmn-js-bpmnlint`, `bpmnlint`, the rule plugin, and its CSS)
-is code-split into a lazily-loaded chunk (#1373): it is fetched only when an
+is code-split into a lazily-loaded chunk: it is fetched only when an
 instance actually lints, so `linting: false` keeps it out of your bundle's
 critical path entirely. Lint results surface through `onLintResults`, and the
 in-canvas enable/disable toggle through `onLintingToggled`.
 
 ## Clipboard wire format
 
-Copy/paste defaults to the native browser clipboard (#1374); a sandboxed host
+Copy/paste defaults to the native browser clipboard; a sandboxed host
 that cannot reach the system clipboard from the webview supplies a
 `ClipboardBridge` via `options.clipboard`.
 

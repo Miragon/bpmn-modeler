@@ -1,12 +1,11 @@
 /**
  * Ranked fuzzy search over element templates for the chooser overlay.
  *
- * The old chooser filtered with a single whole-query substring test over a
- * space-joined name/description/category/keywords string. That missed typos
- * ("resources" vs the German "Resourcen"), was sensitive to word order and
- * adjacency, and let one field's tail match the next field's head across the
- * join. This module replaces it with MiniSearch: per-term AND matching, typo
- * tolerance, prefix matching, and field-boosted relevance ranking.
+ * Uses MiniSearch for per-term AND matching, typo tolerance, prefix matching,
+ * and field-boosted relevance ranking. A plainer whole-query substring test over
+ * a space-joined name/description/category/keywords string would miss typos
+ * ("resources" vs the German "Resourcen"), be sensitive to word order and
+ * adjacency, and let one field's tail match the next field's head across the join.
  */
 import MiniSearch from "minisearch";
 import type { ElementTemplate } from "./types";

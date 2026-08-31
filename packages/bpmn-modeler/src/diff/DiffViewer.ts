@@ -26,14 +26,7 @@ const DIFF_SELECTED_CLASS = "diff-selected";
  * Readonly BPMN canvas for one side of a diff view.
  *
  * Wraps `bpmn-js/lib/NavigatedViewer` so the pane supports mouse + keyboard
- * pan/zoom but not editing.  Exposes:
- *   - {@link importXML} — load the diagram and fit to viewport.
- *   - {@link applyHighlights} — mark elements with per-category CSS classes.
- *   - {@link getViewport} / {@link setViewport} — read/write canvas viewbox.
- *   - {@link onViewportChanged} — subscribe to user-driven viewport changes,
- *     with a suppression guard so programmatic `setViewport` calls don't
- *     re-emit (avoids feedback loops across synced panes).
- *   - {@link focusElement} — centre the viewport on a given element.
+ * pan/zoom but not editing.
  */
 export class DiffViewer {
     private readonly viewer: NavigatedViewer;

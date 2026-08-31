@@ -4,7 +4,7 @@ import { Engine } from "@miragon/bpmn-modeler-types";
 /**
  * Builds the zero-config **default** bpmnlint config, used when no `.bpmnlintrc`
  * is found from the document up to the workspace root, so a diagram gets baseline
- * validation for free (issue #1327). A workspace `.bpmnlintrc` — even `{}` — is
+ * validation for free. A workspace `.bpmnlintrc` — even `{}` — is
  * still nearest-config-wins and never reaches here.
  *
  * The layered config comes from `@miragon/bpmnlint-plugin-rules`'

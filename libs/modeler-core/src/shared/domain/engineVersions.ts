@@ -32,22 +32,12 @@ export const C8_VERSIONS: readonly string[] = [
     "8.0.0",
 ];
 
-/**
- * Returns the latest (first) version for the given platform.
- *
- * @param platform The execution platform identifier.
- * @returns The latest version string for that platform.
- */
+/** Returns the latest (first) version for the given platform. */
 export function getLatestVersion(platform: Engine): string {
     return getVersions(platform)[0];
 }
 
-/**
- * Returns the version list for the given platform.
- *
- * @param platform The execution platform identifier.
- * @returns An ordered list of version strings (newest first).
- */
+/** Returns the platform's version list, newest first. */
 export function getVersions(platform: Engine): readonly string[] {
     return platform === "c7" ? C7_VERSIONS : C8_VERSIONS;
 }

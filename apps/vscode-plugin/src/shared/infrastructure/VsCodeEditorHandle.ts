@@ -67,7 +67,7 @@ export class VsCodeEditorHandle implements EditorHandle {
         // Canonicalize the drive letter so `getFilePath()`-derived paths land in
         // the same space as the workspace root the artifact walk compares them
         // against; VS Code's document URIs already lowercase it, but this keeps
-        // the guarantee explicit and host-boundary-local (issue #1204).
+        // the guarantee explicit and host-boundary-local.
         return canonicalizeDriveLetter(this.document.uri.path);
     }
 

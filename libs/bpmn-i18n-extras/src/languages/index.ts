@@ -1,9 +1,9 @@
 /*
  * Registry of the modeler's local translation overlay, one dictionary per
  * locale. These are the modeler-internal keys the shared
- * @miragon/bpmn-modeler-i18n library does not ship (the C7 strings this overlay
- * used to carry are upstream now); the webviews merge them onto the shared
- * dictionaries at startup with i18n.extend(). GENERATED barrel.
+ * @miragon/bpmn-modeler-i18n library does not ship (the C7 strings live in the
+ * shared library); the webviews merge them onto the shared dictionaries at
+ * startup with i18n.extend(). GENERATED barrel.
  */
 import type { SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 

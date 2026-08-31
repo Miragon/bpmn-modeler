@@ -5,17 +5,17 @@
  * - `"automatic"`: follows the VS Code theme via a MutationObserver on `<body>`.
  * - `"light"`: always uses the default bpmn-js light theme.
  * - `"dark"`: always forces the dark theme (the injected per-instance `theme`
- *   option, #1376).
+ *   option).
  *
  * VS Code injects `vscode-dark`, `vscode-light`, or `vscode-high-contrast`
  * onto `<body>` in every webview.
  *
  * @internal Host-specific and module-singleton — reads VS Code `<body>` classes
- *   and mutates a single `#theme-link`, so it is not part of the designed
- *   modeler public API (#1375). This is the VS Code body-class watcher the
- *   bpmn/dmn **host adapters** own (#1377): the adapter maps the `<body>` class
- *   to a forced light/dark and hands that to the modeler, so the publishable
- *   `@miragon/bpmn-modeler` package never reads host chrome itself.
+ *   and mutates a single `#theme-link`, so it is not part of the modeler public
+ *   API. It is the VS Code body-class watcher the bpmn/dmn host adapters own: the
+ *   adapter maps the `<body>` class to a forced light/dark and hands that to the
+ *   modeler, so the publishable `@miragon/bpmn-modeler` package never reads host
+ *   chrome itself.
  */
 
 let currentMode: "automatic" | "light" | "dark" = "automatic";

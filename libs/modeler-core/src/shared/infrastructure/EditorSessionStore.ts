@@ -12,10 +12,9 @@ import {
  * bookkeeping. Holds {@link EditorHandle}s (the port), never a `WebviewPanel`
  * or `TextDocument`, so services depend on it without pulling in `vscode`.
  *
- * Was the registry half of the former `EditorStore`; the VS Code half now lives
- * in {@link VsCodeEditorHandle}. The subscription methods are thin delegations
- * to the active or addressed handle — they keep their former call sites so
- * controllers barely change, but their signatures are now `vscode`-free.
+ * The VS Code half lives in {@link VsCodeEditorHandle}. The subscription methods
+ * are thin delegations to the active or addressed handle, with `vscode`-free
+ * signatures.
  */
 export class EditorSessionStore {
     /**
@@ -45,9 +44,8 @@ export class EditorSessionStore {
     constructor(private readonly onOpenCountChanged: (count: number) => void) {}
 
     /**
-     * Registers an already-constructed session and makes it active. Replaces
-     * the storage half of the former `createEditor`; webview bootstrap now
-     * happens in {@link VsCodeEditorHandle.create}.
+     * Registers an already-constructed session and makes it active. Webview
+     * bootstrap happens separately in {@link VsCodeEditorHandle.create}.
      */
     register(handle: EditorHandle): void {
         const replaced = this.editors.get(handle.id);

@@ -7,7 +7,7 @@ declare module "bpmn-js-bpmnlint" {
 }
 
 /**
- * `bpmnlint` ships no type declarations. The in-page linter (#1373) drives only
+ * `bpmnlint` ships no type declarations. The in-page linter drives only
  * `Linter` directly — it builds the rule/config resolver from
  * `@miragon/bpmnlint-plugin-rules` (which is typed), so this shim needs only the
  * one class the webview constructs. Rule/config shapes are opaque, passed

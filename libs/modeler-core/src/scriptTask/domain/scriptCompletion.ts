@@ -3,7 +3,7 @@ import { ScriptKind } from "@miragon/bpmn-modeler-types";
 /**
  * Pure helpers backing {@link ScriptCompletionProvider}.
  *
- * Extracted from the provider so they can be unit-tested without mocking
+ * Kept separate from the provider so they can be unit-tested without mocking
  * the `vscode` module — the provider itself depends on `vscode.languages`,
  * `CompletionItem`, etc., which the jest test environment doesn't supply.
  */

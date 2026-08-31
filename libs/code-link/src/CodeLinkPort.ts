@@ -7,9 +7,6 @@ import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
  * so the library never imports the postMessage protocol and registering its
  * providers without a host is unrepresentable — no port, no module (see
  * {@link createCodeLinkModule}).
- *
- * `ImplementationEntry` is a type-only import from the protocol-free
- * `@miragon/bpmn-modeler-types` package (#1371).
  */
 export interface CodeLinkPort {
     /**

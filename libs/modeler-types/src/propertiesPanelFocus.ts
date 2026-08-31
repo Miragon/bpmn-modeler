@@ -1,6 +1,6 @@
 /**
  * @internal Page-level webview chrome coupled to the `js-properties-panel` DOM
- * id and the panel shortcuts. Not part of the designed public API (#1375).
+ * id and the panel shortcuts. Not part of the modeler public API.
  * `isTextEditingSurface` is the one broadly-reused helper here.
  */
 import type { PropertiesPanelHandle } from "./propertiesPanelResizer";

@@ -30,11 +30,7 @@ export class ScriptLanguage {
     // The file extension without a leading dot (e.g. `"js"`).
     readonly extension: string;
 
-    /**
-     * Creates a ScriptLanguage from a Camunda `scriptFormat` value.
-     *
-     * @param scriptFormat Raw format string from the BPMN model (e.g. `"javascript"`, `"groovy"`).
-     */
+    /** Creates a ScriptLanguage from a Camunda `scriptFormat` value (e.g. `"javascript"`, `"groovy"`). */
     constructor(scriptFormat: string) {
         const normalized = ScriptLanguage.normalize(scriptFormat);
         const mapping = ScriptLanguage.MAPPINGS.get(normalized) ?? ScriptLanguage.FALLBACK;

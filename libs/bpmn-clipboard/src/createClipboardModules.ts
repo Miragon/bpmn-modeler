@@ -3,7 +3,7 @@ import { LabelClipboardModule } from "./LabelClipboardModule";
 
 /**
  * Builds the bpmn-js DI modules that override the native clipboard with a host
- * bridge, for webviews that cannot reach the system clipboard directly (#1374).
+ * bridge, for webviews that cannot reach the system clipboard directly.
  * Omitting these modules entirely leaves bpmn-js's `NativeCopyPaste` in charge
  * — the native default — so this factory is only the override path.
  *

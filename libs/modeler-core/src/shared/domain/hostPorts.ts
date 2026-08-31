@@ -9,9 +9,6 @@
  * names, in domain terms, exactly which host facilities the core relies on —
  * the contract any non-VS-Code host would have to satisfy. The concrete
  * `VsCode*` classes in `infrastructure/` `implements` these.
- *
- * Mirrors the port/adapter seam already proven by {@link CamundaEnginePort}
- * (`ports.ts`) and `DiffPaneHandle` (`DiffSession.ts`).
  */
 
 import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";

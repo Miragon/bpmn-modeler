@@ -41,9 +41,9 @@ export interface ModelerEditorOptions {
 /**
  * Generic `CustomTextEditorProvider` for the modeler editors.
  *
- * Constant-size as features grow: it no longer hand-wires each feature's
- * session setup. `resolveCustomTextEditor` reduces to URI routing → create
- * session → run participants → dispatch. Each lifecycle concern lives in an
+ * Constant-size as features grow: it does not hand-wire each feature's session
+ * setup. `resolveCustomTextEditor` reduces to URI routing → create session → run
+ * participants → dispatch. Each lifecycle concern lives in an
  * {@link EditorSessionParticipant}; this controller only owns the parts that are
  * the same for every modeler — message dispatch, tab tracking, and the single
  * aggregated dispose.
@@ -71,8 +71,8 @@ export class ModelerEditorController implements CustomTextEditorProvider {
     /**
      * Called by VS Code whenever a matching file is opened.
      *
-     * Order matters and preserves the former controllers' semantics: the diff
-     * branch short-circuits before any session is created; message/tab/dispose
+     * Order matters: the diff branch short-circuits before any session is
+     * created; message/tab/dispose
      * subscriptions are wired synchronously before any participant runs (a
      * participant may await, and the webview is already loading); the single
      * dispose subscription runs every participant's teardown once, after the

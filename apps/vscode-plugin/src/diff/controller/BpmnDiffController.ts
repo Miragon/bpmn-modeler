@@ -49,10 +49,9 @@ const GIT_PROVIDED_SCHEMES = new Set<string>(["git", "gitfs"]);
  * {@link DiffPaneStore} and the diff content logic in {@link BpmnDiffService},
  * both kept vscode-free.
  *
- * The domain moved from "pair of panes with mutual partner pointers" to
- * {@link DiffSession}: an explicit object with fixed `before` / `after` URIs
- * that any diff origin (SCM, `compare-files`) can register into. Pane
- * resolution is a session lookup instead of a scheme-based heuristic.
+ * The domain is {@link DiffSession}: an explicit object with fixed `before` /
+ * `after` URIs that any diff origin (SCM, `compare-files`) can register into.
+ * Pane resolution is a session lookup rather than a scheme-based heuristic.
  */
 export class BpmnDiffController {
     /**

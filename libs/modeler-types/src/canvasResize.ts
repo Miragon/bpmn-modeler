@@ -1,7 +1,7 @@
 /**
  * @internal `observeCanvasSize` and its helpers are package-internal wiring the
- * facade installs per instance; the exported names are not part of the designed
- * public API (#1375).
+ * facade installs per instance; the exported names are not part of the modeler
+ * public API.
  */
 
 /**

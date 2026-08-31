@@ -97,78 +97,36 @@ export class DeploymentConfigBuilder {
 
     private _auth: AuthConfig = new NoAuth();
 
-    /**
-     * Sets the deployment name (required).
-     *
-     * @param name Human-readable deployment name.
-     * @returns `this` for chaining.
-     */
     withDeploymentName(name: string): this {
         this._deploymentName = name;
         return this;
     }
 
-    /**
-     * Sets the optional tenant ID.
-     *
-     * @param tenantId Tenant identifier string (may be empty).
-     * @returns `this` for chaining.
-     */
     withTenantId(tenantId: string): this {
         this._tenantId = tenantId;
         return this;
     }
 
-    /**
-     * Sets the REST endpoint URL (required).
-     *
-     * @param endpoint Base URL of the Camunda REST API.
-     * @returns `this` for chaining.
-     */
     withEndpoint(endpoint: string): this {
         this._endpoint = endpoint;
         return this;
     }
 
-    /**
-     * Sets the target execution platform.
-     *
-     * @param engine `"c7"` for Camunda Platform 7, `"c8"` for Camunda Cloud 8.
-     * @returns `this` for chaining.
-     */
     withEngine(engine: Engine): this {
         this._engine = engine;
         return this;
     }
 
-    /**
-     * Sets the absolute path to the primary BPMN file (required).
-     *
-     * @param filePath Absolute filesystem path of the main BPMN file.
-     * @returns `this` for chaining.
-     */
     withMainFilePath(filePath: string): this {
         this._mainFilePath = filePath;
         return this;
     }
 
-    /**
-     * Sets the list of additional file paths to include in the deployment.
-     *
-     * @param filePaths Array of absolute filesystem paths.
-     * @returns `this` for chaining.
-     */
     withAdditionalFilePaths(filePaths: string[]): this {
         this._additionalFilePaths = filePaths;
         return this;
     }
 
-    /**
-     * Sets the authentication configuration.
-     *
-     * @param auth Authentication strategy to use. Defaults to {@link NoAuth}.
-     * @returns `this` for chaining.
-     */
     withAuth(auth: AuthConfig): this {
         this._auth = auth;
         return this;

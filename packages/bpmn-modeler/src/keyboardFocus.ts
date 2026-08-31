@@ -1,6 +1,6 @@
 /**
  * @internal Package-internal wiring — the canvas-focus keyboard guard the
- * factory installs per instance. Not part of the designed public API (#1375).
+ * factory installs per instance. Not part of the public API.
  */
 
 /**

@@ -23,7 +23,7 @@ const RESULTS = {
     "label-required": [{ id: "Task_1", message: "Element requires a label", category: "warn" }],
 };
 
-// The bundled resolver covers this (no moddleExtensions) → linted in-page (#1384).
+// The bundled resolver covers this (no moddleExtensions) → linted in-page.
 const COVERED_CONFIG = { extends: "bpmnlint:recommended" };
 const COVERED_RAW = JSON.stringify(COVERED_CONFIG);
 // A string moddleExtension is a Node-only module path → the static pre-check
@@ -113,7 +113,7 @@ function noResultsQueryPosted(editorStore: Store): boolean {
     return postedOfType(editorStore, "BpmnlintResultsQuery").length === 0;
 }
 
-/** Arranges a live covered (#1384 in-page) session and returns its instruction token. */
+/** Arranges a live covered (in-page) session and returns its instruction token. */
 async function coveredSession(): Promise<ReturnType<typeof createService> & { token: string }> {
     const ctx = createService();
     ctx.locator.findNearestConfig.mockResolvedValue(CONFIG_PATH);
@@ -229,7 +229,7 @@ describe("BpmnLintConfigService.setBpmnlintConfig — escalated workspace config
     });
 });
 
-describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (#1384 in-page)", () => {
+describe("BpmnLintConfigService.setBpmnlintConfig — covered workspace config (in-page)", () => {
     it("instructs the webview to lint the config in-page with a token, and never lints host-side", async () => {
         const { service, editorStore, locator, lintRunner, diagnostics, statusBar } =
             createService();

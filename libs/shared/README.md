@@ -9,7 +9,7 @@ Used by the extension host (`apps/vscode-plugin`), the modeler-bridge, and the
 webview bootstrap/host-adapter layers. It is **not** publishable: it encodes the
 internal transport contract.
 
-## The public/protocol split (#1371)
+## The public/protocol split
 
 The publishable, host-agnostic types and browser utilities that used to live
 here (engine/lint/settings/scripting/implementation/diff types, `theme`,

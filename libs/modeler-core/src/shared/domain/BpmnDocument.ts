@@ -12,19 +12,12 @@ import { Engine } from "@miragon/bpmn-modeler-types";
 import { ExecutionPlatformNotDetectedError } from "./errors";
 
 export class BpmnDocument {
-    /**
-     * @param xml Raw BPMN XML string backing this document.
-     */
     constructor(readonly xml: string) {}
 
     /**
-     * Returns an empty BPMN diagram for the given engine and version.
-     *
-     * The template XML is the minimal structure required by bpmn-js to open
-     * and render a new diagram without errors.
-     *
-     * @param engine The target Camunda execution engine (`"c7"` or `"c8"`).
-     * @param version The version string (e.g. `"7.24.0"` or `"8.8.0"`).
+     * Returns an empty BPMN diagram for the given engine and version — the
+     * minimal structure bpmn-js needs to open and render a new diagram without
+     * errors.
      */
     static empty(engine: Engine, version: string): BpmnDocument {
         if (engine === "c7") {
@@ -103,8 +96,6 @@ export class BpmnDocument {
 
     /**
      * Returns a new `BpmnDocument` with the `modeler:executionPlatformVersion` replaced.
-     *
-     * @param version The new version string (e.g. `"8.7.0"`).
      */
     withVersion(version: string): BpmnDocument {
         return new BpmnDocument(
@@ -116,17 +107,9 @@ export class BpmnDocument {
     }
 
     /**
-     * Returns a new `BpmnDocument` with execution platform attributes injected
-     * into the `<bpmn:definitions>` opening tag.
-     *
-     * The function locates the `<bpmn:definitions ...>` opening tag, strips its
-     * closing `>`, appends the new attributes, and re-closes the tag.
-     *
-     * @param platform The execution platform name (e.g. `"Camunda Platform"`).
-     * @param version The version string (e.g. `"7.20.0"`).
-     * @param schema Optional namespace attribute to inject (e.g.
-     *   `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`).
-     * @throws {Error} If the XML does not contain a `<bpmn:definitions>` tag.
+     * Returns a new `BpmnDocument` with execution platform attributes (and an
+     * optional `schema` namespace attribute) injected into the
+     * `<bpmn:definitions>` opening tag. Throws when the XML has no such tag.
      */
     withExecutionPlatform(platform: string, version: string, schema?: string): BpmnDocument {
         const regex = /<bpmn:definitions[^>]*>/;

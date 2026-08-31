@@ -5,13 +5,12 @@ types (engine, lint, settings, scripting, implementation, diff) and browser
 utilities (theme, canvas resize, properties-panel focus/resizer, BPMN flow
 order) that carry no dependency on the webview ↔ host message protocol.
 
-This package exists to draw a hard line for epic #1293 (extract the BPMN
-modeler into a publishable `@miragon/bpmn-modeler` npm package). The former
-`@miragon/bpmn-modeler-shared` mixed two audiences behind one barrel:
-publishable types the package needs, and the internal Query/Command protocol +
-`HostApi` that must stay private. Inlining the publishable libs into the
-package would otherwise drag the protocol along. Everything here is safe to
-publish; everything protocol-shaped stays in `@miragon/bpmn-modeler-shared`.
+This package draws a hard line so the modeler can ship as a publishable
+`@miragon/bpmn-modeler` npm package without dragging the host protocol along:
+publishable types the package needs live here, while the internal Query/Command
+protocol + `HostApi` stay private in `@miragon/bpmn-modeler-shared`. Everything
+here is safe to publish; everything protocol-shaped stays in
+`@miragon/bpmn-modeler-shared`.
 
 ## The boundary
 

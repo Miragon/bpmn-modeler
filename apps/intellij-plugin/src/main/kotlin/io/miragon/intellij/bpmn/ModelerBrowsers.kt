@@ -32,7 +32,7 @@ private val log = Logger.getInstance("io.miragon.intellij.bpmn.ModelerBrowsers")
  *
  * The builder does not create the native browser immediately (callers that need
  * that, e.g. [WarmBrowser], call `createImmediately()` themselves), so it is a
- * drop-in for the former `JBCefBrowser()` construction.
+ * drop-in for direct `JBCefBrowser()` construction.
  */
 fun createModelerBrowser(): JBCefBrowser = JBCefBrowserBuilder().setWindowlessFramerate(60).build()
 

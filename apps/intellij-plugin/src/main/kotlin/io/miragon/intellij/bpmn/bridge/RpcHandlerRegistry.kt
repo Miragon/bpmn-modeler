@@ -8,8 +8,8 @@ internal fun interface RpcHandler {
 }
 
 /**
- * String-keyed registry of core→host RPC handlers — the dispatch mechanism that
- * replaces the monolithic `when (method)`.
+ * String-keyed registry of core→host RPC handlers — the dispatch mechanism for
+ * incoming methods.
  *
  * Handlers are registered via chainable [on] during `CoreProcess` construction,
  * which is single-threaded and strictly precedes the reader thread that calls

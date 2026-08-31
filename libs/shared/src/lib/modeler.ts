@@ -160,10 +160,11 @@ export class BpmnLintDisabledQuery extends Query {
  * Tells the webview to run its **own in-page** linter. Two tiers travel on this
  * one message:
  *
- *  - **Payload-free** (#1373 Phase B) — no workspace `.bpmnlintrc`: the webview's
- *    {@link BrowserLinter} derives the engine-aware zero-config default from the
- *    live modeler itself, so nothing has to travel.
- *  - **With `config`** (#1384) — a workspace `.bpmnlintrc` exists and the host's
+ *  - **Payload-free** (zero-config default tier) — no workspace `.bpmnlintrc`:
+ *    the webview's {@link BrowserLinter} derives the engine-aware zero-config
+ *    default from the live modeler itself, so nothing has to travel.
+ *  - **With `config`** (covered workspace tier) — a workspace `.bpmnlintrc`
+ *    exists and the host's
  *    escalation pre-check ({@link staticUnresolvedModdleExtensions}) proved the
  *    bundled resolver can cover it: the host lints it in-page against the
  *    supplied `config` instead of running the Node linter on every edit. If the
@@ -499,12 +500,13 @@ export class SetLintingEnabledCommand extends Command {
  * Sent by the BPMN webview after every **in-page** lint pass so the host can
  * feed its own chrome — the VS Code Problems panel and status bar — from results
  * the webview computed. Fired whenever the host activated in-page linting via
- * {@link BpmnlintInPageQuery}, in either tier: the payload-free #1373 default or
- * the #1384 workspace-config in-page run. An escalated workspace session lints
- * host-side instead and never receives this. `unresolved` carries the rules the
- * browser resolver could not honour (informational for the default tier; the
- * escalation trigger for the #1384 workspace tier — a non-empty list flips the
- * session to the Node linter). Hosts without a Problems surface (the IntelliJ
+ * {@link BpmnlintInPageQuery}, in either tier: the payload-free zero-config
+ * default or the covered workspace-config in-page run. An escalated workspace
+ * session lints host-side instead and never receives this. `unresolved` carries
+ * the rules the browser resolver could not honour (informational for the default
+ * tier; the escalation trigger for the covered workspace tier — a non-empty list
+ * flips the session to the Node linter). Hosts without a Problems surface (the
+ * IntelliJ
  * bridge) accept it and update whatever chrome they have.
  *
  * `configToken` echoes the token the driving {@link BpmnlintInPageQuery} carried

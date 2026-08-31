@@ -66,12 +66,10 @@ export class DiffPaneCoordinator {
         }
     }
 
-    /** Advances the shared cursor to the next changed element on both panes. */
     next(): void {
         this.step(1);
     }
 
-    /** Advances the shared cursor to the previous changed element on both panes. */
     previous(): void {
         this.step(-1);
     }
@@ -80,7 +78,6 @@ export class DiffPaneCoordinator {
         return this._cursor;
     }
 
-    /** Unhooks the viewport-sync subscriptions.  Leaves the viewers intact. */
     destroy(): void {
         for (const dispose of this.disposers) {
             dispose();

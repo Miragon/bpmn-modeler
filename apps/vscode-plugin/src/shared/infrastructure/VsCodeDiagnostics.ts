@@ -14,7 +14,7 @@ import { DiagnosticsPort } from "@miragon/bpmn-modeler-core";
 /**
  * Publishes bpmnlint findings into VS Code's Problems panel via a single shared
  * {@link DiagnosticCollection}, so lint results are searchable and clickable
- * without opening the diagram — the payoff of linting in the host (issue #1304).
+ * without opening the diagram — the payoff of linting in the host.
  *
  * bpmnlint reports address elements by id, not text ranges, so the range is a
  * best-effort scan for the element's `id="…"` in the XML, falling back to the

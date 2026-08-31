@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 
 /**
- * Covers Part B of #1106 — the deployment-state writes are *acknowledged* requests,
- * not fire-and-forget notifications. Each `deploymentState/save*` must persist
+ * Covers that the deployment-state writes are *acknowledged* requests, not
+ * fire-and-forget notifications. Each `deploymentState/save*` must persist
  * through [IntellijDeploymentState] (so a getter / re-seed reflects it across an IDE
  * restart) **and** answer the request id, so a failed persist surfaces as a rejected
  * promise on the core instead of being silently dropped.
