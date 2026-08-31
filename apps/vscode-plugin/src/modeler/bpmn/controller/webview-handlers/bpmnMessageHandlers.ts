@@ -125,7 +125,7 @@ export function getPropertiesPanelStateHandler(
 
 /**
  * `UpdateLintResultsCommand` → feed the host's Problems panel + status bar from
- * findings the webview computed in its in-page default run (#1373 Phase B). The
+ * findings the webview computed in its in-page default run. The
  * service ignores the push when the editor is no longer on the in-page path (a
  * workspace-config takeover) or when linting is disabled.
  */

@@ -39,10 +39,10 @@ export interface EditorSessionContext {
  * One self-contained editor lifecycle concern (render, element templates,
  * settings broadcast, engine-version status bar, …).
  *
- * Inverts the former god-controller: instead of `resolveCustomTextEditor`
- * hand-wiring every feature's setup, each feature contributes a participant that
- * is handed the session and registers itself. Adding a feature becomes "write a
- * participant + register it in `main.ts`" with zero controller edits.
+ * Instead of `resolveCustomTextEditor` hand-wiring every feature's setup, each
+ * feature contributes a participant that is handed the session and registers
+ * itself. Adding a feature becomes "write a participant + register it in
+ * `main.ts`" with zero controller edits.
  */
 export interface EditorSessionParticipant {
     /** Runs once per opened editor, after the session is registered. */

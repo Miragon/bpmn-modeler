@@ -2,29 +2,21 @@ import { Uri, Webview } from "vscode";
 
 import { getNonce } from "@miragon/bpmn-modeler-core";
 
-// Output directory name for the BPMN webview build artefacts.
 const BPMN_WEBVIEW_PATH = "bpmn-webview";
-// Output directory name for the DMN webview build artefacts.
 const DMN_WEBVIEW_PATH = "dmn-webview";
 
 /**
- * Generates the HTML content for the BPMN modeler webview.
+ * Generates the HTML for the BPMN modeler webview, resolving asset URIs relative
+ * to the extension's install directory. The initial theme stylesheet is always
+ * `lightTheme.css`; the webview's own `initTheme()` swaps it to the correct
+ * theme at runtime from VS Code's body CSS classes.
  *
- * Resolves all asset URIs relative to the extension's install directory and
- * injects them into the HTML template.  The initial theme stylesheet is always
- * `lightTheme.css`; the webview's own `initTheme()` call swaps it to the
- * correct theme at runtime based on VS Code's body CSS classes.
- *
- * @param webview The VS Code Webview instance (used to convert local URIs).
- * @param extensionUri URI of the extension's install directory.
- * @param initialPanelVisible The host's global properties-panel default — the
- *   seed for a first-ever open. When `false`, the panel and its resizer are
- *   rendered with the `collapsed` class (and `width: 0` on the panel) so the
- *   panel never flashes visible before the webview's JavaScript applies state.
- *   A webview that carries its own per-editor `panelVisible` entry overrides
- *   this hint at runtime (early-apply, before diagram import). Defaults to
- *   `true` for safety (e.g. diff panes that hide the panel via CSS anyway).
- * @returns HTML string to set as `webview.html`.
+ * `initialPanelVisible` is the host's global properties-panel default seeding a
+ * first-ever open: when `false`, the panel and its resizer render with the
+ * `collapsed` class (and `width: 0`) so the panel never flashes visible before
+ * the webview's JavaScript applies state. A webview carrying its own per-editor
+ * `panelVisible` entry overrides this hint at runtime. Defaults to `true` for
+ * safety (e.g. diff panes that hide the panel via CSS anyway).
  */
 export function bpmnEditorUi(
     webview: Webview,
@@ -69,14 +61,7 @@ export function bpmnEditorUi(
     `;
 }
 
-/**
- * Generates the HTML content for the DMN modeler webview.
- *
- * @param webview The VS Code Webview instance.
- * @param extensionUri URI of the extension's install directory.
- * @param initialPanelVisible determines if the panel is visible initially
- * @returns HTML string to set as `webview.html`.
- */
+/** Generates the HTML for the DMN modeler webview. */
 export function dmnModelerHtml(
     webview: Webview,
     extensionUri: Uri,

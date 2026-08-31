@@ -1,7 +1,7 @@
 # @miragon/bpmn-modeler-diff
 
 Host-agnostic, Node- and browser-safe data layer for BPMN diffing. Private
-workspace lib (epic #1293); it is **inlined** into the publishable
+workspace lib; it is **inlined** into the publishable
 `@miragon/bpmn-modeler` package under its `./diff` subpath and imported directly
 by the extension engine (`@miragon/bpmn-modeler-core`) — layering forbids
 `libs → packages`, so the computation lives here rather than in the package.

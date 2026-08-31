@@ -46,10 +46,9 @@ export function basenameOfUriString(uri: string): string {
  * A paired BPMN diff view — the domain object the diff service revolves
  * around.
  *
- * Promotes what used to be implicit pairing (mutual `partner` pointers on
- * two pane records) into an explicit object that owns both URIs and both
- * pane slots. A session can exist with zero, one, or two attached panes
- * — this matters because:
+ * An explicit object that owns both URIs and both pane slots, rather than a
+ * pairing implied by mutual `partner` pointers on two pane records. A session
+ * can exist with zero, one, or two attached panes — this matters because:
  *
  * - `compare-files` sessions are created up front with both URIs known but
  *   no panes attached yet; the panes attach as VS Code resolves the two
@@ -73,11 +72,9 @@ export class DiffSession {
      * {@link forScm}) over calling this directly — they encapsulate each
      * origin's side-assignment rule.
      *
-     * @param origin How this session came to be. Surfaces in the diff-legend
-     *   UI so compare-files panes can show origin-specific affordances (the
-     *   filename label, the swap button) that don't apply to SCM diffs.
-     * @param beforeUri Stringified URI rendered in the left pane.
-     * @param afterUri Stringified URI rendered in the right pane.
+     * `origin` surfaces in the diff-legend UI so compare-files panes can show
+     * origin-specific affordances (the filename label, the swap button) that
+     * don't apply to SCM diffs.
      */
     constructor(
         readonly origin: DiffOrigin,

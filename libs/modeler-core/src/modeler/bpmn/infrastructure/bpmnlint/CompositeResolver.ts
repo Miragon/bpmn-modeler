@@ -30,8 +30,8 @@ const NOOP_CONFIG = { rules: {} };
  *
  * A rule/config that no delegate can resolve is *skipped*, not thrown: its name
  * is collected in {@link unresolved} and a no-op is returned so the rest of the
- * lint still runs. This is what turns the old "unknown rule → whole lint fails"
- * (or the webview's silent drop) into a visible, non-fatal "N rules skipped".
+ * lint still runs. An unknown rule becomes a visible, non-fatal "N rules skipped"
+ * rather than failing the whole lint or being silently dropped.
  */
 export class CompositeResolver implements Resolver {
     /** Names of rules/configs that could not be resolved this run. */

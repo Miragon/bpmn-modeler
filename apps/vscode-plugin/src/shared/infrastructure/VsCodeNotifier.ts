@@ -13,10 +13,9 @@ const LOG_CHANNEL_ID = "bpmn.modeler";
  *
  * The channel is created with `{ log: true }`, so VS Code supplies the level
  * filtering (Output panel gear / *Developer: Set Log Level…*), per-line
- * timestamps, and persistence to the extension log file. The channel-name
- * prefix each line used to carry is therefore redundant — the channel already
- * identifies itself — and the ctor no longer `clear()`s, so the previous
- * session's trail survives a reload.
+ * timestamps, and persistence to the extension log file. The channel identifies
+ * itself, so lines carry no channel-name prefix; the ctor does not `clear()`, so
+ * the previous session's trail survives a reload.
  */
 export class VsCodeNotifier implements NotifierPort {
     private readonly channel: LogOutputChannel;

@@ -1,7 +1,7 @@
 /**
  * @internal Page-level webview chrome bound to hard-coded DOM ids
- * (`js-panel-resizer`, `js-properties-panel`). Not part of the designed public
- * API (#1375); the multi-instance facade owns its own panel host instead.
+ * (`js-panel-resizer`, `js-properties-panel`). Not part of the modeler public
+ * API; the multi-instance facade owns its own panel host instead.
  */
 
 /**
@@ -51,9 +51,6 @@ export interface PropertiesPanelResizerOptions {
  * properties-panel visibility without touching the DOM directly.
  */
 export interface PropertiesPanelHandle {
-    /**
-     * `true` if the panel is currently visible, `false` if collapsed.
-     */
     isVisible(): boolean;
 
     /**
@@ -76,11 +73,10 @@ export interface PropertiesPanelHandle {
 }
 
 /**
- * Returned when the resizer cannot find its DOM targets.  All operations on
- * this handle are no-ops so the rest of the webview can call
+ * Returned when the resizer cannot find its DOM targets. All operations on this
+ * handle are no-ops so the rest of the webview can call
  * {@link PropertiesPanelHandle.setVisible} or subscribe without extra null
- * checks.  Matches the historical behaviour where the old `initResizer()`
- * silently returned after logging a warning.
+ * checks.
  */
 const NOOP_HANDLE: PropertiesPanelHandle = {
     isVisible: () => true,

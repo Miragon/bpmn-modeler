@@ -282,7 +282,3 @@ apps/standalone/
   `HideBuiltinViewsContribution`.
 - **Auto-update:** active only in packaged builds (`app.isPackaged`); a
   no-op during `yarn start` in dev mode.
-
-## Related
-
-- Issue: [#917](https://github.com/Miragon/bpmn-modeler/issues/917)

@@ -1072,8 +1072,8 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         ).rejects.not.toThrow(/can't access/);
     });
 
-    // Regression #1250: a public marketplace raised the macOS keychain popup
-    // because every fetch eagerly read the PasswordSafe-backed token store.
+    // A public marketplace must not raise the macOS keychain popup, which happens
+    // when a fetch eagerly reads the PasswordSafe-backed token store.
     it("never consults the token store or prompt for a public marketplace", async () => {
         // The default service serves a public manifest (relative + github source)
         // with no gating, so every fetch succeeds anonymously.

@@ -38,7 +38,7 @@ export type { CodeLinkPort } from "./CodeLinkPort";
  *
  * @internal Package-internal composition wiring: consumers enable this feature
  *   through the modeler's `capabilities.codeLink` port, not by calling this
- *   factory directly (#1375).
+ *   factory directly.
  */
 export function createCodeLinkModule(port: CodeLinkPort) {
     return {

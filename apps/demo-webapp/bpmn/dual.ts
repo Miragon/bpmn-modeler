@@ -2,8 +2,8 @@ import { createModeler } from "@miragon/bpmn-modeler";
 import { getActiveModel } from "../src";
 
 /**
- * Two-instance regression proof for issue #1372: two independent modelers on one
- * page, each bound to its own canvas + panel host, neither using the legacy
+ * Two-instance regression proof: two independent modelers on one page, each
+ * bound to its own canvas + panel host, neither using the legacy
  * `#js-canvas` / `#js-properties-panel` ids (that absence is the proof). No host,
  * no bootstrap — a bare {@link createModeler} per pane. Manual checks: pan/zoom/
  * selection and the properties panels are independent, Escape in panel A focuses

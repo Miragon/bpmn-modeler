@@ -30,7 +30,7 @@ export type { ModelNavigationPort, ModelReference } from "./ModelNavigationPort"
  *
  * @internal Package-internal composition wiring: consumers enable this feature
  *   through the modeler's `capabilities.modelNavigation` port, not by calling
- *   this factory directly (#1375).
+ *   this factory directly.
  */
 export function createModelNavigationModule(port: ModelNavigationPort) {
     return {

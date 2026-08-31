@@ -83,11 +83,8 @@ export function TemplatePanel({
         }
     }, [highlightedIndex]);
 
-    /**
-     * Handles hover state changes from individual cards.
-     * Uses a short delay before hiding to allow the mouse to move
-     * from the card to the hover card without flickering.
-     */
+    // Short delay before hiding so the mouse can travel from the card to the
+    // hover card without flickering.
     const handleCardHover = useCallback((index: number, hovered: boolean) => {
         window.clearTimeout(hideTimeoutRef.current);
         if (hovered) {

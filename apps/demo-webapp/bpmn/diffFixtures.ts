@@ -2,8 +2,8 @@
  * Self-contained BPMN XML pair for the two-pane diff demo (`bpmn/diff.html`).
  *
  * Two strings in, a `DiffResult` + rendered primitives out — the exact shape a
- * consumer like bpm-iq needs when diffing two fetched versions of a diagram
- * (issue #1378). The two diagrams differ in every category the differ reports:
+ * consumer needs when diffing two fetched versions of a diagram. The two diagrams
+ * differ in every category the differ reports:
  * `ServiceTask_1` is renamed (changed), `Gateway_1` is added, `UserTask_ToRemove`
  * is removed, and `ServiceTask_2` moves on the canvas (layoutChanged).
  */

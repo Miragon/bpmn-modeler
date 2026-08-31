@@ -8,8 +8,8 @@
  * `def myVar` — is never consulted. Locals therefore have to come from us.
  *
  * This is a deliberately slim, line-based fallback, not a parser: inline
- * scripts are short snippets, and once scripts live on disk (#1219) external
- * language servers own general language intelligence. Known, accepted gaps:
+ * scripts are short snippets, so general language intelligence is out of scope.
+ * Known, accepted gaps:
  * multi-declarators (`def a, b`), destructuring, dotted type names
  * (`java.util.List x`), function parameters, and declaration-shaped text
  * inside block comments or multiline strings.

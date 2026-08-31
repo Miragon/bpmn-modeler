@@ -242,13 +242,6 @@ export class NodeWorkspace implements WorkspacePort {
      * `node_modules`/`.git` are pruned so arming the recursive watch on a large
      * repo stays within the OS watch-descriptor budget (inotify on Linux).
      * Dot-dirs in general must stay watched — templates live under `.camunda/`.
-     *
-     * On Windows the watch runs in polling mode (`usePolling`). chokidar v3 has
-     * no native recursive Windows watch, so it opens a `ReadDirectoryChangesW`
-     * handle per directory; that handle locks `element-templates` against moves
-     * while a BPMN file is open (#1148). Polling via `fs.watchFile` holds no
-     * directory handle, releasing the lock — Bun implements `fs.watchFile`, so
-     * this works under the compiled bridge runtime.
      */
     createWatcher(
         rootPath: string,
@@ -300,8 +293,8 @@ export class NodeWorkspace implements WorkspacePort {
             // chokidar v3 has no native recursive watch on Windows, so it opens a
             // `ReadDirectoryChangesW` handle per directory — including
             // `element-templates`. That held handle makes Windows reject a `mv`
-            // into the folder while a BPMN file is open (#1148). Polling uses
-            // `fs.watchFile` (stat-based) and holds no directory handle, so the
+            // into the folder while a BPMN file is open. Polling uses `fs.watchFile`
+            // (stat-based, implemented by Bun) and holds no directory handle, so the
             // lock disappears; the cost is bounded by the node_modules/.git prune.
             usePolling: process.platform === "win32",
             interval: 300,

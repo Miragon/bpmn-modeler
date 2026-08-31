@@ -7,10 +7,9 @@ of reach from the diagram (a sandboxed webview iframe lacking
 `clipboard-read`/`clipboard-write`, e.g. VS Code / IntelliJ / Theia). It routes
 copy/paste through a `ClipboardBridge` the host wires to its own clipboard.
 
-## Polarity: native default, bridge override (#1374)
+## Polarity: native default, bridge override
 
-Clipboard is a category-[B] *opinionated built-in* (ADR 0007): on by default,
-one override away.
+Clipboard is on by default, one override away.
 
 - **Native (default).** camunda-bpmn-js always registers bpmn-js's
   `NativeCopyPaste` (both C7 and C8). Registering **nothing** from this package

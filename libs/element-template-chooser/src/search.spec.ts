@@ -64,7 +64,7 @@ const templates: ElementTemplate[] = [
 const index = new TemplateSearchIndex(templates);
 
 describe("TemplateSearchIndex", () => {
-    it("finds a template despite a single-character typo (issue #1231 repro)", () => {
+    it("finds a template despite a single-character typo", () => {
         expect(index.search("resources")).toContain(repro);
     });
 

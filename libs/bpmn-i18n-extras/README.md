@@ -4,12 +4,12 @@ The modeler's local translation **overlay** on top of the shared
 [`@miragon/bpmn-modeler-i18n`](https://github.com/Miragon/camunda-modeler-i18n-plugin/tree/develop/packages/translations)
 library.
 
-The shared library now ships this modeler's Camunda-7 (Platform) palette /
-context-pad / properties-panel strings as a first-class overlay (`en` ≈ 1016
-keys, 12 locales). So the overlay has **collapsed to the handful of
-modeler-internal strings the shared library still lacks** — today just the
-script-lock badge labels the webview emits (`Read-only`, `Being edited in`). The
-webviews merge them onto the shared dictionaries at startup:
+The shared library ships this modeler's Camunda-7 (Platform) palette /
+context-pad / properties-panel strings (`en` ≈ 1016 keys, 12 locales), so this
+overlay covers **only the handful of modeler-internal strings the shared library
+lacks** — today just the script-lock badge labels the webview emits (`Read-only`,
+`Being edited in`). The webviews merge them onto the shared dictionaries at
+startup:
 
 ```ts
 import { i18n } from "@miragon/bpmn-modeler-i18n";

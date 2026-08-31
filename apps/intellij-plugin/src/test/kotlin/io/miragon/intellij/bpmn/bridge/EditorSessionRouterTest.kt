@@ -20,8 +20,8 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 
 /**
- * Covers Part A of #1106 — explicit causation on the host's write echo — against a
- * **real** IntelliJ `Document`, the only way to verify that `Document.setText`
+ * Covers explicit causation on the host's write echo — against a **real**
+ * IntelliJ `Document`, the only way to verify that `Document.setText`
  * synchronously fires the editor's `DocumentListener` while [EditorSessionRouter]'s
  * per-editor causation token is set. A fake document could only assume that timing;
  * the whole point of the bug class (the bridge dropping its own write by causation

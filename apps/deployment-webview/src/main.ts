@@ -113,13 +113,7 @@ function initTabs(): void {
     }
 }
 
-/**
- * Activates the given tab by toggling `.active` on buttons and panels.
- *
- * @param tab The tab identifier (matching `data-tab` attribute).
- * @param tabBtns All tab button elements.
- * @param tabPanels All tab panel elements.
- */
+/** Activates the given tab by toggling `.active` on its button and panel. */
 function activateTab(
     tab: string,
     tabBtns: NodeListOf<HTMLButtonElement>,
@@ -133,13 +127,7 @@ function activateTab(
     }
 }
 
-/**
- * Routes messages from the host application to the appropriate form method.
- *
- * @param event The raw `MessageEvent` from `window.addEventListener("message", …)`.
- * @param form The active {@link DeploymentForm} instance.
- * @param startForm The active {@link StartInstanceForm} instance.
- */
+/** Routes messages from the host to the appropriate form method. */
 function onReceiveMessage(
     event: MessageEvent<Query | Command>,
     form: DeploymentForm,

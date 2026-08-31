@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * backoff respawn, the JVM shutdown hook, and teardown.
  *
  * **Locking.** [stateLock] guards [process] assignment and is held across the
- * paired [RpcChannel.attach]/[RpcChannel.detach] calls, preserving the
- * cross-cutting invariant the former single lock provided: [handleExit]'s
+ * paired [RpcChannel.attach]/[RpcChannel.detach] calls, preserving a
+ * cross-cutting invariant: [handleExit]'s
  * "`process !== dead` → return, else detach" check-and-act stays atomic w.r.t. a
  * concurrent [spawn] attaching the new writer. Lock order is always
  * `stateLock → channel.ioLock`.

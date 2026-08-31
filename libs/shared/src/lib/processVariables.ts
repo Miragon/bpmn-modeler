@@ -89,7 +89,7 @@ const SPIN_ASSIGNMENT_RE = /(?<![.\w$])([A-Za-z_$][\w$]*)\s*=\s*(?:S|JSON)\s*\(/
 
 /**
  * Returns the variable names written by `setVariable`/`setVariableLocal` string
- * literals in a script body. Exported for unit testing the regex in isolation.
+ * literals in a script body.
  */
 export function collectSetVariableNames(script: string): string[] {
     const names: string[] = [];
@@ -102,7 +102,7 @@ export function collectSetVariableNames(script: string): string[] {
 /**
  * Returns variable names whose value is a SPIN call (`S(...)`/`JSON(...)`), from
  * either `setVariable("x", S(...))` or `x = S(...)`. These resolve to the
- * `SpinJsonNode` TypeDef. Exported for unit testing the regexes in isolation.
+ * `SpinJsonNode` TypeDef.
  */
 export function collectSpinTypedNames(script: string): string[] {
     const names: string[] = [];
@@ -117,7 +117,7 @@ export function collectSpinTypedNames(script: string): string[] {
 
 /**
  * Returns the leading identifiers referenced by `${...}` / `#{...}` expressions,
- * minus reserved names. Exported for unit testing the regex in isolation.
+ * minus reserved names.
  */
 export function collectExpressionRefs(expression: string): string[] {
     const names: string[] = [];

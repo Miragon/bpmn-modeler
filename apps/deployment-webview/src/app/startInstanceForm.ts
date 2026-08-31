@@ -31,14 +31,7 @@ export class StartInstanceForm {
     // Absolute path to the selected payload file, or empty string.
     private payloadFilePath = "";
 
-    /**
-     * Wires up all DOM element references and attaches event listeners.
-     *
-     * @param host The host channel used to post messages.
-     * @param getSharedAuth Callback to read the current auth config from the shared form fields.
-     * @param getSharedConnection Callback to read endpoint and engine from the shared form fields.
-     * @throws {Error} If any expected DOM element is missing.
-     */
+    /** Resolves DOM references and binds events; throws if an expected element is missing. */
     constructor(
         private readonly host: HostApi<unknown, Command | Query>,
         private readonly getSharedAuth: () => AuthConfigPayload,
@@ -57,29 +50,16 @@ export class StartInstanceForm {
         this.bindEvents();
     }
 
-    /**
-     * Sets the process definition key input value.
-     *
-     * @param key The process definition key extracted from the BPMN file.
-     */
     setProcessDefinitionKey(key: string): void {
         this.processDefinitionKeyInput.value = key;
     }
 
-    /**
-     * Sets the payload file display and stores the path internally.
-     *
-     * @param filePath Absolute path to the payload file.
-     * @param label Display label (typically the filename).
-     */
+    /** Shows the payload file label and stores its absolute path. */
     setPayloadFile(filePath: string, label: string): void {
         this.payloadFilePath = filePath;
         this.payloadFileInput.value = label || "(none)";
     }
 
-    /**
-     * Disables the Start Instance button and shows a progress indicator.
-     */
     showProgress(): void {
         this.startInstanceBtn.disabled = true;
         this.statusBanner.className = "status-banner progress";
@@ -87,11 +67,7 @@ export class StartInstanceForm {
         this.statusBanner.style.display = "block";
     }
 
-    /**
-     * Shows the start-instance result in the status banner and re-enables the button.
-     *
-     * @param result The result query received from the extension host.
-     */
+    /** Shows the start-instance result in the status banner and re-enables the button. */
     showResult(result: StartInstanceResultQuery): void {
         this.startInstanceBtn.disabled = false;
         this.statusBanner.className = result.success
@@ -108,9 +84,6 @@ export class StartInstanceForm {
 
     // --- Private helpers ---
 
-    /**
-     * Attaches click handlers to the Select Payload and Start Instance buttons.
-     */
     private bindEvents(): void {
         this.selectPayloadBtn.addEventListener("click", () => {
             this.host.postMessage(new RequestPayloadFilesCommand());
@@ -136,12 +109,7 @@ export class StartInstanceForm {
         });
     }
 
-    /**
-     * Reads the current form values and builds a {@link StartInstanceConfigPayload}.
-     *
-     * @returns A payload ready to attach to a {@link StartInstanceCommand}.
-     * @throws {Error} If required fields are empty.
-     */
+    /** Builds a {@link StartInstanceConfigPayload} from the form, throwing on empty required fields. */
     private getConfigPayload(): StartInstanceConfigPayload {
         const processDefinitionKey = this.processDefinitionKeyInput.value.trim();
         if (!processDefinitionKey) {
@@ -162,13 +130,7 @@ export class StartInstanceForm {
         };
     }
 
-    /**
-     * Returns the DOM element matching `selector` or throws if not found.
-     *
-     * @param selector CSS selector string.
-     * @returns The matching element.
-     * @throws {Error} If no element matches the selector.
-     */
+    /** Returns the DOM element matching `selector`, or throws if none matches. */
     private requireElement<T extends Element>(selector: string): T {
         const el = document.querySelector<T>(selector);
         if (!el) {

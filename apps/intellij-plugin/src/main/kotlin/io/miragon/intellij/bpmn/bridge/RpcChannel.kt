@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * coalescing: a flood of document syncs collapses to its latest frame.
  *
  * **Locking.** [ioLock] guards the [writer] reference and every write/flush — the
- * writer half of the former single `writeLock`. The supervisor's `stateLock`
+ * writer half of the split lock. The supervisor's `stateLock`
  * guards process identity and is held across the paired [attach]/[detach] calls;
  * lock order is always `stateLock → ioLock`, and [writerLoop] only ever takes
  * [ioLock], so the split cannot deadlock.
