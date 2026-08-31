@@ -1,7 +1,8 @@
 import { posix } from "path";
 
-import { asyncDebounce, ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
+import { ImplementationStatusQuery } from "@miragon/bpmn-modeler-shared";
 import {
+    asyncDebounce,
     ImplementationEntry,
     ImplementationKind,
     implementationStatusKey,

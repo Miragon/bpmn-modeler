@@ -1,12 +1,17 @@
 {
     "name": "@miragon/bpmn-modeler-types",
+    "types": "./src/index.ts",
     "version": "0.0.1",
     "private": true,
     "scripts": {
         "build": "tsc --noEmit",
         "test": "vitest run"
     },
+    "dependencies": {
+        "lodash": "4.18.1"
+    },
     "devDependencies": {
+        "@types/lodash": "4.17.24",
         "jsdom": "30.0.1",
         "typescript": "6.0.3",
         "vitest": "4.1.9"

@@ -19,12 +19,13 @@ const FORM_WEBVIEW_PATH = "form-webview";
  *
  * @param webview The VS Code Webview instance (used to convert local URIs).
  * @param extensionUri URI of the extension's install directory.
- * @param initialPanelVisible The globally persisted properties-panel default.
- *   When `false`, the panel and its resizer are rendered with the `collapsed`
- *   class (and `width: 0` on the panel) so the panel never flashes visible
- *   before the webview's JavaScript has a chance to request and apply the
- *   persisted state.  Defaults to `true` for safety (e.g. diff panes that
- *   hide the panel via CSS anyway).
+ * @param initialPanelVisible The host's global properties-panel default — the
+ *   seed for a first-ever open. When `false`, the panel and its resizer are
+ *   rendered with the `collapsed` class (and `width: 0` on the panel) so the
+ *   panel never flashes visible before the webview's JavaScript applies state.
+ *   A webview that carries its own per-editor `panelVisible` entry overrides
+ *   this hint at runtime (early-apply, before diagram import). Defaults to
+ *   `true` for safety (e.g. diff panes that hide the panel via CSS anyway).
  * @returns HTML string to set as `webview.html`.
  */
 export function bpmnEditorUi(

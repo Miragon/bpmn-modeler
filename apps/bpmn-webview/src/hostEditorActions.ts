@@ -1,4 +1,4 @@
-import { isTextEditingSurface } from "./propertiesPanelClipboard";
+import { isTextEditingSurface } from "@miragon/bpmn-modeler-types";
 
 /** bpmn-js editor actions a host may drive programmatically. */
 export type HostEditorAction = "undo" | "redo";

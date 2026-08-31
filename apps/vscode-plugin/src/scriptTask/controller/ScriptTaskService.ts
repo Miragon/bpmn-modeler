@@ -16,13 +16,16 @@ import {
 } from "vscode";
 
 import {
-    AsyncDebounced,
-    asyncDebounce,
     UpdateOpenScriptEditorsQuery,
     UpdateScriptContentQuery,
     UpdateScriptFormatQuery,
 } from "@miragon/bpmn-modeler-shared";
-import { OpenScriptEditorRef, ScriptKind } from "@miragon/bpmn-modeler-types";
+import {
+    AsyncDebounced,
+    asyncDebounce,
+    OpenScriptEditorRef,
+    ScriptKind,
+} from "@miragon/bpmn-modeler-types";
 
 import {
     EditorSessionStore,

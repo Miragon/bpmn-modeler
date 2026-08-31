@@ -43,9 +43,11 @@ import type { SelectionManager } from "./selection";
  */
 
 /**
- * [B] Theme selection for a single instance. `"automatic"` follows the host's
- * light/dark signal; the VS Code `<body>`-class watcher moves to the host
- * adapter (#1376/#1377), leaving the modeler with an injected mode.
+ * [B] Theme selection for a single instance. `"automatic"` follows the
+ * OS/browser `prefers-color-scheme` live; `"light"`/`"dark"` force a fixed
+ * stylesheet. A host that themes off its own chrome (VS Code `<body>` classes)
+ * maps that signal to a forced mode in its adapter — the package no longer reads
+ * host chrome (#1377).
  */
 export type ThemeMode = "light" | "dark" | "automatic";
 
@@ -76,7 +78,15 @@ export type LintingOptions =
  * through its extension host.
  */
 export interface ClipboardOptions {
+    /** Bridge for diagram-element copy/paste; also the default for `text`. */
     bridge: ClipboardBridge;
+    /**
+     * Optional separate bridge for text surfaces (labels + the
+     * contenteditable/FEEL polyfill). Defaults to `bridge`. A host with two
+     * protocol channels (VS Code) supplies both; a single-bridge consumer omits
+     * it and both surfaces share `bridge`.
+     */
+    text?: ClipboardBridge;
 }
 
 /**
@@ -194,7 +204,11 @@ export interface BpmnModelerHandle {
     /** [A] Push a new set of element templates (data, never a path). */
     setElementTemplates(templates: object[]): void;
 
-    /** [A] Merge a partial settings update. */
+    /**
+     * [A] Merge a partial settings update. `colorTheme` is **not** applied here
+     * (theme is host policy — use `theme` / {@link setTheme}); every other field
+     * takes effect immediately.
+     */
     setSettings(settings: Partial<BpmnModelerSetting>): void;
 
     /** [A] Viewport (zoom/scroll/fit) accessor. */

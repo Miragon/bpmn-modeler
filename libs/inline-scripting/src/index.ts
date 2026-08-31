@@ -67,7 +67,7 @@ export type { OpenScriptEditorEvent, ScriptSourceChangedEvent, InlineScriptingPo
  *   through the modeler's `capabilities.scripting` port (C7 only), not by
  *   calling this factory directly (#1375).
  */
-export function createInlineScriptingModules(port: InlineScriptingPort) {
+export function createInlineScriptingModules(port: InlineScriptingPort): Record<string, unknown>[] {
     return [
         ScriptTaskContextPadModule,
         ScriptEditorOpenerModule,

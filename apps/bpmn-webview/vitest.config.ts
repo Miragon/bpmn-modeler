@@ -11,6 +11,7 @@ export default defineConfig({
         // specs import it the same way the bundle does (mirrors modeler-core).
         server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
+            "@miragon/bpmn-modeler": resolve(__dirname, "../../packages/bpmn-modeler/src/index.ts"),
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
             "@miragon/bpmn-modeler-types": resolve(
                 __dirname,

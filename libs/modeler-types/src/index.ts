@@ -8,6 +8,7 @@
  * `@miragon/bpmn-modeler-shared`. The boundary is enforced by eslint
  * (`BND-PROTOCOL-PRIVATE`), not convention.
  */
+export * from "./asyncDebounce";
 export * from "./engine";
 export * from "./lint";
 export * from "./settings";

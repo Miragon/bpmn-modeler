@@ -1,7 +1,20 @@
 import { MIN_CANVAS_SIZE_PX, isUsableViewbox } from "@miragon/bpmn-modeler-types";
 
-import { ViewportData } from "./webviewState";
 import { centreOf } from "./elementGeometry";
+
+/**
+ * A canvas viewbox snapshot — the position and zoom {@link ViewportManager}
+ * reads and restores. The host persists it (VS Code `setState`) alongside the
+ * rest of its webview state.
+ */
+export interface ViewportData {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    /** Persisted so the exact zoom survives a container-size change on restore. */
+    scale?: number;
+}
 
 /**
  * Function type for accessing a service from the bpmn-js DI container.

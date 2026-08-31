@@ -27,6 +27,12 @@ export interface WebviewState {
      * language switch — group labels are localised, indexes are not.
      */
     expandedGroupIndexes?: number[];
+    /**
+     * Per-editor properties-panel visibility. Absent until the user first
+     * toggles the panel in this editor; while absent the editor follows the
+     * host's global default (`dmnPropertiesPanelVisible`). Present entry wins.
+     */
+    panelVisible?: boolean;
 }
 
 type StateType = WebviewState;

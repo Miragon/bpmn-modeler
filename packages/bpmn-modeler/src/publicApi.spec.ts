@@ -27,15 +27,15 @@ import type {
  * widened away by an over-broad target type.
  */
 
-// (a) Conformance: the current BpmnModeler class satisfies the frozen stable
-// subset of the designed handle. If a future refactor reshapes one of these
-// members, this line stops compiling.
-const _conformance = (modeler: BpmnModeler): StableModelerSurface => modeler;
+// (a) Conformance: the current BpmnModeler class now satisfies the *full*
+// designed handle — `setTheme` landed and `setElementTemplates` widened to
+// `object[]` with #1376. If a future refactor reshapes one of these members,
+// this line stops compiling.
+const _conformance = (modeler: BpmnModeler): BpmnModelerHandle => modeler;
 void _conformance;
 
-// The full target handle is a superset the current class does *not* yet meet
-// (setTheme is target-only; #1376), so we only assert the stable subset above
-// — this keeps the two facts distinct.
+// Structural sanity check that the frozen stable subset stays a subset of the
+// full handle as the surface grows.
 type _HandleIsSuperset = BpmnModelerHandle extends StableModelerSurface ? true : never;
 const _handleSuperset: _HandleIsSuperset = true;
 void _handleSuperset;
@@ -99,15 +99,28 @@ void [_lintOff, _lintExternal, _lintConfig];
 const _clipboard: ClipboardOptions = {
     bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
 };
-// The runtime factory (#1374) accepts the same clipboard override — omit it for
-// the native browser clipboard, or pass `{ bridge }` to route through a host.
+// A host with two protocol channels (VS Code) supplies a separate `text`
+// bridge; the package forwards it to createClipboardModules' text binding and
+// drives the contenteditable polyfill from it (#1377).
+const _clipboardWithText: ClipboardOptions = {
+    bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
+    text: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
+};
+void _clipboardWithText;
+// The runtime factory accepts the same clipboard override — omit it for the
+// native browser clipboard (#1374), or pass `{ bridge }` to route through a
+// host. The runtime options now implement the designed {@link ModelerOptions}
+// (engine + nested `propertiesPanel`), plus the internal `handleGlobalEscape`.
 const _createWithClipboard = {
-    propertiesPanelParent: document.createElement("div"),
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
     clipboard: _clipboard,
 } satisfies CreateModelerOptions;
 void _createWithClipboard;
 const _createNativeClipboard = {
-    propertiesPanelParent: document.createElement("div"),
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    handleGlobalEscape: true,
 } satisfies CreateModelerOptions;
 void _createNativeClipboard;
 const _builtinsShape = {

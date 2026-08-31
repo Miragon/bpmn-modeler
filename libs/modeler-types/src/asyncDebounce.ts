@@ -56,35 +56,39 @@ export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
     let resolveSet = new Set<(p: unknown) => void>();
     let rejectSet = new Set<(p: unknown) => void>();
 
-    // The promise of the most recent fired invocation, so `flush` can await
-    // work already running — not just trip a pending timer.
+    // Every fired invocation, so `flush` can await overlapping work already
+    // running — not just trip a pending timer.
     const inFlight = new Set<Promise<unknown>>();
 
-    const debounced = debounce((args: Parameters<F>) => {
-        // Snapshot this generation's resolvers and hand the wrapper fresh sets
-        // *before* running `func`. A call landing during the async run must
-        // settle with the *next* result, not this one; sharing the sets let an
-        // older settle drain a newer scheduled call's resolvers — flipping
-        // `pending()` false while its timer was still armed and resolving it
-        // early with the stale value.
-        const runResolves = resolveSet;
-        const runRejects = rejectSet;
-        resolveSet = new Set<(p: unknown) => void>();
-        rejectSet = new Set<(p: unknown) => void>();
+    const debounced = debounce(
+        (args: Parameters<F>) => {
+            // Snapshot this generation's resolvers and hand the wrapper fresh sets
+            // *before* running `func`. A call landing during the async run must
+            // settle with the *next* result, not this one; sharing the sets let an
+            // older settle drain a newer scheduled call's resolvers — flipping
+            // `pending()` false while its timer was still armed and resolving it
+            // early with the stale value.
+            const runResolves = resolveSet;
+            const runRejects = rejectSet;
+            resolveSet = new Set<(p: unknown) => void>();
+            rejectSet = new Set<(p: unknown) => void>();
 
-        const run = func(...args);
-        inFlight.add(run);
-        const clearInFlight = (): void => {
-            inFlight.delete(run);
-        };
-        run.then((...res) => {
-            clearInFlight();
-            runResolves.forEach((resolve) => resolve(...res));
-        }).catch((...res) => {
-            clearInFlight();
-            runRejects.forEach((reject) => reject(...res));
-        });
-    }, wait, options);
+            const run = func(...args);
+            inFlight.add(run);
+            const clearInFlight = (): void => {
+                inFlight.delete(run);
+            };
+            run.then((...res) => {
+                clearInFlight();
+                runResolves.forEach((resolve) => resolve(...res));
+            }).catch((...res) => {
+                clearInFlight();
+                runRejects.forEach((reject) => reject(...res));
+            });
+        },
+        wait,
+        options,
+    );
 
     const wrapper = (...args: Parameters<F>): ReturnType<F> =>
         new Promise((resolve, reject) => {
