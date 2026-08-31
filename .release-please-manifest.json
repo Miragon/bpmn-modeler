@@ -1,5 +1,5 @@
 {
   ".": "1.10.0",
   "apps/intellij-plugin": "1.7.1",
-  "packages/bpmn-modeler": "0.1.0"
+  "packages/bpmn-modeler": "0.2.0"
 }
