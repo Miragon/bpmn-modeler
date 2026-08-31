@@ -79,6 +79,9 @@
         "decision table"
     ],
     "main": "main.js",
+    "activationEvents": [
+        "onUri"
+    ],
     "contributes": {
         "walkthroughs": [
             {

@@ -233,6 +233,7 @@ describe("architecture", () => {
             "deployment",
             "scriptTask",
             "codeLink",
+            "deepLink",
             "modeler/bpmn",
             "modeler/dmn",
         ];

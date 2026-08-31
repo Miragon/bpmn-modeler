@@ -23,6 +23,7 @@ import {
     FocusLintElementController,
     FOCUS_LINT_ELEMENT_CMD,
 } from "../modeler/bpmn/controller/FocusLintElementController";
+import { DeepLinkController } from "../deepLink";
 import { NodeBpmnLinter } from "@miragon/bpmn-modeler-core";
 import { VsCodeDiagnostics } from "../shared/infrastructure/VsCodeDiagnostics";
 import { BpmnRenderParticipant } from "../modeler/bpmn/controller/editor-participants/BpmnRenderParticipant";
@@ -297,6 +298,10 @@ export function register(
     // Turns each element-specific bpmnlint diagnostic into a click-to-centre
     // action; the diagnostics carry a command link to this controller.
     new FocusLintElementController(deps.editorStore, deps.notifier).register(context);
+
+    // `vscode://miragon-gmbh.vs-code-bpmn-modeler/open?file=…&element=…` —
+    // opens a diagram from outside the editor, optionally on one element.
+    new DeepLinkController(deps.editorStore, deps.notifier).register(context);
 
     // Flush debounced webview changes into the buffer before every save so a
     // persist never writes XML that trails the live model by the debounce window.

@@ -46,6 +46,12 @@ Here's what you get, roughly in the order you reach for it.
   edit — including your own `bpmnlint-plugin-*` custom rules, resolved from the
   workspace just like the CLI.
 
+## Share
+
+- **[Deep Links](/vscode/features/deep-links)** — a `vscode://` URL that opens a
+  diagram on one element, so a task can be cited from a ticket, a review
+  comment, a generated report, or the code that implements it.
+
 ## Configure
 
 - **[Language Support](/vscode/features/language-support)** — switch the
