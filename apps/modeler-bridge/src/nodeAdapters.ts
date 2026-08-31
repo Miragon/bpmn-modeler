@@ -413,6 +413,7 @@ export interface SettingsSnapshot {
     colorTheme: "automatic" | "light";
     defaultMode: SurfaceMode;
     favouriteBpmnElements: string[];
+    fitOnDrilldown: boolean;
     language: string;
     scriptingSpin: boolean;
     marketplaces: string[];
@@ -441,6 +442,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
         "bpmn:CallActivity",
         "bpmn:ExclusiveGateway",
     ],
+    fitOnDrilldown: false,
     language: "en",
     scriptingSpin: true,
     marketplaces: [],
@@ -521,6 +523,9 @@ export class BridgeSettings implements SettingsPort {
     }
     getFavouriteBpmnElements(): string[] {
         return this.snapshot.favouriteBpmnElements;
+    }
+    getFitOnDrilldown(): boolean {
+        return this.snapshot.fitOnDrilldown;
     }
     getLanguage(): string {
         return this.snapshot.language;

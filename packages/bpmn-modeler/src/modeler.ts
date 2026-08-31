@@ -61,6 +61,7 @@ import { deriveEngines } from "./engines";
 import { initialDiagram } from "./initialDiagram";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
 import { ModeUiModule } from "./modeModules";
+import { DrilldownFit, DrilldownFitModule } from "./drilldownFit";
 import type { CreateModelerOptions } from "./createModeler";
 import type { CoreModelerServices, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
@@ -102,6 +103,7 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
     showTransactionBoundaries: true,
     colorTheme: "automatic",
+    fitOnDrilldown: false,
 };
 
 const ALIGN_TO_ORIGIN_OPTIONS = {
@@ -234,6 +236,7 @@ export class BpmnModeler {
             ModeFilterModule,
             CustomGroupsModule,
             ModeUiModule,
+            DrilldownFitModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
         const clip = this.options.clipboard;
@@ -291,6 +294,8 @@ export class BpmnModeler {
                 hasSearchPad: true,
             }),
         );
+
+        this.applyFitOnDrilldown();
 
         if (this.settings.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<AppendMenuOverrideService>(
@@ -542,6 +547,10 @@ export class BpmnModeler {
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
         }
 
+        if (settings.fitOnDrilldown !== undefined) {
+            this.applyFitOnDrilldown();
+        }
+
         if (settings.favouriteBpmnElements !== undefined) {
             const appendMenuOverride = this.getModeler().get<AppendMenuOverrideService>(
                 "appendMenuOverride",
@@ -551,6 +560,12 @@ export class BpmnModeler {
                 appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
             }
         }
+    }
+
+    private applyFitOnDrilldown(): void {
+        this.getModeler()
+            .get<DrilldownFit>("drilldownFit", false)
+            ?.setEnabled(this.settings.fitOnDrilldown === true);
     }
 
     /** @internal */
