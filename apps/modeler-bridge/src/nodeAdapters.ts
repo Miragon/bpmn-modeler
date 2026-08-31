@@ -405,6 +405,7 @@ export interface SettingsSnapshot {
     c8ApiVersion: string;
     colorTheme: "automatic" | "light";
     favouriteBpmnElements: string[];
+    resizableActivities: boolean;
     language: string;
     scriptingSpin: boolean;
     marketplaces: string[];
@@ -432,6 +433,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
         "bpmn:CallActivity",
         "bpmn:ExclusiveGateway",
     ],
+    resizableActivities: false,
     language: "en",
     scriptingSpin: true,
     marketplaces: [],
@@ -509,6 +511,9 @@ export class BridgeSettings implements SettingsPort {
     }
     getFavouriteBpmnElements(): string[] {
         return this.snapshot.favouriteBpmnElements;
+    }
+    getResizableActivities(): boolean {
+        return this.snapshot.resizableActivities;
     }
     getLanguage(): string {
         return this.snapshot.language;

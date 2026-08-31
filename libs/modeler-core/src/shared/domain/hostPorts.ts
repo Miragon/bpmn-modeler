@@ -135,6 +135,8 @@ export interface SettingsPort {
     getLintingEnabled(): boolean;
     getColorTheme(): "automatic" | "light";
     getFavouriteBpmnElements(): string[];
+    /** Whether every `bpmn:Activity` shows resize handles. Defaults to `false`. */
+    getResizableActivities(): boolean;
     getLanguage(): string;
     /** Whether the activity→code map is persisted under `<configFolder>/code-link/`. */
     getPersistCodeLinkMap(): boolean;

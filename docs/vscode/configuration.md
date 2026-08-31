@@ -11,6 +11,7 @@ Code's settings UI (search for "BPMN Modeler") or directly in `settings.json`.
 | `miragon.bpmnModeler.configFolder` | string | `.camunda` | Name of the config folder searched from each BPMN file up to the workspace root. Element templates live under `<configFolder>/element-templates/`. |
 | `miragon.bpmnModeler.alignToOrigin` | boolean | `false` | Align the diagram to the top-left origin when opening. See [bpmn-io/align-to-origin](https://github.com/bpmn-io/align-to-origin). |
 | `miragon.bpmnModeler.colorTheme` | enum | `automatic` | `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme. |
+| `miragon.bpmnModeler.resizableActivities` | boolean | `false` | Show resize handles on tasks, call activities and collapsed sub-processes. bpmn-js pins those shapes to 100x80 by default; enable this to size them by hand. BPMN attaches no meaning to element size, so this only affects layout. |
 | `miragon.bpmnModeler.showTransactionBoundaries` | boolean | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |
 | `miragon.bpmnModeler.favouriteBpmnElements` | string[] | `["bpmn:ServiceTask","bpmn:UserTask","bpmn:CallActivity","bpmn:ExclusiveGateway"]` | BPMN element types pinned at the top of the append menu (max 6). |
 | `miragon.bpmnModeler.c8ApiVersion` | string | `v2` | REST API version prefix for Camunda 8 endpoints. Change this if your cluster exposes a different API version. |
