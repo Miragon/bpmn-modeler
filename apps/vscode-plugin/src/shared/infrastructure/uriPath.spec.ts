@@ -60,7 +60,7 @@ describe("canonicalPath", () => {
     });
 
     it("collapses an uppercase-drive folder and a lowercase-drive document to the same string", () => {
-        // The exact skew from issue #1204: `WorkspaceFolder.uri.path` keeps the
+        // The exact drive-letter skew: `WorkspaceFolder.uri.path` keeps the
         // as-opened uppercase drive while the document URI is lowercased.
         const folder = canonicalPath({ path: "/C:/ws" } as never);
         const document = canonicalPath({ path: "/c:/ws/sub" } as never);

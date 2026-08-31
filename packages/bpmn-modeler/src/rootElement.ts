@@ -1,14 +1,9 @@
 /**
  * @internal Host-adapter surface — drill-down root tracking used for canvas
- * view-state restore. Not part of the designed public API (#1375).
+ * view-state restore. Not part of the public API.
  */
 
-/**
- * Function type for accessing a service from the bpmn-js DI container.
- *
- * @template T The service type to retrieve.
- * @param name The DI service name.
- */
+/** Accessor for a service from the bpmn-js DI container, by name. */
 type ServiceAccessor = <T>(name: string) => T;
 
 /**
@@ -25,8 +20,7 @@ const IMPLICIT_ROOT_PREFIX = "__implicitroot";
  * The root element determines which plane is visible — the top-level
  * process or a collapsed sub-process drill-down. Decoupled from the
  * modeler through a {@link ServiceAccessor} so the concern can be tested
- * and composed independently, following the same pattern as
- * {@link ViewportManager} and {@link SelectionManager}.
+ * and composed independently.
  */
 export class RootElementManager {
     constructor(private readonly getService: ServiceAccessor) {}

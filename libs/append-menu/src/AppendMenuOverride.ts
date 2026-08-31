@@ -33,9 +33,7 @@ class AppendMenuOverride {
 
     /**
      * Sets the favourite BPMN element types to pin at the top of the palette.
-     *
-     * @param types Array of BPMN type strings (e.g. `["bpmn:ServiceTask", "bpmn:UserTask"]`).
-     *   Maximum of 6 items; extras are silently dropped.
+     * Maximum of 6 items; extras are silently dropped.
      */
     setFavourites(types: string[]): void {
         this.favourites = types.slice(0, MAX_FAVOURITES);

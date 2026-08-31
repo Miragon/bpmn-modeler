@@ -12,11 +12,11 @@ import { NodeBpmnLinter } from "./NodeBpmnLinter";
 import { BrowserLinter } from "../../../../../../../packages/bpmn-modeler/src/bpmnlint/browserLinter";
 
 /**
- * AC5 parity: the host-side {@link NodeBpmnLinter} default run and the webview's
+ * Parity: the host-side {@link NodeBpmnLinter} default run and the webview's
  * in-page {@link BrowserLinter} default run must produce byte-identical findings
- * for the same diagram. Phase B moves the no-config path in-page for hosted
- * sessions, so this is the contract that a user sees the *same* lint whether the
- * host ran it (workspace config) or the webview did (no config).
+ * for the same diagram. The no-config path runs in-page for hosted sessions, so
+ * this is the contract that a user sees the *same* lint whether the host ran it
+ * (workspace config) or the webview did (no config).
  *
  * Both sides lint the same moddle tree with the same engine-aware default config
  * (`getDefaultLintConfig({ engine, preset: "modeling" })`) and must report no
@@ -89,7 +89,7 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
         expect(browserOut.unresolved).toEqual([]);
     });
 
-    // #1384: a covered *workspace* config (a real `.bpmnlintrc`, not the
+    // A covered *workspace* config (a real `.bpmnlintrc`, not the
     // zero-config default) that the bundled resolver can fully honour must lint
     // identically host-side and in-page — so a user who edits `bpmnlint:recommended`
     // into their config sees the exact same findings the host would have produced.

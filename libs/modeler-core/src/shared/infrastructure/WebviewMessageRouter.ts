@@ -38,8 +38,8 @@ export class WebviewMessageRouter {
     /**
      * Runs every handler registered for `message.type` sequentially, awaiting
      * each before the next so ordering-dependent fan-out (e.g. setSettings →
-     * setLanguage → resync) behaves exactly as the old switch did. An unknown
-     * type is a silent no-op.
+     * setLanguage → resync) stays in registration order. An unknown type is a
+     * silent no-op.
      */
     async dispatch(message: Command, editorId: string): Promise<void> {
         const handlers = this.handlers.get(message.type);

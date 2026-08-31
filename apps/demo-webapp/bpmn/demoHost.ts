@@ -23,7 +23,7 @@ function dispatch(event: MessageType): void {
  * it no longer crosses this message boundary. Everything else a real host does —
  * deployment, code-link, script editor, persistence — is a no-op here. Clipboard
  * is not bridged at all: the demo opts into the native browser clipboard
- * (`clipboard: "native"` in main.ts, #1374).
+ * (`clipboard: "native"` in main.ts).
  */
 export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
     override updateState(state: Partial<WebviewState>): void {

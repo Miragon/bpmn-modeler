@@ -71,7 +71,7 @@ export async function computeDiff(beforeXml: string, afterXml: string): Promise<
     // start event to end event instead of in the differ's arbitrary insertion
     // order.  Removed elements live only on the before canvas; anchor each one
     // next to a surviving neighbour in the after order so it appears near where
-    // it used to be in the flow.
+    // it sits in the flow.
     const afterOrder = buildFlowOrder(afterDefs as never);
     const removedAnchors = buildRemovedAnchors(removed, beforeDefs as never, afterOrder);
     const sortedAdded = sortIdsByOrder(added, afterOrder);

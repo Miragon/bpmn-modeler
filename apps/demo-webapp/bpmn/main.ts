@@ -4,17 +4,17 @@ import { BpmnDemoHost } from "./demoHost";
 
 mountDemoHeader("bpmn");
 // The demo supplies only the model-navigation capability; codeLink and scripting
-// are omitted, so their context-pad entries / lock UI genuinely never render
-// (AC3 — a host-less consumer no longer gets dead buttons).
+// are omitted, so their context-pad entries / lock UI genuinely never render — a
+// host-less consumer gets no dead buttons.
 //
 // `linting: {}` opts into in-page linting with the engine-aware default config —
-// the host-less proof that the webview lints itself (#1373, AC 1). onLintResults
-// logs each run so the browser console shows the rule-keyed output + any rules
-// the bundled resolver could not cover.
+// the host-less proof that the webview lints itself. onLintResults logs each run
+// so the browser console shows the rule-keyed output + any rules the bundled
+// resolver could not cover.
 bootstrap(new BpmnDemoHost(), {
     extraModules: [DemoGrayoutModule],
     linting: {},
-    // Plain-browser demo: use the native browser clipboard (#1374). The stub
+    // Plain-browser demo: use the native browser clipboard. The stub
     // host cannot serve a real clipboard, so the protocol-bridge default would
     // leave paste dead in the production build.
     clipboard: "native",

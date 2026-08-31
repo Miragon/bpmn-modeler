@@ -65,7 +65,7 @@ export type { OpenScriptEditorEvent, ScriptSourceChangedEvent, InlineScriptingPo
  *
  * @internal Package-internal composition wiring: consumers enable this feature
  *   through the modeler's `capabilities.scripting` port (C7 only), not by
- *   calling this factory directly (#1375).
+ *   calling this factory directly.
  */
 export function createInlineScriptingModules(port: InlineScriptingPort): Record<string, unknown>[] {
     return [

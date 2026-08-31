@@ -76,7 +76,7 @@ export class WebviewStateManager {
      * `getState()`); a fresh open/reopen starts with empty state. So the
      * absence of a saved viewport discriminates a genuine fresh open, where we
      * fit the diagram — bpmn-js leaves the canvas at the origin on importXML,
-     * which renders a diagram moved far from the origin off-screen (#1149).
+     * which renders a diagram moved far from the origin off-screen.
      *
      * Safe to call repeatedly: nothing happens until the host has laid the
      * canvas out, and then it applies exactly once — re-fitting on every later

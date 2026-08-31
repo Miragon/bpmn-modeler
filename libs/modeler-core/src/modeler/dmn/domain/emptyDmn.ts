@@ -2,8 +2,8 @@
  * Minimal DMN XML used when scaffolding a new blank `.dmn` file.
  *
  * A full decision table + DMNDI so DMN-js can open and render the model
- * without errors. Extracted from `DmnModelerService` so the "New DMN Model"
- * command and the empty-file editor flow seed byte-identical content.
+ * without errors. Shared by the "New DMN Model" command and the empty-file
+ * editor flow so both seed byte-identical content.
  */
 export const EMPTY_DMN_DIAGRAM = `
 <?xml version="1.0" encoding="UTF-8"?>

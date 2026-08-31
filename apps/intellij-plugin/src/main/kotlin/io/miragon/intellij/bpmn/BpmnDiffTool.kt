@@ -21,7 +21,7 @@ import com.intellij.diff.requests.DiffRequest
  * the diagram diff is the default viewer. It deliberately does **not** suppress
  * those built-ins: keeping `SimpleDiffTool`/`UnifiedDiffTool` in the diff
  * viewer-chooser lets the user switch to the raw XML text diff — the only way to
- * see changes a diagram can't surface, e.g. inside a script task's body (#1282).
+ * see changes a diagram can't surface, e.g. inside a script task's body.
  * The platform remembers the last-picked viewer per diff place.
  */
 class BpmnDiffTool : FrameDiffTool {

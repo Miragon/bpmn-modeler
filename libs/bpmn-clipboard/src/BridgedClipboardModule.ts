@@ -10,8 +10,8 @@
  * the host wires to its extension-host clipboard, keeping the same prefixed-JSON
  * payload so webview-copy ↔ browser-paste stays interoperable.
  *
- * Uses proper didi DI value injection (`elementClipboardBridge`) instead of
- * `config.*` to ensure the bridge is always available when the module loads.
+ * Uses didi DI value injection (`elementClipboardBridge`) rather than `config.*`
+ * so the bridge is always available when the module loads.
  */
 import { createReviver } from "bpmn-js-native-copy-paste/lib/PasteUtil.js";
 
@@ -59,7 +59,7 @@ class BridgedClipboard {
         nativeCopyPaste: any,
         canvas: any,
     ) {
-        // Disable the broken NativeCopyPaste middle layer.
+        // Disable NativeCopyPaste so the bridge owns copy/paste in this webview.
         nativeCopyPaste.toggle(false);
 
         const { requestClipboard, writeClipboard } = bridge;

@@ -6,7 +6,7 @@ import { NodeWorkspace } from "./nodeAdapters";
  * Mocks chokidar to capture the options object `createWatcher` hands to
  * `watch(root, opts)`. The real-chokidar suite in `nodeAdapters.spec.ts`
  * cannot assert this: `usePolling` is `false` on the macOS/Linux CI it runs on,
- * so the Windows lock fix (#1148) would be unverified everywhere it actually
+ * so the Windows lock fix would be unverified everywhere it actually
  * matters. Mocking makes the assertion deterministic on every OS — it pins that
  * the Windows branch sets stat-based polling instead of `fs.watch`.
  */

@@ -72,5 +72,4 @@ the sync runs.
 
 The library keeps a runtime import of `implementationStatusKey` from
 `@miragon/bpmn-modeler-shared` (the composite status-map key both sides must
-agree on byte-for-byte) until the public/protocol split (#1371); everything else
-it takes from shared is `import type`.
+agree on byte-for-byte); everything else it takes from shared is `import type`.

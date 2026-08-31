@@ -30,7 +30,7 @@ export type BpmnlintRuleConfig = BpmnlintRuleSeverity | readonly [BpmnlintRuleSe
 
 /**
  * Structural mirror of a bpmnlint configuration (`.bpmnlintrc`) as the public
- * `linting: { config }` option accepts it (#1373). Kept structural — not an
+ * `linting: { config }` option accepts it. Kept structural — not an
  * import of bpmnlint's own types — so the published API surface does not leak a
  * transitive bpmnlint dependency. Unresolvable `extends`/`rules` degrade
  * gracefully at load and surface via {@link LintRunEvent.unresolved}.
@@ -87,7 +87,7 @@ export function staticUnresolvedModdleExtensions(config: BpmnlintConfig): string
 }
 
 /**
- * Outbound notification payload for one lint pass (#1373's `onLintResults`):
+ * Outbound notification payload for one lint pass (the `onLintResults` event):
  * the findings the overlay renders plus the rule names that could not be
  * resolved from the supplied {@link BpmnlintConfig}. `unresolved` is how the
  * modeler reports graceful degradation instead of failing the whole run when a

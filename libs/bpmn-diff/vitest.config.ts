@@ -4,7 +4,7 @@ export default defineConfig({
     test: {
         name: "bpmn-diff",
         // Node environment (no jsdom): mechanically proves `computeDiff` runs
-        // outside a browser — the Node-safety acceptance criterion for #1378.
+        // outside a browser, its Node-safety guarantee.
         environment: "node",
         include: ["src/**/*.{spec,test}.ts"],
     },

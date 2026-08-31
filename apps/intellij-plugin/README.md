@@ -6,9 +6,9 @@ A third host for the Miragon BPMN modeler (after VS Code and Theia). It opens
 running the **unmodified TypeScript core out-of-process**, as a supervised,
 **Node-free** binary.
 
-This is the host foundation from issue #1062. It is **pure transport + port
-adapters**: the modeling engine is `@miragon/bpmn-modeler-core`, consumed over a
-bridge (`apps/modeler-bridge/`), never reimplemented in Kotlin.
+This is the host foundation. It is **pure transport + port adapters**: the
+modeling engine is `@miragon/bpmn-modeler-core`, consumed over a bridge
+(`apps/modeler-bridge/`), never reimplemented in Kotlin.
 
 ## Architecture
 
@@ -120,7 +120,7 @@ as balloons. Tail the IDE log for `[bridge stderr]` lines to watch the seam.
 > `corepack yarn intellij:build` (or the full `intellij:run`) after editing the
 > webview.
 
-### Verifying the dark-mode Token Simulation fix (#1199)
+### Verifying the dark-mode Token Simulation fix
 
 Token Simulation used to break the diagram in dark mode (white shapes, vanished
 arrows). To verify it stays fixed: switch the sandbox IDE to a **dark** theme
@@ -191,11 +191,10 @@ JS/TS, so the Kotlin sources are untouched. Build output (`build/`, `.gradle/`,
 
 ## Cross-platform packaging (release follow-up)
 
-This PR stages only the **host** platform's binary. Shipping to the JetBrains
+The build stages only the **host** platform's binary. Shipping to the JetBrains
 Marketplace needs the Bun `--target` matrix (darwin-arm64/x64, linux-x64,
 windows-x64) each staged under `bin/<os>-<arch>/`, plus macOS codesign /
-notarization — tracked as the release-pipeline follow-up in the
-runtime-distribution ADR.
+notarization — see `docs/adr/0003-runtime-distribution.md`.
 
 ## If `runIde` fails to resolve versions
 

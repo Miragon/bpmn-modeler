@@ -2,31 +2,25 @@
  * Builds a navigation order for diff highlights based on BPMN sequence-flow
  * direction.
  *
- * The diff stepper used to walk ids in the order `bpmn-js-differ` happened to
- * report them — effectively undefined.  This module produces a deterministic
- * "Start Event → End Event" ordering by traversing the parsed `bpmn-moddle`
- * definitions:
- *
- *   1. Collect every FlowElementsContainer (Process, SubProcess) recursively
- *      and index its FlowElements by id.
- *   2. BFS from each StartEvent following outgoing SequenceFlows.  Sequence
- *      flows themselves get an index immediately after their source so they
- *      slot between the two shapes they connect.
- *   3. Use BPMNDI bounds (visual `y` then `x`) as the tiebreaker for parallel
- *      branches and as the key for orphan nodes that the BFS never reaches.
+ * Produces a deterministic "Start Event → End Event" ordering so the stepper
+ * walks ids in flow direction rather than the arbitrary order `bpmn-js-differ`
+ * reports them. The order comes from a BFS over the parsed `bpmn-moddle`
+ * definitions (from each StartEvent following outgoing SequenceFlows across
+ * nested containers, each flow indexed right after its source), with BPMNDI
+ * bounds (visual `y` then `x`) as the tiebreaker for parallel branches and the
+ * key for orphan nodes the BFS never reaches.
  *
  * Removed elements only exist on the *before* canvas, so the after-pane order
  * has no slot for them.  {@link buildRemovedAnchors} walks the before graph
  * for each removed id, picks a surviving neighbour (incoming source first,
  * outgoing target as fallback), and assigns the removed id a fractional index
  * adjacent to that anchor's position in the after order.  This places removed
- * nodes near where they used to live in the flow rather than at the end.
+ * nodes near where they sit in the flow rather than at the end.
  *
  * The ordering is a heuristic — multi-pool collaborations, complex parallel
  * gateway fan-outs, and disconnected nodes all have known limitations
  * documented inline.  It will not always match a human's mental walk of every
- * diagram, but it is far more recognisable than the previous insertion-order
- * cycle.
+ * diagram, but it is far more recognisable than an insertion-order sequence.
  */
 
 /**

@@ -4,14 +4,14 @@ import { BpmnModdle } from "bpmn-moddle";
 import { createClipboardModules, type ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 
 /**
- * Behavioural spec for the bridge-path clipboard module (`BridgedClipboard`,
- * #1374). The class is private to the lib, so it is exercised through the same
- * DI wiring the webview uses: `createClipboardModules` yields the module, and a
- * didi injector instantiates it against fake bpmn-js services + a real
- * `bpmn-moddle` (the reviver needs genuine type descriptors).
+ * Behavioural spec for the bridge-path clipboard module (`BridgedClipboard`).
+ * The class is private to the lib, so it is exercised through the same DI wiring
+ * the webview uses: `createClipboardModules` yields the module, and a didi
+ * injector instantiates it against fake bpmn-js services + a real `bpmn-moddle`
+ * (the reviver needs genuine type descriptors).
  *
  * The prefixed-JSON payload asserted here is byte-identical to upstream
- * `bpmn-js-native-copy-paste` — that wire compatibility is the point of #1374.
+ * `bpmn-js-native-copy-paste` — that wire compatibility is the point.
  */
 
 const CLIP_PREFIX = "bpmn-js-clip----";

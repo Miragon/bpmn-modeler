@@ -129,7 +129,7 @@ describe("VsCodeWorkspace.getWorkspaceFolderForDocument", () => {
     it("lowercases the workspace-folder drive letter so it compares against document paths", () => {
         // VS Code hands the folder its as-opened uppercase drive while document
         // URIs are lowercased; without canonicalization the two never match and
-        // the template walk collects nothing (issue #1204).
+        // the template walk collects nothing.
         getWorkspaceFolderMock.mockReturnValueOnce({ uri: { path: "/C:/ws" } });
         const sut = new VsCodeWorkspace();
 

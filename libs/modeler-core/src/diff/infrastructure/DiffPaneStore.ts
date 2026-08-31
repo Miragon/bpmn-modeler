@@ -138,10 +138,8 @@ export class DiffPaneStore implements EditorSubscription {
     }
 
     /**
-     * Drops a pending SCM pane by identity (used when a pane that never
-     * paired is disposed).
-     *
-     * @returns `true` when a pending entry was found and removed.
+     * Drops a pending SCM pane by identity (used when a pane that never paired is
+     * disposed). Returns `true` when a pending entry was found and removed.
      */
     removePendingByHandle(handle: DiffPaneHandle): boolean {
         for (const [key, pending] of this.pendingScm) {

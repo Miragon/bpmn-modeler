@@ -36,13 +36,6 @@ export const DEPLOY_CMD = "bpmn-modeler.deployDiagram";
  * `post` callback (`webview.postMessage`) and the visibility/active-editor wiring.
  */
 export class DeploymentController implements WebviewViewProvider {
-    /**
-     * @param editorStore Central registry for active editor state.
-     * @param vsDocument Document read/write operations for resolving file paths.
-     * @param deploymentService Deployment orchestration logic.
-     * @param startInstanceService Start-instance orchestration logic.
-     * @param notifier User-facing message and logging helper.
-     */
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: VsCodeDocument,
@@ -54,8 +47,6 @@ export class DeploymentController implements WebviewViewProvider {
     /**
      * Registers the WebviewViewProvider for the deployment sidebar and the
      * `bpmn-modeler.deployDiagram` command with VS Code.
-     *
-     * @param context The VS Code extension context used to track disposables.
      */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
@@ -72,10 +63,6 @@ export class DeploymentController implements WebviewViewProvider {
      * Builds the per-view dispatcher (its `post` targets this view's webview),
      * routes incoming messages to it, and re-pushes form defaults whenever the
      * panel is re-shown or the active editor changes.
-     *
-     * @param webviewView The WebviewView provided by VS Code.
-     * @param _context Resolve context (unused).
-     * @param _token Cancellation token (unused).
      */
     resolveWebviewView(
         webviewView: WebviewView,

@@ -77,21 +77,7 @@ export function createModeler(): DmnModeler {
     return modeler;
 }
 
-/**
- * Create a new diagram.
- * @returns ImportWarning with warnings if any
- * @throws NoModelerError if the modeler is not initialized
- */
-// export async function newDiagram(): Promise<DiagramWarning> {
-//     return loadDiagram(EMPTY_DIAGRAM_XML);
-// }
-
-/**
- * Load the diagram from the given XML content.
- * @param dmn
- * @returns ImportWarning with warnings if any
- * @throws NoModelerError if the modeler is not initialized
- */
+/** Imports the given DMN XML, collecting any import warnings into the thrown error. */
 export async function loadDiagram(dmn: string): Promise<DiagramWarning> {
     try {
         const m = getModeler();
@@ -110,12 +96,7 @@ export async function loadDiagram(dmn: string): Promise<DiagramWarning> {
     }
 }
 
-/**
- * Get the XML content of the current diagram.
- * @return the XML content
- * @throws NoModelerError if the modeler is not initialized
- * @throws Error if something went wrong
- */
+/** Serialises the current diagram to formatted DMN XML. */
 export async function exportDiagram(): Promise<string> {
     const m = getModeler();
     const result = await m.saveXML({ format: true });
@@ -132,10 +113,6 @@ export async function exportDiagram(): Promise<string> {
  * dmn-js only re-measures when a view is attached, so a host that lays the
  * webview out after the open leaves the DRD canvas on a stale box, throwing
  * off hit-testing and drag coordinates.
- *
- * @param container The element whose size drives the active view.
- * @returns A disposer that stops observing.
- * @throws NoModelerError if the modeler is not initialized
  */
 export function syncCanvasSize(container: Element): () => void {
     getModeler();
@@ -169,10 +146,7 @@ export function onCommandStackChanged(cb: () => void): void {
     });
 }
 
-/**
- * Get the modeler instance.
- * @throws NoModelerError if the modeler is not initialized
- */
+/** Returns the modeler instance, throwing {@link NoModelerError} before init. */
 function getModeler(): DmnModeler {
     if (!modeler) {
         throw new NoModelerError();

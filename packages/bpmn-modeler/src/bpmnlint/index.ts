@@ -1,9 +1,9 @@
 /**
- * Lazy-loaded chunk entry for in-canvas bpmnlint (#1373, AC 6).
+ * Lazy-loaded chunk entry for in-canvas bpmnlint.
  *
  * This module — and only this module — statically imports the lint stack
  * (`bpmn-js-bpmnlint`, `bpmnlint`'s `Linter`, `@miragon/bpmnlint-plugin-rules`,
- * and the CSS). Because {@link BpmnModeler.create} reaches it through a dynamic
+ * and the CSS). Because the modeler reaches it through a dynamic
  * `import("./bpmnlint")`, the whole stack lands in a separate chunk that is
  * fetched only when an instance actually lints (`linting !== false`), keeping it
  * out of the main webview bundle.

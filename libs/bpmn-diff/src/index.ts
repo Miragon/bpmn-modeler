@@ -1,6 +1,6 @@
 /**
  * `@miragon/bpmn-modeler-diff` — the host-agnostic, Node- and browser-safe data
- * layer for BPMN diffing (epic #1293).
+ * layer for BPMN diffing.
  *
  * `computeDiff(beforeXml, afterXml)` parses and compares two BPMN documents and
  * returns a serializable {@link DiffResult}; `sideView` projects that result

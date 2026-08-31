@@ -41,39 +41,22 @@ export class MigrationPlan {
         readonly undetected: readonly string[],
     ) {}
 
-    /**
-     * Returns `true` if at least one Camunda 7 file was found.
-     */
     hasC7(): boolean {
         return this.c7Files.length > 0;
     }
 
-    /**
-     * Returns `true` if at least one Camunda 8 file was found.
-     */
     hasC8(): boolean {
         return this.c8Files.length > 0;
     }
 
-    /**
-     * Returns `true` if both Camunda 7 and 8 files were found.
-     */
     hasBothPlatforms(): boolean {
         return this.hasC7() && this.hasC8();
     }
 
-    /**
-     * Returns `true` if no classifiable BPMN files were found.
-     */
     isEmpty(): boolean {
         return !this.hasC7() && !this.hasC8();
     }
 
-    /**
-     * Returns the number of files covered by the given scope.
-     *
-     * @param scope The migration scope to count.
-     */
     fileCount(scope: MigrationScope): number {
         switch (scope) {
             case "c7":

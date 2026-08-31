@@ -1,21 +1,15 @@
 import { Uri, Webview } from "vscode";
 import { getNonce } from "@miragon/bpmn-modeler-core";
 
-// Output directory name for the deployment webview build artefacts.
 const DEPLOYMENT_WEBVIEW_PATH = "deployment-webview";
 
 /**
  * Generates the HTML shell for the deployment sidebar WebviewView.
  *
- * Resolves asset URIs relative to the extension's install directory and
- * injects a nonce for the Content-Security-Policy `script-src` directive so
- * that only the bundled script can execute. The form body itself is rendered
- * by the bundle (`src/app/formTemplate.ts`), so this shell ships only an empty
- * `<div id="app">` — the single-source-of-markup contract every host honours.
- *
- * @param webview The VS Code Webview instance (used to convert local URIs).
- * @param extensionUri URI of the extension's install directory.
- * @returns HTML string to set as `webviewView.webview.html`.
+ * Injects a nonce for the Content-Security-Policy `script-src` directive so only
+ * the bundled script can execute. The form body itself is rendered by the bundle
+ * (`src/app/formTemplate.ts`), so this shell ships only an empty `<div id="app">`
+ * — the single-source-of-markup contract every host honours.
  */
 export function deploymentWebviewHtml(webview: Webview, extensionUri: Uri): string {
     const baseUri = Uri.joinPath(extensionUri, DEPLOYMENT_WEBVIEW_PATH);

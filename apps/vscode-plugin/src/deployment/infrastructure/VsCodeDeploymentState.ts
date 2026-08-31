@@ -5,11 +5,8 @@ import { DeploymentStatePort } from "@miragon/bpmn-modeler-core";
 import { getContext } from "../../shared/infrastructure/extensionContext";
 
 /**
- * Persists and restores deployment form state (endpoint, tenantId, authType)
- * between VS Code sessions using the extension's `workspaceState` storage.
- *
- * Uses `getContext()` to access the `ExtensionContext` that was registered in `main.ts`
- * via `setContext()`.
+ * Persists deployment form state (endpoint, tenantId, authType, OAuth2 config)
+ * across VS Code sessions in the extension's `workspaceState`.
  */
 export class VsCodeDeploymentState implements DeploymentStatePort {
     private static readonly ENDPOINT_KEY = "bpmn-modeler.deployment.endpoint";
@@ -22,29 +19,14 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
 
     private static readonly AUDIENCE_KEY = "bpmn-modeler.deployment.audience";
 
-    /**
-     * Returns the last-used REST endpoint URL.
-     *
-     * @returns The persisted endpoint, or an empty string if none has been saved.
-     */
     getEndpoint(): string {
         return getContext().workspaceState.get<string>(VsCodeDeploymentState.ENDPOINT_KEY, "");
     }
 
-    /**
-     * Returns the last-used tenant ID.
-     *
-     * @returns The persisted tenant ID, or an empty string if none has been saved.
-     */
     getTenantId(): string {
         return getContext().workspaceState.get<string>(VsCodeDeploymentState.TENANT_ID_KEY, "");
     }
 
-    /**
-     * Returns the last-used authentication type.
-     *
-     * @returns The persisted auth type, or `"none"` if none has been saved.
-     */
     getAuthType(): AuthTypePayload {
         return getContext().workspaceState.get<AuthTypePayload>(
             VsCodeDeploymentState.AUTH_TYPE_KEY,
@@ -52,27 +34,10 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
         );
     }
 
-    /**
-     * Persists the auth type in workspace state.
-     *
-     * @param authType The authentication type to persist.
-     */
     async saveAuthType(authType: AuthTypePayload): Promise<void> {
         await getContext().workspaceState.update(VsCodeDeploymentState.AUTH_TYPE_KEY, authType);
     }
 
-    /**
-     * Persists the endpoint and tenantId after a successful deployment so they
-     * can be pre-filled on the next use.
-     *
-     * @param endpoint The REST endpoint URL to persist.
-     * @param tenantId The tenant ID to persist.
-     */
-    /**
-     * Returns the last-used OAuth2 token endpoint URL.
-     *
-     * @returns The persisted token endpoint, or an empty string if none has been saved.
-     */
     getTokenEndpoint(): string {
         return getContext().workspaceState.get<string>(
             VsCodeDeploymentState.TOKEN_ENDPOINT_KEY,
@@ -80,21 +45,10 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
         );
     }
 
-    /**
-     * Returns the last-used OAuth2 audience.
-     *
-     * @returns The persisted audience, or an empty string if none has been saved.
-     */
     getAudience(): string {
         return getContext().workspaceState.get<string>(VsCodeDeploymentState.AUDIENCE_KEY, "");
     }
 
-    /**
-     * Persists OAuth2-specific non-secret configuration in workspace state.
-     *
-     * @param tokenEndpoint The token endpoint URL.
-     * @param audience The target audience.
-     */
     async saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void> {
         await getContext().workspaceState.update(
             VsCodeDeploymentState.TOKEN_ENDPOINT_KEY,

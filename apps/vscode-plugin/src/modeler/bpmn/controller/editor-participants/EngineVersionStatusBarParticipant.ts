@@ -25,8 +25,7 @@ export class EngineVersionStatusBarParticipant implements EditorSessionParticipa
                 this.statusBar.hideEngineVersion();
             }
         });
-        // Strict improvement over the former controller, which leaked this
-        // listener: join it to the session bag so it dies with the session.
+        // Join the listener to the session bag so it dies with the session.
         session.addDisposable(subscription);
 
         session.onDispose(() => this.statusBar.hideEngineVersion());

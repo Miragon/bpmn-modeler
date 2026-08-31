@@ -417,7 +417,7 @@ describe("updateLintResultsHandler", () => {
         );
     });
 
-    it("forwards the config token so the service can pair the run with its config version (#1384)", () => {
+    it("forwards the config token so the service can pair the run with its config version", () => {
         const lintSvc = { applyWebviewLintResults: vi.fn() };
         const results = {};
 

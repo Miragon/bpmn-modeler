@@ -12,14 +12,14 @@ import "../../../packages/bpmn-modeler/src/styles/light-theme/index.css";
 import { DIFF_AFTER_XML, DIFF_BEFORE_XML } from "./diffFixtures";
 
 /**
- * In-page two-pane diff demo (issue #1378) — the in-repo consumer of the public
- * diff surface. No host, no bootstrap, no relayed protocol: two `DiffViewer`s,
- * the Node-safe `computeDiff` data layer fed two XML strings, and a
- * `DiffPaneCoordinator` arming viewport lockstep + a shared stepper. One
- * `DiffLegend` per pane drives prev/next on the shared coordinator.
+ * In-page two-pane diff demo — the in-repo consumer of the public diff surface.
+ * No host, no bootstrap, no relayed protocol: two `DiffViewer`s, the Node-safe
+ * `computeDiff` data layer fed two XML strings, and a `DiffPaneCoordinator` arming
+ * viewport lockstep + a shared stepper. One `DiffLegend` per pane drives prev/next
+ * on the shared coordinator.
  *
- * This is the bpm-iq scenario in miniature: two versions in, a `DiffResult` and
- * rendered primitives out. Manual checks: pan/zoom stays in lockstep across
+ * Two versions in, a `DiffResult` and rendered primitives out. Manual checks:
+ * pan/zoom stays in lockstep across
  * panes, and prev/next steps both panes together (including anchoring when a
  * step lands on an added/removed element that exists on only one side).
  */

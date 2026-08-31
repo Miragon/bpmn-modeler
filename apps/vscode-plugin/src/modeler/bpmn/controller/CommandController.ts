@@ -28,51 +28,27 @@ import { VsCodePicker } from "../../../shared/infrastructure/VsCodePicker";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
 
-// VS Code command ID for toggling the text editor.
 export const TOGGLE_CMD = "bpmn-modeler.toggleTextEditor";
-// VS Code command ID for opening the logging console.
 export const LOGGING_CMD = "bpmn-modeler.openLoggingConsole";
-// VS Code command ID for copying the diagram as SVG to the clipboard.
 export const COPY_SVG_CMD = "bpmn-modeler.copyDiagramAsSvg";
-// VS Code command ID for saving the diagram as an SVG file.
 export const SAVE_SVG_CMD = "bpmn-modeler.saveDiagramAsSvgCommand";
-// VS Code command ID for changing the engine version.
 export const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
-// VS Code command ID for migrating all BPMN diagrams in the workspace.
 export const MIGRATE_ALL_CMD = "bpmn-modeler.migrateAllDiagrams";
-// VS Code command ID for changing the modeler language.
 export const CHANGE_LANGUAGE_CMD = "bpmn-modeler.changeLanguage";
-// VS Code command ID for turning BPMN linting on/off (the design-only opt-out).
 export const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
-// VS Code command ID for scaffolding a new BPMN model.
 export const NEW_BPMN_MODEL_CMD = "bpmn-modeler.newBpmnModel";
-// VS Code command ID for scaffolding a new DMN model.
 export const NEW_DMN_MODEL_CMD = "bpmn-modeler.newDmnModel";
-// VS Code command ID for reloading the active modeler webview. Manual fallback
+// Manual fallback
 // for setups where the element-template file watcher never fires (WSL +
 // symlinked workspace): a reload re-requests the templates from the host.
 export const RELOAD_MODELER_CMD = "bpmn-modeler.reloadModeler";
 
 /**
  * Registers and handles all VS Code command contributions for the modeler.
- *
- * Merges the three former command classes (`VsCodeToggleTextEditorCommand`,
- * `VsCodeOpenLoggingConsoleCommand`, `VsCodeDiagramAsSvgCommand`) into a
- * single, flat controller with no DI framework.
  */
 export class CommandController {
-    // Tracks the active SVG response subscription so it can be disposed before creating a new one.
     private svgSubscription: EditorSubscription | undefined;
 
-    /**
-     * @param editorStore Central registry for open editor panels and messaging.
-     * @param vsDocument Active-document path helper.
-     * @param notifier User-facing message and logging helper.
-     * @param textEditor Toggles the companion text editor pane for the active document.
-     * @param bpmnService BPMN-specific business logic for engine version changes.
-     * @param migrationSvc Workspace-wide BPMN migration orchestrator.
-     * @param picker Engine quick-pick used when scaffolding a new BPMN model.
-     */
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly vsDocument: VsCodeDocument,
@@ -83,12 +59,7 @@ export class CommandController {
         private readonly picker: VsCodePicker,
     ) {}
 
-    /**
-     * Registers all commands with VS Code and pushes the resulting disposables
-     * into the extension context.
-     *
-     * @param context The VS Code extension context.
-     */
+    /** Registers all commands and pushes their disposables into the extension context. */
     register(context: ExtensionContext): void {
         context.subscriptions.push(
             commands.registerCommand(TOGGLE_CMD, this.toggle, this),
@@ -105,11 +76,7 @@ export class CommandController {
         );
     }
 
-    /**
-     * Toggles the standard VS Code text editor for the currently open document.
-     *
-     * @returns `true` if the text editor was opened, `false` if it was closed.
-     */
+    /** Toggles the standard VS Code text editor for the active document. */
     toggle(): Promise<boolean> {
         const activeId = this.editorStore.getActiveEditorId();
         const documentPath = this.vsDocument.getFilePath(activeId);
@@ -127,39 +94,24 @@ export class CommandController {
         this.editorStore.reload(this.editorStore.getActiveEditorId());
     }
 
-    /**
-     * Reveals the extension's output channel in the VS Code UI.
-     */
+    /** Reveals the extension's output channel. */
     showLogging(): void {
         this.notifier.openLoggingConsole();
     }
 
-    /**
-     * Prompts the user to select a new engine version for the active BPMN editor.
-     *
-     * Delegates to {@link BpmnModelerService.changeEngineVersion}.
-     */
+    /** Prompts for a new engine version for the active BPMN editor. */
     changeEngineVersion(): Promise<boolean> {
         return this.logAndRethrow(() =>
             this.bpmnService.changeEngineVersion(this.editorStore.getActiveEditorId()),
         );
     }
 
-    /**
-     * Migrates all BPMN diagrams in the workspace to a user-selected version.
-     *
-     * Delegates to {@link BpmnMigrationService.migrateAllDiagrams}.
-     */
+    /** Migrates all workspace BPMN diagrams to a user-selected version. */
     migrateAllDiagrams(): Promise<boolean> {
         return this.logAndRethrow(() => this.migrationSvc.migrateAllDiagrams());
     }
 
-    /**
-     * Prompts the user to select a UI language for the active modeler webview.
-     *
-     * Shows a QuickPick with all supported languages and sends the selected
-     * locale to the active webview via {@link BpmnModelerService.setLanguage}.
-     */
+    /** Prompts for a UI language and applies it to the active modeler webview. */
     changeLanguage(): Promise<void> {
         return this.logAndRethrow(async () => {
             const items = supportedModelerLanguages.map((lang) => ({
@@ -204,8 +156,7 @@ export class CommandController {
     }
 
     /**
-     * Prompts for a save location, picks the engine, then scaffolds a new BPMN
-     * model there and opens it in the custom editor.
+     * Scaffolds a new BPMN model and opens it in the custom editor.
      *
      * The engine is chosen *before* the file is written so a cancelled quick-pick
      * leaves nothing behind — the alternative (write empty, seed on open) orphans
@@ -237,10 +188,7 @@ export class CommandController {
         });
     }
 
-    /**
-     * Prompts for a save location, then scaffolds a new DMN model there and opens
-     * it in the custom editor. DMN has no engine choice, so no quick-pick.
-     */
+    /** Scaffolds a new DMN model and opens it. DMN has no engine choice, so no quick-pick. */
     newDmnModel(): Promise<void> {
         return this.logAndRethrow(async () => {
             const target = await this.promptNewModelTarget("New DMN Model", "DMN", "dmn");
@@ -290,26 +238,14 @@ export class CommandController {
         }
     }
 
-    /**
-     * Requests the SVG of the current BPMN diagram from the active webview and
-     * copies it to the system clipboard.
-     *
-     * Disposes any previous SVG subscription before creating a new one to
-     * prevent listener accumulation.
-     */
+    /** Requests the current diagram's SVG from the active webview and copies it to the clipboard. */
     writeToClipboard(): void {
         this.requestSvg((svg) => {
             env.clipboard.writeText(svg);
         });
     }
 
-    /**
-     * Requests the SVG of the current BPMN diagram from the active webview and
-     * writes it to a `.svg` file next to the `.bpmn` source file.
-     *
-     * Disposes any previous SVG subscription before creating a new one to
-     * prevent listener accumulation.
-     */
+    /** Requests the current diagram's SVG and writes it to a `.svg` next to the `.bpmn` source. */
     writeToFile(): void {
         this.requestSvg(async (svg) => {
             const filePath = this.vsDocument
@@ -321,13 +257,11 @@ export class CommandController {
     }
 
     /**
-     * Sends a `GetDiagramAsSVGCommand` to the active webview and subscribes
-     * to the response.  Disposes any previously active SVG subscription first.
-     *
-     * @param onSvg Callback invoked with the SVG string once received. Its
-     *   result is awaited so a rejected async sink (a failed `workspace.fs`
-     *   file write, a denied clipboard write) reaches the channel instead of
-     *   floating away as an unhandled rejection.
+     * Sends a `GetDiagramAsSVGCommand` to the active webview and subscribes to the
+     * response, disposing any previously active SVG subscription first. `onSvg`'s
+     * result is awaited so a rejected async sink (a failed `workspace.fs` write, a
+     * denied clipboard write) reaches the channel instead of floating away as an
+     * unhandled rejection.
      */
     private requestSvg(onSvg: (svg: string) => void | Promise<void>): void {
         const activeId = this.editorStore.getActiveEditorId();

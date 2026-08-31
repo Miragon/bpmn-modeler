@@ -6,9 +6,9 @@
  * temp filesystem, so the `BpmnLintConfigLocator` + `BpmnLintConfigService` +
  * `NodeBpmnLinter` do an actual nearest-`.bpmnlintrc` walk and run bpmnlint.
  * Covers the three tiers the webview's `GetBpmnlintConfigCommand` exposes: no
- * config hands linting to the webview's in-page default (#1373 Phase B); a
- * *covered* config is pushed down for the webview to lint in-page (#1384, a
- * config-carrying `BpmnlintInPageQuery`, no host lint) and escalates to a host
+ * config hands linting to the webview's in-page default; a *covered* config is
+ * pushed down for the webview to lint in-page (a config-carrying
+ * `BpmnlintInPageQuery`, no host lint) and escalates to a host
  * `BpmnlintResultsQuery` only once the webview reports it cannot cover a rule; an
  * *escalating* config (a Node-only string moddleExtension) is linted host-side
  * straight away. The temp dir has no `node_modules`, so the host path resolves
@@ -16,10 +16,10 @@
  * workspace without `bpmnlint` installed hits, and an unresolvable string
  * moddleExtension is recorded (never fatal), so the lint still produces findings.
  *
- * Phase C additionally asserts the mid-session transitions the `.bpmnlintrc`
- * watcher drives: a config that *appears* takes the editor over to the host
- * path (and drops a stale in-page push arriving after the flip), and a config
- * that is *deleted* hands linting back to the webview's in-page default.
+ * The suite also asserts the mid-session transitions the `.bpmnlintrc` watcher
+ * drives: a config that *appears* takes the editor over to the host path (and
+ * drops a stale in-page push arriving after the flip), and a config that is
+ * *deleted* hands linting back to the webview's in-page default.
  */
 
 import { promises as fs } from "node:fs";
@@ -98,7 +98,7 @@ const isLintResultsFrame = (frame: any): boolean =>
 const isInPageInstructionFrame = (frame: any): boolean =>
     frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintInPageQuery";
 
-// A #1384 covered-config instruction: an in-page instruction that carries the
+// A covered-config instruction: an in-page instruction that carries the
 // workspace config + version token (vs. the payload-free zero-config default).
 const isInPageConfigInstructionFrame = (frame: any): boolean =>
     isInPageInstructionFrame(frame) && frame.params?.message?.config != null;
@@ -148,7 +148,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         );
     }
 
-    it("lints a covered .bpmnlintrc in-page — pushes the config, not host findings (#1384)", async () => {
+    it("lints a covered .bpmnlintrc in-page — pushes the config, not host findings", async () => {
         const { rpc, frames, root, editorId } = await setup();
         await fs.writeFile(
             join(root, ".bpmnlintrc"),
@@ -167,7 +167,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
         expect(frames.find(isLintResultsFrame)).toBeUndefined();
     });
 
-    it("escalates a covered config to a host lint when the webview reports unresolved (#1384)", async () => {
+    it("escalates a covered config to a host lint when the webview reports unresolved", async () => {
         const { rpc, frames, root, editorId } = await setup();
         await fs.writeFile(
             join(root, ".bpmnlintrc"),
@@ -231,7 +231,7 @@ describe("bridge bpmnlint (real core + locator over a fake transport)", () => {
     });
 
     it("accepts the webview's in-page findings back over UpdateLintResultsCommand", async () => {
-        // Rule coverage for the bundled default now lives in the AC5 parity spec;
+        // Rule coverage for the bundled default lives in `lintParity.spec.ts`;
         // here we prove the webview→host results command is wired: after the
         // no-config in-page handback, a pushed UpdateLintResultsCommand is
         // accepted and applied (the debug log confirms the round-trip). The

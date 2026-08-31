@@ -39,9 +39,9 @@ export default defineConfig(({ mode }) => {
             outDir: resolve(__dirname, `../../dist/demo/${target}`),
             emptyOutDir: true,
             // The bpmn page ships extra entries — the two-instance regression
-            // proof at /bpmn/dual.html (issue #1372) and the two-pane diff demo
-            // at /bpmn/diff.html (issue #1378). The dev server serves them
-            // automatically; only the build needs the extra rollup inputs.
+            // proof at /bpmn/dual.html and the two-pane diff demo at
+            // /bpmn/diff.html. The dev server serves them automatically; only the
+            // build needs the extra rollup inputs.
             rollupOptions:
                 target === "bpmn"
                     ? {

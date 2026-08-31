@@ -7,9 +7,6 @@ import type {
     TemplateProperty,
 } from "@miragon/bpmn-modeler-element-template-chooser";
 
-/**
- * Re-export for use in components.
- */
 export type { TemplateProperty };
 
 /**
@@ -51,26 +48,18 @@ export interface EnrichedTemplateEntry {
     template: ElementTemplate | undefined;
 }
 
-/**
- * A standard BPMN element entry keyed by its popup menu ID.
- */
 export interface BpmnElementEntry {
     id: string;
     entry: PopupMenuEntry;
 }
 
-/**
- * BPMN element entries grouped by their `group.id`.
- */
+/** BPMN element entries grouped by their `group.id`. */
 export interface BpmnElementGroup {
     id: string;
     name: string;
     entries: BpmnElementEntry[];
 }
 
-/**
- * Result of classifying popup menu entries into templates vs. BPMN elements.
- */
 export interface ClassifiedEntries {
     templates: EnrichedTemplateEntry[];
     bpmnGroups: BpmnElementGroup[];
@@ -81,10 +70,6 @@ export interface ClassifiedEntries {
  *
  * Template entries are identified by their key containing `template-`
  * or by having an `imageUrl` (which standard BPMN entries never have).
- *
- * @param key The popup menu entry key (e.g. `"append.template-my-tpl"`).
- * @param entry The popup menu entry object.
- * @returns `true` if the entry is a template entry.
  */
 function isTemplateEntry(key: string, entry: PopupMenuEntry): boolean {
     return key.includes("template-") || !!entry.imageUrl;
@@ -95,9 +80,6 @@ function isTemplateEntry(key: string, entry: PopupMenuEntry): boolean {
  *
  * Keys follow the pattern `append.template-{templateId}` or
  * `create.template-{templateId}`.
- *
- * @param key The popup menu entry key.
- * @returns The extracted template ID, or `undefined` if not a template key.
  */
 function extractTemplateId(key: string): string | undefined {
     const match = key.match(/template-(.+)$/);
@@ -110,10 +92,6 @@ function extractTemplateId(key: string): string | undefined {
  *
  * Template entries are optionally enriched with the full `ElementTemplate`
  * data for richer UI display (implementation detail, property preview).
- *
- * @param entries Record of popup menu entries keyed by ID.
- * @param allTemplates All available element templates (for enrichment).
- * @returns Classified entries split into templates and BPMN element groups.
  */
 export function classifyEntries(
     entries: Record<string, PopupMenuEntry>,
@@ -159,9 +137,6 @@ export function classifyEntries(
  *
  * Handles both the plain function form and the `{ click, dragstart }` object
  * form used by different providers.
- *
- * @param action The entry's action.
- * @param event The DOM event that triggered the action.
  */
 export function executeEntryAction(action: PopupMenuEntryAction, event: Event): void {
     if (typeof action === "function") {
@@ -173,14 +148,7 @@ export function executeEntryAction(action: PopupMenuEntryAction, event: Event): 
 
 // ─── BPMN type → icon class mapping ──────────────────────────────────────
 
-/**
- * Maps a BPMN element type string to its bpmn-font CSS icon class.
- *
- * Falls back to `"bpmn-icon-task"` for unknown types.
- *
- * @param bpmnType The BPMN type (e.g. `"bpmn:ServiceTask"`).
- * @returns The CSS class name for the bpmn-font icon.
- */
+/** Maps a BPMN element type to its bpmn-font CSS icon class (`"bpmn-icon-task"` for unknown types). */
 const BPMN_TYPE_ICON_MAP: Record<string, string> = {
     "bpmn:Task": "bpmn-icon-task",
     "bpmn:UserTask": "bpmn-icon-user",
@@ -254,11 +222,8 @@ const IMPLEMENTATION_BINDINGS: {
  * Extracts the primary implementation detail from a template's properties.
  *
  * Searches for well-known binding types and names across both C7 and C8
- * patterns and returns the first match with its value.  Returns `undefined`
- * if no implementation binding is found or the value is empty.
- *
- * @param properties The template's property array.
- * @returns The implementation detail, or `undefined`.
+ * patterns and returns the first match with its value, or `undefined` if no
+ * implementation binding is found or the value is empty.
  */
 export function extractImplementationDetail(
     properties: TemplateProperty[],
@@ -282,19 +247,12 @@ export function extractImplementationDetail(
 
 // ─── Binding direction classification ─────────────────────────────────────
 
-/**
- * Direction category for a template property binding.
- */
 export type BindingDirection = "input" | "output" | "property" | "hidden";
 
 /**
- * Classifies a template property binding into a direction category.
- *
- * Used to split template properties into input, output, and property
- * sections in the hover card preview.
- *
- * @param binding The property's binding descriptor.
- * @returns The classified direction.
+ * Classifies a template property binding into a direction category, used to
+ * split properties into input, output, and property sections in the hover card
+ * preview.
  */
 export function classifyBinding(binding: TemplateProperty["binding"]): BindingDirection {
     const type = binding.type;

@@ -1,9 +1,4 @@
-/**
- * Represents a single property defined in an element template.
- *
- * Properties describe the input/output parameters, hidden bindings,
- * and user-configurable fields that a template applies to a BPMN element.
- */
+/** A single property (input/output, binding, or user-configurable field) an element template applies. */
 export interface TemplateProperty {
     label?: string;
     type: string;
@@ -30,12 +25,7 @@ export interface TemplateProperty {
     };
 }
 
-/**
- * Represents a Camunda element template as loaded from a JSON file.
- *
- * Element templates define reusable configurations for BPMN elements,
- * including which element types they apply to and what properties they set.
- */
+/** A Camunda element template as loaded from a JSON file. */
 export interface ElementTemplate {
     $schema?: string;
     id: string;
@@ -54,18 +44,9 @@ export interface ElementTemplate {
     properties: TemplateProperty[];
 }
 
-/**
- * Binding type groupings used to classify template properties
- * for the preview panel display.
- */
+/** Binding-type groupings used to classify template properties for the preview panel. */
 export type BindingDirection = "input" | "output" | "property" | "hidden";
 
-/**
- * Returns the direction of a template property binding.
- *
- * @param binding The property binding object.
- * @returns The classified direction.
- */
 /**
  * An implementation detail extracted from template properties that
  * identifies the technical binding (topic, delegate, class, called element).
@@ -110,11 +91,8 @@ const IMPLEMENTATION_BINDINGS: {
  * Extracts the primary implementation detail from a template's properties.
  *
  * Searches for well-known binding types and names across both C7 and C8
- * patterns and returns the first match with its value. Returns `undefined`
- * if no implementation binding is found or the value is empty.
- *
- * @param properties The template's property array.
- * @returns The implementation detail, or `undefined`.
+ * patterns and returns the first match with its value, or `undefined` if no
+ * implementation binding is found or the value is empty.
  */
 export function extractImplementationDetail(
     properties: TemplateProperty[],
@@ -124,9 +102,7 @@ export function extractImplementationDetail(
             if (p.binding.type !== bindingType) {
                 return false;
             }
-            /**
-             * For "property" bindings, also match on the binding name.
-             */
+            // For "property" bindings, also match on the binding name.
             if (bindingName && p.binding.name !== bindingName) {
                 return false;
             }

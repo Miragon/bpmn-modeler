@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { createClipboardModules, type ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 
 /**
- * Contract of the clipboard-override factory (#1374). The two DI modules and
- * the value bindings are the whole surface bootstrap/createModeler rely on; the
- * `text ?? element` default is what lets the frozen single-bridge public API map
- * onto the two protocol channels a webview host actually needs.
+ * Contract of the clipboard-override factory. The two DI modules and the value
+ * bindings are the whole surface bootstrap/createModeler rely on; the
+ * `text ?? element` default is what lets the single-bridge public API map onto
+ * the two protocol channels a webview host actually needs.
  */
 
 function fakeBridge(): ClipboardBridge {

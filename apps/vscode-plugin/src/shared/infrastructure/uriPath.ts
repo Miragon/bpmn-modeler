@@ -9,7 +9,7 @@ import { Uri } from "vscode";
  * folder was opened with — typically *uppercase* from Explorer (`/C:/…`). Since
  * `uri.path` strings compare case-sensitively, a document under `/c:/…` never
  * tests as being inside a `/C:/…` workspace root, so the template/config walk
- * collects nothing (issue #1204, microsoft/vscode#194692). Funnelling every
+ * collects nothing (microsoft/vscode#194692). Funnelling every
  * path this adapter emits through {@link canonicalizeDriveLetter} removes the
  * skew; lowercase is the canon because that is what the URIs we compare against
  * already use.

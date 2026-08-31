@@ -12,14 +12,13 @@ import { RegisterParams, SessionHooks } from "./sessionHooks";
 /**
  * The bpmnlint feature discovers the nearest `.bpmnlintrc` for an open BPMN
  * document and drives the shared three-tier policy in {@link BpmnLintConfigService}:
- * no config → the webview's engine-aware default in-page (#1373 Phase B); a
- * config the bundled resolver covers → the webview lints it in-page against the
- * pushed config (#1384); a config it cannot cover → the bridge runs bpmnlint in
- * a full Bun/Node context (so custom `bpmnlint-plugin-*` rules resolve against
- * the workspace exactly like in VS Code) and pushes the findings to the webview,
- * which only renders the in-canvas markers. In-page runs come back via
- * {@link UpdateLintResultsCommand} — the same core behaviour as VS Code, arriving
- * here structurally. It reuses the
+ * no config → the webview's engine-aware default in-page; a config the bundled
+ * resolver covers → the webview lints it in-page against the pushed config; a
+ * config it cannot cover → the bridge runs bpmnlint in a full Bun/Node context
+ * (so custom `bpmnlint-plugin-*` rules resolve against the workspace exactly like
+ * in VS Code) and pushes the findings to the webview, which only renders the
+ * in-canvas markers. In-page runs come back via {@link UpdateLintResultsCommand}
+ * — the same core behaviour as VS Code, arriving here structurally. It reuses the
  * host-agnostic core stack ({@link BpmnLintConfigLocator} +
  * {@link BpmnLintConfigService} + {@link NodeBpmnLinter}) over the
  * Workspace/Settings/Document/StatusBar ports the bridge already implements — the
@@ -49,9 +48,9 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         await lintSvc.setBpmnlintConfig(editorId);
     });
 
-    // The webview posts its own in-page default findings back after each run
-    // (#1373 Phase B). The service ignores it once a workspace-config takeover
-    // has flipped the editor to the external path.
+    // The webview posts its own in-page default findings back after each run.
+    // The service ignores it once a workspace-config takeover has flipped the
+    // editor to the external path.
     deps.router.on("UpdateLintResultsCommand", (message: Command, editorId: string) => {
         const cmd = message as UpdateLintResultsCommand;
         lintSvc.applyWebviewLintResults(editorId, cmd.results, cmd.unresolved, cmd.configToken);

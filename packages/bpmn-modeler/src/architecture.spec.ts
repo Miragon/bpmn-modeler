@@ -3,7 +3,7 @@ import { join, normalize } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Import-direction gate for `@miragon/bpmn-modeler` (epic #1293, ADR 0006/0007).
+ * Import-direction gate for `@miragon/bpmn-modeler`.
  *
  * The published package may reach only *downward* — relatives, the private
  * workspace libs it inlines at build time, and bare npm specifiers. It must
@@ -81,7 +81,7 @@ describe("bpmn-modeler import direction", () => {
     });
 
     it("package TS source reads no VS Code `<body>` theme classes", () => {
-        // Theme is host policy (#1377): the package resolves light/dark from
+        // Theme is host policy: the package resolves light/dark from
         // `prefers-color-scheme` or an injected mode, never by reading the host's
         // chrome. A `vscode-*` body class in TS source would mean the watcher
         // leaked back in. (CSS files legitimately style `body.vscode-dark`; this

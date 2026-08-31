@@ -1,6 +1,6 @@
 /**
  * @internal Package-internal wiring — the green canvas focus reticle the
- * factory installs per instance. Not part of the designed public API (#1375).
+ * factory installs per instance. Not part of the public API.
  */
 
 /**
@@ -38,39 +38,27 @@ const FOCUS_WEAK_SVG = `<svg class="canvas-focus-indicator__off" viewBox="0 -960
 const FOCUS_STRONG_SVG = `<svg class="canvas-focus-indicator__on" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M200-120q-33 0-56.5-23.5T120-200v-160h80v160h160v80H200Zm400 0v-80h160v-160h80v160q0 33-23.5 56.5T760-120H600ZM120-600v-160q0-33 23.5-56.5T200-840h160v80H200v160h-80Zm640 0v-160H600v-80h160q33 0 56.5 23.5T840-760v160h-80ZM338.5-338.5Q280-397 280-480t58.5-141.5Q397-680 480-680t141.5 58.5Q680-563 680-480t-58.5 141.5Q563-280 480-280t-141.5-58.5Z"/></svg>`;
 
 /**
- * Installs a focus reticle in the canvas's top-right corner, beside the
- * "Open minimap" control, that lights up
- * brand-green with a solid center while the canvas holds keyboard focus *and*
- * no element is selected, and shows a faint hollow reticle otherwise. On
- * focus gain the glow briefly pulses (the "you're back" moment), then settles
- * to a steady glow — canvas-focused is the normal state users sit in for
- * minutes, so a perpetual pulse would be an attention magnet.
+ * Installs a focus reticle in the canvas's top-right corner, beside the "Open
+ * minimap" control: brand-green with a solid center while the canvas holds
+ * keyboard focus *and* nothing is selected, faint and hollow otherwise. On
+ * focus gain the glow pulses briefly, then settles to a steady glow.
  *
- * Selection gates the green state because clicking an element also puts DOM
- * focus on the canvas SVG — without the gate the reticle would light on every
- * selection, where the selection outline already shows that keystrokes target
- * the diagram. Green is reserved for the bare "canvas focus" state Escape
- * creates, which has no other visual marker.
+ * Selection gates the green state because clicking an element also focuses the
+ * canvas SVG; the selection outline already shows keystrokes target the diagram,
+ * so green is reserved for the bare "canvas focus" state Escape creates, which
+ * has no other marker. A reticle (not a bulb) because a bulb collides with the
+ * IDE-wide "quick fix available" lightbulb (VS Code/IntelliJ).
  *
- * A reticle (not a bulb or keyboard) because a bulb collides with the IDE-wide
- * "quick fix available" affordance (VS Code/IntelliJ lightbulb); the
- * weak/strong reticle pair literally depicts focus snapping onto the canvas.
+ * Subscribes to diagram-js's deduplicated `canvas.focus.changed` (fired from the
+ * canvas SVG's `focusin`/`focusout`) rather than a container-level `focusin` —
+ * the latter would false-positive when another widget inside the same
+ * `.djs-container` (e.g. the bpmnlint chip) takes focus.
  *
- * It is the visual counterpart to {@link installKeyboardFocus}. It subscribes
- * to diagram-js's own
- * deduplicated `canvas.focus.changed` signal (fired from the canvas SVG's
- * `focusin`/`focusout` listeners) rather than observing a container-level
- * `focusin` — the latter would false-positive when another floating widget
- * inside the same `.djs-container` (e.g. the bpmnlint chip) takes focus.
- *
- * Purely decorative: `aria-hidden` + `pointer-events: none`. The focus move
- * itself already conveys the state to assistive tech, and a clickable glyph
- * would need a tab stop and would steal canvas clicks.
+ * Purely decorative: `aria-hidden` + `pointer-events: none`.
  *
  * @param deps Injected parent/focus closures (see {@link CanvasFocusIndicatorDeps}).
- * @returns A disposer that removes the reticle from the DOM, so a destroyed
- *   modeler instance leaves no orphaned overlay in its (shared-page) container.
- *   The event subscriptions die with the modeler's own event bus on destroy.
+ * @returns A disposer that removes the reticle from the DOM. The event
+ *   subscriptions die with the modeler's own event bus on destroy.
  */
 export function installCanvasFocusIndicator(deps: CanvasFocusIndicatorDeps): () => void {
     const root = document.createElement("div");

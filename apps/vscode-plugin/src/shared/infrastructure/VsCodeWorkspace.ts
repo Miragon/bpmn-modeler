@@ -13,20 +13,11 @@ import { canonicalPath, toUri } from "./uriPath";
 const fs = workspace.fs;
 
 /**
- * VS Code workspace and filesystem helpers.
- *
- * Combines workspace-folder discovery (formerly `VsCodeWorkspaceAdapter`) and
- * filesystem access (formerly `VsCodeReadAdapter`) into a single infrastructure
- * class used by {@link ArtifactService}.
+ * VS Code workspace-folder discovery and filesystem access, used by
+ * {@link ArtifactService}.
  */
 export class VsCodeWorkspace implements WorkspacePort {
-    /**
-     * Returns the workspace folder path for the given document.
-     *
-     * @param document Absolute path to the document file.
-     * @returns The workspace folder path.
-     * @throws {NoWorkspaceFolderFoundError} If the document is not inside any workspace folder.
-     */
+    /** Returns the workspace folder path containing `document`, throwing {@link NoWorkspaceFolderFoundError} when it lies outside every open folder. */
     getWorkspaceFolderForDocument(document: string): string {
         const workspaceFolder = workspace.getWorkspaceFolder(toUri(document));
         if (!workspaceFolder) {
@@ -72,14 +63,9 @@ export class VsCodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Walks upward from `startDir` looking for a directory containing a `.git`
-     * entry, indicating the root of a git repository.
-     *
-     * Stops when the filesystem root is reached or a directory cannot be read.
-     *
-     * @param startDir Absolute path to the directory to start from.
-     * @returns The path of the directory that contains `.git`, or `undefined` if
-     *   no git root is found.
+     * Walks upward from `startDir` for a directory containing a `.git` entry.
+     * Returns `undefined` at the filesystem root or when a directory cannot be
+     * read.
      */
     async findGitRoot(startDir: string): Promise<string | undefined> {
         let current = startDir;
@@ -96,9 +82,7 @@ export class VsCodeWorkspace implements WorkspacePort {
             }
 
             const parent = posix.dirname(current);
-            /**
-             * Stop at filesystem root (dirname returns the same path).
-             */
+            // Filesystem root reached — dirname is a fixed point here.
             if (parent === current) {
                 return undefined;
             }
@@ -107,11 +91,8 @@ export class VsCodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Lists the direct children of a directory.
-     *
-     * @param path Absolute path to the directory.
-     * @returns An array of `[name, type]` tuples where type is `"file"` or `"directory"`.
-     *   Symbolic links and other types are excluded.
+     * Lists the direct children of a directory as `[name, type]` tuples;
+     * symbolic links and other non-file/directory entries are excluded.
      */
     async readDirectory(path: string): Promise<[string, "file" | "directory"][]> {
         let dir: [string, FileType][];
@@ -130,15 +111,11 @@ export class VsCodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Reads a file and returns its content as a UTF-8 string.
-     *
-     * @param path Absolute path to the file.
-     * @returns The file content as a string.
-     * @throws {FileNotFound} only when the file is absent. Any other fs failure
-     *   (permission denied, target is a directory, …) propagates unchanged so
-     *   callers can surface it — `ScriptVariableManifestService` relies on this
-     *   to distinguish "no manifest" from "manifest unreadable" (mirrors
-     *   `NodeWorkspace.readFile`).
+     * Reads a file as a UTF-8 string. Throws {@link FileNotFound} only when the
+     * file is absent; any other fs failure (permission denied, target is a
+     * directory, …) propagates unchanged so callers can surface it —
+     * `ScriptVariableManifestService` relies on this to distinguish "no manifest"
+     * from "manifest unreadable" (mirrors `NodeWorkspace.readFile`).
      */
     async readFile(path: string): Promise<string> {
         try {
@@ -152,12 +129,7 @@ export class VsCodeWorkspace implements WorkspacePort {
         }
     }
 
-    /**
-     * Writes content to a file on disk, creating it if it does not exist.
-     *
-     * @param path Absolute path to the file.
-     * @param content The string content to write.
-     */
+    /** Writes content to a file, creating it if it does not exist. */
     async writeFile(path: string, content: string): Promise<void> {
         const uri = toUri(path);
         // Create the parent directory first (idempotent). `fs.writeFile` already
@@ -175,8 +147,6 @@ export class VsCodeWorkspace implements WorkspacePort {
      * A `FileNotFound` is swallowed so pruning a marketplace cache slot that was
      * already removed (or never written) is a silent no-op, matching the port
      * contract; any other failure propagates so a real fs error is not masked.
-     *
-     * @param path Absolute path to the directory to remove.
      */
     async deleteDirectory(path: string): Promise<void> {
         try {
@@ -190,16 +160,10 @@ export class VsCodeWorkspace implements WorkspacePort {
     }
 
     /**
-     * Finds files in the workspace matching the given glob pattern.
-     *
-     * @param pattern A glob pattern (e.g. `"**\/*.bpmn"`).
-     * @param exclude Optional glob (or `null`) forwarded to
-     *   {@link workspace.findFiles}.  `undefined` keeps VS Code's default
-     *   (`files.exclude` only); a glob string adds those patterns on top;
-     *   `null` opts out of every default exclude.
-     * @param limit Optional cap on the number of results returned, forwarded
-     *   as `maxResults` to {@link workspace.findFiles}.
-     * @returns An array of absolute file paths.
+     * Finds files matching `glob`. `exclude` is forwarded to
+     * {@link workspace.findFiles}: `undefined` keeps VS Code's default
+     * (`files.exclude` only), a glob string adds those patterns on top, and
+     * `null` opts out of every default exclude.
      */
     async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
         const uris = await workspace.findFiles(pattern, exclude, limit);
@@ -256,12 +220,7 @@ export class VsCodeWorkspace implements WorkspacePort {
         };
     }
 
-    /**
-     * Maps a VS Code `FileType` enum value to a simplified string.
-     *
-     * @param type The VS Code FileType value.
-     * @returns `"file"`, `"directory"`, `"symbolicLink"`, or `"unknown"`.
-     */
+    /** Maps a VS Code `FileType` to `"file"`, `"directory"`, `"symbolicLink"`, or `"unknown"`. */
     private parseFileType(type: FileType): string {
         switch (type) {
             case FileType.File:

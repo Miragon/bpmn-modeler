@@ -20,9 +20,9 @@ export interface TestApi {
 }
 
 /**
- * Activation is now pure composition: build the shared collaborators once, then
- * let each feature wire itself via its own `register()`. Adding a feature means
- * adding one file and one line here — no longer surgery on a 200-line body.
+ * Activation is pure composition: build the shared collaborators once, then let
+ * each feature wire itself via its own `register()`. Adding a feature means
+ * adding one file and one line here.
  *
  * The register order is observable (it is the order custom editors, providers,
  * and commands become available) and is preserved exactly: diff → script →
