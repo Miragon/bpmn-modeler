@@ -80,6 +80,15 @@ const modeler = await createModeler(canvas, {
 });
 ```
 
+### Overridden diagram-js defaults
+
+Some diagram-js services are replaced under their own DI name because their
+stock behaviour is wrong for a multi-plane editor:
+
+| Service | Replacement | Why |
+| --- | --- | --- |
+| `rootElementsBehavior` | `StayOnPlaneBehavior` | The command stack is global, so diagram-js's version forces the canvas back to the plane a command was recorded on. Undoing after drilling into a sub-process would eject the user to the top level before the change is visible. The replacement still records the root but only applies it when the current plane no longer exists (e.g. the undone command created the sub-process being viewed). |
+
 ## Linting tiers
 
 Linting is an opinionated built-in with a tier ladder, selected via

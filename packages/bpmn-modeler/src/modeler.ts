@@ -42,6 +42,7 @@ import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
+import { StayOnPlaneModule } from "./stayOnPlane";
 import type { CreateModelerOptions } from "./createModeler";
 import type { ThemeMode } from "./publicApi";
 // Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
@@ -178,6 +179,7 @@ export class BpmnModeler {
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
+            StayOnPlaneModule,
             propertiesPanelRootModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
