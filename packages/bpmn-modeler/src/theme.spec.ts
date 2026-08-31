@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Page theme controller (#1377). The module is a page singleton (a `currentMode`
+ * Page theme controller. The module is a page singleton (a `currentMode`
  * plus one live `prefers-color-scheme` listener), so each test reloads it via
  * `vi.resetModules()` to start from the initial `"automatic"` state. Because the
  * initial mode is already `"automatic"`, the same-mode guard means a fresh

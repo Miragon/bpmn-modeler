@@ -8,9 +8,9 @@
  *
  * A host's own light/dark chrome (e.g. VS Code's `<body>` classes) is host
  * policy: the host adapter maps that signal to a forced `setTheme("light")` /
- * `setTheme("dark")` — the package never reads host chrome (#1377).
+ * `setTheme("dark")` — the package never reads host chrome.
  *
- * @internal Not part of the designed public handle; reached only through
+ * @internal Not part of the public handle; reached only through
  *   {@link BpmnModeler.setTheme}.
  */
 import type { ThemeMode } from "./publicApi";
@@ -49,8 +49,7 @@ export function applyResolvedTheme(kind: "light" | "dark"): void {
  * theme switch is reflected live; a forced `"light"`/`"dark"` stops that
  * listener so the fixed choice is not overwritten on the next scheme change.
  *
- * A no-op when the mode is unchanged — same guard the module singleton carried
- * before the extraction, so a hosted session that never sets `theme` is untouched.
+ * A no-op when the mode is unchanged.
  */
 export function setThemeMode(mode: ThemeMode): void {
     if (mode === currentMode) {
@@ -87,9 +86,6 @@ function startFollowingPreferredScheme(): void {
     mediaQuery.addEventListener("change", mediaListener);
 }
 
-/**
- * Disconnects the `prefers-color-scheme` listener.
- */
 function stopFollowingPreferredScheme(): void {
     if (mediaQuery && mediaListener) {
         mediaQuery.removeEventListener("change", mediaListener);

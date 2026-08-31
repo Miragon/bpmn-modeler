@@ -5,8 +5,8 @@ import camundaModdle from "camunda-bpmn-moddle/resources/camunda.json";
 import zeebeModdle from "zeebe-bpmn-moddle/resources/zeebe.json";
 
 /**
- * Executable statement of the cross-engine clipboard policy (#1374): unsupported,
- * fails soft. The wire format is engine-agnostic — a Camunda-7 element pasted
+ * Executable statement of the cross-engine clipboard policy: unsupported, fails
+ * soft. The wire format is engine-agnostic — a Camunda-7 element pasted
  * into a Camunda-8 modeler revives its shared bpmn: base, and the reviver
  * silently drops every extension node whose `$type` the target moddle does not
  * know (`camunda:*` in a C8 moddle), replacing it with `null` rather than

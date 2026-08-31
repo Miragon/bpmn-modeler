@@ -14,23 +14,19 @@ import type {
 } from "./publicApi";
 
 /**
- * Type-level conformance + scenario spec for the designed public API (#1375).
+ * Type-level conformance + scenario spec for the public API.
  *
  * The assertions below are compile-checked (this file is type-checked by
  * `tsconfig.spec.json`); the single runtime `it` exists only so the test runner
  * has something to execute — esbuild strips the types without checking them, so
- * the guarantee is the `tsc` pass, not the vitest run. Each block encodes one
- * deliverable: (a) the current facade already satisfies the stable subset;
- * (b) the three bpm-iq scenarios type-check; (c) a demo-webapp-shaped literal.
+ * the guarantee is the `tsc` pass, not the vitest run.
  *
  * `satisfies` is used instead of a plain annotation so the checks cannot be
  * widened away by an over-broad target type.
  */
 
-// (a) Conformance: the current BpmnModeler class now satisfies the *full*
-// designed handle — `setTheme` landed and `setElementTemplates` widened to
-// `object[]` with #1376. If a future refactor reshapes one of these members,
-// this line stops compiling.
+// Conformance: the BpmnModeler class satisfies the full handle. If a future
+// refactor reshapes one of these members, this line stops compiling.
 const _conformance = (modeler: BpmnModeler): BpmnModelerHandle => modeler;
 void _conformance;
 
@@ -40,7 +36,7 @@ type _HandleIsSuperset = BpmnModelerHandle extends StableModelerSurface ? true :
 const _handleSuperset: _HandleIsSuperset = true;
 void _handleSuperset;
 
-// (b1) bpm-iq scenario 1 — element templates arrive as fetched data, not a path.
+// Element templates arrive as fetched data, not a path.
 const _scenarioTemplates = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -48,8 +44,8 @@ const _scenarioTemplates = {
 } satisfies ModelerOptions;
 void _scenarioTemplates;
 
-// (b2) bpm-iq scenario 2 — an async ModelNavigationPort (GitHub-API resolution
-// before opening a tab). The widened return type must accept `async`.
+// An async ModelNavigationPort (GitHub-API resolution before opening a tab).
+// The return type must accept `async`.
 const _asyncNavigation: ModelNavigationPort = {
     async openReference({ id, kind }) {
         await Promise.resolve();
@@ -64,9 +60,9 @@ const _scenarioAsyncNav = {
 } satisfies ModelerOptions;
 void _scenarioAsyncNav;
 
-// (b3) bpm-iq scenario 3 — graceful `{ config }` linting. The literal type-checks
-// against the BpmnlintConfig mirror; unresolvable rules degrade at runtime and
-// surface via onLintResults({ results, unresolved }).
+// Graceful `{ config }` linting. The literal type-checks against the
+// BpmnlintConfig mirror; unresolvable rules degrade at runtime and surface via
+// onLintResults({ results, unresolved }).
 const _scenarioLintConfig = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -92,16 +88,16 @@ const _clipboard: ClipboardOptions = {
 };
 // A host with two protocol channels (VS Code) supplies a separate `text`
 // bridge; the package forwards it to createClipboardModules' text binding and
-// drives the contenteditable polyfill from it (#1377).
+// drives the contenteditable polyfill from it.
 const _clipboardWithText: ClipboardOptions = {
     bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
     text: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
 };
 void _clipboardWithText;
 // The runtime factory accepts the same clipboard override — omit it for the
-// native browser clipboard (#1374), or pass `{ bridge }` to route through a
-// host. The runtime options now implement the designed {@link ModelerOptions}
-// (engine + nested `propertiesPanel`), plus the internal `handleGlobalEscape`.
+// native browser clipboard, or pass `{ bridge }` to route through a host. The
+// runtime options extend {@link ModelerOptions} (engine + nested
+// `propertiesPanel`), plus the internal `handleGlobalEscape`.
 const _createWithClipboard = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -125,13 +121,12 @@ const _builtinsShape = {
 } satisfies ModelerOptions;
 void _builtinsShape;
 
-// The designed async factory signature is nameable and distinct from today's
-// synchronous `createModeler` (which #1376 collapses into this shape).
+// The async factory signature is nameable.
 type _FactoryReturn = ReturnType<CreateModeler>;
 const _factoryReturns: _FactoryReturn extends Promise<BpmnModelerHandle> ? true : never = true;
 void _factoryReturns;
 
-// (c) demo-webapp-shaped literal — model navigation only, no code-link/scripting.
+// Demo-webapp-shaped literal — model navigation only, no code-link/scripting.
 const _demoShape = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -146,7 +141,7 @@ const _demoShape = {
 } satisfies ModelerOptions;
 void _demoShape;
 
-describe("public API skeleton (#1375)", () => {
+describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {
         expect(true).toBe(true);
     });

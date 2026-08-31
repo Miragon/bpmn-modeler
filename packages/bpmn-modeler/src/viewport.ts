@@ -16,12 +16,7 @@ export interface ViewportData {
     scale?: number;
 }
 
-/**
- * Function type for accessing a service from the bpmn-js DI container.
- *
- * @template T The service type to retrieve.
- * @param name The DI service name.
- */
+/** Accessor for a service from the bpmn-js DI container, by name. */
 type ServiceAccessor = <T>(name: string) => T;
 
 // Zoom floor when focusing an element, so a far-zoomed-out view still shows it

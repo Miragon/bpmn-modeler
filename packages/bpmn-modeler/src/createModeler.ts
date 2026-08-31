@@ -4,19 +4,18 @@ import type { ModelerOptions } from "./publicApi";
 import { BpmnModeler } from "./modeler";
 
 /**
- * Runtime options accepted by {@link createModeler}: the designed public
- * {@link ModelerOptions} plus one migration-only internal knob. The factory now
- * implements the designed type verbatim (#1376) — the only addition is
- * `handleGlobalEscape`, which stays `@internal` and out of `publicApi.ts`.
+ * Runtime options accepted by {@link createModeler}: the public
+ * {@link ModelerOptions} plus one internal knob (`handleGlobalEscape`), which
+ * stays `@internal` and out of `publicApi.ts`.
  */
 export interface CreateModelerOptions extends ModelerOptions {
     /**
      * When `true`, an Escape with nothing focused (`<body>`) re-homes this
-     * canvas. Default off; the single-instance bootstrap passes `true` to keep
-     * today's page-wide behaviour, while a multi-instance consumer leaves it off
-     * so each modeler only reacts to Escapes inside its own subtrees.
+     * canvas. Default off; the single-instance bootstrap passes `true` for
+     * page-wide behaviour, while a multi-instance consumer leaves it off so each
+     * modeler only reacts to Escapes inside its own subtrees.
      *
-     * @internal Not part of the designed public API (#1375).
+     * @internal Not part of the public API.
      */
     handleGlobalEscape?: boolean;
 }
@@ -27,8 +26,7 @@ export interface CreateModelerOptions extends ModelerOptions {
  * (element templates, settings, theme, locale) in the order the host expects.
  *
  * Async because {@link BpmnModeler.init} awaits the lazy bpmnlint chunk before
- * constructing bpmn-js. Engine selection is now up front (in `options.engine`),
- * collapsing the former two-step `create(engine)` into a single call.
+ * constructing bpmn-js.
  */
 export async function createModeler(
     container: HTMLElement,

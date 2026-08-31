@@ -1,9 +1,4 @@
-/**
- * Function type for accessing a service from the bpmn-js DI container.
- *
- * @template T The service type to retrieve.
- * @param name The DI service name.
- */
+/** Accessor for a service from the bpmn-js DI container, by name. */
 type ServiceAccessor = <T>(name: string) => T;
 
 /**
@@ -15,9 +10,6 @@ type ServiceAccessor = <T>(name: string) => T;
 export class SelectionManager {
     constructor(private readonly getService: ServiceAccessor) {}
 
-    /**
-     * Returns the IDs of the currently selected elements.
-     */
     getSelectedElementIds(): string[] {
         return this.getService<any>("selection")
             .get()
@@ -25,12 +17,8 @@ export class SelectionManager {
     }
 
     /**
-     * Selects elements by their IDs.
-     *
      * Silently skips IDs that no longer exist in the diagram (e.g. element
      * was deleted before the tab switch).
-     *
-     * @param ids Element IDs to select.
      */
     selectElementsByIds(ids: string[]): void {
         const registry = this.getService<any>("elementRegistry");
@@ -40,11 +28,6 @@ export class SelectionManager {
         }
     }
 
-    /**
-     * Subscribes to selection changes on the event bus.
-     *
-     * @param cb Callback invoked with the IDs of the newly selected elements.
-     */
     onSelectionChanged(cb: (elementIds: string[]) => void): void {
         this.getService<any>("eventBus").on("selection.changed", (event: any) => {
             const ids = (event.newSelection ?? []).map((el: any) => el.id);

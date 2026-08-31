@@ -12,13 +12,13 @@ import { RecordingBrowserResolver, staticUnresolvedModdleExtensions } from "./br
 /**
  * Runs bpmnlint against the *live* bpmn-js definitions tree, in the browser.
  *
- * This is the in-page tier of the #1373 lint ladder: instead of the host running
- * `NodeBpmnLinter` and pushing results down, the webview lints itself. The config
- * is either an explicit `{config}` a consumer supplied or the engine-aware
- * zero-config default (`getDefaultLintConfig({engine, preset: "modeling"})`,
- * matching the hosts' preset for later parity). Rules the bundled resolver cannot
- * cover degrade to no-ops and are reported via {@link LintRunEvent.unresolved},
- * so an unusual `{config}` is never fatal.
+ * This is the in-page tier: instead of the host running a linter and pushing
+ * results down, the webview lints itself. The config is either an explicit
+ * `{config}` a consumer supplied or the engine-aware zero-config default
+ * (`getDefaultLintConfig({engine, preset: "modeling"})`, matching the hosts'
+ * preset for parity). Rules the bundled resolver cannot cover degrade to no-ops
+ * and are reported via {@link LintRunEvent.unresolved}, so an unusual `{config}`
+ * is never fatal.
  *
  * The resolver is created once and reused; each {@link run} resets its recorded
  * misses so the emitted `unresolved` reflects that single lint. `moddleExtensions`

@@ -66,9 +66,9 @@ const ALIGN_TO_ORIGIN_OPTIONS = {
  *
  * Per-instance by construction: it is bound to its own `container` and
  * `propertiesPanel.parent` (see {@link CreateModelerOptions}), so several
- * modelers can coexist on a page — the future in-page diff view wants two. Use
- * {@link createModeler} as the factory. All methods throw {@link NoModelerError}
- * if called before {@link init}, and {@link destroy} tears the instance down.
+ * modelers can coexist on a page. Use {@link createModeler} as the factory. All
+ * methods throw {@link NoModelerError} if called before {@link init}, and
+ * {@link destroy} tears the instance down.
  *
  * Viewport and selection concerns are delegated to {@link ViewportManager}
  * and {@link SelectionManager}, accessible via the corresponding getters
@@ -114,8 +114,6 @@ export class BpmnModeler {
 
     /**
      * Access the viewport manager after {@link init}.
-     *
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     get viewport(): ViewportManager {
         if (!this._viewport) {
@@ -126,8 +124,6 @@ export class BpmnModeler {
 
     /**
      * Access the selection manager after {@link init}.
-     *
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     get selection(): SelectionManager {
         if (!this._selection) {
@@ -140,8 +136,7 @@ export class BpmnModeler {
      * Access the root element manager after {@link init}.
      *
      * @internal Host-adapter surface (drill-down state restore); not part of the
-     *   designed public handle (#1375).
-     * @throws {NoModelerError} If the modeler has not been created yet.
+     *   public handle.
      */
     get rootElement(): RootElementManager {
         if (!this._rootElement) {
@@ -161,7 +156,7 @@ export class BpmnModeler {
      * installs first.
      *
      * @internal Construction step invoked by {@link createModeler}; not part of
-     *   the designed public handle (#1375).
+     *   the public handle.
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
     async init(): Promise<void> {
@@ -187,7 +182,7 @@ export class BpmnModeler {
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
         // Clipboard is a [B] built-in: omitting `clipboard` registers nothing, so
-        // bpmn-js's native (browser) clipboard stays in charge (#1374); a host that
+        // bpmn-js's native (browser) clipboard stays in charge; a host that
         // can't reach the system clipboard from its webview supplies a bridge.
         // A distinct `text` bridge routes label + contenteditable/FEEL surfaces
         // through the host's text channel; it defaults to the element bridge.
@@ -253,9 +248,6 @@ export class BpmnModeler {
 
         this.installFocusFeatures();
 
-        /**
-         * Apply default favourites immediately after creation.
-         */
         if (this.settings.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
@@ -273,8 +265,8 @@ export class BpmnModeler {
         }
 
         // The package-owned debounced content event: one full export per burst of
-        // model changes (300ms / 1000ms maxWait — the shape battle-tested in
-        // bootstrap). destroy() cancels a pending trailing export.
+        // model changes (300ms / 1000ms maxWait). destroy() cancels a pending
+        // trailing export.
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
             this.contentSaved = asyncDebounce(
@@ -288,9 +280,9 @@ export class BpmnModeler {
 
     /**
      * Resolves the bpmnlint DI module(s) for the chosen tier, importing the lint
-     * chunk only when linting is not disabled (#1373, AC 6). `linting: false`
-     * returns no modules — the chunk, and the whole bpmnlint/rules stack, is never
-     * fetched. Every other value dynamically imports {@link createLintModule} and
+     * chunk only when linting is not disabled. `linting: false` returns no
+     * modules — the chunk, and the whole bpmnlint/rules stack, is never fetched.
+     * Every other value dynamically imports {@link createLintModule} and
      * registers one instance-scoped module carrying the tier, engine, explicit
      * config, and the facade callbacks.
      */
@@ -327,8 +319,6 @@ export class BpmnModeler {
      * Any push switches an in-page instance to the external tier. `null`
      * deactivates linting (no `.bpmnlintrc` / read failure). A no-op with a warning
      * when the instance was created with `linting: false` (no lint service).
-     *
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     applyLintResults(results: LintResults | null): void {
         const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
@@ -342,8 +332,6 @@ export class BpmnModeler {
     /**
      * Renders the host's user-disabled lint state (external tier): clears overlays
      * and shows the re-enable chip. A no-op with a warning when `linting: false`.
-     *
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     applyLintingDisabled(): void {
         const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
@@ -357,14 +345,12 @@ export class BpmnModeler {
     }
 
     /**
-     * Starts (or restarts) the in-page linter on host instruction — the #1373
-     * Phase B handback when the host finds no workspace `.bpmnlintrc`. Mirrors
+     * Starts (or restarts) the in-page linter on host instruction — the handback
+     * when the host finds no workspace `.bpmnlintrc`. Mirrors
      * {@link applyLintResults}: a no-op with a warning when the instance was
      * created with `linting: false` (no lint service). Never re-enables a
      * user-disabled linter (the service guards that); any later host push still
      * wins over the in-page run.
-     *
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
         const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
@@ -461,9 +447,8 @@ export class BpmnModeler {
      * Subscribes to the `commandStack.changed` event on the modeler's event bus.
      *
      * @internal Raw change hook. The designed API exposes the debounced
-     *   `onContentSaved` event instead; this stays for the host adapter (#1375).
+     *   `onContentSaved` event instead; this stays for the host adapter.
      * @param cb Callback invoked whenever the command stack changes.
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     onCommandStackChanged(cb: () => void): void {
         this.getModeler().get<any>("eventBus").on("commandStack.changed", cb);
@@ -473,8 +458,6 @@ export class BpmnModeler {
      * Returns the live moddle definitions tree (`bpmn:Definitions` root) so
      * callers can walk the in-memory model — e.g. to extract process variables
      * for script IntelliSense — without round-tripping through XML.
-     *
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     getDefinitions(): any {
         return this.getModeler().getDefinitions();
@@ -486,41 +469,24 @@ export class BpmnModeler {
      * scan and filtering rules live in {@link collectInlineScriptTasks} so the
      * bulk path and the single-open path stay in agreement.
      *
-     * @internal Host-adapter surface (inline-scripting capability, #1375).
-     * @throws {NoModelerError} If the modeler has not been created yet.
+     * @internal Host-adapter surface (inline-scripting capability).
      */
     collectInlineScriptTasks(): ScriptTaskScript[] {
         return collectInlineScriptTasks(this.getModeler().get<any>("elementRegistry"));
     }
 
-    /**
-     * Creates a new, empty BPMN diagram in the modeler.
-     *
-     * @returns {@link ImportXMLResult} with any warnings produced during import.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
     async newDiagram(): Promise<ImportXMLResult> {
         const result = await this.getModeler().createDiagram();
         this.applyEnginesFromDefinitions();
         return result;
     }
 
-    /**
-     * Loads the given BPMN XML into the modeler, replacing any current diagram.
-     *
-     * @param bpmn Raw BPMN 2.0 XML string.
-     * @returns {@link ImportXMLResult} with any warnings produced during import.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     * @throws {Error} If the XML cannot be parsed.
-     */
     async loadDiagram(bpmn: string): Promise<ImportXMLResult> {
         try {
             return await this.getModeler()
                 .importXML(bpmn)
                 .then((result: ImportXMLResult) => {
-                    /**
-                     * Transaction boundaries are only available for the C7 modeler.
-                     */
+                    // Transaction boundaries are a C7-only feature.
                     if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
                         this.getModeler().get<any>("transactionBoundaries").show();
                     }
@@ -538,13 +504,6 @@ export class BpmnModeler {
         }
     }
 
-    /**
-     * Serialises the current diagram to a BPMN 2.0 XML string.
-     *
-     * @returns Formatted XML string.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     * @throws {Error} If the diagram cannot be serialised.
-     */
     async exportDiagram(): Promise<string> {
         const result: SaveXMLResult = await this.getModeler().saveXML({ format: true });
         if (result.xml) {
@@ -555,58 +514,32 @@ export class BpmnModeler {
         throw new Error("Failed to save changes made to the diagram!");
     }
 
-    /**
-     * Exports the current diagram as an SVG string.
-     *
-     * @returns SVG markup string.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
     async getDiagramSvg(): Promise<string> {
         const result = await this.getModeler().saveSVG();
         return result.svg;
     }
 
-    /**
-     * Pushes a new set of element templates (as data) to the modeler's template
-     * loader.
-     *
-     * @param templates Array of element template objects.
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
     setElementTemplates(templates: object[]): void {
         this.getModeler().get<any>("elementTemplatesLoader").setTemplates(templates);
     }
 
-    /**
-     * Applies a partial settings update.
-     *
-     * @param settings Partial settings object to merge, or `undefined` (no-op).
-     * @throws {NoModelerError} If the modeler has not been created yet.
-     */
     setSettings(settings: Partial<BpmnModelerSetting> | undefined): void {
         if (!settings) {
             return;
         }
-        // Ensure the modeler exists before applying any settings.
         this.getModeler();
         this.settings = { ...this.settings, ...settings };
 
         // `colorTheme` is deliberately not applied here: the page theme is host
-        // policy driven through `theme` / {@link setTheme} (#1377). It stays in
-        // the settings type/defaults but is inert on this path.
+        // policy driven through `theme` / {@link setTheme}. It stays in the
+        // settings type/defaults but is inert on this path.
 
-        /**
-         * Apply transaction boundary visibility change immediately for C7.
-         */
         if (this.engine === "c7") {
             const tb = this.getModeler().get<any>("transactionBoundaries");
             // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
         }
 
-        /**
-         * Apply favourite BPMN elements to the append menu.
-         */
         if (settings.favouriteBpmnElements !== undefined) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
@@ -619,9 +552,7 @@ export class BpmnModeler {
      * Triggers the align-to-origin plugin if the setting is enabled.
      *
      * @internal Host-adapter surface (invoked on save by the VS Code editor
-     *   controller); folded behind the `alignToOrigin` setting in the designed
-     *   API (#1375).
-     * @throws {NoModelerError} If the modeler has not been created yet.
+     *   controller); folded behind the `alignToOrigin` setting in the public API.
      */
     alignElementsToOrigin(): void {
         if (this.settings.alignToOrigin) {
@@ -632,13 +563,12 @@ export class BpmnModeler {
     /**
      * Returns a service from the modeler's dependency injection container.
      *
-     * @remarks Unstable escape hatch — kept public deliberately (see the
-     *   ADR 0007, `docs/adr`) so advanced integrations are not blocked, but
-     *   not covered by semver: DI service names can change across minor
-     *   versions. Prefer a typed option/method where one exists.
+     * @remarks Unstable escape hatch — kept public deliberately so advanced
+     *   integrations are not blocked, but not covered by semver: DI service names
+     *   can change across minor versions. Prefer a typed option/method where one
+     *   exists.
      * @param name The DI service name (e.g. `"customTranslator"`).
      * @returns The service instance.
-     * @throws {NoModelerError} If the modeler has not been created yet.
      */
     getService<T = any>(name: string): T {
         return this.getModeler().get<T>(name);
@@ -654,8 +584,7 @@ export class BpmnModeler {
      * - `execution-listener` / `task-listener`: writes to the listener's
      *   nested `camunda:Script.scriptFormat`.
      *
-     * @internal Host-adapter surface (inline-scripting capability, #1375).
-     * @throws {NoModelerError} If the modeler has not been created yet.
+     * @internal Host-adapter surface (inline-scripting capability).
      */
     updateScriptFormat(
         elementId: string,
@@ -705,8 +634,7 @@ export class BpmnModeler {
      *   `listenerIndex` within the parent's filtered list of that listener
      *   type, then writes to its nested `camunda:Script` element's `value`.
      *
-     * @internal Host-adapter surface (inline-scripting capability, #1375).
-     * @throws {NoModelerError} If the modeler has not been created yet.
+     * @internal Host-adapter surface (inline-scripting capability).
      */
     updateScriptContent(
         elementId: string,
@@ -757,7 +685,7 @@ export class BpmnModeler {
      * modules are not registered for C8, so the service is resolved defensively
      * and the call is a no-op there.
      *
-     * @internal Host-adapter surface (inline-scripting capability, #1375).
+     * @internal Host-adapter surface (inline-scripting capability).
      */
     applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
         this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
@@ -768,7 +696,7 @@ export class BpmnModeler {
      * singleton (one `#theme-link`), so `"automatic"` follows the OS/browser
      * `prefers-color-scheme` live while `"light"`/`"dark"` force a fixed
      * stylesheet. A host that themes off its own chrome maps that signal to a
-     * forced mode at the adapter (#1377).
+     * forced mode at the adapter.
      */
     setTheme(theme: ThemeMode): void {
         setThemeMode(theme);
@@ -784,8 +712,7 @@ export class BpmnModeler {
      * omits the codeLink capability registers no `codeLinkMapClient`, and a
      * stray status push must then be a no-op rather than throw.
      *
-     * @internal Host-adapter surface (code-link capability, #1375).
-     * @throws {NoModelerError} If the modeler has not been created yet.
+     * @internal Host-adapter surface (code-link capability).
      */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
