@@ -88,7 +88,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       # Full package build: tsc typecheck + Vite lib + theme CSS + the check-dts,
-      # check-diff-node and check-dep-alignment gates.
+      # check-diff-node and dep-alignment (yarn constraints) gates.
       - name: Build
         run: yarn workspace @miragon/bpmn-modeler build
 

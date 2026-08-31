@@ -54,7 +54,7 @@
         "build:themes": "vite build -c vite.themes.config.mts",
         "check:dts": "node scripts/check-dts.mjs",
         "check:diff-node": "node scripts/check-diff-node.mjs",
-        "check:dep-alignment": "node scripts/check-dep-alignment.mjs",
+        "check:dep-alignment": "yarn constraints",
         "test": "vitest run --coverage"
     },
     "dependencies": {

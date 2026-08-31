@@ -4,6 +4,9 @@ set -e
 echo "▶ Pre-push: yarn install --immutable"
 corepack yarn install --immutable
 
+echo "▶ Pre-push: yarn constraints"
+corepack yarn constraints
+
 echo "▶ Pre-push: lint"
 corepack yarn lint
 
@@ -14,5 +17,6 @@ corepack yarn knip
 # workflow (.github/workflows/build.yml) already runs `yarn lint`, `yarn knip`,
 # every lib compile, the plugin build, and `yarn test` on every PR. Re-running
 # them on each push only added minutes of redundant local work, so pre-push is
-# kept to the cheap, fast-feedback gate (lockfile drift + lint + knip).
+# kept to the cheap, fast-feedback gate (lockfile drift + constraints + lint +
+# knip).
 echo "✓ Pre-push checks passed (tests + builds run in CI)."

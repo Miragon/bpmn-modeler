@@ -51,10 +51,12 @@ answering choices the existing lines never faced:
   publish workflow before publishing: it installs the packed tarball into a
   scratch project and asserts no `workspace:` range survived, every `exports`
   subpath resolves, and the Node-safe `./diff` subpath runs.
-- **A version-skew guard** (`scripts/check-dep-alignment.mjs`) fails the build
-  when an in-repo consumer pins a shared dependency at a different version than
-  the package, or when the lockfile disagrees. It runs in the package `build`
-  chain and as its own cheap `build.yml` job.
+- **A version-skew guard** (a Yarn constraint in the root `yarn.config.cjs`)
+  fails `yarn constraints` when an in-repo consumer pins a dependency the
+  package ships at a different version (peer dependencies exempt);
+  `yarn constraints --fix` auto-aligns. It runs in the package `build` chain
+  and as its own cheap `build.yml` job; lockfile drift is already caught by
+  the immutable installs in CI and the pre-push hook.
 
 ## Alternatives considered
 
