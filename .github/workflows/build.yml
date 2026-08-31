@@ -31,6 +31,7 @@ jobs:
       modeler-core-src: ${{ steps.filter.outputs.modeler-core-src }}
       modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
       bpmn-modeler: ${{ steps.filter.outputs.bpmn-modeler }}
+      dep-alignment: ${{ steps.filter.outputs.dep-alignment }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
       deployment-webview: ${{ steps.filter.outputs.deployment-webview }}
@@ -86,6 +87,16 @@ jobs:
               - '!apps/modeler-bridge/package.json'
             bpmn-modeler:
               - 'packages/bpmn-modeler/**'
+            # Version-skew guard runs on any manifest or lockfile change that
+            # could drift a shared dependency between the published package and
+            # its in-repo consumers. Kept separate from `bpmn-modeler` so the
+            # lockfile is NOT in that filter (it would rebuild the package on
+            # every unrelated dependency change).
+            dep-alignment:
+              - 'packages/bpmn-modeler/package.json'
+              - 'apps/*/package.json'
+              - 'libs/*/package.json'
+              - 'yarn.lock'
             bpmn-webview:
               - 'apps/bpmn-webview/**'
             dmn-webview:
@@ -591,6 +602,18 @@ jobs:
           test -f packages/bpmn-modeler/dist/lightTheme.css
           test -f packages/bpmn-modeler/dist/darkTheme.css
 
+  check-dep-alignment:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dep-alignment == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      # Dependency-free script — no yarn install needed.
+      - run: node packages/bpmn-modeler/scripts/check-dep-alignment.mjs
+
   build-dmn-webview:
     needs: detect-changes
     if: >-
@@ -663,6 +686,7 @@ jobs:
       - test-standalone-extension
       - test-bpmn-modeler
       - build-bpmn-modeler
+      - check-dep-alignment
       - build-bpmn-webview
       - build-dmn-webview
       - build-deployment-webview

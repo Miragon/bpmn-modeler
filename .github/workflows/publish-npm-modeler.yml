@@ -1,0 +1,164 @@
+name: Publish npm Modeler
+
+# Builds, smoke-tests and publishes @miragon/bpmn-modeler to the npm registry.
+# workflow_dispatch is DRY-RUN ONLY: npm Trusted Publishing validates the
+# top-level caller workflow filename, so a real publish only happens through
+# release-please.yml. A manual dispatch here still runs build + pack + smoke +
+# `npm publish --dry-run` to validate the pipeline; to re-run a failed real
+# publish, re-run the `npm` job on the release-please.yml run instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to check out (e.g. bpmn-modeler-v0.2.0). Empty = current branch.'
+        required: false
+        type: string
+        default: ''
+      dry-run:
+        description: 'Dry run (build + pack + smoke, do not publish). Manual dispatch is always dry-run.'
+        required: false
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag to check out (e.g. bpmn-modeler-v0.2.0). Empty = current branch.'
+        required: false
+        type: string
+        default: ''
+      dry-run:
+        description: 'Dry run (build + pack + smoke, do not publish)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  deployments: write
+  # Required for npm Trusted Publishing (OIDC) to mint the provenance token.
+  id-token: write
+
+concurrency:
+  group: bpmn-modeler-npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    # A manual workflow_dispatch can never do a real publish: the trusted
+    # publisher only matches release-please.yml as the top-level caller. Force
+    # dry-run for any dispatch, regardless of the input.
+    env:
+      EFFECTIVE_DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' || inputs.dry-run) && 'true' || 'false' }}
+    # Gate real publishes behind the npm-registry environment; dry-runs stay
+    # ungated (empty environment name) so they need no approval.
+    environment:
+      name: ${{ (github.event_name == 'workflow_dispatch' || inputs.dry-run) && '' || 'npm-registry' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check pinned dependencies
+        uses: Miragon/pin-npm-dependencies@58fe24377aef66748a1444ff69ab05e3f938a798 # v1.2.1
+
+      - name: Corepack enable
+        run: corepack enable
+
+      - name: Setup Node 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/bpmn-modeler
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION=$(node -e "console.log(require('./packages/bpmn-modeler/package.json').version)")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # Full package build: tsc typecheck + Vite lib + theme CSS + the check-dts,
+      # check-diff-node and check-dep-alignment gates.
+      - name: Build
+        run: yarn workspace @miragon/bpmn-modeler build
+
+      - name: Pack tarball
+        run: yarn workspace @miragon/bpmn-modeler pack --out "$RUNNER_TEMP/miragon-bpmn-modeler.tgz"
+
+      - name: Scratch-consumer smoke test
+        run: |
+          SCRATCH="$RUNNER_TEMP/smoke"
+          mkdir -p "$SCRATCH"
+          cp packages/bpmn-modeler/scripts/smoke-consumer.mjs "$SCRATCH/smoke-consumer.mjs"
+          cd "$SCRATCH"
+          npm init -y >/dev/null
+          npm pkg set type=module
+          npm install "$RUNNER_TEMP/miragon-bpmn-modeler.tgz" --no-audit --no-fund
+          node smoke-consumer.mjs
+
+      # Trusted Publishing needs npm >= 11.5.1; Node 22 ships npm 10.
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@11
+
+      - name: Skip if version already published
+        id: published
+        run: |
+          if npm view "@miragon/bpmn-modeler@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "@miragon/bpmn-modeler@${{ steps.version.outputs.version }} is already on npm — nothing to publish."
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish (dry-run)
+        if: env.EFFECTIVE_DRY_RUN == 'true'
+        run: npm publish "$RUNNER_TEMP/miragon-bpmn-modeler.tgz" --dry-run --access public
+
+      - name: Upload tarball artifact (dry-run)
+        if: env.EFFECTIVE_DRY_RUN == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: miragon-bpmn-modeler-v${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/miragon-bpmn-modeler.tgz
+          retention-days: 7
+
+      - name: Publish to npm
+        if: env.EFFECTIVE_DRY_RUN == 'false' && steps.published.outputs.already == 'false'
+        run: npm publish "$RUNNER_TEMP/miragon-bpmn-modeler.tgz" --provenance --access public
+
+      # Record a deployment so the repo Environments page shows the npm
+      # package's last-published version. The environment auto-creates on first use.
+      - name: Record deployment
+        if: env.EFFECTIVE_DRY_RUN == 'false' && steps.published.outputs.already == 'false'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const version = "${{ steps.version.outputs.version }}";
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: "npm-registry",
+              description: `@miragon/bpmn-modeler v${version}`,
+              required_contexts: [],
+              auto_merge: false,
+              production_environment: true,
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: "success",
+              environment_url: "https://www.npmjs.com/package/@miragon/bpmn-modeler",
+              description: `@miragon/bpmn-modeler v${version} published`,
+            });

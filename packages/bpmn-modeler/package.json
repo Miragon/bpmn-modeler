@@ -4,6 +4,26 @@
     "license": "Apache-2.0",
     "description": "Host-free, embeddable BPMN modeler (Camunda 7 & 8) built on bpmn-js.",
     "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Miragon/bpmn-modeler.git",
+        "directory": "packages/bpmn-modeler"
+    },
+    "homepage": "https://github.com/Miragon/bpmn-modeler/tree/main/packages/bpmn-modeler#readme",
+    "bugs": {
+        "url": "https://github.com/Miragon/bpmn-modeler/issues"
+    },
+    "keywords": [
+        "bpmn",
+        "bpmn-js",
+        "modeler",
+        "camunda",
+        "camunda-7",
+        "camunda-8",
+        "zeebe",
+        "diagram",
+        "diff"
+    ],
     "sideEffects": [
         "**/*.css"
     ],
@@ -29,11 +49,12 @@
     },
     "scripts": {
         "typecheck": "tsc --noEmit",
-        "build": "npm-run-all -s typecheck build:lib build:themes check:dts check:diff-node",
+        "build": "npm-run-all -s typecheck build:lib build:themes check:dts check:diff-node check:dep-alignment",
         "build:lib": "vite build",
         "build:themes": "vite build -c vite.themes.config.mts",
         "check:dts": "node scripts/check-dts.mjs",
         "check:diff-node": "node scripts/check-diff-node.mjs",
+        "check:dep-alignment": "node scripts/check-dep-alignment.mjs",
         "test": "vitest run --coverage"
     },
     "dependencies": {
