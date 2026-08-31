@@ -38,6 +38,11 @@
       "component": "intellij",
       "include-component-in-tag": true,
       "extra-files": [{ "type": "generic", "path": "gradle.properties" }]
+    },
+    "packages/bpmn-modeler": {
+      "release-type": "node",
+      "component": "bpmn-modeler",
+      "include-component-in-tag": true
     }
   }
 }

@@ -19,6 +19,7 @@ contributor-facing record, not user documentation.
 | ADR | Decision | Status |
 | --- | --- | --- |
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions as ADRs, categorized by module | accepted |
+| [0009](0009-npm-publishing-pipeline.md) | Publishing pipeline for `@miragon/bpmn-modeler`: npm CLI, yarn-packed tarball, Trusted Publishing | accepted |
 
 ### modeler-core
 
