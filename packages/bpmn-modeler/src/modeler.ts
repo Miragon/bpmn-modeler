@@ -56,6 +56,7 @@ import { deriveEngines } from "./engines";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
 import { ModeUiModule } from "./modeModules";
 import { installKeyboardFocus } from "./keyboardFocus";
+import { ResizableActivitiesModule, ResizableActivitiesRule } from "./resizableActivities";
 import type { CreateModelerOptions } from "./createModeler";
 import type { CoreModelerServices, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
@@ -64,6 +65,7 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
     showTransactionBoundaries: true,
     colorTheme: "automatic",
+    resizableActivities: false,
 };
 
 const ALIGN_TO_ORIGIN_OPTIONS = {
@@ -193,6 +195,7 @@ export class BpmnModeler {
             AppendMenuModule,
             FlowNavigationModule,
             createBpmnLayoutModule(),
+            ResizableActivitiesModule,
             propertiesPanelRootModule,
             ModeFilterModule,
             CustomGroupsModule,
@@ -263,6 +266,8 @@ export class BpmnModeler {
         this._rootElement = new RootElementManager(accessor);
 
         this.installFocusFeatures();
+
+        this.applyResizableActivities();
 
         if (this.settings.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
@@ -501,12 +506,22 @@ export class BpmnModeler {
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
         }
 
+        if (settings.resizableActivities !== undefined) {
+            this.applyResizableActivities();
+        }
+
         if (settings.favouriteBpmnElements !== undefined) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
             }
         }
+    }
+
+    private applyResizableActivities(): void {
+        this.getModeler()
+            .get<ResizableActivitiesRule>("resizableActivitiesRule", false)
+            ?.setEnabled(this.settings.resizableActivities === true);
     }
 
     /** @internal */
