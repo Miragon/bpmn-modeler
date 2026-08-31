@@ -1,6 +1,8 @@
 name: Release Please
 
-# Two release lines (see release-please-config.json): "." (vscode) and "apps/intellij-plugin" (intellij), each with its own Release PR, tag and publish jobs.
+# Three release lines (see release-please-config.json): "." (vscode),
+# "apps/intellij-plugin" (intellij) and "packages/bpmn-modeler" (npm), each with
+# its own Release PR, tag and publish jobs.
 
 on:
   push:
@@ -25,6 +27,8 @@ jobs:
       vscode_version: ${{ steps.release.outputs.version }}
       intellij_released: ${{ steps.release.outputs['apps/intellij-plugin--release_created'] }}
       intellij_tag: ${{ steps.release.outputs['apps/intellij-plugin--tag_name'] }}
+      npm_released: ${{ steps.release.outputs['packages/bpmn-modeler--release_created'] }}
+      npm_tag: ${{ steps.release.outputs['packages/bpmn-modeler--tag_name'] }}
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
@@ -42,12 +46,12 @@ jobs:
   approve-release:
     name: Approve release publish
     needs: release-please
-    if: needs.release-please.outputs.vscode_released == 'true' || needs.release-please.outputs.intellij_released == 'true'
+    if: needs.release-please.outputs.vscode_released == 'true' || needs.release-please.outputs.intellij_released == 'true' || needs.release-please.outputs.npm_released == 'true'
     runs-on: ubuntu-latest
     environment: release-approval
     steps:
       - name: Record approval
-        run: echo "Release approved — vscode=${{ needs.release-please.outputs.vscode_tag }} intellij=${{ needs.release-please.outputs.intellij_tag }}"
+        run: echo "Release approved — vscode=${{ needs.release-please.outputs.vscode_tag }} intellij=${{ needs.release-please.outputs.intellij_tag }} npm=${{ needs.release-please.outputs.npm_tag }}"
 
   vscode:
     needs: [release-please, approve-release]
@@ -82,4 +86,19 @@ jobs:
     uses: ./.github/workflows/publish-intellij.yml
     with:
       tag: ${{ needs.release-please.outputs.intellij_tag }}
+    secrets: inherit
+
+  npm:
+    needs: [release-please, approve-release]
+    if: needs.release-please.outputs.npm_released == 'true'
+    # id-token: write is required in BOTH this caller job and the called
+    # workflow for npm Trusted Publishing (OIDC) to mint a provenance token.
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+    uses: ./.github/workflows/publish-npm-modeler.yml
+    with:
+      tag: ${{ needs.release-please.outputs.npm_tag }}
+      dry-run: false
     secrets: inherit

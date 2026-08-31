@@ -1,7 +1,8 @@
-/**
- * Which side of the diff a webview pane represents.
- */
-export type DiffSide = "before" | "after";
+// The diff vocabulary types are defined in `@miragon/bpmn-modeler-diff` (the
+// data layer). Re-export them type-only so existing importers (`libs/shared`,
+// `modeler-core`, `host.ts`) keep resolving them from here — a type-only
+// re-export carries no runtime edge, so it introduces no import cycle.
+export type { DiffSide, DiffCounts } from "@miragon/bpmn-modeler-diff";
 
 /**
  * How a diff session was opened.
@@ -12,16 +13,6 @@ export type DiffSide = "before" | "after";
  * share the same basename.
  */
 export type DiffOrigin = "scm" | "compare-files";
-
-/**
- * Summary counts used for the diff legend chip.
- */
-export interface DiffCounts {
-    readonly added: number;
-    readonly removed: number;
-    readonly changed: number;
-    readonly layoutChanged: number;
-}
 
 /**
  * Canvas viewbox used for pan/zoom synchronisation between panes.

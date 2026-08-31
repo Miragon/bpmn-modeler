@@ -1,14 +1,16 @@
-import { DiffCounts, DiffOrigin } from "@miragon/bpmn-modeler-types";
+import { DiffCounts } from "@miragon/bpmn-modeler-diff";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 export interface DiffLegendCallbacks {
     onPrevious: () => void;
     onNext: () => void;
     /**
-     * Invoked when the user clicks the swap button.  Only wired up for
-     * compare-files panes — SCM panes never render the button.
+     * Invoked when the user clicks the swap button.  Omit it to drop the
+     * button entirely — a pane that cannot swap sides (e.g. an SCM diff) never
+     * renders it.  Presentation policy (which origins offer swapping) lives in
+     * the consumer, not this primitive.
      */
-    onSwap: () => void;
+    onSwap?: () => void;
 }
 
 /**
@@ -17,20 +19,22 @@ export interface DiffLegendCallbacks {
 type SlotKey = "Added" | "Removed" | "Changed" | "Moved";
 
 /**
- * Per-update info the legend needs about its host session.
+ * Per-update info the legend renders.  Presentation-only: the consumer decides
+ * whether a filename subtitle and swap button apply (previously derived from a
+ * VS Code `DiffOrigin`; that mapping now lives app-side).
  */
 export interface DiffLegendContext {
     readonly counts: DiffCounts;
     /**
-     * Origin of the diff session.  Drives origin-specific affordances: the
-     * filename label and the swap button only appear for `compare-files`.
+     * Basename to render as a subtitle above the counts row.  Omit it to hide
+     * the subtitle.
      */
-    readonly origin: DiffOrigin;
+    readonly filename?: string;
     /**
-     * Basename of this pane's document, rendered as a subtitle above the
-     * counts row.  Shown only when {@link origin} is `compare-files`.
+     * Whether to show the swap button.  Only honoured when an `onSwap`
+     * callback was supplied at construction; defaults to hidden.
      */
-    readonly filename: string;
+    readonly showSwap?: boolean;
 }
 
 /**
@@ -41,10 +45,9 @@ export interface DiffLegendContext {
  * hidden until {@link update} is called so the canvas isn't cluttered while
  * the diagram is still importing.
  *
- * Compare-files panes additionally render the pane's filename as a subtitle
- * and a swap button that reverses the left/right sides.  SCM panes render
- * neither — VS Code's tab title already carries the filename/ref metadata,
- * and swapping refs isn't an operation the extension owns.
+ * A pane may additionally render a filename subtitle and a swap button — both
+ * are presentation policy the consumer opts into (via {@link DiffLegendContext}
+ * and the optional `onSwap` callback), not something this primitive infers.
  *
  * Labels are sourced from the shared {@link i18n} translator and re-rendered
  * automatically when the active language changes.
@@ -62,21 +65,27 @@ export class DiffLegend {
 
     private readonly swapButton: HTMLButtonElement;
 
+    /** Whether an `onSwap` callback was supplied — gates the swap button. */
+    private readonly hasSwap: boolean;
+
+    /** Unsubscribes the {@link i18n} language-change listener on {@link destroy}. */
+    private readonly disposeI18n: () => void;
+
     // Latest context passed to {@link update}, kept so {@link renderLabels} can redraw on language change.
     private context: DiffLegendContext = {
         counts: { added: 0, removed: 0, changed: 0, layoutChanged: 0 },
-        origin: "scm",
-        filename: "",
     };
 
     constructor(parent: HTMLElement, callbacks: DiffLegendCallbacks) {
+        this.hasSwap = callbacks.onSwap !== undefined;
+
         this.root = document.createElement("div");
         this.root.className = "diff-legend";
         this.root.style.display = "none";
 
-        // Filename subtitle — rendered above the counts row.  Stays hidden for
-        // SCM panes; an empty textContent would still occupy layout, so
-        // toggling `display` is cleaner than only blanking the text.
+        // Filename subtitle — rendered above the counts row.  Hidden until a
+        // filename is supplied; an empty textContent would still occupy layout,
+        // so toggling `display` is cleaner than only blanking the text.
         this.filenameEl = document.createElement("div");
         this.filenameEl.className = "diff-legend__filename";
         this.filenameEl.style.display = "none";
@@ -110,27 +119,27 @@ export class DiffLegend {
         parent.append(this.root);
 
         this.renderLabels();
-        i18n.onChange(() => this.renderLabels());
+        this.disposeI18n = i18n.onChange(() => this.renderLabels());
     }
 
     /**
      * Reveals the legend and renders the given context.  Disables the nav
      * buttons when there are no changes at all; shows the filename subtitle
-     * and swap button only for compare-files panes.
+     * when a `filename` is given and the swap button when `showSwap` is set
+     * (and an `onSwap` callback was supplied).
      */
     update(context: DiffLegendContext): void {
         this.context = context;
         this.renderLabels();
 
-        const { counts, origin } = context;
+        const { counts, filename, showSwap } = context;
         const total = counts.added + counts.removed + counts.changed + counts.layoutChanged;
         const hasChanges = total > 0;
         this.prevButton.disabled = !hasChanges;
         this.nextButton.disabled = !hasChanges;
 
-        const showOriginAffordances = origin === "compare-files";
-        this.filenameEl.style.display = showOriginAffordances ? "block" : "none";
-        this.swapButton.style.display = showOriginAffordances ? "inline-flex" : "none";
+        this.filenameEl.style.display = filename ? "block" : "none";
+        this.swapButton.style.display = this.hasSwap && showSwap ? "inline-flex" : "none";
 
         this.root.style.display = "flex";
     }
@@ -159,7 +168,7 @@ export class DiffLegend {
         return btn;
     }
 
-    private makeSwapButton(onClick: () => void): HTMLButtonElement {
+    private makeSwapButton(onClick?: () => void): HTMLButtonElement {
         const btn = document.createElement("button");
         btn.type = "button";
         // Reuses the same visual class as the nav buttons so both button
@@ -167,7 +176,9 @@ export class DiffLegend {
         // the swap-only spacing rule in diff.css.
         btn.className = "diff-legend__nav-btn diff-legend__swap-btn";
         btn.style.display = "none";
-        btn.addEventListener("click", onClick);
+        if (onClick) {
+            btn.addEventListener("click", onClick);
+        }
         return btn;
     }
 
@@ -190,6 +201,15 @@ export class DiffLegend {
         this.prevButton.textContent = `‹ ${i18n.translate("Prev change")}`;
         this.nextButton.textContent = `${i18n.translate("Next change")} ›`;
         this.swapButton.textContent = `⇄ ${i18n.translate("Swap sides")}`;
-        this.filenameEl.textContent = filename;
+        this.filenameEl.textContent = filename ?? "";
+    }
+
+    /**
+     * Unsubscribes the language-change listener and removes the legend from the
+     * DOM.  The instance must not be used afterwards.
+     */
+    destroy(): void {
+        this.disposeI18n();
+        this.root.remove();
     }
 }

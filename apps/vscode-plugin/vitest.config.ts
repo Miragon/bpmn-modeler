@@ -19,6 +19,9 @@ export default defineConfig({
                 __dirname,
                 "../../libs/modeler-types/src/index.ts",
             ),
+            // modeler-core imports the diff data layer; alias it to source so
+            // the plugin's specs resolve it without a built artifact.
+            "@miragon/bpmn-modeler-diff": resolve(__dirname, "../../libs/bpmn-diff/src/index.ts"),
             "@miragon/bpmn-modeler-core": resolve(
                 __dirname,
                 "../../libs/modeler-core/src/index.ts",

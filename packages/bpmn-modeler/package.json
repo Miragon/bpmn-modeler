@@ -4,6 +4,26 @@
     "license": "Apache-2.0",
     "description": "Host-free, embeddable BPMN modeler (Camunda 7 & 8) built on bpmn-js.",
     "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Miragon/bpmn-modeler.git",
+        "directory": "packages/bpmn-modeler"
+    },
+    "homepage": "https://github.com/Miragon/bpmn-modeler/tree/main/packages/bpmn-modeler#readme",
+    "bugs": {
+        "url": "https://github.com/Miragon/bpmn-modeler/issues"
+    },
+    "keywords": [
+        "bpmn",
+        "bpmn-js",
+        "modeler",
+        "camunda",
+        "camunda-7",
+        "camunda-8",
+        "zeebe",
+        "diagram",
+        "diff"
+    ],
     "sideEffects": [
         "**/*.css"
     ],
@@ -18,6 +38,10 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         },
+        "./diff": {
+            "types": "./dist/diff.d.ts",
+            "import": "./dist/diff.js"
+        },
         "./styles.css": "./dist/bpmn-modeler.css",
         "./light-theme.css": "./dist/lightTheme.css",
         "./dark-theme.css": "./dist/darkTheme.css",
@@ -25,10 +49,12 @@
     },
     "scripts": {
         "typecheck": "tsc --noEmit",
-        "build": "npm-run-all -s typecheck build:lib build:themes check:dts",
+        "build": "npm-run-all -s typecheck build:lib build:themes check:dts check:diff-node check:dep-alignment",
         "build:lib": "vite build",
         "build:themes": "vite build -c vite.themes.config.mts",
         "check:dts": "node scripts/check-dts.mjs",
+        "check:diff-node": "node scripts/check-diff-node.mjs",
+        "check:dep-alignment": "yarn constraints",
         "test": "vitest run --coverage"
     },
     "dependencies": {
@@ -40,6 +66,7 @@
         "bpmn-js": "18.19.0",
         "bpmn-js-bpmnlint": "0.24.0",
         "bpmn-js-create-append-anything": "2.0.0",
+        "bpmn-js-differ": "3.2.0",
         "bpmn-js-native-copy-paste": "0.3.0",
         "bpmn-js-properties-panel": "5.60.0",
         "bpmn-js-token-simulation": "0.39.4",
@@ -62,6 +89,7 @@
         "@miragon/bpmn-modeler-append-menu": "workspace:*",
         "@miragon/bpmn-modeler-clipboard": "workspace:*",
         "@miragon/bpmn-modeler-code-link": "workspace:*",
+        "@miragon/bpmn-modeler-diff": "workspace:*",
         "@miragon/bpmn-modeler-element-template-chooser": "workspace:*",
         "@miragon/bpmn-modeler-flow-navigation": "workspace:*",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",

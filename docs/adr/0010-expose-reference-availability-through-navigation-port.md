@@ -1,4 +1,4 @@
-# 0008 — Expose reference availability through the model navigation port
+# 0010 — Expose reference availability through the model navigation port
 
 - Status: accepted
 - Date: 2026-08-28

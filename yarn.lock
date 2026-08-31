@@ -3989,12 +3989,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-core@workspace:libs/modeler-core"
   dependencies:
+    "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@types/node": "npm:26.1.2"
     "@vitest/coverage-v8": "npm:4.1.9"
-    bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.0.0"
     bpmnlint: "npm:11.13.0"
     camunda-bpmn-moddle: "npm:7.0.1"
@@ -4029,6 +4029,17 @@ __metadata:
     typescript: "npm:6.0.3"
     vite: "npm:8.1.0"
     vite-tsconfig-paths: "npm:6.1.1"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/bpmn-modeler-diff@workspace:*, @miragon/bpmn-modeler-diff@workspace:libs/bpmn-diff":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-diff@workspace:libs/bpmn-diff"
+  dependencies:
+    bpmn-js-differ: "npm:3.2.0"
+    bpmn-moddle: "npm:10.0.0"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.9"
   languageName: unknown
   linkType: soft
 
@@ -4176,6 +4187,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-types@workspace:libs/modeler-types"
   dependencies:
+    "@miragon/bpmn-modeler-diff": "workspace:*"
     "@types/lodash": "npm:4.17.24"
     jsdom: "npm:30.0.1"
     lodash: "npm:4.18.1"
@@ -4198,8 +4210,6 @@ __metadata:
     "@vitest/coverage-v8": "npm:4.1.9"
     bpmn-js: "npm:18.19.0"
     bpmn-js-bpmnlint: "npm:0.24.0"
-    bpmn-js-differ: "npm:3.2.0"
-    bpmn-moddle: "npm:10.0.0"
     bpmnlint: "npm:11.13.0"
     jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
@@ -4221,6 +4231,7 @@ __metadata:
     "@miragon/bpmn-modeler-append-menu": "workspace:*"
     "@miragon/bpmn-modeler-clipboard": "workspace:*"
     "@miragon/bpmn-modeler-code-link": "workspace:*"
+    "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
     "@miragon/bpmn-modeler-flow-navigation": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
@@ -4234,6 +4245,7 @@ __metadata:
     bpmn-js: "npm:18.19.0"
     bpmn-js-bpmnlint: "npm:0.24.0"
     bpmn-js-create-append-anything: "npm:2.0.0"
+    bpmn-js-differ: "npm:3.2.0"
     bpmn-js-native-copy-paste: "npm:0.3.0"
     bpmn-js-properties-panel: "npm:5.60.0"
     bpmn-js-token-simulation: "npm:0.39.4"

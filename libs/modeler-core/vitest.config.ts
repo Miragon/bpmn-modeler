@@ -11,6 +11,7 @@ export default defineConfig({
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../shared/src/index.ts"),
             "@miragon/bpmn-modeler-types": resolve(__dirname, "../modeler-types/src/index.ts"),
+            "@miragon/bpmn-modeler-diff": resolve(__dirname, "../bpmn-diff/src/index.ts"),
         },
         coverage: {
             provider: "v8",

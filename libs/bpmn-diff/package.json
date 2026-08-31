@@ -1,0 +1,18 @@
+{
+    "name": "@miragon/bpmn-modeler-diff",
+    "types": "./src/index.ts",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "build": "tsc --noEmit",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "bpmn-js-differ": "3.2.0",
+        "bpmn-moddle": "10.0.0"
+    },
+    "devDependencies": {
+        "typescript": "6.0.3",
+        "vitest": "4.1.9"
+    }
+}
