@@ -11,7 +11,7 @@ import { BpmnPropertiesPanelService } from "./BpmnPropertiesPanelService";
 
 const EDITOR = "file:///work/diagram.bpmn";
 
-function createService() {
+function createService(initialState: "remember" | "collapsed" | "open" = "remember") {
     const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
     const panelStateRepo = {
         getVisibility: vi.fn().mockReturnValue(true),
@@ -23,6 +23,7 @@ function createService() {
         editorStore as never,
         panelStateRepo as never,
         notifier as never,
+        () => initialState,
     );
 
     return { service, editorStore, panelStateRepo, notifier };
@@ -89,5 +90,50 @@ describe("BpmnPropertiesPanelService.setPropertiesPanelVisibility", () => {
 
         await expect(service.setPropertiesPanelVisibility(true)).resolves.toBeUndefined();
         expect(notifier.logError).toHaveBeenCalledOnce();
+    });
+});
+
+describe("BpmnPropertiesPanelService initial state", () => {
+    it("defaults to the persisted value when the host offers no setting", () => {
+        const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
+        const panelStateRepo = {
+            getVisibility: vi.fn().mockReturnValue(false),
+            setVisibility: vi.fn().mockResolvedValue(undefined),
+        };
+        const service = new BpmnPropertiesPanelService(
+            editorStore as never,
+            panelStateRepo as never,
+            { logError: vi.fn() } as never,
+        );
+
+        expect(service.getPersistedPanelVisibility()).toBe(false);
+    });
+
+    it("pins a collapsed panel regardless of the persisted default", async () => {
+        const { service, editorStore, panelStateRepo } = createService("collapsed");
+        panelStateRepo.getVisibility.mockReturnValue(true);
+
+        expect(service.getPersistedPanelVisibility()).toBe(false);
+
+        await service.sendPropertiesPanelState(EDITOR);
+        expect(editorStore.postMessage).toHaveBeenCalledWith(
+            EDITOR,
+            new PropertiesPanelStateQuery(false),
+        );
+    });
+
+    it("pins an open panel regardless of the persisted default", () => {
+        const { service, panelStateRepo } = createService("open");
+        panelStateRepo.getVisibility.mockReturnValue(false);
+
+        expect(service.getPersistedPanelVisibility()).toBe(true);
+    });
+
+    it("still persists a toggle while pinned, so `remember` can return to it", async () => {
+        const { service, panelStateRepo } = createService("collapsed");
+
+        await service.setPropertiesPanelVisibility(true);
+
+        expect(panelStateRepo.setVisibility).toHaveBeenCalledWith(true);
     });
 });

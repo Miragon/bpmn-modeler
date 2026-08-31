@@ -37,6 +37,7 @@ import {
     EditorSubscription,
     FileNotFound,
     NoWorkspaceFolderFoundError,
+    PropertiesPanelInitialState,
     SettingChange,
     SettingsPort,
     WorkspacePort,
@@ -405,6 +406,7 @@ export interface SettingsSnapshot {
     c8ApiVersion: string;
     colorTheme: "automatic" | "light";
     favouriteBpmnElements: string[];
+    propertiesPanelInitialState: PropertiesPanelInitialState;
     language: string;
     scriptingSpin: boolean;
     marketplaces: string[];
@@ -432,6 +434,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
         "bpmn:CallActivity",
         "bpmn:ExclusiveGateway",
     ],
+    propertiesPanelInitialState: "remember",
     language: "en",
     scriptingSpin: true,
     marketplaces: [],
@@ -509,6 +512,9 @@ export class BridgeSettings implements SettingsPort {
     }
     getFavouriteBpmnElements(): string[] {
         return this.snapshot.favouriteBpmnElements;
+    }
+    getPropertiesPanelInitialState(): PropertiesPanelInitialState {
+        return this.snapshot.propertiesPanelInitialState;
     }
     getLanguage(): string {
         return this.snapshot.language;

@@ -135,6 +135,8 @@ export interface SettingsPort {
     getLintingEnabled(): boolean;
     getColorTheme(): "automatic" | "light";
     getFavouriteBpmnElements(): string[];
+    /** How a freshly opened modeler decides whether to show its properties panel. */
+    getPropertiesPanelInitialState(): PropertiesPanelInitialState;
     getLanguage(): string;
     /** Whether the activity→code map is persisted under `<configFolder>/code-link/`. */
     getPersistCodeLinkMap(): boolean;
@@ -297,6 +299,17 @@ export interface TokenPromptPort {
  * sessions. {@link getVisibility} is synchronous so the webview HTML can be
  * pre-rendered with the correct collapsed state before the webview boots.
  */
+/**
+ * What a newly opened modeler does with its properties panel.
+ *
+ * - `remember` — follow the persisted global default, i.e. whatever the user
+ *   last left a panel as. The behaviour every version so far has had.
+ * - `collapsed` / `open` — start every diagram the same way, regardless of the
+ *   persisted default. The persisted value is still written on every toggle, so
+ *   switching back to `remember` returns to the user's last real choice.
+ */
+export type PropertiesPanelInitialState = "remember" | "collapsed" | "open";
+
 export interface PropertiesPanelStatePort {
     getVisibility(): boolean;
     setVisibility(visible: boolean): Promise<void>;
