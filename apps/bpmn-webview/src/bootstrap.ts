@@ -104,23 +104,22 @@ export function bootstrap(
 }
 
 /**
- * One webview session. All state that used to live at module scope — the
- * modeler, resolvers, debounced syncs, flush responder, the "is initialized"
- * latch — is folded into this closure so a session owns its own lifetime rather
- * than a page-wide singleton. The single-instance hosts (VS Code, IntelliJ,
- * Theia) call {@link bootstrap} exactly once, so behaviour is unchanged; the
- * closure is the prerequisite for the multi-instance facade (issue #1372).
+ * One webview session. The modeler, resolvers, debounced syncs, flush
+ * responder, and the "is initialized" latch are scoped to this closure so a
+ * session owns its own lifetime rather than a page-wide singleton — the
+ * prerequisite for hosting more than one modeler on a page. Single-instance
+ * hosts (VS Code, IntelliJ, Theia) call {@link bootstrap} exactly once.
  *
  * @param host The injected host adapter.
  * @param injectedModules Host-specific extra bpmn-js DI modules.
  * @param injectedCapabilities Explicit per-feature ports; `undefined` selects
  *   the full protocol adapter so every real host keeps all features.
  * @param injectedLinting The bpmnlint tier; `undefined` selects the external
- *   (host-pushed) tier so every real host stays byte-identical to today.
- * @param injectedClipboard The clipboard tier; `undefined` keeps today's
- *   behaviour (dev-build native, otherwise the protocol bridge). `"native"`
- *   forces the browser clipboard (demo/browser consumers, #1374); `{ bridge }`
- *   routes through a caller-supplied override.
+ *   (host-pushed) tier that real hosts use.
+ * @param injectedClipboard The clipboard tier; `undefined` selects dev-build
+ *   native, otherwise the protocol bridge. `"native"` forces the browser
+ *   clipboard (demo/browser consumers); `{ bridge }` routes through a
+ *   caller-supplied override.
  * @param injectedOnLintResults In-page lint-run sink; only a consumer opting into
  *   in-page linting (the demo) passes one. Real hosts run the linter themselves.
  */
@@ -142,10 +141,10 @@ function startSession(
     // editor and focuses in one tick); apply it once the modeler is ready.
     let pendingFocusId: string | undefined;
 
-    // The opaque config-version token from the host's last BpmnlintInPageQuery
-    // (#1384), echoed back on every UpdateLintResultsCommand so the host can pair
-    // a run with the config version it linted and drop a stale run. `undefined`
-    // for the payload-free #1373 default tier (and reset to it on config→no-config).
+    // The opaque config-version token from the host's last BpmnlintInPageQuery,
+    // echoed back on every UpdateLintResultsCommand so the host can pair a run
+    // with the config version it linted and drop a stale run. `undefined` for
+    // the payload-free default tier (and reset to it on config→no-config).
     //
     // Pairing is race-free without any per-run plumbing: BrowserLinter.run is a
     // pure microtask chain (bpmnlint over the in-memory tree, no I/O), so it
@@ -158,7 +157,6 @@ function startSession(
     let elementClipboardResolver = createResolver<ClipboardQuery>();
     let textClipboardResolver = createResolver<TextClipboardQuery>();
 
-    // Create resolver to wait for the response from the backend.
     const bpmnFileResolver = createResolver<BpmnFileQuery>();
 
     // Resolvers that signal when element templates and settings have been
@@ -251,10 +249,10 @@ function startSession(
     }
 
     /**
-     * The default capability adapter: each port posts the existing protocol
-     * command to the host. Used whenever `bootstrap()` is called without
-     * explicit capabilities, so VS Code / IntelliJ / Theia are unaffected by the
-     * port indirection. Closes over the session {@link host} and {@link bpmnModeler}.
+     * The default capability adapter: each port posts the protocol command to
+     * the host. Selected whenever `bootstrap()` is called without explicit
+     * capabilities, so every real host (VS Code, IntelliJ, Theia) runs through
+     * it. Closes over the session {@link host} and {@link bpmnModeler}.
      *
      * `scripting` is always populated here even though its DI cluster is C7-only;
      * `capabilityModules` gates the registration, so the surplus port on C8 is inert.
@@ -328,12 +326,11 @@ function startSession(
 
         // Resolve the clipboard option passed to createModeler. The package
         // builds the DI modules and installs the contenteditable/FEEL polyfill
-        // from it (the polyfill therefore installs during createModeler rather
-        // than here — an invisible timing change).
+        // from it, so the polyfill installs during createModeler.
         //
-        // - `undefined` (default): today's behavior — in dev (plain-browser
-        //   `serve`) the native browser clipboard handles copy/paste, so no
-        //   option is passed; otherwise route both channels through the host.
+        // - `undefined` (default): in dev (plain-browser `serve`) the native
+        //   browser clipboard handles copy/paste, so no option is passed;
+        //   otherwise route both channels through the host.
         // - `"native"`: force the browser clipboard (demo/browser consumers) —
         //   no option, no polyfill.
         // - `{ bridge }`: public override — passed through unchanged; the
@@ -342,7 +339,7 @@ function startSession(
 
         if (injectedClipboard === "native") {
             // Native browser clipboard: pass no option so bpmn-js's
-            // NativeCopyPaste stays in charge (#1374).
+            // NativeCopyPaste stays in charge.
         } else if (injectedClipboard) {
             clipboard = injectedClipboard;
         } else if (process.env.NODE_ENV !== "development") {
@@ -367,9 +364,8 @@ function startSession(
             };
 
             // Two independent protocol channels so element and label/FEEL
-            // clipboards stay separate — byte-identical to today's real-host
-            // wiring. The package installs the contenteditable polyfill off the
-            // `text` bridge.
+            // clipboards stay separate. The package installs the contenteditable
+            // polyfill off the `text` bridge.
             clipboard = {
                 bridge: {
                     requestClipboard: requestElementClipboard,
@@ -405,7 +401,7 @@ function startSession(
 
         // Host HTML keeps its `js-canvas` / `js-properties-panel` ids; the
         // facade takes the resolved elements, not selectors, so a second modeler
-        // (in-page diff, #1372) can pass its own DOM hosts with no ids.
+        // (in-page diff) can pass its own DOM hosts with no ids.
         const canvasEl = document.getElementById("js-canvas");
         const propertiesPanelParent = document.getElementById("js-properties-panel");
         if (!canvasEl || !propertiesPanelParent) {
@@ -436,8 +432,8 @@ function startSession(
         }
 
         // The engine is known here (the file handshake above completed), so the
-        // former two-step createModeler + create(engine) collapses into one async
-        // call. A missing engine is fatal — bail before construction.
+        // modeler is created in one async call. A missing engine is fatal — bail
+        // before construction.
         const engine = bpmnFileQuery?.engine;
         if (!engine) {
             host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
@@ -447,10 +443,9 @@ function startSession(
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
         const extraModules = (injectedModules as unknown[]) ?? [];
         // Real hosts run the linter themselves and push results, so the default
-        // tier is external — keeping VS Code / IntelliJ / Theia byte-identical to
-        // today. A consumer (or the demo) can opt into in-page linting by passing
-        // an explicit `linting`. The user's in-canvas toggle is relayed to the host
-        // as before; the host re-lints and pushes the new state down.
+        // tier is external. A consumer (or the demo) can opt into in-page linting
+        // by passing an explicit `linting`. The user's in-canvas toggle is relayed
+        // to the host, which re-lints and pushes the new state down.
         try {
             bpmnModeler = await createModeler(canvasEl, {
                 engine,
@@ -461,9 +456,9 @@ function startSession(
                 linting: injectedLinting ?? { results: "external" },
                 // A real host activates in-page linting only after it answers the
                 // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
-                // config, #1373 Phase B); the webview then pushes its findings back
-                // so the host feeds its Problems panel + status bar. `??` keeps the
-                // demo's injected sink authoritative when one is supplied.
+                // config); the webview then pushes its findings back so the host
+                // feeds its Problems panel + status bar. `??` keeps the demo's
+                // injected sink authoritative when one is supplied.
                 onLintResults:
                     injectedOnLintResults ??
                     ((e: LintRunEvent) =>
@@ -527,13 +522,12 @@ function startSession(
             pendingFocusId = undefined;
         }
 
-        // The "Edit Script" / divergence bridge now lives entirely in the
-        // scripting capability port (InlineScriptingPortForwarder →
-        // createProtocolCapabilities), registered by capabilityModules on C7.
-        // Only the process-variable publisher stays here because it drives the
-        // host from a commandStack subscription rather than a lib-owned event. It
-        // belongs to the scripting capability, so gate it on both the engine and
-        // the port being present.
+        // The "Edit Script" / divergence bridge lives in the scripting capability
+        // port (InlineScriptingPortForwarder → createProtocolCapabilities),
+        // registered by capabilityModules on C7. Only the process-variable
+        // publisher stays here because it drives the host from a commandStack
+        // subscription rather than a lib-owned event. It belongs to the scripting
+        // capability, so gate it on both the engine and the port being present.
         if (bpmnFileQuery?.engine === "c7" && capabilities.scripting) {
             // Publish the process-variable model to the host so open script
             // editors get live variable completion. The chain is a feedback loop,
@@ -582,8 +576,8 @@ function startSession(
         // Panel visibility: this editor's own saved entry (applied early above)
         // wins. Only when absent do we fall back to the host's global default —
         // the seed for a first-ever open. This branch is deliberately *not*
-        // gated on templates/settings, so a slow or dropped templates reply can
-        // no longer leave the panel stuck at the pre-rendered default.
+        // gated on templates/settings, so a slow or dropped templates reply
+        // cannot leave the panel stuck at the pre-rendered default.
         if (savedPanelVisible === undefined) {
             const panelStateQuery = await panelStateResolver.wait(RESOLVER_TIMEOUT_MS);
             stateManager.restorePanelVisibility(
@@ -739,14 +733,13 @@ function startSession(
                 try {
                     const q = message.data as BpmnlintInPageQuery;
                     // The token stays current for the onLintResults echo. Dedup of
-                    // a repeat covered instruction now lives in LintConfigService,
-                    // where the tier state is known — a stale token from an
-                    // intervening disabled push can no longer drop a re-enable.
+                    // a repeat covered instruction lives in LintConfigService,
+                    // where the tier state is known, so a stale token from an
+                    // intervening disabled push cannot drop a re-enable.
                     currentLintConfigToken = q.configToken;
-                    // No workspace config → engine-aware default (#1373 Phase B);
-                    // a covered config (#1384) → lint it in-page. Either way
-                    // onLintResults pushes the findings back so the host feeds its
-                    // Problems panel + status bar.
+                    // No workspace config → engine-aware default; a covered config
+                    // → lint it in-page. Either way onLintResults pushes the
+                    // findings back so the host feeds its Problems panel + status bar.
                     bpmnModeler.startInPageLinting(q.config, q.configToken);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
@@ -757,8 +750,8 @@ function startSession(
                 const query = message.data as BpmnModelerSettingQuery;
                 try {
                     // Theme is host policy: the adapter drives the page theme off
-                    // the VS Code `<body>`-class watcher (initTheme) here, since
-                    // the package's setSettings no longer applies `colorTheme`.
+                    // the VS Code `<body>`-class watcher (initTheme) here, because
+                    // the package's setSettings does not apply `colorTheme`.
                     setColorThemeMode(query.setting.colorTheme);
                     bpmnModeler.setSettings(query.setting);
                 } catch (error: any) {
