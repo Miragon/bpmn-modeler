@@ -444,6 +444,11 @@
                     "default": false,
                     "markdownDescription": "Align the diagram to the origin when opening a new diagram. Click [here](https://github.com/bpmn-io/align-to-origin) to see the behaviour when enabled."
                 },
+                "miragon.bpmnModeler.compactExternalLabels": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Wrap a wide external label (gateway question, event title, flow label) at bpmn-js's default label width instead of letting it run onto one long line. Diagrams authored in other tools often carry much wider label bounds, which render as a single line wide enough to overlap neighbouring shapes. The file's label bounds are never rewritten - only how they are drawn changes."
+                },
                 "miragon.bpmnModeler.scripting.spin": {
                     "type": "boolean",
                     "default": true,

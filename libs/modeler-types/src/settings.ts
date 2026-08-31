@@ -4,6 +4,12 @@ export interface BpmnModelerSetting {
     readonly colorTheme: "automatic" | "light";
     // BPMN type strings to pin at the top of the append menu palette (max 6).
     readonly favouriteBpmnElements?: string[];
+    /**
+     * Whether an external label whose authored DI bounds are wider than
+     * bpmn-js's own default is wrapped at that default instead of running onto
+     * one long line. Off by default — it changes how existing diagrams look.
+     */
+    readonly compactExternalLabels?: boolean;
 }
 
 /**

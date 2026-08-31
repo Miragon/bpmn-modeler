@@ -42,6 +42,7 @@ import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
+import { CompactExternalLabelRenderer, CompactExternalLabelsModule } from "./compactExternalLabels";
 import type { CreateModelerOptions } from "./createModeler";
 import type { ThemeMode } from "./publicApi";
 // Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
@@ -51,6 +52,7 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
     showTransactionBoundaries: true,
     colorTheme: "automatic",
+    compactExternalLabels: false,
 };
 
 // Align-to-origin plugin config; the container / panel parent are per-instance
@@ -178,6 +180,7 @@ export class BpmnModeler {
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
+            CompactExternalLabelsModule,
             propertiesPanelRootModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
@@ -247,6 +250,7 @@ export class BpmnModeler {
         this._rootElement = new RootElementManager(accessor);
 
         this.installFocusFeatures();
+        this.applyCompactExternalLabels();
 
         if (this.settings.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
@@ -540,12 +544,36 @@ export class BpmnModeler {
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
         }
 
+        if (settings.compactExternalLabels !== undefined) {
+            this.applyCompactExternalLabels();
+        }
+
         if (settings.favouriteBpmnElements !== undefined) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
             }
         }
+    }
+
+    /**
+     * Pushes the current `compactExternalLabels` setting into the renderer and
+     * repaints, since a rendering change is only visible once the affected
+     * elements are drawn again.
+     */
+    private applyCompactExternalLabels(): void {
+        const renderer = this.getModeler().get<CompactExternalLabelRenderer>(
+            "compactExternalLabelRenderer",
+            false,
+        );
+        if (!renderer) {
+            return;
+        }
+        renderer.setEnabled(this.settings.compactExternalLabels === true);
+        const elements = this.getModeler().get<{ getAll(): unknown[] }>("elementRegistry").getAll();
+        this.getModeler()
+            .get<{ fire(event: string, data: unknown): void }>("eventBus")
+            .fire("elements.changed", { elements });
     }
 
     /**
