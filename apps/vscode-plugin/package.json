@@ -444,6 +444,11 @@
                     "default": false,
                     "markdownDescription": "Align the diagram to the origin when opening a new diagram. Click [here](https://github.com/bpmn-io/align-to-origin) to see the behaviour when enabled."
                 },
+                "miragon.bpmnModeler.fitOnDrilldown": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Fit a sub-process plane to the viewport the first time you drill into it. bpmn-js otherwise opens an unvisited plane at the diagram origin at 100%, which leaves a sub-process laid out away from that origin off-screen. A plane you have already visited keeps the position you left it at."
+                },
                 "miragon.bpmnModeler.scripting.spin": {
                     "type": "boolean",
                     "default": true,

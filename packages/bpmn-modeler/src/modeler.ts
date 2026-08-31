@@ -42,6 +42,7 @@ import { RootElementManager } from "./rootElement";
 import { deriveEngines } from "./engines";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
+import { DrilldownFit, DrilldownFitModule } from "./drilldownFit";
 import type { CreateModelerOptions } from "./createModeler";
 import type { ThemeMode } from "./publicApi";
 // Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
@@ -51,6 +52,7 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
     showTransactionBoundaries: true,
     colorTheme: "automatic",
+    fitOnDrilldown: false,
 };
 
 // Align-to-origin plugin config; the container / panel parent are per-instance
@@ -178,6 +180,7 @@ export class BpmnModeler {
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
+            DrilldownFitModule,
             propertiesPanelRootModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
@@ -247,6 +250,7 @@ export class BpmnModeler {
         this._rootElement = new RootElementManager(accessor);
 
         this.installFocusFeatures();
+        this.applyFitOnDrilldown();
 
         if (this.settings.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
@@ -540,12 +544,27 @@ export class BpmnModeler {
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
         }
 
+        if (settings.fitOnDrilldown !== undefined) {
+            this.applyFitOnDrilldown();
+        }
+
         if (settings.favouriteBpmnElements !== undefined) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
             }
         }
+    }
+
+    /**
+     * Pushes the current `fitOnDrilldown` setting into the service. It is
+     * always registered and reads the flag per `root.set`, so the toggle takes
+     * effect on the next drill-down rather than on a rebuilt modeler.
+     */
+    private applyFitOnDrilldown(): void {
+        this.getModeler()
+            .get<DrilldownFit>("drilldownFit", false)
+            ?.setEnabled(this.settings.fitOnDrilldown === true);
     }
 
     /**

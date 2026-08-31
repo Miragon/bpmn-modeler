@@ -55,6 +55,18 @@ export class VsCodeSettings implements SettingsPort {
             .get<string[]>("favouriteBpmnElements", []);
     }
 
+    /**
+     * Whether drilling into a sub-process for the first time fits its plane to
+     * the viewport. Defaults to `false`, keeping bpmn-js's own behaviour
+     * (diagram origin at 100%) for anyone who relies on it.
+     */
+    getFitOnDrilldown(): boolean {
+        return (
+            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("fitOnDrilldown") ??
+            false
+        );
+    }
+
     getLanguage(): string {
         return workspace.getConfiguration("miragon.bpmnModeler").get<string>("language", "en");
     }
