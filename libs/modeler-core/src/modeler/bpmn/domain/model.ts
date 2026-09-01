@@ -4,6 +4,7 @@ export class BpmnModelerSetting {
         public readonly showTransactionBoundaries: boolean,
         public readonly colorTheme: "automatic" | "light",
         public readonly favouriteBpmnElements: string[],
+        public readonly fitOnDrilldown: boolean,
     ) {}
 }
 
@@ -15,6 +16,8 @@ export class SettingBuilder {
     private _colorTheme: "automatic" | "light" = "automatic";
 
     private _favouriteBpmnElements: string[] = [];
+
+    private _fitOnDrilldown = false;
 
     alignToOrigin(value: boolean): SettingBuilder {
         this._alignToOrigin = value;
@@ -36,12 +39,18 @@ export class SettingBuilder {
         return this;
     }
 
+    fitOnDrilldown(value: boolean): SettingBuilder {
+        this._fitOnDrilldown = value;
+        return this;
+    }
+
     buildBpmnModeler(): BpmnModelerSetting {
         return new BpmnModelerSetting(
             this._alignToOrigin,
             this._showTransactionBoundaries,
             this._colorTheme,
             this._favouriteBpmnElements,
+            this._fitOnDrilldown,
         );
     }
 }

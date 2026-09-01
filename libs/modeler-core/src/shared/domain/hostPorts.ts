@@ -135,6 +135,8 @@ export interface SettingsPort {
     getLintingEnabled(): boolean;
     getColorTheme(): "automatic" | "light";
     getFavouriteBpmnElements(): string[];
+    /** Whether a sub-process plane is fitted to the viewport on first open. Defaults to `false`. */
+    getFitOnDrilldown(): boolean;
     getLanguage(): string;
     /** Whether the activity→code map is persisted under `<configFolder>/code-link/`. */
     getPersistCodeLinkMap(): boolean;
