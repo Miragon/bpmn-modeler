@@ -93,15 +93,15 @@ export function createBridge(
         marketplaceSvc: marketplace.marketplaceSvc,
     });
     clipboardFeature.register(deps);
-    navigationFeature.register(deps);
+    const navigation = navigationFeature.register(deps);
     const codeLink = codeLinkFeature.register(deps);
     const bpmnlint = bpmnlintFeature.register(deps);
     const script = scriptFeature.register(deps);
-    // Hook order is the per-session teardown order: script → code-link →
-    // bpmnlint → templates, reproducing the original inline dispose sequence
-    // (bpmnlint slots next to code-link — both are per-editor file watchers).
+    // Hook order is the per-session teardown order. Navigation, code-link,
+    // bpmnlint, and templates all own per-editor file watchers.
     const editorSession = editorSessionFeature.register(deps, [
         script.sessionHooks,
+        navigation.sessionHooks,
         codeLink.sessionHooks,
         bpmnlint.sessionHooks,
         templates.sessionHooks,

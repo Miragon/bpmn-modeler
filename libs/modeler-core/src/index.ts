@@ -39,6 +39,8 @@ export * from "./modeler/bpmn/service/BpmnSettingsBroadcaster";
 export * from "./modeler/dmn/domain/emptyDmn";
 export * from "./modeler/dmn/service/DmnModelerService";
 export * from "./modeler/dmn/service/DmnSettingsBroadcaster";
+export * from "./modeler/form/domain/emptyForm";
+export * from "./modeler/form/service/FormModelerService";
 
 // ── diff ─────────────────────────────────────────────────────────────────────
 export * from "./diff/domain/DiffSession";
@@ -48,6 +50,7 @@ export * from "./diff/infrastructure/DiffPaneStore";
 // ── navigation ───────────────────────────────────────────────────────────────
 export * from "./navigation/service/ModelNavigationService";
 export * from "./navigation/service/ReferencedModelLocator";
+export * from "./navigation/service/FormReferenceStatusService";
 
 // ── codeLink ─────────────────────────────────────────────────────────────────
 export * from "./codeLink/service/ImplementationLocator";

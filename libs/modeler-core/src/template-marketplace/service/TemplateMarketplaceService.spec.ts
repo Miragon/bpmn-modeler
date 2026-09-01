@@ -251,17 +251,16 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         const manifest = JSON.stringify({
             sources: [{ provider: "local", path: "~/ext-templates" }],
         });
-        const factory = vi.fn(
-            (config: RepositorySourceConfig): RepositorySource =>
-                config.kind === "github" && config.path === ""
-                    ? {
-                          listTemplateFiles: vi.fn().mockResolvedValue([]),
-                          fetchFile: vi.fn().mockResolvedValue(manifest),
-                      }
-                    : {
-                          listTemplateFiles: vi.fn().mockResolvedValue(["connector.json"]),
-                          fetchFile: vi.fn().mockResolvedValue("{}"),
-                      },
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.kind === "github" && config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockResolvedValue(["connector.json"]),
+                      fetchFile: vi.fn().mockResolvedValue("{}"),
+                  },
         );
         const service = new TemplateMarketplaceService(
             factory as never,
@@ -369,17 +368,16 @@ describe("TemplateMarketplaceService.addMarketplace", () => {
         // A typo'd local folder returns [] and used to look identical to an empty
         // one; the warning must name the resolved folder so the mistake is visible.
         const manifest = JSON.stringify({ sources: [{ path: "element-templates" }] });
-        const factory = vi.fn(
-            (config: RepositorySourceConfig): RepositorySource =>
-                config.path === ""
-                    ? {
-                          listTemplateFiles: vi.fn().mockResolvedValue([]),
-                          fetchFile: vi.fn().mockResolvedValue(manifest),
-                      }
-                    : {
-                          listTemplateFiles: vi.fn().mockResolvedValue([]),
-                          fetchFile: vi.fn(),
-                      },
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn(),
+                  },
         );
         const { service, notifier } = serviceOver(factory, async () => undefined);
 
@@ -546,17 +544,16 @@ describe("TemplateMarketplaceService.pruneOrphanedCaches", () => {
 describe("TemplateMarketplaceService include filtering", () => {
     /** A factory serving `manifest` at the root and a fixed `listing` elsewhere. */
     function servingListing(manifest: string, listing: string[]) {
-        return vi.fn(
-            (config: RepositorySourceConfig): RepositorySource =>
-                config.path === ""
-                    ? {
-                          listTemplateFiles: vi.fn().mockResolvedValue([]),
-                          fetchFile: vi.fn().mockResolvedValue(manifest),
-                      }
-                    : {
-                          listTemplateFiles: vi.fn().mockResolvedValue(listing),
-                          fetchFile: vi.fn().mockResolvedValue("{}"),
-                      },
+        return vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockResolvedValue(listing),
+                      fetchFile: vi.fn().mockResolvedValue("{}"),
+                  },
         );
     }
 
@@ -985,17 +982,16 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         });
         // A plain factory: the public manifest reads without a token, and every
         // source serves a file — the batch prompt is what we assert on.
-        const factory = vi.fn(
-            (config: RepositorySourceConfig): RepositorySource =>
-                config.path === ""
-                    ? {
-                          listTemplateFiles: vi.fn().mockResolvedValue([]),
-                          fetchFile: vi.fn().mockResolvedValue(manifest),
-                      }
-                    : {
-                          listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
-                          fetchFile: vi.fn().mockResolvedValue("{}"),
-                      },
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                      fetchFile: vi.fn().mockResolvedValue("{}"),
+                  },
         );
         const { service, tokenPrompt } = serviceOver(factory, async () => "granted");
 
@@ -1008,17 +1004,16 @@ describe("TemplateMarketplaceService private-repo auth", () => {
         const manifest = JSON.stringify({
             sources: [{ provider: "github", repo: "acme/one", path: "t", visibility: "private" }],
         });
-        const factory = vi.fn(
-            (config: RepositorySourceConfig): RepositorySource =>
-                config.path === ""
-                    ? {
-                          listTemplateFiles: vi.fn().mockResolvedValue([]),
-                          fetchFile: vi.fn().mockResolvedValue(manifest),
-                      }
-                    : {
-                          listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
-                          fetchFile: vi.fn().mockResolvedValue("{}"),
-                      },
+        const factory = vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                      fetchFile: vi.fn().mockResolvedValue("{}"),
+                  },
         );
         const { service, tokenPrompt } = serviceOver(factory, async () => "granted", {
             "github.com": "have-it",
@@ -1170,17 +1165,16 @@ describe("TemplateMarketplaceService private-repo auth", () => {
 describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
     /** A factory serving `manifest` at the root and one file per other source. */
     function serving(manifest: string) {
-        return vi.fn(
-            (config: RepositorySourceConfig): RepositorySource =>
-                config.path === ""
-                    ? {
-                          listTemplateFiles: vi.fn().mockResolvedValue([]),
-                          fetchFile: vi.fn().mockResolvedValue(manifest),
-                      }
-                    : {
-                          listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
-                          fetchFile: vi.fn().mockResolvedValue("{}"),
-                      },
+        return vi.fn((config: RepositorySourceConfig): RepositorySource =>
+            config.path === ""
+                ? {
+                      listTemplateFiles: vi.fn().mockResolvedValue([]),
+                      fetchFile: vi.fn().mockResolvedValue(manifest),
+                  }
+                : {
+                      listTemplateFiles: vi.fn().mockResolvedValue([`${config.path}/t.json`]),
+                      fetchFile: vi.fn().mockResolvedValue("{}"),
+                  },
         );
     }
 
@@ -1271,14 +1265,12 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
     });
 
     it("derives the rate-limit warning wording from the failing host (gitlab 429)", async () => {
-        const factory = vi.fn(
-            (): RepositorySource => ({
-                listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async () => {
-                    throw new RepositoryAccessError("gitlab.com", 429, "group/proj", true);
-                }),
+        const factory = vi.fn((): RepositorySource => ({
+            listTemplateFiles: vi.fn().mockResolvedValue([]),
+            fetchFile: vi.fn(async () => {
+                throw new RepositoryAccessError("gitlab.com", 429, "group/proj", true);
             }),
-        );
+        }));
         const { service } = serviceOver(factory, async () => undefined, {
             "gitlab.com": "have-it",
         });
@@ -1289,14 +1281,12 @@ describe("TemplateMarketplaceService slice 3 (gitlab / self-hosted)", () => {
     });
 
     it("names a failing object entry by its host/repo label", async () => {
-        const factory = vi.fn(
-            (): RepositorySource => ({
-                listTemplateFiles: vi.fn().mockResolvedValue([]),
-                fetchFile: vi.fn(async () => {
-                    throw new Error("offline");
-                }),
+        const factory = vi.fn((): RepositorySource => ({
+            listTemplateFiles: vi.fn().mockResolvedValue([]),
+            fetchFile: vi.fn(async () => {
+                throw new Error("offline");
             }),
-        );
+        }));
         const { service, notifier, settings } = serviceOver(factory, async () => undefined);
         settings.getMarketplaces.mockReturnValue([
             { provider: "gitlab", repo: "group/proj", baseUrl: "https://gitlab.acme.com" },

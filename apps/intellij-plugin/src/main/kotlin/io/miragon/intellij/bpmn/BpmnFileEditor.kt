@@ -115,7 +115,7 @@ class BpmnFileEditor(
         FileDocumentManager.getInstance().getDocument(file)?.addDocumentListener(
             object : DocumentListener {
                 override fun documentChanged(event: DocumentEvent) {
-                    coreProcess.notifyDocumentChanged(editorId, event.document.text)
+                    coreProcess.notifyDocumentChanged(coreSession, event.document.text)
                 }
             },
             this,
@@ -129,7 +129,7 @@ class BpmnFileEditor(
 
         // Wire the JS→JVM forwarder and inject the sink; this flushes the
         // buffered GetBpmnFileCommand, which now reaches the registered session.
-        warm.bind { request -> coreProcess.forwardWebviewMessage(editorId, request) }
+        warm.bind { request -> coreProcess.forwardWebviewMessage(coreSession, request) }
 
         // A modeler is now open. On out-of-process-JCEF Windows setups the OSR
         // pipeline makes the canvas feel one interaction behind; surface the fix
@@ -161,6 +161,6 @@ class BpmnFileEditor(
     override fun removePropertyChangeListener(listener: PropertyChangeListener) = Unit
 
     override fun dispose() {
-        session?.let { coreProcess?.disposeSession(it.editorId) }
+        session?.let { coreProcess?.disposeSession(it) }
     }
 }

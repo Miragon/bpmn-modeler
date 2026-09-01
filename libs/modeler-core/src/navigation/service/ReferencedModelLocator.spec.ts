@@ -43,11 +43,13 @@ function createLocator(opts: { fileContents: Record<string, string>; tree?: DirT
     const { fileContents, tree = {} } = opts;
     const vsWorkspace = {
         findFiles: vi.fn().mockImplementation((glob: string) => {
-            const wantsBpmn = glob.endsWith(".bpmn");
+            const extension = glob.endsWith(".bpmn")
+                ? ".bpmn"
+                : glob.endsWith(".dmn")
+                  ? ".dmn"
+                  : ".form";
             return Promise.resolve(
-                Object.keys(fileContents).filter((path) =>
-                    wantsBpmn ? path.endsWith(".bpmn") : path.endsWith(".dmn"),
-                ),
+                Object.keys(fileContents).filter((path) => path.endsWith(extension)),
             );
         }),
         readDirectory: vi.fn().mockImplementation((dir: string) => {
@@ -127,6 +129,51 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         if (result.kind === "matches") {
             expect(result.paths).toEqual(["/a.dmn"]);
         }
+    });
+
+    it("matches an exact top-level form id via the .form extension", async () => {
+        const { locator } = createLocator({
+            fileContents: {
+                "/request.form": JSON.stringify({ id: "Form_Request", components: [] }),
+                "/other.form": JSON.stringify({ id: "Form_Other", components: [] }),
+            },
+        });
+
+        const result = await locator.findDeclaringFiles("Form_Request", "form");
+
+        expect(result).toEqual({
+            kind: "matches",
+            paths: ["/request.form"],
+            readFailures: [],
+        });
+    });
+
+    it("ignores malformed JSON, nested ids, and empty top-level form ids", async () => {
+        const { locator } = createLocator({
+            fileContents: {
+                "/malformed.form": "{",
+                "/nested.form": JSON.stringify({ components: [{ id: "Form_Request" }] }),
+                "/empty.form": JSON.stringify({ id: "" }),
+            },
+        });
+
+        const result = await locator.findDeclaringFiles("Form_Request", "form");
+
+        expect(result).toEqual({ kind: "matches", paths: [], readFailures: [] });
+    });
+
+    it("returns all duplicate form-id declarations for picker disambiguation", async () => {
+        const { locator } = createLocator({
+            fileContents: {
+                "/a.form": JSON.stringify({ id: "Form_Shared" }),
+                "/b.form": JSON.stringify({ id: "Form_Shared" }),
+            },
+        });
+
+        const result = await locator.findDeclaringFiles("Form_Shared", "form");
+
+        expect(result.kind).toBe("matches");
+        if (result.kind === "matches") expect(result.paths).toEqual(["/a.form", "/b.form"]);
     });
 
     it("returns no matches when nothing declares the id (empty paths array)", async () => {
@@ -209,6 +256,37 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
         }
     });
 
+    it("walks every workspace root when findFiles fails silently", async () => {
+        workspaceState.folders = [
+            { uri: { scheme: "file", path: "/first", fsPath: "/first" } },
+            { uri: { scheme: "file", path: "/second", fsPath: "/second" } },
+        ];
+        workspaceState.folderForUri = ({ path }) =>
+            workspaceState.folders.find((folder) => path.startsWith(folder.uri.path));
+        const { locator, vsWorkspace } = createLocator({
+            fileContents: {
+                "/first/a.form": JSON.stringify({ id: "Form_A" }),
+                "/second/b.form": JSON.stringify({ id: "Form_B" }),
+            },
+            tree: {
+                "/first": ["a.form"],
+                "/second": ["b.form"],
+            },
+        });
+        vsWorkspace.findFiles.mockResolvedValue([]);
+
+        const result = await locator.findFormDeclarations("/first/process.bpmn");
+
+        expect(result).toEqual({
+            kind: "matches",
+            declarations: [
+                { id: "Form_A", path: "/first/a.form" },
+                { id: "Form_B", path: "/second/b.form" },
+            ],
+            readFailures: [],
+        });
+    });
+
     it("returns kind=all-unreadable when every candidate read fails", async () => {
         const { locator, vsWorkspace } = createLocator({
             fileContents: { "/bad.bpmn": bpmnWithProcess("ProcessB") },
@@ -282,6 +360,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
 
 describe("findDeclaringFiles — walk-fallback (ripgrep silently failed)", () => {
     it("falls back to fs walk when findFiles returns [] and a workspace folder is open", async () => {
+        workspaceState.folders = [{ uri: { scheme: "file", path: "/work", fsPath: "/work" } }];
         const { locator, vsWorkspace } = createLocator({
             fileContents: {
                 "/work/parent.bpmn": bpmnWithProcess("Parent"),

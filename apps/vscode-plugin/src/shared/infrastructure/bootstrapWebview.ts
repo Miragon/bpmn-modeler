@@ -1,8 +1,8 @@
 import { WebviewPanel } from "vscode";
 
 import { getContext } from "./extensionContext";
-import { bpmnEditorUi, dmnModelerHtml } from "./WebviewHtml";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
+import { bpmnEditorUi, dmnModelerHtml, formEditorHtml } from "./WebviewHtml";
+import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 /**
  * Pure helper with no persistent state, so both `VsCodeEditorHandle` (editable
@@ -26,6 +26,8 @@ export function bootstrapWebview(
         webview.html = bpmnEditorUi(webview, getContext().extensionUri, initialPanelVisible);
     } else if (viewType === DMN_VIEW_TYPE) {
         webview.html = dmnModelerHtml(webview, getContext().extensionUri, initialPanelVisible);
+    } else if (viewType === FORM_VIEW_TYPE) {
+        webview.html = formEditorHtml(webview, getContext().extensionUri);
     } else {
         throw new Error(`Unsupported view type: ${viewType}`);
     }

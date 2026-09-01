@@ -61,6 +61,82 @@ describe("Rpc framing", () => {
 });
 
 describe("Rpc inbound dispatch", () => {
+    it("serializes inbound method handlers in wire order", async () => {
+        const rpc = new Rpc(vi.fn());
+        const order: string[] = [];
+        let finishRegister: () => void = () => {};
+        rpc.on("session/register", async () => {
+            order.push("register:start");
+            await new Promise<void>((resolve) => {
+                finishRegister = resolve;
+            });
+            order.push("register:end");
+        });
+        rpc.on("session/dispose", () => order.push("dispose"));
+
+        const registering = rpc.handleLine(
+            JSON.stringify({ method: "session/register", params: { editorId: "e1" } }),
+        );
+        const disposing = rpc.handleLine(
+            JSON.stringify({ method: "session/dispose", params: { editorId: "e1" } }),
+        );
+        await Promise.resolve();
+
+        expect(order).toEqual(["register:start"]);
+        finishRegister();
+        await Promise.all([registering, disposing]);
+        expect(order).toEqual(["register:start", "register:end", "dispose"]);
+    });
+
+    it("does not block another editor behind a long-running handler", async () => {
+        const rpc = new Rpc(vi.fn());
+        const order: string[] = [];
+        let finishFirst: () => void = () => {};
+        rpc.on("command/changeEngineVersion", async (params) => {
+            order.push(`${params.editorId}:start`);
+            if (params.editorId === "e1") {
+                await new Promise<void>((resolve) => {
+                    finishFirst = resolve;
+                });
+            }
+            order.push(`${params.editorId}:end`);
+        });
+
+        const first = rpc.handleLine(
+            JSON.stringify({
+                method: "command/changeEngineVersion",
+                params: { editorId: "e1" },
+            }),
+        );
+        const second = rpc.handleLine(
+            JSON.stringify({
+                method: "command/changeEngineVersion",
+                params: { editorId: "e2" },
+            }),
+        );
+        await Promise.resolve();
+        await second;
+
+        expect(order).toEqual(["e1:start", "e2:start", "e2:end"]);
+        finishFirst();
+        await first;
+    });
+
+    it("processes responses while an inbound handler is awaiting its request", async () => {
+        const write = vi.fn();
+        const rpc = new Rpc(write);
+        rpc.on("webview/message", async () => {
+            await rpc.request("document/write", { editorId: "e1" });
+        });
+
+        const handling = rpc.handleLine(JSON.stringify({ method: "webview/message", params: {} }));
+        await Promise.resolve();
+        const request = lastFrame(write);
+        await rpc.handleLine(JSON.stringify({ id: request.id, result: { changed: true } }));
+
+        await expect(handling).resolves.toBeUndefined();
+    });
+
     it("runs a notification handler and never replies", async () => {
         const write = vi.fn();
         const rpc = new Rpc(write);

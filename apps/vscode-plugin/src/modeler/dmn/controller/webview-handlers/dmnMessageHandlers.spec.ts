@@ -70,6 +70,6 @@ describe("syncDmnDocumentHandler", () => {
             EDITOR,
         );
 
-        expect(dmnService.sync).toHaveBeenCalledWith(EDITOR, "<dmn/>");
+        expect(dmnService.sync).toHaveBeenCalledWith(EDITOR, "<dmn/>", 0);
     });
 });

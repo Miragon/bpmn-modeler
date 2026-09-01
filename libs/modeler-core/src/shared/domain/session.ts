@@ -1,31 +1,32 @@
 /**
- * Per-editor echo-prevention guard. Breaks infinite sync loops: when the
- * extension writes to the document in response to a webview SyncDocumentCommand,
- * the resulting onDidChangeTextDocument event must not re-send the document
- * back to the webview.
- *
- * A counter (not a boolean) lets overlapping async writes nest safely.
+ * Per-editor echo-prevention guard. It suppresses only a document change whose
+ * content matches an in-flight core write; a different host edit must still
+ * advance the document revision and render while that write is pending.
  */
 export class ModelerSession {
     readonly id: string;
 
-    private guardCount = 0;
+    private readonly guardedContent = new Map<string, number>();
 
     constructor(id: string) {
         this.id = id;
     }
 
-    acquireGuard(): void {
-        this.guardCount++;
+    acquireGuard(content: string): void {
+        const key = normalizeContent(content);
+        this.guardedContent.set(key, (this.guardedContent.get(key) ?? 0) + 1);
     }
 
-    releaseGuard(): void {
-        if (this.guardCount > 0) {
-            this.guardCount--;
-        }
+    releaseGuard(content: string): void {
+        const key = normalizeContent(content);
+        const count = this.guardedContent.get(key) ?? 0;
+        if (count <= 1) this.guardedContent.delete(key);
+        else this.guardedContent.set(key, count - 1);
     }
 
-    isGuarded(): boolean {
-        return this.guardCount > 0;
+    isGuarded(content: string): boolean {
+        return this.guardedContent.has(normalizeContent(content));
     }
 }
+
+const normalizeContent = (content: string): string => content.replace(/\r\n?/g, "\n");

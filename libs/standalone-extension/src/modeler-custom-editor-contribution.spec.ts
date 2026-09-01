@@ -143,8 +143,7 @@ function setup(widget: unknown) {
     Object.assign(contribution, { widgetManager });
 
     let commandHandler:
-        | { execute(editorId: string, viewType: string): Promise<boolean> }
-        | undefined;
+        { execute(editorId: string, viewType: string): Promise<boolean> } | undefined;
     const commands = {
         registerCommand: vi.fn(
             (

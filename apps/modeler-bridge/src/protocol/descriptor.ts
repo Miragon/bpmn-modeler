@@ -171,6 +171,8 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: {
             editorId: "file:///a.bpmn",
+            sessionId: 1,
+            documentRevision: 2,
             uriString: "file:///a.bpmn",
             path: "/a.bpmn",
             fsPath: "/a.bpmn",
@@ -184,7 +186,11 @@ export const PROTOCOL = [
         method: METHODS.webviewMessage,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { editorId: "e1", message: SAMPLE_COMMAND } satisfies WebviewMessageParams,
+        paramsFixture: {
+            editorId: "e1",
+            sessionId: 1,
+            message: SAMPLE_COMMAND,
+        } satisfies WebviewMessageParams,
     },
     {
         method: METHODS.documentDidChange,
@@ -192,7 +198,9 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: {
             editorId: "e1",
+            sessionId: 1,
             content: "<bpmn/>",
+            documentRevision: 2,
             causedBy: 1,
         } satisfies DocumentDidChangeParams,
     },
@@ -200,13 +208,13 @@ export const PROTOCOL = [
         method: METHODS.sessionSetActive,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { editorId: "e1" } satisfies EditorRefParams,
+        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies EditorRefParams,
     },
     {
         method: METHODS.sessionDispose,
         direction: "hostToCore",
         kind: "notification",
-        paramsFixture: { editorId: "e1" } satisfies EditorRefParams,
+        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies EditorRefParams,
     },
     {
         method: METHODS.settingsDidChange,
@@ -335,16 +343,18 @@ export const PROTOCOL = [
         kind: "request",
         paramsFixture: {
             editorId: "e1",
+            sessionId: 1,
             content: "<bpmn/>",
+            expectedDocumentRevision: 2,
             revision: 1,
         } satisfies DocumentWriteParams,
-        resultFixture: { changed: true } satisfies DocumentWriteResult,
+        resultFixture: { changed: true, accepted: true } satisfies DocumentWriteResult,
     },
     {
         method: METHODS.documentSave,
         direction: "coreToHost",
         kind: "request",
-        paramsFixture: { editorId: "e1" } satisfies DocumentSaveParams,
+        paramsFixture: { editorId: "e1", sessionId: 1 } satisfies DocumentSaveParams,
         resultFixture: { saved: true } satisfies DocumentSaveResult,
     },
     {
@@ -463,7 +473,11 @@ export const PROTOCOL = [
         method: METHODS.editorPostMessage,
         direction: "coreToHost",
         kind: "notification",
-        paramsFixture: { editorId: "e1", message: SAMPLE_QUERY } satisfies EditorPostMessageParams,
+        paramsFixture: {
+            editorId: "e1",
+            sessionId: 1,
+            message: SAMPLE_QUERY,
+        } satisfies EditorPostMessageParams,
     },
     {
         method: METHODS.clipboardWrite,

@@ -8,7 +8,14 @@ function businessObject(attrs: Record<string, unknown>): BusinessObjectLike {
             return attrs[name];
         },
         extensionElements: attrs.extensionElements as
-            | { values?: { $type?: string; processId?: string; decisionId?: string }[] }
+            | {
+                  values?: {
+                      $type?: string;
+                      processId?: string;
+                      decisionId?: string;
+                      formId?: string;
+                  }[];
+              }
             | undefined,
     };
 }
@@ -46,6 +53,29 @@ describe("extractReference", () => {
         expect(extractReference(subject, "decision")).toBe("Decision_1");
     });
 
+    it("reads C8 zeebe:FormDefinition.formId on User Task", () => {
+        const subject = businessObject({
+            extensionElements: {
+                values: [{ $type: "zeebe:FormDefinition", formId: "Form_Request" }],
+            },
+        });
+
+        expect(extractReference(subject, "form")).toBe("Form_Request");
+    });
+
+    it("ignores custom and embedded form references", () => {
+        const subject = businessObject({
+            extensionElements: {
+                values: [
+                    { $type: "zeebe:FormDefinition", formId: "" },
+                    { $type: "zeebe:UserTaskForm", formId: "Form_Embedded" },
+                ],
+            },
+        });
+
+        expect(extractReference(subject, "form")).toBeUndefined();
+    });
+
     it("prefers the C7 attribute when both shapes are present", () => {
         const subject = businessObject({
             calledElement: "FromC7",
@@ -62,6 +92,7 @@ describe("extractReference", () => {
 
         expect(extractReference(subject, "process")).toBeUndefined();
         expect(extractReference(subject, "decision")).toBeUndefined();
+        expect(extractReference(subject, "form")).toBeUndefined();
     });
 
     it("returns undefined for empty-string reference", () => {

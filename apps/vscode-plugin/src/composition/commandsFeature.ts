@@ -2,7 +2,7 @@ import { ExtensionContext } from "vscode";
 
 import { BpmnMigrationService } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
-import { CommandController } from "../modeler/bpmn/controller/CommandController";
+import { CommandController, DocumentFlusher } from "../modeler/bpmn/controller/CommandController";
 import { SharedDeps } from "./sharedDeps";
 
 /**
@@ -13,7 +13,7 @@ import { SharedDeps } from "./sharedDeps";
 export function register(
     context: ExtensionContext,
     deps: SharedDeps,
-    handles: { bpmnService: BpmnModelerService },
+    handles: { bpmnService: BpmnModelerService; documentFlush: DocumentFlusher },
 ): void {
     const migrationSvc = new BpmnMigrationService(
         deps.editorStore,
@@ -30,5 +30,6 @@ export function register(
         handles.bpmnService,
         migrationSvc,
         deps.picker,
+        handles.documentFlush,
     ).register(context);
 }

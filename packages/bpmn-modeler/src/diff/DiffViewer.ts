@@ -14,10 +14,7 @@ import { centreOf } from "../elementGeometry";
  * CSS class applied to each element category on the canvas.
  */
 export type DiffMarkerClass =
-    | "diff-added"
-    | "diff-removed"
-    | "diff-changed"
-    | "diff-layout-changed";
+    "diff-added" | "diff-removed" | "diff-changed" | "diff-layout-changed";
 
 // CSS class applied to the element currently targeted by the stepper.
 const DIFF_SELECTED_CLASS = "diff-selected";
