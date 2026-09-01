@@ -12,9 +12,7 @@ import type { VsCodeNotifier } from "../../shared/infrastructure/VsCodeNotifier"
 type ModelerService = BpmnModelerService | DmnModelerService | FormModelerService;
 
 export type EditorFlushResult =
-    | { status: "safe"; session: object }
-    | { status: "unavailable" }
-    | { status: "closed" };
+    { status: "safe"; session: object } | { status: "unavailable" } | { status: "closed" };
 
 /**
  * Closes the save-time staleness gap in outbound webview synchronization.

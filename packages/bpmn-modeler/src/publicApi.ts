@@ -61,9 +61,7 @@ export type ThemeMode = "light" | "dark" | "automatic";
  * `results`, so the runtime tier selection narrows without type guards.
  */
 export type LintingOptions =
-    | false
-    | { config?: BpmnlintConfig; results?: never }
-    | { results: "external" };
+    false | { config?: BpmnlintConfig; results?: never } | { results: "external" };
 
 /**
  * [B] Clipboard override. Default (option omitted) is the native browser

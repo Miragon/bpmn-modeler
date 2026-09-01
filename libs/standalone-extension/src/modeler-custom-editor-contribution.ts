@@ -52,8 +52,7 @@ interface DocumentFlushedReply {
 }
 
 type PendingSyncObservation =
-    | { readonly status: "failed" }
-    | { readonly status: "synced"; readonly content: string };
+    { readonly status: "failed" } | { readonly status: "synced"; readonly content: string };
 
 interface PendingSyncObserver {
     current(): PendingSyncObservation | undefined;
