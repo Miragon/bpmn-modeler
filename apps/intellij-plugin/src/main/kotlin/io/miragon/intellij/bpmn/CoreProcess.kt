@@ -146,11 +146,11 @@ class CoreProcess(private val project: Project) : Disposable {
 
     fun registerSession(session: CoreSession) = editorRouter.registerSession(session)
 
-    fun notifyDocumentChanged(editorId: String, content: String) = editorRouter.notifyDocumentChanged(editorId, content)
+    fun notifyDocumentChanged(session: CoreSession, content: String) = editorRouter.notifyDocumentChanged(session, content)
 
-    fun forwardWebviewMessage(editorId: String, rawMessage: String) = editorRouter.forwardWebviewMessage(editorId, rawMessage)
+    fun forwardWebviewMessage(session: CoreSession, rawMessage: String) = editorRouter.forwardWebviewMessage(session, rawMessage)
 
-    fun disposeSession(editorId: String) = editorRouter.disposeSession(editorId)
+    fun disposeSession(session: CoreSession) = editorRouter.disposeSession(session)
 
     /**
      * Requests an SVG export of the open diagram; [onSvg] fires with the rendered

@@ -59,18 +59,20 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
     // Per-editor `.bpmnlintrc` watcher so edits to the rules re-lint the open
     // diagram without reopening it; disposed with the session.
     const watchers = new Map<string, { dispose(): void }[]>();
+    const refreshWatcher = async (params: RegisterParams): Promise<void> => {
+        watchers.get(params.editorId)?.forEach((disposable) => disposable.dispose());
+        watchers.delete(params.editorId);
+        const { disposables, errors } = await locator.createWatcher(params.editorId, lintSvc);
+        watchers.set(params.editorId, disposables);
+        for (const error of errors) deps.notifier.logError(error);
+    };
 
     return {
         sessionHooks: {
-            onSessionRegistered: async (params: RegisterParams) => {
-                const { disposables, errors } = await locator.createWatcher(
-                    params.editorId,
-                    lintSvc,
-                );
-                watchers.set(params.editorId, disposables);
-                for (const error of errors) {
-                    deps.notifier.logError(error);
-                }
+            onSessionRegistered: refreshWatcher,
+            onSessionReseeded: async (params: RegisterParams) => {
+                await refreshWatcher(params);
+                await lintSvc.setBpmnlintConfig(params.editorId);
             },
             onSessionDisposed: (editorId: string) => {
                 watchers.get(editorId)?.forEach((disposable) => disposable.dispose());

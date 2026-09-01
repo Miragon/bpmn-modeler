@@ -7,9 +7,9 @@
  *
  * Also contains cross-cutting concrete commands that are not specific to any one
  * modeler feature:
- * - {@link SyncDocumentCommand} — webview notifies the host to persist the current XML to disk
+ * - {@link SyncDocumentCommand} — webview notifies the host to persist the current document
  * - {@link FlushDocumentQuery} / {@link DocumentFlushedCommand} — host asks the
- *   webview to flush debounced changes before a save/close and receives the XML
+ *   webview to flush debounced changes before a save/close and receives the content
  * - {@link LogDebugCommand} / {@link LogInfoCommand} / {@link LogWarningCommand} /
  *   {@link LogErrorCommand} — webview forwards a levelled log entry to the host's
  *   output channel
@@ -39,10 +39,12 @@ export abstract class Command implements MessageType {
 
 export class SyncDocumentCommand extends Command {
     public readonly content: string;
+    public readonly documentRevision: number;
 
-    constructor(content: string) {
+    constructor(content: string, documentRevision = 0) {
         super("SyncDocumentCommand");
         this.content = content;
+        this.documentRevision = documentRevision;
     }
 }
 
@@ -50,34 +52,62 @@ export class SyncDocumentCommand extends Command {
  * Host → webview: asks the webview to flush any debounced-but-unsynced document
  * changes *now* and reply with a {@link DocumentFlushedCommand} carrying the
  * same `token`. Sent on a save (VS Code) or tab-close (IntelliJ) so the persist
- * path never races the outbound sync debounce and writes stale XML.
+ * path never races the outbound sync debounce and writes stale content.
  */
 export class FlushDocumentQuery extends Query {
     public readonly token: number;
 
-    constructor(token: number) {
+    /** Whether the webview must remain mutation-locked until reload or release. */
+    public readonly destructive: boolean;
+
+    /** Whether a destructive host needs an exported snapshot even when debounce is idle. */
+    public readonly exportWhenClean: boolean;
+
+    constructor(token: number, destructive = false, exportWhenClean = false) {
         super("FlushDocumentQuery");
+        this.token = token;
+        this.destructive = destructive;
+        this.exportWhenClean = exportWhenClean;
+    }
+}
+
+/** Host → webview: releases a destructive flush when the host cannot reload. */
+export class ReleaseDocumentFlushQuery extends Query {
+    public readonly token: number;
+
+    constructor(token: number) {
+        super("ReleaseDocumentFlushQuery");
         this.token = token;
     }
 }
 
+export type DocumentFlushStatus = "clean" | "flushed" | "host-updated" | "unavailable";
+
 /**
- * Webview → host reply to a {@link FlushDocumentQuery}. `content` carries the
- * freshly exported full-document XML; `undefined` means the webview had nothing
- * pending, was not ready, or the export failed — in every case the host must
- * leave its buffer untouched (the host copy is already authoritative). `token`
- * echoes the query so the host can match the reply to its outstanding request
- * and drop stale replies that arrive after a timeout.
+ * Webview → host reply to a {@link FlushDocumentQuery}. `status` distinguishes a
+ * confirmed-clean host buffer, freshly exported `content`, an authoritative host
+ * update, and a modeler that could not flush. `token` lets the host drop replies
+ * after timeout/supersession.
  */
 export class DocumentFlushedCommand extends Command {
     public readonly token: number;
 
     public readonly content?: string;
 
-    constructor(token: number, content?: string) {
+    public readonly status: DocumentFlushStatus;
+    public readonly documentRevision?: number;
+
+    constructor(
+        token: number,
+        content?: string,
+        status: DocumentFlushStatus = content === undefined ? "clean" : "flushed",
+        documentRevision?: number,
+    ) {
         super("DocumentFlushedCommand");
         this.token = token;
         this.content = content;
+        this.status = status;
+        this.documentRevision = documentRevision;
     }
 }
 

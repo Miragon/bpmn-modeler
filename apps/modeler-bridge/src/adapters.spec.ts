@@ -19,6 +19,7 @@ import { Rpc } from "./rpc";
 
 const META: SessionMeta = {
     editorId: "file:///w/a.bpmn",
+    sessionId: 9,
     uriString: "file:///w/a.bpmn",
     path: "/w/a.bpmn",
     fsPath: "/w/a.bpmn",
@@ -52,6 +53,25 @@ describe("DocumentMirror", () => {
 
     it("returns empty content for an unknown editor", () => {
         expect(new DocumentMirror().content("missing")).toBe("");
+    });
+
+    it("keeps pending write causation scoped to an exact same-uri session", () => {
+        const mirror = new DocumentMirror();
+        mirror.register(META, "old");
+        const oldRevision = mirror.nextWriteRevision(META.editorId, META.sessionId);
+        mirror.remove(META.editorId);
+        const replacement = { ...META, sessionId: 10 };
+        mirror.register(replacement, "replacement");
+        const replacementRevision = mirror.nextWriteRevision(
+            replacement.editorId,
+            replacement.sessionId,
+        );
+
+        mirror.forgetWriteRevision(META.editorId, oldRevision, META.sessionId);
+
+        expect(
+            mirror.isOwnEcho(replacement.editorId, replacementRevision, replacement.sessionId),
+        ).toBe(true);
     });
 
     it("require throws for an unknown editor but peek tolerates it", () => {
@@ -133,27 +153,54 @@ describe("RpcEditorHandle", () => {
 
         expect(last(frames)).toEqual({
             method: "editor/postMessage",
-            params: { editorId: META.editorId, message: { type: "BpmnFileQuery" } },
+            params: {
+                editorId: META.editorId,
+                sessionId: META.sessionId,
+                message: { type: "BpmnFileQuery" },
+            },
         });
     });
 
-    it("writeContent requests document/write and updates the mirror", async () => {
+    it("does not overwrite a host echo that arrives before the write response", async () => {
         const { frames, rpc, answerLast } = harness();
         const mirror = new DocumentMirror();
         mirror.register(META, "old");
         const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
 
-        const pending = handle.writeContent("new");
+        const pending = handle.writeContent("new", 4);
         expect(last(frames)).toMatchObject({
             method: "document/write",
-            params: { editorId: META.editorId, content: "new" },
+            params: {
+                editorId: META.editorId,
+                sessionId: META.sessionId,
+                content: "new",
+                expectedDocumentRevision: 4,
+            },
         });
         // The write is tagged with a revision the host echoes back as `causedBy`.
         expect(last(frames).params.revision).toBeTypeOf("number");
-        await answerLast({ changed: true });
+        const revision = last(frames).params.revision as number;
+        expect(mirror.isOwnEcho(META.editorId, revision, META.sessionId)).toBe(true);
+        mirror.setContent(META.editorId, "host-new");
+        await answerLast({ changed: true, accepted: true });
 
         await expect(pending).resolves.toBe(true);
-        expect(mirror.content(META.editorId)).toBe("new");
+        expect(mirror.content(META.editorId)).toBe("host-new");
+    });
+
+    it("keeps authoritative mirror content when the host rejects a stale write", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "host");
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+
+        const pending = handle.writeContent("stale", 2);
+        const revision = last(frames).params.revision as number;
+        await answerLast({ changed: false, accepted: false });
+
+        await expect(pending).resolves.toBe(false);
+        expect(mirror.content(META.editorId)).toBe("host");
+        expect(mirror.isOwnEcho(META.editorId, revision, META.sessionId)).toBe(false);
     });
 
     it("forgets the revision of a no-op write so it cannot linger as pending", async () => {
@@ -170,7 +217,35 @@ describe("RpcEditorHandle", () => {
 
         // The minted revision was dropped, so a (hypothetical) later echo of it
         // would re-render rather than being swallowed, and the set stays bounded.
-        expect(mirror.isOwnEcho(META.editorId, revision)).toBe(false);
+        expect(mirror.isOwnEcho(META.editorId, revision, META.sessionId)).toBe(false);
+    });
+
+    it("keeps authoritative mirror bytes after an accepted no-op write", async () => {
+        const { rpc, answerLast } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "<xml/>\n");
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+
+        const pending = handle.writeContent("<xml/>\r\n", 0);
+        await answerLast({ changed: false, accepted: true });
+
+        await expect(pending).resolves.toBe(false);
+        expect(mirror.content(META.editorId)).toBe("<xml/>\n");
+    });
+
+    it("does not let a late write response overwrite a replacement session", async () => {
+        const { rpc, answerLast } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "old");
+        const handle = new RpcEditorHandle(META, mirror, rpc, new BridgeSettings());
+
+        const pending = handle.writeContent("stale", 0);
+        mirror.remove(META.editorId);
+        mirror.register({ ...META, sessionId: 10 }, "replacement");
+        await answerLast({ changed: true, accepted: true });
+
+        await expect(pending).resolves.toBe(true);
+        expect(mirror.content(META.editorId)).toBe("replacement");
     });
 
     it("save requests document/save and returns the saved flag", async () => {
@@ -276,7 +351,7 @@ describe("BridgeSettings", () => {
 
 describe("RpcDocumentPort", () => {
     it("reads through the mirror and routes writes/saves over RPC", async () => {
-        const { rpc, answerLast } = harness();
+        const { frames, rpc, answerLast } = harness();
         const mirror = new DocumentMirror();
         mirror.register(META, "seed");
         const port = new RpcDocumentPort(rpc, mirror);
@@ -284,7 +359,14 @@ describe("RpcDocumentPort", () => {
         expect(port.getContent(META.editorId)).toBe("seed");
         expect(port.getFilePath(META.editorId)).toBe(META.fsPath);
 
-        const write = port.write(META.editorId, "next");
+        const write = port.write(META.editorId, "next", 3);
+        expect(last(frames)).toMatchObject({
+            params: {
+                editorId: META.editorId,
+                sessionId: META.sessionId,
+                expectedDocumentRevision: 3,
+            },
+        });
         await answerLast({ changed: true });
         await expect(write).resolves.toBe(true);
         expect(mirror.content(META.editorId)).toBe("next");
@@ -292,6 +374,19 @@ describe("RpcDocumentPort", () => {
         const save = port.save(META.editorId);
         await answerLast({ saved: true });
         await expect(save).resolves.toBe(true);
+    });
+
+    it("does not update the mirror when the host rejects a stale write", async () => {
+        const { rpc, answerLast } = harness();
+        const mirror = new DocumentMirror();
+        mirror.register(META, "host");
+        const port = new RpcDocumentPort(rpc, mirror);
+
+        const write = port.write(META.editorId, "stale", 1);
+        await answerLast({ changed: false, accepted: false });
+
+        await expect(write).resolves.toBe(false);
+        expect(mirror.content(META.editorId)).toBe("host");
     });
 });
 

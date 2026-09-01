@@ -8,8 +8,7 @@ function businessObject(attrs: Record<string, unknown>): BusinessObjectLike {
             return attrs[name];
         },
         extensionElements: attrs.extensionElements as
-            | { values?: { $type?: string; type?: string }[] }
-            | undefined,
+            { values?: { $type?: string; type?: string }[] } | undefined,
     };
 }
 

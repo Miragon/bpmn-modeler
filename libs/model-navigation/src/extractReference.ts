@@ -1,14 +1,15 @@
 /**
- * Extracts the referenced process / decision id from a Call Activity or
- * Business Rule Task business object.
+ * Extracts process, decision, and Camunda Form references from BPMN business
+ * objects.
  *
  * Camunda 7 stores the reference directly as an attribute on the BPMN
  * element (`calledElement` / `camunda:decisionRef`).  Camunda 8 wraps it in a
  * `zeebe:calledElement` / `zeebe:calledDecision` extension element.  Both
  * shapes are checked so the caller does not need to know the active engine.
+ * Camunda 8 linked forms use `zeebe:formDefinition formId`.
  */
 
-export type ReferenceKind = "process" | "decision";
+export type ReferenceKind = "process" | "decision" | "form";
 
 /**
  * The shape this module needs from a bpmn-js business object.  Kept loose so
@@ -24,6 +25,7 @@ interface ExtensionElementLike {
     $type?: string;
     processId?: string;
     decisionId?: string;
+    formId?: string;
 }
 
 /**
@@ -44,12 +46,11 @@ function findExtensionElement(
 }
 
 /**
- * Resolves the referenced process / decision id for a Call Activity or
- * Business Rule Task.  Returns `undefined` when the element has no reference
- * set or the reference is empty.
+ * Resolves the referenced process, decision, or form id. Returns `undefined`
+ * when the element has no reference set or the reference is empty.
  *
  * @param businessObject Business object of the selected element.
- * @param kind `"process"` for Call Activities, `"decision"` for Business Rule Tasks.
+ * @param kind Reference type selected by the context-pad provider.
  */
 export function extractReference(
     businessObject: BusinessObjectLike | undefined,
@@ -71,6 +72,13 @@ export function extractReference(
             return camunda8Reference.processId;
         }
         return undefined;
+    }
+
+    if (kind === "form") {
+        const formDefinition = findExtensionElement(businessObject, "zeebe:FormDefinition");
+        return typeof formDefinition?.formId === "string" && formDefinition.formId.length > 0
+            ? formDefinition.formId
+            : undefined;
     }
 
     // Camunda 7: <bpmn:businessRuleTask camunda:decisionRef="…">

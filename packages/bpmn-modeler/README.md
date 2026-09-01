@@ -89,6 +89,44 @@ stock behaviour is wrong for a multi-plane editor:
 | --- | --- | --- |
 | `rootElementsBehavior` | `StayOnPlaneBehavior` | The command stack is global, so diagram-js's version forces the canvas back to the plane a command was recorded on. Undoing after drilling into a sub-process would eject the user to the top level before the change is visible. The replacement still records the root but only applies it when the current plane no longer exists (e.g. the undone command created the sub-process being viewed). |
 
+## Escape hatches
+
+For advanced hosts, two options pass straight through to bpmn-js:
+
+- `additionalModules` — extra DI modules layered onto the bundled ones.
+- `moddleExtensions` — extra moddle descriptors for a host's own BPMN
+  namespace, so custom-namespaced XML parses into typed moddle objects (and
+  the DI modules that depend on those types work). They are **merged onto** the
+  engine's bundled `camunda`/`zeebe`/`modeler` moddles; a prefix colliding with
+  one of those is **last-wins** (your descriptor overrides the engine's — don't
+  do that).
+
+```ts
+const modeler = await createModeler(canvas, {
+    engine: "c7",
+    propertiesPanel: { parent: panel },
+    moddleExtensions: {
+        bpmiq: { name: "bpmiq", uri: "http://bpmiq/schema", prefix: "bpmiq", types: [] },
+    },
+});
+```
+
+### Detecting the engine from XML
+
+`createModeler` needs an explicit `engine`. When a host opens an existing
+diagram, `detectEngine(xml)` reads the spec-defined `modeler:executionPlatform`
+(and, as a secondary signal, `modeler:executionPlatformVersion`) to pick it:
+
+```ts
+import { createModeler, detectEngine } from "@miragon/bpmn-modeler";
+
+const engine = detectEngine(xml) ?? "c7"; // undefined = no platform metadata; the host picks the fallback
+const modeler = await createModeler(container, { engine, propertiesPanel: { parent: panel } });
+```
+
+It returns `undefined` for engine-neutral diagrams that carry no platform
+metadata, so the caller owns the fallback policy.
+
 ## Linting tiers
 
 Linting is an opinionated built-in with a tier ladder, selected via
@@ -106,6 +144,39 @@ is code-split into a lazily-loaded chunk: it is fetched only when an
 instance actually lints, so `linting: false` keeps it out of your bundle's
 critical path entirely. Lint results surface through `onLintResults`, and the
 in-canvas enable/disable toggle through `onLintingToggled`.
+
+## Core services & escape hatch
+
+`handle.getService(name)` reaches a diagram-js/bpmn-js DI service by name. Seven
+names form the frozen core contract (`CoreModelerServices`), and the overload
+types them for you:
+
+```ts
+const canvas = handle.getService("canvas");       // typed as diagram-js Canvas
+const modeling = handle.getService("modeling");   // typed as bpmn-js Modeling
+```
+
+| Name | Type |
+| --- | --- |
+| `canvas` | diagram-js `Canvas` |
+| `commandStack` | diagram-js `CommandStack` |
+| `elementRegistry` | diagram-js `ElementRegistry` |
+| `eventBus` | diagram-js `EventBus` |
+| `modeling` | bpmn-js `Modeling` |
+| `overlays` | diagram-js `Overlays` |
+| `selection` | diagram-js `Selection` |
+
+Any other name is an unstable escape hatch — pass an explicit type argument
+(`getService<MyService>("customTranslator")`) or take the `unknown` default:
+
+```ts
+const translate = handle.getService<{ translate(s: string): string }>("customTranslator");
+```
+
+**Semver:** the seven `CoreModelerServices` names resolve to their
+bpmn-js/diagram-js-documented shapes across minor versions. Every other
+`getService` name is unstable and may change or disappear without a major bump —
+prefer a typed option/method, and open an issue if a name you need is missing.
 
 ## Clipboard wire format
 

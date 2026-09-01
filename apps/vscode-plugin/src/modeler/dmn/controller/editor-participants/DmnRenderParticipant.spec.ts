@@ -16,6 +16,7 @@ function createContext() {
     const context: EditorSessionContext = {
         editorId: EDITOR_ID,
         panel: {} as never,
+        isCurrent: () => true,
         onDocumentChange: (cb) => void (captured.documentChange = cb),
         onSettingChange: vi.fn(),
         onDispose: (cb) => void (captured.dispose = cb),
@@ -60,7 +61,7 @@ describe("DmnRenderParticipant", () => {
 
         captured.documentChange?.(documentEvent({}));
 
-        expect(service.display).toHaveBeenCalledWith(EDITOR_ID);
+        expect(service.display).toHaveBeenCalledWith(EDITOR_ID, true);
     });
 
     it("ignores changes to other documents or non-.dmn files", () => {

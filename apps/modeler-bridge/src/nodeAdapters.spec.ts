@@ -129,6 +129,17 @@ describe("NodeWorkspace folder lookups", () => {
         expect(ws.getWorkspaceFolderPaths().sort()).toEqual(["/tmp/a", "/tmp/b"]);
     });
 
+    it("keeps a root registered until its final claim is released", () => {
+        const ws = new NodeWorkspace();
+        ws.registerRoot("/tmp/a");
+        ws.registerRoot("/tmp/a");
+
+        ws.unregisterRoot("/tmp/a");
+        expect(ws.getWorkspaceFolderPaths()).toEqual(["/tmp/a"]);
+        ws.unregisterRoot("/tmp/a");
+        expect(ws.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
     it("getWorkspaceFolderPaths is empty when nothing is registered", () => {
         expect(new NodeWorkspace().getWorkspaceFolderPaths()).toEqual([]);
     });

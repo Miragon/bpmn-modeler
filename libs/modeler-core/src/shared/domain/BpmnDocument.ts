@@ -7,7 +7,7 @@
  * `BpmnDocument` instead of mutating `this.xml`.
  */
 
-import { Engine } from "@miragon/bpmn-modeler-types";
+import { detectEngine, Engine } from "@miragon/bpmn-modeler-types";
 
 import { ExecutionPlatformNotDetectedError } from "./errors";
 
@@ -64,17 +64,16 @@ export class BpmnDocument {
     /**
      * Detects the Camunda execution platform from the XML.
      *
-     * Checks `modeler:executionPlatformVersion` first, then falls back to
-     * namespace declarations (`xmlns:camunda` for C7, `xmlns:zeebe` for C8).
+     * Delegates to the shared {@link detectEngine} helper for the spec-defined
+     * `modeler:*` signals, then falls back to namespace declarations
+     * (`xmlns:camunda` for C7, `xmlns:zeebe` for C8).
      *
      * @throws {ExecutionPlatformNotDetectedError} When no platform signal is found.
      */
     detectPlatform(): Engine {
-        const regexVersion = /modeler:executionPlatformVersion="([78])\.\d+\.\d+"/;
-        const match = this.xml.match(regexVersion);
-
-        if (match) {
-            return match[1] === "7" ? "c7" : "c8";
+        const detected = detectEngine(this.xml);
+        if (detected) {
+            return detected;
         }
 
         if (this.xml.match(/xmlns:camunda=".*"/)) {

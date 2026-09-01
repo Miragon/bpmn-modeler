@@ -26,6 +26,11 @@ export class EditorSessionStore {
      */
     private readonly editors: Map<string, EditorHandle> = new Map();
 
+    /** Keeps ordering-sensitive work scoped to the editor session that caused it. */
+    private readonly editorQueues: Map<EditorHandle, Promise<void>> = new Map();
+    private readonly latestDocumentSync: Map<EditorHandle, string> = new Map();
+    private readonly hostDocumentRevisions: Map<EditorHandle, number> = new Map();
+
     private activeEditorId: string | undefined;
 
     private readonly activeEditorListeners: Set<(id: string) => void> = new Set();
@@ -43,7 +48,17 @@ export class EditorSessionStore {
      * bootstrap happens separately in {@link VsCodeEditorHandle.create}.
      */
     register(handle: EditorHandle): void {
+        const replaced = this.editors.get(handle.id);
+        if (replaced && replaced !== handle) {
+            this.editorQueues.delete(replaced);
+            this.latestDocumentSync.delete(replaced);
+            this.hostDocumentRevisions.delete(replaced);
+            // Retire the exact old session before the replacement's participants
+            // register URI-keyed services and subscriptions.
+            replaced.dispose();
+        }
         this.editors.set(handle.id, handle);
+        if (!this.hostDocumentRevisions.has(handle)) this.hostDocumentRevisions.set(handle, 0);
         this.setActiveEditor(handle.id);
         this.onOpenCountChanged(this.editors.size);
     }
@@ -67,6 +82,69 @@ export class EditorSessionStore {
     /** Whether an editor with this id is currently registered (not yet disposed). */
     hasEditor(editorId: string): boolean {
         return this.editors.has(editorId);
+    }
+
+    /** Captures the identity of the currently registered editor session. */
+    captureEditorSession(editorId: string): object | undefined {
+        return this.editors.get(editorId);
+    }
+
+    /** Guards async work against a close-and-reopen of the same document URI. */
+    isCurrentEditorSession(editorId: string, session: object): boolean {
+        return this.editors.get(editorId) === session;
+    }
+
+    /** Advances the causation revision for a genuine host-side document update. */
+    markHostDocumentUpdated(editorId: string): number {
+        const handle = this.requireHandle(editorId);
+        const revision = (this.hostDocumentRevisions.get(handle) ?? 0) + 1;
+        this.hostDocumentRevisions.set(handle, revision);
+        return revision;
+    }
+
+    currentHostDocumentRevision(editorId: string): number {
+        const handle = this.requireHandle(editorId);
+        return this.hostDocumentRevisions.get(handle) ?? 0;
+    }
+
+    /** Seeds or advances a host-owned revision when a session is restored. */
+    setHostDocumentRevision(editorId: string, revision: number): boolean {
+        const handle = this.requireHandle(editorId);
+        const current = this.hostDocumentRevisions.get(handle) ?? 0;
+        if (revision < current) return false;
+        this.hostDocumentRevisions.set(handle, revision);
+        return true;
+    }
+
+    /** Rejects webview writes based on an older host snapshot. */
+    isHostDocumentRevisionCurrent(editorId: string, revision?: number): boolean {
+        const current = this.currentHostDocumentRevision(editorId);
+        return revision === undefined ? current === 0 : revision === current;
+    }
+
+    /** Records the newest full-document sync attempted by one exact session. */
+    recordDocumentSync(editorId: string, session: object, content: string): void {
+        const handle = this.editors.get(editorId);
+        if (handle !== session) return;
+        if (sameDocumentContent(handle.getContent(), content)) {
+            this.latestDocumentSync.delete(handle);
+        } else {
+            this.latestDocumentSync.set(handle, content);
+        }
+    }
+
+    /** Whether the host document contains the latest normal sync from this session. */
+    isLatestDocumentSyncApplied(editorId: string, session: object): boolean {
+        const handle = this.editors.get(editorId);
+        if (handle !== session) return false;
+        const expected = this.latestDocumentSync.get(handle);
+        return expected === undefined || sameDocumentContent(handle.getContent(), expected);
+    }
+
+    /** EOL-insensitive content verification scoped to an exact editor session. */
+    documentMatches(editorId: string, session: object, content: string): boolean {
+        const handle = this.editors.get(editorId);
+        return handle === session && sameDocumentContent(handle.getContent(), content);
     }
 
     getActiveEditorId(): string {
@@ -107,8 +185,11 @@ export class EditorSessionStore {
      */
     subscribeToDisposeEvent(editorId: string, onDispose?: () => void): void {
         const handle = this.requireHandle(editorId);
+        let handled = false;
         handle.onDidDispose(() => {
-            this.disposeEditor(editorId);
+            if (handled) return;
+            handled = true;
+            if (!this.disposeEditor(editorId, handle)) handle.dispose();
             onDispose?.();
         });
     }
@@ -120,12 +201,57 @@ export class EditorSessionStore {
      */
     subscribeToMessageEvent(
         editorId: string,
-        callback: (message: Command, editorId: string) => void,
+        callback: (message: Command, editorId: string) => void | Promise<void>,
     ): void {
         const handle = this.requireHandle(editorId);
         handle.addSubscription(
-            handle.onDidReceiveMessage((message) => callback(message, editorId)),
+            handle.onDidReceiveMessage((message) => {
+                if (this.editors.get(editorId) !== handle) return;
+                void callback(message, editorId);
+            }),
         );
+    }
+
+    /**
+     * Runs work after earlier tasks for this editor and keeps later tasks behind it.
+     * The returned promise preserves the task result while the internal queue
+     * absorbs failures so one rejected task cannot block every later message.
+     */
+    runInEditorQueue<T>(editorId: string, task: () => T | Promise<T>): Promise<T | undefined> {
+        const handle = this.requireHandle(editorId);
+        const previous = this.editorQueues.get(handle);
+        const run = (): T | Promise<T> | undefined => {
+            if (this.editors.get(editorId) !== handle) return undefined;
+            return task();
+        };
+        let result: Promise<T | undefined>;
+        if (previous) {
+            result = previous.then(run);
+        } else {
+            try {
+                result = Promise.resolve(run());
+            } catch (error) {
+                result = Promise.reject(error);
+            }
+        }
+
+        const settled = result.then(
+            () => undefined,
+            () => undefined,
+        );
+        this.editorQueues.set(handle, settled);
+        void settled.then(() => {
+            if (this.editorQueues.get(handle) === settled) {
+                this.editorQueues.delete(handle);
+            }
+        });
+        return result;
+    }
+
+    /** Waits for the work currently queued for this editor. */
+    waitForEditorQueue(editorId: string): Promise<void> {
+        const handle = this.editors.get(editorId);
+        return (handle && this.editorQueues.get(handle)) ?? Promise.resolve();
     }
 
     /**
@@ -142,7 +268,11 @@ export class EditorSessionStore {
         callback: (event: DocumentChangeEvent) => void,
     ): void {
         const handle = this.requireHandle(editorId);
-        handle.addSubscription(handle.onDidChangeDocument(callback));
+        handle.addSubscription(
+            handle.onDidChangeDocument((event) => {
+                if (this.editors.get(editorId) === handle) callback(event);
+            }),
+        );
     }
 
     subscribeToSettingChangeEvent(
@@ -150,12 +280,18 @@ export class EditorSessionStore {
         callback: (event: SettingChange, editorId: string) => void,
     ): void {
         const handle = this.requireHandle(editorId);
-        handle.addSubscription(handle.onDidChangeSetting((event) => callback(event, editorId)));
+        handle.addSubscription(
+            handle.onDidChangeSetting((event) => {
+                if (this.editors.get(editorId) === handle) callback(event, editorId);
+            }),
+        );
     }
 
     subscribeToTabChangeEvent(editorId: string): void {
         const handle = this.requireHandle(editorId);
-        handle.onDidBecomeActive(() => this.setActiveEditor(editorId));
+        handle.onDidBecomeActive(() => {
+            if (this.editors.get(editorId) === handle) this.setActiveEditor(editorId);
+        });
     }
 
     /**
@@ -189,21 +325,32 @@ export class EditorSessionStore {
         return handle;
     }
 
+    /** Removes only the exact session supplied, leaving a same-id replacement intact. */
+    unregister(editorId: string, session: object): boolean {
+        const handle = this.editors.get(editorId);
+        if (handle !== session) return false;
+        return this.disposeEditor(editorId, handle);
+    }
+
     dispose(): void {
         this.activeEditorListeners.clear();
+        this.editorQueues.clear();
+        this.latestDocumentSync.clear();
+        this.hostDocumentRevisions.clear();
     }
 
     /**
      * After disposal, the active-editor pointer moves to the most recently
      * registered remaining editor, or clears if none remain.
      */
-    private disposeEditor(editorId: string): void {
+    private disposeEditor(editorId: string, expected?: EditorHandle): boolean {
         const handle = this.editors.get(editorId);
-        if (!handle) {
-            return;
-        }
+        if (!handle || (expected && handle !== expected)) return false;
         handle.dispose();
         this.editors.delete(editorId);
+        this.editorQueues.delete(handle);
+        this.latestDocumentSync.delete(handle);
+        this.hostDocumentRevisions.delete(handle);
 
         this.onOpenCountChanged(this.editors.size);
 
@@ -215,5 +362,10 @@ export class EditorSessionStore {
                 this.activeEditorListeners.forEach((listener) => listener(next));
             }
         }
+        return true;
     }
+}
+
+function sameDocumentContent(actual: string, expected: string): boolean {
+    return actual.replace(/\r\n?/g, "\n") === expected.replace(/\r\n?/g, "\n");
 }

@@ -27,7 +27,7 @@ export class BpmnRenderParticipant implements EditorSessionParticipant {
                 session.editorId === event.documentUriString()
             ) {
                 this.notifier.logDebug("OnDidChangeTextDocument -> display");
-                this.bpmnService.display(session.editorId);
+                this.bpmnService.display(session.editorId, true);
             }
         });
 
