@@ -14,7 +14,7 @@ const here = import.meta.dirname;
 const repoRoot = resolve(here, "../../../..");
 
 // webpack assembles the runnable extension (compiled main.js + a copied
-// package.json + the three webview bundles) here; pointing at the
+// package.json + the four webview bundles) here; pointing at the
 // source `apps/vscode-plugin` would fail because `main: "main.js"` only
 // resolves in the dist dir. So `corepack yarn build` is a prerequisite.
 const extensionDevelopmentPath = resolve(repoRoot, "dist/apps/vscode-plugin");
@@ -36,8 +36,7 @@ process.on("exit", () => {
     rmSync(userDataDir, { recursive: true, force: true });
 });
 
-export default defineConfig({
-    label: "vscode-plugin-smoke",
+const testConfiguration = {
     // Must stay relative: @vscode/test-cli only glob-expands relative `files`
     // (against this config's directory); an absolute path is taken literally.
     files: "out/**/*.test.js",
@@ -51,4 +50,16 @@ export default defineConfig({
         // builds every feature, so allow generous headroom over the 2s default.
         timeout: 60_000,
     },
-});
+};
+
+export default defineConfig([
+    {
+        ...testConfiguration,
+        label: "vscode-plugin-minimum",
+        version: "1.76.0",
+    },
+    {
+        ...testConfiguration,
+        label: "vscode-plugin-stable",
+    },
+]);

@@ -25,6 +25,7 @@ import { canonicalizeDriveLetter } from "./uriPath";
  */
 export class VsCodeEditorHandle implements EditorHandle {
     private readonly subscriptions: Disposable[] = [];
+    private disposed = false;
 
     private constructor(
         readonly id: string,
@@ -90,7 +91,7 @@ export class VsCodeEditorHandle implements EditorHandle {
      *
      * @returns `true` if the edit was applied, `false` if content was unchanged.
      */
-    async writeContent(content: string): Promise<boolean> {
+    async writeContent(content: string, _expectedDocumentRevision?: number): Promise<boolean> {
         this.assertFileScheme("write to", "editable");
 
         if (this.document.getText() === content) {
@@ -143,6 +144,8 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     dispose(): void {
+        if (this.disposed) return;
+        this.disposed = true;
         this.panel.dispose();
         this.subscriptions.forEach((s) => s.dispose());
         this.subscriptions.length = 0;

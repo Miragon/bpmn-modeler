@@ -114,6 +114,28 @@ class RpcChannelTest {
         fake.expectNoFrame()
     }
 
+    @Test
+    fun `backpressure preserves a reliable authoritative document update`() {
+        val capacity = 512
+        val fake = fakeProcess()
+        val channel = rpcChannel { _, _, _ -> }
+
+        channel.notify(
+            "document/didChange",
+            mapOf("content" to "authoritative"),
+            coalesceKey = "document:e1",
+            reliable = true,
+        )
+        for (i in 0 until capacity) channel.notify("m", i)
+
+        channel.attach(fake.outputStream, fake.inputStream)
+
+        val frames = (0 until capacity).map { parse(fake.nextFrame()) }
+        assertTrue(frames.any { it.get("method").asString == "document/didChange" })
+        assertEquals(capacity - 1, frames.count { it.get("method").asString == "m" })
+        fake.expectNoFrame()
+    }
+
     /** A malformed inbound line is discarded without killing the reader pump — a later valid frame still dispatches. */
     @Test
     fun `malformed inbound frame does not kill the pump`() {
@@ -235,5 +257,28 @@ class RpcChannelTest {
 
         val resumed = parse(second.nextFrame())
         assertEquals("after", resumed.get("method").asString, "the surviving writer resumed on the new stream")
+    }
+
+    @Test
+    fun `detach retains a reliable frame until the replacement writer attaches`() {
+        val first = fakeProcess()
+        val channel = rpcChannel { _, _, _ -> }
+        channel.attach(first.outputStream, first.inputStream)
+        channel.detach()
+
+        channel.notify(
+            "document/didChange",
+            mapOf("content" to "authoritative"),
+            coalesceKey = "document:e1",
+            reliable = true,
+        )
+        first.expectNoFrame()
+
+        val second = fakeProcess()
+        channel.attach(second.outputStream, second.inputStream)
+
+        val retained = parse(second.nextFrame())
+        assertEquals("document/didChange", retained.get("method").asString)
+        assertEquals("authoritative", retained.getAsJsonObject("params").get("content").asString)
     }
 }

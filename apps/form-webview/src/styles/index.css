@@ -1,0 +1,105 @@
+@import "@bpmn-io/form-js-viewer/dist/assets/form-js.css";
+@import "@bpmn-io/form-js-editor/dist/assets/form-js-editor.css";
+
+:root {
+    color: var(--vscode-editor-foreground, #1f1f1f);
+    background: var(--vscode-editor-background, #ffffff);
+    font-family: var(--vscode-font-family, "IBM Plex Sans", sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+}
+
+html,
+body,
+#app,
+.form-shell {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+button {
+    font: inherit;
+}
+
+.form-shell {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    color: var(--vscode-editor-foreground, #1f1f1f);
+    background: var(--vscode-editor-background, #ffffff);
+}
+
+.form-toolbar {
+    display: flex;
+    gap: 2px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--vscode-panel-border, #d6d6d6);
+    background: var(--vscode-editorGroupHeader-tabsBackground, #f3f3f3);
+}
+
+.view-switch {
+    padding: 5px 12px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--vscode-foreground, #333333);
+    background: transparent;
+    cursor: pointer;
+}
+
+.view-switch:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.12));
+}
+
+.view-switch.active {
+    color: var(--vscode-button-foreground, #ffffff);
+    background: var(--vscode-button-background, #0e639c);
+}
+
+.view-switch:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder, #007fd4);
+    outline-offset: 2px;
+}
+
+.form-content,
+.form-surface {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+}
+
+.form-content {
+    overflow: hidden;
+}
+
+.form-surface,
+.fjs-powered-by-lightbox {
+    color-scheme: light;
+    color: hsl(225, 10%, 15%);
+}
+
+.form-surface {
+    overflow: auto;
+    background: #ffffff;
+}
+
+.form-error {
+    margin: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+    color: var(--vscode-inputValidation-errorForeground, #ffffff);
+    background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+}
+
+[hidden] {
+    display: none !important;
+}
+
+@media (max-width: 600px) {
+    .form-toolbar {
+        padding-inline: 8px;
+    }
+
+    .view-switch {
+        flex: 1;
+    }
+}

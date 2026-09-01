@@ -74,22 +74,6 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
         });
         session.addDisposable(subscription);
 
-        const watcherTarget: BpmnlintChangeTarget = {
-            setBpmnlintConfig: (editorId) =>
-                this.lintSvc.setBpmnlintConfig(editorId, session.panel.active),
-        };
-        const { disposables, errors } = await this.locator.createWatcher(
-            session.editorId,
-            watcherTarget,
-        );
-        for (const disposable of disposables) {
-            session.addDisposable(disposable);
-        }
-        for (const error of errors) {
-            this.notifier.showError(error.message);
-            this.notifier.logError(error);
-        }
-
         session.onDispose(() => {
             const timer = this.relintTimers.get(session.editorId);
             if (timer) {
@@ -99,6 +83,26 @@ export class BpmnlintParticipant implements EditorSessionParticipant {
             this.statusBar.hideBpmnlintStatus();
             this.lintSvc.clearDiagnostics(session.editorId);
         });
+
+        const watcherTarget: BpmnlintChangeTarget = {
+            setBpmnlintConfig: (editorId) =>
+                this.lintSvc.setBpmnlintConfig(editorId, session.panel.active),
+        };
+        const { disposables, errors } = await this.locator.createWatcher(
+            session.editorId,
+            watcherTarget,
+        );
+        if (!session.isCurrent()) {
+            disposables.forEach((disposable) => disposable.dispose());
+            return;
+        }
+        for (const disposable of disposables) {
+            session.addDisposable(disposable);
+        }
+        for (const error of errors) {
+            this.notifier.showError(error.message);
+            this.notifier.logError(error);
+        }
     }
 
     private scheduleRelint(session: EditorSessionContext): void {

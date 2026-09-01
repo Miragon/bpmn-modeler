@@ -9,6 +9,7 @@ const EDITOR_ID = "file:///diagram.bpmn";
 const context: EditorSessionContext = {
     editorId: EDITOR_ID,
     panel: {} as never,
+    isCurrent: () => true,
     onDocumentChange: vi.fn(),
     onSettingChange: vi.fn(),
     onDispose: vi.fn(),

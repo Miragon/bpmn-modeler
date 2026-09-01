@@ -26,7 +26,7 @@ export class DmnRenderParticipant implements EditorSessionParticipant {
                 session.editorId === event.documentUriString()
             ) {
                 this.notifier.logDebug("OnDidChangeTextDocument -> display");
-                this.dmnService.display(session.editorId);
+                this.dmnService.display(session.editorId, true);
             }
         });
 

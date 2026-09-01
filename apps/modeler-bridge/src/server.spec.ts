@@ -48,6 +48,7 @@ function registerParams(
     fsPath: string,
     content: string,
     settings?: Record<string, unknown>,
+    session?: { sessionId: number; documentRevision: number },
 ) {
     return {
         editorId,
@@ -58,6 +59,7 @@ function registerParams(
         workspaceRoot: root,
         content,
         ...(settings ? { settings } : {}),
+        ...session,
     };
 }
 
@@ -114,6 +116,140 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         expect(engine?.params).toEqual({ platform: "c7", version: "7.20.0" });
 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
+    it("preserves the host session and document revision across render traffic", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, bpmnPath, C7_XML, undefined, {
+                    sessionId: 17,
+                    documentRevision: 4,
+                }),
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    sessionId: 17,
+                    message: { type: "GetBpmnFileCommand" },
+                },
+            }),
+        );
+        await settle();
+
+        const render = frames.find(
+            (frame) =>
+                frame.method === "editor/postMessage" &&
+                frame.params.message.type === "BpmnFileQuery",
+        );
+        expect(render.params.sessionId).toBe(17);
+        expect(render.params.message.documentRevision).toBe(4);
+    });
+
+    it("does not let an older didChange replace the authoritative mirror", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, bpmnPath, C7_XML, undefined, {
+                    sessionId: 17,
+                    documentRevision: 4,
+                }),
+            }),
+        );
+        frames.length = 0;
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "document/didChange",
+                params: {
+                    editorId,
+                    sessionId: 17,
+                    content: C7_XML.replace("Process_1", "Process_stale"),
+                    documentRevision: 3,
+                },
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    sessionId: 17,
+                    message: { type: "GetBpmnFileCommand" },
+                },
+            }),
+        );
+        await settle();
+
+        const render = frames.find(
+            (frame) =>
+                frame.method === "editor/postMessage" &&
+                frame.params.message.type === "BpmnFileQuery",
+        );
+        expect(render.params.message.content).toBe(C7_XML);
+        expect(render.params.message.documentRevision).toBe(4);
+    });
+
+    it("ignores stale same-uri traffic and disposal after replacement", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+        const register = (sessionId: number) =>
+            rpc.handleLine(
+                JSON.stringify({
+                    method: "session/register",
+                    params: registerParams(editorId, root, bpmnPath, C7_XML, undefined, {
+                        sessionId,
+                        documentRevision: 0,
+                    }),
+                }),
+            );
+        await register(1);
+        await register(2);
+        frames.length = 0;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/dispose",
+                params: { editorId, sessionId: 1 },
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    sessionId: 1,
+                    message: { type: "GetBpmnFileCommand" },
+                },
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    sessionId: 2,
+                    message: { type: "GetBpmnFileCommand" },
+                },
+            }),
+        );
+        await settle();
+
+        const renders = frames.filter(
+            (frame) =>
+                frame.method === "editor/postMessage" &&
+                frame.params.message.type === "BpmnFileQuery",
+        );
+        expect(renders).toHaveLength(1);
+        expect(renders[0].params.sessionId).toBe(2);
     });
 
     it("routes messages to the correct editor when several are open at once", async () => {
@@ -178,7 +314,14 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "webview/message",
-                params: { editorId, message: { type: "SyncDocumentCommand", content: edited } },
+                params: {
+                    editorId,
+                    message: {
+                        type: "SyncDocumentCommand",
+                        content: edited,
+                        documentRevision: 0,
+                    },
+                },
             }),
         );
         await settle();
@@ -188,6 +331,7 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         expect(write).toBeDefined();
         expect(write.params.editorId).toBe(editorId);
         expect(write.params.content).toContain("Process_renamed");
+        expect(write.params.expectedDocumentRevision).toBe(0);
         writeResponder();
 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
@@ -374,7 +518,8 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         const before = renders(frames, editorId).length;
 
         // The webview edits the diagram → the core writes it back to the host…
-        const edited = C7_XML.replace("Process_1", "Process_synced");
+        const edited = C7_XML.replace("Process_1", "Process_synced").replace(/\n/g, "\r\n");
+        const hostContent = `${edited.replace(/\r\n/g, "\n")}\n`;
         await rpc.handleLine(
             JSON.stringify({
                 method: "webview/message",
@@ -393,12 +538,22 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "document/didChange",
-                params: { editorId, content: edited, causedBy: write.params.revision },
+                params: { editorId, content: hostContent, causedBy: write.params.revision },
             }),
         );
         await settle();
 
         expect(renders(frames, editorId)).toHaveLength(before);
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "GetBpmnFileCommand" } },
+            }),
+        );
+        await settle();
+        const currentRenders = renders(frames, editorId);
+        expect(currentRenders[currentRenders.length - 1].params.message.content).toBe(hostContent);
 
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });

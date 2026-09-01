@@ -1,13 +1,13 @@
 # `@miragon/bpmn-modeler-shared`
 
-The **private** webview ↔ host **message protocol** for the BPMN/DMN modeler:
-the `Query`/`Command` base classes and every concrete message type, `HostApi`,
-document-flush plumbing, the async-debounce/resolver helpers, and the
-process-variable / variable-manifest types the hosts exchange.
+The **private** webview ↔ host **message protocol** for BPMN, DMN, and Camunda
+Form modeling: the `Query`/`Command` base classes and every concrete message
+type, `HostApi`, document-flush plumbing, the async-debounce/resolver helpers,
+and the process-variable / variable-manifest types the hosts exchange.
 
-Used by both the extension host (`apps/vscode-plugin`), the modeler-bridge, and
-the webview bootstrap/host-adapter layers. It is **not** publishable: it encodes
-the internal transport contract.
+Used by the extension host (`apps/vscode-plugin`), the modeler-bridge, and the
+webview bootstrap/host-adapter layers. It is **not** publishable: it encodes the
+internal transport contract.
 
 ## The public/protocol split
 

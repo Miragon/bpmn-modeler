@@ -132,6 +132,12 @@ up — but documented as unstable (not semver-covered): bpmn-js service names ca
 change across minor versions. Reaching for it is a signal a typed option/method
 is missing and should be filed.
 
+**Amended by [ADR 0011](0011-stable-core-service-contract.md):** the seven core
+diagram-js/bpmn-js services (`canvas`, `commandStack`, `elementRegistry`,
+`eventBus`, `modeling`, `overlays`, `selection`) are carved out of this
+"everything is unstable" rule and frozen as a typed, semver-covered contract.
+Every other name stays unstable exactly as described here.
+
 ## Validation
 
 Every signature was checked against the real consumers. `app/publicApi.spec.ts`

@@ -31,13 +31,13 @@ export class ScriptManifestParticipant implements EditorSessionParticipant {
             return;
         }
         const documentPath = uri.fsPath;
-        const { editorId } = session;
 
-        await this.reload(editorId, documentPath);
+        await this.reload(session, documentPath);
+        if (!session.isCurrent()) return;
 
         session.addDisposable(
             await this.manifestSvc.createWatcher(documentPath, () => {
-                void this.reload(editorId, documentPath);
+                void this.reload(session, documentPath);
             }),
         );
     }
@@ -48,18 +48,24 @@ export class ScriptManifestParticipant implements EditorSessionParticipant {
      * untouched and is surfaced as an error notification (fires on session
      * resolve and on every watcher-triggered reload).
      */
-    private async reload(editorId: string, documentPath: string): Promise<void> {
+    private async reload(session: EditorSessionContext, documentPath: string): Promise<void> {
         try {
             const { manifestPath, found, variables } =
                 await this.manifestSvc.loadWithStatus(documentPath);
-            this.store.setManifest(editorId, variables);
+            if (!session.isCurrent()) return;
+            this.store.setManifest(session.editorId, variables);
             this.notifier.logInfo(
                 found
                     ? `Variable manifest loaded: ${manifestPath} (${variables.length} variable(s))`
                     : `No variable manifest at ${manifestPath}`,
             );
         } catch (error) {
-            this.notifier.notifyError("Failed to read process-variable manifest", error as Error);
+            if (session.isCurrent()) {
+                this.notifier.notifyError(
+                    "Failed to read process-variable manifest",
+                    error as Error,
+                );
+            }
         }
     }
 }
