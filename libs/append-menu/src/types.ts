@@ -32,10 +32,16 @@ export interface PopupMenuEntry {
     group?: { id: string; name: string };
     search?: string[];
     rank?: number;
-    action: PopupMenuEntryAction;
+    action?: PopupMenuEntryAction;
     imageUrl?: string;
     documentationRef?: string;
     disabled?: boolean;
+    /**
+     * Present on drill-in category entries produced by camunda-bpmn-js ≥5.33
+     * grouping providers. Such entries carry no `action`; their leaf children
+     * live here (and typically lost their own `group` marker).
+     */
+    entries?: Record<string, PopupMenuEntry>;
 }
 
 /**
@@ -105,7 +111,22 @@ export function classifyEntries(
         templateIndex.set(t.id, t);
     }
 
-    for (const [key, entry] of Object.entries(entries)) {
+    // Classifies a single entry. `inheritedGroup` is the group synthesized from
+    // an enclosing camunda-5.33 drill-in category, applied to children that lost
+    // their own `group` marker when the upstream provider nested them.
+    const classify = (
+        key: string,
+        entry: PopupMenuEntry,
+        inheritedGroup?: { id: string; name: string },
+    ): void => {
+        if (entry.entries) {
+            const categoryGroup = { id: key, name: entry.label };
+            for (const [childKey, child] of Object.entries(entry.entries)) {
+                classify(childKey, child, categoryGroup);
+            }
+            return;
+        }
+
         if (isTemplateEntry(key, entry)) {
             const templateId = extractTemplateId(key);
             templates.push({
@@ -113,17 +134,29 @@ export function classifyEntries(
                 entry,
                 template: templateId ? templateIndex.get(templateId) : undefined,
             });
-        } else {
-            const groupId = entry.group?.id ?? "other";
-            const groupName = entry.group?.name ?? "Other";
-
-            let group = groupMap.get(groupId);
-            if (!group) {
-                group = { id: groupId, name: groupName, entries: [] };
-                groupMap.set(groupId, group);
-            }
-            group.entries.push({ id: key, entry });
+            return;
         }
+
+        // A non-template entry with neither an action nor children is a tab
+        // header or other non-selectable artifact — skip it.
+        if (!entry.action) {
+            return;
+        }
+
+        const group = entry.group ?? inheritedGroup;
+        const groupId = group?.id ?? "other";
+        const groupName = group?.name ?? "Other";
+
+        let bpmnGroup = groupMap.get(groupId);
+        if (!bpmnGroup) {
+            bpmnGroup = { id: groupId, name: groupName, entries: [] };
+            groupMap.set(groupId, bpmnGroup);
+        }
+        bpmnGroup.entries.push({ id: key, entry });
+    };
+
+    for (const [key, entry] of Object.entries(entries)) {
+        classify(key, entry);
     }
 
     return {
@@ -138,7 +171,10 @@ export function classifyEntries(
  * Handles both the plain function form and the `{ click, dragstart }` object
  * form used by different providers.
  */
-export function executeEntryAction(action: PopupMenuEntryAction, event: Event): void {
+export function executeEntryAction(action: PopupMenuEntryAction | undefined, event: Event): void {
+    if (!action) {
+        return;
+    }
     if (typeof action === "function") {
         action(event);
     } else if (action.click) {

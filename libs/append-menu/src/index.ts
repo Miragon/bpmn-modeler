@@ -18,4 +18,14 @@ import "./append-menu.css";
 export const AppendMenuModule = {
     __init__: ["appendMenuOverride"],
     appendMenuOverride: ["type", AppendMenuOverride],
+    // camunda-bpmn-js ≥5.33 adds popup-menu providers that regroup
+    // bpmn-append/bpmn-create into a drill-in category tree (and, on C8, tab
+    // metadata) the custom overlay can't consume. Redefining the provider DI
+    // names as inert values keeps those providers from ever constructing, so
+    // they never register — restoring the flat entry stream the overlay reads.
+    // bpmn-replace is left untouched (its default menu is not intercepted).
+    createGroupsProvider: ["value", null],
+    appendGroupsProvider: ["value", null],
+    createTabsProvider: ["value", null],
+    appendTabsProvider: ["value", null],
 };
