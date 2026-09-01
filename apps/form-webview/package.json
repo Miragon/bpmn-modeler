@@ -1,0 +1,32 @@
+{
+    "name": "@miragon/form-modeler-webview",
+    "version": "0.0.1",
+    "license": "Apache-2.0",
+    "private": true,
+    "description": "Webview frontend for the Camunda Form editor in BPMN Modeler.",
+    "scripts": {
+        "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+        "watch": "vite build --watch",
+        "serve": "vite --host 127.0.0.1",
+        "dev": "portless",
+        "dev:app": "vite --port $PORT --host 127.0.0.1",
+        "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@bpmn-io/cm-theme": "0.2.2",
+        "@bpmn-io/form-js-editor": "1.25.0",
+        "@bpmn-io/form-js-viewer": "1.25.0",
+        "@codemirror/state": "6.7.1",
+        "@miragon/bpmn-modeler-shared": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "25.0.3",
+        "@types/vscode-webview": "1.57.5",
+        "@vitest/coverage-v8": "4.1.9",
+        "jsdom": "30.0.1",
+        "typescript": "6.0.3",
+        "vite": "8.1.0",
+        "vite-tsconfig-paths": "6.1.1",
+        "vitest": "4.1.9"
+    }
+}

@@ -47,3 +47,4 @@ contributor-facing record, not user documentation.
 | [0006](0006-extract-publishable-modeler-package.md) | Extract the host-free modeler composition into a publishable npm package | accepted |
 | [0007](0007-public-modeler-api.md) | Fix the public `@miragon/bpmn-modeler` API surface before extraction | accepted |
 | [0008](0008-public-diff-api.md) | Public diff API: serializable `computeDiff` data layer, promoted primitives, in-page coordinator | accepted |
+| [0010](0010-expose-reference-availability-through-navigation-port.md) | Expose reference availability through the model navigation port | accepted |

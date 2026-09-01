@@ -29,6 +29,7 @@ function createContext() {
     const context: EditorSessionContext = {
         editorId: EDITOR_ID,
         panel: panel as never,
+        isCurrent: () => true,
         onDocumentChange: (cb) => void (captured.documentChange = cb),
         onSettingChange: (cb) => void (captured.settingChange = cb),
         onDispose: (cb) => void (captured.dispose = cb),

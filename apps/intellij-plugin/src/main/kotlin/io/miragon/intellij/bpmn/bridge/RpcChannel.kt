@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Outbound (host→core) frames are drained by a single writer thread so the EDT /
  * JCEF threads never block on the bridge's stdin. The deque also enables
- * coalescing: a flood of document syncs collapses to its latest frame.
+ * coalescing, while authoritative document updates and RPC replies remain queued
+ * until a live writer accepts them.
  *
  * **Locking.** [ioLock] guards the [writer] reference and every write/flush — the
  * writer half of the split lock. The supervisor's `stateLock`
@@ -35,7 +36,7 @@ internal class RpcChannel(
     /** Shared with the routers so the whole bridge uses one Gson, as before. */
     val gson = Gson()
 
-    private data class OutFrame(val line: String, val coalesceKey: String?)
+    private data class OutFrame(val line: String, val coalesceKey: String?, val reliable: Boolean)
 
     private val outbound = ArrayDeque<OutFrame>()
     private val outboundMonitor = Object()
@@ -50,8 +51,12 @@ internal class RpcChannel(
 
     // ── outbound ──────────────────────────────────────────────────────────────
 
-    fun notify(method: String, params: Any?, coalesceKey: String? = null) =
-        enqueue(gson.toJson(linkedMapOf("method" to method, "params" to params)), coalesceKey)
+    fun notify(method: String, params: Any?, coalesceKey: String? = null, reliable: Boolean = false) =
+        enqueue(
+            gson.toJson(linkedMapOf("method" to method, "params" to params)),
+            coalesceKey,
+            reliable,
+        )
 
     /**
      * Enqueues an already-serialised NDJSON frame verbatim, coalescing by
@@ -60,18 +65,18 @@ internal class RpcChannel(
      * JSON work then never touches the CEF query thread. [line] must be a single
      * line of valid JSON; the framing appends the trailing newline.
      */
-    fun notifyRaw(line: String, coalesceKey: String? = null) = enqueue(line, coalesceKey)
+    fun notifyRaw(line: String, coalesceKey: String? = null) = enqueue(line, coalesceKey, false)
 
     fun reply(id: Int, result: Any?) =
-        enqueue(gson.toJson(linkedMapOf("id" to id, "result" to result)), null)
+        enqueue(gson.toJson(linkedMapOf("id" to id, "result" to result)), null, true)
 
     // The bridge's `rpc.ts` turns `{id, error}` into a rejected promise, so a
     // handler that throws still settles the core's awaiting request instead of
     // leaking it.
     fun replyError(id: Int, message: String) =
-        enqueue(gson.toJson(linkedMapOf("id" to id, "error" to message)), null)
+        enqueue(gson.toJson(linkedMapOf("id" to id, "error" to message)), null, true)
 
-    private fun enqueue(line: String, coalesceKey: String?) {
+    private fun enqueue(line: String, coalesceKey: String?, reliable: Boolean) {
         synchronized(outboundMonitor) {
             if (coalesceKey != null) {
                 val iterator = outbound.iterator()
@@ -80,10 +85,24 @@ internal class RpcChannel(
                 }
             }
             if (outbound.size >= OUTBOUND_CAPACITY) {
-                outbound.removeFirst()
-                log.warn("Outbound bridge queue full ($OUTBOUND_CAPACITY); dropped oldest frame (backpressure)")
+                val iterator = outbound.iterator()
+                var removed = false
+                while (iterator.hasNext()) {
+                    if (!iterator.next().reliable) {
+                        iterator.remove()
+                        removed = true
+                        break
+                    }
+                }
+                if (!removed && !reliable) {
+                    log.warn("Outbound bridge queue full ($OUTBOUND_CAPACITY); dropped newest best-effort frame")
+                    return
+                }
+                if (removed) {
+                    log.warn("Outbound bridge queue full ($OUTBOUND_CAPACITY); dropped oldest best-effort frame")
+                }
             }
-            outbound.addLast(OutFrame(line, coalesceKey))
+            outbound.addLast(OutFrame(line, coalesceKey, reliable))
             outboundMonitor.notifyAll()
         }
     }
@@ -106,9 +125,7 @@ internal class RpcChannel(
                 }
             val target = synchronized(ioLock) { writer }
             if (target == null) {
-                // No live bridge stdin (restart window). Drop rather than spin:
-                // sessions are re-seeded from the authoritative Document on restart.
-                log.debug("No bridge writer; dropped a queued frame during restart")
+                retryOrDrop(frame, "No bridge writer")
                 continue
             }
             try {
@@ -119,7 +136,25 @@ internal class RpcChannel(
                 }
             } catch (e: Exception) {
                 log.warn("Failed to write to bridge stdin", e)
+                synchronized(ioLock) {
+                    if (writer === target) writer = null
+                }
+                retryOrDrop(frame, "Bridge write failed")
             }
+        }
+    }
+
+    private fun retryOrDrop(frame: OutFrame, reason: String) {
+        if (!frame.reliable) {
+            log.debug("$reason; dropped a best-effort frame")
+            return
+        }
+        synchronized(outboundMonitor) {
+            if (closed.get()) return
+            val superseded =
+                frame.coalesceKey != null && outbound.any { it.coalesceKey == frame.coalesceKey }
+            if (!superseded) outbound.addFirst(frame)
+            if (!superseded) outboundMonitor.wait(RELIABLE_RETRY_MS)
         }
     }
 
@@ -164,11 +199,12 @@ internal class RpcChannel(
         synchronized(ioLock) {
             writer = BufferedWriter(OutputStreamWriter(stdin, StandardCharsets.UTF_8))
         }
+        synchronized(outboundMonitor) { outboundMonitor.notifyAll() }
         pump(stdout, "modeler-bridge-reader") { onLine(it) }
         ensureWriterThread()
     }
 
-    /** Drops the writer during a restart window; queued frames are dropped, as before. */
+    /** Drops the writer during a restart window; reliable queued frames wait for re-attach. */
     fun detach() {
         synchronized(ioLock) { writer = null }
     }
@@ -206,6 +242,7 @@ internal class RpcChannel(
 
     private companion object {
         const val OUTBOUND_CAPACITY = 512
+        const val RELIABLE_RETRY_MS = 100L
     }
 }
 

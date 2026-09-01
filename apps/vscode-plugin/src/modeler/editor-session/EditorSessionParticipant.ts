@@ -18,6 +18,9 @@ export interface EditorSessionContext {
     /** The webview panel; only view-state-driven participants need it. */
     readonly panel: WebviewPanel;
 
+    /** Whether this exact session still owns its document URI. */
+    isCurrent(): boolean;
+
     /** Subscribes to workspace document-change events for this session. */
     onDocumentChange(callback: (event: DocumentChangeEvent) => void): void;
 

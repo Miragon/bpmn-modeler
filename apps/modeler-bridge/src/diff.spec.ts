@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createBridge } from "./bridge";
 import { Rpc } from "./rpc";
@@ -55,7 +55,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
     const AFTER = "file:///proc.bpmn#d1-after";
 
     /** Opens a compare-files diff and walks both panes to ready. */
-    async function openAndReady(rpc: Rpc): Promise<void> {
+    async function openAndReady(rpc: Rpc, frames: any[]): Promise<void> {
         await rpc.handleLine(
             line("diff/open", {
                 diffId: "d1",
@@ -69,18 +69,34 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
                 line("diff/webviewMessage", { paneUri, message: { type: "GetBpmnFileCommand" } }),
             );
         }
-        await settle();
+        await vi.waitFor(
+            () => {
+                expect(postsTo(frames, BEFORE).some((m) => m.type === "BpmnFileQuery")).toBe(true);
+                expect(postsTo(frames, AFTER).some((m) => m.type === "BpmnFileQuery")).toBe(true);
+            },
+            { timeout: 5000 },
+        );
         for (const paneUri of [BEFORE, AFTER]) {
             await rpc.handleLine(
                 line("diff/webviewMessage", { paneUri, message: { type: "DiffReadyCommand" } }),
             );
         }
-        await settle();
+        await vi.waitFor(
+            () => {
+                expect(
+                    postsTo(frames, BEFORE).some((m) => m.type === "ApplyDiffHighlightsQuery"),
+                ).toBe(true);
+                expect(
+                    postsTo(frames, AFTER).some((m) => m.type === "ApplyDiffHighlightsQuery"),
+                ).toBe(true);
+            },
+            { timeout: 5000 },
+        );
     }
 
     it("answers each pane's GetBpmnFileCommand with its own viewer-mode XML", async () => {
         const { rpc, frames } = setup();
-        await openAndReady(rpc);
+        await openAndReady(rpc, frames);
 
         const beforeFile = postsTo(frames, BEFORE).find((m) => m.type === "BpmnFileQuery");
         const afterFile = postsTo(frames, AFTER).find((m) => m.type === "BpmnFileQuery");
@@ -90,7 +106,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
 
     it("runs the differ once both sides are ready and highlights each side", async () => {
         const { rpc, frames } = setup();
-        await openAndReady(rpc);
+        await openAndReady(rpc, frames);
 
         const beforeHi = postsTo(frames, BEFORE).find((m) => m.type === "ApplyDiffHighlightsQuery");
         const afterHi = postsTo(frames, AFTER).find((m) => m.type === "ApplyDiffHighlightsQuery");
@@ -105,7 +121,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
 
     it("forwards viewport and cursor changes to the partner pane only", async () => {
         const { rpc, frames } = setup();
-        await openAndReady(rpc);
+        await openAndReady(rpc, frames);
         const baseline = frames.length;
 
         await rpc.handleLine(
@@ -139,7 +155,7 @@ describe("bridge diff (real diff brain over a fake transport)", () => {
 
     it("disposes both panes, after which stray pane messages are no-ops", async () => {
         const { rpc, frames } = setup();
-        await openAndReady(rpc);
+        await openAndReady(rpc, frames);
 
         await rpc.handleLine(line("diff/dispose", { diffId: "d1" }));
         const baseline = frames.length;

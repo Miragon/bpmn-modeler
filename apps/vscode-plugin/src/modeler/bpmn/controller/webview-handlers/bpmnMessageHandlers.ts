@@ -36,7 +36,7 @@ import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
-import { ModelNavigationService } from "../../../../navigation/index";
+import { FormReferenceStatusService, ModelNavigationService } from "../../../../navigation/index";
 import { CodeLinkMapService, ImplementationNavigationService } from "../../../../codeLink/index";
 import { ScriptTaskService } from "../../../../scriptTask/index";
 
@@ -197,7 +197,8 @@ export function setTextClipboardHandler(clipboardMediator: BpmnClipboardMediator
 /** `SyncDocumentCommand` → persist the current XML; session guard lives in the service. */
 export function syncDocumentHandler(bpmnService: BpmnModelerService): MessageHandler {
     return async (message: Command, editorId: string) => {
-        await bpmnService.sync(editorId, (message as SyncDocumentCommand).content);
+        const sync = message as SyncDocumentCommand;
+        await bpmnService.sync(editorId, sync.content, sync.documentRevision);
     };
 }
 
@@ -307,7 +308,11 @@ export function navigateToReferencedModelHandler(
 ): MessageHandler {
     return async (message: Command, editorId: string) => {
         const cmd = message as NavigateToReferencedModelCommand;
-        if (cmd.referenceKind !== "process" && cmd.referenceKind !== "decision") {
+        if (
+            cmd.referenceKind !== "process" &&
+            cmd.referenceKind !== "decision" &&
+            cmd.referenceKind !== "form"
+        ) {
             notifier.logWarning(
                 `Ignoring NavigateToReferencedModelCommand with unknown kind: ${String(
                     cmd.referenceKind,
@@ -317,6 +322,15 @@ export function navigateToReferencedModelHandler(
         }
         const sourceFsPath = editorStore.requireHandle(editorId).documentFsPath();
         await modelNavigationService.navigate(cmd.referenceId, cmd.referenceKind, sourceFsPath);
+    };
+}
+
+/** `GetFormReferenceStatusCommand` → push resolvable form ids to the BPMN webview. */
+export function getFormReferenceStatusHandler(
+    statusService: FormReferenceStatusService,
+): MessageHandler {
+    return async (_message: Command, editorId: string) => {
+        await statusService.requestStatus(editorId);
     };
 }
 

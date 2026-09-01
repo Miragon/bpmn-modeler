@@ -10,7 +10,7 @@ import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-temp
 import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import { type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";

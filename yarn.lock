@@ -1642,7 +1642,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/cm-theme@npm:0.2.2":
+"@bpmn-io/cm-theme@npm:0.2.2, @bpmn-io/cm-theme@npm:^0.2.2":
   version: 0.2.2
   resolution: "@bpmn-io/cm-theme@npm:0.2.2"
   dependencies:
@@ -1690,6 +1690,15 @@ __metadata:
   version: 0.7.0
   resolution: "@bpmn-io/dmn-variable-resolver@npm:0.7.0"
   checksum: 10c0/6f2dbb80ea9348a5cf35c6b81499974d98a0f61a28d133bd253f9938b3d7425d18f53ac9aa11a15b38d85a2f9169a42919200ffc1e4af053aa05cfbaa5edc952
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/draggle@npm:^4.1.2":
+  version: 4.1.2
+  resolution: "@bpmn-io/draggle@npm:4.1.2"
+  dependencies:
+    contra: "npm:^1.9.4"
+  checksum: 10c0/28804403f55f0a9621f2cbb3b8bd17321d9ba9bf4e8f84313ed82f4650c8caff9e4601d5e056d25e7d50dd3bc506f2a0d42c0049c580b01ce307bd335c99fe70
   languageName: node
   linkType: hard
 
@@ -1755,6 +1764,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-io/feel-analyzer@npm:^0.5.0":
+  version: 0.5.0
+  resolution: "@bpmn-io/feel-analyzer@npm:0.5.0"
+  dependencies:
+    "@bpmn-io/lezer-feel": "npm:^3.0.1"
+    "@lezer/common": "npm:^1.5.2"
+  checksum: 10c0/37107cf0f341e1dde8735aad0743fb05c594b985bd0c0520934ae867f6cffd220cf2a45e10099ad4b4b382a107a7837ee8ea277ea61bb513255b4a7e9680f69c
+  languageName: node
+  linkType: hard
+
 "@bpmn-io/feel-editor@npm:^2.5.2":
   version: 2.5.2
   resolution: "@bpmn-io/feel-editor@npm:2.5.2"
@@ -1775,6 +1794,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-io/feel-editor@npm:^2.7.0":
+  version: 2.7.0
+  resolution: "@bpmn-io/feel-editor@npm:2.7.0"
+  dependencies:
+    "@bpmn-io/cm-theme": "npm:^0.2.2"
+    "@bpmn-io/feel-lint": "npm:^3.2.0"
+    "@bpmn-io/lang-feel": "npm:^4.0.2"
+    "@bpmn-io/semver-compat": "npm:^0.1.0"
+    "@camunda/feel-builtins": "npm:^1.4.0"
+    "@codemirror/autocomplete": "npm:^6.20.0"
+    "@codemirror/commands": "npm:^6.10.3"
+    "@codemirror/language": "npm:^6.11.3"
+    "@codemirror/lint": "npm:^6.9.7"
+    "@codemirror/state": "npm:^6.6.0"
+    "@codemirror/view": "npm:^6.43.1"
+    "@lezer/highlight": "npm:^1.2.3"
+    min-dom: "npm:^5.3.0"
+    mitt: "npm:^3.0.1"
+  checksum: 10c0/9a891651528ab8108ad97deb0b824611d52a12461cea94c070827b4389f617f80dfecc665bed3c11440540b47130620efbd6fe83f3026e7399d498fa13204ceb
+  languageName: node
+  linkType: hard
+
 "@bpmn-io/feel-lint@npm:^3.1.0":
   version: 3.1.0
   resolution: "@bpmn-io/feel-lint@npm:3.1.0"
@@ -1782,6 +1823,18 @@ __metadata:
     "@bpmn-io/lezer-feel": "npm:^2.1.0"
     "@codemirror/language": "npm:^6.12.1"
   checksum: 10c0/87d78fbbe8329ffeba2e76d20c72440d30e111fa01917110a534941f5a3adcda9375db96ae72675be41e149441f2dd4bbeb466156fcf026382c031eac4ca809f
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/feel-lint@npm:^3.2.0":
+  version: 3.2.0
+  resolution: "@bpmn-io/feel-lint@npm:3.2.0"
+  dependencies:
+    "@bpmn-io/feel-analyzer": "npm:^0.5.0"
+    "@bpmn-io/lezer-feel": "npm:^3.0.0"
+    "@bpmn-io/semver-compat": "npm:^0.1.0"
+    "@codemirror/language": "npm:^6.12.1"
+  checksum: 10c0/ac5fc1e88bd44f6c42493c9334053246c4f9ee6e4eceb039bef6c74476cd2d0cbbfca822272d7bb811924776ed53fd59178e36dce0de3431932104512f4e43d9
   languageName: node
   linkType: hard
 
@@ -1808,6 +1861,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-io/feelers-editor@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "@bpmn-io/feelers-editor@npm:1.1.1"
+  dependencies:
+    "@bpmn-io/feelers-lint": "npm:^1.0.0"
+    "@bpmn-io/lang-feelers": "npm:^1.0.0"
+    "@codemirror/autocomplete": "npm:^6.20.0"
+    "@codemirror/commands": "npm:^6.10.1"
+    "@codemirror/language": "npm:^6.12.1"
+    "@codemirror/lint": "npm:^6.9.3"
+    "@codemirror/state": "npm:^6.5.4"
+    "@codemirror/view": "npm:^6.39.12"
+    "@lezer/common": "npm:^1.5.1"
+    "@lezer/html": "npm:^1.3.13"
+    "@lezer/markdown": "npm:^1.6.3"
+    min-dom: "npm:^5.2.0"
+    mitt: "npm:^3.0.1"
+  peerDependencies:
+    "@bpmn-io/cm-theme": ^0.2.1
+  checksum: 10c0/3be0271e8bfa19928970fd141f3ab766915ee3c5bf92bf6c1b987dc36b8b4b8fe0e7faff258055575364782f3eaa43556fa5d8fa567fbfdd07f608b40e7b2f30
+  languageName: node
+  linkType: hard
+
 "@bpmn-io/feelers-lint@npm:^1.0.0":
   version: 1.0.0
   resolution: "@bpmn-io/feelers-lint@npm:1.0.0"
@@ -1831,6 +1907,95 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bpmn-io/form-js-carbon-styles@npm:^1.25.0":
+  version: 1.25.0
+  resolution: "@bpmn-io/form-js-carbon-styles@npm:1.25.0"
+  checksum: 10c0/2b7d8900c062d28ce82dbc843cdb36f7675e52e351f43ce88845c2292e3ccc397d696bfafe70856150d9520c309a13878938b7abd91980ece82c4cce0238b4cf
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/form-js-editor@npm:1.25.0, @bpmn-io/form-js-editor@npm:^1.25.0":
+  version: 1.25.0
+  resolution: "@bpmn-io/form-js-editor@npm:1.25.0"
+  dependencies:
+    "@bpmn-io/draggle": "npm:^4.1.2"
+    "@bpmn-io/form-js-viewer": "npm:^1.25.0"
+    "@bpmn-io/properties-panel": "npm:^3.47.0"
+    array-move: "npm:^4.0.0"
+    big.js: "npm:^7.0.1"
+    ids: "npm:^3.0.2"
+    min-dash: "npm:^5.1.0"
+    min-dom: "npm:^5.3.0"
+    preact: "npm:^10.29.5"
+  checksum: 10c0/d7c7dcfbbc2dcd7aa029ab9e6bb2cf097d343d3018ff1b361b40f5605c4bce88c34ad399cbbcb8daa4a089af0a1474ca725c55749b6df49d18bef5f02a449289
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/form-js-playground@npm:^1.25.0":
+  version: 1.25.0
+  resolution: "@bpmn-io/form-js-playground@npm:1.25.0"
+  dependencies:
+    "@bpmn-io/cm-theme": "npm:^0.2.2"
+    "@bpmn-io/form-js-editor": "npm:^1.25.0"
+    "@bpmn-io/form-js-viewer": "npm:^1.25.0"
+    "@codemirror/autocomplete": "npm:^6.20.0"
+    "@codemirror/commands": "npm:^6.10.1"
+    "@codemirror/lang-json": "npm:^6.0.2"
+    "@codemirror/language": "npm:^6.12.1"
+    "@codemirror/lint": "npm:^6.9.3"
+    "@codemirror/state": "npm:^6.5.4"
+    "@codemirror/view": "npm:^6.39.12"
+    classnames: "npm:^2.5.1"
+    codemirror: "npm:^6.0.2"
+    downloadjs: "npm:^1.4.7"
+    file-drops: "npm:^0.7.0"
+    mitt: "npm:^3.0.1"
+    preact: "npm:^10.29.5"
+  checksum: 10c0/e1dc0a3766d2accc814a2f6a3587118c3668e55f6e4bf7473e84e732fe55f15607cd9c4387e68b9c133ee5736ab4385695cf9f933a6654eb67c48f7bf5c03439
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/form-js-viewer@npm:1.25.0, @bpmn-io/form-js-viewer@npm:^1.25.0":
+  version: 1.25.0
+  resolution: "@bpmn-io/form-js-viewer@npm:1.25.0"
+  dependencies:
+    "@bpmn-io/feelin": "npm:^6.1.0"
+    "@carbon/grid": "npm:^11.49.0"
+    big.js: "npm:^7.0.1"
+    classnames: "npm:^2.5.1"
+    didi: "npm:^11.0.0"
+    dompurify: "npm:^3.4.11"
+    feelers: "npm:^3.1.0"
+    flatpickr: "npm:^4.6.13"
+    ids: "npm:^3.0.2"
+    lodash: "npm:^4.18.1"
+    luxon: "npm:^3.7.2"
+    marked: "npm:^18.0.3"
+    min-dash: "npm:^5.1.0"
+    preact: "npm:^10.29.5"
+  checksum: 10c0/7b53c2c71fccbe45cc25732845ff07e41051d03f5d69294a14b4629860ef9c227c7490f5f43a38c32fa383543989ec713cb4382ed4bcb68885d3a9fd3d7ee4e6
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/form-js@npm:1.25.0":
+  version: 1.25.0
+  resolution: "@bpmn-io/form-js@npm:1.25.0"
+  dependencies:
+    "@bpmn-io/form-js-carbon-styles": "npm:^1.25.0"
+    "@bpmn-io/form-js-editor": "npm:^1.25.0"
+    "@bpmn-io/form-js-playground": "npm:^1.25.0"
+    "@bpmn-io/form-js-viewer": "npm:^1.25.0"
+  checksum: 10c0/10cc45138e3c8b02241a9c94fbd35c4aa0915a471736a2548d41f73ef59ed995c3c61b7384d9383317837a7594ed8e534fae13fee4cb6b22688e5713e666d0e8
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/form-json-schema@npm:1.18.0":
+  version: 1.18.0
+  resolution: "@bpmn-io/form-json-schema@npm:1.18.0"
+  checksum: 10c0/d716765ef8a1110f3127e0c69dc72b5b7e3a14fe4ba56a21cec008000b80cfc98ce70ebd2b4a7b0b417849e09e64688b41232f934b30975490c6facb31e03a25
+  languageName: node
+  linkType: hard
+
 "@bpmn-io/lang-feel@npm:^3.0.0":
   version: 3.0.0
   resolution: "@bpmn-io/lang-feel@npm:3.0.0"
@@ -1840,6 +2005,18 @@ __metadata:
     "@codemirror/language": "npm:^6.11.3"
     "@lezer/common": "npm:^1.4.0"
   checksum: 10c0/d2ee01c6e65c0131b4d8f3e8503a789d1b582bb642bdc161e8877e0b4467a52bfa81e0731b7dd6aba82fc31dae95c91f132bfce30d8779635b0058a05fb1036d
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/lang-feel@npm:^4.0.2":
+  version: 4.0.2
+  resolution: "@bpmn-io/lang-feel@npm:4.0.2"
+  dependencies:
+    "@bpmn-io/lezer-feel": "npm:^3.0.1"
+    "@codemirror/autocomplete": "npm:^6.20.3"
+    "@codemirror/language": "npm:^6.12.3"
+    "@lezer/common": "npm:^1.5.2"
+  checksum: 10c0/b79057e3899196b130061e1b841e3cb857422d786e4c0dd2948edf8532f8381fb46b44eb941c8290c76f8b9a833913241582f24540d4c20a9be65c3437060223
   languageName: node
   linkType: hard
 
@@ -1888,7 +2065,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/lezer-feel@npm:^3.0.0":
+"@bpmn-io/lezer-feel@npm:^3.0.0, @bpmn-io/lezer-feel@npm:^3.0.1":
   version: 3.0.1
   resolution: "@bpmn-io/lezer-feel@npm:3.0.1"
   dependencies:
@@ -1959,6 +2136,27 @@ __metadata:
     min-dash: "npm:^5.0.0"
     min-dom: "npm:^5.3.0"
   checksum: 10c0/2220aeb35eba4d35bf318bdc5931a6bfd413518b7d0b6c02ba86ca53d1c54395538e30aae2c218f90dffccf17b9dec0fbddf23049ea7eb95e712d64f4c13f338
+  languageName: node
+  linkType: hard
+
+"@bpmn-io/properties-panel@npm:^3.47.0":
+  version: 3.49.2
+  resolution: "@bpmn-io/properties-panel@npm:3.49.2"
+  dependencies:
+    "@bpmn-io/feel-editor": "npm:^2.7.0"
+    "@bpmn-io/feelers-editor": "npm:^1.1.1"
+    "@codemirror/autocomplete": "npm:^6.18.6"
+    "@codemirror/commands": "npm:^6.10.3"
+    "@codemirror/lang-json": "npm:^6.0.2"
+    "@codemirror/language": "npm:^6.11.0"
+    "@codemirror/lint": "npm:^6.9.5"
+    "@codemirror/state": "npm:^6.6.0"
+    "@codemirror/view": "npm:^6.28.1"
+    classnames: "npm:^2.5.1"
+    focus-trap: "npm:^8.0.0"
+    min-dash: "npm:^5.1.0"
+    min-dom: "npm:^5.3.0"
+  checksum: 10c0/5e65a90b44b785029271a2c62286dab7c23fd58ebc5317f9774f79076797d517ba5d445f85724e07243ddf2f52fccd17b94c2de143e6bc920a9b352062ac9d07
   languageName: node
   linkType: hard
 
@@ -2050,7 +2248,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@camunda/feel-builtins@npm:^1.2.0":
+"@camunda/feel-builtins@npm:^1.2.0, @camunda/feel-builtins@npm:^1.4.0":
   version: 1.4.0
   resolution: "@camunda/feel-builtins@npm:1.4.0"
   checksum: 10c0/ba9807eb98c12e14e4fc1a4403e4b01e2fd539ef5501d7e18963f806bc47b16157f8ec37b3eea9d46cd43e909972719416e9662e75b2ca1f24a0ba95ccf9f6db
@@ -2064,6 +2262,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@carbon/grid@npm:^11.49.0":
+  version: 11.60.0
+  resolution: "@carbon/grid@npm:11.60.0"
+  dependencies:
+    "@carbon/layout": "npm:^11.57.0"
+    "@ibm/telemetry-js": "npm:^1.5.0"
+  checksum: 10c0/8d1a481a56bcc2ea5db4e5c3e4ca6a6410fd2d1e322a1c5943a9227c07299d2d639f2fa841f95d91f7b6e414f217275fbe74362c24a8427f18df1a7c8968a1ae
+  languageName: node
+  linkType: hard
+
 "@carbon/icons@npm:^11.69.0":
   version: 11.76.0
   resolution: "@carbon/icons@npm:11.76.0"
@@ -2073,10 +2281,31 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@carbon/layout@npm:^11.57.0":
+  version: 11.57.0
+  resolution: "@carbon/layout@npm:11.57.0"
+  dependencies:
+    "@ibm/telemetry-js": "npm:^1.5.0"
+  checksum: 10c0/97ebb2ec93255cbf29bdd4407397c9ba781e26d13d87c6a49d12ade740d19af1ca22e5df1aa30c7dc6efec235cceffb48563978a95e748d9a354c9da2a9e36f7
+  languageName: node
+  linkType: hard
+
 "@chevrotain/types@npm:~11.1.2":
   version: 11.1.2
   resolution: "@chevrotain/types@npm:11.1.2"
   checksum: 10c0/c0c4679a3d407df34e18d5adfa7ac599b4a2bfddbf68da6e43678b9b3e16ab911de7766b37b9fc466261c3dead3db1b620e2e344f800fa9f0f381720475eda8f
+  languageName: node
+  linkType: hard
+
+"@codemirror/autocomplete@npm:^6.0.0, @codemirror/autocomplete@npm:^6.20.3":
+  version: 6.20.3
+  resolution: "@codemirror/autocomplete@npm:6.20.3"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.17.0"
+    "@lezer/common": "npm:^1.0.0"
+  checksum: 10c0/c8aa358d25cde007a7073fb39fd268d1908aa0f664047cc44af0f7a6b2835f227c9bd60f0c7cde5914cf2c9ef9c014fee6e322832e83d9f1c1b55872d2300b69
   languageName: node
   linkType: hard
 
@@ -2089,6 +2318,18 @@ __metadata:
     "@codemirror/view": "npm:^6.17.0"
     "@lezer/common": "npm:^1.0.0"
   checksum: 10c0/ec3ecdd8098778c0764827ffcb6252edc763de3500314ad6b36d77bd09f73c03cb9a95b952b2b928354e1c83f2ae1bfef92b406eae40f94b47104b51bd508b35
+  languageName: node
+  linkType: hard
+
+"@codemirror/commands@npm:^6.0.0":
+  version: 6.11.0
+  resolution: "@codemirror/commands@npm:6.11.0"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+    "@codemirror/state": "npm:^6.7.0"
+    "@codemirror/view": "npm:^6.27.0"
+    "@lezer/common": "npm:^1.1.0"
+  checksum: 10c0/53754247b71529abddad867dc8195b557bea23642688fd2ef23c536bda3fdf0c5dcd02d447e754b5696d1f09aeb4c15affa146812ba8986d73b3d394b6b79e75
   languageName: node
   linkType: hard
 
@@ -2182,6 +2423,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@codemirror/lint@npm:^6.0.0, @codemirror/lint@npm:^6.9.7":
+  version: 6.9.7
+  resolution: "@codemirror/lint@npm:6.9.7"
+  dependencies:
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.42.0"
+    crelt: "npm:^1.0.5"
+  checksum: 10c0/5c2985e1118c96d76ccc2295e86476b6a56d4cb764e228b0d42ad08f9e2bb2f4862a2609196099d0242b639e924cd93acc1cca8ae55b4910c4f4e66856981fe0
+  languageName: node
+  linkType: hard
+
 "@codemirror/lint@npm:^6.9.3, @codemirror/lint@npm:^6.9.5":
   version: 6.9.5
   resolution: "@codemirror/lint@npm:6.9.5"
@@ -2190,6 +2442,26 @@ __metadata:
     "@codemirror/view": "npm:^6.35.0"
     crelt: "npm:^1.0.5"
   checksum: 10c0/74fb810ffe491cfb4f1d30cd97560f4d4c5e598e34d4e3814989750ba82de9c921df6afb2b25a9972364e9beb38512a80db940d98d648cd136e991ffa21b85fd
+  languageName: node
+  linkType: hard
+
+"@codemirror/search@npm:^6.0.0":
+  version: 6.7.1
+  resolution: "@codemirror/search@npm:6.7.1"
+  dependencies:
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.37.0"
+    crelt: "npm:^1.0.5"
+  checksum: 10c0/2930c4139340da4b52f217dc0a7040e36aa122279911894ebb06c5ea7364d91e73c8e195db5610caa9474ef45a99552ad944a416fa9c381a336f1f39bf0e71ad
+  languageName: node
+  linkType: hard
+
+"@codemirror/state@npm:6.7.1, @codemirror/state@npm:^6.7.0":
+  version: 6.7.1
+  resolution: "@codemirror/state@npm:6.7.1"
+  dependencies:
+    "@marijn/find-cluster-break": "npm:^1.0.0"
+  checksum: 10c0/2490b87759d1f4f27f4573a084414bf30bf9ed5dccaa75485334a2d132c039f2255e3bca564fb07c6760a16bf86cc29532475d9fb75cfdb0771b330fe71be4e7
   languageName: node
   linkType: hard
 
@@ -2215,6 +2487,18 @@ __metadata:
   dependencies:
     "@marijn/find-cluster-break": "npm:^1.0.0"
   checksum: 10c0/4e5d6ddd28fc642e8d749fe80a7dd278afd547e4d93c562eaab6f23bdf25bb12a94226db3efab6321d458c531eb6d357184809f3704aee419fe3230d53f16e24
+  languageName: node
+  linkType: hard
+
+"@codemirror/view@npm:^6.0.0, @codemirror/view@npm:^6.37.0, @codemirror/view@npm:^6.42.0, @codemirror/view@npm:^6.43.1":
+  version: 6.43.9
+  resolution: "@codemirror/view@npm:6.43.9"
+  dependencies:
+    "@codemirror/state": "npm:^6.7.0"
+    crelt: "npm:^1.0.6"
+    style-mod: "npm:^4.1.0"
+    w3c-keyname: "npm:^2.2.4"
+  checksum: 10c0/c64b076f2739a9fa8b8c67e01091ddc8d7f653dd66954088fa5837ab30b59152efb959b359b7806662add8cd97011030e0eef8eb77ca71840acd5d824af00b8e
   languageName: node
   linkType: hard
 
@@ -4032,6 +4316,26 @@ __metadata:
     typescript: "npm:6.0.3"
     vite: "npm:8.1.0"
     vite-tsconfig-paths: "npm:6.1.1"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/form-modeler-webview@workspace:apps/form-webview":
+  version: 0.0.0-use.local
+  resolution: "@miragon/form-modeler-webview@workspace:apps/form-webview"
+  dependencies:
+    "@bpmn-io/cm-theme": "npm:0.2.2"
+    "@bpmn-io/form-js-editor": "npm:1.25.0"
+    "@bpmn-io/form-js-viewer": "npm:1.25.0"
+    "@codemirror/state": "npm:6.7.1"
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@types/node": "npm:25.0.3"
+    "@types/vscode-webview": "npm:1.57.5"
+    "@vitest/coverage-v8": "npm:4.1.9"
+    jsdom: "npm:30.0.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.1.0"
+    vite-tsconfig-paths: "npm:6.1.1"
+    vitest: "npm:4.1.9"
   languageName: unknown
   linkType: soft
 
@@ -7044,6 +7348,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/node@npm:25.0.3":
+  version: 25.0.3
+  resolution: "@types/node@npm:25.0.3"
+  dependencies:
+    undici-types: "npm:~7.16.0"
+  checksum: 10c0/b7568f0d765d9469621615e2bb257c7fd1953d95e9acbdb58dffb6627a2c4150d405a4600aa1ad8a40182a94fe5f903cafd3c0a2f5132814debd0e3bfd61f835
+  languageName: node
+  linkType: hard
+
 "@types/node@npm:26.1.2":
   version: 26.1.2
   resolution: "@types/node@npm:26.1.2"
@@ -8986,6 +9299,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"atoa@npm:1.0.0":
+  version: 1.0.0
+  resolution: "atoa@npm:1.0.0"
+  checksum: 10c0/8aeb1418875135dbd3715d79331f5ce6af84aab9e5b74658e893a06d4a37b3a8a9b6847c7e5cb6c60ece11d593ae439fbe15a82616659ba6fc410c09b941c665
+  languageName: node
+  linkType: hard
+
 "atomically@npm:^1.7.0":
   version: 1.7.0
   resolution: "atomically@npm:1.7.0"
@@ -9258,6 +9578,13 @@ __metadata:
   version: 5.2.2
   resolution: "big.js@npm:5.2.2"
   checksum: 10c0/230520f1ff920b2d2ce3e372d77a33faa4fa60d802fe01ca4ffbc321ee06023fe9a741ac02793ee778040a16b7e497f7d60c504d1c402b8fdab6f03bb785a25f
+  languageName: node
+  linkType: hard
+
+"big.js@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "big.js@npm:7.0.1"
+  checksum: 10c0/2ea2c2e263db37b2d5c6ad6246408eabf13ba07776cfd92bf464db201ef9aa9aa1712accbfe97f4aba5d358567ebefe768e8a50102cde11f35ef3497ddc2747c
   languageName: node
   linkType: hard
 
@@ -10528,6 +10855,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"codemirror@npm:^6.0.2":
+  version: 6.0.2
+  resolution: "codemirror@npm:6.0.2"
+  dependencies:
+    "@codemirror/autocomplete": "npm:^6.0.0"
+    "@codemirror/commands": "npm:^6.0.0"
+    "@codemirror/language": "npm:^6.0.0"
+    "@codemirror/lint": "npm:^6.0.0"
+    "@codemirror/search": "npm:^6.0.0"
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.0.0"
+  checksum: 10c0/8d198d8aebc32e56c966ac57b0fe8f832b7d601a2f62819ba3a294570233982bf4d5b499a764194b6b26dbc5313a156c2611cbc542234ea6eae6accf07a651ab
+  languageName: node
+  linkType: hard
+
 "color-convert@npm:^1.9.0":
   version: 1.9.3
   resolution: "color-convert@npm:1.9.3"
@@ -10759,6 +11101,16 @@ __metadata:
   version: 1.0.5
   resolution: "content-type@npm:1.0.5"
   checksum: 10c0/b76ebed15c000aee4678c3707e0860cb6abd4e680a598c0a26e17f0bfae723ec9cc2802f0ff1bc6e4d80603719010431d2231018373d4dde10f9ccff9dadf5af
+  languageName: node
+  linkType: hard
+
+"contra@npm:^1.9.4":
+  version: 1.9.4
+  resolution: "contra@npm:1.9.4"
+  dependencies:
+    atoa: "npm:1.0.0"
+    ticky: "npm:1.0.1"
+  checksum: 10c0/c392226c1c718d23926b42ec3fccf6ad8a2b570b0637ff4ce3d7058ffd253618aa27edb2d392dc9ad6194805c1ca5527d4d602aef6e9087f8846479ed81821f1
   languageName: node
   linkType: hard
 
@@ -12127,14 +12479,14 @@ __metadata:
   linkType: hard
 
 "dompurify@npm:^3.4.11":
-  version: 3.4.13
-  resolution: "dompurify@npm:3.4.13"
+  version: 3.4.14
+  resolution: "dompurify@npm:3.4.14"
   dependencies:
     "@types/trusted-types": "npm:^2.0.7"
   dependenciesMeta:
     "@types/trusted-types":
       optional: true
-  checksum: 10c0/9c2a1a71e1a1d8b77953db7a39ffc935ef4ed4f10fe40770232128c2cbfd4c3dc677d3d7bae51eb24cc52d9ff3548612dc540ecb4343e89b26e809d2be2e0cfe
+  checksum: 10c0/feca07ece3805d1d4e33e847c11196888dcdc97b2afe0bb8a2fd11de4e62bfdc434c2403ee3fb3c7771e903325041d062febec6c5518796391fdc0419a90a873
   languageName: node
   linkType: hard
 
@@ -12171,6 +12523,13 @@ __metadata:
   version: 16.6.1
   resolution: "dotenv@npm:16.6.1"
   checksum: 10c0/15ce56608326ea0d1d9414a5c8ee6dcf0fffc79d2c16422b4ac2268e7e2d76ff5a572d37ffe747c377de12005f14b3cc22361e79fc7f1061cce81f77d2c973dc
+  languageName: node
+  linkType: hard
+
+"downloadjs@npm:^1.4.7":
+  version: 1.4.7
+  resolution: "downloadjs@npm:1.4.7"
+  checksum: 10c0/a89af5fc0b0034402ca2d58c8a09e2baaabdd6b7be47bf227755f50bddd3463eae1abaab6bf68b9b4814ce7cc39d63af9066df8a94c5269a30e75eb57c622f38
   languageName: node
   linkType: hard
 
@@ -13457,6 +13816,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"feelers@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "feelers@npm:3.1.0"
+  dependencies:
+    "@bpmn-io/feelin": "npm:^6.1.0"
+    "@bpmn-io/lezer-feelers": "npm:^1.0.0"
+  checksum: 10c0/057b0ab952b65751bc99b700ea34bd395d6c8e02241b6b2d8920d4de32f1f1d73f4a5dd203b99b6b01c72481a80557c8a56a16d47d50363d5dd5b51b76f6e9dd
+  languageName: node
+  linkType: hard
+
 "feelin@npm:7.0.1":
   version: 7.0.1
   resolution: "feelin@npm:7.0.1"
@@ -13466,6 +13835,15 @@ __metadata:
     luxon: "npm:^3.7.2"
     min-dash: "npm:^5.0.0"
   checksum: 10c0/aae2ae7db9fc7831209a10282ffd09c68ba3a579df8e1bdd07cab77d31ee584b125a23eb666502b84e8707b91f40829e2bafdb987a99eb79063f0b0cd30d681d
+  languageName: node
+  linkType: hard
+
+"file-drops@npm:^0.7.0":
+  version: 0.7.0
+  resolution: "file-drops@npm:0.7.0"
+  dependencies:
+    min-dom: "npm:^5.2.0"
+  checksum: 10c0/ab8e52ec254749e29e6273733e0920705f05ff47e40e3e66141ea165f2bd60e77af871d7d784b683226405ce54bf8ad91c2d227e02a67b46c0795a9c4fc28b90
   languageName: node
   linkType: hard
 
@@ -13652,6 +14030,13 @@ __metadata:
   bin:
     flat: cli.js
   checksum: 10c0/f178b13482f0cd80c7fede05f4d10585b1f2fdebf26e12edc138e32d3150c6ea6482b7f12813a1091143bad52bb6d3596bca51a162257a21163c0ff438baa5fe
+  languageName: node
+  linkType: hard
+
+"flatpickr@npm:^4.6.13":
+  version: 4.6.13
+  resolution: "flatpickr@npm:4.6.13"
+  checksum: 10c0/0e027e72a2ce1716840a8c0bf9094f48d2665dc3f3024bf9604810c5bd7dd94aa830b133c5b5cfc0c330fc88939f33b54c8714515957f9d194c3a3bb7f75a1e2
   languageName: node
   linkType: hard
 
@@ -16619,6 +17004,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"marked@npm:^18.0.3":
+  version: 18.0.10
+  resolution: "marked@npm:18.0.10"
+  bin:
+    marked: bin/marked.js
+  checksum: 10c0/7ffdfae727e1cb73e786431953950ee941c38251c8d469b07058446043d070a8746d51ef52d59c1c935875126a35c04b579ac1f1e5b6b0b94aa9eeb44f815287
+  languageName: node
+  linkType: hard
+
 "matcher@npm:^3.0.0":
   version: 3.0.0
   resolution: "matcher@npm:3.0.0"
@@ -18902,10 +19296,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"preact@npm:10.29.3":
-  version: 10.29.3
-  resolution: "preact@npm:10.29.3"
-  checksum: 10c0/deede846649c6f31888d36b60de2d2433a85c533268b328af82da11a5c1d9b6f12439bdab6dca3cf7a20720b4137c2f1644c12db21b30b18360766ab70c8fe06
+"preact@npm:10.29.8":
+  version: 10.29.8
+  resolution: "preact@npm:10.29.8"
+  peerDependencies:
+    preact-render-to-string: ">=5"
+  peerDependenciesMeta:
+    preact-render-to-string:
+      optional: true
+  checksum: 10c0/505460352139e0ce5b9c971b69d8d9f3b73ea0f316e3ff1c0b3db9a1abe206c9dff6ba385eb796253c38fcc08b5ade70cd8da3d9d6c9e9aec1a2fd59348253ae
   languageName: node
   linkType: hard
 
@@ -21681,6 +22080,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ticky@npm:1.0.1":
+  version: 1.0.1
+  resolution: "ticky@npm:1.0.1"
+  checksum: 10c0/7e9b085092647656655bcc5315d48596b9998d7b8b4e79ab8d7cb94d697f554b5f218e932d2e59f30b10fb939dbe396a53a6649c5e56882cf8b8b3cd26626f57
+  languageName: node
+  linkType: hard
+
 "tiny-async-pool@npm:1.3.0":
   version: 1.3.0
   resolution: "tiny-async-pool@npm:1.3.0"
@@ -23062,6 +23468,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "vs-code-bpmn-modeler@workspace:apps/vscode-plugin"
   dependencies:
+    "@bpmn-io/form-js": "npm:1.25.0"
+    "@bpmn-io/form-json-schema": "npm:1.18.0"
     "@miragon/bpmn-modeler-core": "workspace:*"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"

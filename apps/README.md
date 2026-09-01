@@ -16,6 +16,7 @@ asynchronous `postMessage` channel that is typed by
 | --- | --- |
 | `bpmn-webview` | This webview hosts the BPMN diagram editor, built on bpmn-js with the properties panel. |
 | `dmn-webview` | This webview hosts the DMN decision-table and DRD editor, built on dmn-js. |
+| `form-webview` | This webview hosts the Camunda Form visual editor and preview, built on form-js. |
 | `deployment-webview` | This webview renders the Camunda deployment sidebar form. |
 
 ## Host applications

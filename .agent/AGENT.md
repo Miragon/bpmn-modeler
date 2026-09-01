@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents when working with code in this r
 
 ## Project Overview
 
-VS Code extension for BPMN/DMN process modeling, built with **Yarn 4 workspaces**.
+VS Code extension for BPMN/DMN process and Camunda Form modeling, built with **Yarn 4 workspaces**.
 Detailed architecture knowledge is available via skills — invoke `/architecture`,
 `/bpmn-js`, `/vscode-custom-editors`, `/vscode-webviews`, `/vscode-ux-guidelines`,
 `/intellij-plugin`, `/i18n-translate`, or `/bpmn-browser-testing`.
@@ -44,7 +44,7 @@ For the full IntelliJ dev/verify loop (prerequisites, sandbox behaviour, and how
 to reproduce dark-mode webview bugs without launching a host) see
 `apps/intellij-plugin/README.md`.
 
-### Webview scripts (bpmn-webview, dmn-webview, deployment-webview)
+### Webview scripts (bpmn-webview, dmn-webview, form-webview, deployment-webview)
 
 Each webview workspace has these scripts, one per workflow:
 
@@ -62,7 +62,7 @@ Each webview workspace has these scripts, one per workflow:
   per machine: `npx portless service install`.
 
 At the root level: `yarn watch` runs the F5 orchestrator;
-`yarn workspace @miragon/bpmn-modeler-webview serve` / `yarn workspace @miragon/dmn-modeler-webview serve` / `yarn workspace @miragon/bpmn-modeler-deployment-webview serve`
+`yarn workspace @miragon/bpmn-modeler-webview serve` / `yarn workspace @miragon/dmn-modeler-webview serve` / `yarn workspace @miragon/form-modeler-webview serve` / `yarn workspace @miragon/bpmn-modeler-deployment-webview serve`
 launch the per-webview dev server.
 
 ## Workspace Structure
@@ -72,6 +72,7 @@ apps/
   vscode-plugin/         # VS Code extension (Node/Webpack)
   bpmn-webview/          # BPMN webview frontend (Vite/browser)
   dmn-webview/           # DMN webview frontend (Vite/browser)
+  form-webview/          # Camunda Form editor/preview frontend (Vite/browser)
   deployment-webview/    # Deployment sidebar webview (Vite/browser)
   intellij-plugin/       # IntelliJ host (Kotlin/Gradle, JCEF editors)
   modeler-bridge/        # stdio JSON-RPC Bun binary running modeler-core
@@ -111,12 +112,12 @@ build → package plugin → bundle → start chain.
 ## Build System
 
 - **Extension host**: Webpack + `ts-loader` — `apps/vscode-plugin/webpack.config.js`
-- **Webviews**: Vite — `apps/{bpmn,dmn,deployment}-webview/vite.config.mts`
+- **Webviews**: Vite — `apps/{bpmn,dmn,form,deployment}-webview/vite.config.mts`
 - **Tests**: Vitest — root `vitest.config.ts` aggregates per-workspace projects
-  (vscode-plugin, modeler-bridge, bpmn-webview, append-menu, bpmn-i18n-extras,
-  code-link, element-template-chooser, inline-scripting, modeler-core,
-  modeler-types, shared, flow-navigation, model-navigation); root `test` =
-  `vitest run --coverage`
+  (vscode-plugin, modeler-bridge, bpmn-webview, form-webview, append-menu,
+  bpmn-i18n-extras, code-link, element-template-chooser, inline-scripting,
+  modeler-core, modeler-types, shared, flow-navigation, model-navigation); root
+  `test` = `vitest run --coverage`
 - **Output**: `dist/apps/vscode-plugin/`
 
 ## Path Aliases (`tsconfig.base.json`)

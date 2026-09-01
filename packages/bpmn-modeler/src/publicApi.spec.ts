@@ -60,6 +60,15 @@ const _scenarioAsyncNav = {
 } satisfies ModelerOptions;
 void _scenarioAsyncNav;
 
+// A host may keep navigation visibility in sync with its own workspace index.
+// Without these optional hooks, syntactically valid references stay visible.
+const _formAwareNavigation = {
+    openReference: (_reference) => undefined,
+    isReferenceAvailable: ({ id, kind }) => kind !== "form" || id === "Form_Request",
+    onReferenceAvailabilityChanged: (_listener) => () => undefined,
+} satisfies ModelNavigationPort;
+void _formAwareNavigation;
+
 // Graceful `{ config }` linting. The literal type-checks against the
 // BpmnlintConfig mirror; unresolvable rules degrade at runtime and surface via
 // onLintResults({ results, unresolved }).
