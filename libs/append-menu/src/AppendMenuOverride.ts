@@ -113,7 +113,10 @@ class AppendMenuOverride {
                 container.remove();
             };
 
-            const handleSelect = (action: PopupMenuEntryAction, event: Event) => {
+            const handleSelect = (
+                action: PopupMenuEntryAction | undefined,
+                event: Event,
+            ) => {
                 close();
                 customMenuOpen = false;
                 closeCustomMenu = null;
