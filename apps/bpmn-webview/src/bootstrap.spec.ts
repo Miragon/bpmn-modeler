@@ -34,10 +34,8 @@ vi.mock("@miragon/bpmn-modeler-types", async (importOriginal) => {
     return {
         ...actual,
         initResizer: mocks.initResizer,
-        initTheme: vi.fn(),
         installPanelShortcuts: vi.fn(),
         observeCanvasSize: vi.fn(),
-        setColorThemeMode: vi.fn(),
     };
 });
 
@@ -218,6 +216,7 @@ describe("bootstrap host document initialization", () => {
             onWarning: vi.fn(),
             setElementTemplates: vi.fn(),
             setSettings: vi.fn(),
+            setTheme: vi.fn(),
             getService: vi.fn(() => canvas),
             viewport: { centerOnElement: vi.fn() },
         };
@@ -369,6 +368,7 @@ describe("bootstrap host document initialization", () => {
             onCommandStackChanged: vi.fn(),
             setElementTemplates: vi.fn(),
             setSettings: vi.fn(),
+            setTheme: vi.fn(),
             getService: vi.fn(() => canvas),
             viewport: { centerOnElement: vi.fn() },
         };
@@ -465,6 +465,7 @@ describe("bootstrap host document initialization", () => {
             }),
             setElementTemplates: vi.fn(),
             setSettings: vi.fn(),
+            setTheme: vi.fn(),
             getService: vi.fn(() => canvas),
             getDefinitions: vi.fn(() => ({})),
             viewport: { centerOnElement },

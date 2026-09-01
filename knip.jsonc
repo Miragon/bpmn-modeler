@@ -26,7 +26,10 @@
         // Pack-and-install smoke test: copied into a scratch dir and run by
         // publish-npm-modeler.yml (`node smoke-consumer.mjs`), never imported and
         // not a package.json script, so knip reads it as unused.
-        "packages/bpmn-modeler/scripts/smoke-consumer.mjs"
+        "packages/bpmn-modeler/scripts/smoke-consumer.mjs",
+        // Type declarations for the postcss plugin .mjs; reached only through
+        // TS declaration resolution (sibling lookup), which knip does not track.
+        "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts"
     ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {

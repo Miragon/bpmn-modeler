@@ -44,11 +44,15 @@ import type { SelectionManager } from "./selection";
  */
 
 /**
- * [B] Theme selection for a single instance. `"automatic"` follows the
- * OS/browser `prefers-color-scheme` live; `"light"`/`"dark"` force a fixed
- * stylesheet. A host that themes off its own chrome (VS Code `<body>` classes)
- * maps that signal to a forced mode in its adapter — the package does not read
- * host chrome.
+ * [B] Theme selection for a single instance. The modeler toggles a
+ * `data-bpmn-theme` attribute on its container + panel parent (the authoritative
+ * mechanism — dark rules are scoped under `[data-bpmn-theme="dark"]`, so two
+ * instances on one page can hold different themes) and mirrors the choice onto a
+ * legacy page-global `#theme-link` when the consumer still links one.
+ * `"automatic"` follows the OS/browser `prefers-color-scheme` live;
+ * `"light"`/`"dark"` force a fixed kind. A host that themes off its own chrome
+ * (VS Code `<body>` classes) maps that signal to a forced mode in its adapter —
+ * the package does not read host chrome.
  */
 export type ThemeMode = "light" | "dark" | "automatic";
 
@@ -150,7 +154,11 @@ export interface ModelerOptions {
     /** [B] Clipboard override — omit for the native clipboard. */
     clipboard?: ClipboardOptions;
 
-    /** [B] Colour theme — defaults to `"automatic"`. */
+    /**
+     * [B] Colour theme — defaults to `"automatic"`. Theming always engages: the
+     * instance gets a `data-bpmn-theme` attribute from the first frame regardless
+     * of whether this is set.
+     */
     theme?: ThemeMode;
 
     /** [B] UI locale (BCP-47-ish tag) — defaults to `"en"`. */
@@ -218,7 +226,11 @@ export interface BpmnModelerHandle {
     destroy(): void;
 
     // ── [B] Opinionated built-ins ───────────────────────────────────────────
-    /** [B] Switch the colour theme live. */
+    /**
+     * [B] Switch the colour theme live. Toggles this instance's
+     * `data-bpmn-theme` attribute and mirrors it to a legacy `#theme-link` when
+     * present.
+     */
     setTheme(theme: ThemeMode): void;
 
     /**

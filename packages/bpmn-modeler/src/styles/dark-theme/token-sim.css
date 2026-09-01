@@ -14,33 +14,33 @@
 }
 */
 
-.bjs-container.simulation .djs-container {
+[data-bpmn-theme="dark"] .bjs-container.simulation .djs-container {
     box-shadow: inset 0 0 0 4px var(--dt-primary-a0) !important;
 }
 
-.bts-toggle-mode {
+[data-bpmn-theme="dark"] .bts-toggle-mode {
     background-color: var(--dt-surface-a10) !important;
     color: var(--dt-primary-a50) !important;
 }
 
-.bts-toggle-mode:hover {
+[data-bpmn-theme="dark"] .bts-toggle-mode:hover {
     background-color: var(--dt-surface-tonal-a20) !important;
 }
 
-.bts-entry {
+[data-bpmn-theme="dark"] .bts-entry {
     color: var(--dt-primary-a30) !important;
     background-color: var(--dt-surface-a10) !important;
 }
 
-.bts-context-pad {
+[data-bpmn-theme="dark"] .bts-context-pad {
     background-color: var(--dt-surface-a50) !important;
 }
 
-.bts-context-pad:hover {
+[data-bpmn-theme="dark"] .bts-context-pad:hover {
     background-color: var(--dt-primary-a30) !important;
 }
 
-.bts-set-animation-speed {
+[data-bpmn-theme="dark"] .bts-set-animation-speed {
     background-color: var(--dt-surface-tonal-a20) !important;
 
     .bts-icon {
@@ -60,6 +60,6 @@
     }
 }
 
-.bts-log {
+[data-bpmn-theme="dark"] .bts-log {
     background-color: var(--dt-surface-a0) !important;
 }

@@ -60,6 +60,15 @@ class ElementTemplateChooser {
             const container = document.createElement("div");
             container.className = "etc-overlay-root";
             const canvasContainer: HTMLElement = canvas.getContainer();
+            // The overlay mounts on the canvas parent, outside the instance's
+            // themed container, so copy the instance's `data-bpmn-theme` onto its
+            // own root — otherwise a dark instance would show a light chooser.
+            const themeKind = canvasContainer
+                .closest("[data-bpmn-theme]")
+                ?.getAttribute("data-bpmn-theme");
+            if (themeKind) {
+                container.setAttribute("data-bpmn-theme", themeKind);
+            }
             canvasContainer.parentElement!.appendChild(container);
 
             const close = () => {

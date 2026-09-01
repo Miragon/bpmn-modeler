@@ -32,16 +32,6 @@ export function mountDemoHeader(page: DemoPage, links: Partial<DemoHeaderLinks> 
     // default bpmn model so users always land somewhere sensible.
     const modelerHref = isDiff ? DEFAULT_MODELER_HREF : modelHref(getActiveModel(page));
 
-    // The webview shells strip the shell's #theme-link; add a no-op so the
-    // shared applyTheme() lookup succeeds silently (the demo is light-only).
-    if (!document.getElementById("theme-link")) {
-        const themeLink = document.createElement("link");
-        themeLink.id = "theme-link";
-        themeLink.rel = "stylesheet";
-        themeLink.href = "data:text/css,";
-        document.head.appendChild(themeLink);
-    }
-
     const style = document.createElement("style");
     // Colour tokens mirror Miragon/corporate-identity (brand/tokens.json).
     style.textContent = `
