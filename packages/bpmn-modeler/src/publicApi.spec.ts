@@ -6,6 +6,7 @@ import type {
     BpmnModelerHandle,
     ClipboardOptions,
     ContentSavedEvent,
+    CoreModelerServices,
     CreateModeler,
     LintingOptions,
     ModelerOptions,
@@ -149,6 +150,30 @@ const _demoShape = {
     },
 } satisfies ModelerOptions;
 void _demoShape;
+
+// Frozen core-service contract (#1408): each keyed lookup resolves to its
+// vendor diagram-js/bpmn-js type without an explicit type argument. If an
+// overload regresses, one of these annotations stops compiling.
+const _coreServices = (m: BpmnModelerHandle) => {
+    const canvas: CoreModelerServices["canvas"] = m.getService("canvas");
+    const commandStack: CoreModelerServices["commandStack"] = m.getService("commandStack");
+    const elementRegistry: CoreModelerServices["elementRegistry"] = m.getService("elementRegistry");
+    const eventBus: CoreModelerServices["eventBus"] = m.getService("eventBus");
+    const modeling: CoreModelerServices["modeling"] = m.getService("modeling");
+    const overlays: CoreModelerServices["overlays"] = m.getService("overlays");
+    const selection: CoreModelerServices["selection"] = m.getService("selection");
+    void [canvas, commandStack, elementRegistry, eventBus, modeling, overlays, selection];
+};
+void _coreServices;
+
+// Non-core names keep the generic escape hatch: an explicit type argument is
+// honoured, and a bare call defaults to `unknown`.
+const _escapeHatch = (m: BpmnModelerHandle) => {
+    const custom = m.getService<{ translate(s: string): string }>("customTranslator");
+    const untyped: unknown = m.getService("anythingElse");
+    void [custom, untyped];
+};
+void _escapeHatch;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {

@@ -48,3 +48,4 @@ contributor-facing record, not user documentation.
 | [0007](0007-public-modeler-api.md) | Fix the public `@miragon/bpmn-modeler` API surface before extraction | accepted |
 | [0008](0008-public-diff-api.md) | Public diff API: serializable `computeDiff` data layer, promoted primitives, in-page coordinator | accepted |
 | [0010](0010-expose-reference-availability-through-navigation-port.md) | Expose reference availability through the model navigation port | accepted |
+| [0011](0011-stable-core-service-contract.md) | Freeze a typed, semver-covered contract for the seven core bpmn-js services reached via `getService` | accepted |

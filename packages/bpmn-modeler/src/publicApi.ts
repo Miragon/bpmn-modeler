@@ -1,4 +1,11 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type Canvas from "diagram-js/lib/core/Canvas";
+import type ElementRegistry from "diagram-js/lib/core/ElementRegistry";
+import type EventBus from "diagram-js/lib/core/EventBus";
+import type CommandStack from "diagram-js/lib/command/CommandStack";
+import type Selection from "diagram-js/lib/features/selection/Selection";
+import type Overlays from "diagram-js/lib/features/overlays/Overlays";
+import type Modeling from "bpmn-js/lib/features/modeling/Modeling";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -226,16 +233,42 @@ export interface BpmnModelerHandle {
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
 
-    // ── Escape hatch ────────────────────────────────────────────────────────
+    // ── Core services + escape hatch ─────────────────────────────────────────
     /**
-     * Unstable escape hatch: reach a bpmn-js DI service by name. Not covered by
-     * semver — plugin authors accept breakage across minor versions. Kept
-     * public deliberately so advanced integrations are not blocked while the
-     * typed surface catches up.
+     * Resolve a core diagram-js/bpmn-js service by name. The {@link
+     * CoreModelerServices} names — `canvas`, `commandStack`, `elementRegistry`,
+     * `eventBus`, `modeling`, `overlays`, `selection` — are semver-stable across
+     * minor versions: the name resolves, and the returned value keeps its
+     * upstream-documented shape. This overload types those lookups
+     * automatically.
+     */
+    getService<K extends keyof CoreModelerServices>(name: K): CoreModelerServices[K];
+    /**
+     * Unstable escape hatch: reach any other bpmn-js DI service by name. Not
+     * covered by semver — plugin authors accept breakage across minor versions.
+     * Kept public deliberately so advanced integrations are not blocked while
+     * the typed surface catches up.
      *
-     * @remarks Unstable. Prefer a typed option/method; open an issue if one is missing.
+     * @remarks Unstable for names outside {@link CoreModelerServices}. Prefer a
+     *   typed option/method; open an issue if one is missing.
      */
     getService<T = unknown>(name: string): T;
+}
+
+/**
+ * The core diagram-js/bpmn-js services whose names and documented shapes are
+ * semver-stable through {@link BpmnModelerHandle.getService} across minor
+ * versions. Modelled as a name→type map so it stays `Pick`-able: a future
+ * viewer handle (#1405) can freeze exactly the subset it exposes.
+ */
+export interface CoreModelerServices {
+    canvas: Canvas;
+    commandStack: CommandStack;
+    elementRegistry: ElementRegistry;
+    eventBus: EventBus;
+    modeling: Modeling;
+    overlays: Overlays;
+    selection: Selection;
 }
 
 /**

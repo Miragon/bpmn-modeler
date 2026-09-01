@@ -98,6 +98,39 @@ instance actually lints, so `linting: false` keeps it out of your bundle's
 critical path entirely. Lint results surface through `onLintResults`, and the
 in-canvas enable/disable toggle through `onLintingToggled`.
 
+## Core services & escape hatch
+
+`handle.getService(name)` reaches a diagram-js/bpmn-js DI service by name. Seven
+names form the frozen core contract (`CoreModelerServices`), and the overload
+types them for you:
+
+```ts
+const canvas = handle.getService("canvas");       // typed as diagram-js Canvas
+const modeling = handle.getService("modeling");   // typed as bpmn-js Modeling
+```
+
+| Name | Type |
+| --- | --- |
+| `canvas` | diagram-js `Canvas` |
+| `commandStack` | diagram-js `CommandStack` |
+| `elementRegistry` | diagram-js `ElementRegistry` |
+| `eventBus` | diagram-js `EventBus` |
+| `modeling` | bpmn-js `Modeling` |
+| `overlays` | diagram-js `Overlays` |
+| `selection` | diagram-js `Selection` |
+
+Any other name is an unstable escape hatch — pass an explicit type argument
+(`getService<MyService>("customTranslator")`) or take the `unknown` default:
+
+```ts
+const translate = handle.getService<{ translate(s: string): string }>("customTranslator");
+```
+
+**Semver:** the seven `CoreModelerServices` names resolve to their
+bpmn-js/diagram-js-documented shapes across minor versions. Every other
+`getService` name is unstable and may change or disappear without a major bump —
+prefer a typed option/method, and open an issue if a name you need is missing.
+
 ## Clipboard wire format
 
 Copy/paste defaults to the native browser clipboard; a sandboxed host

@@ -21,6 +21,7 @@ export type {
     ContentSavedEvent,
     ModelerOptions,
     BpmnModelerHandle,
+    CoreModelerServices,
     CreateModeler,
     StableModelerSurface,
 } from "./publicApi";
