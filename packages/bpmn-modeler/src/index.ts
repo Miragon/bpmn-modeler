@@ -5,12 +5,15 @@
  * exports below exist only for the in-repo `apps/bpmn-webview` adapter.
  */
 
-// Side-effect styles the modeler's own DOM depends on. A theme stylesheet is
-// linked separately by the consumer — see `styles.css` / `light-theme.css` /
-// `dark-theme.css`.
+// Side-effect styles the modeler's own DOM depends on. `themes.css` (imported
+// last) folds in the upstream light base + the `[data-bpmn-theme="dark"]`-scoped
+// dark overrides, so loading `styles.css` is all a consumer needs for
+// per-instance theming. The legacy split `light-theme.css` / `dark-theme.css`
+// exports remain for the `#theme-link` fallback.
 import "./styles/default.css";
 import "./styles/diff.css";
 import "./styles/canvasFocusIndicator.css";
+import "./styles/themes.css";
 
 // ── Public factory + API surface ─────────────────────────────────────────────
 export { createModeler } from "./createModeler";

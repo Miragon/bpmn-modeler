@@ -161,11 +161,15 @@ Applied via `bpmnModeler.setSettings()`, which merges the partial settings and i
 
 ## Theme Handling
 
-The webview detects the VS Code theme (light/dark) and swaps stylesheets:
-- Light: `lightTheme.css`
-- Dark: `darkTheme.css`
-
-Theme detection uses `document.body.classList` — checking for `vscode-dark` or `vscode-high-contrast` classes that VS Code injects on every webview's `<body>`. A `MutationObserver` on the body's `class` attribute reacts to live theme changes.
+The BPMN webview themes each modeler **instance** through `@miragon/bpmn-modeler`
+(ADR 0012), not by swapping a page stylesheet. The theme CSS (unscoped light base
++ `[data-bpmn-theme="dark"]`-scoped dark overrides) ships inside the main bundle,
+and the package toggles a `data-bpmn-theme` attribute on the instance's container
++ properties-panel parent. `apps/bpmn-webview/src/hostTheme.ts` resolves the IDE
+kind from the VS Code body classes (`vscode-dark` / `vscode-high-contrast`,
+watched by a `MutationObserver`) and drives both the page-level scope and the
+instance's `setTheme`. (DMN still swaps `lightTheme.css` / `darkTheme.css` via
+`#theme-link` — its dmn-js CSS is not in the package.)
 
 ## Key Files
 

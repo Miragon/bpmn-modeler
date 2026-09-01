@@ -1,0 +1,15 @@
+/**
+ * The dark-theme override rules only — every selector scoped under
+ * `[data-bpmn-theme="dark"]`. This is the single authored source: `themes.css`
+ * imports it (after the unscoped light base) for the merged in-bundle sheet, and
+ * `index.css` imports it after the 3 upstream defaults to build the legacy
+ * `darkTheme.css` split (the scope is stripped from that output by
+ * `scripts/postcss-strip-theme-scope.mjs`).
+ */
+@import "./colors.css";
+@import "./diagram-js.css";
+@import "./properties-panel.css";
+@import "./element-template-chooser.css";
+@import "./append-menu.css";
+@import "./token-sim.css";
+@import "./minimap.css";

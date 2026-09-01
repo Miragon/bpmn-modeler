@@ -9,9 +9,9 @@ const FORM_WEBVIEW_PATH = "form-webview";
 
 /**
  * Generates the HTML for the BPMN modeler webview, resolving asset URIs relative
- * to the extension's install directory. The initial theme stylesheet is always
- * `lightTheme.css`; the webview's own `initTheme()` swaps it to the correct
- * theme at runtime from VS Code's body CSS classes.
+ * to the extension's install directory. Theming is per-instance: the theme CSS
+ * ships inside the main `index.css` bundle and the webview's host adapter sets
+ * `data-bpmn-theme` from VS Code's body CSS classes — no `#theme-link` here.
  *
  * `initialPanelVisible` is the host's global properties-panel default seeding a
  * first-ever open: when `false`, the panel and its resizer render with the
@@ -29,7 +29,6 @@ export function bpmnEditorUi(
 
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
-    const themeUri = webview.asWebviewUri(Uri.joinPath(baseUri, "lightTheme.css"));
 
     const nonce = getNonce();
     const panelClass = initialPanelVisible
@@ -48,7 +47,6 @@ export function bpmnEditorUi(
                 <meta charset="UTF-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
                 <link href="${styleUri}" rel="stylesheet"/>
-                <link href="${themeUri}" rel="stylesheet" id="theme-link"/>
                 <title>BPMN Modeler</title>
             </head>
             <body>

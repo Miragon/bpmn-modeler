@@ -1,6 +1,6 @@
 @import "colors.css";
 
-:root .djs-parent {
+[data-bpmn-theme="dark"] .djs-parent {
     --canvas-fill-color: var(--dt-surface-a10);
 
     --bpmn-shape-fill-color: var(--dt-surface-a10);
@@ -9,6 +9,12 @@
 
     --bendpoint-fill-color: var(--dt-primary-a30);
     --bendpoint-stroke-color: var(--canvas-fill-color);
+
+    --breadcrumbs-item-color: var(--dt-color-blue-a50);
+    --breadcrumbs-arrow-color: var(--dt-surface-a70);
+    --breadcrumbs-background-color: var(--dt-surface-a10);
+    --breadcrumbs-border-color: var(--dt-surface-tonal-a40);
+    --breadcrumbs-focus-outline-color: var(--dt-color-blue-a50);
 
     --context-pad-entry-background-color: var(--dt-surface-a0);
     --context-pad-entry-hover-background-color: var(--dt-surface-a30);
@@ -69,10 +75,21 @@
     --tooltip-error-color: var(--dt-color-red-a20);
 }
 
+/* Current (non-link) crumb inherits the host body colour; pin it to the theme. */
+[data-bpmn-theme="dark"] .bjs-breadcrumbs {
+    color: var(--dt-surface-a70);
+}
+
+/* The separator arrow is a data-URL SVG with an implicit black fill;
+   --breadcrumbs-arrow-color can't recolour it, so invert it. */
+[data-bpmn-theme="dark"] .bjs-breadcrumbs li:not(:first-child)::before {
+    filter: invert(1);
+}
+
 /**
  * The canvas
  */
-.djs-container {
+[data-bpmn-theme="dark"] .djs-container {
     background-color: var(--canvas-fill-color) !important;
 }
 
@@ -86,25 +103,25 @@
  */
 
 /* defaultFillColor (white) → dark surface */
-.djs-shape > .djs-visual > [style*="fill: white"] {
+[data-bpmn-theme="dark"] .djs-shape > .djs-visual > [style*="fill: white"] {
     fill: var(--bpmn-shape-fill-color) !important;
 }
 
 /* defaultStrokeColor used as a fill (filled throw markers, arrowheads) → light */
-.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"],
-defs marker > [style*="fill: rgb(34, 36, 42)"] {
+[data-bpmn-theme="dark"] .djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"],
+[data-bpmn-theme="dark"] defs marker > [style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-shape-stroke-color) !important;
 }
 
 /* defaultStrokeColor (rgb(34, 36, 42)) → light stroke */
-.djs-shape > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
-.djs-connection > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
-defs marker > [style*="stroke: rgb(34, 36, 42)"] {
+[data-bpmn-theme="dark"] .djs-shape > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+[data-bpmn-theme="dark"] .djs-connection > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+[data-bpmn-theme="dark"] defs marker > [style*="stroke: rgb(34, 36, 42)"] {
     stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
 /* Throw markers pair a filled body with a white outline → dark-surface outline. */
-.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"][style*="stroke: white"] {
+[data-bpmn-theme="dark"] .djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"][style*="stroke: white"] {
     stroke: var(--bpmn-shape-fill-color) !important;
 }
 
@@ -117,20 +134,20 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
  */
 
 /* neutral fill (white) → dark surface */
-.bjs-container.simulation .djs-shape > .djs-visual > [style*="fill: rgb(255, 255, 255)"] {
+[data-bpmn-theme="dark"] .bjs-container.simulation .djs-shape > .djs-visual > [style*="fill: rgb(255, 255, 255)"] {
     fill: var(--bpmn-shape-fill-color) !important;
 }
 
 /* neutral stroke used as a fill (filled throw markers, arrowheads) → light */
-.bjs-container.simulation .djs-shape > .djs-visual > [style*="fill: rgb(33, 33, 33)"],
-.bjs-container.simulation defs marker > [style*="fill: rgb(33, 33, 33)"] {
+[data-bpmn-theme="dark"] .bjs-container.simulation .djs-shape > .djs-visual > [style*="fill: rgb(33, 33, 33)"],
+[data-bpmn-theme="dark"] .bjs-container.simulation defs marker > [style*="fill: rgb(33, 33, 33)"] {
     fill: var(--bpmn-shape-stroke-color) !important;
 }
 
 /* neutral stroke → light stroke (shapes, connections/flows, arrowhead markers) */
-.bjs-container.simulation .djs-shape > .djs-visual > [style*="stroke: rgb(33, 33, 33)"],
-.bjs-container.simulation .djs-connection > .djs-visual > [style*="stroke: rgb(33, 33, 33)"],
-.bjs-container.simulation defs marker > [style*="stroke: rgb(33, 33, 33)"] {
+[data-bpmn-theme="dark"] .bjs-container.simulation .djs-shape > .djs-visual > [style*="stroke: rgb(33, 33, 33)"],
+[data-bpmn-theme="dark"] .bjs-container.simulation .djs-connection > .djs-visual > [style*="stroke: rgb(33, 33, 33)"],
+[data-bpmn-theme="dark"] .bjs-container.simulation defs marker > [style*="stroke: rgb(33, 33, 33)"] {
     stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
@@ -139,55 +156,55 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
  * element's stroke colour (no `defaultLabelColor` configured), so a coloured
  * shape's dark label already reads against its light fill; don't force it light.
  */
-.djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
+[data-bpmn-theme="dark"] .djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-label-color) !important;
 }
 
 /* External labels sit on the dark canvas, so always light — even when coloured. */
-.djs-label .djs-visual text {
+[data-bpmn-theme="dark"] .djs-label .djs-visual text {
     fill: var(--bpmn-label-color) !important;
 }
 
 /* Grid — the element has class="layer djs-grid" (two classes) */
-.layer-djs-grid {
+[data-bpmn-theme="dark"] .layer-djs-grid {
     opacity: 0.5;
 }
 
-.djs-direct-editing-parent {
+[data-bpmn-theme="dark"] .djs-direct-editing-parent {
     color: var(--dt-primary-a20) !important;
 }
 
-.djs-direct-editing-content {
+[data-bpmn-theme="dark"] .djs-direct-editing-content {
     background-color: var(--dt-surface-a10) !important;
 }
 
 /**
  * Context pad
  */
-.djs-context-pad {
+[data-bpmn-theme="dark"] .djs-context-pad {
     color: var(--dt-primary-a50) !important;
 }
 
 /**
  * Search Box
  */
-.djs-search-container .djs-search-result {
+[data-bpmn-theme="dark"] .djs-search-container .djs-search-result {
     color: var(--dt-surface-a40) !important;
     background-color: var(--dt-surface-a10) !important;
 }
 
-.djs-search-icon {
+[data-bpmn-theme="dark"] .djs-search-icon {
     filter: invert(0.7);
 }
 
 /**
  * Popup
  */
-.djs-popup-title {
+[data-bpmn-theme="dark"] .djs-popup-title {
     color: var(--dt-surface-a70) !important;
 }
 
-.djs-popup-header-group > li > button {
+[data-bpmn-theme="dark"] .djs-popup-header-group > li > button {
     color: var(--dt-primary-a50) !important;
 }
 
@@ -198,7 +215,6 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
  * `fill="currentColor"`, so the logo is nearly invisible on dark backgrounds.
  * Override with a light muted grey that stays subtle but readable.
  */
-.bjs-powered-by {
+[data-bpmn-theme="dark"] .bjs-powered-by {
     color: var(--dt-surface-a50) !important;
 }
-

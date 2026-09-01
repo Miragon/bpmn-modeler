@@ -54,12 +54,16 @@ import {
     asyncDebounce,
     formatErrors,
     initResizer,
-    initTheme,
     installPanelShortcuts,
     observeCanvasSize,
     serializeAsync,
-    setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
+import {
+    type HostThemeAdapter,
+    applyPageThemeScope,
+    createHostThemeAdapter,
+    resolveHostThemeKind,
+} from "./hostTheme";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { BpmnModeler, createModeler, UnsupportedEngineError } from "@miragon/bpmn-modeler";
 import type { ClipboardOptions, LintingOptions, ModelerCapabilities } from "@miragon/bpmn-modeler";
@@ -154,6 +158,9 @@ function startSession(
     let latestBpmnFileQuery: BpmnFileQuery | undefined;
     let refreshDiagramWhenReady = false;
     let modelerEngine: Engine | undefined;
+    // Host theme adapter (VS Code `<body>` class → page scope + instance theme).
+    // Created in run(); the settings handler switches its mode on `colorTheme`.
+    let themeAdapter: HostThemeAdapter | undefined;
     let engineReloadPending = false;
     let pendingSessionActionDrain: Promise<void> | undefined;
     let cancelPendingVariablePublish: (() => void) | undefined;
@@ -465,7 +472,16 @@ function startSession(
         // legend, whose keys ship in the base @miragon/bpmn-modeler-i18n package
         // — not the overlay — so it needs no extend here.
 
-        initTheme();
+        // Theme is host policy: drive the page-level scope (host chrome + the
+        // viewer/diff branch, which has no modeler) and the modeler instance's
+        // own theme off the VS Code `<body>`-class signal. The instance is also
+        // born correct via `theme: resolveHostThemeKind()` below, so this mainly
+        // covers the page chrome and later live theme switches.
+        themeAdapter = createHostThemeAdapter((kind) => {
+            applyPageThemeScope(kind);
+            bpmnModeler?.setTheme(kind);
+        });
+        themeAdapter.setMode("automatic");
 
         // Viewer mode (one side of a diff view) skips the resizer + properties
         // panel + palette, so we don't call initResizer() here — the chrome is
@@ -597,6 +613,10 @@ function startSession(
         try {
             bpmnModeler = await createModeler(canvasEl, {
                 engine,
+                // Born in the IDE's theme so the first frame paints correctly.
+                // The body class is the IDE signal (a media query would follow
+                // the OS, not the IDE), so a forced kind — not "automatic".
+                theme: resolveHostThemeKind(),
                 propertiesPanel: { parent: propertiesPanelParent },
                 additionalModules: extraModules,
                 clipboard,
@@ -983,10 +1003,10 @@ function startSession(
             case queryOrCommand.type === "BpmnModelerSettingQuery": {
                 const query = message.data as BpmnModelerSettingQuery;
                 try {
-                    // Theme is host policy: the adapter drives the page theme off
-                    // the VS Code `<body>`-class watcher (initTheme) here, because
-                    // the package's setSettings does not apply `colorTheme`.
-                    setColorThemeMode(query.setting.colorTheme);
+                    // Theme is host policy: the adapter drives the page scope +
+                    // instance theme off the VS Code `<body>`-class watcher here,
+                    // because the package's setSettings does not apply `colorTheme`.
+                    themeAdapter?.setMode(query.setting.colorTheme);
                     bpmnModeler.setSettings(query.setting);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));

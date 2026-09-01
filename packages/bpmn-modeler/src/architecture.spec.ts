@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, normalize } from "node:path";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -96,6 +97,30 @@ describe("bpmn-modeler import direction", () => {
         expect(
             offenders,
             `package TS source must not read VS Code body theme classes:\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("every top-level dark-theme selector is scoped under data-bpmn-theme", () => {
+        // The dark sheet is authored scoped so per-instance theming never leaks
+        // across instances (and the legacy split is derived by stripping the
+        // scope). A top-level rule that forgot the attribute would paint every
+        // instance dark. Nested rules are exempt — their parent carries the scope.
+        const DARK_DIR = join(PKG_SRC, "styles", "dark-theme");
+        const offenders: string[] = [];
+        for (const entry of readdirSync(DARK_DIR)) {
+            if (!entry.endsWith(".css")) continue;
+            const root = postcss.parse(readFileSync(join(DARK_DIR, entry), "utf8"));
+            root.walkRules((rule) => {
+                if (rule.parent?.type !== "root") return; // nested rule: parent scopes it
+                if (!rule.selector.includes("data-bpmn-theme")) {
+                    offenders.push(`${entry}: ${rule.selector}`);
+                }
+            });
+        }
+        expect(
+            offenders,
+            `every top-level dark-theme rule must be scoped under ` +
+                `[data-bpmn-theme="dark"]:\n${offenders.join("\n")}`,
         ).toEqual([]);
     });
 

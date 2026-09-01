@@ -132,14 +132,17 @@ class WebviewServer : Disposable {
      */
     private fun indexHtml(): String {
         val signal = service<IdeThemeSignal>()
+        // Page-level theme scope baked in so the first frame paints correctly (no
+        // light flash). Theming is per-instance via `data-bpmn-theme`; the theme
+        // CSS ships inside `/index.css`, so there is no `#theme-link` to swap.
+        val themeKind = if (signal.isDark()) "dark" else "light"
         return listOf(
             "<!DOCTYPE html>",
-            "<html lang=\"en\">",
+            "<html lang=\"en\" data-bpmn-theme=\"$themeKind\">",
             "<head>",
             "  <meta charset=\"UTF-8\"/>",
             "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>",
             "  <link href=\"/index.css\" rel=\"stylesheet\"/>",
-            "  <link href=\"/lightTheme.css\" rel=\"stylesheet\" id=\"theme-link\"/>",
             "  <title>BPMN Modeler</title>",
             "  <style>html, body { margin: 0; height: 100%; } #app { height: 100vh; }</style>",
             "  <style id=\"ide-theme-vars\">${signal.themeVarsCss()}</style>",

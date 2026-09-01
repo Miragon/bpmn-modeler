@@ -40,6 +40,28 @@ const C8_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
+/**
+ * A per-pane light/dark toggle wired to that instance's `handle.setTheme(...)`.
+ * This is the living regression check for per-instance theming: flipping one
+ * pane must not touch the other (the `data-bpmn-theme` attribute is scoped to
+ * each instance's container + panel, not the page).
+ */
+function mountThemeToggle(
+    container: HTMLElement,
+    modeler: { setTheme(t: "light" | "dark"): void },
+): void {
+    let dark = false;
+    const button = document.createElement("button");
+    button.textContent = "◐ theme";
+    button.style.cssText =
+        "position:absolute;top:8px;right:8px;z-index:10;padding:4px 8px;cursor:pointer";
+    button.addEventListener("click", () => {
+        dark = !dark;
+        modeler.setTheme(dark ? "dark" : "light");
+    });
+    container.appendChild(button);
+}
+
 /** Stands up one modeler bound to the given canvas + panel elements. */
 async function mount(
     canvasId: string,
@@ -62,6 +84,7 @@ async function mount(
         propertiesPanel: { parent: propertiesPanelParent },
     });
     await modeler.loadDiagram(xml);
+    mountThemeToggle(container, modeler);
 }
 
 // Left pane: the bundled C7 demo model. Right pane: the inline C8 diagram.

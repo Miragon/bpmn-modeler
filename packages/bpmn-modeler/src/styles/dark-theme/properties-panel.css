@@ -1,6 +1,6 @@
 @import "colors.css";
 
-:root .bio-properties-panel {
+[data-bpmn-theme="dark"] .bio-properties-panel {
     --text-base-color: var(--dt-surface-a70);
     --text-error-color: var(--dt-color-red-a10);
     --link-color: var(--dt-color-blue-a50);
@@ -90,7 +90,7 @@
     --feelers-select-color: var(--dt-primary-a40);
 }
 
-.bio-properties-panel-popup {
+[data-bpmn-theme="dark"] .bio-properties-panel-popup {
     --popup-background-color: var(--dt-surface-a20);
     --popup-header-background-color: var(--dt-surface-a10);
     --popup-font-color: var(--dt-surface-a70);
@@ -100,32 +100,32 @@
     --feel-popup-gutters-background-color: var(--dt-surface-a20);
 }
 
-.bio-properties-panel-container {
+[data-bpmn-theme="dark"] .bio-properties-panel-container {
     background-color: var(--dt-surface-a10) !important;
 }
 
-.bio-properties-panel-textarea textarea,
-.bio-properties-panel-textfield input,
-.bio-properties-panel-numberfield input,
-.bio-properties-panel-feel-entry input,
-.bio-properties-panel-feel-entry textarea {
+[data-bpmn-theme="dark"] .bio-properties-panel-textarea textarea,
+[data-bpmn-theme="dark"] .bio-properties-panel-textfield input,
+[data-bpmn-theme="dark"] .bio-properties-panel-numberfield input,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-entry input,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-entry textarea {
     color: var(--dt-surface-a60) !important;
 }
 
-.bio-properties-panel-textarea > textarea:focus,
-.bio-properties-panel-textfield > input:focus,
-.bio-properties-panel-numberfield > input:focus,
-.bio-properties-panel-feel-entry input:focus,
-.bio-properties-panel-feel-entry textarea:focus {
+[data-bpmn-theme="dark"] .bio-properties-panel-textarea > textarea:focus,
+[data-bpmn-theme="dark"] .bio-properties-panel-textfield > input:focus,
+[data-bpmn-theme="dark"] .bio-properties-panel-numberfield > input:focus,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-entry input:focus,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-entry textarea:focus {
     color: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-checkbox > input[type="checkbox"] {
+[data-bpmn-theme="dark"] .bio-properties-panel-checkbox > input[type="checkbox"] {
     accent-color: var(--dt-primary-a10) !important;
 }
 
-.bio-properties-panel-select-template-button,
-.bio-properties-panel-applied-template-button > button {
+[data-bpmn-theme="dark"] .bio-properties-panel-select-template-button,
+[data-bpmn-theme="dark"] .bio-properties-panel-applied-template-button > button {
     background-color: var(--dt-primary-a20) !important;
     color: var(--dt-surface-a20) !important;
     cursor: pointer;
@@ -135,16 +135,16 @@
     }
 }
 
-.bio-properties-panel-select-template-button:hover,
-.bio-properties-panel-applied-template-button > button:hover {
+[data-bpmn-theme="dark"] .bio-properties-panel-select-template-button:hover,
+[data-bpmn-theme="dark"] .bio-properties-panel-applied-template-button > button:hover {
     background-color: var(--dt-primary-a40) !important;
 }
 
-.bio-properties-panel-select > select {
+[data-bpmn-theme="dark"] .bio-properties-panel-select > select {
     color: var(--dt-surface-a60) !important;
 }
 
-.bio-properties-panel-select > select:focus {
+[data-bpmn-theme="dark"] .bio-properties-panel-select > select:focus {
     color: var(--dt-surface-a70) !important;
 }
 
@@ -155,58 +155,58 @@
  * unreadable on a dark background.  Override all text colors inside the
  * editor so content remains legible.
  */
-.bio-properties-panel-feel-editor-container .cm-editor {
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor {
     color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-feel-editor-container .cm-editor .cm-cursor,
-.bio-properties-panel-feel-editor-container .cm-editor .cm-dropCursor,
-.bio-properties-panel-feel-editor-container .cm-editor .cm-content {
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-cursor,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-dropCursor,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-content {
     border-left-color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
 
 /* Open-popup icon — SVG path has no fill attribute, defaults to black */
-.bio-properties-panel-open-feel-popup svg {
+[data-bpmn-theme="dark"] .bio-properties-panel-open-feel-popup svg {
     fill: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-feel-editor-container .cm-editor .cm-line,
-.bio-properties-panel-feel-editor-container .cm-editor .cm-line span {
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line span {
     color: inherit !important;
 }
 
 /* Autocomplete & tooltip popups */
-.cm-tooltip {
+[data-bpmn-theme="dark"] .cm-tooltip {
     background-color: var(--dt-surface-a0) !important;
     border: 1px solid var(--dt-surface-a30) !important;
     color: var(--dt-surface-a70) !important;
 }
 
-.cm-tooltip-autocomplete > ul > li {
+[data-bpmn-theme="dark"] .cm-tooltip-autocomplete > ul > li {
     color: var(--dt-surface-a60) !important;
 }
 
-.cm-tooltip-autocomplete > ul > li[aria-selected] {
+[data-bpmn-theme="dark"] .cm-tooltip-autocomplete > ul > li[aria-selected] {
     background-color: var(--dt-primary-a0) !important;
     color: var(--dt-surface-a70) !important;
 }
 
 /* Completion info panel (function signature / examples) */
-.cm-completionInfo {
+[data-bpmn-theme="dark"] .cm-completionInfo {
     background-color: var(--dt-surface-a0) !important;
     border: 1px solid var(--dt-surface-a30) !important;
     color: var(--dt-surface-a70) !important;
 }
 
 /* Diagnostics (lint errors/warnings) */
-.cm-diagnostic {
+[data-bpmn-theme="dark"] .cm-diagnostic {
     background-color: var(--dt-surface-a0) !important;
     color: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-dropdown-button__menu {
+[data-bpmn-theme="dark"] .bio-properties-panel-dropdown-button__menu {
     box-shadow: 0 1px 4px 0 var(--dt-surface-a40), 0 2px 16px 0 var(--dt-surface-a30) !important;
 
     button {
@@ -216,28 +216,34 @@
 
 /* Dark-theme layout overrides for the host page.
  *
+ * These style the host chrome that sits *outside* any single modeler instance
+ * (the page background and the panel dividers between canvas and panel), so they
+ * key off the root attribute the host adapter sets on `document.documentElement`
+ * — not the per-instance container attribute. `.properties-panel-parent` is both
+ * an instance scope root and page chrome, so it carries the attribute directly.
+ *
  * default.css paints html/body white and the panel dividers light grey.
  * Any 1-px rounding gap in the flex layout (e.g. when the properties panel
  * is collapsed to width 0) lets the white body show through, producing the
  * bright vertical strip that was reported on the dark theme. */
-html,
-body {
+:root[data-bpmn-theme="dark"],
+:root[data-bpmn-theme="dark"] body {
     background-color: var(--dt-surface-a0);
     color: var(--dt-surface-a70);
 }
 
-.panel-resizer {
+:root[data-bpmn-theme="dark"] .panel-resizer {
     border-left-color: var(--dt-surface-a20);
 }
 
-.panel-resizer:hover {
+:root[data-bpmn-theme="dark"] .panel-resizer:hover {
     background-color: var(--dt-primary-a0-opacity-30);
     border-left-color: var(--dt-primary-a10);
 }
 
 /* Dark-theme counterpart of the open-state halo suppression in default.css:
  * restore the resting divider colour while the button is hovered. */
-.panel-resizer:has(.panel-resizer-toggle:hover) {
+:root[data-bpmn-theme="dark"] .panel-resizer:has(.panel-resizer-toggle:hover) {
     background-color: transparent;
     border-left-color: var(--dt-surface-a20);
 }
@@ -246,35 +252,36 @@ body {
  * line segments. default.css exposes `--panel-resizer-accent-color` and
  * `--panel-resizer-accent-hover-color`, so overriding the custom properties
  * here wins regardless of stylesheet load order. */
-.panel-resizer.collapsed {
+:root[data-bpmn-theme="dark"] .panel-resizer.collapsed {
     --panel-resizer-accent-color: var(--dt-surface-a30);
     --panel-resizer-accent-hover-color: var(--dt-primary-a10);
 }
 
-.panel-resizer.collapsed:hover {
+:root[data-bpmn-theme="dark"] .panel-resizer.collapsed:hover {
     background-color: var(--dt-primary-a0-opacity-30);
 }
 
-.panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
+:root[data-bpmn-theme="dark"] .panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
     background-color: transparent;
 }
 
-.panel-resizer-toggle {
+:root[data-bpmn-theme="dark"] .panel-resizer-toggle {
     background-color: var(--dt-surface-a10);
     border-color: var(--dt-surface-a30);
     color: var(--dt-surface-a70);
 }
 
-.panel-resizer-toggle:hover {
+:root[data-bpmn-theme="dark"] .panel-resizer-toggle:hover {
     background-color: var(--dt-primary-a0-opacity-30);
     border-color: var(--dt-primary-a10);
     color: var(--dt-primary-a10);
 }
 
-.panel-resizer-toggle:focus-visible {
+:root[data-bpmn-theme="dark"] .panel-resizer-toggle:focus-visible {
     outline-color: var(--dt-primary-a10);
 }
 
-.properties-panel-parent {
+.properties-panel-parent[data-bpmn-theme="dark"],
+:root[data-bpmn-theme="dark"] .properties-panel-parent {
     border-left-color: var(--dt-surface-a30);
 }

@@ -38,16 +38,36 @@ await modeler.loadDiagram(existingXml); // or modeler.newDiagram()
 const xml = await modeler.exportDiagram();
 ```
 
-Link **one** theme stylesheet and tag it `id="theme-link"`:
+### Theming
 
-```html
-<link id="theme-link" rel="stylesheet" href="/node_modules/@miragon/bpmn-modeler/dist/light-theme.css" />
+Theming is **per-instance** and needs no extra `<link>`: importing
+`@miragon/bpmn-modeler/styles.css` (above) already ships both looks. The modeler
+toggles a `data-bpmn-theme="light" | "dark"` attribute on its container and
+properties-panel parent, and the dark rules are scoped under
+`[data-bpmn-theme="dark"]`, so two modelers on one page can hold different
+themes. `theme` defaults to `"automatic"` (follows `prefers-color-scheme` live);
+pass `theme: "light"` / `"dark"` to pin one, or call `modeler.setTheme(...)`
+later.
+
+```ts
+const modeler = await createModeler(canvas, {
+    engine: "c7",
+    propertiesPanel: { parent: panel },
+    theme: "automatic", // "automatic" (default) | "light" | "dark"
+});
 ```
 
-`@miragon/bpmn-modeler/light-theme.css` and `.../dark-theme.css` are the two
-themes. The default `theme: "automatic"` swaps the `#theme-link` href between
-them, so that element **must** exist for automatic theming to work; pass
-`theme: "light"` / `"dark"` to pin one.
+**Legacy `#theme-link` fallback.** If you still link a theme stylesheet tagged
+`id="theme-link"`, the modeler keeps swapping its href between
+`@miragon/bpmn-modeler/light-theme.css` and `.../dark-theme.css` as before — a
+permanent, page-global compatibility path. It is optional; a missing
+`#theme-link` is a silent no-op. Because it is page-global, it cannot express
+per-instance themes — prefer the attribute mechanism (i.e. just `styles.css`).
+
+> Caveat: setting `data-bpmn-theme` on a page **root** element (`<html>`) themes
+> everything below it. Mixing that with two instances that hold *different*
+> per-instance themes would let the root value leak; a single-instance page or
+> one that never sets the root attribute is unaffected.
 
 ## Capabilities & default overrides
 

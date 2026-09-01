@@ -1,21 +1,19 @@
 /**
- * Manages the BPMN modeler color theme based on VS Code theme or user preference.
+ * DMN-only legacy `#theme-link` adapter, driven by VS Code `<body>` classes.
  *
  * Supports three modes:
  * - `"automatic"`: follows the VS Code theme via a MutationObserver on `<body>`.
- * - `"light"`: always uses the default bpmn-js light theme.
- * - `"dark"`: always forces the dark theme (the injected per-instance `theme`
- *   option).
+ * - `"light"`: always uses the default dmn-js light theme.
+ * - `"dark"`: always forces the dark theme.
  *
  * VS Code injects `vscode-dark`, `vscode-light`, or `vscode-high-contrast`
  * onto `<body>` in every webview.
  *
  * @internal Host-specific and module-singleton — reads VS Code `<body>` classes
- *   and mutates a single `#theme-link`, so it is not part of the modeler public
- *   API. It is the VS Code body-class watcher the bpmn/dmn host adapters own: the
- *   adapter maps the `<body>` class to a forced light/dark and hands that to the
- *   modeler, so the publishable `@miragon/bpmn-modeler` package never reads host
- *   chrome itself.
+ *   and mutates a single `#theme-link`. This is retained **only** for the DMN
+ *   webview, whose dmn-js theme CSS does not ship inside `@miragon/bpmn-modeler`.
+ *   The BPMN webview no longer uses it: it themes each modeler instance through
+ *   the package's `data-bpmn-theme` attribute (see `apps/bpmn-webview/hostTheme.ts`).
  */
 
 let currentMode: "automatic" | "light" | "dark" = "automatic";

@@ -16,7 +16,7 @@ import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7"
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
-import { setThemeMode } from "./theme";
+import { ThemeController } from "./theme";
 import {
     asyncDebounce,
     type AsyncDebounced,
@@ -100,6 +100,10 @@ export class BpmnModeler {
     // The debounced content-saved emitter, live only when `onContentSaved` was
     // supplied. Held so {@link destroy} can cancel a pending trailing export.
     private contentSaved?: AsyncDebounced<() => Promise<void>>;
+
+    // Per-instance theme controller, created lazily on the first setTheme. Scopes
+    // `data-bpmn-theme` to this instance's container + panel parent.
+    private themeController?: ThemeController;
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -207,7 +211,13 @@ export class BpmnModeler {
 
         const modelerOptions = {
             container: this.container,
-            propertiesPanel: { parent: this.options.propertiesPanel.parent },
+            propertiesPanel: {
+                parent: this.options.propertiesPanel.parent,
+                // Mount the FEEL expression popup inside the instance container
+                // (it defaults to document.body, outside this instance's theme
+                // scope). Safe because the popup is `position: fixed`.
+                feelPopupContainer: this.container,
+            },
             alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
             moddleExtensions: this.options.moddleExtensions,
         };
@@ -436,6 +446,7 @@ export class BpmnModeler {
      */
     destroy(): void {
         this.contentSaved?.cancel();
+        this.themeController?.dispose();
         this.disposeFocusFeatures();
         this.modeler?.destroy();
         this.modeler = undefined;
@@ -696,14 +707,22 @@ export class BpmnModeler {
     }
 
     /**
-     * Switches the colour theme live. Page-level theme state is a module
-     * singleton (one `#theme-link`), so `"automatic"` follows the OS/browser
-     * `prefers-color-scheme` live while `"light"`/`"dark"` force a fixed
-     * stylesheet. A host that themes off its own chrome maps that signal to a
-     * forced mode at the adapter.
+     * Switches the colour theme live. Toggles `data-bpmn-theme` on this
+     * instance's container + panel parent (the authoritative, per-instance
+     * mechanism) and mirrors the choice to the legacy page-global `#theme-link`
+     * when one is present. `"automatic"` follows the OS/browser
+     * `prefers-color-scheme` live while `"light"`/`"dark"` force a fixed kind. A
+     * host that themes off its own chrome maps that signal to a forced mode at
+     * the adapter.
      */
     setTheme(theme: ThemeMode): void {
-        setThemeMode(theme);
+        if (!this.themeController) {
+            this.themeController = new ThemeController([
+                this.container,
+                this.options.propertiesPanel.parent,
+            ]);
+        }
+        this.themeController.setMode(theme);
     }
 
     /**

@@ -106,6 +106,15 @@ class AppendMenuOverride {
             // the properties panel (which is a sibling of the canvas).
             const container = document.createElement("div");
             container.className = "am-overlay-root";
+            // The overlay leaves the instance's themed subtree, so copy the
+            // instance's `data-bpmn-theme` onto its own root — otherwise a dark
+            // instance would show a light append menu.
+            const themeKind = canvasContainer
+                .closest("[data-bpmn-theme]")
+                ?.getAttribute("data-bpmn-theme");
+            if (themeKind) {
+                container.setAttribute("data-bpmn-theme", themeKind);
+            }
             document.body.appendChild(container);
 
             const close = () => {
