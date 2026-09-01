@@ -38,7 +38,7 @@ for (const field of [
 
 // 2. Every exports subpath resolves to a real file. The root entry is
 //    DOM-touching, so we resolve it (proves the mapping + file) but never import it.
-const SUBPATHS = [".", "./diff", "./styles.css", "./light-theme.css", "./dark-theme.css"];
+const SUBPATHS = [".", "./diff", "./lint", "./styles.css", "./light-theme.css", "./dark-theme.css"];
 for (const subpath of SUBPATHS) {
     const specifier = subpath === "." ? PKG : `${PKG}/${subpath.slice(2)}`;
     let resolved;

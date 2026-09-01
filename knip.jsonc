@@ -46,10 +46,10 @@
             "entry": ["dmn/main.ts", "bpmn/dual.ts", "bpmn/diff.ts"]
         },
         "packages/bpmn-modeler": {
-            // The lazy bpmnlint chunk is reached via `await import("./bpmnlint")`
-            // in modeler.ts; list its barrel so knip does not read the whole
-            // chunk as unused. `src/diff/index.ts` is the public `./diff`
-            // subpath entry (package.json exports), so its exports are API.
+            // `src/bpmnlint/index.ts` is the public `@miragon/bpmn-modeler/lint`
+            // subpath entry a host injects (#1407) and `src/diff/index.ts` the
+            // public `./diff` subpath (both in package.json exports), so their
+            // exports are API — list them so knip does not read them as unused.
             "entry": ["src/index.ts", "src/bpmnlint/index.ts", "src/diff/index.ts"],
             // minisearch (via model-navigation), lodash (via modeler-types'
             // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)

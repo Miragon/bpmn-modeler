@@ -20,6 +20,7 @@ export { createModeler } from "./createModeler";
 export type {
     ThemeMode,
     LintingOptions,
+    LintModule,
     ClipboardOptions,
     ContentSavedEvent,
     ModelerOptions,

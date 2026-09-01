@@ -35,6 +35,7 @@ import {
     OpenScriptEditorsStore,
     ScriptSourceWatcher,
 } from "@miragon/bpmn-modeler-inline-scripting";
+import { buildLintModules } from "./lintModules";
 import { capabilityModules } from "./capabilityModules";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
@@ -44,7 +45,8 @@ import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 import type { CreateModelerOptions } from "./createModeler";
 import type { CoreModelerServices, ThemeMode } from "./publicApi";
-// Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
+// Type-only: erased at build so it never pulls the lint stack into the main
+// bundle. The runtime lint module is injected by the host (see LintingOptions).
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
@@ -155,9 +157,10 @@ export class BpmnModeler {
      * debounced content-saved). The DI extras, capabilities, and page-level
      * side-effect callbacks all come from the constructor options.
      *
-     * Async because the engine-aware step awaits the lazy bpmnlint chunk before
-     * constructing bpmn-js. Re-`init()` disposes the prior instance's focus
-     * installs first.
+     * Async for API stability (a host that learns the engine late calls this
+     * late); the lint modules are now built synchronously from the host-injected
+     * lint module. Re-`init()` disposes the prior instance's focus installs
+     * first.
      *
      * @internal Construction step invoked by {@link createModeler}; not part of
      *   the public handle.
@@ -178,7 +181,10 @@ export class BpmnModeler {
         const commonModules = [
             TranslateModule,
             TokenSimulationModule,
-            ...(await this.buildLintModules(engine)),
+            ...buildLintModules(this.options.linting, engine, {
+                onLintResults: this.options.onLintResults,
+                onLintingToggled: this.options.onLintingToggled,
+            }),
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
@@ -290,51 +296,17 @@ export class BpmnModeler {
     }
 
     /**
-     * Resolves the bpmnlint DI module(s) for the chosen tier, importing the lint
-     * chunk only when linting is not disabled. `linting: false` returns no
-     * modules — the chunk, and the whole bpmnlint/rules stack, is never fetched.
-     * Every other value dynamically imports {@link createLintModule} and
-     * registers one instance-scoped module carrying the tier, engine, explicit
-     * config, and the facade callbacks.
-     */
-    private async buildLintModules(engine: Engine): Promise<unknown[]> {
-        const linting = this.options.linting;
-        if (linting === false) {
-            return [];
-        }
-        // `undefined` and `{ config }` are in-page; only `{ results: "external" }`
-        // opts out. Narrowing on `results` keeps `config` off the external variant.
-        let tier: "external" | "in-page" = "in-page";
-        let config;
-        if (typeof linting === "object") {
-            if (linting.results === "external") {
-                tier = "external";
-            } else {
-                config = linting.config;
-            }
-        }
-        const { createLintModule } = await import("./bpmnlint");
-        return [
-            createLintModule(
-                { tier, engine, config },
-                {
-                    onLintResults: this.options.onLintResults,
-                    onLintingToggled: this.options.onLintingToggled,
-                },
-            ),
-        ];
-    }
-
-    /**
      * Feeds host-computed lint results to the in-canvas overlays (external tier).
      * Any push switches an in-page instance to the external tier. `null`
      * deactivates linting (no `.bpmnlintrc` / read failure). A no-op with a warning
-     * when the instance was created with `linting: false` (no lint service).
+     * when the instance was created without a lint module (no lint service).
      */
     applyLintResults(results: LintResults | null): void {
         const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
         if (!service) {
-            console.warn("applyLintResults ignored: this modeler was created with linting: false");
+            console.warn(
+                "applyLintResults ignored: this modeler was created without a lint module",
+            );
             return;
         }
         service.applyLintResults(results);
@@ -342,13 +314,14 @@ export class BpmnModeler {
 
     /**
      * Renders the host's user-disabled lint state (external tier): clears overlays
-     * and shows the re-enable chip. A no-op with a warning when `linting: false`.
+     * and shows the re-enable chip. A no-op with a warning when the instance was
+     * created without a lint module.
      */
     applyLintingDisabled(): void {
         const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
         if (!service) {
             console.warn(
-                "applyLintingDisabled ignored: this modeler was created with linting: false",
+                "applyLintingDisabled ignored: this modeler was created without a lint module",
             );
             return;
         }
@@ -359,7 +332,7 @@ export class BpmnModeler {
      * Starts (or restarts) the in-page linter on host instruction — the handback
      * when the host finds no workspace `.bpmnlintrc`. Mirrors
      * {@link applyLintResults}: a no-op with a warning when the instance was
-     * created with `linting: false` (no lint service). Never re-enables a
+     * created without a lint module (no lint service). Never re-enables a
      * user-disabled linter (the service guards that); any later host push still
      * wins over the in-page run.
      */
@@ -367,7 +340,7 @@ export class BpmnModeler {
         const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
         if (!service) {
             console.warn(
-                "startInPageLinting ignored: this modeler was created with linting: false",
+                "startInPageLinting ignored: this modeler was created without a lint module",
             );
             return;
         }

@@ -652,6 +652,8 @@ jobs:
         run: |
           test -f packages/bpmn-modeler/dist/index.js
           test -f packages/bpmn-modeler/dist/index.d.ts
+          test -f packages/bpmn-modeler/dist/lint.js
+          test -f packages/bpmn-modeler/dist/lint.d.ts
           test -f packages/bpmn-modeler/dist/bpmn-modeler.css
           test -f packages/bpmn-modeler/dist/lightTheme.css
           test -f packages/bpmn-modeler/dist/darkTheme.css

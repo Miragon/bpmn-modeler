@@ -89,6 +89,11 @@ export default defineConfig({
                 // Data-layer subpath (`@miragon/bpmn-modeler/diff`): no CSS,
                 // bpmn-js, i18n, or preact — Node-safe (check-diff-node.mjs).
                 diff: resolve(__dirname, "src/diff/index.ts"),
+                // Injectable lint subpath (`@miragon/bpmn-modeler/lint`, #1407):
+                // the lint stack a host imports and hands in via `linting.module`,
+                // so it never lands in a `linting: false` consumer's bundle. Its
+                // CSS still folds into `dist/bpmn-modeler.css` (cssCodeSplit off).
+                lint: resolve(__dirname, "src/bpmnlint/index.ts"),
             },
             formats: ["es"],
             cssFileName: "bpmn-modeler",

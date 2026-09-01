@@ -14,6 +14,10 @@ import type {
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
+// Type-only import — erased at build (same contract as modeler.ts's
+// LintConfigService import), so referencing the lint module's types here never
+// pulls the lint stack into the main bundle.
+import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
@@ -57,22 +61,49 @@ import type { SelectionManager } from "./selection";
 export type ThemeMode = "light" | "dark" | "automatic";
 
 /**
- * [B] Linting configuration tiers:
+ * [B] The namespace of `@miragon/bpmn-modeler/lint`, imported and handed in by
+ * the host. The lint stack (`bpmn-js-bpmnlint`, `bpmnlint`, the rule plugin, and
+ * its CSS) lives behind this subpath so a `linting: false` consumer never pulls
+ * it into the module graph — even under single-file bundlers, where a reachable
+ * internal dynamic import can no longer be tree-shaken.
  *
- * - `undefined` — linting on with the bundled default ruleset.
- * - `false` — linting off entirely (no chip, no overlay).
- * - `{ config }` — on, with a caller-supplied {@link BpmnlintConfig}; rules the
+ * ```ts
+ * linting: { module: await import("@miragon/bpmn-modeler/lint") }
+ * ```
+ *
+ * Declared structurally (not `typeof import("./bpmnlint")`) because
+ * api-extractor rollups of relative `import()` types are fragile; a type-level
+ * conformance check in `publicApi.spec.ts` keeps the two in sync.
+ */
+export interface LintModule {
+    createLintModule(tier: LintTierInit, callbacks: LintCallbacks): unknown;
+}
+
+/**
+ * [B] Linting configuration tiers. Injection-only: the lint stack is never
+ * bundled by the package, so every on-tier requires a `module` the host imports
+ * from `@miragon/bpmn-modeler/lint`.
+ *
+ * - *(omitted)* — linting off, with a one-time `console.info` migration nudge.
+ * - `false` — linting off entirely (no chip, no overlay), silent and explicit.
+ * - `{ module, config? }` — in-page linting with the injected {@link LintModule},
+ *   using the default or a caller-supplied {@link BpmnlintConfig}; rules the
  *   bundled resolver cannot resolve degrade gracefully and are reported via
  *   {@link LintRunEvent.unresolved} rather than failing the pass.
- * - `{ results: "external" }` — the modeler renders results the host computes
- *   and pushes through {@link BpmnModelerHandle.applyLintResults}; no in-webview
- *   linter runs.
+ * - `{ module, results: "external" }` — the modeler renders results the host
+ *   computes and pushes through {@link BpmnModelerHandle.applyLintResults}; no
+ *   in-webview linter runs. `module` is still required — the external tier needs
+ *   {@link LintModule} to paint and to service a `startInPageLinting` handback.
  *
  * `results?: never` on the config variant makes the union discriminable on
- * `results`, so the runtime tier selection narrows without type guards.
+ * `results`, so the runtime tier selection narrows without type guards. `module`
+ * being required on both object variants makes a missed migration a compile-time
+ * error, not a silent runtime downgrade.
  */
 export type LintingOptions =
-    false | { config?: BpmnlintConfig; results?: never } | { results: "external" };
+    | false
+    | { module: LintModule; config?: BpmnlintConfig; results?: never }
+    | { module: LintModule; results: "external" };
 
 /**
  * [B] Clipboard override. Default (option omitted) is the native browser
@@ -148,7 +179,11 @@ export interface ModelerOptions {
     moddleExtensions?: Record<string, object>;
 
     // ── [B] Opinionated built-ins ───────────────────────────────────────────
-    /** [B] Linting tier — see {@link LintingOptions}. Omit for the bundled default. */
+    /**
+     * [B] Linting tier — see {@link LintingOptions}. Injection-only: an on-tier
+     * supplies a `module` from `@miragon/bpmn-modeler/lint`. Omit (or `false`)
+     * for no linting.
+     */
     linting?: LintingOptions;
 
     /** [B] Clipboard override — omit for the native clipboard. */
@@ -290,9 +325,9 @@ export interface CoreModelerServices {
 
 /**
  * [A] The package entry point: stand up one modeler bound to `container` and
- * resolve its {@link BpmnModelerHandle}. Async because the lazy lint chunk
- * forces a construction await; a host that learns the engine late simply calls
- * this late.
+ * resolve its {@link BpmnModelerHandle}. Async for API stability (a host that
+ * learns the engine late simply calls this late); the lint stack is now injected
+ * synchronously rather than awaited internally.
  */
 export type CreateModeler = (
     container: HTMLElement,
