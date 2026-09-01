@@ -37,6 +37,8 @@ export type {
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
 export { NoModelerError } from "@miragon/bpmn-modeler-types";
+export { detectEngine } from "./detectEngine";
+export type { DetectedEngine } from "./detectEngine";
 export type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 
 // ── Viewport / selection — public, referenced by the designed handle ─────────
