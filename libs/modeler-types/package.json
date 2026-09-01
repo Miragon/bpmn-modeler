@@ -12,9 +12,9 @@
         "lodash": "4.18.1"
     },
     "devDependencies": {
-        "@types/lodash": "4.17.24",
+        "@types/lodash": "4.17.25",
         "jsdom": "30.0.1",
         "typescript": "6.0.3",
-        "vitest": "4.1.9"
+        "vitest": "4.1.11"
     }
 }
