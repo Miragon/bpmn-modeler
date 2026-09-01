@@ -607,9 +607,15 @@ function startSession(
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
         const extraModules = (injectedModules as unknown[]) ?? [];
         // Real hosts run the linter themselves and push results, so the default
-        // tier is external. A consumer (or the demo) can opt into in-page linting
-        // by passing an explicit `linting`. The user's in-canvas toggle is relayed
-        // to the host, which re-lints and pushes the new state down.
+        // tier is external. The lint stack is injectable now (#1407): the package
+        // no longer imports it, so this webview imports the `/lint` subpath and
+        // hands the module in. The dynamic `import()` keeps the chunk a separate
+        // lazily-fetched file (byte-identical to before — the vscode/intellij
+        // hosts consume this built bundle and are unchanged), now owned by the
+        // host rather than the package. A consumer (or the demo) can opt into
+        // in-page linting by passing an explicit `linting`. The user's in-canvas
+        // toggle is relayed to the host, which re-lints and pushes the new state
+        // down.
         try {
             bpmnModeler = await createModeler(canvasEl, {
                 engine,
@@ -621,7 +627,10 @@ function startSession(
                 additionalModules: extraModules,
                 clipboard,
                 capabilities,
-                linting: injectedLinting ?? { results: "external" },
+                linting: injectedLinting ?? {
+                    results: "external",
+                    module: await import("@miragon/bpmn-modeler/lint"),
+                },
                 // A real host activates in-page linting only after it answers the
                 // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
                 // config); the webview then pushes its findings back so the host

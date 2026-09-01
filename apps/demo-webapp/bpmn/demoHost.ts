@@ -57,8 +57,8 @@ export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
                 dispatch(new PropertiesPanelStateQuery(true));
                 break;
             // Deliberately no GetBpmnlintConfigCommand reply: the demo lints
-            // in-page (`linting: {}`), and an external results/null push would
-            // switch the instance to the external tier and suspend that.
+            // in-page (`linting: { module }`), and an external results/null push
+            // would switch the instance to the external tier and suspend that.
         }
     }
 }

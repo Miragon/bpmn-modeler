@@ -140,21 +140,34 @@ metadata, so the caller owns the fallback policy.
 
 ## Linting tiers
 
-Linting is an opinionated built-in with a tier ladder, selected via
-`options.linting`:
+Linting is an opinionated built-in, but the lint stack is **injection-only**: it
+lives behind the [`@miragon/bpmn-modeler/lint`](#lint) subpath and is never
+bundled by the package. An on-tier passes a `module` you import from that
+subpath, so a `linting: false` consumer keeps the whole stack out of its module
+graph — in **every** bundling mode, including single-file bundlers where a
+reachable internal dynamic import can no longer be tree-shaken.
 
-| `linting` | Behaviour |
-| --- | --- |
-| *(omitted)* | On, with the bundled default ruleset. |
-| `false` | Off entirely — no chip, no overlay, no lint chunk loaded. |
-| `{ config }` | On, with a caller-supplied `BpmnlintConfig`. Rules the bundled resolver cannot resolve degrade gracefully and are reported via `LintRunEvent.unresolved` rather than failing the pass. |
-| `{ results: "external" }` | The modeler only *paints* results the host computes and pushes through `handle.applyLintResults(...)`; no in-webview linter runs. |
+| `linting` | Lint bytes in your bundle | Behaviour |
+| --- | --- | --- |
+| *(omitted)* | none | Off, with a one-time `console.info` migration nudge. |
+| `false` | none | Off entirely — no chip, no overlay. Silent and explicit. |
+| `{ module, config? }` | via your `/lint` import | On, with the default or a caller-supplied `BpmnlintConfig`. Rules the bundled resolver cannot resolve degrade gracefully and are reported via `LintRunEvent.unresolved` rather than failing the pass. |
+| `{ module, results: "external" }` | via your `/lint` import | The modeler only *paints* results the host computes and pushes through `handle.applyLintResults(...)`; no in-webview linter runs. `module` is still required — the external tier needs it to paint and to service a `startInPageLinting` handback. |
 
-The linting stack (`bpmn-js-bpmnlint`, `bpmnlint`, the rule plugin, and its CSS)
-is code-split into a lazily-loaded chunk: it is fetched only when an
-instance actually lints, so `linting: false` keeps it out of your bundle's
-critical path entirely. Lint results surface through `onLintResults`, and the
-in-canvas enable/disable toggle through `onLintingToggled`.
+```ts
+import { createModeler } from "@miragon/bpmn-modeler";
+
+const modeler = await createModeler(container, {
+    engine,
+    propertiesPanel: { parent: panel },
+    // The dynamic import keeps the lint stack a separate lazily-fetched chunk;
+    // omit `linting` (or pass `false`) and nothing here ever imports it.
+    linting: { module: await import("@miragon/bpmn-modeler/lint") },
+});
+```
+
+Lint results surface through `onLintResults`, and the in-canvas enable/disable
+toggle through `onLintingToggled`.
 
 ## Core services & escape hatch
 
@@ -270,6 +283,36 @@ viewport subscriptions and `viewer.destroy()` to tear each pane down.
 **Semver:** `DiffResult` and the exported signatures are the contract; the
 flow-order heuristics that decide *where* an id sorts are not — they may change
 without a major bump.
+
+## Lint
+
+`@miragon/bpmn-modeler/lint` is the injectable lint stack (`bpmn-js-bpmnlint`,
+`bpmnlint`, the rule plugin, and its CSS). The package never imports it — a host
+that wants linting imports this subpath and hands the namespace to
+`options.linting.module` (see [Linting tiers](#linting-tiers)). That injection
+is what keeps the stack out of a `linting: false` consumer's bundle in every
+bundling mode.
+
+```ts
+import { createModeler } from "@miragon/bpmn-modeler";
+import "@miragon/bpmn-modeler/styles.css"; // includes the lint chrome CSS
+
+// Static import — the stack ships in your main chunk:
+import * as lint from "@miragon/bpmn-modeler/lint";
+await createModeler(container, { engine, propertiesPanel: { parent }, linting: { module: lint } });
+
+// …or dynamic — the bundler keeps it a separate lazily-fetched chunk:
+await createModeler(container, {
+    engine,
+    propertiesPanel: { parent },
+    linting: { module: await import("@miragon/bpmn-modeler/lint") },
+});
+```
+
+The single export is `createLintModule` (matching the public `LintModule`
+interface). The lint chrome's CSS is not code-split — it always lands in
+`@miragon/bpmn-modeler/styles.css`, which every consumer already loads — so
+importing the subpath brings no extra stylesheet wiring.
 
 ## Caveats
 

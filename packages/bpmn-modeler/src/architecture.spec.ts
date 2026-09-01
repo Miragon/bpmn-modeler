@@ -56,6 +56,31 @@ function importedModules(content: string): string[] {
     );
 }
 
+// Value imports only — `import type` / `export type` are erased at build and so
+// never pull runtime code into a bundle. Used by the lint-injection gate below.
+const VALUE_SPECIFIER_PATTERNS: readonly RegExp[] = [
+    /\bimport\s+(?!type\b)[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
+    /\bexport\s+(?!type\b)[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
+    /\bimport\s*["']([^"']+)["']/g,
+    /\bimport\s*\(\s*["']([^"']+)["']/g,
+    /\brequire\s*\(\s*["']([^"']+)["']/g,
+];
+
+// Drop block + line comments so a specifier *named in prose* (e.g. the
+// `typeof import("./bpmnlint")` mention in a jsdoc) is not read as a real
+// import. Coarse — it may nick a `//` inside a string literal — but harmless
+// here: we only pattern-match import specifiers out of the result.
+function stripComments(content: string): string {
+    return content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+}
+
+function valueImportedModules(content: string): string[] {
+    const code = stripComments(content);
+    return VALUE_SPECIFIER_PATTERNS.flatMap((pattern) =>
+        [...code.matchAll(pattern)].map((match) => match[1]),
+    );
+}
+
 /** `@miragon/bpmn-modeler` exactly, or a subpath of it — but not `-types`/`-core`/… */
 const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 
@@ -121,6 +146,31 @@ describe("bpmn-modeler import direction", () => {
             offenders,
             `every top-level dark-theme rule must be scoped under ` +
                 `[data-bpmn-theme="dark"]:\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("only src/bpmnlint/ value-imports the lint stack (#1407)", () => {
+        // The lint stack is injection-only: a host imports `@miragon/bpmn-modeler/lint`
+        // (which resolves to `src/bpmnlint/index.ts`) and hands the module in. No
+        // other package source may pull it into the runtime graph — a reachable
+        // value import (static or dynamic) is exactly what a single-file bundler
+        // inlines even under `linting: false`. `import type` stays fine.
+        const LINT_STACK = (spec: string): boolean =>
+            spec === "bpmnlint" || spec === "bpmn-js-bpmnlint" || /(^|\/)bpmnlint$/.test(spec); // the `./bpmnlint` barrel, not its type subpaths
+        const BPMNLINT_DIR = join(PKG_SRC, "bpmnlint");
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (file.startsWith(BPMNLINT_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (LINT_STACK(spec)) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the lint stack is injection-only — only src/bpmnlint/ may value-import ` +
+                `it (use \`import type\` elsewhere):\n${offenders.join("\n")}`,
         ).toEqual([]);
     });
 

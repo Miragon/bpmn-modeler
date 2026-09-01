@@ -9,10 +9,15 @@ import type {
     CoreModelerServices,
     CreateModeler,
     LintingOptions,
+    LintModule,
     ModelerOptions,
     StableModelerSurface,
     ThemeMode,
 } from "./publicApi";
+
+// A minimal stub of the injected `@miragon/bpmn-modeler/lint` namespace. The
+// on-tiers below all require a `module`, so migration failures are compile-time.
+const _lintModule: LintModule = { createLintModule: () => ({}) };
 
 /**
  * Type-level conformance + scenario spec for the public API.
@@ -82,13 +87,16 @@ const _formAwareNavigation = {
 } satisfies ModelNavigationPort;
 void _formAwareNavigation;
 
-// Graceful `{ config }` linting. The literal type-checks against the
+// Graceful `{ module, config }` linting. The literal type-checks against the
 // BpmnlintConfig mirror; unresolvable rules degrade at runtime and surface via
 // onLintResults({ results, unresolved }).
 const _scenarioLintConfig = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
-    linting: { config: { extends: "bpmnlint:recommended", rules: { "label-required": "warn" } } },
+    linting: {
+        module: _lintModule,
+        config: { extends: "bpmnlint:recommended", rules: { "label-required": "warn" } },
+    },
     onLintResults: ({ results, unresolved }) => {
         void results;
         void unresolved;
@@ -96,14 +104,49 @@ const _scenarioLintConfig = {
 } satisfies ModelerOptions;
 void _scenarioLintConfig;
 
+// External tier: `{ module, results: "external" }`. `module` is required — the
+// external tier still needs LintConfigService to paint host-pushed results.
+const _scenarioLintExternal = {
+    engine: "c8",
+    propertiesPanel: { parent: document.createElement("div") },
+    linting: { module: _lintModule, results: "external" },
+} satisfies ModelerOptions;
+void _scenarioLintExternal;
+
+// Migration failures are compile-time: an object tier without `module` is
+// rejected, and `config` never rides the external variant.
+const _lintMissingModule = {
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — an object lint tier must supply a `module`.
+    linting: { config: {} },
+} satisfies ModelerOptions;
+void _lintMissingModule;
+
+const _lintExternalMissingModule = {
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — the external tier must supply a `module`.
+    linting: { results: "external" },
+} satisfies ModelerOptions;
+void _lintExternalMissingModule;
+
+// Type-level entry conformance (no runtime load): the real `/lint` subpath
+// namespace structurally satisfies the public LintModule contract. If
+// createLintModule's signature drifts from LintModule, this line stops
+// compiling — keeping the structural interface in sync with the implementation.
+type _EntryConformsToLintModule = typeof import("./bpmnlint") extends LintModule ? true : never;
+const _entryConforms: _EntryConformsToLintModule = true;
+void _entryConforms;
+
 // [B] Opinionated built-ins: each tier/override type-checks in isolation, and
 // the target factory type is nameable. These exercise the built-in and event
 // declarations the scenario literals above don't reach.
 const _themes = ["light", "dark", "automatic"] satisfies ThemeMode[];
 void _themes;
 const _lintOff: LintingOptions = false;
-const _lintExternal: LintingOptions = { results: "external" };
-const _lintConfig: LintingOptions = { config: {} };
+const _lintExternal: LintingOptions = { module: _lintModule, results: "external" };
+const _lintConfig: LintingOptions = { module: _lintModule, config: {} };
 void [_lintOff, _lintExternal, _lintConfig];
 const _clipboard: ClipboardOptions = {
     bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },

@@ -1,4 +1,5 @@
 import { createModeler } from "@miragon/bpmn-modeler";
+import * as lintModule from "@miragon/bpmn-modeler/lint";
 import { getActiveModel } from "../src";
 
 /**
@@ -74,14 +75,15 @@ async function mount(
     if (!container || !propertiesPanelParent) {
         throw new Error(`Missing #${canvasId} or #${panelId}`);
     }
-    // No host wiring: `linting` is omitted, so each pane lints in-page with the
-    // engine-aware default config (the multi-instance proof — both panes lint
-    // independently). handleGlobalEscape stays off so each instance only reacts
-    // to Escapes in its own subtrees. `createModeler` is async now (it awaits the
-    // lazy lint chunk and stands the modeler up), so it is awaited before loading.
+    // No host wiring: the lint stack is injected via the `/lint` subpath (#1407),
+    // so each pane lints in-page with the engine-aware default config (the
+    // multi-instance proof — both panes lint independently). handleGlobalEscape
+    // stays off so each instance only reacts to Escapes in its own subtrees.
+    // `createModeler` is async, so it is awaited before loading.
     const modeler = await createModeler(container, {
         engine,
         propertiesPanel: { parent: propertiesPanelParent },
+        linting: { module: lintModule },
     });
     await modeler.loadDiagram(xml);
     mountThemeToggle(container, modeler);

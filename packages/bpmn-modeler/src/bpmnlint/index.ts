@@ -1,17 +1,18 @@
 /**
- * Lazy-loaded chunk entry for in-canvas bpmnlint.
+ * Public `@miragon/bpmn-modeler/lint` subpath entry.
  *
  * This module — and only this module — statically imports the lint stack
  * (`bpmn-js-bpmnlint`, `bpmnlint`'s `Linter`, `@miragon/bpmnlint-plugin-rules`,
- * and the CSS). Because the modeler reaches it through a dynamic
- * `import("./bpmnlint")`, the whole stack lands in a separate chunk that is
- * fetched only when an instance actually lints (`linting !== false`), keeping it
- * out of the main webview bundle.
+ * and the CSS). The package never imports it: a host that wants linting imports
+ * this subpath itself and hands the namespace in as `linting.module` (see
+ * {@link LintModule}). That injection is what keeps the whole stack out of a
+ * `linting: false` consumer's module graph — even under single-file bundlers,
+ * where a reachable internal dynamic import can no longer be tree-shaken.
  *
- * bpmn-js modules are fixed at construction, so the chunk must resolve *before*
- * `new BpmnModeler7/8`. The facade awaits this import, then calls
- * {@link createLintModule} with the per-instance tier + config + callbacks and
- * drops the returned module into `additionalModules`.
+ * bpmn-js modules are fixed at construction, so the host resolves this import
+ * *before* `createModeler`; the facade then calls {@link createLintModule} with
+ * the per-instance tier + config + callbacks and drops the returned module into
+ * `additionalModules`.
  */
 import bpmnLintingModule from "bpmn-js-bpmnlint";
 import "bpmn-js-bpmnlint/dist/assets/css/bpmn-js-bpmnlint.css";
