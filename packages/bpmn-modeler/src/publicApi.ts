@@ -131,6 +131,13 @@ export interface ModelerOptions {
      */
     additionalModules?: unknown[];
 
+    /**
+     * [A] Escape hatch: extra moddle extensions, merged onto the engine's
+     * bundled camunda/zeebe moddles (last-wins on a colliding namespace
+     * prefix). Matches bpmn-js's own `moddleExtensions`.
+     */
+    moddleExtensions?: Record<string, object>;
+
     // ── [B] Opinionated built-ins ───────────────────────────────────────────
     /** [B] Linting tier — see {@link LintingOptions}. Omit for the bundled default. */
     linting?: LintingOptions;

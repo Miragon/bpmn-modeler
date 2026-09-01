@@ -44,6 +44,18 @@ const _scenarioTemplates = {
 } satisfies ModelerOptions;
 void _scenarioTemplates;
 
+// [A] Escape hatches: extra DI modules alongside a custom moddle extension for
+// a host's own BPMN namespace (bpmiq's sticky-note case).
+const _scenarioEscapeHatches = {
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    additionalModules: [{ __init__: [] }],
+    moddleExtensions: {
+        bpmiq: { name: "bpmiq", uri: "http://bpmiq/schema", prefix: "bpmiq", types: [] },
+    },
+} satisfies ModelerOptions;
+void _scenarioEscapeHatches;
+
 // An async ModelNavigationPort (GitHub-API resolution before opening a tab).
 // The return type must accept `async`.
 const _asyncNavigation: ModelNavigationPort = {

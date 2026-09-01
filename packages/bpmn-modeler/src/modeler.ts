@@ -209,6 +209,7 @@ export class BpmnModeler {
             container: this.container,
             propertiesPanel: { parent: this.options.propertiesPanel.parent },
             alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
+            moddleExtensions: this.options.moddleExtensions,
         };
 
         this.engine = engine;

@@ -80,6 +80,28 @@ const modeler = await createModeler(canvas, {
 });
 ```
 
+## Escape hatches
+
+For advanced hosts, two options pass straight through to bpmn-js:
+
+- `additionalModules` — extra DI modules layered onto the bundled ones.
+- `moddleExtensions` — extra moddle descriptors for a host's own BPMN
+  namespace, so custom-namespaced XML parses into typed moddle objects (and
+  the DI modules that depend on those types work). They are **merged onto** the
+  engine's bundled `camunda`/`zeebe`/`modeler` moddles; a prefix colliding with
+  one of those is **last-wins** (your descriptor overrides the engine's — don't
+  do that).
+
+```ts
+const modeler = await createModeler(canvas, {
+    engine: "c7",
+    propertiesPanel: { parent: panel },
+    moddleExtensions: {
+        bpmiq: { name: "bpmiq", uri: "http://bpmiq/schema", prefix: "bpmiq", types: [] },
+    },
+});
+```
+
 ## Linting tiers
 
 Linting is an opinionated built-in with a tier ladder, selected via
