@@ -171,10 +171,7 @@ export function classifyEntries(
  * Handles both the plain function form and the `{ click, dragstart }` object
  * form used by different providers.
  */
-export function executeEntryAction(
-    action: PopupMenuEntryAction | undefined,
-    event: Event,
-): void {
+export function executeEntryAction(action: PopupMenuEntryAction | undefined, event: Event): void {
     if (!action) {
         return;
     }
