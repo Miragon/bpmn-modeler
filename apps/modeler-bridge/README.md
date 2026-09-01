@@ -15,27 +15,27 @@ The bridge speaks a single line-delimited JSON-RPC duplex over stdio
 implements the host-capability ports as RPC handlers; the core never knows it
 isn't talking to VS Code.
 
-| Direction | Method(s) | Port / handle |
-|---|---|---|
-| host → core | `session/register`, `session/dispose` | editor lifecycle (seeds the `DocumentPort` mirror) |
-| host → core | `document/didChange` | document change → re-render (external edits) or no-op (own-write echo) |
-| host → core | `session/setActive` | focused tab → `EditorSessionStore` active-editor pointer |
-| host → core | `webview/message` | inbound `Command` → `WebviewMessageRouter` |
-| core → host | `document/write`, `document/save` | `DocumentPort.write` / `.save` |
-| core → host | `editor/postMessage` | `EditorHandle.postMessage` (Query/Command → webview) |
-| core → host | `notifier/*` | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log |
-| core → host | `statusBar/*` | `StatusBarPort` → `StatusBarWidget` (engine version + template count) |
-| core → host | `secretStore/*` | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted at rest) |
-| host → core | `deploymentState/seed` | seeds the `DeploymentStatePort` mirror (synchronous getters; see BridgeSettings) |
-| host → core | `deployment/open` | deployment tool-window visibility → refresh form defaults on open |
-| host → core | `deployment/webviewMessage` | inbound deployment `Command` → `DeploymentMessageDispatcher` |
-| core → host | `deployment/postMessage` | deployment `Query` → tool-window webview (`window.postMessage`) |
-| core → host | `deploymentState/save*` | `DeploymentStatePort` persist → `PropertiesComponent` (non-secret form state) |
-| host → core | `marketplace/add`, `marketplace/update` | Tools-menu actions → `TemplateMarketplaceService` (settings snapshot piggybacked) |
-| core → host | `marketplaceState/save` | persist the added registration + fan the snapshot to every open bridge |
-| core → host | `tokenStore/*` | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem) |
-| core → host | `tokenPrompt/show` | `TokenPromptPort` → modal password dialog (`null` on decline) |
-| host → core | `script/openAll` | Tools-menu action → post `OpenAllScriptTasksQuery` to the active webview, bulk-open the reply |
+| Direction   | Method(s)                               | Port / handle                                                                                 |
+| ----------- | --------------------------------------- | --------------------------------------------------------------------------------------------- |
+| host → core | `session/register`, `session/dispose`   | editor lifecycle (seeds the `DocumentPort` mirror)                                            |
+| host → core | `document/didChange`                    | document change → re-render (external edits) or no-op (own-write echo)                        |
+| host → core | `session/setActive`                     | focused tab → `EditorSessionStore` active-editor pointer                                      |
+| host → core | `webview/message`                       | inbound `Command` → `WebviewMessageRouter`                                                    |
+| core → host | `document/write`, `document/save`       | `DocumentPort.write` / `.save`                                                                |
+| core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
+| core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
+| core → host | `statusBar/*`                           | `StatusBarPort` → `StatusBarWidget` (engine version + template count)                         |
+| core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted at rest)                    |
+| host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror (synchronous getters; see BridgeSettings)              |
+| host → core | `deployment/open`                       | deployment tool-window visibility → refresh form defaults on open                             |
+| host → core | `deployment/webviewMessage`             | inbound deployment `Command` → `DeploymentMessageDispatcher`                                  |
+| core → host | `deployment/postMessage`                | deployment `Query` → tool-window webview (`window.postMessage`)                               |
+| core → host | `deploymentState/save*`                 | `DeploymentStatePort` persist → `PropertiesComponent` (non-secret form state)                 |
+| host → core | `marketplace/add`, `marketplace/update` | Tools-menu actions → `TemplateMarketplaceService` (settings snapshot piggybacked)             |
+| core → host | `marketplaceState/save`                 | persist the added registration + fan the snapshot to every open bridge                        |
+| core → host | `tokenStore/*`                          | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem)             |
+| core → host | `tokenPrompt/show`                      | `TokenPromptPort` → modal password dialog (`null` on decline)                                 |
+| host → core | `script/openAll`                        | Tools-menu action → post `OpenAllScriptTasksQuery` to the active webview, bulk-open the reply |
 
 The RPC method index above is prose; the authoritative surface is generated by
 `protocolTable()` from `src/protocol/descriptor.ts` and pinned by `protocol.spec.ts`
@@ -46,16 +46,22 @@ The **synchronous-read mismatch** — `BpmnModelerService.display()` reads
 by a local `DocumentMirror` the host seeds on `session/register` and keeps
 current with `document/didChange`, so reads hit a cache instead of blocking.
 
-**Echo prevention.** The host reports *every* document change, including the echo
-of the core's own `document/write`. The bridge tells the two apart by **explicit
-causation** (LSP-style versioned `didChange`): every `document/write` mints a
-per-editor revision the host echoes back as `causedBy`, so a `document/didChange`
-whose `causedBy` matches a pending own write is the host's echo and is dropped;
-an external edit (a git revert, the plain-text tab, another tool) carries no
-`causedBy` (or a stale one) and re-renders. The core's `ModelerSession` guard
-stays wired as a second line of defence. This keeps echo prevention in
-TypeScript — host-agnostic, with no content-comparison or cross-process timing
-assumptions — so every future host inherits it.
+**Session and document causation.** Every open editor gets a host-owned
+`sessionId`; lifecycle, webview, document, and post-message frames carry it so
+late traffic from a closed same-URI editor cannot affect its replacement. The
+host also owns a monotonic `documentRevision`, preserves it across bridge
+restarts, and includes it in renders and external-change notifications. A
+webview write returns that revision as `expectedDocumentRevision`; the host
+accepts the write only while it is still current and reports the decision as
+`accepted`.
+
+The host reports _every_ accepted document change, including the echo of the
+core's own `document/write`. The bridge tells the two apart by **explicit
+causation**: every write also mints a bridge-local revision the host echoes as
+`causedBy`. A `document/didChange` whose `causedBy` matches a pending own write
+is the host's echo and is dropped; an external edit carries no `causedBy` (or a
+stale one) and re-renders. The core's `ModelerSession` guard stays wired as a
+second line of defence.
 
 The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
 checklist for adding the next synchronous port) is written up once in
@@ -64,7 +70,7 @@ checklist for adding the next synchronous port) is written up once in
 > **Why not a WebSocket seam between the webview and the server?** That would be
 > the right tool for a plain browser host, where the webview talks to the server
 > directly. In the JCEF host the JVM already owns the browser, so relaying
-> webview messages over the *same* stdio pipe keeps the transport single and
+> webview messages over the _same_ stdio pipe keeps the transport single and
 > supervised (one crash signal, no WS-reconnect ↔ stdio-restart reconciliation)
 > and keeps this binary free of a bundled HTTP/WS server and any open TCP port.
 > See `docs/adr/0004-intellij-host-foundation.md`.

@@ -21,6 +21,7 @@ import {
     MIGRATE_ALL_CMD,
     NEW_BPMN_MODEL_CMD,
     NEW_DMN_MODEL_CMD,
+    NEW_FORM_MODEL_CMD,
     RELOAD_MODELER_CMD,
     SAVE_SVG_CMD,
     TOGGLE_CMD,
@@ -39,7 +40,7 @@ import {
 } from "./templateMarketplace/controller/TemplateMarketplaceController";
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
+import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 const SRC_DIR = __dirname;
 
@@ -58,7 +59,10 @@ interface Manifest {
         customEditors: {
             viewType: string;
             priority: string | { textEditor: string; diffEditor?: string };
+            selector: { filenamePattern: string }[];
         }[];
+        configurationDefaults: Record<string, Record<string, string>>;
+        jsonValidation: { fileMatch: string; url: string }[];
         configuration: { properties: Record<string, unknown> };
     };
 }
@@ -76,6 +80,7 @@ const CODE_COMMAND_IDS = [
     TOGGLE_LINTING_CMD,
     NEW_BPMN_MODEL_CMD,
     NEW_DMN_MODEL_CMD,
+    NEW_FORM_MODEL_CMD,
     RELOAD_MODELER_CMD,
     SELECT_FOR_COMPARE_CMD,
     COMPARE_WITH_SELECTED_CMD,
@@ -127,7 +132,27 @@ describe("package.json ↔ code contract", () => {
     it("declares exactly the custom-editor viewTypes the code uses", () => {
         const declared = manifest.contributes.customEditors.map((e) => e.viewType);
 
-        expect(new Set(declared)).toEqual(new Set([BPMN_VIEW_TYPE, DMN_VIEW_TYPE]));
+        expect(new Set(declared)).toEqual(new Set([BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE]));
+    });
+
+    it("associates forms with JSON validation and the visual editor", () => {
+        expect(manifest.contributes.customEditors).toContainEqual(
+            expect.objectContaining({
+                viewType: FORM_VIEW_TYPE,
+                priority: "default",
+                selector: [{ filenamePattern: "*.form" }],
+            }),
+        );
+        expect(manifest.contributes.configurationDefaults["files.associations"]["*.form"]).toBe(
+            "json",
+        );
+        expect(
+            manifest.contributes.configurationDefaults["workbench.editorAssociations"]["*.form"],
+        ).toBe(FORM_VIEW_TYPE);
+        expect(manifest.contributes.jsonValidation).toContainEqual({
+            fileMatch: "**/*.form",
+            url: "./schemas/form.schema.json",
+        });
     });
 
     it("opts the BPMN editor into diffs explicitly", () => {

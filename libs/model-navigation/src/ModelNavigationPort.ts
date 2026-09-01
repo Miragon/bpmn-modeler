@@ -2,7 +2,7 @@ import type { ReferenceKind } from "./extractReference";
 
 /**
  * A resolvable model reference the context-pad entry navigates to: the
- * process / decision id plus the {@link ReferenceKind} that tells the host
+ * process / decision / form id plus the {@link ReferenceKind} that tells the host
  * which file type to look for.
  */
 export interface ModelReference {
@@ -26,4 +26,18 @@ export interface ModelNavigationPort {
      * host's problem.
      */
     openReference(reference: ModelReference): void | Promise<void>;
+
+    /**
+     * Optionally controls whether an action is shown for a reference. Omitting
+     * this hook treats every syntactically valid reference as available.
+     * Implementations must answer synchronously because bpmn-js builds context
+     * pad entries synchronously.
+     */
+    isReferenceAvailable?(reference: ModelReference): boolean;
+
+    /**
+     * Optionally notifies the modeler that availability changed so an open
+     * context pad can refresh immediately.
+     */
+    onReferenceAvailabilityChanged?(listener: () => void): () => void;
 }

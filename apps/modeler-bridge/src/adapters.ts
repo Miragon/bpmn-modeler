@@ -54,6 +54,8 @@ import {
 /** Per-editor metadata + cached document text, keyed by `editorId` (the URI string). */
 export interface SessionMeta {
     editorId: string;
+    /** Exact host editor generation for rejecting same-URI stale traffic. */
+    sessionId?: number;
     uriString: string;
     path: string;
     fsPath: string;
@@ -78,13 +80,12 @@ export class DocumentMirror {
     private readonly meta = new Map<string, SessionMeta>();
     private readonly text = new Map<string, string>();
 
-    // Per-editor monotonic write counter and the set of revisions still awaiting
-    // their host echo. The set stays bounded: a changing write is consumed by
-    // `isOwnEcho` when its echo arrives, and a no-op write (which the host never
-    // echoes) is dropped via `forgetWriteRevision`, so an editor that round-trips
-    // cleanly holds nothing here between writes.
-    private readonly nextRevision = new Map<string, number>();
-    private readonly pendingOwnRevisions = new Map<string, Set<number>>();
+    // Causation belongs to an exact editor generation: same-URI replacement
+    // sessions may mint the same revision numbers without sharing pending writes.
+    private readonly writeRevisions = new Map<
+        string,
+        Map<number | undefined, { next: number; pending: Set<number> }>
+    >();
 
     register(meta: SessionMeta, content: string): void {
         this.meta.set(meta.editorId, meta);
@@ -105,15 +106,10 @@ export class DocumentMirror {
      * {@link isOwnEcho}. Starts at 1 (0 would be ambiguous with an absent
      * `causedBy` on the wire).
      */
-    nextWriteRevision(editorId: string): number {
-        const revision = (this.nextRevision.get(editorId) ?? 0) + 1;
-        this.nextRevision.set(editorId, revision);
-        let pending = this.pendingOwnRevisions.get(editorId);
-        if (!pending) {
-            pending = new Set();
-            this.pendingOwnRevisions.set(editorId, pending);
-        }
-        pending.add(revision);
+    nextWriteRevision(editorId: string, sessionId?: number): number {
+        const state = this.writeRevisionState(editorId, sessionId);
+        const revision = ++state.next;
+        state.pending.add(revision);
         return revision;
     }
 
@@ -123,8 +119,8 @@ export class DocumentMirror {
      * consumed) returns false — that change still renders, never mistaken for an
      * echo.
      */
-    isOwnEcho(editorId: string, causedBy: number): boolean {
-        return this.pendingOwnRevisions.get(editorId)?.delete(causedBy) ?? false;
+    isOwnEcho(editorId: string, causedBy: number, sessionId?: number): boolean {
+        return this.writeRevisions.get(editorId)?.get(sessionId)?.pending.delete(causedBy) ?? false;
     }
 
     /**
@@ -133,8 +129,26 @@ export class DocumentMirror {
      * normalisation) fires no `document/didChange`, so its minted revision would
      * otherwise linger forever; the caller forgets it to keep the set bounded.
      */
-    forgetWriteRevision(editorId: string, revision: number): void {
-        this.pendingOwnRevisions.get(editorId)?.delete(revision);
+    forgetWriteRevision(editorId: string, revision: number, sessionId?: number): void {
+        this.writeRevisions.get(editorId)?.get(sessionId)?.pending.delete(revision);
+    }
+
+    completeWrite(
+        editorId: string,
+        sessionId: number | undefined,
+        revision: number,
+        content: string,
+        changed: boolean,
+    ): void {
+        const pending = this.writeRevisions.get(editorId)?.get(sessionId)?.pending;
+        if (!pending?.has(revision)) return;
+        if (!changed) {
+            pending.delete(revision);
+            return;
+        }
+        if (this.meta.get(editorId)?.sessionId === sessionId) {
+            this.text.set(editorId, content);
+        }
     }
 
     require(editorId: string): SessionMeta {
@@ -153,8 +167,24 @@ export class DocumentMirror {
     remove(editorId: string): void {
         this.meta.delete(editorId);
         this.text.delete(editorId);
-        this.nextRevision.delete(editorId);
-        this.pendingOwnRevisions.delete(editorId);
+        this.writeRevisions.delete(editorId);
+    }
+
+    private writeRevisionState(
+        editorId: string,
+        sessionId?: number,
+    ): { next: number; pending: Set<number> } {
+        let sessions = this.writeRevisions.get(editorId);
+        if (!sessions) {
+            sessions = new Map();
+            this.writeRevisions.set(editorId, sessions);
+        }
+        let state = sessions.get(sessionId);
+        if (!state) {
+            state = { next: 0, pending: new Set() };
+            sessions.set(sessionId, state);
+        }
+        return state;
     }
 }
 
@@ -203,26 +233,26 @@ export class RpcEditorHandle implements EditorHandle {
         return this.mirror.content(this.id);
     }
 
-    async writeContent(content: string): Promise<boolean> {
+    async writeContent(content: string, expectedDocumentRevision?: number): Promise<boolean> {
         // Tag the write so the host's echoed `document/didChange` carries this
         // revision as `causedBy`; the mirror update keeps sync `getContent` correct.
-        const revision = this.mirror.nextWriteRevision(this.id);
+        const revision = this.mirror.nextWriteRevision(this.id, this.meta.sessionId);
         const result = (await this.rpc.request(METHODS.documentWrite, {
             editorId: this.id,
+            sessionId: this.meta.sessionId,
             content,
             revision,
+            expectedDocumentRevision,
         })) as DocumentWriteResult | null;
-        this.mirror.setContent(this.id, content);
-        const changed = result?.changed ?? false;
-        // A no-op write echoes nothing back, so its revision would never be
-        // consumed by isOwnEcho — drop it now to keep pendingOwnRevisions bounded.
-        if (!changed) this.mirror.forgetWriteRevision(this.id, revision);
+        const changed = result?.accepted !== false && result?.changed === true;
+        this.mirror.completeWrite(this.id, this.meta.sessionId, revision, content, changed);
         return changed;
     }
 
     async save(): Promise<boolean> {
         const result = (await this.rpc.request(METHODS.documentSave, {
             editorId: this.id,
+            sessionId: this.meta.sessionId,
         })) as DocumentSaveResult | null;
         return result?.saved ?? false;
     }
@@ -234,7 +264,11 @@ export class RpcEditorHandle implements EditorHandle {
      * (the VS Code handle returns webview visibility here).
      */
     async postMessage(message: Command | Query): Promise<boolean> {
-        this.rpc.notify(METHODS.editorPostMessage, { editorId: this.id, message });
+        this.rpc.notify(METHODS.editorPostMessage, {
+            editorId: this.id,
+            sessionId: this.meta.sessionId,
+            message,
+        });
         return true;
     }
 
@@ -308,27 +342,31 @@ export class RpcDocumentPort implements DocumentPort {
         return this.mirror.require(editorId).fsPath;
     }
 
-    async write(editorId: string, content: string): Promise<boolean> {
+    async write(
+        editorId: string,
+        content: string,
+        expectedDocumentRevision?: number,
+    ): Promise<boolean> {
         // Tag the write so the host's echoed `document/didChange` carries this
         // revision as `causedBy` (see DocumentMirror.isOwnEcho).
-        const revision = this.mirror.nextWriteRevision(editorId);
+        const sessionId = this.mirror.require(editorId).sessionId;
+        const revision = this.mirror.nextWriteRevision(editorId, sessionId);
         const result = (await this.rpc.request(METHODS.documentWrite, {
             editorId,
+            sessionId,
             content,
             revision,
+            expectedDocumentRevision,
         })) as DocumentWriteResult | null;
-        // Keep the mirror current so a later synchronous getContent() is correct.
-        this.mirror.setContent(editorId, content);
-        const changed = result?.changed ?? false;
-        // A no-op write echoes nothing back, so its revision would never be
-        // consumed by isOwnEcho — drop it now to keep pendingOwnRevisions bounded.
-        if (!changed) this.mirror.forgetWriteRevision(editorId, revision);
+        const changed = result?.accepted !== false && result?.changed === true;
+        this.mirror.completeWrite(editorId, sessionId, revision, content, changed);
         return changed;
     }
 
     async save(editorId: string): Promise<boolean> {
         const result = (await this.rpc.request(METHODS.documentSave, {
             editorId,
+            sessionId: this.mirror.require(editorId).sessionId,
         })) as DocumentSaveResult | null;
         return result?.saved ?? false;
     }

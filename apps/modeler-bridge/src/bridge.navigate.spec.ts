@@ -148,6 +148,50 @@ describe("bridge navigation (real core + locator over a fake transport)", () => 
         expect(frames.filter((f) => f.method === "notifier/openDocument")).toHaveLength(1);
     });
 
+    it("opens the form whose top-level id matches exactly", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        const targetPath = join(root, "request.form");
+        await fs.writeFile(
+            targetPath,
+            JSON.stringify({ id: "Form_Request", type: "default", components: [] }),
+            "utf8",
+        );
+
+        await feedNavigate(rpc, editorId, "Form_Request", "form");
+
+        const open = await waitForFrame(frames, (f) => f.method === "notifier/openDocument");
+        expect(open.params.path).toBe(targetPath);
+    });
+
+    it("pushes resolvable form ids when the webview requests status", async () => {
+        const { rpc, frames, root, editorId } = await setup();
+        await fs.writeFile(
+            join(root, "request.form"),
+            JSON.stringify({ id: "Form_Request", type: "default", components: [] }),
+            "utf8",
+        );
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    message: { type: "GetFormReferenceStatusCommand" },
+                },
+            }),
+        );
+
+        const status = await waitForFrame(
+            frames,
+            (f) =>
+                f.method === "editor/postMessage" &&
+                f.params.message.type === "FormReferenceStatusQuery",
+        );
+        expect(status.params.message.formIds).toEqual(["Form_Request"]);
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
     it("prompts via picker/show when multiple files declare the id, then opens the choice", async () => {
         const { rpc, frames, root, editorId } = await setup();
         const aPath = join(root, "a.bpmn");

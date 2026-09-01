@@ -85,7 +85,7 @@
     "npm-run-all": "4.1.5",
     "rimraf": "6.1.3",
     "terser-webpack-plugin": "5.6.1",
-    "webpack": "5.108.3"
+    "webpack": "5.109.2"
   },
   "scripts": {
     "bundle": "node scripts/bundle-extension.mjs",

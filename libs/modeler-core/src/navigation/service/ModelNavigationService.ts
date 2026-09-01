@@ -1,4 +1,5 @@
 import { NotifierPort, PickerPort } from "../../shared/domain/hostPorts";
+import type { ReferenceKind } from "@miragon/bpmn-modeler-shared";
 
 import { ReferencedModelLocator } from "./ReferencedModelLocator";
 
@@ -9,7 +10,7 @@ const REFERENCE_ID_DISPLAY_LIMIT = 100;
 const PROGRESS_LABEL_LIMIT = 40;
 
 /**
- * Resolves a process or decision id to a workspace file and opens it in its
+ * Resolves a process, decision, or form id to a workspace file and opens it in its
  * registered custom editor.  Triggered by
  * `NavigateToReferencedModelCommand` from the BPMN webview.
  *
@@ -26,7 +27,7 @@ export class ModelNavigationService {
 
     async navigate(
         referenceId: string,
-        kind: "process" | "decision",
+        kind: ReferenceKind,
         sourceDocumentPath?: string,
     ): Promise<void> {
         const display = truncate(referenceId, REFERENCE_ID_DISPLAY_LIMIT);

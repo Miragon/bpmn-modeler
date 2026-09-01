@@ -126,8 +126,7 @@ export function isDrdViewActive(): boolean {
 
 /** DRD canvas with focus methods; `undefined` outside the DRD view. */
 export function getActiveFocusableCanvas():
-    | (ResizableCanvas & { focus(): void; isFocused(): boolean })
-    | undefined {
+    (ResizableCanvas & { focus(): void; isFocused(): boolean }) | undefined {
     const viewer = getModeler().getActiveViewer();
     return viewer?.get("canvas", false) ?? undefined;
 }

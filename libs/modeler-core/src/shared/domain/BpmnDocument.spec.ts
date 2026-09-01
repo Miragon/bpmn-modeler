@@ -25,6 +25,12 @@ const c7XmlNoVersion = `<?xml version="1.0" encoding="UTF-8"?>
   <bpmn:process id="Process_0" isExecutable="true" />
 </bpmn:definitions>`;
 
+// Has the executionPlatform name but no version attribute.
+const c8XmlNameOnly = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:modeler="http://camunda.org/schema/modeler/1.0" modeler:executionPlatform="Camunda Cloud">
+  <bpmn:process id="Process_0" isExecutable="true" />
+</bpmn:definitions>`;
+
 // No platform signal at all.
 const unknownXml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:modeler="http://camunda.org/schema/modeler/1.0">
@@ -98,6 +104,10 @@ describe("BpmnDocument.detectPlatform", () => {
 
     it("should detect C7 from xmlns:camunda namespace when version attribute is absent", () => {
         expect(new BpmnDocument(c7XmlNoVersion).detectPlatform()).toBe("c7");
+    });
+
+    it("should detect the platform from the executionPlatform name when version is absent", () => {
+        expect(new BpmnDocument(c8XmlNameOnly).detectPlatform()).toBe("c8");
     });
 
     it("should throw ExecutionPlatformNotDetectedError when no platform signal exists", () => {

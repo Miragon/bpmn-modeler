@@ -171,22 +171,25 @@ export function register(deps: BridgeSharedDeps): { sessionHooks: SessionHooks }
         });
     });
 
+    const refreshManifest = async (params: RegisterParams): Promise<void> => {
+        if (params.scheme !== "file") return;
+        manifestWatchers.get(params.editorId)?.dispose();
+        manifestWatchers.delete(params.editorId);
+        await scriptEditor.loadManifest(params.editorId, params.fsPath);
+        manifestWatchers.set(
+            params.editorId,
+            await scriptEditor.watchManifest(params.editorId, params.fsPath),
+        );
+    };
+
     return {
         sessionHooks: {
             // Load the manifest and arm its watcher so authored variables merge
             // into completion and refresh live. Guard non-file editors (a diff
             // pane has no manifest on disk); the manifest service speaks fs paths,
             // so pass the host-provided `fsPath`.
-            onSessionRegistered: async (params: RegisterParams) => {
-                if (params.scheme !== "file") {
-                    return;
-                }
-                await scriptEditor.loadManifest(params.editorId, params.fsPath);
-                manifestWatchers.set(
-                    params.editorId,
-                    await scriptEditor.watchManifest(params.editorId, params.fsPath),
-                );
-            },
+            onSessionRegistered: refreshManifest,
+            onSessionReseeded: refreshManifest,
             // Close any script tabs this editor opened before its handle is
             // dropped, and stop watching its manifest.
             onSessionDisposed: (editorId) => {

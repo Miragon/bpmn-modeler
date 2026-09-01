@@ -30,10 +30,11 @@ const VARIABLE: VariableDef = {
     confidence: "authored",
 };
 
-function createContext(): EditorSessionContext {
+function createContext(isCurrent: () => boolean = () => true): EditorSessionContext {
     return {
         editorId: EDITOR_ID,
         panel: {} as never,
+        isCurrent,
         onDocumentChange: vi.fn(),
         onSettingChange: vi.fn(),
         onDispose: vi.fn(),
@@ -135,5 +136,28 @@ describe("ScriptManifestParticipant", () => {
         const onChange = manifestSvc.createWatcher.mock.calls[0][1] as () => void;
         onChange();
         await vi.waitFor(() => expect(manifestSvc.loadWithStatus).toHaveBeenCalled());
+    });
+
+    it("does not apply a manifest loaded for a replaced session", async () => {
+        let finishLoad: (result: {
+            manifestPath: string;
+            found: boolean;
+            variables: VariableDef[];
+        }) => void = () => {};
+        manifestSvc.loadWithStatus.mockReturnValue(
+            new Promise((resolve) => {
+                finishLoad = resolve;
+            }),
+        );
+        let current = true;
+        const resolving = participant().onResolve(createContext(() => current));
+
+        current = false;
+        finishLoad({ manifestPath: MANIFEST_PATH, found: true, variables: [VARIABLE] });
+        await resolving;
+
+        expect(store.setManifest).not.toHaveBeenCalled();
+        expect(notifier.logInfo).not.toHaveBeenCalled();
+        expect(manifestSvc.createWatcher).not.toHaveBeenCalled();
     });
 });

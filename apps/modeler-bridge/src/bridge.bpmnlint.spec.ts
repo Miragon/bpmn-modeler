@@ -92,8 +92,15 @@ async function waitForFrame(
     throw new Error("waitForFrame timed out");
 }
 
+// A host lint delivering actual findings. Requires non-null `results`: a
+// `.bpmnlintrc` write is truncate-then-write, so the watcher can fire mid-write
+// and read an empty file, whose failed JSON.parse degrades to a
+// BpmnlintResultsQuery(null) deactivation frame. That transient must not satisfy
+// a wait for the real host run (it crashes Object.keys and races the re-lint).
 const isLintResultsFrame = (frame: any): boolean =>
-    frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintResultsQuery";
+    frame.method === "editor/postMessage" &&
+    frame.params?.message?.type === "BpmnlintResultsQuery" &&
+    frame.params?.message?.results != null;
 
 const isInPageInstructionFrame = (frame: any): boolean =>
     frame.method === "editor/postMessage" && frame.params?.message?.type === "BpmnlintInPageQuery";

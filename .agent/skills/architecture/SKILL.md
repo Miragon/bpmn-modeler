@@ -67,7 +67,7 @@ The substrate is itself split: pure `domain/`, the `service/` layer, and the
 
 | File | Purpose |
 |---|---|
-| `session.ts` | `ModelerSession` — per-editor echo-prevention guard counter |
+| `session.ts` | `ModelerSession` — per-editor, content-aware echo-prevention guards |
 | `BpmnDocument.ts` | Value object wrapping BPMN XML — execution-platform detection, empty checks, process-definition key |
 | `EditorSession.ts` | Per-session event/subscription types (`DocumentChangeEvent`, `SettingChange`, `EditorSubscription`) |
 | `engineVersions.ts` | Supported Camunda engine-version constants/helpers |
@@ -204,18 +204,18 @@ Each per-editor lifecycle concern is an **`EditorSessionParticipant`** (`onResol
 
 **Problem**: the host writes webview-edited XML to the document, which fires `onDidChangeTextDocument`, which would echo back to the webview — an infinite loop.
 
-**Solution**: `ModelerSession` (`libs/modeler-core/src/shared/domain/session.ts`) keeps a per-editor guard counter.
+**Solution**: `ModelerSession` (`libs/modeler-core/src/shared/domain/session.ts`) counts in-flight writes by normalized content for each editor.
 
 ```
 1. Webview → SyncDocumentCommand → BpmnModelerService.sync()
-2. sync() acquires the guard → counter++
+2. sync() acquires a guard for the XML content
 3. sync() writes XML via VsCodeDocument
 4. write fires onDidChangeTextDocument → BpmnModelerService.display()
-5. display() sees the guard (counter > 0) → returns early (no echo)
-6. sync()'s finally releases the guard → counter--
+5. display() suppresses the change only when its normalized content is guarded
+6. sync()'s finally releases that content guard
 ```
 
-A counter (not a boolean) handles overlapping async syncs; release in `finally` prevents leaks on error.
+Per-content counts handle overlapping identical writes without hiding a different host edit. Release in `finally` prevents leaks on error.
 
 ## Architecture tests (two `architecture.spec.ts` gates)
 

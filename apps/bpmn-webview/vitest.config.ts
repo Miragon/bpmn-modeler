@@ -43,6 +43,10 @@ export default defineConfig({
                 __dirname,
                 "../../libs/bpmn-clipboard/src/index.ts",
             ),
+            "@miragon/bpmn-modeler-i18n-extras": resolve(
+                __dirname,
+                "../../libs/bpmn-i18n-extras/src/index.ts",
+            ),
         },
         coverage: {
             provider: "v8",

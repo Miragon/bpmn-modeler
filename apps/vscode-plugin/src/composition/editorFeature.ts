@@ -15,6 +15,7 @@ import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
 import { DmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
+import { FormModelerService } from "@miragon/bpmn-modeler-core";
 import { ModelNavigationService } from "@miragon/bpmn-modeler-core";
 import { ReferencedModelLocator } from "@miragon/bpmn-modeler-core";
 import { ModelerEditorController } from "../modeler/editor-session/ModelerEditorController";
@@ -35,6 +36,7 @@ import { ScriptTaskTeardownParticipant } from "../modeler/bpmn/controller/editor
 import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-participants/ScriptManifestParticipant";
 import { DmnRenderParticipant } from "../modeler/dmn/controller/editor-participants/DmnRenderParticipant";
 import { DmnSettingsParticipant } from "../modeler/dmn/controller/editor-participants/DmnSettingsParticipant";
+import { FormRenderParticipant } from "../modeler/form/controller/editor-participants/FormRenderParticipant";
 import {
     getBpmnFileHandler,
     getElementTemplatesHandler,
@@ -57,18 +59,30 @@ import {
     navigateToReferencedModelHandler,
     navigateToImplementationHandler,
     syncActivitiesHandler,
+    getFormReferenceStatusHandler,
 } from "../modeler/bpmn/controller/webview-handlers/bpmnMessageHandlers";
 import {
     getDmnFileHandler,
     getDmnModelerSettingHandler,
     syncDmnDocumentHandler,
 } from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
+import {
+    getFormFileHandler,
+    syncFormDocumentHandler,
+} from "../modeler/form/controller/webview-handlers/formMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
-import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, ScriptVariableStore } from "@miragon/bpmn-modeler-core";
+import {
+    BPMN_VIEW_TYPE,
+    DMN_VIEW_TYPE,
+    FORM_VIEW_TYPE,
+    ScriptVariableStore,
+} from "@miragon/bpmn-modeler-core";
 import { TemplateMarketplaceService } from "@miragon/bpmn-modeler-core";
 import { CodeLinkHandles } from "./codeLinkFeature";
 import { SharedDeps } from "./sharedDeps";
+import { FormReferenceStatusService } from "../navigation";
+import { FormReferenceStatusParticipant } from "../navigation/controller/editor-participants/FormReferenceStatusParticipant";
 
 /**
  * Lifecycle-bearing collaborators owned by sibling features that the editor
@@ -100,7 +114,11 @@ export function register(
     context: ExtensionContext,
     deps: SharedDeps,
     handles: EditorHandles,
-): { bpmnService: BpmnModelerService; templatesSvc: BpmnElementTemplatesService } {
+): {
+    bpmnService: BpmnModelerService;
+    templatesSvc: BpmnElementTemplatesService;
+    documentFlush: DocumentSaveFlushController;
+} {
     const {
         diffController,
         scriptTaskSvc,
@@ -168,6 +186,7 @@ export function register(
         deps.notifier,
     );
     const dmnService = new DmnModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
+    const formService = new FormModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
     // One flush service for both editors: requests are keyed per editorId, so a
     // single instance behind both routers stays correct.
     const flushSvc = new DocumentFlushService(deps.editorStore, deps.notifier);
@@ -182,6 +201,14 @@ export function register(
         deps.notifier,
         deps.picker,
     );
+    const formReferenceStatusService = new FormReferenceStatusService(
+        deps.editorStore,
+        deps.vsDocument,
+        deps.vsWorkspace,
+        referencedModelLocator,
+        deps.notifier,
+    );
+    context.subscriptions.push({ dispose: () => formReferenceStatusService.dispose() });
 
     // One router per editor: both protocols carry `SyncDocumentCommand` but
     // route it to a different service, so they cannot share a dispatch table.
@@ -232,6 +259,10 @@ export function register(
             ),
         )
         .on("SyncActivitiesCommand", syncActivitiesHandler(codeLink.codeLinkMap));
+    bpmnMessageRouter.on(
+        "GetFormReferenceStatusCommand",
+        getFormReferenceStatusHandler(formReferenceStatusService),
+    );
     // Tags forwarded webview log lines with the diagram's basename so a warning
     // can be correlated to a file when several editors are open. getFilePath
     // throws for an editorId the store no longer tracks; a bare `[webview]` tag
@@ -255,12 +286,18 @@ export function register(
         .on("SyncDocumentCommand", syncDmnDocumentHandler(dmnService))
         .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
     registerWebviewLogHandlers(dmnMessageRouter, deps.notifier, resolveSource);
+    const formMessageRouter = new WebviewMessageRouter()
+        .on("GetFormFileCommand", getFormFileHandler(formService, deps.notifier))
+        .on("SyncDocumentCommand", syncFormDocumentHandler(formService))
+        .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
+    registerWebviewLogHandlers(formMessageRouter, deps.notifier, resolveSource);
 
     new ModelerEditorController(deps.editorStore, deps.notifier, {
         viewType: BPMN_VIEW_TYPE,
         messageRouter: bpmnMessageRouter,
         participants: [
             new BpmnRenderParticipant(bpmnService, deps.notifier),
+            new FormReferenceStatusParticipant(formReferenceStatusService),
             new ElementTemplatesParticipant(templatesSvc, deps.artifactSvc, deps.notifier),
             new BpmnlintParticipant(
                 lintConfigSvc,
@@ -294,6 +331,11 @@ export function register(
         ],
         initialPanelVisible: () => dmnPanelSvc.getPersistedPanelVisibility(),
     }).register(context);
+    new ModelerEditorController(deps.editorStore, deps.notifier, {
+        viewType: FORM_VIEW_TYPE,
+        messageRouter: formMessageRouter,
+        participants: [new FormRenderParticipant(formService, deps.notifier)],
+    }).register(context);
 
     // Turns each element-specific bpmnlint diagnostic into a click-to-centre
     // action; the diagnostics carry a command link to this controller.
@@ -303,15 +345,17 @@ export function register(
     // opens a diagram from outside the editor, optionally on one element.
     new DeepLinkController(deps.editorStore, deps.notifier).register(context);
 
-    // Flush debounced webview changes into the buffer before every save so a
-    // persist never writes XML that trails the live model by the debounce window.
-    new DocumentSaveFlushController(
+    // Flush pending webview changes into the buffer before every save so a
+    // persist never trails the live model.
+    const documentFlush = new DocumentSaveFlushController(
         deps.editorStore,
         flushSvc,
         bpmnService,
         dmnService,
+        formService,
         deps.notifier,
-    ).register(context);
+    );
+    documentFlush.register(context);
 
-    return { bpmnService, templatesSvc };
+    return { bpmnService, templatesSvc, documentFlush };
 }

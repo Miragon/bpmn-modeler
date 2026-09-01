@@ -81,9 +81,11 @@ per-file data flows over the JCEF message bridge, never over HTTP.
 - **No orphans.** The bridge exits on stdin EOF, so a dying JVM never orphans it;
   `dispose()` (destroy → `destroyForcibly` after a grace period) plus a JVM
   shutdown hook are belt-and-suspenders for hard exits.
-- **Backpressure.** A single writer thread drains a bounded outbound queue that
-  coalesces superseded document-sync frames per editor, so the EDT / JCEF
-  threads never block on bridge stdin under an edit flood.
+- **Backpressure.** A single writer thread drains a soft-bounded outbound queue
+  that coalesces superseded document-sync and authoritative host-update frames
+  per editor, so the EDT / JCEF threads never block on bridge stdin under an edit
+  flood. Best-effort frames may be dropped at capacity; document updates and RPC
+  replies are retained across backpressure and bridge restart windows.
 
 ## Display ports
 

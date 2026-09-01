@@ -10,11 +10,7 @@
  * - `jobType` — C8 `zeebe:taskDefinition type` → content search for the literal.
  */
 export type ImplementationKind =
-    | "javaClass"
-    | "delegateExpression"
-    | "expression"
-    | "externalTopic"
-    | "jobType";
+    "javaClass" | "delegateExpression" | "expression" | "externalTopic" | "jobType";
 
 /**
  * One task's implementation binding as the webview reads it from the bpmn-js
