@@ -102,6 +102,22 @@ const modeler = await createModeler(canvas, {
 });
 ```
 
+### Detecting the engine from XML
+
+`createModeler` needs an explicit `engine`. When a host opens an existing
+diagram, `detectEngine(xml)` reads the spec-defined `modeler:executionPlatform`
+(and, as a secondary signal, `modeler:executionPlatformVersion`) to pick it:
+
+```ts
+import { createModeler, detectEngine } from "@miragon/bpmn-modeler";
+
+const engine = detectEngine(xml) ?? "c7"; // undefined = no platform metadata; the host picks the fallback
+const modeler = await createModeler(container, { engine, propertiesPanel: { parent: panel } });
+```
+
+It returns `undefined` for engine-neutral diagrams that carry no platform
+metadata, so the caller owns the fallback policy.
+
 ## Linting tiers
 
 Linting is an opinionated built-in with a tier ladder, selected via
