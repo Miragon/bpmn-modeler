@@ -476,6 +476,21 @@
                     "default": false,
                     "markdownDescription": "Align the diagram to the origin when opening a new diagram. Click [here](https://github.com/bpmn-io/align-to-origin) to see the behaviour when enabled."
                 },
+                "miragon.bpmnModeler.propertiesPanel.initialState": {
+                    "type": "string",
+                    "enum": [
+                        "remember",
+                        "collapsed",
+                        "open"
+                    ],
+                    "default": "remember",
+                    "enumDescriptions": [
+                        "Follow the last state a properties panel was left in.",
+                        "Always start with the properties panel collapsed.",
+                        "Always start with the properties panel open."
+                    ],
+                    "markdownDescription": "How a freshly opened diagram decides whether to show its properties panel. `remember` follows the global default the last toggle wrote — the behaviour so far. `collapsed` / `open` pin every new diagram to that state; the toggle still writes the global default, so switching back to `remember` returns to your last real choice. Applies to BPMN and DMN alike."
+                },
                 "miragon.bpmnModeler.scripting.spin": {
                     "type": "boolean",
                     "default": true,

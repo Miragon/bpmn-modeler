@@ -172,6 +172,7 @@ export function register(
         deps.editorStore,
         panelStateRepo,
         deps.notifier,
+        () => deps.vsSettings.getPropertiesPanelInitialState(),
     );
     // DMN keeps its own default under a distinct key; the panel service is
     // engine-agnostic, so the BPMN implementation is reused.
@@ -183,6 +184,7 @@ export function register(
         deps.editorStore,
         dmnPanelStateRepo,
         deps.notifier,
+        () => deps.vsSettings.getPropertiesPanelInitialState(),
     );
     const dmnService = new DmnModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
     const formService = new FormModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
