@@ -106,14 +106,20 @@ export class NodeWorkspace implements WorkspacePort {
      * {@link getWorkspaceFolderForDocument} to mirror VS Code's nearest-first
      * discovery.
      */
-    private readonly roots = new Set<string>();
+    private readonly roots = new Map<string, number>();
 
     registerRoot(root: string): void {
-        this.roots.add(root);
+        this.roots.set(root, (this.roots.get(root) ?? 0) + 1);
     }
 
     unregisterRoot(root: string): void {
-        this.roots.delete(root);
+        const count = this.roots.get(root);
+        if (count === undefined) return;
+        if (count <= 1) {
+            this.roots.delete(root);
+        } else {
+            this.roots.set(root, count - 1);
+        }
     }
 
     /**
@@ -125,7 +131,7 @@ export class NodeWorkspace implements WorkspacePort {
     private enclosingRoot(document: string): string | undefined {
         const hadScheme = document.startsWith("file://");
         const normDoc = toFsPath(document);
-        for (const root of this.roots) {
+        for (const root of this.roots.keys()) {
             const normRoot = toFsPath(root);
             if (normDoc === normRoot || normDoc.startsWith(normRoot + "/")) {
                 return hadScheme ? "file://" + normRoot : normRoot;
@@ -327,7 +333,7 @@ export class NodeWorkspace implements WorkspacePort {
     }
 
     getWorkspaceFolderPaths(): string[] {
-        return [...this.roots];
+        return [...this.roots.keys()];
     }
 
     /**
@@ -372,7 +378,7 @@ export class NodeWorkspace implements WorkspacePort {
     async findFiles(pattern: string, exclude?: string | null, limit?: number): Promise<string[]> {
         const excludeRe = exclude ? globToRegExp(exclude) : undefined;
         const results: string[] = [];
-        for (const root of this.roots) {
+        for (const root of this.roots.keys()) {
             const cwd = toFsPath(root);
             for await (const match of fs.glob(pattern, { cwd })) {
                 // fs.glob yields paths relative to cwd using the OS separator;

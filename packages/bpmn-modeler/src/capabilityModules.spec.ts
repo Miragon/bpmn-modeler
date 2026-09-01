@@ -36,6 +36,11 @@ describe("capabilityModules", () => {
         // spec); the factory must embed the port under that exact token or DI
         // would fail at runtime, so pin the stringly-typed name here.
         expect(modules[0].modelNavigationPort).toEqual(["value", navPort]);
+        expect(modules[0].__init__).toEqual([
+            "formReferenceStatusClient",
+            "navigateContextPadProvider",
+        ]);
+        expect(modules[0].formReferenceStatusClient).toBeDefined();
         expect(modules[0].navigateContextPadProvider).toBeDefined();
     });
 

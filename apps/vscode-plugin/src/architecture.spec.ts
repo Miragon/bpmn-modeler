@@ -224,15 +224,14 @@ describe("architecture", () => {
     // others are common substrate, so none is subject to isolation. Do NOT relax
     // the rules to make CI green; that defeats the gate.
     describe("feature isolation (regression lock — green)", () => {
-        // `navigation` and `migration` are intentionally absent: after the
-        // engine extraction their only plugin-side file is an `index.ts` barrel
-        // that re-exports the service from `@miragon/bpmn-modeler-core`, so they
-        // have no internals left to protect.
+        // `migration` is intentionally absent: after the engine extraction its
+        // only plugin-side file is an `index.ts` barrel.
         const FEATURE_FOLDERS = [
             "diff",
             "deployment",
             "scriptTask",
             "codeLink",
+            "navigation",
             "modeler/bpmn",
             "modeler/dmn",
         ];

@@ -35,12 +35,13 @@ export function register(
         deps.notifier,
     );
     deps.rpc.on(METHODS.migrationMigrateAll, async (params: MigrateAllParams) => {
-        // Migrate can fire with no editor open, so no session/register has registered
-        // this root — and NodeWorkspace.findFiles only globs registered roots. Not
-        // unregistered afterwards: roots are a Set with no refcount, and the session
-        // dispose path already unregisters, so pulling it eagerly could break a live
-        // template watcher on a still-open editor under the same root.
+        // Migrate can fire with no editor open, so temporarily register its root.
+        // NodeWorkspace reference-counts roots, preserving any live session claim.
         deps.nodeWorkspace.registerRoot(params.workspaceRoot);
-        await migrationSvc.migrateAllDiagrams();
+        try {
+            await migrationSvc.migrateAllDiagrams();
+        } finally {
+            deps.nodeWorkspace.unregisterRoot(params.workspaceRoot);
+        }
     });
 }

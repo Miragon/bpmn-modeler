@@ -8,6 +8,8 @@ import { SettingsSnapshot } from "../nodeAdapters";
  */
 export interface RegisterParams extends SessionMeta {
     content: string;
+    /** Host-owned revision preserved across bridge restarts. */
+    documentRevision?: number;
     /** Full `miragon.bpmnModeler.*` snapshot; seeds settings before template discovery. */
     settings?: Partial<SettingsSnapshot>;
 }
@@ -21,5 +23,6 @@ export interface RegisterParams extends SessionMeta {
  */
 export interface SessionHooks {
     onSessionRegistered?(params: RegisterParams): void | Promise<void>;
+    onSessionReseeded?(params: RegisterParams): void | Promise<void>;
     onSessionDisposed?(editorId: string): void;
 }

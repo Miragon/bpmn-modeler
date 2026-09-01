@@ -24,12 +24,15 @@ const EDITOR_ID = "file:///diagram.bpmn";
 
 /** Captures the callbacks the controller hands the store, so tests can fire them. */
 function createFakeStore() {
+    let currentSession: object | undefined;
     const captured: {
         message?: (message: unknown, id: string) => Promise<void> | void;
         dispose?: () => void;
     } = {};
     const store = {
-        register: vi.fn(),
+        register: vi.fn((session: object) => {
+            currentSession = session;
+        }),
         subscribeToMessageEvent: vi.fn((_id: string, cb: typeof captured.message) => {
             captured.message = cb;
         }),
@@ -40,8 +43,20 @@ function createFakeStore() {
         subscribeToDocumentChangeEvent: vi.fn(),
         subscribeToSettingChangeEvent: vi.fn(),
         addToDisposals: vi.fn(),
+        captureEditorSession: vi.fn(() => currentSession),
+        isCurrentEditorSession: vi.fn((_id: string, session: object) => currentSession === session),
+        isHostDocumentRevisionCurrent: vi.fn(() => true),
+        recordDocumentSync: vi.fn(),
+        runInEditorQueue: vi.fn(async (_id: string, task: () => Promise<void>) => task()),
     };
-    return { store: store as unknown as EditorSessionStore, captured, raw: store };
+    return {
+        store: store as unknown as EditorSessionStore,
+        captured,
+        raw: store,
+        replaceSession: (session: object) => {
+            currentSession = session;
+        },
+    };
 }
 
 function createNotifier() {
@@ -58,7 +73,7 @@ const panel = { id: "panel" } as never;
 const token = {} as never;
 
 function resolve(options: Partial<ModelerEditorOptions>, notifier = createNotifier()) {
-    const { store, captured, raw } = createFakeStore();
+    const { store, captured, raw, replaceSession } = createFakeStore();
     const fullOptions: ModelerEditorOptions = {
         viewType: "bpmn-modeler.bpmn",
         messageRouter: new WebviewMessageRouter(),
@@ -66,7 +81,7 @@ function resolve(options: Partial<ModelerEditorOptions>, notifier = createNotifi
         ...options,
     };
     const controller = new ModelerEditorController(store, notifier, fullOptions);
-    return { controller, store, captured, raw, notifier, options: fullOptions };
+    return { controller, store, captured, raw, replaceSession, notifier, options: fullOptions };
 }
 
 describe("ModelerEditorController.resolveCustomTextEditor", () => {
@@ -133,6 +148,72 @@ describe("ModelerEditorController.resolveCustomTextEditor", () => {
         expect(dispatch).toHaveBeenCalledWith({ type: "GetBpmnFileCommand" }, EDITOR_ID);
     });
 
+    it("queues sync while dispatching a flush reply immediately", async () => {
+        const messageRouter = new WebviewMessageRouter();
+        let finishSync: () => void = () => {};
+        const pendingSync = new Promise<void>((resolve) => {
+            finishSync = resolve;
+        });
+        const dispatch = vi.spyOn(messageRouter, "dispatch").mockImplementation(async (message) => {
+            if (message.type === "SyncDocumentCommand") await pendingSync;
+        });
+        const { controller, captured, raw } = resolve({ messageRouter });
+
+        await controller.resolveCustomTextEditor(document, panel, token);
+        await captured.message?.({ type: "GetFormReferenceStatusCommand" }, EDITOR_ID);
+        expect(raw.runInEditorQueue).not.toHaveBeenCalled();
+
+        const syncMessage = { type: "SyncDocumentCommand", content: "<latest/>" };
+        const syncing = captured.message?.(syncMessage, EDITOR_ID);
+        await vi.waitFor(() => expect(raw.runInEditorQueue).toHaveBeenCalledOnce());
+        expect(dispatch).toHaveBeenCalledWith(syncMessage, EDITOR_ID);
+
+        await captured.message?.({ type: "DocumentFlushedCommand" }, EDITOR_ID);
+
+        expect(dispatch).toHaveBeenCalledWith({ type: "DocumentFlushedCommand" }, EDITOR_ID);
+        expect(raw.runInEditorQueue).toHaveBeenCalledOnce();
+        finishSync();
+        await syncing;
+        expect(raw.recordDocumentSync).toHaveBeenCalledWith(
+            EDITOR_ID,
+            expect.any(Object),
+            "<latest/>",
+        );
+    });
+
+    it("drops a sync based on an older host document revision", async () => {
+        const messageRouter = new WebviewMessageRouter();
+        const dispatch = vi.spyOn(messageRouter, "dispatch").mockResolvedValue();
+        const { controller, captured, raw } = resolve({ messageRouter });
+        raw.isHostDocumentRevisionCurrent.mockReturnValue(false);
+
+        await controller.resolveCustomTextEditor(document, panel, token);
+        await captured.message?.(
+            { type: "SyncDocumentCommand", content: "<stale/>", documentRevision: 1 },
+            EDITOR_ID,
+        );
+
+        expect(dispatch).not.toHaveBeenCalled();
+        expect(raw.runInEditorQueue).not.toHaveBeenCalled();
+        expect(raw.recordDocumentSync).not.toHaveBeenCalled();
+    });
+
+    it("does not record a sync when a host update arrives during dispatch", async () => {
+        const messageRouter = new WebviewMessageRouter();
+        vi.spyOn(messageRouter, "dispatch").mockResolvedValue();
+        const { controller, captured, raw } = resolve({ messageRouter });
+        raw.isHostDocumentRevisionCurrent.mockReturnValueOnce(true).mockReturnValueOnce(false);
+
+        await controller.resolveCustomTextEditor(document, panel, token);
+        await captured.message?.(
+            { type: "SyncDocumentCommand", content: "<stale/>", documentRevision: 1 },
+            EDITOR_ID,
+        );
+
+        expect(raw.runInEditorQueue).toHaveBeenCalledOnce();
+        expect(raw.recordDocumentSync).not.toHaveBeenCalled();
+    });
+
     it("logs a rejected dispatch instead of leaving it unhandled", async () => {
         const messageRouter = new WebviewMessageRouter();
         const error = new Error("handler boom");
@@ -178,5 +259,33 @@ describe("ModelerEditorController.resolveCustomTextEditor", () => {
         ).resolves.toBeUndefined();
         expect(notifier.showError).toHaveBeenCalledWith("boom");
         expect(notifier.logError).toHaveBeenCalled();
+    });
+
+    it("disposes resources created after an async session was replaced", async () => {
+        let finishSetup: () => void = () => {};
+        const setupPending = new Promise<void>((resolve) => {
+            finishSetup = resolve;
+        });
+        const lateDisposable = { dispose: vi.fn() };
+        const nextParticipant: EditorSessionParticipant = { onResolve: vi.fn() };
+        const participant: EditorSessionParticipant = {
+            onResolve: vi.fn(async (session: EditorSessionContext) => {
+                await setupPending;
+                session.addDisposable(lateDisposable);
+            }),
+        };
+        const { controller, replaceSession, raw } = resolve({
+            participants: [participant, nextParticipant],
+        });
+
+        const resolving = controller.resolveCustomTextEditor(document, panel, token);
+        await vi.waitFor(() => expect(participant.onResolve).toHaveBeenCalledOnce());
+        replaceSession({ id: EDITOR_ID });
+        finishSetup();
+        await resolving;
+
+        expect(lateDisposable.dispose).toHaveBeenCalledOnce();
+        expect(raw.addToDisposals).not.toHaveBeenCalled();
+        expect(nextParticipant.onResolve).not.toHaveBeenCalled();
     });
 });

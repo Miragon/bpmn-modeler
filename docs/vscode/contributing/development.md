@@ -262,8 +262,8 @@ The layer + feature-isolation boundaries are enforced in CI by
 
 Key design decisions:
 
-- **Echo prevention**: each open editor gets a `ModelerSession` guard that blocks the
-  `onDidChangeTextDocument` echo caused by the extension's own document write.
+- **Echo prevention**: each open editor gets content-aware `ModelerSession` guards that
+  block only the matching `onDidChangeTextDocument` echo from an extension write.
 - **Element template discovery**: convention-based — no project config file needed.
   Templates are resolved under `<configFolder>/element-templates/` walking up from the
   BPMN file to the workspace root.

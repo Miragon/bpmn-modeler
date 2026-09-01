@@ -143,7 +143,7 @@ describe("set-style handlers forward the command payload", () => {
     it("syncDocumentHandler → sync(editorId, content)", async () => {
         const bpmnService = { sync: vi.fn().mockResolvedValue(true) };
         await syncDocumentHandler(bpmnService as never)(new SyncDocumentCommand("<xml/>"), EDITOR);
-        expect(bpmnService.sync).toHaveBeenCalledWith(EDITOR, "<xml/>");
+        expect(bpmnService.sync).toHaveBeenCalledWith(EDITOR, "<xml/>", 0);
     });
 });
 

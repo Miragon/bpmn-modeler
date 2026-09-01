@@ -6,7 +6,9 @@
         "lint-staged", // invoked by .githooks/pre-commit, which knip does not parse
         "@types/vscode-webview", // ambient types for `acquireVsCodeApi`, no import site
         "@vscode/test-electron", // runtime of the @vscode/test-cli e2e toolchain
-        "@bpmn-io/cm-theme" // version pin: @bpmn-io/feelers-editor needs 0.2.2's feelLight/feelDark
+        "@bpmn-io/cm-theme", // version pin: @bpmn-io/feelers-editor needs 0.2.2's feelLight/feelDark
+        "@bpmn-io/form-js", // copied into the extension package by webpack
+        "@bpmn-io/form-json-schema" // copied into the extension package by webpack
     ],
     "ignore": [
         // bpmnlint plugin fixture: resolved at runtime by bpmnlint via the

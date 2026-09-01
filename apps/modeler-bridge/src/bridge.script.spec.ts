@@ -59,9 +59,17 @@ async function waitForDeletion(path: string, timeoutMs = 2000): Promise<void> {
     throw new Error(`still exists: ${path}`);
 }
 
-function registerParams(editorId: string, root: string, fsPath: string, content: string) {
+function registerParams(
+    editorId: string,
+    root: string,
+    fsPath: string,
+    content: string,
+    sessionId?: number,
+) {
     return {
         editorId,
+        sessionId,
+        documentRevision: 0,
         uriString: editorId,
         path: editorId.replace(/^file:\/\//, ""),
         fsPath,
@@ -90,9 +98,13 @@ describe("bridge script editor (real core over a fake transport)", () => {
         }
     });
 
-    async function setup(options?: {
-        manifest?: string;
-    }): Promise<{ rpc: Rpc; frames: any[]; editorId: string }> {
+    async function setup(options?: { manifest?: string }): Promise<{
+        rpc: Rpc;
+        frames: any[];
+        editorId: string;
+        root: string;
+        sourcePath: string;
+    }> {
         const root = await fs.mkdtemp(join(tmpdir(), "modeler-bridge-script-"));
         const sourcePath = join(root, "source.bpmn");
         await fs.writeFile(sourcePath, C7_XML, "utf8");
@@ -112,12 +124,12 @@ describe("bridge script editor (real core over a fake transport)", () => {
         await rpc.handleLine(
             JSON.stringify({
                 method: "session/register",
-                params: registerParams(editorId, root, sourcePath, C7_XML),
+                params: registerParams(editorId, root, sourcePath, C7_XML, 7),
             }),
         );
 
         cleanups.push(() => fs.rm(root, { recursive: true, force: true }));
-        return { rpc, frames, editorId };
+        return { rpc, frames, editorId, root, sourcePath };
     }
 
     async function feedOpen(rpc: Rpc, editorId: string, cmd: OpenCommand): Promise<void> {
@@ -543,6 +555,47 @@ describe("bridge script editor (real core over a fake transport)", () => {
 
         const close = await waitForFrame(frames, (f) => f.method === "script/close");
         expect(close.params.scriptId).toBe(scriptId);
+    });
+
+    it("keeps open script state when the same session is re-seeded", async () => {
+        const { rpc, frames, editorId, root, sourcePath } = await setup();
+        await feedOpen(rpc, editorId, {
+            elementId: "Task_1",
+            kind: "script-task",
+            listenerIndex: undefined,
+            eventName: undefined,
+            scriptFormat: "javascript",
+            content: "",
+        });
+        await waitForFrame(frames, (f) => f.method === "script/open");
+        frames.length = 0;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, sourcePath, C7_XML, 7),
+            }),
+        );
+        await settle();
+
+        expect(frames.some((frame) => frame.method === "script/close")).toBe(false);
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: {
+                    editorId,
+                    sessionId: 7,
+                    message: { type: "GetBpmnModelerSettingCommand" },
+                },
+            }),
+        );
+        const lock = await waitForFrame(
+            frames,
+            (frame) =>
+                frame.method === "editor/postMessage" &&
+                frame.params.message.type === "UpdateOpenScriptEditorsQuery",
+        );
+        expect(lock.params.message.openScripts).toHaveLength(1);
     });
 
     it("writes the script as a real file under <configFolder>/tmp/scripting and ships its path", async () => {
