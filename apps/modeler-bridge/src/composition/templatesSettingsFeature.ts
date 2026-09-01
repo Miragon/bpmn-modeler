@@ -49,6 +49,12 @@ export function register(
     );
 
     const watchers = new Map<string, { dispose(): void }[]>();
+    const refreshWatcher = async (params: RegisterParams): Promise<void> => {
+        watchers.get(params.editorId)?.forEach((disposable) => disposable.dispose());
+        watchers.delete(params.editorId);
+        const { disposables } = await deps.artifactSvc.createWatcher(params.editorId, templatesSvc);
+        watchers.set(params.editorId, disposables);
+    };
 
     deps.router
         // Inlined rather than importing the VS Code element-templates handler,
@@ -90,11 +96,11 @@ export function register(
                 // Arm the live-reload watcher (the production `ArtifactService`
                 // wiring, reused verbatim). The authoritative root is registered by
                 // the editor-session feature before this hook runs.
-                const { disposables } = await deps.artifactSvc.createWatcher(
-                    params.editorId,
-                    templatesSvc,
-                );
-                watchers.set(params.editorId, disposables);
+                await refreshWatcher(params);
+            },
+            onSessionReseeded: async (params: RegisterParams) => {
+                await refreshWatcher(params);
+                await templatesSvc.setElementTemplates(params.editorId);
             },
             onSessionDisposed: (editorId) => {
                 watchers.get(editorId)?.forEach((d) => d.dispose());

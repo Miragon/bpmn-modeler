@@ -15,6 +15,7 @@ import io.miragon.intellij.bpmn.CoreSession
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -65,22 +66,29 @@ class EditorSessionRouterTest {
         val router = EditorSessionRouter(bridgeDeps(project, wired.channel, wired.handlers), scheduler)
         router.register()
 
-        val session = CoreSession(bpmn.file.url, bpmn.file, project) {}
+        val posted = mutableListOf<String>()
+        val session = CoreSession(bpmn.file.url, bpmn.file, project) { posted.add(it) }
         router.registerSession(session)
+        val register = parse(wired.fake.nextFrame())
         assertEquals(
             "session/register",
-            parse(wired.fake.nextFrame()).get("method").asString,
+            register.get("method").asString,
             "registerSession seeds the core before any document traffic",
         )
-        return Fixture(router, session, bpmn, wired, scheduler).also { fixture = it }
+        val sessionId = register.getAsJsonObject("params").get("sessionId").asLong
+        return Fixture(router, session, sessionId, bpmn, wired, scheduler, posted).also {
+            fixture = it
+        }
     }
 
     private class Fixture(
         val router: EditorSessionRouter,
         val session: CoreSession,
+        val sessionId: Long,
         val bpmn: BpmnTestFile,
         val wired: WiredBridge,
         val scheduler: DeterministicScheduler,
+        val posted: MutableList<String>,
     )
 
     /**
@@ -93,7 +101,7 @@ class EditorSessionRouterTest {
         bpmn.document.addDocumentListener(
             object : DocumentListener {
                 override fun documentChanged(event: DocumentEvent) {
-                    router.notifyDocumentChanged(session.editorId, event.document.text)
+                    router.notifyDocumentChanged(session, event.document.text)
                 }
             },
             Disposer.newDisposable(session.project, "editor-echo"),
@@ -156,6 +164,16 @@ class EditorSessionRouterTest {
     }
 
     @Test
+    fun `close does not flush the webview over a pending external host update`() {
+        val f = setUpRouter(INITIAL_XML)
+
+        f.router.notifyDocumentChanged(f.session, EDITED_XML)
+        f.router.flushBeforeClose(f.session.editorId)
+
+        assertTrue(f.posted.isEmpty(), "the authoritative host edit bypasses webview export")
+    }
+
+    @Test
     fun `a burst of external edits collapses to a single send of the latest content`() {
         val f = setUpRouter(INITIAL_XML)
         f.attachEditorEcho()
@@ -184,7 +202,7 @@ class EditorSessionRouterTest {
         val f = setUpRouter(INITIAL_XML)
         val raw = "{\"type\":\"GetBpmnFileCommand\"}"
 
-        f.router.forwardWebviewMessage(f.session.editorId, raw)
+        f.router.forwardWebviewMessage(f.session, raw)
 
         val spliced = parse(f.wired.fake.nextFrame())
         // The old shape parsed the raw text and nested it under params.message; the
@@ -197,6 +215,7 @@ class EditorSessionRouterTest {
                         "params" to
                             mapOf(
                                 "editorId" to f.session.editorId,
+                                "sessionId" to f.sessionId,
                                 "message" to mapOf("type" to "GetBpmnFileCommand"),
                             ),
                     ),
@@ -208,9 +227,121 @@ class EditorSessionRouterTest {
     fun `forwardWebviewMessage drops a non-JSON message instead of framing it`() {
         val f = setUpRouter(INITIAL_XML)
 
-        f.router.forwardWebviewMessage(f.session.editorId, "this is not json")
+        f.router.forwardWebviewMessage(f.session, "this is not json")
 
         f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a sync is dropped while an external host update is pending`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.router.notifyDocumentChanged(f.session, EDITED_XML)
+
+        f.router.forwardWebviewMessage(f.session, syncCommand("<stale/>", 0))
+
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a sync older than the latest delivered host revision is dropped`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.router.notifyDocumentChanged(f.session, EDITED_XML)
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        parse(f.wired.fake.nextFrame()) // drain document/didChange
+        val query =
+            f.wired.channel.gson
+                .toJsonTree(
+                    mapOf(
+                        "editorId" to f.session.editorId,
+                        "message" to
+                            mapOf(
+                                "type" to "BpmnFileQuery",
+                                "content" to EDITED_XML,
+                                "engine" to "c8",
+                                "documentRevision" to 1,
+                            ),
+                    ),
+                ).asJsonObject
+        f.wired.handlers.dispatch("editor/postMessage", query, null)
+
+        f.router.forwardWebviewMessage(f.session, syncCommand("<stale/>", 0))
+
+        f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a transformed query acknowledges the host revision it represents`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.router.notifyDocumentChanged(f.session, "")
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        parse(f.wired.fake.nextFrame()) // drain document/didChange revision 1
+        val transformed =
+            f.wired.channel.gson
+                .toJsonTree(
+                    mapOf(
+                        "editorId" to f.session.editorId,
+                        "sessionId" to f.sessionId,
+                        "message" to
+                            mapOf(
+                                "type" to "BpmnFileQuery",
+                                "content" to EDITED_XML,
+                                "engine" to "c8",
+                                "documentRevision" to 1,
+                            ),
+                    ),
+                ).asJsonObject
+        f.wired.handlers.dispatch("editor/postMessage", transformed, null)
+
+        f.router.forwardWebviewMessage(f.session, syncCommand("<edited/>", 1))
+
+        val forwarded = parse(f.wired.fake.nextFrame())
+        assertEquals("webview/message", forwarded.get("method").asString)
+        assertEquals(
+            "<edited/>",
+            forwarded.getAsJsonObject("params").getAsJsonObject("message").get("content").asString,
+        )
+    }
+
+    @Test
+    fun `re-registering after a host edit preserves the session revision`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.router.notifyDocumentChanged(f.session, EDITED_XML)
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val didChange = parse(f.wired.fake.nextFrame())
+        assertEquals(1L, didChange.getAsJsonObject("params").get("documentRevision").asLong)
+
+        f.router.reregisterLiveSessions()
+
+        val register = parse(f.wired.fake.nextFrame())
+        val params = register.getAsJsonObject("params")
+        assertEquals(f.sessionId, params.get("sessionId").asLong)
+        assertEquals(1L, params.get("documentRevision").asLong)
+        val replay = parse(f.wired.fake.nextFrame())
+        assertEquals("webview/message", replay.get("method").asString)
+        assertEquals(f.sessionId, replay.getAsJsonObject("params").get("sessionId").asLong)
+    }
+
+    @Test
+    fun `late traffic and disposal from a replaced same-uri session are ignored`() {
+        val f = setUpRouter(INITIAL_XML)
+        val replacement = CoreSession(f.session.editorId, f.bpmn.file, f.session.project) {}
+
+        f.router.registerSession(replacement)
+        val replacementRegister = parse(f.wired.fake.nextFrame())
+        val replacementId = replacementRegister.getAsJsonObject("params").get("sessionId").asLong
+        assertNotEquals(f.sessionId, replacementId)
+
+        f.router.forwardWebviewMessage(f.session, "{\"type\":\"OtherCommand\"}")
+        f.router.disposeSession(f.session)
+        f.wired.fake.expectNoFrame()
+
+        f.router.forwardWebviewMessage(replacement, "{\"type\":\"OtherCommand\"}")
+        val forwarded = parse(f.wired.fake.nextFrame())
+        assertEquals(replacementId, forwarded.getAsJsonObject("params").get("sessionId").asLong)
     }
 
     @Test
@@ -228,13 +359,16 @@ class EditorSessionRouterTest {
         val router = EditorSessionRouter(bridgeDeps(project, channel, handlers), DeterministicScheduler())
         router.register()
         val editorId = bpmn.file.url
+        val session = CoreSession(editorId, bpmn.file, project) {}
+        router.registerSession(session)
         try {
-            router.forwardWebviewMessage(editorId, syncCommand("<one/>"))
-            router.forwardWebviewMessage(editorId, "{\"type\":\"OtherCommand\"}")
-            router.forwardWebviewMessage(editorId, syncCommand("<two/>"))
+            router.forwardWebviewMessage(session, syncCommand("<one/>"))
+            router.forwardWebviewMessage(session, "{\"type\":\"OtherCommand\"}")
+            router.forwardWebviewMessage(session, syncCommand("<two/>"))
 
             channel.attach(fake.outputStream, fake.inputStream)
 
+            assertEquals("session/register", parse(fake.nextFrame()).get("method").asString)
             val first = parse(fake.nextFrame())
             assertEquals(
                 "OtherCommand",
@@ -256,39 +390,71 @@ class EditorSessionRouterTest {
     }
 
     @Test
-    fun `a host write supersedes a pending external edit, leaving no stale frame`() {
+    fun `a pending external edit rejects an already-forwarded core write`() {
         val f = setUpRouter(INITIAL_XML)
         f.attachEditorEcho()
 
         // An external edit arrives and parks a debounced send...
         WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
 
-        // ...then the core writes back before that debounce fires. The write echo
-        // must go out synchronously with causedBy, and the now-stale external send
-        // must be dropped — otherwise the bridge would re-render the old XML after
-        // dropping its own write by causation.
+        // ...then an older core write reaches the host before that debounce fires.
+        // The authoritative external edit must remain in the IntelliJ Document.
         val params =
             f.wired.channel.gson
-                .toJsonTree(mapOf("editorId" to f.session.editorId, "content" to SECOND_EDIT_XML, "revision" to REVISION))
+                .toJsonTree(
+                    mapOf(
+                        "editorId" to f.session.editorId,
+                        "content" to SECOND_EDIT_XML,
+                        "revision" to REVISION,
+                        "expectedDocumentRevision" to 0,
+                    ),
+                )
                 .asJsonObject
         f.wired.handlers.dispatch("document/write", params, 1)
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
-        val didChange = parse(f.wired.fake.nextFrame())
-        assertEquals("document/didChange", didChange.get("method").asString)
-        assertEquals(SECOND_EDIT_XML, didChange.getAsJsonObject("params").get("content").asString)
-        assertEquals(
-            REVISION,
-            didChange.getAsJsonObject("params").get("causedBy").asLong,
-            "the host write echo carries causation",
-        )
         val reply = parse(f.wired.fake.nextFrame())
         assertEquals(1, reply.get("id").asInt)
+        assertFalse(reply.getAsJsonObject("result").get("accepted").asBoolean)
+        assertEquals(EDITED_XML, f.bpmn.document.text)
 
-        // Fire the parked external timer: its sequence is now stale, so it must abort.
+        // The parked authoritative update still reaches the core.
         f.scheduler.runPending()
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        val didChange = parse(f.wired.fake.nextFrame())
+        assertEquals("document/didChange", didChange.get("method").asString)
+        assertEquals(EDITED_XML, didChange.getAsJsonObject("params").get("content").asString)
         f.wired.fake.expectNoFrame()
+    }
+
+    @Test
+    fun `a matching revision transformation write is accepted after the host update is delivered`() {
+        val f = setUpRouter(INITIAL_XML)
+        f.attachEditorEcho()
+        WriteCommandAction.runWriteCommandAction(f.session.project) { f.bpmn.document.setText(EDITED_XML) }
+        f.scheduler.runPending()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+        parse(f.wired.fake.nextFrame()) // drain document/didChange revision 1
+        val params =
+            f.wired.channel.gson
+                .toJsonTree(
+                    mapOf(
+                        "editorId" to f.session.editorId,
+                        "sessionId" to f.sessionId,
+                        "content" to SECOND_EDIT_XML,
+                        "revision" to REVISION,
+                        "expectedDocumentRevision" to 1,
+                    ),
+                ).asJsonObject
+
+        f.wired.handlers.dispatch("document/write", params, 1)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        val echo = parse(f.wired.fake.nextFrame())
+        assertEquals("document/didChange", echo.get("method").asString)
+        val reply = parse(f.wired.fake.nextFrame())
+        assertTrue(reply.getAsJsonObject("result").get("accepted").asBoolean)
+        assertEquals(SECOND_EDIT_XML, f.bpmn.document.text)
     }
 
     @Test
@@ -315,7 +481,7 @@ class EditorSessionRouterTest {
 
             // The webview echoes the command back with the rendered svg populated.
             router.forwardWebviewMessage(
-                session.editorId,
+                session,
                 "{\"type\":\"GetDiagramAsSVGCommand\",\"svg\":\"<svg/>\"}",
             )
             assertEquals("<svg/>", captured, "the callback receives the echoed svg")
@@ -334,7 +500,7 @@ class EditorSessionRouterTest {
         // No requestDiagramSvg was issued, so there is no callback to consume this —
         // it must fall through and forward like any other webview message.
         f.router.forwardWebviewMessage(
-            f.session.editorId,
+            f.session,
             "{\"type\":\"GetDiagramAsSVGCommand\",\"svg\":\"<svg/>\"}",
         )
 
@@ -348,8 +514,10 @@ class EditorSessionRouterTest {
     }
 
     /** The exact compact shape the webview shim's JSON.stringify emits for a sync. */
-    private fun syncCommand(content: String): String =
-        "{\"type\":\"SyncDocumentCommand\",\"content\":\"$content\"}"
+    private fun syncCommand(content: String, documentRevision: Long? = null): String {
+        val revision = documentRevision?.let { ",\"documentRevision\":$it" }.orEmpty()
+        return "{\"type\":\"SyncDocumentCommand\",\"content\":\"$content\"$revision}"
+    }
 
     private companion object {
         const val REVISION = 7L

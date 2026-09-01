@@ -15,7 +15,15 @@ const DMN_DOC =
     '<?xml version="1.0"?><definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" id="d"/>';
 
 function createService() {
-    const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
+    let documentRevision = 0;
+    const editorStore = {
+        postMessage: vi.fn().mockResolvedValue(true),
+        markHostDocumentUpdated: vi.fn(() => ++documentRevision),
+        currentHostDocumentRevision: vi.fn(() => documentRevision),
+        isHostDocumentRevisionCurrent: vi.fn(
+            (_editorId: string, revision?: number) => (revision ?? 0) === documentRevision,
+        ),
+    };
     const vsDocument = {
         getContent: vi.fn(),
         write: vi.fn().mockResolvedValue(true),
@@ -73,10 +81,10 @@ describe("DmnModelerService.display", () => {
         expect(msg.content).toBe(seeded);
     });
 
-    it("skips rendering while a sync guard is held (echo prevention)", async () => {
+    it("skips the matching document-change echo while a sync write is pending", async () => {
         const { service, editorStore, vsDocument } = createService();
         service.registerSession(EDITOR);
-        vsDocument.getContent.mockReturnValue(DMN_DOC);
+        vsDocument.getContent.mockReturnValue("<xml/>");
 
         // Hold the guard by leaving the sync write pending, then race a display.
         let finishWrite: (applied: boolean) => void = () => {};
@@ -145,7 +153,7 @@ describe("DmnModelerService.sync", () => {
 
         const synced = await service.sync(EDITOR, "<xml/>");
         expect(synced).toBe(true);
-        expect(vsDocument.write).toHaveBeenCalledWith(EDITOR, "<xml/>");
+        expect(vsDocument.write).toHaveBeenCalledWith(EDITOR, "<xml/>", undefined);
 
         // Guard must have been released in the `finally`, so display is not skipped.
         await service.display(EDITOR);
@@ -167,6 +175,17 @@ describe("DmnModelerService.sync", () => {
         // be permanently skipped.
         await service.display(EDITOR);
         expect(postedTypes(editorStore)).toContain("DmnFileQuery");
+    });
+
+    it("rejects content exported from an older host document revision", async () => {
+        const { service, editorStore, vsDocument } = createService();
+        service.registerSession(EDITOR);
+        vsDocument.getContent.mockReturnValue(DMN_DOC);
+        await service.display(EDITOR, true);
+
+        expect((editorStore.postMessage.mock.calls[0][1] as DmnFileQuery).documentRevision).toBe(1);
+        expect(await service.sync(EDITOR, "<stale/>", 0)).toBe(false);
+        expect(vsDocument.write).not.toHaveBeenCalled();
     });
 });
 

@@ -10,7 +10,7 @@ import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-temp
 import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
-import { type CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
+import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
@@ -44,7 +44,7 @@ import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 import { ResizableActivitiesModule, ResizableActivitiesRule } from "./resizableActivities";
 import type { CreateModelerOptions } from "./createModeler";
-import type { ThemeMode } from "./publicApi";
+import type { CoreModelerServices, ThemeMode } from "./publicApi";
 // Type-only: erased at build so it never pulls the lazy lint chunk into the main bundle.
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
@@ -212,6 +212,7 @@ export class BpmnModeler {
             container: this.container,
             propertiesPanel: { parent: this.options.propertiesPanel.parent },
             alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
+            moddleExtensions: this.options.moddleExtensions,
         };
 
         this.engine = engine;
@@ -583,15 +584,18 @@ export class BpmnModeler {
     /**
      * Returns a service from the modeler's dependency injection container.
      *
-     * @remarks Unstable escape hatch — kept public deliberately so advanced
-     *   integrations are not blocked, but not covered by semver: DI service names
-     *   can change across minor versions. Prefer a typed option/method where one
-     *   exists.
-     * @param name The DI service name (e.g. `"customTranslator"`).
+     * @remarks The {@link CoreModelerServices} names are semver-stable and
+     *   resolve to their upstream-documented shapes. Every other name is an
+     *   unstable escape hatch — kept public deliberately so advanced
+     *   integrations are not blocked, but DI service names can change across
+     *   minor versions. Prefer a typed option/method where one exists.
+     * @param name The DI service name (e.g. `"canvas"` or `"customTranslator"`).
      * @returns The service instance.
      */
-    getService<T = any>(name: string): T {
-        return this.getModeler().get<T>(name);
+    getService<K extends keyof CoreModelerServices>(name: K): CoreModelerServices[K];
+    getService<T = unknown>(name: string): T;
+    getService(name: string): any {
+        return this.getModeler().get(name);
     }
 
     /**

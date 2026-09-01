@@ -56,7 +56,7 @@ export interface EditorHandle {
 
     getContent(): string;
     /** @returns `true` if applied, `false` if content was unchanged. */
-    writeContent(content: string): Promise<boolean>;
+    writeContent(content: string, expectedDocumentRevision?: number): Promise<boolean>;
     save(): Promise<boolean>;
 
     postMessage(message: Command | Query): Promise<boolean>;

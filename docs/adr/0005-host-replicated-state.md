@@ -72,10 +72,10 @@ fixed:
   it only reacts (re-render, template reload). One snapshot fans out to every
   open editor via the shared `BridgeSettings` event hub.
 - **Document** is host-authoritative, but the core also *writes back* via
-  `document/write` (a `Ctrl+S` or a webview edit). That write updates the mirror
-  immediately (so a following synchronous `getContent` is correct) and the host
-  echoes the change back as `document/didChange`. Distinguishing that echo from a
-  genuine external edit is the subtle part — see the next section.
+  `document/write` (a `Ctrl+S` or a webview edit). The bridge updates the mirror
+  only after the host accepts that write and the host echoes the change back as
+  `document/didChange`. Distinguishing that echo from a genuine external edit is
+  the subtle part — see the next section.
 - **Deployment state** is **bridge-snapshot-authoritative in-process**: the
   optimistic snapshot is the single source of truth for reads, and the host is a
   persisted *replica* reconciled on the next re-seed. `save*` updates the
@@ -119,8 +119,34 @@ A no-op write is the one case that mints a revision without an echo: the host
 only fires `document/didChange` when the `Document` actually changes, so a write
 whose content already matches (e.g. after `\r\n`→`\n` normalisation) echoes
 nothing. The bridge sees `changed: false` on the write reply and drops the
-orphan revision via `DocumentMirror.forgetWriteRevision`, keeping the pending set
-bounded.
+orphan revision while completing the write, keeping the pending set bounded. If
+an echo does arrive, its host-provided content updates the mirror before the
+bridge suppresses the redundant render, so a later write response cannot replace
+normalized host bytes with the originally requested text.
+
+The IntelliJ transport treats `document/didChange` as reliable. Superseded
+external updates coalesce per editor, but the latest authoritative frame is not
+dropped under queue backpressure or while the bridge writer is being replaced.
+
+## Stale-write and stale-session rejection
+
+Echo causation identifies who produced a change; it does not prove that a
+webview write still represents the latest host document. The host therefore
+owns a second monotonic counter, `documentRevision`, and increments it for every
+external document change. Renders carry that revision into the webview, and
+`SyncDocumentCommand` returns it through `document/write` as
+`expectedDocumentRevision`. The host rejects the write with `accepted: false`
+when the revision changed in flight. The bridge then leaves its mirror on the
+authoritative host content. `session/register` re-seeds the current revision, so
+a bridge restart cannot reset this protection to zero.
+
+Each open editor also gets a host-owned `sessionId`. Frames that address an
+editor session carry this identity in addition to the URI. Both peers reject a
+mismatched identity, so late messages or disposal from an old same-URI editor
+cannot mutate or tear down its replacement. Bridge write causation is keyed by
+both URI and session ID for the same reason. For compatibility, a missing
+`sessionId` addresses the current session, while a legacy webview sync without a
+document revision is accepted only before the host advances past revision zero.
 
 The core's `ModelerSession` guard stays wired as a second line of defence. Echo
 prevention remains entirely in TypeScript, so every future host inherits it

@@ -30,6 +30,7 @@ export class Rpc {
     private nextId = 1;
     private readonly pending = new Map<number, Pending>();
     private readonly handlers = new Map<string, RpcHandler>();
+    private readonly inboundCalls = new Map<string, Promise<void>>();
 
     /** @param write Emits one framed line (caller appends the newline + flushes). */
     constructor(private readonly write: (line: string) => void) {}
@@ -72,25 +73,20 @@ export class Rpc {
         };
 
         if (message.method) {
-            const handler = this.handlers.get(message.method);
-            if (message.id == null) {
-                // Notification: run the handler (if any), never reply.
-                if (handler) {
-                    await handler(message.params);
+            const queueKey = this.callQueueKey(message);
+            const previous = this.inboundCalls.get(queueKey) ?? Promise.resolve();
+            const handling = previous.then(
+                () => this.handleCall(message),
+                () => this.handleCall(message),
+            );
+            const settled = handling.catch(() => undefined);
+            this.inboundCalls.set(queueKey, settled);
+            void settled.then(() => {
+                if (this.inboundCalls.get(queueKey) === settled) {
+                    this.inboundCalls.delete(queueKey);
                 }
-                return;
-            }
-            try {
-                const result = handler ? await handler(message.params) : null;
-                this.write(JSON.stringify({ id: message.id, result: result ?? null }));
-            } catch (error) {
-                this.write(
-                    JSON.stringify({
-                        id: message.id,
-                        error: error instanceof Error ? error.message : String(error),
-                    }),
-                );
-            }
+            });
+            await handling;
             return;
         }
 
@@ -105,6 +101,38 @@ export class Rpc {
             } else {
                 pending.resolve(message.result ?? null);
             }
+        }
+    }
+
+    private callQueueKey(message: { method?: string; params?: unknown }): string {
+        const params = message.params;
+        if (params && typeof params === "object" && "editorId" in params) {
+            const editorId = (params as { editorId?: unknown }).editorId;
+            if (typeof editorId === "string") return `editor:${editorId}`;
+        }
+        return `method:${message.method}`;
+    }
+
+    private async handleCall(message: {
+        method?: string;
+        params?: unknown;
+        id?: number;
+    }): Promise<void> {
+        const handler = this.handlers.get(message.method!);
+        if (message.id == null) {
+            if (handler) await handler(message.params);
+            return;
+        }
+        try {
+            const result = handler ? await handler(message.params) : null;
+            this.write(JSON.stringify({ id: message.id, result: result ?? null }));
+        } catch (error) {
+            this.write(
+                JSON.stringify({
+                    id: message.id,
+                    error: error instanceof Error ? error.message : String(error),
+                }),
+            );
         }
     }
 }

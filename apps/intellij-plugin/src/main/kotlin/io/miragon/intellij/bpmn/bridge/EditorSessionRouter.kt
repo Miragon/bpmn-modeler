@@ -33,7 +33,14 @@ internal class EditorSessionRouter(
 ) {
     private val log = Logger.getInstance(EditorSessionRouter::class.java)
 
-    private val sessions = ConcurrentHashMap<String, CoreSession>()
+    private class SessionEntry(
+        val session: CoreSession,
+        val sessionId: Long,
+        val documentRevision: AtomicLong = AtomicLong(0),
+    )
+
+    private val sessions = ConcurrentHashMap<String, SessionEntry>()
+    private val nextSessionId = AtomicLong(0)
 
     // Per-editor causation token bridging [handleWrite] to [notifyDocumentChanged]:
     // a `document/write` records its revision here right before mutating the
@@ -46,6 +53,12 @@ internal class EditorSessionRouter(
     // checkout, another tool). A newer keystroke cancels and reschedules, so the
     // per-keystroke full-XML round trip + re-render collapses to one send per pause.
     private val debounceTimers = ConcurrentHashMap<String, ScheduledFuture<*>>()
+
+    // External host content stays authoritative until the core has posted that
+    // exact content back to the webview for import.
+    private data class PendingHostUpdate(val content: String, val revision: Long)
+
+    private val hostUpdatesAwaitingWebview = ConcurrentHashMap<String, PendingHostUpdate>()
 
     // Monotonic per-editor change counter. Every change (host write or external)
     // bumps it; a debounced external send captures the value at schedule time and
@@ -74,9 +87,45 @@ internal class EditorSessionRouter(
         deps.handlers
             .on("editor/postMessage") { params, _ ->
                 val editorId = params.get("editorId").asString
+                val entry = sessions[editorId] ?: return@on
+                if (!matchesSession(params, entry)) return@on
                 // `message` is a JSON object; re-serialise it as the postMessage payload.
                 val payload = deps.gson.toJson(params.get("message"))
-                sessions[editorId]?.postToWebview(payload)
+                val query =
+                    if (payload.contains(BPMN_FILE_QUERY_MARKER)) {
+                        runCatching { deps.gson.fromJson(payload, JsonObject::class.java) }
+                            .getOrNull()
+                    } else {
+                        null
+                    }
+                val delivered = query?.get("content")?.asString
+                val deliveredRevision =
+                    query?.get("documentRevision")
+                        ?.takeIf { !it.isJsonNull }
+                        ?.asLong
+                if (deliveredRevision != null) {
+                    if (deliveredRevision < entry.documentRevision.get()) return@on
+                }
+                entry.session.postToWebview(payload)
+                if (query != null) {
+                    val expected = hostUpdatesAwaitingWebview[editorId]
+                    if (
+                        expected != null &&
+                        (
+                            deliveredRevision?.let { it >= expected.revision } == true ||
+                                (
+                                    deliveredRevision == null &&
+                                        delivered != null &&
+                                        StringUtil.equals(
+                                            StringUtil.convertLineSeparators(expected.content),
+                                            StringUtil.convertLineSeparators(delivered),
+                                        )
+                                )
+                        )
+                    ) {
+                        hostUpdatesAwaitingWebview.remove(editorId, expected)
+                    }
+                }
             }
             .on("document/write") { params, id -> handleWrite(params, id) }
             .on("document/save") { params, id -> handleSave(params, id) }
@@ -86,15 +135,17 @@ internal class EditorSessionRouter(
 
     /** Registers an editor and tells the core to open it (seeding the document mirror). */
     fun registerSession(session: CoreSession) {
-        sessions[session.editorId] = session
+        val entry = SessionEntry(session, nextSessionId.incrementAndGet())
+        sessions.put(session.editorId, entry)?.let { resetSessionState(session.editorId) }
         // Enqueue the register frame now and spawn off the EDT: the outbound queue
         // buffers it until the writer exists, so editor construction never blocks on
         // the (occasionally seconds-long) process start.
-        sendRegister(session)
+        sendRegister(entry)
         deps.ensureStartedAsync()
     }
 
-    private fun sendRegister(session: CoreSession) {
+    private fun sendRegister(entry: SessionEntry) {
+        val session = entry.session
         val content =
             ApplicationManager.getApplication().runReadAction(
                 Computable {
@@ -105,6 +156,8 @@ internal class EditorSessionRouter(
             "session/register",
             linkedMapOf(
                 "editorId" to session.editorId,
+                "sessionId" to entry.sessionId,
+                "documentRevision" to entry.documentRevision.get(),
                 "uriString" to session.editorId,
                 "path" to session.file.path,
                 "fsPath" to session.file.path,
@@ -143,7 +196,14 @@ internal class EditorSessionRouter(
      * obvious non-objects here; anything subtler that slips through is caught and
      * logged bridge-side (`server.ts`), never crashing the core.
      */
-    fun forwardWebviewMessage(editorId: String, rawMessage: String) {
+    fun forwardWebviewMessage(session: CoreSession, rawMessage: String) {
+        val entry = sessions[session.editorId] ?: return
+        if (entry.session !== session) return
+        forwardWebviewMessage(entry, rawMessage)
+    }
+
+    private fun forwardWebviewMessage(entry: SessionEntry, rawMessage: String) {
+        val editorId = entry.session.editorId
         val trimmed = rawMessage.trimStart()
         if (!trimmed.startsWith("{")) {
             log.warn("Discarding non-JSON webview message: $rawMessage")
@@ -163,10 +223,21 @@ internal class EditorSessionRouter(
             if (callback != null && svg != null) callback(svg)
             return
         }
-        // Resolve a close-flush reply (only while a close is in progress for this
-        // editor) so the blocked EDT in [flushBeforeClose] can wake and write. The
-        // message is still forwarded to the core below, which drops the unknown
-        // command as a no-op — the bridge never initiates flushes.
+        if (trimmed.contains(SYNC_COMMAND_MARKER)) {
+            val pendingHostUpdate =
+                debounceTimers.containsKey(editorId) || hostUpdatesAwaitingWebview.containsKey(editorId)
+            val syncRevision =
+                runCatching {
+                    deps.gson.fromJson(trimmed, JsonObject::class.java)
+                        .get("documentRevision")
+                        ?.takeIf { !it.isJsonNull }
+                        ?.asLong
+                }.getOrNull()
+            val currentRevision = entry.documentRevision.get()
+            if (pendingHostUpdate || (syncRevision ?: 0L) < currentRevision) return
+        }
+        // Capture close-flush replies and forced normal-sync fallbacks while the
+        // EDT is blocked in [flushBeforeClose]. Messages still reach the core below.
         resolveCloseFlush(editorId, trimmed)
         // Document syncs fire once per diagram edit and supersede each other — only
         // the latest XML matters for write-back — so collapse queued ones.
@@ -175,8 +246,9 @@ internal class EditorSessionRouter(
         // Splice the raw message in as the `message` value rather than parse →
         // re-serialise. editorId goes through gson so it is correctly JSON-escaped.
         val frame =
-            "{\"method\":\"webview/message\",\"params\":{\"editorId\":" +
+             "{\"method\":\"webview/message\",\"params\":{\"editorId\":" +
                 deps.gson.toJson(editorId) +
+                ",\"sessionId\":" + entry.sessionId +
                 ",\"message\":" + rawMessage + "}}"
         deps.channel.notifyRaw(frame, coalesceKey)
     }
@@ -201,17 +273,20 @@ internal class EditorSessionRouter(
      * [changeSeq] so it never races, nor reorders against, a host write: if anything
      * superseded it, it aborts rather than re-rendering stale XML.
      */
-    fun notifyDocumentChanged(editorId: String, content: String) {
-        if (!sessions.containsKey(editorId)) return
+    fun notifyDocumentChanged(session: CoreSession, content: String) {
+        val entry = sessions[session.editorId] ?: return
+        if (entry.session !== session) return
+        val editorId = session.editorId
         val seq = (changeSeq[editorId] ?: 0L) + 1L
         changeSeq[editorId] = seq
 
         val causedBy = pendingCausation.remove(editorId)
         if (causedBy != null) {
             debounceTimers.remove(editorId)?.cancel(false)
-            sendDidChange(editorId, content, causedBy)
+            sendDidChange(entry, content, causedBy, entry.documentRevision.get())
             return
         }
+        val documentRevision = entry.documentRevision.incrementAndGet()
         // External edit: a newer frame resets the timer so only the latest content
         // is sent. The notify itself is non-blocking; debounce just drops frames.
         debounceTimers.remove(editorId)?.cancel(false)
@@ -224,8 +299,8 @@ internal class EditorSessionRouter(
                     // dropped causation echo.
                     ApplicationManager.getApplication().invokeLater {
                         debounceTimers.remove(editorId)
-                        if (changeSeq[editorId] == seq && sessions.containsKey(editorId)) {
-                            sendDidChange(editorId, content, null)
+                        if (changeSeq[editorId] == seq && sessions[editorId] === entry) {
+                            sendDidChange(entry, content, null, documentRevision)
                         }
                     }
                 },
@@ -234,16 +309,39 @@ internal class EditorSessionRouter(
             )
     }
 
-    private fun sendDidChange(editorId: String, content: String, causedBy: Long?) {
-        val params = linkedMapOf<String, Any>("editorId" to editorId, "content" to content)
+    private fun sendDidChange(
+        entry: SessionEntry,
+        content: String,
+        causedBy: Long?,
+        documentRevision: Long,
+    ) {
+        val editorId = entry.session.editorId
+        if (causedBy == null) {
+            hostUpdatesAwaitingWebview[editorId] = PendingHostUpdate(content, documentRevision)
+        }
+        val params =
+            linkedMapOf<String, Any>(
+                "editorId" to editorId,
+                "sessionId" to entry.sessionId,
+                "content" to content,
+                "documentRevision" to documentRevision,
+            )
         causedBy?.let { params["causedBy"] = it }
-        deps.channel.notify("document/didChange", params)
+        deps.channel.notify(
+            "document/didChange",
+            params,
+            coalesceKey = if (causedBy == null) "document:$editorId" else null,
+            reliable = true,
+        )
     }
 
     /** Tells the core which open editor is focused (drives its active-editor pointer). */
     fun setActiveEditor(editorId: String) {
-        if (!sessions.containsKey(editorId)) return
-        deps.channel.notify("session/setActive", linkedMapOf("editorId" to editorId))
+        val entry = sessions[editorId] ?: return
+        deps.channel.notify(
+            "session/setActive",
+            linkedMapOf("editorId" to editorId, "sessionId" to entry.sessionId),
+        )
     }
 
     /**
@@ -255,22 +353,32 @@ internal class EditorSessionRouter(
      * `LogErrorCommand`, and a stale pending callback is simply overwritten.
      */
     fun requestDiagramSvg(editorId: String, onSvg: (String) -> Unit): Boolean {
-        val session = sessions[editorId] ?: return false
+        val session = sessions[editorId]?.session ?: return false
         pendingSvgRequests[editorId] = onSvg
         session.postToWebview(GET_DIAGRAM_SVG_COMMAND)
         return true
     }
 
-    fun disposeSession(editorId: String) {
-        sessions.remove(editorId)
+    fun disposeSession(session: CoreSession) {
+        val editorId = session.editorId
+        val entry = sessions[editorId] ?: return
+        if (entry.session !== session || !sessions.remove(editorId, entry)) return
+        resetSessionState(editorId)
+        deps.channel.notify(
+            "session/dispose",
+            linkedMapOf("editorId" to editorId, "sessionId" to entry.sessionId),
+        )
+    }
+
+    private fun resetSessionState(editorId: String) {
         pendingCausation.remove(editorId)
         debounceTimers.remove(editorId)?.cancel(false)
+        hostUpdatesAwaitingWebview.remove(editorId)
         changeSeq.remove(editorId)
         pendingSvgRequests.remove(editorId)
         // Unblock any close-flush still awaiting a reply so a disposed editor
         // never strands the EDT for the full timeout.
         closeFlushLatches.remove(editorId)?.latch?.countDown()
-        deps.channel.notify("session/dispose", linkedMapOf("editorId" to editorId))
     }
 
     /**
@@ -281,18 +389,30 @@ internal class EditorSessionRouter(
      */
     fun reregisterLiveSessions() {
         if (!deps.isProcessAlive()) return
-        sessions.values.forEach { session ->
-            sendRegister(session)
-            forwardWebviewMessage(session.editorId, GET_BPMN_FILE_COMMAND)
+        sessions.values.forEach { entry ->
+            sendRegister(entry)
+            forwardWebviewMessage(entry, GET_BPMN_FILE_COMMAND)
         }
     }
 
     fun clear() {
+        debounceTimers.values.forEach { it.cancel(false) }
         sessions.clear()
+        pendingCausation.clear()
+        debounceTimers.clear()
+        hostUpdatesAwaitingWebview.clear()
+        changeSeq.clear()
         pendingSvgRequests.clear()
+        closeFlushLatches.values.forEach { it.latch.countDown() }
+        closeFlushLatches.clear()
     }
 
     // ── core → host ────────────────────────────────────────────────────────────
+
+    private fun matchesSession(params: JsonObject, entry: SessionEntry): Boolean {
+        val sessionId = params.get("sessionId")?.takeIf { !it.isJsonNull }?.asLong
+        return sessionId == null || sessionId == entry.sessionId
+    }
 
     /**
      * Writes core-supplied XML into the in-memory Document on the EDT, then replies
@@ -303,13 +423,33 @@ internal class EditorSessionRouter(
         val editorId = params.get("editorId").asString
         val content = StringUtil.convertLineSeparators(params.get("content").asString)
         val revision = params.get("revision").asLong
-        val session = sessions[editorId]
-        if (session == null) {
-            id?.let { deps.channel.reply(it, mapOf("changed" to false)) }
+        val expectedDocumentRevision =
+            params.get("expectedDocumentRevision")
+                ?.takeIf { !it.isJsonNull }
+                ?.asLong
+        val entry = sessions[editorId]
+        if (entry == null || !matchesSession(params, entry)) {
+            id?.let { deps.channel.reply(it, mapOf("changed" to false, "accepted" to false)) }
             return
         }
         ApplicationManager.getApplication().invokeLater {
+            if (
+                sessions[editorId] !== entry ||
+                (
+                    expectedDocumentRevision == null &&
+                        (
+                            debounceTimers.containsKey(editorId) ||
+                                hostUpdatesAwaitingWebview.containsKey(editorId)
+                        )
+                ) ||
+                (expectedDocumentRevision != null &&
+                    expectedDocumentRevision != entry.documentRevision.get())
+            ) {
+                id?.let { deps.channel.reply(it, mapOf("changed" to false, "accepted" to false)) }
+                return@invokeLater
+            }
             var changed = false
+            val session = entry.session
             if (!session.project.isDisposed) {
                 val document = FileDocumentManager.getInstance().getDocument(session.file)
                 // Compare against the Document's live char sequence instead of
@@ -333,15 +473,23 @@ internal class EditorSessionRouter(
                     changed = true
                 }
             }
-            id?.let { deps.channel.reply(it, mapOf("changed" to changed)) }
+            id?.let { deps.channel.reply(it, mapOf("changed" to changed, "accepted" to true)) }
         }
     }
 
     private fun handleSave(params: JsonObject, id: Int?) {
         val editorId = params.get("editorId").asString
-        val session = sessions[editorId]
+        val entry = sessions[editorId]
         ApplicationManager.getApplication().invokeLater {
-            if (session != null && !session.project.isDisposed) {
+            val current = sessions[editorId]
+            val session = entry?.session
+            if (
+                entry != null &&
+                current === entry &&
+                matchesSession(params, entry) &&
+                session != null &&
+                !session.project.isDisposed
+            ) {
                 val document = FileDocumentManager.getInstance().getDocument(session.file)
                 if (document != null) FileDocumentManager.getInstance().saveDocument(document)
             }
@@ -368,26 +516,42 @@ internal class EditorSessionRouter(
      *
      * Blocks the EDT on a latch ≤[CLOSE_FLUSH_TIMEOUT_MS]; the reply lands on the
      * JCEF handler thread (see [forwardWebviewMessage] → [resolveCloseFlush]), so
-     * the block cannot self-deadlock. On XML received we write inline — already on
-     * the EDT — before disposal begins. Timeout / no reply / no session simply
-     * proceeds with the close; the ≤300ms staleness then self-heals via autosave.
+     * the block cannot self-deadlock. On XML received — either in the reply or from
+     * the forced normal-sync fallback — we write inline before disposal begins.
      */
     fun flushBeforeClose(editorId: String) {
-        val session = sessions[editorId] ?: return
+        val entry = sessions[editorId] ?: return
+        val session = entry.session
+        if (debounceTimers.containsKey(editorId) || hostUpdatesAwaitingWebview.containsKey(editorId)) {
+            return
+        }
         val token = closeFlushToken.incrementAndGet()
-        val flush = CloseFlush(token)
+        val flush = CloseFlush(token, entry.documentRevision.get())
         closeFlushLatches[editorId] = flush
+        var replied = false
         try {
-            session.postToWebview("{\"type\":\"FlushDocumentQuery\",\"token\":$token}")
-            val replied = flush.latch.await(CLOSE_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            session.postToWebview(
+                "{\"type\":\"FlushDocumentQuery\",\"token\":$token," +
+                    "\"destructive\":true,\"exportWhenClean\":true}",
+            )
+            replied = flush.latch.await(CLOSE_FLUSH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             val content = flush.content
-            if (replied && content != null && !session.project.isDisposed) {
+            if (
+                content != null &&
+                closeFlushRevisionMatches(flush.expectedDocumentRevision, flush.contentRevision) &&
+                sessions[editorId] === entry &&
+                entry.documentRevision.get() == flush.expectedDocumentRevision &&
+                !session.project.isDisposed
+            ) {
                 writeIfChanged(session, content)
             }
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
         } finally {
             closeFlushLatches.remove(editorId)
+            if (!replied) {
+                session.postToWebview("{\"type\":\"ReleaseDocumentFlushQuery\",\"token\":$token}")
+            }
         }
     }
 
@@ -399,10 +563,23 @@ internal class EditorSessionRouter(
      */
     private fun resolveCloseFlush(editorId: String, trimmedMessage: String) {
         val pending = closeFlushLatches[editorId] ?: return
+        if (trimmedMessage.contains(SYNC_COMMAND_MARKER)) {
+            parseSyncDocumentReply(trimmedMessage, deps.gson)?.let {
+                pending.content = it.content
+                pending.contentRevision = it.documentRevision
+            }
+            return
+        }
         if (!trimmedMessage.contains(FLUSH_COMMAND_MARKER)) return
         val reply = parseDocumentFlushedReply(trimmedMessage, deps.gson) ?: return
         if (reply.token != pending.token) return
-        pending.content = reply.content
+        pending.content = closeFlushContent(pending.content, reply)
+        pending.contentRevision =
+            when (reply.status) {
+                "flushed" -> reply.documentRevision
+                "unavailable" -> pending.contentRevision
+                else -> null
+            }
         pending.latch.countDown()
     }
 
@@ -418,11 +595,17 @@ internal class EditorSessionRouter(
     }
 
     /** One in-flight close-flush round-trip: its token, the EDT's latch, and the reply. */
-    private class CloseFlush(val token: Long) {
+    private class CloseFlush(
+        val token: Long,
+        val expectedDocumentRevision: Long,
+    ) {
         val latch = CountDownLatch(1)
 
         @Volatile
         var content: String? = null
+
+        @Volatile
+        var contentRevision: Long? = null
     }
 
     private companion object {
@@ -442,6 +625,8 @@ internal class EditorSessionRouter(
         // the forward thread.
         const val SYNC_COMMAND_MARKER = "\"type\":\"SyncDocumentCommand\""
 
+        const val BPMN_FILE_QUERY_MARKER = "\"type\":\"BpmnFileQuery\""
+
         // The webview's compact JSON.stringify emits exactly this substring for a
         // DocumentFlushedCommand, so a substring test gates the parse on the close path.
         const val FLUSH_COMMAND_MARKER = "\"type\":\"DocumentFlushedCommand\""
@@ -456,8 +641,15 @@ internal class EditorSessionRouter(
     }
 }
 
-/** Parsed `DocumentFlushedCommand`; `content` is null when the webview had nothing to flush. */
-internal data class DocumentFlushedReply(val token: Long, val content: String?)
+/** Parsed `DocumentFlushedCommand`; status defaults support an older staged webview. */
+internal data class DocumentFlushedReply(
+    val token: Long,
+    val content: String?,
+    val status: String,
+    val documentRevision: Long? = null,
+)
+
+internal data class SyncDocumentReply(val content: String, val documentRevision: Long?)
 
 /**
  * Parses a webview message as a `DocumentFlushedCommand`, or returns null if it
@@ -472,13 +664,50 @@ internal fun parseDocumentFlushedReply(raw: String, gson: Gson): DocumentFlushed
             obj?.get("type")?.asString != "DocumentFlushedCommand" -> null
             token == null || token.isJsonNull -> null
             else -> {
-                val content = obj.get("content")
+                val content = obj.get("content")?.takeIf { !it.isJsonNull }?.asString
+                val status =
+                    obj.get("status")?.takeIf { !it.isJsonNull }?.asString
+                        ?: if (content == null) "clean" else "flushed"
                 DocumentFlushedReply(
                     token.asLong,
-                    if (content == null || content.isJsonNull) null else content.asString,
+                    content,
+                    status,
+                    obj.get("documentRevision")?.takeIf { !it.isJsonNull }?.asLong,
                 )
             }
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
+
+internal fun parseSyncDocumentReply(raw: String, gson: Gson): SyncDocumentReply? =
+    try {
+        val obj = gson.fromJson(raw, JsonObject::class.java)
+        if (obj?.get("type")?.asString != "SyncDocumentCommand") null
+        else {
+            obj.get("content")
+                ?.takeIf { !it.isJsonNull }
+                ?.asString
+                ?.let { content ->
+                    SyncDocumentReply(
+                        content,
+                        obj.get("documentRevision")?.takeIf { !it.isJsonNull }?.asLong,
+                    )
+                }
+        }
+    } catch (_: Exception) {
+        null
+    }
+
+internal fun parseSyncDocumentContent(raw: String, gson: Gson): String? =
+    parseSyncDocumentReply(raw, gson)?.content
+
+internal fun closeFlushContent(capturedSync: String?, reply: DocumentFlushedReply): String? =
+    when (reply.status) {
+        "flushed" -> reply.content
+        "unavailable" -> capturedSync
+        else -> null
+    }
+
+internal fun closeFlushRevisionMatches(expected: Long, actual: Long?): Boolean =
+    (actual ?: 0L) == expected

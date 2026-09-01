@@ -32,6 +32,10 @@ export class ElementTemplatesParticipant implements EditorSessionParticipant {
             session.editorId,
             this.templatesSvc,
         );
+        if (!session.isCurrent()) {
+            disposables.forEach((disposable) => disposable.dispose());
+            return;
+        }
         for (const disposable of disposables) {
             session.addDisposable(disposable);
         }

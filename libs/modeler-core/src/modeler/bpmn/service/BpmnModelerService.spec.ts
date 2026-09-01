@@ -20,7 +20,20 @@ const NO_PLATFORM_DOC =
     '<?xml version="1.0"?><bpmn:definitions xmlns:bpmn="http://x" id="d"><bpmn:process id="P"/></bpmn:definitions>';
 
 function createService() {
-    const editorStore = { postMessage: vi.fn().mockResolvedValue(true) };
+    let documentRevision = 0;
+    let editorSession: object = {};
+    const editorStore = {
+        postMessage: vi.fn().mockResolvedValue(true),
+        markHostDocumentUpdated: vi.fn((_editorId: string) => ++documentRevision),
+        currentHostDocumentRevision: vi.fn(() => documentRevision),
+        isHostDocumentRevisionCurrent: vi.fn(
+            (_editorId: string, revision?: number) => (revision ?? 0) === documentRevision,
+        ),
+        captureEditorSession: vi.fn(() => editorSession),
+        isCurrentEditorSession: vi.fn(
+            (_editorId: string, captured: object) => captured === editorSession,
+        ),
+    };
     const vsDocument = {
         getContent: vi.fn(),
         write: vi.fn().mockResolvedValue(true),
@@ -41,7 +54,17 @@ function createService() {
         notifier as never,
     );
 
-    return { service, editorStore, vsDocument, picker, statusBar, notifier };
+    return {
+        service,
+        editorStore,
+        vsDocument,
+        picker,
+        statusBar,
+        notifier,
+        replaceEditorSession: () => {
+            editorSession = {};
+        },
+    };
 }
 
 // `postMessage(editorId, message)` — the message is the second argument.
@@ -76,6 +99,7 @@ describe("BpmnModelerService.display", () => {
         await service.display(EDITOR);
 
         expect(vsDocument.write).toHaveBeenCalledOnce();
+        expect(vsDocument.write.mock.calls[0][2]).toBe(0);
         expect(vsDocument.save).toHaveBeenCalledWith(EDITOR);
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnFileQuery;
         expect(msg.engine).toBe("c7");
@@ -94,7 +118,7 @@ describe("BpmnModelerService.display", () => {
         expect(msg.content).toContain("camunda");
         expect(statusBar.showEngineVersion).toHaveBeenCalledWith("c7", "7.24.0");
         // The upgraded XML is written back to the document.
-        expect(vsDocument.write).toHaveBeenCalledWith(EDITOR, msg.content);
+        expect(vsDocument.write).toHaveBeenCalledWith(EDITOR, msg.content, 0);
     });
 
     it("returns false without notifying when the editor is hidden", async () => {
@@ -134,10 +158,10 @@ describe("BpmnModelerService.display", () => {
         expect(notifier.notifyError).toHaveBeenCalledOnce();
     });
 
-    it("skips rendering while a sync guard is held (echo prevention)", async () => {
+    it("skips the matching document-change echo while a sync write is pending", async () => {
         const { service, editorStore, vsDocument } = createService();
         service.registerSession(EDITOR);
-        vsDocument.getContent.mockReturnValue(C8_DOC);
+        vsDocument.getContent.mockReturnValue("<xml/>");
 
         // Hold the guard by leaving the sync write pending, then race a display.
         let finishWrite: (applied: boolean) => void = () => {};
@@ -155,6 +179,49 @@ describe("BpmnModelerService.display", () => {
         finishWrite(true);
         await syncing;
     });
+
+    it("renders and revisions a different host edit while a sync write is pending", async () => {
+        const { service, editorStore, vsDocument } = createService();
+        service.registerSession(EDITOR);
+        let finishWrite: (applied: boolean) => void = () => {};
+        vsDocument.write.mockReturnValueOnce(
+            new Promise<boolean>((resolve) => {
+                finishWrite = resolve;
+            }),
+        );
+        const syncing = service.sync(EDITOR, "<webview/>", 0);
+        vsDocument.getContent.mockReturnValue(C8_DOC);
+
+        expect(await service.display(EDITOR, true)).toBe(true);
+        expect(editorStore.markHostDocumentUpdated).toHaveBeenCalledWith(EDITOR);
+        expect((editorStore.postMessage.mock.calls[0][1] as BpmnFileQuery).documentRevision).toBe(
+            1,
+        );
+
+        finishWrite(false);
+        await syncing;
+    });
+
+    it("does not seed an empty document after the host revision changes during the prompt", async () => {
+        const { service, editorStore, vsDocument, picker } = createService();
+        service.registerSession(EDITOR);
+        vsDocument.getContent.mockReturnValue("");
+        let finishPick: (platform: "c7") => void = () => {};
+        picker.pickExecutionPlatform.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishPick = resolve;
+            }),
+        );
+
+        const displaying = service.display(EDITOR);
+        editorStore.markHostDocumentUpdated(EDITOR);
+        finishPick("c7");
+
+        expect(await displaying).toBe(false);
+        expect(vsDocument.write).not.toHaveBeenCalled();
+        expect(vsDocument.save).not.toHaveBeenCalled();
+        expect(editorStore.postMessage).not.toHaveBeenCalled();
+    });
 });
 
 describe("BpmnModelerService.sync", () => {
@@ -165,7 +232,7 @@ describe("BpmnModelerService.sync", () => {
 
         const synced = await service.sync(EDITOR, "<xml/>");
         expect(synced).toBe(true);
-        expect(vsDocument.write).toHaveBeenCalledWith(EDITOR, "<xml/>");
+        expect(vsDocument.write).toHaveBeenCalledWith(EDITOR, "<xml/>", undefined);
 
         // Guard must have been released in the `finally`, so display is not skipped.
         await service.display(EDITOR);
@@ -186,6 +253,19 @@ describe("BpmnModelerService.sync", () => {
         // be permanently skipped.
         await service.display(EDITOR);
         expect(postedTypes(editorStore)).toContain("BpmnFileQuery");
+    });
+
+    it("rejects content exported from an older host document revision", async () => {
+        const { service, editorStore, vsDocument } = createService();
+        service.registerSession(EDITOR);
+        vsDocument.getContent.mockReturnValue(C8_DOC);
+        await service.display(EDITOR, true);
+
+        expect((editorStore.postMessage.mock.calls[0][1] as BpmnFileQuery).documentRevision).toBe(
+            1,
+        );
+        expect(await service.sync(EDITOR, "<stale/>", 0)).toBe(false);
+        expect(vsDocument.write).not.toHaveBeenCalled();
     });
 });
 
@@ -213,6 +293,26 @@ describe("BpmnModelerService.changeEngineVersion", () => {
 
         expect(result).toBe(false);
         expect(notifier.notifyError).not.toHaveBeenCalled();
+    });
+
+    it("does not apply a picked version to a replacement same-uri session", async () => {
+        const { service, vsDocument, picker, statusBar, replaceEditorSession } = createService();
+        service.registerSession(EDITOR);
+        vsDocument.getContent.mockReturnValue(C8_DOC);
+        let finishPick: (version: string) => void = () => {};
+        picker.pickEngineVersion.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishPick = resolve;
+            }),
+        );
+
+        const changing = service.changeEngineVersion(EDITOR);
+        replaceEditorSession();
+        finishPick("8.5.0");
+
+        expect(await changing).toBe(false);
+        expect(vsDocument.write).not.toHaveBeenCalled();
+        expect(statusBar.showEngineVersion).not.toHaveBeenCalled();
     });
 });
 

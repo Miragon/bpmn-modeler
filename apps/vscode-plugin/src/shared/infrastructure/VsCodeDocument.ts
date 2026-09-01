@@ -23,8 +23,16 @@ export class VsCodeDocument implements DocumentPort {
     }
 
     /** @returns `true` if the edit was applied, `false` if content was unchanged. */
-    write(editorId: string, content: string): Promise<boolean> {
-        return this.editorStore.requireHandle(editorId).writeContent(content);
+    write(editorId: string, content: string, expectedDocumentRevision?: number): Promise<boolean> {
+        if (
+            expectedDocumentRevision !== undefined &&
+            !this.editorStore.isHostDocumentRevisionCurrent(editorId, expectedDocumentRevision)
+        ) {
+            return Promise.resolve(false);
+        }
+        return this.editorStore
+            .requireHandle(editorId)
+            .writeContent(content, expectedDocumentRevision);
     }
 
     save(editorId: string): Promise<boolean> {

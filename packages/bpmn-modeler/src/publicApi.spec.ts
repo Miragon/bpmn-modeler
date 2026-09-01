@@ -6,6 +6,7 @@ import type {
     BpmnModelerHandle,
     ClipboardOptions,
     ContentSavedEvent,
+    CoreModelerServices,
     CreateModeler,
     LintingOptions,
     ModelerOptions,
@@ -44,6 +45,18 @@ const _scenarioTemplates = {
 } satisfies ModelerOptions;
 void _scenarioTemplates;
 
+// [A] Escape hatches: extra DI modules alongside a custom moddle extension for
+// a host's own BPMN namespace (bpmiq's sticky-note case).
+const _scenarioEscapeHatches = {
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    additionalModules: [{ __init__: [] }],
+    moddleExtensions: {
+        bpmiq: { name: "bpmiq", uri: "http://bpmiq/schema", prefix: "bpmiq", types: [] },
+    },
+} satisfies ModelerOptions;
+void _scenarioEscapeHatches;
+
 // An async ModelNavigationPort (GitHub-API resolution before opening a tab).
 // The return type must accept `async`.
 const _asyncNavigation: ModelNavigationPort = {
@@ -59,6 +72,15 @@ const _scenarioAsyncNav = {
     capabilities: { modelNavigation: _asyncNavigation },
 } satisfies ModelerOptions;
 void _scenarioAsyncNav;
+
+// A host may keep navigation visibility in sync with its own workspace index.
+// Without these optional hooks, syntactically valid references stay visible.
+const _formAwareNavigation = {
+    openReference: (_reference) => undefined,
+    isReferenceAvailable: ({ id, kind }) => kind !== "form" || id === "Form_Request",
+    onReferenceAvailabilityChanged: (_listener) => () => undefined,
+} satisfies ModelNavigationPort;
+void _formAwareNavigation;
 
 // Graceful `{ config }` linting. The literal type-checks against the
 // BpmnlintConfig mirror; unresolvable rules degrade at runtime and surface via
@@ -140,6 +162,30 @@ const _demoShape = {
     },
 } satisfies ModelerOptions;
 void _demoShape;
+
+// Frozen core-service contract (#1408): each keyed lookup resolves to its
+// vendor diagram-js/bpmn-js type without an explicit type argument. If an
+// overload regresses, one of these annotations stops compiling.
+const _coreServices = (m: BpmnModelerHandle) => {
+    const canvas: CoreModelerServices["canvas"] = m.getService("canvas");
+    const commandStack: CoreModelerServices["commandStack"] = m.getService("commandStack");
+    const elementRegistry: CoreModelerServices["elementRegistry"] = m.getService("elementRegistry");
+    const eventBus: CoreModelerServices["eventBus"] = m.getService("eventBus");
+    const modeling: CoreModelerServices["modeling"] = m.getService("modeling");
+    const overlays: CoreModelerServices["overlays"] = m.getService("overlays");
+    const selection: CoreModelerServices["selection"] = m.getService("selection");
+    void [canvas, commandStack, elementRegistry, eventBus, modeling, overlays, selection];
+};
+void _coreServices;
+
+// Non-core names keep the generic escape hatch: an explicit type argument is
+// honoured, and a bare call defaults to `unknown`.
+const _escapeHatch = (m: BpmnModelerHandle) => {
+    const custom = m.getService<{ translate(s: string): string }>("customTranslator");
+    const untyped: unknown = m.getService("anythingElse");
+    void [custom, untyped];
+};
+void _escapeHatch;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {

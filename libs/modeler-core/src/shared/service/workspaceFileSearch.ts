@@ -46,7 +46,7 @@ export function escapeRegex(value: string): string {
  * Strategy, in order:
  *   1. `workspace.findFiles(glob)` — fast (ripgrep-backed) and respects the
  *      user's `files.exclude` setting; results post-filtered by {@link EXCLUDED_DIRS}.
- *   2. fs-walk fallback — when (1) returns `[]` despite an open folder, which
+ *   2. fs-walk fallback — when (1) returns `[]` despite open folders, which
  *      happens in the unsigned electron-builder package where ripgrep is
  *      missing/unexecutable.
  *   3. fs-walk primary — for loose-file scenarios (document outside every folder).
@@ -103,11 +103,12 @@ export async function findFilesExcluding(
     }
 
     // Fallback: findFiles failed silently (ripgrep missing in packaged .app).
-    const root = pickWalkRoot(ws, sourceDocumentPath, containingFolderPath, folderPaths);
-    if (!root) {
-        return [];
-    }
-    return walkWorkspaceTree(ws, root, matchesWalkedFile, logger, "walk-fallback");
+    const walked = await Promise.all(
+        folderPaths.map((root) =>
+            walkWorkspaceTree(ws, root, matchesWalkedFile, logger, "walk-fallback"),
+        ),
+    );
+    return [...new Set(walked.flat())];
 }
 
 /**
@@ -159,28 +160,6 @@ async function walkWorkspaceTree(
         `[search] ${reason} returned ${out.length} path(s) in ${Date.now() - startedAt}ms`,
     );
     return out;
-}
-
-/**
- * Where to root the walk fallback. Best-effort: prefer the document's own
- * workspace folder, else the first open folder, else the document's directory.
- */
-function pickWalkRoot(
-    ws: WorkspacePort,
-    sourceDocumentPath: string | undefined,
-    containingFolderPath: string | undefined,
-    folderPaths: string[],
-): string | undefined {
-    if (containingFolderPath) {
-        return containingFolderPath;
-    }
-    if (folderPaths.length > 0) {
-        return folderPaths[0];
-    }
-    if (sourceDocumentPath !== undefined) {
-        return ws.getDocumentDirectory(sourceDocumentPath);
-    }
-    return undefined;
 }
 
 /**
