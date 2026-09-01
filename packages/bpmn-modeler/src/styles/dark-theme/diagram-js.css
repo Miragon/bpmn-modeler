@@ -10,6 +10,12 @@
     --bendpoint-fill-color: var(--dt-primary-a30);
     --bendpoint-stroke-color: var(--canvas-fill-color);
 
+    --breadcrumbs-item-color: var(--dt-color-blue-a50);
+    --breadcrumbs-arrow-color: var(--dt-surface-a70);
+    --breadcrumbs-background-color: var(--dt-surface-a10);
+    --breadcrumbs-border-color: var(--dt-surface-tonal-a40);
+    --breadcrumbs-focus-outline-color: var(--dt-color-blue-a50);
+
     --context-pad-entry-background-color: var(--dt-surface-a0);
     --context-pad-entry-hover-background-color: var(--dt-surface-a30);
 
@@ -67,6 +73,17 @@
     --tooltip-error-background-color: var(--dt-color-red-a10);
     --tooltip-error-border-color: var(--dt-color-red-a20);
     --tooltip-error-color: var(--dt-color-red-a20);
+}
+
+/* Current (non-link) crumb inherits the host body colour; pin it to the theme. */
+[data-bpmn-theme="dark"] .bjs-breadcrumbs {
+    color: var(--dt-surface-a70);
+}
+
+/* The separator arrow is a data-URL SVG with an implicit black fill;
+   --breadcrumbs-arrow-color can't recolour it, so invert it. */
+[data-bpmn-theme="dark"] .bjs-breadcrumbs li:not(:first-child)::before {
+    filter: invert(1);
 }
 
 /**
