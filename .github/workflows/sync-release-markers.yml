@@ -1,0 +1,186 @@
+name: Sync release markers
+
+# release-please routes each commit by its changed file paths, and only the root
+# component can watch multiple paths. The root slot belongs to the publishable
+# @miragon/bpmn-modeler package ("." minus exclude-paths — the package plus the
+# 10 libs it inlines). The two hosts are single-path components that *bundle*
+# sources living outside their own path — a coupling no manifest records. This
+# workflow closes that gap: when a feat/fix lands on a bundled path, it commits
+# ONE marker commit (touching the marker file of every host that bundles the
+# change) whose subject mirrors the triggering PR title, so each host's release
+# line and changelog carry the real change:
+#
+#   - vscode    (apps/vscode-plugin): ships the four webviews, the standalone
+#               app (versioned in lockstep), libs/modeler-core, libs/shared,
+#               libs/standalone-extension and the npm-package sphere.
+#   - intellij  (apps/intellij-plugin): ships the bpmn/deployment webviews,
+#               apps/modeler-bridge, libs/modeler-core, libs/shared and the
+#               npm-package sphere. DMN/form webviews are not bundled.
+#
+# Severity: the marker keeps the triggering title's type (feat → minor,
+# fix → patch on the hosts) but strips a breaking `!` — a package-breaking
+# change is not a host-breaking change; a host a change genuinely breaks must
+# touch that host's own path. chore/docs/refactor shared changes are skipped
+# entirely: they ship with the next host release but are not attributed.
+#
+# PRs are squash-merged, so the head commit of a push IS the PR title. Rare
+# multi-commit direct pushes are judged by the head commit's title only (the
+# compare range still decides which hosts are affected).
+#
+# Commits go through the GitHub API with the App token so the push re-triggers
+# release-please.yml (a plain GITHUB_TOKEN push would not). The multi-file
+# marker commit uses the Git Data API (trees/commits/refs) because the Contents
+# API is single-file. Neither marker file lives under a trigger path below, so
+# a marker push cannot re-trigger this workflow.
+#
+# workflow_dispatch is a manual seed/escape hatch: it bypasses the type filter
+# and writes a generic `fix: sync bundled sources` marker for every host whose
+# marker is not already at HEAD (used once to bootstrap after adopting this
+# routing).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/bpmn-webview/**'
+      - 'apps/dmn-webview/**'
+      - 'apps/form-webview/**'
+      - 'apps/deployment-webview/**'
+      - 'apps/modeler-bridge/**'
+      - 'apps/standalone/**'
+      - 'packages/bpmn-modeler/**'
+      - 'libs/append-menu/**'
+      - 'libs/bpmn-clipboard/**'
+      - 'libs/bpmn-diff/**'
+      - 'libs/bpmn-i18n-extras/**'
+      - 'libs/code-link/**'
+      - 'libs/element-template-chooser/**'
+      - 'libs/flow-navigation/**'
+      - 'libs/inline-scripting/**'
+      - 'libs/model-navigation/**'
+      - 'libs/modeler-core/**'
+      - 'libs/modeler-types/**'
+      - 'libs/shared/**'
+      - 'libs/standalone-extension/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# Serialize runs so two shared-frontend pushes can't race on the marker files.
+concurrency:
+  group: sync-release-markers
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Record bundled sources per host line
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
+      - name: Commit marker(s) for the triggering change
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA="${SHA:0:7}"
+
+          # The npm-package sphere: packages/bpmn-modeler plus the 10 libs it
+          # inlines (vite.config.mts INLINED_LIBS). Bundled by both hosts.
+          SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|code-link|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types)/'
+
+          VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|${SPHERE}"
+          IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
+          VSC_NATIVE='^apps/vscode-plugin/'
+          IJ_NATIVE='^apps/intellij-plugin/'
+          VSC_MARKER="apps/vscode-plugin/BUNDLED_WEBVIEW"
+          IJ_MARKER="apps/intellij-plugin/BUNDLED_WEBVIEW"
+
+          SUBJECT=$(gh api "repos/${REPO}/commits/${SHA}" --jq '.commit.message' | head -n1)
+
+          if [ "$EVENT_NAME" = "push" ]; then
+            # Only feat/fix shared changes are attributed to the hosts;
+            # chore/docs/refactor ship with the next release unattributed.
+            if ! printf '%s' "$SUBJECT" | grep -qE '^(feat|fix)(\([^)]*\))?!?:'; then
+              echo "Head commit is not feat/fix ('${SUBJECT}'); nothing to attribute."
+              exit 0
+            fi
+            # Strip a breaking `!` — package-breaking is not host-breaking.
+            MSG="$(printf '%s' "$SUBJECT" | sed -E 's/^((feat|fix)(\([^)]*\))?)!:/\1:/') [sync ${SHORT_SHA}]"
+
+            if [[ "$BEFORE" =~ ^0+$ ]]; then
+              PUSH_FILES=$(gh api "repos/${REPO}/commits/${SHA}" --jq '.files[].filename')
+            else
+              PUSH_FILES=$(gh api "repos/${REPO}/compare/${BEFORE}...${SHA}" --jq '.files[].filename')
+            fi
+          else
+            # Manual seed: generic subject, every host considered relevant.
+            MSG="fix: sync bundled sources (${SHORT_SHA})"
+            PUSH_FILES=""
+          fi
+
+          # marker_needed <relevant-regex> <native-regex> <marker-path>
+          # A host needs its marker when the push touched a bundled path but not
+          # the host's own path, and the marker isn't already at this sha.
+          marker_needed() {
+            local RELEVANT="$1" NATIVE="$2" MARKER_PATH="$3"
+            if [ -n "$PUSH_FILES" ]; then
+              printf '%s\n' "$PUSH_FILES" | grep -qE "$NATIVE" && return 1
+              printf '%s\n' "$PUSH_FILES" | grep -qE "$RELEVANT" || return 1
+            fi
+            local CURRENT
+            CURRENT=$(gh api "repos/${REPO}/contents/${MARKER_PATH}?ref=main" --jq .content 2>/dev/null | tr -d '\n' | base64 -d || true)
+            if printf '%s' "$CURRENT" | grep -q "bundledCommit=${SHA}\$"; then
+              return 1
+            fi
+            return 0
+          }
+
+          marker_content() {
+            printf '# Generated by sync-release-markers.yml — do not edit by hand.\n# The bundled-sources commit synced into the %s release line.\nbundledCommit=%s\n' "$1" "$SHA"
+          }
+
+          FILES_JSON='[]'
+          if marker_needed "$VSC_RELEVANT" "$VSC_NATIVE" "$VSC_MARKER"; then
+            FILES_JSON=$(jq -c --arg p "$VSC_MARKER" --arg c "$(marker_content vscode)" \
+              '. + [{path:$p, mode:"100644", type:"blob", content:$c}]' <<<"$FILES_JSON")
+            echo "[vscode] marker queued."
+          else
+            echo "[vscode] no marker needed."
+          fi
+          if marker_needed "$IJ_RELEVANT" "$IJ_NATIVE" "$IJ_MARKER"; then
+            FILES_JSON=$(jq -c --arg p "$IJ_MARKER" --arg c "$(marker_content intellij)" \
+              '. + [{path:$p, mode:"100644", type:"blob", content:$c}]' <<<"$FILES_JSON")
+            echo "[intellij] marker queued."
+          else
+            echo "[intellij] no marker needed."
+          fi
+
+          if [ "$(jq 'length' <<<"$FILES_JSON")" -eq 0 ]; then
+            echo "No markers to commit."
+            exit 0
+          fi
+
+          # One commit for all queued marker files via the Git Data API. The
+          # ref update is a fast-forward (no force): if main moved since we
+          # read it, the run fails loudly and the next trigger/rerun catches up.
+          BASE_SHA=$(gh api "repos/${REPO}/git/ref/heads/main" --jq .object.sha)
+          BASE_TREE=$(gh api "repos/${REPO}/git/commits/${BASE_SHA}" --jq .tree.sha)
+          TREE_SHA=$(jq -n --arg base "$BASE_TREE" --argjson entries "$FILES_JSON" \
+            '{base_tree:$base, tree:$entries}' \
+            | gh api -X POST "repos/${REPO}/git/trees" --input - --jq .sha)
+          COMMIT_SHA=$(jq -n --arg msg "$MSG" --arg tree "$TREE_SHA" --arg parent "$BASE_SHA" \
+            '{message:$msg, tree:$tree, parents:[$parent]}' \
+            | gh api -X POST "repos/${REPO}/git/commits" --input - --jq .sha)
+          gh api -X PATCH "repos/${REPO}/git/refs/heads/main" -f sha="$COMMIT_SHA" >/dev/null
+          echo "Committed marker(s) as ${COMMIT_SHA:0:7}: ${MSG}"
