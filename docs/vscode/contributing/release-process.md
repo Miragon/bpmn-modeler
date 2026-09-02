@@ -70,36 +70,42 @@ npm release line.
 ### Sync markers
 
 [`sync-release-markers.yml`](../../../.github/workflows/sync-release-markers.yml)
-maintains the two host markers. When a bundled source lands on `main`, it
-commits the relevant marker(s) as `fix(vscode): sync bundled sources` /
-`fix(intellij): sync bundled webview`, which routes to that host's line and
-guarantees a matching release. Key properties:
+maintains the two host markers. When a `feat`/`fix` lands on a bundled path, it
+commits **one marker commit** — touching the marker file of every host that
+bundles the change — whose subject mirrors the triggering PR title, e.g.
+`fix(append-menu): restore flat menu entries … (#1428) [sync d512d6c]`. That
+routes the real change, under its real title, into each host's release line and
+changelog. Key properties:
 
-- **Markers are always a patch bump**, decoupled from the underlying commit's
-  severity. A shared-source `!` change still lands as a *patch* on hosts that
-  merely bundle it. This is the deliberate trade-off recorded in
-  [ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md):
-  a host a change genuinely breaks must touch that host's **own** directory
+- **The marker keeps the triggering title's type** — a shared `feat` gives the
+  hosts a minor bump under "New Features", a `fix` a patch — **but strips a
+  breaking `!`**: a package-breaking change is not a host-breaking change
+  ([ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md)).
+  A host a change genuinely breaks must touch that host's **own** directory
   (see "Signalling severity" below).
-- **At most one marker per host per release cycle.** Once a marker is pending
-  (changed since that host's last tag), further pushes skip it — the open
-  release PR already carries the bump, so each changelog shows a single "sync"
-  line per release.
-- **A host skips its marker when the push already routes natively** (the push
-  touched the host's own directory), so no double-bump.
+- **One marker commit per shared PR** (PRs are squash-merged, so the pushed
+  head commit *is* the PR title). Markers are therefore always current and a
+  release PR can never ship unattributed `feat`/`fix` changes.
+- **`chore`/`docs`/`refactor` shared changes are skipped** — they ship with the
+  next host release but get no changelog line. Deliberate noise/value cut.
+- **A host is left out of the marker commit when the push already routes
+  natively** (it touched the host's own directory), so no double-bump.
 - Neither marker file sits under a workflow trigger path, so a marker push
   cannot cascade into more markers.
-- **`workflow_dispatch`** seeds a marker manually (no `BEFORE` to diff, so it
-  relies on the pending / same-sha guards).
+- **`workflow_dispatch`** is a manual seed/escape hatch: it bypasses the type
+  filter and writes a generic `fix: sync bundled sources` marker for every host
+  whose marker isn't already at `HEAD` (used once when this routing was
+  adopted).
 
 ### Signalling severity
 
-Because a marker is always a patch, **let a `!` PR touch exactly the lines it
-actually breaks** — the squashed PR's changed files decide who bumps and how:
+Markers propagate `feat`/`fix` but never a breaking `!`, so **let a `!` PR
+touch exactly the lines it actually breaks** — the squashed PR's changed files
+decide who bumps and how:
 
 - **Breaks npm-package consumers** → the PR touches `packages/bpmn-modeler`
-  and/or its inlined libs → the npm line majors automatically; hosts get patch
-  markers.
+  and/or its inlined libs → the npm line majors automatically; hosts get the
+  change as a marker with the `!` stripped (a non-breaking `feat`/`fix`).
 - **Breaks vscode users** (removed setting/command, changed behaviour) → the
   change touches `apps/vscode-plugin` → `!` majors vscode automatically. Same
   for intellij and `apps/intellij-plugin`.

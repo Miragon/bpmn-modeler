@@ -54,17 +54,23 @@ sync markers, generalizing the proven IntelliJ workaround:
   else it ships — the four webviews, the standalone app (kept in lockstep via
   repo-root-relative `extra-files`, leading `/`), `libs/modeler-core`,
   `libs/shared`, `libs/standalone-extension` and the npm-package sphere —
-  arrives via a `fix(vscode): sync bundled sources` marker. Its changelog moved
+  arrives via title-mirroring marker commits (below). Its changelog moved
   from the repo root to `apps/vscode-plugin/CHANGELOG.md`.
 - **intellij** (`apps/intellij-plugin`): unchanged mechanics; its marker moves
   into the shared `sync-release-markers.yml` workflow.
 - **Unwatched by everyone**: `apps/demo-webapp`, `docs`, `.github`. Tooling and
   demo churn never releases anything.
 
-Markers are always `fix(...)` — a **patch** bump — regardless of the underlying
-commit's severity. Severity is signalled by *which component paths a squashed PR
-touches*: a host a change genuinely breaks must touch that host's own directory
-(or use a `Release-As:` footer) to major it.
+Each shared `feat`/`fix` push produces **one marker commit** (touching the
+marker file of every affected host) whose subject mirrors the triggering PR
+title — PRs are squash-merged, so the pushed head commit *is* the PR title.
+The marker keeps the title's type (`feat` → host minor, `fix` → host patch)
+but **strips a breaking `!`**: a package-breaking change is not a host-breaking
+change. `chore`/`docs`/`refactor` shared changes are skipped — they ship with
+the next host release unattributed, a deliberate noise/value cut. Breaking
+severity is signalled by *which component paths a squashed PR touches*: a host
+a change genuinely breaks must touch that host's own directory (or use a
+`Release-As:` footer) to major it.
 
 ## Consequences
 
@@ -74,11 +80,13 @@ touches*: a host a change genuinely breaks must touch that host's own directory
   proceeds to `1.0.0`.
 - A shared-source fix releases every line that ships it (hosts via markers), so
   nothing under-releases either.
-- **Host feature work outside the host's own directory lands as a generic patch
-  marker** — e.g. a `feat(dmn-webview)` no longer minors vscode or gets its own
-  changelog line. Accepted: user-visible host features almost always touch the
-  host directory too (command/setting/editor registration), and host version
-  numbers are cosmetic next to library semver.
+- **Host changelogs stay truthful.** Each shared `feat`/`fix` appears under its
+  real PR title in every bundling host's changelog, with the right bump
+  (`feat(dmn-webview)` still minors vscode), attributed to the release that
+  actually ships it — the marker lands on `main` immediately after the shared
+  push, so a release PR can never ship unattributed `feat`/`fix` changes. Cost:
+  one bot commit on `main` per shared `feat`/`fix` PR; `chore`/`docs`/
+  `refactor` shared changes ship unattributed.
 - The manifest keys moved (`.` → package version, `apps/vscode-plugin` → vscode
   version) and the root `package.json` version now tracks the npm package, not
   vscode. Tags are unaffected — release-please matches releases by
@@ -96,6 +104,13 @@ touches*: a host a change genuinely breaks must touch that host's own directory
   slot was spent on a host whose version is cosmetic.
 - **List every bundled path on each component.** Impossible: non-root components
   are single-path in release-please.
-- **Encode severity in markers (e.g. a `feat!` marker).** Rejected: it would
-  propagate a breaking bump to lines the change doesn't actually break; the
-  touch-the-host's-own-path convention gives intentional control.
+- **Propagate breaking `!` through markers.** Rejected: it would major-bump
+  lines the change doesn't actually break; the touch-the-host's-own-path
+  convention gives intentional control.
+- **One generic patch marker per release cycle** (fewer bot commits). Rejected:
+  the host changelog degrades to a meaningless "sync" line, and any shared
+  change landing after the marker but before the release-PR merge ships without
+  ever being attributed.
+- **Batch markers on a schedule with accumulated titles.** Rejected: a release
+  PR merged between batches ships changes that then get attributed to the
+  *next* release — a changelog that can lie is worse than a few bot commits.
