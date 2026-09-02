@@ -40,12 +40,6 @@ contributor-facing record, not user documentation.
 | --- | --- | --- |
 | [0004](0004-intellij-host-foundation.md) | IntelliJ host foundation: stdio JSON-RPC transport & process supervision | accepted |
 
-### vscode-plugin
-
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0014](0014-ephemeral-form-values-documents.md) | Back form test values with ephemeral virtual JSON documents | accepted |
-
 ### bpmn-webview
 
 | ADR | Decision | Status |
