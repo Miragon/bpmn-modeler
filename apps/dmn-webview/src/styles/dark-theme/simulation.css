@@ -1,0 +1,68 @@
+/* Dark theme for the @emaarco/dmn-js-simulation add-on (simulate/reset
+ * controls, input form, result bar, matched-row highlights, and the DRD
+ * floating input panel + fired-decision badge).
+ *
+ * The package ships a light-only default theme built entirely from
+ * `--dmn-sim-*` variables on `:root`. Remapping them onto the `--dt-*` scale
+ * re-themes every control for dark mode; because this file is imported after
+ * the package sheet, the equal-specificity `:root` block wins on cascade. A
+ * few package rules hardcode colours the variables can't reach (a white glass
+ * panel, a light chip, a fixed disabled grey) — those get direct overrides. */
+@import "./colors.css";
+
+:root {
+    /* surfaces & text */
+    --dmn-sim-surface: var(--dt-surface-a20);
+    --dmn-sim-ink: var(--dt-surface-a70);
+    --dmn-sim-muted: var(--dt-surface-a60);
+    --dmn-sim-line: var(--dt-surface-a30);
+
+    /* accent (primary buttons, focus) */
+    --dmn-sim-accent: var(--dt-color-blue-a50);
+    --dmn-sim-accent-ink: color-mix(in srgb, var(--dt-color-blue-a50) 80%, white 20%);
+    --dmn-sim-accent-soft: color-mix(in srgb, var(--dt-color-blue-a50) 20%, transparent);
+    --dmn-sim-on-accent: var(--dt-light-a0);
+
+    /* functional colours — no `--dt` green/yellow exist, so derive dark-legible
+       values from the VS Code chart colours with neutral-grey-safe fallbacks. */
+    --dmn-sim-success: var(--vscode-charts-green, #89d185);
+    --dmn-sim-success-soft: color-mix(in srgb, var(--vscode-charts-green, #89d185) 22%, var(--vscode-editor-background, #121212));
+    --dmn-sim-warning: var(--vscode-charts-yellow, #cca700);
+    --dmn-sim-warning-soft: color-mix(in srgb, var(--vscode-charts-yellow, #cca700) 22%, var(--vscode-editor-background, #121212));
+    --dmn-sim-danger: var(--dt-color-red-a10);
+    --dmn-sim-danger-soft: var(--dt-color-red-a20);
+
+    /* row highlighting */
+    --dmn-sim-match-bg: color-mix(in srgb, var(--dt-color-blue-a50) 18%, transparent);
+    --dmn-sim-match-accent: var(--dt-color-blue-a50);
+    --dmn-sim-candidate-bg: color-mix(in srgb, var(--dt-surface-a70) 8%, transparent);
+
+    /* DRD fired-decision indicator */
+    --dmn-sim-fired: var(--dmn-sim-success);
+
+    /* elevation — black-based so cards lift off the dark editor surface */
+    --dmn-sim-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+    --dmn-sim-shadow-2: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --dmn-sim-shadow-3: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* The floating DRD input panel hardcodes an opaque-ish white glass background. */
+.dmn-sim-decision-requirements-diagram-panel {
+    background: color-mix(in srgb, var(--dt-surface-a10) 92%, transparent);
+}
+
+/* The output chip hardcodes `rgba(29, 29, 29, 0.05)` — a subtle light tint reads
+   on the dark result bar instead. */
+.dmn-sim-output {
+    background: color-mix(in srgb, var(--dt-surface-a70) 8%, transparent);
+}
+
+/* The disabled Simulate button hardcodes a `#9a9a9a` label on a `--dmn-sim-line`
+   background; both land on similar mid-greys in dark mode, killing the
+   contrast. Match the repo's disabled-button treatment (see the simple-mode /
+   edit buttons in decision-table.css): a darker surface with a muted `a40`
+   label that stays legible. */
+.dmn-sim-run:disabled {
+    background: var(--dt-surface-a20);
+    color: var(--dt-surface-a40);
+}
