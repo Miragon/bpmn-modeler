@@ -6,12 +6,14 @@ export interface DemoHeaderLinks {
     docs: string;
 }
 
-// The demo has two views: the single-model modeler (bpmn/dmn) and the two-pane
-// diff. `"diff"` is not a `ModelType` — it has no active model — so the model
-// dropdown is hidden there; the view switcher is how users cross between them.
-export type DemoPage = ModelType | "diff";
+// The demo has three views: the single-model modeler (bpmn/dmn), the two-pane
+// diff, and the readonly viewer. `"diff"` and `"viewer"` are not `ModelType`s —
+// they have no active model — so the model dropdown is hidden there; the view
+// switcher is how users cross between them.
+export type DemoPage = ModelType | "diff" | "viewer";
 
 const DIFF_HREF = "/bpmn/diff.html";
+const VIEWER_HREF = "/bpmn/viewer.html";
 
 // Where the "Modeler" view link points from the diff page — the first bpmn model.
 const DEFAULT_MODELER_HREF = modelHref(MODELS.find((m) => m.type === "bpmn") ?? MODELS[0]);
@@ -28,9 +30,11 @@ const KOMET_SVG = `<svg class="komet" viewBox="0 0 512 512" aria-hidden="true"><
 export function mountDemoHeader(page: DemoPage, links: Partial<DemoHeaderLinks> = {}): void {
     const l = { ...DEFAULT_LINKS, ...links };
     const isDiff = page === "diff";
-    // The diff view has no active model; its "Modeler" link falls back to the
-    // default bpmn model so users always land somewhere sensible.
-    const modelerHref = isDiff ? DEFAULT_MODELER_HREF : modelHref(getActiveModel(page));
+    const isViewer = page === "viewer";
+    // The diff/viewer views have no active model; their "Modeler" link falls
+    // back to the default bpmn model so users always land somewhere sensible.
+    const noModel = isDiff || isViewer;
+    const modelerHref = noModel ? DEFAULT_MODELER_HREF : modelHref(getActiveModel(page));
 
     const style = document.createElement("style");
     // Colour tokens mirror Miragon/corporate-identity (brand/tokens.json).
@@ -119,23 +123,26 @@ export function mountDemoHeader(page: DemoPage, links: Partial<DemoHeaderLinks> 
     `;
     document.head.appendChild(style);
 
-    const activeId = isDiff ? null : getActiveModel(page).id;
+    const activeId = noModel ? null : getActiveModel(page).id;
     const options = MODELS.map(
         (m) =>
             `<option value="${m.id}"${m.id === activeId ? " selected" : ""}>` +
             `${m.title} (${m.type.toUpperCase()})</option>`,
     ).join("");
 
-    // The diff view has no active model, so it omits the model dropdown; both
-    // views share the switcher. All hrefs here are internal string literals.
-    const modelPicker = isDiff
+    // The diff/viewer views have no active model, so they omit the model
+    // dropdown; all views share the switcher. All hrefs here are internal
+    // string literals.
+    const modelPicker = noModel
         ? ""
         : `<label for="miragon-demo-model">Modell:</label>
            <select id="miragon-demo-model" aria-label="Modell wählen">${options}</select>`;
+    const activeAttr = ' class="active" aria-current="page"';
     const views = `
         <nav class="views" aria-label="Ansicht wählen">
-            <a href="${modelerHref}"${isDiff ? "" : ' class="active" aria-current="page"'}>Modeler</a>
-            <a href="${DIFF_HREF}"${isDiff ? ' class="active" aria-current="page"' : ""}>Diff</a>
+            <a href="${modelerHref}"${noModel ? "" : activeAttr}>Modeler</a>
+            <a href="${DIFF_HREF}"${isDiff ? activeAttr : ""}>Diff</a>
+            <a href="${VIEWER_HREF}"${isViewer ? activeAttr : ""}>Viewer</a>
         </nav>`;
 
     const header = document.createElement("header");

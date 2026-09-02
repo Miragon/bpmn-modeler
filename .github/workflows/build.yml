@@ -654,6 +654,9 @@ jobs:
           test -f packages/bpmn-modeler/dist/index.d.ts
           test -f packages/bpmn-modeler/dist/lint.js
           test -f packages/bpmn-modeler/dist/lint.d.ts
+          test -f packages/bpmn-modeler/dist/viewer.js
+          test -f packages/bpmn-modeler/dist/viewer.d.ts
+          test -f packages/bpmn-modeler/dist/viewer.css
           test -f packages/bpmn-modeler/dist/bpmn-modeler.css
           test -f packages/bpmn-modeler/dist/lightTheme.css
           test -f packages/bpmn-modeler/dist/darkTheme.css

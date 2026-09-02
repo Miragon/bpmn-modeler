@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
-const ENTRY_DTS = ["index.d.ts", "diff.d.ts", "lint.d.ts"];
+const ENTRY_DTS = ["index.d.ts", "diff.d.ts", "lint.d.ts", "viewer.d.ts"];
 
 // Whole-word protocol type names + the private protocol package. The word gate
 // also covers public diff jsdoc: a bare `Query`/`Command`/`HostApi` in a

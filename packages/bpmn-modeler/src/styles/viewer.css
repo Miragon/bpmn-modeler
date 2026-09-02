@@ -1,0 +1,12 @@
+/*
+ * The readonly viewer's stylesheet, built standalone as
+ * `@miragon/bpmn-modeler/viewer.css` (see `vite.viewer-css.config.mts`). It
+ * carries only the bpmn-js base diagram/font CSS plus the dark-theme diagram
+ * overrides scoped under `[data-bpmn-theme="dark"]` — none of the editor chrome
+ * (camunda-bpmn-js, properties-panel, token-simulation) the full `styles.css`
+ * loads. Do not also load `styles.css` on a viewer-only page; the two overlap.
+ */
+@import "bpmn-js/dist/assets/diagram-js.css";
+@import "bpmn-js/dist/assets/bpmn-js.css";
+@import "bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css";
+@import "./dark-theme/diagram-js.css";

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>Miragon Modeler — Readonly Viewer Demo</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            /* A single readonly canvas — no palette, no properties panel. #app is
+               sized by the shared demo header (viewport minus header + footer). */
+            .viewer {
+                position: relative;
+                height: 100%;
+            }
+            .viewer .canvas {
+                position: absolute;
+                inset: 0;
+            }
+            .viewer .toolbar {
+                position: absolute;
+                top: 12px;
+                right: 12px;
+                z-index: 10;
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                padding: 8px 12px;
+                background: rgba(255, 255, 255, 0.9);
+                border: 1px solid #d7d9de;
+                border-radius: 6px;
+                font: 500 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            }
+            .viewer .toolbar select {
+                font: inherit;
+            }
+            .viewer .selection {
+                min-width: 120px;
+                color: #6b7280;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app" style="height: 100vh">
+            <div class="viewer">
+                <div class="canvas" id="canvas"></div>
+                <div class="toolbar">
+                    <label for="theme">Theme:</label>
+                    <select id="theme">
+                        <option value="automatic">Automatic</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                    <span class="selection" id="selection">Nothing selected</span>
+                </div>
+            </div>
+        </div>
+        <script src="/viewer.ts" type="module"></script>
+    </body>
+</html>

@@ -39,9 +39,9 @@ export default defineConfig(({ mode }) => {
             outDir: resolve(__dirname, `../../dist/demo/${target}`),
             emptyOutDir: true,
             // The bpmn page ships extra entries — the two-instance regression
-            // proof at /bpmn/dual.html and the two-pane diff demo at
-            // /bpmn/diff.html. The dev server serves them automatically; only the
-            // build needs the extra rollup inputs.
+            // proof at /bpmn/dual.html, the two-pane diff demo at /bpmn/diff.html,
+            // and the readonly viewer demo at /bpmn/viewer.html. The dev server
+            // serves them automatically; only the build needs the extra inputs.
             rollupOptions:
                 target === "bpmn"
                     ? {
@@ -49,6 +49,7 @@ export default defineConfig(({ mode }) => {
                               index: resolve(__dirname, "bpmn/index.html"),
                               dual: resolve(__dirname, "bpmn/dual.html"),
                               diff: resolve(__dirname, "bpmn/diff.html"),
+                              viewer: resolve(__dirname, "bpmn/viewer.html"),
                           },
                       }
                     : undefined,

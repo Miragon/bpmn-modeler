@@ -46,19 +46,26 @@
             "types": "./dist/lint.d.ts",
             "import": "./dist/lint.js"
         },
+        "./viewer": {
+            "types": "./dist/viewer.d.ts",
+            "import": "./dist/viewer.js"
+        },
         "./styles.css": "./dist/bpmn-modeler.css",
+        "./viewer.css": "./dist/viewer.css",
         "./light-theme.css": "./dist/lightTheme.css",
         "./dark-theme.css": "./dist/darkTheme.css",
         "./package.json": "./package.json"
     },
     "scripts": {
         "typecheck": "tsc --noEmit",
-        "build": "npm-run-all -s typecheck build:lib build:themes check:dts check:diff-node check:lint-free check:dep-alignment",
+        "build": "npm-run-all -s typecheck build:lib build:themes build:viewer-css check:dts check:diff-node check:lint-free check:viewer-pure check:dep-alignment",
         "build:lib": "vite build",
         "build:themes": "vite build -c vite.themes.config.mts",
+        "build:viewer-css": "vite build -c vite.viewer-css.config.mts",
         "check:dts": "node scripts/check-dts.mjs",
         "check:diff-node": "node scripts/check-diff-node.mjs",
         "check:lint-free": "node scripts/check-lint-free-entry.mjs",
+        "check:viewer-pure": "node scripts/check-viewer-pure-entry.mjs",
         "check:dep-alignment": "yarn constraints",
         "test": "vitest run --coverage"
     },
