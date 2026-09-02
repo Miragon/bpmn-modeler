@@ -16,7 +16,7 @@ export function shouldHandleHostMessage(
 
     const data = event.data;
     if (typeof data !== "object" || data === null || !("type" in data)) return false;
-    if (data.type === "FormFileQuery") {
+    if (data.type === "FormFileQuery" || data.type === "FormInputValuesQuery") {
         return "content" in data && typeof data.content === "string";
     }
     if (data.type === "FlushDocumentQuery" || data.type === "ReleaseDocumentFlushQuery") {

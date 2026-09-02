@@ -8,6 +8,7 @@
  * - {@link BpmnFileQuery}                 — deliver BPMN XML and detected engine type for rendering
  * - {@link DmnFileQuery}                  — deliver DMN XML for rendering
  * - {@link FormFileQuery}                 — deliver Camunda Form JSON for rendering
+ * - {@link FormInputValuesQuery}          — deliver ephemeral form preview input data
  * - {@link ElementTemplatesQuery}         — deliver the resolved element-template list
  * - {@link BpmnlintResultsQuery}          — deliver host-computed bpmnlint results (or null to deactivate)
  * - {@link BpmnlintInPageQuery}           — tell the webview to run its in-page linter (zero-config default, or a covered workspace config)
@@ -23,6 +24,8 @@
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
  * - {@link GetDmnFileCommand}                 — webview is ready; request the DMN file
  * - {@link GetFormFileCommand}                — webview is ready; request the form file
+ * - {@link GetFormInputValuesCommand}         — request ephemeral form preview input data
+ * - {@link UpdateFormOutputValuesCommand}     — publish current form preview output data
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
  * - {@link GetBpmnlintConfigCommand}          — webview is ready; trigger a host lint pass
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
@@ -107,6 +110,16 @@ export class FormFileQuery extends Query {
         super("FormFileQuery");
         this.content = content;
         this.documentRevision = documentRevision;
+    }
+}
+
+/** Delivers the current in-memory process variables used to render a form preview. */
+export class FormInputValuesQuery extends Query {
+    public readonly content: string;
+
+    constructor(content: string) {
+        super("FormInputValuesQuery");
+        this.content = content;
     }
 }
 
@@ -418,6 +431,23 @@ export class GetDmnFileCommand extends Command {
 export class GetFormFileCommand extends Command {
     constructor() {
         super("GetFormFileCommand");
+    }
+}
+
+/** Requests the non-persistent input JSON associated with this form editor session. */
+export class GetFormInputValuesCommand extends Command {
+    constructor() {
+        super("GetFormInputValuesCommand");
+    }
+}
+
+/** Publishes the form preview's current submit data to its read-only virtual document. */
+export class UpdateFormOutputValuesCommand extends Command {
+    public readonly content: string;
+
+    constructor(content: string) {
+        super("UpdateFormOutputValuesCommand");
+        this.content = content;
     }
 }
 

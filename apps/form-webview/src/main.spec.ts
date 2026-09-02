@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => {
     };
     const viewer = {
         importSchema: vi.fn().mockResolvedValue({ warnings: [] }),
+        on: vi.fn(),
+        _getSubmitData: vi.fn(() => ({})),
     };
 
     return {
@@ -69,5 +71,14 @@ describe("form webview bootstrap", () => {
         });
         expect(mocks.aggregateEditor).not.toHaveBeenCalled();
         expect(mocks.aggregateViewer).not.toHaveBeenCalled();
+    });
+
+    it("requests the current ephemeral form input values", async () => {
+        await import("./main");
+        window.dispatchEvent(new Event("DOMContentLoaded"));
+
+        expect(mocks.host.postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({ type: "GetFormInputValuesCommand" }),
+        );
     });
 });

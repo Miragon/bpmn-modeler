@@ -82,6 +82,10 @@
         "form"
     ],
     "main": "main.js",
+    "activationEvents": [
+        "onFileSystem:bpmn-form-input-values",
+        "onFileSystem:bpmn-form-output-values"
+    ],
     "contributes": {
         "walkthroughs": [
             {
@@ -252,6 +256,18 @@
                 "icon": "$(notebook-mimetype)"
             },
             {
+                "command": "bpmn-modeler.toggleFormInputValues",
+                "title": "Toggle Form Input Values",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(json)"
+            },
+            {
+                "command": "bpmn-modeler.toggleFormOutputValues",
+                "title": "Toggle Form Output Values",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(output)"
+            },
+            {
                 "command": "bpmn-modeler.openLoggingConsole",
                 "title": "Display Logging Information",
                 "category": "Miragon BPMN Modeler",
@@ -372,6 +388,14 @@
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {
+                    "command": "bpmn-modeler.toggleFormInputValues",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
+                    "command": "bpmn-modeler.toggleFormOutputValues",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
                     "command": "bpmn-modeler.openLoggingConsole",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
@@ -442,6 +466,16 @@
                 }
             ],
             "editor/title": [
+                {
+                    "command": "bpmn-modeler.toggleFormInputValues",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
+                    "command": "bpmn-modeler.toggleFormOutputValues",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
                 {
                     "command": "bpmn-modeler.toggleTextEditor",
                     "group": "navigation",

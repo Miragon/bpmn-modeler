@@ -1,7 +1,9 @@
 import {
     Command,
     FormFileQuery,
+    FormInputValuesQuery,
     GetFormFileCommand,
+    GetFormInputValuesCommand,
     HostApi,
     HostApiImpl,
     MockHostApi,
@@ -50,6 +52,12 @@ class MockHost extends MockHostApi<WebviewState, Command | Query> {
                         ),
                     ),
                 }),
+            );
+            return;
+        }
+        if (message instanceof GetFormInputValuesCommand) {
+            window.dispatchEvent(
+                new MessageEvent("message", { data: new FormInputValuesQuery("{}") }),
             );
             return;
         }

@@ -64,6 +64,7 @@ describe("shouldHandleHostMessage", () => {
 
     it.each([
         { type: "FormFileQuery", content: "{}" },
+        { type: "FormInputValuesQuery", content: "{}" },
         { type: "FlushDocumentQuery", token: 1 },
         { type: "ReleaseDocumentFlushQuery", token: 1 },
     ])("accepts a typed $type from the VS Code host frame", (data) => {

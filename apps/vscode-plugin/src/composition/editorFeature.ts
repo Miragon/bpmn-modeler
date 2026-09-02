@@ -36,6 +36,8 @@ import { ScriptManifestParticipant } from "../modeler/bpmn/controller/editor-par
 import { DmnRenderParticipant } from "../modeler/dmn/controller/editor-participants/DmnRenderParticipant";
 import { DmnSettingsParticipant } from "../modeler/dmn/controller/editor-participants/DmnSettingsParticipant";
 import { FormRenderParticipant } from "../modeler/form/controller/editor-participants/FormRenderParticipant";
+import { FormValuesParticipant } from "../modeler/form/controller/editor-participants/FormValuesParticipant";
+import { FormValuesController } from "../modeler/form/controller/FormValuesController";
 import {
     getBpmnFileHandler,
     getElementTemplatesHandler,
@@ -67,7 +69,9 @@ import {
 } from "../modeler/dmn/controller/webview-handlers/dmnMessageHandlers";
 import {
     getFormFileHandler,
+    getFormInputValuesHandler,
     syncFormDocumentHandler,
+    updateFormOutputValuesHandler,
 } from "../modeler/form/controller/webview-handlers/formMessageHandlers";
 import { BpmnDiffController } from "../diff/controller/BpmnDiffController";
 import { ScriptTaskService } from "../scriptTask/controller/ScriptTaskService";
@@ -186,6 +190,8 @@ export function register(
     );
     const dmnService = new DmnModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
     const formService = new FormModelerService(deps.editorStore, deps.vsDocument, deps.notifier);
+    const formValues = new FormValuesController(deps.editorStore, deps.notifier);
+    formValues.register(context);
     // One flush service for both editors: requests are keyed per editorId, so a
     // single instance behind both routers stays correct.
     const flushSvc = new DocumentFlushService(deps.editorStore, deps.notifier);
@@ -287,6 +293,8 @@ export function register(
     registerWebviewLogHandlers(dmnMessageRouter, deps.notifier, resolveSource);
     const formMessageRouter = new WebviewMessageRouter()
         .on("GetFormFileCommand", getFormFileHandler(formService, deps.notifier))
+        .on("GetFormInputValuesCommand", getFormInputValuesHandler(formValues))
+        .on("UpdateFormOutputValuesCommand", updateFormOutputValuesHandler(formValues))
         .on("SyncDocumentCommand", syncFormDocumentHandler(formService))
         .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc));
     registerWebviewLogHandlers(formMessageRouter, deps.notifier, resolveSource);
@@ -333,7 +341,10 @@ export function register(
     new ModelerEditorController(deps.editorStore, deps.notifier, {
         viewType: FORM_VIEW_TYPE,
         messageRouter: formMessageRouter,
-        participants: [new FormRenderParticipant(formService, deps.notifier)],
+        participants: [
+            new FormRenderParticipant(formService, deps.notifier),
+            new FormValuesParticipant(formValues),
+        ],
     }).register(context);
 
     // Turns each element-specific bpmnlint diagnostic into a click-to-centre
