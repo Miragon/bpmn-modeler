@@ -19,7 +19,7 @@ VS Code, Open VSX and Standalone stay on **one** shared version because they are
 all built from the same frontend (`libs/shared`, the webviews). IntelliJ is a
 separate Gradle plugin and versions on its own. The `@miragon/bpmn-modeler` npm
 package (epic #1293) versions independently and holds the **root** release-please
-slot (see below and [ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md)),
+slot (see below and [ADR 0014](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/0014-make-bpmn-modeler-the-root-release-component.md)),
 so the root `package.json` version tracks the npm package, not the extension.
 
 The flow has two phases, both automated:
@@ -42,7 +42,7 @@ slot belongs to the **npm package**, the one artifact where semver correctness
 is a hard requirement and whose sources span `packages/bpmn-modeler` plus 10
 inlined libs. The hosts are single-path components fed by **sync markers** for
 the sources they bundle from elsewhere
-([ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md)).
+([ADR 0014](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/0014-make-bpmn-modeler-the-root-release-component.md)).
 
 | Line | Natively watched paths | Bundled sources (marker-covered) | Marker file |
 |---|---|---|---|
@@ -69,7 +69,7 @@ npm release line.
 
 ### Sync markers
 
-[`sync-release-markers.yml`](../../../.github/workflows/sync-release-markers.yml)
+[`sync-release-markers.yml`](https://github.com/Miragon/bpmn-modeler/blob/main/.github/workflows/sync-release-markers.yml)
 maintains the two host markers. When a `feat`/`fix` lands on a bundled path, it
 commits **one marker commit** — touching the marker file of every host that
 bundles the change — whose subject mirrors the triggering PR title, e.g.
@@ -80,7 +80,7 @@ changelog. Key properties:
 - **The marker keeps the triggering title's type** — a shared `feat` gives the
   hosts a minor bump under "New Features", a `fix` a patch — **but strips a
   breaking `!`**: a package-breaking change is not a host-breaking change
-  ([ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md)).
+  ([ADR 0014](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/0014-make-bpmn-modeler-the-root-release-component.md)).
   A host a change genuinely breaks must touch that host's **own** directory
   (see "Signalling severity" below).
 - **One marker commit per shared PR** (PRs are squash-merged, so the pushed
