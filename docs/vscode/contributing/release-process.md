@@ -92,6 +92,11 @@ changelog. Key properties:
   natively** (it touched the host's own directory), so no double-bump.
 - Neither marker file sits under a workflow trigger path, so a marker push
   cannot cascade into more markers.
+- **Re-run red `Sync release markers` runs.** The ref update is
+  fast-forward-only, so a run that races a concurrent push (or hits an API
+  hiccup) fails without writing its marker — that `feat`/`fix` stays
+  unattributed until the run is re-run. Re-running is safe: the same-sha guard
+  makes it a no-op if the marker already landed.
 - **`workflow_dispatch`** is a manual seed/escape hatch: it bypasses the type
   filter and writes a generic `fix: sync bundled sources` marker for every host
   whose marker isn't already at `HEAD` (used once when this routing was
