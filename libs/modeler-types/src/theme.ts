@@ -92,9 +92,11 @@ function stopObserver(): void {
 }
 
 /**
- * Swaps the `#theme-link` stylesheet between `lightTheme.css` and
- * `darkTheme.css`.  Compares the current href to avoid unnecessary DOM
- * mutations.
+ * Swaps the `#theme-link` stylesheet between its light and dark variants.
+ * Handles both the built filenames (`lightTheme.css` ↔ `darkTheme.css`) and the
+ * directory-style source hrefs (`light-theme/index.css` ↔ `dark-theme/index.css`)
+ * that the demo app and the dmn-webview dev shell link. Compares the current
+ * href to avoid unnecessary DOM mutations.
  *
  * @param isDark `true` to apply the dark theme, `false` for the light theme.
  */
@@ -106,11 +108,15 @@ function applyTheme(isDark: boolean): void {
     }
 
     const href = theme.href;
-    const css = href.split("/").pop();
+    const next = isDark
+        ? href
+              .replace(/lightTheme\.css$/, "darkTheme.css")
+              .replace(/light-theme\/index\.css$/, "dark-theme/index.css")
+        : href
+              .replace(/darkTheme\.css$/, "lightTheme.css")
+              .replace(/dark-theme\/index\.css$/, "light-theme/index.css");
 
-    if (isDark && css === "lightTheme.css") {
-        theme.href = href.replace(/lightTheme\.css$/, "darkTheme.css");
-    } else if (!isDark && css === "darkTheme.css") {
-        theme.href = href.replace(/darkTheme\.css$/, "lightTheme.css");
+    if (next !== href) {
+        theme.href = next;
     }
 }

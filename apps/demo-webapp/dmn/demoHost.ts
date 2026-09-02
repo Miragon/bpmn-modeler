@@ -38,7 +38,9 @@ export class DmnDemoHost extends MockHostApi<WebviewState, MessageType> {
                 dispatch(new PropertiesPanelStateQuery(true));
                 break;
             case "GetDmnModelerSettingCommand":
-                dispatch(new DmnModelerSettingQuery({ colorTheme: "light" }));
+                // "automatic" keeps the `#theme-link` MutationObserver alive so
+                // the shared demo header's theme switch reaches the decision table.
+                dispatch(new DmnModelerSettingQuery({ colorTheme: "automatic" }));
                 break;
         }
     }

@@ -3,9 +3,10 @@
     <head>
         <meta charset="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        <!-- The engine + theme CSS is imported from diff.ts so Vite serves it in
-             dev (a raw <link> to the package source escapes the dev-server root
-             and 404s). The diff view is light-only and never swaps themes. -->
+        <!-- The engine + theme CSS ships via the `@miragon/bpmn-modeler` side
+             effects imported from diff.ts (Vite serves it in dev; a raw <link>
+             to the package source would escape the dev-server root and 404).
+             Both panes theme off the shared demo header's `data-bpmn-theme`. -->
         <meta content="width=device-width, initial-scale=1.0" name="viewport" />
         <title>Miragon Modeler — Two-Pane Diff Demo</title>
         <style>
@@ -27,6 +28,9 @@
             }
             .pane:last-child {
                 border-right: none;
+            }
+            :root[data-bpmn-theme="dark"] .pane {
+                border-right-color: #3a3a3a;
             }
             .pane .canvas {
                 position: absolute;

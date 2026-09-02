@@ -13,27 +13,32 @@ import "../../../packages/bpmn-modeler/src/styles/viewer.css";
 
 /**
  * In-page readonly viewer demo — the in-repo consumer of the `/viewer` subpath.
- * No host, no bootstrap: one `createViewer` handle over a registry model, a theme
- * `<select>` wired to `setTheme`, and a live selection readout.
+ * No host, no bootstrap: one `createViewer` handle over a registry model and a
+ * live selection readout. Theme comes from the shared demo header, which seeds
+ * the initial `createViewer` mode and routes later changes to the public
+ * `viewer.setTheme` API (the epic's regression check).
  */
 async function main(): Promise<void> {
-    mountDemoHeader("viewer");
+    // The header seeds the initial theme (below) and routes later changes to
+    // this handle, which only exists after createViewer resolves — hence the ref.
+    const viewerRef: { current?: Awaited<ReturnType<typeof createViewer>> } = {};
+    const { themeMode } = mountDemoHeader(
+        "viewer",
+        {},
+        { onThemeChange: (mode) => viewerRef.current?.setTheme(mode as ThemeMode) },
+    );
 
     const canvas = document.getElementById("canvas");
-    const themeSelect = document.getElementById("theme") as HTMLSelectElement | null;
     const selectionOut = document.getElementById("selection");
-    if (!canvas || !themeSelect || !selectionOut) {
+    if (!canvas || !selectionOut) {
         throw new Error("viewer demo: missing host elements");
     }
 
     const model = MODELS.find((m) => m.type === "bpmn") ?? MODELS[0];
 
-    const viewer = await createViewer(canvas, { theme: themeSelect.value as ThemeMode });
+    const viewer = await createViewer(canvas, { theme: themeMode as ThemeMode });
+    viewerRef.current = viewer;
     await viewer.loadDiagram(model.xml);
-
-    themeSelect.addEventListener("change", () => {
-        viewer.setTheme(themeSelect.value as ThemeMode);
-    });
 
     viewer.selection.onSelectionChanged((ids) => {
         selectionOut.textContent = ids.length > 0 ? ids.join(", ") : "Nothing selected";
