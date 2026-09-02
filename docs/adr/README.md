@@ -41,6 +41,12 @@ contributor-facing record, not user documentation.
 | --- | --- | --- |
 | [0004](0004-intellij-host-foundation.md) | IntelliJ host foundation: stdio JSON-RPC transport & process supervision | accepted |
 
+### vscode-plugin
+
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0015](0015-integrate-form-js-into-the-bpmn-modeler-extension.md) | Integrate form-js into the BPMN modeler extension | accepted |
+
 ### bpmn-webview
 
 | ADR | Decision | Status |
