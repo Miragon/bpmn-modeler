@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
+import { SyncDocumentCommand, UpdateFormOutputValuesCommand } from "@miragon/bpmn-modeler-shared";
 
 import { FormEditorApp, FormEditorLike, FormViewerLike } from "./FormEditorApp";
 
@@ -25,12 +25,30 @@ class Editor implements FormEditorLike {
     }
 }
 
+class Viewer implements FormViewerLike {
+    output: Record<string, unknown> = {};
+    handlers = new Map<string, () => void>();
+    importSchema = vi.fn().mockResolvedValue({ warnings: [] });
+    _getSubmitData = vi.fn(() => this.output);
+
+    on(
+        event: "changed" | "formFieldInstance.added" | "formFieldInstance.removed",
+        handler: () => void,
+    ): void {
+        this.handlers.set(event, handler);
+    }
+
+    emit(event: "changed" | "formFieldInstance.added" | "formFieldInstance.removed"): void {
+        this.handlers.get(event)?.();
+    }
+}
+
 function setup() {
     document.body.innerHTML = `
         <button id="edit"></button><button id="preview-button"></button>
         <div id="error" hidden></div><div id="editor"></div><div id="preview" hidden></div>`;
     const editor = new Editor();
-    const viewer: FormViewerLike = { importSchema: vi.fn().mockResolvedValue({ warnings: [] }) };
+    const viewer = new Viewer();
     const host = {
         state: { mode: "edit" as const },
         getState() {
@@ -130,6 +148,140 @@ describe("FormEditorApp", () => {
         await app.setMode("edit");
         await app.setMode("preview");
         expect(viewer.importSchema).toHaveBeenCalledTimes(2);
+    });
+
+    it("reimports the preview with new form input values", async () => {
+        const { app, viewer } = setup();
+        await app.load(ORIGINAL);
+        await app.setMode("preview");
+
+        await app.setInputValues('{ "customer": { "name": "Ada" } }');
+
+        expect(viewer.importSchema).toHaveBeenLastCalledWith(IMPORTED, {
+            customer: { name: "Ada" },
+        });
+    });
+
+    it("publishes current submit data when preview values or instances change", async () => {
+        const { app, viewer, host } = setup();
+        await app.load(ORIGINAL);
+        await app.setMode("preview");
+
+        viewer.output = { approved: true };
+        viewer.emit("changed");
+        viewer.output = { approved: true, reviewers: ["Ada"] };
+        viewer.emit("formFieldInstance.added");
+        viewer.output = { approved: true, reviewers: [] };
+        viewer.emit("formFieldInstance.removed");
+
+        expect(host.postMessage).toHaveBeenCalledWith(
+            new UpdateFormOutputValuesCommand(
+                JSON.stringify({ approved: true, reviewers: [] }, null, 2),
+            ),
+        );
+    });
+
+    it("publishes the first empty preview output as an authoritative reset", async () => {
+        const { app, host } = setup();
+        await app.load(ORIGINAL);
+
+        await app.setMode("preview");
+
+        expect(host.postMessage).toHaveBeenCalledWith(new UpdateFormOutputValuesCommand("{}"));
+    });
+
+    it("clears stale output when preview rendering fails", async () => {
+        const { app, viewer, host } = setup();
+        await app.load(ORIGINAL);
+        await app.setMode("preview");
+        viewer.output = { approved: true };
+        viewer.emit("changed");
+        await app.setMode("edit");
+        vi.mocked(viewer.importSchema).mockRejectedValueOnce(new Error("preview failed"));
+
+        await app.setInputValues('{ "customer": "Ada" }');
+        await app.setMode("preview");
+
+        const outputMessages = host.postMessage.mock.calls
+            .map(([message]) => message)
+            .filter((message) => message instanceof UpdateFormOutputValuesCommand);
+        expect(outputMessages.at(-1)).toEqual(new UpdateFormOutputValuesCommand("{}"));
+    });
+
+    it("serializes rapid input imports so the newest values win", async () => {
+        const { app, viewer } = setup();
+        await app.load(ORIGINAL);
+        await app.setMode("preview");
+        viewer.importSchema.mockClear();
+        let finishFirst: (result: { warnings: never[] }) => void = () => {};
+        viewer.importSchema
+            .mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishFirst = resolve;
+                }),
+            )
+            .mockResolvedValueOnce({ warnings: [] });
+
+        const first = app.setInputValues('{ "customer": "Ada" }');
+        await Promise.resolve();
+        const second = app.setInputValues('{ "customer": "Grace" }');
+        finishFirst({ warnings: [] });
+        await Promise.all([first, second]);
+
+        expect(viewer.importSchema).toHaveBeenLastCalledWith(IMPORTED, {
+            customer: "Grace",
+        });
+    });
+
+    it("reimports prior values after a superseded import changes the viewer", async () => {
+        const { app, viewer } = setup();
+        await app.load(ORIGINAL);
+        await app.setInputValues('{ "customer": "Ada" }');
+        await app.setMode("preview");
+        viewer.importSchema.mockClear();
+        let finishImport: (result: { warnings: never[] }) => void = () => {};
+        viewer.importSchema.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishImport = resolve;
+            }),
+        );
+
+        const changed = app.setInputValues('{ "customer": "Grace" }');
+        await Promise.resolve();
+        const restored = app.setInputValues('{ "customer": "Ada" }');
+        finishImport({ warnings: [] });
+        await Promise.all([changed, restored]);
+
+        expect(viewer.importSchema).toHaveBeenCalledTimes(2);
+        expect(viewer.importSchema).toHaveBeenLastCalledWith(IMPORTED, {
+            customer: "Ada",
+        });
+    });
+
+    it("does not republish an in-flight preview after the host form becomes invalid", async () => {
+        const { app, viewer, host } = setup();
+        await app.load(ORIGINAL);
+        await app.setMode("preview");
+        viewer.output = { approved: true };
+        viewer.emit("changed");
+        let finishImport: (result: { warnings: never[] }) => void = () => {};
+        viewer.importSchema.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishImport = resolve;
+            }),
+        );
+        const refreshing = app.setInputValues('{ "customer": "Ada" }');
+        await Promise.resolve();
+
+        await app.load("not json");
+        finishImport({ warnings: [] });
+        await refreshing;
+        viewer.emit("changed");
+
+        const outputMessages = host.postMessage.mock.calls
+            .map(([message]) => message)
+            .filter((message) => message instanceof UpdateFormOutputValuesCommand);
+        expect(outputMessages.at(-1)).toEqual(new UpdateFormOutputValuesCommand("{}"));
     });
 
     it("shows invalid JSON without writing fallback content", async () => {
