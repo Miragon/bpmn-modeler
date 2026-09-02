@@ -12,23 +12,68 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "component": "vscode",
+      "component": "bpmn-modeler",
       "include-component-in-tag": true,
-      "exclude-paths": ["apps/intellij-plugin", "docs", "packages"],
+      "changelog-path": "packages/bpmn-modeler/CHANGELOG.md",
+      "exclude-paths": [
+        ".agent",
+        ".claude",
+        ".editorconfig",
+        ".githooks",
+        ".github",
+        ".gitignore",
+        ".nvmrc",
+        ".prettierignore",
+        ".prettierrc",
+        ".release-please-manifest.json",
+        ".vscode",
+        ".yarn",
+        ".yarnrc.yml",
+        "CLAUDE.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "README.md",
+        "apps",
+        "docs",
+        "eslint.config.cjs",
+        "images",
+        "knip.jsonc",
+        "libs/modeler-core",
+        "libs/shared",
+        "libs/standalone-extension",
+        "netlify.toml",
+        "package.json",
+        "portless.json",
+        "release-please-config.json",
+        "resources",
+        "stack",
+        "tsconfig.base.json",
+        "vitest.config.ts",
+        "yarn.config.cjs",
+        "yarn.lock"
+      ],
       "extra-files": [
         {
           "type": "json",
-          "path": "apps/vscode-plugin/package.json",
+          "path": "packages/bpmn-modeler/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/vscode-plugin": {
+      "release-type": "node",
+      "component": "vscode",
+      "include-component-in-tag": true,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "/apps/standalone/package.json",
           "jsonpath": "$.version"
         },
         {
           "type": "json",
-          "path": "apps/standalone/package.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "libs/standalone-extension/package.json",
+          "path": "/libs/standalone-extension/package.json",
           "jsonpath": "$.version"
         }
       ]
@@ -38,11 +83,6 @@
       "component": "intellij",
       "include-component-in-tag": true,
       "extra-files": [{ "type": "generic", "path": "gradle.properties" }]
-    },
-    "packages/bpmn-modeler": {
-      "release-type": "node",
-      "component": "bpmn-modeler",
-      "include-component-in-tag": true
     }
   }
 }

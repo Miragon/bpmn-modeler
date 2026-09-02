@@ -11,14 +11,16 @@ no longer forces a release of the others:
 
 | Line | Tag | Covers | Publishes to |
 |---|---|---|---|
-| **`vscode`** (path `.`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS/Flatpak) + Homebrew |
+| **`npm`** (path `.`, the root component) | `bpmn-modeler-v<version>` | The publishable `@miragon/bpmn-modeler` package + the 10 libs it inlines | npm registry |
+| **`vscode`** (path `apps/vscode-plugin`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS/Flatpak) + Homebrew |
 | **`intellij`** (path `apps/intellij-plugin`) | `intellij-v<version>` | IntelliJ plugin | JetBrains Marketplace + `updatePlugins.xml` |
-| **`npm`** (path `packages/bpmn-modeler`) | `bpmn-modeler-v<version>` | The publishable `@miragon/bpmn-modeler` package | npm registry |
 
 VS Code, Open VSX and Standalone stay on **one** shared version because they are
 all built from the same frontend (`libs/shared`, the webviews). IntelliJ is a
 separate Gradle plugin and versions on its own. The `@miragon/bpmn-modeler` npm
-package (epic #1293) versions independently on its own `0.x` line.
+package (epic #1293) versions independently and holds the **root** release-please
+slot (see below and [ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md)),
+so the root `package.json` version tracks the npm package, not the extension.
 
 The flow has two phases, both automated:
 
@@ -33,37 +35,85 @@ The flow has two phases, both automated:
 
 ### How commits are routed
 
-release-please assigns each commit to the package whose path is the **longest
-prefix** of its changed files. Commits under `apps/intellij-plugin/**` go to the
-`intellij` line, commits under `packages/bpmn-modeler/**` go to the `npm` line,
-and everything else falls through to the `vscode` catch-all (whose
-`exclude-paths` lists `packages`, so a package-only change never also bumps
-vscode). So an IntelliJ-only fix never releases VS Code/Standalone, a
-package-only fix releases only npm, and vice versa — keep a commit to one host's
-files to keep it on one line.
+release-please routes each commit purely by its changed file paths, and **only
+the root component (`.`) can watch multiple paths** — it receives every commit
+minus its `exclude-paths`; all other components are single-directory. The root
+slot belongs to the **npm package**, the one artifact where semver correctness
+is a hard requirement and whose sources span `packages/bpmn-modeler` plus 10
+inlined libs. The hosts are single-path components fed by **sync markers** for
+the sources they bundle from elsewhere
+([ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md)).
 
-> **Known gap:** a `packages/bpmn-modeler`-only change releases *only* the npm
-> line. The VS Code extension and the Standalone/IntelliJ hosts bundle the
-> package from source, but there is no `BUNDLED_WEBVIEW`-style marker tying that
-> coupling back to their lines, so they ship the change only on their next
-> otherwise-triggered release. Tracked as a follow-up.
+| Line | Natively watched paths | Bundled sources (marker-covered) | Marker file |
+|---|---|---|---|
+| **npm** (root `.`) | `packages/*`, the 10 inlined libs + remaining root files | — | — |
+| **vscode** (`apps/vscode-plugin`) | `apps/vscode-plugin` only | the four webviews, `apps/standalone`, `libs/modeler-core`, `libs/shared`, `libs/standalone-extension`, the npm-package sphere | `apps/vscode-plugin/BUNDLED_WEBVIEW` |
+| **intellij** (`apps/intellij-plugin`) | `apps/intellij-plugin` only | `apps/bpmn-webview`, `apps/deployment-webview`, `apps/modeler-bridge`, `libs/modeler-core`, `libs/shared`, the npm-package sphere | `apps/intellij-plugin/BUNDLED_WEBVIEW` |
 
-### Shared frontend → IntelliJ
+The 10 inlined libs (with `packages/bpmn-modeler`, the "npm-package sphere" —
+see `INLINED_LIBS` in `packages/bpmn-modeler/vite.config.mts`):
+`libs/modeler-types`, `libs/bpmn-diff`, `libs/bpmn-clipboard`,
+`libs/bpmn-i18n-extras`, `libs/element-template-chooser`, `libs/append-menu`,
+`libs/model-navigation`, `libs/code-link`, `libs/inline-scripting`,
+`libs/flow-navigation`. `libs/modeler-core` and `libs/shared` are host-side
+(never inlined into the npm package) and are excluded from the root along with
+`libs/standalone-extension` — they reach the hosts via markers.
 
-The IntelliJ plugin **bundles** the bpmn-webview, deployment-webview,
-modeler-bridge and shared libs at build time. Because that coupling lives in no
-package manifest, a shared-frontend fix routes to the `vscode` line only.
-[`sync-intellij-webview.yml`](../../../.github/workflows/sync-intellij-webview.yml)
-closes the gap: when a bundled source lands on `main`, it records the commit in
-`apps/intellij-plugin/BUNDLED_WEBVIEW` and commits it as `fix(intellij): …`,
-which routes to the `intellij` line and guarantees a matching release.
+**Unwatched by everyone** — `apps/demo-webapp`, `docs`, `.github` and all
+repo-root tooling files (`yarn.lock`, `package.json`, `tsconfig.base.json`,
+`README.md`, …). Tooling and demo churn never releases anything. The root
+component is a blocklist (`exclude-paths` has no globs), so **a newly added
+root-level file or directory must also be added to `exclude-paths`** in
+`release-please-config.json` — otherwise commits touching it start feeding the
+npm release line.
+
+### Sync markers
+
+[`sync-release-markers.yml`](../../../.github/workflows/sync-release-markers.yml)
+maintains the two host markers. When a bundled source lands on `main`, it
+commits the relevant marker(s) as `fix(vscode): sync bundled sources` /
+`fix(intellij): sync bundled webview`, which routes to that host's line and
+guarantees a matching release. Key properties:
+
+- **Markers are always a patch bump**, decoupled from the underlying commit's
+  severity. A shared-source `!` change still lands as a *patch* on hosts that
+  merely bundle it. This is the deliberate trade-off recorded in
+  [ADR 0014](../../adr/0014-make-bpmn-modeler-the-root-release-component.md):
+  a host a change genuinely breaks must touch that host's **own** directory
+  (see "Signalling severity" below).
+- **At most one marker per host per release cycle.** Once a marker is pending
+  (changed since that host's last tag), further pushes skip it — the open
+  release PR already carries the bump, so each changelog shows a single "sync"
+  line per release.
+- **A host skips its marker when the push already routes natively** (the push
+  touched the host's own directory), so no double-bump.
+- Neither marker file sits under a workflow trigger path, so a marker push
+  cannot cascade into more markers.
+- **`workflow_dispatch`** seeds a marker manually (no `BEFORE` to diff, so it
+  relies on the pending / same-sha guards).
+
+### Signalling severity
+
+Because a marker is always a patch, **let a `!` PR touch exactly the lines it
+actually breaks** — the squashed PR's changed files decide who bumps and how:
+
+- **Breaks npm-package consumers** → the PR touches `packages/bpmn-modeler`
+  and/or its inlined libs → the npm line majors automatically; hosts get patch
+  markers.
+- **Breaks vscode users** (removed setting/command, changed behaviour) → the
+  change touches `apps/vscode-plugin` → `!` majors vscode automatically. Same
+  for intellij and `apps/intellij-plugin`.
+- **Breaks both** → touch both in one `!` PR → both major.
+- **Mismatched severities in one PR** → split into two PRs, or force the
+  intended bump with a `Release-As: x.0.0` footer commit touching that line's
+  path.
 
 ## Pipeline flow
 
 ```mermaid
 flowchart LR
     commits([Conventional commits on main])
-    sync[sync-intellij-webview.yml<br/>marks IntelliJ on bundled-source change]
+    sync[sync-release-markers.yml<br/>marks each host on bundled-source change]
     rp[release-please.yml<br/>one Release PR per line]
     pr_v{{vscode Release PR}}
     pr_i{{intellij Release PR}}
@@ -96,21 +146,26 @@ flowchart LR
 release-please is driven by two checked-in files:
 
 - **`release-please-config.json`** — three packages, `separate-pull-requests: true`:
-  - `"."` — `release-type: node`, `component: vscode`, `include-component-in-tag: true`
-    → tag `vscode-v<version>`. `extra-files` stamp the three host version files
-    (`apps/vscode-plugin/package.json`, `apps/standalone/package.json`,
-    `libs/standalone-extension/package.json`) via the `json` updater.
+  - `"."` — `release-type: node`, `component: bpmn-modeler`,
+    `include-component-in-tag: true` → tag `bpmn-modeler-v<version>`. The root
+    catch-all: `exclude-paths` removes `apps`, `docs`, `.github` and the
+    host-side libs, leaving the npm-package sphere. `changelog-path` keeps the
+    changelog at `packages/bpmn-modeler/CHANGELOG.md`; an `extra-files` entry
+    stamps `packages/bpmn-modeler/package.json` (the root `package.json` is
+    bumped natively and tracks the same version).
+  - `"apps/vscode-plugin"` — `release-type: node`, `component: vscode`,
+    `include-component-in-tag: true` → tag `vscode-v<version>`. Bumps its own
+    `package.json` + `CHANGELOG.md`; `extra-files` with a leading `/`
+    (repo-root-relative) stamp `apps/standalone/package.json` and
+    `libs/standalone-extension/package.json` to keep the lockstep version.
   - `"apps/intellij-plugin"` — `release-type: simple`, `component: intellij`,
     `include-component-in-tag: true` → tag `intellij-v<version>`. Its `extra-files`
     stamp `gradle.properties` (`pluginVersion`) via the `generic` updater,
     anchored by the `# x-release-please-start-version` markers.
-  - `"packages/bpmn-modeler"` — `release-type: node`, `component: bpmn-modeler`,
-    `include-component-in-tag: true` → tag `bpmn-modeler-v<version>`. Bumps the
-    package's own `package.json` and maintains its own `CHANGELOG.md`.
   - `changelog-sections` map commit **types** (`feat`/`fix`/`refactor`/`docs`/
     `chore`) to changelog headings.
-- **`.release-please-manifest.json`** — `{ ".": "…", "apps/intellij-plugin": "…",
-  "packages/bpmn-modeler": "…" }`, the current version of each line.
+- **`.release-please-manifest.json`** — `{ ".": "…", "apps/vscode-plugin": "…",
+  "apps/intellij-plugin": "…" }`, the current version of each line.
   release-please updates these on each release.
 
 ## Releasing
@@ -118,8 +173,8 @@ release-please is driven by two checked-in files:
 ### 1. Cut the release (prepare)
 
 1. Merge your feature/fix PRs into `main` with Conventional-Commit messages.
-   Use `fix(intellij): …` for IntelliJ-only fixes so they land on the IntelliJ
-   line; anything else lands on the `vscode` line.
+   The changed file paths — not the commit scope — decide which line(s) a PR
+   lands on (see "How commits are routed" above).
 2. release-please opens/updates a **Release PR** per affected line
    (`chore(main): release <component> <version>`). Review the version + changelog.
 3. **Merge the Release PR.** It pushes the version bumps, tags the line
