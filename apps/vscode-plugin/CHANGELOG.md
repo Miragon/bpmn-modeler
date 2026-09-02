@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.11.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.10.0...vscode-v1.11.0) (2026-09-02)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** add readonly createViewer() on /viewer subpath ([#1433](https://github.com/Miragon/bpmn-modeler/issues/1433)) [sync 03d6c6b] ([f36fcda](https://github.com/Miragon/bpmn-modeler/commit/f36fcda5bc63bcb5673de6ed1f270ef90b9f8830))
+* **bpmn-modeler:** theme per instance via data-bpmn-theme attribute ([#1429](https://github.com/Miragon/bpmn-modeler/issues/1429)) ([35011ef](https://github.com/Miragon/bpmn-modeler/commit/35011ef81df19b5cdef29eef2835f6acbe1086ea))
+* **bpmn-webview:** add a public diff api to @miragon/bpmn-modeler ([#1396](https://github.com/Miragon/bpmn-modeler/issues/1396)) ([473f813](https://github.com/Miragon/bpmn-modeler/commit/473f8137418b9d608c1a099334280fc6051356de))
+* **bpmn-webview:** add linting tiers with lazy in-page bpmnlint ([#1385](https://github.com/Miragon/bpmn-modeler/issues/1385)) ([903d074](https://github.com/Miragon/bpmn-modeler/commit/903d074d6721f77bf6bd8be85b905bd8d19a69bf))
+* **bpmn-webview:** extract the host-free modeler into @miragon/bpmn-modeler ([#1393](https://github.com/Miragon/bpmn-modeler/issues/1393)) ([e8f9c0e](https://github.com/Miragon/bpmn-modeler/commit/e8f9c0e1caeeffbacd833ed94cf68d91c2b9f185))
+* **editor:** move the default lint path in-page for hosted sessions ([#1389](https://github.com/Miragon/bpmn-modeler/issues/1389)) ([baf506a](https://github.com/Miragon/bpmn-modeler/commit/baf506acc657f9e24fa0bf0e45072edb6d8a1a8b))
+* **editor:** run workspace .bpmnlintrc in-page, escalate on unresolved rules ([#1391](https://github.com/Miragon/bpmn-modeler/issues/1391)) ([2e547cf](https://github.com/Miragon/bpmn-modeler/commit/2e547cfb084899d2ef99738c8d3252c77a8a4483))
+* **form-editor:** display form input and output values ([#1432](https://github.com/Miragon/bpmn-modeler/issues/1432)) ([92a1cb6](https://github.com/Miragon/bpmn-modeler/commit/92a1cb658e7a1c7aecbc1f11adf35a2b48f77947))
+* form-io editor ([#1363](https://github.com/Miragon/bpmn-modeler/issues/1363)) ([9c079e0](https://github.com/Miragon/bpmn-modeler/commit/9c079e0d980aa94b93d907083db5d92a06c3f822))
+
+
+### 🐞 Bug Fixes
+
+* **dmn-webview:** theme the simulation controls for dark mode ([#1434](https://github.com/Miragon/bpmn-modeler/issues/1434)) [sync c7ad290] ([ba8a783](https://github.com/Miragon/bpmn-modeler/commit/ba8a7839e96ff832aeb0eff60fdba22f539b7b02))
+* sync bundled sources (8c8014e) ([44c2d33](https://github.com/Miragon/bpmn-modeler/commit/44c2d33724b72438edbc0660a93aa5606ee65d77))
+
+
+### 🔨 Refactoring
+
+* **bpmn-webview:** replace vsCodeBridge with per-feature capability ports ([#1380](https://github.com/Miragon/bpmn-modeler/issues/1380)) ([3141f94](https://github.com/Miragon/bpmn-modeler/commit/3141f94a393a72cd4aa5ee521fbe1c1c27ddcaf8))
+* **shared:** split public modeler types from the host protocol ([#1381](https://github.com/Miragon/bpmn-modeler/issues/1381)) ([6c64396](https://github.com/Miragon/bpmn-modeler/commit/6c6439609fc191946254a752a0503db028d0df31))
+
+
+### 📔 Documentation
+
+* **bpmn-modeler:** clean up extraction-era comments ([#1400](https://github.com/Miragon/bpmn-modeler/issues/1400)) ([a8db080](https://github.com/Miragon/bpmn-modeler/commit/a8db0805c8744f522de9e9bb020dec0f6a39a5fb))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the npm-minor-patch group across 1 directory with 29 updates ([#1414](https://github.com/Miragon/bpmn-modeler/issues/1414)) ([2dd39d3](https://github.com/Miragon/bpmn-modeler/commit/2dd39d3e9d590a51a4ce1572d22523f82548cf0d))
+* **release:** make bpmn-modeler the root release component ([#1431](https://github.com/Miragon/bpmn-modeler/issues/1431)) ([719127d](https://github.com/Miragon/bpmn-modeler/commit/719127d2798e993b90e490b8f03bafea18968678))
+
 ## [1.10.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.9.0...vscode-v1.10.0) (2026-08-25)
 
 
