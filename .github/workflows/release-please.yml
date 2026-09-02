@@ -1,8 +1,10 @@
 name: Release Please
 
-# Three release lines (see release-please-config.json): "." (vscode),
-# "apps/intellij-plugin" (intellij) and "packages/bpmn-modeler" (npm), each with
-# its own Release PR, tag and publish jobs.
+# Three release lines (see release-please-config.json): "." (the publishable
+# @miragon/bpmn-modeler npm package — the root component, so it watches the
+# package plus its inlined libs), "apps/vscode-plugin" (vscode) and
+# "apps/intellij-plugin" (intellij), each with its own Release PR, tag and
+# publish jobs. Root outputs are unprefixed; sub-packages are prefixed by path.
 
 on:
   push:
@@ -22,13 +24,13 @@ jobs:
     name: Maintain release PR
     runs-on: ubuntu-latest
     outputs:
-      vscode_released: ${{ steps.release.outputs.release_created }}
-      vscode_tag: ${{ steps.release.outputs.tag_name }}
-      vscode_version: ${{ steps.release.outputs.version }}
+      vscode_released: ${{ steps.release.outputs['apps/vscode-plugin--release_created'] }}
+      vscode_tag: ${{ steps.release.outputs['apps/vscode-plugin--tag_name'] }}
+      vscode_version: ${{ steps.release.outputs['apps/vscode-plugin--version'] }}
       intellij_released: ${{ steps.release.outputs['apps/intellij-plugin--release_created'] }}
       intellij_tag: ${{ steps.release.outputs['apps/intellij-plugin--tag_name'] }}
-      npm_released: ${{ steps.release.outputs['packages/bpmn-modeler--release_created'] }}
-      npm_tag: ${{ steps.release.outputs['packages/bpmn-modeler--tag_name'] }}
+      npm_released: ${{ steps.release.outputs.release_created }}
+      npm_tag: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
