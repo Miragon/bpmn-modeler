@@ -15,6 +15,7 @@ import type {
     ThemeMode,
 } from "./publicApi";
 import type { BpmnViewerHandle, CoreViewerServices, ViewerOptions } from "./viewer/publicApi";
+import type { BpmnDesignerHandle, CoreDesignerServices, DesignerOptions } from "./design/publicApi";
 
 // A minimal stub of the injected `@miragon/bpmn-modeler/lint` namespace. The
 // on-tiers below all require a `module`, so migration failures are compile-time.
@@ -288,6 +289,68 @@ const _viewerHasNoEditing = (v: BpmnViewerHandle) => {
     void v.setElementTemplates;
 };
 void _viewerHasNoEditing;
+
+// ── Designer subpath conformance (#1196) ────────────────────────────────────
+
+// Subset compatibility: every BpmnDesignerHandle member is signature-identical
+// to its BpmnModelerHandle counterpart, so a modeler handle narrows to a designer
+// handle with no adapter. If a designer member drifts from the modeler's shape,
+// this line stops compiling.
+const _modelerSatisfiesDesignerHandle = (m: BpmnModelerHandle): BpmnDesignerHandle => m;
+void _modelerSatisfiesDesignerHandle;
+
+// Design mode is fully editable, so CoreDesignerServices is the full
+// CoreModelerServices set (not the viewer's readonly Pick): each of the seven
+// keys resolves to its exact vendor type, including modeling + commandStack.
+const _coreDesignerServices = (d: BpmnDesignerHandle) => {
+    const canvas: CoreModelerServices["canvas"] = d.getService("canvas");
+    const commandStack: CoreModelerServices["commandStack"] = d.getService("commandStack");
+    const modeling: CoreModelerServices["modeling"] = d.getService("modeling");
+    void [canvas, commandStack, modeling];
+};
+void _coreDesignerServices;
+
+type _DesignerServicesEqualModeler = keyof CoreDesignerServices extends keyof CoreModelerServices
+    ? keyof CoreModelerServices extends keyof CoreDesignerServices
+        ? true
+        : never
+    : never;
+const _designerServicesEqual: _DesignerServicesEqualModeler = true;
+void _designerServicesEqual;
+
+// DesignerOptions requires the panel host and accepts the engine-neutral knobs.
+const _designerOptions = {
+    propertiesPanel: { parent: document.createElement("div") },
+    theme: "dark",
+    locale: "de",
+    favouriteBpmnElements: ["bpmn:Task"],
+    moddleExtensions: {
+        bpmiq: { name: "bpmiq", uri: "http://bpmiq/schema", prefix: "bpmiq", types: [] },
+    },
+    additionalModules: [{ __init__: [] }],
+} satisfies DesignerOptions;
+void _designerOptions;
+
+const _designerRejectsEngine = {
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — Design mode has no engine (no execution platform to bind).
+    engine: "c7",
+} satisfies DesignerOptions;
+void _designerRejectsEngine;
+
+const _designerRejectsLinting = {
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — linting is an engine-bound built-in, absent from the designer.
+    linting: false,
+} satisfies DesignerOptions;
+void _designerRejectsLinting;
+
+const _designerRejectsElementTemplates = {
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — element templates are engine-bound, absent from the designer.
+    elementTemplates: [],
+} satisfies DesignerOptions;
+void _designerRejectsElementTemplates;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {

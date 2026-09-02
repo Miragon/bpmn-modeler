@@ -43,8 +43,10 @@ const SUBPATHS = [
     "./diff",
     "./lint",
     "./viewer",
+    "./design",
     "./styles.css",
     "./viewer.css",
+    "./design.css",
     "./light-theme.css",
     "./dark-theme.css",
 ];

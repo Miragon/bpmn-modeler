@@ -6,11 +6,12 @@ export interface DemoHeaderLinks {
     docs: string;
 }
 
-// The demo has three views: the single-model modeler (bpmn/dmn), the two-pane
-// diff, and the readonly viewer. `"diff"` and `"viewer"` are not `ModelType`s —
-// they have no active model — so the model dropdown is hidden there; the view
-// switcher is how users cross between them.
-export type DemoPage = ModelType | "diff" | "viewer";
+// The demo has four views: the single-model modeler (bpmn/dmn), the two-pane
+// diff, the readonly viewer, and the engine-neutral design surface. `"diff"`,
+// `"viewer"`, and `"design"` are not `ModelType`s — they have no active model —
+// so the model dropdown is hidden there; the view switcher is how users cross
+// between them.
+export type DemoPage = ModelType | "diff" | "viewer" | "design";
 
 // The header's single theme control. `"automatic"` follows the OS
 // `prefers-color-scheme`; `"light"`/`"dark"` force a fixed choice.
@@ -82,6 +83,7 @@ function applyDemoTheme(mode: DemoThemeMode): void {
 
 const DIFF_HREF = "/bpmn/diff.html";
 const VIEWER_HREF = "/bpmn/viewer.html";
+const DESIGN_HREF = "/bpmn/design.html";
 
 // Where the "Modeler" view link points from the diff page — the first bpmn model.
 const DEFAULT_MODELER_HREF = modelHref(MODELS.find((m) => m.type === "bpmn") ?? MODELS[0]);
@@ -103,9 +105,10 @@ export function mountDemoHeader(
     const l = { ...DEFAULT_LINKS, ...links };
     const isDiff = page === "diff";
     const isViewer = page === "viewer";
-    // The diff/viewer views have no active model; their "Modeler" link falls
-    // back to the default bpmn model so users always land somewhere sensible.
-    const noModel = isDiff || isViewer;
+    const isDesign = page === "design";
+    // The diff/viewer/design views have no active model; their "Modeler" link
+    // falls back to the default bpmn model so users always land somewhere sensible.
+    const noModel = isDiff || isViewer || isDesign;
     const modelerHref = noModel ? DEFAULT_MODELER_HREF : modelHref(getActiveModel(page));
 
     const style = document.createElement("style");
@@ -264,6 +267,7 @@ export function mountDemoHeader(
             <a href="${modelerHref}"${noModel ? "" : activeAttr}>Modeler</a>
             <a href="${DIFF_HREF}"${isDiff ? activeAttr : ""}>Diff</a>
             <a href="${VIEWER_HREF}"${isViewer ? activeAttr : ""}>Viewer</a>
+            <a href="${DESIGN_HREF}"${isDesign ? activeAttr : ""}>Design</a>
         </nav>`;
 
     const header = document.createElement("header");

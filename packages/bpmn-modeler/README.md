@@ -350,6 +350,96 @@ Not supported in v1: the viewer has no translatable UI, and honoring `locale`
 would pull the i18n dictionaries into the lean graph. It is additive later
 (non-breaking).
 
+## Design mode
+
+`@miragon/bpmn-modeler/design` is an **engine-neutral, editable** surface for
+documentation and conceptual modelling. It wraps the base bpmn-js `Modeler`
+(palette, context pad, modelling, copy-paste, keyboard, search) plus an
+engine-neutral properties panel (general / documentation groups only), a minimap,
+and the neutral UX modules (translate, append menu, flow navigation). It loads
+**none** of the Camunda editor stack — no camunda-bpmn-js, element templates, token
+simulation, transaction boundaries, or lint — so it never carries an execution
+platform.
+
+Three surfaces close the feature matrix:
+
+| Surface | Entry | Editable | Engine | Properties panel |
+| --- | --- | --- | --- | --- |
+| Modeler | `@miragon/bpmn-modeler` | yes | Camunda 7 / 8 | engine-bound |
+| Design | `@miragon/bpmn-modeler/design` | yes | none | plain BPMN |
+| Viewer | `@miragon/bpmn-modeler/viewer` | no | — | none |
+
+### Mode-marker semantics
+
+The marker is the **absence of `modeler:executionPlatform`** on
+`bpmn:Definitions`. Route with the exported `detectEngine(xml)`: `undefined` ⇒
+Design (editable), a detected engine ⇒ Implement (`createModeler`). Fallback for
+undetected XML is *editable Design*, not readonly. Switching modes is a host
+concern — stamp or strip the execution platform on the XML, `destroy()` the
+instance, and stand up the other factory. The stamp/strip conversion helpers are
+deferred to a follow-up (ADR 0016); `detectEngine` already covers routing.
+
+```ts
+import { createDesigner, detectEngine } from "@miragon/bpmn-modeler/design";
+import "@miragon/bpmn-modeler/design.css"; // the design surface's own stylesheet
+
+const designer = await createDesigner(document.querySelector("#canvas")!, {
+    propertiesPanel: { parent: document.querySelector("#panel")! },
+    theme: "automatic",
+});
+await designer.loadDiagram(bpmnXml); // detectEngine(bpmnXml) === undefined
+
+designer.getService("commandStack"); // editable: modelling services are present
+```
+
+### `DesignerOptions`
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `propertiesPanel` | `{ parent: HTMLElement }` | — (required) | The panel host, as in `createModeler`. Shows only the general / documentation groups. |
+| `theme` | `"light" \| "dark" \| "automatic"` | `"automatic"` | Colour theme; toggles a per-instance `data-bpmn-theme` attribute. |
+| `locale` | `string` | `"en"` | UI locale — Design mode has translatable UI (unlike the viewer). |
+| `favouriteBpmnElements` | `string[]` | — | Element types offered first in the append/create menu. |
+| `clipboard` | `ClipboardOptions` | native | Clipboard override for sandboxed hosts. |
+| `moddleExtensions` | `Record<string, object>` | — | Extra moddle extensions for a host's own BPMN namespace. |
+| `additionalModules` | `unknown[]` | — | Escape hatch: extra bpmn-js DI modules. |
+| `onContentSaved` | `(e: ContentSavedEvent) => void` | — | Debounced diagram content (300 ms / 1000 ms maxWait). |
+
+There is no `engine`, `linting`, `elementTemplates`, `settings`, or
+`capabilities` — each is engine-bound and rejected at compile time.
+
+### `BpmnDesignerHandle`
+
+`loadDiagram`, `exportDiagram`, `newDiagram`, `getDiagramSvg`, `viewport`,
+`selection`, `setTheme`, `getService`, and `destroy` — each
+**signature-identical** to its `BpmnModelerHandle` counterpart, so a modeler
+handle narrows to a designer handle with no adapter. `getService` is typed
+against `CoreDesignerServices`, which equals the full
+[core services](#core-services--escape-hatch) set (`modeling` and `commandStack`
+included) — the surface is editable by construction. `newDiagram()` uses the
+base bpmn-js template, which carries **no** `modeler:executionPlatform`, so a
+fresh diagram stays in Design mode.
+
+### Guaranteed absent from the module graph
+
+`camunda-bpmn-js`, `camunda-bpmn-moddle` / `zeebe-bpmn-moddle`,
+`camunda-bpmn-js-behaviors`, `camunda-transaction-boundaries`,
+`bpmn-js-token-simulation`, `bpmn-js-element-templates`,
+`@miragon/create-append-c7`, `minisearch`, and the lint stack (`bpmnlint` /
+`bpmn-js-bpmnlint` / `@miragon/bpmnlint-plugin-rules`). A build-time gate
+(`scripts/check-design-pure-entry.mjs`) fails the build if any reappears. Unlike
+`/viewer`, `preact` and CodeMirror (`@codemirror/*`) **are** present (legitimate
+dependencies of the engine-neutral properties panel), as is `diagram-js-minimap`
+(the engine-neutral minimap, a direct dependency of the package).
+
+### Theming & stylesheet
+
+Load **`@miragon/bpmn-modeler/design.css`**, not `styles.css`: the design sheet
+carries the bpmn-js base diagram/font CSS, the engine-neutral panel and
+append-menu chrome, the minimap, and the canvas focus indicator, plus the
+dark-theme overrides — none of the Camunda editor chrome. The two overlap, so do **not**
+load both on a design-only page.
+
 ## Lint
 
 `@miragon/bpmn-modeler/lint` is the injectable lint stack (`bpmn-js-bpmnlint`,
