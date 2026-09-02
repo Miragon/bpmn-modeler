@@ -174,6 +174,44 @@ describe("bpmn-modeler import direction", () => {
         ).toEqual([]);
     });
 
+    it("the viewer subpath + its shared helpers value-import only the lean set (#1405)", () => {
+        // The `/viewer` subpath must stay lean at the module-graph level: its
+        // sources — and the helpers they reuse — may value-import only bpmn-js,
+        // diagram-js, `@miragon/bpmn-modeler-types`, or relatives. A value import
+        // of the editor stack (camunda-bpmn-js, properties-panel, preact, …)
+        // here is exactly what a single-file bundler would inline into a
+        // viewer-only consumer. `import type` stays fine. The runtime graph is
+        // gated separately by `scripts/check-viewer-pure-entry.mjs`.
+        const VIEWER_DIR = join(PKG_SRC, "viewer");
+        const SHARED_HELPERS = new Set(
+            ["viewport.ts", "selection.ts", "theme.ts", "elementGeometry.ts"].map((f) =>
+                join(PKG_SRC, f),
+            ),
+        );
+        const isAllowed = (spec: string): boolean =>
+            spec.startsWith(".") ||
+            spec === "bpmn-js" ||
+            spec.startsWith("bpmn-js/") ||
+            spec === "diagram-js" ||
+            spec.startsWith("diagram-js/") ||
+            spec === "@miragon/bpmn-modeler-types";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!file.startsWith(VIEWER_DIR) && !SHARED_HELPERS.has(file)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (!isAllowed(spec)) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the viewer subpath must stay lean — value-import only bpmn-js/*, ` +
+                `diagram-js/*, @miragon/bpmn-modeler-types, or relatives ` +
+                `(use \`import type\` for anything else):\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
     it("no libs/* source imports @miragon/bpmn-modeler", () => {
         const offenders: string[] = [];
         for (const file of listSourceFiles(LIBS_ROOT)) {

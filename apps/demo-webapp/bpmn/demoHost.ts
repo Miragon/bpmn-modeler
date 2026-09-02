@@ -49,7 +49,10 @@ export class BpmnDemoHost extends MockHostApi<WebviewState, MessageType> {
                     new BpmnModelerSettingQuery({
                         alignToOrigin: false,
                         showTransactionBoundaries: true,
-                        colorTheme: "light",
+                        // "automatic" keeps the host theme adapter's body-class
+                        // MutationObserver alive so the shared demo header's theme
+                        // switch reaches the modeler instance.
+                        colorTheme: "automatic",
                     }),
                 );
                 break;

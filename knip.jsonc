@@ -43,14 +43,19 @@
         "apps/demo-webapp": {
             // dual.ts / diff.ts are reached only via their .html files, which the
             // vite plugin does not walk (single-mode root), so list them.
-            "entry": ["dmn/main.ts", "bpmn/dual.ts", "bpmn/diff.ts"]
+            "entry": ["dmn/main.ts", "bpmn/dual.ts", "bpmn/diff.ts", "bpmn/viewer.ts"]
         },
         "packages/bpmn-modeler": {
             // `src/bpmnlint/index.ts` is the public `@miragon/bpmn-modeler/lint`
             // subpath entry a host injects (#1407) and `src/diff/index.ts` the
             // public `./diff` subpath (both in package.json exports), so their
             // exports are API — list them so knip does not read them as unused.
-            "entry": ["src/index.ts", "src/bpmnlint/index.ts", "src/diff/index.ts"],
+            "entry": [
+                "src/index.ts",
+                "src/bpmnlint/index.ts",
+                "src/diff/index.ts",
+                "src/viewer/index.ts"
+            ],
             // minisearch (via model-navigation), lodash (via modeler-types'
             // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)
             // are pulled in only through inlined workspace libs; the Vite lib

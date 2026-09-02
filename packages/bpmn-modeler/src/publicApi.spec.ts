@@ -14,6 +14,7 @@ import type {
     StableModelerSurface,
     ThemeMode,
 } from "./publicApi";
+import type { BpmnViewerHandle, CoreViewerServices, ViewerOptions } from "./viewer/publicApi";
 
 // A minimal stub of the injected `@miragon/bpmn-modeler/lint` namespace. The
 // on-tiers below all require a `module`, so migration failures are compile-time.
@@ -229,6 +230,64 @@ const _escapeHatch = (m: BpmnModelerHandle) => {
     void [custom, untyped];
 };
 void _escapeHatch;
+
+// ── Viewer subpath conformance (#1405) ──────────────────────────────────────
+
+// Subset compatibility (acceptance criterion): every BpmnViewerHandle member is
+// signature-identical to its BpmnModelerHandle counterpart, so a modeler handle
+// narrows to a viewer handle with no adapter. If a viewer member drifts from the
+// modeler's shape, this line stops compiling.
+const _modelerSatisfiesViewerHandle = (m: BpmnModelerHandle): BpmnViewerHandle => m;
+void _modelerSatisfiesViewerHandle;
+
+// CoreViewerServices is the readonly Pick of CoreModelerServices: each shared key
+// keeps its exact vendor type, and the editing keys are absent.
+const _coreViewerServices = (v: BpmnViewerHandle) => {
+    const canvas: CoreModelerServices["canvas"] = v.getService("canvas");
+    const elementRegistry: CoreModelerServices["elementRegistry"] = v.getService("elementRegistry");
+    const eventBus: CoreModelerServices["eventBus"] = v.getService("eventBus");
+    const overlays: CoreModelerServices["overlays"] = v.getService("overlays");
+    const selection: CoreModelerServices["selection"] = v.getService("selection");
+    void [canvas, elementRegistry, eventBus, overlays, selection];
+};
+void _coreViewerServices;
+
+type _ViewerServicesAreModelerSubset = keyof CoreViewerServices extends keyof CoreModelerServices
+    ? true
+    : never;
+const _viewerServicesSubset: _ViewerServicesAreModelerSubset = true;
+void _viewerServicesSubset;
+
+// ViewerOptions is minimal: no engine, no editor-only built-ins.
+const _viewerOptions = {
+    theme: "dark",
+    moddleExtensions: {
+        bpmiq: { name: "bpmiq", uri: "http://bpmiq/schema", prefix: "bpmiq", types: [] },
+    },
+    additionalModules: [{ __init__: [] }],
+} satisfies ViewerOptions;
+void _viewerOptions;
+
+const _viewerRejectsEngine = {
+    // @ts-expect-error — a viewer has no engine (bpmn-js's base viewer reads any BPMN).
+    engine: "c7",
+} satisfies ViewerOptions;
+void _viewerRejectsEngine;
+
+const _viewerRejectsLinting = {
+    // @ts-expect-error — linting is an editor-only built-in, absent from the viewer.
+    linting: false,
+} satisfies ViewerOptions;
+void _viewerRejectsLinting;
+
+// The viewer handle carries no editing methods.
+const _viewerHasNoEditing = (v: BpmnViewerHandle) => {
+    // @ts-expect-error — `newDiagram` is a modeler-only method.
+    void v.newDiagram;
+    // @ts-expect-error — `setElementTemplates` is a modeler-only method.
+    void v.setElementTemplates;
+};
+void _viewerHasNoEditing;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {

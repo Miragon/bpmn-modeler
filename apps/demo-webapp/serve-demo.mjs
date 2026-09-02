@@ -95,5 +95,6 @@ server.listen(port, host, () => {
     console.log(`\n  Miragon Modeler demo → ${base}/`);
     console.log(`  BPMN: ${base}/bpmn/?model=newsletter`);
     console.log(`  DMN:  ${base}/dmn/?model=categorize-applicant`);
-    console.log(`  Diff: ${base}/bpmn/diff.html\n`);
+    console.log(`  Diff: ${base}/bpmn/diff.html`);
+    console.log(`  Viewer: ${base}/bpmn/viewer.html\n`);
 });

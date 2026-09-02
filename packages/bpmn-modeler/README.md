@@ -284,6 +284,72 @@ viewport subscriptions and `viewer.destroy()` to tear each pane down.
 flow-order heuristics that decide *where* an id sorts are not — they may change
 without a major bump.
 
+## Viewer
+
+`@miragon/bpmn-modeler/viewer` is a lean, **readonly** surface for view-only
+permissions and embedded previews. It wraps bpmn-js's `NavigatedViewer` (mouse +
+keyboard pan/zoom) plus the selection outline — and nothing else. The editor
+stack (camunda-bpmn-js, properties panel / preact, CodeMirror, token simulation,
+lint, i18n) is **guaranteed absent from its module graph**, so it survives
+single-file bundlers that inline everything reachable.
+
+```ts
+import { createViewer } from "@miragon/bpmn-modeler/viewer";
+import "@miragon/bpmn-modeler/viewer.css"; // the viewer's own lean stylesheet
+
+const viewer = await createViewer(document.querySelector("#canvas")!, {
+    theme: "automatic",
+});
+await viewer.loadDiagram(bpmnXml);
+
+viewer.selection.onSelectionChanged((ids) => console.log("selected", ids));
+```
+
+### `ViewerOptions`
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `theme` | `"light" \| "dark" \| "automatic"` | `"automatic"` | Colour theme; toggles a per-instance `data-bpmn-theme` attribute (same mechanism as the modeler). |
+| `moddleExtensions` | `Record<string, object>` | — | Extra moddle extensions for a host's own BPMN namespace. |
+| `additionalModules` | `unknown[]` | — | Escape hatch: extra render-only bpmn-js DI modules. |
+
+### `BpmnViewerHandle`
+
+`loadDiagram`, `exportDiagram`, `getDiagramSvg`, `viewport`, `selection`,
+`setTheme`, `getService`, and `destroy` — each **signature-identical** to its
+`BpmnModelerHandle` counterpart, so a modeler handle narrows to a viewer handle
+with no adapter (a compile-time acceptance criterion). There is no `newDiagram`,
+`setElementTemplates`, `setSettings`, linting, clipboard, capabilities, or
+events.
+
+`getService` is typed against `CoreViewerServices` — the readonly `Pick` of the
+[core services](#core-services--escape-hatch): `canvas`, `elementRegistry`,
+`eventBus`, `overlays`, `selection`. The editing services (`modeling`,
+`commandStack`) are **not registered** on a viewer, so resolving one throws —
+the surface is readonly by construction, not by convention.
+
+### Guaranteed absent from the module graph
+
+`camunda-bpmn-js`, `bpmn-js-properties-panel`, `@bpmn-io/properties-panel`,
+`preact`, `codemirror` / `@codemirror/*`, `bpmnlint` / `bpmn-js-bpmnlint`,
+`bpmn-js-token-simulation`, `bpmn-js-create-append-anything`,
+`camunda-transaction-boundaries`, `minisearch`, and
+`@miragon/bpmn-modeler-i18n`. A build-time gate
+(`scripts/check-viewer-pure-entry.mjs`) fails the build if any of them reappears.
+
+### Theming & stylesheet
+
+Load **`@miragon/bpmn-modeler/viewer.css`**, not `styles.css`: the viewer sheet
+carries only the bpmn-js base diagram/font CSS plus the dark-theme diagram
+overrides — none of the editor chrome. The two overlap, so do **not** load both
+on a viewer-only page.
+
+### `locale`
+
+Not supported in v1: the viewer has no translatable UI, and honoring `locale`
+would pull the i18n dictionaries into the lean graph. It is additive later
+(non-breaking).
+
 ## Lint
 
 `@miragon/bpmn-modeler/lint` is the injectable lint stack (`bpmn-js-bpmnlint`,

@@ -94,6 +94,13 @@ export default defineConfig({
                 // so it never lands in a `linting: false` consumer's bundle. Its
                 // CSS still folds into `dist/bpmn-modeler.css` (cssCodeSplit off).
                 lint: resolve(__dirname, "src/bpmnlint/index.ts"),
+                // Readonly viewer subpath (`@miragon/bpmn-modeler/viewer`, #1405):
+                // NavigatedViewer + outline only, none of the editor stack. It
+                // imports no CSS (so `cssCodeSplit: false` cannot fold any into
+                // `dist/bpmn-modeler.css`); its sheet ships as `dist/viewer.css`
+                // via `vite.viewer-css.config.mts`. Purity gated by
+                // `check-viewer-pure-entry.mjs`.
+                viewer: resolve(__dirname, "src/viewer/index.ts"),
             },
             formats: ["es"],
             cssFileName: "bpmn-modeler",

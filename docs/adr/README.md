@@ -58,3 +58,4 @@ contributor-facing record, not user documentation.
 | [0011](0011-stable-core-service-contract.md) | Freeze a typed, semver-covered contract for the seven core bpmn-js services reached via `getService` | accepted |
 | [0012](0012-container-scoped-theming.md) | Container-scoped theming via a per-instance `data-bpmn-theme` attribute; `#theme-link` swap kept as permanent legacy fallback | accepted |
 | [0013](0013-injectable-lint-stack.md) | Injectable lint stack via the `@miragon/bpmn-modeler/lint` subpath; omitted `linting` now means off | accepted |
+| [0014](0014-readonly-viewer-subpath.md) | Readonly `createViewer` via the `@miragon/bpmn-modeler/viewer` subpath: NavigatedViewer + outline, `Pick`'d services, scope-preserving `viewer.css`, `locale` omitted | accepted |
