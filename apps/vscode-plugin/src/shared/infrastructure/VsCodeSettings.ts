@@ -55,6 +55,18 @@ export class VsCodeSettings implements SettingsPort {
             .get<string[]>("favouriteBpmnElements", []);
     }
 
+    /**
+     * Whether tasks, call activities and collapsed sub-processes get resize
+     * handles. Defaults to `false`: bpmn-js deliberately fixes those shapes, so
+     * the handles are opt-in for people who lay diagrams out by hand.
+     */
+    getResizableActivities(): boolean {
+        return (
+            workspace.getConfiguration("miragon.bpmnModeler").get<boolean>("resizableActivities") ??
+            false
+        );
+    }
+
     getLanguage(): string {
         return workspace.getConfiguration("miragon.bpmnModeler").get<string>("language", "en");
     }

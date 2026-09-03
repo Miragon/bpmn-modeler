@@ -510,6 +510,11 @@
                     "default": false,
                     "markdownDescription": "Align the diagram to the origin when opening a new diagram. Click [here](https://github.com/bpmn-io/align-to-origin) to see the behaviour when enabled."
                 },
+                "miragon.bpmnModeler.resizableActivities": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Show resize handles on tasks, call activities and collapsed sub-processes. bpmn-js pins those shapes to 100x80 by default; enable this to size them by hand. BPMN attaches no meaning to element size, so this only affects layout."
+                },
                 "miragon.bpmnModeler.scripting.spin": {
                     "type": "boolean",
                     "default": true,
