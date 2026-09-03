@@ -2,6 +2,7 @@ import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { CoreModelerServices, ThemeMode } from "../publicApi";
 import type { ViewportManager } from "../viewport";
 import type { SelectionManager } from "../selection";
+import type { ViewState } from "../viewState";
 
 /**
  * The public TypeScript surface of `@miragon/bpmn-modeler/viewer`: the readonly
@@ -77,6 +78,20 @@ export interface BpmnViewerHandle {
 
     /** Selection accessor — the viewer's base modules ship visible selection. */
     readonly selection: SelectionManager;
+
+    /**
+     * Snapshot the drill-down plane, viewbox, and selection so they survive an
+     * instance switch — capture here, `destroy()`, create the next instance,
+     * `loadDiagram`, then {@link applyViewState}. See {@link ViewState}.
+     */
+    captureViewState(): ViewState;
+
+    /**
+     * Re-apply a {@link captureViewState} snapshot: plane, viewbox, and
+     * selection are restored root → viewport → selection; a stale plane or
+     * missing element ids degrade gracefully.
+     */
+    applyViewState(state: ViewState): void;
 
     /**
      * Switch the colour theme live. Toggles this instance's `data-bpmn-theme`

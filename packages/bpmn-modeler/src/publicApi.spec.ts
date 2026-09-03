@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import { BpmnModeler } from "./modeler";
+import { BpmnViewer } from "./viewer/viewer";
+import { BpmnDesigner } from "./design/designer";
 import type { CreateModelerOptions } from "./createModeler";
 import type {
     BpmnModelerHandle,
@@ -14,6 +16,7 @@ import type {
     StableModelerSurface,
     ThemeMode,
 } from "./publicApi";
+import type { ViewState } from "./viewState";
 import type { BpmnViewerHandle, CoreViewerServices, ViewerOptions } from "./viewer/publicApi";
 import type { BpmnDesignerHandle, CoreDesignerServices, DesignerOptions } from "./design/publicApi";
 
@@ -37,6 +40,29 @@ const _lintModule: LintModule = { createLintModule: () => ({}) };
 // refactor reshapes one of these members, this line stops compiling.
 const _conformance = (modeler: BpmnModeler): BpmnModelerHandle => modeler;
 void _conformance;
+
+// Class→handle conformance for the viewer and designer too: a forgotten method
+// on either class (e.g. a missing captureViewState) is a compile error here
+// rather than a runtime `undefined` on the handle the factory returns.
+const _viewerConformance = (v: BpmnViewer): BpmnViewerHandle => v;
+void _viewerConformance;
+const _designerConformance = (d: BpmnDesigner): BpmnDesignerHandle => d;
+void _designerConformance;
+
+// The captured view-state shape is frozen: viewport, an optional plane id, and
+// the selection id list. A field drop/rename breaks this literal.
+const _viewState = {
+    viewport: { x: 0, y: 0, width: 100, height: 100 },
+    rootElementId: "SubProcess_1_plane",
+    selectedElementIds: ["Task_1"],
+} satisfies ViewState;
+void _viewState;
+// rootElementId is optional — a top-level-plane snapshot omits it.
+const _viewStateTopLevel = {
+    viewport: { x: 0, y: 0, width: 100, height: 100 },
+    selectedElementIds: [],
+} satisfies ViewState;
+void _viewStateTopLevel;
 
 // Structural sanity check that the frozen stable subset stays a subset of the
 // full handle as the surface grows.

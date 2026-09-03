@@ -49,6 +49,7 @@ export type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 export { ViewportManager } from "./viewport";
 export type { ViewportData } from "./viewport";
 export { SelectionManager } from "./selection";
+export type { ViewState } from "./viewState";
 
 // ── Diff view — moved to `@miragon/bpmn-modeler/viewer` (#1439) ───────────────
 // Local value+type aliases rather than `export … from`: api-extractor attaches a

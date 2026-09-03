@@ -17,6 +17,12 @@ import { installContentEditableClipboardPolyfill } from "../propertiesPanelClipb
 import { ThemeController } from "../theme";
 import { ViewportManager } from "../viewport";
 import { SelectionManager } from "../selection";
+import { RootElementManager } from "../rootElement";
+import {
+    applyViewState as applyViewStateComposition,
+    captureViewState as captureViewStateComposition,
+    type ViewState,
+} from "../viewState";
 import { installKeyboardFocus } from "../keyboardFocus";
 import { installCanvasFocusIndicator } from "../canvasFocusIndicator";
 import type { ThemeMode } from "../publicApi";
@@ -46,6 +52,11 @@ export class BpmnDesigner {
     private _viewport: ViewportManager | undefined;
 
     private _selection: SelectionManager | undefined;
+
+    // Drill-down plane tracking, composed into captureViewState/applyViewState.
+    // Kept private (no public handle getter) — the designer exposes only the
+    // composed view-state methods.
+    private _rootElement: RootElementManager | undefined;
 
     // Per-instance theme controller, created lazily on the first setTheme.
     private themeController?: ThemeController;
@@ -83,6 +94,38 @@ export class BpmnDesigner {
             throw new NoModelerError();
         }
         return this._selection;
+    }
+
+    /**
+     * Snapshots the drill-down plane, viewbox, and selection so they survive an
+     * instance switch (View ↔ Design ↔ Implement) — capture here, `destroy()`,
+     * create the next instance, `loadDiagram`, then {@link applyViewState}. See
+     * {@link ViewState} for the plane/selection degradation rules.
+     */
+    captureViewState(): ViewState {
+        return captureViewStateComposition(this.viewStateManagers());
+    }
+
+    /**
+     * Re-applies a {@link captureViewState} snapshot, restoring plane, viewbox,
+     * and selection in the required root → viewport → selection order.
+     */
+    applyViewState(state: ViewState): void {
+        applyViewStateComposition(this.viewStateManagers(), state);
+    }
+
+    /**
+     * The three managers backing view-state capture/apply. Reading `viewport`
+     * throws {@link NoModelerError} before {@link init}; the root manager is
+     * created and cleared in lockstep with it, so the assertion never fires
+     * after that guard passes.
+     */
+    private viewStateManagers() {
+        return {
+            viewport: this.viewport,
+            selection: this.selection,
+            rootElement: this._rootElement!,
+        };
     }
 
     /**
@@ -147,6 +190,7 @@ export class BpmnDesigner {
         const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
         this._viewport = new ViewportManager(accessor);
         this._selection = new SelectionManager(accessor);
+        this._rootElement = new RootElementManager(accessor);
 
         this.installFocusFeatures();
 
@@ -310,6 +354,7 @@ export class BpmnDesigner {
         this.modeler = undefined;
         this._viewport = undefined;
         this._selection = undefined;
+        this._rootElement = undefined;
     }
 
     /**

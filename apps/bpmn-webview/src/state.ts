@@ -226,26 +226,20 @@ export class WebviewStateManager {
     /**
      * Snapshots the live canvas state — drill-down plane, viewbox, and
      * selection — so it can be re-applied after a destructive re-import
-     * (undo/redo host push, language switch).
+     * (undo/redo host push, language switch). Delegates to the package handle,
+     * which owns the composition (root → viewport → selection ordering).
      */
     captureViewState(): CanvasViewState {
-        return {
-            rootElementId: this.modeler.rootElement.getRootElementId(),
-            viewport: this.modeler.viewport.getViewport(),
-            selectedElementIds: this.modeler.selection.getSelectedElementIds(),
-        };
+        return this.modeler.captureViewState();
     }
 
     /**
-     * Re-applies a previously captured view state after a re-import.
-     *
-     * Order matters: root first (viewbox coordinates are plane-relative),
-     * then viewbox, then selection.
+     * Re-applies a previously captured view state after a re-import. The handle
+     * enforces the required order: root first (viewbox coordinates are
+     * plane-relative), then viewbox, then selection.
      */
     applyViewState(snapshot: CanvasViewState): void {
-        this.modeler.rootElement.setRootElementById(snapshot.rootElementId);
-        this.modeler.viewport.setViewport(snapshot.viewport);
-        this.modeler.selection.selectElementsByIds(snapshot.selectedElementIds);
+        this.modeler.applyViewState(snapshot);
     }
 
     private getSavedState(): WebviewState | undefined {

@@ -26,11 +26,19 @@ function setup(
     const onSelectionChanged = vi.fn();
     const getSelectedElementIds = vi.fn().mockReturnValue([]);
     const selectElementsByIds = vi.fn();
+    const captureViewState = vi.fn().mockReturnValue({
+        rootElementId: undefined,
+        viewport: { x: 0, y: 0, width: 1, height: 1 },
+        selectedElementIds: [],
+    });
+    const applyViewState = vi.fn();
     const host = { getState, updateState, setState } as any;
     const modeler = {
         viewport: { setViewport, fitViewport, getViewport, onViewportChanged },
         rootElement: { setRootElementById, getRootElementId, onRootChanged },
         selection: { getSelectedElementIds, selectElementsByIds, onSelectionChanged },
+        captureViewState,
+        applyViewState,
     } as any;
     return {
         manager: new WebviewStateManager(host, modeler, panelRoot),
@@ -41,6 +49,8 @@ function setup(
         getViewport,
         getSelectedElementIds,
         selectElementsByIds,
+        captureViewState,
+        applyViewState,
         updateState,
     };
 }
@@ -139,54 +149,33 @@ describe("WebviewStateManager.restoreViewport", () => {
 });
 
 describe("WebviewStateManager.captureViewState / applyViewState", () => {
-    it("round-trips the canvas view state", () => {
-        const {
-            manager,
-            getRootElementId,
-            getViewport,
-            getSelectedElementIds,
-            setRootElementById,
-            setViewport,
-            selectElementsByIds,
-        } = setup(undefined);
+    // The composition (root → viewport → selection ordering, implicit-root
+    // handling) now lives in the package handle and is unit-tested there
+    // (`viewState.spec.ts`); the manager only delegates.
+    it("delegates capture to the modeler handle", () => {
+        const { manager, captureViewState } = setup(undefined);
+        const snapshot = {
+            rootElementId: "SubProcess_1_plane",
+            viewport: { x: 100, y: 200, width: 500, height: 300 },
+            selectedElementIds: ["Task_1", "Task_2"],
+        };
+        captureViewState.mockReturnValue(snapshot);
 
-        getRootElementId.mockReturnValue("SubProcess_1_plane");
-        getViewport.mockReturnValue({ x: 100, y: 200, width: 500, height: 300 });
-        getSelectedElementIds.mockReturnValue(["Task_1", "Task_2"]);
-
-        const snapshot = manager.captureViewState();
-        manager.applyViewState(snapshot);
-
-        expect(setRootElementById).toHaveBeenCalledWith("SubProcess_1_plane");
-        expect(setViewport).toHaveBeenCalledWith({ x: 100, y: 200, width: 500, height: 300 });
-        expect(selectElementsByIds).toHaveBeenCalledWith(["Task_1", "Task_2"]);
+        expect(manager.captureViewState()).toBe(snapshot);
+        expect(captureViewState).toHaveBeenCalledOnce();
     });
 
-    it("applies root before viewbox in applyViewState", () => {
-        const { manager, setRootElementById, setViewport, getRootElementId, getViewport } =
-            setup(undefined);
-
-        getRootElementId.mockReturnValue("SubProcess_1_plane");
-        getViewport.mockReturnValue({ x: 0, y: 0, width: 1000, height: 800 });
-
-        const snapshot = manager.captureViewState();
-        manager.applyViewState(snapshot);
-
-        const rootOrder = setRootElementById.mock.invocationCallOrder[0]!;
-        const viewportOrder = setViewport.mock.invocationCallOrder[0]!;
-        expect(rootOrder).toBeLessThan(viewportOrder);
-    });
-
-    it("handles capture with no drill-down (top-level process)", () => {
-        const { manager, getRootElementId, setRootElementById } = setup(undefined);
-        getRootElementId.mockReturnValue(undefined);
-
-        const snapshot = manager.captureViewState();
-        expect(snapshot.rootElementId).toBeUndefined();
+    it("delegates apply to the modeler handle", () => {
+        const { manager, applyViewState } = setup(undefined);
+        const snapshot = {
+            rootElementId: "SubProcess_1_plane",
+            viewport: { x: 0, y: 0, width: 1000, height: 800 },
+            selectedElementIds: ["Task_1"],
+        };
 
         manager.applyViewState(snapshot);
-        // setRootElementById(undefined) returns false — no plane switch
-        expect(setRootElementById).toHaveBeenCalledWith(undefined);
+
+        expect(applyViewState).toHaveBeenCalledWith(snapshot);
     });
 });
 
