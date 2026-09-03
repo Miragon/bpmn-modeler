@@ -1,0 +1,22 @@
+/*
+ * The engine-neutral design surface's stylesheet, built standalone as
+ * `@miragon/bpmn-modeler/design.css` (see `vite.viewer-css.config.mts`). It
+ * carries the bpmn-js base diagram/font CSS, the engine-neutral properties panel
+ * and append-menu chrome, the minimap, and the canvas focus indicator — plus the
+ * dark-theme overrides scoped under `[data-bpmn-theme="dark"]`. It loads none of
+ * the Camunda
+ * editor chrome (camunda-bpmn-js, element templates, token simulation) the full
+ * `styles.css` carries. Do not also load `styles.css` on a design-only page; the
+ * two overlap.
+ */
+@import "bpmn-js/dist/assets/diagram-js.css";
+@import "bpmn-js/dist/assets/bpmn-js.css";
+@import "bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css";
+@import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";
+@import "diagram-js-minimap/assets/diagram-js-minimap.css";
+@import "../../../../libs/append-menu/src/append-menu.css";
+@import "./canvasFocusIndicator.css";
+@import "./dark-theme/diagram-js.css";
+@import "./dark-theme/properties-panel.css";
+@import "./dark-theme/append-menu.css";
+@import "./dark-theme/minimap.css";

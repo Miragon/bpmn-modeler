@@ -101,6 +101,13 @@ export default defineConfig({
                 // via `vite.viewer-css.config.mts`. Purity gated by
                 // `check-viewer-pure-entry.mjs`.
                 viewer: resolve(__dirname, "src/viewer/index.ts"),
+                // Engine-neutral design subpath (`@miragon/bpmn-modeler/design`,
+                // #1196): base bpmn-js Modeler + a plain-BPMN properties panel,
+                // none of the Camunda editor stack. Like `/viewer` it imports no
+                // CSS (its sheet ships as `dist/design.css` via
+                // `vite.viewer-css.config.mts`); purity gated by
+                // `check-design-pure-entry.mjs`.
+                design: resolve(__dirname, "src/design/index.ts"),
             },
             formats: ["es"],
             cssFileName: "bpmn-modeler",

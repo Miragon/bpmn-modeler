@@ -21,6 +21,7 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 viewer: resolve(__dirname, "src/styles/viewer.css"),
+                design: resolve(__dirname, "src/styles/design.css"),
             },
             output: {
                 assetFileNames: "[name].[ext]",

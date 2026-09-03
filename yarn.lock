@@ -4153,6 +4153,7 @@ __metadata:
     camunda-bpmn-moddle: "npm:7.0.2"
     camunda-transaction-boundaries: "npm:1.1.2"
     diagram-js: "npm:15.24.1"
+    diagram-js-minimap: "npm:5.4.1"
     didi: "npm:11.0.0"
     jsdom: "npm:30.0.1"
     lodash: "npm:4.18.1"
@@ -11949,7 +11950,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diagram-js-minimap@npm:^5.4.1":
+"diagram-js-minimap@npm:5.4.1, diagram-js-minimap@npm:^5.4.1":
   version: 5.4.1
   resolution: "diagram-js-minimap@npm:5.4.1"
   dependencies:

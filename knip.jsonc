@@ -43,7 +43,13 @@
         "apps/demo-webapp": {
             // dual.ts / diff.ts are reached only via their .html files, which the
             // vite plugin does not walk (single-mode root), so list them.
-            "entry": ["dmn/main.ts", "bpmn/dual.ts", "bpmn/diff.ts", "bpmn/viewer.ts"]
+            "entry": [
+                "dmn/main.ts",
+                "bpmn/dual.ts",
+                "bpmn/diff.ts",
+                "bpmn/viewer.ts",
+                "bpmn/design.ts"
+            ]
         },
         "packages/bpmn-modeler": {
             // `src/bpmnlint/index.ts` is the public `@miragon/bpmn-modeler/lint`
@@ -54,7 +60,8 @@
                 "src/index.ts",
                 "src/bpmnlint/index.ts",
                 "src/diff/index.ts",
-                "src/viewer/index.ts"
+                "src/viewer/index.ts",
+                "src/design/index.ts"
             ],
             // minisearch (via model-navigation), lodash (via modeler-types'
             // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)

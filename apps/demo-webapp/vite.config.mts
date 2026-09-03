@@ -40,8 +40,9 @@ export default defineConfig(({ mode }) => {
             emptyOutDir: true,
             // The bpmn page ships extra entries — the two-instance regression
             // proof at /bpmn/dual.html, the two-pane diff demo at /bpmn/diff.html,
-            // and the readonly viewer demo at /bpmn/viewer.html. The dev server
-            // serves them automatically; only the build needs the extra inputs.
+            // the readonly viewer demo at /bpmn/viewer.html, and the engine-neutral
+            // design demo at /bpmn/design.html. The dev server serves them
+            // automatically; only the build needs the extra inputs.
             rollupOptions:
                 target === "bpmn"
                     ? {
@@ -50,6 +51,7 @@ export default defineConfig(({ mode }) => {
                               dual: resolve(__dirname, "bpmn/dual.html"),
                               diff: resolve(__dirname, "bpmn/diff.html"),
                               viewer: resolve(__dirname, "bpmn/viewer.html"),
+                              design: resolve(__dirname, "bpmn/design.html"),
                           },
                       }
                     : undefined,

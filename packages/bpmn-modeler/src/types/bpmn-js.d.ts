@@ -1,5 +1,7 @@
 declare module "bpmn-js-properties-panel" {
     export const useService;
+    export const BpmnPropertiesPanelModule;
+    export const BpmnPropertiesProviderModule;
 }
 
 declare module "@bpmn-io/properties-panel" {
@@ -28,11 +30,17 @@ declare module "bpmn-js-token-simulation" {
 
 declare module "bpmn-js-create-append-anything" {
     export const CreateAppendElementTemplatesModule;
+    export const CreateAppendAnythingModule;
 }
 
 declare module "camunda-transaction-boundaries/lib/index.js" {
     const TransactionBoundariesModule;
     export default TransactionBoundariesModule;
+}
+
+declare module "diagram-js-minimap" {
+    const MinimapModule;
+    export default MinimapModule;
 }
 
 declare module "bpmn-js-native-copy-paste/lib/PasteUtil.js" {

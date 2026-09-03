@@ -59,3 +59,4 @@ contributor-facing record, not user documentation.
 | [0012](0012-container-scoped-theming.md) | Container-scoped theming via a per-instance `data-bpmn-theme` attribute; `#theme-link` swap kept as permanent legacy fallback | accepted |
 | [0013](0013-injectable-lint-stack.md) | Injectable lint stack via the `@miragon/bpmn-modeler/lint` subpath; omitted `linting` now means off | accepted |
 | [0014](0014-readonly-viewer-subpath.md) | Readonly `createViewer` via the `@miragon/bpmn-modeler/viewer` subpath: NavigatedViewer + outline, `Pick`'d services, scope-preserving `viewer.css`, `locale` omitted | accepted |
+| [0016](0016-design-mode-subpath.md) | Engine-neutral `createDesigner` via the `@miragon/bpmn-modeler/design` subpath: base bpmn-js + plain-BPMN panel, `executionPlatform` absence as mode marker, Camunda/lint stack gated out | accepted |

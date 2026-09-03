@@ -212,6 +212,49 @@ describe("bpmn-modeler import direction", () => {
         ).toEqual([]);
     });
 
+    it("the design subpath value-imports only the engine-neutral set (#1196)", () => {
+        // The `/design` subpath must stay free of the Camunda engine stack at the
+        // module-graph level. Unlike `/viewer` it legitimately ships the
+        // engine-neutral properties panel and append/create menu, so those (plus
+        // preact via the panel) are allowed — but a value import of
+        // camunda-bpmn-js, element templates, token simulation, transaction
+        // boundaries, or the lint stack here is exactly what a single-file bundler
+        // would inline into a design-only consumer. `import type` stays fine. The
+        // runtime graph is gated separately by `check-design-pure-entry.mjs`.
+        const DESIGN_DIR = join(PKG_SRC, "design");
+        const isAllowed = (spec: string): boolean =>
+            spec.startsWith(".") ||
+            spec === "bpmn-js" ||
+            spec.startsWith("bpmn-js/") ||
+            spec === "diagram-js" ||
+            spec.startsWith("diagram-js/") ||
+            spec === "bpmn-js-properties-panel" ||
+            spec === "bpmn-js-create-append-anything" ||
+            spec === "diagram-js-minimap" ||
+            spec === "@miragon/bpmn-modeler-types" ||
+            spec === "@miragon/bpmn-modeler-i18n" ||
+            spec === "@miragon/bpmn-modeler-i18n-extras" ||
+            spec === "@miragon/bpmn-modeler-append-menu" ||
+            spec === "@miragon/bpmn-modeler-flow-navigation" ||
+            spec === "@miragon/bpmn-modeler-clipboard";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!file.startsWith(DESIGN_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (!isAllowed(spec)) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the design subpath must stay engine-neutral — value-import only ` +
+                `bpmn-js/*, diagram-js/*, the neutral panel/menu packages, or the ` +
+                `neutral @miragon libs (use \`import type\` for anything else):\n` +
+                `${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
     it("no libs/* source imports @miragon/bpmn-modeler", () => {
         const offenders: string[] = [];
         for (const file of listSourceFiles(LIBS_ROOT)) {
