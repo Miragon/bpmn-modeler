@@ -21,6 +21,7 @@ import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
+import type { ViewState } from "./viewState";
 
 /**
  * The public TypeScript surface of the `@miragon/bpmn-modeler` package:
@@ -257,6 +258,20 @@ export interface BpmnModelerHandle {
     /** [A] Selection accessor. */
     readonly selection: SelectionManager;
 
+    /**
+     * [A] Snapshot the drill-down plane, viewbox, and selection so they survive
+     * an instance switch — capture here, `destroy()`, create the next instance,
+     * `loadDiagram`, then {@link applyViewState}. See {@link ViewState}.
+     */
+    captureViewState(): ViewState;
+
+    /**
+     * [A] Re-apply a {@link captureViewState} snapshot: plane, viewbox, and
+     * selection are restored root → viewport → selection; a stale plane or
+     * missing element ids degrade gracefully.
+     */
+    applyViewState(state: ViewState): void;
+
     /** [A] Tear the instance down and free its bpmn-js DI graph and DOM. */
     destroy(): void;
 
@@ -347,6 +362,8 @@ export type StableModelerSurface = Pick<
     | "setSettings"
     | "viewport"
     | "selection"
+    | "captureViewState"
+    | "applyViewState"
     | "destroy"
     | "getService"
     | "applyLintResults"

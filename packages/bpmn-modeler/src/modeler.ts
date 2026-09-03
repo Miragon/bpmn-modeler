@@ -40,6 +40,11 @@ import { capabilityModules } from "./capabilityModules";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
+import {
+    applyViewState as applyViewStateComposition,
+    captureViewState as captureViewStateComposition,
+    type ViewState,
+} from "./viewState";
 import { deriveEngines } from "./engines";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
@@ -149,6 +154,35 @@ export class BpmnModeler {
             throw new NoModelerError();
         }
         return this._rootElement;
+    }
+
+    /**
+     * Snapshots the drill-down plane, viewbox, and selection so they survive an
+     * instance switch (View ↔ Design ↔ Implement) — capture here, `destroy()`,
+     * create the next instance, `loadDiagram`, then {@link applyViewState}. See
+     * {@link ViewState} for the plane/selection degradation rules.
+     */
+    captureViewState(): ViewState {
+        return captureViewStateComposition({
+            viewport: this.viewport,
+            rootElement: this.rootElement,
+            selection: this.selection,
+        });
+    }
+
+    /**
+     * Re-applies a {@link captureViewState} snapshot, restoring plane, viewbox,
+     * and selection in the required root → viewport → selection order.
+     */
+    applyViewState(state: ViewState): void {
+        applyViewStateComposition(
+            {
+                viewport: this.viewport,
+                rootElement: this.rootElement,
+                selection: this.selection,
+            },
+            state,
+        );
     }
 
     /**

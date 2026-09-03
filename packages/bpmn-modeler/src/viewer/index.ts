@@ -28,6 +28,7 @@ export type { ThemeMode } from "../publicApi";
 export { ViewportManager } from "../viewport";
 export type { ViewportData } from "../viewport";
 export { SelectionManager } from "../selection";
+export type { ViewState } from "../viewState";
 
 // ── Diff view — public rendering primitives + in-page coordinator ────────────
 // The data layer (`computeDiff`/`sideView`) is the Node-safe

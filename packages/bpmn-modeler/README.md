@@ -202,6 +202,48 @@ bpmn-js/diagram-js-documented shapes across minor versions. Every other
 `getService` name is unstable and may change or disappear without a major bump —
 prefer a typed option/method, and open an issue if a name you need is missing.
 
+## View state (capture / restore)
+
+`handle.captureViewState()` snapshots *where the user is looking* — the
+drill-down plane, the viewbox, and the selection — into a plain `ViewState`, and
+`handle.applyViewState(state)` restores it. The same two methods and the same
+`ViewState` type are on all three handles (`BpmnModelerHandle`,
+`BpmnViewerHandle`, `BpmnDesignerHandle`), so they compose across a mode switch.
+
+```ts
+interface ViewState {
+    viewport: ViewportData;
+    rootElementId?: string;      // undefined ⇒ top-level plane
+    selectedElementIds: string[];
+}
+```
+
+The intended use is an **instance switch** (View ↔ Design ↔ Implement, which
+destroys one bpmn-js instance and stands up another): capture on the old handle,
+`destroy()` it, create the new one, `loadDiagram(...)`, then apply.
+
+```ts
+const state = current.captureViewState();
+current.destroy();
+const next = await createViewer(container);   // or createModeler / createDesigner
+await next.loadDiagram(xml);
+next.applyViewState(state);                    // same plane, viewbox, selection
+```
+
+Semantics:
+
+- **Apply order is fixed: root → viewport → selection.** Viewbox coordinates are
+  plane-relative, so the plane must switch first; the internals enforce this
+  order, so callers never have to.
+- **The top-level plane is never a stored id.** bpmn-js regenerates the implicit
+  root's id on every import, so a top-level snapshot carries
+  `rootElementId: undefined`, and applying `undefined` leaves the canvas on the
+  top-level plane.
+- **Stale references degrade gracefully.** A `rootElementId` whose sub-process no
+  longer exists falls back to the top-level plane, and `selectedElementIds` that
+  are gone are silently skipped — a snapshot taken against a since-edited diagram
+  still applies without throwing.
+
 ## Clipboard wire format
 
 Copy/paste defaults to the native browser clipboard; a sandboxed host
@@ -322,11 +364,14 @@ viewer.selection.onSelectionChanged((ids) => console.log("selected", ids));
 ### `BpmnViewerHandle`
 
 `loadDiagram`, `exportDiagram`, `getDiagramSvg`, `viewport`, `selection`,
-`setTheme`, `getService`, and `destroy` — each **signature-identical** to its
-`BpmnModelerHandle` counterpart, so a modeler handle narrows to a viewer handle
-with no adapter (a compile-time acceptance criterion). There is no `newDiagram`,
-`setElementTemplates`, `setSettings`, linting, clipboard, capabilities, or
-events.
+`captureViewState`, `applyViewState`, `setTheme`, `getService`, and `destroy` —
+each **signature-identical** to its `BpmnModelerHandle` counterpart, so a modeler
+handle narrows to a viewer handle with no adapter (a compile-time acceptance
+criterion). `captureViewState` / `applyViewState` (see
+[View state](#view-state-capture--restore)) make the viewer a valid target for a
+mode switch — capture on the editor, apply on the viewer. There is no
+`newDiagram`, `setElementTemplates`, `setSettings`, linting, clipboard,
+capabilities, or events.
 
 `getService` is typed against `CoreViewerServices` — the readonly `Pick` of the
 [core services](#core-services--escape-hatch): `canvas`, `elementRegistry`,
@@ -414,9 +459,12 @@ There is no `engine`, `linting`, `elementTemplates`, `settings`, or
 ### `BpmnDesignerHandle`
 
 `loadDiagram`, `exportDiagram`, `newDiagram`, `getDiagramSvg`, `viewport`,
-`selection`, `setTheme`, `getService`, and `destroy` — each
-**signature-identical** to its `BpmnModelerHandle` counterpart, so a modeler
-handle narrows to a designer handle with no adapter. `getService` is typed
+`selection`, `captureViewState`, `applyViewState`, `setTheme`, `getService`, and
+`destroy` — each **signature-identical** to its `BpmnModelerHandle` counterpart,
+so a modeler handle narrows to a designer handle with no adapter.
+`captureViewState` / `applyViewState` (see
+[View state](#view-state-capture--restore)) carry the user's plane, viewbox, and
+selection across a mode switch. `getService` is typed
 against `CoreDesignerServices`, which equals the full
 [core services](#core-services--escape-hatch) set (`modeling` and `commandStack`
 included) — the surface is editable by construction. `newDiagram()` uses the
@@ -482,6 +530,11 @@ importing the subpath brings no extra stylesheet wiring.
   `options.locale` sets the language for the whole page, not per instance. With
   several modelers on one page, the last `locale` wins. (A documented `0.1.0`
   limitation.)
+- **Undo history does not survive an instance switch.** `captureViewState` /
+  `applyViewState` carry the plane, viewbox, and selection across a
+  `destroy()` + create, but the bpmn-js command stack belongs to the destroyed
+  instance — the new instance starts with an empty undo history. Only the view
+  state is preserved, not the edit history.
 - **Bundler dedupe.** The modeler and its plugins must share single copies of
   `preact` and the properties-panel / CodeMirror stack. If you build with Vite,
   add these to `resolve.dedupe`:

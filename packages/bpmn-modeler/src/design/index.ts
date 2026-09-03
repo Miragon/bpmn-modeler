@@ -42,6 +42,7 @@ export type { DetectedEngine } from "../detectEngine";
 export { ViewportManager } from "../viewport";
 export type { ViewportData } from "../viewport";
 export { SelectionManager } from "../selection";
+export type { ViewState } from "../viewState";
 
 // ── Re-exports so the rolled-up `.d.ts` stays self-contained ─────────────────
 export { NoModelerError } from "@miragon/bpmn-modeler-types";
