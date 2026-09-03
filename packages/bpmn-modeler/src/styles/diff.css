@@ -1,14 +1,14 @@
 /*
- * BPMN diff view styles.
+ * Host-specific BPMN diff-view styles for the bpmn-webview / VS Code shell.
  *
- * Applied only when the webview initialises in `viewer` mode (the `body` gains
- * the `.viewer-mode` class). The selectors below target canvas elements that
- * DiffViewer.applyHighlights marks with per-category classes, plus the
- * floating legend chip rendered by DiffLegend.
- *
- * Element marker colours intentionally match the bpmn.io/diff demo so users
- * familiar with that UI see the same visual cues.
+ * The neutral canvas markers and legend chip live in `diffView.css` (shared with
+ * the readonly `viewer.css`) and are pulled in via the @import below, so
+ * `styles.css` consumers (bpmn-webview) see the full diff styling unchanged.
+ * What remains here is only what depends on the host chrome: the `body.viewer-mode`
+ * editor-chrome hiding, the VS Code split-seam borders keyed off `[data-diff-side]`,
+ * and the `body.vscode-*` legend dark-mode tweaks.
  */
+@import "./diffView.css";
 
 /* Hide editor chrome that only makes sense when editing. */
 body.viewer-mode #js-panel-resizer,
@@ -33,156 +33,6 @@ body.viewer-mode[data-diff-side="before"] {
 
 body.viewer-mode[data-diff-side="after"] {
     border-left: 1px dashed var(--vscode-editorGroup-border, #d0d0d0);
-}
-
-/* ─── Element markers ──────────────────────────────────────────────────── */
-
-.djs-element.diff-added .djs-visual > :nth-child(1) {
-    stroke: #52b415 !important;
-    stroke-width: 3px !important;
-}
-
-.djs-element.diff-removed .djs-visual > :nth-child(1) {
-    stroke: #cc0000 !important;
-    stroke-width: 3px !important;
-}
-
-.djs-element.diff-changed .djs-visual > :nth-child(1) {
-    stroke: #316fbe !important;
-    stroke-width: 3px !important;
-}
-
-.djs-element.diff-layout-changed .djs-visual > :nth-child(1) {
-    stroke-dasharray: 5 3 !important;
-    stroke-width: 2px !important;
-}
-
-/* Sequence-flow edges carry their colour on the marker (arrowhead) too, so
-   we override the path stroke directly. */
-.djs-connection.diff-added .djs-visual path {
-    stroke: #52b415 !important;
-}
-.djs-connection.diff-removed .djs-visual path {
-    stroke: #cc0000 !important;
-}
-.djs-connection.diff-changed .djs-visual path {
-    stroke: #316fbe !important;
-}
-
-/* Stepper selection — a warm glow layered on top of whichever category
-   colour the element already carries.  `filter: drop-shadow` leaves the
-   stroke intact so both shapes and edges light up uniformly. */
-.djs-element.diff-selected .djs-visual {
-    filter: drop-shadow(0 0 6px #ffbe00) drop-shadow(0 0 3px #ffbe00);
-}
-
-/* ─── Floating legend chip ─────────────────────────────────────────────── */
-
-.diff-legend {
-    position: absolute;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d0d0d0;
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    font-size: 12px;
-    color: #1f1f1f;
-    z-index: 100;
-    user-select: none;
-}
-
-/* Filename subtitle — only rendered on compare-files panes where the tab
-   title alone is not enough to disambiguate which pane shows which file. */
-.diff-legend__filename {
-    font-weight: 600;
-    max-width: 360px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.diff-legend__counts {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-}
-
-.diff-legend__slot {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.diff-legend__swatch {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    border: 1px solid transparent;
-}
-
-.diff-legend__swatch--added {
-    background: #52b415;
-}
-.diff-legend__swatch--removed {
-    background: #cc0000;
-}
-.diff-legend__swatch--changed {
-    background: #316fbe;
-}
-.diff-legend__swatch--layout {
-    background: repeating-linear-gradient(
-        135deg,
-        #888,
-        #888 3px,
-        transparent 3px,
-        transparent 6px
-    );
-    border-color: #888;
-}
-
-.diff-legend__nav {
-    display: inline-flex;
-    gap: 4px;
-    margin-left: 4px;
-    padding-left: 12px;
-    border-left: 1px solid #d0d0d0;
-}
-
-/* Swap group sits after the nav group with its own divider so the
-   compare-files-only affordance is visually distinct from the always-on
-   prev/next navigation. */
-.diff-legend__swap-group {
-    display: inline-flex;
-    padding-left: 12px;
-    border-left: 1px solid #d0d0d0;
-}
-
-.diff-legend__nav-btn {
-    font: inherit;
-    padding: 4px 8px;
-    border-radius: 4px;
-    border: 1px solid #c0c0c0;
-    background: #fafafa;
-    color: #1f1f1f;
-    cursor: pointer;
-}
-
-.diff-legend__nav-btn:hover:not(:disabled) {
-    background: #eee;
-}
-
-.diff-legend__nav-btn:disabled {
-    opacity: 0.45;
-    cursor: default;
 }
 
 /* Dark-theme tweaks — VS Code tags <body> with `vscode-dark` or

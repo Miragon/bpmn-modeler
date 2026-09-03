@@ -8,7 +8,7 @@ import {
     observeCanvasSize,
 } from "@miragon/bpmn-modeler-types";
 
-import { centreOf } from "../elementGeometry";
+import { centreOf } from "../../elementGeometry";
 
 /**
  * CSS class applied to each element category on the canvas.

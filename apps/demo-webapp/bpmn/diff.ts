@@ -1,11 +1,12 @@
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
-import { DiffLegend, DiffPaneCoordinator, DiffViewer } from "@miragon/bpmn-modeler";
+import { DiffLegend, DiffPaneCoordinator, DiffViewer } from "@miragon/bpmn-modeler/viewer";
+import "../../../packages/bpmn-modeler/src/styles/viewer.css";
 import { mountDemoHeader } from "../src";
 
-// The engine (Camunda C7/C8) + token-sim stylesheets and the light/dark theme
-// rules all ship via the `@miragon/bpmn-modeler` side effects imported above
-// (its `themes.css` @imports `light-theme/index.css`), so both panes theme off
-// the shared demo header's ambient `data-bpmn-theme` with no extra `<link>`.
+// The readonly `viewer.css` carries the bpmn-js base diagram CSS, its
+// `[data-bpmn-theme="dark"]` overrides, and the neutral diff markers + legend,
+// so both panes theme off the shared demo header's ambient `data-bpmn-theme`
+// with no extra `<link>` and none of the editor chrome.
 
 import { DIFF_AFTER_XML, DIFF_BEFORE_XML } from "./diffFixtures";
 

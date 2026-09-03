@@ -5,7 +5,7 @@
  * inlined `@miragon/bpmn-modeler-diff` lib. This entry pulls in no CSS, no
  * bpmn-js, no i18n, and no preact, so it runs under plain Node (mechanised by
  * scripts/check-diff-node.mjs). The rendering primitives (DiffViewer,
- * DiffLegend, DiffNavigator, DiffPaneCoordinator) live on the root entry.
+ * DiffLegend, DiffNavigator, DiffPaneCoordinator) live on the `/viewer` entry.
  *
  * `computeDiff` / `sideView` are re-published as thin local wrappers rather than
  * bare `export … from`: api-extractor resolves a bundled lib via its
