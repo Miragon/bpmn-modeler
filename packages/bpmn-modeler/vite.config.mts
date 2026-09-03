@@ -95,11 +95,11 @@ export default defineConfig({
                 // CSS still folds into `dist/bpmn-modeler.css` (cssCodeSplit off).
                 lint: resolve(__dirname, "src/bpmnlint/index.ts"),
                 // Readonly viewer subpath (`@miragon/bpmn-modeler/viewer`, #1405):
-                // NavigatedViewer + outline only, none of the editor stack. It
-                // imports no CSS (so `cssCodeSplit: false` cannot fold any into
+                // NavigatedViewer + outline plus the browser-only diff rendering
+                // primitives (#1439), none of the editor stack. It imports no CSS
+                // (so `cssCodeSplit: false` cannot fold any into
                 // `dist/bpmn-modeler.css`); its sheet ships as `dist/viewer.css`
-                // via `vite.viewer-css.config.mts`. Purity gated by
-                // `check-viewer-pure-entry.mjs`.
+                // via `vite.viewer-css.config.mts`.
                 viewer: resolve(__dirname, "src/viewer/index.ts"),
                 // Engine-neutral design subpath (`@miragon/bpmn-modeler/design`,
                 // #1196): base bpmn-js Modeler + a plain-BPMN properties panel,

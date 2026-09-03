@@ -224,8 +224,12 @@ layer runs anywhere:
 - **`@miragon/bpmn-modeler/diff`** — a Node- **and** browser-safe subpath with
   no CSS, bpmn-js, i18n, or preact. `computeDiff(beforeXml, afterXml)` compares
   two documents and returns a serializable `DiffResult`.
-- **root entry** — the browser-only rendering primitives (`DiffViewer`,
-  `DiffLegend`, `DiffNavigator`) and the in-page two-pane `DiffPaneCoordinator`.
+- **`@miragon/bpmn-modeler/viewer`** — the browser-only rendering primitives
+  (`DiffViewer`, `DiffLegend`, `DiffNavigator`) and the in-page two-pane
+  `DiffPaneCoordinator`. They wrap the same readonly `NavigatedViewer` the viewer
+  surface uses. *(Moved from the root entry in #1439; the root still re-exports
+  them, but those re-exports are `@deprecated` and will be removed in a future
+  major.)*
 
 ### `DiffResult` (the data layer)
 
@@ -258,8 +262,8 @@ console.log(result.counts); // { added, removed, changed, layoutChanged }
 
 ```ts
 import { computeDiff } from "@miragon/bpmn-modeler/diff";
-import { DiffViewer, DiffLegend, DiffPaneCoordinator } from "@miragon/bpmn-modeler";
-import "@miragon/bpmn-modeler/styles.css";
+import { DiffViewer, DiffLegend, DiffPaneCoordinator } from "@miragon/bpmn-modeler/viewer";
+import "@miragon/bpmn-modeler/viewer.css";
 
 const before = new DiffViewer(document.querySelector("#before")!);
 const after = new DiffViewer(document.querySelector("#after")!);
@@ -286,12 +290,14 @@ without a major bump.
 
 ## Viewer
 
-`@miragon/bpmn-modeler/viewer` is a lean, **readonly** surface for view-only
+`@miragon/bpmn-modeler/viewer` is a **readonly** surface for view-only
 permissions and embedded previews. It wraps bpmn-js's `NavigatedViewer` (mouse +
-keyboard pan/zoom) plus the selection outline — and nothing else. The editor
-stack (camunda-bpmn-js, properties panel / preact, CodeMirror, token simulation,
-lint, i18n) is **guaranteed absent from its module graph**, so it survives
-single-file bundlers that inline everything reachable.
+keyboard pan/zoom) plus the selection outline, and also carries the browser-only
+[diff rendering primitives](#diff) (`DiffViewer`, `DiffLegend`, `DiffNavigator`,
+`DiffPaneCoordinator`). The Camunda editor stack (camunda-bpmn-js, properties
+panel, CodeMirror, token simulation, lint) stays out of its module graph, so it
+survives single-file bundlers that inline everything reachable. The `DiffLegend`
+does pull the shared i18n translator in for its labels (#1439).
 
 ```ts
 import { createViewer } from "@miragon/bpmn-modeler/viewer";
@@ -328,27 +334,24 @@ events.
 `commandStack`) are **not registered** on a viewer, so resolving one throws —
 the surface is readonly by construction, not by convention.
 
-### Guaranteed absent from the module graph
+### Kept out of the module graph
 
 `camunda-bpmn-js`, `bpmn-js-properties-panel`, `@bpmn-io/properties-panel`,
 `preact`, `codemirror` / `@codemirror/*`, `bpmnlint` / `bpmn-js-bpmnlint`,
 `bpmn-js-token-simulation`, `bpmn-js-create-append-anything`,
-`camunda-transaction-boundaries`, `minisearch`, and
-`@miragon/bpmn-modeler-i18n`. A build-time gate
-(`scripts/check-viewer-pure-entry.mjs`) fails the build if any of them reappears.
+`camunda-transaction-boundaries`, and `minisearch` — the full Camunda editor
+stack. The shared i18n translator (`@miragon/bpmn-modeler-i18n`) **is** now
+present, pulled in by `DiffLegend` for its labels (#1439). The dedicated
+build-time purity gate was retired in #1439 as the surface grows custom features;
+the viewer still imports **no CSS** and `check:dts` still guards the dist surface.
 
 ### Theming & stylesheet
 
 Load **`@miragon/bpmn-modeler/viewer.css`**, not `styles.css`: the viewer sheet
-carries only the bpmn-js base diagram/font CSS plus the dark-theme diagram
-overrides — none of the editor chrome. The two overlap, so do **not** load both
-on a viewer-only page.
-
-### `locale`
-
-Not supported in v1: the viewer has no translatable UI, and honoring `locale`
-would pull the i18n dictionaries into the lean graph. It is additive later
-(non-breaking).
+carries the bpmn-js base diagram/font CSS, the dark-theme diagram overrides, and
+the neutral diff markers + legend chip (so a diff consumer needs no other sheet) —
+none of the editor chrome. The two overlap, so do **not** load both on a
+viewer-only page.
 
 ## Design mode
 

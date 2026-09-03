@@ -50,15 +50,43 @@ export { ViewportManager } from "./viewport";
 export type { ViewportData } from "./viewport";
 export { SelectionManager } from "./selection";
 
-// ── Diff view — public rendering primitives + in-page coordinator ─────────────
-// The data layer (`computeDiff`/`sideView` + result types) is the Node-safe
-// `@miragon/bpmn-modeler/diff` subpath; these are the browser-only primitives.
-export { DiffViewer } from "./diff/DiffViewer";
-export type { DiffMarkerClass } from "./diff/DiffViewer";
-export { DiffLegend } from "./diff/DiffLegend";
-export type { DiffLegendCallbacks, DiffLegendContext } from "./diff/DiffLegend";
-export { DiffNavigator } from "./diff/DiffNavigator";
-export { DiffPaneCoordinator } from "./diff/DiffPaneCoordinator";
+// ── Diff view — moved to `@miragon/bpmn-modeler/viewer` (#1439) ───────────────
+// Local value+type aliases rather than `export … from`: api-extractor attaches a
+// JSDoc `@deprecated` tag to a declaration this file owns, but drops it from a
+// bare re-export statement — so only this form surfaces the deprecation in the
+// rolled-up `dist/index.d.ts`. The live surface is `@miragon/bpmn-modeler/viewer`.
+import { DiffViewer as DiffViewerImpl } from "./viewer/diff/DiffViewer";
+import type { DiffMarkerClass as DiffMarkerClassImpl } from "./viewer/diff/DiffViewer";
+import { DiffLegend as DiffLegendImpl } from "./viewer/diff/DiffLegend";
+import type {
+    DiffLegendCallbacks as DiffLegendCallbacksImpl,
+    DiffLegendContext as DiffLegendContextImpl,
+} from "./viewer/diff/DiffLegend";
+import { DiffNavigator as DiffNavigatorImpl } from "./viewer/diff/DiffNavigator";
+import { DiffPaneCoordinator as DiffPaneCoordinatorImpl } from "./viewer/diff/DiffPaneCoordinator";
+
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export const DiffViewer = DiffViewerImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export type DiffViewer = DiffViewerImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export type DiffMarkerClass = DiffMarkerClassImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export const DiffLegend = DiffLegendImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export type DiffLegend = DiffLegendImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export type DiffLegendCallbacks = DiffLegendCallbacksImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export type DiffLegendContext = DiffLegendContextImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export const DiffNavigator = DiffNavigatorImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export type DiffNavigator = DiffNavigatorImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export const DiffPaneCoordinator = DiffPaneCoordinatorImpl;
+/** @deprecated Import from `@miragon/bpmn-modeler/viewer` instead; removed in a future major. */
+export type DiffPaneCoordinator = DiffPaneCoordinatorImpl;
 
 // ── @internal — host-only surface the thin bpmn-webview adapter still needs ───
 // The adapter reaches the raw {@link BpmnModeler} class (host-only methods:

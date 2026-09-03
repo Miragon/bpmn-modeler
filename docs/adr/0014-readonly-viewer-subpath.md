@@ -108,3 +108,35 @@ decision, recorded here per the deviation from the issue text.)
   via the demo page (`apps/demo-webapp/bpmn/viewer.html`).
 - Establishes that the subpath-injection pattern (0013) generalises beyond
   injection to whole alternative surfaces; #1196 (`/design`) is next.
+
+## Amendment (#1439, 2026-09-03)
+
+Roadmap step 1 of the diff-migration epic (#1438) moves the browser-only diff
+**rendering** primitives — `DiffViewer`, `DiffMarkerClass`, `DiffLegend`,
+`DiffNavigator`, `DiffPaneCoordinator` — from the root entry onto `/viewer`
+(`src/viewer/diff/`); the root keeps `@deprecated` re-exports. `DiffViewer`
+already wraps the same readonly `NavigatedViewer` the viewer exports, so `/viewer`
+is their natural home. This **discharges the follow-up** recorded in Consequences
+above (the `DiffViewer` refactor onto the viewer internals). The Node-safe diff
+*data* layer stays on the separate `@miragon/bpmn-modeler/diff` subpath.
+
+Two decisions in this ADR are consciously superseded:
+
+- **The viewer purity gate is removed** — `scripts/check-viewer-pure-entry.mjs`,
+  the `check:viewer-pure` build step, and the `src/architecture.spec.ts` viewer
+  lean-set rule (all in "Mechanised gates" above) are deleted. The viewer surface
+  will keep accreting custom features (i18n arrives now via `DiffLegend`; a
+  preact-based readonly panel is planned in #1443), so a per-feature
+  forbidden-list is not worth maintaining. The viewer still imports **no CSS**
+  (still load-bearing for `cssCodeSplit: false`), and `check:dts` /
+  `smoke-consumer.mjs` still guard the dist surface.
+- **The "`locale` omitted in v1 / no i18n" exclusion is superseded** —
+  `DiffLegend` keeps its `@miragon/bpmn-modeler-i18n` import, so the i18n
+  dictionaries are now reachable from `/viewer`. This is the deliberate trade-off
+  for translated diff labels; no translator-injection refactor was done.
+
+This is a **conscious deviation from issue #1439's acceptance criteria**, which
+called for `check-viewer-pure-entry.mjs` to still pass (maintainer decision,
+Peter). The neutral diff markers + legend CSS move into `src/styles/diffView.css`,
+shared by `viewer.css` (so `/viewer` diff consumers get a themed legend) and
+`diff.css` (so `styles.css`/bpmn-webview consumers see no change).

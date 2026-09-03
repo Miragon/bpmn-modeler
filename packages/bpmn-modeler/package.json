@@ -63,14 +63,13 @@
     },
     "scripts": {
         "typecheck": "tsc --noEmit",
-        "build": "npm-run-all -s typecheck build:lib build:themes build:viewer-css check:dts check:diff-node check:lint-free check:viewer-pure check:design-pure check:dep-alignment",
+        "build": "npm-run-all -s typecheck build:lib build:themes build:viewer-css check:dts check:diff-node check:lint-free check:design-pure check:dep-alignment",
         "build:lib": "vite build",
         "build:themes": "vite build -c vite.themes.config.mts",
         "build:viewer-css": "vite build -c vite.viewer-css.config.mts",
         "check:dts": "node scripts/check-dts.mjs",
         "check:diff-node": "node scripts/check-diff-node.mjs",
         "check:lint-free": "node scripts/check-lint-free-entry.mjs",
-        "check:viewer-pure": "node scripts/check-viewer-pure-entry.mjs",
         "check:design-pure": "node scripts/check-design-pure-entry.mjs",
         "check:dep-alignment": "yarn constraints",
         "test": "vitest run --coverage"
