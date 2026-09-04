@@ -1,4 +1,5 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { CoreModelerServices, ThemeMode } from "../publicApi";
 import type { ViewportManager } from "../viewport";
 import type { SelectionManager } from "../selection";
@@ -19,8 +20,10 @@ import type { ViewState } from "../viewState";
  * Every handle member below is signature-identical to its {@link
  * BpmnModelerHandle} counterpart (subset compatibility is asserted in
  * `publicApi.spec.ts`), so a host can narrow a modeler handle to a viewer handle
- * without adapters. There is no `engine`, `linting`, `clipboard`,
- * `capabilities`, events, or `locale`.
+ * without adapters. There is no `engine`, `linting`, `clipboard`, events, or
+ * `locale`; the one host capability it accepts is the engine-neutral
+ * `modelNavigation` — the single interaction a readonly surface still offers
+ * (see {@link ViewerCapabilities}).
  */
 
 /**
@@ -35,9 +38,28 @@ export type CoreViewerServices = Pick<
 >;
 
 /**
+ * The host capabilities a viewer can opt into — navigation-only. Navigation is
+ * the one interaction a readonly surface still offers: `modelNavigation`
+ * ("Navigate to referenced model" on Call Activities / Business Rule Tasks /
+ * linked forms) reads the model without mutating it, so it belongs on the viewer
+ * too. Present ⇒ a diagram-js context pad carrying only the navigate entry is
+ * registered; absent ⇒ no `contextPad` service is registered and no entry
+ * renders. The engine-bound ports (`codeLink`, `scripting`) are absent by
+ * construction — the viewer has no editing surface to bind them to.
+ *
+ * Its own interface rather than a reuse of {@link DesignerCapabilities}: the
+ * viewer must not import from `src/design/*`. Structural identity with
+ * `DesignerCapabilities` is asserted in `publicApi.spec.ts`.
+ */
+export interface ViewerCapabilities {
+    modelNavigation?: ModelNavigationPort;
+}
+
+/**
  * Per-instance configuration for {@link createViewer}. Deliberately minimal: a
- * viewer has no engine (bpmn-js's base viewer reads any BPMN), no host
- * capabilities, and only an opt-in readonly properties panel.
+ * viewer has no engine (bpmn-js's base viewer reads any BPMN), an opt-in
+ * readonly properties panel, and — as its only host capability — the
+ * engine-neutral `modelNavigation` (see {@link ViewerCapabilities}).
  */
 export interface ViewerOptions {
     /**
@@ -48,6 +70,14 @@ export interface ViewerOptions {
      * the panel modules enter the DI graph and no DOM is added.
      */
     propertiesPanel?: { parent: HTMLElement };
+
+    /**
+     * Engine-neutral host capabilities to opt into — currently only
+     * `modelNavigation`. Omit it and no `contextPad` service enters the DI
+     * graph, so no context-pad entry ever renders. See
+     * {@link ViewerCapabilities}.
+     */
+    capabilities?: ViewerCapabilities;
 
     /**
      * Colour theme — defaults to `"automatic"`. Theming always engages: the

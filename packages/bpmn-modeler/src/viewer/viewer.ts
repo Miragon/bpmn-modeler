@@ -1,6 +1,8 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import OutlineModule from "bpmn-js/lib/features/outline";
+import ContextPadModule from "diagram-js/lib/features/context-pad";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
+import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 // Deep imports on purpose: the lib barrel side-effect-imports its CSS, and the
 // viewer entry must stay CSS-free (`cssCodeSplit: false` would fold any
 // reachable sheet into the shared `dist/bpmn-modeler.css`). Gated by
@@ -36,6 +38,11 @@ import type { CoreViewerServices, ViewerOptions } from "./publicApi";
  * (`@miragon/bpmn-modeler-properties-panel`) mounts readonly: the renderer
  * derives readonly from the absent `modeling` service and disables every entry.
  * Without the option, none of the panel modules enter the DI graph.
+ *
+ * With `options.capabilities.modelNavigation` set, a diagram-js context pad
+ * carrying only the "Navigate to referenced model" entry is registered — the one
+ * interaction a readonly surface still offers. Without it, no `contextPad`
+ * service enters the graph.
  *
  * Per-instance by construction: bound to its own `container`, so several viewers
  * (or a viewer beside a modeler) can coexist on a page. Use {@link createViewer}
@@ -126,6 +133,18 @@ export class BpmnViewer {
      */
     async init(): Promise<void> {
         const panel = this.options.propertiesPanel;
+
+        // diagram-js's plain context pad, never bpmn-js's — the latter's provider
+        // drags connect/create/direct-editing/popup-menu and injects `modeling`,
+        // which a readonly viewer never registers. Registered only with the
+        // capability, so an omitted port leaves the graph byte-identical (no
+        // `contextPad` service). ContextPad's deps (interaction-events, scheduler,
+        // overlays) are already in the viewer graph.
+        const navigationPort = this.options.capabilities?.modelNavigation;
+        const capModules = navigationPort
+            ? [ContextPadModule, createModelNavigationModule(navigationPort)]
+            : [];
+
         this.viewer = new NavigatedViewer({
             container: this.container,
             moddleExtensions: this.options.moddleExtensions,
@@ -154,6 +173,7 @@ export class BpmnViewer {
                           CustomGroupsModule,
                       ]
                     : []),
+                ...capModules,
                 ...((this.options.additionalModules as any[]) ?? []),
             ],
         });

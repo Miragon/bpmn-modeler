@@ -1,6 +1,6 @@
 import { createViewer } from "@miragon/bpmn-modeler/viewer";
 import type { ThemeMode } from "@miragon/bpmn-modeler/viewer";
-import { mountDemoHeader } from "../src";
+import { mountDemoHeader, modelHref, resolveReference } from "../src";
 import { MODELS } from "../src/registry";
 
 // The viewer ships its own lean stylesheet (`@miragon/bpmn-modeler/viewer.css`),
@@ -9,7 +9,8 @@ import { MODELS } from "../src/registry";
 // source escapes the dev-server root and 404s. This is the epic's regression
 // check: the viewer page must render, select, hover, zoom/pan, switch themes,
 // and show a readonly properties panel (every entry disabled) with no editing
-// affordance (no palette, context pad, or keyboard delete).
+// affordance (no palette, no keyboard delete). The one context-pad entry is
+// navigate, opted into via `capabilities.modelNavigation` below.
 import "../../../packages/bpmn-modeler/src/styles/viewer.css";
 
 /**
@@ -41,6 +42,24 @@ async function main(): Promise<void> {
     const viewer = await createViewer(canvas, {
         theme: themeMode as ThemeMode,
         propertiesPanel: { parent: properties },
+        // The one engine-neutral host capability on /viewer (#1445): a Call
+        // Activity / Business Rule Task / linked form gets a "Navigate to
+        // referenced model" context-pad entry — the single interaction a readonly
+        // surface still offers. Omitting `capabilities` renders no entry. C8-shaped
+        // references need `moddleExtensions: { zeebe }` to parse.
+        capabilities: {
+            modelNavigation: {
+                openReference: ({ id, kind }) => {
+                    if (kind === "form") {
+                        return;
+                    }
+                    const target = resolveReference(id, kind);
+                    if (target) {
+                        window.location.href = modelHref(target);
+                    }
+                },
+            },
+        },
     });
     viewerRef.current = viewer;
     await viewer.loadDiagram(model.xml);

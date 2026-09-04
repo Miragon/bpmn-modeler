@@ -85,7 +85,7 @@ The three optional capability ports (`ModelerCapabilities`) are:
 
 | Capability | Port | Wires up |
 | --- | --- | --- |
-| `modelNavigation` | `ModelNavigationPort` | jump-to-element / model navigation (engine-neutral — **also available on `/design`** via its narrower `DesignerCapabilities`) |
+| `modelNavigation` | `ModelNavigationPort` | jump-to-element / model navigation (engine-neutral — **also available on `/design` and `/viewer`** via their narrower `DesignerCapabilities` / `ViewerCapabilities`) |
 | `codeLink` | `CodeLinkPort` | code ↔ diagram linking |
 | `scripting` | `InlineScriptingPort` | inline script editing (**C7 only** — the C8 modeler leaves it unregistered even if the port is supplied) |
 
@@ -431,7 +431,9 @@ surface and on the [viewer](#viewer)'s opt-in readonly panel.
 `@miragon/bpmn-modeler/viewer` is a **readonly** surface for view-only
 permissions and embedded previews. It wraps bpmn-js's `NavigatedViewer` (mouse +
 keyboard pan/zoom) plus the selection outline, an opt-in **readonly**
-engine-neutral properties panel (#1443), and the browser-only
+engine-neutral properties panel (#1443), an opt-in **model-navigation**
+context-pad entry (#1445 — the one interaction a readonly surface still offers),
+and the browser-only
 [diff rendering primitives](#diff) (`DiffViewer`, `DiffLegend`, `DiffNavigator`,
 `DiffPaneCoordinator`). The Camunda editor stack (camunda-bpmn-js, CodeMirror,
 token simulation, lint) stays out of its module graph, so it survives
@@ -457,6 +459,7 @@ viewer.selection.onSelectionChanged((ids) => console.log("selected", ids));
 | --- | --- | --- | --- |
 | `theme` | `"light" \| "dark" \| "automatic"` | `"automatic"` | Colour theme; toggles a per-instance `data-bpmn-theme` attribute (same mechanism as the modeler). |
 | `propertiesPanel` | `{ parent: HTMLElement }` | — | Opt-in **readonly** properties panel: the engine-neutral panel renders into `parent` with every entry disabled (the viewer registers no `modeling` service). Omitted ⇒ no panel modules load, no DOM added. |
+| `capabilities` | `ViewerCapabilities` | — | Engine-neutral host ports. Navigation-only: `{ modelNavigation }` — the one interaction a readonly surface still offers. Present ⇒ a diagram-js context pad with only the navigate entry is registered; omitted ⇒ no `contextPad` service. Same [C8 caveat](#designeroptions) as `/design`. |
 | `moddleExtensions` | `Record<string, object>` | — | Extra moddle extensions for a host's own BPMN namespace. |
 | `additionalModules` | `unknown[]` | — | Escape hatch: extra render-only bpmn-js DI modules. |
 
@@ -469,15 +472,20 @@ handle narrows to a viewer handle with no adapter (a compile-time acceptance
 criterion). `captureViewState` / `applyViewState` (see
 [View state](#view-state-capture--restore)) make the viewer a valid target for a
 mode switch — capture on the editor, apply on the viewer. There is no
-`newDiagram`, `setElementTemplates`, `setSettings`, linting, clipboard,
-capabilities, or events.
+`newDiagram`, `setElementTemplates`, `setSettings`, linting, clipboard, or
+events; the only host capability is the opt-in `modelNavigation` (see
+[`ViewerOptions`](#vieweroptions)).
 
 `getService` is typed against `CoreViewerServices` — the readonly `Pick` of the
 [core services](#core-services--escape-hatch): `canvas`, `elementRegistry`,
 `eventBus`, `overlays`, `selection`. The editing services (`modeling`,
 `commandStack`) are **not registered** on a viewer — even with the properties
-panel registered — so resolving one throws: the surface is readonly by
-construction, not by convention.
+panel or model-navigation capability registered — so resolving one throws: the
+surface is readonly by construction, not by convention. `contextPad` is
+registered **only** with `capabilities.modelNavigation`, and even then it is
+diagram-js's plain pad (not bpmn-js's, whose provider injects `modeling`)
+carrying only the navigate entry; without the capability, resolving `contextPad`
+throws too.
 
 ### Kept out of the module graph
 
