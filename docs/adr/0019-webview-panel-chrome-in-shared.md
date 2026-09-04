@@ -26,6 +26,11 @@ by both webviews). Only `isTextEditingSurface` — a pure DOM predicate also
 used by the published package — stays in `modeler-types`
 (`textEditingSurface.ts`).
 
+The same rule moves `theme.ts` (the DMN-only `#theme-link` adapter — a
+host-coupled, module-singleton helper consumed solely by the DMN webview
+bootstrap, which the published package replaces with its own `ThemeController`):
+protocol-free but not worth publishing, so it lands in `libs/shared` too.
+
 ## Alternatives considered
 
 **A dedicated `libs/webview-chrome` package.** Cleaner concern-wise than the

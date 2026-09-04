@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // `applyTheme` is private and module state (`currentMode`) is a singleton, so we

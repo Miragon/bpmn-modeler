@@ -14,23 +14,23 @@ import {
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
+    initResizer,
+    initTheme,
+    installPanelShortcuts,
     LogErrorCommand,
     LogWarningCommand,
     PropertiesPanelStateQuery,
-    initResizer,
-    installPanelShortcuts,
     Query,
     ReleaseDocumentFlushQuery,
+    setColorThemeMode,
     SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 import {
     asyncDebounce,
     formatErrors,
-    initTheme,
     NoModelerError,
     serializeAsync,
-    setColorThemeMode,
 } from "@miragon/bpmn-modeler-types";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";

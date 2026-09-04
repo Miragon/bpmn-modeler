@@ -15,6 +15,5 @@ export * from "./scripting";
 export * from "./implementation";
 export * from "./diff";
 export * from "./errors";
-export * from "./theme";
 export * from "./canvasResize";
 export * from "./textEditingSurface";

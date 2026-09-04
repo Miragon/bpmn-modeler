@@ -4040,6 +4040,7 @@ __metadata:
     "@types/node": "npm:26.1.2"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.11"
+    jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.11"
