@@ -114,6 +114,73 @@ describe("createViewer (runtime, jsdom)", () => {
         expect(() => viewer!.getService("canvas")).toThrow(NoModelerError);
     });
 
+    describe("readonly properties panel (opt-in, #1443)", () => {
+        // Entry-level readonly behaviour (every input disabled, no add/remove
+        // affordances) is proven in the lib's own specs
+        // (`propertiesPanelRenderer.spec.tsx`, `applyReadonly.spec.ts`); the AC
+        // "interact with every entry, export unchanged" needs a rendered panel
+        // body and thus `importXML` — the jsdom SVG wall above. The demo page
+        // (`viewer.html`) is the manual/browser proof for that path.
+        let parent: HTMLElement;
+
+        afterEach(() => {
+            parent.remove();
+        });
+
+        it("mounts the panel and keeps modeling/commandStack unregistered", async () => {
+            container = mount();
+            parent = mount();
+            viewer = await createViewer(container, { propertiesPanel: { parent } });
+
+            // The renderer attaches on `diagram.init`, no importXML needed.
+            expect(parent.querySelector(".bio-properties-panel-container")).not.toBeNull();
+            expect(viewer.getService("propertiesPanel")).toBeDefined();
+
+            // The load-bearing readonly proof: registering the panel must not
+            // drag any editing service into the DI graph.
+            expect(() => viewer!.getService("modeling")).toThrow();
+            expect(() => viewer!.getService("commandStack")).toThrow();
+        });
+
+        it("exposes the host custom-group slot", async () => {
+            container = mount();
+            parent = mount();
+            viewer = await createViewer(container, { propertiesPanel: { parent } });
+
+            const registry = viewer.getService<{
+                registerGroups(ids: readonly string[]): void;
+                has(id: string): boolean;
+            }>("customPropertiesGroups");
+            registry.registerGroups(["myCustomGroup"]);
+            expect(registry.has("myCustomGroup")).toBe(true);
+        });
+
+        it("themes the panel parent alongside the container", async () => {
+            container = mount();
+            parent = mount();
+            viewer = await createViewer(container, {
+                theme: "light",
+                propertiesPanel: { parent },
+            });
+
+            expect(container.getAttribute("data-bpmn-theme")).toBe("light");
+            expect(parent.getAttribute("data-bpmn-theme")).toBe("light");
+
+            viewer.setTheme("dark");
+            expect(container.getAttribute("data-bpmn-theme")).toBe("dark");
+            expect(parent.getAttribute("data-bpmn-theme")).toBe("dark");
+        });
+
+        it("stays inert when the option is omitted", async () => {
+            container = mount();
+            parent = mount();
+            viewer = await createViewer(container);
+
+            expect(document.querySelector(".bio-properties-panel-container")).toBeNull();
+            expect(() => viewer!.getService("propertiesPanel")).toThrow();
+        });
+    });
+
     // Render-dependent: jsdom has no SVG layout, so bpmn-js's viewbox transform
     // throws on import. Covered manually via the demo page + Playwright.
     it.skip("loads a diagram, selects an element, and round-trips XML/SVG", async () => {

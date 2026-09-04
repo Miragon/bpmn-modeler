@@ -1,6 +1,8 @@
 /**
  * Forked from bpmn-js-properties-panel v5.65.0 (MIT). See LICENSE-upstream.
- * Verbatim: BPMN id validation used by the neutral id / process-id entries.
+ * Neutral-mode delta: the id-uniqueness check tolerates a missing `$model.ids`
+ * registry — bpmn-js only creates it on modelers (`BaseModeler#_createModdle`),
+ * so on a readonly `NavigatedViewer` the entry must still render.
  */
 const SPACE_REGEX = /\s/;
 
@@ -15,7 +17,7 @@ export function isIdValid(
     idValue: string,
     translate: (template: string) => string,
 ): string | undefined {
-    const assigned = element.$model.ids.assigned(idValue);
+    const assigned = element.$model.ids?.assigned(idValue);
     const idAlreadyExists = assigned && assigned !== element;
 
     if (!idValue) {

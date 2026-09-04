@@ -140,3 +140,34 @@ called for `check-viewer-pure-entry.mjs` to still pass (maintainer decision,
 Peter). The neutral diff markers + legend CSS move into `src/styles/diffView.css`,
 shared by `viewer.css` (so `/viewer` diff consumers get a themed legend) and
 `diff.css` (so `styles.css`/bpmn-webview consumers see no change).
+
+## Amendment (#1443, 2026-09-04)
+
+`ViewerOptions` gains an **optional `propertiesPanel: { parent }`** — unlike on
+the modeler/design surfaces, where the panel is mandatory. When set, the viewer
+registers the engine-neutral panel's full design-parity module set
+(`PropertiesPanelModule` + `NeutralPropertiesProviderModule` +
+`ModeFilterModule` + `CustomGroupsModule`, ADR 0017) and passes
+`feelPopupContainer: container`; `setTheme` then scopes both the container and
+the panel parent. When omitted, none of the panel modules enter the DI graph —
+byte-identical to before.
+
+- **Readonly is derived, not configured.** The viewer still registers no
+  `modeling` / `commandStack`; the panel renderer derives its readonly flag from
+  the absent `modeling` service and disables every entry. The readonly-by-
+  construction guarantee (and its runtime proof in `createViewer.spec.ts`) is
+  unchanged *with the panel registered*.
+- **`@bpmn-io/properties-panel` / preact / CodeMirror enter the `/viewer`
+  closure** (they stay Vite externals, so tree-shaking hosts that skip the
+  option still drop them where their bundler can). This continues the
+  surface-accretion trajectory the #1439 amendment anticipated ("a preact-based
+  readonly panel is planned in #1443"); the purity gate stays retired, replaced
+  by a narrow `architecture.spec.ts` rule: `src/viewer/**` must deep-import the
+  panel lib, never its barrel.
+- **The viewer entry still imports no CSS** (load-bearing for
+  `cssCodeSplit: false`): the panel modules are deep-imported past the lib
+  barrel's CSS side-effect import. `viewer.css` gains the panel sheets
+  (`properties-panel.css` + the dark-theme overrides) instead.
+- **`locale` / `TranslateModule` remain omitted** — diagram-js's identity
+  `translate` satisfies the renderer (English labels); hosts can add the
+  translate module via `additionalModules`.

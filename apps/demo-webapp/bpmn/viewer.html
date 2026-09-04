@@ -9,20 +9,35 @@
             body {
                 margin: 0;
             }
-            /* A single readonly canvas — no palette, no properties panel. #app is
-               sized by the shared demo header (viewport minus header + footer). */
+            /* A readonly canvas beside a readonly properties panel — no palette,
+               no editing. #app is sized by the shared demo header (viewport minus
+               header + footer). */
             .viewer {
                 position: relative;
+                display: flex;
                 height: 100%;
             }
             .viewer .canvas {
-                position: absolute;
-                inset: 0;
+                position: relative;
+                flex: 1;
+                min-width: 0;
+            }
+            .viewer .properties {
+                width: 320px;
+                flex: none;
+                border-left: 1px solid #d7d9de;
+                overflow: auto;
+                background: #fff;
+            }
+            :root[data-bpmn-theme="dark"] .viewer .properties {
+                border-left-color: #3a3a3a;
+                background: #1d1d1d;
             }
             .viewer .toolbar {
                 position: absolute;
                 top: 12px;
-                right: 12px;
+                /* clear the 320px properties panel */
+                right: 332px;
                 z-index: 10;
                 display: flex;
                 gap: 10px;
@@ -52,6 +67,7 @@
         <div id="app" style="height: 100vh">
             <div class="viewer">
                 <div class="canvas" id="canvas"></div>
+                <div class="properties" id="properties"></div>
                 <div class="toolbar">
                     <span class="selection" id="selection">Nothing selected</span>
                 </div>

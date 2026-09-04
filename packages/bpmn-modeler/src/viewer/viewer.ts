@@ -1,6 +1,14 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import OutlineModule from "bpmn-js/lib/features/outline";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
+// Deep imports on purpose: the lib barrel side-effect-imports its CSS, and the
+// viewer entry must stay CSS-free (`cssCodeSplit: false` would fold any
+// reachable sheet into the shared `dist/bpmn-modeler.css`). Gated by
+// `architecture.spec.ts`; the panel sheets ship via `viewer.css` instead.
+import PropertiesPanelModule from "@miragon/bpmn-modeler-properties-panel/render/index";
+import NeutralPropertiesProviderModule from "@miragon/bpmn-modeler-properties-panel/provider/index";
+import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
+import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
 import { NoModelerError, observeCanvasSize } from "@miragon/bpmn-modeler-types";
 import { ThemeController } from "../theme";
 import { ViewportManager } from "../viewport";
@@ -23,6 +31,11 @@ import type { CoreViewerServices, ViewerOptions } from "./publicApi";
  * *visible* selection/hover. Viewport and selection concerns delegate to the
  * shared {@link ViewportManager} / {@link SelectionManager}, so the same
  * `ServiceAccessor`-based managers back both the modeler and the viewer.
+ *
+ * With `options.propertiesPanel` set, the engine-neutral properties panel
+ * (`@miragon/bpmn-modeler-properties-panel`) mounts readonly: the renderer
+ * derives readonly from the absent `modeling` service and disables every entry.
+ * Without the option, none of the panel modules enter the DI graph.
  *
  * Per-instance by construction: bound to its own `container`, so several viewers
  * (or a viewer beside a modeler) can coexist on a page. Use {@link createViewer}
@@ -112,13 +125,35 @@ export class BpmnViewer {
      *   the public handle.
      */
     async init(): Promise<void> {
+        const panel = this.options.propertiesPanel;
         this.viewer = new NavigatedViewer({
             container: this.container,
             moddleExtensions: this.options.moddleExtensions,
+            ...(panel && {
+                propertiesPanel: {
+                    parent: panel.parent,
+                    // Mount the FEEL popup (an unconditional panel dependency)
+                    // inside the instance container — it defaults to
+                    // document.body, outside this instance's theme scope.
+                    feelPopupContainer: this.container,
+                },
+            }),
             // Outline is Modeler-only upstream; it is the single addition that
             // makes selection/hover visible on the otherwise chrome-free viewer.
             additionalModules: [
                 OutlineModule,
+                // The full design-parity panel set: renderer + neutral provider
+                // + mode filter (identity here, no engine provider to reduce) +
+                // the host custom-group slot. The renderer attaches on
+                // `diagram.init` and renders readonly (no `modeling` service).
+                ...(panel
+                    ? [
+                          PropertiesPanelModule,
+                          NeutralPropertiesProviderModule,
+                          ModeFilterModule,
+                          CustomGroupsModule,
+                      ]
+                    : []),
                 ...((this.options.additionalModules as any[]) ?? []),
             ],
         });
@@ -174,7 +209,10 @@ export class BpmnViewer {
      */
     setTheme(theme: ThemeMode): void {
         if (!this.themeController) {
-            this.themeController = new ThemeController([this.container]);
+            const panel = this.options.propertiesPanel;
+            this.themeController = new ThemeController(
+                panel ? [this.container, panel.parent] : [this.container],
+            );
         }
         this.themeController.setMode(theme);
     }

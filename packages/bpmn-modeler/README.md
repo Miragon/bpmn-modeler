@@ -423,17 +423,21 @@ modeler.getService<{ registerGroups(ids: readonly string[]): void }>(
 ```
 
 Neutral BPMN groups survive automatically; only host-added groups need marking.
+The same `customPropertiesGroups` registry is available on the [design](#design-mode)
+surface and on the [viewer](#viewer)'s opt-in readonly panel.
 
 ## Viewer
 
 `@miragon/bpmn-modeler/viewer` is a **readonly** surface for view-only
 permissions and embedded previews. It wraps bpmn-js's `NavigatedViewer` (mouse +
-keyboard pan/zoom) plus the selection outline, and also carries the browser-only
+keyboard pan/zoom) plus the selection outline, an opt-in **readonly**
+engine-neutral properties panel (#1443), and the browser-only
 [diff rendering primitives](#diff) (`DiffViewer`, `DiffLegend`, `DiffNavigator`,
-`DiffPaneCoordinator`). The Camunda editor stack (camunda-bpmn-js, properties
-panel, CodeMirror, token simulation, lint) stays out of its module graph, so it
-survives single-file bundlers that inline everything reachable. The `DiffLegend`
-does pull the shared i18n translator in for its labels (#1439).
+`DiffPaneCoordinator`). The Camunda editor stack (camunda-bpmn-js, CodeMirror,
+token simulation, lint) stays out of its module graph, so it survives
+single-file bundlers that inline everything reachable. The `DiffLegend` does
+pull the shared i18n translator in for its labels (#1439), and opting into the
+panel pulls in `@bpmn-io/properties-panel`/preact.
 
 ```ts
 import { createViewer } from "@miragon/bpmn-modeler/viewer";
@@ -452,6 +456,7 @@ viewer.selection.onSelectionChanged((ids) => console.log("selected", ids));
 | Field | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `theme` | `"light" \| "dark" \| "automatic"` | `"automatic"` | Colour theme; toggles a per-instance `data-bpmn-theme` attribute (same mechanism as the modeler). |
+| `propertiesPanel` | `{ parent: HTMLElement }` | — | Opt-in **readonly** properties panel: the engine-neutral panel renders into `parent` with every entry disabled (the viewer registers no `modeling` service). Omitted ⇒ no panel modules load, no DOM added. |
 | `moddleExtensions` | `Record<string, object>` | — | Extra moddle extensions for a host's own BPMN namespace. |
 | `additionalModules` | `unknown[]` | — | Escape hatch: extra render-only bpmn-js DI modules. |
 
@@ -470,26 +475,30 @@ capabilities, or events.
 `getService` is typed against `CoreViewerServices` — the readonly `Pick` of the
 [core services](#core-services--escape-hatch): `canvas`, `elementRegistry`,
 `eventBus`, `overlays`, `selection`. The editing services (`modeling`,
-`commandStack`) are **not registered** on a viewer, so resolving one throws —
-the surface is readonly by construction, not by convention.
+`commandStack`) are **not registered** on a viewer — even with the properties
+panel registered — so resolving one throws: the surface is readonly by
+construction, not by convention.
 
 ### Kept out of the module graph
 
-`camunda-bpmn-js`, `bpmn-js-properties-panel`, `@bpmn-io/properties-panel`,
-`preact`, `codemirror` / `@codemirror/*`, `bpmnlint` / `bpmn-js-bpmnlint`,
-`bpmn-js-token-simulation`, `bpmn-js-create-append-anything`,
-`camunda-transaction-boundaries`, and `minisearch` — the full Camunda editor
-stack. The shared i18n translator (`@miragon/bpmn-modeler-i18n`) **is** now
-present, pulled in by `DiffLegend` for its labels (#1439). The dedicated
-build-time purity gate was retired in #1439 as the surface grows custom features;
-the viewer still imports **no CSS** and `check:dts` still guards the dist surface.
+`camunda-bpmn-js`, `codemirror` / `@codemirror/*`, `bpmnlint` /
+`bpmn-js-bpmnlint`, `bpmn-js-token-simulation`,
+`bpmn-js-create-append-anything`, `camunda-transaction-boundaries`, and
+`minisearch` — the Camunda editor stack. The shared i18n translator
+(`@miragon/bpmn-modeler-i18n`) **is** present, pulled in by `DiffLegend` for its
+labels (#1439), and the engine-neutral panel fork (with
+`@bpmn-io/properties-panel`/preact) enters the closure for the opt-in readonly
+panel (#1443). The dedicated build-time purity gate was retired in #1439 as the
+surface grows custom features; the viewer still imports **no CSS** and
+`check:dts` still guards the dist surface.
 
 ### Theming & stylesheet
 
 Load **`@miragon/bpmn-modeler/viewer.css`**, not `styles.css`: the viewer sheet
-carries the bpmn-js base diagram/font CSS, the dark-theme diagram overrides, and
-the neutral diff markers + legend chip (so a diff consumer needs no other sheet) —
-none of the editor chrome. The two overlap, so do **not** load both on a
+carries the bpmn-js base diagram/font CSS, the dark-theme diagram overrides,
+the neutral diff markers + legend chip (so a diff consumer needs no other
+sheet), and the properties-panel chrome for the opt-in readonly panel — none of
+the Camunda editor chrome. The two overlap, so do **not** load both on a
 viewer-only page.
 
 ## Design mode
@@ -509,7 +518,7 @@ Three surfaces close the feature matrix:
 | --- | --- | --- | --- | --- |
 | Modeler | `@miragon/bpmn-modeler` | yes | Camunda 7 / 8 | engine-bound |
 | Design | `@miragon/bpmn-modeler/design` | yes | none | plain BPMN |
-| Viewer | `@miragon/bpmn-modeler/viewer` | no | — | none |
+| Viewer | `@miragon/bpmn-modeler/viewer` | no | — | neutral, readonly (opt-in) |
 
 ### Mode-marker semantics
 
