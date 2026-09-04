@@ -55,6 +55,19 @@ export class VsCodeSettings implements SettingsPort {
             .get<string[]>("favouriteBpmnElements", []);
     }
 
+    /**
+     * Whether an external label wider than bpmn-js's default is wrapped at that
+     * default rather than rendered on one long line. Defaults to `false`: it
+     * changes the look of diagrams authored elsewhere.
+     */
+    getCompactExternalLabels(): boolean {
+        return (
+            workspace
+                .getConfiguration("miragon.bpmnModeler")
+                .get<boolean>("compactExternalLabels") ?? false
+        );
+    }
+
     getLanguage(): string {
         return workspace.getConfiguration("miragon.bpmnModeler").get<string>("language", "en");
     }

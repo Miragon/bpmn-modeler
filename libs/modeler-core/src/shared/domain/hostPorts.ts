@@ -135,6 +135,8 @@ export interface SettingsPort {
     getLintingEnabled(): boolean;
     getColorTheme(): "automatic" | "light";
     getFavouriteBpmnElements(): string[];
+    /** Whether a wide external label is wrapped at bpmn-js's default width. Defaults to `false`. */
+    getCompactExternalLabels(): boolean;
     getLanguage(): string;
     /** Whether the activity→code map is persisted under `<configFolder>/code-link/`. */
     getPersistCodeLinkMap(): boolean;
