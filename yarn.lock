@@ -4009,6 +4009,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-properties-panel@workspace:*, @miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel"
+  dependencies:
+    "@bpmn-io/properties-panel": "npm:3.52.0"
+    bpmn-js: "npm:18.25.1"
+    diagram-js: "npm:15.24.1"
+    ids: "npm:3.0.2"
+    jsdom: "npm:30.0.1"
+    min-dash: "npm:5.0.0"
+    min-dom: "npm:5.3.0"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.11"
+  peerDependencies:
+    "@bpmn-io/properties-panel": 3.52.0
+    bpmn-js: 18.25.1
+    diagram-js: 15.24.1
+    ids: 3.0.2
+    min-dash: 5.0.0
+    min-dom: 5.3.0
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-shared@workspace:*, @miragon/bpmn-modeler-shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-shared@workspace:libs/shared"
@@ -4134,6 +4157,7 @@ __metadata:
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-inline-scripting": "workspace:*"
+    "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@miragon/create-append-c7": "npm:0.1.0"
@@ -14872,7 +14896,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ids@npm:^3.0.0, ids@npm:^3.0.1, ids@npm:^3.0.2":
+"ids@npm:3.0.2, ids@npm:^3.0.0, ids@npm:^3.0.1, ids@npm:^3.0.2":
   version: 3.0.2
   resolution: "ids@npm:3.0.2"
   checksum: 10c0/ba2c3692978782e37a5fcdd4a508f75db909bc5b20e2b4a1ffba47c986779cf1a95fd2f9466182a697186c8e67912aa5f6fe8343de4c6ba79b8ae6842799ec77
@@ -17144,17 +17168,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"min-dash@npm:5.0.0, min-dash@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "min-dash@npm:5.0.0"
+  checksum: 10c0/640f3c6304fd3efb89fd1dcfa94a635774e3d76829321420839d2076faa5c39dc5767476e3843f3fabad69faa5c17dbac01dedefc44422031dcc4872aef37fdf
+  languageName: node
+  linkType: hard
+
 "min-dash@npm:^3.5.2":
   version: 3.8.1
   resolution: "min-dash@npm:3.8.1"
   checksum: 10c0/30eff7c7936496de022dc64a541aa0ce1db9eadf45425e3d7dc96e0f076677482b66f2888ef191b951558b079a0c0610d48b9e91e667c1ea6a745d730aeb3360
-  languageName: node
-  linkType: hard
-
-"min-dash@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "min-dash@npm:5.0.0"
-  checksum: 10c0/640f3c6304fd3efb89fd1dcfa94a635774e3d76829321420839d2076faa5c39dc5767476e3843f3fabad69faa5c17dbac01dedefc44422031dcc4872aef37fdf
   languageName: node
   linkType: hard
 
@@ -17165,7 +17189,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"min-dom@npm:^5.2.0, min-dom@npm:^5.3.0":
+"min-dom@npm:5.3.0, min-dom@npm:^5.2.0, min-dom@npm:^5.3.0":
   version: 5.3.0
   resolution: "min-dom@npm:5.3.0"
   dependencies:

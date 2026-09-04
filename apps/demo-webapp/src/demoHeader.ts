@@ -82,8 +82,6 @@ function applyDemoTheme(mode: DemoThemeMode): void {
 }
 
 const DIFF_HREF = "/bpmn/diff.html";
-const VIEWER_HREF = "/bpmn/viewer.html";
-const DESIGN_HREF = "/bpmn/design.html";
 
 // Where the "Modeler" view link points from the diff page — the first bpmn model.
 const DEFAULT_MODELER_HREF = modelHref(MODELS.find((m) => m.type === "bpmn") ?? MODELS[0]);
@@ -266,8 +264,6 @@ export function mountDemoHeader(
         <nav class="views" aria-label="Ansicht wählen">
             <a href="${modelerHref}"${noModel ? "" : activeAttr}>Modeler</a>
             <a href="${DIFF_HREF}"${isDiff ? activeAttr : ""}>Diff</a>
-            <a href="${VIEWER_HREF}"${isViewer ? activeAttr : ""}>Viewer</a>
-            <a href="${DESIGN_HREF}"${isDesign ? activeAttr : ""}>Design</a>
         </nav>`;
 
     const header = document.createElement("header");

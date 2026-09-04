@@ -21,6 +21,7 @@ can be composed into a webview and unit-tested in isolation.
 | Package | What's inside |
 | --- | --- |
 | `append-menu` | This replaces the flat "Append element" dropdown with a two-panel Preact overlay. |
+| `properties-panel` | An engine-neutral properties panel for bpmn-js: a fork of `bpmn-js-properties-panel` (MIT) whose renderer mounts on a readonly viewer and derives a readonly flag, plus a neutral (standard-BPMN) provider, a design/implement mode filter, and a host custom-group slot. Consumed by the `/design` subpath (epic #1438). |
 | `element-template-chooser` | This provides a richer, searchable overlay for picking an element template. |
 | `bpmn-clipboard` | Host-bridge override for element and label-text copy/paste; the native browser clipboard is the default, this routes it through the host when a sandboxed webview iframe can't reach the system clipboard. |
 | `code-link` | This adds a "Go to implementation" context-pad action that jumps to the task's source file. |

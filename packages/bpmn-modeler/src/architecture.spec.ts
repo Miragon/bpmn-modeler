@@ -190,7 +190,7 @@ describe("bpmn-modeler import direction", () => {
             spec.startsWith("bpmn-js/") ||
             spec === "diagram-js" ||
             spec.startsWith("diagram-js/") ||
-            spec === "bpmn-js-properties-panel" ||
+            spec === "@miragon/bpmn-modeler-properties-panel" ||
             spec === "bpmn-js-create-append-anything" ||
             spec === "diagram-js-minimap" ||
             spec === "@miragon/bpmn-modeler-types" ||

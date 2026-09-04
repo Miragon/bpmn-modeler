@@ -12,7 +12,7 @@
 @import "bpmn-js/dist/assets/diagram-js.css";
 @import "bpmn-js/dist/assets/bpmn-js.css";
 @import "bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css";
-@import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";
+@import "../../../../libs/properties-panel/src/properties-panel.css";
 @import "diagram-js-minimap/assets/diagram-js-minimap.css";
 @import "../../../../libs/append-menu/src/append-menu.css";
 @import "./canvasFocusIndicator.css";

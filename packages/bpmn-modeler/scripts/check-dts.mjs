@@ -31,6 +31,7 @@ const PRIVATE_LIBS = [
     "@miragon/bpmn-modeler-i18n-extras",
     "@miragon/bpmn-modeler-element-template-chooser",
     "@miragon/bpmn-modeler-append-menu",
+    "@miragon/bpmn-modeler-properties-panel",
     "@miragon/bpmn-model-navigation",
     "@miragon/bpmn-modeler-code-link",
     "@miragon/bpmn-modeler-inline-scripting",

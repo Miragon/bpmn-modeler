@@ -158,7 +158,17 @@ jobs:
         run: yarn install --immutable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: yarn npm audit --all --severity high
+      # npm's bulk-advisory endpoint intermittently takes far longer than yarn's
+      # default 60s httpTimeout (observed 50-180s+), so allow 300s and retry.
+      - name: Audit
+        run: |
+          for attempt in 1 2 3; do
+            if yarn npm audit --all --severity high; then exit 0; fi
+            echo "audit attempt ${attempt} timed out; retrying"
+          done
+          exit 1
+        env:
+          YARN_HTTP_TIMEOUT: "300000"
 
   test-standalone-extension:
     needs: detect-changes
