@@ -198,7 +198,11 @@ describe("bpmn-modeler import direction", () => {
             spec === "@miragon/bpmn-modeler-i18n-extras" ||
             spec === "@miragon/bpmn-modeler-append-menu" ||
             spec === "@miragon/bpmn-modeler-flow-navigation" ||
-            spec === "@miragon/bpmn-modeler-clipboard";
+            spec === "@miragon/bpmn-modeler-clipboard" ||
+            // Engine-neutral navigation capability (#1444): designer.ts value-imports
+            // createModelNavigationModule. The lib's only bare runtime import is
+            // bpmn-js/lib/util/ModelUtil, so it drags in no Camunda stack.
+            spec === "@miragon/bpmn-model-navigation";
         const offenders: string[] = [];
         for (const file of listSourceFiles(PKG_SRC)) {
             if (!file.startsWith(DESIGN_DIR)) continue;

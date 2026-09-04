@@ -1,4 +1,5 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type {
     ClipboardOptions,
     ContentSavedEvent,
@@ -42,10 +43,27 @@ import type { ViewState } from "../viewState";
 export type CoreDesignerServices = CoreModelerServices;
 
 /**
+ * The host capabilities a designer can opt into. Unlike the root
+ * {@link ModelerCapabilities}, this is navigation-only: `modelNavigation`
+ * ("Navigate to referenced model" on Call Activities / Business Rule Tasks /
+ * linked forms) is engine-neutral, so it belongs on the design surface. The
+ * engine-bound ports (`codeLink`, `scripting`) are deliberately absent so they
+ * are compile-time-rejected here, mirroring how {@link DesignerOptions} rejects
+ * `engine` / `linting` / `elementTemplates`.
+ *
+ * Present ⇒ the feature's DI module is registered and its context-pad entry
+ * appears; absent ⇒ no provider is registered and no entry renders.
+ */
+export interface DesignerCapabilities {
+    modelNavigation?: ModelNavigationPort;
+}
+
+/**
  * Per-instance configuration for {@link createDesigner}. Deliberately minimal:
  * Design mode has no engine (there is no execution platform to bind), no element
- * templates, no linting, and no host capabilities — every field that survives is
- * engine-neutral.
+ * templates, and no linting — every field that survives is engine-neutral. Its
+ * only host capability is the engine-neutral `modelNavigation` (see
+ * {@link DesignerCapabilities}).
  */
 export interface DesignerOptions {
     /**
@@ -85,6 +103,14 @@ export interface DesignerOptions {
      * `additionalModules`.
      */
     additionalModules?: unknown[];
+
+    /**
+     * Engine-neutral host capabilities to opt into — currently only
+     * `modelNavigation`. Omit a capability and its DI module is never
+     * registered, so its context-pad entry never renders. See
+     * {@link DesignerCapabilities}.
+     */
+    capabilities?: DesignerCapabilities;
 
     /** Debounced diagram content — see {@link ContentSavedEvent}. */
     onContentSaved?: (event: ContentSavedEvent) => void;

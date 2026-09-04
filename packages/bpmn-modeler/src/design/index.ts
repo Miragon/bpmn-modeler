@@ -28,11 +28,19 @@
 export { createDesigner } from "./createDesigner";
 export type {
     DesignerOptions,
+    DesignerCapabilities,
     BpmnDesignerHandle,
     CoreDesignerServices,
     CreateDesigner,
 } from "./publicApi";
 export type { ThemeMode, ClipboardOptions, ContentSavedEvent } from "../publicApi";
+
+// ── Model-navigation capability — the one engine-neutral host port on /design ─
+export type {
+    ModelNavigationPort,
+    ModelReference,
+    ReferenceKind,
+} from "@miragon/bpmn-model-navigation";
 
 // ── Mode routing — re-exported for hosts that decide Design vs Implement ──────
 export { detectEngine } from "../detectEngine";

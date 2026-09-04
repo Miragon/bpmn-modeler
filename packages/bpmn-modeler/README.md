@@ -85,7 +85,7 @@ The three optional capability ports (`ModelerCapabilities`) are:
 
 | Capability | Port | Wires up |
 | --- | --- | --- |
-| `modelNavigation` | `ModelNavigationPort` | jump-to-element / model navigation |
+| `modelNavigation` | `ModelNavigationPort` | jump-to-element / model navigation (engine-neutral — **also available on `/design`** via its narrower `DesignerCapabilities`) |
 | `codeLink` | `CodeLinkPort` | code ↔ diagram linking |
 | `scripting` | `InlineScriptingPort` | inline script editing (**C7 only** — the C8 modeler leaves it unregistered even if the port is supplied) |
 
@@ -560,10 +560,22 @@ designer.getService("commandStack"); // editable: modelling services are present
 | `clipboard` | `ClipboardOptions` | native | Clipboard override for sandboxed hosts. |
 | `moddleExtensions` | `Record<string, object>` | — | Extra moddle extensions for a host's own BPMN namespace. |
 | `additionalModules` | `unknown[]` | — | Escape hatch: extra bpmn-js DI modules. |
+| `capabilities` | `DesignerCapabilities` | — | Engine-neutral host ports. Navigation-only: `{ modelNavigation }`. |
 | `onContentSaved` | `(e: ContentSavedEvent) => void` | — | Debounced diagram content (300 ms / 1000 ms maxWait). |
 
-There is no `engine`, `linting`, `elementTemplates`, `settings`, or
-`capabilities` — each is engine-bound and rejected at compile time.
+There is no `engine`, `linting`, `elementTemplates`, or `settings` — each is
+engine-bound and rejected at compile time. Unlike the root
+`ModelerCapabilities`, the design `capabilities` set is **navigation-only**: it
+accepts `modelNavigation` (engine-neutral) and compile-time-rejects the
+engine-bound `codeLink` / `scripting`.
+
+> **C8 caveat.** Without a zeebe moddle, C8-shaped references
+> (`zeebe:CalledElement` / `CalledDecision` / `FormDefinition`) parse as generic
+> elements whose `$type` keeps the raw XML qname casing (`"zeebe:calledElement"`),
+> so the exact `$type` match never fires and no navigate entry appears. Standard
+> and C7 references (`calledElement`, `camunda:decisionRef`) work out of the box.
+> A consumer who wants C8 navigation on `/design` passes
+> `moddleExtensions: { zeebe: … }`.
 
 ### `BpmnDesignerHandle`
 
