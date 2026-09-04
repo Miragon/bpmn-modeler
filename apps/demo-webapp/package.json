@@ -2,7 +2,7 @@
     "name": "@miragon/bpmn-modeler-demo-webapp",
     "version": "0.0.1",
     "private": true,
-    "description": "Static, client-side browser demo of the BPMN/DMN modeler. Reuses the webview apps' bootstrap() with a demo host; never shipped to a real host.",
+    "description": "Static, client-side browser demo of the BPMN/DMN modeler. The BPMN page is the reference consumer of the published @miragon/bpmn-modeler package (viewer/design/modeler surfaces behind a mode strip); the DMN page still uses the webview bootstrap. Never shipped to a real host.",
     "scripts": {
         "build:bpmn": "vite build --mode bpmn",
         "build:dmn": "vite build --mode dmn",
@@ -11,9 +11,9 @@
         "preview": "node serve-demo.mjs"
     },
     "dependencies": {
+        "@bpmn-io/properties-panel": "3.52.0",
         "@miragon/bpmn-modeler": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
-        "@miragon/bpmn-modeler-webview": "workspace:*",
         "@miragon/dmn-modeler-webview": "workspace:*"
     },
     "devDependencies": {

@@ -6,11 +6,11 @@ export interface DemoHeaderLinks {
     docs: string;
 }
 
-// The demo has four views: the single-model modeler (bpmn/dmn), the two-pane
-// diff, the readonly viewer, and the engine-neutral design surface. `"diff"`,
-// `"viewer"`, and `"design"` are not `ModelType`s — they have no active model —
-// so the model dropdown is hidden there; the view switcher is how users cross
-// between them.
+// The header switcher crosses between two views: the single-model modeler
+// (bpmn/dmn) and the two-pane diff. `"viewer"` and `"design"` are the lean-entry
+// regression pages (viewer.html / design.html) — reachable by direct URL, not in
+// the switcher. None of `"diff"`, `"viewer"`, `"design"` is a `ModelType` (no
+// active model), so the model dropdown is hidden on those pages.
 export type DemoPage = ModelType | "diff" | "viewer" | "design";
 
 // The header's single theme control. `"automatic"` follows the OS
@@ -19,10 +19,10 @@ export type DemoThemeMode = "automatic" | "light" | "dark";
 type DemoThemeKind = "light" | "dark";
 
 export interface MountDemoHeaderOptions {
-    // Fired with the raw mode on every user theme change. The viewer page uses
-    // it to drive the public `viewer.setTheme`; the modeler/diff pages theme
-    // ambiently via `data-bpmn-theme` + the `vscode-dark` body class and need no
-    // callback.
+    // Fired with the raw mode on every user theme change. The package surfaces
+    // (modeler / viewer / design pages) route it to the live handle's public
+    // `setTheme`, which themes per instance via `data-bpmn-theme`; the diff page
+    // themes ambiently off the `vscode-dark` body class and needs no callback.
     onThemeChange?: (mode: DemoThemeMode) => void;
 }
 
@@ -52,10 +52,12 @@ let mediaQuery: MediaQueryList | undefined;
 let mediaListener: ((event: MediaQueryListEvent) => void) | undefined;
 
 function applyThemeKind(kind: DemoThemeKind): void {
-    // `data-bpmn-theme` themes every canvas, panel, and the demo chrome via CSS;
-    // the `vscode-dark` body class drives the BPMN webview's HostThemeAdapter and
-    // the DMN webview's `#theme-link` swap (both left in `"automatic"` mode) plus
-    // the package's existing `body.vscode-dark .diff-legend*` rules.
+    // `data-bpmn-theme` themes every BPMN canvas, panel, and the demo chrome via
+    // CSS (the BPMN surfaces additionally re-theme per instance via `setTheme`).
+    // The `vscode-dark` body class drives the package's `body.vscode-dark
+    // .diff-legend*` rules on the diff page, which has no live handle to theme.
+    // The DMN page is light-only (see the no-op `#theme-link` below), so the
+    // control does not reach the decision table.
     document.documentElement.setAttribute("data-bpmn-theme", kind);
     document.body.classList.toggle("vscode-dark", kind === "dark");
 }
@@ -108,6 +110,17 @@ export function mountDemoHeader(
     // falls back to the default bpmn model so users always land somewhere sensible.
     const noModel = isDiff || isViewer || isDesign;
     const modelerHref = noModel ? DEFAULT_MODELER_HREF : modelHref(getActiveModel(page));
+
+    // Vite strips the shell's `id="theme-link"` when it bundles the DMN page's
+    // stylesheet, so the DMN bootstrap's shared `applyTheme()` lookup would fail.
+    // A no-op link keeps that lookup silent — the DMN page is light-only.
+    if (!document.getElementById("theme-link")) {
+        const themeLink = document.createElement("link");
+        themeLink.id = "theme-link";
+        themeLink.rel = "stylesheet";
+        themeLink.href = "data:text/css,";
+        document.head.appendChild(themeLink);
+    }
 
     const style = document.createElement("style");
     // Colour tokens mirror Miragon/corporate-identity (brand/tokens.json).
@@ -190,9 +203,6 @@ export function mountDemoHeader(
         .miragon-demo-footer .spacer { flex: 1; }
         .miragon-demo-footer a { color: #6b7280; text-decoration: none; }
         .miragon-demo-footer a:hover { color: var(--cd-blau-link); text-decoration: underline; }
-        .djs-context-pad .entry.entry-demo-disabled {
-            opacity: .35; cursor: not-allowed; filter: grayscale(1);
-        }
 
         /* Dark chrome, scoped on the same attribute the canvases theme off.
            The viewer page loads only viewer.css (no body-background rule), so
@@ -314,9 +324,9 @@ export function mountDemoHeader(
         }
     });
 
-    // Apply the saved mode now — mountDemoHeader runs before each page's
-    // bootstrap()/createViewer(), so the body class is in place before the
-    // theme adapters initialise.
+    // Apply the saved mode now — mountDemoHeader runs before each page stands up
+    // its surface(s), so the body class is in place before the theme adapters
+    // initialise.
     applyDemoTheme(themeMode);
 
     const themeSelect = header.querySelector<HTMLSelectElement>("#miragon-demo-theme");

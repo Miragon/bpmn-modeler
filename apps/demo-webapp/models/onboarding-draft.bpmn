@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_onboarding_draft" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="onboardingDraft" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_1" name="New hire signed">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_collectDetails" name="Collect personal details">
+      <bpmn:documentation>Draft only — no execution platform assigned yet. Collect the new hire's address, tax and bank details before provisioning.</bpmn:documentation>
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_complete" name="Details complete?">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_ready" name="Ready to provision">
+      <bpmn:incoming>Flow_yes</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_followUp" name="Follow up needed">
+      <bpmn:incoming>Flow_no</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_collectDetails" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_collectDetails" targetRef="Gateway_complete" />
+    <bpmn:sequenceFlow id="Flow_yes" name="Yes" sourceRef="Gateway_complete" targetRef="End_ready" />
+    <bpmn:sequenceFlow id="Flow_no" name="No" sourceRef="Gateway_complete" targetRef="End_followUp" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="onboardingDraft">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="172" y="152" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="150" y="195" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_collectDetails_di" bpmnElement="Task_collectDetails">
+        <dc:Bounds x="260" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_complete_di" bpmnElement="Gateway_complete" isMarkerVisible="true">
+        <dc:Bounds x="425" y="145" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="415" y="115" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_ready_di" bpmnElement="End_ready">
+        <dc:Bounds x="562" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="540" y="125" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_followUp_di" bpmnElement="End_followUp">
+        <dc:Bounds x="562" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="543" y="265" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="208" y="170" />
+        <di:waypoint x="260" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="170" />
+        <di:waypoint x="425" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_yes_di" bpmnElement="Flow_yes">
+        <di:waypoint x="450" y="145" />
+        <di:waypoint x="450" y="100" />
+        <di:waypoint x="562" y="100" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="458" y="113" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_no_di" bpmnElement="Flow_no">
+        <di:waypoint x="450" y="195" />
+        <di:waypoint x="450" y="240" />
+        <di:waypoint x="562" y="240" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="459" y="223" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

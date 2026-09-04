@@ -1,36 +1,91 @@
-import { bootstrap } from "@miragon/bpmn-modeler-webview";
-import * as lintModule from "@miragon/bpmn-modeler/lint";
-import { mountDemoHeader, DemoGrayoutModule, modelHref, resolveReference } from "../src";
-import { BpmnDemoHost } from "./demoHost";
+import "@miragon/bpmn-modeler"; // side-effect CSS shared by all three surfaces
+import "./modeler.css";
+import type { ThemeMode } from "@miragon/bpmn-modeler";
+import { initResizer, installPanelShortcuts } from "@miragon/bpmn-modeler-shared";
+import { mountDemoHeader } from "../src";
+import { getActiveModel } from "../src/registry";
+import { ModeSession } from "./modeSwitch/ModeSession";
+import { mountModeStrip } from "./modeSwitch/modeStrip";
+import { resolveInitialMode } from "./modeSwitch/modeModel";
+import { readRequestedMode, writeModeToUrl } from "./modeSwitch/modeUrl";
 
-mountDemoHeader("bpmn");
-// The demo supplies only the model-navigation capability; codeLink and scripting
-// are omitted, so their context-pad entries / lock UI genuinely never render — a
-// host-less consumer gets no dead buttons.
-//
-// `linting: { module }` opts into in-page linting with the engine-aware default
-// config — the host-less proof that the webview lints itself. The lint stack is
-// injectable now (#1407), so the demo imports the `/lint` subpath and hands it
-// in. onLintResults logs each run so the browser console shows the rule-keyed
-// output + any rules the bundled resolver could not cover.
-bootstrap(new BpmnDemoHost(), {
-    extraModules: [DemoGrayoutModule],
-    linting: { module: lintModule },
-    // Plain-browser demo: use the native browser clipboard. The stub
-    // host cannot serve a real clipboard, so the protocol-bridge default would
-    // leave paste dead in the production build.
-    clipboard: "native",
-    onLintResults: ({ results, unresolved }) => {
-        console.debug("[demo] in-page lint", { results, unresolved });
-    },
-    capabilities: {
-        modelNavigation: {
-            openReference: ({ id, kind }) => {
-                const target = resolveReference(id, kind);
-                if (target) {
-                    window.location.href = modelHref(target);
-                }
-            },
+/**
+ * Composition root for the BPMN modeler page. Instead of the webview
+ * `bootstrap()`, it hosts all three package surfaces (viewer / design / modeler)
+ * behind a canvas-side mode strip (#1446): one {@link ModeSession} owns the live
+ * instance and swaps it as the strip selects a mode.
+ */
+async function main(): Promise<void> {
+    // The session is created after the header + strip, whose callbacks reference
+    // it, so it lives behind a ref (the same pattern viewer.ts / design.ts use).
+    const sessionRef: { current?: ModeSession } = {};
+
+    const { themeMode } = mountDemoHeader(
+        "bpmn",
+        {},
+        { onThemeChange: (mode) => sessionRef.current?.setTheme(mode as ThemeMode) },
+    );
+
+    const canvas = document.getElementById("js-canvas");
+    const host = document.getElementById("js-properties-panel");
+    const panelMount = document.getElementById("js-properties-panel-mount");
+    const stripEl = document.getElementById("js-mode-strip");
+    const resizerEl = document.getElementById("js-panel-resizer");
+    if (!canvas || !host || !panelMount || !stripEl || !resizerEl) {
+        throw new Error("bpmn modeler demo: missing host elements");
+    }
+
+    const panelHandle = initResizer({
+        getToggleLabel: (state) =>
+            (state === "collapsed" ? "Open properties panel" : "Close properties panel") +
+            " (Shift+P)",
+    });
+
+    const focusCanvas = (): void =>
+        sessionRef.current?.getHandle().getService<{ focus(): void }>("canvas").focus();
+    const isCanvasFocused = (): boolean =>
+        sessionRef.current
+            ?.getHandle()
+            .getService<{ isFocused(): boolean }>("canvas")
+            .isFocused() ?? false;
+
+    const model = getActiveModel("bpmn");
+    const engine = model.engine;
+    const initialMode = resolveInitialMode(readRequestedMode(), engine);
+
+    const strip = mountModeStrip({
+        host,
+        stripEl,
+        resizerEl,
+        panelHandle,
+        onSelect: (mode) => sessionRef.current?.requestMode(mode),
+        onEscape: focusCanvas,
+    });
+    strip.render({ mode: initialMode, engine, busy: true });
+
+    sessionRef.current = await ModeSession.start(initialMode, model.xml, {
+        canvas,
+        panelMount,
+        engine,
+        initialTheme: themeMode as ThemeMode,
+        onModeApplied: (mode) => {
+            writeModeToUrl(mode);
+            strip.render({ mode, engine, busy: false });
         },
-    },
-});
+        onSwitchStateChanged: (busy) => {
+            if (sessionRef.current) {
+                strip.render({ mode: sessionRef.current.getMode(), engine, busy });
+            }
+        },
+        onError: (error) => console.error("[demo] mode switch failed", error),
+    });
+
+    // `p` focuses the panel mount (not the strip); `Shift+P` toggles the panel —
+    // in every mode, since the session always exposes a canvas handle.
+    installPanelShortcuts(
+        { handle: panelHandle, focusCanvas, isCanvasFocused },
+        { getPanelRoot: () => panelMount },
+    );
+}
+
+void main();

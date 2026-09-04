@@ -3905,9 +3905,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-demo-webapp@workspace:apps/demo-webapp"
   dependencies:
+    "@bpmn-io/properties-panel": "npm:3.52.0"
     "@miragon/bpmn-modeler": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
-    "@miragon/bpmn-modeler-webview": "workspace:*"
     "@miragon/dmn-modeler-webview": "workspace:*"
     npm-run-all: "npm:4.1.5"
     vite: "npm:8.2.2"
@@ -4117,7 +4117,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmn-modeler-webview@workspace:*, @miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview":
+"@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview"
   dependencies:
