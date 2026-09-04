@@ -19,6 +19,7 @@ import "./styles/themes.css";
 export { createModeler } from "./createModeler";
 export type {
     ThemeMode,
+    ModelerMode,
     LintingOptions,
     LintModule,
     ClipboardOptions,

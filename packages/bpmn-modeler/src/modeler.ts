@@ -14,6 +14,11 @@ import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
+// Only the mode filter + custom-group slot: the lib's PropertiesPanelModule /
+// NeutralPropertiesProviderModule collide with camunda-bpmn-js's own
+// `propertiesPanel` DI name. The engine surface owns the renderer + providers;
+// these two ride alongside to filter it in design mode.
+import { ModeFilterModule, CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
 import { ThemeController } from "./theme";
@@ -46,6 +51,8 @@ import {
     type ViewState,
 } from "./viewState";
 import { deriveEngines } from "./engines";
+import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
+import { ModeUiModule } from "./modeModules";
 import { installKeyboardFocus } from "./keyboardFocus";
 import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 import type { CreateModelerOptions } from "./createModeler";
@@ -223,6 +230,13 @@ export class BpmnModeler {
             AppendMenuModule,
             FlowNavigationModule,
             propertiesPanelRootModule,
+            // Design/implement mode (#1442): the panel mode filter + host
+            // custom-group slot, and the popup-menu chrome filter. Mode-invariant
+            // — nothing here registers/unregisters on a toggle, so engine data is
+            // never at risk on replace/copy-paste.
+            ModeFilterModule,
+            CustomGroupsModule,
+            ModeUiModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
         // Clipboard is a [B] built-in: omitting `clipboard` registers nothing, so
@@ -260,6 +274,9 @@ export class BpmnModeler {
             },
             alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
             moddleExtensions: this.options.moddleExtensions,
+            // Mandatory: ModeFilterProvider defaults to "design" when this config
+            // key is absent, which would silently blank the engine surface.
+            propertiesPanelMode: normalizeMode(this.options.mode),
         };
 
         this.engine = engine;
@@ -327,6 +344,11 @@ export class BpmnModeler {
             );
             this.onCommandStackChanged(() => void this.contentSaved!());
         }
+
+        // Stamp the mode attribute before the first paint so a design-at-creation
+        // instance hides its engine chrome from frame one (the panel filter is
+        // already seeded from `propertiesPanelMode`).
+        this.setModeAttribute(normalizeMode(this.options.mode));
     }
 
     /**
@@ -454,6 +476,8 @@ export class BpmnModeler {
     destroy(): void {
         this.contentSaved?.cancel();
         this.themeController?.dispose();
+        this.container.removeAttribute(MODE_ATTRIBUTE);
+        this.options.propertiesPanel.parent.removeAttribute(MODE_ATTRIBUTE);
         this.disposeFocusFeatures();
         this.modeler?.destroy();
         this.modeler = undefined;
@@ -730,6 +754,59 @@ export class BpmnModeler {
             ]);
         }
         this.themeController.setMode(theme);
+    }
+
+    /**
+     * Switches the design/implement mode live on this same bpmn-js instance —
+     * no re-import, no engine-data loss. Delegates to {@link applyMode}, which
+     * flips the panel filter (firing `propertiesPanel.providersChanged` so the
+     * live panel re-derives), stops any token simulation on the way into design,
+     * stamps `data-bpmn-mode`, and fires `onModeChanged` once per actual change.
+     * Unrelated to {@link setTheme} despite the shared "mode" wording.
+     */
+    setMode(mode: ModelerMode): void {
+        applyMode(this.modePorts(), mode);
+    }
+
+    /**
+     * The current design/implement mode, read off the panel filter (the single
+     * source of truth).
+     *
+     * @throws {NoModelerError} If {@link init} has not been called.
+     */
+    getMode(): ModelerMode {
+        return this.getModeler()
+            .get<{ getMode(): ModelerMode }>("propertiesPanelModeFilter")
+            .getMode();
+    }
+
+    /**
+     * Maps the {@link ModePorts} seam onto this instance's DI services. The panel
+     * filter is the mode source of truth; `toggleMode` is resolved defensively
+     * (`get(..., false)`) since a consumer may omit token simulation.
+     */
+    private modePorts(): ModePorts {
+        const modeler = this.getModeler();
+        const filter = modeler.get<{
+            getMode(): ModelerMode;
+            setMode(mode: ModelerMode): void;
+        }>("propertiesPanelModeFilter");
+        return {
+            getFilterMode: () => filter.getMode(),
+            setFilterMode: (mode) => filter.setMode(mode),
+            stopTokenSimulation: () =>
+                modeler
+                    .get<{ toggleMode(active: boolean): void }>("toggleMode", false)
+                    ?.toggleMode(false),
+            setModeAttribute: (mode) => this.setModeAttribute(mode),
+            onModeChanged: this.options.onModeChanged,
+        };
+    }
+
+    /** Stamps {@link MODE_ATTRIBUTE} on the container + panel parent (both modes). */
+    private setModeAttribute(mode: ModelerMode): void {
+        this.container.setAttribute(MODE_ATTRIBUTE, mode);
+        this.options.propertiesPanel.parent.setAttribute(MODE_ATTRIBUTE, mode);
     }
 
     /**

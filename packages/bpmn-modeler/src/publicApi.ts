@@ -22,6 +22,9 @@ import type { ModelerCapabilities } from "./capabilities";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
 import type { ViewState } from "./viewState";
+import type { ModelerMode } from "./mode";
+
+export type { ModelerMode } from "./mode";
 
 /**
  * The public TypeScript surface of the `@miragon/bpmn-modeler` package:
@@ -200,6 +203,16 @@ export interface ModelerOptions {
     /** [B] UI locale (BCP-47-ish tag) — defaults to `"en"`. */
     locale?: string;
 
+    /**
+     * [B] Initial design/implement mode — defaults to `"implement"`. `"design"`
+     * reduces an engine-tagged model to its engine-neutral surface (neutral +
+     * host custom property groups only, no element-template chooser, no
+     * token-simulation toggle) on the **same** live instance — no re-import, no
+     * engine-data loss on replace/copy-paste. Toggle at runtime with
+     * {@link BpmnModelerHandle.setMode}. Unrelated to `theme` / {@link setTheme}.
+     */
+    mode?: ModelerMode;
+
     // ── [C] Host capabilities ───────────────────────────────────────────────
     /**
      * [C] Per-feature host ports. Each present port registers its feature's DI
@@ -223,6 +236,9 @@ export interface ModelerOptions {
 
     /** The element-templates loader reported validation errors. */
     onElementTemplatesErrors?: (errors: unknown[]) => void;
+
+    /** The design/implement mode changed — fired once per actual change (never on a redundant `setMode`). */
+    onModeChanged?: (mode: ModelerMode) => void;
 }
 
 /**
@@ -282,6 +298,18 @@ export interface BpmnModelerHandle {
      * present.
      */
     setTheme(theme: ThemeMode): void;
+
+    /**
+     * [B] Switch the design/implement mode live on this same instance — no
+     * re-import, no engine-data loss. `"design"` filters the panel to its
+     * engine-neutral surface and hides the engine chrome; `"implement"` restores
+     * the full Camunda surface. Fires `onModeChanged` once per actual change.
+     * Unrelated to {@link setTheme} despite the shared "mode" wording.
+     */
+    setMode(mode: ModelerMode): void;
+
+    /** [B] The current design/implement mode. */
+    getMode(): ModelerMode;
 
     /**
      * [B] Render host-computed lint results, or clear them with `null`.
