@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.12.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.11.0...vscode-v1.12.0) (2026-09-04)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** add capabilities.modelNavigation on /design ([#1457](https://github.com/Miragon/bpmn-modeler/issues/1457)) [sync ca82ae1] ([47cb2a9](https://github.com/Miragon/bpmn-modeler/commit/47cb2a9b80fcdd21b678333ff1a6a65c34659f73))
+* **bpmn-modeler:** add capabilities.modelNavigation on /viewer ([#1458](https://github.com/Miragon/bpmn-modeler/issues/1458)) [sync fe59e3c] ([9c7ddf4](https://github.com/Miragon/bpmn-modeler/commit/9c7ddf4f2d55bb851cf73f97c800fe4d573c4815))
+* **bpmn-modeler:** add engine-neutral createDesigner() on /design subpath ([#1437](https://github.com/Miragon/bpmn-modeler/issues/1437)) [sync 7a43774] ([c144a7f](https://github.com/Miragon/bpmn-modeler/commit/c144a7f6bd0c14f0038bd86ee3d8275a4608d61b))
+* **bpmn-modeler:** add engine-neutral properties-panel lib with mode filter ([#1451](https://github.com/Miragon/bpmn-modeler/issues/1451)) [sync 860badb] ([cca21d7](https://github.com/Miragon/bpmn-modeler/commit/cca21d7369134fe5f56339272528176d77680b1c))
+* **bpmn-modeler:** add opt-in readonly properties panel on /viewer ([#1455](https://github.com/Miragon/bpmn-modeler/issues/1455)) [sync fc045c0] ([13ffbcc](https://github.com/Miragon/bpmn-modeler/commit/13ffbcca9be16b9b5552b9e90c4367feaa5c2e1d))
+* **bpmn-modeler:** add public view-state capture/restore on all handles ([#1450](https://github.com/Miragon/bpmn-modeler/issues/1450)) [sync fb1f042] ([f693325](https://github.com/Miragon/bpmn-modeler/commit/f6933253d83fb73e3bd925b9d1ff91885c18e911))
+* **bpmn-modeler:** add runtime design/implement mode on createModeler ([#1452](https://github.com/Miragon/bpmn-modeler/issues/1452)) [sync 786a045] ([f6e6d2c](https://github.com/Miragon/bpmn-modeler/commit/f6e6d2cfd39c24a7793ea0397375c9fef70e503b))
+
 ## [1.11.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.10.0...vscode-v1.11.0) (2026-09-02)
 
 
