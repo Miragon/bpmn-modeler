@@ -33,9 +33,16 @@ vi.mock("@miragon/bpmn-modeler-types", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-types")>();
     return {
         ...actual,
+        observeCanvasSize: vi.fn(),
+    };
+});
+
+vi.mock("@miragon/bpmn-modeler-shared", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-shared")>();
+    return {
+        ...actual,
         initResizer: mocks.initResizer,
         installPanelShortcuts: vi.fn(),
-        observeCanvasSize: vi.fn(),
     };
 });
 

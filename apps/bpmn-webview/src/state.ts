@@ -3,8 +3,8 @@
  * protocol and persists panel/canvas UI state. Lives in the app, outside the
  * publishable `@miragon/bpmn-modeler` boundary.
  */
-import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
-import { isUsableViewbox, PropertiesPanelHandle } from "@miragon/bpmn-modeler-types";
+import { Command, Query, HostApi, PropertiesPanelHandle } from "@miragon/bpmn-modeler-shared";
+import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";
 import { BpmnModeler } from "@miragon/bpmn-modeler";
 

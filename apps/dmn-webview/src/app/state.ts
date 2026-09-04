@@ -1,5 +1,4 @@
-import { Command, Query, HostApi } from "@miragon/bpmn-modeler-shared";
-import { PropertiesPanelHandle } from "@miragon/bpmn-modeler-types";
+import { Command, Query, HostApi, PropertiesPanelHandle } from "@miragon/bpmn-modeler-shared";
 import { WebviewState } from "./host";
 
 /**

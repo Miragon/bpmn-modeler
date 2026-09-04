@@ -17,5 +17,4 @@ export * from "./diff";
 export * from "./errors";
 export * from "./theme";
 export * from "./canvasResize";
-export * from "./propertiesPanelResizer";
-export * from "./propertiesPanelFocus";
+export * from "./textEditingSurface";

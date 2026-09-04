@@ -17,6 +17,8 @@ import {
     LogErrorCommand,
     LogWarningCommand,
     PropertiesPanelStateQuery,
+    initResizer,
+    installPanelShortcuts,
     Query,
     ReleaseDocumentFlushQuery,
     SetPropertiesPanelStateCommand,
@@ -25,9 +27,7 @@ import {
 import {
     asyncDebounce,
     formatErrors,
-    initResizer,
     initTheme,
-    installPanelShortcuts,
     NoModelerError,
     serializeAsync,
     setColorThemeMode,

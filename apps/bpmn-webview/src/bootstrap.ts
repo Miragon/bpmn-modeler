@@ -48,13 +48,13 @@ import {
     createFlushResponder,
     createResolver,
     extractProcessVariables,
+    initResizer,
+    installPanelShortcuts,
 } from "@miragon/bpmn-modeler-shared";
 import {
     NoModelerError,
     asyncDebounce,
     formatErrors,
-    initResizer,
-    installPanelShortcuts,
     observeCanvasSize,
     serializeAsync,
 } from "@miragon/bpmn-modeler-types";
