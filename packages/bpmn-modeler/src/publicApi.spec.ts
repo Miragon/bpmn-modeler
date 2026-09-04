@@ -18,7 +18,12 @@ import type {
     ThemeMode,
 } from "./publicApi";
 import type { ViewState } from "./viewState";
-import type { BpmnViewerHandle, CoreViewerServices, ViewerOptions } from "./viewer/publicApi";
+import type {
+    BpmnViewerHandle,
+    CoreViewerServices,
+    ViewerCapabilities,
+    ViewerOptions,
+} from "./viewer/publicApi";
 import type {
     BpmnDesignerHandle,
     CoreDesignerServices,
@@ -37,6 +42,12 @@ import type {
     ModelReference as ModelReferenceFromDesign,
     ReferenceKind as ReferenceKindFromDesign,
 } from "./design/index";
+// …and from the /viewer barrel — the same public proof for a /viewer consumer.
+import type {
+    ModelNavigationPort as ModelNavigationPortFromViewer,
+    ModelReference as ModelReferenceFromViewer,
+    ReferenceKind as ReferenceKindFromViewer,
+} from "./viewer/index";
 
 // A minimal stub of the injected `@miragon/bpmn-modeler/lint` namespace. The
 // on-tiers below all require a `module`, so migration failures are compile-time.
@@ -461,6 +472,44 @@ void _refDesign;
 const _kindRoot: ReferenceKindFromRoot = "process";
 const _kindDesign: ReferenceKindFromDesign = _kindRoot;
 void _kindDesign;
+
+// The /viewer surface accepts the same one engine-neutral capability, …
+const _viewerAcceptsNavigation = {
+    capabilities: { modelNavigation: _asyncNavigation },
+} satisfies ViewerOptions;
+void _viewerAcceptsNavigation;
+
+// … while the engine-bound ports stay compile-time-rejected on /viewer too.
+const _viewerRejectsCodeLink = {
+    // @ts-expect-error — codeLink is engine-bound, absent from ViewerCapabilities.
+    capabilities: { codeLink: {} },
+} satisfies ViewerOptions;
+void _viewerRejectsCodeLink;
+
+const _viewerRejectsScripting = {
+    // @ts-expect-error — scripting is engine-bound (C7-only), absent from ViewerCapabilities.
+    capabilities: { scripting: {} },
+} satisfies ViewerOptions;
+void _viewerRejectsScripting;
+
+// ViewerCapabilities carries exactly the navigation port, …
+const _viewerCapabilities = { modelNavigation: _asyncNavigation } satisfies ViewerCapabilities;
+void _viewerCapabilities;
+
+// … and is structurally identical to DesignerCapabilities (mutually assignable),
+// the own-interface guarantee: the viewer must not import from src/design/*.
+const _viewerCapsAsDesigner: DesignerCapabilities = _viewerCapabilities;
+void _viewerCapsAsDesigner;
+const _designerCapsAsViewer: ViewerCapabilities = { modelNavigation: _asyncNavigation };
+void (_designerCapsAsViewer satisfies DesignerCapabilities);
+
+// The re-exported navigation types are the same from the /viewer barrel too.
+const _navPortViewer: ModelNavigationPortFromViewer = _navPortRoot;
+void (_navPortViewer satisfies ModelNavigationPortFromDesign);
+const _refViewer: ModelReferenceFromViewer = _refRoot;
+void _refViewer;
+const _kindViewer: ReferenceKindFromViewer = _kindRoot;
+void _kindViewer;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {

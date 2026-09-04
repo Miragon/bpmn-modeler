@@ -1,4 +1,4 @@
-import { beforeAll, afterEach, describe, expect, it } from "vitest";
+import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 import { createViewer } from "./createViewer";
 import type { BpmnViewer } from "./viewer";
@@ -140,6 +140,8 @@ describe("createViewer (runtime, jsdom)", () => {
             // drag any editing service into the DI graph.
             expect(() => viewer!.getService("modeling")).toThrow();
             expect(() => viewer!.getService("commandStack")).toThrow();
+            // The panel is orthogonal to navigation: no context pad without it.
+            expect(() => viewer!.getService("contextPad")).toThrow();
         });
 
         it("exposes the host custom-group slot", async () => {
@@ -178,6 +180,85 @@ describe("createViewer (runtime, jsdom)", () => {
 
             expect(document.querySelector(".bio-properties-panel-container")).toBeNull();
             expect(() => viewer!.getService("propertiesPanel")).toThrow();
+        });
+    });
+
+    describe("model navigation capability (opt-in, #1445)", () => {
+        const port = { openReference: vi.fn() };
+
+        afterEach(() => {
+            port.openReference.mockReset();
+        });
+
+        it("registers the diagram-js pad + navigation provider, no editing services", async () => {
+            container = mount();
+            viewer = await createViewer(container, {
+                capabilities: { modelNavigation: port },
+            });
+
+            expect(viewer.getService("contextPad")).toBeDefined();
+            expect(viewer.getService("navigateContextPadProvider")).toBeDefined();
+            expect(viewer.getService("formReferenceStatusClient")).toBeDefined();
+            expect(viewer.getService("modelNavigationPort")).toBe(port);
+
+            // The pad is diagram-js's, not bpmn-js's, so it drags in no editing.
+            expect(() => viewer!.getService("modeling")).toThrow();
+            expect(() => viewer!.getService("commandStack")).toThrow();
+        });
+
+        it("contributes exactly the navigate entry on a referencing element", async () => {
+            container = mount();
+            viewer = await createViewer(container, {
+                capabilities: { modelNavigation: port },
+            });
+
+            // Build the business object directly — no importXML (jsdom SVG wall).
+            const moddle = viewer.getService<{ create(type: string, attrs: object): unknown }>(
+                "moddle",
+            );
+            const businessObject = moddle.create("bpmn:CallActivity", {
+                calledElement: "handleRejection",
+            });
+            const element = { type: "bpmn:CallActivity", businessObject };
+
+            const contextPad = viewer.getService<{
+                getEntries(
+                    target: unknown,
+                ): Record<string, { action: { click: (event: Event, element: unknown) => void } }>;
+            }>("contextPad");
+            const entries = contextPad.getEntries(element);
+            expect(Object.keys(entries)).toEqual(["navigate-to-referenced-model"]);
+
+            entries["navigate-to-referenced-model"].action.click(new Event("click"), element);
+            expect(port.openReference).toHaveBeenCalledWith({
+                id: "handleRejection",
+                kind: "process",
+            });
+        });
+
+        it("contributes nothing on an element with no reference", async () => {
+            container = mount();
+            viewer = await createViewer(container, {
+                capabilities: { modelNavigation: port },
+            });
+
+            const moddle = viewer.getService<{ create(type: string, attrs: object): unknown }>(
+                "moddle",
+            );
+            const businessObject = moddle.create("bpmn:Task", {});
+            const contextPad = viewer.getService<{
+                getEntries(target: unknown): Record<string, unknown>;
+            }>("contextPad");
+
+            expect(contextPad.getEntries({ type: "bpmn:Task", businessObject })).toEqual({});
+        });
+
+        it("registers no context pad when the capability is omitted", async () => {
+            container = mount();
+            viewer = await createViewer(container);
+
+            expect(() => viewer!.getService("contextPad")).toThrow();
+            expect(() => viewer!.getService("navigateContextPadProvider")).toThrow();
         });
     });
 

@@ -171,3 +171,48 @@ byte-identical to before.
 - **`locale` / `TranslateModule` remain omitted** — diagram-js's identity
   `translate` satisfies the renderer (English labels); hosts can add the
   translate module via `additionalModules`.
+
+## Amendment (#1445, 2026-09-04)
+
+`ViewerOptions` gains an **optional `capabilities: ViewerCapabilities`** —
+navigation-only, exactly like `/design`'s `DesignerCapabilities` (#1444, ADR
+0016). Model navigation is the one interaction a readonly surface should still
+offer, and it reads the model without mutating it, so it belongs on the viewer
+too. Present ⇒ the viewer registers `diagram-js/lib/features/context-pad` +
+`createModelNavigationModule(port)`; absent ⇒ the graph is byte-identical to
+before and `getService("contextPad")` throws (step 9, #1447, the bpmn-webview
+View mode, depends on this).
+
+- **diagram-js's context pad, never bpmn-js's.** `NavigatedViewer` registers no
+  `contextPad`, so one must be composed in. We register the plain diagram-js
+  module (`ContextPad.$inject = [canvas, elementRegistry, eventBus, scheduler]`,
+  `__depends__` interaction-events/scheduler/overlays — all already in the viewer
+  graph), **not** `bpmn-js/lib/features/context-pad`, whose provider drags
+  connect / create / direct-editing / popup-menu and injects `modeling`. The
+  readonly-by-construction proof is therefore unchanged with the capability on:
+  `modeling` / `commandStack` stay unregistered and throw (asserted in
+  `createViewer.spec.ts`).
+- **Own `ViewerCapabilities` interface**, not a reuse of `DesignerCapabilities`:
+  `/viewer` must not import from `src/design/*`. Structural identity between the
+  two (mutual assignability) is asserted in `publicApi.spec.ts`, and the
+  navigation types re-export from the `/viewer` barrel as they do from `/design`.
+- **The line-17 "context pad" remark** (Context, "hiding the palette leaves
+  editing live — keyboard, context pad") refers to **bpmn-js's** editing pad,
+  which the viewer still never registers. The opt-in diagram-js pad here carries
+  only the navigate entry and no editing affordance, so that argument stands.
+- **Empty pad on an unreferenced element renders nothing.** The provider returns
+  `{}` for an element with no resolvable reference; diagram-js renders an empty,
+  invisible `.djs-context-pad` (same as bpmn-js does for labels). No handling.
+- **No build / CSS / config change.** `@miragon/bpmn-model-navigation` is already
+  inlined into the package build (INLINED_LIBS, api-extractor `bundledPackages`);
+  its only bare runtime import is `bpmn-js/lib/util/ModelUtil`; the identity
+  `translate` the pad provider injects already exists in the viewer graph; and
+  `.djs-context-pad` CSS already ships via `viewer.css`. As on `/design`, the one
+  conditional is inlined rather than reusing `src/capabilityModules.ts` (which
+  value-imports code-link + inline-scripting, the latter dragging a CSS side
+  effect into the CSS-free viewer entry).
+- **The two stale acceptance criteria in #1445 are consciously not applied.**
+  The issue asked to update `scripts/check-viewer-pure-entry.mjs` and the viewer
+  lean-set rule in `architecture.spec.ts` — both retired in #1439/#1449 (the two
+  amendments above). There is no viewer allow-list left to update; re-adding one
+  would contradict the surface-accretion trajectory those amendments set.

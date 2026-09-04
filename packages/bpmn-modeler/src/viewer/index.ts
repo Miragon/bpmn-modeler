@@ -6,8 +6,11 @@
  * simulation, lint) into the module graph. It does carry the browser-only diff
  * rendering primitives, the shared i18n translator via `DiffLegend` (#1439),
  * and — when a consumer opts in via `propertiesPanel` — the engine-neutral
- * readonly panel (preact via `@bpmn-io/properties-panel`, #1443). See ADR 0014
- * and its amendments.
+ * readonly panel (preact via `@bpmn-io/properties-panel`, #1443). When a consumer
+ * opts into `capabilities.modelNavigation` (#1445), it also registers a
+ * diagram-js context pad carrying only the "Navigate to referenced model" entry —
+ * the one interaction a readonly surface still offers. See ADR 0014 and its
+ * amendments.
  *
  * Deliberately imports **no CSS**: `cssCodeSplit: false` on the lib build would
  * fold any stylesheet reachable from here into the shared `dist/bpmn-modeler.css`
@@ -20,11 +23,19 @@
 export { createViewer } from "./createViewer";
 export type {
     ViewerOptions,
+    ViewerCapabilities,
     BpmnViewerHandle,
     CoreViewerServices,
     CreateViewer,
 } from "./publicApi";
 export type { ThemeMode } from "../publicApi";
+
+// ── Model-navigation capability — the one engine-neutral host port on /viewer ─
+export type {
+    ModelNavigationPort,
+    ModelReference,
+    ReferenceKind,
+} from "@miragon/bpmn-model-navigation";
 
 // ── Viewport / selection — public, referenced by the viewer handle ───────────
 export { ViewportManager } from "../viewport";
