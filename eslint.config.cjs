@@ -179,6 +179,7 @@ module.exports = [
             "libs/code-link/**",
             "libs/element-template-chooser/**",
             "libs/inline-scripting/**",
+            "libs/properties-panel/**",
             "libs/model-navigation/**",
             "libs/flow-navigation/**",
             "packages/bpmn-modeler/**",

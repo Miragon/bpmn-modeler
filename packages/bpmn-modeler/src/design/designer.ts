@@ -1,6 +1,11 @@
 import Modeler from "bpmn-js/lib/Modeler";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
-import { BpmnPropertiesPanelModule, BpmnPropertiesProviderModule } from "bpmn-js-properties-panel";
+import {
+    PropertiesPanelModule,
+    NeutralPropertiesProviderModule,
+    ModeFilterModule,
+    CustomGroupsModule,
+} from "@miragon/bpmn-modeler-properties-panel";
 import { CreateAppendAnythingModule } from "bpmn-js-create-append-anything";
 import MinimapModule from "diagram-js-minimap";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
@@ -33,9 +38,10 @@ import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
  * Design-mode analogue of {@link BpmnModeler} and {@link BpmnViewer}.
  *
  * Wraps the base `bpmn-js/lib/Modeler` (palette, context pad, modelling,
- * keyboard, copy-paste, snapping, searchPad, outline) plus an engine-neutral
- * properties panel (`bpmn-js-properties-panel`, general / documentation groups
- * only) and our neutral UX modules (translate, append menu, flow navigation). It
+ * keyboard, copy-paste, snapping, searchPad, outline) plus the engine-neutral
+ * properties panel (`@miragon/bpmn-modeler-properties-panel` — the full
+ * standard-BPMN group set, no Camunda groups) and our neutral UX modules
+ * (translate, append menu, flow navigation). It
  * loads none of the Camunda editing stack (camunda-bpmn-js, element templates,
  * token simulation, transaction boundaries, lint), so it never carries an
  * execution platform — the absence of `modeler:executionPlatform` on the model
@@ -173,8 +179,13 @@ export class BpmnDesigner {
             moddleExtensions: this.options.moddleExtensions,
             additionalModules: [
                 TranslateModule,
-                BpmnPropertiesPanelModule,
-                BpmnPropertiesProviderModule,
+                // Engine-neutral panel (our fork of bpmn-js-properties-panel): the
+                // renderer + neutral provider + a design-mode filter (identity here,
+                // there is no engine provider to filter) + the host custom-group slot.
+                PropertiesPanelModule,
+                NeutralPropertiesProviderModule,
+                ModeFilterModule,
+                CustomGroupsModule,
                 // The base create/append overlay our AppendMenuModule decorates.
                 // Engine-neutral: with no `elementTemplates` service registered it
                 // shows just the standard-BPMN panel, and powers favourites.

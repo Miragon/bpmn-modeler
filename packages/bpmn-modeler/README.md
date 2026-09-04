@@ -564,3 +564,8 @@ Apache-2.0 — see [`LICENSE`](./LICENSE). This package bundles and depends on
 third-party software (bpmn-js, diagram-js, camunda-bpmn-js and the bpmn.io
 ecosystem, bpmnlint, and others); their respective licenses and the bpmn.io
 watermark requirement continue to apply to your usage.
+
+The engine-neutral properties panel shipped in the `/design` subpath is a fork
+of [bpmn-js-properties-panel](https://github.com/bpmn-io/bpmn-js-properties-panel)
+v5.65.0 (MIT, © camunda Services GmbH). See [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES)
+for the full notice and the list of modifications.

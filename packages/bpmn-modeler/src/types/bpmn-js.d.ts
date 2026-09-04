@@ -8,12 +8,51 @@ declare module "@bpmn-io/properties-panel" {
     export const isSelectEntryEdited;
     export const SelectEntry;
     export const TextAreaEntry;
+    // Additional primitives consumed by the inlined
+    // @miragon/bpmn-modeler-properties-panel fork (#1441).
+    export const Group;
+    export const ListGroup;
+    export const TextFieldEntry;
+    export const CheckboxEntry;
+    export const isTextFieldEntryEdited;
+    export const isTextAreaEntryEdited;
+    export const isCheckboxEntryEdited;
+    export const usePrevious;
+    export const FeelLanguageContext;
+    export const Header;
+    export const PropertiesPanel;
+    export const DebounceInputModule;
+    export const FeelPopupModule;
 }
 
 declare module "@bpmn-io/properties-panel/preact/jsx-runtime" {
     export const jsx: (type: any, props: any, key?: any) => any;
     export const jsxs: (type: any, props: any, key?: any) => any;
     export const Fragment: any;
+
+    // The properties-panel fork's `.tsx` files use this subpath as their
+    // `@jsxImportSource`, so the automatic runtime resolves the JSX namespace
+    // here. The vendored preact ships the real one, but this explicit shim
+    // shadows it under the package build, so it must carry its own permissive
+    // JSX namespace for intrinsic host elements (<div>, <p>, …) to typecheck.
+    export namespace JSX {
+        type Element = any;
+        interface ElementClass {
+            render: any;
+        }
+        interface ElementAttributesProperty {
+            props: any;
+        }
+        interface ElementChildrenAttribute {
+            children: any;
+        }
+        interface IntrinsicElements {
+            [elemName: string]: any;
+        }
+        interface IntrinsicAttributes {
+            [name: string]: any;
+        }
+    }
 }
 
 declare module "camunda-bpmn-js-behaviors/lib/util/ElementUtil" {

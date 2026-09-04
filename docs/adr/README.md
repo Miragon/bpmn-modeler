@@ -60,3 +60,4 @@ contributor-facing record, not user documentation.
 | [0013](0013-injectable-lint-stack.md) | Injectable lint stack via the `@miragon/bpmn-modeler/lint` subpath; omitted `linting` now means off | accepted |
 | [0014](0014-readonly-viewer-subpath.md) | Readonly `createViewer` via the `@miragon/bpmn-modeler/viewer` subpath: NavigatedViewer + outline, `Pick`'d services, scope-preserving `viewer.css`, `locale` omitted | accepted |
 | [0016](0016-design-mode-subpath.md) | Engine-neutral `createDesigner` via the `@miragon/bpmn-modeler/design` subpath: base bpmn-js + plain-BPMN panel, `executionPlatform` absence as mode marker, Camunda/lint stack gated out | accepted |
+| [0017](0017-engine-neutral-properties-panel-lib.md) | Engine-neutral properties panel via an inlined `@miragon/bpmn-modeler-properties-panel` fork: viewer-safe renderer, readonly derived from missing `modeling`, neutral provider, priority-10 design/implement mode filter, host custom-group slot | accepted |

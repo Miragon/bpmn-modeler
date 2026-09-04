@@ -14,6 +14,7 @@ const INLINED_LIBS = [
     "@miragon/bpmn-modeler-i18n-extras",
     "@miragon/bpmn-modeler-element-template-chooser",
     "@miragon/bpmn-modeler-append-menu",
+    "@miragon/bpmn-modeler-properties-panel",
     "@miragon/bpmn-model-navigation",
     "@miragon/bpmn-modeler-code-link",
     "@miragon/bpmn-modeler-inline-scripting",
@@ -23,7 +24,7 @@ const INLINED_LIBS = [
 // The source roots of the inlined libs — their per-file declarations must be
 // emitted so api-extractor can flatten them into `dist/index.d.ts` /
 // `dist/diff.d.ts` (they carry no built `types` entry of their own). Only these
-// ten; globbing all of `libs/*` would drag in the engine core's declaration
+// eleven; globbing all of `libs/*` would drag in the engine core's declaration
 // errors too.
 const INLINED_LIB_SRC = [
     "../../libs/modeler-types/src",
@@ -32,6 +33,7 @@ const INLINED_LIB_SRC = [
     "../../libs/bpmn-i18n-extras/src",
     "../../libs/element-template-chooser/src",
     "../../libs/append-menu/src",
+    "../../libs/properties-panel/src",
     "../../libs/model-navigation/src",
     "../../libs/code-link/src",
     "../../libs/inline-scripting/src",

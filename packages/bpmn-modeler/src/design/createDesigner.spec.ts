@@ -3,26 +3,25 @@ import { describe, it, expect } from "vitest";
 /**
  * Runtime spec for the engine-neutral design surface — currently skipped.
  *
- * Unlike the readonly viewer (whose NavigatedViewer stands up in jsdom, so
- * `createViewer.spec.ts` runs for real), the design surface mounts the
- * engine-neutral **properties panel** (`bpmn-js-properties-panel`). That package
- * reaches into bpmn-js internals through extensionless ESM imports
- * (`label-editing → ../../util/LabelUtil`) that Vitest's module runner resolves
- * with Node's native ESM loader — which rejects the missing extension. bpmn-js is
- * authored ESM-in-a-CJS-typed-package and is only ever bundled by a real bundler
- * (the Vite lib build handles it fine); no Vitest `deps.inline` / `optimizer`
- * combination makes the deep peer-dep import resolve. This is the same jsdom wall
- * that leaves the full modeler with no runtime spec (ADR 0011) — the panel is
- * exactly the piece that cannot mount here.
+ * Since #1441 the panel is our own inlined fork
+ * (`@miragon/bpmn-modeler-properties-panel`, TS source), so the old blocker —
+ * upstream `bpmn-js-properties-panel`'s dist tripping Vitest's runner on
+ * extensionless deep ESM imports — is gone; the fork's readonly derivation now
+ * has a real runtime proof in `libs/properties-panel/src/render/
+ * propertiesPanelRenderer.spec.tsx`. Two walls remain here, though. First,
+ * `createDesigner` pulls the i18n overlay (`@miragon/bpmn-modeler-i18n-extras`),
+ * which the package's Vitest project does not resolve — importing the module
+ * poisons collection. Second, even past that, a full bpmn-js Modeler lays out an
+ * SVG canvas that jsdom cannot (the same wall `createViewer.spec.ts` documents,
+ * ADR 0011), so a rendered-diagram assertion would still throw.
  *
- * A static `import { createDesigner }` would poison collection (the panel loads
- * transitively at import time), so these tests dynamic-import inside skipped
- * bodies: they document the intended runtime contract and are ready to un-skip if
- * the resolution wall is ever lifted. The real runtime proof lives in the demo
- * page `apps/demo-webapp/bpmn/design.html` (the epic's acceptance check) and the
- * type-level conformance in `publicApi.spec.ts`.
+ * The tests dynamic-import inside skipped bodies so they document the intended
+ * runtime contract and are ready to un-skip if both walls are ever lifted. The
+ * real runtime proof lives in the demo page `apps/demo-webapp/bpmn/design.html`
+ * (the epic's acceptance check) and the type-level conformance in
+ * `publicApi.spec.ts`.
  */
-describe.skip("createDesigner (runtime, jsdom — blocked by the properties-panel resolution wall)", () => {
+describe.skip("createDesigner (runtime, jsdom — blocked by the i18n-extras resolution + SVG-layout walls)", () => {
     it("exposes the editable core services (inverse of the viewer's readonly proof)", async () => {
         const { createDesigner } = await import("./createDesigner");
         const container = document.createElement("div");
