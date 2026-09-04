@@ -4,8 +4,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 // One app, two demo pages: `--mode bpmn` / `--mode dmn`. Each page folder is
 // the Vite build root, so it emits a flat static site under dist/demo/<mode>/
-// (served at /<mode>/). Because the demo builds the webview apps' source, it
-// mirrors their build essentials (preact JSX, dedupe).
+// (served at /<mode>/). The BPMN page builds the @miragon/bpmn-modeler package
+// source and the DMN page the webview app's source, so the demo mirrors their
+// build essentials (preact JSX, dedupe).
 export default defineConfig(({ mode }) => {
     const target = mode === "dmn" ? "dmn" : "bpmn";
     return {

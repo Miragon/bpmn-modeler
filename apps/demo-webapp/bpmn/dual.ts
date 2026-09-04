@@ -1,6 +1,7 @@
 import { createModeler } from "@miragon/bpmn-modeler";
 import * as lintModule from "@miragon/bpmn-modeler/lint";
 import { getActiveModel } from "../src";
+import { MODELS } from "../src/registry";
 
 /**
  * Two-instance regression proof: two independent modelers on one page, each
@@ -11,9 +12,9 @@ import { getActiveModel } from "../src";
  * canvas A only, and each canvas paints its own lint/focus chrome.
  */
 
-// A minimal Camunda 8 diagram so the second pane exercises the C8 engine path
-// (the bundled demo models are all C7). Kept inline rather than in the registry
-// because the registry only carries C7 models today.
+// A minimal Camunda 8 diagram so the second pane exercises the C8 engine path.
+// Kept inline rather than in the registry because the bundled BPMN models are
+// C7 (or engine-neutral), never C8.
 const C8_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_dual_c8" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.5.0">
   <bpmn:process id="Process_dual_c8" isExecutable="true">
@@ -89,8 +90,11 @@ async function mount(
     mountThemeToggle(container, modeler);
 }
 
-// Left pane: the bundled C7 demo model. Right pane: the inline C8 diagram.
-const c7Model = getActiveModel("bpmn");
+// Left pane: a bundled C7 demo model (this pane proves the C7 engine path, so it
+// skips the engine-neutral models); fall back to the active model if none is C7.
+// Right pane: the inline C8 diagram.
+const c7Model =
+    MODELS.find((m) => m.type === "bpmn" && m.engine === "c7") ?? getActiveModel("bpmn");
 
-void mount("canvas-a", "panel-a", "c7", c7Model.xml);
+void mount("canvas-a", "panel-a", c7Model.engine ?? "c7", c7Model.xml);
 void mount("canvas-b", "panel-b", "c8", C8_XML);

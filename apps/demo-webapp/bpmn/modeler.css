@@ -1,0 +1,131 @@
+/*
+ * Layout for the canvas-side mode strip on the BPMN modeler page (#1446).
+ * The panel host (`#js-properties-panel`) becomes a flex column: a fixed mode
+ * strip on top, the scrolling properties-panel mount below. The `--cd-*` tokens
+ * are declared on `:root` by the demo header's style block.
+ */
+
+/* Flex column out-specifies `.content.with-diagram .properties-panel-parent`'s
+ * `display:block`; `overflow:hidden` lets the collapsed `width:0` win over the
+ * flex `min-width:auto` default. */
+#js-properties-panel.demo-panel-host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.demo-mode-strip {
+    flex: 0 0 auto;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-bottom: 1px solid #e0e0e0;
+    background: var(--cd-grau);
+}
+
+/* The scrolling panel body. `min-height:0` lets it shrink inside the flex
+ * column so its own overflow scrolls instead of the host. */
+.demo-panel-mount {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* Parity with default.css `.properties-panel-parent > .djs-properties-panel`,
+ * which no longer matches now that the panel is a grandchild of the host. */
+.demo-panel-mount > .djs-properties-panel {
+    padding-bottom: 70px;
+    min-height: 100%;
+}
+
+/* Segmented control, styled after the header `.views` switcher. */
+.demo-mode-group {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--cd-weiss);
+    border: 1px solid #d7d9de;
+    border-radius: var(--cd-radius-sm);
+}
+
+.demo-mode-button {
+    padding: 3px 12px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #6b7280;
+    font: 600 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+}
+
+.demo-mode-button:hover {
+    background: rgba(51, 93, 229, 0.06);
+}
+
+.demo-mode-button[aria-pressed="true"] {
+    background: var(--cd-grau);
+    color: var(--cd-blau);
+    box-shadow: var(--cd-shadow-1);
+}
+
+.demo-mode-button[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.demo-mode-button:focus-visible {
+    outline: 2px solid var(--cd-blau);
+    outline-offset: 1px;
+}
+
+/* Collapsed-rail badge: a small pill on the resizer, just above the chevron
+ * toggle. Hidden unless the panel is collapsed. */
+.demo-mode-badge {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: calc(50% + 24px);
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid rgba(0, 120, 212, 0.4);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    background: var(--cd-blau);
+    color: var(--cd-weiss);
+    font: 700 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.panel-resizer.collapsed .demo-mode-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+:root[data-bpmn-theme="dark"] .demo-mode-strip {
+    background: #1a1a1a;
+    border-bottom-color: #2a2a2a;
+}
+
+:root[data-bpmn-theme="dark"] .demo-mode-group {
+    background: #2a2a2a;
+    border-color: #3a3a3a;
+}
+
+:root[data-bpmn-theme="dark"] .demo-mode-button {
+    color: #9aa0aa;
+}
+
+:root[data-bpmn-theme="dark"] .demo-mode-button:hover {
+    background: rgba(51, 93, 229, 0.18);
+}
+
+:root[data-bpmn-theme="dark"] .demo-mode-button[aria-pressed="true"] {
+    background: var(--cd-schwarz);
+    color: #6f8cf0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
