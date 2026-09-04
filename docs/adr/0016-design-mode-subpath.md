@@ -83,6 +83,17 @@ Ship a **new subpath `@miragon/bpmn-modeler/design`** exporting an async
     new direct dependency, `diagram-js-minimap` (already transitively present via
     camunda-bpmn-js), which the purity gate does not forbid; it ships collapsed
     (`minimap: { open: false }`) with its dark-theme sheet already scoped.
+- **No host capabilities.** `DesignerOptions` carried none of the
+  `ModelerCapabilities` ports in v1. **Amended (#1444):** the foreseen additive
+  step landed — `DesignerOptions.capabilities` now accepts a narrower
+  `DesignerCapabilities` with the single engine-neutral `modelNavigation` port
+  (the engine-bound `codeLink` / `scripting` stay compile-time-rejected). The lib
+  `@miragon/bpmn-model-navigation` is already inlined into the package build
+  (INLINED_LIBS, api-extractor `bundledPackages`), its only bare runtime import
+  is `bpmn-js/lib/util/ModelUtil`, and `designer.ts` inlines the one conditional
+  rather than reusing `src/capabilityModules.ts` (which value-imports code-link +
+  inline-scripting, the latter dragging a CSS side-effect into the CSS-free design
+  entry). The purity gate stays green: nothing new becomes external.
 - **No host UX.** The creation-time Design/Implement choice and a mode-switch chip
   in VS Code / IntelliJ are follow-up work outside this package-only PR.
 

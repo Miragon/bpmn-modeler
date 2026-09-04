@@ -31,6 +31,11 @@ export type {
     StableModelerSurface,
 } from "./publicApi";
 export type { ModelerCapabilities } from "./capabilities";
+export type {
+    ModelNavigationPort,
+    ModelReference,
+    ReferenceKind,
+} from "@miragon/bpmn-model-navigation";
 export { UnsupportedEngineError } from "./modeler";
 
 // ── Re-exports so the rolled-up `.d.ts` stays self-contained ─────────────────

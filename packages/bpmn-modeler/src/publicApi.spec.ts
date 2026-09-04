@@ -19,7 +19,24 @@ import type {
 } from "./publicApi";
 import type { ViewState } from "./viewState";
 import type { BpmnViewerHandle, CoreViewerServices, ViewerOptions } from "./viewer/publicApi";
-import type { BpmnDesignerHandle, CoreDesignerServices, DesignerOptions } from "./design/publicApi";
+import type {
+    BpmnDesignerHandle,
+    CoreDesignerServices,
+    DesignerCapabilities,
+    DesignerOptions,
+} from "./design/publicApi";
+// The three model-navigation types must be re-exported from both barrels — the
+// public proof that a /design consumer can name the port and its references.
+import type {
+    ModelNavigationPort as ModelNavigationPortFromRoot,
+    ModelReference as ModelReferenceFromRoot,
+    ReferenceKind as ReferenceKindFromRoot,
+} from "./index";
+import type {
+    ModelNavigationPort as ModelNavigationPortFromDesign,
+    ModelReference as ModelReferenceFromDesign,
+    ReferenceKind as ReferenceKindFromDesign,
+} from "./design/index";
 
 // A minimal stub of the injected `@miragon/bpmn-modeler/lint` namespace. The
 // on-tiers below all require a `module`, so migration failures are compile-time.
@@ -407,6 +424,43 @@ const _designerRejectsElementTemplates = {
     elementTemplates: [],
 } satisfies DesignerOptions;
 void _designerRejectsElementTemplates;
+
+// The one engine-neutral host capability: modelNavigation is accepted, …
+const _designerAcceptsNavigation = {
+    propertiesPanel: { parent: document.createElement("div") },
+    capabilities: { modelNavigation: _asyncNavigation },
+} satisfies DesignerOptions;
+void _designerAcceptsNavigation;
+
+// … while the engine-bound ports stay compile-time-rejected on /design.
+const _designerRejectsCodeLink = {
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — codeLink is engine-bound, absent from DesignerCapabilities.
+    capabilities: { codeLink: {} },
+} satisfies DesignerOptions;
+void _designerRejectsCodeLink;
+
+const _designerRejectsScripting = {
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — scripting is engine-bound (C7-only), absent from DesignerCapabilities.
+    capabilities: { scripting: {} },
+} satisfies DesignerOptions;
+void _designerRejectsScripting;
+
+// DesignerCapabilities carries exactly the navigation port.
+const _designerCapabilities = { modelNavigation: _asyncNavigation } satisfies DesignerCapabilities;
+void _designerCapabilities;
+
+// The re-exported navigation types are structurally the same from either barrel.
+const _navPortRoot: ModelNavigationPortFromRoot = _asyncNavigation;
+const _navPortDesign: ModelNavigationPortFromDesign = _navPortRoot;
+void (_navPortDesign satisfies ModelNavigationPortFromDesign);
+const _refRoot: ModelReferenceFromRoot = { id: "Process_1", kind: "process" };
+const _refDesign: ModelReferenceFromDesign = _refRoot;
+void _refDesign;
+const _kindRoot: ReferenceKindFromRoot = "process";
+const _kindDesign: ReferenceKindFromDesign = _kindRoot;
+void _kindDesign;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {

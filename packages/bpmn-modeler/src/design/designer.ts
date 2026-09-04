@@ -11,6 +11,7 @@ import MinimapModule from "diagram-js-minimap";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
+import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
     asyncDebounce,
@@ -163,6 +164,14 @@ export class BpmnDesigner {
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
 
+        // Inline the one navigation capability rather than reusing
+        // src/capabilityModules.ts — that value-imports code-link and
+        // inline-scripting (the latter even side-effect-imports CSS, which would
+        // pollute the CSS-free design entry) and takes an Engine. An absent
+        // capability registers no provider, so no context-pad entry renders.
+        const navigationPort = this.options.capabilities?.modelNavigation;
+        const capModules = navigationPort ? [createModelNavigationModule(navigationPort)] : [];
+
         this.modeler = new Modeler({
             container: this.container,
             propertiesPanel: {
@@ -193,6 +202,7 @@ export class BpmnDesigner {
                 AppendMenuModule,
                 FlowNavigationModule,
                 MinimapModule,
+                ...capModules,
                 ...clipModules,
                 ...extra,
             ],
