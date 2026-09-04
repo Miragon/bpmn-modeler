@@ -2,8 +2,8 @@
 
 The **public**, host-agnostic half of the modeler's shared code: domain/model
 types (engine, lint, settings, scripting, implementation, diff) and browser
-utilities (theme, canvas resize, properties-panel focus/resizer, BPMN flow
-order) that carry no dependency on the webview ↔ host message protocol.
+utilities (canvas resize, text-editing-surface predicate) that carry no
+dependency on the webview ↔ host message protocol.
 
 This package draws a hard line so the modeler can ship as a publishable
 `@miragon/bpmn-modeler` npm package without dragging the host protocol along:
@@ -36,7 +36,7 @@ guard forbids this package from importing the protocol package.
 ```
 
 ```ts
-import { Engine, initTheme, buildFlowOrder } from "@miragon/bpmn-modeler-types";
+import { Engine, isTextEditingSurface, observeCanvasSize } from "@miragon/bpmn-modeler-types";
 ```
 
 Path resolution is handled by `tsconfig.base.json` (`paths`) plus
