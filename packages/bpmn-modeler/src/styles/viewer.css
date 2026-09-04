@@ -2,14 +2,17 @@
  * The readonly viewer's stylesheet, built standalone as
  * `@miragon/bpmn-modeler/viewer.css` (see `vite.viewer-css.config.mts`). It
  * carries the bpmn-js base diagram/font CSS, the dark-theme diagram overrides
- * scoped under `[data-bpmn-theme="dark"]`, and the neutral diff-view markers +
- * legend chip (`diffView.css`, #1439) so a `/viewer` diff consumer needs no
- * other sheet — none of the editor chrome (camunda-bpmn-js, properties-panel,
- * token-simulation) the full `styles.css` loads. Do not also load `styles.css`
- * on a viewer-only page; the two overlap.
+ * scoped under `[data-bpmn-theme="dark"]`, the neutral diff-view markers +
+ * legend chip (`diffView.css`, #1439), and the engine-neutral properties-panel
+ * chrome (readonly opt-in, #1443) so a `/viewer` consumer needs no other sheet
+ * — none of the Camunda editor chrome (camunda-bpmn-js, token-simulation) the
+ * full `styles.css` loads. Do not also load `styles.css` on a viewer-only
+ * page; the two overlap.
  */
 @import "bpmn-js/dist/assets/diagram-js.css";
 @import "bpmn-js/dist/assets/bpmn-js.css";
 @import "bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css";
+@import "../../../../libs/properties-panel/src/properties-panel.css";
 @import "./dark-theme/diagram-js.css";
+@import "./dark-theme/properties-panel.css";
 @import "./diffView.css";

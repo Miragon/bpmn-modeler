@@ -19,8 +19,8 @@ import type { ViewState } from "../viewState";
  * Every handle member below is signature-identical to its {@link
  * BpmnModelerHandle} counterpart (subset compatibility is asserted in
  * `publicApi.spec.ts`), so a host can narrow a modeler handle to a viewer handle
- * without adapters. There is no `engine`, `propertiesPanel`, `linting`,
- * `clipboard`, `capabilities`, events, or `locale`.
+ * without adapters. There is no `engine`, `linting`, `clipboard`,
+ * `capabilities`, events, or `locale`.
  */
 
 /**
@@ -36,10 +36,19 @@ export type CoreViewerServices = Pick<
 
 /**
  * Per-instance configuration for {@link createViewer}. Deliberately minimal: a
- * viewer has no engine (bpmn-js's base viewer reads any BPMN), no properties
- * panel, and no host capabilities.
+ * viewer has no engine (bpmn-js's base viewer reads any BPMN), no host
+ * capabilities, and only an opt-in readonly properties panel.
  */
 export interface ViewerOptions {
+    /**
+     * Opt-in readonly properties panel — optional, unlike on the modeler/design
+     * surfaces. When given, the engine-neutral panel renders into `parent` with
+     * every entry disabled: the viewer registers no `modeling` service, the
+     * exact marker the renderer derives readonly from. When omitted, none of
+     * the panel modules enter the DI graph and no DOM is added.
+     */
+    propertiesPanel?: { parent: HTMLElement };
+
     /**
      * Colour theme — defaults to `"automatic"`. Theming always engages: the
      * instance gets a `data-bpmn-theme` attribute from the first frame.

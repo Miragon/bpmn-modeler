@@ -2,6 +2,11 @@ import { defineConfig } from "vitest/config";
 import { resolve } from "node:path";
 
 export default defineConfig({
+    // The neutral panel's forked `.tsx` files carry a per-file `@jsxImportSource
+    // @bpmn-io/properties-panel/preact` pragma; that package ships no
+    // `jsx-dev-runtime`, so force the production runtime (mirrors
+    // libs/properties-panel/vitest.config.ts).
+    oxc: { jsx: { development: false } },
     test: {
         name: "bpmn-modeler",
         environment: "jsdom",
@@ -34,6 +39,12 @@ export default defineConfig({
             "@miragon/bpmn-modeler-clipboard": resolve(
                 __dirname,
                 "../../libs/bpmn-clipboard/src/index.ts",
+            ),
+            // Directory (not index.ts) so the viewer's deep imports
+            // (`.../render/index` etc.) resolve through the same alias.
+            "@miragon/bpmn-modeler-properties-panel": resolve(
+                __dirname,
+                "../../libs/properties-panel/src",
             ),
         },
         coverage: {

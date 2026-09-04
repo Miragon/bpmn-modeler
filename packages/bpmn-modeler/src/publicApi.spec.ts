@@ -313,9 +313,11 @@ type _ViewerServicesAreModelerSubset = keyof CoreViewerServices extends keyof Co
 const _viewerServicesSubset: _ViewerServicesAreModelerSubset = true;
 void _viewerServicesSubset;
 
-// ViewerOptions is minimal: no engine, no editor-only built-ins.
+// ViewerOptions is minimal: no engine, no editor-only built-ins, and an
+// optional (readonly) properties panel.
 const _viewerOptions = {
     theme: "dark",
+    propertiesPanel: { parent: document.createElement("div") },
     moddleExtensions: {
         bpmiq: { name: "bpmiq", uri: "http://bpmiq/schema", prefix: "bpmiq", types: [] },
     },

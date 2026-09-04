@@ -2,10 +2,12 @@
  * `@miragon/bpmn-modeler/viewer` — the host-free, readonly BPMN viewer subpath.
  *
  * A view-only surface: it wraps bpmn-js's NavigatedViewer + outline and drags
- * none of the editing stack (camunda-bpmn-js, properties-panel/preact,
- * CodeMirror, token simulation, lint) into the module graph. It does carry the
- * browser-only diff rendering primitives and, through `DiffLegend`, the shared
- * i18n translator (#1439). See ADR 0014 and its #1439 amendment.
+ * none of the Camunda editing stack (camunda-bpmn-js, CodeMirror, token
+ * simulation, lint) into the module graph. It does carry the browser-only diff
+ * rendering primitives, the shared i18n translator via `DiffLegend` (#1439),
+ * and — when a consumer opts in via `propertiesPanel` — the engine-neutral
+ * readonly panel (preact via `@bpmn-io/properties-panel`, #1443). See ADR 0014
+ * and its amendments.
  *
  * Deliberately imports **no CSS**: `cssCodeSplit: false` on the lib build would
  * fold any stylesheet reachable from here into the shared `dist/bpmn-modeler.css`

@@ -217,6 +217,31 @@ describe("bpmn-modeler import direction", () => {
         ).toEqual([]);
     });
 
+    it("the /viewer subpath deep-imports the neutral panel, never its barrel (#1443)", () => {
+        // The lib barrel (`libs/properties-panel/src/index.ts`) side-effect
+        // imports its CSS, and the viewer entry must import no CSS —
+        // `cssCodeSplit: false` on the lib build would fold any reachable sheet
+        // into the shared `dist/bpmn-modeler.css`. The panel sheets ship via
+        // `dist/viewer.css` instead; deep (file-level) imports stay fine.
+        const VIEWER_DIR = join(PKG_SRC, "viewer");
+        const BARREL = "@miragon/bpmn-modeler-properties-panel";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!file.startsWith(VIEWER_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (spec === BARREL) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the /viewer subpath must deep-import ` +
+                `@miragon/bpmn-modeler-properties-panel/* (the barrel imports ` +
+                `CSS, and the viewer entry must stay CSS-free):\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
     it("the /design and /viewer subpaths never reach the runtime-mode code (#1442)", () => {
         // Design/implement mode is a runtime toggle on the engine-tagged
         // `createModeler` instance only. The `/design` and `/viewer` subpaths are

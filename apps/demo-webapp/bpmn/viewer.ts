@@ -7,8 +7,9 @@ import { MODELS } from "../src/registry";
 // separate from the modeler's `styles.css`. A JS import lets Vite process it (and
 // its node_modules `@import`s) in dev and build — a raw `<link>` to the package
 // source escapes the dev-server root and 404s. This is the epic's regression
-// check: the viewer page must render, select, hover, zoom/pan, and switch themes
-// with no editing affordance (no palette, context pad, or keyboard delete).
+// check: the viewer page must render, select, hover, zoom/pan, switch themes,
+// and show a readonly properties panel (every entry disabled) with no editing
+// affordance (no palette, context pad, or keyboard delete).
 import "../../../packages/bpmn-modeler/src/styles/viewer.css";
 
 /**
@@ -29,14 +30,18 @@ async function main(): Promise<void> {
     );
 
     const canvas = document.getElementById("canvas");
+    const properties = document.getElementById("properties");
     const selectionOut = document.getElementById("selection");
-    if (!canvas || !selectionOut) {
+    if (!canvas || !properties || !selectionOut) {
         throw new Error("viewer demo: missing host elements");
     }
 
     const model = MODELS.find((m) => m.type === "bpmn") ?? MODELS[0];
 
-    const viewer = await createViewer(canvas, { theme: themeMode as ThemeMode });
+    const viewer = await createViewer(canvas, {
+        theme: themeMode as ThemeMode,
+        propertiesPanel: { parent: properties },
+    });
     viewerRef.current = viewer;
     await viewer.loadDiagram(model.xml);
 
