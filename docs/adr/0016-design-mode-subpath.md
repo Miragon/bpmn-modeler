@@ -67,7 +67,11 @@ Ship a **new subpath `@miragon/bpmn-modeler/design`** exporting an async
   ruleset purely additive.
 - **No conversion helpers.** `stampExecutionPlatform` / `stripExecutionPlatform`
   (host-side mode switching) are deferred; `detectEngine` already covers routing.
-  Switching = host stamps/strips the XML, `destroy()`, other factory.
+  Switching = host stamps/strips the XML, `destroy()`, other factory. **Superseded
+  for the design↔implement pair on an engine-tagged model** by
+  [ADR 0018](0018-runtime-design-implement-mode.md): that pair is now a runtime
+  `setMode` toggle on the same `createModeler` instance (no destroy, no engine-data
+  loss). This subpath remains the route for untagged models and bundle purity.
 - **No align-to-origin / grid / colour-picker chrome.** Each would add a new
   direct dependency (camunda-bpmn-js base chrome). `favouriteBpmnElements` is
   lifted to a first-class option since Design mode has no `settings`.

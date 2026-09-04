@@ -258,6 +258,13 @@ a:link {
     min-height: 100%;
 }
 
+/* Design mode hides the token-simulation toggle (issue #1442). The toggle div
+ * is appended inside the canvas container, which carries `data-bpmn-mode`; the
+ * `/design` subpath never loads token simulation, so its sheet is unaffected. */
+[data-bpmn-mode="design"] .bts-toggle-mode {
+    display: none;
+}
+
 /* see issue https://github.com/microsoft/vscode/issues/213045 */
 @supports selector(::-webkit-scrollbar) {
     html {

@@ -330,6 +330,100 @@ viewport subscriptions and `viewer.destroy()` to tear each pane down.
 flow-order heuristics that decide *where* an id sorts are not — they may change
 without a major bump.
 
+## Design & implement mode (runtime)
+
+An **engine-tagged** model (Camunda 7 / 8) can be shown in a documentation-focused
+**design** view *without* re-importing or losing engine data. This is a runtime
+toggle on the **same** `createModeler` instance — same bpmn-js modeler, same
+moddle, same behaviours, same command stack:
+
+```ts
+const modeler = await createModeler(canvas, {
+    engine: "c8",
+    propertiesPanel: { parent: panel },
+    mode: "design", // "implement" (default) | "design"
+    onModeChanged: (mode) => console.log("now in", mode),
+});
+
+modeler.setMode("implement"); // full Camunda surface — no re-import
+modeler.getMode();            // "implement"
+```
+
+`"design"` reduces the properties panel to its engine-neutral surface (neutral +
+host [custom groups](#surviving-design-mode) only) and hides the engine chrome —
+the element-template chooser and the token-simulation toggle. Because nothing in
+the DI module graph is added or removed on a toggle, `zeebe:*` / `camunda:*`
+extensions are **never** at risk: replace and copy-paste keep engine data in both
+modes, and the drill-down plane, selection, and undo history survive the toggle.
+
+> **Two routes, one epic.** This runtime toggle is for the **design ↔ implement**
+> pair on an *engine-tagged* model. The separate [`/design` subpath](#design-mode)
+> (`createDesigner`, a distinct factory) is for *untagged* models and lean hosts
+> that want the Camunda stack out of their bundle entirely — it cannot round-trip
+> engine data (it has no camunda/zeebe moddle), so it is not a substitute for
+> `setMode`. Pick the runtime toggle to preserve engine data; pick the subpath for
+> bundle purity.
+
+> **Timer / multi-instance in design mode.** On an engine model these two groups
+> are *wholesale-replaced* by the Camunda providers, so their neutral entries are
+> not restorable and design mode simply omits them (a pure `/design` panel keeps
+> them). See [ADR 0017](../../docs/adr/0017-engine-neutral-properties-panel-lib.md).
+
+### `mode` is unrelated to `theme`
+
+`setMode` (design/implement) and `setTheme` (light/dark) share the "mode" wording
+but are independent — the internal theme controller's own `setMode(theme)` is a
+private collision, not the handle method.
+
+### `ModelerOptions`
+
+The required fields stand up an instance; every other field turns off / replaces
+a built-in or wires a host capability (see [Capabilities](#capabilities--default-overrides)).
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `engine` | `"c7" \| "c8"` | — (required) | Camunda engine version. Switching engines = `destroy()` + a new instance. |
+| `propertiesPanel` | `{ parent: HTMLElement }` | — (required) | The per-instance panel host. |
+| `mode` | `"design" \| "implement"` | `"implement"` | Initial design/implement mode; toggle live with `setMode`. |
+| `elementTemplates` | `object[]` | — | Initial element templates as data (never a path). |
+| `settings` | `Partial<BpmnModelerSetting>` | — | Align-to-origin, transaction boundaries, favourites. |
+| `linting` | `LintingOptions` | off | Lint tier — see [Linting tiers](#linting-tiers). |
+| `clipboard` | `ClipboardOptions` | native | Clipboard override for sandboxed hosts. |
+| `theme` | `"light" \| "dark" \| "automatic"` | `"automatic"` | Colour theme (independent of `mode`). |
+| `locale` | `string` | `"en"` | UI locale (page-global). |
+| `capabilities` | `ModelerCapabilities` | — | Host ports (model navigation, code link, scripting). |
+| `additionalModules` / `moddleExtensions` | `unknown[]` / `Record<string, object>` | — | bpmn-js [escape hatches](#escape-hatches). |
+| `onContentSaved` / `onLintResults` / `onLintingToggled` / `onWarning` / `onElementTemplatesErrors` / `onModeChanged` | callbacks | — | Outbound notifications. `onModeChanged(mode)` fires once per actual mode change. |
+
+### `BpmnModelerHandle`
+
+| Method | Meaning |
+| --- | --- |
+| `loadDiagram(xml)` / `exportDiagram()` / `newDiagram()` / `getDiagramSvg()` | Load / serialise the diagram. |
+| `setElementTemplates(templates)` | Push a new template set (data, never a path). |
+| `setSettings(settings)` | Merge a partial settings update (`colorTheme` excluded — theme is host policy). |
+| `viewport` / `selection` | Viewport (zoom/scroll/fit) and selection accessors. |
+| `captureViewState()` / `applyViewState(state)` | [View state](#view-state-capture--restore) capture/restore across an instance switch. |
+| `setTheme(theme)` | Switch the colour theme live. |
+| `setMode(mode)` / `getMode()` | Switch / read the design-implement mode live (fires `onModeChanged`). |
+| `applyLintResults(results)` / `applyLintingDisabled()` / `startInPageLinting(config?, token?)` | Host-driven lint state. |
+| `getService(name)` | Reach a [core service](#core-services--escape-hatch) or the escape hatch. |
+| `destroy()` | Tear the instance down. |
+
+### Surviving design mode
+
+A host that registers its own properties-panel provider groups can keep them
+visible in design mode by marking their ids on the `customPropertiesGroups` DI
+registry (an escape hatch reached through `getService`):
+
+```ts
+modeler.getService<{ registerGroups(ids: readonly string[]): void }>(
+    "customPropertiesGroups",
+).registerGroups(["myCustomGroup"]);
+```
+
+Neutral BPMN groups survive automatically; only host-added groups need marking.
+
 ## Viewer
 
 `@miragon/bpmn-modeler/viewer` is a **readonly** surface for view-only
@@ -421,11 +515,17 @@ Three surfaces close the feature matrix:
 
 The marker is the **absence of `modeler:executionPlatform`** on
 `bpmn:Definitions`. Route with the exported `detectEngine(xml)`: `undefined` ⇒
-Design (editable), a detected engine ⇒ Implement (`createModeler`). Fallback for
-undetected XML is *editable Design*, not readonly. Switching modes is a host
-concern — stamp or strip the execution platform on the XML, `destroy()` the
-instance, and stand up the other factory. The stamp/strip conversion helpers are
-deferred to a follow-up (ADR 0016); `detectEngine` already covers routing.
+this engine-neutral Design subpath (editable), a detected engine ⇒ Implement
+(`createModeler`). Fallback for undetected XML is *editable Design*, not readonly.
+
+This subpath and `createModeler` are **different factories** — moving between
+them is a host concern (stamp or strip the execution platform on the XML,
+`destroy()` the instance, stand up the other factory; the stamp/strip conversion
+helpers are deferred to a follow-up, ADR 0016). It exists for *untagged* models
+and lean hosts that need the Camunda stack out of their bundle. To show an
+*engine-tagged* model in a design view without losing engine data, do **not**
+route here — use the [runtime `setMode` toggle](#design--implement-mode-runtime)
+on the same `createModeler` instance instead.
 
 ```ts
 import { createDesigner, detectEngine } from "@miragon/bpmn-modeler/design";

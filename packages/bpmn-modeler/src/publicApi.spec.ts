@@ -12,6 +12,7 @@ import type {
     CreateModeler,
     LintingOptions,
     LintModule,
+    ModelerMode,
     ModelerOptions,
     StableModelerSurface,
     ThemeMode,
@@ -213,6 +214,33 @@ const _builtinsShape = {
     onContentSaved: ({ xml }: ContentSavedEvent) => void xml,
 } satisfies ModelerOptions;
 void _builtinsShape;
+
+// [B] Design/implement mode is a built-in runtime toggle (#1442). The mode
+// literals type-check against the option, an unknown mode is rejected, and
+// onModeChanged narrows its argument to ModelerMode.
+const _modes = ["design", "implement"] satisfies ModelerMode[];
+void _modes;
+const _scenarioDesignMode = {
+    engine: "c8",
+    propertiesPanel: { parent: document.createElement("div") },
+    mode: "design",
+    onModeChanged: (mode: ModelerMode) => void mode,
+} satisfies ModelerOptions;
+void _scenarioDesignMode;
+const _rejectsUnknownMode = {
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    // @ts-expect-error — "view" is not a modeler mode (design | implement only).
+    mode: "view",
+} satisfies ModelerOptions;
+void _rejectsUnknownMode;
+// The handle carries the live setMode/getMode pair.
+const _modeHandle = (m: BpmnModelerHandle) => {
+    m.setMode("design");
+    const mode: ModelerMode = m.getMode();
+    void mode;
+};
+void _modeHandle;
 
 // The async factory signature is nameable.
 type _FactoryReturn = ReturnType<CreateModeler>;

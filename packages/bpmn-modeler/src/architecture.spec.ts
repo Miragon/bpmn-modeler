@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, normalize } from "node:path";
+import { dirname, join, normalize, resolve } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
@@ -213,6 +213,35 @@ describe("bpmn-modeler import direction", () => {
             `the design subpath must stay engine-neutral — value-import only ` +
                 `bpmn-js/*, diagram-js/*, the neutral panel/menu packages, or the ` +
                 `neutral @miragon libs (use \`import type\` for anything else):\n` +
+                `${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("the /design and /viewer subpaths never reach the runtime-mode code (#1442)", () => {
+        // Design/implement mode is a runtime toggle on the engine-tagged
+        // `createModeler` instance only. The `/design` and `/viewer` subpaths are
+        // separate, mode-less surfaces (their own factories), so keeping this code
+        // out of their closure by intent stops the mode wiring from leaking into
+        // the engine-neutral bundles. `check-design-pure-entry.mjs` backs the
+        // design side at the built-graph level; this is the source-level intent.
+        const MODE_FILES = new Set([
+            resolve(PKG_SRC, "mode.ts"),
+            resolve(PKG_SRC, "modeModules.ts"),
+        ]);
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!/(^|\/)(design|viewer)\//.test(file.slice(PKG_SRC.length))) continue;
+            for (const spec of importedModules(readFileSync(file, "utf8"))) {
+                if (!spec.startsWith(".")) continue;
+                if (MODE_FILES.has(resolve(dirname(file), `${spec}.ts`))) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the /design and /viewer subpaths must not import ./mode or ` +
+                `./modeModules (runtime mode is a createModeler-only concern):\n` +
                 `${offenders.join("\n")}`,
         ).toEqual([]);
     });
