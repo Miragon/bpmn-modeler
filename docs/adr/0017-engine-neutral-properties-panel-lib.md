@@ -89,6 +89,34 @@ enforced by `architecture.spec.ts` (design allowlist swaps
 `bpmn-js-properties-panel` for `@miragon/bpmn-modeler-properties-panel`), and the
 lib is inlined into the package bundle/d.ts like the other private libs.
 
+## Other considerations
+
+Alternatives that avoid the fork were weighed and rejected:
+
+- **Upstream provider + a low-priority "disable" provider.** The primitives
+  honour `entry.disabled`, but the upstream entry components never forward the
+  prop into the primitive options, and the entry factories are not exported for
+  recomposition. Making them forward it *is* the entry fork under another name.
+- **DI stubs instead of the renderer fork.** Registering a no-op `commandStack`
+  (and friends) on the `NavigatedViewer` lets the upstream renderer mount and
+  would have avoided the render-surface fork. Rejected: entries from custom or
+  third-party providers would render enabled and silently no-op, ListGroup
+  add/remove would stay clickable, and the upstream dist would stay in the
+  design graph — the very thing that made the design surface untestable under
+  Vitest (extensionless deep ESM imports).
+- **CSS/DOM-level readonly** (`pointer-events: none`, mutation-observer
+  disabling). Does not fix the DI crash, breaks keyboard access and a11y, loses
+  text selection, and is brittle against upstream markup changes.
+- **`yarn patch` against the upstream dist.** Still a fork in substance, but
+  maintained as diffs against a bundled artifact — strictly harder to rebase
+  than readable forked sources.
+- **Contributing readonly support upstream.** The right long-term move, but
+  outside our control and timeline. It remains the exit strategy: if
+  `bpmn-js-properties-panel` gains optional injects plus `disabled`
+  propagation, the fork shrinks to the mode filter and custom-group slot —
+  which need no fork at all, being plain providers against the public
+  `registerProvider` contract.
+
 ## Consequences
 
 - **Manual upstream tracking.** The fork is pinned to
