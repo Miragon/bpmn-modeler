@@ -17,6 +17,16 @@ export default defineConfig(({ mode }) => {
         esbuild: { jsx: "automatic", jsxImportSource: "preact" },
         optimizeDeps: { include: ["bpmnlint", "bpmn-js-bpmnlint"] },
         resolve: {
+            alias: {
+                // The design page serves libs/properties-panel TSX, whose JSX
+                // pragma draws from the panel's vendored preact. The parent
+                // package ships no exports map, so the jsx-dev-runtime
+                // specifier the dev server emits cannot resolve; jsx-runtime
+                // exports the same jsxDEV (the vendored preact's own exports
+                // map does this exact mapping).
+                "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
+                    "@bpmn-io/properties-panel/preact/jsx-runtime",
+            },
             dedupe: [
                 "preact",
                 "@bpmn-io/properties-panel",

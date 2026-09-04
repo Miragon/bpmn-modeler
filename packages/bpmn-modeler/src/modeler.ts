@@ -17,8 +17,12 @@ import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 // Only the mode filter + custom-group slot: the lib's PropertiesPanelModule /
 // NeutralPropertiesProviderModule collide with camunda-bpmn-js's own
 // `propertiesPanel` DI name. The engine surface owns the renderer + providers;
-// these two ride alongside to filter it in design mode.
-import { ModeFilterModule, CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel";
+// these two ride alongside to filter it in design mode. Deep imports on
+// purpose: the lib index re-exports its TSX renderer, whose
+// `@bpmn-io/properties-panel/preact` JSX pragma cannot resolve the
+// jsx-dev-runtime Vite dev servers emit — the engine graph must stay TSX-free.
+import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
+import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
 import { ThemeController } from "./theme";
