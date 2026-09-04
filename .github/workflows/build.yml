@@ -159,6 +159,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn npm audit --all --severity high
+        env:
+          # npm's bulk-advisory endpoint intermittently exceeds yarn's default 60s httpTimeout
+          YARN_HTTP_TIMEOUT: "180000"
 
   test-standalone-extension:
     needs: detect-changes
