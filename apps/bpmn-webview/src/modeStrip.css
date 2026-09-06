@@ -1,0 +1,121 @@
+/*
+ * Canvas-side mode strip (View / Design / Implement) for the VS Code + IntelliJ
+ * webview. The panel host (`#js-properties-panel`) becomes a flex column: a fixed
+ * mode strip on top, the scrolling properties-panel mount below. Colours are
+ * driven by the host's `--vscode-*` custom properties (IntelliJ injects the same
+ * variables via `#ide-theme-vars`) with static fallbacks for the plain-browser
+ * `serve` preview, and the dark scope mirrors the modeler's own theme attribute.
+ */
+
+/* Flex column so the strip stays pinned while the panel scrolls. `overflow:hidden`
+ * lets the collapsed `width:0` win over the flex `min-width:auto` default. */
+#js-properties-panel.panel-host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.mode-strip {
+    flex: 0 0 auto;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--vscode-panel-border, #e0e0e0);
+    background: var(--vscode-sideBar-background, #f3f3f3);
+}
+
+/* The scrolling panel body. `min-height:0` lets it shrink inside the flex column
+ * so its own overflow scrolls instead of the host. */
+.panel-mount {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* Parity with default.css `.properties-panel-parent > .djs-properties-panel`,
+ * which no longer matches now that the panel is a grandchild of the host. */
+.panel-mount > .djs-properties-panel {
+    padding-bottom: 70px;
+    min-height: 100%;
+}
+
+/* Segmented control. */
+.mode-group {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--vscode-editorWidget-background, #ffffff);
+    border: 1px solid var(--vscode-widget-border, #d7d9de);
+    border-radius: 5px;
+}
+
+.mode-button {
+    padding: 3px 12px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--vscode-descriptionForeground, #6b7280);
+    font: 600 12px/1.4 var(--vscode-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+    cursor: pointer;
+}
+
+.mode-button:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(51, 93, 229, 0.06));
+}
+
+.mode-button[aria-pressed="true"] {
+    background: var(--vscode-button-background, #335de5);
+    color: var(--vscode-button-foreground, #ffffff);
+}
+
+.mode-button[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.mode-button:focus-visible {
+    outline: 2px solid var(--vscode-focusBorder, #335de5);
+    outline-offset: 1px;
+}
+
+/* Collapsed-rail badge: a small pill on the resizer, just above the chevron
+ * toggle. Hidden unless the panel is collapsed. */
+.mode-badge {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: calc(50% + 24px);
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--vscode-focusBorder, rgba(0, 120, 212, 0.4));
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    background: var(--vscode-button-background, #335de5);
+    color: var(--vscode-button-foreground, #ffffff);
+    font: 700 11px/1 var(--vscode-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+    cursor: pointer;
+    z-index: 1;
+}
+
+.panel-resizer.collapsed .mode-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Dark theme fallback (plain-browser preview; hosts supply --vscode-*) ──── */
+:root[data-bpmn-theme="dark"] .mode-strip {
+    background: var(--vscode-sideBar-background, #1a1a1a);
+    border-bottom-color: var(--vscode-panel-border, #2a2a2a);
+}
+
+:root[data-bpmn-theme="dark"] .mode-group {
+    background: var(--vscode-editorWidget-background, #2a2a2a);
+    border-color: var(--vscode-widget-border, #3a3a3a);
+}
+
+:root[data-bpmn-theme="dark"] .mode-button {
+    color: var(--vscode-descriptionForeground, #9aa0aa);
+}

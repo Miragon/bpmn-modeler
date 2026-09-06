@@ -32,7 +32,19 @@ const norm = (value: string): string =>
         .replace(/[.\s]+$/, "");
 
 // Kept in sync with SOURCE_ONLY in tools/build-overlay.mjs.
-const SOURCE_ONLY = new Set(["Read-only", "Being edited in", "Element actions"]);
+const SOURCE_ONLY = new Set([
+    "Read-only",
+    "Being edited in",
+    "Element actions",
+    // Mode-strip labels the webview emits before any surface exists, so the
+    // harvest driver (which drives a live modeler) never records them.
+    "View",
+    "Design",
+    "Implement",
+    "Mode",
+    "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.",
+    "{mode} — open properties panel",
+]);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { keys: harvested } = JSON.parse(

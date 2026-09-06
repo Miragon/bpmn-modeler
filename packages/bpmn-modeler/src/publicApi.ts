@@ -21,6 +21,7 @@ import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
+import type { RootElementManager } from "./rootElement";
 import type { ViewState } from "./viewState";
 import type { ModelerMode } from "./mode";
 
@@ -273,6 +274,13 @@ export interface BpmnModelerHandle {
 
     /** [A] Selection accessor. */
     readonly selection: SelectionManager;
+
+    /**
+     * [A] Drill-down plane accessor. Host-adapter surface for restoring the
+     * active canvas root across an instance switch; the composed
+     * {@link captureViewState}/{@link applyViewState} pair covers the common case.
+     */
+    readonly rootElement: RootElementManager;
 
     /**
      * [A] Snapshot the drill-down plane, viewbox, and selection so they survive

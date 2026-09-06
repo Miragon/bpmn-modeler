@@ -8,6 +8,21 @@ The BPMN modeling surface that runs inside the VS Code webview hosted by
 extension host via a typed Query/Command message protocol from
 [`libs/shared`](../../libs/shared/README.md).
 
+## Surface session (View / Design / Implement)
+
+The webview hosts exactly one of three surfaces at a time, chosen by the mode
+strip in the properties-panel header:
+
+- **viewer** — readonly bpmn-js viewer (View mode).
+- **designer** — engine-neutral editable surface (Design mode).
+- **modeler** — full Camunda modeler (Implement mode).
+
+Switching mode swaps the active surface. Modeler-only host messages — element
+templates, lint results, inline scripting, and modeler settings — are no-ops on
+the viewer and designer surfaces; only the modeler surface consumes them. The
+active mode is persisted in the webview state so a hidden/reopened editor
+restores its surface.
+
 ## Why this lives in its own workspace
 
 Webview frontends are browser code with their own bundler, dependency tree,

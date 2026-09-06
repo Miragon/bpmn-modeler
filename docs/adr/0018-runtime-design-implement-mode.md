@@ -4,6 +4,11 @@
 - Date: 2026-09-04
 - Category: bpmn-webview
 
+> Amended by [ADR 0020](0020-untagged-documents-first-class-in-hosts.md): the
+> hosts now select this instance's mode per editor (webview state seeded by a
+> `defaultMode` setting), so `setMode`/`onModeChanged` are user-reachable, not
+> demo-only.
+
 Part of the "one document, three modes" epic (#1438), roadmap step 4, building on
 the engine-neutral properties-panel lib [ADR 0017](0017-engine-neutral-properties-panel-lib.md),
 the design-mode subpath [ADR 0016](0016-design-mode-subpath.md), and the

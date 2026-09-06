@@ -19,6 +19,7 @@ data class ModelerSettings(
     val persistCodeLinkMap: Boolean,
     val c8ApiVersion: String,
     val colorTheme: String,
+    val defaultMode: String,
     val favouriteBpmnElements: List<String>,
     val language: String,
     val scriptingSpin: Boolean,
@@ -54,6 +55,7 @@ class ModelerSettingsStore {
             persistCodeLinkMap = props.getBoolean(PERSIST_CODE_LINK_MAP, DEFAULT_PERSIST_CODE_LINK_MAP),
             c8ApiVersion = props.getValue(C8_API_VERSION, DEFAULT_C8_API_VERSION),
             colorTheme = normalizeColorTheme(props.getValue(COLOR_THEME, DEFAULT_COLOR_THEME)),
+            defaultMode = normalizeDefaultMode(props.getValue(DEFAULT_MODE, DEFAULT_DEFAULT_MODE)),
             favouriteBpmnElements = props.getList(FAVOURITE_ELEMENTS) ?: DEFAULT_FAVOURITE_ELEMENTS,
             language = props.getValue(LANGUAGE, DEFAULT_LANGUAGE),
             scriptingSpin = props.getBoolean(SCRIPTING_SPIN, DEFAULT_SCRIPTING_SPIN),
@@ -69,6 +71,7 @@ class ModelerSettingsStore {
         props.setValue(PERSIST_CODE_LINK_MAP, settings.persistCodeLinkMap, DEFAULT_PERSIST_CODE_LINK_MAP)
         props.setValue(C8_API_VERSION, settings.c8ApiVersion, DEFAULT_C8_API_VERSION)
         props.setValue(COLOR_THEME, normalizeColorTheme(settings.colorTheme), DEFAULT_COLOR_THEME)
+        props.setValue(DEFAULT_MODE, normalizeDefaultMode(settings.defaultMode), DEFAULT_DEFAULT_MODE)
         // Cap matches the webview append-menu palette (max 6 pinned elements).
         props.setList(FAVOURITE_ELEMENTS, settings.favouriteBpmnElements.take(MAX_FAVOURITES))
         props.setValue(LANGUAGE, settings.language, DEFAULT_LANGUAGE)
@@ -95,6 +98,7 @@ class ModelerSettingsStore {
             "persistCodeLinkMap" to current.persistCodeLinkMap,
             "c8ApiVersion" to current.c8ApiVersion,
             "colorTheme" to current.colorTheme,
+            "defaultMode" to current.defaultMode,
             "favouriteBpmnElements" to current.favouriteBpmnElements,
             "language" to current.language,
             // The RPC key is the camelCase field name matching the bridge's
@@ -137,6 +141,10 @@ class ModelerSettingsStore {
     /** Constrains the theme to the two values the core's `SettingsPort` accepts. */
     private fun normalizeColorTheme(value: String): String = if (value == "light") "light" else "automatic"
 
+    /** Constrains the default mode to the three values the core's `SettingsPort` accepts. */
+    private fun normalizeDefaultMode(value: String): String =
+        if (value == "view" || value == "design") value else "implement"
+
     companion object {
         fun getInstance(): ModelerSettingsStore =
             ApplicationManager.getApplication().getService(ModelerSettingsStore::class.java)
@@ -150,6 +158,7 @@ class ModelerSettingsStore {
         private const val PERSIST_CODE_LINK_MAP = "miragon.bpmnModeler.persistCodeLinkMap"
         private const val C8_API_VERSION = "miragon.bpmnModeler.c8ApiVersion"
         private const val COLOR_THEME = "miragon.bpmnModeler.colorTheme"
+        private const val DEFAULT_MODE = "miragon.bpmnModeler.defaultMode"
         private const val FAVOURITE_ELEMENTS = "miragon.bpmnModeler.favouriteBpmnElements"
         private const val LANGUAGE = "miragon.bpmnModeler.language"
         private const val SCRIPTING_SPIN = "miragon.bpmnModeler.scripting.spin"
@@ -162,6 +171,7 @@ class ModelerSettingsStore {
         private const val DEFAULT_PERSIST_CODE_LINK_MAP = false
         private const val DEFAULT_C8_API_VERSION = "v2"
         private const val DEFAULT_COLOR_THEME = "automatic"
+        private const val DEFAULT_DEFAULT_MODE = "implement"
         private const val DEFAULT_LANGUAGE = "en"
         private const val DEFAULT_SCRIPTING_SPIN = true
         private val DEFAULT_FAVOURITE_ELEMENTS =

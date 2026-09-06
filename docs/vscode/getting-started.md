@@ -20,6 +20,14 @@ code --install-extension miragon-gmbh.vs-code-bpmn-modeler
 Create or open any `.bpmn`, `.dmn`, or `.form` file in your workspace. The
 matching graphical editor opens automatically.
 
+Run **BPMN Modeler: New BPMN Model** to scaffold a fresh diagram. The picker
+offers three choices: **Camunda 7**, **Camunda 8**, and **Engine-neutral** —
+the last scaffolds an untagged model that opens in the engine-neutral **Design**
+surface. Which mode an editor opens in is controlled by
+[`miragon.bpmnModeler.defaultMode`](/vscode/configuration); see
+[Editor Modes](/vscode/features/modes) for the View / Design / Implement
+surfaces and how they are remembered per editor.
+
 ## Element templates
 
 Drop Camunda element templates into a `.camunda/element-templates/` folder next

@@ -12,7 +12,7 @@ import {
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
 
-import { DiffLegend, DiffNavigator, DiffViewer } from "@miragon/bpmn-modeler";
+import { DiffLegend, DiffNavigator, DiffViewer } from "@miragon/bpmn-modeler/viewer";
 import type { WebviewState } from "./webviewState";
 
 type MessageType = Query | Command;

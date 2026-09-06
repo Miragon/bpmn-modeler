@@ -40,11 +40,12 @@ function createService() {
         save: vi.fn().mockResolvedValue(true),
     };
     const picker = {
-        pickExecutionPlatform: vi.fn(),
+        pickNewModelEngine: vi.fn(),
         pickEngineVersion: vi.fn(),
     };
-    const statusBar = { showEngineVersion: vi.fn() };
-    const notifier = { notifyError: vi.fn() };
+    const statusBar = { showEngineVersion: vi.fn(), hideEngineVersion: vi.fn() };
+    const notifier = { notifyError: vi.fn(), showInfo: vi.fn() };
+    const settings = { getDefaultMode: vi.fn(() => "implement") };
 
     const service = new BpmnModelerService(
         editorStore as never,
@@ -52,6 +53,7 @@ function createService() {
         picker as never,
         statusBar as never,
         notifier as never,
+        settings as never,
     );
 
     return {
@@ -61,6 +63,7 @@ function createService() {
         picker,
         statusBar,
         notifier,
+        settings,
         replaceEditorSession: () => {
             editorSession = {};
         },
@@ -77,7 +80,7 @@ beforeEach(() => {
 
 describe("BpmnModelerService.display", () => {
     it("renders a valid document and shows its engine version", async () => {
-        const { service, editorStore, vsDocument, statusBar } = createService();
+        const { service, editorStore, vsDocument, statusBar, settings } = createService();
         service.registerSession(EDITOR);
         vsDocument.getContent.mockReturnValue(C8_DOC);
 
@@ -87,6 +90,8 @@ describe("BpmnModelerService.display", () => {
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnFileQuery;
         expect(msg.type).toBe("BpmnFileQuery");
         expect(msg.engine).toBe("c8");
+        expect(msg.defaultMode).toBe("implement");
+        expect(settings.getDefaultMode).toHaveBeenCalled();
         expect(statusBar.showEngineVersion).toHaveBeenCalledWith("c8", "8.8.0");
     });
 
@@ -94,7 +99,7 @@ describe("BpmnModelerService.display", () => {
         const { service, editorStore, vsDocument, picker } = createService();
         service.registerSession(EDITOR);
         vsDocument.getContent.mockReturnValue("");
-        picker.pickExecutionPlatform.mockResolvedValue("c7");
+        picker.pickNewModelEngine.mockResolvedValue("c7");
 
         await service.display(EDITOR);
 
@@ -105,20 +110,36 @@ describe("BpmnModelerService.display", () => {
         expect(msg.engine).toBe("c7");
     });
 
-    it("re-prompts for a platform when none can be detected, then upgrades the XML", async () => {
-        const { service, editorStore, vsDocument, picker, statusBar } = createService();
+    it("routes an untagged document to an engine-neutral render without rewriting it", async () => {
+        const { service, editorStore, vsDocument, statusBar } = createService();
         service.registerSession(EDITOR);
         vsDocument.getContent.mockReturnValue(NO_PLATFORM_DOC);
-        picker.pickExecutionPlatform.mockResolvedValue("c7");
+
+        const rendered = await service.display(EDITOR);
+
+        expect(rendered).toBe(true);
+        const msg = editorStore.postMessage.mock.calls[0][1] as BpmnFileQuery;
+        expect(msg.engine).toBeUndefined();
+        expect(msg.content).toBe(NO_PLATFORM_DOC);
+        expect(statusBar.hideEngineVersion).toHaveBeenCalled();
+        expect(statusBar.showEngineVersion).not.toHaveBeenCalled();
+        // No stamp-on-open: the untagged document is never written back.
+        expect(vsDocument.write).not.toHaveBeenCalled();
+    });
+
+    it("scaffolds an engine-neutral document when the neutral choice is picked", async () => {
+        const { service, editorStore, vsDocument, picker } = createService();
+        service.registerSession(EDITOR);
+        vsDocument.getContent.mockReturnValue("");
+        picker.pickNewModelEngine.mockResolvedValue("neutral");
 
         await service.display(EDITOR);
 
+        expect(vsDocument.write).toHaveBeenCalledOnce();
+        const written = vsDocument.write.mock.calls[0][1] as string;
+        expect(written).not.toContain("modeler:executionPlatform");
         const msg = editorStore.postMessage.mock.calls[0][1] as BpmnFileQuery;
-        expect(msg.content).toContain('modeler:executionPlatformVersion="7.24.0"');
-        expect(msg.content).toContain("camunda");
-        expect(statusBar.showEngineVersion).toHaveBeenCalledWith("c7", "7.24.0");
-        // The upgraded XML is written back to the document.
-        expect(vsDocument.write).toHaveBeenCalledWith(EDITOR, msg.content, 0);
+        expect(msg.engine).toBeUndefined();
     });
 
     it("returns false without notifying when the editor is hidden", async () => {
@@ -137,7 +158,7 @@ describe("BpmnModelerService.display", () => {
         const { service, vsDocument, picker, notifier } = createService();
         service.registerSession(EDITOR);
         vsDocument.getContent.mockReturnValue("");
-        picker.pickExecutionPlatform.mockRejectedValue(new UserCancelledError());
+        picker.pickNewModelEngine.mockRejectedValue(new UserCancelledError());
 
         const rendered = await service.display(EDITOR);
 
@@ -207,7 +228,7 @@ describe("BpmnModelerService.display", () => {
         service.registerSession(EDITOR);
         vsDocument.getContent.mockReturnValue("");
         let finishPick: (platform: "c7") => void = () => {};
-        picker.pickExecutionPlatform.mockReturnValueOnce(
+        picker.pickNewModelEngine.mockReturnValueOnce(
             new Promise((resolve) => {
                 finishPick = resolve;
             }),
@@ -281,6 +302,19 @@ describe("BpmnModelerService.changeEngineVersion", () => {
         const writtenXml = vsDocument.write.mock.calls[0][1] as string;
         expect(writtenXml).toContain('modeler:executionPlatformVersion="8.5.0"');
         expect(statusBar.showEngineVersion).toHaveBeenCalledWith("c8", "8.5.0");
+    });
+
+    it("informs and returns false for an untagged diagram with no engine version", async () => {
+        const { service, vsDocument, picker, notifier } = createService();
+        service.registerSession(EDITOR);
+        vsDocument.getContent.mockReturnValue(NO_PLATFORM_DOC);
+
+        const result = await service.changeEngineVersion(EDITOR);
+
+        expect(result).toBe(false);
+        expect(notifier.showInfo).toHaveBeenCalledOnce();
+        expect(picker.pickEngineVersion).not.toHaveBeenCalled();
+        expect(vsDocument.write).not.toHaveBeenCalled();
     });
 
     it("returns false without notifying when the version prompt is cancelled", async () => {

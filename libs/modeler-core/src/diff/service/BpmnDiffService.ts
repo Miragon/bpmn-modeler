@@ -6,7 +6,6 @@ import {
     SyncViewportQuery,
     ViewportChangedCommand,
 } from "@miragon/bpmn-modeler-shared";
-import { Engine } from "@miragon/bpmn-modeler-types";
 import { DiffResult, computeDiff, sideView } from "@miragon/bpmn-modeler-diff";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
@@ -41,19 +40,14 @@ export class BpmnDiffService {
 
     /**
      * Replies to the webview's initial `GetBpmnFileCommand` with the pane's
-     * XML in viewer mode.  Engine detection is best-effort — diagrams without
-     * an execution-platform attribute fall back to `"c7"`, since viewer mode
-     * does not render engine-specific extensions anyway.
+     * XML in viewer mode.  Engine detection is best-effort — an untagged
+     * diagram reports `undefined`, since viewer mode does not render
+     * engine-specific extensions anyway.
      */
     async sendViewerFile(handle: DiffPaneHandle): Promise<void> {
         try {
             const content = handle.getText();
-            let engine: Engine;
-            try {
-                engine = new BpmnDocument(content).detectPlatform();
-            } catch {
-                engine = "c7";
-            }
+            const engine = new BpmnDocument(content).detectEngine();
             await handle.postMessage(new BpmnFileQuery(content, engine, "viewer"));
         } catch (error) {
             this.notifier.logError(error as Error);
