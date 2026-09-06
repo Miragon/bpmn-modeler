@@ -28,7 +28,7 @@ import type { DiffResult, DiffSide } from "@miragon/bpmn-modeler/diff";
 
 import c7Samples from "./__fixtures__/c7-samples.json";
 import c8Samples from "./__fixtures__/c8-samples.json";
-import { MOCK_BPMN_XML } from "./__fixtures__/mock-bpmn";
+import { MOCK_BPMN_XML, MOCK_NEUTRAL_BPMN_XML } from "./__fixtures__/mock-bpmn";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "./__fixtures__/mock-diff";
 import type { WebviewState } from "./webviewState";
 
@@ -57,20 +57,22 @@ export function getHostApi(): HostApi<StateType, MessageType> {
  *
  * `modeler` (default) — serves the full editable modeler, matches pre-existing
  *   dev behaviour.
+ * `neutral` — serves an untagged (engine-neutral) model with `engine: undefined`
+ *   so the webview opens it in Design and greys out Implement.
  * `diff-before` / `diff-after` — serves the left or right pane of a diff view
  *   with real `bpmn-js-differ` highlights computed from two fixture XMLs.
  */
-type DevMode = "modeler" | "diff-before" | "diff-after";
+type DevMode = "modeler" | "neutral" | "diff-before" | "diff-after";
 
 function readDevMode(): DevMode {
     const raw = new URLSearchParams(window.location.search).get("mode");
-    if (raw === "diff-before" || raw === "diff-after" || raw === "modeler") {
+    if (raw === "diff-before" || raw === "diff-after" || raw === "modeler" || raw === "neutral") {
         return raw;
     }
     if (raw !== null && raw !== "") {
         console.warn(
             `[dev] Unknown ?mode=${raw}; falling back to "modeler". ` +
-                `Known values: modeler, diff-before, diff-after.`,
+                `Known values: modeler, neutral, diff-before, diff-after.`,
         );
     }
     return "modeler";
@@ -271,6 +273,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 return;
             case "diff-after":
                 dispatch(new BpmnFileQuery(MOCK_DIFF_AFTER_XML, "c7", "viewer"));
+                return;
+            case "neutral":
+                // Untagged model: no engine, so the webview opens it in Design.
+                dispatch(new BpmnFileQuery(MOCK_NEUTRAL_BPMN_XML, undefined));
                 return;
             case "modeler":
                 dispatch(new BpmnFileQuery(MOCK_BPMN_XML, "c7"));

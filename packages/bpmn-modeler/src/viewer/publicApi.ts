@@ -3,6 +3,7 @@ import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type { CoreModelerServices, ThemeMode } from "../publicApi";
 import type { ViewportManager } from "../viewport";
 import type { SelectionManager } from "../selection";
+import type { RootElementManager } from "../rootElement";
 import type { ViewState } from "../viewState";
 
 /**
@@ -117,6 +118,13 @@ export interface BpmnViewerHandle {
 
     /** Selection accessor — the viewer's base modules ship visible selection. */
     readonly selection: SelectionManager;
+
+    /**
+     * Drill-down plane accessor. Host-adapter surface for restoring the active
+     * canvas root across an instance switch; the composed
+     * {@link captureViewState}/{@link applyViewState} pair covers the common case.
+     */
+    readonly rootElement: RootElementManager;
 
     /**
      * Snapshot the drill-down plane, viewbox, and selection so they survive an

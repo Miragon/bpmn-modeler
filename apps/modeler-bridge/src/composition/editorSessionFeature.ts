@@ -42,6 +42,7 @@ export function register(
         deps.picker,
         deps.statusBar,
         deps.notifier,
+        deps.settings,
     );
 
     type RegisteredHandle = { handle: RpcEditorHandle; sessionId?: number };

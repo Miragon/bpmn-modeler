@@ -6,5 +6,7 @@ export * from "./lib/modeler";
 export * from "./lib/processVariables";
 export * from "./lib/propertiesPanelResizer";
 export * from "./lib/propertiesPanelFocus";
+export * from "./lib/surfaceMode";
+export * from "./lib/modeStrip";
 export * from "./lib/theme";
 export * from "./lib/variableManifest";

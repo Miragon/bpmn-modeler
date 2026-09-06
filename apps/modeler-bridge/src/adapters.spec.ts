@@ -667,24 +667,31 @@ describe("RpcPicker", () => {
         return { ...h, finder, picker: new RpcPicker(h.rpc, finder) };
     }
 
-    it("pickExecutionPlatform maps the chosen engine to a label and returns the id", async () => {
+    it("pickNewModelEngine lists the engines plus the neutral choice and returns the id", async () => {
         const { frames, picker, answerLast } = setup();
-        const pending = picker.pickExecutionPlatform("Pick a platform", ["c7", "c8"]);
+        const pending = picker.pickNewModelEngine("Pick a platform");
         expect(last(frames)).toMatchObject({
             method: "picker/show",
             params: {
                 placeholder: "Pick a platform",
                 canPickMany: false,
-                items: [{ label: "Camunda 7" }, { label: "Camunda 8" }],
+                items: [
+                    { label: "Camunda 7" },
+                    { label: "Camunda 8" },
+                    {
+                        label: "Engine-neutral",
+                        description: "No execution platform — opens in Design mode",
+                    },
+                ],
             },
         });
-        await answerLast({ selected: [1] });
-        await expect(pending).resolves.toBe("c8");
+        await answerLast({ selected: [2] });
+        await expect(pending).resolves.toBe("neutral");
     });
 
-    it("pickExecutionPlatform throws UserCancelledError on dismissal", async () => {
+    it("pickNewModelEngine throws UserCancelledError on dismissal", async () => {
         const { picker, answerLast } = setup();
-        const pending = picker.pickExecutionPlatform("Pick", ["c7"]);
+        const pending = picker.pickNewModelEngine("Pick");
         await answerLast({ selected: null });
         await expect(pending).rejects.toBeInstanceOf(UserCancelledError);
     });

@@ -46,10 +46,12 @@
  */
 import { Command, Query } from "./messages";
 import { VariableDef } from "./processVariables";
+import type { SurfaceMode } from "./surfaceMode";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     BpmnViewerMode,
+    DetectedEngine,
     DiffCounts,
     DiffOrigin,
     DiffSide,
@@ -68,7 +70,11 @@ import type {
 export class BpmnFileQuery extends Query {
     public readonly content: string;
 
-    public readonly engine: Engine;
+    /**
+     * The detected execution platform, or `undefined` for an engine-neutral
+     * (untagged) model — the surface routes View/Design/Implement off this.
+     */
+    public readonly engine: DetectedEngine;
 
     /**
      * Rendering mode. Defaults to `"modeler"` for backward compatibility; set
@@ -77,17 +83,26 @@ export class BpmnFileQuery extends Query {
     public readonly viewerMode: BpmnViewerMode;
     public readonly documentRevision: number;
 
+    /**
+     * Seed for the editor's initial mode when it has no persisted mode. A
+     * one-shot hint (not live-pushed): the webview resolves it against the
+     * engine and its own saved state via `resolveInitialMode`.
+     */
+    public readonly defaultMode?: SurfaceMode;
+
     constructor(
         content: string,
-        engine: Engine,
+        engine: DetectedEngine,
         viewerMode: BpmnViewerMode = "modeler",
         documentRevision = 0,
+        defaultMode?: SurfaceMode,
     ) {
         super("BpmnFileQuery");
         this.content = content;
         this.engine = engine;
         this.viewerMode = viewerMode;
         this.documentRevision = documentRevision;
+        this.defaultMode = defaultMode;
     }
 }
 

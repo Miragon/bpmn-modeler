@@ -4124,6 +4124,7 @@ __metadata:
     "@bpmn-io/properties-panel": "npm:3.52.0"
     "@miragon/bpmn-modeler": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"

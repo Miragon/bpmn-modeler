@@ -8,13 +8,13 @@
 /* Flex column out-specifies `.content.with-diagram .properties-panel-parent`'s
  * `display:block`; `overflow:hidden` lets the collapsed `width:0` win over the
  * flex `min-width:auto` default. */
-#js-properties-panel.demo-panel-host {
+#js-properties-panel.panel-host {
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-.demo-mode-strip {
+.mode-strip {
     flex: 0 0 auto;
     height: 36px;
     display: flex;
@@ -26,7 +26,7 @@
 
 /* The scrolling panel body. `min-height:0` lets it shrink inside the flex
  * column so its own overflow scrolls instead of the host. */
-.demo-panel-mount {
+.panel-mount {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
@@ -34,13 +34,13 @@
 
 /* Parity with default.css `.properties-panel-parent > .djs-properties-panel`,
  * which no longer matches now that the panel is a grandchild of the host. */
-.demo-panel-mount > .djs-properties-panel {
+.panel-mount > .djs-properties-panel {
     padding-bottom: 70px;
     min-height: 100%;
 }
 
 /* Segmented control, styled after the header `.views` switcher. */
-.demo-mode-group {
+.mode-group {
     display: flex;
     gap: 2px;
     padding: 2px;
@@ -49,7 +49,7 @@
     border-radius: var(--cd-radius-sm);
 }
 
-.demo-mode-button {
+.mode-button {
     padding: 3px 12px;
     border: none;
     border-radius: 4px;
@@ -59,29 +59,29 @@
     cursor: pointer;
 }
 
-.demo-mode-button:hover {
+.mode-button:hover {
     background: rgba(51, 93, 229, 0.06);
 }
 
-.demo-mode-button[aria-pressed="true"] {
+.mode-button[aria-pressed="true"] {
     background: var(--cd-grau);
     color: var(--cd-blau);
     box-shadow: var(--cd-shadow-1);
 }
 
-.demo-mode-button[aria-disabled="true"] {
+.mode-button[aria-disabled="true"] {
     opacity: 0.4;
     cursor: not-allowed;
 }
 
-.demo-mode-button:focus-visible {
+.mode-button:focus-visible {
     outline: 2px solid var(--cd-blau);
     outline-offset: 1px;
 }
 
 /* Collapsed-rail badge: a small pill on the resizer, just above the chevron
  * toggle. Hidden unless the panel is collapsed. */
-.demo-mode-badge {
+.mode-badge {
     display: none;
     position: absolute;
     right: 0;
@@ -99,32 +99,32 @@
     z-index: 1;
 }
 
-.panel-resizer.collapsed .demo-mode-badge {
+.panel-resizer.collapsed .mode-badge {
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 /* ── Dark theme ──────────────────────────────────────────────────────────── */
-:root[data-bpmn-theme="dark"] .demo-mode-strip {
+:root[data-bpmn-theme="dark"] .mode-strip {
     background: #1a1a1a;
     border-bottom-color: #2a2a2a;
 }
 
-:root[data-bpmn-theme="dark"] .demo-mode-group {
+:root[data-bpmn-theme="dark"] .mode-group {
     background: #2a2a2a;
     border-color: #3a3a3a;
 }
 
-:root[data-bpmn-theme="dark"] .demo-mode-button {
+:root[data-bpmn-theme="dark"] .mode-button {
     color: #9aa0aa;
 }
 
-:root[data-bpmn-theme="dark"] .demo-mode-button:hover {
+:root[data-bpmn-theme="dark"] .mode-button:hover {
     background: rgba(51, 93, 229, 0.18);
 }
 
-:root[data-bpmn-theme="dark"] .demo-mode-button[aria-pressed="true"] {
+:root[data-bpmn-theme="dark"] .mode-button[aria-pressed="true"] {
     background: var(--cd-schwarz);
     color: #6f8cf0;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);

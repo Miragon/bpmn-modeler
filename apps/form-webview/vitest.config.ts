@@ -9,6 +9,13 @@ export default defineConfig({
         include: ["src/**/*.{spec,test}.ts"],
         alias: {
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
+            // The shared barrel reaches `@miragon/bpmn-modeler-types`, which has no
+            // runtime package entry (source-only), so map it explicitly like the
+            // other webviews do.
+            "@miragon/bpmn-modeler-types": resolve(
+                __dirname,
+                "../../libs/modeler-types/src/index.ts",
+            ),
         },
         coverage: {
             provider: "v8",

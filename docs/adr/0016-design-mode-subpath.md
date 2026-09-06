@@ -4,6 +4,10 @@
 - Date: 2026-09-02
 - Category: bpmn-webview
 
+> Amended by [ADR 0020](0020-untagged-documents-first-class-in-hosts.md): the
+> hosts now open an untagged (engine-neutral) document directly in this Design
+> surface instead of stamping an execution platform onto it.
+
 Roadmap step 7 — the last — of the bpm-iq embeddability epic (#1409), building on the subpath-injection precedent [ADR 0013](0013-injectable-lint-stack.md)
 for `/lint`, the readonly-surface precedent
 [ADR 0014](0014-readonly-viewer-subpath.md) for `/viewer`, the `Pick`-able

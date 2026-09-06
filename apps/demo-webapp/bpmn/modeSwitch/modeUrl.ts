@@ -1,4 +1,4 @@
-import type { DemoMode } from "./modeModel";
+import type { SurfaceMode } from "@miragon/bpmn-modeler-shared";
 
 const MODE_PARAM = "mode";
 
@@ -11,7 +11,7 @@ export function readRequestedMode(): string | null {
  * Reflects the applied mode into the URL without a navigation or history entry,
  * so a reload / shared link reopens in the same mode.
  */
-export function writeModeToUrl(mode: DemoMode): void {
+export function writeModeToUrl(mode: SurfaceMode): void {
     const url = new URL(window.location.href);
     url.searchParams.set(MODE_PARAM, mode);
     window.history.replaceState(window.history.state, "", url);
