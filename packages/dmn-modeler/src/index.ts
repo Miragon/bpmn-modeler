@@ -1,3 +1,5 @@
+import "./styles/themes.css";
+
 export { createModeler } from "./createModeler";
 export type {
     DmnViewType,

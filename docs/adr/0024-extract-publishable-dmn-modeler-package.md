@@ -4,6 +4,12 @@
 - Date: 2026-09-07 (epic #1467; issue #1461)
 - Category: dmn-webview
 
+> Amended by [ADR 0026](0026-dmn-container-scoped-theming.md): the deferred
+> per-instance theming has landed. `styles.css` is now emitted from the lib
+> entry (`src/index.ts` imports the scoped `themes.css`), not the standalone
+> CSS-only rollup (`vite.styles.config.mts` is deleted), and theming is
+> per-instance via `data-dmn-theme` rather than the page-global `#theme-link`.
+
 ## Context
 
 `apps/dmn-webview` grew the DMN modeling surface (decision requirements

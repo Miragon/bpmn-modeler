@@ -1,0 +1,15 @@
+/* The dark-theme override rules only — every top-level selector scoped under
+ * `[data-dmn-theme="dark"]` (page chrome keys off the root attribute
+ * `:root[data-dmn-theme="dark"]`). This is the single authored source:
+ * `themes.css` imports it (after the unscoped light base) for the merged
+ * in-bundle sheet, and `index.css` imports it after the stock dmn-js defaults to
+ * build the legacy `darkTheme.css` split (the scope is stripped from that output
+ * by `scripts/postcss-strip-theme-scope.mjs`). */
+@import "./colors.css";
+@import "./base-layout.css";
+@import "./shared.css";
+@import "./diagram-js.css";
+@import "./properties-panel.css";
+@import "./decision-table.css";
+@import "./literal-expression.css";
+@import "./simulation.css";

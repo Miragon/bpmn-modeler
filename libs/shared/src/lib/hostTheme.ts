@@ -1,20 +1,21 @@
 /**
- * VS Code `<body>`-class theme adapter for the BPMN webview host.
+ * VS Code `<body>`-class theme adapter shared by the BPMN and DMN webview hosts.
  *
- * `@miragon/bpmn-modeler` themes each modeler instance through its
- * `data-bpmn-theme` attribute and never reads host chrome. This adapter is the
- * host half of that contract: it resolves the IDE's light/dark signal from the
- * `vscode-*` body classes (VS Code injects them; the IntelliJ host impersonates
- * them) and drives two sinks — the page-level scope on `<html>` (for the host
- * chrome and the viewer/diff branch, which has no modeler instance) and the
- * modeler instance's own `setTheme`.
+ * `@miragon/bpmn-modeler` / `@miragon/dmn-modeler` theme each modeler instance
+ * through a per-instance attribute (`data-bpmn-theme` / `data-dmn-theme`) and
+ * never read host chrome. This adapter is the host half of that contract: it
+ * resolves the IDE's light/dark signal from the `vscode-*` body classes (VS Code
+ * injects them; the IntelliJ host impersonates them) and drives two sinks — the
+ * page-level scope on `<html>` (for host chrome and any surface with no modeler
+ * instance) and the modeler instance's own `setTheme`. The scope attribute name
+ * is injected by the caller so each webview keeps its package's CSS self-contained.
  *
- * App code may read `vscode-*` classes; the package's architecture gate only
- * forbids them inside the published package source.
+ * App code may read `vscode-*` classes; the packages' architecture gates only
+ * forbid them inside the published package sources.
  */
 
 export type HostThemeKind = "light" | "dark";
-type HostThemeMode = "automatic" | "light" | "dark";
+export type HostThemeMode = "automatic" | "light" | "dark";
 
 /** Resolves the IDE theme from the VS Code `<body>` classes. */
 export function resolveHostThemeKind(): HostThemeKind {
@@ -25,12 +26,13 @@ export function resolveHostThemeKind(): HostThemeKind {
 }
 
 /**
- * Sets the page-level `data-bpmn-theme` on `<html>`, scoping the host chrome
- * (page background, panel dividers) and — until #1405 gives it an instance — the
- * viewer/diff branch.
+ * Sets the page-level scope attribute on `<html>`, scoping the host chrome (page
+ * background, panel dividers) and any surface that has no live modeler instance
+ * to theme. `attribute` is the package's scope attribute
+ * (`data-bpmn-theme` / `data-dmn-theme`).
  */
-export function applyPageThemeScope(kind: HostThemeKind): void {
-    document.documentElement.setAttribute("data-bpmn-theme", kind);
+export function applyPageThemeScope(attribute: string, kind: HostThemeKind): void {
+    document.documentElement.setAttribute(attribute, kind);
 }
 
 export interface HostThemeAdapter {

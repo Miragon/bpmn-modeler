@@ -27,9 +27,7 @@ const mocks = vi.hoisted(() => {
             async (_container: HTMLElement, _options: DmnModelerOptions) => handle,
         ),
         initResizer: vi.fn(() => panelHandle),
-        initTheme: vi.fn(),
         installPanelShortcuts: vi.fn(),
-        setColorThemeMode: vi.fn(),
         stateManager: {
             restorePanelVisibility: vi.fn(),
             persistPanelVisibility: vi.fn(),
@@ -62,9 +60,7 @@ vi.mock("@miragon/bpmn-modeler-shared", async () => {
     return {
         ...actual,
         initResizer: mocks.initResizer,
-        initTheme: mocks.initTheme,
         installPanelShortcuts: mocks.installPanelShortcuts,
-        setColorThemeMode: mocks.setColorThemeMode,
     };
 });
 
@@ -125,8 +121,10 @@ describe("DMN bootstrap", () => {
         const panel = document.querySelector("#js-properties-panel");
         expect(mocks.createModeler).toHaveBeenCalledWith(
             canvas,
-            expect.objectContaining({ propertiesPanel: { parent: panel } }),
+            expect.objectContaining({ propertiesPanel: { parent: panel }, theme: "light" }),
         );
+        // The host adapter scoped the page on `<html>` off the (light) VS Code signal.
+        expect(document.documentElement.getAttribute("data-dmn-theme")).toBe("light");
         expect(mocks.createModeler.mock.invocationCallOrder[0]).toBeLessThan(
             mocks.initResizer.mock.invocationCallOrder[0],
         );
@@ -182,6 +180,17 @@ describe("DMN bootstrap", () => {
                 ),
             { timeout: 1000 },
         );
+
+        // A forced colorTheme setting drives the instance's live setTheme.
+        mocks.handle.setTheme.mockClear();
+        dispatch({ type: "DmnModelerSettingQuery", setting: { colorTheme: "light" } });
+        await vi.waitFor(() => expect(mocks.handle.setTheme).toHaveBeenCalledWith("light"));
+
+        // Back in automatic, a VS Code dark body class re-themes the open editor.
+        dispatch({ type: "DmnModelerSettingQuery", setting: { colorTheme: "automatic" } });
+        document.body.classList.add("vscode-dark");
+        await vi.waitFor(() => expect(mocks.handle.setTheme).toHaveBeenCalledWith("dark"));
+        document.body.classList.remove("vscode-dark");
 
         function dispatch(data: Record<string, unknown>): void {
             window.dispatchEvent(new MessageEvent("message", { data }));

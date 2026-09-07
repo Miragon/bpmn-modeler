@@ -75,8 +75,15 @@ export interface DmnKeyboardOptions {
 }
 
 /**
- * [B] Reserved per-instance theme selection. Theme application is intentionally
- * deferred; accepting this option now keeps the extraction API stable.
+ * [B] Theme selection for a single instance. The modeler toggles a
+ * `data-dmn-theme` attribute on its container + panel parent (the authoritative
+ * mechanism — dark rules are scoped under `[data-dmn-theme="dark"]`, so two
+ * instances on one page can hold different themes) and mirrors the choice onto a
+ * legacy page-global `#theme-link` when the consumer still links one.
+ * `"automatic"` follows the OS/browser `prefers-color-scheme` live;
+ * `"light"`/`"dark"` force a fixed kind. A host that themes off its own chrome
+ * (VS Code `<body>` classes) maps that signal to a forced mode in its adapter —
+ * the package does not read host chrome.
  */
 export type DmnThemeMode = "light" | "dark" | "automatic";
 
@@ -110,7 +117,11 @@ export interface DmnModelerOptions {
 
     // ── [B] Opinionated built-ins ───────────────────────────────────────────
 
-    /** [B] Reserved initial theme. It has no runtime effect in this release. */
+    /**
+     * [B] Colour theme — defaults to `"automatic"`. Theming always engages: the
+     * instance gets a `data-dmn-theme` attribute from the first frame regardless
+     * of whether this is set.
+     */
     theme?: DmnThemeMode;
 
     /** [B] Reserved UI locale. It has no runtime effect in this release. */
@@ -154,7 +165,10 @@ export interface DmnModelerHandle {
     /** [A] Whether the active DRD canvas owns focus; false in other views. */
     isCanvasFocused(): boolean;
 
-    /** [B] Reserved live theme switch. It has no runtime effect in this release. */
+    /**
+     * [B] Switch the colour theme live. Toggles this instance's `data-dmn-theme`
+     * attribute and mirrors it to a legacy `#theme-link` when present.
+     */
     setTheme(theme: DmnThemeMode): void;
 
     /** [A] Tear down this instance and all of its listeners and observers. */

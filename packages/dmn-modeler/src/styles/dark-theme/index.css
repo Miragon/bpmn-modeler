@@ -1,15 +1,9 @@
 /* dmn-js dark theme — the stock stylesheets plus dark overrides layered on top.
  *
  * The dmn-js assets are imported first so the override files below win on
- * cascade. Imported here (not in main.ts) so the bundle can swap the whole
- * sheet for the light variant at runtime via the `#theme-link` element. */
+ * cascade. This entry builds the legacy split `darkTheme.css` a consumer links
+ * via `#theme-link`; `scripts/postcss-strip-theme-scope.mjs` strips the
+ * `[data-dmn-theme="dark"]` scope from the overrides so the split sheet stays
+ * un-scoped and page-global as before. */
 @import "../base.css";
-
-@import "./colors.css";
-@import "./base-layout.css";
-@import "./shared.css";
-@import "./diagram-js.css";
-@import "./properties-panel.css";
-@import "./decision-table.css";
-@import "./literal-expression.css";
-@import "./simulation.css";
+@import "./overrides.css";

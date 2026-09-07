@@ -56,8 +56,8 @@ function applyThemeKind(kind: DemoThemeKind): void {
     // CSS (the BPMN surfaces additionally re-theme per instance via `setTheme`).
     // The `vscode-dark` body class drives the package's `body.vscode-dark
     // .diff-legend*` rules on the diff page, which has no live handle to theme.
-    // The DMN page is light-only (see the no-op `#theme-link` below), so the
-    // control does not reach the decision table.
+    // The DMN page stays light regardless: its demo host forces `colorTheme:
+    // "light"` (dark DMN in the demo is #1465).
     document.documentElement.setAttribute("data-bpmn-theme", kind);
     document.body.classList.toggle("vscode-dark", kind === "dark");
 }
@@ -110,17 +110,6 @@ export function mountDemoHeader(
     // falls back to the default bpmn model so users always land somewhere sensible.
     const noModel = isDiff || isViewer || isDesign;
     const modelerHref = noModel ? DEFAULT_MODELER_HREF : modelHref(getActiveModel(page));
-
-    // Vite strips the shell's `id="theme-link"` when it bundles the DMN page's
-    // stylesheet, so the DMN bootstrap's shared `applyTheme()` lookup would fail.
-    // A no-op link keeps that lookup silent — the DMN page is light-only.
-    if (!document.getElementById("theme-link")) {
-        const themeLink = document.createElement("link");
-        themeLink.id = "theme-link";
-        themeLink.rel = "stylesheet";
-        themeLink.href = "data:text/css,";
-        document.head.appendChild(themeLink);
-    }
 
     const style = document.createElement("style");
     // Colour tokens mirror Miragon/corporate-identity (brand/tokens.json).

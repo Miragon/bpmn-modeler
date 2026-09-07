@@ -1,20 +1,25 @@
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
-// The two swappable theme stylesheets a consumer links via `#theme-link` (the
-// permanent compatibility fallback). Scoped per-instance theming is deferred
-// (#1462), so the dark sheet stays un-scoped in this step. CSS cannot be a Vite
-// lib entry, so this is a separate CSS-only rollup. The output names are a
+import stripThemeScope from "./scripts/postcss-strip-theme-scope.mjs";
+
+// The two legacy theme stylesheets ship as standalone CSS entries a consumer
+// links via `#theme-link` (the permanent compatibility fallback for the
+// authoritative `data-dmn-theme` attribute mechanism). The dark source is
+// authored scoped under `[data-dmn-theme="dark"]`; `stripThemeScope` removes
+// that scope here so the split `darkTheme.css` stays un-scoped as before (the
+// light input has no attribute, so the plugin is a no-op on it). CSS cannot be a
+// Vite lib entry, so this is a separate CSS-only rollup. The output names are a
 // de-facto contract — `#theme-link` swaps `lightTheme.css` ↔ `darkTheme.css` by
 // name — so keep them exact.
-//
-// The stock `dmn-modeler.css` (`@miragon/dmn-modeler/styles.css`) is emitted by
-// the separate `vite.styles.config.mts` pass: in this step `lightTheme.css` is
-// byte-identical to it, and a single rollup would dedupe the two into one asset,
-// dropping `dmn-modeler.css`. Two passes keep both files.
 export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/dmn-modeler-themes",
+    css: {
+        postcss: {
+            plugins: [stripThemeScope()],
+        },
+    },
     build: {
         target: "es2021",
         outDir: "dist",

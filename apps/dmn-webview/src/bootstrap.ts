@@ -1,10 +1,13 @@
-// css — base layout only; the swappable dmn-js stylesheets (light/dark) load
-// through the `#theme-link` element rather than being bundled here.
+// css — webview page chrome first, then the package's own light base + scoped
+// dark theme (folded into the bundle via `@miragon/dmn-modeler`'s styles import),
+// matching the previous `styles.css`-then-`#theme-link` cascade order.
 import "./styles.css";
 
 import {
+    applyPageThemeScope,
     Command,
     createFlushResponder,
+    createHostThemeAdapter,
     createResolver,
     DmnFileQuery,
     DmnModelerSettingQuery,
@@ -12,15 +15,15 @@ import {
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
+    type HostThemeAdapter,
     initResizer,
-    initTheme,
     installPanelShortcuts,
     LogErrorCommand,
     LogWarningCommand,
     PropertiesPanelStateQuery,
     Query,
     ReleaseDocumentFlushQuery,
-    setColorThemeMode,
+    resolveHostThemeKind,
     SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
@@ -35,6 +38,7 @@ import type { WebviewState } from "./app/host";
 // Injected by bootstrap(); the app/demo entry chooses the concrete host.
 let host: HostApi<WebviewState, Command | Query>;
 let modeler: DmnModelerHandle | undefined;
+let themeAdapter: HostThemeAdapter | undefined;
 
 // Global safety net for throws outside the per-message try/catch below — dmn-js
 // event-bus callbacks run outside it, so an error there would otherwise vanish
@@ -164,14 +168,23 @@ async function run(): Promise<void> {
     const stateManager = new WebviewStateManager(host);
     window.addEventListener("message", onReceiveMessage);
 
-    // Follow the VS Code theme immediately; the host's `colorTheme` preference
+    // Theme is host policy: drive the page-level scope (host chrome, keyed off
+    // `:root[data-dmn-theme="dark"]`) and the modeler instance's own theme off
+    // the VS Code `<body>`-class signal. The instance is also born correct via
+    // `theme: resolveHostThemeKind()` below, so this mainly covers the page
+    // chrome and later live theme switches. The host's `colorTheme` preference
     // (which may force light) is applied once the setting query arrives below.
-    initTheme();
+    themeAdapter = createHostThemeAdapter((kind) => {
+        applyPageThemeScope("data-dmn-theme", kind);
+        modeler?.setTheme(kind);
+    });
+    themeAdapter.setMode("automatic");
 
     const canvas = requireElement("#js-canvas");
     const propertiesPanel = requireElement("#js-properties-panel");
     modeler = await createModeler(canvas, {
         propertiesPanel: { parent: propertiesPanel },
+        theme: resolveHostThemeKind(),
         onContentChanged: () => void debouncedSendChanges(),
         onWarning: (message) => host.postMessage(new LogWarningCommand(message)),
     });
@@ -325,7 +338,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
             // Applied live so a VS Code theme change in `"automatic"` mode
             // re-themes an already-open editor, not just on first load.
             const settingQuery = message.data as DmnModelerSettingQuery;
-            setColorThemeMode(settingQuery.setting.colorTheme);
+            themeAdapter?.setMode(settingQuery.setting.colorTheme);
             settingsResolver.done(settingQuery);
             break;
         }

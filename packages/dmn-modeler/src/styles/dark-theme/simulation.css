@@ -10,7 +10,7 @@
  * panel, a light chip, a fixed disabled grey) — those get direct overrides. */
 @import "./colors.css";
 
-:root {
+[data-dmn-theme="dark"] {
     /* surfaces & text */
     --dmn-sim-surface: var(--dt-surface-a20);
     --dmn-sim-ink: var(--dt-surface-a70);
@@ -47,13 +47,13 @@
 }
 
 /* The floating DRD input panel hardcodes an opaque-ish white glass background. */
-.dmn-sim-decision-requirements-diagram-panel {
+[data-dmn-theme="dark"] .dmn-sim-decision-requirements-diagram-panel {
     background: color-mix(in srgb, var(--dt-surface-a10) 92%, transparent);
 }
 
 /* The output chip hardcodes `rgba(29, 29, 29, 0.05)` — a subtle light tint reads
    on the dark result bar instead. */
-.dmn-sim-output {
+[data-dmn-theme="dark"] .dmn-sim-output {
     background: color-mix(in srgb, var(--dt-surface-a70) 8%, transparent);
 }
 
@@ -62,7 +62,7 @@
    contrast. Match the repo's disabled-button treatment (see the simple-mode /
    edit buttons in decision-table.css): a darker surface with a muted `a40`
    label that stays legible. */
-.dmn-sim-run:disabled {
+[data-dmn-theme="dark"] .dmn-sim-run:disabled {
     background: var(--dt-surface-a20);
     color: var(--dt-surface-a40);
 }
