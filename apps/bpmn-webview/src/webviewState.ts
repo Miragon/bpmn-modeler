@@ -4,7 +4,7 @@
  */
 
 import type { ViewportData, ViewState } from "@miragon/bpmn-modeler";
-import type { SurfaceMode } from "@miragon/bpmn-modeler-shared";
+import type { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 /**
  * Snapshot of the canvas view that can be captured from the live modeler and

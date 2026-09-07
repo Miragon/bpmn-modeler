@@ -3,6 +3,13 @@
 - Status: accepted
 - Date: 2026-09-04
 
+> Amended by [ADR 0021](0021-mode-session-subpath.md): the mode strip and mode
+> model that briefly lived in `libs/shared` alongside this chrome now ship from
+> the published package (`@miragon/bpmn-modeler/mode`) and
+> `@miragon/bpmn-modeler-types`. `libs/shared` keeps only the
+> resizer/focus/shortcut chrome this ADR is about — those stay private, as
+> decided here.
+
 ## Context
 
 The #1371 split sorted the old `shared` lib by one criterion: anything without

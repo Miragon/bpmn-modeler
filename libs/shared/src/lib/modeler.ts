@@ -46,12 +46,12 @@
  */
 import { Command, Query } from "./messages";
 import { VariableDef } from "./processVariables";
-import type { SurfaceMode } from "./surfaceMode";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     BpmnViewerMode,
     DetectedEngine,
+    SurfaceMode,
     DiffCounts,
     DiffOrigin,
     DiffSide,

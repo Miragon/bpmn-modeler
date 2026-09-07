@@ -41,7 +41,7 @@ import {
     SettingsPort,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
-import { SurfaceMode } from "@miragon/bpmn-modeler-shared";
+import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 /** Strips a leading `file://` so the string is a real OS path Node `fs` accepts. */
 function toFsPath(path: string): string {

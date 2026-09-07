@@ -230,6 +230,10 @@ await next.loadDiagram(xml);
 next.applyViewState(state);                    // same plane, viewbox, selection
 ```
 
+The [`@miragon/bpmn-modeler/mode`](#mode-session) session automates exactly this
+hand-off (plus export-before-destroy and a post-destroy fallback), so most hosts
+never write the switch by hand.
+
 Semantics:
 
 - **Apply order is fixed: root → viewport → selection.** Viewbox coordinates are
@@ -528,6 +532,10 @@ Three surfaces close the feature matrix:
 | Design | `@miragon/bpmn-modeler/design` | yes | none | plain BPMN |
 | Viewer | `@miragon/bpmn-modeler/viewer` | no | — | neutral, readonly (opt-in) |
 
+To switch a page *between* these surfaces behind a segmented control, reach for
+the [mode session](#mode-session) — it orchestrates the three factories rather
+than replacing them.
+
 ### Mode-marker semantics
 
 The marker is the **absence of `modeler:executionPlatform`** on
@@ -619,6 +627,111 @@ carries the bpmn-js base diagram/font CSS, the engine-neutral panel and
 append-menu chrome, the minimap, and the canvas focus indicator, plus the
 dark-theme overrides — none of the Camunda editor chrome. The two overlap, so do **not**
 load both on a design-only page.
+
+## Mode session
+
+`@miragon/bpmn-modeler/mode` is the View ↔ Design ↔ Implement session that owns
+the single live surface for a page and switches it between modes: a
+Design↔Implement change on a tagged model is a live `setMode` toggle
+(undo/selection/plane survive), anything else exports → destroys → recreates →
+restores the view state, with a post-destroy fallback so the page is never
+handle-less. It value-imports **no** bpmn-js / Camunda code — **you inject the
+per-mode surface factories** — so it stays out of a viewer-only consumer's bundle.
+
+```ts
+import { createModeSession, mountModeStrip } from "@miragon/bpmn-modeler/mode";
+import "@miragon/bpmn-modeler/mode.css";
+import { createModeler } from "@miragon/bpmn-modeler";
+import { createViewer } from "@miragon/bpmn-modeler/viewer";
+import { createDesigner } from "@miragon/bpmn-modeler/design";
+
+const session = await createModeSession({
+    container: document.querySelector("#canvas")!,
+    engine: detectEngine(xml), // "c7" | "c8" | undefined
+    // The present factories decide the available modes. On a tagged model the
+    // `implement` factory serves *both* Design and Implement via `ctx.mode`.
+    surfaces: {
+        view: ({ container, theme }) =>
+            createViewer(container, { theme, propertiesPanel: { parent: panel } }),
+        design: ({ container, theme }) =>
+            createDesigner(container, { theme, propertiesPanel: { parent: panel } }),
+        implement: ({ container, theme, mode, engine }) =>
+            createModeler(container, { engine, mode, theme, propertiesPanel: { parent: panel } }),
+    },
+    initialMode: savedMode, // vetted against availability + the engine rule
+    onSurfaceCreated: (handle) => bindPerInstanceState(handle),
+    onModeChanged: (mode, transition) => persist(mode),
+});
+
+// The session builds the initial surface but loads no diagram — you own the first import.
+await session.getHandle().loadDiagram(xml);
+
+// The strip is a separate opt-in export; it renders a group only for two+ modes.
+const strip = mountModeStrip({
+    stripEl,
+    host: panel,
+    modes: session.availableModes(),
+    revealPanel: () => panelHandle.setVisible(true),
+    onSelect: (mode) => void session.requestMode(mode),
+});
+strip.render({ mode: session.getMode(), engine, busy: false });
+```
+
+Supply a single factory and the session has one mode and the strip renders no
+buttons (the "single mode ⇒ no buttons" guarantee):
+
+```ts
+const viewerOnly = await createModeSession({
+    container,
+    engine: undefined,
+    surfaces: { view: ({ container, theme }) => createViewer(container, { theme }) },
+});
+viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no group
+```
+
+### `ModeSessionOptions`
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `container` | `HTMLElement` | The shared canvas every surface mounts into. |
+| `engine` | `DetectedEngine` | `"c7" \| "c8" \| undefined` — drives availability (`implement` needs a tagged model). |
+| `surfaces` | `SurfaceFactories` | The per-mode factories you inject; the present set decides the available modes. |
+| `initialMode` | `string \| null` | Requested start mode (saved / host default / `?mode=`), vetted by `resolveInitialMode`. |
+| `theme` | `"light" \| "dark" \| "automatic"` | Forwarded to every surface and to `setTheme`. Default `"automatic"`. |
+| `onSurfaceCreated` | `(handle, mode) => void` | After each factory returns, before `loadDiagram` — rebind per-instance subscriptions here. |
+| `onModeChanged` | `(mode, transition) => void` | Once per applied change; `transition` is `"toggle"` / `"recreate"` / `"fallback"`. |
+| `onSwitchStateChanged` | `(busy: boolean) => void` | Enters/leaves a recreate's handle-less window (drive `aria-busy` / `inert`). |
+| `beforeDestroy` | `() => void \| Promise<void>` | Runs before `destroy()` on a recreate — flush pending host sync here. |
+| `onError` | `(error: unknown) => void` | A switch failed (export-failure and post-destroy paths). |
+
+### `ModeSession`
+
+`getMode()`, `getHandle()`, `availableModes()`, `isAvailable(mode)`,
+`requestMode(mode)` (ignored when unavailable / a no-op / mid-switch; resolves
+when applied), `setTheme(theme)`, and `destroy()`.
+
+### `mountModeStrip`
+
+The segmented control + the collapsed-rail badge. `stripEl` is required; `host`
+gets `data-surface-mode` / `aria-busy`, `resizerEl` hosts the badge, `revealPanel`
+is the badge click, and `modes` (default all three) chooses which buttons render.
+Below two modes it mounts no group and no badge. `translate` / `onLabelChange`
+default to the package i18n; pass your own for a host with a different translator.
+
+### Guaranteed absent from the module graph
+
+`bpmn-js`, `diagram-js`, the Camunda engine stack (`camunda-*` / `zeebe-*`), the
+lint stack, the bpmn-io panel primitives (`@bpmn-io/*`), and the engine-bound
+properties panel. A build-time gate (`scripts/check-mode-pure-entry.mjs`) fails
+the build if any reappears — the surfaces are injected, never imported.
+
+### Theming & stylesheet
+
+Load **`@miragon/bpmn-modeler/mode.css`** for the strip/panel-host chrome. Its
+colours read the host's `--vscode-*` custom properties with static fallbacks, and
+the dark rules engage under a descendant `[data-bpmn-theme="dark"]` scope, so they
+work whether the attribute sits on `:root` or a container. Override the properties
+you care about to re-skin it to your own design tokens.
 
 ## Lint
 

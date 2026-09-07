@@ -1,15 +1,18 @@
 /*
- * Canvas-side mode strip (View / Design / Implement) for the VS Code + IntelliJ
- * webview. The panel host (`#js-properties-panel`) becomes a flex column: a fixed
- * mode strip on top, the scrolling properties-panel mount below. Colours are
- * driven by the host's `--vscode-*` custom properties (IntelliJ injects the same
- * variables via `#ide-theme-vars`) with static fallbacks for the plain-browser
- * `serve` preview, and the dark scope mirrors the modeler's own theme attribute.
+ * Canvas-side mode strip (View / Design / Implement) for `@miragon/bpmn-modeler/mode`.
+ * The panel host (`.panel-host`) becomes a flex column: a fixed mode strip on
+ * top, the scrolling properties-panel mount below. Colours are driven by the
+ * host's `--vscode-*` custom properties (VS Code exposes them; IntelliJ injects
+ * the same variables) with static fallbacks for the plain-browser preview; a
+ * consumer with its own design tokens overrides the properties it cares about.
+ * The dark rules use a descendant `[data-bpmn-theme="dark"]` scope so they engage
+ * whether the attribute sits on `:root` (the webview's page scope) or on a
+ * container ancestor (a per-instance scope).
  */
 
 /* Flex column so the strip stays pinned while the panel scrolls. `overflow:hidden`
  * lets the collapsed `width:0` win over the flex `min-width:auto` default. */
-#js-properties-panel.panel-host {
+.panel-host {
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -106,16 +109,16 @@
 }
 
 /* ── Dark theme fallback (plain-browser preview; hosts supply --vscode-*) ──── */
-:root[data-bpmn-theme="dark"] .mode-strip {
+[data-bpmn-theme="dark"] .mode-strip {
     background: var(--vscode-sideBar-background, #1a1a1a);
     border-bottom-color: var(--vscode-panel-border, #2a2a2a);
 }
 
-:root[data-bpmn-theme="dark"] .mode-group {
+[data-bpmn-theme="dark"] .mode-group {
     background: var(--vscode-editorWidget-background, #2a2a2a);
     border-color: var(--vscode-widget-border, #3a3a3a);
 }
 
-:root[data-bpmn-theme="dark"] .mode-button {
+[data-bpmn-theme="dark"] .mode-button {
     color: var(--vscode-descriptionForeground, #9aa0aa);
 }

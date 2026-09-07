@@ -1,27 +1,32 @@
 import "@miragon/bpmn-modeler"; // side-effect CSS shared by all three surfaces
 import "./modeler.css";
 import type { ThemeMode } from "@miragon/bpmn-modeler";
+import { initResizer, installPanelShortcuts } from "@miragon/bpmn-modeler-shared";
 import {
-    initResizer,
-    installPanelShortcuts,
+    createModeSession,
     mountModeStrip,
-    resolveInitialMode,
-} from "@miragon/bpmn-modeler-shared";
+    type ModeSession,
+    type ModeStrip,
+} from "@miragon/bpmn-modeler/mode";
 import { mountDemoHeader } from "../src";
 import { getActiveModel } from "../src/registry";
-import { ModeSession } from "./modeSwitch/ModeSession";
+import { buildDemoSurfaces } from "./modeSwitch/surfaces";
 import { readRequestedMode, writeModeToUrl } from "./modeSwitch/modeUrl";
 
 /**
  * Composition root for the BPMN modeler page. Instead of the webview
  * `bootstrap()`, it hosts all three package surfaces (viewer / design / modeler)
- * behind a canvas-side mode strip (#1446): one {@link ModeSession} owns the live
- * instance and swaps it as the strip selects a mode.
+ * behind a canvas-side mode strip (#1446): one {@link ModeSession} from
+ * `@miragon/bpmn-modeler/mode` owns the live instance and swaps it as the strip
+ * selects a mode.
  */
 async function main(): Promise<void> {
-    // The session is created after the header + strip, whose callbacks reference
-    // it, so it lives behind a ref (the same pattern viewer.ts / design.ts use).
+    // The session + strip reference each other from callbacks created before both
+    // exist (the header's theme callback, the session's render hooks, the strip's
+    // onSelect), so each lives behind a ref — the pattern the webview bootstrap
+    // and the old demo ModeSession used.
     const sessionRef: { current?: ModeSession } = {};
+    const stripRef: { current?: ModeStrip } = {};
 
     const { themeMode } = mountDemoHeader(
         "bpmn",
@@ -54,36 +59,46 @@ async function main(): Promise<void> {
 
     const model = getActiveModel("bpmn");
     const engine = model.engine;
-    const initialMode = resolveInitialMode(readRequestedMode(), engine);
+
+    const session = await createModeSession({
+        container: canvas,
+        engine,
+        surfaces: buildDemoSurfaces(panelMount),
+        initialMode: readRequestedMode(),
+        theme: themeMode as ThemeMode,
+        onModeChanged: (mode) => {
+            writeModeToUrl(mode);
+            stripRef.current?.render({ mode, engine, busy: false });
+        },
+        onSwitchStateChanged: (busy) => {
+            stripRef.current?.render({ mode: session.getMode(), engine, busy });
+        },
+        onError: (error) => console.error("[demo] mode switch failed", error),
+    });
+    sessionRef.current = session;
 
     const strip = mountModeStrip({
         host,
         stripEl,
         resizerEl,
-        panelHandle,
+        revealPanel: () => panelHandle.setVisible(true),
         // The demo ships no i18n; labels pass through unchanged.
         translate: (template) => template,
-        onSelect: (mode) => sessionRef.current?.requestMode(mode),
+        onSelect: (mode) => void session.requestMode(mode),
         onEscape: focusCanvas,
     });
-    strip.render({ mode: initialMode, engine, busy: true });
+    stripRef.current = strip;
+    strip.render({ mode: session.getMode(), engine, busy: true });
 
-    sessionRef.current = await ModeSession.start(initialMode, model.xml, {
-        canvas,
-        panelMount,
-        engine,
-        initialTheme: themeMode as ThemeMode,
-        onModeApplied: (mode) => {
-            writeModeToUrl(mode);
-            strip.render({ mode, engine, busy: false });
-        },
-        onSwitchStateChanged: (busy) => {
-            if (sessionRef.current) {
-                strip.render({ mode: sessionRef.current.getMode(), engine, busy });
-            }
-        },
-        onError: (error) => console.error("[demo] mode switch failed", error),
-    });
+    // The session builds the initial surface without loading a diagram; the demo
+    // owns the first import + fit. bpmn-js does not auto-fit on import and there
+    // is no saved view state on the first open, so a diagram authored off-origin
+    // would render off-screen. Recreate switches restore a captured viewbox instead.
+    const handle = session.getHandle();
+    await handle.loadDiagram(model.xml);
+    handle.viewport.fitViewport();
+    writeModeToUrl(session.getMode());
+    strip.render({ mode: session.getMode(), engine, busy: false });
 
     // `p` focuses the panel mount (not the strip); `Shift+P` toggles the panel —
     // in every mode, since the session always exposes a canvas handle.

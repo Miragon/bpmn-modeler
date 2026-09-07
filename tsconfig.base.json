@@ -26,6 +26,7 @@
             "@miragon/bpmn-modeler/lint": ["./packages/bpmn-modeler/src/bpmnlint/index.ts"],
             "@miragon/bpmn-modeler/viewer": ["./packages/bpmn-modeler/src/viewer/index.ts"],
             "@miragon/bpmn-modeler/design": ["./packages/bpmn-modeler/src/design/index.ts"],
+            "@miragon/bpmn-modeler/mode": ["./packages/bpmn-modeler/src/modeSession/index.ts"],
             "@miragon/bpmn-modeler-shared": ["./libs/shared/src/index.ts"],
             "@miragon/bpmn-modeler-types": ["./libs/modeler-types/src/index.ts"],
             "@miragon/bpmn-modeler-diff": ["./libs/bpmn-diff/src/index.ts"],

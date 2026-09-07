@@ -259,7 +259,7 @@ describe("bpmn-modeler import direction", () => {
         ]);
         const offenders: string[] = [];
         for (const file of listSourceFiles(PKG_SRC)) {
-            if (!/(^|\/)(design|viewer)\//.test(file.slice(PKG_SRC.length))) continue;
+            if (!/(^|\/)(design|viewer|modeSession)\//.test(file.slice(PKG_SRC.length))) continue;
             for (const spec of importedModules(readFileSync(file, "utf8"))) {
                 if (!spec.startsWith(".")) continue;
                 if (MODE_FILES.has(resolve(dirname(file), `${spec}.ts`))) {
@@ -269,8 +269,41 @@ describe("bpmn-modeler import direction", () => {
         }
         expect(
             offenders,
-            `the /design and /viewer subpaths must not import ./mode or ` +
+            `the /design, /viewer and /mode subpaths must not import ./mode or ` +
                 `./modeModules (runtime mode is a createModeler-only concern):\n` +
+                `${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("the mode-session subpath value-imports only the injectable set (#1447)", () => {
+        // `@miragon/bpmn-modeler/mode` orchestrates the surfaces the consumer
+        // injects, so its own graph must stay free of bpmn-js / Camunda code: a
+        // value import here is exactly what a single-file bundler would inline
+        // into a mode-only consumer. Only relatives *within* the modeSession dir
+        // (never `../` up into the surface handles), the pure mode model
+        // (`-types`), and i18n are value-importable; the handle types from
+        // `../publicApi` / `../viewer` / `../design` must stay `import type`. The
+        // built graph is gated separately by `check-mode-pure-entry.mjs`.
+        const MODE_DIR = join(PKG_SRC, "modeSession");
+        const isAllowed = (spec: string): boolean =>
+            spec.startsWith("./") ||
+            spec === "@miragon/bpmn-modeler-types" ||
+            spec === "@miragon/bpmn-modeler-i18n" ||
+            spec === "@miragon/bpmn-modeler-i18n-extras";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!file.startsWith(MODE_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (!isAllowed(spec)) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the mode subpath must value-import only ./* (within modeSession), the ` +
+                `mode model (@miragon/bpmn-modeler-types), or i18n — use \`import type\` ` +
+                `for the surface handles (../publicApi, ../viewer, ../design):\n` +
                 `${offenders.join("\n")}`,
         ).toEqual([]);
     });

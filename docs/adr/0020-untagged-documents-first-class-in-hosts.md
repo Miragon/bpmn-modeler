@@ -4,6 +4,13 @@
 - Date: 2026-09-06
 - Category: cross-cutting
 
+> Amended by [ADR 0021](0021-mode-session-subpath.md): the View↔Design↔Implement
+> session and segmented-control strip this ADR left host-side are now published
+> via `@miragon/bpmn-modeler/mode` (consumer-injected surface factories), and the
+> mode model (`SurfaceMode`, `resolveInitialMode`, `planTransition`, …) moves from
+> `libs/shared` to `@miragon/bpmn-modeler-types`. The per-editor-state and
+> `defaultMode`-seed decisions here are unchanged.
+
 ## Context
 
 Epic #1438 ("one document, three modes") landed every package step — runtime

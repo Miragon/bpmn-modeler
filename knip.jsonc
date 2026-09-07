@@ -61,7 +61,8 @@
                 "src/bpmnlint/index.ts",
                 "src/diff/index.ts",
                 "src/viewer/index.ts",
-                "src/design/index.ts"
+                "src/design/index.ts",
+                "src/modeSession/index.ts"
             ],
             // minisearch (via model-navigation), lodash (via modeler-types'
             // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)

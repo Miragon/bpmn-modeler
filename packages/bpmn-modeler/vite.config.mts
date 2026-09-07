@@ -110,6 +110,13 @@ export default defineConfig({
                 // `vite.viewer-css.config.mts`); purity gated by
                 // `check-design-pure-entry.mjs`.
                 design: resolve(__dirname, "src/design/index.ts"),
+                // Mode-session subpath (`@miragon/bpmn-modeler/mode`, #1447): the
+                // View↔Design↔Implement session + opt-in strip, with the surface
+                // factories injected by the consumer so it value-imports no
+                // bpmn-js/Camunda code. Imports no CSS (its sheet ships as
+                // `dist/mode.css` via `vite.viewer-css.config.mts`); purity gated
+                // by `check-mode-pure-entry.mjs`.
+                mode: resolve(__dirname, "src/modeSession/index.ts"),
             },
             formats: ["es"],
             cssFileName: "bpmn-modeler",

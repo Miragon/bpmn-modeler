@@ -50,13 +50,6 @@ import {
     extractProcessVariables,
     initResizer,
     installPanelShortcuts,
-    defaultMode,
-    isModeAvailable,
-    mountModeStrip,
-    planTransition,
-    resolveInitialMode,
-    type ModeStrip,
-    type SurfaceMode,
 } from "@miragon/bpmn-modeler-shared";
 import {
     NoModelerError,
@@ -65,7 +58,16 @@ import {
     observeCanvasSize,
     serializeAsync,
     type DetectedEngine,
+    type SurfaceMode,
 } from "@miragon/bpmn-modeler-types";
+import {
+    SURFACE_MODES,
+    createModeSession,
+    mountModeStrip,
+    type ModeSession,
+    type ModeStrip,
+    type SurfaceFactories,
+} from "@miragon/bpmn-modeler/mode";
 import {
     type HostThemeAdapter,
     applyPageThemeScope,
@@ -90,7 +92,7 @@ import { DiffMode } from "./diffMode";
 import { installHostEditorActions } from "./hostEditorActions";
 import { readSavedMode, readSavedPanelVisibility, WebviewStateManager } from "./state";
 import { isEditableHandle, isModelerHandle, type SurfaceHandle } from "./surface";
-import "./modeStrip.css";
+import "../../../packages/bpmn-modeler/src/styles/mode.css";
 
 /**
  * Upper bound (ms) on how long bootstrap waits for a host reply before
@@ -171,7 +173,11 @@ function startSession(
     // flight; `disposeCanvasObserver` tears down the per-surface size observer.
     let surfaceMode!: SurfaceMode;
     let strip!: ModeStrip;
+    let modeSession: ModeSession | undefined;
     let switchPending = false;
+    // Saved `document.body.inert` from the start of a recreate switch, restored
+    // when it lands (unless a concurrent engine reload has taken ownership).
+    let inertBeforeSwitch: boolean | undefined;
     let disposeCanvasObserver: (() => void) | undefined;
 
     let modelerIsInitialized = false;
@@ -512,7 +518,13 @@ function startSession(
         // covers the page chrome and later live theme switches.
         themeAdapter = createHostThemeAdapter((kind) => {
             applyPageThemeScope(kind);
-            surface?.setTheme(kind);
+            // Route through the session so its stored theme stays current — a
+            // later recreate then builds the next surface in the right theme.
+            if (modeSession) {
+                modeSession.setTheme(kind);
+            } else {
+                surface?.setTheme(kind);
+            }
         });
         themeAdapter.setMode("automatic");
 
@@ -646,14 +658,9 @@ function startSession(
         // The engine may be undefined here — an untagged (engine-neutral) model
         // is first-class now and opens in Design. The initial mode resolves from
         // this editor's saved mode, then the host's default, then the engine's
-        // own default, all vetted against availability by resolveInitialMode.
+        // own default — the mode session vets it against availability.
         const engine = bpmnFileQuery?.engine;
         modelerEngine = engine;
-        const initialMode = resolveInitialMode(
-            readSavedMode(host) ?? bpmnFileQuery?.defaultMode ?? null,
-            engine,
-        );
-        surfaceMode = initialMode;
 
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
         const extraModules = (injectedModules as unknown[]) ?? [];
@@ -661,84 +668,84 @@ function startSession(
 
         const focusCanvas = (): void => surface.getService<{ focus(): void }>("canvas").focus();
 
-        // Stands up the surface for `mode`, bound to the shared canvas + panel
-        // mount. View → readonly viewer; Design on an untagged model → the
-        // engine-neutral designer; Design/Implement on a tagged model → one
-        // createModeler whose `mode` toggles live. Real hosts run the linter
-        // themselves and push results, so the modeler's default tier is external
-        // (the `/lint` subpath is imported lazily; the module cache makes repeat
-        // switches free).
-        async function createSurface(mode: SurfaceMode): Promise<SurfaceHandle> {
-            const propertiesPanel = { parent: mountEl };
-            // Born in the IDE's theme so the first frame paints correctly (a
-            // forced kind, not "automatic" — the body class is the IDE signal).
-            const theme = resolveHostThemeKind();
-            const navigation = { modelNavigation: capabilities.modelNavigation };
-
-            if (mode === "view") {
-                return createViewer(canvasEl!, {
+        // The three surface factories the mode session switches between. View →
+        // readonly viewer; Design on an untagged model → the engine-neutral
+        // designer; Design/Implement on a tagged model → one createModeler whose
+        // `mode` toggles live. Every surface is born in the IDE's forced theme so
+        // the first frame paints correctly (the body class is the IDE signal, not
+        // "automatic"). Real hosts run the linter themselves and push results, so
+        // the modeler's default tier is external (the `/lint` subpath is imported
+        // lazily; the module cache makes repeat switches free).
+        const surfaces: SurfaceFactories = {
+            view: ({ container, theme }) =>
+                createViewer(container, {
                     theme,
-                    propertiesPanel,
-                    capabilities: navigation,
+                    propertiesPanel: { parent: mountEl },
+                    capabilities: { modelNavigation: capabilities.modelNavigation },
                     additionalModules: extraModules,
-                });
-            }
-
-            if (modelerEngine === undefined) {
-                // Untagged model: Design is the editable engine-neutral surface
-                // (View returned above; Implement is unavailable and unreachable).
-                return createDesigner(canvasEl!, {
+                }),
+            design: ({ container, theme }) =>
+                createDesigner(container, {
                     theme,
-                    propertiesPanel,
+                    propertiesPanel: { parent: mountEl },
                     clipboard,
-                    capabilities: navigation,
+                    capabilities: { modelNavigation: capabilities.modelNavigation },
                     additionalModules: extraModules,
+                }),
+            implement: async ({ container, theme, mode, engine: ctxEngine }) => {
+                if (ctxEngine === undefined) {
+                    // The session only routes Implement (and tagged-model Design)
+                    // here, so this is unreachable — throw rather than lie to
+                    // createModeler's `engine: Engine`.
+                    throw new Error("implement surface requires a tagged model");
+                }
+                return createModeler(container, {
+                    engine: ctxEngine,
+                    mode,
+                    theme,
+                    propertiesPanel: { parent: mountEl },
+                    additionalModules: extraModules,
+                    clipboard,
+                    capabilities,
+                    linting: injectedLinting ?? {
+                        results: "external",
+                        module: await import("@miragon/bpmn-modeler/lint"),
+                    },
+                    onLintResults:
+                        injectedOnLintResults ??
+                        ((e: LintRunEvent) =>
+                            host.postMessage(
+                                new UpdateLintResultsCommand(
+                                    e.results,
+                                    [...e.unresolved],
+                                    currentLintConfigToken,
+                                ),
+                            )),
+                    onLintingToggled: (enabled: boolean) =>
+                        host.postMessage(new SetLintingEnabledCommand(enabled)),
+                    onWarning: (warning: string) =>
+                        host.postMessage(new LogWarningCommand(warning)),
+                    onElementTemplatesErrors: (errors: unknown[]) => {
+                        for (const error of errors ?? []) {
+                            const message = error instanceof Error ? error.message : String(error);
+                            host.postMessage(
+                                new LogWarningCommand(`Element template rejected: ${message}`),
+                            );
+                        }
+                    },
+                    // The modeler's own toggle notification. The session also
+                    // fires onModeChanged("toggle"); both write the same values, so
+                    // keeping this (the session cannot inject into the options bag)
+                    // is a harmless redundancy, not a second source of truth.
+                    onModeChanged: (m: ModelerMode) => {
+                        surfaceMode = m;
+                        stateManager?.persistMode(m);
+                        strip?.render({ mode: m, engine: modelerEngine, busy: switchPending });
+                    },
+                    handleGlobalEscape: true,
                 });
-            }
-
-            return createModeler(canvasEl!, {
-                engine: modelerEngine,
-                mode,
-                theme,
-                propertiesPanel,
-                additionalModules: extraModules,
-                clipboard,
-                capabilities,
-                linting: injectedLinting ?? {
-                    results: "external",
-                    module: await import("@miragon/bpmn-modeler/lint"),
-                },
-                onLintResults:
-                    injectedOnLintResults ??
-                    ((e: LintRunEvent) =>
-                        host.postMessage(
-                            new UpdateLintResultsCommand(
-                                e.results,
-                                [...e.unresolved],
-                                currentLintConfigToken,
-                            ),
-                        )),
-                onLintingToggled: (enabled: boolean) =>
-                    host.postMessage(new SetLintingEnabledCommand(enabled)),
-                onWarning: (warning: string) => host.postMessage(new LogWarningCommand(warning)),
-                onElementTemplatesErrors: (errors: unknown[]) => {
-                    for (const error of errors ?? []) {
-                        const message = error instanceof Error ? error.message : String(error);
-                        host.postMessage(
-                            new LogWarningCommand(`Element template rejected: ${message}`),
-                        );
-                    }
-                },
-                // The single writer of `surfaceMode` on a live Design↔Implement
-                // toggle, so the strip and the instance cannot drift.
-                onModeChanged: (m: ModelerMode) => {
-                    surfaceMode = m;
-                    stateManager?.persistMode(m);
-                    strip.render({ mode: m, engine: modelerEngine, busy: switchPending });
-                },
-                handleGlobalEscape: true,
-            });
-        }
+            },
+        };
 
         // Rebinds the per-surface subscriptions on every (re)creation: outbound
         // sync, the C7 variable publisher, the state manager, and the canvas-size
@@ -805,102 +812,63 @@ function startSession(
             }
         }
 
-        /**
-         * Requests a switch to `target`. Unavailable targets, and requests while a
-         * switch or engine reload is in flight, are ignored. Design↔Implement on a
-         * tagged model is a live `setMode` toggle; anything else recreates.
-         */
-        async function requestMode(target: SurfaceMode): Promise<void> {
-            if (!isModeAvailable(target, modelerEngine)) return;
-            if (switchPending || engineReloadPending) return;
-            const kind = planTransition(surfaceMode, target, modelerEngine);
-            if (kind === "none") return;
-            if (kind === "toggle") {
-                if (isModelerHandle(surface)) {
-                    surface.setMode(target as ModelerMode);
-                }
-                return;
-            }
-            await switchSurface(target);
-        }
-
-        /**
-         * Destroys the live surface and stands up `target`, handing the view state
-         * over. Serialised against the other modeler operations; `document.body.inert`
-         * blocks mutation (and strip clicks) during the handle-less window. The
-         * export runs before the destroy, so an export failure keeps the old
-         * instance; a failure past the destroy falls back to the engine default so
-         * the page is never handle-less.
-         */
-        async function switchSurface(target: SurfaceMode): Promise<void> {
-            await serializedModelerOperation(async () => {
-                switchPending = true;
-                strip.render({ mode: surfaceMode, engine: modelerEngine, busy: true });
-                const restoreInert = Boolean(document.body.inert);
-                document.body.inert = true;
-                let destroyed = false;
-                let carriedXml = "";
-                try {
+        // The session owns the single live surface and switches it between the
+        // available modes: a Design↔Implement change on a tagged model is a live
+        // `setMode` toggle (undo/selection/plane survive), anything else exports →
+        // destroys → recreates → restores. It builds the initial surface but does
+        // not load a diagram — the webview's own import path (below) does that.
+        try {
+            modeSession = await createModeSession({
+                container: canvasEl,
+                engine,
+                surfaces,
+                initialMode: readSavedMode(host) ?? bpmnFileQuery?.defaultMode ?? null,
+                theme: resolveHostThemeKind(),
+                onSurfaceCreated: (handle) => {
+                    surface = handle as SurfaceHandle;
+                    // The initial surface binds after its import (below), matching
+                    // the pre-session flow; a recreate/fallback binds here, before
+                    // the session loads the carried XML.
+                    if (modelerIsInitialized) {
+                        bindSurface(surface);
+                    }
+                },
+                onSwitchStateChanged: (busy) => {
+                    switchPending = busy;
+                    if (busy) {
+                        inertBeforeSwitch = Boolean(document.body.inert);
+                        document.body.inert = true;
+                    } else if (!engineReloadPending) {
+                        // A concurrent engine reload owns `inert` from here on.
+                        document.body.inert = inertBeforeSwitch ?? false;
+                    }
+                    strip.render({ mode: surfaceMode, engine: modelerEngine, busy });
+                },
+                onModeChanged: (mode, transition) => {
+                    surfaceMode = mode;
+                    stateManager.persistMode(mode);
+                    strip.render({ mode, engine: modelerEngine, busy: switchPending });
+                    // A recreate/fallback stood up a fresh instance: restore its
+                    // panel UI, resume persistence, and re-request modeler resources.
+                    if (transition === "recreate" || transition === "fallback") {
+                        stateManager.restorePanelUiState();
+                        stateManager.startPersisting();
+                        requestSurfaceResources();
+                    }
+                },
+                beforeDestroy: async () => {
                     await flushPendingXmlChanges();
                     debouncedSendXmlChanges.cancel();
                     cancelPendingVariablePublish?.();
-                    const snapshot = surface.captureViewState();
-                    // Export before the destroy: a failure here throws with the old
-                    // instance still live, so the catch has nothing to rebuild.
-                    carriedXml = await surface.exportDiagram();
                     disposeCanvasObserver?.();
-                    surface.destroy();
-                    destroyed = true;
-                    surface = await createSurface(target);
-                    surfaceMode = target;
-                    bindSurface(surface);
-                    await surface.loadDiagram(carriedXml);
-                    surface.applyViewState(snapshot);
-                    stateManager.restorePanelUiState();
-                    stateManager.startPersisting();
-                    stateManager.persistMode(target);
-                    requestSurfaceResources();
-                } catch (error) {
+                },
+                onError: (error) => {
                     const cause = error instanceof Error ? error : new Error(String(error));
                     host.postMessage(
                         new LogErrorCommand(`Unable to switch mode\n${cause.message}`, cause.stack),
                     );
-                    if (destroyed) {
-                        // Past the destroy — the page must never be handle-less.
-                        const fallback = defaultMode(modelerEngine);
-                        surface = await createSurface(fallback);
-                        surfaceMode = fallback;
-                        bindSurface(surface);
-                        await surface.loadDiagram(carriedXml);
-                        stateManager.startPersisting();
-                        stateManager.persistMode(fallback);
-                        requestSurfaceResources();
-                    }
-                } finally {
-                    switchPending = false;
-                    // A concurrent engine reload owns `inert` from here on.
-                    if (!engineReloadPending) {
-                        document.body.inert = restoreInert;
-                    }
-                    strip.render({ mode: surfaceMode, engine: modelerEngine, busy: false });
-                }
+                },
             });
-        }
-
-        strip = mountModeStrip({
-            host: propertiesPanelParent,
-            stripEl,
-            resizerEl,
-            panelHandle: propertiesPanelHandle,
-            translate: (template, replacements) => i18n.translate(template, replacements),
-            onLabelChange: (apply) => i18n.onChange(apply),
-            onSelect: (mode) => void requestMode(mode),
-            onEscape: focusCanvas,
-        });
-        strip.render({ mode: initialMode, engine, busy: true });
-
-        try {
-            surface = await createSurface(initialMode);
         } catch (error: any) {
             if (error instanceof NoModelerError || error instanceof UnsupportedEngineError) {
                 host.postMessage(new LogErrorCommand(error.message));
@@ -909,6 +877,29 @@ function startSession(
             }
             return;
         }
+        surfaceMode = modeSession.getMode();
+
+        // Always render all three buttons, greying out the ones the current
+        // engine can't reach (Implement on an untagged model) so the mode is
+        // discoverable — the strip ignores clicks on an aria-disabled button. A
+        // click is also dropped while a switch or engine reload is in flight, and
+        // otherwise queues behind the other modeler operations so it never
+        // interleaves with an import.
+        strip = mountModeStrip({
+            host: propertiesPanelParent,
+            stripEl,
+            resizerEl,
+            revealPanel: () => propertiesPanelHandle.setVisible(true),
+            modes: SURFACE_MODES,
+            translate: (template, replacements) => i18n.translate(template, replacements),
+            onLabelChange: (apply) => i18n.onChange(apply),
+            onSelect: (mode) => {
+                if (switchPending || engineReloadPending) return;
+                void serializedModelerOperation(() => modeSession!.requestMode(mode));
+            },
+            onEscape: focusCanvas,
+        });
+        strip.render({ mode: surfaceMode, engine, busy: true });
 
         let importedBpmnFileQuery = latestBpmnFileQuery ?? bpmnFileQuery;
         while (importedBpmnFileQuery) {
