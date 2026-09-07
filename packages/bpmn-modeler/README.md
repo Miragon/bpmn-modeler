@@ -355,7 +355,8 @@ modeler.getMode();            // "implement"
 
 `"design"` reduces the properties panel to its engine-neutral surface (neutral +
 host [custom groups](#surviving-design-mode) only) and hides the engine chrome —
-the element-template chooser and the token-simulation toggle. Because nothing in
+the element-template chooser. The canvas chrome (minimap, token simulation,
+focus reticle) is the same in every mode (ADR 0022). Because nothing in
 the DI module graph is added or removed on a toggle, `zeebe:*` / `camunda:*`
 extensions are **never** at risk: replace and copy-paste keep engine data in both
 modes, and the drill-down plane, selection, and undo history survive the toggle.
@@ -439,9 +440,11 @@ engine-neutral properties panel (#1443), an opt-in **model-navigation**
 context-pad entry (#1445 — the one interaction a readonly surface still offers),
 and the browser-only
 [diff rendering primitives](#diff) (`DiffViewer`, `DiffLegend`, `DiffNavigator`,
-`DiffPaneCoordinator`). The Camunda editor stack (camunda-bpmn-js, CodeMirror,
-token simulation, lint) stays out of its module graph, so it survives
-single-file bundlers that inline everything reachable. The `DiffLegend` does
+`DiffPaneCoordinator`), plus the mode-invariant canvas chrome every surface
+shares — the minimap, the readonly token-simulation variant, and the canvas
+focus reticle (ADR 0022). The Camunda editor stack (camunda-bpmn-js, CodeMirror,
+lint) stays out of its module graph, so it survives single-file bundlers that
+inline everything reachable. The `DiffLegend` does
 pull the shared i18n translator in for its labels (#1439), and opting into the
 panel pulls in `@bpmn-io/properties-panel`/preact.
 
@@ -494,9 +497,10 @@ throws too.
 ### Kept out of the module graph
 
 `camunda-bpmn-js`, `codemirror` / `@codemirror/*`, `bpmnlint` /
-`bpmn-js-bpmnlint`, `bpmn-js-token-simulation`,
-`bpmn-js-create-append-anything`, `camunda-transaction-boundaries`, and
-`minisearch` — the Camunda editor stack. The shared i18n translator
+`bpmn-js-bpmnlint`, `bpmn-js-create-append-anything`,
+`camunda-transaction-boundaries`, and `minisearch` — the Camunda editor stack.
+`bpmn-js-token-simulation` (its viewer module) and `diagram-js-minimap` **are**
+present: engine-neutral canvas chrome shared by every surface (ADR 0022). The shared i18n translator
 (`@miragon/bpmn-modeler-i18n`) **is** present, pulled in by `DiffLegend` for its
 labels (#1439), and the engine-neutral panel fork (with
 `@bpmn-io/properties-panel`/preact) enters the closure for the opt-in readonly
@@ -509,8 +513,9 @@ surface grows custom features; the viewer still imports **no CSS** and
 Load **`@miragon/bpmn-modeler/viewer.css`**, not `styles.css`: the viewer sheet
 carries the bpmn-js base diagram/font CSS, the dark-theme diagram overrides,
 the neutral diff markers + legend chip (so a diff consumer needs no other
-sheet), and the properties-panel chrome for the opt-in readonly panel — none of
-the Camunda editor chrome. The two overlap, so do **not** load both on a
+sheet), the properties-panel chrome for the opt-in readonly panel, and the
+minimap / token-simulation / focus-reticle chrome — none of the Camunda editor
+chrome. The two overlap, so do **not** load both on a
 viewer-only page.
 
 ## Design mode
@@ -612,20 +617,21 @@ fresh diagram stays in Design mode.
 
 `camunda-bpmn-js`, `camunda-bpmn-moddle` / `zeebe-bpmn-moddle`,
 `camunda-bpmn-js-behaviors`, `camunda-transaction-boundaries`,
-`bpmn-js-token-simulation`, `bpmn-js-element-templates`,
-`@miragon/create-append-c7`, `minisearch`, and the lint stack (`bpmnlint` /
+`bpmn-js-element-templates`, `@miragon/create-append-c7`, `minisearch`, and
+the lint stack (`bpmnlint` /
 `bpmn-js-bpmnlint` / `@miragon/bpmnlint-plugin-rules`). A build-time gate
 (`scripts/check-design-pure-entry.mjs`) fails the build if any reappears. Unlike
 `/viewer`, `preact` and CodeMirror (`@codemirror/*`) **are** present (legitimate
-dependencies of the engine-neutral properties panel), as is `diagram-js-minimap`
-(the engine-neutral minimap, a direct dependency of the package).
+dependencies of the engine-neutral properties panel), as are
+`diagram-js-minimap` and `bpmn-js-token-simulation` — the engine-neutral canvas
+chrome every surface shares (ADR 0022).
 
 ### Theming & stylesheet
 
 Load **`@miragon/bpmn-modeler/design.css`**, not `styles.css`: the design sheet
 carries the bpmn-js base diagram/font CSS, the engine-neutral panel and
-append-menu chrome, the minimap, and the canvas focus indicator, plus the
-dark-theme overrides — none of the Camunda editor chrome. The two overlap, so do **not**
+append-menu chrome, the minimap, token simulation, and the canvas focus
+indicator, plus the dark-theme overrides — none of the Camunda editor chrome. The two overlap, so do **not**
 load both on a design-only page.
 
 ## Mode session

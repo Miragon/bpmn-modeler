@@ -4,6 +4,13 @@
 - Date: 2026-09-02
 - Category: bpmn-webview
 
+> Amended by [ADR 0022](0022-mode-invariant-canvas-chrome.md): the viewer now
+> also registers the mode-invariant canvas chrome — `diagram-js-minimap`, the
+> readonly `bpmn-js-token-simulation` viewer module, and the keyboard-focus
+> features — so the corner controls read the same in View, Design, and
+> Implement. The "no token simulation" line below is superseded; the editing
+> stack (camunda-bpmn-js, properties panel unless opted in, lint) stays out.
+
 Roadmap step 6 of the bpm-iq embeddability epic (#1409), building directly on the
 subpath-injection precedent [ADR 0013](0013-injectable-lint-stack.md) set for
 `/lint`, the `Pick`-able core-service contract of

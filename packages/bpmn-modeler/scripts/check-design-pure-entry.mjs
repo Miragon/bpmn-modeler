@@ -8,8 +8,9 @@
 // panel — so `bpmn-js-properties-panel`, `@bpmn-io/properties-panel`, `preact`,
 // CodeMirror, and `bpmn-js-create-append-anything` are all *allowed*. What must
 // never appear is the Camunda engine stack (camunda-bpmn-js, the C7/C8 moddles
-// and behaviours, transaction boundaries, element templates, token simulation)
-// and the lint stack.
+// and behaviours, transaction boundaries, element templates) and the lint stack.
+// Token simulation is engine-neutral canvas chrome shared by every surface
+// (ADR 0022), so it is allowed.
 //
 // The heavy stacks are Vite `external`s — they survive as *bare import
 // specifiers* in dist/design.js and its relative chunks. So we start at
@@ -32,7 +33,6 @@ const FORBIDDEN_PREFIXES = [
     "zeebe-bpmn-moddle",
     "camunda-bpmn-js-behaviors",
     "camunda-transaction-boundaries",
-    "bpmn-js-token-simulation",
     "bpmn-js-element-templates",
     "@miragon/create-append-c7",
     "minisearch",

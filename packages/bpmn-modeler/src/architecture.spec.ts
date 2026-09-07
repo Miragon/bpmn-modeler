@@ -179,8 +179,8 @@ describe("bpmn-modeler import direction", () => {
         // module-graph level. Unlike `/viewer` it legitimately ships the
         // engine-neutral properties panel and append/create menu, so those (plus
         // preact via the panel) are allowed — but a value import of
-        // camunda-bpmn-js, element templates, token simulation, transaction
-        // boundaries, or the lint stack here is exactly what a single-file bundler
+        // camunda-bpmn-js, element templates, transaction boundaries, or the lint
+        // stack here is exactly what a single-file bundler
         // would inline into a design-only consumer. `import type` stays fine. The
         // runtime graph is gated separately by `check-design-pure-entry.mjs`.
         const DESIGN_DIR = join(PKG_SRC, "design");
@@ -193,6 +193,13 @@ describe("bpmn-modeler import direction", () => {
             spec === "@miragon/bpmn-modeler-properties-panel" ||
             spec === "bpmn-js-create-append-anything" ||
             spec === "diagram-js-minimap" ||
+            // Engine-neutral canvas chrome shared by every surface (ADR 0022):
+            // plain bpmn-js simulation, no Camunda stack behind it.
+            spec === "bpmn-js-token-simulation" ||
+            // Engine-neutral browser clipboard (parity with camunda-bpmn-js's base
+            // Modeler). Plain bpmn-js extension, no Camunda stack; the bridge module
+            // overrides its `nativeCopyPaste` service in sandboxed hosts.
+            spec === "bpmn-js-native-copy-paste" ||
             spec === "@miragon/bpmn-modeler-types" ||
             spec === "@miragon/bpmn-modeler-i18n" ||
             spec === "@miragon/bpmn-modeler-i18n-extras" ||

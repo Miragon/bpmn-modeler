@@ -12,8 +12,9 @@ import type { ViewState } from "../viewState";
  *
  * The viewer is a lean, view-only surface for hosts with view-only permissions
  * or embedded previews — it drags none of the editing stack (camunda-bpmn-js,
- * properties-panel/preact, CodeMirror, token simulation, lint) into the module
- * graph. Leanness holds at the *module-graph* level, not a runtime flag, so it
+ * properties-panel/preact, CodeMirror, lint) into the module graph; the
+ * minimap and the readonly token-simulation variant are the one piece of
+ * canvas chrome it shares with the editable surfaces (ADR 0022). Leanness holds at the *module-graph* level, not a runtime flag, so it
  * survives single-file bundlers (`vite-plugin-singlefile`) that inline
  * everything reachable — hence a separate subpath, mirroring the `/lint`
  * precedent (ADR 0013). See ADR 0014.

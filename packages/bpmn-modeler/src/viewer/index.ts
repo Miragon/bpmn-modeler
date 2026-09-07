@@ -1,10 +1,11 @@
 /**
  * `@miragon/bpmn-modeler/viewer` — the host-free, readonly BPMN viewer subpath.
  *
- * A view-only surface: it wraps bpmn-js's NavigatedViewer + outline and drags
- * none of the Camunda editing stack (camunda-bpmn-js, CodeMirror, token
- * simulation, lint) into the module graph. It does carry the browser-only diff
- * rendering primitives, the shared i18n translator via `DiffLegend` (#1439),
+ * A view-only surface: it wraps bpmn-js's NavigatedViewer + outline and the
+ * mode-invariant canvas chrome (minimap, readonly token simulation, keyboard
+ * focus — ADR 0022), and drags none of the Camunda editing stack
+ * (camunda-bpmn-js, CodeMirror, lint) into the module graph. It does carry the
+ * browser-only diff rendering primitives, the shared i18n translator via `DiffLegend` (#1439),
  * and — when a consumer opts in via `propertiesPanel` — the engine-neutral
  * readonly panel (preact via `@bpmn-io/properties-panel`, #1443). When a consumer
  * opts into `capabilities.modelNavigation` (#1445), it also registers a

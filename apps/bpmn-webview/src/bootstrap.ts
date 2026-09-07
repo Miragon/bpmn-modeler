@@ -873,7 +873,13 @@ function startSession(
             if (error instanceof NoModelerError || error instanceof UnsupportedEngineError) {
                 host.postMessage(new LogErrorCommand(error.message));
             } else {
-                host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
+                const cause = error instanceof Error ? error : new Error(String(error));
+                host.postMessage(
+                    new LogErrorCommand(
+                        `Unable to create modeler surface\n${cause.message}`,
+                        cause.stack,
+                    ),
+                );
             }
             return;
         }

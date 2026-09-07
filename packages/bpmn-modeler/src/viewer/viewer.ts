@@ -1,6 +1,8 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import OutlineModule from "bpmn-js/lib/features/outline";
 import ContextPadModule from "diagram-js/lib/features/context-pad";
+import MinimapModule from "diagram-js-minimap";
+import TokenSimulationViewerModule from "bpmn-js-token-simulation/lib/viewer";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 // Deep imports on purpose: the lib barrel side-effect-imports its CSS, and the
@@ -21,6 +23,8 @@ import {
     captureViewState as captureViewStateComposition,
     type ViewState,
 } from "../viewState";
+import { installKeyboardFocus } from "../keyboardFocus";
+import { installCanvasFocusIndicator } from "../canvasFocusIndicator";
 import type { ThemeMode } from "../publicApi";
 import type { CoreViewerServices, ViewerOptions } from "./publicApi";
 
@@ -30,7 +34,9 @@ import type { CoreViewerServices, ViewerOptions } from "./publicApi";
  *
  * Wraps `bpmn-js/lib/NavigatedViewer` (mouse + keyboard pan/zoom, no editing)
  * plus `bpmn-js/lib/features/outline`, the one module the base viewer lacks for
- * *visible* selection/hover. Viewport and selection concerns delegate to the
+ * *visible* selection/hover, and the mode-invariant canvas chrome every surface
+ * shares (ADR 0022): the minimap, the readonly token-simulation variant, and the
+ * keyboard-focus features. Viewport and selection concerns delegate to the
  * shared {@link ViewportManager} / {@link SelectionManager}, so the same
  * `ServiceAccessor`-based managers back both the modeler and the viewer.
  *
@@ -65,6 +71,9 @@ export class BpmnViewer {
 
     // Disposes the canvas-size observer installed by loadDiagram.
     private stopObservingSize?: () => void;
+
+    // Teardown for the container-scoped focus features installed in init().
+    private focusDisposers: Array<() => void> = [];
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -155,6 +164,8 @@ export class BpmnViewer {
         this.viewer = new NavigatedViewer({
             container: this.container,
             moddleExtensions: this.options.moddleExtensions,
+            // Ship the minimap collapsed; the toggle lives in the canvas corner.
+            minimap: { open: false },
             ...(panel && {
                 propertiesPanel: {
                     parent: panel.parent,
@@ -168,6 +179,10 @@ export class BpmnViewer {
             // makes selection/hover visible on the otherwise chrome-free viewer.
             additionalModules: [
                 OutlineModule,
+                MinimapModule,
+                // The readonly simulation variant: no canvas lock or modelling
+                // disable, since the viewer never registers `modeling`.
+                TokenSimulationViewerModule,
                 // The full design-parity panel set: renderer + neutral provider
                 // + mode filter (identity here, no engine provider to reduce) +
                 // the host custom-group slot. The renderer attaches on
@@ -189,6 +204,61 @@ export class BpmnViewer {
         this._viewport = new ViewportManager(accessor);
         this._selection = new SelectionManager(accessor);
         this._rootElement = new RootElementManager(accessor);
+
+        this.installFocusFeatures();
+    }
+
+    /**
+     * Composes the container-scopable focus features onto the fresh viewer: the
+     * "Escape → focus canvas" guard and the canvas focus reticle, the same pair
+     * the editable surfaces install. The viewer has no search pad, so those
+     * ports are inert.
+     */
+    private installFocusFeatures(): void {
+        const canvas = this.getViewer().get<{
+            getContainer(): HTMLElement;
+            focus(): void;
+            isFocused(): boolean;
+        }>("canvas");
+        const canvasContainer = canvas.getContainer();
+        const eventBus = () => this.getViewer().get<any>("eventBus");
+        const selection = () =>
+            this.getViewer().get<{ get(): unknown[]; select(elements: null): void }>("selection");
+        const panelParent = this.options.propertiesPanel?.parent;
+
+        this.focusDisposers.push(
+            installKeyboardFocus({
+                roots: panelParent ? [canvasContainer, panelParent] : [canvasContainer],
+                focusCanvas: () => canvas.focus(),
+                isCanvasFocused: () => canvas.isFocused(),
+                hasSelection: () => selection().get().length > 0,
+                clearSelection: () => selection().select(null),
+                isSearchPadOpen: () => false,
+                closeSearchPad: () => {},
+            }),
+        );
+
+        this.focusDisposers.push(
+            installCanvasFocusIndicator({
+                parent: canvasContainer,
+                isFocused: () => canvas.isFocused(),
+                onFocusChanged: (listener) =>
+                    eventBus().on("canvas.focus.changed", (e: { focused: boolean }) =>
+                        listener(e.focused),
+                    ),
+                hasSelection: () => selection().get().length > 0,
+                onSelectionChanged: (listener) =>
+                    eventBus().on("selection.changed", (e: { newSelection: unknown[] }) =>
+                        listener(e.newSelection.length > 0),
+                    ),
+            }),
+        );
+    }
+
+    private disposeFocusFeatures(): void {
+        for (const dispose of this.focusDisposers.splice(0)) {
+            dispose();
+        }
     }
 
     async loadDiagram(xml: string): Promise<ImportXMLResult> {
@@ -257,12 +327,14 @@ export class BpmnViewer {
 
     /**
      * Tears the instance down: stops the canvas-size observer, disposes the
-     * theme controller, and destroys the underlying bpmn-js viewer. A destroyed
-     * facade throws {@link NoModelerError} from every accessor.
+     * focus features and theme controller, and destroys the underlying bpmn-js
+     * viewer. A destroyed facade throws {@link NoModelerError} from every
+     * accessor.
      */
     destroy(): void {
         this.stopObservingSize?.();
         this.stopObservingSize = undefined;
+        this.disposeFocusFeatures();
         this.themeController?.dispose();
         this.viewer?.destroy();
         this.viewer = undefined;
