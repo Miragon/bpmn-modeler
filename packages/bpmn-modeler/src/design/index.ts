@@ -4,9 +4,10 @@
  *
  * A fully editable but engine-neutral surface for documentation / conceptual
  * modelling: the base bpmn-js Modeler plus a plain-BPMN properties panel
- * (general / documentation groups) and neutral UX (translate, append menu, flow
- * navigation). It drags none of the Camunda editing stack (camunda-bpmn-js,
- * element templates, token simulation, transaction boundaries, lint) into the
+ * (general / documentation groups), neutral UX (translate, append menu, flow
+ * navigation), and the mode-invariant canvas chrome (minimap, token simulation,
+ * keyboard focus — ADR 0022). It drags none of the Camunda editing stack
+ * (camunda-bpmn-js, element templates, transaction boundaries, lint) into the
  * module graph. That leanness is enforced at the graph level
  * (`scripts/check-design-pure-entry.mjs` + `architecture.spec.ts`) so it holds
  * under single-file bundlers. See ADR 0016.

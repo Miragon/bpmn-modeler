@@ -16,6 +16,15 @@ export default defineConfig({
         // specs import it the same way the bundle does (mirrors modeler-core).
         server: { deps: { inline: [/@miragon\/bpmnlint-plugin-rules/] } },
         alias: {
+            // The minimap's CJS build wraps diagram-js's ESM `IdGenerator` in an
+            // interop that leaves it non-constructible under Vitest's runner; the
+            // ESM build imports it natively, so specs standing up a real viewer
+            // (`createViewer.spec.ts`) resolve that one instead (the lib build
+            // already picks `module` over `main`).
+            "diagram-js-minimap": resolve(
+                __dirname,
+                "../../node_modules/diagram-js-minimap/dist/index.esm.js",
+            ),
             "@miragon/bpmn-modeler-types": resolve(
                 __dirname,
                 "../../libs/modeler-types/src/index.ts",

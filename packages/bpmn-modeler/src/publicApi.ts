@@ -207,8 +207,8 @@ export interface ModelerOptions {
     /**
      * [B] Initial design/implement mode — defaults to `"implement"`. `"design"`
      * reduces an engine-tagged model to its engine-neutral surface (neutral +
-     * host custom property groups only, no element-template chooser, no
-     * token-simulation toggle) on the **same** live instance — no re-import, no
+     * host custom property groups only, no element-template chooser) on the
+     * **same** live instance — no re-import, no
      * engine-data loss on replace/copy-paste. Toggle at runtime with
      * {@link BpmnModelerHandle.setMode}. Unrelated to `theme` / {@link setTheme}.
      */

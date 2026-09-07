@@ -4,8 +4,8 @@ import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerM
 /**
  * A recording double for {@link ModePorts}: holds a mutable filter mode (as the
  * real `propertiesPanelModeFilter` does) and counts every port call, so the
- * orchestration invariants — idempotence, call order, the design-only
- * token-simulation stop — are asserted without a live modeler.
+ * orchestration invariants — idempotence and call order — are asserted without
+ * a live modeler.
  */
 function createPorts(initial: ModelerMode) {
     const calls: string[] = [];
@@ -17,7 +17,6 @@ function createPorts(initial: ModelerMode) {
             filterMode = mode;
             calls.push(`setFilterMode:${mode}`);
         },
-        stopTokenSimulation: () => calls.push("stopTokenSimulation"),
         setModeAttribute: (mode) => calls.push(`setModeAttribute:${mode}`),
         onModeChanged,
     };
@@ -43,23 +42,18 @@ describe("applyMode", () => {
         expect(onModeChanged).not.toHaveBeenCalled();
     });
 
-    it("entering design flips the filter, stops token simulation, stamps, then notifies", () => {
+    it("entering design flips the filter, stamps, then notifies", () => {
         const { ports, calls, onModeChanged } = createPorts("implement");
         applyMode(ports, "design");
-        expect(calls).toEqual([
-            "setFilterMode:design",
-            "stopTokenSimulation",
-            "setModeAttribute:design",
-        ]);
+        expect(calls).toEqual(["setFilterMode:design", "setModeAttribute:design"]);
         expect(onModeChanged).toHaveBeenCalledTimes(1);
         expect(onModeChanged).toHaveBeenCalledWith("design");
     });
 
-    it("entering implement flips the filter and stamps, but never stops token simulation", () => {
+    it("entering implement flips the filter and stamps, then notifies", () => {
         const { ports, calls, onModeChanged } = createPorts("design");
         applyMode(ports, "implement");
         expect(calls).toEqual(["setFilterMode:implement", "setModeAttribute:implement"]);
-        expect(calls).not.toContain("stopTokenSimulation");
         expect(onModeChanged).toHaveBeenCalledTimes(1);
         expect(onModeChanged).toHaveBeenCalledWith("implement");
     });

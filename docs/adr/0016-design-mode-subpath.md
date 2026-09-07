@@ -7,6 +7,12 @@
 > Amended by [ADR 0020](0020-untagged-documents-first-class-in-hosts.md): the
 > hosts now open an untagged (engine-neutral) document directly in this Design
 > surface instead of stamping an execution platform onto it.
+>
+> Amended by [ADR 0022](0022-mode-invariant-canvas-chrome.md):
+> `bpmn-js-token-simulation` is engine-neutral canvas chrome shared by every
+> surface, so the designer registers it and the purity gate
+> (`check-design-pure-entry.mjs` + `architecture.spec.ts`) allows it. Every
+> "token simulation" entry in the forbidden lists below is superseded.
 
 Roadmap step 7 — the last — of the bpm-iq embeddability epic (#1409), building on the subpath-injection precedent [ADR 0013](0013-injectable-lint-stack.md)
 for `/lint`, the readonly-surface precedent

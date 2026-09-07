@@ -764,8 +764,8 @@ export class BpmnModeler {
      * Switches the design/implement mode live on this same bpmn-js instance —
      * no re-import, no engine-data loss. Delegates to {@link applyMode}, which
      * flips the panel filter (firing `propertiesPanel.providersChanged` so the
-     * live panel re-derives), stops any token simulation on the way into design,
-     * stamps `data-bpmn-mode`, and fires `onModeChanged` once per actual change.
+     * live panel re-derives), stamps `data-bpmn-mode`, and fires `onModeChanged`
+     * once per actual change.
      * Unrelated to {@link setTheme} despite the shared "mode" wording.
      */
     setMode(mode: ModelerMode): void {
@@ -786,8 +786,7 @@ export class BpmnModeler {
 
     /**
      * Maps the {@link ModePorts} seam onto this instance's DI services. The panel
-     * filter is the mode source of truth; `toggleMode` is resolved defensively
-     * (`get(..., false)`) since a consumer may omit token simulation.
+     * filter is the mode source of truth.
      */
     private modePorts(): ModePorts {
         const modeler = this.getModeler();
@@ -798,10 +797,6 @@ export class BpmnModeler {
         return {
             getFilterMode: () => filter.getMode(),
             setFilterMode: (mode) => filter.setMode(mode),
-            stopTokenSimulation: () =>
-                modeler
-                    .get<{ toggleMode(active: boolean): void }>("toggleMode", false)
-                    ?.toggleMode(false),
             setModeAttribute: (mode) => this.setModeAttribute(mode),
             onModeChanged: this.options.onModeChanged,
         };

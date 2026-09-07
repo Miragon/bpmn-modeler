@@ -9,6 +9,7 @@ import {
 import { CreateAppendAnythingModule } from "bpmn-js-create-append-anything";
 import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import MinimapModule from "diagram-js-minimap";
+import TokenSimulationModule from "bpmn-js-token-simulation";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
@@ -43,9 +44,10 @@ import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
  * keyboard, copy-paste, snapping, searchPad, outline) plus the engine-neutral
  * properties panel (`@miragon/bpmn-modeler-properties-panel` — the full
  * standard-BPMN group set, no Camunda groups) and our neutral UX modules
- * (translate, append menu, flow navigation). It
- * loads none of the Camunda editing stack (camunda-bpmn-js, element templates,
- * token simulation, transaction boundaries, lint), so it never carries an
+ * (translate, append menu, flow navigation) and the mode-invariant canvas
+ * chrome every surface shares (minimap, token simulation, keyboard focus —
+ * ADR 0022). It loads none of the Camunda editing stack (camunda-bpmn-js,
+ * element templates, transaction boundaries, lint), so it never carries an
  * execution platform — the absence of `modeler:executionPlatform` on the model
  * is exactly the mode marker a host routes on.
  *
@@ -194,8 +196,6 @@ export class BpmnDesigner {
                 feelPopupContainer: this.container,
             },
             // Ship the minimap collapsed; the toggle lives in the canvas corner.
-            // diagram-js-minimap is engine-neutral (no camunda-bpmn-js), so it is
-            // a first-class design affordance here rather than editor chrome.
             minimap: { open: false },
             moddleExtensions: this.options.moddleExtensions,
             additionalModules: [
@@ -214,6 +214,9 @@ export class BpmnDesigner {
                 AppendMenuModule,
                 FlowNavigationModule,
                 MinimapModule,
+                // Engine-neutral: simulates plain BPMN control flow, no Camunda
+                // stack behind it (ADR 0022).
+                TokenSimulationModule,
                 ...capModules,
                 NativeCopyPasteModule,
                 ...clipModules,

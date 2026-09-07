@@ -4,10 +4,10 @@ import { createViewer } from "./createViewer";
 import type { BpmnViewer } from "./viewer";
 
 /**
- * The first runtime-testable factory in the package: the viewer graph excludes
- * camunda-bpmn-js's minimap CJS-interop (the jsdom blocker that keeps the full
- * modeler untestable here, ADR 0011), so a real bpmn-js `NavigatedViewer` stands
- * up in jsdom — with two stubs jsdom lacks (`getBBox`, `matchMedia`).
+ * The first runtime-testable factory in the package: a real bpmn-js
+ * `NavigatedViewer` stands up in jsdom — with two stubs jsdom lacks (`getBBox`,
+ * `matchMedia`) and the minimap aliased to its ESM build in `vitest.config.ts`
+ * (its CJS interop is the jsdom blocker recorded in ADR 0011).
  *
  * The load-bearing assertion is the readonly proof — `getService("modeling")`
  * and `getService("commandStack")` throw because those services are never
@@ -93,6 +93,20 @@ describe("createViewer (runtime, jsdom)", () => {
         // viewer, so resolving one throws. No rendered diagram required.
         expect(() => viewer!.getService("modeling")).toThrow();
         expect(() => viewer!.getService("commandStack")).toThrow();
+    });
+
+    it("registers the mode-invariant canvas chrome (ADR 0022)", async () => {
+        container = mount();
+        viewer = await createViewer(container);
+
+        // Minimap + the readonly token-simulation variant enter the DI graph …
+        expect(viewer.getService("minimap")).toBeDefined();
+        expect(viewer.getService("toggleMode")).toBeDefined();
+        // … and the focus reticle mounts inside this instance's canvas container.
+        expect(container.querySelector(".canvas-focus-indicator")).not.toBeNull();
+
+        viewer.destroy();
+        expect(container.querySelector(".canvas-focus-indicator")).toBeNull();
     });
 
     it("engages theming and flips data-bpmn-theme on setTheme", async () => {
