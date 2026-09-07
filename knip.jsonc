@@ -27,17 +27,13 @@
         // publish-npm-modeler.yml (`node smoke-consumer.mjs`), never imported and
         // not a package.json script, so knip reads it as unused.
         "packages/bpmn-modeler/scripts/smoke-consumer.mjs",
+        "packages/dmn-modeler/scripts/smoke-consumer.mjs",
         // Type declarations for the postcss plugin .mjs; reached only through
         // TS declaration resolution (sibling lookup), which knip does not track.
         "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts"
     ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {
-        "apps/dmn-webview": {
-            // The facade contract is public ahead of package extraction; its
-            // supporting types are intentional consumer-facing exports.
-            "entry": ["src/app/publicApi.ts"]
-        },
         "apps/vscode-plugin": {
             "entry": [
                 "src/**/index.ts",
@@ -75,6 +71,16 @@
             // build externalises them, so the published package must declare them
             // even though no package source imports them directly.
             "ignoreDependencies": ["minisearch", "lodash", "bpmn-js-differ"]
+        },
+        "packages/dmn-modeler": {
+            // `src/index.ts` is the public `@miragon/dmn-modeler` entry (in
+            // package.json exports), so list it as the entry.
+            "entry": ["src/index.ts"],
+            // lodash enters as a bare side-effect import through the inlined
+            // modeler-types barrel (asyncDebounce), which the Vite lib build
+            // externalises; no package source imports it directly, so it must be
+            // declared as a real dependency and ignored here.
+            "ignoreDependencies": ["lodash"]
         }
     }
 }

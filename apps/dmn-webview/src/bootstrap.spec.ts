@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { DmnModelerOptions } from "./app/publicApi";
+import type { DmnModelerOptions } from "@miragon/dmn-modeler";
 
 const mocks = vi.hoisted(() => {
     const handle = {

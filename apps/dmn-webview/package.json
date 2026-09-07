@@ -10,20 +10,13 @@
         "dev:app": "vite --port $PORT --host 127.0.0.1",
         "watch": "vite build --watch",
         "serve": "vite",
-        "test": "tsc --noEmit -p tsconfig.spec.json && tsc --noEmit -p tsconfig.public-api.json && vitest run --coverage"
+        "test": "vitest run --coverage"
     },
     "dependencies": {
-        "@bpmn-io/cm-theme": "0.2.2",
-        "@bpmn-io/properties-panel": "3.52.0",
-        "@emaarco/dmn-js-simulation": "0.2.0",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
-        "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
-        "camunda-dmn-moddle": "1.3.1",
-        "diagram-js": "15.24.1",
-        "dmn-js": "17.10.2",
-        "dmn-js-properties-panel": "3.12.0",
+        "@miragon/dmn-modeler": "workspace:*",
         "tslib": "2.8.1"
     },
     "devDependencies": {

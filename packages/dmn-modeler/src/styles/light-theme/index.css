@@ -1,0 +1,5 @@
+/* dmn-js light theme — the modeler's stock stylesheets, unmodified.
+ *
+ * These imports live here (not in main.ts) so the bundle can swap the whole
+ * sheet for the dark variant at runtime via the `#theme-link` element. */
+@import "../base.css";

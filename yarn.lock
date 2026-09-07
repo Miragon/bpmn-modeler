@@ -4226,23 +4226,45 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/dmn-modeler-webview@workspace:apps/dmn-webview"
   dependencies:
+    "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
+    "@miragon/bpmn-modeler-shared": "workspace:*"
+    "@miragon/bpmn-modeler-types": "workspace:*"
+    "@miragon/dmn-modeler": "workspace:*"
+    "@types/node": "npm:25.0.3"
+    "@types/vscode-webview": "npm:1.57.5"
+    "@vitest/coverage-v8": "npm:4.1.11"
+    jsdom: "npm:30.0.1"
+    tslib: "npm:2.8.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.2.2"
+    vite-tsconfig-paths: "npm:6.1.1"
+    vitest: "npm:4.1.11"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/dmn-modeler@workspace:*, @miragon/dmn-modeler@workspace:packages/dmn-modeler":
+  version: 0.0.0-use.local
+  resolution: "@miragon/dmn-modeler@workspace:packages/dmn-modeler"
+  dependencies:
     "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/properties-panel": "npm:3.52.0"
     "@emaarco/dmn-js-simulation": "npm:0.2.0"
+    "@microsoft/api-extractor": "npm:7.59.0"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
-    "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@types/node": "npm:25.0.3"
-    "@types/vscode-webview": "npm:1.57.5"
+    "@types/node": "npm:26.1.2"
     "@vitest/coverage-v8": "npm:4.1.11"
     camunda-dmn-moddle: "npm:1.3.1"
     diagram-js: "npm:15.24.1"
     dmn-js: "npm:17.10.2"
     dmn-js-properties-panel: "npm:3.12.0"
     jsdom: "npm:30.0.1"
+    lodash: "npm:4.18.1"
+    npm-run-all: "npm:4.1.5"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
+    unplugin-dts: "npm:1.0.3"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
     vitest: "npm:4.1.11"

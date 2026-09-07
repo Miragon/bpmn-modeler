@@ -13,10 +13,7 @@ export default defineConfig({
                 __dirname,
                 "../../libs/modeler-types/src/index.ts",
             ),
-            "@miragon/bpmn-modeler-i18n-extras": resolve(
-                __dirname,
-                "../../libs/bpmn-i18n-extras/src/index.ts",
-            ),
+            "@miragon/dmn-modeler": resolve(__dirname, "../../packages/dmn-modeler/src/index.ts"),
         },
         coverage: {
             provider: "v8",

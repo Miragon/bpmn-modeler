@@ -3,15 +3,7 @@
  * The dmn-js assets are imported first so the override files below win on
  * cascade. Imported here (not in main.ts) so the bundle can swap the whole
  * sheet for the light variant at runtime via the `#theme-link` element. */
-@import "dmn-js/dist/assets/diagram-js.css";
-@import "dmn-js/dist/assets/dmn-js-decision-table.css";
-@import "dmn-js/dist/assets/dmn-js-decision-table-controls.css";
-@import "dmn-js/dist/assets/dmn-js-drd.css";
-@import "dmn-js/dist/assets/dmn-js-literal-expression.css";
-@import "dmn-js/dist/assets/dmn-js-shared.css";
-@import "dmn-js/dist/assets/dmn-font/css/dmn-embedded.css";
-@import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";
-@import "@emaarco/dmn-js-simulation/assets/dmn-js-simulation.css";
+@import "../base.css";
 
 @import "./colors.css";
 @import "./base-layout.css";
