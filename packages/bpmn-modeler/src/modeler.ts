@@ -45,6 +45,7 @@ import {
     ScriptSourceWatcher,
 } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules } from "./lintModules";
+import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { capabilityModules } from "./capabilityModules";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
@@ -226,10 +227,14 @@ export class BpmnModeler {
         const commonModules = [
             TranslateModule,
             TokenSimulationModule,
-            ...buildLintModules(this.options.linting, engine, {
-                onLintResults: this.options.onLintResults,
-                onLintingToggled: this.options.onLintingToggled,
-            }),
+            ...buildLintModules(
+                this.options.linting,
+                { engine, mode: normalizeMode(this.options.mode) },
+                {
+                    onLintResults: this.options.onLintResults,
+                    onLintingToggled: this.options.onLintingToggled,
+                },
+            ),
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
@@ -362,14 +367,7 @@ export class BpmnModeler {
      * when the instance was created without a lint module (no lint service).
      */
     applyLintResults(results: LintResults | null): void {
-        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
-        if (!service) {
-            console.warn(
-                "applyLintResults ignored: this modeler was created without a lint module",
-            );
-            return;
-        }
-        service.applyLintResults(results);
+        this.lintHandle().applyLintResults(results);
     }
 
     /**
@@ -378,14 +376,7 @@ export class BpmnModeler {
      * created without a lint module.
      */
     applyLintingDisabled(): void {
-        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
-        if (!service) {
-            console.warn(
-                "applyLintingDisabled ignored: this modeler was created without a lint module",
-            );
-            return;
-        }
-        service.applyLintingDisabled();
+        this.lintHandle().applyLintingDisabled();
     }
 
     /**
@@ -397,14 +388,19 @@ export class BpmnModeler {
      * wins over the in-page run.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
-        const service = this.getModeler().get<LintConfigService>("bpmnLintConfig", false);
-        if (!service) {
-            console.warn(
-                "startInPageLinting ignored: this modeler was created without a lint module",
-            );
-            return;
-        }
-        service.startInPageLinting(config, configToken);
+        this.lintHandle().startInPageLinting(config, configToken);
+    }
+
+    /**
+     * The shared lint handle methods over this instance's defensively-resolved
+     * {@link LintConfigService} (absent when created without a lint module). The
+     * designer composes the identical helper, so the two surfaces stay in lockstep.
+     */
+    private lintHandle(): LintHandleMethods {
+        return createLintHandleMethods(
+            () => this.getModeler().get<LintConfigService>("bpmnLintConfig", false) ?? undefined,
+            (message) => console.warn(message),
+        );
     }
 
     /**
@@ -798,6 +794,11 @@ export class BpmnModeler {
             getFilterMode: () => filter.getMode(),
             setFilterMode: (mode) => filter.setMode(mode),
             setModeAttribute: (mode) => this.setModeAttribute(mode),
+            // Re-resolves the in-page lint config for the new mode (a per-mode
+            // `config`, or the mode default that drops the engine layer in
+            // design). Absent lint module → no service → no-op.
+            setLintMode: (mode) =>
+                this.getModeler().get<LintConfigService>("bpmnLintConfig", false)?.setMode(mode),
             onModeChanged: this.options.onModeChanged,
         };
     }

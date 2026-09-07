@@ -168,6 +168,21 @@ const _scenarioLintConfig = {
 } satisfies ModelerOptions;
 void _scenarioLintConfig;
 
+// Per-mode `config` map: one instance lints Design and Implement differently,
+// re-resolved on setMode. Either key is optional.
+const _scenarioLintByMode = {
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    linting: {
+        module: _lintModule,
+        config: {
+            design: { extends: "bpmnlint:recommended" },
+            implement: { extends: "plugin:camunda-compat/camunda-platform-7-24" },
+        },
+    },
+} satisfies ModelerOptions;
+void _scenarioLintByMode;
+
 // External tier: `{ module, results: "external" }`. `module` is required — the
 // external tier still needs LintConfigService to paint host-pushed results.
 const _scenarioLintExternal = {
@@ -441,12 +456,27 @@ const _designerRejectsEngine = {
 } satisfies DesignerOptions;
 void _designerRejectsEngine;
 
-const _designerRejectsLinting = {
+// Linting is now injection-only on /design exactly as on the root: `false` is
+// valid (off), and an on-tier accepts the injected module plus the result/toggle
+// sinks. The engine-neutral Design config resolves automatically.
+const _designerAcceptsLinting = {
     propertiesPanel: { parent: document.createElement("div") },
-    // @ts-expect-error — linting is an engine-bound built-in, absent from the designer.
+    linting: { module: _lintModule },
+    onLintResults: ({ results, unresolved }) => void [results, unresolved],
+    onLintingToggled: (enabled: boolean) => void enabled,
+} satisfies DesignerOptions;
+void _designerAcceptsLinting;
+const _designerLintOff = {
+    propertiesPanel: { parent: document.createElement("div") },
     linting: false,
 } satisfies DesignerOptions;
-void _designerRejectsLinting;
+void _designerLintOff;
+// A by-mode config resolves its `design` entry on the designer.
+const _designerByModeLint = {
+    propertiesPanel: { parent: document.createElement("div") },
+    linting: { module: _lintModule, config: { design: { extends: "bpmnlint:recommended" } } },
+} satisfies DesignerOptions;
+void _designerByModeLint;
 
 const _designerRejectsElementTemplates = {
     propertiesPanel: { parent: document.createElement("div") },

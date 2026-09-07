@@ -10,8 +10,10 @@ import { registerDemoCustomGroup } from "../../src/demoCustomGroup";
  * The demo's per-mode surface factories, injected into the mode session. Every
  * surface shares the demo canvas + panel mount and registers the demo custom
  * group so the host slot is observable in all three modes. The one host
- * capability wired everywhere is model navigation; the modeler additionally
- * lints in-page (the eager `/lint` module) and toggles Design↔Implement live.
+ * capability wired everywhere is model navigation; both editable surfaces lint
+ * in-page (the eager `/lint` module) — the designer with the engine-neutral
+ * Design config, the modeler additionally toggling Design↔Implement live and
+ * re-resolving its lint config per mode (ADR 0023).
  */
 export function buildDemoSurfaces(panelMount: HTMLElement): SurfaceFactories {
     const propertiesPanel = { parent: panelMount };
@@ -28,6 +30,10 @@ export function buildDemoSurfaces(panelMount: HTMLElement): SurfaceFactories {
                 theme,
                 propertiesPanel,
                 capabilities,
+                linting: { module: lintModule },
+                onLintResults: ({ results, unresolved }) => {
+                    console.debug("[demo] in-page lint (design)", { results, unresolved });
+                },
             });
             registerDemoCustomGroup(handle);
             return handle;

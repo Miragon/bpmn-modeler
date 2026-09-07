@@ -38,3 +38,4 @@ export function createLintModule(tier: LintTierInit, callbacks: LintCallbacks): 
 }
 
 export type { LintCallbacks, LintTierInit } from "./LintConfigService";
+export type { LintConfigByMode, LintConfigOption } from "./lintConfigResolution";

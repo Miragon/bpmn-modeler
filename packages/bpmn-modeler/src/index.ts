@@ -21,6 +21,8 @@ export type {
     ThemeMode,
     ModelerMode,
     LintingOptions,
+    LintConfigByMode,
+    LintConfigOption,
     LintModule,
     ClipboardOptions,
     ContentSavedEvent,

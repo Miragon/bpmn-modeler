@@ -8,10 +8,12 @@
  * same command stack. Nothing in the DI module graph is added or removed on a
  * toggle, so `zeebe:*` / `camunda:*` extensions are never at risk (a re-created
  * engine-neutral instance would drop them through `ModdleCopy` on replace /
- * copy-paste). What changes is purely presentational: the properties panel is
- * filtered to its engine-neutral surface and the engine chrome (element-template
- * chooser) is hidden. The canvas chrome (minimap, token simulation, focus
- * reticle) is mode-invariant (ADR 0022).
+ * copy-paste). What changes is presentational plus the lint scope: the
+ * properties panel is filtered to its engine-neutral surface, the engine chrome
+ * (element-template chooser) is hidden, and the in-page linter re-resolves its
+ * config for the mode (dropping the Camunda engine layer in design — ADR 0023).
+ * The canvas chrome (minimap, token simulation, focus reticle) is mode-invariant
+ * (ADR 0022).
  *
  * The single source of truth for the mode is the properties panel's
  * `propertiesPanelModeFilter` service — it already holds the mode and fires
@@ -55,15 +57,22 @@ export interface ModePorts {
     setFilterMode(mode: ModelerMode): void;
     /** Stamps {@link MODE_ATTRIBUTE} on the container + panel parent, in both modes. */
     setModeAttribute(mode: ModelerMode): void;
+    /**
+     * Re-resolves the in-page lint config for `mode` — a per-mode `config` or the
+     * mode default (which drops the Camunda engine layer in design). A no-op when
+     * the instance carries no lint module, or when a mode-invariant workspace
+     * config is active.
+     */
+    setLintMode(mode: ModelerMode): void;
     /** Optional outbound notification, fired once per actual change (the epic's `modeChanged`). */
     onModeChanged?: (mode: ModelerMode) => void;
 }
 
 /**
  * Applies `mode` to a live instance through {@link ModePorts}. A no-op when the
- * filter already holds `mode`, so the attribute stamp and the `onModeChanged`
- * callback never re-fire on a redundant call. Otherwise: flip the filter →
- * stamp the attribute → notify.
+ * filter already holds `mode`, so the attribute stamp, the lint re-resolve, and
+ * the `onModeChanged` callback never re-fire on a redundant call. Otherwise:
+ * flip the filter → stamp the attribute → re-resolve the lint config → notify.
  */
 export function applyMode(ports: ModePorts, mode: ModelerMode): void {
     if (ports.getFilterMode() === mode) {
@@ -71,5 +80,6 @@ export function applyMode(ports: ModePorts, mode: ModelerMode): void {
     }
     ports.setFilterMode(mode);
     ports.setModeAttribute(mode);
+    ports.setLintMode(mode);
     ports.onModeChanged?.(mode);
 }

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     BpmnFileQuery,
+    BpmnlintInPageQuery,
     BpmnModelerSettingQuery,
     ElementTemplatesQuery,
     FlushDocumentQuery,
@@ -641,6 +642,9 @@ describe("bootstrap mode switching", () => {
             applyViewState: vi.fn(),
             getDiagramSvg: vi.fn(),
             getDefinitions: vi.fn(() => ({})),
+            applyLintResults: vi.fn(),
+            applyLintingDisabled: vi.fn(),
+            startInPageLinting: vi.fn(),
             destroy: vi.fn(),
             getService: vi.fn(() => canvas),
             viewport: { centerOnElement: vi.fn() },
@@ -677,6 +681,9 @@ describe("bootstrap mode switching", () => {
             captureViewState: vi.fn(() => ({})),
             applyViewState: vi.fn(),
             setTheme: vi.fn(),
+            applyLintResults: vi.fn(),
+            applyLintingDisabled: vi.fn(),
+            startInPageLinting: vi.fn(),
             destroy: vi.fn(),
             getService: vi.fn((name: string) => (name === "eventBus" ? eventBus : canvas)),
             viewport: { centerOnElement: vi.fn() },
@@ -747,6 +754,26 @@ describe("bootstrap mode switching", () => {
         expect(view.getAttribute("aria-disabled")).toBeNull();
         expect(design.getAttribute("aria-pressed")).toBe("true");
         expect(implement.getAttribute("aria-disabled")).toBe("true");
+    });
+
+    it("requests the lint config for a designer and routes the in-page handback to it", async () => {
+        const designer = makeDesigner();
+        mocks.createDesigner.mockResolvedValue(designer);
+        const host = makeHost(new BpmnFileQuery("<untagged />", undefined, "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        // The designer lints too (ADR 0023): it asks the host for the workspace
+        // lint config, but never for the modeler-only element templates.
+        expect(sentTypes(host)).toContain("GetBpmnlintConfigCommand");
+        expect(sentTypes(host)).not.toContain("GetElementTemplatesCommand");
+
+        // The host's no-workspace-config handback reaches the designer's linter,
+        // which resolves the engine-neutral Design default in-page.
+        dispatch(new BpmnlintInPageQuery(undefined, "tok-1"));
+        await drainMicrotasks();
+        expect(designer.startInPageLinting).toHaveBeenCalledWith(undefined, "tok-1");
     });
 
     it("opens a saved View mode as the readonly viewer and ignores modeler-only queries", async () => {

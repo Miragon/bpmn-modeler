@@ -6,6 +6,8 @@ import type {
 } from "@miragon/bpmn-modeler-types";
 
 import { BrowserLinter } from "./browserLinter";
+import { type LintConfigOption, resolveLintConfig } from "./lintConfigResolution";
+import type { ModelerMode } from "../mode";
 
 /**
  * The subset of `bpmn-js-bpmnlint`'s `linting` module this service drives. The
@@ -45,14 +47,22 @@ type Translate = (template: string) => string;
 /**
  * The per-instance tier decision, registered as the `lintTier` DI value by
  * {@link createLintModule}. `"external"` renders host-pushed results;
- * `"in-page"` runs {@link BrowserLinter} in the webview against the given
- * `engine` (and optional explicit `config`). `false`/off never reaches here — a
- * disabled instance registers no lint module at all.
+ * `"in-page"` runs {@link BrowserLinter} in the webview against the config
+ * `resolveLintConfig` picks from `mode`, `engine`, and the optional `config`.
+ * `false`/off never reaches here — a disabled instance registers no lint module
+ * at all.
+ *
+ * `engine` is optional: the engine-neutral Design surface (`/design`) has no
+ * execution platform, and its mode default already drops the engine layer. A
+ * `config` may be a single {@link BpmnlintConfig} or a per-mode map, so one
+ * Camunda-tagged instance can lint Design and Implement differently and
+ * re-resolve on a live {@link LintConfigService.setMode}.
  */
 export interface LintTierInit {
     tier: "external" | "in-page";
-    engine: Engine;
-    config?: BpmnlintConfig;
+    engine?: Engine;
+    mode: ModelerMode;
+    config?: LintConfigOption;
 }
 
 /**
@@ -138,12 +148,22 @@ export class LintConfigService {
     // the constructor only builds it for an up-front in-page tier.
     private browserLinter?: BrowserLinter;
 
-    // Kept from `tierInit` so a later {@link startInPageLinting} can construct a
-    // BrowserLinter with the same engine (and the original explicit config when
-    // the handback carries none).
-    private readonly engine: Engine;
+    // Kept from `tierInit` so a later {@link startInPageLinting} or
+    // {@link setMode} can re-resolve the config with the same engine and explicit
+    // option. `engine` is undefined on the engine-neutral Design surface.
+    private readonly engine?: Engine;
 
-    private readonly explicitConfig?: BpmnlintConfig;
+    private readonly explicitConfig?: LintConfigOption;
+
+    // The active design/implement mode. Mutated by {@link setMode}; feeds
+    // `resolveLintConfig` so a per-mode `config` (and the mode default) follows a
+    // live toggle.
+    private mode: ModelerMode;
+
+    // The last config a host handed in via {@link startInPageLinting}. A
+    // workspace `.bpmnlintrc` is mode-invariant, so once set it wins over the
+    // resolver on both modes and a {@link setMode} only stores the new mode.
+    private hostConfig?: BpmnlintConfig;
 
     // The config-version token of the last in-page instruction. Used to dedup a
     // repeat covered instruction, but only while actually `"in-page"`: any
@@ -171,8 +191,9 @@ export class LintConfigService {
         this.state = tierInit.tier === "in-page" ? "in-page" : "external";
         this.engine = tierInit.engine;
         this.explicitConfig = tierInit.config;
+        this.mode = tierInit.mode;
         if (tierInit.tier === "in-page") {
-            this.browserLinter = new BrowserLinter(this.engine, this.explicitConfig);
+            this.browserLinter = this.buildLinter();
         }
 
         // One `lint` override for every tier; {@link runLint} branches on state.
@@ -224,11 +245,47 @@ export class LintConfigService {
             }
         }
         this.lastConfigToken = configToken;
-        this.browserLinter = new BrowserLinter(this.engine, config ?? this.explicitConfig);
+        if (config !== undefined) {
+            this.hostConfig = config;
+        }
+        this.browserLinter = this.buildLinter();
         this.state = "in-page";
         if (this.bpmnjs.getDefinitions()) {
             this.activateInPage();
         }
+    }
+
+    /**
+     * Switches the design/implement mode of the in-page linter. Same-mode calls
+     * are a no-op. A host-handed workspace config is mode-invariant, so when one
+     * is present (or the tier is not currently a live in-page run) only the mode
+     * is stored — a later re-enable/handback resolves with it. Otherwise the
+     * linter is rebuilt against the new mode's resolved config and re-activated,
+     * so its next relint (and `onLintResults`) reflects the new mode — a host's
+     * Problems panel follows the toggle without a separate message.
+     */
+    setMode(mode: ModelerMode): void {
+        if (mode === this.mode) {
+            return;
+        }
+        this.mode = mode;
+        if (this.state === "in-page" && this.hostConfig === undefined) {
+            this.browserLinter = this.buildLinter();
+            if (this.bpmnjs.getDefinitions()) {
+                this.activateInPage();
+            }
+        }
+    }
+
+    /**
+     * Builds the {@link BrowserLinter} for the current mode. A host-handed
+     * workspace config (mode-invariant) wins; otherwise the resolver picks the
+     * explicit config, its per-mode entry, or the mode default.
+     */
+    private buildLinter(): BrowserLinter {
+        return new BrowserLinter(
+            this.hostConfig ?? resolveLintConfig(this.mode, this.engine, this.explicitConfig),
+        );
     }
 
     /**
@@ -345,13 +402,15 @@ export class LintConfigService {
 
     /**
      * Handles the re-enable chip. Reports the toggle in every tier; in the in-page
-     * tier it also flips back and re-runs the in-page lint. In the external tier
-     * the overlays wait for the host's push.
+     * tier it also flips back, rebuilds the linter (so a {@link setMode} that
+     * arrived while disabled takes effect on re-enable), and re-runs the in-page
+     * lint. In the external tier the overlays wait for the host's push.
      */
     private handleEnableClick(): void {
         this.callbacks.onLintingToggled?.(true);
         if (this.state === "in-page-disabled") {
             this.state = "in-page";
+            this.browserLinter = this.buildLinter();
             this.activateInPage();
         }
     }

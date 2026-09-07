@@ -1,9 +1,11 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
+import type { BpmnlintConfig, LintResults, LintRunEvent } from "@miragon/bpmn-modeler-types";
 import type {
     ClipboardOptions,
     ContentSavedEvent,
     CoreModelerServices,
+    LintingOptions,
     ThemeMode,
 } from "../publicApi";
 import type { ViewportManager } from "../viewport";
@@ -19,8 +21,11 @@ import type { ViewState } from "../viewState";
  * an engine-bound properties panel) and the readonly {@link BpmnViewerHandle}: it
  * is fully editable — palette, context pad, modelling, copy-paste — but carries
  * only plain-BPMN properties (general / documentation groups), none of the
- * Camunda stack. It never loads camunda-bpmn-js, element templates, token
- * simulation, transaction boundaries, or the lint stack.
+ * Camunda stack. It never loads camunda-bpmn-js, element templates, or
+ * transaction boundaries. Linting is injection-only exactly as on the root
+ * {@link createModeler} (see {@link DesignerOptions.linting}): omitted/`false`
+ * pulls no lint bytes; a `module` from `@miragon/bpmn-modeler/lint` opts in with
+ * the engine-neutral Design config.
  *
  * **The mode marker is the absence of `modeler:executionPlatform` on
  * `bpmn:Definitions`.** A host routes a document with `detectEngine(xml) ===
@@ -50,7 +55,7 @@ export type CoreDesignerServices = CoreModelerServices;
  * linked forms) is engine-neutral, so it belongs on the design surface. The
  * engine-bound ports (`codeLink`, `scripting`) are deliberately absent so they
  * are compile-time-rejected here, mirroring how {@link DesignerOptions} rejects
- * `engine` / `linting` / `elementTemplates`.
+ * `engine` / `elementTemplates`.
  *
  * Present ⇒ the feature's DI module is registered and its context-pad entry
  * appears; absent ⇒ no provider is registered and no entry renders.
@@ -61,9 +66,10 @@ export interface DesignerCapabilities {
 
 /**
  * Per-instance configuration for {@link createDesigner}. Deliberately minimal:
- * Design mode has no engine (there is no execution platform to bind), no element
- * templates, and no linting — every field that survives is engine-neutral. Its
- * only host capability is the engine-neutral `modelNavigation` (see
+ * Design mode has no engine (there is no execution platform to bind) and no
+ * element templates — every field that survives is engine-neutral. Linting is
+ * available on the same injection-only seam as the root modeler (omit for none).
+ * Its only host capability is the engine-neutral `modelNavigation` (see
  * {@link DesignerCapabilities}).
  */
 export interface DesignerOptions {
@@ -113,8 +119,23 @@ export interface DesignerOptions {
      */
     capabilities?: DesignerCapabilities;
 
+    /**
+     * Linting tier — see {@link LintingOptions}. Injection-only, exactly as on
+     * {@link createModeler}: an on-tier supplies a `module` from
+     * `@miragon/bpmn-modeler/lint`. Omit (or `false`) for no linting. The
+     * engine-neutral Design config applies (no Camunda engine layer); a per-mode
+     * `config` map resolves its `design` entry.
+     */
+    linting?: LintingOptions;
+
     /** Debounced diagram content — see {@link ContentSavedEvent}. */
     onContentSaved?: (event: ContentSavedEvent) => void;
+
+    /** One lint pass completed — findings + gracefully-degraded rules. */
+    onLintResults?: (event: LintRunEvent) => void;
+
+    /** The in-canvas lint chip was toggled on/off. */
+    onLintingToggled?: (enabled: boolean) => void;
 }
 
 /**
@@ -180,6 +201,23 @@ export interface BpmnDesignerHandle {
      */
     getService<K extends keyof CoreDesignerServices>(name: K): CoreDesignerServices[K];
     getService<T = unknown>(name: string): T;
+
+    /**
+     * Render host-computed lint results, or clear them with `null`. A no-op with
+     * a warning when the designer was created without a lint module.
+     */
+    applyLintResults(results: LintResults | null): void;
+
+    /** Turn off the in-webview linter and clear its overlay. */
+    applyLintingDisabled(): void;
+
+    /**
+     * Start (or restart) the in-webview linter with the host's
+     * no-workspace-config handback. Optional `config` overrides the Design
+     * default; optional `configToken` dedups a repeat instruction. Never
+     * re-enables a user-disabled linter.
+     */
+    startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
 
     /** Tear the instance down and free its bpmn-js DI graph and DOM. */
     destroy(): void;
