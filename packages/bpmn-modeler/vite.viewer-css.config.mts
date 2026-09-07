@@ -22,6 +22,7 @@ export default defineConfig({
             input: {
                 viewer: resolve(__dirname, "src/styles/viewer.css"),
                 design: resolve(__dirname, "src/styles/design.css"),
+                mode: resolve(__dirname, "src/styles/mode.css"),
             },
             output: {
                 assetFileNames: "[name].[ext]",

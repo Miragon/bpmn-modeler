@@ -1,21 +1,10 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PropertiesPanelHandle } from "./propertiesPanelResizer";
 import { mountModeStrip, type ModeStripOptions } from "./modeStrip";
-
-function createPanelHandle(): PropertiesPanelHandle {
-    return {
-        isVisible: () => true,
-        setVisible: vi.fn(),
-        onVisibilityChanged: () => undefined,
-    };
-}
 
 interface Harness {
     host: HTMLElement;
     stripEl: HTMLElement;
     resizerEl: HTMLElement;
-    panelHandle: PropertiesPanelHandle;
     buttons: () => HTMLButtonElement[];
     badge: () => HTMLButtonElement | null;
 }
@@ -25,21 +14,22 @@ function mount(overrides: Partial<ModeStripOptions> = {}): {
     h: Harness;
     onSelect: ReturnType<typeof vi.fn>;
     onEscape: ReturnType<typeof vi.fn>;
+    revealPanel: ReturnType<typeof vi.fn>;
 } {
     const host = document.createElement("div");
     const stripEl = document.createElement("div");
     const resizerEl = document.createElement("div");
     host.appendChild(stripEl);
     document.body.append(host, resizerEl);
-    const panelHandle = createPanelHandle();
     const onSelect = vi.fn();
     const onEscape = vi.fn();
+    const revealPanel = vi.fn();
 
     const strip = mountModeStrip({
         host,
         stripEl,
         resizerEl,
-        panelHandle,
+        revealPanel,
         translate: (template) => template,
         onSelect,
         onEscape,
@@ -50,11 +40,10 @@ function mount(overrides: Partial<ModeStripOptions> = {}): {
         host,
         stripEl,
         resizerEl,
-        panelHandle,
         buttons: () => Array.from(stripEl.querySelectorAll<HTMLButtonElement>(".mode-button")),
         badge: () => resizerEl.querySelector<HTMLButtonElement>(".mode-badge"),
     };
-    return { strip, h, onSelect, onEscape };
+    return { strip, h, onSelect, onEscape, revealPanel };
 }
 
 describe("mountModeStrip", () => {
@@ -97,12 +86,12 @@ describe("mountModeStrip", () => {
     });
 
     it("shows the collapsed-rail badge letter and reveals the panel on click", () => {
-        const { strip, h } = mount();
+        const { strip, h, revealPanel } = mount();
         strip.render({ mode: "view", engine: "c7", busy: false });
         const badge = h.badge();
         expect(badge?.textContent).toBe("V");
         badge?.click();
-        expect(h.panelHandle.setVisible).toHaveBeenCalledWith(true);
+        expect(revealPanel).toHaveBeenCalledTimes(1);
     });
 
     it("skips the badge when no resizer element is supplied", () => {
@@ -112,12 +101,25 @@ describe("mountModeStrip", () => {
         const strip = mountModeStrip({
             host,
             stripEl,
-            panelHandle: createPanelHandle(),
             translate: (t) => t,
             onSelect: vi.fn(),
             onEscape: vi.fn(),
         });
         expect(() => strip.render({ mode: "design", engine: undefined, busy: true })).not.toThrow();
+    });
+
+    it("renders no group or badge for fewer than two modes, still stamping the host", () => {
+        const { strip, h } = mount({ modes: ["view"] });
+        strip.render({ mode: "view", engine: undefined, busy: false });
+        expect(h.buttons()).toEqual([]);
+        expect(h.badge()).toBeNull();
+        expect(h.host.getAttribute("data-surface-mode")).toBe("view");
+    });
+
+    it("renders only the requested subset of modes", () => {
+        const { strip, h } = mount({ modes: ["view", "design"] });
+        strip.render({ mode: "view", engine: undefined, busy: false });
+        expect(h.buttons().map((b) => b.textContent)).toEqual(["View", "Design"]);
     });
 
     it("reflects busy state onto the host", () => {
@@ -146,5 +148,14 @@ describe("mountModeStrip", () => {
         strip.render({ mode: "view", engine: "c7", busy: false });
         h.stripEl.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
         expect(onEscape).toHaveBeenCalled();
+    });
+
+    it("removes its group and badge on destroy", () => {
+        const { strip, h } = mount();
+        strip.render({ mode: "view", engine: "c7", busy: false });
+        expect(h.buttons().length).toBe(3);
+        strip.destroy();
+        expect(h.buttons()).toEqual([]);
+        expect(h.badge()).toBeNull();
     });
 });

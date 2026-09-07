@@ -1,7 +1,7 @@
 import { ConfigurationTarget, workspace } from "vscode";
 
 import { MarketplaceSettingsEntry, SettingsPort } from "@miragon/bpmn-modeler-core";
-import { SurfaceMode } from "@miragon/bpmn-modeler-shared";
+import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 /**
  * Pure VS Code workspace configuration reader for the BPMN modeler.

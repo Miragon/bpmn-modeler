@@ -20,6 +20,13 @@ export default defineConfig({
                 __dirname,
                 "../../libs/modeler-types/src/index.ts",
             ),
+            // The i18n overlay lib has no package entry point; the mode strip's
+            // default translator value-imports it, so specs that load the strip
+            // need the path mapped explicitly (the lib build uses tsconfig paths).
+            "@miragon/bpmn-modeler-i18n-extras": resolve(
+                __dirname,
+                "../../libs/bpmn-i18n-extras/src/index.ts",
+            ),
             "@miragon/bpmn-modeler-diff": resolve(__dirname, "../../libs/bpmn-diff/src/index.ts"),
             // These workspace libs have no package entry point, so specs that
             // load them at runtime (capabilityModules, clipboard) need the path

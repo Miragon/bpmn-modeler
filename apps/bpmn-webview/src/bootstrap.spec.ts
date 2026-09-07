@@ -741,6 +741,8 @@ describe("bootstrap mode switching", () => {
         expect(mocks.createDesigner.mock.calls[0][1].propertiesPanel.parent.id).toBe(
             "js-properties-panel-mount",
         );
+        // The strip always renders all three buttons; Implement is greyed out on
+        // an untagged model (discoverable rather than hidden).
         const [view, design, implement] = modeButtons();
         expect(view.getAttribute("aria-disabled")).toBeNull();
         expect(design.getAttribute("aria-pressed")).toBe("true");

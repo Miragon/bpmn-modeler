@@ -11,8 +11,8 @@
  * `VsCode*` classes in `infrastructure/` `implements` these.
  */
 
-import { AuthTypePayload, SurfaceMode } from "@miragon/bpmn-modeler-shared";
-import { Engine, LintResults } from "@miragon/bpmn-modeler-types";
+import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
+import { Engine, LintResults, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 import { MigrationScope } from "../../migration/domain/MigrationPlan";
 import { NewModelEngine } from "./newModelEngine";

@@ -1,4 +1,4 @@
-import type { SurfaceMode } from "@miragon/bpmn-modeler-shared";
+import type { SurfaceMode } from "@miragon/bpmn-modeler/mode";
 
 const MODE_PARAM = "mode";
 

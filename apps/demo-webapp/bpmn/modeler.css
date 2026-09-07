@@ -1,13 +1,14 @@
 /*
- * Layout for the canvas-side mode strip on the BPMN modeler page (#1446).
- * The panel host (`#js-properties-panel`) becomes a flex column: a fixed mode
- * strip on top, the scrolling properties-panel mount below. The `--cd-*` tokens
- * are declared on `:root` by the demo header's style block.
+ * Canvas-side mode strip for the BPMN modeler demo (#1446). The layout, sizing,
+ * and badge positioning come from `@miragon/bpmn-modeler/mode.css`; this file only
+ * re-skins it with the demo's `--cd-*` design tokens (declared on `:root` by the
+ * demo header's style block).
  */
+@import "../../../packages/bpmn-modeler/src/styles/mode.css";
 
-/* Flex column out-specifies `.content.with-diagram .properties-panel-parent`'s
- * `display:block`; `overflow:hidden` lets the collapsed `width:0` win over the
- * flex `min-width:auto` default. */
+/* The package sheet stamps the flex column on `.panel-host`; the demo needs a
+ * higher-specificity selector to out-specify `.content.with-diagram
+ * .properties-panel-parent`'s `display:block`. */
 #js-properties-panel.panel-host {
     display: flex;
     flex-direction: column;
@@ -15,52 +16,12 @@
 }
 
 .mode-strip {
-    flex: 0 0 auto;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    border-bottom: 1px solid #e0e0e0;
     background: var(--cd-grau);
 }
 
-/* The scrolling panel body. `min-height:0` lets it shrink inside the flex
- * column so its own overflow scrolls instead of the host. */
-.panel-mount {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-}
-
-/* Parity with default.css `.properties-panel-parent > .djs-properties-panel`,
- * which no longer matches now that the panel is a grandchild of the host. */
-.panel-mount > .djs-properties-panel {
-    padding-bottom: 70px;
-    min-height: 100%;
-}
-
-/* Segmented control, styled after the header `.views` switcher. */
 .mode-group {
-    display: flex;
-    gap: 2px;
-    padding: 2px;
     background: var(--cd-weiss);
-    border: 1px solid #d7d9de;
     border-radius: var(--cd-radius-sm);
-}
-
-.mode-button {
-    padding: 3px 12px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: #6b7280;
-    font: 600 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    cursor: pointer;
-}
-
-.mode-button:hover {
-    background: rgba(51, 93, 229, 0.06);
 }
 
 .mode-button[aria-pressed="true"] {
@@ -69,40 +30,13 @@
     box-shadow: var(--cd-shadow-1);
 }
 
-.mode-button[aria-disabled="true"] {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
 .mode-button:focus-visible {
-    outline: 2px solid var(--cd-blau);
-    outline-offset: 1px;
+    outline-color: var(--cd-blau);
 }
 
-/* Collapsed-rail badge: a small pill on the resizer, just above the chevron
- * toggle. Hidden unless the panel is collapsed. */
 .mode-badge {
-    display: none;
-    position: absolute;
-    right: 0;
-    bottom: calc(50% + 24px);
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border: 1px solid rgba(0, 120, 212, 0.4);
-    border-right: none;
-    border-radius: 4px 0 0 4px;
     background: var(--cd-blau);
     color: var(--cd-weiss);
-    font: 700 11px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    cursor: pointer;
-    z-index: 1;
-}
-
-.panel-resizer.collapsed .mode-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 /* ── Dark theme ──────────────────────────────────────────────────────────── */

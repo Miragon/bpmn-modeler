@@ -31,6 +31,15 @@ describe("defaultMode", () => {
     it("lands an untagged model in design", () => {
         expect(defaultMode(undefined)).toBe("design");
     });
+
+    it("falls back inside the supplied available set", () => {
+        // Tagged model, but implement is not offered → design if present.
+        expect(defaultMode("c7", ["view", "design"])).toBe("design");
+        // Only view offered → view, whatever the engine.
+        expect(defaultMode("c7", ["view"])).toBe("view");
+        // A single design factory → design.
+        expect(defaultMode(undefined, ["design"])).toBe("design");
+    });
 });
 
 describe("resolveInitialMode", () => {
@@ -48,6 +57,13 @@ describe("resolveInitialMode", () => {
         expect(resolveInitialMode(null, "c7")).toBe("implement");
         expect(resolveInitialMode(null, undefined)).toBe("design");
         expect(resolveInitialMode("nonsense", "c8")).toBe("implement");
+    });
+
+    it("rejects a request outside the supplied available set", () => {
+        // Implement is engine-available but not offered by this consumer.
+        expect(resolveInitialMode("implement", "c7", ["view", "design"])).toBe("design");
+        // A saved view mode, but only design is offered now.
+        expect(resolveInitialMode("view", undefined, ["design"])).toBe("design");
     });
 });
 

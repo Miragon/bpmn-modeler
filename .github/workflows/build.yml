@@ -670,6 +670,9 @@ jobs:
           test -f packages/bpmn-modeler/dist/design.js
           test -f packages/bpmn-modeler/dist/design.d.ts
           test -f packages/bpmn-modeler/dist/design.css
+          test -f packages/bpmn-modeler/dist/mode.js
+          test -f packages/bpmn-modeler/dist/mode.d.ts
+          test -f packages/bpmn-modeler/dist/mode.css
           test -f packages/bpmn-modeler/dist/bpmn-modeler.css
           test -f packages/bpmn-modeler/dist/lightTheme.css
           test -f packages/bpmn-modeler/dist/darkTheme.css

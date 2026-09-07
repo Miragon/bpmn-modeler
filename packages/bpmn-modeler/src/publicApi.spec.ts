@@ -48,6 +48,13 @@ import type {
     ModelReference as ModelReferenceFromViewer,
     ReferenceKind as ReferenceKindFromViewer,
 } from "./viewer/index";
+import type {
+    ModeSessionOptions,
+    ModelerSurfaceContext,
+    SurfaceContext,
+    SurfaceFactories,
+    SurfaceHandle,
+} from "./modeSession/publicApi";
 
 // A minimal stub of the injected `@miragon/bpmn-modeler/lint` namespace. The
 // on-tiers below all require a `module`, so migration failures are compile-time.
@@ -522,6 +529,84 @@ const _refViewer: ModelReferenceFromViewer = _refRoot;
 void _refViewer;
 const _kindViewer: ReferenceKindFromViewer = _kindRoot;
 void _kindViewer;
+
+// ── Mode-session subpath conformance (#1447) ────────────────────────────────
+
+// SurfaceHandle is the union of all three handles: a modeler, a viewer, and a
+// designer all satisfy it (the modeler is the superset arm).
+const _surfaceHandleAcceptsAll = (
+    m: BpmnModelerHandle,
+    v: BpmnViewerHandle,
+    d: BpmnDesignerHandle,
+) => {
+    const handles: SurfaceHandle[] = [m, v, d];
+    void handles;
+};
+void _surfaceHandleAcceptsAll;
+
+// The design/implement contexts: implement additionally carries `mode`.
+const _surfaceContext = {
+    container: document.createElement("div"),
+    engine: "c7",
+    theme: "dark",
+} satisfies SurfaceContext;
+void _surfaceContext;
+const _modelerContext = { ..._surfaceContext, mode: "design" } satisfies ModelerSurfaceContext;
+void _modelerContext;
+
+// A consumer may inject any subset of factories; the implement factory serves
+// both Design and Implement on a tagged model via `ctx.mode`.
+const _allFactories = {
+    view: async (_ctx: SurfaceContext) => ({}) as BpmnViewerHandle,
+    design: async (_ctx: SurfaceContext) => ({}) as BpmnDesignerHandle,
+    implement: async (ctx: ModelerSurfaceContext) => {
+        const mode: ModelerMode = ctx.mode;
+        void mode;
+        return {} as BpmnModelerHandle;
+    },
+} satisfies SurfaceFactories;
+void _allFactories;
+
+// A single-factory session is legal (one mode, no strip).
+const _singleFactory = {
+    view: async (_ctx: SurfaceContext) => ({}) as BpmnViewerHandle,
+} satisfies SurfaceFactories;
+void _singleFactory;
+
+// The implement slot demands a modeler; a designer factory is rejected.
+const _designerImplementFactory = async (
+    _ctx: ModelerSurfaceContext,
+): Promise<BpmnDesignerHandle> => ({}) as BpmnDesignerHandle;
+const _rejectsDesignerForImplement = {
+    // @ts-expect-error — implement must resolve a BpmnModelerHandle, not a designer.
+    implement: _designerImplementFactory,
+} satisfies SurfaceFactories;
+void _rejectsDesignerForImplement;
+
+const _modeSessionOptions = {
+    container: document.createElement("div"),
+    engine: undefined,
+    surfaces: _singleFactory,
+    initialMode: "view",
+    theme: "automatic",
+    onModeChanged: (mode, transition) => void [mode, transition],
+} satisfies ModeSessionOptions;
+void _modeSessionOptions;
+
+// The /mode barrel re-exports the factory, the strip, and the mode model —
+// checked at the type level so this line loads no runtime graph.
+type _ModeBarrel = typeof import("./modeSession");
+const _modeBarrelExports = (b: _ModeBarrel) => {
+    void b.createModeSession;
+    void b.mountModeStrip;
+    void b.MODE_LABEL;
+    void b.SURFACE_MODES;
+    void b.defaultMode;
+    void b.resolveInitialMode;
+    void b.planTransition;
+    void b.isModeAvailable;
+};
+void _modeBarrelExports;
 
 describe("public API conformance", () => {
     it("is a type-only conformance spec; the guarantee is the tsc pass", () => {
