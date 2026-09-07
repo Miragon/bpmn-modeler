@@ -33,16 +33,12 @@ export default defineConfig({
         outDir: "../../dist/webview-staging/dmn-webview",
         emptyOutDir: true,
         rollupOptions: {
+            // No separate lightTheme/darkTheme entries: theming is per-instance
+            // via the package's `data-dmn-theme` attribute, and the theme CSS is
+            // folded into the main bundle through the package's `styles.css`
+            // import — the host shells no longer link a `#theme-link`.
             input: {
                 index: resolve(__dirname, "src/main.ts"),
-                lightTheme: resolve(
-                    __dirname,
-                    "../../packages/dmn-modeler/src/styles/light-theme/index.css",
-                ),
-                darkTheme: resolve(
-                    __dirname,
-                    "../../packages/dmn-modeler/src/styles/dark-theme/index.css",
-                ),
             },
             output: {
                 entryFileNames: `[name].js`,

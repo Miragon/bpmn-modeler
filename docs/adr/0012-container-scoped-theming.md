@@ -4,6 +4,11 @@
 - Date: 2026-09-01
 - Category: bpmn-webview
 
+> Amended by [ADR 0026](0026-dmn-container-scoped-theming.md): the DMN modeler
+> now uses the same per-instance mechanism (attribute `data-dmn-theme`), so this
+> ADR's "DMN is unchanged" framing no longer holds — DMN mirrors the shape
+> decided here.
+
 Step 4 of the modeler-roadmap epic (#1409). Per-instance theming is the
 foundation the upcoming viewer (#1405) and design mode (#1196) sit on.
 

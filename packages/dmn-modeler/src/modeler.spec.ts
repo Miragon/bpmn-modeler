@@ -183,7 +183,10 @@ describe("DmnModeler", () => {
 
         const config = mocks.vendors[0].options;
         expect(config.container).toBe(container);
-        expect(config.drd.propertiesPanel).toEqual({ parent: panel });
+        expect(config.drd.propertiesPanel).toEqual({
+            parent: panel,
+            feelPopupContainer: container,
+        });
         expect(config.drd.additionalModules).toEqual([
             mocks.drdPanel,
             mocks.drdProvider,
@@ -390,7 +393,20 @@ describe("DmnModeler", () => {
 
         vendor.activeViewer = undefined;
         expect(() => handle.getService("canvas")).toThrow("No active DMN view is available");
-        expect(() => handle.setTheme("dark")).not.toThrow();
+    });
+
+    it("scopes data-dmn-theme to the container and panel parent and clears it on destroy", () => {
+        const container = document.createElement("main");
+        const panel = document.createElement("aside");
+        const handle = new DmnModeler(container, { propertiesPanel: { parent: panel } });
+
+        handle.setTheme("dark");
+        expect(container.getAttribute("data-dmn-theme")).toBe("dark");
+        expect(panel.getAttribute("data-dmn-theme")).toBe("dark");
+
+        handle.destroy();
+        expect(container.hasAttribute("data-dmn-theme")).toBe(false);
+        expect(panel.hasAttribute("data-dmn-theme")).toBe(false);
     });
 
     it("destroys exactly once, detaches listeners, and rejects later operations", async () => {

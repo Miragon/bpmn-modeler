@@ -21,8 +21,10 @@ the publishable libraries and webview `app/` layers off this protocol package.
 
 Alongside the protocol, this package also holds the private webview chrome that
 is not worth publishing (ADR 0019): the properties-panel `propertiesPanelFocus`
-/ `propertiesPanelResizer` (DOM-id-coupled page chrome) and the DMN-only
-`theme` adapter (`#theme-link` swap driven by VS Code `<body>` classes).
+/ `propertiesPanelResizer` (DOM-id-coupled page chrome) and the shared
+`hostTheme` adapter (`hostTheme.ts`) — it maps the VS Code `<body>`-class
+light/dark signal to a page-level scope attribute on `<html>` plus each modeler
+instance's own `setTheme`, and is used by both the BPMN and DMN webviews.
 
 Reach for `@miragon/bpmn-modeler-types` for anything a future
 `@miragon/bpmn-modeler` npm package could need; reach for this package only from

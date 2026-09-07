@@ -5,7 +5,7 @@
  * declared on `.dmn-literal-expression-container` to the `--dt-*` scale. */
 @import "./colors.css";
 
-.dmn-literal-expression-container {
+[data-dmn-theme="dark"] .dmn-literal-expression-container {
     --decision-properties-background-color: var(--dt-surface-a10);
     --decision-properties-border-color: var(--dt-surface-a30);
     --decision-properties-color: var(--dt-surface-a70);

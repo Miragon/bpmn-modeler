@@ -8,7 +8,7 @@
  * the BPMN theme exactly. */
 @import "./colors.css";
 
-:root .djs-parent {
+[data-dmn-theme="dark"] .djs-parent {
     --canvas-fill-color: var(--dt-surface-a10);
 
     --bpmn-shape-fill-color: var(--dt-surface-a10);
@@ -80,7 +80,7 @@
 /**
  * The canvas
  */
-.djs-container {
+[data-dmn-theme="dark"] .djs-container {
     background-color: var(--canvas-fill-color) !important;
 }
 
@@ -92,68 +92,68 @@
  */
 
 /* defaultFillColor (white) → dark surface */
-.djs-shape > .djs-visual > [style*="fill: white"] {
+[data-dmn-theme="dark"] .djs-shape > .djs-visual > [style*="fill: white"] {
     fill: var(--bpmn-shape-fill-color) !important;
 }
 
 /* defaultStrokeColor used as a fill (filled markers, decision icons) → light */
-.djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"],
-defs marker > [style*="fill: rgb(34, 36, 42)"] {
+[data-dmn-theme="dark"] .djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"],
+[data-dmn-theme="dark"] defs marker > [style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-shape-stroke-color) !important;
 }
 
 /* defaultStrokeColor (rgb(34, 36, 42)) → light stroke */
-.djs-shape > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
-.djs-connection > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
-defs marker > [style*="stroke: rgb(34, 36, 42)"] {
+[data-dmn-theme="dark"] .djs-shape > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+[data-dmn-theme="dark"] .djs-connection > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
+[data-dmn-theme="dark"] defs marker > [style*="stroke: rgb(34, 36, 42)"] {
     stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
 /* Embedded labels — recolour only the default black text. */
-.djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
+[data-dmn-theme="dark"] .djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-label-color) !important;
 }
 
 /* External labels sit on the dark canvas, so always light. */
-.djs-label .djs-visual text {
+[data-dmn-theme="dark"] .djs-label .djs-visual text {
     fill: var(--bpmn-label-color) !important;
 }
 
-.djs-direct-editing-parent {
+[data-dmn-theme="dark"] .djs-direct-editing-parent {
     color: var(--dt-primary-a20) !important;
 }
 
-.djs-direct-editing-content {
+[data-dmn-theme="dark"] .djs-direct-editing-content {
     background-color: var(--dt-surface-a10) !important;
 }
 
 /**
  * Context pad
  */
-.djs-context-pad {
+[data-dmn-theme="dark"] .djs-context-pad {
     color: var(--dt-primary-a50) !important;
 }
 
 /**
  * Search box
  */
-.djs-search-container .djs-search-result {
+[data-dmn-theme="dark"] .djs-search-container .djs-search-result {
     color: var(--dt-surface-a40) !important;
     background-color: var(--dt-surface-a10) !important;
 }
 
-.djs-search-icon {
+[data-dmn-theme="dark"] .djs-search-icon {
     filter: invert(0.7);
 }
 
 /**
  * Popup
  */
-.djs-popup-title {
+[data-dmn-theme="dark"] .djs-popup-title {
     color: var(--dt-surface-a70) !important;
 }
 
-.djs-popup-header-group > li > button {
+[data-dmn-theme="dark"] .djs-popup-header-group > li > button {
     color: var(--dt-primary-a50) !important;
 }
 
@@ -161,7 +161,7 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
  * "Powered by dmn.io" attribution logo — hardcoded `color: #404040` is nearly
  * invisible on dark; lift it to a muted light grey.
  */
-.bjs-powered-by {
+[data-dmn-theme="dark"] .bjs-powered-by {
     color: var(--dt-surface-a50) !important;
 }
 
@@ -169,7 +169,7 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
  * DRD definitions box (top-left name/id panel) — drives off the dmn-js grey
  * palette, which we leave light, so override the semantic variables here.
  */
-.dmn-drd-container {
+[data-dmn-theme="dark"] .dmn-drd-container {
     --dmn-definitions-background-color: var(--dt-surface-a10);
     --dmn-definitions-border-color: var(--dt-surface-a30);
     --dmn-definitions-focus-border-color: var(--dt-primary-a10);
@@ -179,8 +179,8 @@ defs marker > [style*="stroke: rgb(34, 36, 42)"] {
 }
 
 /* The definitions box uses --color-white for the focused/hover edit field. */
-.dmn-drd-container .dmn-definitions > [contenteditable]:hover,
-.dmn-drd-container .dmn-definitions > [contenteditable]:focus {
+[data-dmn-theme="dark"] .dmn-drd-container .dmn-definitions > [contenteditable]:hover,
+[data-dmn-theme="dark"] .dmn-drd-container .dmn-definitions > [contenteditable]:focus {
     background-color: var(--dt-surface-a20);
     color: var(--dt-surface-a70);
 }

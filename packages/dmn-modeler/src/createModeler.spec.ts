@@ -10,6 +10,7 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({ i18n: { extend: mocks.extend } })
 vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({ extras: mocks.extras }));
 vi.mock("./modeler", () => ({
     DmnModeler: class {
+        setTheme = vi.fn();
         constructor(
             public readonly container: HTMLElement,
             public readonly options: unknown,
@@ -31,5 +32,30 @@ describe("createModeler", () => {
         expect(mocks.extend).toHaveBeenCalledWith(mocks.extras);
         expect(handle).toBe(mocks.instances[0]);
         expect(mocks.instances[0]).toMatchObject({ container, options });
+    });
+
+    it("engages theming with the default automatic mode", async () => {
+        const container = document.createElement("main");
+        const options = { propertiesPanel: { parent: document.createElement("aside") } };
+
+        const handle = await createModeler(container, options);
+
+        expect(
+            (handle as unknown as { setTheme: ReturnType<typeof vi.fn> }).setTheme,
+        ).toHaveBeenCalledWith("automatic");
+    });
+
+    it("passes an explicit theme option through to setTheme", async () => {
+        const container = document.createElement("main");
+        const options = {
+            propertiesPanel: { parent: document.createElement("aside") },
+            theme: "dark" as const,
+        };
+
+        const handle = await createModeler(container, options);
+
+        expect(
+            (handle as unknown as { setTheme: ReturnType<typeof vi.fn> }).setTheme,
+        ).toHaveBeenCalledWith("dark");
     });
 });

@@ -61,7 +61,14 @@ export function bpmnEditorUi(
     `;
 }
 
-/** Generates the HTML for the DMN modeler webview. */
+/**
+ * Generates the HTML for the DMN modeler webview. Theming is per-instance: the
+ * theme CSS ships inside the main `index.css` bundle and the webview's host
+ * adapter sets `data-dmn-theme` from VS Code's body CSS classes — no
+ * `#theme-link`. The script loads as a module because the bundle may code-split
+ * lazy chunks whose URL is resolved via import.meta.url (a syntax error in a
+ * classic script); matches `bpmnEditorUi`.
+ */
 export function dmnModelerHtml(
     webview: Webview,
     extensionUri: Uri,
@@ -72,9 +79,6 @@ export function dmnModelerHtml(
     const scriptUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.js"));
     const styleResetUri = webview.asWebviewUri(Uri.joinPath(extensionUri, "assets", "reset.css"));
     const styleUri = webview.asWebviewUri(Uri.joinPath(baseUri, "index.css"));
-    // Initial stylesheet is always light; the webview's `initTheme()` swaps it
-    // to `darkTheme.css` at runtime via the `#theme-link` element.
-    const themeUri = webview.asWebviewUri(Uri.joinPath(baseUri, "lightTheme.css"));
 
     const nonce = getNonce();
     const panelClass = initialPanelVisible
@@ -92,7 +96,6 @@ export function dmnModelerHtml(
 
                 <link href="${styleResetUri}" rel="stylesheet">
                 <link href="${styleUri}" rel="stylesheet" type="text/css" />
-                <link href="${themeUri}" rel="stylesheet" type="text/css" id="theme-link" />
 
                 <title>DMN Modeler</title>
             </head>
@@ -102,7 +105,7 @@ export function dmnModelerHtml(
                     <div id="js-panel-resizer" class="${resizerClass}"></div>
                     <div class="${panelClass}" id="js-properties-panel"${panelStyle}></div>
                 </div>
-                <script type="text/javascript" src="${scriptUri}" nonce="${nonce}"></script>
+                <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
             </body>
             </html>
         `;

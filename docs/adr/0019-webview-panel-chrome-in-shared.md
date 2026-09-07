@@ -10,6 +10,12 @@
 > resizer/focus/shortcut chrome this ADR is about — those stay private, as
 > decided here.
 
+> Amended by [ADR 0026](0026-dmn-container-scoped-theming.md): the DMN-only
+> `theme.ts` (`#theme-link` swap) that lived in `libs/shared` is deleted; the
+> shared VS Code `<body>`-class adapter now lives in
+> `libs/shared/src/lib/hostTheme.ts` and serves both webviews. It remains
+> private chrome in `libs/shared`, as decided here.
+
 ## Context
 
 The #1371 split sorted the old `shared` lib by one criterion: anything without

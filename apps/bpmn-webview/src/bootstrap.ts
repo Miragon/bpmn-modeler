@@ -73,7 +73,7 @@ import {
     applyPageThemeScope,
     createHostThemeAdapter,
     resolveHostThemeKind,
-} from "./hostTheme";
+} from "@miragon/bpmn-modeler-shared";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import { createModeler, UnsupportedEngineError } from "@miragon/bpmn-modeler";
@@ -517,7 +517,7 @@ function startSession(
         // born correct via `theme: resolveHostThemeKind()` below, so this mainly
         // covers the page chrome and later live theme switches.
         themeAdapter = createHostThemeAdapter((kind) => {
-            applyPageThemeScope(kind);
+            applyPageThemeScope("data-bpmn-theme", kind);
             // Route through the session so its stored theme stays current — a
             // later recreate then builds the next surface in the right theme.
             if (modeSession) {

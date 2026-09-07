@@ -19,7 +19,7 @@ Webview HTML is generated at runtime by functions in the infrastructure layer, n
 
 2. **Nonce generation** — A random nonce is generated per HTML render and embedded in both the CSP meta tag and script tags. Only scripts with the matching nonce can execute.
 
-3. **Theme** — The **BPMN** webview themes per-instance: the theme CSS ships inside the main `index.css` bundle and its host adapter (`apps/bpmn-webview/src/hostTheme.ts`) sets a `data-bpmn-theme` attribute from the VS Code body classes — no `#theme-link`. The **DMN** webview still loads `lightTheme.css` and swaps the `#theme-link` href at startup (dmn-js CSS is not in the package). See ADR 0012.
+3. **Theme** — Both webviews theme **per-instance**: the theme CSS ships inside the main `index.css` bundle and a shared host adapter (`libs/shared/src/lib/hostTheme.ts`) sets a per-package scope attribute (`data-bpmn-theme` / `data-dmn-theme`) from the VS Code body classes — no `#theme-link`. See ADR 0012 (BPMN) and ADR 0026 (DMN).
 
 ### Deployment Webview (`DeploymentWebviewHtml.ts`)
 
@@ -231,25 +231,20 @@ Both host adapters read these with
 `"vscode-high-contrast")` and install a `MutationObserver` on the body
 `class` attribute to re-apply the theme when the user switches it live.
 
-### BPMN: per-instance `data-bpmn-theme` attribute
+### Per-instance scope attribute (BPMN & DMN)
 
-The BPMN webview themes each modeler **instance** through `@miragon/bpmn-modeler`
-(ADR 0012). The theme CSS (unscoped light base + `[data-bpmn-theme="dark"]`-scoped
-dark overrides) is folded into the main `index.css` bundle, so there is no
-`#theme-link`. `apps/bpmn-webview/src/hostTheme.ts` resolves the IDE kind from the
-body classes and drives two sinks: the page-level scope on `<html>` (host chrome
-+ the viewer/diff branch) and the modeler instance's `setTheme`.
-
-### DMN: `#theme-link` stylesheet swap
-
-The DMN webview still ships two CSS files (`lightTheme.css`, `darkTheme.css`) and
-swaps them, because dmn-js theme CSS is not in the package. `libs/modeler-types/src/theme.ts`
-is the retained DMN-only adapter. On initialization:
-
-1. Read the body theme classes (`classList.contains("vscode-dark")` / `"vscode-high-contrast"`)
-2. Set the `#theme-link` element's `href` to the matching stylesheet
-3. The initial HTML always references `lightTheme.css`; the JS swaps if needed
-4. A `MutationObserver` on the body `class` attribute repeats the swap on live theme changes
+Both webviews theme each modeler **instance** through their package (ADR 0012 for
+BPMN, ADR 0026 for DMN). The theme CSS (unscoped light base +
+`[data-bpmn-theme="dark"]` / `[data-dmn-theme="dark"]`-scoped dark overrides) is
+folded into the main `index.css` bundle, so there is no `#theme-link`. The shared
+`libs/shared/src/lib/hostTheme.ts` adapter resolves the IDE kind from the body
+classes (`vscode-dark` / `vscode-high-contrast`, watched by a `MutationObserver`)
+and drives two sinks: the page-level scope on `<html>` (host chrome + surfaces
+with no live instance) and the modeler instance's `setTheme`. The scope attribute
+name is passed in per package (`applyPageThemeScope("data-dmn-theme", kind)`), so
+each package's CSS stays self-contained. The package still mirrors the resolved
+kind onto a legacy `#theme-link` when a consumer links one (a silent no-op
+otherwise).
 
 ### CSS Custom Properties
 

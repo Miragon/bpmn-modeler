@@ -30,7 +30,8 @@
         "packages/dmn-modeler/scripts/smoke-consumer.mjs",
         // Type declarations for the postcss plugin .mjs; reached only through
         // TS declaration resolution (sibling lookup), which knip does not track.
-        "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts"
+        "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
+        "packages/dmn-modeler/scripts/postcss-strip-theme-scope.d.mts"
     ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {

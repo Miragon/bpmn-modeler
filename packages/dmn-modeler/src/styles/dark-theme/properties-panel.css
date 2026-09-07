@@ -6,7 +6,7 @@
  * shared properties-panel package, so the two webviews stay in lockstep. */
 @import "./colors.css";
 
-:root .bio-properties-panel {
+[data-dmn-theme="dark"] .bio-properties-panel {
     --text-base-color: var(--dt-surface-a70);
     --text-error-color: var(--dt-color-red-a10);
     --link-color: var(--dt-color-blue-a50);
@@ -96,7 +96,7 @@
     --feelers-select-color: var(--dt-primary-a40);
 }
 
-.bio-properties-panel-popup {
+[data-dmn-theme="dark"] .bio-properties-panel-popup {
     --popup-background-color: var(--dt-surface-a20);
     --popup-header-background-color: var(--dt-surface-a10);
     --popup-font-color: var(--dt-surface-a70);
@@ -106,32 +106,32 @@
     --feel-popup-gutters-background-color: var(--dt-surface-a20);
 }
 
-.bio-properties-panel-container {
+[data-dmn-theme="dark"] .bio-properties-panel-container {
     background-color: var(--dt-surface-a10) !important;
 }
 
-.bio-properties-panel-textarea textarea,
-.bio-properties-panel-textfield input,
-.bio-properties-panel-numberfield input,
-.bio-properties-panel-feel-entry input,
-.bio-properties-panel-feel-entry textarea {
+[data-dmn-theme="dark"] .bio-properties-panel-textarea textarea,
+[data-dmn-theme="dark"] .bio-properties-panel-textfield input,
+[data-dmn-theme="dark"] .bio-properties-panel-numberfield input,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-entry input,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-entry textarea {
     color: var(--dt-surface-a60) !important;
 }
 
-.bio-properties-panel-textarea > textarea:focus,
-.bio-properties-panel-textfield > input:focus,
-.bio-properties-panel-numberfield > input:focus,
-.bio-properties-panel-feel-entry input:focus,
-.bio-properties-panel-feel-entry textarea:focus {
+[data-dmn-theme="dark"] .bio-properties-panel-textarea > textarea:focus,
+[data-dmn-theme="dark"] .bio-properties-panel-textfield > input:focus,
+[data-dmn-theme="dark"] .bio-properties-panel-numberfield > input:focus,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-entry input:focus,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-entry textarea:focus {
     color: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-checkbox > input[type="checkbox"] {
+[data-dmn-theme="dark"] .bio-properties-panel-checkbox > input[type="checkbox"] {
     accent-color: var(--dt-primary-a10) !important;
 }
 
-.bio-properties-panel-select-template-button,
-.bio-properties-panel-applied-template-button > button {
+[data-dmn-theme="dark"] .bio-properties-panel-select-template-button,
+[data-dmn-theme="dark"] .bio-properties-panel-applied-template-button > button {
     background-color: var(--dt-primary-a20) !important;
     color: var(--dt-surface-a20) !important;
     cursor: pointer;
@@ -141,16 +141,16 @@
     }
 }
 
-.bio-properties-panel-select-template-button:hover,
-.bio-properties-panel-applied-template-button > button:hover {
+[data-dmn-theme="dark"] .bio-properties-panel-select-template-button:hover,
+[data-dmn-theme="dark"] .bio-properties-panel-applied-template-button > button:hover {
     background-color: var(--dt-primary-a40) !important;
 }
 
-.bio-properties-panel-select > select {
+[data-dmn-theme="dark"] .bio-properties-panel-select > select {
     color: var(--dt-surface-a60) !important;
 }
 
-.bio-properties-panel-select > select:focus {
+[data-dmn-theme="dark"] .bio-properties-panel-select > select:focus {
     color: var(--dt-surface-a70) !important;
 }
 
@@ -160,58 +160,58 @@
  * used. Its syntax-highlight colors are unreadable on a dark background, so
  * override all text colors inside the editor.
  */
-.bio-properties-panel-feel-editor-container .cm-editor {
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor {
     color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-feel-editor-container .cm-editor .cm-cursor,
-.bio-properties-panel-feel-editor-container .cm-editor .cm-dropCursor,
-.bio-properties-panel-feel-editor-container .cm-editor .cm-content {
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-cursor,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-dropCursor,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-content {
     border-left-color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
 
 /* Open-popup icon — SVG path has no fill attribute, defaults to black */
-.bio-properties-panel-open-feel-popup svg {
+[data-dmn-theme="dark"] .bio-properties-panel-open-feel-popup svg {
     fill: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-feel-editor-container .cm-editor .cm-line,
-.bio-properties-panel-feel-editor-container .cm-editor .cm-line span {
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line span {
     color: inherit !important;
 }
 
 /* Autocomplete & tooltip popups */
-.cm-tooltip {
+[data-dmn-theme="dark"] .cm-tooltip {
     background-color: var(--dt-surface-a0) !important;
     border: 1px solid var(--dt-surface-a30) !important;
     color: var(--dt-surface-a70) !important;
 }
 
-.cm-tooltip-autocomplete > ul > li {
+[data-dmn-theme="dark"] .cm-tooltip-autocomplete > ul > li {
     color: var(--dt-surface-a60) !important;
 }
 
-.cm-tooltip-autocomplete > ul > li[aria-selected] {
+[data-dmn-theme="dark"] .cm-tooltip-autocomplete > ul > li[aria-selected] {
     background-color: var(--dt-primary-a0) !important;
     color: var(--dt-surface-a70) !important;
 }
 
 /* Completion info panel (function signature / examples) */
-.cm-completionInfo {
+[data-dmn-theme="dark"] .cm-completionInfo {
     background-color: var(--dt-surface-a0) !important;
     border: 1px solid var(--dt-surface-a30) !important;
     color: var(--dt-surface-a70) !important;
 }
 
 /* Diagnostics (lint errors/warnings) */
-.cm-diagnostic {
+[data-dmn-theme="dark"] .cm-diagnostic {
     background-color: var(--dt-surface-a0) !important;
     color: var(--dt-surface-a70) !important;
 }
 
-.bio-properties-panel-dropdown-button__menu {
+[data-dmn-theme="dark"] .bio-properties-panel-dropdown-button__menu {
     box-shadow: 0 1px 4px 0 var(--dt-surface-a40), 0 2px 16px 0 var(--dt-surface-a30) !important;
 
     button {

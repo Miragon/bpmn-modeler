@@ -39,18 +39,35 @@ const xml = await modeler.exportDiagram();
 
 ## Theming
 
-This release themes the **whole page** via a `#theme-link` stylesheet the
-consumer swaps between the light and dark variants:
+Theming is **per-instance** and needs no extra `<link>`: importing
+`@miragon/dmn-modeler/styles.css` (above) already ships both looks. The modeler
+toggles a `data-dmn-theme="light" | "dark"` attribute on its container and
+properties-panel parent, and the dark rules are scoped under
+`[data-dmn-theme="dark"]`, so two modelers on one page can hold different themes.
+`theme` defaults to `"automatic"` (follows `prefers-color-scheme` live); pass
+`theme: "light"` / `"dark"` to pin one, or call `modeler.setTheme(...)` later.
 
-```html
-<link id="theme-link" href="node_modules/@miragon/dmn-modeler/dist/lightTheme.css" rel="stylesheet" />
+```ts
+const modeler = await createModeler(canvas, {
+    propertiesPanel: { parent: panel },
+    theme: "automatic", // "automatic" (default) | "light" | "dark"
+});
 ```
 
-Toggle by swapping the `href` between `@miragon/dmn-modeler/light-theme.css` and
-`@miragon/dmn-modeler/dark-theme.css`. The `theme` / `locale` options and
-`setTheme()` are **reserved** — they are accepted so the API stays stable, but
-have no runtime effect yet. Per-instance, container-scoped theming is a
-follow-up.
+**Legacy `#theme-link` fallback.** If you still link a theme stylesheet tagged
+`id="theme-link"`, the modeler keeps swapping its href between
+`@miragon/dmn-modeler/light-theme.css` and `.../dark-theme.css` as before — a
+permanent, page-global compatibility path. It is optional; a missing
+`#theme-link` is a silent no-op. Because it is page-global, it cannot express
+per-instance themes — prefer the attribute mechanism (i.e. just `styles.css`).
+
+> Caveat: setting `data-dmn-theme` on a page **root** element (`<html>`) themes
+> everything below it. Mixing that with two instances that hold *different*
+> per-instance themes would let the root value leak; a single-instance page or
+> one that never sets the root attribute is unaffected.
+
+The `locale` option is **reserved** — it is accepted so the API stays stable,
+but has no runtime effect yet.
 
 ## Views
 
@@ -79,8 +96,9 @@ const eventBus = modeler.getService("eventBus");
 - **bpmn.io watermark.** dmn-js renders the bpmn.io logo. Per the bpmn.io
   license you must keep it visible unless you hold a commercial
   [bpmn.io license](https://bpmn.io/license/). Do not hide it in CSS.
-- **Theming and locale are page-global** in this release (`#theme-link` swap;
-  the i18n instance is a singleton).
+- **Locale is page-global** in this release (the i18n instance is a singleton);
+  theming is per-instance via the `data-dmn-theme` attribute (see
+  [Theming](#theming)).
 - **Bundler dedupe.** The modeler and its plugins must share single copies of
   `inferno` and the properties-panel / CodeMirror stack. If you build with Vite,
   add these to `resolve.dedupe`:

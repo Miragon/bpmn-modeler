@@ -9,7 +9,7 @@
  * the `--dt-*` scale, which is safe. */
 @import "./colors.css";
 
-.dmn-js-parent {
+[data-dmn-theme="dark"] .dmn-js-parent {
     --separator-color: var(--dt-surface-a30);
 
     --input-border-color: var(--dt-surface-a40);

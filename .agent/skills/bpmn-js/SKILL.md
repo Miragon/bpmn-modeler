@@ -165,11 +165,11 @@ The BPMN webview themes each modeler **instance** through `@miragon/bpmn-modeler
 (ADR 0012), not by swapping a page stylesheet. The theme CSS (unscoped light base
 + `[data-bpmn-theme="dark"]`-scoped dark overrides) ships inside the main bundle,
 and the package toggles a `data-bpmn-theme` attribute on the instance's container
-+ properties-panel parent. `apps/bpmn-webview/src/hostTheme.ts` resolves the IDE
-kind from the VS Code body classes (`vscode-dark` / `vscode-high-contrast`,
-watched by a `MutationObserver`) and drives both the page-level scope and the
-instance's `setTheme`. (DMN still swaps `lightTheme.css` / `darkTheme.css` via
-`#theme-link` — its dmn-js CSS is not in the package.)
++ properties-panel parent. The shared `libs/shared/src/lib/hostTheme.ts` adapter
+resolves the IDE kind from the VS Code body classes (`vscode-dark` /
+`vscode-high-contrast`, watched by a `MutationObserver`) and drives both the
+page-level scope and the instance's `setTheme`. (DMN uses the same mechanism
+through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — ADR 0026.)
 
 ## Key Files
 

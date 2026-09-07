@@ -10,5 +10,9 @@ export async function createModeler(
     options: DmnModelerOptions,
 ): Promise<DmnModelerHandle> {
     i18n.extend(i18nExtras);
-    return new DmnModeler(container, options);
+    const modeler = new DmnModeler(container, options);
+    // Always engage theming so the per-instance `data-dmn-theme` attribute is set
+    // from the first frame; `"automatic"` then follows `prefers-color-scheme`.
+    modeler.setTheme(options.theme ?? "automatic");
+    return modeler;
 }

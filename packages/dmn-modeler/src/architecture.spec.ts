@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, normalize } from "node:path";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -81,10 +82,11 @@ describe("dmn-modeler import direction", () => {
     });
 
     it("package TS source reads no VS Code `<body>` theme classes", () => {
-        // Theme is host policy: the package resolves light/dark from an injected
-        // mode or the legacy `#theme-link`, never by reading the host's chrome. A
-        // `vscode-*` body class in TS source would mean the watcher leaked back in.
-        // (CSS files legitimately style `body.vscode-dark`; this gate is TS-only.)
+        // Theme is host policy: the package resolves light/dark from
+        // `prefers-color-scheme` or an injected mode, never by reading the host's
+        // chrome. A `vscode-*` body class in TS source would mean the watcher
+        // leaked back in. (CSS files legitimately style `body.vscode-dark`; this
+        // gate is TS-only, matching listSourceFiles.)
         const VSCODE_CLASS = /vscode-(dark|light|high-contrast)/;
         const offenders: string[] = [];
         for (const file of listSourceFiles(PKG_SRC)) {
@@ -95,6 +97,30 @@ describe("dmn-modeler import direction", () => {
         expect(
             offenders,
             `package TS source must not read VS Code body theme classes:\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("every top-level dark-theme selector is scoped under data-dmn-theme", () => {
+        // The dark sheet is authored scoped so per-instance theming never leaks
+        // across instances (and the legacy split is derived by stripping the
+        // scope). A top-level rule that forgot the attribute would paint every
+        // instance dark. Nested rules are exempt — their parent carries the scope.
+        const DARK_DIR = join(PKG_SRC, "styles", "dark-theme");
+        const offenders: string[] = [];
+        for (const entry of readdirSync(DARK_DIR)) {
+            if (!entry.endsWith(".css")) continue;
+            const root = postcss.parse(readFileSync(join(DARK_DIR, entry), "utf8"));
+            root.walkRules((rule) => {
+                if (rule.parent?.type !== "root") return; // nested rule: parent scopes it
+                if (!rule.selector.includes("data-dmn-theme")) {
+                    offenders.push(`${entry}: ${rule.selector}`);
+                }
+            });
+        }
+        expect(
+            offenders,
+            `every top-level dark-theme rule must be scoped under ` +
+                `[data-dmn-theme="dark"]:\n${offenders.join("\n")}`,
         ).toEqual([]);
     });
 

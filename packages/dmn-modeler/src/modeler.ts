@@ -9,6 +9,7 @@ import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
 import { observeCanvasSize, type ResizableCanvas } from "@miragon/bpmn-modeler-types";
 
+import { ThemeController } from "./theme";
 import type {
     DmnModelerHandle,
     DmnModelerOptions,
@@ -54,8 +55,12 @@ export class DmnModeler implements DmnModelerHandle {
     private activeEventBus?: EventBus;
     private destroyed = false;
 
+    // Per-instance theme controller, created lazily on the first setTheme. Scopes
+    // `data-dmn-theme` to this instance's container + panel parent.
+    private themeController?: ThemeController;
+
     constructor(
-        container: HTMLElement,
+        private readonly container: HTMLElement,
         private readonly options: DmnModelerOptions,
     ) {
         const additionalModules = options.additionalModules ?? {};
@@ -63,7 +68,12 @@ export class DmnModeler implements DmnModelerHandle {
         this.modeler = new VendorDmnModeler({
             container,
             drd: {
-                propertiesPanel: options.propertiesPanel,
+                propertiesPanel: {
+                    ...options.propertiesPanel,
+                    // The FEEL popup defaults to document.body, outside this
+                    // instance's `data-dmn-theme` scope; mount it in the container.
+                    feelPopupContainer: container,
+                },
                 additionalModules: [
                     DmnPropertiesPanelModule,
                     DmnPropertiesProviderModule,
@@ -166,8 +176,15 @@ export class DmnModeler implements DmnModelerHandle {
         return this.getActiveFocusableCanvas()?.isFocused() ?? false;
     }
 
-    setTheme(_theme: DmnThemeMode): void {
+    setTheme(theme: DmnThemeMode): void {
         this.assertLive();
+        if (!this.themeController) {
+            this.themeController = new ThemeController([
+                this.container,
+                this.options.propertiesPanel.parent,
+            ]);
+        }
+        this.themeController.setMode(theme);
     }
 
     getService<T = unknown>(name: string): T {
@@ -184,6 +201,7 @@ export class DmnModeler implements DmnModelerHandle {
             return;
         }
         this.destroyed = true;
+        this.themeController?.dispose();
         this.modeler.off("views.changed", this.handleViewsChanged);
         this.unbindCommandStack();
         this.stopObservingSize();

@@ -10,7 +10,7 @@
  * grid reads without the harsh bright lines a literal inversion would give. */
 @import "./colors.css";
 
-.dmn-decision-table-container {
+[data-dmn-theme="dark"] .dmn-decision-table-container {
     --action-icon-color: var(--dt-color-blue-a50);
     --action-icon-background-color: transparent;
     --action-icon-hover-background-color: var(--dt-color-blue-a50);
@@ -77,11 +77,11 @@
 }
 
 /* The focused context-menu entry hardcodes `--color-grey-225-10-95`. */
-.dmn-decision-table-container .context-menu-group-entry.focused {
+[data-dmn-theme="dark"] .dmn-decision-table-container .context-menu-group-entry.focused {
     background-color: var(--dt-surface-a20);
 }
 
 /* The cell-description corner triangle hardcodes `--color-black`. */
-.dmn-decision-table-container .description-indicator {
+[data-dmn-theme="dark"] .dmn-decision-table-container .description-indicator {
     border-bottom-color: var(--dt-surface-a60);
 }
