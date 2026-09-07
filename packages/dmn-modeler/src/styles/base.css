@@ -1,7 +1,8 @@
-/* dmn-js light theme — the modeler's stock stylesheets, unmodified.
+/* dmn-js base stylesheets — the modeler's stock sheets, unmodified.
  *
- * These imports live here (not in main.ts) so the bundle can swap the whole
- * sheet for the dark variant at runtime via the `#theme-link` element. */
+ * Shipped as `@miragon/dmn-modeler/styles.css` (a consumer needs them to render
+ * at all) and re-imported by both the light and dark theme entries so the stock
+ * list lives in exactly one place. */
 @import "dmn-js/dist/assets/diagram-js.css";
 @import "dmn-js/dist/assets/dmn-js-decision-table.css";
 @import "dmn-js/dist/assets/dmn-js-decision-table-controls.css";

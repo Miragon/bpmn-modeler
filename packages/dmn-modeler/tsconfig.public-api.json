@@ -4,6 +4,6 @@
     "types": [],
     "skipLibCheck": false
   },
-  "files": ["src/app/publicApi.ts"],
+  "files": ["src/publicApi.ts"],
   "include": []
 }
