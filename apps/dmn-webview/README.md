@@ -9,6 +9,10 @@ literal expressions) that runs inside the VS Code webview hosted by
 host via the typed Query/Command protocol from
 [`libs/shared`](../../libs/shared/README.md).
 
+The host-free modeler facade now lives in the publishable
+[`packages/dmn-modeler`](../../packages/dmn-modeler/README.md); this app is the
+thin host adapter that consumes it.
+
 ## Local development
 
 From the repo root:

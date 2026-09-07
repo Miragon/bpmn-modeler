@@ -183,6 +183,7 @@ module.exports = [
             "libs/model-navigation/**",
             "libs/flow-navigation/**",
             "packages/bpmn-modeler/**",
+            "packages/dmn-modeler/**",
             "apps/dmn-webview/src/app/**",
         ],
         // Host-adapter layer inside dmn `app/` still speaks the protocol; it is

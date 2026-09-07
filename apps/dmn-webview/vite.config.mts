@@ -35,8 +35,14 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 index: resolve(__dirname, "src/main.ts"),
-                lightTheme: resolve(__dirname, "src/styles/light-theme/index.css"),
-                darkTheme: resolve(__dirname, "src/styles/dark-theme/index.css"),
+                lightTheme: resolve(
+                    __dirname,
+                    "../../packages/dmn-modeler/src/styles/light-theme/index.css",
+                ),
+                darkTheme: resolve(
+                    __dirname,
+                    "../../packages/dmn-modeler/src/styles/dark-theme/index.css",
+                ),
             },
             output: {
                 entryFileNames: `[name].js`,

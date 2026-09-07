@@ -10,8 +10,9 @@
         "docs"
     ],
     "scripts": {
-        "build": "npm-run-all -s build:libs -p build:bpmn-modeler build:bpmn-webview build:dmn-webview build:form-webview build:deployment-webview -s build:plugin",
+        "build": "npm-run-all -s build:libs -p build:bpmn-modeler build:dmn-modeler build:bpmn-webview build:dmn-webview build:form-webview build:deployment-webview -s build:plugin",
         "build:bpmn-modeler": "corepack yarn workspace @miragon/bpmn-modeler build",
+        "build:dmn-modeler": "corepack yarn workspace @miragon/dmn-modeler build",
         "build:libs": "npm-run-all build:lib:diff build:lib:types build:lib:shared build:lib:modeler-core",
         "build:lib:diff": "corepack yarn workspace @miragon/bpmn-modeler-diff build",
         "build:lib:types": "corepack yarn workspace @miragon/bpmn-modeler-types build",

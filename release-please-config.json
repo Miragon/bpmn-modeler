@@ -44,6 +44,7 @@
         "libs/standalone-extension",
         "netlify.toml",
         "package.json",
+        "packages/dmn-modeler",
         "portless.json",
         "release-please-config.json",
         "resources",

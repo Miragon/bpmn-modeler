@@ -9,6 +9,7 @@ export default defineConfig({
             "apps/dmn-webview",
             "apps/form-webview",
             "packages/bpmn-modeler",
+            "packages/dmn-modeler",
             "libs/append-menu",
             "libs/bpmn-i18n-extras",
             "libs/code-link",
