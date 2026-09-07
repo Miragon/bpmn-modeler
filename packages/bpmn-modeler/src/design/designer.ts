@@ -33,6 +33,10 @@ import {
 } from "../viewState";
 import { installKeyboardFocus } from "../keyboardFocus";
 import { installCanvasFocusIndicator } from "../canvasFocusIndicator";
+import { buildLintModules } from "../lintModules";
+import { createLintHandleMethods, type LintHandleMethods } from "../lintHandle";
+import type { LintConfigService } from "../bpmnlint/LintConfigService";
+import type { BpmnlintConfig, LintResults } from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
@@ -47,9 +51,11 @@ import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
  * (translate, append menu, flow navigation) and the mode-invariant canvas
  * chrome every surface shares (minimap, token simulation, keyboard focus —
  * ADR 0022). It loads none of the Camunda editing stack (camunda-bpmn-js,
- * element templates, transaction boundaries, lint), so it never carries an
- * execution platform — the absence of `modeler:executionPlatform` on the model
- * is exactly the mode marker a host routes on.
+ * element templates, transaction boundaries), so it never carries an execution
+ * platform — the absence of `modeler:executionPlatform` on the model is exactly
+ * the mode marker a host routes on. Linting is injection-only (ADR 0023): the
+ * lint stack loads only when the host hands in a `module`, and resolves the
+ * engine-neutral Design config.
  *
  * Per-instance by construction: bound to its own `container` and
  * `propertiesPanel.parent`, so several surfaces can coexist on a page. Use
@@ -217,6 +223,20 @@ export class BpmnDesigner {
                 // Engine-neutral: simulates plain BPMN control flow, no Camunda
                 // stack behind it (ADR 0022).
                 TokenSimulationModule,
+                // Injection-only lint tier (ADR 0023): empty unless the host hands
+                // in a `module` from `@miragon/bpmn-modeler/lint`. `mode: "design"`
+                // + `engine: undefined` resolves the engine-neutral Design config.
+                // `nudgeWhenOmitted: false` — the designer never linted implicitly,
+                // so an omitted option has nothing to migrate.
+                ...buildLintModules(
+                    this.options.linting,
+                    { engine: undefined, mode: "design" },
+                    {
+                        onLintResults: this.options.onLintResults,
+                        onLintingToggled: this.options.onLintingToggled,
+                    },
+                    { nudgeWhenOmitted: false },
+                ),
                 ...capModules,
                 NativeCopyPasteModule,
                 ...clipModules,
@@ -373,6 +393,42 @@ export class BpmnDesigner {
     getService<T = unknown>(name: string): T;
     getService(name: string): any {
         return this.getModeler().get(name);
+    }
+
+    /**
+     * Feeds host-computed lint results to the in-canvas overlays (external tier).
+     * A no-op with a warning when the designer was created without a lint module.
+     */
+    applyLintResults(results: LintResults | null): void {
+        this.lintHandle().applyLintResults(results);
+    }
+
+    /**
+     * Renders the host's user-disabled lint state (external tier). A no-op with a
+     * warning when the designer was created without a lint module.
+     */
+    applyLintingDisabled(): void {
+        this.lintHandle().applyLintingDisabled();
+    }
+
+    /**
+     * Starts (or restarts) the in-page linter on host instruction. A no-op with a
+     * warning when the designer was created without a lint module.
+     */
+    startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
+        this.lintHandle().startInPageLinting(config, configToken);
+    }
+
+    /**
+     * The shared lint handle methods over this instance's defensively-resolved
+     * {@link LintConfigService} (absent unless a lint module was injected). The
+     * same helper the root modeler composes, so the two surfaces stay in lockstep.
+     */
+    private lintHandle(): LintHandleMethods {
+        return createLintHandleMethods(
+            () => this.getModeler().get<LintConfigService>("bpmnLintConfig", false) ?? undefined,
+            (message) => console.warn(message),
+        );
     }
 
     /**

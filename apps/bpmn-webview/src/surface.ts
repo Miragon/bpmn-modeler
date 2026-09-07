@@ -27,3 +27,13 @@ export function isEditableHandle(
 ): handle is BpmnModeler | BpmnDesignerHandle {
     return "newDiagram" in handle;
 }
+
+/**
+ * Narrows to a surface that carries the lint handle methods (modeler or
+ * designer); the readonly viewer has none. Both editable surfaces share the same
+ * injection-only lint seam (ADR 0023), so lint queries and the config request
+ * gate on this rather than {@link isModelerHandle}.
+ */
+export function isLintingHandle(handle: SurfaceHandle): handle is BpmnModeler | BpmnDesignerHandle {
+    return "applyLintResults" in handle;
+}

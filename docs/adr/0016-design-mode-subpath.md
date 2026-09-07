@@ -13,6 +13,14 @@
 > surface, so the designer registers it and the purity gate
 > (`check-design-pure-entry.mjs` + `architecture.spec.ts`) allows it. Every
 > "token simulation" entry in the forbidden lists below is superseded.
+>
+> Amended by [ADR 0023](0023-mode-aware-linting.md): linting is no longer gated
+> out of `/design`. It is available on the same injection-only seam as the root
+> (omitted/`false` = no lint bytes), resolving the engine-neutral Design config;
+> the designer gains `onLintResults`/`onLintingToggled` and the three lint handle
+> methods. The lint stack stays out of the design *chunk* (the resolver lives in
+> `/lint`), so the purity gates are unaffected — "lint stack" stays in the
+> forbidden set below.
 
 Roadmap step 7 — the last — of the bpm-iq embeddability epic (#1409), building on the subpath-injection precedent [ADR 0013](0013-injectable-lint-stack.md)
 for `/lint`, the readonly-surface precedent

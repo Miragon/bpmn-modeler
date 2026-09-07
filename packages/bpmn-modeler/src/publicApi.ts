@@ -18,6 +18,10 @@ import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 // LintConfigService import), so referencing the lint module's types here never
 // pulls the lint stack into the main bundle.
 import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
+// Type-only — erased at build (same contract as the LintConfigService import),
+// so the lint config types cross into the main entry without pulling the lint
+// stack into the main bundle.
+import type { LintConfigOption } from "./bpmnlint/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
@@ -26,6 +30,7 @@ import type { ViewState } from "./viewState";
 import type { ModelerMode } from "./mode";
 
 export type { ModelerMode } from "./mode";
+export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigResolution";
 
 /**
  * The public TypeScript surface of the `@miragon/bpmn-modeler` package:
@@ -91,8 +96,12 @@ export interface LintModule {
  *
  * - *(omitted)* — linting off, with a one-time `console.info` migration nudge.
  * - `false` — linting off entirely (no chip, no overlay), silent and explicit.
- * - `{ module, config? }` — in-page linting with the injected {@link LintModule},
- *   using the default or a caller-supplied {@link BpmnlintConfig}; rules the
+ * - `{ module, config? }` — in-page linting with the injected {@link LintModule}.
+ *   `config` is either the per-mode zero-config default (omitted), a single
+ *   {@link BpmnlintConfig} applied verbatim in both modes, or a
+ *   {@link LintConfigByMode} map to lint Design and Implement differently on one
+ *   instance (re-resolved on {@link BpmnModelerHandle.setMode}). The mode default
+ *   drops the Camunda engine layer in Design and keeps it in Implement. Rules the
  *   bundled resolver cannot resolve degrade gracefully and are reported via
  *   {@link LintRunEvent.unresolved} rather than failing the pass.
  * - `{ module, results: "external" }` — the modeler renders results the host
@@ -107,7 +116,7 @@ export interface LintModule {
  */
 export type LintingOptions =
     | false
-    | { module: LintModule; config?: BpmnlintConfig; results?: never }
+    | { module: LintModule; config?: LintConfigOption; results?: never }
     | { module: LintModule; results: "external" };
 
 /**

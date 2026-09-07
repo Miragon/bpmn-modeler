@@ -13,6 +13,11 @@
 > longer hides the token-simulation toggle nor stops a running simulation on
 > entry — the CSS rule and the `stopTokenSimulation` port are gone. Design
 > hides only the element-template chrome.
+>
+> Amended by [ADR 0023](0023-mode-aware-linting.md): a mode toggle is no longer
+> purely presentational — it also re-resolves the in-page lint config (Design
+> drops the Camunda engine layer). `ModePorts` gains a `setLintMode` port, called
+> between the attribute stamp and `onModeChanged`.
 
 Part of the "one document, three modes" epic (#1438), roadmap step 4, building on
 the engine-neutral properties-panel lib [ADR 0017](0017-engine-neutral-properties-panel-lib.md),

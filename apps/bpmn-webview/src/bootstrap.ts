@@ -91,7 +91,7 @@ import type { WebviewState } from "./webviewState";
 import { DiffMode } from "./diffMode";
 import { installHostEditorActions } from "./hostEditorActions";
 import { readSavedMode, readSavedPanelVisibility, WebviewStateManager } from "./state";
-import { isEditableHandle, isModelerHandle, type SurfaceHandle } from "./surface";
+import { isEditableHandle, isLintingHandle, isModelerHandle, type SurfaceHandle } from "./surface";
 import "../../../packages/bpmn-modeler/src/styles/mode.css";
 
 /**
@@ -668,14 +668,46 @@ function startSession(
 
         const focusCanvas = (): void => surface.getService<{ focus(): void }>("canvas").focus();
 
+        // The shared lint options for both editable surfaces (Implement + Design):
+        // the injected tier or the external default a real host uses, plus the
+        // result/toggle sinks that feed the host's Problems panel + status bar
+        // (ADR 0023). The designer resolves the engine-neutral Design config; the
+        // modeler re-resolves per mode on a live toggle. `/lint` is imported lazily
+        // and cached, so building this per (re)creation is free after the first.
+        async function lintingOptions(): Promise<{
+            linting: LintingOptions;
+            onLintResults: (event: LintRunEvent) => void;
+            onLintingToggled: (enabled: boolean) => void;
+        }> {
+            return {
+                linting: injectedLinting ?? {
+                    results: "external",
+                    module: await import("@miragon/bpmn-modeler/lint"),
+                },
+                onLintResults:
+                    injectedOnLintResults ??
+                    ((e: LintRunEvent) =>
+                        host.postMessage(
+                            new UpdateLintResultsCommand(
+                                e.results,
+                                [...e.unresolved],
+                                currentLintConfigToken,
+                            ),
+                        )),
+                onLintingToggled: (enabled: boolean) =>
+                    host.postMessage(new SetLintingEnabledCommand(enabled)),
+            };
+        }
+
         // The three surface factories the mode session switches between. View →
         // readonly viewer; Design on an untagged model → the engine-neutral
         // designer; Design/Implement on a tagged model → one createModeler whose
         // `mode` toggles live. Every surface is born in the IDE's forced theme so
         // the first frame paints correctly (the body class is the IDE signal, not
-        // "automatic"). Real hosts run the linter themselves and push results, so
-        // the modeler's default tier is external (the `/lint` subpath is imported
-        // lazily; the module cache makes repeat switches free).
+        // "automatic"). Both editable surfaces share `lintingOptions()`: real
+        // hosts run the linter themselves and push results, so the default tier is
+        // external (the `/lint` subpath is imported lazily; the module cache makes
+        // repeat switches free).
         const surfaces: SurfaceFactories = {
             view: ({ container, theme }) =>
                 createViewer(container, {
@@ -684,13 +716,14 @@ function startSession(
                     capabilities: { modelNavigation: capabilities.modelNavigation },
                     additionalModules: extraModules,
                 }),
-            design: ({ container, theme }) =>
+            design: async ({ container, theme }) =>
                 createDesigner(container, {
                     theme,
                     propertiesPanel: { parent: mountEl },
                     clipboard,
                     capabilities: { modelNavigation: capabilities.modelNavigation },
                     additionalModules: extraModules,
+                    ...(await lintingOptions()),
                 }),
             implement: async ({ container, theme, mode, engine: ctxEngine }) => {
                 if (ctxEngine === undefined) {
@@ -707,22 +740,7 @@ function startSession(
                     additionalModules: extraModules,
                     clipboard,
                     capabilities,
-                    linting: injectedLinting ?? {
-                        results: "external",
-                        module: await import("@miragon/bpmn-modeler/lint"),
-                    },
-                    onLintResults:
-                        injectedOnLintResults ??
-                        ((e: LintRunEvent) =>
-                            host.postMessage(
-                                new UpdateLintResultsCommand(
-                                    e.results,
-                                    [...e.unresolved],
-                                    currentLintConfigToken,
-                                ),
-                            )),
-                    onLintingToggled: (enabled: boolean) =>
-                        host.postMessage(new SetLintingEnabledCommand(enabled)),
+                    ...(await lintingOptions()),
                     onWarning: (warning: string) =>
                         host.postMessage(new LogWarningCommand(warning)),
                     onElementTemplatesErrors: (errors: unknown[]) => {
@@ -799,16 +817,20 @@ function startSession(
             });
         }
 
-        // Templates + lint config are modeler-only; a viewer/designer never
-        // receives them, so its ElementTemplatesQuery would never arrive and the
-        // restore chain's Promise.all would stall — resolve the templates gate
-        // immediately instead.
+        // Element templates are modeler-only; a viewer/designer never receives
+        // them, so its ElementTemplatesQuery would never arrive and the restore
+        // chain's Promise.all would stall — resolve the templates gate immediately
+        // instead. The lint config request goes to any editable (linting) surface:
+        // the designer lints too (ADR 0023), and the host answers an untagged doc
+        // with the engine-less default the webview builds.
         function requestSurfaceResources(): void {
             if (isModelerHandle(surface)) {
                 host.postMessage(new GetElementTemplatesCommand());
-                host.postMessage(new GetBpmnlintConfigCommand());
             } else {
                 elementTemplatesResolver.done(undefined);
+            }
+            if (isLintingHandle(surface)) {
+                host.postMessage(new GetBpmnlintConfigCommand());
             }
         }
 
@@ -1181,7 +1203,7 @@ function startSession(
             case queryOrCommand.type === "BpmnlintResultsQuery": {
                 try {
                     const query = message.data as BpmnlintResultsQuery;
-                    if (isModelerHandle(surface)) {
+                    if (isLintingHandle(surface)) {
                         surface.applyLintResults(query.results);
                     }
                 } catch (error: any) {
@@ -1191,7 +1213,7 @@ function startSession(
             }
             case queryOrCommand.type === "BpmnLintDisabledQuery": {
                 try {
-                    if (isModelerHandle(surface)) {
+                    if (isLintingHandle(surface)) {
                         surface.applyLintingDisabled();
                     }
                 } catch (error: any) {
@@ -1207,10 +1229,11 @@ function startSession(
                     // where the tier state is known, so a stale token from an
                     // intervening disabled push cannot drop a re-enable.
                     currentLintConfigToken = q.configToken;
-                    // No workspace config → engine-aware default; a covered config
-                    // → lint it in-page. Either way onLintResults pushes the
-                    // findings back so the host feeds its Problems panel + status bar.
-                    if (isModelerHandle(surface)) {
+                    // No workspace config → the surface's mode default (engine-aware
+                    // in Implement, engine-neutral in Design); a covered config →
+                    // lint it in-page. Either way onLintResults pushes the findings
+                    // back so the host feeds its Problems panel + status bar.
+                    if (isLintingHandle(surface)) {
                         surface.startInPageLinting(q.config, q.configToken);
                     }
                 } catch (error: any) {

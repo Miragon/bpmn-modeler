@@ -1,5 +1,6 @@
 import type { Engine } from "@miragon/bpmn-modeler-types";
 import type { LintCallbacks } from "./bpmnlint/LintConfigService";
+import type { ModelerMode } from "./mode";
 import type { LintingOptions } from "./publicApi";
 
 // Fires at most once per page: an omitted `linting` used to enable in-page
@@ -12,19 +13,23 @@ let migrationNoticeShown = false;
  * by the package; the host owns the `@miragon/bpmn-modeler/lint` import.
  *
  * - `undefined` — no module, plus a one-time `console.info` migration nudge (an
- *   omitted `linting` enabled in-page linting before injection).
+ *   omitted `linting` enabled in-page linting before injection) — only when
+ *   `nudgeWhenOmitted` (the root modeler); the `/design` surface passes `false`
+ *   because it never enabled linting implicitly, so there is nothing to migrate.
  * - `false` — no module, silent.
- * - `{ module, config? }` — one in-page module carrying the engine + config.
+ * - `{ module, config? }` — one in-page module carrying the mode (+ optional
+ *   engine and per-mode config) the {@link LintConfigService} resolves against.
  * - `{ module, results: "external" }` — one external module (no config); it
  *   paints host-pushed results and services the `startInPageLinting` handback.
  */
 export function buildLintModules(
     linting: LintingOptions | undefined,
-    engine: Engine,
+    init: { engine?: Engine; mode: ModelerMode },
     callbacks: LintCallbacks,
+    opts: { nudgeWhenOmitted?: boolean } = {},
 ): unknown[] {
     if (linting === undefined) {
-        if (!migrationNoticeShown) {
+        if ((opts.nudgeWhenOmitted ?? true) && !migrationNoticeShown) {
             migrationNoticeShown = true;
             console.info(
                 "@miragon/bpmn-modeler: linting is off because no lint module was supplied. " +
@@ -47,5 +52,10 @@ export function buildLintModules(
     } else {
         config = linting.config;
     }
-    return [linting.module.createLintModule({ tier, engine, config }, callbacks)];
+    return [
+        linting.module.createLintModule(
+            { tier, engine: init.engine, mode: init.mode, config },
+            callbacks,
+        ),
+    ];
 }

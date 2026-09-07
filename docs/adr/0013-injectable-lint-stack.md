@@ -4,6 +4,11 @@
 - Date: 2026-09-01
 - Category: bpmn-webview
 
+> Amended by [ADR 0023](0023-mode-aware-linting.md): the same injection seam now
+> serves `/design`, and `LintingOptions.config` accepts a per-mode
+> `{ design?, implement? }` map resolved against the surface's mode (Design drops
+> the Camunda engine layer). A live `setMode` re-resolves the in-page config.
+
 Roadmap step 5 of the bpm-iq embeddability epic (#1409). The first step toward a
 subpath-injection pattern that the viewer (#1405, `/viewer`) and design (#1196,
 `/design`) surfaces build on.

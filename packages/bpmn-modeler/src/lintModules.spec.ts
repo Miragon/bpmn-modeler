@@ -32,49 +32,94 @@ describe("buildLintModules", () => {
         // The once-guard is module-level, so the first `undefined` in the whole
         // run is the only one that fires; assert the return, not the call count
         // (another spec in the file may have consumed the guard already).
-        expect(buildLintModules(undefined, "c7", CALLBACKS)).toEqual([]);
+        expect(buildLintModules(undefined, { engine: "c7", mode: "implement" }, CALLBACKS)).toEqual(
+            [],
+        );
         // Re-invoking never registers a module regardless of the guard state.
-        expect(buildLintModules(undefined, "c7", CALLBACKS)).toEqual([]);
+        expect(buildLintModules(undefined, { engine: "c7", mode: "implement" }, CALLBACKS)).toEqual(
+            [],
+        );
     });
 
     it("fires the migration nudge at most once across calls", () => {
         const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
-        buildLintModules(undefined, "c7", CALLBACKS);
-        buildLintModules(undefined, "c8", CALLBACKS);
+        buildLintModules(undefined, { engine: "c7", mode: "implement" }, CALLBACKS);
+        buildLintModules(undefined, { engine: "c8", mode: "implement" }, CALLBACKS);
         // Zero or one, never two — the guard may have been tripped by an earlier
         // spec, but a second call in this test must not re-fire.
         expect(info.mock.calls.length).toBeLessThanOrEqual(1);
     });
 
-    it("returns no modules for linting: false without nudging", () => {
+    it("suppresses the migration nudge when nudgeWhenOmitted is false (the designer)", () => {
         const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
-        expect(buildLintModules(false, "c7", CALLBACKS)).toEqual([]);
+        expect(
+            buildLintModules(undefined, { engine: undefined, mode: "design" }, CALLBACKS, {
+                nudgeWhenOmitted: false,
+            }),
+        ).toEqual([]);
         expect(info).not.toHaveBeenCalled();
     });
 
-    it("builds one in-page module forwarding engine, config, and callbacks", () => {
+    it("returns no modules for linting: false without nudging", () => {
+        const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+        expect(buildLintModules(false, { engine: "c7", mode: "implement" }, CALLBACKS)).toEqual([]);
+        expect(info).not.toHaveBeenCalled();
+    });
+
+    it("builds one in-page module forwarding engine, mode, config, and callbacks", () => {
         const { module, calls } = stubModule();
         const config: BpmnlintConfig = { rules: { "label-required": "warn" } };
-        const result = buildLintModules({ module, config }, "c7", CALLBACKS);
+        const result = buildLintModules(
+            { module, config },
+            { engine: "c7", mode: "implement" },
+            CALLBACKS,
+        );
 
         expect(result).toHaveLength(1);
         expect(calls).toHaveLength(1);
         const [tier, callbacks] = calls[0];
-        expect(tier).toEqual({ tier: "in-page", engine: "c7", config });
+        expect(tier).toEqual({ tier: "in-page", engine: "c7", mode: "implement", config });
         expect(callbacks).toBe(CALLBACKS);
+    });
+
+    it("forwards the design mode with an undefined engine (the designer)", () => {
+        const { module, calls } = stubModule();
+        buildLintModules({ module }, { engine: undefined, mode: "design" }, CALLBACKS, {
+            nudgeWhenOmitted: false,
+        });
+        expect(calls[0][0]).toEqual({
+            tier: "in-page",
+            engine: undefined,
+            mode: "design",
+            config: undefined,
+        });
     });
 
     it("defaults an in-page module to no config when none is supplied", () => {
         const { module, calls } = stubModule();
-        buildLintModules({ module }, "c8", CALLBACKS);
-        expect(calls[0][0]).toEqual({ tier: "in-page", engine: "c8", config: undefined });
+        buildLintModules({ module }, { engine: "c8", mode: "implement" }, CALLBACKS);
+        expect(calls[0][0]).toEqual({
+            tier: "in-page",
+            engine: "c8",
+            mode: "implement",
+            config: undefined,
+        });
     });
 
     it("builds one external module with no config", () => {
         const { module, calls } = stubModule();
-        const result = buildLintModules({ module, results: "external" }, "c8", CALLBACKS);
+        const result = buildLintModules(
+            { module, results: "external" },
+            { engine: "c8", mode: "implement" },
+            CALLBACKS,
+        );
 
         expect(result).toHaveLength(1);
-        expect(calls[0][0]).toEqual({ tier: "external", engine: "c8", config: undefined });
+        expect(calls[0][0]).toEqual({
+            tier: "external",
+            engine: "c8",
+            mode: "implement",
+            config: undefined,
+        });
     });
 });

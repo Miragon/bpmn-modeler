@@ -18,6 +18,7 @@ function createPorts(initial: ModelerMode) {
             calls.push(`setFilterMode:${mode}`);
         },
         setModeAttribute: (mode) => calls.push(`setModeAttribute:${mode}`),
+        setLintMode: (mode) => calls.push(`setLintMode:${mode}`),
         onModeChanged,
     };
     return { ports, calls, onModeChanged, getFilterMode: () => filterMode };
@@ -42,18 +43,26 @@ describe("applyMode", () => {
         expect(onModeChanged).not.toHaveBeenCalled();
     });
 
-    it("entering design flips the filter, stamps, then notifies", () => {
+    it("entering design flips the filter, stamps, re-resolves lint, then notifies", () => {
         const { ports, calls, onModeChanged } = createPorts("implement");
         applyMode(ports, "design");
-        expect(calls).toEqual(["setFilterMode:design", "setModeAttribute:design"]);
+        expect(calls).toEqual([
+            "setFilterMode:design",
+            "setModeAttribute:design",
+            "setLintMode:design",
+        ]);
         expect(onModeChanged).toHaveBeenCalledTimes(1);
         expect(onModeChanged).toHaveBeenCalledWith("design");
     });
 
-    it("entering implement flips the filter and stamps, then notifies", () => {
+    it("entering implement flips the filter, stamps, re-resolves lint, then notifies", () => {
         const { ports, calls, onModeChanged } = createPorts("design");
         applyMode(ports, "implement");
-        expect(calls).toEqual(["setFilterMode:implement", "setModeAttribute:implement"]);
+        expect(calls).toEqual([
+            "setFilterMode:implement",
+            "setModeAttribute:implement",
+            "setLintMode:implement",
+        ]);
         expect(onModeChanged).toHaveBeenCalledTimes(1);
         expect(onModeChanged).toHaveBeenCalledWith("implement");
     });

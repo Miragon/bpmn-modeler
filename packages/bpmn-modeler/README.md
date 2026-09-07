@@ -151,8 +151,24 @@ reachable internal dynamic import can no longer be tree-shaken.
 | --- | --- | --- |
 | *(omitted)* | none | Off, with a one-time `console.info` migration nudge. |
 | `false` | none | Off entirely — no chip, no overlay. Silent and explicit. |
-| `{ module, config? }` | via your `/lint` import | On, with the default or a caller-supplied `BpmnlintConfig`. Rules the bundled resolver cannot resolve degrade gracefully and are reported via `LintRunEvent.unresolved` rather than failing the pass. |
+| `{ module, config? }` | via your `/lint` import | On, with the per-mode default or a caller-supplied config. Rules the bundled resolver cannot resolve degrade gracefully and are reported via `LintRunEvent.unresolved` rather than failing the pass. |
 | `{ module, results: "external" }` | via your `/lint` import | The modeler only *paints* results the host computes and pushes through `handle.applyLintResults(...)`; no in-webview linter runs. `module` is still required — the external tier needs it to paint and to service a `startInPageLinting` handback. |
+
+### Config & mode
+
+`config` is either a single `BpmnlintConfig` (applied verbatim in both modes) or
+a `{ design?, implement? }` map, so one instance can lint Design and Implement
+differently — the map is re-resolved on every `setMode`. Omitting `config`
+selects the **per-mode default**:
+
+| Mode | Default config |
+| --- | --- |
+| `implement` | `getDefaultLintConfig({ engine, preset: "modeling" })` — structural + Miragon modeling layer **plus** the Camunda deployability layer for `engine`. |
+| `design` | `getDefaultLintConfig({ preset: "modeling" })` — the same base **without** the engine layer (the engine-neutral surface has no execution platform to check). |
+
+A **workspace `.bpmnlintrc`** a host hands back through `startInPageLinting` is
+mode-invariant: it applies to both modes unchanged, and a `setMode` while it is
+active only stores the new mode. See [ADR 0023](../../docs/adr/0023-mode-aware-linting.md).
 
 ```ts
 import { createModeler } from "@miragon/bpmn-modeler";
@@ -355,11 +371,15 @@ modeler.getMode();            // "implement"
 
 `"design"` reduces the properties panel to its engine-neutral surface (neutral +
 host [custom groups](#surviving-design-mode) only) and hides the engine chrome —
-the element-template chooser. The canvas chrome (minimap, token simulation,
-focus reticle) is the same in every mode (ADR 0022). Because nothing in
-the DI module graph is added or removed on a toggle, `zeebe:*` / `camunda:*`
-extensions are **never** at risk: replace and copy-paste keep engine data in both
-modes, and the drill-down plane, selection, and undo history survive the toggle.
+the element-template chooser. It also **re-resolves the in-page lint config** for
+the mode: Design drops the Camunda deployability layer (so `camunda-compat`
+findings the neutral panel cannot act on disappear), and switching back restores
+it — see [Linting tiers](#linting-tiers). A host-handed workspace config is
+mode-invariant. The canvas chrome (minimap, token simulation, focus reticle) is
+the same in every mode (ADR 0022). Because nothing in the DI module graph is
+added or removed on a toggle, `zeebe:*` / `camunda:*` extensions are **never** at
+risk: replace and copy-paste keep engine data in both modes, and the drill-down
+plane, selection, and undo history survive the toggle.
 
 > **Two routes, one epic.** This runtime toggle is for the **design ↔ implement**
 > pair on an *engine-tagged* model. The separate [`/design` subpath](#design-mode)
@@ -525,9 +545,11 @@ documentation and conceptual modelling. It wraps the base bpmn-js `Modeler`
 (palette, context pad, modelling, copy-paste, keyboard, search) plus an
 engine-neutral properties panel (general / documentation groups only), a minimap,
 and the neutral UX modules (translate, append menu, flow navigation). It loads
-**none** of the Camunda editor stack — no camunda-bpmn-js, element templates, token
-simulation, transaction boundaries, or lint — so it never carries an execution
-platform.
+**none** of the Camunda editor stack — no camunda-bpmn-js, element templates, or
+transaction boundaries — so it never carries an execution platform. Linting is
+available on the same injection-only seam as the root (omit for none; the
+engine-neutral Design config applies), and the lint *stack* still stays out of
+the design chunk unless you inject it via `/lint`.
 
 Three surfaces close the feature matrix:
 
@@ -582,13 +604,15 @@ designer.getService("commandStack"); // editable: modelling services are present
 | `moddleExtensions` | `Record<string, object>` | — | Extra moddle extensions for a host's own BPMN namespace. |
 | `additionalModules` | `unknown[]` | — | Escape hatch: extra bpmn-js DI modules. |
 | `capabilities` | `DesignerCapabilities` | — | Engine-neutral host ports. Navigation-only: `{ modelNavigation }`. |
+| `linting` | `LintingOptions` | off | Lint tier — see [Linting tiers](#linting-tiers). Injection-only; the engine-neutral Design config resolves automatically (a `{ design, implement }` map uses its `design` entry). |
 | `onContentSaved` | `(e: ContentSavedEvent) => void` | — | Debounced diagram content (300 ms / 1000 ms maxWait). |
+| `onLintResults` / `onLintingToggled` | callbacks | — | Lint-run findings and the in-canvas enable/disable toggle. |
 
-There is no `engine`, `linting`, `elementTemplates`, or `settings` — each is
-engine-bound and rejected at compile time. Unlike the root
-`ModelerCapabilities`, the design `capabilities` set is **navigation-only**: it
-accepts `modelNavigation` (engine-neutral) and compile-time-rejects the
-engine-bound `codeLink` / `scripting`.
+There is no `engine`, `elementTemplates`, or `settings` — each is engine-bound
+and rejected at compile time. Unlike the root `ModelerCapabilities`, the design
+`capabilities` set is **navigation-only**: it accepts `modelNavigation`
+(engine-neutral) and compile-time-rejects the engine-bound `codeLink` /
+`scripting`.
 
 > **C8 caveat.** Without a zeebe moddle, C8-shaped references
 > (`zeebe:CalledElement` / `CalledDecision` / `FormDefinition`) parse as generic
@@ -601,7 +625,8 @@ engine-bound `codeLink` / `scripting`.
 ### `BpmnDesignerHandle`
 
 `loadDiagram`, `exportDiagram`, `newDiagram`, `getDiagramSvg`, `viewport`,
-`selection`, `captureViewState`, `applyViewState`, `setTheme`, `getService`, and
+`selection`, `captureViewState`, `applyViewState`, `setTheme`, `getService`,
+`applyLintResults`, `applyLintingDisabled`, `startInPageLinting`, and
 `destroy` — each **signature-identical** to its `BpmnModelerHandle` counterpart,
 so a modeler handle narrows to a designer handle with no adapter.
 `captureViewState` / `applyViewState` (see
@@ -617,10 +642,12 @@ fresh diagram stays in Design mode.
 
 `camunda-bpmn-js`, `camunda-bpmn-moddle` / `zeebe-bpmn-moddle`,
 `camunda-bpmn-js-behaviors`, `camunda-transaction-boundaries`,
-`bpmn-js-element-templates`, `@miragon/create-append-c7`, `minisearch`, and
-the lint stack (`bpmnlint` /
-`bpmn-js-bpmnlint` / `@miragon/bpmnlint-plugin-rules`). A build-time gate
-(`scripts/check-design-pure-entry.mjs`) fails the build if any reappears. Unlike
+`bpmn-js-element-templates`, `@miragon/create-append-c7`, and `minisearch`. The
+lint stack (`bpmnlint` / `bpmn-js-bpmnlint` / `@miragon/bpmnlint-plugin-rules`)
+is **also** absent from the design chunk **unless you inject it** via `/lint` —
+the designer references only the lint *types*, so an omitted `linting` keeps the
+stack out. A build-time gate (`scripts/check-design-pure-entry.mjs`) fails the
+build if any of these reappears. Unlike
 `/viewer`, `preact` and CodeMirror (`@codemirror/*`) **are** present (legitimate
 dependencies of the engine-neutral properties panel), as are
 `diagram-js-minimap` and `bpmn-js-token-simulation` — the engine-neutral canvas
@@ -630,9 +657,10 @@ chrome every surface shares (ADR 0022).
 
 Load **`@miragon/bpmn-modeler/design.css`**, not `styles.css`: the design sheet
 carries the bpmn-js base diagram/font CSS, the engine-neutral panel and
-append-menu chrome, the minimap, token simulation, and the canvas focus
-indicator, plus the dark-theme overrides — none of the Camunda editor chrome. The two overlap, so do **not**
-load both on a design-only page.
+append-menu chrome, the minimap, token simulation, the canvas focus indicator,
+and the lint chrome (hide-until-configured, so it costs nothing unless you inject
+linting), plus the dark-theme overrides — none of the Camunda editor chrome. The
+two overlap, so do **not** load both on a design-only page.
 
 ## Mode session
 
@@ -766,7 +794,8 @@ await createModeler(container, {
 
 The single export is `createLintModule` (matching the public `LintModule`
 interface). The lint chrome's CSS is not code-split — it always lands in
-`@miragon/bpmn-modeler/styles.css`, which every consumer already loads — so
+`@miragon/bpmn-modeler/styles.css` (and, for a design-only page, in
+`@miragon/bpmn-modeler/design.css`), which every consumer already loads — so
 importing the subpath brings no extra stylesheet wiring.
 
 ## Caveats

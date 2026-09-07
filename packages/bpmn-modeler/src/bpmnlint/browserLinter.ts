@@ -1,10 +1,4 @@
-import type {
-    BpmnlintConfig,
-    Engine,
-    LintResults,
-    LintRunEvent,
-} from "@miragon/bpmn-modeler-types";
-import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
+import type { BpmnlintConfig, LintResults, LintRunEvent } from "@miragon/bpmn-modeler-types";
 import { Linter } from "bpmnlint";
 
 import { RecordingBrowserResolver, staticUnresolvedModdleExtensions } from "./browserResolver";
@@ -13,12 +7,11 @@ import { RecordingBrowserResolver, staticUnresolvedModdleExtensions } from "./br
  * Runs bpmnlint against the *live* bpmn-js definitions tree, in the browser.
  *
  * This is the in-page tier: instead of the host running a linter and pushing
- * results down, the webview lints itself. The config is either an explicit
- * `{config}` a consumer supplied or the engine-aware zero-config default
- * (`getDefaultLintConfig({engine, preset: "modeling"})`, matching the hosts'
- * preset for parity). Rules the bundled resolver cannot cover degrade to no-ops
- * and are reported via {@link LintRunEvent.unresolved}, so an unusual `{config}`
- * is never fatal.
+ * results down, the webview lints itself. The config is already resolved by
+ * `resolveLintConfig` (explicit config, per-mode entry, or the mode default) —
+ * the linter only runs it. Rules the bundled resolver cannot cover degrade to
+ * no-ops and are reported via {@link LintRunEvent.unresolved}, so an unusual
+ * config is never fatal.
  *
  * The resolver is created once and reused; each {@link run} resets its recorded
  * misses so the emitted `unresolved` reflects that single lint. `moddleExtensions`
@@ -32,8 +25,8 @@ export class BrowserLinter {
 
     private readonly staticUnresolved: string[];
 
-    constructor(engine: Engine, config?: BpmnlintConfig) {
-        this.config = config ?? getDefaultLintConfig({ engine, preset: "modeling" });
+    constructor(config: BpmnlintConfig) {
+        this.config = config;
         this.staticUnresolved = staticUnresolvedModdleExtensions(this.config);
     }
 
