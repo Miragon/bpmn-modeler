@@ -5,6 +5,11 @@ Here's what you get, roughly in the order you reach for it.
 
 ## Model
 
+- **[Editor Modes](/vscode/features/modes)** — switch each editor between
+  **View** (readonly viewer), **Design** (engine-neutral editable surface),
+  and **Implement** (full Camunda modeler) from a mode strip in the
+  properties-panel header. Mode is remembered per editor and seeded from a
+  configurable default.
 - **[Append Menu](/vscode/features/append-menu)** — a two-panel popup that
   combines element templates and standard BPMN elements. Searchable,
   keyboard-driven, favourites pinned on top.

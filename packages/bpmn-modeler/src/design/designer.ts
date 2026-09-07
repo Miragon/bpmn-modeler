@@ -60,9 +60,8 @@ export class BpmnDesigner {
 
     private _selection: SelectionManager | undefined;
 
-    // Drill-down plane tracking, composed into captureViewState/applyViewState.
-    // Kept private (no public handle getter) — the designer exposes only the
-    // composed view-state methods.
+    // Drill-down plane tracking, composed into captureViewState/applyViewState
+    // and exposed via the public `rootElement` getter for host-driven restore.
     private _rootElement: RootElementManager | undefined;
 
     // Per-instance theme controller, created lazily on the first setTheme.
@@ -101,6 +100,14 @@ export class BpmnDesigner {
             throw new NoModelerError();
         }
         return this._selection;
+    }
+
+    /** Access the root element manager after {@link init}. */
+    get rootElement(): RootElementManager {
+        if (!this._rootElement) {
+            throw new NoModelerError();
+        }
+        return this._rootElement;
     }
 
     /**

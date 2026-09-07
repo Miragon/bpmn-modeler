@@ -20,7 +20,6 @@ import {
     DMN_VIEW_TYPE,
     EMPTY_DMN_DIAGRAM,
     FORM_VIEW_TYPE,
-    getLatestVersion,
     UserCancelledError,
 } from "@miragon/bpmn-modeler-core";
 import { VsCodeDocument } from "../../../shared/infrastructure/VsCodeDocument";
@@ -193,11 +192,10 @@ export class CommandController {
 
             let doc: BpmnDocument;
             try {
-                const engine = await this.picker.pickExecutionPlatform("Select the engine.", [
-                    "c7",
-                    "c8",
-                ]);
-                doc = BpmnDocument.empty(engine, getLatestVersion(engine));
+                const choice = await this.picker.pickNewModelEngine(
+                    "Select the execution platform.",
+                );
+                doc = BpmnDocument.forNewModel(choice);
             } catch (error) {
                 if (error instanceof UserCancelledError) {
                     return; // no file created

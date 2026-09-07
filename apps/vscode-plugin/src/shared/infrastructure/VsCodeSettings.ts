@@ -1,6 +1,7 @@
 import { ConfigurationTarget, workspace } from "vscode";
 
 import { MarketplaceSettingsEntry, SettingsPort } from "@miragon/bpmn-modeler-core";
+import { SurfaceMode } from "@miragon/bpmn-modeler-shared";
 
 /**
  * Pure VS Code workspace configuration reader for the BPMN modeler.
@@ -47,6 +48,13 @@ export class VsCodeSettings implements SettingsPort {
             .getConfiguration("miragon.bpmnModeler")
             .get<string>("colorTheme", "automatic");
         return value === "light" ? "light" : "automatic";
+    }
+
+    getDefaultMode(): SurfaceMode {
+        const value = workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .get<string>("defaultMode", "implement");
+        return value === "view" || value === "design" ? value : "implement";
     }
 
     getFavouriteBpmnElements(): string[] {

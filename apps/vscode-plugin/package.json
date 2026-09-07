@@ -554,6 +554,21 @@
                     ],
                     "markdownDescription": "Controls the color theme of the BPMN modeler canvas. `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme."
                 },
+                "miragon.bpmnModeler.defaultMode": {
+                    "type": "string",
+                    "default": "implement",
+                    "enum": [
+                        "implement",
+                        "design",
+                        "view"
+                    ],
+                    "enumItemLabels": [
+                        "Implement",
+                        "Design",
+                        "View"
+                    ],
+                    "markdownDescription": "The mode a BPMN editor opens in when it has no remembered mode. `implement` is the full Camunda modeler, `design` is the engine-neutral editable surface, and `view` is the readonly viewer. Applies only per new editor — an already-open editor keeps its mode. On an untagged (engine-neutral) model, `implement` is unavailable and falls back to `design`."
+                },
                 "miragon.bpmnModeler.favouriteBpmnElements": {
                     "type": "array",
                     "items": {

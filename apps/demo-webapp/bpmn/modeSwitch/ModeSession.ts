@@ -1,11 +1,16 @@
 import type { DetectedEngine, ModelerMode, ThemeMode } from "@miragon/bpmn-modeler";
 import {
+    defaultMode,
+    isModeAvailable,
+    planTransition,
+    type SurfaceMode,
+} from "@miragon/bpmn-modeler-shared";
+import {
     createSurface,
     isModelerHandle,
     type DemoSurfaceHandle,
     type SurfaceContext,
 } from "./surfaces";
-import { defaultMode, isModeAvailable, planTransition, type DemoMode } from "./modeModel";
 
 export interface ModeSessionDeps {
     canvas: HTMLElement;
@@ -13,7 +18,7 @@ export interface ModeSessionDeps {
     engine: DetectedEngine;
     initialTheme: ThemeMode;
     /** Called after a mode is actually applied (fresh surface, toggle, or recreate). */
-    onModeApplied: (mode: DemoMode) => void;
+    onModeApplied: (mode: SurfaceMode) => void;
     /** Called when a recreate switch enters/leaves its handle-less window. */
     onSwitchStateChanged: (busy: boolean) => void;
     /** Called when a switch fails; the session then falls back to the default mode. */
@@ -30,14 +35,14 @@ export interface ModeSessionDeps {
  */
 export class ModeSession {
     private handle: DemoSurfaceHandle;
-    private currentMode: DemoMode;
+    private currentMode: SurfaceMode;
     private theme: ThemeMode;
     private busy = false;
-    private pendingRequest: DemoMode | null = null;
+    private pendingRequest: SurfaceMode | null = null;
 
     private constructor(
         handle: DemoSurfaceHandle,
-        mode: DemoMode,
+        mode: SurfaceMode,
         private readonly deps: ModeSessionDeps,
     ) {
         this.handle = handle;
@@ -46,7 +51,11 @@ export class ModeSession {
     }
 
     /** Stands up the initial surface, loads the diagram, and returns the session. */
-    static async start(mode: DemoMode, xml: string, deps: ModeSessionDeps): Promise<ModeSession> {
+    static async start(
+        mode: SurfaceMode,
+        xml: string,
+        deps: ModeSessionDeps,
+    ): Promise<ModeSession> {
         // The surface's mode-change callback is created before the session exists,
         // so it reads through a holder assigned once the instance is built.
         const holder: { session?: ModeSession } = {};
@@ -65,7 +74,7 @@ export class ModeSession {
         return session;
     }
 
-    getMode(): DemoMode {
+    getMode(): SurfaceMode {
         return this.currentMode;
     }
 
@@ -83,7 +92,7 @@ export class ModeSession {
      * recreate is in flight only the latest request is kept and replayed on
      * completion; a live toggle runs immediately.
      */
-    requestMode(target: DemoMode): void {
+    requestMode(target: SurfaceMode): void {
         if (!isModeAvailable(target, this.deps.engine)) {
             return;
         }
@@ -113,7 +122,7 @@ export class ModeSession {
         this.deps.onModeApplied(mode);
     }
 
-    private async recreate(target: DemoMode): Promise<void> {
+    private async recreate(target: SurfaceMode): Promise<void> {
         this.busy = true;
         this.deps.onSwitchStateChanged(true);
 
@@ -166,7 +175,7 @@ export class ModeSession {
         }
     }
 
-    private buildSurface(mode: DemoMode): Promise<DemoSurfaceHandle> {
+    private buildSurface(mode: SurfaceMode): Promise<DemoSurfaceHandle> {
         const ctx = ModeSession.buildContext(this.deps, this.theme, (m) =>
             this.onModelerModeChanged(m),
         );

@@ -1,12 +1,15 @@
 import "@miragon/bpmn-modeler"; // side-effect CSS shared by all three surfaces
 import "./modeler.css";
 import type { ThemeMode } from "@miragon/bpmn-modeler";
-import { initResizer, installPanelShortcuts } from "@miragon/bpmn-modeler-shared";
+import {
+    initResizer,
+    installPanelShortcuts,
+    mountModeStrip,
+    resolveInitialMode,
+} from "@miragon/bpmn-modeler-shared";
 import { mountDemoHeader } from "../src";
 import { getActiveModel } from "../src/registry";
 import { ModeSession } from "./modeSwitch/ModeSession";
-import { mountModeStrip } from "./modeSwitch/modeStrip";
-import { resolveInitialMode } from "./modeSwitch/modeModel";
 import { readRequestedMode, writeModeToUrl } from "./modeSwitch/modeUrl";
 
 /**
@@ -58,6 +61,8 @@ async function main(): Promise<void> {
         stripEl,
         resizerEl,
         panelHandle,
+        // The demo ships no i18n; labels pass through unchanged.
+        translate: (template) => template,
         onSelect: (mode) => sessionRef.current?.requestMode(mode),
         onEscape: focusCanvas,
     });

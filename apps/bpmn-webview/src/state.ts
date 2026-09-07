@@ -3,10 +3,27 @@
  * protocol and persists panel/canvas UI state. Lives in the app, outside the
  * publishable `@miragon/bpmn-modeler` boundary.
  */
-import { Command, Query, HostApi, PropertiesPanelHandle } from "@miragon/bpmn-modeler-shared";
+import {
+    Command,
+    Query,
+    HostApi,
+    PropertiesPanelHandle,
+    type SurfaceMode,
+} from "@miragon/bpmn-modeler-shared";
 import { isUsableViewbox } from "@miragon/bpmn-modeler-types";
 import { CanvasViewState, WebviewState } from "./webviewState";
-import { BpmnModeler } from "@miragon/bpmn-modeler";
+import type { BpmnModelerHandle } from "@miragon/bpmn-modeler";
+
+/**
+ * The structural subset of a surface handle {@link WebviewStateManager} drives —
+ * viewport/selection/plane accessors and the view-state composition. Every
+ * surface (modeler, designer, viewer) satisfies it, so the manager binds to any
+ * of them without knowing which is live.
+ */
+type StatefulSurface = Pick<
+    BpmnModelerHandle,
+    "viewport" | "selection" | "rootElement" | "captureViewState" | "applyViewState"
+>;
 
 const PANEL_SCROLL_CONTAINER = ".bio-properties-panel-scroll-container";
 const PANEL_GROUP = ".bio-properties-panel-group";
@@ -43,6 +60,22 @@ export function readSavedPanelVisibility(
 }
 
 /**
+ * Reads this editor's persisted surface mode without a full
+ * {@link WebviewStateManager}. Returns `undefined` when no mode is saved yet
+ * (first-ever open), so the caller falls back to the host default; read before
+ * surface construction, like {@link readSavedPanelVisibility}.
+ */
+export function readSavedMode(
+    host: HostApi<WebviewState, Command | Query>,
+): SurfaceMode | undefined {
+    try {
+        return host.getState()?.mode;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
  * Lifecycle phases (call in order):
  * 1. {@link restoreViewport}       — after importXML (canvas must exist)
  * 2. {@link restoreSelection}      — after element templates + settings applied
@@ -62,12 +95,22 @@ export class WebviewStateManager {
 
     constructor(
         private readonly host: HostApi<WebviewState, Command | Query>,
-        private readonly modeler: BpmnModeler,
+        // Any of the three surfaces (modeler / designer / viewer) — bound
+        // structurally so the manager rebinds on every mode switch.
+        private readonly modeler: StatefulSurface,
         // The properties-panel host element. The scroll container is looked up
         // within it rather than via `document` so a second modeler's panel on
         // the same page is never mistaken for this one's.
         private readonly panelRoot: HTMLElement,
     ) {}
+
+    /**
+     * Persists this editor's surface mode so a later tab-switch rebuild reopens
+     * in the same mode. The single writer is bootstrap's mode session.
+     */
+    persistMode(mode: SurfaceMode): void {
+        this.persistPartialState({ mode });
+    }
 
     /**
      * Must be called after importXML — the canvas does not exist before that.

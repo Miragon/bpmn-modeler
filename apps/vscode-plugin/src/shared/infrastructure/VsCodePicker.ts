@@ -6,6 +6,7 @@ import { UserCancelledError } from "@miragon/bpmn-modeler-core";
 import { PickerPort } from "@miragon/bpmn-modeler-core";
 import { MigrationScope } from "@miragon/bpmn-modeler-core";
 import { ScriptLanguage } from "@miragon/bpmn-modeler-core";
+import { NEW_MODEL_ENGINE_CHOICES, NewModelEngine } from "@miragon/bpmn-modeler-core";
 import { VsCodeWorkspace } from "./VsCodeWorkspace";
 
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
@@ -24,20 +25,21 @@ export class VsCodePicker implements PickerPort {
     /**
      * @throws {UserCancelledError} If the user dismisses the quick pick.
      */
-    async pickExecutionPlatform(placeHolder: string, engines: Engine[]): Promise<Engine> {
-        interface EngineItem extends QuickPickItem {
-            engine: Engine;
+    async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
+        interface NewModelEngineItem extends QuickPickItem {
+            id: NewModelEngine;
         }
-        const qpItems: EngineItem[] = engines.map((engine) => ({
-            label: ENGINE_LABEL[engine],
-            engine,
+        const qpItems: NewModelEngineItem[] = NEW_MODEL_ENGINE_CHOICES.map((choice) => ({
+            label: choice.label,
+            description: choice.description,
+            id: choice.id,
         }));
         const result = await window.showQuickPick(qpItems, { placeHolder });
 
         if (result === undefined) {
             throw new UserCancelledError();
         }
-        return result.engine;
+        return result.id;
     }
 
     /**

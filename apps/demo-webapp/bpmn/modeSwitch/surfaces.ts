@@ -8,9 +8,9 @@ import {
 import { createViewer, type BpmnViewerHandle } from "@miragon/bpmn-modeler/viewer";
 import { createDesigner, type BpmnDesignerHandle } from "@miragon/bpmn-modeler/design";
 import * as lintModule from "@miragon/bpmn-modeler/lint";
+import type { SurfaceMode } from "@miragon/bpmn-modeler-shared";
 import { openReference } from "../../src";
 import { registerDemoCustomGroup } from "../../src/demoCustomGroup";
-import type { DemoMode } from "./modeModel";
 
 /** Any of the three demo surfaces. The modeler handle is the superset. */
 export type DemoSurfaceHandle = BpmnViewerHandle | BpmnDesignerHandle | BpmnModelerHandle;
@@ -37,7 +37,7 @@ export interface SurfaceContext {
  * host slot is observable in all three modes.
  */
 export async function createSurface(
-    mode: DemoMode,
+    mode: SurfaceMode,
     ctx: SurfaceContext,
 ): Promise<DemoSurfaceHandle> {
     const { canvas, panelMount, theme, engine, onModelerModeChanged } = ctx;

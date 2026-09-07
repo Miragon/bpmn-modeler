@@ -270,6 +270,18 @@ const _modeHandle = (m: BpmnModelerHandle) => {
 };
 void _modeHandle;
 
+// The drill-down plane accessor is public on all three handles (host-driven
+// restore across an instance switch), so a modeler handle narrows without an
+// adapter and a viewer/designer exposes the same manager.
+const _rootElementAccessors = (
+    m: BpmnModelerHandle,
+    v: BpmnViewerHandle,
+    d: BpmnDesignerHandle,
+) => {
+    void [m.rootElement, v.rootElement, d.rootElement];
+};
+void _rootElementAccessors;
+
 // The async factory signature is nameable.
 type _FactoryReturn = ReturnType<CreateModeler>;
 const _factoryReturns: _FactoryReturn extends Promise<BpmnModelerHandle> ? true : never = true;

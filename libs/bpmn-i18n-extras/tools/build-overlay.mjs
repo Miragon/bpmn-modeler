@@ -66,7 +66,19 @@ const sharedByNorm = new Set(Object.keys(shared.en).map(norm));
 // that the harvest driver never reaches — it doesn't exercise the script-lock /
 // code-link feature, so these are absent from harvested.json but genuinely
 // needed and absent from the shared library. Keep them until upstreamed.
-const SOURCE_ONLY = new Set(["Read-only", "Being edited in", "Element actions"]);
+const SOURCE_ONLY = new Set([
+    "Read-only",
+    "Being edited in",
+    "Element actions",
+    // Mode-strip labels the webview emits before any surface exists, so the
+    // harvest driver (which drives a live modeler) never records them.
+    "View",
+    "Design",
+    "Implement",
+    "Mode",
+    "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.",
+    "{mode} — open properties panel",
+]);
 
 const load = async (locale) => (await import(join(LANG_DIR, `${locale}.ts`))).default;
 const en = await load("en");

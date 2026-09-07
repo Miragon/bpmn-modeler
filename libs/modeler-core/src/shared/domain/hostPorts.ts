@@ -11,10 +11,11 @@
  * `VsCode*` classes in `infrastructure/` `implements` these.
  */
 
-import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
+import { AuthTypePayload, SurfaceMode } from "@miragon/bpmn-modeler-shared";
 import { Engine, LintResults } from "@miragon/bpmn-modeler-types";
 
 import { MigrationScope } from "../../migration/domain/MigrationPlan";
+import { NewModelEngine } from "./newModelEngine";
 
 /**
  * Levelled diagnostic logging to the host's log surface (VS Code's
@@ -59,8 +60,12 @@ export interface NotifierPort extends LoggerPort {
  * callsites stay free of `vscode` and the convention is not re-derived.
  */
 export interface PickerPort {
-    /** @throws {UserCancelledError} on dismissal. */
-    pickExecutionPlatform(placeHolder: string, engines: Engine[]): Promise<Engine>;
+    /**
+     * Prompts for the execution platform of a new model — Camunda 7/8 or the
+     * engine-neutral choice (Design mode).
+     * @throws {UserCancelledError} on dismissal.
+     */
+    pickNewModelEngine(placeHolder: string): Promise<NewModelEngine>;
     /** @throws {UserCancelledError} on dismissal. */
     pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope>;
     /** @throws {UserCancelledError} on dismissal. */
@@ -134,6 +139,12 @@ export interface SettingsPort {
      */
     getLintingEnabled(): boolean;
     getColorTheme(): "automatic" | "light";
+    /**
+     * The default landing mode (View/Design/Implement) for an editor with no
+     * persisted mode. A seed only — `implement` on an untagged model resolves to
+     * Design in the webview. Defaults to `implement`.
+     */
+    getDefaultMode(): SurfaceMode;
     getFavouriteBpmnElements(): string[];
     getLanguage(): string;
     /** Whether the activity→code map is persisted under `<configFolder>/code-link/`. */

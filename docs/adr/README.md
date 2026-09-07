@@ -22,6 +22,7 @@ contributor-facing record, not user documentation.
 | [0009](0009-npm-publishing-pipeline.md) | Publishing pipeline for `@miragon/bpmn-modeler`: npm CLI, yarn-packed tarball, Trusted Publishing | accepted |
 | [0014](0014-make-bpmn-modeler-the-root-release-component.md) | Make the npm package the root release component; hosts release via sync markers | accepted |
 | [0019](0019-webview-panel-chrome-in-shared.md) | Webview panel chrome (resizer/focus/shortcuts) lives in `libs/shared`; publishable `modeler-types` keeps only `isTextEditingSurface` | accepted |
+| [0020](0020-untagged-documents-first-class-in-hosts.md) | Untagged documents are first-class in the hosts (no stamp-on-open); mode is per-editor webview state seeded by `defaultMode`; engine-neutral new-file scaffold | accepted |
 
 ### modeler-core
 

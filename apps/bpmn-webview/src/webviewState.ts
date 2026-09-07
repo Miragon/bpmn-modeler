@@ -4,6 +4,7 @@
  */
 
 import type { ViewportData, ViewState } from "@miragon/bpmn-modeler";
+import type { SurfaceMode } from "@miragon/bpmn-modeler-shared";
 
 /**
  * Snapshot of the canvas view that can be captured from the live modeler and
@@ -32,4 +33,10 @@ export interface WebviewState {
      * that default so two tabs in one group keep independent panel state.
      */
     panelVisible?: boolean;
+    /**
+     * Per-editor surface mode (View / Design / Implement). Absent until first
+     * resolved; seeded from the host's `defaultMode` on a first-ever open and
+     * re-resolved against the engine on every rebuild via `resolveInitialMode`.
+     */
+    mode?: SurfaceMode;
 }

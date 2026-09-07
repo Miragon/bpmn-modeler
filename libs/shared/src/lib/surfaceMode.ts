@@ -1,26 +1,26 @@
-import type { DetectedEngine } from "@miragon/bpmn-modeler";
+import type { DetectedEngine } from "@miragon/bpmn-modeler-types";
 
 /**
- * The three canvas-side modes the demo exposes on the BPMN modeler page.
+ * The three canvas-side modes a host webview exposes on the BPMN modeler page.
  *
  * - `view` — the readonly `/viewer` surface.
  * - `design` — the engine-neutral, editable `/design` surface.
  * - `implement` — the full Camunda modeler (`createModeler`), only available for
  *   a model that carries an execution platform.
  */
-export type DemoMode = "view" | "design" | "implement";
+export type SurfaceMode = "view" | "design" | "implement";
 
-export const DEMO_MODES: readonly DemoMode[] = ["view", "design", "implement"];
+export const SURFACE_MODES: readonly SurfaceMode[] = ["view", "design", "implement"];
 
 /** Human-readable label for the segmented control. */
-export const MODE_LABEL: Record<DemoMode, string> = {
+export const MODE_LABEL: Record<SurfaceMode, string> = {
     view: "View",
     design: "Design",
     implement: "Implement",
 };
 
 /** Single-letter badge shown on the collapsed-panel rail. */
-export const MODE_BADGE: Record<DemoMode, string> = {
+export const MODE_BADGE: Record<SurfaceMode, string> = {
     view: "V",
     design: "D",
     implement: "I",
@@ -35,7 +35,7 @@ export const IMPLEMENT_UNAVAILABLE_HINT =
  * engine-neutral and always available; `implement` needs a detected engine
  * (an execution-platform-tagged model).
  */
-export function isModeAvailable(mode: DemoMode, engine: DetectedEngine): boolean {
+export function isModeAvailable(mode: SurfaceMode, engine: DetectedEngine): boolean {
     return mode === "implement" ? engine !== undefined : true;
 }
 
@@ -43,27 +43,28 @@ export function isModeAvailable(mode: DemoMode, engine: DetectedEngine): boolean
  * The default landing mode: Implement for a tagged model (its authoring intent),
  * Design for an untagged one.
  */
-export function defaultMode(engine: DetectedEngine): DemoMode {
+export function defaultMode(engine: DetectedEngine): SurfaceMode {
     return engine !== undefined ? "implement" : "design";
 }
 
 /**
- * Resolves the initial mode from an optional `?mode=` request, falling back to
- * {@link defaultMode} when the request is absent, unrecognised, or unavailable
- * for this engine (e.g. `?mode=implement` on an untagged model).
+ * Resolves the initial mode from an optional request (a saved mode, host
+ * default, or `?mode=`), falling back to {@link defaultMode} when the request is
+ * absent, unrecognised, or unavailable for this engine (e.g. `implement` on an
+ * untagged model).
  */
-export function resolveInitialMode(requested: string | null, engine: DetectedEngine): DemoMode {
+export function resolveInitialMode(requested: string | null, engine: DetectedEngine): SurfaceMode {
     if (
         requested !== null &&
-        (DEMO_MODES as readonly string[]).includes(requested) &&
-        isModeAvailable(requested as DemoMode, engine)
+        (SURFACE_MODES as readonly string[]).includes(requested) &&
+        isModeAvailable(requested as SurfaceMode, engine)
     ) {
-        return requested as DemoMode;
+        return requested as SurfaceMode;
     }
     return defaultMode(engine);
 }
 
-/** How a mode change is carried out — see {@link ModeSession}. */
+/** How a mode change is carried out — see the host's mode session. */
 export type TransitionKind = "none" | "toggle" | "recreate";
 
 /**
@@ -75,8 +76,8 @@ export type TransitionKind = "none" | "toggle" | "recreate";
  *   model: destroy the instance and stand up the target factory.
  */
 export function planTransition(
-    from: DemoMode,
-    to: DemoMode,
+    from: SurfaceMode,
+    to: SurfaceMode,
     engine: DetectedEngine,
 ): TransitionKind {
     if (from === to) {

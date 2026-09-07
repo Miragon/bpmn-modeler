@@ -138,6 +138,7 @@ export function register(
         deps.picker,
         deps.statusBar,
         deps.notifier,
+        deps.vsSettings,
     );
     const templatesSvc = new BpmnElementTemplatesService(
         deps.editorStore,

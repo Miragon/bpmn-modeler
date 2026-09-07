@@ -57,6 +57,7 @@ export default withMermaid(defineConfig({
                     text: "Features",
                     items: [
                         { text: "Overview", link: "/vscode/features/" },
+                        { text: "Editor Modes", link: "/vscode/features/modes" },
                         { text: "Append Menu", link: "/vscode/features/append-menu" },
                         { text: "BPMN Diff", link: "/vscode/features/bpmn-diff" },
                         { text: "Form Editing", link: "/vscode/features/form-editing" },

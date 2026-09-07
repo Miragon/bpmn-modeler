@@ -41,6 +41,7 @@ import {
     SettingsPort,
     WorkspacePort,
 } from "@miragon/bpmn-modeler-core";
+import { SurfaceMode } from "@miragon/bpmn-modeler-shared";
 
 /** Strips a leading `file://` so the string is a real OS path Node `fs` accepts. */
 function toFsPath(path: string): string {
@@ -410,6 +411,7 @@ export interface SettingsSnapshot {
     persistCodeLinkMap: boolean;
     c8ApiVersion: string;
     colorTheme: "automatic" | "light";
+    defaultMode: SurfaceMode;
     favouriteBpmnElements: string[];
     language: string;
     scriptingSpin: boolean;
@@ -432,6 +434,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
     persistCodeLinkMap: false,
     c8ApiVersion: "v2",
     colorTheme: "automatic",
+    defaultMode: "implement",
     favouriteBpmnElements: [
         "bpmn:ServiceTask",
         "bpmn:UserTask",
@@ -512,6 +515,9 @@ export class BridgeSettings implements SettingsPort {
     }
     getColorTheme(): "automatic" | "light" {
         return this.snapshot.colorTheme;
+    }
+    getDefaultMode(): SurfaceMode {
+        return this.snapshot.defaultMode;
     }
     getFavouriteBpmnElements(): string[] {
         return this.snapshot.favouriteBpmnElements;

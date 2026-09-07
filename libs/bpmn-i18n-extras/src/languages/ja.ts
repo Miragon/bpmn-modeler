@@ -8,8 +8,15 @@
  */
 const dictionary: Record<string, string> = {
     "Being edited in": "編集中:",
+    "Design": "デザイン",
     "Element actions": "要素アクション",
+    "Implement": "実装",
+    "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
+        "実装には Camunda 実行プラットフォームが必要ですが、このモデルにはありません。有効にするには割り当ててください。",
+    "Mode": "モード",
     "Read-only": "読み取り専用",
+    "View": "表示",
+    "{mode} — open properties panel": "{mode} — プロパティパネルを開く",
 };
 
 export default dictionary;

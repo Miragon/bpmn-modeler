@@ -41,6 +41,7 @@ export type {
 export { ViewportManager } from "../viewport";
 export type { ViewportData } from "../viewport";
 export { SelectionManager } from "../selection";
+export type { RootElementManager } from "../rootElement";
 export type { ViewState } from "../viewState";
 
 // ── Diff view — public rendering primitives + in-page coordinator ────────────

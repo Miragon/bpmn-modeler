@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { WebviewStateManager } from "./state";
+import { readSavedMode, WebviewStateManager } from "./state";
 
 /**
  * Builds a `WebviewStateManager` wired to spies for the collaborators
@@ -256,6 +256,34 @@ describe("WebviewStateManager.flushViewport", () => {
         manager.flushViewport();
 
         expect(updateState).not.toHaveBeenCalled();
+    });
+});
+
+describe("readSavedMode", () => {
+    it("returns the persisted mode", () => {
+        const host = { getState: () => ({ mode: "view" }) } as any;
+        expect(readSavedMode(host)).toBe("view");
+    });
+
+    it("returns undefined when no mode is saved", () => {
+        expect(readSavedMode({ getState: () => ({}) } as any)).toBeUndefined();
+    });
+
+    it("returns undefined when getState throws", () => {
+        const host = {
+            getState: () => {
+                throw new Error("no state yet");
+            },
+        } as any;
+        expect(readSavedMode(host)).toBeUndefined();
+    });
+});
+
+describe("WebviewStateManager.persistMode", () => {
+    it("persists the surface mode", () => {
+        const { manager, updateState } = setup(undefined);
+        manager.persistMode("design");
+        expect(updateState).toHaveBeenCalledWith({ mode: "design" });
     });
 });
 
