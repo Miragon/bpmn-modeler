@@ -85,3 +85,8 @@ declare module "diagram-js-minimap" {
 declare module "bpmn-js-native-copy-paste/lib/PasteUtil.js" {
     export function createReviver(moddle: any): (key: string, value: any) => any;
 }
+
+declare module "bpmn-js-native-copy-paste" {
+    const NativeCopyPasteModule;
+    export default NativeCopyPasteModule;
+}

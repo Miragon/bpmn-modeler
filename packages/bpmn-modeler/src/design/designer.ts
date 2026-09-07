@@ -7,6 +7,7 @@ import {
     CustomGroupsModule,
 } from "@miragon/bpmn-modeler-properties-panel";
 import { CreateAppendAnythingModule } from "bpmn-js-create-append-anything";
+import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import MinimapModule from "diagram-js-minimap";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
@@ -153,8 +154,12 @@ export class BpmnDesigner {
     async init(): Promise<void> {
         this.disposeFocusFeatures();
 
-        // Clipboard is a built-in: omitting `clipboard` leaves bpmn-js's native
-        // (browser) clipboard in charge; a sandboxed host supplies a bridge.
+        // The designer registers NativeCopyPasteModule itself (system/browser
+        // clipboard, parity with camunda-bpmn-js's base Modeler and the same
+        // `bpmn-js-clip----` wire format). A sandboxed host that can't reach the
+        // system clipboard supplies a bridge, whose module overrides
+        // NativeCopyPaste — hence NativeCopyPaste must be registered for the
+        // bridge to disable it.
         const clip = this.options.clipboard;
         const clipModules = clip
             ? createClipboardModules({ element: clip.bridge, text: clip.text })
@@ -210,6 +215,7 @@ export class BpmnDesigner {
                 FlowNavigationModule,
                 MinimapModule,
                 ...capModules,
+                NativeCopyPasteModule,
                 ...clipModules,
                 ...extra,
             ],
