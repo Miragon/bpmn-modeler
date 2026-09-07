@@ -33,6 +33,11 @@
     ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {
+        "apps/dmn-webview": {
+            // The facade contract is public ahead of package extraction; its
+            // supporting types are intentional consumer-facing exports.
+            "entry": ["src/app/publicApi.ts"]
+        },
         "apps/vscode-plugin": {
             "entry": [
                 "src/**/index.ts",

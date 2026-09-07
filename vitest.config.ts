@@ -6,6 +6,7 @@ export default defineConfig({
             "apps/vscode-plugin",
             "apps/modeler-bridge",
             "apps/bpmn-webview",
+            "apps/dmn-webview",
             "apps/form-webview",
             "packages/bpmn-modeler",
             "libs/append-menu",

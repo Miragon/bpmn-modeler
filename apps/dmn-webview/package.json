@@ -9,7 +9,8 @@
         "dev": "portless",
         "dev:app": "vite --port $PORT --host 127.0.0.1",
         "watch": "vite build --watch",
-        "serve": "vite"
+        "serve": "vite",
+        "test": "tsc --noEmit -p tsconfig.spec.json && tsc --noEmit -p tsconfig.public-api.json && vitest run --coverage"
     },
     "dependencies": {
         "@bpmn-io/cm-theme": "0.2.2",
@@ -26,9 +27,13 @@
         "tslib": "2.8.1"
     },
     "devDependencies": {
+        "@types/node": "25.0.3",
         "@types/vscode-webview": "1.57.5",
+        "@vitest/coverage-v8": "4.1.11",
+        "jsdom": "30.0.1",
         "typescript": "6.0.3",
         "vite": "8.2.2",
-        "vite-tsconfig-paths": "6.1.1"
+        "vite-tsconfig-paths": "6.1.1",
+        "vitest": "4.1.11"
     }
 }
