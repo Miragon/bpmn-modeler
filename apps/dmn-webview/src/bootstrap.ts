@@ -1,5 +1,3 @@
-// dmn-js
-import { DiagramWarning } from "dmn-js/lib/Modeler";
 // css — base layout only; the swappable dmn-js stylesheets (light/dark) load
 // through the `#theme-link` element rather than being bundled here.
 import "./styles.css";
@@ -26,31 +24,17 @@ import {
     SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
-import {
-    asyncDebounce,
-    formatErrors,
-    NoModelerError,
-    serializeAsync,
-} from "@miragon/bpmn-modeler-types";
+import { asyncDebounce, NoModelerError, serializeAsync } from "@miragon/bpmn-modeler-types";
 import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 
-import {
-    createModeler,
-    exportDiagram,
-    getActiveFocusableCanvas,
-    isDrdViewActive,
-    loadDiagram,
-    onCommandStackChanged,
-    readSavedPanelVisibility,
-    syncCanvasSize,
-    WebviewStateManager,
-} from "./app";
+import { createModeler, readSavedPanelVisibility, WebviewStateManager } from "./app";
+import type { DmnModelerHandle } from "./app";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
 import type { WebviewState } from "./app/host";
 
 // Injected by bootstrap(); the app/demo entry chooses the concrete host.
 let host: HostApi<WebviewState, Command | Query>;
+let modeler: DmnModelerHandle | undefined;
 
 // Global safety net for throws outside the per-message try/catch below — dmn-js
 // event-bus callbacks run outside it, so an error there would otherwise vanish
@@ -98,8 +82,6 @@ document.addEventListener("visibilitychange", () => {
  * at least once per second. The host recovers the sub-300ms tail via the flush
  * protocol ({@link respondToFlush}) so a save never persists stale XML.
  *
- * dmn-js rebinds `commandStack.changed` per view switch and stacks duplicate
- * listeners; the debounce coalescing those duplicates is a strict improvement.
  */
 const debouncedSendChanges = asyncDebounce(sendChanges, 300, { maxWait: 1000 });
 
@@ -150,7 +132,7 @@ const respondToFlush = createFlushResponder(
             document.body.inert = inertBeforeDestructiveFlush;
             inertBeforeDestructiveFlush = undefined;
         },
-        exportContent: () => exportDiagram(),
+        exportContent: () => getModeler().exportDiagram(),
     },
     (reply) => host.postMessage(reply),
 );
@@ -182,15 +164,17 @@ async function run(): Promise<void> {
     const stateManager = new WebviewStateManager(host);
     window.addEventListener("message", onReceiveMessage);
 
-    // Merge the modeler's local overlay (resizer toggle + dmn-js labels) onto
-    // the shared library's dictionaries before anything translates. The shared
-    // package is C8-seeded and lacks these keys; extend() persists across any
-    // later setLanguage().
-    i18n.extend(i18nExtras);
-
     // Follow the VS Code theme immediately; the host's `colorTheme` preference
     // (which may force light) is applied once the setting query arrives below.
     initTheme();
+
+    const canvas = requireElement("#js-canvas");
+    const propertiesPanel = requireElement("#js-properties-panel");
+    modeler = await createModeler(canvas, {
+        propertiesPanel: { parent: propertiesPanel },
+        onContentChanged: () => void debouncedSendChanges(),
+        onWarning: (message) => host.postMessage(new LogWarningCommand(message)),
+    });
 
     // Labels reuse the BPMN i18n keys; DMN has no language wiring yet, so they
     // render the English fallback until that lands.
@@ -243,9 +227,9 @@ async function run(): Promise<void> {
     // views (where Escape must not steal focus from cell editing).
     installPanelShortcuts({
         handle: propertiesPanelHandle,
-        focusCanvas: () => getActiveFocusableCanvas()?.focus(),
-        isCanvasFocused: () => getActiveFocusableCanvas()?.isFocused() ?? false,
-        isEnabled: () => isDrdViewActive(),
+        focusCanvas: () => getModeler().focusCanvas(),
+        isCanvasFocused: () => getModeler().isCanvasFocused(),
+        isEnabled: () => getModeler().isDrdViewActive(),
         escapeToCanvas: true,
     });
 
@@ -255,12 +239,6 @@ async function run(): Promise<void> {
 
 async function initializeModeler(dmnFile: string | undefined, documentRevision = 0) {
     try {
-        createModeler();
-        onCommandStackChanged(() => void debouncedSendChanges());
-        const canvasElement = document.querySelector("#js-canvas");
-        if (canvasElement) {
-            syncCanvasSize(canvasElement);
-        }
         await serializedOpenXML(dmnFile, documentRevision);
     } catch (error) {
         if (error instanceof NoModelerError) {
@@ -275,7 +253,6 @@ async function initializeModeler(dmnFile: string | undefined, documentRevision =
 /**
  * Open the given XML content in the modeler.
  * @param dmn
- * @returns ImportWarning with warnings if any
  * @throws NoModelerError if the modeler is not initialized
  */
 async function openXML(dmn: string | undefined) {
@@ -283,16 +260,7 @@ async function openXML(dmn: string | undefined) {
         return;
     }
 
-    const result: DiagramWarning = await loadDiagram(dmn);
-
-    if (result.warnings.length > 0) {
-        const warnings = result.warnings.map(
-            (warning) => `${warning.message}\n${warning.error.message}\n${warning.error.stack}\n`,
-        );
-        const message = `Diagram was opened with following warnings: ${formatErrors(warnings)}
-            `;
-        host.postMessage(new LogWarningCommand(message));
-    }
+    await getModeler().loadDiagram(dmn);
 }
 
 async function openHostXML(dmn: string | undefined, documentRevision: number): Promise<void> {
@@ -308,7 +276,7 @@ async function sendChanges() {
     // catch it so the failure is named and deterministic on the channel.
     try {
         const version = hostUpdateVersion;
-        const dmn = await exportDiagram();
+        const dmn = await getModeler().exportDiagram();
         if (version !== hostUpdateVersion || debouncedUpdateXML.pending()) return;
         host.postMessage(new SyncDocumentCommand(dmn, hostDocumentRevision));
     } catch (error) {
@@ -380,4 +348,19 @@ export function bootstrap(injectedHost: HostApi<WebviewState, Command | Query>):
     } else {
         window.addEventListener("load", () => void run());
     }
+}
+
+function getModeler(): DmnModelerHandle {
+    if (!modeler) {
+        throw new NoModelerError();
+    }
+    return modeler;
+}
+
+function requireElement(selector: string): HTMLElement {
+    const element = document.querySelector<HTMLElement>(selector);
+    if (!element) {
+        throw new Error(`Missing required DMN modeler element <${selector}>`);
+    }
+    return element;
 }

@@ -18,7 +18,6 @@
     "types": ["vite/client", "vitest"]
   },
   "include": ["src"],
-  "exclude": ["src/app/PropertieProvider"],
   "references": [
     {
       "path": "./tsconfig.app.json"

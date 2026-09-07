@@ -527,6 +527,33 @@ jobs:
           name: bpmn-webview
           verbose: true
 
+  test-dmn-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.dmn-webview == 'true' ||
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras
+      - run: yarn workspace @miragon/dmn-modeler-webview test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/apps/dmn-webview"
+          fail_ci_if_error: false
+          flags: dmn-webview
+          name: dmn-webview
+          verbose: true
+
   test-form-webview:
     needs: detect-changes
     if: >-
@@ -775,6 +802,7 @@ jobs:
       - test-intellij-plugin
       - e2e-vscode-plugin
       - test-bpmn-webview
+      - test-dmn-webview
       - test-form-webview
       - test-model-navigation
       - test-bpmn-i18n-extras

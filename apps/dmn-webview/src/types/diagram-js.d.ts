@@ -1,6 +1,7 @@
 declare module "diagram-js/lib/core/EventBus" {
     export default class EventBus {
         on<T extends string>(event: T, callback: EventCallback, that?: any): void;
+        off<T extends string>(event: T, callback: EventCallback): void;
     }
 
     export type EventCallback<T extends string = any> = (event: EventType<T>, data: any) => any;
