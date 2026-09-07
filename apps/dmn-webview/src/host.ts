@@ -1,3 +1,8 @@
+/**
+ * Host-adapter surface — the VS Code protocol adapter (Query/Command wiring,
+ * `bootstrap`'s host handshake). Lives in the app, outside the publishable
+ * `@miragon/dmn-modeler` boundary.
+ */
 import {
     Command,
     DmnFileQuery,
@@ -12,28 +17,9 @@ import {
     HostApiImpl,
     MockHostApi,
 } from "@miragon/bpmn-modeler-shared";
+import type { WebviewState } from "./webviewState";
 
 declare const process: { env: { NODE_ENV: string } };
-
-/**
- * Shape of the data persisted via `host.setState` / `host.getState`.
- */
-export interface WebviewState {
-    // Scroll position of `.bio-properties-panel-scroll-container`.
-    panelScroll?: number;
-    /**
-     * Indexes (in render order) of `.bio-properties-panel-group` elements
-     * that are currently expanded.  Keyed by position so it survives a
-     * language switch — group labels are localised, indexes are not.
-     */
-    expandedGroupIndexes?: number[];
-    /**
-     * Per-editor properties-panel visibility. Absent until the user first
-     * toggles the panel in this editor; while absent the editor follows the
-     * host's global default (`dmnPropertiesPanelVisible`). Present entry wins.
-     */
-    panelVisible?: boolean;
-}
 
 type StateType = WebviewState;
 

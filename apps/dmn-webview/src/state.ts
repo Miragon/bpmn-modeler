@@ -1,5 +1,10 @@
+/**
+ * Host-adapter surface — `WebviewStateManager` speaks the private Query/Command
+ * protocol and persists panel UI state. Lives in the app, outside the
+ * publishable `@miragon/dmn-modeler` boundary.
+ */
 import { Command, Query, HostApi, PropertiesPanelHandle } from "@miragon/bpmn-modeler-shared";
-import { WebviewState } from "./host";
+import { WebviewState } from "./webviewState";
 
 /**
  * Reads the per-editor properties-panel visibility from persisted state.
@@ -46,7 +51,13 @@ function isGroupOpen(group: HTMLElement): boolean {
  * 2. {@link startPersisting}       — installs the change listeners
  */
 export class WebviewStateManager {
-    constructor(private readonly host: HostApi<WebviewState, Command | Query>) {}
+    constructor(
+        private readonly host: HostApi<WebviewState, Command | Query>,
+        // The properties-panel host element. The scroll container is looked up
+        // within it rather than via `document` so a second modeler's panel on
+        // the same page is never mistaken for this one's.
+        private readonly panelRoot: HTMLElement,
+    ) {}
 
     /**
      * Restores the properties-panel UI state (expanded groups + scroll) in a
@@ -66,7 +77,7 @@ export class WebviewStateManager {
             return;
         }
         requestAnimationFrame(() => {
-            const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
+            const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
             if (!container) {
                 return;
             }
@@ -133,7 +144,7 @@ export class WebviewStateManager {
      * Wires a debounced scroll listener on the properties panel.
      */
     private subscribePanelScroll(): void {
-        const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
+        const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
         if (!container) {
             return;
         }
@@ -157,7 +168,7 @@ export class WebviewStateManager {
      * changes elsewhere in the panel subtree (input focus, hover, etc.).
      */
     private subscribeGroupExpansion(): void {
-        const container = document.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
+        const container = this.panelRoot.querySelector<HTMLElement>(PANEL_SCROLL_CONTAINER);
         if (!container) {
             return;
         }

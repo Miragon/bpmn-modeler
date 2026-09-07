@@ -16,6 +16,7 @@ import {
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
     type HostThemeAdapter,
+    type HostThemeMode,
     initResizer,
     installPanelShortcuts,
     LogErrorCommand,
@@ -28,15 +29,17 @@ import {
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
 import { asyncDebounce, NoModelerError, serializeAsync } from "@miragon/bpmn-modeler-types";
-import { i18n } from "@miragon/bpmn-modeler-i18n";
+import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
+import { createModeler, type DmnModelerHandle } from "@miragon/dmn-modeler";
 
-import { createModeler, readSavedPanelVisibility, WebviewStateManager } from "./app";
-import type { DmnModelerHandle } from "./app";
+import { readSavedPanelVisibility, WebviewStateManager } from "./state";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
-import type { WebviewState } from "./app/host";
+import type { WebviewState } from "./webviewState";
 
-// Injected by bootstrap(); the app/demo entry chooses the concrete host.
+// Injected by bootstrap(); the app/demo entry chooses the concrete host and,
+// optionally, seeds the initial theme mode / locale.
 let host: HostApi<WebviewState, Command | Query>;
+let bootstrapOpts: { theme?: HostThemeMode; locale?: SupportedLocale } = {};
 let modeler: DmnModelerHandle | undefined;
 let themeAdapter: HostThemeAdapter | undefined;
 
@@ -165,29 +168,41 @@ const RESOLVER_TIMEOUT_MS = 5000;
  * 2. User switched to another tab and now switched back
  */
 async function run(): Promise<void> {
-    const stateManager = new WebviewStateManager(host);
+    const canvas = requireElement("#js-canvas");
+    const propertiesPanel = requireElement("#js-properties-panel");
+    const stateManager = new WebviewStateManager(host, propertiesPanel);
     window.addEventListener("message", onReceiveMessage);
 
     // Theme is host policy: drive the page-level scope (host chrome, keyed off
     // `:root[data-dmn-theme="dark"]`) and the modeler instance's own theme off
     // the VS Code `<body>`-class signal. The instance is also born correct via
-    // `theme: resolveHostThemeKind()` below, so this mainly covers the page
-    // chrome and later live theme switches. The host's `colorTheme` preference
-    // (which may force light) is applied once the setting query arrives below.
+    // `theme: resolveHostThemeKind()` below; the adapter covers the page chrome,
+    // a forced `opts.theme` seam, and later live theme switches. The host's
+    // `colorTheme` preference (which may force light) is applied once the setting
+    // query arrives below.
     themeAdapter = createHostThemeAdapter((kind) => {
         applyPageThemeScope("data-dmn-theme", kind);
         modeler?.setTheme(kind);
     });
-    themeAdapter.setMode("automatic");
 
-    const canvas = requireElement("#js-canvas");
-    const propertiesPanel = requireElement("#js-properties-panel");
+    // Seed the locale before the modeler renders so the resizer labels (and,
+    // once DMN language wiring lands, the dmn-js UI) come up translated.
+    if (bootstrapOpts.locale) {
+        i18n.setLanguage(bootstrapOpts.locale);
+    }
+
     modeler = await createModeler(canvas, {
         propertiesPanel: { parent: propertiesPanel },
         theme: resolveHostThemeKind(),
         onContentChanged: () => void debouncedSendChanges(),
         onWarning: (message) => host.postMessage(new LogWarningCommand(message)),
     });
+
+    // Drive the mode only after the instance exists so a forced `opts.theme`
+    // (the demo, which never gets a settings reply) actually reaches
+    // `modeler.setTheme`; "automatic" reproduces today's follow-the-IDE
+    // behaviour and installs the live `<body>`-class observer.
+    themeAdapter.setMode(bootstrapOpts.theme ?? "automatic");
 
     // Labels reuse the BPMN i18n keys; DMN has no language wiring yet, so they
     // render the English fallback until that lands.
@@ -351,10 +366,15 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
 
 /**
  * Starts the DMN webview against the given host. The entry (real or demo)
- * chooses the host.
+ * chooses the host and, optionally, the initial theme mode / locale — the demo
+ * seeds them directly since it has no host settings reply to wait on.
  */
-export function bootstrap(injectedHost: HostApi<WebviewState, Command | Query>): void {
+export function bootstrap(
+    injectedHost: HostApi<WebviewState, Command | Query>,
+    opts: { theme?: HostThemeMode; locale?: SupportedLocale } = {},
+): void {
     host = injectedHost;
+    bootstrapOpts = opts;
     registerGlobalErrorHandlers();
     if (document.readyState === "complete") {
         void run();
