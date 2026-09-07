@@ -28,19 +28,26 @@ const mocks = vi.hoisted(() => {
         ),
         initResizer: vi.fn(() => panelHandle),
         installPanelShortcuts: vi.fn(),
+        stateManagerCtor: vi.fn(),
         stateManager: {
             restorePanelVisibility: vi.fn(),
             persistPanelVisibility: vi.fn(),
             restorePanelUiState: vi.fn(),
             startPersisting: vi.fn(),
         },
+        setLanguage: vi.fn(),
+        getLocale: vi.fn(() => "en"),
     };
 });
 
-vi.mock("./app", () => ({
-    createModeler: mocks.createModeler,
+vi.mock("@miragon/dmn-modeler", () => ({ createModeler: mocks.createModeler }));
+
+vi.mock("./state", () => ({
     readSavedPanelVisibility: vi.fn(() => undefined),
     WebviewStateManager: class {
+        constructor(...args: unknown[]) {
+            mocks.stateManagerCtor(...args);
+        }
         restorePanelVisibility = mocks.stateManager.restorePanelVisibility;
         persistPanelVisibility = mocks.stateManager.persistPanelVisibility;
         restorePanelUiState = mocks.stateManager.restorePanelUiState;
@@ -52,6 +59,8 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({
     i18n: {
         translate: (text: string) => text,
         onChange: vi.fn(),
+        setLanguage: mocks.setLanguage,
+        getLocale: mocks.getLocale,
     },
 }));
 
@@ -123,6 +132,8 @@ describe("DMN bootstrap", () => {
             canvas,
             expect.objectContaining({ propertiesPanel: { parent: panel }, theme: "light" }),
         );
+        // The state manager is scoped to the properties-panel element, not `document`.
+        expect(mocks.stateManagerCtor).toHaveBeenCalledWith(host, panel);
         // The host adapter scoped the page on `<html>` off the (light) VS Code signal.
         expect(document.documentElement.getAttribute("data-dmn-theme")).toBe("light");
         expect(mocks.createModeler.mock.invocationCallOrder[0]).toBeLessThan(
@@ -195,5 +206,33 @@ describe("DMN bootstrap", () => {
         function dispatch(data: Record<string, unknown>): void {
             window.dispatchEvent(new MessageEvent("message", { data }));
         }
+    });
+
+    it("seeds a forced theme and locale from bootstrap opts", async () => {
+        vi.resetModules();
+        mocks.handle.setTheme.mockClear();
+        mocks.setLanguage.mockClear();
+
+        document.body.className = "";
+        document.body.innerHTML = `
+            <main id="js-canvas"></main>
+            <aside id="js-properties-panel"></aside>
+        `;
+        Object.defineProperty(document, "readyState", { value: "complete", configurable: true });
+
+        const host = {
+            postMessage: vi.fn(),
+            getState: () => undefined,
+            setState: vi.fn(),
+            updateState: vi.fn(),
+        };
+
+        const { bootstrap } = await import("./bootstrap");
+        bootstrap(host as never, { theme: "dark", locale: "de" });
+
+        // The forced dark mode reaches the instance before any settings reply,
+        // and the locale is seeded before the modeler renders.
+        await vi.waitFor(() => expect(mocks.handle.setTheme).toHaveBeenCalledWith("dark"));
+        expect(mocks.setLanguage).toHaveBeenCalledWith("de");
     });
 });

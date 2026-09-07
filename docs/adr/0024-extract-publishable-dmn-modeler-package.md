@@ -64,6 +64,8 @@ Two decisions specific to this step:
   that BPMN uses) → issue #1462.
 - **The thin-adapter rewire** of `apps/dmn-webview/src/app/` (host.ts / state.ts
   still speak the protocol under a temporary eslint exemption) → issue #1463.
+  → landed with #1463: `src/app/` is flattened to `src/`, the eslint exemption
+  is gone, and the adapter root mirrors `apps/bpmn-webview/src`.
 - **The subpath release line and parameterised publish workflow** (the DMN
   release component, its own ADR) → issue #1466 / ADR 0025.
 
