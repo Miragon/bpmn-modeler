@@ -121,7 +121,7 @@
         "@miragon/bpmn-modeler-inline-scripting": "workspace:*",
         "@miragon/bpmn-modeler-properties-panel": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
-        "@types/node": "26.1.2",
+        "@types/node": "26.3.0",
         "@vitest/coverage-v8": "4.1.11",
         "didi": "11.0.0",
         "jsdom": "30.0.1",
