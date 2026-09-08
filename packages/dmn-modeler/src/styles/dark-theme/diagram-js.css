@@ -158,11 +158,13 @@
 }
 
 /**
- * "Powered by dmn.io" attribution logo — hardcoded `color: #404040` is nearly
- * invisible on dark; lift it to a muted light grey.
+ * "Powered by bpmn.io" attribution logo — dmn-js inlines the logo SVG with a
+ * hardcoded `fill="#000000"` on its paths (not `currentColor` like bpmn-js), so
+ * a `color` override is a no-op here; recolour the paths directly to a muted
+ * light grey. The logo markup itself must not be altered (bpmn.io licence).
  */
-[data-dmn-theme="dark"] .bjs-powered-by {
-    color: var(--dt-surface-a50) !important;
+[data-dmn-theme="dark"] .bjs-powered-by svg path {
+    fill: var(--dt-surface-a60) !important;
 }
 
 /**
