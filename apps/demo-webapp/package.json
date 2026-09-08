@@ -8,6 +8,7 @@
         "build:dmn": "vite build --mode dmn",
         "build": "npm-run-all -s build:bpmn build:dmn",
         "serve:bpmn": "vite --mode bpmn",
+        "serve:dmn": "vite --mode dmn",
         "preview": "node serve-demo.mjs"
     },
     "dependencies": {
