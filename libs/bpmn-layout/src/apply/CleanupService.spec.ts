@@ -40,11 +40,9 @@ function build(knownIds: string[] = []) {
     const { definitions, orphanDi, ghost } = model();
     const commandStack = { execute: vi.fn() };
     const elements = new Map(knownIds.map((id) => [id, { id }]));
-    const service = new CleanupService(
-        { get: (id: string) => elements.get(id) },
-        commandStack,
-        { getDefinitions: () => definitions },
-    );
+    const service = new CleanupService({ get: (id: string) => elements.get(id) }, commandStack, {
+        getDefinitions: () => definitions,
+    });
     return { service, commandStack, definitions, orphanDi, ghost };
 }
 
@@ -52,10 +50,12 @@ describe("CleanupService", () => {
     it("reports findings without changing anything", () => {
         const { service, commandStack } = build();
 
-        expect(service.inspect().map((item) => item.kind).sort()).toEqual([
-            "isolated-node",
-            "orphan-di",
-        ]);
+        expect(
+            service
+                .inspect()
+                .map((item) => item.kind)
+                .sort(),
+        ).toEqual(["isolated-node", "orphan-di"]);
         expect(commandStack.execute).not.toHaveBeenCalled();
     });
 

@@ -37,7 +37,6 @@ export interface LayoutResult {
     diagnostics: LayoutDiagnostic[];
 }
 
-
 /**
  * One element as it stands *before* any command runs. The applier takes this
  * snapshot once; every delta in the plan is derived from it, which is what

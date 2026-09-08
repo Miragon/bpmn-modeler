@@ -123,9 +123,7 @@ describe("LayoutPaletteProvider", () => {
     it("falls back to appending when the palette has no connect tool to anchor on", () => {
         const { provider } = paletteHarness({ commandStack: {} });
 
-        const ids = Object.keys(
-            provider.getPaletteEntries()({ "hand-tool": { group: "tools" } }),
-        );
+        const ids = Object.keys(provider.getPaletteEntries()({ "hand-tool": { group: "tools" } }));
 
         expect(ids).toEqual(["hand-tool", "format-diagram"]);
     });

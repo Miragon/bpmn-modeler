@@ -57,7 +57,9 @@ export class BpmnLayoutService {
             return;
         }
 
-        const reason = message.code ? REFUSAL_MESSAGES[message.code] : REFUSAL_MESSAGES.ENGINE_FAILED;
+        const reason = message.code
+            ? REFUSAL_MESSAGES[message.code]
+            : REFUSAL_MESSAGES.ENGINE_FAILED;
         if (message.message) this.notifier.logError(`Format failed: ${message.message}`);
         this.notifier.showError(
             message.code === "ENGINE_FAILED" && message.message

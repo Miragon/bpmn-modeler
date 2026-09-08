@@ -14,10 +14,7 @@
  * `ENGINE_FAILED` is the single catch-all for a throwing engine.
  */
 export type LayoutErrorCode =
-    | "UNSUPPORTED_SURFACE"
-    | "UNSUPPORTED_DRILLDOWN"
-    | "EMPTY_DIAGRAM"
-    | "ENGINE_FAILED";
+    "UNSUPPORTED_SURFACE" | "UNSUPPORTED_DRILLDOWN" | "EMPTY_DIAGRAM" | "ENGINE_FAILED";
 
 /** A non-fatal remark from the engine; formatting proceeded regardless. */
 export interface LayoutDiagnostic {

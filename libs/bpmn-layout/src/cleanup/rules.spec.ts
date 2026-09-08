@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-    findCleanupCandidates,
-    isRedundantBend,
-    planCleanupActions,
-    tidyWaypoints,
-} from "./rules";
+import { findCleanupCandidates, isRedundantBend, planCleanupActions, tidyWaypoints } from "./rules";
 import type { ModdleNode } from "./rules";
 
 function definitions(over: Partial<ModdleNode> = {}): ModdleNode {
@@ -236,7 +231,11 @@ describe("findCleanupCandidates — semantics", () => {
                             $type: "bpmn:LaneSet",
                             id: "LaneSet_1",
                             lanes: [
-                                { $type: "bpmn:Lane", id: "Lane_1", flowNodeRef: [{ id: "Task_1" }] },
+                                {
+                                    $type: "bpmn:Lane",
+                                    id: "Lane_1",
+                                    flowNodeRef: [{ id: "Task_1" }],
+                                },
                             ],
                         },
                     ],
@@ -471,8 +470,6 @@ describe("planCleanupActions", () => {
         });
 
         expect(findCleanupCandidates(model)).toHaveLength(1);
-        expect(planCleanupActions(model)).toEqual([
-            { kind: "remove-element", id: "Task_ghost" },
-        ]);
+        expect(planCleanupActions(model)).toEqual([{ kind: "remove-element", id: "Task_ghost" }]);
     });
 });

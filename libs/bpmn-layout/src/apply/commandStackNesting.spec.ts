@@ -14,7 +14,9 @@ import { describe, expect, it, vi } from "vitest";
  */
 function stack() {
     const eventBus = new EventBus();
-    const commandStack = new CommandStack(eventBus, { instantiate: (cls: unknown) => cls } as never);
+    const commandStack = new CommandStack(eventBus, {
+        instantiate: (cls: unknown) => cls,
+    } as never);
     return { eventBus, commandStack };
 }
 

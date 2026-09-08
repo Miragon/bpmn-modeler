@@ -159,19 +159,17 @@ export class Layouter {
     }
 
     private snapshot(): DiagramSnapshot {
-        return this.elementRegistry.getAll().map(
-            (element): ElementSnapshot => ({
-                id: element.id,
-                type: element.type,
-                x: element.x ?? 0,
-                y: element.y ?? 0,
-                width: element.width ?? 0,
-                height: element.height ?? 0,
-                parentId: element.parent?.id,
-                waypoints: element.waypoints?.map((point) => ({ x: point.x, y: point.y })),
-                labelTargetId: element.labelTarget?.id,
-            }),
-        );
+        return this.elementRegistry.getAll().map((element): ElementSnapshot => ({
+            id: element.id,
+            type: element.type,
+            x: element.x ?? 0,
+            y: element.y ?? 0,
+            width: element.width ?? 0,
+            height: element.height ?? 0,
+            parentId: element.parent?.id,
+            waypoints: element.waypoints?.map((point) => ({ x: point.x, y: point.y })),
+            labelTargetId: element.labelTarget?.id,
+        }));
     }
 }
 

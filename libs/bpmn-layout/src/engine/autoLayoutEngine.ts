@@ -85,7 +85,12 @@ function collectGeometry(definitions: ParsedNode): {
                 const y = toNumber(bounds?.y);
                 const width = toNumber(bounds?.width);
                 const height = toNumber(bounds?.height);
-                if (x === undefined || y === undefined || width === undefined || height === undefined) {
+                if (
+                    x === undefined ||
+                    y === undefined ||
+                    width === undefined ||
+                    height === undefined
+                ) {
                     continue;
                 }
                 shapes.push({ id, x, y, width, height });
@@ -95,7 +100,9 @@ function collectGeometry(definitions: ParsedNode): {
             if (element.$type === "bpmndi:BPMNEdge") {
                 const waypoints = asArray(element.waypoint)
                     .map((point) => ({ x: toNumber(point.x), y: toNumber(point.y) }))
-                    .filter((point): point is Point => point.x !== undefined && point.y !== undefined);
+                    .filter(
+                        (point): point is Point => point.x !== undefined && point.y !== undefined,
+                    );
                 if (waypoints.length >= 2) edges.push({ id, waypoints });
             }
         }
@@ -104,7 +111,11 @@ function collectGeometry(definitions: ParsedNode): {
     return { shapes, edges };
 }
 
-function toDiagnostic(warning: { code?: string; message?: string; elementId?: string }): LayoutDiagnostic {
+function toDiagnostic(warning: {
+    code?: string;
+    message?: string;
+    elementId?: string;
+}): LayoutDiagnostic {
     return {
         message: warning.message || warning.code || "Layout warning",
         elementId: warning.elementId,

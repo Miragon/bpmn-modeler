@@ -45,9 +45,11 @@ function build(options: {
         commandStack as never,
         eventBus as never,
         {
-            computeLayout: vi.fn(
-                async (): Promise<LayoutResult> => ({ shapes: [], edges: [], diagnostics: [] }),
-            ),
+            computeLayout: vi.fn(async (): Promise<LayoutResult> => ({
+                shapes: [],
+                edges: [],
+                diagnostics: [],
+            })),
             ...options.engine,
         } as never,
         {
@@ -187,7 +189,9 @@ describe("Layouter.format", () => {
             const { layouter, commandStack } = build({
                 engine: {
                     computeLayout: async () => {
-                        throw new LayoutEngineError("A sequence flow cannot cross a scope (Flow_1)");
+                        throw new LayoutEngineError(
+                            "A sequence flow cannot cross a scope (Flow_1)",
+                        );
                     },
                 },
             });
@@ -203,9 +207,7 @@ describe("Layouter.format", () => {
 
     it("excludes labels and the root from the element count", async () => {
         const { layouter } = build({
-            elements: [
-                { id: "Task_1_label", type: "label", labelTarget: { id: "Task_1" } },
-            ],
+            elements: [{ id: "Task_1_label", type: "label", labelTarget: { id: "Task_1" } }],
         });
 
         // Only a label is present, so the diagram counts as empty.

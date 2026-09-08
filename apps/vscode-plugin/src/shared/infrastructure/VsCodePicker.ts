@@ -251,10 +251,7 @@ export class VsCodePicker implements PickerPort {
     }): Promise<boolean> {
         const shown = options.details.slice(0, MAX_CONFIRM_DETAILS);
         const remainder = options.details.length - shown.length;
-        const detail = [
-            ...shown,
-            ...(remainder > 0 ? [`…and ${remainder} more`] : []),
-        ].join("\n");
+        const detail = [...shown, ...(remainder > 0 ? [`…and ${remainder} more`] : [])].join("\n");
 
         const choice = await window.showWarningMessage(
             options.title,

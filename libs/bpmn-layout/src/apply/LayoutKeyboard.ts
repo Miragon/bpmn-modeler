@@ -21,7 +21,10 @@ const FORMAT_KEY = "l";
 export class LayoutKeyboard {
     static $inject = ["keyboard", "injector"];
 
-    constructor(keyboard: KeyboardLike, private readonly injector: InjectorLike) {
+    constructor(
+        keyboard: KeyboardLike,
+        private readonly injector: InjectorLike,
+    ) {
         // Resolved lazily rather than injected: `Layouter` needs `modeling` and
         // `commandStack`, so constructing it eagerly would throw on a surface
         // that has neither.

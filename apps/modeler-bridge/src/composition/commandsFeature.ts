@@ -57,9 +57,7 @@ export function register(
             await layoutSvc.reportCleanup(message as CleanupReportCommand, editorId);
         });
 
-    const withActiveEditor = async (
-        action: (editorId: string) => Promise<void>,
-    ): Promise<void> => {
+    const withActiveEditor = async (action: (editorId: string) => Promise<void>): Promise<void> => {
         try {
             await action(deps.store.getActiveEditorId());
         } catch (error) {

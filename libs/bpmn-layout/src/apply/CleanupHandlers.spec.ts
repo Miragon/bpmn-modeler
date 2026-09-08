@@ -65,9 +65,7 @@ describe("CleanupApplyHandler", () => {
     it("defers moddle-only actions to the nested raw command", () => {
         const { handler, commandStack } = harness([]);
         const array = [{ marker: 1 }];
-        const actions: CleanupAction[] = [
-            { kind: "splice", array, index: 0, node: array[0] },
-        ];
+        const actions: CleanupAction[] = [{ kind: "splice", array, index: 0, node: array[0] }];
 
         handler.preExecute({ actions });
 
@@ -154,7 +152,9 @@ describe("CleanupModdleHandler", () => {
 describe("cleanup end to end on a real command stack", () => {
     it("reverts registry removals and moddle splices together in one undo", () => {
         const eventBus = new EventBus();
-        const commandStack = new CommandStack(eventBus, { instantiate: (cls: unknown) => cls } as never);
+        const commandStack = new CommandStack(eventBus, {
+            instantiate: (cls: unknown) => cls,
+        } as never);
 
         const removed: unknown[][] = [];
         const array: unknown[] = [{ id: "orphan-di" }];

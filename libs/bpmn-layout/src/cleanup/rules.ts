@@ -374,7 +374,10 @@ function inspectSemantics(
                     actions: stale
                         .map((ref) => spliceAction(refs as unknown[], ref))
                         .filter((action): action is CleanupAction => Boolean(action))
-                        .sort((a, b) => (b as { index: number }).index - (a as { index: number }).index),
+                        .sort(
+                            (a, b) =>
+                                (b as { index: number }).index - (a as { index: number }).index,
+                        ),
                 });
             }
             continue;
@@ -382,7 +385,9 @@ function inspectSemantics(
 
         if (node.$type === "bpmn:LaneSet" && asArray(node.lanes).length === 0) {
             const owner = node.$parent as ModdleNode | undefined;
-            const action = owner ? spliceAction(asArray(owner.laneSets) as unknown[], node) : undefined;
+            const action = owner
+                ? spliceAction(asArray(owner.laneSets) as unknown[], node)
+                : undefined;
             findings.push({
                 item: {
                     kind: "empty-container",

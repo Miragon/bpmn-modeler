@@ -140,7 +140,8 @@ export function computeLayoutPlan(
     const labelOperations: LayoutOperation[] = [];
     for (const element of snapshot) {
         if (!element.labelTargetId) continue;
-        const delta = shapeDeltas.get(element.labelTargetId) ?? edgeDeltas.get(element.labelTargetId);
+        const delta =
+            shapeDeltas.get(element.labelTargetId) ?? edgeDeltas.get(element.labelTargetId);
         if (!delta || samePoint(delta, { x: 0, y: 0 })) continue;
         labelOperations.push({ kind: "move-label", id: element.id, delta });
     }

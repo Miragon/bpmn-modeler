@@ -108,10 +108,14 @@ describe("computeLayoutPlan", () => {
 
     it("replaces waypoints and orders associations after ordinary connections", () => {
         const snapshot: DiagramSnapshot = [
-            connection("Association_1", [
-                { x: 0, y: 0 },
-                { x: 10, y: 10 },
-            ], { type: "bpmn:Association" }),
+            connection(
+                "Association_1",
+                [
+                    { x: 0, y: 0 },
+                    { x: 10, y: 10 },
+                ],
+                { type: "bpmn:Association" },
+            ),
             connection("Flow_1", [
                 { x: 0, y: 0 },
                 { x: 20, y: 0 },

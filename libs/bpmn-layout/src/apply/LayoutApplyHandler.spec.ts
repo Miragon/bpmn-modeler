@@ -1,12 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { LayoutOperation } from "../types";
-import {
-    LayoutApplyHandler,
-    MOVE_HINTS,
-    RESIZE_HINTS,
-    WAYPOINT_HINTS,
-} from "./LayoutApplyHandler";
+import { LayoutApplyHandler, MOVE_HINTS, RESIZE_HINTS, WAYPOINT_HINTS } from "./LayoutApplyHandler";
 
 function harness(knownIds: string[]) {
     const modeling = {
