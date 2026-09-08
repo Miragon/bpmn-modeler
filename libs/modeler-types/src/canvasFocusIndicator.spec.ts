@@ -83,4 +83,23 @@ describe("installCanvasFocusIndicator", () => {
         emitSelection(false);
         expect(root.classList.contains("is-focused")).toBe(false);
     });
+
+    it("disposer removes the reticle from the DOM", () => {
+        installCanvasFocusIndicator({
+            parent,
+            isFocused: () => false,
+            onFocusChanged: () => {},
+            hasSelection: () => false,
+            onSelectionChanged: () => {},
+        });
+        const dispose = installCanvasFocusIndicator({
+            parent,
+            isFocused: () => false,
+            onFocusChanged: () => {},
+            hasSelection: () => false,
+            onSelectionChanged: () => {},
+        });
+        dispose();
+        expect(parent.querySelectorAll(".canvas-focus-indicator")).toHaveLength(1);
+    });
 });

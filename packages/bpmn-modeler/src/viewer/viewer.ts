@@ -13,7 +13,11 @@ import PropertiesPanelModule from "@miragon/bpmn-modeler-properties-panel/render
 import NeutralPropertiesProviderModule from "@miragon/bpmn-modeler-properties-panel/provider/index";
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
-import { NoModelerError, observeCanvasSize } from "@miragon/bpmn-modeler-types";
+import {
+    installCanvasFocusIndicator,
+    NoModelerError,
+    observeCanvasSize,
+} from "@miragon/bpmn-modeler-types";
 import { ThemeController } from "../theme";
 import { ViewportManager } from "../viewport";
 import { SelectionManager } from "../selection";
@@ -24,7 +28,6 @@ import {
     type ViewState,
 } from "../viewState";
 import { installKeyboardFocus } from "../keyboardFocus";
-import { installCanvasFocusIndicator } from "../canvasFocusIndicator";
 import type { ThemeMode } from "../publicApi";
 import type { CoreViewerServices, ViewerOptions } from "./publicApi";
 

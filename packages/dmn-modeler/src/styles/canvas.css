@@ -1,0 +1,10 @@
+/* Modeler-DOM tweaks that are not part of the stock dmn-js sheets and are
+ * theme-agnostic. Kept separate so the vendored sheets stay unmodified. */
+
+/* dmn-js only sets `outline-offset` on the focused DRD canvas, leaving the raw
+ * user-agent focus outline — which some hosts (VS Code) paint in a jarring
+ * accent colour around the whole canvas. Suppress it (matches the BPMN
+ * package's `default.css`). */
+.djs-container svg:focus {
+    outline: none;
+}
