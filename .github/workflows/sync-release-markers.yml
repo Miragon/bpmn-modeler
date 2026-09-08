@@ -3,25 +3,34 @@ name: Sync release markers
 # release-please routes each commit by its changed file paths, and only the root
 # component can watch multiple paths. The root slot belongs to the publishable
 # @miragon/bpmn-modeler package ("." minus exclude-paths — the package plus the
-# 10 libs it inlines). The two hosts are single-path components that *bundle*
-# sources living outside their own path — a coupling no manifest records. This
-# workflow closes that gap: when a feat/fix lands on a bundled path, it commits
-# ONE marker commit (touching the marker file of every host that bundles the
-# change) whose subject mirrors the triggering PR title, so each host's release
-# line and changelog carry the real change:
+# 10 libs it inlines). The two hosts and the DMN package are single-path
+# components that *bundle* sources living outside their own path — a coupling no
+# manifest records. This workflow closes that gap: when a feat/fix lands on a
+# bundled path, it commits ONE marker commit (touching the marker file of every
+# component that bundles the change) whose subject mirrors the triggering PR
+# title, so each component's release line and changelog carry the real change:
 #
 #   - vscode    (apps/vscode-plugin): ships the four webviews, the standalone
 #               app (versioned in lockstep), libs/modeler-core, libs/shared,
-#               libs/standalone-extension and the npm-package sphere.
+#               libs/standalone-extension and the npm-package sphere. Its
+#               BUNDLED_WEBVIEW marker records bundled webviews into a host.
 #   - intellij  (apps/intellij-plugin): ships the bpmn/deployment webviews,
 #               apps/modeler-bridge, libs/modeler-core, libs/shared and the
 #               npm-package sphere. DMN/form webviews are not bundled.
+#               BUNDLED_WEBVIEW marker, as vscode.
+#   - dmn-modeler (packages/dmn-modeler): the publishable @miragon/dmn-modeler
+#               package inlines libs/modeler-types and libs/bpmn-i18n-extras.
+#               Its BUNDLED_LIBS marker records bundled *libs* into a package
+#               (vs BUNDLED_WEBVIEW's webviews into a host). Unlike the host
+#               markers, this one sits under a trigger path, so the trigger
+#               below negates it to stop a marker commit re-triggering the run.
 #
 # Severity: the marker keeps the triggering title's type (feat → minor,
-# fix → patch on the hosts) but strips a breaking `!` — a package-breaking
-# change is not a host-breaking change; a host a change genuinely breaks must
-# touch that host's own path. chore/docs/refactor shared changes are skipped
-# entirely: they ship with the next host release but are not attributed.
+# fix → patch on the components) but strips a breaking `!` — a package-breaking
+# change is not a component-breaking change; a component a change genuinely
+# breaks must touch that component's own path. chore/docs/refactor shared
+# changes are skipped entirely: they ship with the next release but are not
+# attributed.
 #
 # PRs are squash-merged, so the head commit of a push IS the PR title. Rare
 # multi-commit direct pushes are judged by the head commit's title only (the
@@ -30,8 +39,9 @@ name: Sync release markers
 # Commits go through the GitHub API with the App token so the push re-triggers
 # release-please.yml (a plain GITHUB_TOKEN push would not). The multi-file
 # marker commit uses the Git Data API (trees/commits/refs) because the Contents
-# API is single-file. Neither marker file lives under a trigger path below, so
-# a marker push cannot re-trigger this workflow.
+# API is single-file. The two host markers live outside all trigger paths and
+# the DMN BUNDLED_LIBS marker is negated from its own path, so a marker push
+# cannot re-trigger this workflow.
 #
 # workflow_dispatch is a manual seed/escape hatch: it bypasses the type filter
 # and writes a generic `fix: sync bundled sources` marker for every host whose
@@ -49,6 +59,8 @@ on:
       - 'apps/modeler-bridge/**'
       - 'apps/standalone/**'
       - 'packages/bpmn-modeler/**'
+      - 'packages/dmn-modeler/**'
+      - '!packages/dmn-modeler/BUNDLED_LIBS'
       - 'libs/append-menu/**'
       - 'libs/bpmn-clipboard/**'
       - 'libs/bpmn-diff/**'
@@ -99,12 +111,21 @@ jobs:
           # inlines (vite.config.mts INLINED_LIBS). Bundled by both hosts.
           SPHERE='^packages/bpmn-modeler/|^libs/(append-menu|bpmn-clipboard|bpmn-diff|bpmn-i18n-extras|code-link|element-template-chooser|flow-navigation|inline-scripting|model-navigation|modeler-types)/'
 
-          VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|${SPHERE}"
+          VSC_RELEVANT="^apps/(bpmn-webview|dmn-webview|form-webview|deployment-webview|standalone)/|^libs/(modeler-core|shared|standalone-extension)/|^packages/dmn-modeler/|${SPHERE}"
           IJ_RELEVANT="^apps/(bpmn-webview|deployment-webview|modeler-bridge)/|^libs/(modeler-core|shared)/|${SPHERE}"
           VSC_NATIVE='^apps/vscode-plugin/'
           IJ_NATIVE='^apps/intellij-plugin/'
           VSC_MARKER="apps/vscode-plugin/BUNDLED_WEBVIEW"
           IJ_MARKER="apps/intellij-plugin/BUNDLED_WEBVIEW"
+
+          # The DMN package inlines only libs/modeler-types and
+          # libs/bpmn-i18n-extras; a change to either bumps its release line
+          # via BUNDLED_LIBS. IntelliJ ships no DMN editor, so DMN is not in
+          # IJ_RELEVANT; vscode bundles the DMN webview (which inlines the
+          # package), so packages/dmn-modeler IS in VSC_RELEVANT above.
+          DMN_RELEVANT='^libs/(modeler-types|bpmn-i18n-extras)/'
+          DMN_NATIVE='^packages/dmn-modeler/'
+          DMN_MARKER="packages/dmn-modeler/BUNDLED_LIBS"
 
           SUBJECT=$(gh api "repos/${REPO}/commits/${SHA}" --jq '.commit.message' | head -n1)
 
@@ -164,6 +185,13 @@ jobs:
             echo "[intellij] marker queued."
           else
             echo "[intellij] no marker needed."
+          fi
+          if marker_needed "$DMN_RELEVANT" "$DMN_NATIVE" "$DMN_MARKER"; then
+            FILES_JSON=$(jq -c --arg p "$DMN_MARKER" --arg c "$(marker_content dmn-modeler)" \
+              '. + [{path:$p, mode:"100644", type:"blob", content:$c}]' <<<"$FILES_JSON")
+            echo "[dmn-modeler] marker queued."
+          else
+            echo "[dmn-modeler] no marker needed."
           fi
 
           if [ "$(jq 'length' <<<"$FILES_JSON")" -eq 0 ]; then

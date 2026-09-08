@@ -23,6 +23,7 @@ contributor-facing record, not user documentation.
 | [0014](0014-make-bpmn-modeler-the-root-release-component.md) | Make the npm package the root release component; hosts release via sync markers | accepted |
 | [0019](0019-webview-panel-chrome-in-shared.md) | Webview panel chrome (resizer/focus/shortcuts) lives in `libs/shared`; publishable `modeler-types` keeps only `isTextEditingSurface` | accepted |
 | [0020](0020-untagged-documents-first-class-in-hosts.md) | Untagged documents are first-class in the hosts (no stamp-on-open); mode is per-editor webview state seeded by `defaultMode`; engine-neutral new-file scaffold | accepted |
+| [0028](0028-dmn-modeler-as-subpath-release-component.md) | `@miragon/dmn-modeler` as a subpath release component (`dmn-modeler-v<version>`); `BUNDLED_LIBS` marker for its two inlined libs; one parameterised publish workflow | accepted |
 
 ### modeler-core
 
