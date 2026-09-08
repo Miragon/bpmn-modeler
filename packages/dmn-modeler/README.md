@@ -62,12 +62,32 @@ permanent, page-global compatibility path. It is optional; a missing
 per-instance themes — prefer the attribute mechanism (i.e. just `styles.css`).
 
 > Caveat: setting `data-dmn-theme` on a page **root** element (`<html>`) themes
-> everything below it. Mixing that with two instances that hold *different*
+> everything below it. Mixing that with two instances that hold _different_
 > per-instance themes would let the root value leak; a single-instance page or
 > one that never sets the root attribute is unaffected.
 
-The `locale` option is **reserved** — it is accepted so the API stays stable,
-but has no runtime effect yet.
+## Locale
+
+The dmn-js UI is translated through the shared
+[`@miragon/bpmn-modeler-i18n`](https://www.npmjs.com/package/@miragon/bpmn-modeler-i18n)
+dictionaries. Pass an initial `locale` to `createModeler`, or switch it live with
+`setLocale(...)`:
+
+```ts
+const modeler = await createModeler(canvas, {
+    propertiesPanel: { parent: panel },
+    locale: "de", // any locale the shared library ships; unknown codes fall back to "en"
+});
+
+await modeler.setLocale("en"); // re-translate live
+```
+
+The locale is **page-global** — the i18n instance is a singleton, so `locale` /
+`setLocale` set the language for every modeler on the page (there is no
+per-instance locale). Switching a running modeler re-opens its active view so the
+already rendered labels re-translate; that resets the view's undo history and
+re-fires `onViewChanged` (the DRD viewbox is preserved). `setLocale` is a no-op
+when the resolved locale is unchanged.
 
 ## Views
 
@@ -103,24 +123,24 @@ const eventBus = modeler.getService("eventBus");
   `inferno` and the properties-panel / CodeMirror stack. If you build with Vite,
   add these to `resolve.dedupe`:
 
-  ```ts
-  resolve: {
-      dedupe: [
-          "inferno",
-          "@bpmn-io/properties-panel",
-          "@codemirror/state",
-          "@codemirror/view",
-          "@codemirror/language",
-          "@codemirror/autocomplete",
-          "@codemirror/commands",
-          "@codemirror/lint",
-          "@codemirror/search",
-          "@lezer/common",
-          "@lezer/highlight",
-          "@lezer/lr",
-      ],
-  }
-  ```
+    ```ts
+    resolve: {
+        dedupe: [
+            "inferno",
+            "@bpmn-io/properties-panel",
+            "@codemirror/state",
+            "@codemirror/view",
+            "@codemirror/language",
+            "@codemirror/autocomplete",
+            "@codemirror/commands",
+            "@codemirror/lint",
+            "@codemirror/search",
+            "@lezer/common",
+            "@lezer/highlight",
+            "@lezer/lr",
+        ],
+    }
+    ```
 
 ## License
 

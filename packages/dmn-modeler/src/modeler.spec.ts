@@ -57,6 +57,11 @@ const mocks = vi.hoisted(() => ({
     camundaProvider: { id: "camunda-provider" },
     drdSimulation: { id: "drd-simulation" },
     tableSimulation: { id: "table-simulation" },
+    translateModule: { id: "translate" },
+    locale: "en",
+    setLanguage: vi.fn((locale: string) => {
+        mocks.locale = locale;
+    }),
 }));
 
 vi.mock("dmn-js/lib/Modeler", () => ({
@@ -123,6 +128,14 @@ vi.mock("@miragon/bpmn-modeler-types", () => ({
     }),
 }));
 
+vi.mock("@miragon/bpmn-modeler-i18n", () => ({
+    TranslateModule: mocks.translateModule,
+    i18n: {
+        getLocale: () => mocks.locale,
+        setLanguage: mocks.setLanguage,
+    },
+}));
+
 import { DmnModeler } from "./modeler";
 
 function createEventBus(): MockEventBus {
@@ -160,6 +173,8 @@ describe("DmnModeler", () => {
         mocks.resizeCanvases.length = 0;
         mocks.resizeCallbacks.length = 0;
         mocks.resizeDisposers.length = 0;
+        mocks.locale = "en";
+        mocks.setLanguage.mockClear();
     });
 
     it("composes defaults before caller modules and merges moddle extensions", () => {
@@ -188,6 +203,7 @@ describe("DmnModeler", () => {
             feelPopupContainer: container,
         });
         expect(config.drd.additionalModules).toEqual([
+            mocks.translateModule,
             mocks.drdPanel,
             mocks.drdProvider,
             mocks.camundaProvider,
@@ -195,11 +211,18 @@ describe("DmnModeler", () => {
             drdModule,
         ]);
         expect(config.decisionTable.additionalModules).toEqual([
+            mocks.translateModule,
             mocks.tableSimulation,
             tableModule,
         ]);
-        expect(config.literalExpression.additionalModules).toEqual([literalModule]);
-        expect(config.boxedExpression.additionalModules).toEqual([boxedModule]);
+        expect(config.literalExpression.additionalModules).toEqual([
+            mocks.translateModule,
+            literalModule,
+        ]);
+        expect(config.boxedExpression.additionalModules).toEqual([
+            mocks.translateModule,
+            boxedModule,
+        ]);
         expect(config.moddleExtensions.acme).toEqual({ name: "acme" });
         expect(config.moddleExtensions.camunda).toEqual({ custom: true });
         expect(config.common.expressionLanguages.options).toHaveLength(6);
@@ -393,6 +416,72 @@ describe("DmnModeler", () => {
 
         vendor.activeViewer = undefined;
         expect(() => handle.getService("canvas")).toThrow("No active DMN view is available");
+    });
+
+    it("re-opens the active view when a locale switch resolves to a new locale", async () => {
+        const handle = new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        vendor.activeView = tableView;
+        vendor.activeViewer = createViewer({});
+
+        await handle.setLocale("de");
+
+        expect(mocks.setLanguage).toHaveBeenCalledWith("de");
+        expect(vendor.open).toHaveBeenCalledWith(tableView);
+    });
+
+    it("does not re-open when the resolved locale is unchanged", async () => {
+        mocks.locale = "de";
+        const handle = new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        vendor.activeView = tableView;
+        vendor.activeViewer = createViewer({});
+
+        await handle.setLocale("de");
+
+        expect(mocks.setLanguage).toHaveBeenCalledWith("de");
+        expect(vendor.open).not.toHaveBeenCalled();
+    });
+
+    it("does not re-open when no view is active", async () => {
+        const handle = new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        vendor.activeView = undefined;
+
+        await handle.setLocale("de");
+
+        expect(vendor.open).not.toHaveBeenCalled();
+    });
+
+    it("preserves the DRD viewbox across a locale re-open", async () => {
+        const handle = new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        const vendor = mocks.vendors[0];
+        const box = { x: 1, y: 2, width: 3, height: 4 };
+        const viewbox = vi.fn((next?: unknown) => (next ? undefined : box));
+        vendor.activeView = drdView;
+        vendor.activeViewer = createViewer({ canvas: { resized: vi.fn(), viewbox } });
+
+        await handle.setLocale("de");
+
+        expect(vendor.open).toHaveBeenCalledWith(drdView);
+        expect(viewbox).toHaveBeenNthCalledWith(1);
+        expect(viewbox).toHaveBeenLastCalledWith(box);
+    });
+
+    it("rejects setLocale after destroy", async () => {
+        const handle = new DmnModeler(document.createElement("main"), {
+            propertiesPanel: { parent: document.createElement("aside") },
+        });
+        handle.destroy();
+        await expect(handle.setLocale("de")).rejects.toThrow("DMN modeler has been destroyed");
     });
 
     it("scopes data-dmn-theme to the container and panel parent and clears it on destroy", () => {

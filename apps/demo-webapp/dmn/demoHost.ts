@@ -38,7 +38,7 @@ export class DmnDemoHost extends MockHostApi<WebviewState, MessageType> {
                 dispatch(new PropertiesPanelStateQuery(true));
                 break;
             case "GetDmnModelerSettingCommand":
-                dispatch(new DmnModelerSettingQuery({ colorTheme: "light" }));
+                dispatch(new DmnModelerSettingQuery({ colorTheme: "automatic" }));
                 break;
         }
     }

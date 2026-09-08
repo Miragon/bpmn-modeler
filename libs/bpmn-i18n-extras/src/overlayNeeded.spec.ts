@@ -7,12 +7,14 @@
  * overlay could hoard legacy spellings, unwired dmn-js labels, or diagram/test
  * junk the editor never requests, silently shadowing nothing.
  *
- * Runtime truth is `tools/harvested.json`: every template the running modeler
- * passed to translate(), captured by the harvest driver (see tools/README.md).
- * A key is legitimate iff the harvest recorded it (exact or normalized) — or it
- * is on the SOURCE_ONLY allowlist below: strings our own webview passes to
- * translate() from a feature the harvest driver does not exercise (script-lock),
- * so they cannot appear in the harvest yet are genuinely needed.
+ * Runtime truth is the union of `tools/harvested.json` (the C7 modeler) and
+ * `tools/harvested-dmn.json` (the dmn-js views): every template either running
+ * modeler passed to translate(), captured by the harvest drivers (see
+ * tools/README.md). A key is legitimate iff a harvest recorded it (exact or
+ * normalized) — or it is on the SOURCE_ONLY allowlist below: strings our own
+ * webview passes to translate() from a feature the harvest driver does not
+ * exercise (script-lock), so they cannot appear in the harvest yet are genuinely
+ * needed.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -47,9 +49,11 @@ const SOURCE_ONLY = new Set([
 ]);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const { keys: harvested } = JSON.parse(
-    readFileSync(join(HERE, "..", "tools", "harvested.json"), "utf8"),
-) as { keys: string[] };
+const readHarvest = (file: string): string[] =>
+    (JSON.parse(readFileSync(join(HERE, "..", "tools", file), "utf8")) as { keys: string[] }).keys;
+const harvested = [
+    ...new Set([...readHarvest("harvested.json"), ...readHarvest("harvested-dmn.json")]),
+];
 const harvestedByNorm = new Set(harvested.map(norm));
 
 describe("i18n extras carry only keys the modeler requests", () => {

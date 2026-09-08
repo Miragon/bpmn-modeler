@@ -1,18 +1,18 @@
-import { DmnModelerSettingQuery } from "@miragon/bpmn-modeler-shared";
+import { DmnModelerSettingQuery, LanguageQuery } from "@miragon/bpmn-modeler-shared";
 
 import { NotifierPort, SettingsPort } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 
 /**
- * Pushes the DMN modeler's color-theme preference into the webview and keeps it
- * in sync when the VS Code configuration changes.
+ * Pushes the DMN modeler's color-theme and UI-language preferences into the
+ * webview and keeps them in sync when the VS Code configuration changes.
  *
- * Mirrors {@link BpmnSettingsBroadcaster} but carries only `colorTheme`: that is
- * the single setting the DMN surfaces honour, and it reuses the existing
- * `miragon.bpmnModeler.colorTheme` config key rather than introducing a
- * DMN-specific one. The subscription is delivered through
- * {@link EditorSessionStore} as a host-agnostic setting change, so no `vscode`
- * leaks into the service.
+ * Mirrors {@link BpmnSettingsBroadcaster}. The DMN surfaces honour only
+ * `colorTheme` among the modeler settings, so `setSettings` carries just that
+ * (reusing the shared `miragon.bpmnModeler.colorTheme` config key); the UI
+ * language is pushed separately via {@link LanguageQuery}, exactly as BPMN does.
+ * The subscription is delivered through {@link EditorSessionStore} as a
+ * host-agnostic setting change, so no `vscode` leaks into the service.
  */
 export class DmnSettingsBroadcaster {
     constructor(
@@ -42,10 +42,17 @@ export class DmnSettingsBroadcaster {
         return false;
     }
 
+    setLanguage(editorId: string): void {
+        const locale = this.settings.getLanguage();
+        this.editorStore.postMessage(editorId, new LanguageQuery(locale)).catch((error) => {
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+        });
+    }
+
     /**
      * Subscribes to configuration-change events for the editor and re-pushes the
-     * theme when it changes. Disposal is owned by the editor's disposable bag
-     * inside {@link EditorSessionStore}.
+     * theme or language when either changes. Disposal is owned by the editor's
+     * disposable bag inside {@link EditorSessionStore}.
      */
     subscribe(editorId: string): void {
         this.editorStore.subscribeToSettingChangeEvent(editorId, (event, id) => {
@@ -57,6 +64,9 @@ export class DmnSettingsBroadcaster {
                         error instanceof Error ? error : new Error(String(error)),
                     );
                 });
+            }
+            if (event.affectsConfiguration("miragon.bpmnModeler.language")) {
+                this.setLanguage(id);
             }
         });
     }

@@ -8,3 +8,4 @@ export * from "./lib/propertiesPanelResizer";
 export * from "./lib/propertiesPanelFocus";
 export * from "./lib/hostTheme";
 export * from "./lib/variableManifest";
+export * from "./lib/harvestRecorder";
