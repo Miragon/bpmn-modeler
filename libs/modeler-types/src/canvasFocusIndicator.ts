@@ -1,18 +1,22 @@
 /**
- * @internal Package-internal wiring — the green canvas focus reticle the
- * factory installs per instance. Not part of the public API.
+ * The green canvas focus reticle shared by the BPMN and DMN modelers.
+ *
+ * Host-agnostic DOM only — the diagram-js services are injected as closures, so
+ * this stays testable under jsdom and carries no bpmn-js/dmn-js dependency. The
+ * consumer owns the presentation: this renders the fixed class contract
+ * (`canvas-focus-indicator`, `__off`/`__on`, `is-focused`) and each package
+ * styles it (positioning + theme-scoping differ between the hosts).
  */
 
 /**
  * Injected dependencies for the canvas focus indicator.
  *
- * Closures rather than a live modeler handle so this stays testable under
- * jsdom (same rationale as {@link KeyboardFocusDeps}) and so the real bpmn-js
- * services are resolved lazily at the call site — they don't exist until the
- * modeler is created.
+ * Closures rather than a live modeler handle so the real diagram-js services
+ * (canvas, selection, eventBus) can be resolved lazily at the call site — they
+ * do not exist until the modeler/view is created.
  */
 export interface CanvasFocusIndicatorDeps {
-    /** Host element — production passes `canvas.getContainer()` (`.djs-container`). */
+    /** Host element — production passes the canvas container (`.djs-container`). */
     parent: HTMLElement;
     /** Initial focus state (`canvas.isFocused()`). */
     isFocused: () => boolean;
@@ -38,10 +42,10 @@ const FOCUS_WEAK_SVG = `<svg class="canvas-focus-indicator__off" viewBox="0 -960
 const FOCUS_STRONG_SVG = `<svg class="canvas-focus-indicator__on" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M200-120q-33 0-56.5-23.5T120-200v-160h80v160h160v80H200Zm400 0v-80h160v-160h80v160q0 33-23.5 56.5T760-120H600ZM120-600v-160q0-33 23.5-56.5T200-840h160v80H200v160h-80Zm640 0v-160H600v-80h160q33 0 56.5 23.5T840-760v160h-80ZM338.5-338.5Q280-397 280-480t58.5-141.5Q397-680 480-680t141.5 58.5Q680-563 680-480t-58.5 141.5Q563-280 480-280t-141.5-58.5Z"/></svg>`;
 
 /**
- * Installs a focus reticle in the canvas's top-right corner, beside the "Open
- * minimap" control: brand-green with a solid center while the canvas holds
- * keyboard focus *and* nothing is selected, faint and hollow otherwise. On
- * focus gain the glow pulses briefly, then settles to a steady glow.
+ * Installs a focus reticle in the canvas's top-right corner: brand-green with a
+ * solid center while the canvas holds keyboard focus *and* nothing is selected,
+ * faint and hollow otherwise. On focus gain the glow pulses briefly, then
+ * settles to a steady glow.
  *
  * Selection gates the green state because clicking an element also focuses the
  * canvas SVG; the selection outline already shows keystrokes target the diagram,
@@ -52,7 +56,7 @@ const FOCUS_STRONG_SVG = `<svg class="canvas-focus-indicator__on" viewBox="0 -96
  * Subscribes to diagram-js's deduplicated `canvas.focus.changed` (fired from the
  * canvas SVG's `focusin`/`focusout`) rather than a container-level `focusin` —
  * the latter would false-positive when another widget inside the same
- * `.djs-container` (e.g. the bpmnlint chip) takes focus.
+ * `.djs-container` takes focus.
  *
  * Purely decorative: `aria-hidden` + `pointer-events: none`.
  *

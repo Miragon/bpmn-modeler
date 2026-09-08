@@ -3908,7 +3908,7 @@ __metadata:
     "@bpmn-io/properties-panel": "npm:3.52.0"
     "@miragon/bpmn-modeler": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
-    "@miragon/dmn-modeler-webview": "workspace:*"
+    "@miragon/dmn-modeler": "workspace:*"
     npm-run-all: "npm:4.1.5"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
@@ -4222,7 +4222,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@miragon/dmn-modeler-webview@workspace:*, @miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
+"@miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/dmn-modeler-webview@workspace:apps/dmn-webview"
   dependencies:

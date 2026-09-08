@@ -32,6 +32,7 @@ import {
     BpmnlintConfig,
     BpmnModelerSetting,
     Engine,
+    installCanvasFocusIndicator,
     LintResults,
     NoModelerError,
     OpenScriptEditorRef,
@@ -59,7 +60,6 @@ import { deriveEngines } from "./engines";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
 import { ModeUiModule } from "./modeModules";
 import { installKeyboardFocus } from "./keyboardFocus";
-import { installCanvasFocusIndicator } from "./canvasFocusIndicator";
 import type { CreateModelerOptions } from "./createModeler";
 import type { CoreModelerServices, ThemeMode } from "./publicApi";
 // Type-only: erased at build so it never pulls the lint stack into the main

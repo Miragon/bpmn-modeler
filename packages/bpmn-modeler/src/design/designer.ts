@@ -18,6 +18,7 @@ import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
     asyncDebounce,
     type AsyncDebounced,
+    installCanvasFocusIndicator,
     NoModelerError,
     observeCanvasSize,
 } from "@miragon/bpmn-modeler-types";
@@ -32,7 +33,6 @@ import {
     type ViewState,
 } from "../viewState";
 import { installKeyboardFocus } from "../keyboardFocus";
-import { installCanvasFocusIndicator } from "../canvasFocusIndicator";
 import { buildLintModules } from "../lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "../lintHandle";
 import type { LintConfigService } from "../bpmnlint/LintConfigService";

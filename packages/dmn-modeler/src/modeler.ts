@@ -7,7 +7,11 @@ import {
 import DmnSimulationModule from "@emaarco/dmn-js-simulation";
 import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
-import { observeCanvasSize, type ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import {
+    installCanvasFocusIndicator,
+    observeCanvasSize,
+    type ResizableCanvas,
+} from "@miragon/bpmn-modeler-types";
 import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 
 import { ThemeController } from "./theme";
@@ -49,6 +53,21 @@ interface FocusableCanvas extends ResizableCanvas {
     isFocused(): boolean;
 }
 
+/** DRD canvas surface the focus reticle attaches to and reads focus from. */
+interface FocusIndicatorCanvas {
+    getContainer(): HTMLElement;
+    isFocused(): boolean;
+}
+
+interface DrdSelection {
+    get(): unknown[];
+}
+
+interface FocusEventBus {
+    on(event: "canvas.focus.changed", callback: (event: { focused: boolean }) => void): void;
+    on(event: "selection.changed", callback: (event: { newSelection: unknown[] }) => void): void;
+}
+
 interface Viewbox {
     x: number;
     y: number;
@@ -66,6 +85,7 @@ export class DmnModeler implements DmnModelerHandle {
     private readonly modeler: VendorDmnModeler;
     private readonly stopObservingSize: () => void;
     private activeEventBus?: EventBus;
+    private disposeFocusIndicator?: () => void;
     private destroyed = false;
 
     // Per-instance theme controller, created lazily on the first setTheme. Scopes
@@ -249,6 +269,7 @@ export class DmnModeler implements DmnModelerHandle {
             return;
         }
         this.destroyed = true;
+        this.disposeFocusIndicator?.();
         this.themeController?.dispose();
         this.modeler.off("views.changed", this.handleViewsChanged);
         this.unbindCommandStack();
@@ -274,7 +295,42 @@ export class DmnModeler implements DmnModelerHandle {
             this.unbindCommandStack();
             this.activeEventBus = eventBus;
             this.activeEventBus?.on("commandStack.changed", this.handleContentChanged);
+            // The active viewer changed (or cleared) — re-attach the focus
+            // reticle, which only lives on the diagram-js-based DRD view.
+            this.syncCanvasFocusIndicator();
         }
+    }
+
+    /**
+     * (Re)installs the green focus reticle on the active DRD view, tearing down
+     * any previous one. The decision-table and literal-expression views are not
+     * diagram-js based (no canvas focus), so it is installed only for `drd`.
+     */
+    private syncCanvasFocusIndicator(): void {
+        this.disposeFocusIndicator?.();
+        this.disposeFocusIndicator = undefined;
+
+        if (this.modeler.getActiveView()?.type !== "drd") {
+            return;
+        }
+        const viewer = this.getActiveViewer();
+        const canvas = viewer?.get<FocusIndicatorCanvas>("canvas", false);
+        const selection = viewer?.get<DrdSelection>("selection", false);
+        const eventBus = viewer?.get<FocusEventBus>("eventBus", false);
+        if (!canvas || !selection || !eventBus) {
+            return;
+        }
+        this.disposeFocusIndicator = installCanvasFocusIndicator({
+            parent: canvas.getContainer(),
+            isFocused: () => canvas.isFocused(),
+            onFocusChanged: (listener) =>
+                eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
+            hasSelection: () => selection.get().length > 0,
+            onSelectionChanged: (listener) =>
+                eventBus.on("selection.changed", (event) =>
+                    listener(event.newSelection.length > 0),
+                ),
+        });
     }
 
     private readonly handleContentChanged = (): void => {

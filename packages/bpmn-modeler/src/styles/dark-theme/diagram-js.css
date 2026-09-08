@@ -216,5 +216,5 @@
  * Override with a light muted grey that stays subtle but readable.
  */
 [data-bpmn-theme="dark"] .bjs-powered-by {
-    color: var(--dt-surface-a50) !important;
+    color: var(--dt-surface-a60) !important;
 }
