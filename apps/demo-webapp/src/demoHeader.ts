@@ -56,8 +56,9 @@ function applyThemeKind(kind: DemoThemeKind): void {
     // CSS (the BPMN surfaces additionally re-theme per instance via `setTheme`).
     // The `vscode-dark` body class drives the package's `body.vscode-dark
     // .diff-legend*` rules on the diff page, which has no live handle to theme.
-    // The DMN page stays light regardless: its demo host forces `colorTheme:
-    // "light"` (dark DMN in the demo is #1465).
+    // It also themes the DMN page: its webview host theme adapter runs in
+    // `"automatic"` mode and follows this class live, driving `data-dmn-theme`
+    // and the modeler's own `setTheme`.
     document.documentElement.setAttribute("data-bpmn-theme", kind);
     document.body.classList.toggle("vscode-dark", kind === "dark");
 }
