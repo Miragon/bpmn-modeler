@@ -15,8 +15,10 @@
  *     of it (normalized). The modeler requests the shared form, so the local
  *     override is never used. This is the bulk — all the upstreamed C7 strings.
  *   - not-requested: no shared twin, but the harvest never recorded the modeler
- *     asking for it either — a legacy bpmn-js spelling the editor renamed, an
- *     unwired dmn-js label, or diagram/test junk. Dead by runtime truth.
+ *     asking for it either — a legacy bpmn-js spelling the editor renamed or
+ *     diagram/test junk. Dead by runtime truth. (Both the BPMN and DMN harvests
+ *     feed the needed-key set now, so a live dmn-js label is no longer a drop
+ *     reason — it survives via the normal keep rule.)
  *
  * Kept: keys with no shared twin that the harvest recorded (genuine gaps), plus
  * the SOURCE_ONLY allowlist below — strings our own webview passes to
@@ -58,7 +60,11 @@ const norm = (s) =>
         .trim()
         .replace(/[.\s]+$/, "");
 
-const { keys: harvested } = JSON.parse(readFileSync(join(HERE, "harvested.json"), "utf8"));
+// The needed-key set is the union of the BPMN and DMN harvests: the C7 modeler
+// (harvest-drain.js) and the dmn-js views (harvest-drain-dmn.js) request
+// disjoint strings, and both must survive pruning.
+const readKeys = (file) => JSON.parse(readFileSync(join(HERE, file), "utf8")).keys;
+const harvested = [...new Set([...readKeys("harvested.json"), ...readKeys("harvested-dmn.json")])];
 const harvestedByNorm = new Set(harvested.map(norm));
 const sharedByNorm = new Set(Object.keys(shared.en).map(norm));
 

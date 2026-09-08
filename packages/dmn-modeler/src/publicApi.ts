@@ -124,7 +124,11 @@ export interface DmnModelerOptions {
      */
     theme?: DmnThemeMode;
 
-    /** [B] Reserved UI locale. It has no runtime effect in this release. */
+    /**
+     * [B] UI locale — defaults to the page's current locale (`"en"`). Page-global:
+     * the i18n instance is a singleton, so this sets the locale for every modeler
+     * on the page. An unknown code resolves to `"en"`.
+     */
     locale?: string;
 
     // ── Events (outbound notifications) ────────────────────────────────────
@@ -170,6 +174,15 @@ export interface DmnModelerHandle {
      * attribute and mirrors it to a legacy `#theme-link` when present.
      */
     setTheme(theme: DmnThemeMode): void;
+
+    /**
+     * [B] Set the page-global UI locale and re-open the active view so its already
+     * rendered labels re-translate. A no-op when the resolved locale is unchanged
+     * (an unknown code resolves to `"en"`). Because it re-opens the active view it
+     * re-fires `onViewChanged` and clears that view's undo history, like a
+     * re-import; the DRD viewbox is preserved.
+     */
+    setLocale(locale: string): Promise<void>;
 
     /** [A] Tear down this instance and all of its listeners and observers. */
     destroy(): void;

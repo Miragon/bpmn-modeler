@@ -5,8 +5,9 @@ import {
 } from "../../../editor-session/EditorSessionParticipant";
 
 /**
- * Wires the DMN color-theme broadcast for a session, so the webview receives the
- * current theme and stays in sync when the `colorTheme` setting changes.
+ * Wires the DMN settings + language broadcast for a session, so the webview
+ * receives the current theme and UI language and stays in sync when the
+ * `colorTheme` or `language` setting changes.
  */
 export class DmnSettingsParticipant implements EditorSessionParticipant {
     constructor(private readonly settingsBroadcaster: DmnSettingsBroadcaster) {}

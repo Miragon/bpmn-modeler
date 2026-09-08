@@ -17,6 +17,11 @@ void _classConformance;
 const _factoryConformance: CreateDmnModeler = createModeler;
 void _factoryConformance;
 
+async function _handleUsage(handle: DmnModelerHandle): Promise<void> {
+    await handle.setLocale("de");
+}
+void _handleUsage;
+
 const _allOptions = {
     propertiesPanel: { parent: document.createElement("aside") },
     additionalModules: {

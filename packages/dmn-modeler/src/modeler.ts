@@ -8,6 +8,7 @@ import DmnSimulationModule from "@emaarco/dmn-js-simulation";
 import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
 import { observeCanvasSize, type ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 
 import { ThemeController } from "./theme";
 import type {
@@ -48,6 +49,18 @@ interface FocusableCanvas extends ResizableCanvas {
     isFocused(): boolean;
 }
 
+interface Viewbox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+interface ViewboxCanvas extends ResizableCanvas {
+    viewbox(): Viewbox;
+    viewbox(box: Viewbox): void;
+}
+
 /** @internal Runtime implementation of the public per-instance handle. */
 export class DmnModeler implements DmnModelerHandle {
     private readonly modeler: VendorDmnModeler;
@@ -67,6 +80,11 @@ export class DmnModeler implements DmnModelerHandle {
 
         this.modeler = new VendorDmnModeler({
             container,
+            // TranslateModule is an opinionated built-in on every view (the
+            // host-set locale is page-global). The Manager rebuilds each view's
+            // `additionalModules` from these per-view arrays only — a
+            // `common.additionalModules` entry would be dropped — so it must be
+            // registered on all four.
             drd: {
                 propertiesPanel: {
                     ...options.propertiesPanel,
@@ -75,6 +93,7 @@ export class DmnModeler implements DmnModelerHandle {
                     feelPopupContainer: container,
                 },
                 additionalModules: [
+                    TranslateModule,
                     DmnPropertiesPanelModule,
                     DmnPropertiesProviderModule,
                     CamundaPropertiesProviderModule,
@@ -84,15 +103,19 @@ export class DmnModeler implements DmnModelerHandle {
             },
             decisionTable: {
                 additionalModules: [
+                    TranslateModule,
                     DmnSimulationModule.decisionTable,
                     ...(additionalModules.decisionTable ?? []),
                 ],
             },
             literalExpression: {
-                additionalModules: additionalModules.literalExpression ?? [],
+                additionalModules: [
+                    TranslateModule,
+                    ...(additionalModules.literalExpression ?? []),
+                ],
             },
             boxedExpression: {
-                additionalModules: additionalModules.boxedExpression ?? [],
+                additionalModules: [TranslateModule, ...(additionalModules.boxedExpression ?? [])],
             },
             common: {
                 expressionLanguages: options.expressionLanguages ?? DEFAULT_EXPRESSION_LANGUAGES,
@@ -176,6 +199,31 @@ export class DmnModeler implements DmnModelerHandle {
         return this.getActiveFocusableCanvas()?.isFocused() ?? false;
     }
 
+    async setLocale(locale: string): Promise<void> {
+        this.assertLive();
+        const localeBefore = i18n.getLocale();
+        i18n.setLanguage(locale as SupportedLocale);
+        // setLanguage resolves unknown codes to "en"; compare the resolved locale
+        // so a repeated push (the host re-sends on every reload) does not re-import.
+        if (i18n.getLocale() === localeBefore) {
+            return;
+        }
+        const activeView = this.modeler.getActiveView();
+        // Nothing rendered yet — the first import will render translated already.
+        if (!activeView) {
+            return;
+        }
+        // Re-opening clears the DRD viewbox/selection; capture and restore it so a
+        // language switch does not also move the diagram.
+        const viewbox = this.isDrdViewActive()
+            ? this.getActiveViewboxCanvas()?.viewbox()
+            : undefined;
+        await this.openView(activeView);
+        if (viewbox) {
+            this.getActiveViewboxCanvas()?.viewbox(viewbox);
+        }
+    }
+
     setTheme(theme: DmnThemeMode): void {
         this.assertLive();
         if (!this.themeController) {
@@ -255,6 +303,10 @@ export class DmnModeler implements DmnModelerHandle {
 
     private getActiveCanvas(): ResizableCanvas | undefined {
         return this.getActiveViewer()?.get<ResizableCanvas>("canvas", false);
+    }
+
+    private getActiveViewboxCanvas(): ViewboxCanvas | undefined {
+        return this.getActiveViewer()?.get<ViewboxCanvas>("canvas", false);
     }
 
     private getActiveFocusableCanvas(): FocusableCanvas | undefined {

@@ -43,17 +43,24 @@ describe("getDmnFileHandler", () => {
 });
 
 describe("getDmnModelerSettingHandler", () => {
-    it("asks the broadcaster to push settings for the editor", () => {
-        const settingsBroadcaster = { setSettings: vi.fn() };
+    it("asks the broadcaster to push settings and language for the editor", async () => {
+        const settingsBroadcaster = {
+            setSettings: vi.fn().mockResolvedValue(true),
+            setLanguage: vi.fn(),
+        };
 
-        getDmnModelerSettingHandler(settingsBroadcaster as never)(ANY, EDITOR);
+        await getDmnModelerSettingHandler(settingsBroadcaster as never)(ANY, EDITOR);
 
         expect(settingsBroadcaster.setSettings).toHaveBeenCalledWith(EDITOR);
+        expect(settingsBroadcaster.setLanguage).toHaveBeenCalledWith(EDITOR);
     });
 
     it("rejects when setSettings rejects so the router's dispatch catch logs it", async () => {
         const boom = new Error("settings failed");
-        const settingsBroadcaster = { setSettings: vi.fn().mockRejectedValue(boom) };
+        const settingsBroadcaster = {
+            setSettings: vi.fn().mockRejectedValue(boom),
+            setLanguage: vi.fn(),
+        };
 
         await expect(
             getDmnModelerSettingHandler(settingsBroadcaster as never)(ANY, EDITOR),

@@ -19,6 +19,7 @@ import {
     type HostThemeMode,
     initResizer,
     installPanelShortcuts,
+    LanguageQuery,
     LogErrorCommand,
     LogWarningCommand,
     PropertiesPanelStateQuery,
@@ -30,16 +31,31 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { asyncDebounce, NoModelerError, serializeAsync } from "@miragon/bpmn-modeler-types";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
-import { createModeler, type DmnModelerHandle } from "@miragon/dmn-modeler";
+import {
+    createModeler,
+    type DmnAdditionalModules,
+    type DmnModelerHandle,
+} from "@miragon/dmn-modeler";
 
 import { readSavedPanelVisibility, WebviewStateManager } from "./state";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
 import type { WebviewState } from "./webviewState";
 
+/**
+ * Injection seam for the entry (real or demo). `theme`/`locale` seed the initial
+ * mode; `additionalModules` lets the dev entry register per-view didi modules
+ * (the translate-harvest recorder) without touching the production path.
+ */
+interface BootstrapOptions {
+    theme?: HostThemeMode;
+    locale?: SupportedLocale;
+    additionalModules?: DmnAdditionalModules;
+}
+
 // Injected by bootstrap(); the app/demo entry chooses the concrete host and,
 // optionally, seeds the initial theme mode / locale.
 let host: HostApi<WebviewState, Command | Query>;
-let bootstrapOpts: { theme?: HostThemeMode; locale?: SupportedLocale } = {};
+let bootstrapOpts: BootstrapOptions = {};
 let modeler: DmnModelerHandle | undefined;
 let themeAdapter: HostThemeAdapter | undefined;
 
@@ -185,8 +201,8 @@ async function run(): Promise<void> {
         modeler?.setTheme(kind);
     });
 
-    // Seed the locale before the modeler renders so the resizer labels (and,
-    // once DMN language wiring lands, the dmn-js UI) come up translated.
+    // Seed the locale before the modeler renders so the resizer labels and the
+    // dmn-js UI come up translated on first paint.
     if (bootstrapOpts.locale) {
         i18n.setLanguage(bootstrapOpts.locale);
     }
@@ -194,6 +210,7 @@ async function run(): Promise<void> {
     modeler = await createModeler(canvas, {
         propertiesPanel: { parent: propertiesPanel },
         theme: resolveHostThemeKind(),
+        additionalModules: bootstrapOpts.additionalModules,
         onContentChanged: () => void debouncedSendChanges(),
         onWarning: (message) => host.postMessage(new LogWarningCommand(message)),
     });
@@ -204,8 +221,8 @@ async function run(): Promise<void> {
     // behaviour and installs the live `<body>`-class observer.
     themeAdapter.setMode(bootstrapOpts.theme ?? "automatic");
 
-    // Labels reuse the BPMN i18n keys; DMN has no language wiring yet, so they
-    // render the English fallback until that lands.
+    // Resizer labels reuse the shared i18n keys and follow the locale live via
+    // `i18n.onChange` (the dmn-js UI itself re-translates on a view re-open).
     const propertiesPanelHandle = initResizer({
         getToggleLabel: (state) =>
             i18n.translate(
@@ -357,6 +374,17 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
             settingsResolver.done(settingQuery);
             break;
         }
+        case queryOrCommand.type === "LanguageQuery": {
+            try {
+                // The handle compares resolved locales itself, so a re-push on a
+                // tab re-show is a no-op and never re-opens the view.
+                await getModeler().setLocale((message.data as LanguageQuery).locale);
+            } catch (error) {
+                const detail = error instanceof Error ? error.message : String(error);
+                host.postMessage(new LogErrorCommand(`Failed to set language: ${detail}`));
+            }
+            break;
+        }
         case ["FlushDocumentQuery", "ReleaseDocumentFlushQuery"].includes(queryOrCommand.type): {
             await respondToFlush(message.data as FlushDocumentQuery | ReleaseDocumentFlushQuery);
             break;
@@ -371,7 +399,7 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
  */
 export function bootstrap(
     injectedHost: HostApi<WebviewState, Command | Query>,
-    opts: { theme?: HostThemeMode; locale?: SupportedLocale } = {},
+    opts: BootstrapOptions = {},
 ): void {
     host = injectedHost;
     bootstrapOpts = opts;

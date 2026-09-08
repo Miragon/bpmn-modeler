@@ -16,6 +16,8 @@ const dictionary: Record<string, string> = {
     "Mode": "Modus",
     "Read-only": "Alleen-lezen",
     "View": "Weergave",
+    "double": "double",
+    "integer": "integer",
     "{mode} — open properties panel": "{mode} — eigenschappenpaneel openen",
 };
 
