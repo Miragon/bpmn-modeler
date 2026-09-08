@@ -96,6 +96,23 @@ export interface PickerPort {
         placeholder: string,
         search: () => Promise<R>,
     ): Promise<{ outcome: R; chosen?: string }>;
+
+    /**
+     * Confirms an irreversible-looking change before it happens, listing what
+     * it will affect.
+     *
+     * Modal by contract: the caller is about to delete model content on the
+     * user's behalf, and a dismissible toast is not consent. `details` is shown
+     * in full where the host can, and otherwise summarised — so it must read as
+     * a list of what goes, not as prose.
+     *
+     * @returns `true` only on explicit confirmation.
+     */
+    confirmDestructive(options: {
+        title: string;
+        confirmLabel: string;
+        details: string[];
+    }): Promise<boolean>;
 }
 
 /**

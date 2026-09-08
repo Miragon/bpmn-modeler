@@ -10,6 +10,10 @@ import { NodeBpmnLinter } from "./NodeBpmnLinter";
 // bpmn-webview app. modeler-core vitest runs in node and inlines the rules
 // plugin, so BrowserLinter runs here exactly as it does in the browser bundle.
 import { BrowserLinter } from "../../../../../../../packages/bpmn-modeler/src/bpmnlint/browserLinter";
+// The in-page config derivation moved out of BrowserLinter in #1472; going
+// through it here keeps this a parity test between two *independent*
+// derivations rather than a round trip of one shared object.
+import { resolveLintConfig } from "../../../../../../../packages/bpmn-modeler/src/bpmnlint/lintConfigResolution";
 
 /**
  * Parity: the host-side {@link NodeBpmnLinter} default run and the webview's
@@ -79,7 +83,11 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
             BPMN_XML,
             config.moddleExtensions as Record<string, unknown> | undefined,
         );
-        const browserOut = await new BrowserLinter(PLATFORM).run(root);
+        // No explicit config: the in-page tier derives the Implement-mode
+        // default itself, which must land on the same layers the host built.
+        const browserOut = await new BrowserLinter(
+            resolveLintConfig("implement", PLATFORM, undefined),
+        ).run(root);
 
         // The oversized task must actually trip a rule, else "parity" is vacuous.
         expect(Object.keys(nodeOut.results)).toContain("standard-size");
@@ -103,7 +111,9 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
             BPMN_XML,
             config.moddleExtensions as Record<string, unknown> | undefined,
         );
-        const browserOut = await new BrowserLinter(PLATFORM, config).run(root);
+        const browserOut = await new BrowserLinter(
+            resolveLintConfig("implement", PLATFORM, config),
+        ).run(root);
 
         // recommended flags the missing start event — else "parity" is vacuous.
         expect(Object.keys(nodeOut.results)).toContain("start-event-required");

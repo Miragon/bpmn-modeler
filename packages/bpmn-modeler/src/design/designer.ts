@@ -12,6 +12,8 @@ import MinimapModule from "diagram-js-minimap";
 import TokenSimulationModule from "bpmn-js-token-simulation";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
+import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
+import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-modeler-layout";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
@@ -36,7 +38,7 @@ import { installCanvasFocusIndicator } from "../canvasFocusIndicator";
 import { buildLintModules } from "../lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "../lintHandle";
 import type { LintConfigService } from "../bpmnlint/LintConfigService";
-import type { BpmnlintConfig, LintResults } from "@miragon/bpmn-modeler-types";
+import type { BpmnlintConfig, CleanupItem, LintResults } from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
@@ -219,6 +221,9 @@ export class BpmnDesigner {
                 CreateAppendAnythingModule,
                 AppendMenuModule,
                 FlowNavigationModule,
+                // Formatting is pure geometry, so it is engine-neutral and
+                // belongs on this surface as much as on the modeler.
+                createBpmnLayoutModule(),
                 MinimapModule,
                 // Engine-neutral: simulates plain BPMN control flow, no Camunda
                 // stack behind it (ADR 0022).
@@ -362,6 +367,17 @@ export class BpmnDesigner {
             throw result.error;
         }
         throw new Error("Failed to serialise the diagram!");
+    }
+
+    /** @see BpmnDesignerHandle.formatDiagram */
+    async formatDiagram(): Promise<LayoutOutcome> {
+        return this.getModeler().get<Layouter>("bpmnLayouter").format();
+    }
+
+    /** @see BpmnDesignerHandle.cleanupDiagram */
+    cleanupDiagram(options?: { apply?: boolean }): CleanupItem[] {
+        const cleanup = this.getModeler().get<CleanupService>("bpmnCleanup");
+        return options?.apply ? cleanup.apply() : cleanup.inspect();
     }
 
     async getDiagramSvg(): Promise<string> {

@@ -36,6 +36,7 @@ export * from "./modeler/bpmn/infrastructure/bpmnlint/NodeBpmnLinter";
 export * from "./modeler/bpmn/infrastructure/bpmnlint/NoopDiagnostics";
 export * from "./modeler/bpmn/service/BpmnClipboardMediator";
 export * from "./modeler/bpmn/service/BpmnPropertiesPanelService";
+export * from "./modeler/bpmn/service/BpmnLayoutService";
 export * from "./modeler/bpmn/service/BpmnSettingsBroadcaster";
 export * from "./modeler/dmn/domain/emptyDmn";
 export * from "./modeler/dmn/service/DmnModelerService";

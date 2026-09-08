@@ -12,6 +12,9 @@ import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anythi
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
+import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
+import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-modeler-layout";
+import type { CleanupItem } from "@miragon/bpmn-modeler-types";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 // Only the mode filter + custom-group slot: the lib's PropertiesPanelModule /
@@ -238,6 +241,7 @@ export class BpmnModeler {
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
+            createBpmnLayoutModule(),
             propertiesPanelRootModule,
             // Design/implement mode (#1442): the panel mode filter + host
             // custom-group slot, and the popup-menu chrome filter. Mode-invariant
@@ -560,6 +564,25 @@ export class BpmnModeler {
     async getDiagramSvg(): Promise<string> {
         const result = await this.getModeler().saveSVG();
         return result.svg;
+    }
+
+    /**
+     * Rearranges the diagram left to right, applied as one undoable step.
+     *
+     * @see BpmnModelerHandle.formatDiagram
+     */
+    async formatDiagram(): Promise<LayoutOutcome> {
+        return this.getModeler().get<Layouter>("bpmnLayouter").format();
+    }
+
+    /**
+     * Reports or removes diagram garbage.
+     *
+     * @see BpmnModelerHandle.cleanupDiagram
+     */
+    cleanupDiagram(options?: { apply?: boolean }): CleanupItem[] {
+        const cleanup = this.getModeler().get<CleanupService>("bpmnCleanup");
+        return options?.apply ? cleanup.apply() : cleanup.inspect();
     }
 
     setElementTemplates(templates: object[]): void {

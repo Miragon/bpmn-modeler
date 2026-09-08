@@ -14,6 +14,8 @@ import type {
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
+import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+import type { CleanupItem } from "@miragon/bpmn-modeler-types";
 // Type-only import — erased at build (same contract as modeler.ts's
 // LintConfigService import), so referencing the lint module's types here never
 // pulls the lint stack into the main bundle.
@@ -267,6 +269,30 @@ export interface BpmnModelerHandle {
 
     /** [A] Export the current diagram as SVG markup. */
     getDiagramSvg(): Promise<string>;
+
+    /**
+     * [A] Rearrange the diagram left to right and reroute its connections.
+     *
+     * Touches only diagram interchange — shape bounds, waypoints and label
+     * positions — so the model's semantics are unchanged. The whole rearrange
+     * is one command-stack step, so a single undo restores the previous layout.
+     *
+     * Computes first and applies only on success: a refusal or an engine
+     * failure leaves the diagram exactly as it was, and says why through
+     * {@link LayoutOutcome.code}.
+     */
+    formatDiagram(): Promise<LayoutOutcome>;
+
+    /**
+     * [A] Report — or, with `apply`, remove — orphan diagram interchange,
+     * dangling flows and other invisible leftovers.
+     *
+     * Unlike {@link formatDiagram} this *does* change the model, which is why
+     * it is a separate call: report first, confirm with the user, then apply.
+     * Applying recomputes the findings rather than trusting the reported ones,
+     * so an edit made in between is never deleted by a stale id.
+     */
+    cleanupDiagram(options?: { apply?: boolean }): CleanupItem[];
 
     /** [A] Push a new set of element templates (data, never a path). */
     setElementTemplates(templates: object[]): void;

@@ -236,6 +236,22 @@ export interface PickerShowResult {
     selected?: number[] | null;
 }
 
+/**
+ * `confirm/show` — a modal yes/no the host renders natively.
+ *
+ * A request rather than a notification because the core has to wait for the
+ * answer before deleting anything; requests only run core→host, which is the
+ * direction needed here.
+ */
+export interface ConfirmShowParams {
+    title: string;
+    confirmLabel: string;
+    details: string[];
+}
+export interface ConfirmShowResult {
+    confirmed?: boolean;
+}
+
 /** `clipboard/read` — the host reads the system clipboard on the core's behalf. */
 export interface ClipboardReadResult {
     text?: string;

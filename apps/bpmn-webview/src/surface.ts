@@ -37,3 +37,16 @@ export function isEditableHandle(
 export function isLintingHandle(handle: SurfaceHandle): handle is BpmnModeler | BpmnDesignerHandle {
     return "applyLintResults" in handle;
 }
+
+/**
+ * Narrows to a surface that can format and clean up (modeler or designer).
+ *
+ * A named capability guard rather than reusing {@link isEditableHandle}: layout
+ * is pure geometry, so a future readonly-ish surface could gain `newDiagram`
+ * without gaining a command stack, and this check would still be right.
+ */
+export function isFormattableHandle(
+    handle: SurfaceHandle,
+): handle is BpmnModeler | BpmnDesignerHandle {
+    return "formatDiagram" in handle;
+}

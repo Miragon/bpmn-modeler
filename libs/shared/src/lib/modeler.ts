@@ -19,6 +19,8 @@
  * - {@link UpdateScriptContentQuery}      — push updated script content from a virtual editor to the modeler
  * - {@link UpdateScriptFormatQuery}       — push a script-format choice (Quick-Pick) back to the modeler
  * - {@link ImplementationStatusQuery}     — push the per-activity implementation-resolution map for context-pad visibility
+ * - {@link FormatDiagramQuery}            — rearrange the diagram (DI only), one undo step
+ * - {@link CleanupDiagramQuery}           — report, or on confirmation remove, diagram garbage
  *
  * Commands (webview → extension host):
  * - {@link GetBpmnFileCommand}                — webview is ready; request the BPMN file
@@ -28,6 +30,8 @@
  * - {@link UpdateFormOutputValuesCommand}     — publish current form preview output data
  * - {@link GetElementTemplatesCommand}        — request the current element-template list
  * - {@link GetBpmnlintConfigCommand}          — webview is ready; trigger a host lint pass
+ * - {@link DiagramFormattedCommand}           — outcome of a format attempt, successful or not
+ * - {@link CleanupReportCommand}              — what a cleanup found, and whether it was applied
  * - {@link GetBpmnModelerSettingCommand}      — request current modeler settings
  * - {@link GetDmnModelerSettingCommand}       — request current DMN modeler settings
  * - {@link GetPropertiesPanelStateCommand}    — request the global properties-panel visibility default
@@ -50,6 +54,7 @@ import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     BpmnViewerMode,
+    CleanupItem,
     DetectedEngine,
     SurfaceMode,
     DiffCounts,
@@ -59,6 +64,9 @@ import type {
     Engine,
     ImplementationEntry,
     ImplementationKind,
+    LayoutDiagnostic,
+    LayoutErrorCode,
+    LayoutStatus,
     LintResults,
     OpenScriptEditorRef,
     ScriptKind,
@@ -734,6 +742,60 @@ export class OpenScriptEditorCommand extends Command {
 export class OpenAllScriptTasksQuery extends Query {
     constructor() {
         super("OpenAllScriptTasksQuery");
+    }
+}
+
+/**
+ * Host → webview: rearrange the diagram left to right and reroute its
+ * connections. Carries no payload; the webview owns the layout and replies with
+ * a {@link DiagramFormattedCommand} whether it succeeded or not.
+ */
+export class FormatDiagramQuery extends Query {
+    constructor() {
+        super("FormatDiagramQuery");
+    }
+}
+
+/**
+ * Webview → host: the outcome of a format attempt.
+ *
+ * Always sent — a refusal is as much a result as a success, and the host has no
+ * other way to learn of one. `diagnostics` carries the engine's non-fatal
+ * remarks, which belong in the log rather than in a notification: they are
+ * common and rarely actionable.
+ */
+export class DiagramFormattedCommand extends Command {
+    constructor(
+        public readonly status: LayoutStatus,
+        public readonly diagnostics: LayoutDiagnostic[],
+        public readonly code?: LayoutErrorCode,
+        public readonly message?: string,
+    ) {
+        super("DiagramFormattedCommand");
+    }
+}
+
+/**
+ * Host → webview: with `apply` false, report what a cleanup would remove; with
+ * `apply` true, remove it.
+ *
+ * The two-step shape is the point: removal changes the model, so the user
+ * confirms the report first. The webview recomputes on apply rather than acting
+ * on the ids it reported, because the user may have edited in between.
+ */
+export class CleanupDiagramQuery extends Query {
+    constructor(public readonly apply: boolean) {
+        super("CleanupDiagramQuery");
+    }
+}
+
+/** Webview → host: what a cleanup found, and whether it was carried out. */
+export class CleanupReportCommand extends Command {
+    constructor(
+        public readonly items: CleanupItem[],
+        public readonly applied: boolean,
+    ) {
+        super("CleanupReportCommand");
     }
 }
 

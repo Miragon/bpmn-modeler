@@ -42,6 +42,13 @@
                 "test/e2e/**/*.test.ts"
             ]
         },
+        "apps/bpmn-webview": {
+            // The webview bundles `@miragon/bpmn-modeler` from source, so the
+            // layout engine enters through the inlined bpmn-layout lib rather
+            // than through any webview import — but Vite still has to resolve
+            // the bare specifier from this workspace, so it must be declared.
+            "ignoreDependencies": ["bpmn-auto-layout"]
+        },
         "apps/demo-webapp": {
             // dual.ts / diff.ts are reached only via their .html files, which the
             // vite plugin does not walk (single-mode root), so list them.
@@ -67,11 +74,17 @@
                 "src/modeSession/index.ts"
             ],
             // minisearch (via model-navigation), lodash (via modeler-types'
-            // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)
-            // are pulled in only through inlined workspace libs; the Vite lib
-            // build externalises them, so the published package must declare them
-            // even though no package source imports them directly.
-            "ignoreDependencies": ["minisearch", "lodash", "bpmn-js-differ"]
+            // asyncDebounce), bpmn-js-differ (via the inlined bpmn-diff lib) and
+            // bpmn-auto-layout (via the inlined bpmn-layout lib) are pulled in
+            // only through inlined workspace libs; the Vite lib build
+            // externalises them, so the published package must declare them even
+            // though no package source imports them directly.
+            "ignoreDependencies": [
+                "minisearch",
+                "lodash",
+                "bpmn-js-differ",
+                "bpmn-auto-layout"
+            ]
         },
         "packages/dmn-modeler": {
             // `src/index.ts` is the public `@miragon/dmn-modeler` entry (in

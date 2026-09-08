@@ -19,13 +19,14 @@ const INLINED_LIBS = [
     "@miragon/bpmn-modeler-code-link",
     "@miragon/bpmn-modeler-inline-scripting",
     "@miragon/bpmn-modeler-flow-navigation",
+    "@miragon/bpmn-modeler-layout",
 ];
 
 // The source roots of the inlined libs — their per-file declarations must be
 // emitted so api-extractor can flatten them into `dist/index.d.ts` /
-// `dist/diff.d.ts` (they carry no built `types` entry of their own). Only these
-// eleven; globbing all of `libs/*` would drag in the engine core's declaration
-// errors too.
+// `dist/diff.d.ts` (they carry no built `types` entry of their own). Only the
+// ones listed here; globbing all of `libs/*` would drag in the engine core's
+// declaration errors too.
 const INLINED_LIB_SRC = [
     "../../libs/modeler-types/src",
     "../../libs/bpmn-diff/src",
@@ -38,6 +39,7 @@ const INLINED_LIB_SRC = [
     "../../libs/code-link/src",
     "../../libs/inline-scripting/src",
     "../../libs/flow-navigation/src",
+    "../../libs/bpmn-layout/src",
 ];
 
 function isInlined(id: string): boolean {

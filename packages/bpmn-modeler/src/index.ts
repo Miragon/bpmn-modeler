@@ -52,6 +52,14 @@ export { NoModelerError } from "@miragon/bpmn-modeler-types";
 export { detectEngine } from "./detectEngine";
 export type { DetectedEngine } from "./detectEngine";
 export type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
+export type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
+export type {
+    CleanupItem,
+    CleanupKind,
+    LayoutDiagnostic,
+    LayoutErrorCode,
+    LayoutStatus,
+} from "@miragon/bpmn-modeler-types";
 
 // ── Viewport / selection — public, referenced by the designed handle ─────────
 export { ViewportManager } from "./viewport";

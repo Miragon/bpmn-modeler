@@ -50,6 +50,7 @@
             "@miragon/bpmn-modeler-flow-navigation": [
                 "./libs/flow-navigation/src/index.ts"
             ],
+            "@miragon/bpmn-modeler-layout": ["./libs/bpmn-layout/src/index.ts"],
             "@miragon/bpmn-modeler-webview": ["./apps/bpmn-webview/src/index.ts"],
             "@miragon/dmn-modeler-webview": ["./apps/dmn-webview/src/index.ts"]
         }

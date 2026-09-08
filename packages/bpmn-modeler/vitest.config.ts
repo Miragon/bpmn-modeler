@@ -56,6 +56,10 @@ export default defineConfig({
                 __dirname,
                 "../../libs/bpmn-clipboard/src/index.ts",
             ),
+            "@miragon/bpmn-modeler-layout": resolve(
+                __dirname,
+                "../../libs/bpmn-layout/src/index.ts",
+            ),
             // Directory (not index.ts) so the viewer's deep imports
             // (`.../render/index` etc.) resolve through the same alias.
             "@miragon/bpmn-modeler-properties-panel": resolve(

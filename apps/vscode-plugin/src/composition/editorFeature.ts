@@ -11,6 +11,7 @@ import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigLocator } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
+import { BpmnLayoutService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
 import { DmnModelerService } from "@miragon/bpmn-modeler-core";
@@ -54,6 +55,8 @@ import {
     setTextClipboardHandler,
     syncDocumentHandler,
     openScriptEditorHandler,
+    cleanupReportHandler,
+    diagramFormattedHandler,
     openScriptEditorsHandler,
     updateScriptSourceHandler,
     updateScriptVariablesHandler,
@@ -121,6 +124,7 @@ export function register(
     bpmnService: BpmnModelerService;
     templatesSvc: BpmnElementTemplatesService;
     documentFlush: DocumentSaveFlushController;
+    layoutSvc: BpmnLayoutService;
 } {
     const {
         diffController,
@@ -173,6 +177,7 @@ export function register(
         deps.vsSettings,
         deps.notifier,
     );
+    const layoutSvc = new BpmnLayoutService(deps.editorStore, deps.notifier, deps.picker);
     const panelSvc = new BpmnPropertiesPanelService(
         deps.editorStore,
         panelStateRepo,
@@ -235,6 +240,8 @@ export function register(
         .on("GetTextClipboardCommand", getTextClipboardHandler(clipboardMediator))
         .on("SetTextClipboardCommand", setTextClipboardHandler(clipboardMediator))
         .on("SyncDocumentCommand", syncDocumentHandler(bpmnService))
+        .on("DiagramFormattedCommand", diagramFormattedHandler(layoutSvc))
+        .on("CleanupReportCommand", cleanupReportHandler(layoutSvc))
         .on("DocumentFlushedCommand", documentFlushedHandler(flushSvc))
         .on("OpenScriptEditorCommand", openScriptEditorHandler(scriptTaskSvc, scriptVariableStore))
         .on(
@@ -364,5 +371,5 @@ export function register(
     );
     documentFlush.register(context);
 
-    return { bpmnService, templatesSvc, documentFlush };
+    return { bpmnService, templatesSvc, documentFlush, layoutSvc };
 }

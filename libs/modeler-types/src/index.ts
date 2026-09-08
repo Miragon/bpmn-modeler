@@ -15,6 +15,7 @@ export * from "./settings";
 export * from "./scripting";
 export * from "./implementation";
 export * from "./diff";
+export * from "./layout";
 export * from "./errors";
 export * from "./canvasResize";
 export * from "./textEditingSurface";
