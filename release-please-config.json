@@ -84,6 +84,11 @@
       "component": "intellij",
       "include-component-in-tag": true,
       "extra-files": [{ "type": "generic", "path": "gradle.properties" }]
+    },
+    "packages/dmn-modeler": {
+      "release-type": "node",
+      "component": "dmn-modeler",
+      "include-component-in-tag": true
     }
   }
 }
