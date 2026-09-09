@@ -16,19 +16,12 @@ export interface ViewportData {
     scale?: number;
 }
 
-/** Accessor for a service from the bpmn-js DI container, by name. */
 type ServiceAccessor = <T>(name: string) => T;
 
-// Zoom floor when focusing an element, so a far-zoomed-out view still shows it
-// legibly. Never zooms out past the user's current level.
+// Keep focused elements legible without zooming out from the current view.
 const MIN_FOCUS_ZOOM = 0.75;
 
-/**
- * Reads, writes, and subscribes to canvas viewbox changes.
- *
- * Decoupled from the modeler through a {@link ServiceAccessor} so the
- * viewport concern can be tested and composed independently.
- */
+/** Reads, restores, and subscribes to canvas viewbox changes. */
 export class ViewportManager {
     constructor(private readonly getService: ServiceAccessor) {}
 
@@ -66,9 +59,7 @@ export class ViewportManager {
             return this.fitViewport();
         }
         const canvas = this.getService<any>("canvas");
-        // The container size at restore time is not the size at save time
-        // (VS Code re-show / panel layout race), so zoom must be pinned
-        // explicitly rather than derived from width/height.
+        // Pin saved zoom explicitly because the container may have resized since capture.
         if (viewport.scale !== undefined && Number.isFinite(viewport.scale) && viewport.scale > 0) {
             const { outer } = canvas.viewbox();
             canvas.viewbox({
@@ -104,28 +95,19 @@ export class ViewportManager {
         const canvas = this.getService<any>("canvas");
         const { inner, outer } = canvas.viewbox();
 
-        // Leaving bpmn-js's identity transform alone keeps the diagram
-        // visible, just not centred; fitting against an unlaid-out container
-        // would divide by it and blank the canvas instead.
+        // Fitting a zero-sized container would produce a NaN transform and blank the canvas.
         if (!this.isCanvasSized()) {
             return false;
         }
 
-        // No elements — nothing to fit; let bpmn-js handle the degenerate case.
         if (!inner.width || !inner.height) {
             canvas.zoom("fit-viewport");
             return true;
         }
 
-        // Insets are margins, not hard constraints. A palette whose stylesheet
-        // has not been applied yet measures as a full-width block, which would
-        // swallow the viewport and shrink the diagram to nothing; capping each
-        // inset keeps half the canvas available whatever the chrome reports.
+        // An unstyled palette can measure as full-width; cap insets so it cannot consume the viewport.
         const maxInsetX = outer.width / 4;
         const maxInsetY = outer.height / 4;
-        // Scope the palette lookup to this modeler's own container: with two
-        // modelers on a page a bare `document.querySelector` would measure the
-        // first palette, insetting the wrong canvas.
         const paletteWidth =
             canvas.getContainer().querySelector(".djs-palette")?.getBoundingClientRect().width ??
             50;
@@ -141,13 +123,9 @@ export class ViewportManager {
 
         const scale = Math.min(1, availableWidth / inner.width, availableHeight / inner.height);
 
-        // Center the diagram inside the inset area: split the leftover space
-        // evenly, then shift by the inset so each side keeps its own margin.
         const marginX = inset.left + (availableWidth - inner.width * scale) / 2;
         const marginY = inset.top + (availableHeight - inner.height * scale) / 2;
 
-        // Map diagram-space to a viewbox so the diagram's top-left lands at
-        // (marginX, marginY) px; box width/height pin the resulting scale.
         canvas.viewbox({
             x: inner.x - marginX / scale,
             y: inner.y - marginY / scale,
@@ -175,8 +153,6 @@ export class ViewportManager {
         }
 
         const viewbox = canvas.viewbox();
-        // scale = outer/viewbox width; below the floor, widen the box (smaller
-        // viewbox = higher zoom).
         const scale = viewbox.width > 0 ? viewbox.outer.width / viewbox.width : MIN_FOCUS_ZOOM;
         const width = scale < MIN_FOCUS_ZOOM ? viewbox.outer.width / MIN_FOCUS_ZOOM : viewbox.width;
         const height =

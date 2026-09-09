@@ -30,8 +30,6 @@ import type {
     DesignerCapabilities,
     DesignerOptions,
 } from "./design/publicApi";
-// The three model-navigation types must be re-exported from both barrels — the
-// public proof that a /design consumer can name the port and its references.
 import type {
     ModelNavigationPort as ModelNavigationPortFromRoot,
     ModelReference as ModelReferenceFromRoot,
@@ -42,7 +40,6 @@ import type {
     ModelReference as ModelReferenceFromDesign,
     ReferenceKind as ReferenceKindFromDesign,
 } from "./design/index";
-// …and from the /viewer barrel — the same public proof for a /viewer consumer.
 import type {
     ModelNavigationPort as ModelNavigationPortFromViewer,
     ModelReference as ModelReferenceFromViewer,
@@ -56,57 +53,35 @@ import type {
     SurfaceHandle,
 } from "./modeSession/publicApi";
 
-// A minimal stub of the injected `@miragon/bpmn-modeler/lint` namespace. The
-// on-tiers below all require a `module`, so migration failures are compile-time.
 const _lintModule: LintModule = { createLintModule: () => ({}) };
 
-/**
- * Type-level conformance + scenario spec for the public API.
- *
- * The assertions below are compile-checked (this file is type-checked by
- * `tsconfig.spec.json`); the single runtime `it` exists only so the test runner
- * has something to execute — esbuild strips the types without checking them, so
- * the guarantee is the `tsc` pass, not the vitest run.
- *
- * `satisfies` is used instead of a plain annotation so the checks cannot be
- * widened away by an over-broad target type.
- */
+// These fixtures require tsc: Vitest strips types without checking conformance.
+// Use satisfies to validate each fixture without widening its inferred type.
 
-// Conformance: the BpmnModeler class satisfies the full handle. If a future
-// refactor reshapes one of these members, this line stops compiling.
 const _conformance = (modeler: BpmnModeler): BpmnModelerHandle => modeler;
 void _conformance;
 
-// Class→handle conformance for the viewer and designer too: a forgotten method
-// on either class (e.g. a missing captureViewState) is a compile error here
-// rather than a runtime `undefined` on the handle the factory returns.
 const _viewerConformance = (v: BpmnViewer): BpmnViewerHandle => v;
 void _viewerConformance;
 const _designerConformance = (d: BpmnDesigner): BpmnDesignerHandle => d;
 void _designerConformance;
 
-// The captured view-state shape is frozen: viewport, an optional plane id, and
-// the selection id list. A field drop/rename breaks this literal.
 const _viewState = {
     viewport: { x: 0, y: 0, width: 100, height: 100 },
     rootElementId: "SubProcess_1_plane",
     selectedElementIds: ["Task_1"],
 } satisfies ViewState;
 void _viewState;
-// rootElementId is optional — a top-level-plane snapshot omits it.
 const _viewStateTopLevel = {
     viewport: { x: 0, y: 0, width: 100, height: 100 },
     selectedElementIds: [],
 } satisfies ViewState;
 void _viewStateTopLevel;
 
-// Structural sanity check that the frozen stable subset stays a subset of the
-// full handle as the surface grows.
 type _HandleIsSuperset = BpmnModelerHandle extends StableModelerSurface ? true : never;
 const _handleSuperset: _HandleIsSuperset = true;
 void _handleSuperset;
 
-// Element templates arrive as fetched data, not a path.
 const _scenarioTemplates = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -114,8 +89,6 @@ const _scenarioTemplates = {
 } satisfies ModelerOptions;
 void _scenarioTemplates;
 
-// [A] Escape hatches: extra DI modules alongside a custom moddle extension for
-// a host's own BPMN namespace (bpmiq's sticky-note case).
 const _scenarioEscapeHatches = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -126,8 +99,6 @@ const _scenarioEscapeHatches = {
 } satisfies ModelerOptions;
 void _scenarioEscapeHatches;
 
-// An async ModelNavigationPort (GitHub-API resolution before opening a tab).
-// The return type must accept `async`.
 const _asyncNavigation: ModelNavigationPort = {
     async openReference({ id, kind }) {
         await Promise.resolve();
@@ -142,8 +113,6 @@ const _scenarioAsyncNav = {
 } satisfies ModelerOptions;
 void _scenarioAsyncNav;
 
-// A host may keep navigation visibility in sync with its own workspace index.
-// Without these optional hooks, syntactically valid references stay visible.
 const _formAwareNavigation = {
     openReference: (_reference) => undefined,
     isReferenceAvailable: ({ id, kind }) => kind !== "form" || id === "Form_Request",
@@ -151,9 +120,6 @@ const _formAwareNavigation = {
 } satisfies ModelNavigationPort;
 void _formAwareNavigation;
 
-// Graceful `{ module, config }` linting. The literal type-checks against the
-// BpmnlintConfig mirror; unresolvable rules degrade at runtime and surface via
-// onLintResults({ results, unresolved }).
 const _scenarioLintConfig = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -168,8 +134,6 @@ const _scenarioLintConfig = {
 } satisfies ModelerOptions;
 void _scenarioLintConfig;
 
-// Per-mode `config` map: one instance lints Design and Implement differently,
-// re-resolved on setMode. Either key is optional.
 const _scenarioLintByMode = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -183,8 +147,6 @@ const _scenarioLintByMode = {
 } satisfies ModelerOptions;
 void _scenarioLintByMode;
 
-// External tier: `{ module, results: "external" }`. `module` is required — the
-// external tier still needs LintConfigService to paint host-pushed results.
 const _scenarioLintExternal = {
     engine: "c8",
     propertiesPanel: { parent: document.createElement("div") },
@@ -192,8 +154,6 @@ const _scenarioLintExternal = {
 } satisfies ModelerOptions;
 void _scenarioLintExternal;
 
-// Migration failures are compile-time: an object tier without `module` is
-// rejected, and `config` never rides the external variant.
 const _lintMissingModule = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -210,17 +170,10 @@ const _lintExternalMissingModule = {
 } satisfies ModelerOptions;
 void _lintExternalMissingModule;
 
-// Type-level entry conformance (no runtime load): the real `/lint` subpath
-// namespace structurally satisfies the public LintModule contract. If
-// createLintModule's signature drifts from LintModule, this line stops
-// compiling — keeping the structural interface in sync with the implementation.
 type _EntryConformsToLintModule = typeof import("./bpmnlint") extends LintModule ? true : never;
 const _entryConforms: _EntryConformsToLintModule = true;
 void _entryConforms;
 
-// [B] Opinionated built-ins: each tier/override type-checks in isolation, and
-// the target factory type is nameable. These exercise the built-in and event
-// declarations the scenario literals above don't reach.
 const _themes = ["light", "dark", "automatic"] satisfies ThemeMode[];
 void _themes;
 const _lintOff: LintingOptions = false;
@@ -230,18 +183,11 @@ void [_lintOff, _lintExternal, _lintConfig];
 const _clipboard: ClipboardOptions = {
     bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
 };
-// A host with two protocol channels (VS Code) supplies a separate `text`
-// bridge; the package forwards it to createClipboardModules' text binding and
-// drives the contenteditable polyfill from it.
 const _clipboardWithText: ClipboardOptions = {
     bridge: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
     text: { requestClipboard: () => Promise.resolve(""), writeClipboard: () => undefined },
 };
 void _clipboardWithText;
-// The runtime factory accepts the same clipboard override — omit it for the
-// native browser clipboard, or pass `{ bridge }` to route through a host. The
-// runtime options extend {@link ModelerOptions} (engine + nested
-// `propertiesPanel`), plus the internal `handleGlobalEscape`.
 const _createWithClipboard = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -265,9 +211,6 @@ const _builtinsShape = {
 } satisfies ModelerOptions;
 void _builtinsShape;
 
-// [B] Design/implement mode is a built-in runtime toggle (#1442). The mode
-// literals type-check against the option, an unknown mode is rejected, and
-// onModeChanged narrows its argument to ModelerMode.
 const _modes = ["design", "implement"] satisfies ModelerMode[];
 void _modes;
 const _scenarioDesignMode = {
@@ -284,7 +227,6 @@ const _rejectsUnknownMode = {
     mode: "view",
 } satisfies ModelerOptions;
 void _rejectsUnknownMode;
-// The handle carries the live setMode/getMode pair.
 const _modeHandle = (m: BpmnModelerHandle) => {
     m.setMode("design");
     const mode: ModelerMode = m.getMode();
@@ -292,9 +234,6 @@ const _modeHandle = (m: BpmnModelerHandle) => {
 };
 void _modeHandle;
 
-// The drill-down plane accessor is public on all three handles (host-driven
-// restore across an instance switch), so a modeler handle narrows without an
-// adapter and a viewer/designer exposes the same manager.
 const _rootElementAccessors = (
     m: BpmnModelerHandle,
     v: BpmnViewerHandle,
@@ -304,12 +243,10 @@ const _rootElementAccessors = (
 };
 void _rootElementAccessors;
 
-// The async factory signature is nameable.
 type _FactoryReturn = ReturnType<CreateModeler>;
 const _factoryReturns: _FactoryReturn extends Promise<BpmnModelerHandle> ? true : never = true;
 void _factoryReturns;
 
-// Demo-webapp-shaped literal — model navigation only, no code-link/scripting.
 const _demoShape = {
     engine: "c7",
     propertiesPanel: { parent: document.createElement("div") },
@@ -324,9 +261,6 @@ const _demoShape = {
 } satisfies ModelerOptions;
 void _demoShape;
 
-// Frozen core-service contract (#1408): each keyed lookup resolves to its
-// vendor diagram-js/bpmn-js type without an explicit type argument. If an
-// overload regresses, one of these annotations stops compiling.
 const _coreServices = (m: BpmnModelerHandle) => {
     const canvas: CoreModelerServices["canvas"] = m.getService("canvas");
     const commandStack: CoreModelerServices["commandStack"] = m.getService("commandStack");
@@ -339,8 +273,6 @@ const _coreServices = (m: BpmnModelerHandle) => {
 };
 void _coreServices;
 
-// Non-core names keep the generic escape hatch: an explicit type argument is
-// honoured, and a bare call defaults to `unknown`.
 const _escapeHatch = (m: BpmnModelerHandle) => {
     const custom = m.getService<{ translate(s: string): string }>("customTranslator");
     const untyped: unknown = m.getService("anythingElse");
@@ -348,17 +280,9 @@ const _escapeHatch = (m: BpmnModelerHandle) => {
 };
 void _escapeHatch;
 
-// ── Viewer subpath conformance (#1405) ──────────────────────────────────────
-
-// Subset compatibility (acceptance criterion): every BpmnViewerHandle member is
-// signature-identical to its BpmnModelerHandle counterpart, so a modeler handle
-// narrows to a viewer handle with no adapter. If a viewer member drifts from the
-// modeler's shape, this line stops compiling.
 const _modelerSatisfiesViewerHandle = (m: BpmnModelerHandle): BpmnViewerHandle => m;
 void _modelerSatisfiesViewerHandle;
 
-// CoreViewerServices is the readonly Pick of CoreModelerServices: each shared key
-// keeps its exact vendor type, and the editing keys are absent.
 const _coreViewerServices = (v: BpmnViewerHandle) => {
     const canvas: CoreModelerServices["canvas"] = v.getService("canvas");
     const elementRegistry: CoreModelerServices["elementRegistry"] = v.getService("elementRegistry");
@@ -375,8 +299,6 @@ type _ViewerServicesAreModelerSubset = keyof CoreViewerServices extends keyof Co
 const _viewerServicesSubset: _ViewerServicesAreModelerSubset = true;
 void _viewerServicesSubset;
 
-// ViewerOptions is minimal: no engine, no editor-only built-ins, and an
-// optional (readonly) properties panel.
 const _viewerOptions = {
     theme: "dark",
     propertiesPanel: { parent: document.createElement("div") },
@@ -399,7 +321,6 @@ const _viewerRejectsLinting = {
 } satisfies ViewerOptions;
 void _viewerRejectsLinting;
 
-// The viewer handle carries no editing methods.
 const _viewerHasNoEditing = (v: BpmnViewerHandle) => {
     // @ts-expect-error — `newDiagram` is a modeler-only method.
     void v.newDiagram;
@@ -408,18 +329,9 @@ const _viewerHasNoEditing = (v: BpmnViewerHandle) => {
 };
 void _viewerHasNoEditing;
 
-// ── Designer subpath conformance (#1196) ────────────────────────────────────
-
-// Subset compatibility: every BpmnDesignerHandle member is signature-identical
-// to its BpmnModelerHandle counterpart, so a modeler handle narrows to a designer
-// handle with no adapter. If a designer member drifts from the modeler's shape,
-// this line stops compiling.
 const _modelerSatisfiesDesignerHandle = (m: BpmnModelerHandle): BpmnDesignerHandle => m;
 void _modelerSatisfiesDesignerHandle;
 
-// Design mode is fully editable, so CoreDesignerServices is the full
-// CoreModelerServices set (not the viewer's readonly Pick): each of the seven
-// keys resolves to its exact vendor type, including modeling + commandStack.
 const _coreDesignerServices = (d: BpmnDesignerHandle) => {
     const canvas: CoreModelerServices["canvas"] = d.getService("canvas");
     const commandStack: CoreModelerServices["commandStack"] = d.getService("commandStack");
@@ -436,7 +348,6 @@ type _DesignerServicesEqualModeler = keyof CoreDesignerServices extends keyof Co
 const _designerServicesEqual: _DesignerServicesEqualModeler = true;
 void _designerServicesEqual;
 
-// DesignerOptions requires the panel host and accepts the engine-neutral knobs.
 const _designerOptions = {
     propertiesPanel: { parent: document.createElement("div") },
     theme: "dark",
@@ -456,9 +367,6 @@ const _designerRejectsEngine = {
 } satisfies DesignerOptions;
 void _designerRejectsEngine;
 
-// Linting is now injection-only on /design exactly as on the root: `false` is
-// valid (off), and an on-tier accepts the injected module plus the result/toggle
-// sinks. The engine-neutral Design config resolves automatically.
 const _designerAcceptsLinting = {
     propertiesPanel: { parent: document.createElement("div") },
     linting: { module: _lintModule },
@@ -471,7 +379,6 @@ const _designerLintOff = {
     linting: false,
 } satisfies DesignerOptions;
 void _designerLintOff;
-// A by-mode config resolves its `design` entry on the designer.
 const _designerByModeLint = {
     propertiesPanel: { parent: document.createElement("div") },
     linting: { module: _lintModule, config: { design: { extends: "bpmnlint:recommended" } } },
@@ -485,14 +392,12 @@ const _designerRejectsElementTemplates = {
 } satisfies DesignerOptions;
 void _designerRejectsElementTemplates;
 
-// The one engine-neutral host capability: modelNavigation is accepted, …
 const _designerAcceptsNavigation = {
     propertiesPanel: { parent: document.createElement("div") },
     capabilities: { modelNavigation: _asyncNavigation },
 } satisfies DesignerOptions;
 void _designerAcceptsNavigation;
 
-// … while the engine-bound ports stay compile-time-rejected on /design.
 const _designerRejectsCodeLink = {
     propertiesPanel: { parent: document.createElement("div") },
     // @ts-expect-error — codeLink is engine-bound, absent from DesignerCapabilities.
@@ -507,11 +412,9 @@ const _designerRejectsScripting = {
 } satisfies DesignerOptions;
 void _designerRejectsScripting;
 
-// DesignerCapabilities carries exactly the navigation port.
 const _designerCapabilities = { modelNavigation: _asyncNavigation } satisfies DesignerCapabilities;
 void _designerCapabilities;
 
-// The re-exported navigation types are structurally the same from either barrel.
 const _navPortRoot: ModelNavigationPortFromRoot = _asyncNavigation;
 const _navPortDesign: ModelNavigationPortFromDesign = _navPortRoot;
 void (_navPortDesign satisfies ModelNavigationPortFromDesign);
@@ -522,13 +425,11 @@ const _kindRoot: ReferenceKindFromRoot = "process";
 const _kindDesign: ReferenceKindFromDesign = _kindRoot;
 void _kindDesign;
 
-// The /viewer surface accepts the same one engine-neutral capability, …
 const _viewerAcceptsNavigation = {
     capabilities: { modelNavigation: _asyncNavigation },
 } satisfies ViewerOptions;
 void _viewerAcceptsNavigation;
 
-// … while the engine-bound ports stay compile-time-rejected on /viewer too.
 const _viewerRejectsCodeLink = {
     // @ts-expect-error — codeLink is engine-bound, absent from ViewerCapabilities.
     capabilities: { codeLink: {} },
@@ -541,18 +442,14 @@ const _viewerRejectsScripting = {
 } satisfies ViewerOptions;
 void _viewerRejectsScripting;
 
-// ViewerCapabilities carries exactly the navigation port, …
 const _viewerCapabilities = { modelNavigation: _asyncNavigation } satisfies ViewerCapabilities;
 void _viewerCapabilities;
 
-// … and is structurally identical to DesignerCapabilities (mutually assignable),
-// the own-interface guarantee: the viewer must not import from src/design/*.
 const _viewerCapsAsDesigner: DesignerCapabilities = _viewerCapabilities;
 void _viewerCapsAsDesigner;
 const _designerCapsAsViewer: ViewerCapabilities = { modelNavigation: _asyncNavigation };
 void (_designerCapsAsViewer satisfies DesignerCapabilities);
 
-// The re-exported navigation types are the same from the /viewer barrel too.
 const _navPortViewer: ModelNavigationPortFromViewer = _navPortRoot;
 void (_navPortViewer satisfies ModelNavigationPortFromDesign);
 const _refViewer: ModelReferenceFromViewer = _refRoot;
@@ -560,10 +457,6 @@ void _refViewer;
 const _kindViewer: ReferenceKindFromViewer = _kindRoot;
 void _kindViewer;
 
-// ── Mode-session subpath conformance (#1447) ────────────────────────────────
-
-// SurfaceHandle is the union of all three handles: a modeler, a viewer, and a
-// designer all satisfy it (the modeler is the superset arm).
 const _surfaceHandleAcceptsAll = (
     m: BpmnModelerHandle,
     v: BpmnViewerHandle,
@@ -574,7 +467,6 @@ const _surfaceHandleAcceptsAll = (
 };
 void _surfaceHandleAcceptsAll;
 
-// The design/implement contexts: implement additionally carries `mode`.
 const _surfaceContext = {
     container: document.createElement("div"),
     engine: "c7",
@@ -584,8 +476,6 @@ void _surfaceContext;
 const _modelerContext = { ..._surfaceContext, mode: "design" } satisfies ModelerSurfaceContext;
 void _modelerContext;
 
-// A consumer may inject any subset of factories; the implement factory serves
-// both Design and Implement on a tagged model via `ctx.mode`.
 const _allFactories = {
     view: async (_ctx: SurfaceContext) => ({}) as BpmnViewerHandle,
     design: async (_ctx: SurfaceContext) => ({}) as BpmnDesignerHandle,
@@ -597,13 +487,11 @@ const _allFactories = {
 } satisfies SurfaceFactories;
 void _allFactories;
 
-// A single-factory session is legal (one mode, no strip).
 const _singleFactory = {
     view: async (_ctx: SurfaceContext) => ({}) as BpmnViewerHandle,
 } satisfies SurfaceFactories;
 void _singleFactory;
 
-// The implement slot demands a modeler; a designer factory is rejected.
 const _designerImplementFactory = async (
     _ctx: ModelerSurfaceContext,
 ): Promise<BpmnDesignerHandle> => ({}) as BpmnDesignerHandle;
@@ -623,8 +511,6 @@ const _modeSessionOptions = {
 } satisfies ModeSessionOptions;
 void _modeSessionOptions;
 
-// The /mode barrel re-exports the factory, the strip, and the mode model —
-// checked at the type level so this line loads no runtime graph.
 type _ModeBarrel = typeof import("./modeSession");
 const _modeBarrelExports = (b: _ModeBarrel) => {
     void b.createModeSession;

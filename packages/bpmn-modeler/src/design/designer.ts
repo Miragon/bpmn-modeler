@@ -41,26 +41,8 @@ import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
 /**
- * Encapsulates one engine-neutral, editable bpmn-js modeler instance — the
- * Design-mode analogue of {@link BpmnModeler} and {@link BpmnViewer}.
- *
- * Wraps the base `bpmn-js/lib/Modeler` (palette, context pad, modelling,
- * keyboard, copy-paste, snapping, searchPad, outline) plus the engine-neutral
- * properties panel (`@miragon/bpmn-modeler-properties-panel` — the full
- * standard-BPMN group set, no Camunda groups) and our neutral UX modules
- * (translate, append menu, flow navigation) and the mode-invariant canvas
- * chrome every surface shares (minimap, token simulation, keyboard focus —
- * ADR 0022). It loads none of the Camunda editing stack (camunda-bpmn-js,
- * element templates, transaction boundaries), so it never carries an execution
- * platform — the absence of `modeler:executionPlatform` on the model is exactly
- * the mode marker a host routes on. Linting is injection-only (ADR 0023): the
- * lint stack loads only when the host hands in a `module`, and resolves the
- * engine-neutral Design config.
- *
- * Per-instance by construction: bound to its own `container` and
- * `propertiesPanel.parent`, so several surfaces can coexist on a page. Use
- * {@link createDesigner} as the factory. Every accessor throws
- * {@link NoModelerError} before {@link init} or after {@link destroy}.
+ * An independent, editable BPMN surface without an execution platform.
+ * Create it with {@link createDesigner}; accessors require a live instance.
  */
 export class BpmnDesigner {
     private modeler: Modeler | undefined = undefined;
@@ -69,21 +51,15 @@ export class BpmnDesigner {
 
     private _selection: SelectionManager | undefined;
 
-    // Drill-down plane tracking, composed into captureViewState/applyViewState
-    // and exposed via the public `rootElement` getter for host-driven restore.
     private _rootElement: RootElementManager | undefined;
 
-    // Per-instance theme controller, created lazily on the first setTheme.
     private themeController?: ThemeController;
 
-    // Disposes the canvas-size observer installed by loadDiagram.
     private stopObservingSize?: () => void;
 
-    // Teardown for the container-scoped focus features installed in init().
     private focusDisposers: Array<() => void> = [];
 
-    // The debounced content-saved emitter, live only when `onContentSaved` was
-    // supplied. Held so {@link destroy} can cancel a pending trailing export.
+    // Retain the debouncer so destroy can cancel a pending export.
     private contentSaved?: AsyncDebounced<() => Promise<void>>;
 
     /**
@@ -137,12 +113,7 @@ export class BpmnDesigner {
         applyViewStateComposition(this.viewStateManagers(), state);
     }
 
-    /**
-     * The three managers backing view-state capture/apply. Reading `viewport`
-     * throws {@link NoModelerError} before {@link init}; the root manager is
-     * created and cleared in lockstep with it, so the assertion never fires
-     * after that guard passes.
-     */
+    // Accessing viewport guards initialization; all three managers share its lifecycle.
     private viewStateManagers() {
         return {
             viewport: this.viewport,
@@ -151,31 +122,17 @@ export class BpmnDesigner {
         };
     }
 
-    /**
-     * Creates and mounts the engine-neutral bpmn-js modeler, then wires the
-     * viewport/selection managers, focus features, and the debounced
-     * content-saved subscription.
-     *
-     * @internal Construction step invoked by {@link createDesigner}; not part of
-     *   the public handle.
-     */
+    /** @internal */
     async init(): Promise<void> {
         this.disposeFocusFeatures();
 
-        // The designer registers NativeCopyPasteModule itself (system/browser
-        // clipboard, parity with camunda-bpmn-js's base Modeler and the same
-        // `bpmn-js-clip----` wire format). A sandboxed host that can't reach the
-        // system clipboard supplies a bridge, whose module overrides
-        // NativeCopyPaste — hence NativeCopyPaste must be registered for the
-        // bridge to disable it.
+        // Register NativeCopyPaste even with a bridge: the bridge module expects to disable it.
         const clip = this.options.clipboard;
         const clipModules = clip
             ? createClipboardModules({ element: clip.bridge, text: clip.text })
             : [];
         if (clip) {
-            // The label overlay lives outside the bpmn-js DI context, so the DI
-            // clipboard modules don't reach it; this document-level polyfill
-            // bridges its Cmd/Ctrl+C/V through the text bridge. Idempotent.
+            // The FEEL editor sits outside bpmn-js DI and needs the document-level text bridge.
             const textBridge = clip.text ?? clip.bridge;
             installContentEditableClipboardPolyfill(
                 () => textBridge.requestClipboard(),
@@ -184,11 +141,7 @@ export class BpmnDesigner {
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
 
-        // Inline the one navigation capability rather than reusing
-        // src/capabilityModules.ts — that value-imports code-link and
-        // inline-scripting (the latter even side-effect-imports CSS, which would
-        // pollute the CSS-free design entry) and takes an Engine. An absent
-        // capability registers no provider, so no context-pad entry renders.
+        // capabilityModules imports engine features and CSS, which must stay out of the design entry.
         const navigationPort = this.options.capabilities?.modelNavigation;
         const capModules = navigationPort ? [createModelNavigationModule(navigationPort)] : [];
 
@@ -196,38 +149,23 @@ export class BpmnDesigner {
             container: this.container,
             propertiesPanel: {
                 parent: this.options.propertiesPanel.parent,
-                // Mount the FEEL/documentation popups inside the instance
-                // container (they default to document.body, outside this
-                // instance's theme scope). Safe because the popup is fixed.
+                // Keep popups within this instance's theme scope instead of document.body.
                 feelPopupContainer: this.container,
             },
-            // Ship the minimap collapsed; the toggle lives in the canvas corner.
             minimap: { open: false },
             moddleExtensions: this.options.moddleExtensions,
             additionalModules: [
                 TranslateModule,
-                // Engine-neutral panel (our fork of bpmn-js-properties-panel): the
-                // renderer + neutral provider + a design-mode filter (identity here,
-                // there is no engine provider to filter) + the host custom-group slot.
                 PropertiesPanelModule,
                 NeutralPropertiesProviderModule,
                 ModeFilterModule,
                 CustomGroupsModule,
-                // The base create/append overlay our AppendMenuModule decorates.
-                // Engine-neutral: with no `elementTemplates` service registered it
-                // shows just the standard-BPMN panel, and powers favourites.
                 CreateAppendAnythingModule,
                 AppendMenuModule,
                 FlowNavigationModule,
                 MinimapModule,
-                // Engine-neutral: simulates plain BPMN control flow, no Camunda
-                // stack behind it (ADR 0022).
                 TokenSimulationModule,
-                // Injection-only lint tier (ADR 0023): empty unless the host hands
-                // in a `module` from `@miragon/bpmn-modeler/lint`. `mode: "design"`
-                // + `engine: undefined` resolves the engine-neutral Design config.
-                // `nudgeWhenOmitted: false` — the designer never linted implicitly,
-                // so an omitted option has nothing to migrate.
+                // Design never enabled linting implicitly, so omission needs no migration notice.
                 ...buildLintModules(
                     this.options.linting,
                     { engine: undefined, mode: "design" },
@@ -256,9 +194,6 @@ export class BpmnDesigner {
             appendMenuOverride?.setFavourites(this.options.favouriteBpmnElements);
         }
 
-        // The package-owned debounced content event: one full export per burst of
-        // model changes (300ms / 1000ms maxWait). destroy() cancels a pending
-        // trailing export.
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
             this.contentSaved = asyncDebounce(
@@ -272,12 +207,6 @@ export class BpmnDesigner {
         }
     }
 
-    /**
-     * Composes the container-scopable focus features onto the fresh modeler: the
-     * "Escape → focus canvas" guard and the canvas focus reticle. Both are scoped
-     * to this instance's canvas container and panel parent so several surfaces on
-     * one page never cross-fire.
-     */
     private installFocusFeatures(): void {
         const canvas = this.getModeler().get<{
             getContainer(): HTMLElement;
@@ -419,11 +348,6 @@ export class BpmnDesigner {
         this.lintHandle().startInPageLinting(config, configToken);
     }
 
-    /**
-     * The shared lint handle methods over this instance's defensively-resolved
-     * {@link LintConfigService} (absent unless a lint module was injected). The
-     * same helper the root modeler composes, so the two surfaces stay in lockstep.
-     */
     private lintHandle(): LintHandleMethods {
         return createLintHandleMethods(
             () => this.getModeler().get<LintConfigService>("bpmnLintConfig", false) ?? undefined,

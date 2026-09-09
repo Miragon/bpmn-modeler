@@ -1,8 +1,3 @@
-/* The in-bundle theme sheet: the unscoped stock dmn-js defaults (the light look)
- * plus the dark overrides scoped under `[data-dmn-theme="dark"]`. Folded into
- * `dist/dmn-modeler.css` via `src/index.ts`, so a consumer that loads
- * `styles.css` gets per-instance theming with no extra `<link>`. The legacy
- * split `lightTheme.css` / `darkTheme.css` are built separately for the
- * `#theme-link` fallback (see `vite.themes.config.mts`). */
+/* Scope dark overrides so instances can use different themes on the same page. */
 @import "./light-theme/index.css";
 @import "./dark-theme/overrides.css";

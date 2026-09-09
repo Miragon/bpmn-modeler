@@ -1,10 +1,4 @@
-// Node smoke test for the `./diff` data-layer entry (#1378).
-//
-// Imports the built `dist/diff.js` under plain Node — no jsdom, no DOM globals —
-// and runs `computeDiff` on two inline XML strings. This mechanises the
-// "browser + Node" acceptance criterion and catches DOM/CSS leakage into the
-// shared Rollup chunks the diff entry pulls in: any such import would throw at
-// module-eval time here, where `window`/`document` do not exist.
+// Plain Node exposes accidental DOM or CSS dependencies in the published diff entry.
 import { computeDiff, sideView } from "../dist/diff.js";
 
 const BEFORE = `<?xml version="1.0" encoding="UTF-8"?>

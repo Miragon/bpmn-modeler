@@ -1,26 +1,12 @@
 import selectorParser from "postcss-selector-parser";
 
-/**
- * PostCSS plugin that strips the `[data-dmn-theme="dark"]` scope from every
- * selector, turning the single scoped source (`dark-theme/*.css`) back into the
- * legacy un-scoped `darkTheme.css` shape linked via `#theme-link`.
- *
- * Two cases, matching the authored scoping conventions:
- *   - the attribute stands alone in its compound (`[data-dmn-theme="dark"] S`)
- *     → replace it with `:root`, preserving the descendant relationship;
- *   - the attribute is compounded onto another simple selector
- *     (`:root[data-dmn-theme="dark"]`, `.properties-panel-parent[data-dmn-theme="dark"]`)
- *     → delete just the attribute node, leaving the rest of the compound.
- *
- * A no-op on selectors that never mention the attribute (e.g. the light input).
- */
+// Legacy split stylesheets must work without a data-dmn-theme attribute.
 const ATTRIBUTE = "data-dmn-theme";
 
 function isCombinator(node) {
     return node?.type === "combinator";
 }
 
-/** The non-combinator nodes sharing `attr`'s compound (contiguous, no combinator). */
 function compoundSize(attr) {
     const siblings = attr.parent.nodes;
     const index = siblings.indexOf(attr);
@@ -34,6 +20,7 @@ const transform = selectorParser((selectors) => {
     selectors.walkAttributes((attr) => {
         if (attr.attribute !== ATTRIBUTE) return;
         if (compoundSize(attr) === 1) {
+            // Preserve the descendant relationship when removing a standalone scope.
             attr.replaceWith(selectorParser.pseudo({ value: ":root" }));
         } else {
             attr.remove();

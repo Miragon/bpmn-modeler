@@ -1,6 +1,1 @@
-/* dmn-js light theme — the modeler's stock stylesheets, unmodified.
- *
- * This entry builds the legacy split `lightTheme.css` a consumer links via
- * `#theme-link`. The same stock list is folded into the in-bundle `themes.css`
- * as the light base beneath the scoped dark overrides. */
 @import "../base.css";

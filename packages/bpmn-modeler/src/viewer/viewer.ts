@@ -5,10 +5,7 @@ import MinimapModule from "diagram-js-minimap";
 import TokenSimulationViewerModule from "bpmn-js-token-simulation/lib/viewer";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
-// Deep imports on purpose: the lib barrel side-effect-imports its CSS, and the
-// viewer entry must stay CSS-free (`cssCodeSplit: false` would fold any
-// reachable sheet into the shared `dist/bpmn-modeler.css`). Gated by
-// `architecture.spec.ts`; the panel sheets ship via `viewer.css` instead.
+// Deep imports avoid the barrel's CSS side effects; viewer styles must stay separate from editor CSS.
 import PropertiesPanelModule from "@miragon/bpmn-modeler-properties-panel/render/index";
 import NeutralPropertiesProviderModule from "@miragon/bpmn-modeler-properties-panel/provider/index";
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
@@ -32,31 +29,8 @@ import type { ThemeMode } from "../publicApi";
 import type { CoreViewerServices, ViewerOptions } from "./publicApi";
 
 /**
- * Encapsulates one readonly bpmn-js viewer instance — the view-only analogue of
- * {@link BpmnModeler}.
- *
- * Wraps `bpmn-js/lib/NavigatedViewer` (mouse + keyboard pan/zoom, no editing)
- * plus `bpmn-js/lib/features/outline`, the one module the base viewer lacks for
- * *visible* selection/hover, and the mode-invariant canvas chrome every surface
- * shares (ADR 0022): the minimap, the readonly token-simulation variant, and the
- * keyboard-focus features. Viewport and selection concerns delegate to the
- * shared {@link ViewportManager} / {@link SelectionManager}, so the same
- * `ServiceAccessor`-based managers back both the modeler and the viewer.
- *
- * With `options.propertiesPanel` set, the engine-neutral properties panel
- * (`@miragon/bpmn-modeler-properties-panel`) mounts readonly: the renderer
- * derives readonly from the absent `modeling` service and disables every entry.
- * Without the option, none of the panel modules enter the DI graph.
- *
- * With `options.capabilities.modelNavigation` set, a diagram-js context pad
- * carrying only the "Navigate to referenced model" entry is registered — the one
- * interaction a readonly surface still offers. Without it, no `contextPad`
- * service enters the graph.
- *
- * Per-instance by construction: bound to its own `container`, so several viewers
- * (or a viewer beside a modeler) can coexist on a page. Use {@link createViewer}
- * as the factory. Every accessor throws {@link NoModelerError} before
- * {@link init} or after {@link destroy}.
+ * An independent readonly BPMN surface with optional properties and model navigation.
+ * Create it with {@link createViewer}; accessors require a live instance.
  */
 export class BpmnViewer {
     private viewer: NavigatedViewer | undefined = undefined;
@@ -65,17 +39,12 @@ export class BpmnViewer {
 
     private _selection: SelectionManager | undefined;
 
-    // Drill-down plane tracking, composed into captureViewState/applyViewState
-    // and exposed via the public `rootElement` getter for host-driven restore.
     private _rootElement: RootElementManager | undefined;
 
-    // Per-instance theme controller, created lazily on the first setTheme.
     private themeController?: ThemeController;
 
-    // Disposes the canvas-size observer installed by loadDiagram.
     private stopObservingSize?: () => void;
 
-    // Teardown for the container-scoped focus features installed in init().
     private focusDisposers: Array<() => void> = [];
 
     /**
@@ -129,12 +98,7 @@ export class BpmnViewer {
         applyViewStateComposition(this.viewStateManagers(), state);
     }
 
-    /**
-     * The three managers backing view-state capture/apply. Reading `viewport`
-     * throws {@link NoModelerError} before {@link init}; the root manager is
-     * created and cleared in lockstep with it, so the assertion never fires
-     * after that guard passes.
-     */
+    // Accessing viewport guards initialization; all three managers share its lifecycle.
     private viewStateManagers() {
         return {
             viewport: this.viewport,
@@ -143,22 +107,11 @@ export class BpmnViewer {
         };
     }
 
-    /**
-     * Creates and mounts the bpmn-js viewer, then wires the viewport/selection
-     * managers. Async for API-stability symmetry with {@link BpmnModeler.init}.
-     *
-     * @internal Construction step invoked by {@link createViewer}; not part of
-     *   the public handle.
-     */
+    /** @internal */
     async init(): Promise<void> {
         const panel = this.options.propertiesPanel;
 
-        // diagram-js's plain context pad, never bpmn-js's — the latter's provider
-        // drags connect/create/direct-editing/popup-menu and injects `modeling`,
-        // which a readonly viewer never registers. Registered only with the
-        // capability, so an omitted port leaves the graph byte-identical (no
-        // `contextPad` service). ContextPad's deps (interaction-events, scheduler,
-        // overlays) are already in the viewer graph.
+        // bpmn-js's context pad requires modeling; use diagram-js's to preserve readonly behavior.
         const navigationPort = this.options.capabilities?.modelNavigation;
         const capModules = navigationPort
             ? [ContextPadModule, createModelNavigationModule(navigationPort)]
@@ -167,29 +120,20 @@ export class BpmnViewer {
         this.viewer = new NavigatedViewer({
             container: this.container,
             moddleExtensions: this.options.moddleExtensions,
-            // Ship the minimap collapsed; the toggle lives in the canvas corner.
             minimap: { open: false },
             ...(panel && {
                 propertiesPanel: {
                     parent: panel.parent,
-                    // Mount the FEEL popup (an unconditional panel dependency)
-                    // inside the instance container — it defaults to
-                    // document.body, outside this instance's theme scope.
+                    // Keep popups within this instance's theme scope instead of document.body.
                     feelPopupContainer: this.container,
                 },
             }),
-            // Outline is Modeler-only upstream; it is the single addition that
-            // makes selection/hover visible on the otherwise chrome-free viewer.
+            // NavigatedViewer omits Outline, which is needed to make selection and hover visible.
             additionalModules: [
                 OutlineModule,
                 MinimapModule,
-                // The readonly simulation variant: no canvas lock or modelling
-                // disable, since the viewer never registers `modeling`.
+                // The readonly variant does not require the absent modeling service.
                 TokenSimulationViewerModule,
-                // The full design-parity panel set: renderer + neutral provider
-                // + mode filter (identity here, no engine provider to reduce) +
-                // the host custom-group slot. The renderer attaches on
-                // `diagram.init` and renders readonly (no `modeling` service).
                 ...(panel
                     ? [
                           PropertiesPanelModule,
@@ -211,12 +155,6 @@ export class BpmnViewer {
         this.installFocusFeatures();
     }
 
-    /**
-     * Composes the container-scopable focus features onto the fresh viewer: the
-     * "Escape → focus canvas" guard and the canvas focus reticle, the same pair
-     * the editable surfaces install. The viewer has no search pad, so those
-     * ports are inert.
-     */
     private installFocusFeatures(): void {
         const canvas = this.getViewer().get<{
             getContainer(): HTMLElement;

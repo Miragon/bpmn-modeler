@@ -1,8 +1,3 @@
-/* Dark theme for the dmn-js literal-expression editor (decision name header,
- * the FEEL textarea, and the variables table).
- *
- * Same approach as the decision table: remap the semantic component variables
- * declared on `.dmn-literal-expression-container` to the `--dt-*` scale. */
 @import "./colors.css";
 
 [data-dmn-theme="dark"] .dmn-literal-expression-container {

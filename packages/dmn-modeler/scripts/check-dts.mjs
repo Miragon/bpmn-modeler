@@ -1,11 +1,4 @@
-// The published type surface must not leak the private webview↔host protocol,
-// the engine core, an un-bundled private workspace lib, or dmn-js itself. Fails
-// the build if the rolled-up `dist/index.d.ts` names a protocol symbol
-// (`HostApi`/`Query`/`Command`), references `@miragon/bpmn-modeler-shared` /
-// `@miragon/bpmn-modeler-core`, imports a private workspace lib (those are
-// inlined, so a surviving import means the roll-up leaked a dependency the
-// consumer cannot install), or imports `dmn-js` (consumers lack our ambient
-// `src/types/*.d.ts`, so a surviving `from "dmn-js"` would not type-check).
+// Consumers cannot resolve private workspace imports or our local dmn-js ambient types.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -13,14 +6,10 @@ import { dirname, resolve } from "node:path";
 const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const ENTRY_DTS = ["index.d.ts"];
 
-// Whole-word protocol type names + the private protocol/engine packages, plus a
-// bare `dmn-js` module specifier (the ambient types must not leak into the dist).
 const FORBIDDEN_CONTENT =
     /\bHostApi\b|\bQuery\b|\bCommand\b|@miragon\/bpmn-modeler-shared|@miragon\/bpmn-modeler-core|\bfrom\s+["']dmn-js/g;
 
-// Private workspace libs are inlined at build time — none may survive as an
-// import in the flattened d.ts. `@miragon/bpmn-modeler-diff` is transitively
-// reachable through the modeler-types barrel, so guard it too.
+// The diff package is reachable transitively through the modeler-types barrel.
 const PRIVATE_LIBS = [
     "@miragon/bpmn-modeler-types",
     "@miragon/bpmn-modeler-i18n-extras",
@@ -44,9 +33,7 @@ function checkEntry(fileName) {
         failures.push(`leaked private symbols: ${[...new Set(contentHits)].join(", ")}`);
     }
 
-    // Invalid-ambient guard: a function re-exported from a bundled lib can be
-    // rolled up with its implementation *body*, producing `declare function …() {`
-    // or `declare async function …` — both illegal in a `.d.ts`.
+    // Declaration rollup can incorrectly retain implementation bodies on re-exports.
     if (
         /\bdeclare\s+async\s+function\b/.test(dts) ||
         /\bdeclare\s+function\b[^;{]*\)[^;]*\{/.test(dts)

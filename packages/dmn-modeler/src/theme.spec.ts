@@ -2,14 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { THEME_ATTRIBUTE, ThemeController } from "./theme";
 
-/**
- * Per-instance theme controller. Each test constructs its own
- * {@link ThemeController} over plain scope roots, so there is no page-singleton
- * state to reset — a fresh controller starts with `mode === undefined`, which is
- * why a first `setMode("automatic")` engages rather than short-circuiting on the
- * same-mode guard.
- */
-
 const THEME_BASE = "http://localhost/assets/";
 
 function setThemeLink(css: "lightTheme.css" | "darkTheme.css"): HTMLLinkElement {
@@ -31,10 +23,6 @@ function makeRoot(): HTMLElement {
     return div;
 }
 
-/**
- * Minimal `window.matchMedia` stub: a single controllable `matches` flag plus a
- * `change`-listener registry so a test can emit a live OS/browser theme switch.
- */
 function stubMatchMedia(initialDark: boolean) {
     let matches = initialDark;
     const listeners = new Set<(event: MediaQueryListEvent) => void>();
