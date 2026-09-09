@@ -1,5 +1,7 @@
 import { createModeler } from "@miragon/bpmn-modeler";
+import * as lintModule from "@miragon/bpmn-modeler/lint";
 import { getActiveModel } from "../src";
+import { MODELS } from "../src/registry";
 
 /**
  * Two-instance regression proof: two independent modelers on one page, each
@@ -10,9 +12,9 @@ import { getActiveModel } from "../src";
  * canvas A only, and each canvas paints its own lint/focus chrome.
  */
 
-// A minimal Camunda 8 diagram so the second pane exercises the C8 engine path
-// (the bundled demo models are all C7). Kept inline rather than in the registry
-// because the registry only carries C7 models today.
+// A minimal Camunda 8 diagram so the second pane exercises the C8 engine path.
+// Kept inline rather than in the registry because the bundled BPMN models are
+// C7 (or engine-neutral), never C8.
 const C8_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_dual_c8" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.5.0">
   <bpmn:process id="Process_dual_c8" isExecutable="true">
@@ -40,6 +42,28 @@ const C8_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
+/**
+ * A per-pane light/dark toggle wired to that instance's `handle.setTheme(...)`.
+ * This is the living regression check for per-instance theming: flipping one
+ * pane must not touch the other (the `data-bpmn-theme` attribute is scoped to
+ * each instance's container + panel, not the page).
+ */
+function mountThemeToggle(
+    container: HTMLElement,
+    modeler: { setTheme(t: "light" | "dark"): void },
+): void {
+    let dark = false;
+    const button = document.createElement("button");
+    button.textContent = "◐ theme";
+    button.style.cssText =
+        "position:absolute;top:8px;right:8px;z-index:10;padding:4px 8px;cursor:pointer";
+    button.addEventListener("click", () => {
+        dark = !dark;
+        modeler.setTheme(dark ? "dark" : "light");
+    });
+    container.appendChild(button);
+}
+
 /** Stands up one modeler bound to the given canvas + panel elements. */
 async function mount(
     canvasId: string,
@@ -52,20 +76,25 @@ async function mount(
     if (!container || !propertiesPanelParent) {
         throw new Error(`Missing #${canvasId} or #${panelId}`);
     }
-    // No host wiring: `linting` is omitted, so each pane lints in-page with the
-    // engine-aware default config (the multi-instance proof — both panes lint
-    // independently). handleGlobalEscape stays off so each instance only reacts
-    // to Escapes in its own subtrees. `createModeler` is async now (it awaits the
-    // lazy lint chunk and stands the modeler up), so it is awaited before loading.
+    // No host wiring: the lint stack is injected via the `/lint` subpath (#1407),
+    // so each pane lints in-page with the engine-aware default config (the
+    // multi-instance proof — both panes lint independently). handleGlobalEscape
+    // stays off so each instance only reacts to Escapes in its own subtrees.
+    // `createModeler` is async, so it is awaited before loading.
     const modeler = await createModeler(container, {
         engine,
         propertiesPanel: { parent: propertiesPanelParent },
+        linting: { module: lintModule },
     });
     await modeler.loadDiagram(xml);
+    mountThemeToggle(container, modeler);
 }
 
-// Left pane: the bundled C7 demo model. Right pane: the inline C8 diagram.
-const c7Model = getActiveModel("bpmn");
+// Left pane: a bundled C7 demo model (this pane proves the C7 engine path, so it
+// skips the engine-neutral models); fall back to the active model if none is C7.
+// Right pane: the inline C8 diagram.
+const c7Model =
+    MODELS.find((m) => m.type === "bpmn" && m.engine === "c7") ?? getActiveModel("bpmn");
 
-void mount("canvas-a", "panel-a", "c7", c7Model.xml);
+void mount("canvas-a", "panel-a", c7Model.engine ?? "c7", c7Model.xml);
 void mount("canvas-b", "panel-b", "c8", C8_XML);

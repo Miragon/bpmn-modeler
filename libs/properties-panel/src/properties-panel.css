@@ -1,0 +1,10 @@
+/*
+ * Engine-neutral properties-panel stylesheet (issue #1441). The renderer is a
+ * fork that draws with the `@bpmn-io/properties-panel` primitives, so it needs
+ * their base sheet — the upstream `bpmn-js-properties-panel` package ships no
+ * CSS of its own beyond this. Hosts that build a standalone sheet (e.g. the
+ * modeler's `design.css`) `@import` this file rather than the upstream asset,
+ * keeping a single source. Dark-theme overrides stay with the host sheet, scoped
+ * under `[data-bpmn-theme="dark"]`.
+ */
+@import "@bpmn-io/properties-panel/dist/assets/properties-panel.css";

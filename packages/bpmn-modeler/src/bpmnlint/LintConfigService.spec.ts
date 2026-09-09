@@ -6,8 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { runMock, ctorMock } = vi.hoisted(() => ({ runMock: vi.fn(), ctorMock: vi.fn() }));
 vi.mock("./browserLinter", () => ({
     // A class (not an arrow) so `new BrowserLinter()` constructs. `ctorMock`
-    // records the (engine, config) args so a test can assert the handed-back
-    // config reaches the linter.
+    // records the single resolved-config arg so a test can assert the config the
+    // resolver picked (or the host handed back) reaches the linter.
     BrowserLinter: class {
         constructor(...args: unknown[]) {
             ctorMock(...args);
@@ -19,6 +19,7 @@ vi.mock("./browserLinter", () => ({
 import type { LintResults } from "@miragon/bpmn-modeler-types";
 
 import { LintConfigService, type LintCallbacks, type LintTierInit } from "./LintConfigService";
+import { type LintConfigOption, resolveLintConfig } from "./lintConfigResolution";
 
 /** A canned in-page lint outcome; distinct object identity lets us assert copies. */
 const LINT_EVENT = {
@@ -81,6 +82,9 @@ type Bus = ReturnType<typeof fakeEventBus>;
 /** Builds a service under test with sensible fakes; overrides via `opts`. */
 function makeService(opts: {
     tier: LintTierInit["tier"];
+    mode?: LintTierInit["mode"];
+    engine?: LintTierInit["engine"];
+    config?: LintConfigOption;
     callbacks?: LintCallbacks;
     imported?: boolean;
     withPill?: boolean;
@@ -98,7 +102,12 @@ function makeService(opts: {
     const bpmnjs = { getDefinitions: () => (opts.imported ? {} : null) };
     const service = new LintConfigService(
         linting,
-        { tier: opts.tier, engine: "c7" },
+        {
+            tier: opts.tier,
+            engine: "engine" in opts ? opts.engine : "c7",
+            mode: opts.mode ?? "implement",
+            config: opts.config,
+        },
         callbacks,
         (s) => s,
         canvas,
@@ -225,7 +234,7 @@ describe("LintConfigService: startInPageLinting (host handback)", () => {
         service.startInPageLinting(config);
 
         // The covered workspace config the host pushed is linted, not the default.
-        expect(ctorMock).toHaveBeenLastCalledWith("c7", config);
+        expect(ctorMock).toHaveBeenLastCalledWith(config);
     });
 
     it("defers activation to import.done when no diagram is imported yet", () => {
@@ -269,6 +278,90 @@ describe("LintConfigService: startInPageLinting (host handback)", () => {
 
         await expect(linting.lint()).resolves.toEqual(pushed);
         expect(onLintResults).not.toHaveBeenCalled();
+    });
+});
+
+describe("LintConfigService: setMode (mode-aware re-resolve)", () => {
+    it("is a no-op on the same mode", () => {
+        const { service, linting } = makeService({ tier: "in-page", imported: true });
+        ctorMock.mockClear();
+        linting.toggle.mockClear();
+        linting.update.mockClear();
+
+        service.setMode("implement");
+
+        expect(ctorMock).not.toHaveBeenCalled();
+        expect(linting.update).not.toHaveBeenCalled();
+    });
+
+    it("rebuilds with the new mode's default and re-activates while in-page with a default config", async () => {
+        const onLintResults = vi.fn();
+        const { service, linting } = makeService({
+            tier: "in-page",
+            imported: true,
+            callbacks: { onLintResults },
+        });
+        ctorMock.mockClear();
+
+        service.setMode("design");
+
+        // Rebuilt against the engine-neutral Design default (no camunda-compat).
+        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
+        // Re-activated so the next relint reflects the new mode.
+        expect(linting.update).toHaveBeenCalled();
+        await expect(linting.lint()).resolves.toEqual(LINT_EVENT.results);
+        expect(onLintResults).toHaveBeenCalledWith(LINT_EVENT);
+    });
+
+    it("resolves a per-mode config map entry for the active mode", () => {
+        const design = { extends: "bpmnlint:recommended" };
+        const implement = { extends: "bpmnlint:all" };
+        const { service } = makeService({
+            tier: "in-page",
+            imported: true,
+            config: { design, implement },
+        });
+        ctorMock.mockClear();
+
+        service.setMode("design");
+
+        expect(ctorMock).toHaveBeenLastCalledWith(design);
+    });
+
+    it("does not rebuild while a mode-invariant host config is active", () => {
+        const hostConfig = { extends: "bpmnlint:recommended" };
+        const { service } = makeService({ tier: "external", imported: true });
+        service.startInPageLinting(hostConfig);
+        ctorMock.mockClear();
+
+        service.setMode("design");
+
+        expect(ctorMock).not.toHaveBeenCalled();
+    });
+
+    it("stores the mode while external and applies it on a later handback", () => {
+        const { service } = makeService({ tier: "external", imported: true });
+        ctorMock.mockClear();
+
+        service.setMode("design");
+        expect(ctorMock).not.toHaveBeenCalled();
+
+        // The no-workspace-config handback now resolves the stored Design mode.
+        service.startInPageLinting();
+        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
+    });
+
+    it("stores the mode while disabled and applies it on re-enable", () => {
+        const { service, canvas, bus } = makeService({ tier: "in-page" });
+        bus.fire("import.done");
+        clickOffButton(canvas.getContainer());
+        ctorMock.mockClear();
+
+        service.setMode("design");
+        expect(ctorMock).not.toHaveBeenCalled();
+
+        clickEnableButton(canvas.getContainer());
+        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
     });
 });
 
@@ -324,7 +417,7 @@ describe("LintConfigService: covered-config re-enable (token dedup)", () => {
         const nextConfig = { extends: "bpmnlint:all" };
         service.startInPageLinting(nextConfig, "cfg-v2");
 
-        expect(ctorMock).toHaveBeenLastCalledWith("c7", nextConfig);
+        expect(ctorMock).toHaveBeenLastCalledWith(nextConfig);
     });
 });
 
@@ -428,7 +521,7 @@ describe("LintConfigService: per-container scoping", () => {
 
         new LintConfigService(
             linting,
-            { tier: "external", engine: "c7" },
+            { tier: "external", engine: "c7", mode: "implement" },
             {},
             (s) => s,
             canvasA,

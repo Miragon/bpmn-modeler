@@ -5,6 +5,11 @@ Here's what you get, roughly in the order you reach for it.
 
 ## Model
 
+- **[Editor Modes](/vscode/features/modes)** — switch each editor between
+  **View** (readonly viewer), **Design** (engine-neutral editable surface),
+  and **Implement** (full Camunda modeler) from a mode strip in the
+  properties-panel header. Mode is remembered per editor and seeded from a
+  configurable default.
 - **[Append Menu](/vscode/features/append-menu)** — a two-panel popup that
   combines element templates and standard BPMN elements. Searchable,
   keyboard-driven, favourites pinned on top.
@@ -14,6 +19,9 @@ Here's what you get, roughly in the order you reach for it.
 - **[Element Template Chooser](/vscode/features/element-template-chooser)** —
   browse, preview, and apply Camunda element templates from the properties
   panel. Category filters, instant search, full template preview.
+- **[Form Editing](/vscode/features/form-editing)** — create `.form`
+  files with form-js, switch to an interactive preview, test input and output
+  values, and open a referenced form directly from a User Task.
 - **[Template Marketplace](/vscode/features/template-marketplace)** — pull
   element templates from shared GitHub/GitLab repositories or local folders
   instead of copying JSON files into every project. Public, private (token),

@@ -19,7 +19,7 @@ interface BpmnElementPaletteProps {
     onToggleExpand: () => void;
     /** Reports hover-peek state so the parent can transiently expand the palette on hover. */
     onPeekChange?: (peek: boolean) => void;
-    onSelect: (action: PopupMenuEntryAction, event: Event) => void;
+    onSelect: (action: PopupMenuEntryAction | undefined, event: Event) => void;
 }
 
 /**

@@ -40,6 +40,12 @@ import {
 } from "./templateMarketplace/controller/TemplateMarketplaceController";
 import { OPEN_ALL_SCRIPT_TASKS_CMD } from "./scriptTask/controller/ScriptTaskCommandController";
 import { FOCUS_LINT_ELEMENT_CMD } from "./modeler/bpmn/controller/FocusLintElementController";
+import {
+    FORM_INPUT_VALUES_SCHEME,
+    FORM_OUTPUT_VALUES_SCHEME,
+    TOGGLE_FORM_INPUT_VALUES_CMD,
+    TOGGLE_FORM_OUTPUT_VALUES_CMD,
+} from "./modeler/form/controller/FormValuesController";
 import { BPMN_VIEW_TYPE, DMN_VIEW_TYPE, FORM_VIEW_TYPE } from "@miragon/bpmn-modeler-core";
 
 const SRC_DIR = __dirname;
@@ -52,6 +58,7 @@ const manifest = JSON.parse(
 ) as Manifest;
 
 interface Manifest {
+    activationEvents: string[];
     contributes: {
         commands: { command: string; title: string }[];
         keybindings: { command: string }[];
@@ -90,6 +97,8 @@ const CODE_COMMAND_IDS = [
     UPDATE_MARKETPLACES_CMD,
     REMOVE_MARKETPLACE_CMD,
     FOCUS_LINT_ELEMENT_CMD,
+    TOGGLE_FORM_INPUT_VALUES_CMD,
+    TOGGLE_FORM_OUTPUT_VALUES_CMD,
 ];
 
 const CONFIG_NAMESPACE = "miragon.bpmnModeler";
@@ -109,6 +118,15 @@ function productionSourceFiles(dir: string): string[] {
 }
 
 describe("package.json ↔ code contract", () => {
+    it("activates to clean up restored form values documents", () => {
+        expect(manifest.activationEvents).toEqual(
+            expect.arrayContaining([
+                `onFileSystem:${FORM_INPUT_VALUES_SCHEME}`,
+                `onFileSystem:${FORM_OUTPUT_VALUES_SCHEME}`,
+            ]),
+        );
+    });
+
     it("declares exactly the commands the controllers register", () => {
         const declared = manifest.contributes.commands.map((c) => c.command);
 

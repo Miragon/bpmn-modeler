@@ -23,4 +23,4 @@ jobs:
         uses: tinkurlab/monorepo-pr-labeler-action@026d1e71df075b29ee3986875bfbb8a5b5d969f1 # 4.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_DIRS: "apps|libs"
+          BASE_DIRS: "apps|libs|packages"

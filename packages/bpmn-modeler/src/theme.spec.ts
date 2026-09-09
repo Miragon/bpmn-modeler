@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { THEME_ATTRIBUTE, ThemeController } from "./theme";
+
 /**
- * Page theme controller. The module is a page singleton (a `currentMode`
- * plus one live `prefers-color-scheme` listener), so each test reloads it via
- * `vi.resetModules()` to start from the initial `"automatic"` state. Because the
- * initial mode is already `"automatic"`, the same-mode guard means a fresh
- * `setThemeMode("automatic")` is a no-op — every automatic assertion therefore
- * transitions through a forced mode first, exactly as a real host would.
+ * Per-instance theme controller. Each test constructs its own
+ * {@link ThemeController} over plain scope roots, so there is no page-singleton
+ * state to reset — unlike the old module-singleton, a fresh controller starts
+ * with `mode === undefined`, which is why a first `setMode("automatic")` engages
+ * rather than short-circuiting on the same-mode guard.
  */
 
 const THEME_BASE = "http://localhost/assets/";
@@ -22,6 +23,12 @@ function setThemeLink(css: "lightTheme.css" | "darkTheme.css"): HTMLLinkElement 
 
 function currentCss(link: HTMLLinkElement): string {
     return link.href.split("/").pop()!;
+}
+
+function makeRoot(): HTMLElement {
+    const div = document.createElement("div");
+    document.body.appendChild(div);
+    return div;
 }
 
 /**
@@ -51,12 +58,7 @@ function stubMatchMedia(initialDark: boolean) {
     };
 }
 
-async function loadTheme() {
-    vi.resetModules();
-    return import("./theme");
-}
-
-describe("setThemeMode", () => {
+describe("ThemeController", () => {
     beforeEach(() => {
         document.head.innerHTML = "";
         document.body.innerHTML = "";
@@ -66,70 +68,106 @@ describe("setThemeMode", () => {
         vi.restoreAllMocks();
     });
 
-    it("forces the dark stylesheet", async () => {
-        const link = setThemeLink("lightTheme.css");
+    it("forces the dark attribute on every scope root", () => {
         stubMatchMedia(false);
-        const { setThemeMode } = await loadTheme();
+        const a = makeRoot();
+        const b = makeRoot();
+        const controller = new ThemeController([a, b]);
 
-        setThemeMode("dark");
+        controller.setMode("dark");
 
-        expect(currentCss(link)).toBe("darkTheme.css");
+        expect(a.getAttribute(THEME_ATTRIBUTE)).toBe("dark");
+        expect(b.getAttribute(THEME_ATTRIBUTE)).toBe("dark");
     });
 
-    it("forces the light stylesheet back from dark", async () => {
-        const link = setThemeLink("darkTheme.css");
+    it("forces the light attribute back from dark", () => {
         stubMatchMedia(false);
-        const { setThemeMode } = await loadTheme();
+        const root = makeRoot();
+        const controller = new ThemeController([root]);
 
-        setThemeMode("light");
+        controller.setMode("dark");
+        controller.setMode("light");
 
-        expect(currentCss(link)).toBe("lightTheme.css");
+        expect(root.getAttribute(THEME_ATTRIBUTE)).toBe("light");
     });
 
-    it("automatic applies the current prefers-color-scheme", async () => {
-        const link = setThemeLink("lightTheme.css");
+    it("engages on the first automatic call (no same-mode short-circuit)", () => {
         stubMatchMedia(true);
-        const { setThemeMode } = await loadTheme();
+        const root = makeRoot();
+        const controller = new ThemeController([root]);
 
-        setThemeMode("light");
-        setThemeMode("automatic");
+        controller.setMode("automatic");
 
-        expect(currentCss(link)).toBe("darkTheme.css");
+        expect(root.getAttribute(THEME_ATTRIBUTE)).toBe("dark");
     });
 
-    it("automatic reacts to a live scheme change", async () => {
-        const link = setThemeLink("lightTheme.css");
+    it("automatic reacts to a live scheme change", () => {
         const media = stubMatchMedia(false);
-        const { setThemeMode } = await loadTheme();
+        const root = makeRoot();
+        const controller = new ThemeController([root]);
 
-        setThemeMode("light");
-        setThemeMode("automatic");
-        expect(currentCss(link)).toBe("lightTheme.css");
+        controller.setMode("automatic");
+        expect(root.getAttribute(THEME_ATTRIBUTE)).toBe("light");
 
         media.emit(true);
-        expect(currentCss(link)).toBe("darkTheme.css");
+        expect(root.getAttribute(THEME_ATTRIBUTE)).toBe("dark");
     });
 
-    it("a forced mode detaches the scheme listener and stops reacting", async () => {
-        const link = setThemeLink("lightTheme.css");
+    it("a forced mode detaches the scheme listener and stops reacting", () => {
         const media = stubMatchMedia(false);
-        const { setThemeMode } = await loadTheme();
+        const root = makeRoot();
+        const controller = new ThemeController([root]);
 
-        setThemeMode("light");
-        setThemeMode("automatic");
-        setThemeMode("light");
+        controller.setMode("automatic");
+        controller.setMode("light");
 
         expect(media.listenerCount()).toBe(0);
         media.emit(true);
-        expect(currentCss(link)).toBe("lightTheme.css");
+        expect(root.getAttribute(THEME_ATTRIBUTE)).toBe("light");
     });
 
-    it("logs and does not throw when #theme-link is missing", async () => {
+    it("dispose detaches the listener and clears the attribute", () => {
+        const media = stubMatchMedia(true);
+        const root = makeRoot();
+        const controller = new ThemeController([root]);
+
+        controller.setMode("automatic");
+        controller.dispose();
+
+        expect(media.listenerCount()).toBe(0);
+        expect(root.hasAttribute(THEME_ATTRIBUTE)).toBe(false);
+    });
+
+    it("mirrors the resolved kind onto a legacy #theme-link when present", () => {
+        stubMatchMedia(false);
+        const link = setThemeLink("lightTheme.css");
+        const controller = new ThemeController([makeRoot()]);
+
+        controller.setMode("dark");
+
+        expect(currentCss(link)).toBe("darkTheme.css");
+    });
+
+    it("does not throw or log when no #theme-link is present", () => {
         stubMatchMedia(false);
         const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-        const { setThemeMode } = await loadTheme();
+        const controller = new ThemeController([makeRoot()]);
 
-        expect(() => setThemeMode("dark")).not.toThrow();
-        expect(error).toHaveBeenCalled();
+        expect(() => controller.setMode("dark")).not.toThrow();
+        expect(error).not.toHaveBeenCalled();
+    });
+
+    it("keeps two controllers independent", () => {
+        stubMatchMedia(false);
+        const a = makeRoot();
+        const b = makeRoot();
+        const controllerA = new ThemeController([a]);
+        const controllerB = new ThemeController([b]);
+
+        controllerA.setMode("dark");
+        controllerB.setMode("light");
+
+        expect(a.getAttribute(THEME_ATTRIBUTE)).toBe("dark");
+        expect(b.getAttribute(THEME_ATTRIBUTE)).toBe("light");
     });
 });

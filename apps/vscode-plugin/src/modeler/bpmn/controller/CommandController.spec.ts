@@ -105,7 +105,7 @@ function createController() {
     const textEditor = { toggle: vi.fn().mockResolvedValue(true) };
     const bpmnService = { changeEngineVersion: vi.fn().mockResolvedValue(true) };
     const migrationSvc = { migrateAllDiagrams: vi.fn().mockResolvedValue(true) };
-    const picker = { pickExecutionPlatform: vi.fn() };
+    const picker = { pickNewModelEngine: vi.fn() };
     const documentFlush = {
         flush: vi.fn().mockResolvedValue({ status: "safe" as const, session }),
         release: vi.fn(),
@@ -426,7 +426,7 @@ describe("CommandController.newBpmnModel", () => {
 
         await controller.newBpmnModel();
 
-        expect(picker.pickExecutionPlatform).not.toHaveBeenCalled();
+        expect(picker.pickNewModelEngine).not.toHaveBeenCalled();
         expect(fsWriteFileMock).not.toHaveBeenCalled();
         expect(executeCommandMock).not.toHaveBeenCalled();
     });
@@ -435,7 +435,7 @@ describe("CommandController.newBpmnModel", () => {
         const { controller, picker } = createController();
         const target = fakeUri("/work/new-diagram.bpmn");
         showSaveDialogMock.mockResolvedValue(target);
-        picker.pickExecutionPlatform.mockResolvedValue("c7");
+        picker.pickNewModelEngine.mockResolvedValue("c7");
 
         await controller.newBpmnModel();
 
@@ -452,10 +452,28 @@ describe("CommandController.newBpmnModel", () => {
         );
     });
 
+    it("scaffolds an engine-neutral model when the neutral choice is picked", async () => {
+        const { controller, picker } = createController();
+        const target = fakeUri("/work/new-diagram.bpmn");
+        showSaveDialogMock.mockResolvedValue(target);
+        picker.pickNewModelEngine.mockResolvedValue("neutral");
+
+        await controller.newBpmnModel();
+
+        const xml = (fsWriteFileMock.mock.calls[0][1] as Buffer).toString();
+        expect(xml).not.toContain("modeler:executionPlatform");
+        expect(xml).toContain('isExecutable="false"');
+        expect(executeCommandMock).toHaveBeenCalledWith(
+            "vscode.openWith",
+            target,
+            "bpmn-modeler.bpmn",
+        );
+    });
+
     it("creates nothing and does not rethrow when the engine pick is cancelled", async () => {
         const { controller, picker } = createController();
         showSaveDialogMock.mockResolvedValue(fakeUri("/work/new-diagram.bpmn"));
-        picker.pickExecutionPlatform.mockRejectedValue(new UserCancelledError());
+        picker.pickNewModelEngine.mockRejectedValue(new UserCancelledError());
 
         await expect(controller.newBpmnModel()).resolves.toBeUndefined();
         expect(fsWriteFileMock).not.toHaveBeenCalled();

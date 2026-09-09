@@ -20,6 +20,10 @@ contributor-facing record, not user documentation.
 | --- | --- | --- |
 | [0001](0001-record-architecture-decisions.md) | Record architecture decisions as ADRs, categorized by module | accepted |
 | [0009](0009-npm-publishing-pipeline.md) | Publishing pipeline for `@miragon/bpmn-modeler`: npm CLI, yarn-packed tarball, Trusted Publishing | accepted |
+| [0014](0014-make-bpmn-modeler-the-root-release-component.md) | Make the npm package the root release component; hosts release via sync markers | accepted |
+| [0019](0019-webview-panel-chrome-in-shared.md) | Webview panel chrome (resizer/focus/shortcuts) lives in `libs/shared`; publishable `modeler-types` keeps only `isTextEditingSurface` | accepted |
+| [0020](0020-untagged-documents-first-class-in-hosts.md) | Untagged documents are first-class in the hosts (no stamp-on-open); mode is per-editor webview state seeded by `defaultMode`; engine-neutral new-file scaffold | accepted |
+| [0028](0028-dmn-modeler-as-subpath-release-component.md) | `@miragon/dmn-modeler` as a subpath release component (`dmn-modeler-v<version>`); `BUNDLED_LIBS` marker for its two inlined libs; one parameterised publish workflow | accepted |
 
 ### modeler-core
 
@@ -40,6 +44,12 @@ contributor-facing record, not user documentation.
 | --- | --- | --- |
 | [0004](0004-intellij-host-foundation.md) | IntelliJ host foundation: stdio JSON-RPC transport & process supervision | accepted |
 
+### vscode-plugin
+
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0015](0015-integrate-form-js-into-the-bpmn-modeler-extension.md) | Integrate form-js into the BPMN modeler extension | accepted |
+
 ### bpmn-webview
 
 | ADR | Decision | Status |
@@ -49,3 +59,21 @@ contributor-facing record, not user documentation.
 | [0008](0008-public-diff-api.md) | Public diff API: serializable `computeDiff` data layer, promoted primitives, in-page coordinator | accepted |
 | [0010](0010-expose-reference-availability-through-navigation-port.md) | Expose reference availability through the model navigation port | accepted |
 | [0011](0011-stable-core-service-contract.md) | Freeze a typed, semver-covered contract for the seven core bpmn-js services reached via `getService` | accepted |
+| [0012](0012-container-scoped-theming.md) | Container-scoped theming via a per-instance `data-bpmn-theme` attribute; `#theme-link` swap kept as permanent legacy fallback | accepted |
+| [0013](0013-injectable-lint-stack.md) | Injectable lint stack via the `@miragon/bpmn-modeler/lint` subpath; omitted `linting` now means off | accepted |
+| [0014](0014-readonly-viewer-subpath.md) | Readonly `createViewer` via the `@miragon/bpmn-modeler/viewer` subpath: NavigatedViewer + outline, `Pick`'d services, scope-preserving `viewer.css`, `locale` omitted | accepted |
+| [0016](0016-design-mode-subpath.md) | Engine-neutral `createDesigner` via the `@miragon/bpmn-modeler/design` subpath: base bpmn-js + plain-BPMN panel, `executionPlatform` absence as mode marker, Camunda/lint stack gated out | accepted |
+| [0017](0017-engine-neutral-properties-panel-lib.md) | Engine-neutral properties panel via an inlined `@miragon/bpmn-modeler-properties-panel` fork: viewer-safe renderer, readonly derived from missing `modeling`, neutral provider, priority-10 design/implement mode filter, host custom-group slot | accepted |
+| [0018](0018-runtime-design-implement-mode.md) | Runtime design/implement mode on `createModeler`: same live instance (mode-invariant module graph = no engine-data loss), `propertiesPanelModeFilter` as source of truth, `setMode`/`onModeChanged` | accepted |
+| [0021](0021-mode-session-subpath.md) | Publish the View↔Design↔Implement session + opt-in strip via the `@miragon/bpmn-modeler/mode` subpath (consumer-injected surface factories); mode model moves to `@miragon/bpmn-modeler-types` | accepted |
+| [0022](0022-mode-invariant-canvas-chrome.md) | Minimap, token simulation, and the canvas focus reticle are mode-invariant: registered on `/viewer`, `/design`, and `createModeler` alike; design mode stops hiding the simulation toggle | accepted |
+| [0023](0023-mode-aware-linting.md) | Opt-in linting on `/design` and per-mode lint configs: injection-only on both surfaces, `LintingOptions.config` accepts a `{ design?, implement? }` map, Design default drops the Camunda engine layer, `setMode` re-resolves in-page; workspace config mode-invariant, viewer excluded | accepted |
+| [0029](0029-compare-execution-properties-with-isolated-moddle-descriptors.md) | Compare execution properties through isolated Camunda 7 and Camunda 8 moddle passes; compare custom attributes textually | accepted |
+
+### dmn-webview
+
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0024](0024-extract-publishable-dmn-modeler-package.md) | Extract the host-free DMN modeler into the publishable `@miragon/dmn-modeler` package; dmn-js stack externalised, `styles.css` from the themes rollup, page-global `#theme-link` theming retained | accepted |
+| [0026](0026-dmn-container-scoped-theming.md) | Container-scoped DMN theming via a per-instance `data-dmn-theme` attribute; one authored scoped source + stripped legacy split, `styles.css` from the lib entry, shared `hostTheme` adapter, `#theme-link` as silent fallback | accepted |
+| [0027](0027-dmn-modeler-page-global-locale.md) | Page-global DMN locale: `TranslateModule` as a built-in on all four views, `locale` option + `setLocale()` that re-opens the active view to re-translate, host `LanguageQuery` broadcast; harvest tooling extended to dmn-js | accepted |

@@ -1,11 +1,14 @@
 name: Publish npm Modeler
 
-# Builds, smoke-tests and publishes @miragon/bpmn-modeler to the npm registry.
+# Builds, smoke-tests and publishes a modeler package (@miragon/bpmn-modeler or
+# @miragon/dmn-modeler) to the npm registry. The workspace, package directory
+# and any extra smoke-test dependencies are inputs, so one workflow drives both
+# release lines.
 # workflow_dispatch is DRY-RUN ONLY: npm Trusted Publishing validates the
 # top-level caller workflow filename, so a real publish only happens through
 # release-please.yml. A manual dispatch here still runs build + pack + smoke +
 # `npm publish --dry-run` to validate the pipeline; to re-run a failed real
-# publish, re-run the `npm` job on the release-please.yml run instead.
+# publish, re-run the fan-out job on the release-please.yml run instead.
 
 on:
   workflow_dispatch:
@@ -20,6 +23,21 @@ on:
         required: false
         type: boolean
         default: true
+      workspace:
+        description: 'Yarn workspace to publish (e.g. @miragon/bpmn-modeler).'
+        required: false
+        type: string
+        default: '@miragon/bpmn-modeler'
+      package-dir:
+        description: 'Package directory (e.g. packages/bpmn-modeler).'
+        required: false
+        type: string
+        default: packages/bpmn-modeler
+      smoke-extra-deps:
+        description: 'Extra scratch-project deps for the smoke test (space-separated, e.g. jsdom).'
+        required: false
+        type: string
+        default: ''
   workflow_call:
     inputs:
       tag:
@@ -32,6 +50,21 @@ on:
         required: false
         type: boolean
         default: true
+      workspace:
+        description: 'Yarn workspace to publish (e.g. @miragon/bpmn-modeler).'
+        required: false
+        type: string
+        default: '@miragon/bpmn-modeler'
+      package-dir:
+        description: 'Package directory (e.g. packages/bpmn-modeler).'
+        required: false
+        type: string
+        default: packages/bpmn-modeler
+      smoke-extra-deps:
+        description: 'Extra scratch-project deps for the smoke test (space-separated, e.g. jsdom).'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -40,7 +73,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bpmn-modeler-npm-publish
+  # Per-package group so bpmn and dmn publishes don't serialize against each other.
+  group: npm-publish-${{ inputs.package-dir }}
   cancel-in-progress: false
 
 jobs:
@@ -78,32 +112,48 @@ jobs:
           cache: yarn
           registry-url: 'https://registry.npmjs.org'
 
+      # Slug derived from the workspace (@miragon/bpmn-modeler -> miragon-bpmn-modeler),
+      # used for the tarball filename and the artifact name.
+      - name: Resolve package metadata
+        id: meta
+        run: |
+          SLUG=$(printf '%s' "${{ inputs.workspace }}" | tr -d '@' | tr '/' '-')
+          echo "slug=${SLUG}" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/bpmn-modeler
+        run: yarn workspaces focus ${{ inputs.workspace }}
 
       - name: Resolve version
         id: version
         run: |
-          VERSION=$(node -e "console.log(require('./packages/bpmn-modeler/package.json').version)")
+          VERSION=$(node -e "console.log(require('./${{ inputs.package-dir }}/package.json').version)")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       # Full package build: tsc typecheck + Vite lib + theme CSS + the check-dts,
-      # check-diff-node and dep-alignment (yarn constraints) gates.
+      # externals and dep-alignment (yarn constraints) gates.
       - name: Build
-        run: yarn workspace @miragon/bpmn-modeler build
+        run: yarn workspace ${{ inputs.workspace }} build
 
       - name: Pack tarball
-        run: yarn workspace @miragon/bpmn-modeler pack --out "$RUNNER_TEMP/miragon-bpmn-modeler.tgz"
+        run: yarn workspace ${{ inputs.workspace }} pack --out "$RUNNER_TEMP/${{ steps.meta.outputs.slug }}.tgz"
 
+      - name: BPMN hoisted and nested consumer smoke test
+        if: inputs.workspace == '@miragon/bpmn-modeler'
+        run: node ${{ inputs.package-dir }}/scripts/smoke-packed-consumer.mjs "$RUNNER_TEMP/${{ steps.meta.outputs.slug }}.tgz"
+
+      # Preserve the existing generic scratch smoke for DMN. BPMN uses the
+      # package-specific runner above because it exercises both npm layouts and
+      # five browser entry/option combinations in addition to the Node smoke.
       - name: Scratch-consumer smoke test
+        if: inputs.workspace != '@miragon/bpmn-modeler'
         run: |
           SCRATCH="$RUNNER_TEMP/smoke"
           mkdir -p "$SCRATCH"
-          cp packages/bpmn-modeler/scripts/smoke-consumer.mjs "$SCRATCH/smoke-consumer.mjs"
+          cp ${{ inputs.package-dir }}/scripts/smoke-consumer.mjs "$SCRATCH/smoke-consumer.mjs"
           cd "$SCRATCH"
           npm init -y >/dev/null
           npm pkg set type=module
-          npm install "$RUNNER_TEMP/miragon-bpmn-modeler.tgz" --no-audit --no-fund
+          npm install "$RUNNER_TEMP/${{ steps.meta.outputs.slug }}.tgz" ${{ inputs.smoke-extra-deps }} --no-audit --no-fund
           node smoke-consumer.mjs
 
       # Trusted Publishing needs npm >= 11.5.1; Node 22 ships npm 10.
@@ -113,28 +163,28 @@ jobs:
       - name: Skip if version already published
         id: published
         run: |
-          if npm view "@miragon/bpmn-modeler@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+          if npm view "${{ inputs.workspace }}@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
             echo "already=true" >> "$GITHUB_OUTPUT"
-            echo "@miragon/bpmn-modeler@${{ steps.version.outputs.version }} is already on npm — nothing to publish."
+            echo "${{ inputs.workspace }}@${{ steps.version.outputs.version }} is already on npm — nothing to publish."
           else
             echo "already=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish (dry-run)
         if: env.EFFECTIVE_DRY_RUN == 'true'
-        run: npm publish "$RUNNER_TEMP/miragon-bpmn-modeler.tgz" --dry-run --access public
+        run: npm publish "$RUNNER_TEMP/${{ steps.meta.outputs.slug }}.tgz" --dry-run --access public
 
       - name: Upload tarball artifact (dry-run)
         if: env.EFFECTIVE_DRY_RUN == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: miragon-bpmn-modeler-v${{ steps.version.outputs.version }}
-          path: ${{ runner.temp }}/miragon-bpmn-modeler.tgz
+          name: ${{ steps.meta.outputs.slug }}-v${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/${{ steps.meta.outputs.slug }}.tgz
           retention-days: 7
 
       - name: Publish to npm
         if: env.EFFECTIVE_DRY_RUN == 'false' && steps.published.outputs.already == 'false'
-        run: npm publish "$RUNNER_TEMP/miragon-bpmn-modeler.tgz" --provenance --access public
+        run: npm publish "$RUNNER_TEMP/${{ steps.meta.outputs.slug }}.tgz" --provenance --access public
 
       # Record a deployment so the repo Environments page shows the npm
       # package's last-published version. The environment auto-creates on first use.
@@ -143,13 +193,14 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
+            const workspace = "${{ inputs.workspace }}";
             const version = "${{ steps.version.outputs.version }}";
             const deployment = await github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: context.sha,
               environment: "npm-registry",
-              description: `@miragon/bpmn-modeler v${version}`,
+              description: `${workspace} v${version}`,
               required_contexts: [],
               auto_merge: false,
               production_environment: true,
@@ -159,6 +210,6 @@ jobs:
               repo: context.repo.repo,
               deployment_id: deployment.data.id,
               state: "success",
-              environment_url: "https://www.npmjs.com/package/@miragon/bpmn-modeler",
-              description: `@miragon/bpmn-modeler v${version} published`,
+              environment_url: `https://www.npmjs.com/package/${workspace}`,
+              description: `${workspace} v${version} published`,
             });

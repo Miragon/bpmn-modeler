@@ -1,17 +1,6 @@
 /**
- * Lazy-loaded chunk entry for in-canvas bpmnlint.
- *
- * This module — and only this module — statically imports the lint stack
- * (`bpmn-js-bpmnlint`, `bpmnlint`'s `Linter`, `@miragon/bpmnlint-plugin-rules`,
- * and the CSS). Because the modeler reaches it through a dynamic
- * `import("./bpmnlint")`, the whole stack lands in a separate chunk that is
- * fetched only when an instance actually lints (`linting !== false`), keeping it
- * out of the main webview bundle.
- *
- * bpmn-js modules are fixed at construction, so the chunk must resolve *before*
- * `new BpmnModeler7/8`. The facade awaits this import, then calls
- * {@link createLintModule} with the per-instance tier + config + callbacks and
- * drops the returned module into `additionalModules`.
+ * Import this subpath before creating a modeler and pass it as `linting.module`.
+ * Linting is injected so consumers that omit it do not bundle the lint stack.
  */
 import bpmnLintingModule from "bpmn-js-bpmnlint";
 import "bpmn-js-bpmnlint/dist/assets/css/bpmn-js-bpmnlint.css";
@@ -19,16 +8,11 @@ import "./bpmnlint.css";
 
 import { LintCallbacks, LintConfigService, LintTierInit } from "./LintConfigService";
 
-/**
- * Builds the bpmn-js DI module for one modeler instance: the vendor overlay
- * module plus {@link LintConfigService} and the two per-instance value providers
- * it injects (`lintTier`, `lintCallbacks`). `bpmnLintConfig` is eagerly
- * initialised (`__init__`) so the in-page tier can subscribe to `import.done`
- * and start linting without the host ever calling `getService`.
- */
+/** Builds the per-instance lint module for the consumer's `linting.module`. */
 export function createLintModule(tier: LintTierInit, callbacks: LintCallbacks): unknown {
     return {
         __depends__: [bpmnLintingModule],
+        // Initialize eagerly so import.done starts linting without a getService call.
         __init__: ["bpmnLintConfig"],
         bpmnLintConfig: ["type", LintConfigService],
         lintTier: ["value", tier],
@@ -37,3 +21,4 @@ export function createLintModule(tier: LintTierInit, callbacks: LintCallbacks): 
 }
 
 export type { LintCallbacks, LintTierInit } from "./LintConfigService";
+export type { LintConfigByMode, LintConfigOption } from "./lintConfigResolution";

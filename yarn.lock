@@ -3544,21 +3544,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lezer/lr@npm:1.4.10, @lezer/lr@npm:^1.4.10":
+  version: 1.4.10
+  resolution: "@lezer/lr@npm:1.4.10"
+  dependencies:
+    "@lezer/common": "npm:^1.0.0"
+  checksum: 10c0/15fac0ecc02a57f111432808c89f7cfb9fed0d78d0a98742607acb5859220a9c18526dd6d509d9fe17f5ef762aa73ce29fa6b930739abb857c1df8949a9003ea
+  languageName: node
+  linkType: hard
+
 "@lezer/lr@npm:^1.0.0":
   version: 1.4.2
   resolution: "@lezer/lr@npm:1.4.2"
   dependencies:
     "@lezer/common": "npm:^1.0.0"
   checksum: 10c0/22bb5d0d4b33d0de5eb0706b7e5b5f2d20f570e112d9110009bd35b62ff10f2eb4eff8da4cf373dd4ddf5e06a304120b8f039add7ed9997c981c13945d5329cd
-  languageName: node
-  linkType: hard
-
-"@lezer/lr@npm:^1.4.10":
-  version: 1.4.10
-  resolution: "@lezer/lr@npm:1.4.10"
-  dependencies:
-    "@lezer/common": "npm:^1.0.0"
-  checksum: 10c0/15fac0ecc02a57f111432808c89f7cfb9fed0d78d0a98742607acb5859220a9c18526dd6d509d9fe17f5ef762aa73ce29fa6b930739abb857c1df8949a9003ea
   languageName: node
   linkType: hard
 
@@ -3905,10 +3905,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-demo-webapp@workspace:apps/demo-webapp"
   dependencies:
+    "@bpmn-io/properties-panel": "npm:3.52.0"
     "@miragon/bpmn-modeler": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
-    "@miragon/bpmn-modeler-webview": "workspace:*"
-    "@miragon/dmn-modeler-webview": "workspace:*"
+    "@miragon/dmn-modeler": "workspace:*"
     npm-run-all: "npm:4.1.5"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
@@ -3935,8 +3935,10 @@ __metadata:
   dependencies:
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.2.0"
+    camunda-bpmn-moddle: "npm:7.0.2"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.11"
+    zeebe-bpmn-moddle: "npm:1.18.0"
   languageName: unknown
   linkType: soft
 
@@ -4009,6 +4011,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-properties-panel@workspace:*, @miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel"
+  dependencies:
+    "@bpmn-io/properties-panel": "npm:3.52.0"
+    bpmn-js: "npm:18.25.1"
+    diagram-js: "npm:15.24.1"
+    ids: "npm:3.0.2"
+    jsdom: "npm:30.0.1"
+    min-dash: "npm:5.0.0"
+    min-dom: "npm:5.3.0"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.11"
+  peerDependencies:
+    "@bpmn-io/properties-panel": 3.52.0
+    bpmn-js: 18.25.1
+    diagram-js: 15.24.1
+    ids: 3.0.2
+    min-dash: 5.0.0
+    min-dom: 5.3.0
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-shared@workspace:*, @miragon/bpmn-modeler-shared@workspace:libs/shared":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-shared@workspace:libs/shared"
@@ -4017,6 +4042,7 @@ __metadata:
     "@types/node": "npm:26.1.2"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.11"
+    jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.11"
@@ -4093,13 +4119,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmn-modeler-webview@workspace:*, @miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview":
+"@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-webview@workspace:apps/bpmn-webview"
   dependencies:
     "@bpmn-io/properties-panel": "npm:3.52.0"
     "@miragon/bpmn-modeler": "workspace:*"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
@@ -4123,6 +4150,7 @@ __metadata:
   dependencies:
     "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/properties-panel": "npm:3.52.0"
+    "@lezer/lr": "npm:1.4.10"
     "@microsoft/api-extractor": "npm:7.59.0"
     "@miragon/bpmn-model-navigation": "workspace:*"
     "@miragon/bpmn-modeler-append-menu": "workspace:*"
@@ -4134,6 +4162,7 @@ __metadata:
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-inline-scripting": "workspace:*"
+    "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@miragon/create-append-c7": "npm:0.1.0"
@@ -4153,12 +4182,19 @@ __metadata:
     camunda-bpmn-moddle: "npm:7.0.2"
     camunda-transaction-boundaries: "npm:1.1.2"
     diagram-js: "npm:15.24.1"
+    diagram-js-minimap: "npm:5.4.1"
     didi: "npm:11.0.0"
+    ids: "npm:3.0.2"
     jsdom: "npm:30.0.1"
     lodash: "npm:4.18.1"
+    min-dash: "npm:5.0.0"
+    min-dom: "npm:5.3.0"
     minisearch: "npm:7.2.0"
     npm-run-all: "npm:4.1.5"
+    postcss: "npm:8.5.26"
+    postcss-selector-parser: "npm:7.1.1"
     preact: "npm:10.29.3"
+    tiny-svg: "npm:4.1.4"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     unplugin-dts: "npm:1.0.3"
@@ -4193,26 +4229,54 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@miragon/dmn-modeler-webview@workspace:*, @miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
+"@miragon/dmn-modeler-webview@workspace:apps/dmn-webview":
   version: 0.0.0-use.local
   resolution: "@miragon/dmn-modeler-webview@workspace:apps/dmn-webview"
   dependencies:
-    "@bpmn-io/cm-theme": "npm:0.2.2"
-    "@bpmn-io/properties-panel": "npm:3.52.0"
-    "@emaarco/dmn-js-simulation": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
-    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
+    "@miragon/dmn-modeler": "workspace:*"
+    "@types/node": "npm:25.0.3"
     "@types/vscode-webview": "npm:1.57.5"
-    camunda-dmn-moddle: "npm:1.3.1"
-    diagram-js: "npm:15.24.1"
-    dmn-js: "npm:17.10.2"
-    dmn-js-properties-panel: "npm:3.12.0"
+    "@vitest/coverage-v8": "npm:4.1.11"
+    jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:6.0.3"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
+    vitest: "npm:4.1.11"
+  languageName: unknown
+  linkType: soft
+
+"@miragon/dmn-modeler@workspace:*, @miragon/dmn-modeler@workspace:packages/dmn-modeler":
+  version: 0.0.0-use.local
+  resolution: "@miragon/dmn-modeler@workspace:packages/dmn-modeler"
+  dependencies:
+    "@bpmn-io/cm-theme": "npm:0.2.2"
+    "@bpmn-io/properties-panel": "npm:3.52.0"
+    "@emaarco/dmn-js-simulation": "npm:0.2.0"
+    "@microsoft/api-extractor": "npm:7.59.0"
+    "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
+    "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
+    "@miragon/bpmn-modeler-types": "workspace:*"
+    "@types/node": "npm:26.1.2"
+    "@vitest/coverage-v8": "npm:4.1.11"
+    camunda-dmn-moddle: "npm:1.3.1"
+    diagram-js: "npm:15.24.1"
+    dmn-js: "npm:17.10.2"
+    dmn-js-properties-panel: "npm:3.12.0"
+    jsdom: "npm:30.0.1"
+    lodash: "npm:4.18.1"
+    npm-run-all: "npm:4.1.5"
+    postcss: "npm:8.5.26"
+    postcss-selector-parser: "npm:7.1.1"
+    tslib: "npm:2.8.1"
+    typescript: "npm:6.0.3"
+    unplugin-dts: "npm:1.0.3"
+    vite: "npm:8.2.2"
+    vite-tsconfig-paths: "npm:6.1.1"
+    vitest: "npm:4.1.11"
   languageName: unknown
   linkType: soft
 
@@ -11947,7 +12011,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diagram-js-minimap@npm:^5.4.1":
+"diagram-js-minimap@npm:5.4.1, diagram-js-minimap@npm:^5.4.1":
   version: 5.4.1
   resolution: "diagram-js-minimap@npm:5.4.1"
   dependencies:
@@ -14869,7 +14933,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ids@npm:^3.0.0, ids@npm:^3.0.1, ids@npm:^3.0.2":
+"ids@npm:3.0.2, ids@npm:^3.0.0, ids@npm:^3.0.1, ids@npm:^3.0.2":
   version: 3.0.2
   resolution: "ids@npm:3.0.2"
   checksum: 10c0/ba2c3692978782e37a5fcdd4a508f75db909bc5b20e2b4a1ffba47c986779cf1a95fd2f9466182a697186c8e67912aa5f6fe8343de4c6ba79b8ae6842799ec77
@@ -17141,17 +17205,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"min-dash@npm:5.0.0, min-dash@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "min-dash@npm:5.0.0"
+  checksum: 10c0/640f3c6304fd3efb89fd1dcfa94a635774e3d76829321420839d2076faa5c39dc5767476e3843f3fabad69faa5c17dbac01dedefc44422031dcc4872aef37fdf
+  languageName: node
+  linkType: hard
+
 "min-dash@npm:^3.5.2":
   version: 3.8.1
   resolution: "min-dash@npm:3.8.1"
   checksum: 10c0/30eff7c7936496de022dc64a541aa0ce1db9eadf45425e3d7dc96e0f076677482b66f2888ef191b951558b079a0c0610d48b9e91e667c1ea6a745d730aeb3360
-  languageName: node
-  linkType: hard
-
-"min-dash@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "min-dash@npm:5.0.0"
-  checksum: 10c0/640f3c6304fd3efb89fd1dcfa94a635774e3d76829321420839d2076faa5c39dc5767476e3843f3fabad69faa5c17dbac01dedefc44422031dcc4872aef37fdf
   languageName: node
   linkType: hard
 
@@ -17162,7 +17226,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"min-dom@npm:^5.2.0, min-dom@npm:^5.3.0":
+"min-dom@npm:5.3.0, min-dom@npm:^5.2.0, min-dom@npm:^5.3.0":
   version: 5.3.0
   resolution: "min-dom@npm:5.3.0"
   dependencies:
@@ -17691,15 +17755,6 @@ __metadata:
     node-abort-controller: "npm:^3.1.1"
     qs: "npm:^6.13.0"
   checksum: 10c0/204b129226091828714e203dffc47362acc23b853d3cf681fa0d307beab05021b3c206e0511786d8879de13bb7b5ac049b6b74fdad2eed0043efb67bd5e76749
-  languageName: node
-  linkType: hard
-
-"nanoid@npm:^3.3.11":
-  version: 3.3.11
-  resolution: "nanoid@npm:3.3.11"
-  bin:
-    nanoid: bin/nanoid.cjs
-  checksum: 10c0/40e7f70b3d15f725ca072dfc4f74e81fcf1fbb02e491cf58ac0c79093adc9b0a73b152bcde57df4b79cd097e13023d7504acb38404a4da7bc1cd8e887b82fe0b
   languageName: node
   linkType: hard
 
@@ -19094,7 +19149,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss-selector-parser@npm:^7.0.0":
+"postcss-selector-parser@npm:7.1.1, postcss-selector-parser@npm:^7.0.0":
   version: 7.1.1
   resolution: "postcss-selector-parser@npm:7.1.1"
   dependencies:
@@ -19111,29 +19166,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:^8.4.33, postcss@npm:^8.4.43":
-  version: 8.5.10
-  resolution: "postcss@npm:8.5.10"
-  dependencies:
-    nanoid: "npm:^3.3.11"
-    picocolors: "npm:^1.1.1"
-    source-map-js: "npm:^1.2.1"
-  checksum: 10c0/c592dffa0c4873b401f01955b265538d9942f425040df5e2b8f0ad34c83773a792ea0fa5859ccc99cfb5b955b4ebff118ab7056315388dc83b107b0fa8313576
-  languageName: node
-  linkType: hard
-
-"postcss@npm:^8.5.10":
-  version: 8.5.12
-  resolution: "postcss@npm:8.5.12"
-  dependencies:
-    nanoid: "npm:^3.3.11"
-    picocolors: "npm:^1.1.1"
-    source-map-js: "npm:^1.2.1"
-  checksum: 10c0/5baebaf574c567bc1b3d61197f38af4ce5920b8f611c887fb6bc3dcc14af00253c169dbf19897bc889cce0b0d9818ab5eb4ea0caedf02b0bab10da8a43ce8c12
-  languageName: node
-  linkType: hard
-
-"postcss@npm:^8.5.26":
+"postcss@npm:8.5.26, postcss@npm:^8.4.33, postcss@npm:^8.4.43, postcss@npm:^8.5.10, postcss@npm:^8.5.26, postcss@npm:^8.5.8":
   version: 8.5.26
   resolution: "postcss@npm:8.5.26"
   dependencies:
@@ -19141,17 +19174,6 @@ __metadata:
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.1"
   checksum: 10c0/2bdafc00d96bd57b6649a52e458864a4bf58ee56cfdbe4aea1472b5cccc127e6c1ad653bd0bec50d211e650eb0b9270c80e1e72aff2e2fa40d9e7363234d6e43
-  languageName: node
-  linkType: hard
-
-"postcss@npm:^8.5.8":
-  version: 8.5.8
-  resolution: "postcss@npm:8.5.8"
-  dependencies:
-    nanoid: "npm:^3.3.11"
-    picocolors: "npm:^1.1.1"
-    source-map-js: "npm:^1.2.1"
-  checksum: 10c0/dd918f7127ee7c60a0295bae2e72b3787892296e1d1c3c564d7a2a00c68d8df83cadc3178491259daa19ccc54804fb71ed8c937c6787e08d8bd4bedf8d17044c
   languageName: node
   linkType: hard
 
@@ -21951,17 +21973,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"tiny-svg@npm:4.1.4, tiny-svg@npm:^4.1.4":
+  version: 4.1.4
+  resolution: "tiny-svg@npm:4.1.4"
+  checksum: 10c0/961daaee4e072addd47c28ccaa60ac45db96d5a619f3c3048e784b7fdf41630e519210d1ebcc319d09cacf79c857cd820645123bcf5d6b5314a67db752bb024e
+  languageName: node
+  linkType: hard
+
 "tiny-svg@npm:^3.0.0, tiny-svg@npm:^3.0.1":
   version: 3.1.3
   resolution: "tiny-svg@npm:3.1.3"
   checksum: 10c0/325b07286acc42089f35db6d9df552b0f7f502975eb5785a6628eb45db1b07674ab0a1c8419826215407bce61ed7d08796638aa7d460cff09e6bbb213ecd2af4
-  languageName: node
-  linkType: hard
-
-"tiny-svg@npm:^4.1.4":
-  version: 4.1.4
-  resolution: "tiny-svg@npm:4.1.4"
-  checksum: 10c0/961daaee4e072addd47c28ccaa60ac45db96d5a619f3c3048e784b7fdf41630e519210d1ebcc319d09cacf79c857cd820645123bcf5d6b5314a67db752bb024e
   languageName: node
   linkType: hard
 

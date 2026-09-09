@@ -4,8 +4,10 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 // One app, two demo pages: `--mode bpmn` / `--mode dmn`. Each page folder is
 // the Vite build root, so it emits a flat static site under dist/demo/<mode>/
-// (served at /<mode>/). Because the demo builds the webview apps' source, it
-// mirrors their build essentials (preact JSX, dedupe).
+// (served at /<mode>/). Both pages are reference consumers of a published
+// package — the BPMN page of @miragon/bpmn-modeler, the DMN page of
+// @miragon/dmn-modeler — so the demo mirrors their build essentials (preact
+// JSX, and the dedupe each package's README requires).
 export default defineConfig(({ mode }) => {
     const target = mode === "dmn" ? "dmn" : "bpmn";
     return {
@@ -17,8 +19,21 @@ export default defineConfig(({ mode }) => {
         esbuild: { jsx: "automatic", jsxImportSource: "preact" },
         optimizeDeps: { include: ["bpmnlint", "bpmn-js-bpmnlint"] },
         resolve: {
+            alias: {
+                // The design page serves libs/properties-panel TSX, whose JSX
+                // pragma draws from the panel's vendored preact. The parent
+                // package ships no exports map, so the jsx-dev-runtime
+                // specifier the dev server emits cannot resolve; jsx-runtime
+                // exports the same jsxDEV (the vendored preact's own exports
+                // map does this exact mapping).
+                "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
+                    "@bpmn-io/properties-panel/preact/jsx-runtime",
+            },
             dedupe: [
                 "preact",
+                // dmn-js renders its decision editors with inferno; the
+                // @miragon/dmn-modeler README requires deduping it.
+                "inferno",
                 "@bpmn-io/properties-panel",
                 "@codemirror/state",
                 "@codemirror/view",
@@ -39,9 +54,10 @@ export default defineConfig(({ mode }) => {
             outDir: resolve(__dirname, `../../dist/demo/${target}`),
             emptyOutDir: true,
             // The bpmn page ships extra entries — the two-instance regression
-            // proof at /bpmn/dual.html and the two-pane diff demo at
-            // /bpmn/diff.html. The dev server serves them automatically; only the
-            // build needs the extra rollup inputs.
+            // proof at /bpmn/dual.html, the two-pane diff demo at /bpmn/diff.html,
+            // the readonly viewer demo at /bpmn/viewer.html, and the engine-neutral
+            // design demo at /bpmn/design.html. The dev server serves them
+            // automatically; only the build needs the extra inputs.
             rollupOptions:
                 target === "bpmn"
                     ? {
@@ -49,6 +65,9 @@ export default defineConfig(({ mode }) => {
                               index: resolve(__dirname, "bpmn/index.html"),
                               dual: resolve(__dirname, "bpmn/dual.html"),
                               diff: resolve(__dirname, "bpmn/diff.html"),
+                              diffRegressions: resolve(__dirname, "bpmn/diff-regressions.html"),
+                              viewer: resolve(__dirname, "bpmn/viewer.html"),
+                              design: resolve(__dirname, "bpmn/design.html"),
                           },
                       }
                     : undefined,

@@ -1,0 +1,50 @@
+/* The DRD has no minimap, leaving the top-right corner free for the indicator. */
+.canvas-focus-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 31px;
+    height: 31px;
+    z-index: 10;
+    pointer-events: none;
+    color: rgba(85, 85, 85, 0.55);
+}
+
+.canvas-focus-indicator svg {
+    display: none;
+    width: 100%;
+    height: 100%;
+}
+
+/* display:none resets the animation so each focus gain restarts the pulse. */
+.canvas-focus-indicator:not(.is-focused) .canvas-focus-indicator__off {
+    display: block;
+}
+
+.canvas-focus-indicator.is-focused .canvas-focus-indicator__on {
+    display: block;
+    color: #00e676;
+    filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.55));
+    animation: canvas-focus-pulse 1.1s ease-in-out 2;
+}
+
+/* drop-shadow follows the glyph silhouette; matching endpoints avoid a jump. */
+@keyframes canvas-focus-pulse {
+    0%,
+    100% {
+        filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.55));
+    }
+    50% {
+        filter: drop-shadow(0 0 9px rgba(0, 230, 118, 0.95));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvas-focus-indicator.is-focused .canvas-focus-indicator__on {
+        animation: none;
+    }
+}
+
+[data-dmn-theme="dark"] .canvas-focus-indicator {
+    color: rgba(190, 190, 190, 0.6);
+}

@@ -25,6 +25,8 @@ import {
     EditorHandle,
     EditorSubscription,
     MigrationScope,
+    NEW_MODEL_ENGINE_CHOICES,
+    NewModelEngine,
     NotifierPort,
     PickerPort,
     ScriptLanguage,
@@ -741,20 +743,23 @@ export class RpcPicker implements PickerPort {
         return result?.selected ?? null;
     }
 
-    async pickExecutionPlatform(placeHolder: string, engines: Engine[]): Promise<Engine> {
+    async pickNewModelEngine(placeHolder: string): Promise<NewModelEngine> {
         const selected = await this.show({
             placeholder: placeHolder,
             canPickMany: false,
-            items: engines.map((engine) => ({ label: ENGINE_LABEL[engine] })),
+            items: NEW_MODEL_ENGINE_CHOICES.map((choice) => ({
+                label: choice.label,
+                description: choice.description,
+            })),
         });
         if (selected === null) {
             throw new UserCancelledError();
         }
-        const engine = engines[selected[0]];
-        if (!engine) {
-            throw new Error(`No engine at index ${selected[0]}`);
+        const choice = NEW_MODEL_ENGINE_CHOICES[selected[0]];
+        if (!choice) {
+            throw new Error(`No new-model engine at index ${selected[0]}`);
         }
-        return engine;
+        return choice.id;
     }
 
     async pickMigrationScope(c7Count: number, c8Count: number): Promise<MigrationScope> {

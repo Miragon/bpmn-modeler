@@ -11,7 +11,11 @@
  */
 @import "colors.css";
 
-.etc-overlay-root {
+/* The overlay mounts outside its instance's container (onto the canvas parent),
+ * so it copies `data-bpmn-theme` onto its own root at creation; the descendant
+ * form covers a page root that carries the attribute. */
+[data-bpmn-theme="dark"] .etc-overlay-root,
+.etc-overlay-root[data-bpmn-theme="dark"] {
     /* ── Backgrounds ──────────────────────────────────────────────────── */
     --etc-bg:               var(--dt-surface-a10);
     --etc-bg-elevated:      var(--dt-surface-a20);

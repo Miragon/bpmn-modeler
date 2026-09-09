@@ -11,7 +11,11 @@
  */
 @import "colors.css";
 
-.am-overlay-root {
+/* The overlay mounts on document.body, outside its instance's container, so it
+ * copies `data-bpmn-theme` onto its own root at creation; the descendant form
+ * covers a page root that carries the attribute. */
+[data-bpmn-theme="dark"] .am-overlay-root,
+.am-overlay-root[data-bpmn-theme="dark"] {
     /* ── Backgrounds ──────────────────────────────────────────────────── */
     --am-bg:               var(--dt-surface-a10);
     --am-bg-elevated:      var(--dt-surface-a20);

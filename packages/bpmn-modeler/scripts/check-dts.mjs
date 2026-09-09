@@ -5,14 +5,22 @@
 // workspace lib name (those are inlined, so a surviving import means the d.ts
 // roll-up leaked an un-bundled dependency the consumer cannot install).
 //
-// Both public entries are checked — the root `dist/index.d.ts` and the
-// `dist/diff.d.ts` data-layer subpath (#1378).
+// All three public entries are checked — the root `dist/index.d.ts`, the
+// `dist/diff.d.ts` data-layer subpath (#1378), and the `dist/lint.d.ts`
+// injectable-lint subpath (#1407).
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
-const ENTRY_DTS = ["index.d.ts", "diff.d.ts"];
+const ENTRY_DTS = [
+    "index.d.ts",
+    "diff.d.ts",
+    "lint.d.ts",
+    "viewer.d.ts",
+    "design.d.ts",
+    "mode.d.ts",
+];
 
 // Whole-word protocol type names + the private protocol package. The word gate
 // also covers public diff jsdoc: a bare `Query`/`Command`/`HostApi` in a
@@ -30,6 +38,7 @@ const PRIVATE_LIBS = [
     "@miragon/bpmn-modeler-i18n-extras",
     "@miragon/bpmn-modeler-element-template-chooser",
     "@miragon/bpmn-modeler-append-menu",
+    "@miragon/bpmn-modeler-properties-panel",
     "@miragon/bpmn-model-navigation",
     "@miragon/bpmn-modeler-code-link",
     "@miragon/bpmn-modeler-inline-scripting",

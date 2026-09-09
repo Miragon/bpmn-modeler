@@ -1,14 +1,18 @@
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
-// The two theme stylesheets ship as standalone CSS entries a consumer links
-// (or that the modeler's "automatic" theme swaps via `#theme-link`). CSS cannot
-// be a Vite lib entry, so this is a separate CSS-only rollup. The output names
-// are a de-facto contract: `libs/modeler-types/theme.ts` swaps `lightTheme.css`
-// ↔ `darkTheme.css` by regex, so keep them exact.
+import stripThemeScope from "./scripts/postcss-strip-theme-scope.mjs";
+
+// CSS cannot be a Vite library entry, so legacy theme sheets need a separate build.
+// Strip dark scoping for page-global links; preserve filenames used by #theme-link swaps.
 export default defineConfig({
     root: __dirname,
     cacheDir: "../../node_modules/.vite/bpmn-modeler-themes",
+    css: {
+        postcss: {
+            plugins: [stripThemeScope()],
+        },
+    },
     build: {
         target: "es2021",
         outDir: "dist",

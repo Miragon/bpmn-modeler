@@ -30,7 +30,7 @@ export type BpmnlintRuleConfig = BpmnlintRuleSeverity | readonly [BpmnlintRuleSe
 
 /**
  * Structural mirror of a bpmnlint configuration (`.bpmnlintrc`) as the public
- * `linting: { config }` option accepts it. Kept structural — not an
+ * `linting: { module, config }` option accepts it. Kept structural — not an
  * import of bpmnlint's own types — so the published API surface does not leak a
  * transitive bpmnlint dependency. Unresolvable `extends`/`rules` degrade
  * gracefully at load and surface via {@link LintRunEvent.unresolved}.

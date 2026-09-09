@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, normalize } from "node:path";
+import { dirname, join, normalize, resolve } from "node:path";
+import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -55,6 +56,31 @@ function importedModules(content: string): string[] {
     );
 }
 
+// Value imports only — `import type` / `export type` are erased at build and so
+// never pull runtime code into a bundle. Used by the lint-injection gate below.
+const VALUE_SPECIFIER_PATTERNS: readonly RegExp[] = [
+    /\bimport\s+(?!type\b)[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
+    /\bexport\s+(?!type\b)[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
+    /\bimport\s*["']([^"']+)["']/g,
+    /\bimport\s*\(\s*["']([^"']+)["']/g,
+    /\brequire\s*\(\s*["']([^"']+)["']/g,
+];
+
+// Drop block + line comments so a specifier *named in prose* (e.g. the
+// `typeof import("./bpmnlint")` mention in a jsdoc) is not read as a real
+// import. Coarse — it may nick a `//` inside a string literal — but harmless
+// here: we only pattern-match import specifiers out of the result.
+function stripComments(content: string): string {
+    return content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+}
+
+function valueImportedModules(content: string): string[] {
+    const code = stripComments(content);
+    return VALUE_SPECIFIER_PATTERNS.flatMap((pattern) =>
+        [...code.matchAll(pattern)].map((match) => match[1]),
+    );
+}
+
 /** `@miragon/bpmn-modeler` exactly, or a subpath of it — but not `-types`/`-core`/… */
 const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 
@@ -96,6 +122,196 @@ describe("bpmn-modeler import direction", () => {
         expect(
             offenders,
             `package TS source must not read VS Code body theme classes:\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("every top-level dark-theme selector is scoped under data-bpmn-theme", () => {
+        // The dark sheet is authored scoped so per-instance theming never leaks
+        // across instances (and the legacy split is derived by stripping the
+        // scope). A top-level rule that forgot the attribute would paint every
+        // instance dark. Nested rules are exempt — their parent carries the scope.
+        const DARK_DIR = join(PKG_SRC, "styles", "dark-theme");
+        const offenders: string[] = [];
+        for (const entry of readdirSync(DARK_DIR)) {
+            if (!entry.endsWith(".css")) continue;
+            const root = postcss.parse(readFileSync(join(DARK_DIR, entry), "utf8"));
+            root.walkRules((rule) => {
+                if (rule.parent?.type !== "root") return; // nested rule: parent scopes it
+                if (!rule.selector.includes("data-bpmn-theme")) {
+                    offenders.push(`${entry}: ${rule.selector}`);
+                }
+            });
+        }
+        expect(
+            offenders,
+            `every top-level dark-theme rule must be scoped under ` +
+                `[data-bpmn-theme="dark"]:\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("only src/bpmnlint/ value-imports the lint stack (#1407)", () => {
+        // The lint stack is injection-only: a host imports `@miragon/bpmn-modeler/lint`
+        // (which resolves to `src/bpmnlint/index.ts`) and hands the module in. No
+        // other package source may pull it into the runtime graph — a reachable
+        // value import (static or dynamic) is exactly what a single-file bundler
+        // inlines even under `linting: false`. `import type` stays fine.
+        const LINT_STACK = (spec: string): boolean =>
+            spec === "bpmnlint" || spec === "bpmn-js-bpmnlint" || /(^|\/)bpmnlint$/.test(spec); // the `./bpmnlint` barrel, not its type subpaths
+        const BPMNLINT_DIR = join(PKG_SRC, "bpmnlint");
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (file.startsWith(BPMNLINT_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (LINT_STACK(spec)) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the lint stack is injection-only — only src/bpmnlint/ may value-import ` +
+                `it (use \`import type\` elsewhere):\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("the design subpath value-imports only the engine-neutral set (#1196)", () => {
+        // The `/design` subpath must stay free of the Camunda engine stack at the
+        // module-graph level. Unlike `/viewer` it legitimately ships the
+        // engine-neutral properties panel and append/create menu, so those (plus
+        // preact via the panel) are allowed — but a value import of
+        // camunda-bpmn-js, element templates, transaction boundaries, or the lint
+        // stack here is exactly what a single-file bundler
+        // would inline into a design-only consumer. `import type` stays fine. The
+        // runtime graph is gated separately by `check-design-pure-entry.mjs`.
+        const DESIGN_DIR = join(PKG_SRC, "design");
+        const isAllowed = (spec: string): boolean =>
+            spec.startsWith(".") ||
+            spec === "bpmn-js" ||
+            spec.startsWith("bpmn-js/") ||
+            spec === "diagram-js" ||
+            spec.startsWith("diagram-js/") ||
+            spec === "@miragon/bpmn-modeler-properties-panel" ||
+            spec === "bpmn-js-create-append-anything" ||
+            spec === "diagram-js-minimap" ||
+            // Engine-neutral canvas chrome shared by every surface (ADR 0022):
+            // plain bpmn-js simulation, no Camunda stack behind it.
+            spec === "bpmn-js-token-simulation" ||
+            // Engine-neutral browser clipboard (parity with camunda-bpmn-js's base
+            // Modeler). Plain bpmn-js extension, no Camunda stack; the bridge module
+            // overrides its `nativeCopyPaste` service in sandboxed hosts.
+            spec === "bpmn-js-native-copy-paste" ||
+            spec === "@miragon/bpmn-modeler-types" ||
+            spec === "@miragon/bpmn-modeler-i18n" ||
+            spec === "@miragon/bpmn-modeler-i18n-extras" ||
+            spec === "@miragon/bpmn-modeler-append-menu" ||
+            spec === "@miragon/bpmn-modeler-flow-navigation" ||
+            spec === "@miragon/bpmn-modeler-clipboard" ||
+            // Engine-neutral navigation capability (#1444): designer.ts value-imports
+            // createModelNavigationModule. The lib's only bare runtime import is
+            // bpmn-js/lib/util/ModelUtil, so it drags in no Camunda stack.
+            spec === "@miragon/bpmn-model-navigation";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!file.startsWith(DESIGN_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (!isAllowed(spec)) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the design subpath must stay engine-neutral — value-import only ` +
+                `bpmn-js/*, diagram-js/*, the neutral panel/menu packages, or the ` +
+                `neutral @miragon libs (use \`import type\` for anything else):\n` +
+                `${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("the /viewer subpath deep-imports the neutral panel, never its barrel (#1443)", () => {
+        // The lib barrel (`libs/properties-panel/src/index.ts`) side-effect
+        // imports its CSS, and the viewer entry must import no CSS —
+        // `cssCodeSplit: false` on the lib build would fold any reachable sheet
+        // into the shared `dist/bpmn-modeler.css`. The panel sheets ship via
+        // `dist/viewer.css` instead; deep (file-level) imports stay fine.
+        const VIEWER_DIR = join(PKG_SRC, "viewer");
+        const BARREL = "@miragon/bpmn-modeler-properties-panel";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!file.startsWith(VIEWER_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (spec === BARREL) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the /viewer subpath must deep-import ` +
+                `@miragon/bpmn-modeler-properties-panel/* (the barrel imports ` +
+                `CSS, and the viewer entry must stay CSS-free):\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("the /design and /viewer subpaths never reach the runtime-mode code (#1442)", () => {
+        // Design/implement mode is a runtime toggle on the engine-tagged
+        // `createModeler` instance only. The `/design` and `/viewer` subpaths are
+        // separate, mode-less surfaces (their own factories), so keeping this code
+        // out of their closure by intent stops the mode wiring from leaking into
+        // the engine-neutral bundles. `check-design-pure-entry.mjs` backs the
+        // design side at the built-graph level; this is the source-level intent.
+        const MODE_FILES = new Set([
+            resolve(PKG_SRC, "mode.ts"),
+            resolve(PKG_SRC, "modeModules.ts"),
+        ]);
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!/(^|\/)(design|viewer|modeSession)\//.test(file.slice(PKG_SRC.length))) continue;
+            for (const spec of importedModules(readFileSync(file, "utf8"))) {
+                if (!spec.startsWith(".")) continue;
+                if (MODE_FILES.has(resolve(dirname(file), `${spec}.ts`))) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the /design, /viewer and /mode subpaths must not import ./mode or ` +
+                `./modeModules (runtime mode is a createModeler-only concern):\n` +
+                `${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("the mode-session subpath value-imports only the injectable set (#1447)", () => {
+        // `@miragon/bpmn-modeler/mode` orchestrates the surfaces the consumer
+        // injects, so its own graph must stay free of bpmn-js / Camunda code: a
+        // value import here is exactly what a single-file bundler would inline
+        // into a mode-only consumer. Only relatives *within* the modeSession dir
+        // (never `../` up into the surface handles), the pure mode model
+        // (`-types`), and i18n are value-importable; the handle types from
+        // `../publicApi` / `../viewer` / `../design` must stay `import type`. The
+        // built graph is gated separately by `check-mode-pure-entry.mjs`.
+        const MODE_DIR = join(PKG_SRC, "modeSession");
+        const isAllowed = (spec: string): boolean =>
+            spec.startsWith("./") ||
+            spec === "@miragon/bpmn-modeler-types" ||
+            spec === "@miragon/bpmn-modeler-i18n" ||
+            spec === "@miragon/bpmn-modeler-i18n-extras";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(PKG_SRC)) {
+            if (!file.startsWith(MODE_DIR)) continue;
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (!isAllowed(spec)) {
+                    offenders.push(`${file.slice(PKG_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the mode subpath must value-import only ./* (within modeSession), the ` +
+                `mode model (@miragon/bpmn-modeler-types), or i18n — use \`import type\` ` +
+                `for the surface handles (../publicApi, ../viewer, ../design):\n` +
+                `${offenders.join("\n")}`,
         ).toEqual([]);
     });
 

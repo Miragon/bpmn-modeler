@@ -2,6 +2,7 @@ import {
     LogErrorCommand,
     LogWarningCommand,
     SyncDocumentCommand,
+    UpdateFormOutputValuesCommand,
 } from "@miragon/bpmn-modeler-shared";
 
 import { FormHost } from "./host";
@@ -17,7 +18,12 @@ export interface FormEditorLike {
 }
 
 export interface FormViewerLike {
-    importSchema(schema: Schema): Promise<ImportResult>;
+    importSchema(schema: Schema, data?: Schema): Promise<ImportResult>;
+    on(
+        event: "changed" | "formFieldInstance.added" | "formFieldInstance.removed",
+        handler: () => void,
+    ): void;
+    _getSubmitData(): Schema;
 }
 
 export interface FormEditorElements {
@@ -32,13 +38,20 @@ export class FormEditorApp {
     private mode: "edit" | "preview" = "edit";
     private activeHostUpdates = 0;
     private hostImportQueue: Promise<void> = Promise.resolve();
+    private previewImportQueue: Promise<void> = Promise.resolve();
     private hostDocumentRevision = 0;
     private latestHostDocumentRevision = 0;
     private loadVersion = 0;
+    private previewRefreshVersion = 0;
     private sourceContent = "";
     private baseline = "";
     private lastPostedContent = "";
     private previewSchema = "";
+    private inputValues: Schema = {};
+    private inputValuesContent = this.serialize(this.inputValues);
+    private previewInputValues = "";
+    private outputValuesContent: string | undefined;
+    private previewOutputActive = false;
     private syncDeliveryTimer: ReturnType<typeof setTimeout> | undefined;
     private inertBeforeFlush: boolean | undefined;
 
@@ -50,6 +63,15 @@ export class FormEditorApp {
         initialMode: "edit" | "preview" = "edit",
     ) {
         this.formEditor.on("changed", () => this.syncChangedContent());
+        for (const event of [
+            "changed",
+            "formFieldInstance.added",
+            "formFieldInstance.removed",
+        ] as const) {
+            this.formViewer.on(event, () => {
+                if (this.previewOutputActive) this.syncOutputValues();
+            });
+        }
         this.elements.editButton.addEventListener("click", () => this.setMode("edit"));
         this.elements.previewButton.addEventListener("click", () => void this.setMode("preview"));
         void this.setMode(initialMode);
@@ -60,6 +82,7 @@ export class FormEditorApp {
         this.latestHostDocumentRevision = documentRevision;
         const version = ++this.loadVersion;
         this.cancelPendingSync();
+        this.invalidatePreview(this.baseline !== "");
 
         let schema: Schema;
         try {
@@ -87,7 +110,6 @@ export class FormEditorApp {
             this.sourceContent = content;
             this.baseline = this.serialize(this.formEditor.saveSchema());
             this.lastPostedContent = content;
-            this.previewSchema = "";
             this.hideError();
             this.showCurrentSurface();
             if (this.mode === "preview") await this.refreshPreview();
@@ -156,9 +178,30 @@ export class FormEditorApp {
     async setMode(mode: "edit" | "preview"): Promise<void> {
         if (this.baseline) this.hideError();
         this.mode = mode;
+        if (mode === "edit") this.previewOutputActive = false;
         this.host.updateState({ mode });
         this.showCurrentSurface();
         if (mode === "preview" && this.baseline) await this.refreshPreview();
+    }
+
+    async setInputValues(content: string): Promise<void> {
+        let inputValues: unknown;
+        try {
+            inputValues = JSON.parse(content);
+        } catch (error) {
+            this.logInputValuesError(error);
+            return;
+        }
+        if (typeof inputValues !== "object" || inputValues === null || Array.isArray(inputValues)) {
+            this.logInputValuesError(new Error("Expected a JSON object."));
+            return;
+        }
+
+        const serialized = this.serialize(inputValues as Schema);
+        if (serialized === this.inputValuesContent) return;
+        this.inputValues = inputValues as Schema;
+        this.inputValuesContent = serialized;
+        if (this.mode === "preview" && this.baseline) await this.refreshPreview();
     }
 
     private syncChangedContent(): void {
@@ -184,21 +227,80 @@ export class FormEditorApp {
     }
 
     private async refreshPreview(): Promise<void> {
+        const version = ++this.previewRefreshVersion;
+        this.previewOutputActive = false;
+        const refreshing = this.previewImportQueue.then(() => this.importPreview(version));
+        this.previewImportQueue = refreshing.then(
+            () => undefined,
+            () => undefined,
+        );
+        return refreshing;
+    }
+
+    private async importPreview(version: number): Promise<void> {
         const schema = this.formEditor.saveSchema();
         const serialized = this.serialize(schema);
-        if (serialized === this.previewSchema) return;
+        const inputValues = this.inputValues;
+        const inputValuesContent = this.inputValuesContent;
+        if (serialized === this.previewSchema && inputValuesContent === this.previewInputValues) {
+            if (version === this.previewRefreshVersion) {
+                this.previewOutputActive = true;
+                this.syncOutputValues();
+            }
+            return;
+        }
 
         try {
-            const result = await this.formViewer.importSchema(schema);
+            const result = await this.formViewer.importSchema(schema, inputValues);
+            if (version !== this.previewRefreshVersion) {
+                this.previewSchema = "";
+                this.previewInputValues = "";
+                return;
+            }
             this.previewSchema = serialized;
+            this.previewInputValues = inputValuesContent;
             this.logWarnings("Form preview", result.warnings);
+            this.previewOutputActive = true;
+            this.syncOutputValues();
         } catch (error) {
             this.previewSchema = "";
+            this.previewInputValues = "";
+            if (version !== this.previewRefreshVersion) return;
+            this.invalidatePreview(true);
             this.mode = "edit";
             this.host.updateState({ mode: "edit" });
             this.showRecoverableError("The form preview could not be loaded.", error);
             this.showCurrentSurface();
         }
+    }
+
+    private syncOutputValues(): void {
+        const content = this.serialize(this.formViewer._getSubmitData());
+        if (content === this.outputValuesContent) return;
+        this.outputValuesContent = content;
+        this.host.postMessage(new UpdateFormOutputValuesCommand(content));
+    }
+
+    private clearOutputValues(): void {
+        const content = this.serialize({});
+        if (content === this.outputValuesContent) return;
+        this.outputValuesContent = content;
+        this.host.postMessage(new UpdateFormOutputValuesCommand(content));
+    }
+
+    private invalidatePreview(clearOutput: boolean): void {
+        this.previewRefreshVersion++;
+        this.previewOutputActive = false;
+        this.previewSchema = "";
+        this.previewInputValues = "";
+        if (clearOutput) this.clearOutputValues();
+    }
+
+    private logInputValuesError(cause: unknown): void {
+        const error = cause instanceof Error ? cause : new Error(String(cause));
+        this.host.postMessage(
+            new LogErrorCommand(`The form input values contain invalid JSON. ${error.message}`),
+        );
     }
 
     private showCurrentSurface(): void {
@@ -214,6 +316,7 @@ export class FormEditorApp {
 
     private showError(message: string, cause: unknown): void {
         this.cancelPendingSync();
+        this.clearOutputValues();
         this.baseline = "";
         this.elements.editor.hidden = true;
         this.elements.preview.hidden = true;

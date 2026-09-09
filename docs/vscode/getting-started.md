@@ -1,7 +1,8 @@
 # Getting Started
 
 The Miragon BPMN Modeler is a VS Code extension for editing BPMN 2.0 and DMN
-diagrams with full Camunda 7 and Camunda 8 support. Camunda 7-compatible engines such as
+diagrams with full Camunda 7 and Camunda 8 support. It also provides a visual
+editor for bpmn-io form-js `.form` files. Camunda 7-compatible engines such as
 **Operaton** and **CIB7** are also supported — they share the same BPMN metamodel.
 
 ## Install
@@ -16,8 +17,16 @@ code --install-extension miragon-gmbh.vs-code-bpmn-modeler
 
 ## Open a diagram
 
-Create or open any `.bpmn` or `.dmn` file in your workspace — the modeler opens
-automatically as the default editor for that file type.
+Create or open any `.bpmn`, `.dmn`, or `.form` file in your workspace. The
+matching graphical editor opens automatically.
+
+Run **BPMN Modeler: New BPMN Model** to scaffold a fresh diagram. The picker
+offers three choices: **Camunda 7**, **Camunda 8**, and **Engine-neutral** —
+the last scaffolds an untagged model that opens in the engine-neutral **Design**
+surface. Which mode an editor opens in is controlled by
+[`miragon.bpmnModeler.defaultMode`](/vscode/configuration); see
+[Editor Modes](/vscode/features/modes) for the View / Design / Implement
+surfaces and how they are remembered per editor.
 
 ## Element templates
 

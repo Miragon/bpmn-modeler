@@ -14,9 +14,17 @@ import type {
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
+import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
+import type { LintConfigOption } from "./bpmnlint/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ViewportManager } from "./viewport";
 import type { SelectionManager } from "./selection";
+import type { RootElementManager } from "./rootElement";
+import type { ViewState } from "./viewState";
+import type { ModelerMode } from "./mode";
+
+export type { ModelerMode } from "./mode";
+export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigResolution";
 
 /**
  * The public TypeScript surface of the `@miragon/bpmn-modeler` package:
@@ -44,31 +52,58 @@ import type { SelectionManager } from "./selection";
  */
 
 /**
- * [B] Theme selection for a single instance. `"automatic"` follows the
- * OS/browser `prefers-color-scheme` live; `"light"`/`"dark"` force a fixed
- * stylesheet. A host that themes off its own chrome (VS Code `<body>` classes)
- * maps that signal to a forced mode in its adapter — the package does not read
- * host chrome.
+ * [B] Theme selection for a single instance. The modeler toggles a
+ * `data-bpmn-theme` attribute on its container + panel parent (the authoritative
+ * mechanism — dark rules are scoped under `[data-bpmn-theme="dark"]`, so two
+ * instances on one page can hold different themes) and mirrors the choice onto a
+ * legacy page-global `#theme-link` when the consumer still links one.
+ * `"automatic"` follows the OS/browser `prefers-color-scheme` live;
+ * `"light"`/`"dark"` force a fixed kind. A host that themes off its own chrome
+ * (VS Code `<body>` classes) maps that signal to a forced mode in its adapter —
+ * the package does not read host chrome.
  */
 export type ThemeMode = "light" | "dark" | "automatic";
 
+// A structural interface avoids API Extractor rollup failures on relative import() types.
 /**
- * [B] Linting configuration tiers:
+ * [B] The namespace of `@miragon/bpmn-modeler/lint`, imported and handed in by
+ * the host. The lint stack (`bpmn-js-bpmnlint`, `bpmnlint`, the rule plugin, and
+ * its CSS) lives behind this subpath so a `linting: false` consumer never pulls
+ * it into the module graph — even under single-file bundlers, where a reachable
+ * internal dynamic import can no longer be tree-shaken.
  *
- * - `undefined` — linting on with the bundled default ruleset.
- * - `false` — linting off entirely (no chip, no overlay).
- * - `{ config }` — on, with a caller-supplied {@link BpmnlintConfig}; rules the
+ * ```ts
+ * linting: { module: await import("@miragon/bpmn-modeler/lint") }
+ * ```
+ */
+export interface LintModule {
+    createLintModule(tier: LintTierInit, callbacks: LintCallbacks): unknown;
+}
+
+/**
+ * [B] Linting configuration tiers. Injection-only: the lint stack is never
+ * bundled by the package, so every on-tier requires a `module` the host imports
+ * from `@miragon/bpmn-modeler/lint`.
+ *
+ * - *(omitted)* — linting off, with a one-time `console.info` migration nudge.
+ * - `false` — linting off entirely (no chip, no overlay), silent and explicit.
+ * - `{ module, config? }` — in-page linting with the injected {@link LintModule}.
+ *   `config` is either the per-mode zero-config default (omitted), a single
+ *   {@link BpmnlintConfig} applied verbatim in both modes, or a
+ *   {@link LintConfigByMode} map to lint Design and Implement differently on one
+ *   instance (re-resolved on {@link BpmnModelerHandle.setMode}). The mode default
+ *   drops the Camunda engine layer in Design and keeps it in Implement. Rules the
  *   bundled resolver cannot resolve degrade gracefully and are reported via
  *   {@link LintRunEvent.unresolved} rather than failing the pass.
- * - `{ results: "external" }` — the modeler renders results the host computes
- *   and pushes through {@link BpmnModelerHandle.applyLintResults}; no in-webview
- *   linter runs.
- *
- * `results?: never` on the config variant makes the union discriminable on
- * `results`, so the runtime tier selection narrows without type guards.
+ * - `{ module, results: "external" }` — the modeler renders results the host
+ *   computes and pushes through {@link BpmnModelerHandle.applyLintResults}; no
+ *   in-webview linter runs. `module` is still required — the external tier needs
+ *   {@link LintModule} to paint and to service a `startInPageLinting` handback.
  */
 export type LintingOptions =
-    false | { config?: BpmnlintConfig; results?: never } | { results: "external" };
+    | false
+    | { module: LintModule; config?: LintConfigOption; results?: never }
+    | { module: LintModule; results: "external" };
 
 /**
  * [B] Clipboard override. Default (option omitted) is the native browser
@@ -144,17 +179,35 @@ export interface ModelerOptions {
     moddleExtensions?: Record<string, object>;
 
     // ── [B] Opinionated built-ins ───────────────────────────────────────────
-    /** [B] Linting tier — see {@link LintingOptions}. Omit for the bundled default. */
+    /**
+     * [B] Linting tier — see {@link LintingOptions}. Injection-only: an on-tier
+     * supplies a `module` from `@miragon/bpmn-modeler/lint`. Omit (or `false`)
+     * for no linting.
+     */
     linting?: LintingOptions;
 
     /** [B] Clipboard override — omit for the native clipboard. */
     clipboard?: ClipboardOptions;
 
-    /** [B] Colour theme — defaults to `"automatic"`. */
+    /**
+     * [B] Colour theme — defaults to `"automatic"`. Theming always engages: the
+     * instance gets a `data-bpmn-theme` attribute from the first frame regardless
+     * of whether this is set.
+     */
     theme?: ThemeMode;
 
     /** [B] UI locale (BCP-47-ish tag) — defaults to `"en"`. */
     locale?: string;
+
+    /**
+     * [B] Initial design/implement mode — defaults to `"implement"`. `"design"`
+     * reduces an engine-tagged model to its engine-neutral surface (neutral +
+     * host custom property groups only, no element-template chooser) on the
+     * **same** live instance — no re-import, no
+     * engine-data loss on replace/copy-paste. Toggle at runtime with
+     * {@link BpmnModelerHandle.setMode}. Unrelated to `theme` / {@link setTheme}.
+     */
+    mode?: ModelerMode;
 
     // ── [C] Host capabilities ───────────────────────────────────────────────
     /**
@@ -179,6 +232,9 @@ export interface ModelerOptions {
 
     /** The element-templates loader reported validation errors. */
     onElementTemplatesErrors?: (errors: unknown[]) => void;
+
+    /** The design/implement mode changed — fired once per actual change (never on a redundant `setMode`). */
+    onModeChanged?: (mode: ModelerMode) => void;
 }
 
 /**
@@ -214,12 +270,49 @@ export interface BpmnModelerHandle {
     /** [A] Selection accessor. */
     readonly selection: SelectionManager;
 
+    /**
+     * [A] Drill-down plane accessor. Host-adapter surface for restoring the
+     * active canvas root across an instance switch; the composed
+     * {@link captureViewState}/{@link applyViewState} pair covers the common case.
+     */
+    readonly rootElement: RootElementManager;
+
+    /**
+     * [A] Snapshot the drill-down plane, viewbox, and selection so they survive
+     * an instance switch — capture here, `destroy()`, create the next instance,
+     * `loadDiagram`, then {@link applyViewState}. See {@link ViewState}.
+     */
+    captureViewState(): ViewState;
+
+    /**
+     * [A] Re-apply a {@link captureViewState} snapshot: plane, viewbox, and
+     * selection are restored root → viewport → selection; a stale plane or
+     * missing element ids degrade gracefully.
+     */
+    applyViewState(state: ViewState): void;
+
     /** [A] Tear the instance down and free its bpmn-js DI graph and DOM. */
     destroy(): void;
 
     // ── [B] Opinionated built-ins ───────────────────────────────────────────
-    /** [B] Switch the colour theme live. */
+    /**
+     * [B] Switch the colour theme live. Toggles this instance's
+     * `data-bpmn-theme` attribute and mirrors it to a legacy `#theme-link` when
+     * present.
+     */
     setTheme(theme: ThemeMode): void;
+
+    /**
+     * [B] Switch the design/implement mode live on this same instance — no
+     * re-import, no engine-data loss. `"design"` filters the panel to its
+     * engine-neutral surface and hides the engine chrome; `"implement"` restores
+     * the full Camunda surface. Fires `onModeChanged` once per actual change.
+     * Unrelated to {@link setTheme} despite the shared "mode" wording.
+     */
+    setMode(mode: ModelerMode): void;
+
+    /** [B] The current design/implement mode. */
+    getMode(): ModelerMode;
 
     /**
      * [B] Render host-computed lint results, or clear them with `null`.
@@ -278,9 +371,9 @@ export interface CoreModelerServices {
 
 /**
  * [A] The package entry point: stand up one modeler bound to `container` and
- * resolve its {@link BpmnModelerHandle}. Async because the lazy lint chunk
- * forces a construction await; a host that learns the engine late simply calls
- * this late.
+ * resolve its {@link BpmnModelerHandle}. Async for API stability (a host that
+ * learns the engine late simply calls this late); the lint stack is now injected
+ * synchronously rather than awaited internally.
  */
 export type CreateModeler = (
     container: HTMLElement,
@@ -300,6 +393,8 @@ export type StableModelerSurface = Pick<
     | "setSettings"
     | "viewport"
     | "selection"
+    | "captureViewState"
+    | "applyViewState"
     | "destroy"
     | "getService"
     | "applyLintResults"
