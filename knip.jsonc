@@ -49,6 +49,7 @@
                 "dmn/main.ts",
                 "bpmn/dual.ts",
                 "bpmn/diff.ts",
+                "bpmn/diffRegressions.ts",
                 "bpmn/viewer.ts",
                 "bpmn/design.ts"
             ]

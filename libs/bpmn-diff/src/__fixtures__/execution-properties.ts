@@ -127,7 +127,7 @@ const C8_OUTPUT_MAPPING_BEFORE = `<bpmn:serviceTask id="C8OutputTask_1">
     </bpmn:serviceTask>`;
 const C8_OUTPUT_MAPPING_AFTER = C8_OUTPUT_MAPPING_BEFORE.replace("oldOutput", "newOutput");
 
-export const EXECUTION_PROPERTY_FIXTURES: readonly ExecutionPropertyFixture[] = [
+const EXECUTION_PROPERTY_FIXTURES: readonly ExecutionPropertyFixture[] = [
     ...C7_ATTRIBUTE_FIXTURES,
     {
         name: "Camunda 7 extension elements",
@@ -282,7 +282,7 @@ export const EXECUTION_PROPERTY_FIXTURES: readonly ExecutionPropertyFixture[] = 
     },
 ];
 
-export const STRUCTURAL_CUSTOM_ATTRIBUTE_FIXTURE: ExecutionPropertyFixture = {
+const STRUCTURAL_CUSTOM_ATTRIBUTE_FIXTURE: ExecutionPropertyFixture = {
     name: "custom attributes do not turn added or removed owners into changes",
     before: definitions(`  <bpmn:process id="Process_1">
     <bpmn:task id="RemovedTask_1" custom:value="before" />
@@ -293,7 +293,7 @@ export const STRUCTURAL_CUSTOM_ATTRIBUTE_FIXTURE: ExecutionPropertyFixture = {
     expected: expected([], ["AddedTask_1"], ["RemovedTask_1"], ["AddedTask_1", "RemovedTask_1"]),
 };
 
-export const PARTICIPANT_OWNER_FIXTURE: ExecutionPropertyFixture = {
+const PARTICIPANT_OWNER_FIXTURE: ExecutionPropertyFixture = {
     name: "process attributes map to the participant visual",
     before: definitions(`  <bpmn:process id="Process_1" custom:version="old" />
   <bpmn:collaboration id="Collaboration_1">
