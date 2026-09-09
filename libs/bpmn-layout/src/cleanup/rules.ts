@@ -62,7 +62,11 @@ const STANDALONE_ALLOWED = new Set([
     "bpmn:DataStore",
 ]);
 
-const CONTAINMENT_PROPERTIES = [
+/**
+ * Containment properties for a node that carries no moddle descriptor, i.e.
+ * an object literal in a unit test. A real parse never reaches this list.
+ */
+const LITERAL_CONTAINMENT_PROPERTIES = [
     "rootElements",
     "flowElements",
     "artifacts",
@@ -73,7 +77,68 @@ const CONTAINMENT_PROPERTIES = [
     "messageFlows",
     "dataInputAssociations",
     "dataOutputAssociations",
+    "ioSpecification",
+    "dataInputs",
+    "dataOutputs",
 ];
+
+/**
+ * Diagram interchange is walked by {@link inspectDi} against the plane it
+ * belongs to, so the semantic index stops at these namespaces.
+ */
+const DI_NAMESPACE_PREFIXES = ["bpmndi:", "dc:", "di:"];
+
+const ENDPOINT_PROPERTIES = ["sourceRef", "targetRef"];
+
+/** The slice of a moddle property descriptor this module reads. */
+interface ModdleProperty {
+    name: string;
+    type?: string;
+    isMany?: boolean;
+    isAttr?: boolean;
+    isReference?: boolean;
+}
+
+function descriptorProperties(node: ModdleNode): ModdleProperty[] | undefined {
+    const properties = (node.$descriptor as { properties?: unknown } | undefined)?.properties;
+    return Array.isArray(properties) ? (properties as ModdleProperty[]) : undefined;
+}
+
+/**
+ * The properties that hold child elements, read from the moddle schema.
+ *
+ * Schema-driven rather than hand-listed because this is what decides whether
+ * an element is reachable, and an element we fail to reach is one this module
+ * offers to delete. A missing `ioSpecification` alone was enough to make a
+ * valid `bpmn:DataInputAssociation` look like a dangling flow.
+ *
+ * A non-primitive type is one naming a namespace; references are excluded so a
+ * back-reference never makes an element look reachable once its container is
+ * gone.
+ */
+function containmentProperties(node: ModdleNode): string[] {
+    const properties = descriptorProperties(node);
+    if (!properties) return LITERAL_CONTAINMENT_PROPERTIES;
+
+    return properties
+        .filter(
+            (property) =>
+                !property.isAttr &&
+                !property.isReference &&
+                property.type?.includes(":") &&
+                !DI_NAMESPACE_PREFIXES.some((prefix) => property.type?.startsWith(prefix)),
+        )
+        .map((property) => property.name);
+}
+
+/** Applies `visit` to every element contained by `node`. */
+function forEachChild(node: ModdleNode, visit: (child: ModdleNode) => void): void {
+    for (const key of containmentProperties(node)) {
+        const value = node[key];
+        if (Array.isArray(value)) value.forEach((child) => visit(child as ModdleNode));
+        else if (value && typeof value === "object") visit(value as ModdleNode);
+    }
+}
 
 function asArray(value: unknown): ModdleNode[] {
     return Array.isArray(value) ? (value as ModdleNode[]) : [];
@@ -86,6 +151,27 @@ function refId(value: unknown): string | undefined {
         return typeof id === "string" ? id : undefined;
     }
     return undefined;
+}
+
+/**
+ * Every id a reference property names.
+ *
+ * Reference properties are not uniformly single-valued: `bpmn:DataAssociation`
+ * declares `sourceRef` as a collection, so reading it as one id yields
+ * `undefined` and makes a well-formed association look unresolved.
+ */
+function referencedIds(node: ModdleNode, property: string): string[] {
+    const value = node[property];
+    if (value === undefined || value === null) return [];
+    const values = Array.isArray(value) ? value : [value];
+    return values.map(refId).filter((id): id is string => id !== undefined);
+}
+
+/** Whether the schema caps this reference property at one value. */
+function isSingleValued(node: ModdleNode, property: string): boolean {
+    const descriptor = descriptorProperties(node)?.find((entry) => entry.name === property);
+    if (!descriptor) return !Array.isArray(node[property]);
+    return !descriptor.isMany;
 }
 
 function describe(node: ModdleNode): string {
@@ -101,21 +187,15 @@ function spliceAction(array: unknown[], node: unknown): CleanupAction | undefine
 /**
  * Every BPMN element reachable from `definitions`, indexed by id.
  *
- * Walks the containment properties bpmn-moddle actually uses, rather than
- * every own property, so a `sourceRef` back-reference never makes an element
- * look reachable when its container is gone.
+ * Reachability is what the destructive findings are decided against, so it
+ * follows the moddle schema — see {@link containmentProperties}.
  */
 export function indexModelElements(definitions: ModdleNode): Map<string, ModdleNode> {
     const index = new Map<string, ModdleNode>();
 
     const visit = (node: ModdleNode): void => {
         if (node.id && !index.has(node.id)) index.set(node.id, node);
-
-        for (const key of CONTAINMENT_PROPERTIES) {
-            const value = node[key];
-            if (Array.isArray(value)) value.forEach((child) => visit(child as ModdleNode));
-            else if (value && typeof value === "object") visit(value as ModdleNode);
-        }
+        forEachChild(node, visit);
     };
 
     visit(definitions);
@@ -127,10 +207,9 @@ function connectedIds(index: Map<string, ModdleNode>): Set<string> {
     const connected = new Set<string>();
     for (const node of index.values()) {
         if (!CONNECTION_TYPES.has(node.$type)) continue;
-        const source = refId(node.sourceRef);
-        const target = refId(node.targetRef);
-        if (source) connected.add(source);
-        if (target) connected.add(target);
+        for (const property of ENDPOINT_PROPERTIES) {
+            for (const id of referencedIds(node, property)) connected.add(id);
+        }
     }
     return connected;
 }
@@ -332,6 +411,21 @@ function inspectDi(definitions: ModdleNode, index: Map<string, ModdleNode>): Fin
     return findings;
 }
 
+/**
+ * Whether a connection names an endpoint the model does not contain.
+ *
+ * An absent endpoint only counts when the schema says the property holds a
+ * single value: `bpmn:DataAssociation.sourceRef` is a collection, and an empty
+ * one is a legal model rather than something to delete.
+ */
+function hasUnresolvedEndpoint(node: ModdleNode, index: Map<string, ModdleNode>): boolean {
+    return ENDPOINT_PROPERTIES.some((property) => {
+        const ids = referencedIds(node, property);
+        if (ids.length === 0) return isSingleValued(node, property);
+        return ids.some((id) => !index.has(id));
+    });
+}
+
 function inspectSemantics(
     definitions: ModdleNode,
     index: Map<string, ModdleNode>,
@@ -342,9 +436,7 @@ function inspectSemantics(
 
     for (const node of index.values()) {
         if (CONNECTION_TYPES.has(node.$type)) {
-            const source = refId(node.sourceRef);
-            const target = refId(node.targetRef);
-            if (!source || !target || !index.has(source) || !index.has(target)) {
+            if (hasUnresolvedEndpoint(node, index)) {
                 findings.push({
                     item: {
                         kind: "dangling-flow",
@@ -448,11 +540,7 @@ function inspectEmptyExtensions(definitions: ModdleNode): Finding[] {
             });
         }
 
-        for (const key of CONTAINMENT_PROPERTIES) {
-            const value = node[key];
-            if (Array.isArray(value)) value.forEach((child) => visit(child as ModdleNode));
-            else if (value && typeof value === "object") visit(value as ModdleNode);
-        }
+        forEachChild(node, visit);
     };
 
     visit(definitions);

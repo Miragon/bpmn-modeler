@@ -12,7 +12,7 @@ import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
 import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-modeler-layout";
-import type { CleanupItem } from "@miragon/bpmn-modeler-types";
+import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
@@ -477,7 +477,7 @@ export class BpmnModeler {
      *
      * @see BpmnModelerHandle.cleanupDiagram
      */
-    cleanupDiagram(options?: { apply?: boolean }): CleanupItem[] {
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
         const cleanup = this.getModeler().get<CleanupService>("bpmnCleanup");
         return options?.apply ? cleanup.apply() : cleanup.inspect();
     }

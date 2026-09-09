@@ -40,22 +40,26 @@ function build(knownIds: string[] = []) {
     const { definitions, orphanDi, ghost } = model();
     const commandStack = { execute: vi.fn() };
     const elements = new Map(knownIds.map((id) => [id, { id }]));
-    const service = new CleanupService({ get: (id: string) => elements.get(id) }, commandStack, {
-        getDefinitions: () => definitions,
-    });
-    return { service, commandStack, definitions, orphanDi, ghost };
+    const bpmnjs = { getDefinitions: vi.fn(() => definitions) };
+    const service = new CleanupService(
+        { get: (id: string) => elements.get(id) },
+        commandStack,
+        bpmnjs,
+    );
+    return { service, commandStack, bpmnjs, definitions, orphanDi, ghost };
 }
 
 describe("CleanupService", () => {
     it("reports findings without changing anything", () => {
         const { service, commandStack } = build();
 
-        expect(
-            service
-                .inspect()
-                .map((item) => item.kind)
-                .sort(),
-        ).toEqual(["isolated-node", "orphan-di"]);
+        const outcome = service.inspect();
+
+        expect(outcome.status).toBe("reported");
+        expect(outcome.items.map((item) => item.kind).sort()).toEqual([
+            "isolated-node",
+            "orphan-di",
+        ]);
         expect(commandStack.execute).not.toHaveBeenCalled();
     });
 
@@ -64,7 +68,11 @@ describe("CleanupService", () => {
 
         const applied = service.apply();
 
-        expect(applied.map((item) => item.kind).sort()).toEqual(["isolated-node", "orphan-di"]);
+        expect(applied.status).toBe("applied");
+        expect(applied.items.map((item) => item.kind).sort()).toEqual([
+            "isolated-node",
+            "orphan-di",
+        ]);
         expect(commandStack.execute).toHaveBeenCalledOnce();
         expect(commandStack.execute.mock.calls[0][0]).toBe(CLEANUP_COMMAND);
     });
@@ -109,7 +117,39 @@ describe("CleanupService", () => {
         };
         (definitions.rootElements as ModdleNode[])[0].flowElements = [];
 
-        expect(service.apply()).toEqual([]);
+        expect(service.apply()).toEqual({ status: "applied", items: [] });
         expect(commandStack.execute).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * An empty item list is what the host turns into "nothing to clean up", so it
+ * has to mean the diagram was clean and nothing else.
+ */
+describe("CleanupService failure reporting", () => {
+    it("reports a failed inspection instead of an empty report", () => {
+        const { service, bpmnjs } = build();
+        bpmnjs.getDefinitions.mockImplementation(() => {
+            throw new Error("model unreadable");
+        });
+
+        expect(service.inspect()).toEqual({
+            status: "failed",
+            items: [],
+            message: "model unreadable",
+        });
+    });
+
+    it("reports a failed apply instead of an empty report", () => {
+        const { service, commandStack } = build(["Task_ghost"]);
+        commandStack.execute.mockImplementation(() => {
+            throw new Error("command stack exploded");
+        });
+
+        expect(service.apply()).toEqual({
+            status: "failed",
+            items: [],
+            message: "command stack exploded",
+        });
     });
 });

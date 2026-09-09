@@ -27,9 +27,9 @@ export interface EdgeGeometry {
 /**
  * What a {@link LayoutEngine} returns: absolute geometry, never XML.
  *
- * Reading geometry instead of writing the engine's XML back is what contains
- * the engine's destructiveness — everything it omits or mislays keeps the DI
- * it already has, because nothing referring to it appears here.
+ * Geometry rather than the engine's own XML, so nothing the engine drops or
+ * rewrites can reach the model: an element it omits simply has no entry here,
+ * and keeps the geometry it already had.
  */
 export interface LayoutResult {
     shapes: ShapeGeometry[];

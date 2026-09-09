@@ -89,7 +89,7 @@ import type {
     ModelerMode,
 } from "@miragon/bpmn-modeler";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
-import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import type { CleanupOutcome, LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
 import { LAYOUT_FORMATTED_EVENT } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type { WebviewState } from "./webviewState";
@@ -1383,15 +1383,30 @@ function startSession(
             case queryOrCommand.type === "CleanupDiagramQuery": {
                 const apply = (message.data as CleanupDiagramQuery).apply;
                 try {
-                    const items = isFormattableHandle(surface)
+                    // A surface without the capability is a failure to report,
+                    // not a clean diagram — an empty report would be shown as
+                    // "nothing to clean up".
+                    const outcome: CleanupOutcome = isFormattableHandle(surface)
                         ? surface.cleanupDiagram({ apply })
-                        : [];
-                    host.postMessage(new CleanupReportCommand(items, apply));
+                        : {
+                              status: "failed",
+                              items: [],
+                              message: "this surface cannot be cleaned up",
+                          };
+                    if (outcome.status === "failed" && outcome.message) {
+                        host.postMessage(new LogErrorCommand(errorPrefix + outcome.message));
+                    }
+                    host.postMessage(new CleanupReportCommand(outcome, apply));
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                     // Always reply: the host holds a one-shot subscription that
                     // would otherwise leak waiting for a report.
-                    host.postMessage(new CleanupReportCommand([], apply));
+                    host.postMessage(
+                        new CleanupReportCommand(
+                            { status: "failed", items: [], message: error.message },
+                            apply,
+                        ),
+                    );
                 }
                 break;
             }

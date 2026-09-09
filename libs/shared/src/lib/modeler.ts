@@ -54,7 +54,7 @@ import type {
     BpmnlintConfig,
     BpmnModelerSetting,
     BpmnViewerMode,
-    CleanupItem,
+    CleanupOutcome,
     DetectedEngine,
     SurfaceMode,
     DiffCounts,
@@ -789,10 +789,16 @@ export class CleanupDiagramQuery extends Query {
     }
 }
 
-/** Webview → host: what a cleanup found, and whether it was carried out. */
+/**
+ * Webview → host: how a cleanup ended, and whether it was the apply leg.
+ *
+ * `applied` stays alongside {@link CleanupOutcome.status} because it says which
+ * request this answers: a failed apply and a failed report are the same status
+ * but must not lead to the same prompt.
+ */
 export class CleanupReportCommand extends Command {
     constructor(
-        public readonly items: CleanupItem[],
+        public readonly outcome: CleanupOutcome,
         public readonly applied: boolean,
     ) {
         super("CleanupReportCommand");

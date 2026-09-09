@@ -1,4 +1,4 @@
-import type { CleanupItem } from "@miragon/bpmn-modeler-types";
+import type { CleanupItem, CleanupOutcome } from "@miragon/bpmn-modeler-types";
 
 import { findCleanupCandidates, indexModelElements, planCleanupActions } from "../cleanup/rules";
 import type { CleanupAction, ModdleNode } from "../cleanup/rules";
@@ -20,6 +20,11 @@ interface BpmnJsLike {
  * report it handed out: the user confirms in a host dialog, and may have
  * edited the diagram in between, so a stale id list is not something to
  * delete by.
+ *
+ * Both entry points report failure rather than throwing. An empty item list
+ * has to mean "nothing to clean up" and nothing else, so the one caller that
+ * turns this into a user-facing message cannot confuse a spotless diagram with
+ * an analysis that never ran.
  */
 export class CleanupService {
     static $inject = ["elementRegistry", "commandStack", "bpmnjs"];
@@ -30,20 +35,34 @@ export class CleanupService {
         private readonly bpmnjs: BpmnJsLike,
     ) {}
 
-    inspect(): CleanupItem[] {
-        return findCleanupCandidates(this.definitions());
+    inspect(): CleanupOutcome {
+        return this.guard("reported", () => findCleanupCandidates(this.definitions()));
     }
 
-    apply(): CleanupItem[] {
-        const definitions = this.definitions();
-        const items = findCleanupCandidates(definitions);
-        if (items.length === 0) return [];
+    apply(): CleanupOutcome {
+        return this.guard("applied", () => {
+            const definitions = this.definitions();
+            const items = findCleanupCandidates(definitions);
+            if (items.length === 0) return [];
 
-        const actions = this.resolve(definitions, planCleanupActions(definitions));
-        if (actions.length === 0) return [];
+            const actions = this.resolve(definitions, planCleanupActions(definitions));
+            if (actions.length === 0) return [];
 
-        this.commandStack.execute(CLEANUP_COMMAND, { actions });
-        return items;
+            this.commandStack.execute(CLEANUP_COMMAND, { actions });
+            return items;
+        });
+    }
+
+    private guard(status: "reported" | "applied", run: () => CleanupItem[]): CleanupOutcome {
+        try {
+            return { status, items: run() };
+        } catch (error) {
+            return {
+                status: "failed",
+                items: [],
+                message: error instanceof Error ? error.message : String(error),
+            };
+        }
     }
 
     /**

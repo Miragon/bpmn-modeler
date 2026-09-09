@@ -14,7 +14,13 @@
  * `ENGINE_FAILED` is the single catch-all for a throwing engine.
  */
 export type LayoutErrorCode =
-    "UNSUPPORTED_SURFACE" | "UNSUPPORTED_DRILLDOWN" | "EMPTY_DIAGRAM" | "ENGINE_FAILED";
+    | "UNSUPPORTED_SURFACE"
+    | "EMPTY_DIAGRAM"
+    | "ENGINE_FAILED"
+    /** The diagram was edited, reloaded or closed while the layout was computing. */
+    | "DIAGRAM_CHANGED"
+    /** The layout was computed, but writing it to the model threw. */
+    | "APPLY_FAILED";
 
 /** A non-fatal remark from the engine; formatting proceeded regardless. */
 export interface LayoutDiagnostic {
@@ -45,4 +51,21 @@ export interface CleanupItem {
     readonly kind: CleanupKind;
     readonly id?: string;
     readonly label: string;
+}
+
+/**
+ * How a cleanup ended.
+ *
+ * `failed` exists so an empty `items` is unambiguous: without it a thrown
+ * analysis and a spotless diagram are the same message, and the host tells the
+ * user there was nothing to clean up when in fact nothing was looked at.
+ */
+export type CleanupStatus = "reported" | "applied" | "failed";
+
+export interface CleanupOutcome {
+    readonly status: CleanupStatus;
+    /** What was found — or, for `applied`, what was removed. Empty on failure. */
+    readonly items: CleanupItem[];
+    /** Present only on `failed`; for the log, not for the user. */
+    readonly message?: string;
 }

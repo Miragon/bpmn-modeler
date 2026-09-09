@@ -16,8 +16,10 @@
         "diagram-js": "15.24.1"
     },
     "devDependencies": {
+        "bpmn-js": "18.25.1",
         "bpmn-moddle": "10.2.0",
         "diagram-js": "15.24.1",
+        "jsdom": "30.0.1",
         "typescript": "6.0.3",
         "vitest": "4.1.11"
     }

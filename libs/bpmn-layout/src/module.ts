@@ -47,20 +47,51 @@ function LayoutCommandInitializer(eventBus: EventBusLike, injector: InjectorLike
 (LayoutCommandInitializer as unknown as { $inject: string[] }).$inject = ["eventBus", "injector"];
 
 /**
- * The bpmn-js module for diagram formatting and cleanup.
+ * Formatting and cleanup themselves: the services, the engine and the command
+ * handlers, with no opinion about how a user reaches them.
+ *
+ * Separate from {@link createBpmnLayoutUiModule} so a consumer with its own
+ * chrome — a host that drives `bpmnLayouter` from a menu, or an embedder with
+ * no palette at all — can take the capability without also inheriting our
+ * palette entry and our choice of keybinding.
  *
  * @param engine Replaces the layout implementation. The default wraps
  *   `bpmn-auto-layout`; anything satisfying {@link LayoutEngine} works, and
  *   nothing above the port needs to change.
  */
-export function createBpmnLayoutModule(engine?: LayoutEngine) {
+export function createBpmnLayoutServiceModule(engine?: LayoutEngine) {
     return {
-        __init__: ["bpmnLayoutCommands", "layoutKeyboard", "layoutPaletteProvider"],
+        __init__: ["bpmnLayoutCommands"],
         bpmnLayoutCommands: ["type", LayoutCommandInitializer],
-        layoutKeyboard: ["type", LayoutKeyboard],
-        layoutPaletteProvider: ["type", LayoutPaletteProvider],
         bpmnLayouter: ["type", Layouter],
         bpmnCleanup: ["type", CleanupService],
         layoutEngine: ["value", engine ?? new BpmnAutoLayoutEngine()],
+    };
+}
+
+/**
+ * The in-canvas triggers: the palette entry and the keyboard binding.
+ *
+ * Requires {@link createBpmnLayoutServiceModule} — both resolve `bpmnLayouter`
+ * lazily, so registering this alone leaves them inert rather than throwing.
+ */
+export function createBpmnLayoutUiModule() {
+    return {
+        __init__: ["layoutKeyboard", "layoutPaletteProvider"],
+        layoutKeyboard: ["type", LayoutKeyboard],
+        layoutPaletteProvider: ["type", LayoutPaletteProvider],
+    };
+}
+
+/**
+ * Formatting and cleanup with the standard in-canvas triggers — what the
+ * modeler registers, and the right default for a consumer that has no reason
+ * to compose the two halves itself.
+ */
+export function createBpmnLayoutModule(engine?: LayoutEngine) {
+    return {
+        ...createBpmnLayoutServiceModule(engine),
+        ...createBpmnLayoutUiModule(),
+        __init__: ["bpmnLayoutCommands", "layoutKeyboard", "layoutPaletteProvider"],
     };
 }

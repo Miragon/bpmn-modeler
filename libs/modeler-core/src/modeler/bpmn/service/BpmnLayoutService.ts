@@ -12,10 +12,10 @@ import { EditorSessionStore } from "../../../shared/infrastructure/EditorSession
 /** What each refusal means, in words a user can act on. */
 const REFUSAL_MESSAGES: Record<LayoutErrorCode, string> = {
     UNSUPPORTED_SURFACE: "This diagram is read-only, so it cannot be formatted.",
-    UNSUPPORTED_DRILLDOWN:
-        "Formatting works on the top-level diagram. Leave the subprocess and try again.",
     EMPTY_DIAGRAM: "There is nothing to format yet.",
     ENGINE_FAILED: "The diagram could not be formatted.",
+    DIAGRAM_CHANGED: "The diagram changed while it was being formatted. Try again.",
+    APPLY_FAILED: "The new layout could not be applied, so the diagram is unchanged.",
 };
 
 const NOTHING_TO_CLEAN = "Nothing to clean up — the diagram carries no leftovers.";
@@ -75,27 +75,37 @@ export class BpmnLayoutService {
 
     /**
      * Handles a cleanup report: confirms with the user, then asks the webview
-     * to apply — which recomputes rather than acting on `message.items`.
+     * to apply — which recomputes rather than acting on `outcome.items`.
      */
     async reportCleanup(message: CleanupReportCommand, editorId: string): Promise<void> {
-        if (message.applied) {
-            this.notifier.showInfo(
-                message.items.length === 0
-                    ? NOTHING_TO_CLEAN
-                    : `Cleaned up ${message.items.length} item(s).`,
+        const { status, items, message: detail } = message.outcome;
+
+        if (status === "failed") {
+            if (detail) this.notifier.logError(`Cleanup failed: ${detail}`);
+            this.notifier.showError(
+                message.applied
+                    ? "The leftovers could not be removed, so the diagram is unchanged."
+                    : "The diagram could not be checked for leftovers.",
             );
             return;
         }
 
-        if (message.items.length === 0) {
+        if (message.applied) {
+            this.notifier.showInfo(
+                items.length === 0 ? NOTHING_TO_CLEAN : `Cleaned up ${items.length} item(s).`,
+            );
+            return;
+        }
+
+        if (items.length === 0) {
             this.notifier.showInfo(NOTHING_TO_CLEAN);
             return;
         }
 
         const confirmed = await this.picker.confirmDestructive({
-            title: `Remove ${message.items.length} leftover item(s) from this diagram?`,
+            title: `Remove ${items.length} leftover item(s) from this diagram?`,
             confirmLabel: "Clean Up",
-            details: message.items.map((item) => item.label),
+            details: items.map((item) => item.label),
         });
         if (!confirmed) return;
 

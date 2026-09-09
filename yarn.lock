@@ -4016,8 +4016,10 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-layout@workspace:libs/bpmn-layout"
   dependencies:
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
+    bpmn-js: "npm:18.25.1"
     bpmn-moddle: "npm:10.2.0"
     diagram-js: "npm:15.24.1"
+    jsdom: "npm:30.0.1"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.11"
   peerDependencies:

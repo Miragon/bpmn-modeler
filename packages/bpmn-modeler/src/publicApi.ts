@@ -9,7 +9,7 @@ import type Modeling from "bpmn-js/lib/features/modeling/Modeling";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
-    CleanupItem,
+    CleanupOutcome,
     Engine,
     LintResults,
     LintRunEvent,
@@ -277,8 +277,11 @@ export interface BpmnModelerHandle {
      * it is a separate call: report first, confirm with the user, then apply.
      * Applying recomputes the findings rather than trusting the reported ones,
      * so an edit made in between is never deleted by a stale id.
+     *
+     * Reports failure in the outcome rather than throwing, so an empty item
+     * list always means the diagram was clean.
      */
-    cleanupDiagram(options?: { apply?: boolean }): CleanupItem[];
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
 
     /** [A] Push a new set of element templates (data, never a path). */
     setElementTemplates(templates: object[]): void;

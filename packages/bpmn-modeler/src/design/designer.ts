@@ -38,7 +38,7 @@ import { installKeyboardFocus } from "../keyboardFocus";
 import { buildLintModules } from "../lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "../lintHandle";
 import type { LintConfigService } from "../bpmnlint/LintConfigService";
-import type { BpmnlintConfig, CleanupItem, LintResults } from "@miragon/bpmn-modeler-types";
+import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
@@ -304,7 +304,7 @@ export class BpmnDesigner {
     }
 
     /** @see BpmnDesignerHandle.cleanupDiagram */
-    cleanupDiagram(options?: { apply?: boolean }): CleanupItem[] {
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
         const cleanup = this.getModeler().get<CleanupService>("bpmnCleanup");
         return options?.apply ? cleanup.apply() : cleanup.inspect();
     }

@@ -49,6 +49,7 @@ export type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 export type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 export type {
     CleanupItem,
+    CleanupOutcome,
     CleanupKind,
     LayoutDiagnostic,
     LayoutErrorCode,

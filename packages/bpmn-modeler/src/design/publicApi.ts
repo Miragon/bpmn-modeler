@@ -2,7 +2,7 @@ import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
 import type {
     BpmnlintConfig,
-    CleanupItem,
+    CleanupOutcome,
     LintResults,
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
@@ -177,7 +177,7 @@ export interface BpmnDesignerHandle {
     formatDiagram(): Promise<LayoutOutcome>;
 
     /** Report — or, with `apply`, remove — orphan DI and other leftovers. */
-    cleanupDiagram(options?: { apply?: boolean }): CleanupItem[];
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
 
     /** Viewport (zoom/scroll/fit) accessor. */
     readonly viewport: ViewportManager;

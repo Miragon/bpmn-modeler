@@ -7,23 +7,21 @@ import type { LayoutErrorCode } from "@miragon/bpmn-modeler-types";
 export interface PreflightModel {
     /** False on the read-only viewer, which has neither `modeling` nor `commandStack`. */
     editable: boolean;
-    /** False while drilled into a subprocess plane — the engine lays out the whole definitions tree. */
-    topLevelPlane: boolean;
-    /** BPMN elements on the diagram, excluding labels and the root. */
+    /** BPMN elements across every plane, excluding labels and plane roots. */
     elementCount: number;
 }
 
 /**
  * Decides whether formatting may run at all.
  *
- * This is our own gate, deliberately independent of the engine: it must hold
- * even when a future engine version starts accepting cases we refuse today.
+ * Only conditions under which formatting is *meaningless* belong here — a
+ * surface that cannot be modelled on, and a diagram with nothing on it. Which
+ * plane is open is deliberately not one of them; the registry spans planes.
  *
  * @returns The refusal reason, or `undefined` when the diagram may be formatted.
  */
 export function analyzeLayoutability(model: PreflightModel): LayoutErrorCode | undefined {
     if (!model.editable) return "UNSUPPORTED_SURFACE";
-    if (!model.topLevelPlane) return "UNSUPPORTED_DRILLDOWN";
     if (model.elementCount === 0) return "EMPTY_DIAGRAM";
     return undefined;
 }

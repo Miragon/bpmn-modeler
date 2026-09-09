@@ -58,16 +58,52 @@ destroy undo. Four bpmn-js behaviours must be suppressed by hint —
 on resize, and `AdaptiveLabelPositioningBehavior` on waypoint updates.
 
 **The refusal taxonomy is ours.** A pre-flight check decides what may be
-formatted (`UNSUPPORTED_SURFACE`, `UNSUPPORTED_DRILLDOWN`, `EMPTY_DIAGRAM`),
-independent of the engine, so it keeps holding when the engine starts accepting
-cases we refuse today; a throwing engine maps to `ENGINE_FAILED`. Formatting
-computes first and applies only on success, so every failure path leaves the
-model untouched.
+formatted (`UNSUPPORTED_SURFACE`, `EMPTY_DIAGRAM`) — only the cases where
+formatting is meaningless. Which plane the user has drilled into is
+deliberately *not* one of them: the element registry holds every plane's
+elements regardless of which is displayed, so a snapshot taken inside a
+collapsed subprocess is as complete as one taken at the top level. A throwing
+engine maps to `ENGINE_FAILED`, a throwing application to `APPLY_FAILED`.
+
+**The engine boundary is asynchronous, so the run has a lifecycle.** The
+document revision is captured before the export and re-checked after it and
+after the engine returns; an edit, an import, a `diagram.clear` or a
+`diagram.destroy` in between yields `DIAGRAM_CHANGED` and applies nothing. This
+is not hypothetical tidiness: the plan holds *relative* deltas measured against
+the pre-run snapshot, so applying a superseded plan displaces every shape by
+the drift instead of failing visibly. A second `format()` while one is in
+flight joins the first rather than starting a rival run.
+
+**`format()` never rejects.** The palette entry and the keyboard binding cannot
+await it, so a throw would be both an unhandled rejection and an outcome
+reported to nobody. Every failure becomes a `LayoutOutcome`, announced on
+`layout.formatted`, which is the one path both triggers and the host share.
+Cleanup answers the same way, with a `CleanupOutcome` carrying an explicit
+`failed` — without it an empty finding list means both "the diagram is clean"
+and "the analysis never ran", and the host presents the second as the first.
+
+Formatting computes first and applies only on success, so every failure path
+leaves the model untouched.
 
 **Cleanup is a separate command**, never part of formatting: it reports its
 findings, asks for confirmation, and recomputes the findings before applying,
 because a stale id list cannot survive the round trip. Format itself is
 guaranteed to touch only DI.
+
+**Cleanup reads reachability and references from the moddle schema**, via each
+node's `$descriptor`, rather than from a hand-kept list of containment
+properties. The list is what decides whether an element is reachable, and an
+unreachable element is one this feature offers to *delete* — an approximation
+of the model is the wrong tool for a destructive operation. The omission of
+`ioSpecification` alone was enough to report a valid `bpmn:DataInputAssociation`
+as a dangling flow, helped by `bpmn:DataAssociation.sourceRef` being a
+collection where a sequence flow's is a single reference.
+
+**The bpmn-js module is published in halves** — `createBpmnLayoutServiceModule`
+(services, engine, command handlers) and `createBpmnLayoutUiModule` (palette
+entry, keybinding) — with `createBpmnLayoutModule` composing both as the
+default. A host that drives formatting from its own chrome takes the capability
+without inheriting our palette entry or our choice of key.
 
 **No configuration and no format-on-save.** The engine has no options to
 expose, and a greenfield relayout on every save would discard manual
@@ -123,5 +159,17 @@ semantics to tune.
 - Lanes formatted by this feature pass through `UpdateFlowNodeRefsBehavior`,
   which recomputes `bpmn:Lane.flowNodeRef` from geometry. The claim that
   formatting only changes DI therefore rests on the layout preserving lane
-  membership, and is asserted by a test rather than by construction.
+  membership, and is asserted by a test rather than by construction — through a
+  real bpmn-js modeler in `apply/integration.spec.ts`, not through a mock.
+- That integration suite runs bpmn-js headless under jsdom, which needs the SVG
+  transform and canvas text-measurement APIs jsdom lacks
+  (`__fixtures__/headlessDom.ts`). The matrix arithmetic there is implemented
+  rather than stubbed, because the canvas viewbox is derived from it; text
+  metrics are estimated but must stay strictly positive, since label wrapping
+  shortens a line until it measures narrow enough and a zero width never
+  converges.
+- `bpmn:Lane.flowNodeRef` order is not preserved across a format — a boundary
+  event is re-appended to its lane. Membership is unchanged and the order is
+  semantically irrelevant, but it does show up as diff noise in version
+  control.
 - Spacing stays fixed until `layoutProcess(xml, options)` exists upstream.

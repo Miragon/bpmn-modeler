@@ -13,7 +13,11 @@
  * new BpmnModeler({ additionalModules: [createBpmnLayoutModule()] });
  * ```
  */
-export { createBpmnLayoutModule } from "./module";
+export {
+    createBpmnLayoutModule,
+    createBpmnLayoutServiceModule,
+    createBpmnLayoutUiModule,
+} from "./module";
 
 export type {
     Bounds,

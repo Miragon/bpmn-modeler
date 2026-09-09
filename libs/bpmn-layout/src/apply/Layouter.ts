@@ -43,14 +43,20 @@ interface InjectorLike {
 
 interface EventBusLike {
     fire(event: string, payload: unknown): void;
+    on(event: string, listener: () => void): void;
 }
 
 interface BpmnJsLike {
     saveXML(options?: { format?: boolean }): Promise<{ xml?: string }>;
 }
 
-/** Root plane types. Anything else means the user has drilled into a subprocess. */
-const TOP_LEVEL_ROOTS = new Set(["bpmn:Process", "bpmn:Collaboration"]);
+/**
+ * Events after which the geometry this service captured no longer describes
+ * the open document. `commandStack.changed` covers every edit, including the
+ * undo of a previous format; the other two cover a document swapped underneath
+ * an in-flight run.
+ */
+const INVALIDATING_EVENTS = ["commandStack.changed", "import.done", "diagram.clear"];
 
 export const LAYOUT_APPLY_COMMAND = "layout.apply";
 
@@ -63,12 +69,18 @@ export const LAYOUT_APPLY_COMMAND = "layout.apply";
  */
 export const LAYOUT_FORMATTED_EVENT = "layout.formatted";
 
+const STALE_OUTCOME: LayoutOutcome = {
+    status: "failed",
+    code: "DIAGRAM_CHANGED",
+    diagnostics: [],
+};
+
 /**
- * Formats the diagram: snapshot, pre-flight, engine, plan, apply.
+ * Formats the diagram: pre-flight, export, snapshot, engine, plan, apply.
  *
- * The order is the invariant, not an implementation detail — every failure
- * path returns before `commandStack.execute` is reached, so a refusal or an
- * engine crash leaves the model exactly as it was.
+ * The order is the invariant, not an implementation detail — every failure and
+ * staleness path returns before `commandStack.execute` is reached, so a
+ * refusal, an engine crash or a concurrent edit leaves the model as it was.
  */
 export class Layouter {
     static $inject = [
@@ -81,6 +93,19 @@ export class Layouter {
         "bpmnjs",
     ];
 
+    /**
+     * Bumped by every event that invalidates captured geometry. A run compares
+     * it across each await; the plan is a set of *relative* movements, so
+     * applying one computed against superseded geometry displaces every shape
+     * by the drift rather than failing visibly.
+     */
+    private revision = 0;
+
+    private destroyed = false;
+
+    /** The run in flight, if any. See {@link format}. */
+    private inFlight?: Promise<LayoutOutcome>;
+
     constructor(
         private readonly injector: InjectorLike,
         private readonly canvas: CanvasLike,
@@ -89,11 +114,56 @@ export class Layouter {
         private readonly eventBus: EventBusLike,
         private readonly layoutEngine: LayoutEngine,
         private readonly bpmnjs: BpmnJsLike,
-    ) {}
+    ) {
+        for (const event of INVALIDATING_EVENTS) {
+            this.eventBus.on(event, () => {
+                this.revision++;
+            });
+        }
+        this.eventBus.on("diagram.destroy", () => {
+            this.destroyed = true;
+        });
+    }
 
+    /**
+     * Formats the diagram, announcing the outcome on {@link LAYOUT_FORMATTED_EVENT}.
+     *
+     * Never rejects: the palette and the keyboard binding cannot await it, so a
+     * throw would be an unhandled rejection *and* a trigger that silently
+     * reports nothing. Every failure becomes a {@link LayoutOutcome} instead.
+     *
+     * A call made while a run is in flight joins that run rather than starting
+     * a second one. Two concurrent layouts of the same diagram cannot both be
+     * applied — the later one is computed against geometry the earlier one is
+     * about to invalidate.
+     */
     async format(): Promise<LayoutOutcome> {
-        const outcome = await this.runFormat();
-        this.eventBus.fire(LAYOUT_FORMATTED_EVENT, outcome);
+        if (this.inFlight) return this.inFlight;
+
+        this.inFlight = this.runAndAnnounce();
+        try {
+            return await this.inFlight;
+        } finally {
+            this.inFlight = undefined;
+        }
+    }
+
+    private async runAndAnnounce(): Promise<LayoutOutcome> {
+        let outcome: LayoutOutcome;
+        try {
+            outcome = await this.runFormat();
+        } catch (error) {
+            outcome = {
+                status: "failed",
+                code: "APPLY_FAILED",
+                message: messageOf(error),
+                diagnostics: [],
+            };
+        }
+
+        // A destroyed diagram has no host listening; firing would reach a bus
+        // whose subscribers are gone.
+        if (!this.destroyed) this.eventBus.fire(LAYOUT_FORMATTED_EVENT, outcome);
         return outcome;
     }
 
@@ -101,6 +171,7 @@ export class Layouter {
         const refusal = analyzeLayoutability(this.describeSurface());
         if (refusal) return { status: "failed", code: refusal, diagnostics: [] };
 
+        const startedAt = this.revision;
         let xml: string;
         try {
             const exported = await this.bpmnjs.saveXML({ format: false });
@@ -114,6 +185,8 @@ export class Layouter {
                 diagnostics: [],
             };
         }
+
+        if (this.isStale(startedAt)) return STALE_OUTCOME;
 
         // Taken before the engine runs, so the plan is a diff against exactly
         // the state the engine was given.
@@ -131,6 +204,11 @@ export class Layouter {
             };
         }
 
+        // The one check that matters: `snapshot` and `target` are both stale
+        // now, and the plan derived from them would move live shapes by a
+        // delta measured against geometry that no longer exists.
+        if (this.isStale(startedAt)) return STALE_OUTCOME;
+
         const operations = computeLayoutPlan(snapshot, target);
         // An empty plan must not reach the command stack: `_executedAction`
         // runs unconditionally, so it would leave a no-op entry behind for the
@@ -143,18 +221,29 @@ export class Layouter {
         return { status: "formatted", diagnostics: target.diagnostics };
     }
 
-    private describeSurface() {
-        const root = this.canvas.getRootElement();
-        const rootType = root?.businessObject?.$type;
+    /** Whether the document moved on, or went away, since `startedAt`. */
+    private isStale(startedAt: number): boolean {
+        return this.destroyed || this.revision !== startedAt;
+    }
 
+    /**
+     * Which plane is open does not appear here.
+     *
+     * The element registry holds every element of every plane regardless of
+     * where the user has drilled to — only `canvas.getRootElement()` changes —
+     * so a snapshot taken while inside a subprocess is just as complete, and
+     * refusing there would have been a limit of the check rather than of the
+     * operation.
+     */
+    private describeSurface() {
         return {
             editable: Boolean(
                 this.injector.get("modeling", false) && this.injector.get("commandStack", false),
             ),
-            topLevelPlane: Boolean(rootType && TOP_LEVEL_ROOTS.has(rootType)),
+            // Plane roots have no parent; they are containers, not content.
             elementCount: this.elementRegistry
                 .getAll()
-                .filter((element) => element.type !== "label" && element.id !== root?.id).length,
+                .filter((element) => element.type !== "label" && element.parent).length,
         };
     }
 
