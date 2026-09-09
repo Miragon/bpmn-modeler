@@ -83,7 +83,7 @@
     ],
     "main": "main.js",
     "activationEvents": [
-        "onUri"
+        "onUri",
         "onFileSystem:bpmn-form-input-values",
         "onFileSystem:bpmn-form-output-values"
     ],
