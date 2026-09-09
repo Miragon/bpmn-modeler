@@ -3,30 +3,21 @@ import { isAbsolute, resolve } from "node:path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "unplugin-dts/vite";
 
-// The private workspace libs inlined into the bundle (their source is pulled in
-// via the tsconfig path aliases). Everything else bare is a real dependency and
-// stays external — see `external` below. Keep this list in sync with the
-// `devDependencies` `workspace:*` entries and the architecture spec.
+// Private workspace libraries must be inlined because consumers cannot install them.
 const INLINED_LIBS = ["@miragon/bpmn-modeler-types", "@miragon/bpmn-modeler-i18n-extras"];
 
-// The source roots of the inlined libs — their per-file declarations must be
-// emitted so api-extractor can flatten them into `dist/index.d.ts` (they carry
-// no built `types` entry of their own).
+// Emit private-library declarations so API Extractor can inline their types.
 const INLINED_LIB_SRC = ["../../libs/modeler-types/src", "../../libs/bpmn-i18n-extras/src"];
 
 function isInlined(id: string): boolean {
     return INLINED_LIBS.some((name) => id === name || id.startsWith(`${name}/`));
 }
 
-// Bundle relatives, absolute (alias-resolved) paths, the inlined libs, and CSS;
-// externalise every other bare specifier so the dmn-js stack is never bundled.
-// `@oxc-project/runtime` is Vite 8's oxc transform-helper runtime (the tslib
-// analogue for its own lowering) — inline it so consumers never take a
-// dependency on our build tool's internals.
 function isExternal(id: string): boolean {
     if (id.startsWith(".") || isAbsolute(id)) return false;
     if (id.endsWith(".css")) return false;
     if (isInlined(id)) return false;
+    // Inline transform helpers to avoid exposing a build-tool dependency.
     if (id === "@oxc-project/runtime" || id.startsWith("@oxc-project/runtime/")) return false;
     return true;
 }
@@ -39,11 +30,7 @@ export default defineConfig({
         dts({
             tsconfigPath: "./tsconfig.lib.json",
             include: ["src", ...INLINED_LIB_SRC],
-            // Keep the `@miragon/*` specifiers in the emitted d.ts (do NOT rewrite
-            // them to source `.ts` paths); api-extractor then resolves them via
-            // tsconfig `paths` and inlines the ones listed in `bundledPackages`,
-            // producing one self-contained `dist/index.d.ts` with only bare npm
-            // externals left as imports.
+            // API Extractor needs package specifiers to resolve and inline bundledPackages.
             pathsToAliases: false,
             bundleTypes: {
                 bundledPackages: INLINED_LIBS,

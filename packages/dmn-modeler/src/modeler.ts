@@ -53,7 +53,6 @@ interface FocusableCanvas extends ResizableCanvas {
     isFocused(): boolean;
 }
 
-/** DRD canvas surface the focus reticle attaches to and reads focus from. */
 interface FocusIndicatorCanvas {
     getContainer(): HTMLElement;
     isFocused(): boolean;
@@ -80,7 +79,7 @@ interface ViewboxCanvas extends ResizableCanvas {
     viewbox(box: Viewbox): void;
 }
 
-/** @internal Runtime implementation of the public per-instance handle. */
+/** @internal */
 export class DmnModeler implements DmnModelerHandle {
     private readonly modeler: VendorDmnModeler;
     private readonly stopObservingSize: () => void;
@@ -88,8 +87,6 @@ export class DmnModeler implements DmnModelerHandle {
     private disposeFocusIndicator?: () => void;
     private destroyed = false;
 
-    // Per-instance theme controller, created lazily on the first setTheme. Scopes
-    // `data-dmn-theme` to this instance's container + panel parent.
     private themeController?: ThemeController;
 
     constructor(
@@ -100,16 +97,11 @@ export class DmnModeler implements DmnModelerHandle {
 
         this.modeler = new VendorDmnModeler({
             container,
-            // TranslateModule is an opinionated built-in on every view (the
-            // host-set locale is page-global). The Manager rebuilds each view's
-            // `additionalModules` from these per-view arrays only — a
-            // `common.additionalModules` entry would be dropped — so it must be
-            // registered on all four.
+            // dmn-js drops common.additionalModules, so each view needs TranslateModule.
             drd: {
                 propertiesPanel: {
                     ...options.propertiesPanel,
-                    // The FEEL popup defaults to document.body, outside this
-                    // instance's `data-dmn-theme` scope; mount it in the container.
+                    // The default document.body mount lies outside this instance’s theme scope.
                     feelPopupContainer: container,
                 },
                 additionalModules: [
@@ -223,18 +215,15 @@ export class DmnModeler implements DmnModelerHandle {
         this.assertLive();
         const localeBefore = i18n.getLocale();
         i18n.setLanguage(locale as SupportedLocale);
-        // setLanguage resolves unknown codes to "en"; compare the resolved locale
-        // so a repeated push (the host re-sends on every reload) does not re-import.
+        // Compare resolved locales: unknown codes fall back to "en".
         if (i18n.getLocale() === localeBefore) {
             return;
         }
         const activeView = this.modeler.getActiveView();
-        // Nothing rendered yet — the first import will render translated already.
         if (!activeView) {
             return;
         }
-        // Re-opening clears the DRD viewbox/selection; capture and restore it so a
-        // language switch does not also move the diagram.
+        // Reopening resets the DRD viewbox; preserve it to avoid moving the diagram.
         const viewbox = this.isDrdViewActive()
             ? this.getActiveViewboxCanvas()?.viewbox()
             : undefined;
@@ -295,17 +284,11 @@ export class DmnModeler implements DmnModelerHandle {
             this.unbindCommandStack();
             this.activeEventBus = eventBus;
             this.activeEventBus?.on("commandStack.changed", this.handleContentChanged);
-            // The active viewer changed (or cleared) — re-attach the focus
-            // reticle, which only lives on the diagram-js-based DRD view.
             this.syncCanvasFocusIndicator();
         }
     }
 
-    /**
-     * (Re)installs the green focus reticle on the active DRD view, tearing down
-     * any previous one. The decision-table and literal-expression views are not
-     * diagram-js based (no canvas focus), so it is installed only for `drd`.
-     */
+    // Only the DRD view has diagram-js canvas focus.
     private syncCanvasFocusIndicator(): void {
         this.disposeFocusIndicator?.();
         this.disposeFocusIndicator = undefined;

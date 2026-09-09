@@ -3,20 +3,7 @@ import { join, normalize } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
-/**
- * Import-direction gate for `@miragon/dmn-modeler`.
- *
- * The published package may reach only *downward* — relatives, the private
- * workspace libs it inlines at build time, and bare npm specifiers. It must
- * never name the private webview↔host protocol (`@miragon/bpmn-modeler-shared`),
- * the extension engine (`@miragon/bpmn-modeler-core`), or anything under
- * `apps/`. Conversely, no `libs/*` may depend on the package (that would invert
- * the layering `packages → libs`, not `libs → packages`).
- *
- * Text-scan rather than archunit's graph: under this workspace's
- * `moduleResolution: "bundler"` tsconfig archunit resolves no cross-file edges
- * (see `libs/modeler-core/src/architecture.spec.ts`).
- */
+// Archunit resolves no cross-file edges with this workspace’s bundler resolution.
 const PKG_SRC = __dirname;
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 const LIBS_ROOT = join(REPO_ROOT, "libs");
@@ -56,7 +43,6 @@ function importedModules(content: string): string[] {
     );
 }
 
-/** `@miragon/dmn-modeler` exactly, or a subpath of it. */
 const PACKAGE_SELF = /^@miragon\/dmn-modeler(\/|$)/;
 
 describe("dmn-modeler import direction", () => {
@@ -82,11 +68,7 @@ describe("dmn-modeler import direction", () => {
     });
 
     it("package TS source reads no VS Code `<body>` theme classes", () => {
-        // Theme is host policy: the package resolves light/dark from
-        // `prefers-color-scheme` or an injected mode, never by reading the host's
-        // chrome. A `vscode-*` body class in TS source would mean the watcher
-        // leaked back in. (CSS files legitimately style `body.vscode-dark`; this
-        // gate is TS-only, matching listSourceFiles.)
+        // Host chrome must be mapped to a theme mode outside the package.
         const VSCODE_CLASS = /vscode-(dark|light|high-contrast)/;
         const offenders: string[] = [];
         for (const file of listSourceFiles(PKG_SRC)) {
@@ -101,10 +83,6 @@ describe("dmn-modeler import direction", () => {
     });
 
     it("every top-level dark-theme selector is scoped under data-dmn-theme", () => {
-        // The dark sheet is authored scoped so per-instance theming never leaks
-        // across instances (and the legacy split is derived by stripping the
-        // scope). A top-level rule that forgot the attribute would paint every
-        // instance dark. Nested rules are exempt — their parent carries the scope.
         const DARK_DIR = join(PKG_SRC, "styles", "dark-theme");
         const offenders: string[] = [];
         for (const entry of readdirSync(DARK_DIR)) {

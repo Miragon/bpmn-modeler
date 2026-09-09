@@ -1,15 +1,3 @@
-/**
- * The public TypeScript surface of the host-free DMN modeler facade.
- *
- * Engine features are split into the same categories used by ADR 0007:
- *
- * - **[A] Engine-intrinsic** features are always present.
- * - **[B] Opinionated built-ins** have a useful default and may be replaced.
- *
- * The `on*` members are outbound notifications, documented separately from
- * either category. They do not provide host capabilities to the modeler.
- */
-
 /** A view editor supported by dmn-js. */
 export type DmnViewType = "drd" | "decisionTable" | "literalExpression" | "boxedExpression";
 
@@ -75,7 +63,7 @@ export interface DmnKeyboardOptions {
 }
 
 /**
- * [B] Theme selection for a single instance. The modeler toggles a
+ * Theme selection for a single instance. The modeler toggles a
  * `data-dmn-theme` attribute on its container + panel parent (the authoritative
  * mechanism — dark rules are scoped under `[data-dmn-theme="dark"]`, so two
  * instances on one page can hold different themes) and mirrors the choice onto a
@@ -89,49 +77,43 @@ export type DmnThemeMode = "light" | "dark" | "automatic";
 
 /** Per-instance configuration for {@link createModeler}. */
 export interface DmnModelerOptions {
-    // ── [A] Engine-intrinsic ───────────────────────────────────────────────
-
-    /** [A] The properties-panel host owned by this modeler instance. */
+    /** The properties-panel host owned by this modeler instance. */
     propertiesPanel: { parent: HTMLElement };
 
     /**
-     * [A] Extra DI modules for individual view editors. Caller modules are
+     * Extra DI modules for individual view editors. Caller modules are
      * appended after the facade defaults, allowing deliberate overrides.
      */
     additionalModules?: DmnAdditionalModules;
 
-    /** [A] Extra moddle descriptors, merged over the bundled Camunda descriptor. */
+    /** Extra moddle descriptors, merged over the bundled Camunda descriptor. */
     moddleExtensions?: Record<string, object>;
 
     /**
-     * [A] Expression-language configuration. When supplied it replaces the
+     * Expression-language configuration. When supplied it replaces the
      * facade's six-language default.
      */
     expressionLanguages?: DmnExpressionLanguages;
 
-    /** [A] Data types shown by editors. When supplied they replace the defaults. */
+    /** Data types shown by editors. When supplied they replace the defaults. */
     dataTypes?: string[];
 
-    /** [A] Per-editor keyboard configuration. */
+    /** Per-editor keyboard configuration. */
     keyboard?: DmnKeyboardOptions;
 
-    // ── [B] Opinionated built-ins ───────────────────────────────────────────
-
     /**
-     * [B] Colour theme — defaults to `"automatic"`. Theming always engages: the
+     * Colour theme — defaults to `"automatic"`. Theming always engages: the
      * instance gets a `data-dmn-theme` attribute from the first frame regardless
      * of whether this is set.
      */
     theme?: DmnThemeMode;
 
     /**
-     * [B] UI locale — defaults to the page's current locale (`"en"`). Page-global:
+     * UI locale — defaults to the page's current locale (`"en"`). Page-global:
      * the i18n instance is a singleton, so this sets the locale for every modeler
      * on the page. An unknown code resolves to `"en"`.
      */
     locale?: string;
-
-    // ── Events (outbound notifications) ────────────────────────────────────
 
     /** Fired for every active editor `commandStack.changed` notification. */
     onContentChanged?: () => void;
@@ -145,38 +127,38 @@ export interface DmnModelerOptions {
 
 /** The independent instance handle returned by {@link createModeler}. */
 export interface DmnModelerHandle {
-    /** [A] Load DMN XML, replacing any currently loaded document. */
+    /** Load DMN XML, replacing any currently loaded document. */
     loadDiagram(xml: string): Promise<DmnOperationResult>;
 
-    /** [A] Serialise the current document as formatted DMN XML. */
+    /** Serialise the current document as formatted DMN XML. */
     exportDiagram(): Promise<string>;
 
-    /** [A] Return the active view, if the loaded document has one. */
+    /** Return the active view, if the loaded document has one. */
     getActiveView(): DmnView | undefined;
 
-    /** [A] Return every view in the loaded document. */
+    /** Return every view in the loaded document. */
     getViews(): DmnView[];
 
-    /** [A] Open a view previously returned by this handle. */
+    /** Open a view previously returned by this handle. */
     openView(view: DmnView): Promise<DmnOperationResult>;
 
-    /** [A] Whether the decision requirements diagram is active. */
+    /** Whether the decision requirements diagram is active. */
     isDrdViewActive(): boolean;
 
-    /** [A] Focus the active DRD canvas; safely does nothing in other views. */
+    /** Focus the active DRD canvas; safely does nothing in other views. */
     focusCanvas(): void;
 
-    /** [A] Whether the active DRD canvas owns focus; false in other views. */
+    /** Whether the active DRD canvas owns focus; false in other views. */
     isCanvasFocused(): boolean;
 
     /**
-     * [B] Switch the colour theme live. Toggles this instance's `data-dmn-theme`
+     * Switch the colour theme live. Toggles this instance's `data-dmn-theme`
      * attribute and mirrors it to a legacy `#theme-link` when present.
      */
     setTheme(theme: DmnThemeMode): void;
 
     /**
-     * [B] Set the page-global UI locale and re-open the active view so its already
+     * Set the page-global UI locale and re-open the active view so its already
      * rendered labels re-translate. A no-op when the resolved locale is unchanged
      * (an unknown code resolves to `"en"`). Because it re-opens the active view it
      * re-fires `onViewChanged` and clears that view's undo history, like a
@@ -184,17 +166,17 @@ export interface DmnModelerHandle {
      */
     setLocale(locale: string): Promise<void>;
 
-    /** [A] Tear down this instance and all of its listeners and observers. */
+    /** Tear down this instance and all of its listeners and observers. */
     destroy(): void;
 
     /**
-     * [A] Unstable escape hatch into the active dmn-js viewer's DI graph. The
+     * Unstable escape hatch into the active dmn-js viewer's DI graph. The
      * service names and returned shapes are not covered by this facade's API.
      */
     getService<T = unknown>(name: string): T;
 }
 
-/** [A] Factory signature for one independent DMN modeler instance. */
+/** Factory signature for one independent DMN modeler instance. */
 export type CreateDmnModeler = (
     container: HTMLElement,
     options: DmnModelerOptions,

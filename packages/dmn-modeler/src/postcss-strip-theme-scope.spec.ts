@@ -3,12 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import stripThemeScope from "../scripts/postcss-strip-theme-scope.mjs";
 
-/**
- * The plugin derives the legacy un-scoped `darkTheme.css` from the single
- * `[data-dmn-theme="dark"]`-scoped source. It must remove every mention of the
- * attribute while preserving the selector's structure, so the split sheet keeps
- * matching the same elements a bare `#theme-link` swap always did.
- */
 function strip(css: string): string {
     return postcss([stripThemeScope()]).process(css, { from: undefined }).css;
 }

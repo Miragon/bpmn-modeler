@@ -1,9 +1,2 @@
-/* dmn-js dark theme — the stock stylesheets plus dark overrides layered on top.
- *
- * The dmn-js assets are imported first so the override files below win on
- * cascade. This entry builds the legacy split `darkTheme.css` a consumer links
- * via `#theme-link`; `scripts/postcss-strip-theme-scope.mjs` strips the
- * `[data-dmn-theme="dark"]` scope from the overrides so the split sheet stays
- * un-scoped and page-global as before. */
 @import "../base.css";
 @import "./overrides.css";
