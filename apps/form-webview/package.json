@@ -16,7 +16,7 @@
         "@bpmn-io/cm-theme": "0.2.2",
         "@bpmn-io/form-js-editor": "1.25.0",
         "@bpmn-io/form-js-viewer": "1.25.0",
-        "@codemirror/state": "6.7.1",
+        "@codemirror/state": "6.7.4",
         "@miragon/bpmn-modeler-shared": "workspace:*"
     },
     "devDependencies": {

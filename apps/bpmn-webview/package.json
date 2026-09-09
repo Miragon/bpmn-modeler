@@ -13,14 +13,14 @@
         "test": "vitest run --coverage"
     },
     "dependencies": {
-        "@bpmn-io/properties-panel": "3.52.0",
+        "@bpmn-io/properties-panel": "3.54.0",
         "@miragon/bpmn-modeler": "workspace:*",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
         "@miragon/bpmnlint-plugin-rules": "0.10.0",
-        "bpmn-js": "18.25.1",
+        "bpmn-js": "18.27.1",
         "bpmn-js-bpmnlint": "0.24.0",
         "bpmnlint": "11.13.0",
         "tslib": "2.8.1"
