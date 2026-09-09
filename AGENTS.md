@@ -5,14 +5,22 @@ This file provides guidance to AI coding agents when working with code in this r
 ## Project Overview
 
 VS Code extension for BPMN/DMN process and Camunda Form modeling, built with **Yarn 4 workspaces**.
-Detailed architecture knowledge is available via skills — invoke `/architecture`,
-`/bpmn-js`, `/vscode-custom-editors`, `/vscode-webviews`, `/vscode-ux-guidelines`,
-`/intellij-plugin`, `/i18n-translate`, or `/bpmn-browser-testing`.
+Detailed architecture knowledge is available via the `architecture`, `bpmn-js`,
+`vscode-custom-editors`, `vscode-webviews`, `vscode-ux-guidelines`,
+`intellij-plugin`, `i18n-translate`, and `bpmn-browser-testing` skills.
+Invoke skills with `/skill-name` in Claude Code or `$skill-name` in Codex
+(for example, `/architecture` or `$architecture`).
+
+`AGENTS.md` is the shared instruction source; `CLAUDE.md` links to it.
+Skills live in `.agents/skills/`; `.claude/skills/` links to that directory.
+Client settings are separate: `.claude/settings.json` configures Claude only.
+See `docs/vscode/contributing/development.md` (Coding agents) for browser tool
+setup and verification in both clients, including Conductor.
 
 Architecture decisions are recorded in **`docs/adr/`** (Nygard format,
 categorized by module — see `docs/adr/README.md`). When a change moves a
 package boundary, public API, dependency, protocol, or another hard-to-reverse
-choice, add an ADR in the same PR — invoke `/adr` for the rules and template.
+choice, add an ADR in the same PR — use the `adr` skill for the rules and template.
 The log is contributor-facing and deliberately excluded from the published
 VitePress site.
 
@@ -151,8 +159,8 @@ There is no local commitlint/husky hook, but CI validates the **PR title**
 (`lint-pr-title.yml`). PRs are squash-merged, so the PR title is the commit
 that lands on `main` and the line release-please reads to cut a release — it
 must use one of the five types below. Intermediate commits on a branch are
-upheld by discipline; match the existing history. Use `/commit` to generate a
-conforming message.
+upheld by discipline; match the existing history. Use the `commit` skill
+(`/commit` in Claude Code, `$commit` in Codex) to create a conforming commit.
 
 **Format:** `<type>(<scope>): <subject>`
 
@@ -171,8 +179,10 @@ conforming message.
   isn't self-explanatory; reference PRs/issues in the footer as the history
   does (e.g. `(#1056)`). Mark breaking changes with `!` after the
   type/scope (`feat(editor)!: …`) or a `BREAKING CHANGE:` footer.
-- **No Claude attribution.** Do not add `Co-Authored-By` or
-  "Generated with Claude Code" trailers (also enforced via `.claude/settings.json`).
+- **No agent attribution.** Do not add `Co-Authored-By` or generated-by
+  attribution to commits or PRs, regardless of the coding agent or model.
+  Claude's automatic attribution is also disabled in `.claude/settings.json`;
+  that setting does not configure Codex.
 
 Examples (from this repo's history):
 

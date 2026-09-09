@@ -148,7 +148,7 @@ calls `stopPropagation()`.
 - **Cmd/Ctrl+C**: Reads `window.getSelection()`, writes via `textClipboardBridge` → `SetTextClipboardCommand`.
 - **Cmd/Ctrl+V**: Reads via `textClipboardBridge` → `GetTextClipboardCommand`, dispatches a synthetic `ClipboardEvent("paste")`, falls back to `document.execCommand("insertText")`.
 
-See the `/bpmn-js` skill for the full three-layer copy-paste architecture (the
+See the `bpmn-js` skill for the full three-layer copy-paste architecture (the
 third layer is a webview-local FEEL-editor polyfill).
 
 ### Wiring (bridge override only)
