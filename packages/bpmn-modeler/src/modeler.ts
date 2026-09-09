@@ -4,9 +4,7 @@ import BpmnModeler8 from "camunda-bpmn-js/lib/camunda-cloud/Modeler";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
 import TokenSimulationModule from "bpmn-js-token-simulation";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
-// Deep ESM import: the package's CJS entry (`index.js` requiring an ESM `lib/`)
-// yields `{ default: <module> }` under Vite 8's require-of-ESM interop, so the
-// DI module never registers and every `get("transactionBoundaries")` throws.
+// The CJS entry wraps the ESM module in a default export, preventing DI registration under Vite.
 import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
 import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
@@ -14,13 +12,8 @@ import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
-// Only the mode filter + custom-group slot: the lib's PropertiesPanelModule /
-// NeutralPropertiesProviderModule collide with camunda-bpmn-js's own
-// `propertiesPanel` DI name. The engine surface owns the renderer + providers;
-// these two ride alongside to filter it in design mode. Deep imports on
-// purpose: the lib index re-exports its TSX renderer, whose
-// `@bpmn-io/properties-panel/preact` JSX pragma cannot resolve the
-// jsx-dev-runtime Vite dev servers emit — the engine graph must stay TSX-free.
+// The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
+// its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
@@ -62,8 +55,6 @@ import { ModeUiModule } from "./modeModules";
 import { installKeyboardFocus } from "./keyboardFocus";
 import type { CreateModelerOptions } from "./createModeler";
 import type { CoreModelerServices, ThemeMode } from "./publicApi";
-// Type-only: erased at build so it never pulls the lint stack into the main
-// bundle. The runtime lint module is injected by the host (see LintingOptions).
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
@@ -72,8 +63,6 @@ const DEFAULT_SETTINGS: BpmnModelerSetting = {
     colorTheme: "automatic",
 };
 
-// Align-to-origin plugin config; the container / panel parent are per-instance
-// HTMLElements resolved from the constructor options in {@link BpmnModeler.init}.
 const ALIGN_TO_ORIGIN_OPTIONS = {
     alignOnSave: false,
     offset: 150,
@@ -81,24 +70,14 @@ const ALIGN_TO_ORIGIN_OPTIONS = {
 };
 
 /**
- * Encapsulates one bpmn-js modeler instance and all operations on it.
- *
- * Per-instance by construction: it is bound to its own `container` and
- * `propertiesPanel.parent` (see {@link CreateModelerOptions}), so several
- * modelers can coexist on a page. Use {@link createModeler} as the factory. All
- * methods throw {@link NoModelerError} if called before {@link init}, and
- * {@link destroy} tears the instance down.
- *
- * Viewport and selection concerns are delegated to {@link ViewportManager}
- * and {@link SelectionManager}, accessible via the corresponding getters
- * after {@link init} has been called.
+ * An independent Camunda BPMN modeler with its own canvas and properties panel.
+ * Create it with {@link createModeler}; accessors require a live instance.
  */
 export class BpmnModeler {
     private modeler: Modeler | undefined = undefined;
 
     private settings: BpmnModelerSetting = { ...DEFAULT_SETTINGS };
 
-    // Tracks the active engine so transaction-boundary calls are gated to C7 only.
     private engine: Engine | undefined = undefined;
 
     private _viewport: ViewportManager | undefined;
@@ -107,21 +86,13 @@ export class BpmnModeler {
 
     private _rootElement: RootElementManager | undefined;
 
-    // Optional host sink for non-fatal warnings (element-not-found, missing
-    // inline script). Kept as an injected callback rather than a host import so
-    // the modeler stays constructible in tests and the standalone dev browser.
     private onWarningSink?: (message: string) => void;
 
-    // Teardown for the container-scoped focus features installed in init();
-    // run on re-create (to avoid stacking) and on destroy().
     private focusDisposers: Array<() => void> = [];
 
-    // The debounced content-saved emitter, live only when `onContentSaved` was
-    // supplied. Held so {@link destroy} can cancel a pending trailing export.
+    // Retain the debouncer so destroy can cancel a pending export.
     private contentSaved?: AsyncDebounced<() => Promise<void>>;
 
-    // Per-instance theme controller, created lazily on the first setTheme. Scopes
-    // `data-bpmn-theme` to this instance's container + panel parent.
     private themeController?: ThemeController;
 
     /**
@@ -155,12 +126,7 @@ export class BpmnModeler {
         return this._selection;
     }
 
-    /**
-     * Access the root element manager after {@link init}.
-     *
-     * @internal Host-adapter surface (drill-down state restore); not part of the
-     *   public handle.
-     */
+    /** @internal */
     get rootElement(): RootElementManager {
         if (!this._rootElement) {
             throw new NoModelerError();
@@ -198,32 +164,17 @@ export class BpmnModeler {
     }
 
     /**
-     * Creates and mounts the bpmn-js modeler for the engine in `options.engine`,
-     * then wires the per-instance subscriptions (element-template errors,
-     * debounced content-saved). The DI extras, capabilities, and page-level
-     * side-effect callbacks all come from the constructor options.
-     *
-     * Async for API stability (a host that learns the engine late calls this
-     * late); the lint modules are now built synchronously from the host-injected
-     * lint module. Re-`init()` disposes the prior instance's focus installs
-     * first.
-     *
-     * @internal Construction step invoked by {@link createModeler}; not part of
-     *   the public handle.
+     * @internal Async signature retained for compatibility.
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
     async init(): Promise<void> {
         const engine = this.options.engine;
         this.disposeFocusFeatures();
 
-        // Per-instance panel host, so id-coupled DI services (scriptEditorButtons)
-        // observe this modeler's own panel instead of the first `#js-properties-panel`.
+        // Inject the panel root so script controls cannot target a sibling modeler's panel.
         const propertiesPanelRootModule = {
             propertiesPanelRoot: ["value", this.options.propertiesPanel.parent],
         };
-        // TranslateModule is an opinionated built-in registered on every instance
-        // (the host-set locale is page-global), so the demo modeler gains
-        // translations too — intended.
         const commonModules = [
             TranslateModule,
             TokenSimulationModule,
@@ -239,31 +190,18 @@ export class BpmnModeler {
             AppendMenuModule,
             FlowNavigationModule,
             propertiesPanelRootModule,
-            // Design/implement mode (#1442): the panel mode filter + host
-            // custom-group slot, and the popup-menu chrome filter. Mode-invariant
-            // — nothing here registers/unregisters on a toggle, so engine data is
-            // never at risk on replace/copy-paste.
             ModeFilterModule,
             CustomGroupsModule,
             ModeUiModule,
         ];
         const capModules = capabilityModules(engine, this.options.capabilities);
-        // Clipboard is a [B] built-in: omitting `clipboard` registers nothing, so
-        // bpmn-js's native (browser) clipboard stays in charge; a host that
-        // can't reach the system clipboard from its webview supplies a bridge.
-        // A distinct `text` bridge routes label + contenteditable/FEEL surfaces
-        // through the host's text channel; it defaults to the element bridge.
         const clip = this.options.clipboard;
         const clipModules = clip
             ? createClipboardModules({ element: clip.bridge, text: clip.text })
             : [];
         if (clip) {
-            // The FEEL editor (CodeMirror 6) and diagram-js label overlay live
-            // outside the bpmn-js DI context, so the DI clipboard modules above
-            // don't reach them; this document-level polyfill bridges their
-            // Cmd/Ctrl+C/V (and guards Ctrl+A) through the text bridge. Arrow-
-            // wrapped so the bridge keeps its own `this`. Idempotent by its own
-            // install guard, so a re-init() never stacks handlers.
+            // FEEL editors sit outside bpmn-js DI and need the document-level text bridge.
+            // Wrap callbacks to preserve the bridge's this binding.
             const textBridge = clip.text ?? clip.bridge;
             installContentEditableClipboardPolyfill(
                 () => textBridge.requestClipboard(),
@@ -276,15 +214,12 @@ export class BpmnModeler {
             container: this.container,
             propertiesPanel: {
                 parent: this.options.propertiesPanel.parent,
-                // Mount the FEEL expression popup inside the instance container
-                // (it defaults to document.body, outside this instance's theme
-                // scope). Safe because the popup is `position: fixed`.
+                // Keep popups within this instance's theme scope instead of document.body.
                 feelPopupContainer: this.container,
             },
             alignToOrigin: ALIGN_TO_ORIGIN_OPTIONS,
             moddleExtensions: this.options.moddleExtensions,
-            // Mandatory: ModeFilterProvider defaults to "design" when this config
-            // key is absent, which would silently blank the engine surface.
+            // The panel defaults to design if this config is absent.
             propertiesPanelMode: normalizeMode(this.options.mode),
         };
 
@@ -332,8 +267,7 @@ export class BpmnModeler {
             }
         }
 
-        // Subscribe *before* the factory pushes the initial templates so the
-        // errors fired while the loader validates them are observed.
+        // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
         if (onElementTemplatesErrors) {
             this.getModeler().on("elementTemplates.errors", (event: any) => {
@@ -341,9 +275,6 @@ export class BpmnModeler {
             });
         }
 
-        // The package-owned debounced content event: one full export per burst of
-        // model changes (300ms / 1000ms maxWait). destroy() cancels a pending
-        // trailing export.
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
             this.contentSaved = asyncDebounce(
@@ -354,9 +285,7 @@ export class BpmnModeler {
             this.onCommandStackChanged(() => void this.contentSaved!());
         }
 
-        // Stamp the mode attribute before the first paint so a design-at-creation
-        // instance hides its engine chrome from frame one (the panel filter is
-        // already seeded from `propertiesPanelMode`).
+        // Apply before the first paint to avoid flashing engine controls in design mode.
         this.setModeAttribute(normalizeMode(this.options.mode));
     }
 
@@ -391,11 +320,6 @@ export class BpmnModeler {
         this.lintHandle().startInPageLinting(config, configToken);
     }
 
-    /**
-     * The shared lint handle methods over this instance's defensively-resolved
-     * {@link LintConfigService} (absent when created without a lint module). The
-     * designer composes the identical helper, so the two surfaces stay in lockstep.
-     */
     private lintHandle(): LintHandleMethods {
         return createLintHandleMethods(
             () => this.getModeler().get<LintConfigService>("bpmnLintConfig", false) ?? undefined,
@@ -403,13 +327,6 @@ export class BpmnModeler {
         );
     }
 
-    /**
-     * Composes the container-scopable focus features onto the fresh modeler:
-     * the "Escape → focus canvas" guard and the canvas focus reticle. Both are
-     * scoped to this instance's canvas container and panel parent so several
-     * modelers on one page never cross-fire. Disposers are recorded so a
-     * re-`create()` or {@link destroy} tears them down.
-     */
     private installFocusFeatures(): void {
         const canvas = this.getModeler().get<{
             getContainer(): HTMLElement;
@@ -420,10 +337,6 @@ export class BpmnModeler {
         const eventBus = () => this.getModeler().get<any>("eventBus");
         const selection = () => this.getModeler().get<{ get(): unknown[] }>("selection");
 
-        // Escape re-homes focus onto the canvas so keyboard-driven modelling
-        // (A/N/arrows, owned by bpmn-js's canvas-scoped Keyboard service) works
-        // even from the panel or a search field; a further Escape on the focused
-        // canvas clears the selection. Roots scope the guard to this instance.
         this.focusDisposers.push(
             installKeyboardFocus({
                 roots: [canvasContainer, this.options.propertiesPanel.parent],
@@ -441,10 +354,7 @@ export class BpmnModeler {
             }),
         );
 
-        // The reticle beside the "Open minimap" control lights up green while the
-        // canvas holds keyboard focus with nothing selected. It subscribes to
-        // diagram-js's deduplicated `canvas.focus.changed` rather than a
-        // container-level focusin (which would false-positive on the lint chip).
+        // Canvas focus events exclude controls such as the lint chip that would match container focusin.
         this.focusDisposers.push(
             installCanvasFocusIndicator({
                 parent: canvasContainer,
@@ -486,13 +396,7 @@ export class BpmnModeler {
         this._rootElement = undefined;
     }
 
-    /**
-     * Subscribes to the `commandStack.changed` event on the modeler's event bus.
-     *
-     * @internal Raw change hook. The designed API exposes the debounced
-     *   `onContentSaved` event instead; this stays for the host adapter.
-     * @param cb Callback invoked whenever the command stack changes.
-     */
+    /** @internal Use onContentSaved for debounced content notifications. */
     onCommandStackChanged(cb: () => void): void {
         this.getModeler().get<any>("eventBus").on("commandStack.changed", cb);
     }
@@ -506,14 +410,7 @@ export class BpmnModeler {
         return this.getModeler().getDefinitions();
     }
 
-    /**
-     * Returns every `bpmn:ScriptTask` in the diagram that carries an inline
-     * script, for the host's "Generate Script Files for Script Tasks" command. The
-     * scan and filtering rules live in {@link collectInlineScriptTasks} so the
-     * bulk path and the single-open path stay in agreement.
-     *
-     * @internal Host-adapter surface (inline-scripting capability).
-     */
+    /** @internal */
     collectInlineScriptTasks(): ScriptTaskScript[] {
         return collectInlineScriptTasks(this.getModeler().get<any>("elementRegistry"));
     }
@@ -573,9 +470,7 @@ export class BpmnModeler {
         this.getModeler();
         this.settings = { ...this.settings, ...settings };
 
-        // `colorTheme` is deliberately not applied here: the page theme is host
-        // policy driven through `theme` / {@link setTheme}. It stays in the
-        // settings type/defaults but is inert on this path.
+        // colorTheme stays inert here; the host controls theme through setTheme.
 
         if (this.engine === "c7") {
             const tb = this.getModeler().get<any>("transactionBoundaries");
@@ -591,12 +486,7 @@ export class BpmnModeler {
         }
     }
 
-    /**
-     * Triggers the align-to-origin plugin if the setting is enabled.
-     *
-     * @internal Host-adapter surface (invoked on save by the VS Code editor
-     *   controller); folded behind the `alignToOrigin` setting in the public API.
-     */
+    /** @internal */
     alignElementsToOrigin(): void {
         if (this.settings.alignToOrigin) {
             this.getModeler().get<any>("alignToOrigin").align();
@@ -620,18 +510,7 @@ export class BpmnModeler {
         return this.getModeler().get(name);
     }
 
-    /**
-     * Persists a chosen script format back to the BPMN model via the
-     * bpmn-js command stack. Used after the host's Quick-Pick fallback
-     * resolves an unsupported / empty `camunda:scriptFormat` so the next
-     * open of the same script skips the prompt.
-     *
-     * - `script-task`: writes to the element's `scriptFormat`.
-     * - `execution-listener` / `task-listener`: writes to the listener's
-     *   nested `camunda:Script.scriptFormat`.
-     *
-     * @internal Host-adapter surface (inline-scripting capability).
-     */
+    /** @internal */
     updateScriptFormat(
         elementId: string,
         kind: ScriptKind,
@@ -648,10 +527,7 @@ export class BpmnModeler {
         }
 
         if (kind === "script-task") {
-            // `scriptFormat` is a plain BPMN attribute on the script task, not a
-            // Camunda-namespaced one — it is the exact property the panel's
-            // "Format" field reads/writes, so a `camunda:` prefix would persist
-            // an attribute the field never displays (leaving it blank).
+            // Script-task scriptFormat is unnamespaced; camunda:scriptFormat would be ignored by the panel.
             modeling.updateModdleProperties(element, element.businessObject, {
                 scriptFormat,
             });
@@ -670,18 +546,7 @@ export class BpmnModeler {
         });
     }
 
-    /**
-     * Persists updated script content to the appropriate moddle property
-     * via the bpmn-js command stack so the change is undoable and serialised
-     * back to the BPMN XML.
-     *
-     * - `script-task`: writes to the element's `script` string property.
-     * - `execution-listener` / `task-listener`: locates the listener at
-     *   `listenerIndex` within the parent's filtered list of that listener
-     *   type, then writes to its nested `camunda:Script` element's `value`.
-     *
-     * @internal Host-adapter surface (inline-scripting capability).
-     */
+    /** @internal */
     updateScriptContent(
         elementId: string,
         kind: ScriptKind,
@@ -697,10 +562,7 @@ export class BpmnModeler {
             return;
         }
 
-        // Pre-declare this write as tab-originated *before* the moddle write:
-        // `commandStack.changed` fires synchronously inside it, and the watcher
-        // must see the new content as its baseline or it would report our own
-        // keystroke back to the host as a model-side change.
+        // commandStack.changed fires during the write; set the baseline first to avoid echoing our own edit.
         modeler
             .get<ScriptSourceWatcher>("scriptSourceWatcher", false)
             ?.noteApplied(elementId, kind, listenerIndex, content);
@@ -724,15 +586,7 @@ export class BpmnModeler {
         });
     }
 
-    /**
-     * Hands the host's current set of open inline-script editors to the
-     * {@link OpenScriptEditorsStore}, which locks the matching properties-panel
-     * script fields (single-writer arbitration). C7-only: the store/provider
-     * modules are not registered for C8, so the service is resolved defensively
-     * and the call is a no-op there.
-     *
-     * @internal Host-adapter surface (inline-scripting capability).
-     */
+    /** @internal C7 only; C8 does not register the script-editor store. */
     applyOpenScriptEditors(refs: OpenScriptEditorRef[]): void {
         this.getModeler().get<OpenScriptEditorsStore>("openScriptEditorsStore", false)?.set(refs);
     }
@@ -757,12 +611,8 @@ export class BpmnModeler {
     }
 
     /**
-     * Switches the design/implement mode live on this same bpmn-js instance —
-     * no re-import, no engine-data loss. Delegates to {@link applyMode}, which
-     * flips the panel filter (firing `propertiesPanel.providersChanged` so the
-     * live panel re-derives), stamps `data-bpmn-mode`, and fires `onModeChanged`
-     * once per actual change.
-     * Unrelated to {@link setTheme} despite the shared "mode" wording.
+     * Switches Design / Implement without re-importing or losing engine data.
+     * Fires onModeChanged once per actual change.
      */
     setMode(mode: ModelerMode): void {
         applyMode(this.modePorts(), mode);
@@ -780,10 +630,6 @@ export class BpmnModeler {
             .getMode();
     }
 
-    /**
-     * Maps the {@link ModePorts} seam onto this instance's DI services. The panel
-     * filter is the mode source of truth.
-     */
     private modePorts(): ModePorts {
         const modeler = this.getModeler();
         const filter = modeler.get<{
@@ -794,58 +640,29 @@ export class BpmnModeler {
             getFilterMode: () => filter.getMode(),
             setFilterMode: (mode) => filter.setMode(mode),
             setModeAttribute: (mode) => this.setModeAttribute(mode),
-            // Re-resolves the in-page lint config for the new mode (a per-mode
-            // `config`, or the mode default that drops the engine layer in
-            // design). Absent lint module → no service → no-op.
             setLintMode: (mode) =>
                 this.getModeler().get<LintConfigService>("bpmnLintConfig", false)?.setMode(mode),
             onModeChanged: this.options.onModeChanged,
         };
     }
 
-    /** Stamps {@link MODE_ATTRIBUTE} on the container + panel parent (both modes). */
     private setModeAttribute(mode: ModelerMode): void {
         this.container.setAttribute(MODE_ATTRIBUTE, mode);
         this.options.propertiesPanel.parent.setAttribute(MODE_ATTRIBUTE, mode);
     }
 
-    /**
-     * Hands the host's per-activity implementation-resolution map to the
-     * code-link DI service, which caches it and refreshes the context pad so the
-     * "Go to implementation" entry hides for tasks whose implementation does not
-     * exist in the workspace.
-     *
-     * The service is resolved defensively (`get(..., false)`): a consumer that
-     * omits the codeLink capability registers no `codeLinkMapClient`, and a
-     * stray status push must then be a no-op rather than throw.
-     *
-     * @internal Host-adapter surface (code-link capability).
-     */
+    /** @internal A missing code-link capability must tolerate host status pushes. */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
     }
 
-    /**
-     * Emits a non-fatal warning to the console (preserved for dev/tests) and, if
-     * a host sink is wired via the `onWarning` option, forwards it to the channel.
-     */
     private warn(message: string): void {
         console.warn(message);
         this.onWarningSink?.(message);
     }
 
-    /**
-     * Re-derives the element-template engine profile from the freshly imported
-     * definitions and pushes it to the `elementTemplates` service, which
-     * re-indexes and fires `elementTemplates.changed` so the chooser/panel
-     * refresh live. Called after every import (open, migration rewrite, new
-     * diagram) since those replace the definitions the version rides on.
-     *
-     * Engines come from the diagram, not a setting, to match Camunda Modeler
-     * and the library's own lint rule; templates without `engines` stay visible
-     * by library semantics. The service is fetched defensively — the C7 base
-     * modeler may not register it, and `{}` clears any prior value.
-     */
+    // Read the engine profile from imported definitions to match template engine filtering.
+    // C7 may omit the service; an empty profile clears any previous engine version.
     private applyEnginesFromDefinitions(): void {
         const definitions = this.getModeler().getDefinitions();
         const engines = deriveEngines(

@@ -1,15 +1,4 @@
-// Scratch-consumer smoke test (issue #1379): proves the *packed* tarball works
-// once installed like a real dependency, not just that it builds in-repo.
-//
-// Runs from a throwaway project (`npm init -y`, `type: module`,
-// `npm install <tarball>`) where `@miragon/bpmn-modeler` resolves through
-// node_modules — the same path an out-of-repo consumer takes. It asserts:
-//   1. no `workspace:*` range survived the pack (yarn rewrites them to real
-//      versions; a survivor would `npm install`-fail for a real consumer);
-//   2. every `exports` subpath resolves to a file that exists (the root entry
-//      is resolved, never executed — it touches the DOM);
-//   3. representative browser consumers bundle without aliases or externals;
-//   4. the Node-safe `./diff` subpath actually runs end to end.
+// Test the installed tarball so workspace aliases cannot hide packaging failures.
 import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -23,7 +12,6 @@ function fail(message) {
     process.exit(1);
 }
 
-// 1. No workspace: range survived the pack.
 const installedManifest = require(`${PKG}/package.json`);
 for (const field of [
     "dependencies",
@@ -38,8 +26,7 @@ for (const field of [
     }
 }
 
-// 2. Every exports subpath resolves to a real file. The root entry is
-//    DOM-touching, so we resolve it (proves the mapping + file) but never import it.
+// Resolve browser entries without importing them: they require the DOM.
 const SUBPATHS = [
     ".",
     "./diff",
@@ -67,9 +54,7 @@ for (const subpath of SUBPATHS) {
     }
 }
 
-// 3. Bundle browser consumers without running their DOM-touching code in Node.
-// Factory calls are intentionally retained: each fixture exercises the actual
-// dependency closure for that public surface and option shape.
+// Retain factory calls so bundling exercises each surface's actual dependency graph.
 if (esbuildVersion !== "0.28.2") {
     fail(`expected esbuild 0.28.2, found ${esbuildVersion}`);
 }
@@ -134,7 +119,6 @@ for (const [name, contents] of Object.entries(BROWSER_FIXTURES)) {
     }
 }
 
-// 4. The Node-safe ./diff subpath runs. Fixtures mirror scripts/check-diff-node.mjs.
 const { computeDiff, sideView } = await import(`${PKG}/diff`);
 
 const BEFORE = `<?xml version="1.0" encoding="UTF-8"?>

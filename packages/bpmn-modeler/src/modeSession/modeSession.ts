@@ -16,8 +16,7 @@ import type {
     SurfaceHandle,
 } from "./publicApi";
 
-/** The live handle carries the design/implement toggle only when it is a modeler. */
-function canToggle(handle: SurfaceHandle): handle is SurfaceHandle & {
+function canToggleMode(handle: SurfaceHandle): handle is SurfaceHandle & {
     setMode(mode: ModelerMode): void;
     getMode(): ModelerMode;
 } {
@@ -50,20 +49,18 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
 
     let busy = false;
 
-    /** Stands up the surface for `mode`, routing Design to the modeler on a tagged model. */
     function buildSurface(mode: SurfaceMode): Promise<SurfaceHandle> {
         const base: SurfaceContext = { container, engine, theme };
         if (mode === "view") {
             return surfaces.view!(base);
         }
         if (mode === "implement") {
-            const ctx: ModelerSurfaceContext = { ...base, mode: "implement" };
-            return surfaces.implement!(ctx);
+            const context: ModelerSurfaceContext = { ...base, mode: "implement" };
+            return surfaces.implement!(context);
         }
-        // Design: the full modeler serves it on a tagged model, else the designer.
         if (engine !== undefined && surfaces.implement) {
-            const ctx: ModelerSurfaceContext = { ...base, mode: "design" };
-            return surfaces.implement(ctx);
+            const context: ModelerSurfaceContext = { ...base, mode: "design" };
+            return surfaces.implement(context);
         }
         return surfaces.design!(base);
     }
@@ -80,7 +77,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         if (kind === "none") {
             return;
         }
-        if (kind === "toggle" && canToggle(handle)) {
+        if (kind === "toggle" && canToggleMode(handle)) {
             handle.setMode(target as ModelerMode);
             // The handle is the single source of truth for the applied mode.
             currentMode = handle.getMode();
@@ -94,14 +91,11 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         busy = true;
         options.onSwitchStateChanged?.(true);
 
-        // Captured before the destroy so the view state survives the swap; kept
-        // in scope so the fallback path can re-import the same diagram.
         const snapshot = handle.captureViewState();
         let xml: string;
         try {
             xml = await handle.exportDiagram();
         } catch (error) {
-            // Nothing destroyed yet — keep the instance and surface the error.
             busy = false;
             options.onSwitchStateChanged?.(false);
             options.onError?.(error);
@@ -118,7 +112,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             handle.applyViewState(snapshot);
             options.onModeChanged?.(target, "recreate");
         } catch (error) {
-            // Past the destroy — the page must never be handle-less.
+            // Recover a usable surface if switching fails after the old instance was destroyed.
             options.onError?.(error);
             const fallback = defaultMode(engine, available);
             handle = await buildSurface(fallback);
@@ -146,12 +140,6 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
     };
 }
 
-/**
- * The modes the injected factories offer for this engine, in canonical order. A
- * mode is available when its routed factory exists and the engine rule permits
- * it: View needs `view`; Design needs the modeler (tagged model) or the designer;
- * Implement needs the modeler *and* a tagged model.
- */
 function computeAvailableModes(
     surfaces: SurfaceFactories,
     engine: SurfaceContext["engine"],
@@ -166,7 +154,6 @@ function computeAvailableModes(
         if (mode === "implement") {
             return surfaces.implement !== undefined;
         }
-        // Design routes to the modeler on a tagged model, else the designer.
         return (
             (engine !== undefined && surfaces.implement !== undefined) ||
             surfaces.design !== undefined
