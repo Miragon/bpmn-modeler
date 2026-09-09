@@ -1,15 +1,4 @@
-// Acceptance criterion for the `@miragon/bpmn-modeler/mode` subpath (#1447),
-// mechanised: the mode-session entry orchestrates the surfaces the *consumer*
-// injects, so it must value-import none of the bpmn-js / Camunda / lint stack —
-// in every bundling mode. A single-file host (vite-plugin-singlefile) inlines
-// everything reachable, so a bare import that survives here would land in a
-// mode-only consumer's one bundle even though they never asked for the editor.
-//
-// The heavy stacks are Vite `external`s — they survive as *bare import
-// specifiers* in dist/mode.js and its relative chunks. So we start at
-// dist/mode.js, follow only relative specifiers (the emitted chunks), and fail
-// if any bare specifier names a forbidden package. A content-grep for `bpmnlint`
-// catches an inlined-lib leak too.
+// Keep injected surface dependencies out of the mode entry, including its emitted chunks.
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, relative } from "node:path";
@@ -17,10 +6,6 @@ import { dirname, resolve, relative } from "node:path";
 const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const ROOT_ENTRY = resolve(distDir, "mode.js");
 
-// Forbidden bare specifiers — bpmn-js / diagram-js, the Camunda engine stack,
-// the lint stack, the bpmn-io panel primitives, and the engine-bound properties
-// panel. The consumer supplies these through the injected surface factories, so
-// none may reach the mode entry's module graph.
 function isForbidden(spec) {
     return (
         spec === "bpmn-js" ||
@@ -39,14 +24,10 @@ function isForbidden(spec) {
     );
 }
 
-// A last-line content grep (mirrors check-design-pure-entry.mjs): catches the
-// lint stack even if it were inlined into a chunk rather than left external.
+// Catch lint code that was inlined instead of left as an external import.
 const FORBIDDEN_CONTENT = /bpmnlint/;
 
-// Static specifiers only: `import … from "x"`, bare `import "x"`, and
-// `export … from "x"`. `import(` (dynamic) is deliberately excluded — a reachable
-// dynamic import is a separate chunk a single-file bundler inlines anyway, so we
-// follow the static closure that decides the critical path.
+// This scan covers static imports and re-exports only; dynamic imports are excluded.
 const STATIC_SPECIFIER_PATTERNS = [
     /\bimport\s+[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
     /\bexport\s+[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
@@ -84,7 +65,6 @@ while (queue.length > 0) {
 
     for (const spec of staticSpecifiers(code)) {
         if (spec.startsWith(".")) {
-            // Follow our own emitted chunks.
             const resolved = resolve(dirname(file), spec);
             if (existsSync(resolved)) queue.push(resolved);
             continue;

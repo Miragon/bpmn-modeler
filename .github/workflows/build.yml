@@ -92,6 +92,23 @@ jobs:
               - '!apps/modeler-bridge/package.json'
             bpmn-modeler:
               - 'packages/bpmn-modeler/**'
+              # The package inlines these private libraries from source; changes
+              # to any of them must re-run its build and packed-consumer gates.
+              - 'libs/modeler-types/**'
+              - 'libs/bpmn-diff/**'
+              - 'libs/bpmn-clipboard/**'
+              - 'libs/bpmn-i18n-extras/**'
+              - 'libs/element-template-chooser/**'
+              - 'libs/append-menu/**'
+              - 'libs/properties-panel/**'
+              - 'libs/model-navigation/**'
+              - 'libs/code-link/**'
+              - 'libs/inline-scripting/**'
+              - 'libs/flow-navigation/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.yarnrc.yml'
+              - 'tsconfig.base.json'
             dmn-modeler:
               - 'packages/dmn-modeler/**'
             # Version-skew guard runs on any manifest or lockfile change that
@@ -709,6 +726,10 @@ jobs:
           test -f packages/bpmn-modeler/dist/bpmn-modeler.css
           test -f packages/bpmn-modeler/dist/lightTheme.css
           test -f packages/bpmn-modeler/dist/darkTheme.css
+      - name: Pack tarball
+        run: yarn workspace @miragon/bpmn-modeler pack --out "$RUNNER_TEMP/miragon-bpmn-modeler.tgz"
+      - name: Test hoisted and nested packed consumers
+        run: node packages/bpmn-modeler/scripts/smoke-packed-consumer.mjs "$RUNNER_TEMP/miragon-bpmn-modeler.tgz"
 
   test-dmn-modeler:
     needs: detect-changes

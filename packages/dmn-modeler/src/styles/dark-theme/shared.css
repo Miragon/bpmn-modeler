@@ -1,12 +1,4 @@
-/* Dark overrides for the dmn-js shared form controls (`.dms-input`,
- * `.dms-select`, hints, separators, badges).
- *
- * dmn-js derives these from a light grey/blue/red `--color-*` palette declared
- * on `.dmn-js-parent`. That base palette is deliberately left intact —
- * `--color-white` and `--color-grey-225-10-15` are each used both as a surface
- * *and* as text/icon-on-coloured-background, so inverting them wholesale breaks
- * the latter. Instead the single-meaning *semantic* variables are remapped to
- * the `--dt-*` scale, which is safe. */
+/* Base palette colours serve both backgrounds and text; remap semantic variables to preserve contrast. */
 @import "./colors.css";
 
 [data-dmn-theme="dark"] .dmn-js-parent {

@@ -1,9 +1,3 @@
-/* Dark theme for the DMN properties panel.
- *
- * DMN renders into the same `@bpmn-io/properties-panel` as BPMN, so this is the
- * BPMN dark theme's panel mapping verbatim (the host-page layout overrides live
- * in base-layout.css instead). The `--*` variable contract is owned by the
- * shared properties-panel package, so the two webviews stay in lockstep. */
 @import "./colors.css";
 
 [data-dmn-theme="dark"] .bio-properties-panel {
@@ -154,12 +148,7 @@
     color: var(--dt-surface-a70) !important;
 }
 
-/**
- * CodeMirror (FEEL expression editor) — @bpmn-io/properties-panel does not
- * pass darkMode:true to feelers/feel-editor, so the light cm-theme is always
- * used. Its syntax-highlight colors are unreadable on a dark background, so
- * override all text colors inside the editor.
- */
+/* The properties panel never enables the FEEL editor’s darkMode, leaving light syntax colours. */
 [data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor {
     color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
@@ -182,7 +171,6 @@
     color: inherit !important;
 }
 
-/* Autocomplete & tooltip popups */
 [data-dmn-theme="dark"] .cm-tooltip {
     background-color: var(--dt-surface-a0) !important;
     border: 1px solid var(--dt-surface-a30) !important;
@@ -198,14 +186,12 @@
     color: var(--dt-surface-a70) !important;
 }
 
-/* Completion info panel (function signature / examples) */
 [data-dmn-theme="dark"] .cm-completionInfo {
     background-color: var(--dt-surface-a0) !important;
     border: 1px solid var(--dt-surface-a30) !important;
     color: var(--dt-surface-a70) !important;
 }
 
-/* Diagnostics (lint errors/warnings) */
 [data-dmn-theme="dark"] .cm-diagnostic {
     background-color: var(--dt-surface-a0) !important;
     color: var(--dt-surface-a70) !important;

@@ -7,7 +7,12 @@ import {
 import DmnSimulationModule from "@emaarco/dmn-js-simulation";
 import camundaModdleDescriptor from "camunda-dmn-moddle/resources/camunda.json";
 
-import { observeCanvasSize, type ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import {
+    installCanvasFocusIndicator,
+    observeCanvasSize,
+    type ResizableCanvas,
+} from "@miragon/bpmn-modeler-types";
+import { i18n, TranslateModule, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 
 import { ThemeController } from "./theme";
 import type {
@@ -48,15 +53,40 @@ interface FocusableCanvas extends ResizableCanvas {
     isFocused(): boolean;
 }
 
-/** @internal Runtime implementation of the public per-instance handle. */
+interface FocusIndicatorCanvas {
+    getContainer(): HTMLElement;
+    isFocused(): boolean;
+}
+
+interface DrdSelection {
+    get(): unknown[];
+}
+
+interface FocusEventBus {
+    on(event: "canvas.focus.changed", callback: (event: { focused: boolean }) => void): void;
+    on(event: "selection.changed", callback: (event: { newSelection: unknown[] }) => void): void;
+}
+
+interface Viewbox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+interface ViewboxCanvas extends ResizableCanvas {
+    viewbox(): Viewbox;
+    viewbox(box: Viewbox): void;
+}
+
+/** @internal */
 export class DmnModeler implements DmnModelerHandle {
     private readonly modeler: VendorDmnModeler;
     private readonly stopObservingSize: () => void;
     private activeEventBus?: EventBus;
+    private disposeFocusIndicator?: () => void;
     private destroyed = false;
 
-    // Per-instance theme controller, created lazily on the first setTheme. Scopes
-    // `data-dmn-theme` to this instance's container + panel parent.
     private themeController?: ThemeController;
 
     constructor(
@@ -67,14 +97,15 @@ export class DmnModeler implements DmnModelerHandle {
 
         this.modeler = new VendorDmnModeler({
             container,
+            // dmn-js drops common.additionalModules, so each view needs TranslateModule.
             drd: {
                 propertiesPanel: {
                     ...options.propertiesPanel,
-                    // The FEEL popup defaults to document.body, outside this
-                    // instance's `data-dmn-theme` scope; mount it in the container.
+                    // The default document.body mount lies outside this instance’s theme scope.
                     feelPopupContainer: container,
                 },
                 additionalModules: [
+                    TranslateModule,
                     DmnPropertiesPanelModule,
                     DmnPropertiesProviderModule,
                     CamundaPropertiesProviderModule,
@@ -84,15 +115,19 @@ export class DmnModeler implements DmnModelerHandle {
             },
             decisionTable: {
                 additionalModules: [
+                    TranslateModule,
                     DmnSimulationModule.decisionTable,
                     ...(additionalModules.decisionTable ?? []),
                 ],
             },
             literalExpression: {
-                additionalModules: additionalModules.literalExpression ?? [],
+                additionalModules: [
+                    TranslateModule,
+                    ...(additionalModules.literalExpression ?? []),
+                ],
             },
             boxedExpression: {
-                additionalModules: additionalModules.boxedExpression ?? [],
+                additionalModules: [TranslateModule, ...(additionalModules.boxedExpression ?? [])],
             },
             common: {
                 expressionLanguages: options.expressionLanguages ?? DEFAULT_EXPRESSION_LANGUAGES,
@@ -176,6 +211,28 @@ export class DmnModeler implements DmnModelerHandle {
         return this.getActiveFocusableCanvas()?.isFocused() ?? false;
     }
 
+    async setLocale(locale: string): Promise<void> {
+        this.assertLive();
+        const localeBefore = i18n.getLocale();
+        i18n.setLanguage(locale as SupportedLocale);
+        // Compare resolved locales: unknown codes fall back to "en".
+        if (i18n.getLocale() === localeBefore) {
+            return;
+        }
+        const activeView = this.modeler.getActiveView();
+        if (!activeView) {
+            return;
+        }
+        // Reopening resets the DRD viewbox; preserve it to avoid moving the diagram.
+        const viewbox = this.isDrdViewActive()
+            ? this.getActiveViewboxCanvas()?.viewbox()
+            : undefined;
+        await this.openView(activeView);
+        if (viewbox) {
+            this.getActiveViewboxCanvas()?.viewbox(viewbox);
+        }
+    }
+
     setTheme(theme: DmnThemeMode): void {
         this.assertLive();
         if (!this.themeController) {
@@ -201,6 +258,7 @@ export class DmnModeler implements DmnModelerHandle {
             return;
         }
         this.destroyed = true;
+        this.disposeFocusIndicator?.();
         this.themeController?.dispose();
         this.modeler.off("views.changed", this.handleViewsChanged);
         this.unbindCommandStack();
@@ -226,7 +284,36 @@ export class DmnModeler implements DmnModelerHandle {
             this.unbindCommandStack();
             this.activeEventBus = eventBus;
             this.activeEventBus?.on("commandStack.changed", this.handleContentChanged);
+            this.syncCanvasFocusIndicator();
         }
+    }
+
+    // Only the DRD view has diagram-js canvas focus.
+    private syncCanvasFocusIndicator(): void {
+        this.disposeFocusIndicator?.();
+        this.disposeFocusIndicator = undefined;
+
+        if (this.modeler.getActiveView()?.type !== "drd") {
+            return;
+        }
+        const viewer = this.getActiveViewer();
+        const canvas = viewer?.get<FocusIndicatorCanvas>("canvas", false);
+        const selection = viewer?.get<DrdSelection>("selection", false);
+        const eventBus = viewer?.get<FocusEventBus>("eventBus", false);
+        if (!canvas || !selection || !eventBus) {
+            return;
+        }
+        this.disposeFocusIndicator = installCanvasFocusIndicator({
+            parent: canvas.getContainer(),
+            isFocused: () => canvas.isFocused(),
+            onFocusChanged: (listener) =>
+                eventBus.on("canvas.focus.changed", (event) => listener(event.focused)),
+            hasSelection: () => selection.get().length > 0,
+            onSelectionChanged: (listener) =>
+                eventBus.on("selection.changed", (event) =>
+                    listener(event.newSelection.length > 0),
+                ),
+        });
     }
 
     private readonly handleContentChanged = (): void => {
@@ -255,6 +342,10 @@ export class DmnModeler implements DmnModelerHandle {
 
     private getActiveCanvas(): ResizableCanvas | undefined {
         return this.getActiveViewer()?.get<ResizableCanvas>("canvas", false);
+    }
+
+    private getActiveViewboxCanvas(): ViewboxCanvas | undefined {
+        return this.getActiveViewer()?.get<ViewboxCanvas>("canvas", false);
     }
 
     private getActiveFocusableCanvas(): FocusableCanvas | undefined {

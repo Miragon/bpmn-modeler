@@ -1,9 +1,10 @@
 name: Release Please
 
-# Three release lines (see release-please-config.json): "." (the publishable
+# Four release lines (see release-please-config.json): "." (the publishable
 # @miragon/bpmn-modeler npm package — the root component, so it watches the
-# package plus its inlined libs), "apps/vscode-plugin" (vscode) and
-# "apps/intellij-plugin" (intellij), each with its own Release PR, tag and
+# package plus its inlined libs), "apps/vscode-plugin" (vscode),
+# "apps/intellij-plugin" (intellij) and "packages/dmn-modeler" (the publishable
+# @miragon/dmn-modeler npm package), each with its own Release PR, tag and
 # publish jobs. Root outputs are unprefixed; sub-packages are prefixed by path.
 
 on:
@@ -31,6 +32,8 @@ jobs:
       intellij_tag: ${{ steps.release.outputs['apps/intellij-plugin--tag_name'] }}
       npm_released: ${{ steps.release.outputs.release_created }}
       npm_tag: ${{ steps.release.outputs.tag_name }}
+      dmn_released: ${{ steps.release.outputs['packages/dmn-modeler--release_created'] }}
+      dmn_tag: ${{ steps.release.outputs['packages/dmn-modeler--tag_name'] }}
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
@@ -48,12 +51,12 @@ jobs:
   approve-release:
     name: Approve release publish
     needs: release-please
-    if: needs.release-please.outputs.vscode_released == 'true' || needs.release-please.outputs.intellij_released == 'true' || needs.release-please.outputs.npm_released == 'true'
+    if: needs.release-please.outputs.vscode_released == 'true' || needs.release-please.outputs.intellij_released == 'true' || needs.release-please.outputs.npm_released == 'true' || needs.release-please.outputs.dmn_released == 'true'
     runs-on: ubuntu-latest
     environment: release-approval
     steps:
       - name: Record approval
-        run: echo "Release approved — vscode=${{ needs.release-please.outputs.vscode_tag }} intellij=${{ needs.release-please.outputs.intellij_tag }} npm=${{ needs.release-please.outputs.npm_tag }}"
+        run: echo "Release approved — vscode=${{ needs.release-please.outputs.vscode_tag }} intellij=${{ needs.release-please.outputs.intellij_tag }} npm=${{ needs.release-please.outputs.npm_tag }} dmn=${{ needs.release-please.outputs.dmn_tag }}"
 
   vscode:
     needs: [release-please, approve-release]
@@ -103,4 +106,24 @@ jobs:
     with:
       tag: ${{ needs.release-please.outputs.npm_tag }}
       dry-run: false
+    secrets: inherit
+
+  npm-dmn:
+    needs: [release-please, approve-release]
+    if: needs.release-please.outputs.dmn_released == 'true'
+    # id-token: write is required in BOTH this caller job and the called
+    # workflow for npm Trusted Publishing (OIDC) to mint a provenance token.
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+    uses: ./.github/workflows/publish-npm-modeler.yml
+    with:
+      tag: ${{ needs.release-please.outputs.dmn_tag }}
+      dry-run: false
+      workspace: '@miragon/dmn-modeler'
+      package-dir: packages/dmn-modeler
+      # jsdom for the headless DOM; esbuild to bundle the consumer entry — the
+      # dmn-js stack has no exports maps and only resolves through a bundler.
+      smoke-extra-deps: jsdom esbuild
     secrets: inherit

@@ -23,6 +23,7 @@ contributor-facing record, not user documentation.
 | [0014](0014-make-bpmn-modeler-the-root-release-component.md) | Make the npm package the root release component; hosts release via sync markers | accepted |
 | [0019](0019-webview-panel-chrome-in-shared.md) | Webview panel chrome (resizer/focus/shortcuts) lives in `libs/shared`; publishable `modeler-types` keeps only `isTextEditingSurface` | accepted |
 | [0020](0020-untagged-documents-first-class-in-hosts.md) | Untagged documents are first-class in the hosts (no stamp-on-open); mode is per-editor webview state seeded by `defaultMode`; engine-neutral new-file scaffold | accepted |
+| [0028](0028-dmn-modeler-as-subpath-release-component.md) | `@miragon/dmn-modeler` as a subpath release component (`dmn-modeler-v<version>`); `BUNDLED_LIBS` marker for its two inlined libs; one parameterised publish workflow | accepted |
 
 ### modeler-core
 
@@ -67,7 +68,8 @@ contributor-facing record, not user documentation.
 | [0021](0021-mode-session-subpath.md) | Publish the View↔Design↔Implement session + opt-in strip via the `@miragon/bpmn-modeler/mode` subpath (consumer-injected surface factories); mode model moves to `@miragon/bpmn-modeler-types` | accepted |
 | [0022](0022-mode-invariant-canvas-chrome.md) | Minimap, token simulation, and the canvas focus reticle are mode-invariant: registered on `/viewer`, `/design`, and `createModeler` alike; design mode stops hiding the simulation toggle | accepted |
 | [0023](0023-mode-aware-linting.md) | Opt-in linting on `/design` and per-mode lint configs: injection-only on both surfaces, `LintingOptions.config` accepts a `{ design?, implement? }` map, Design default drops the Camunda engine layer, `setMode` re-resolves in-page; workspace config mode-invariant, viewer excluded | accepted |
-| [0027](0027-diagram-formatting-and-cleanup.md) | Diagram formatting and cleanup: wrap `bpmn-auto-layout` behind a geometry-only `LayoutEngine` port (which contains its greenfield destructiveness), apply via nested `preExecute` as one undo step, own refusal taxonomy, no settings and no format-on-save | accepted |
+| [0029](0029-compare-execution-properties-with-isolated-moddle-descriptors.md) | Compare execution properties through isolated Camunda 7 and Camunda 8 moddle passes; compare custom attributes textually | accepted |
+| [0030](0030-diagram-formatting-and-cleanup.md) | Diagram formatting and cleanup: wrap `bpmn-auto-layout` behind a geometry-only `LayoutEngine` port (which contains its greenfield destructiveness), apply via nested `preExecute` as one undo step, own refusal taxonomy, no settings and no format-on-save | accepted |
 
 ### dmn-webview
 
@@ -75,3 +77,4 @@ contributor-facing record, not user documentation.
 | --- | --- | --- |
 | [0024](0024-extract-publishable-dmn-modeler-package.md) | Extract the host-free DMN modeler into the publishable `@miragon/dmn-modeler` package; dmn-js stack externalised, `styles.css` from the themes rollup, page-global `#theme-link` theming retained | accepted |
 | [0026](0026-dmn-container-scoped-theming.md) | Container-scoped DMN theming via a per-instance `data-dmn-theme` attribute; one authored scoped source + stripped legacy split, `styles.css` from the lib entry, shared `hostTheme` adapter, `#theme-link` as silent fallback | accepted |
+| [0027](0027-dmn-modeler-page-global-locale.md) | Page-global DMN locale: `TranslateModule` as a built-in on all four views, `locale` option + `setLocale()` that re-opens the active view to re-translate, host `LanguageQuery` broadcast; harvest tooling extended to dmn-js | accepted |

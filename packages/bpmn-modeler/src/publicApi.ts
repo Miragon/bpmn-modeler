@@ -9,20 +9,14 @@ import type Modeling from "bpmn-js/lib/features/modeling/Modeling";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
+    CleanupItem,
     Engine,
     LintResults,
     LintRunEvent,
 } from "@miragon/bpmn-modeler-types";
 import type { ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
-import type { CleanupItem } from "@miragon/bpmn-modeler-types";
-// Type-only import — erased at build (same contract as modeler.ts's
-// LintConfigService import), so referencing the lint module's types here never
-// pulls the lint stack into the main bundle.
 import type { LintCallbacks, LintTierInit } from "./bpmnlint/LintConfigService";
-// Type-only — erased at build (same contract as the LintConfigService import),
-// so the lint config types cross into the main entry without pulling the lint
-// stack into the main bundle.
 import type { LintConfigOption } from "./bpmnlint/lintConfigResolution";
 import type { ModelerCapabilities } from "./capabilities";
 import type { ViewportManager } from "./viewport";
@@ -72,6 +66,7 @@ export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigRe
  */
 export type ThemeMode = "light" | "dark" | "automatic";
 
+// A structural interface avoids API Extractor rollup failures on relative import() types.
 /**
  * [B] The namespace of `@miragon/bpmn-modeler/lint`, imported and handed in by
  * the host. The lint stack (`bpmn-js-bpmnlint`, `bpmnlint`, the rule plugin, and
@@ -82,10 +77,6 @@ export type ThemeMode = "light" | "dark" | "automatic";
  * ```ts
  * linting: { module: await import("@miragon/bpmn-modeler/lint") }
  * ```
- *
- * Declared structurally (not `typeof import("./bpmnlint")`) because
- * api-extractor rollups of relative `import()` types are fragile; a type-level
- * conformance check in `publicApi.spec.ts` keeps the two in sync.
  */
 export interface LintModule {
     createLintModule(tier: LintTierInit, callbacks: LintCallbacks): unknown;
@@ -110,11 +101,6 @@ export interface LintModule {
  *   computes and pushes through {@link BpmnModelerHandle.applyLintResults}; no
  *   in-webview linter runs. `module` is still required — the external tier needs
  *   {@link LintModule} to paint and to service a `startInPageLinting` handback.
- *
- * `results?: never` on the config variant makes the union discriminable on
- * `results`, so the runtime tier selection narrows without type guards. `module`
- * being required on both object variants makes a missed migration a compile-time
- * error, not a silent runtime downgrade.
  */
 export type LintingOptions =
     | false

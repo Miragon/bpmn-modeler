@@ -1,4 +1,4 @@
-# 0027 — Diagram formatting and cleanup: wrap bpmn-auto-layout behind a geometry-only port
+# 0030 — Diagram formatting and cleanup: wrap bpmn-auto-layout behind a geometry-only port
 
 - Status: accepted
 - Date: 2026-09-08

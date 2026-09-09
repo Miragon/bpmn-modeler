@@ -57,6 +57,9 @@ Two decisions specific to this step:
 - **Theming stays page-global** on the un-scoped `lightTheme.css` /
   `darkTheme.css` + `#theme-link` swap. The `theme` / `locale` options and
   `setTheme()` are accepted but inert, reserved so the API stays stable.
+  _(Superseded: `theme` / `setTheme` are activated by
+  [ADR 0026](0026-dmn-container-scoped-theming.md); `locale` / `setLocale()` by
+  [ADR 0027](0027-dmn-modeler-page-global-locale.md).)_
 
 ## Decisions deliberately not taken here
 

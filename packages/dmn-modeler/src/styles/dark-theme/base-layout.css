@@ -1,14 +1,5 @@
-/* Dark-theme overrides for the host page layout.
- *
- * `styles.css` hardcodes a light body, light panel dividers and a blue resizer
- * accent. Any 1-px rounding gap in the flex layout (e.g. a collapsed panel at
- * width 0) lets the white body show through as a bright strip, so the surfaces
- * are repainted from the same `--dt-*` scale the diagram and panel use.
- *
- * These are page chrome (not inside a modeler instance's container), so they key
- * off the root attribute the host adapter sets — `:root[data-dmn-theme="dark"]`.
- * `.properties-panel-parent` is both a per-instance scope root and page chrome,
- * so it carries both forms (cf. the bpmn package's properties-panel.css). */
+/* Paint layout gaps dark to prevent bright strips at fractional panel widths.
+ * Page chrome needs the root theme attribute because it sits outside modeler containers. */
 @import "./colors.css";
 
 :root[data-dmn-theme="dark"],
@@ -21,13 +12,11 @@
     color: var(--dt-surface-a70);
 }
 
-/* Properties-panel divider. */
 .properties-panel-parent[data-dmn-theme="dark"],
 :root[data-dmn-theme="dark"] .properties-panel-parent {
     border-left-color: var(--dt-surface-a30);
 }
 
-/* Resizer handle between canvas and panel. */
 :root[data-dmn-theme="dark"] .panel-resizer {
     border-left-color: var(--dt-surface-a20);
 }
@@ -37,15 +26,13 @@
     border-left-color: var(--dt-primary-a10);
 }
 
-/* Restore the resting divider colour while the toggle button is hovered, so the
- * button's own hover styling doesn't stack into a halo. */
+/* Avoid a doubled hover halo behind the toggle button. */
 :root[data-dmn-theme="dark"] .panel-resizer:has(.panel-resizer-toggle:hover) {
     background-color: transparent;
     border-left-color: var(--dt-surface-a20);
 }
 
-/* Override the accent custom properties the collapsed resizer's pseudo-element
- * line segments read, so the swap wins regardless of stylesheet load order. */
+/* Override the pseudo-element variables so stylesheet load order cannot restore the accent. */
 :root[data-dmn-theme="dark"] .panel-resizer.collapsed {
     --panel-resizer-accent-color: var(--dt-surface-a30);
     --panel-resizer-accent-hover-color: var(--dt-primary-a10);

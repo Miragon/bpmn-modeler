@@ -25,41 +25,24 @@ export interface ViewState {
     selectedElementIds: string[];
 }
 
-/**
- * The three managers the capture/apply composition reads and writes. Kept
- * module-internal — consumers reach this through the composed
- * `captureViewState` / `applyViewState` handle methods, never the managers
- * directly.
- */
 export interface ViewStateManagers {
     viewport: ViewportManager;
     rootElement: RootElementManager;
     selection: SelectionManager;
 }
 
-/**
- * Reads the live plane, viewbox, and selection off the managers into a plain
- * {@link ViewState}.
- */
-export function captureViewState(m: ViewStateManagers): ViewState {
+export function captureViewState(managers: ViewStateManagers): ViewState {
     return {
-        rootElementId: m.rootElement.getRootElementId(),
-        viewport: m.viewport.getViewport(),
-        selectedElementIds: m.selection.getSelectedElementIds(),
+        rootElementId: managers.rootElement.getRootElementId(),
+        viewport: managers.viewport.getViewport(),
+        selectedElementIds: managers.selection.getSelectedElementIds(),
     };
 }
 
-/**
- * Re-applies a captured {@link ViewState}, in the one order that works:
- * **root → viewport → selection**. Viewbox coordinates are plane-relative, so
- * the root must switch first; and the drill-down centring handler scrolls on
- * `root.set`, which the subsequent viewbox apply must overwrite — reversing the
- * two would leave the canvas centred on the plane rather than at the saved
- * viewbox. A missing root id (top-level plane) or missing element ids degrade
- * gracefully rather than throwing.
- */
-export function applyViewState(m: ViewStateManagers, state: ViewState): void {
-    m.rootElement.setRootElementById(state.rootElementId);
-    m.viewport.setViewport(state.viewport);
-    m.selection.selectElementsByIds(state.selectedElementIds);
+// Restore the root first: coordinates are plane-relative, and root.set scrolls the canvas.
+// Applying the saved viewport afterward overrides that automatic centering.
+export function applyViewState(managers: ViewStateManagers, state: ViewState): void {
+    managers.rootElement.setRootElementById(state.rootElementId);
+    managers.viewport.setViewport(state.viewport);
+    managers.selection.selectElementsByIds(state.selectedElementIds);
 }

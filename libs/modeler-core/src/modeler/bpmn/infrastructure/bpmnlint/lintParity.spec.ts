@@ -10,9 +10,6 @@ import { NodeBpmnLinter } from "./NodeBpmnLinter";
 // bpmn-webview app. modeler-core vitest runs in node and inlines the rules
 // plugin, so BrowserLinter runs here exactly as it does in the browser bundle.
 import { BrowserLinter } from "../../../../../../../packages/bpmn-modeler/src/bpmnlint/browserLinter";
-// The in-page config derivation moved out of BrowserLinter in #1472; going
-// through it here keeps this a parity test between two *independent*
-// derivations rather than a round trip of one shared object.
 import { resolveLintConfig } from "../../../../../../../packages/bpmn-modeler/src/bpmnlint/lintConfigResolution";
 
 /**
@@ -23,7 +20,8 @@ import { resolveLintConfig } from "../../../../../../../packages/bpmn-modeler/sr
  * (workspace config) or the webview did (no config).
  *
  * Both sides lint the same moddle tree with the same engine-aware default config
- * (`getDefaultLintConfig({ engine, preset: "modeling" })`) and must report no
+ * (host: `DefaultBpmnlintConfigService`; browser: the Implement-mode default from
+ * `resolveLintConfig`, exactly as `LintConfigService` wires it) and must report no
  * unresolved rules — a non-empty `unresolved` on the browser side would be a real
  * `browserResolver` bug, not a test artefact, so it is asserted, never assumed.
  */
@@ -83,8 +81,6 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
             BPMN_XML,
             config.moddleExtensions as Record<string, unknown> | undefined,
         );
-        // No explicit config: the in-page tier derives the Implement-mode
-        // default itself, which must land on the same layers the host built.
         const browserOut = await new BrowserLinter(
             resolveLintConfig("implement", PLATFORM, undefined),
         ).run(root);
@@ -111,9 +107,7 @@ describe("bpmnlint default parity: NodeBpmnLinter vs BrowserLinter", () => {
             BPMN_XML,
             config.moddleExtensions as Record<string, unknown> | undefined,
         );
-        const browserOut = await new BrowserLinter(
-            resolveLintConfig("implement", PLATFORM, config),
-        ).run(root);
+        const browserOut = await new BrowserLinter(config).run(root);
 
         // recommended flags the missing start event — else "parity" is vacuous.
         expect(Object.keys(nodeOut.results)).toContain("start-event-required");

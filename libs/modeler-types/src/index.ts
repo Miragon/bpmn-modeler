@@ -18,4 +18,5 @@ export * from "./diff";
 export * from "./layout";
 export * from "./errors";
 export * from "./canvasResize";
+export * from "./canvasFocusIndicator";
 export * from "./textEditingSurface";

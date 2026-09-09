@@ -2,6 +2,7 @@
 
 - [Prerequisites](#prerequisites)
 - [Setup](#setup)
+- [Coding agents](#coding-agents)
 - [Project Structure](#project-structure)
 - [Development Workflow](#development-workflow)
 - [Testing & Linting](#testing--linting)
@@ -48,6 +49,80 @@ users can run directly). `portless.json` names the app and points `dev` at
 ```bash
 yarn install
 ```
+
+## Coding agents
+
+Claude Code and Codex share the same project instructions and skills:
+
+| Entry point | Shared source |
+|---|---|
+| `AGENTS.md` (Codex), `CLAUDE.md` (Claude Code) | `AGENTS.md` |
+| `.agents/skills/` (Codex), `.claude/skills/` (Claude Code) | `.agents/skills/` |
+
+`CLAUDE.md` and `.claude/skills/` are Git symlinks to the shared sources.
+Edit `AGENTS.md` and `.agents/skills/` to keep both clients in sync.
+Invoke a skill with `/architecture` in Claude Code or
+`$architecture` in Codex. The same convention applies to `adr`, `commit`,
+and the other repository skills. Claude's legacy `/commit` command wrapper
+also points to the shared commit skill.
+
+`.claude/settings.json` contains only Claude settings: automatic attribution
+is disabled and the existing Playwright plugin tools are pre-approved.
+Codex does not read this file. The rule against agent attribution in commits
+and PRs lives in the shared instructions and applies to both clients.
+Keep personal Claude overrides in `.claude/settings.local.json` (gitignored).
+When updating an older checkout, move any local Claude overrides from the
+former shared agent directory to `.claude/settings.local.json`; `.claude/`
+is now a real directory with only its skills symlinked to the shared source.
+
+### Browser tools
+
+Browser testing uses [Microsoft's Playwright MCP server](https://github.com/microsoft/playwright-mcp).
+Configure it once for each client you use. Reuse an existing Playwright
+installation if it already exposes the browser tools; no duplicate server is
+needed. The following user-scoped setup pins the server version and gives each
+session an isolated browser profile for worktree use:
+
+```bash
+# Claude Code: stored in ~/.claude.json
+claude mcp add --scope user playwright -- npx -y @playwright/mcp@0.0.80 --isolated
+
+# Codex: stored in ~/.codex/config.toml
+codex mcp add playwright -- npx -y @playwright/mcp@0.0.80 --isolated
+```
+
+The repo's Claude permission entries target the existing plugin's tool names;
+they do not install a server or pre-approve a separately named `playwright`
+server. Use each client's normal tool approval controls for that server.
+
+For team-managed project configuration, Claude uses root `.mcp.json`, while
+Codex uses `.codex/config.toml` in a trusted project. This repo documents the
+user-scoped setup above and does not install MCP servers during `yarn install`.
+Conductor loads each agent's own MCP configuration; no additional Conductor
+MCP format is needed. See the [Conductor MCP reference](https://conductor.build/docs/reference/mcp),
+[Claude MCP reference](https://code.claude.com/docs/en/mcp), and
+[Codex MCP reference](https://developers.openai.com/codex/mcp).
+
+### Verify a new session
+
+1. Restart the client after changing instructions or tool configuration. Ask
+   it to summarize the repository instructions: it should identify the shared
+   source, `corepack yarn`, the ADR rule, and the commit conventions.
+2. Check that all ten repository skills are available, including `architecture`,
+   `commit`, and `bpmn-browser-testing`. Use `/skills` or `$` in Codex and the
+   `/` menu in Claude Code. Merely checking the commit skill should not commit
+   anything.
+3. Run `claude mcp list` or `codex mcp list` and check Playwright's status in
+   the session. In Conductor, refresh MCP status and start a new session if
+   needed.
+4. Start `corepack yarn workspace @miragon/bpmn-modeler-webview serve`, open
+   the URL printed by Vite, and ask the agent to take a screenshot and inspect
+   the palette with a browser snapshot. Follow any missing-browser installation
+   guidance returned by the server.
+
+Browser tool names and prefixes vary by client/plugin. The browser-testing
+skill uses the tool schemas available in the session, including the exposed
+Playwright-code tool for `page.mouse` interactions.
 
 ## Project Structure
 
@@ -270,4 +345,4 @@ Key design decisions:
 - **Webview communication**: `postMessage` with typed message contracts defined in
   `libs/shared`.
 
-See `CLAUDE.md` in the repository root for the full architectural reference.
+See `AGENTS.md` in the repository root for the full architectural reference.

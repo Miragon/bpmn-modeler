@@ -6,7 +6,7 @@ version history lives on
 
 ## Overview
 
-The repo ships on **three independent release lines**, so a change to one host
+The repo ships on **four independent release lines**, so a change to one host
 no longer forces a release of the others:
 
 | Line | Tag | Covers | Publishes to |
@@ -14,6 +14,7 @@ no longer forces a release of the others:
 | **`npm`** (path `.`, the root component) | `bpmn-modeler-v<version>` | The publishable `@miragon/bpmn-modeler` package + the 10 libs it inlines | npm registry |
 | **`vscode`** (path `apps/vscode-plugin`) | `vscode-v<version>` | VS Code extension + Open VSX + Standalone desktop app | VS Code Marketplace, Open VSX, GitHub Release (DMG/NSIS/Flatpak) + Homebrew |
 | **`intellij`** (path `apps/intellij-plugin`) | `intellij-v<version>` | IntelliJ plugin | JetBrains Marketplace + `updatePlugins.xml` |
+| **`dmn-modeler`** (path `packages/dmn-modeler`) | `dmn-modeler-v<version>` | The publishable `@miragon/dmn-modeler` package + the two libs it inlines | npm registry |
 
 VS Code, Open VSX and Standalone stay on **one** shared version because they are
 all built from the same frontend (`libs/shared`, the webviews). IntelliJ is a
@@ -46,9 +47,10 @@ the sources they bundle from elsewhere
 
 | Line | Natively watched paths | Bundled sources (marker-covered) | Marker file |
 |---|---|---|---|
-| **npm** (root `.`) | `packages/*`, the 10 inlined libs + remaining root files | — | — |
-| **vscode** (`apps/vscode-plugin`) | `apps/vscode-plugin` only | the four webviews, `apps/standalone`, `libs/modeler-core`, `libs/shared`, `libs/standalone-extension`, the npm-package sphere | `apps/vscode-plugin/BUNDLED_WEBVIEW` |
+| **npm** (root `.`) | `packages/bpmn-modeler`, the 10 inlined libs + remaining root files | — | — |
+| **vscode** (`apps/vscode-plugin`) | `apps/vscode-plugin` only | the four webviews, `apps/standalone`, `libs/modeler-core`, `libs/shared`, `libs/standalone-extension`, `packages/dmn-modeler`, the npm-package sphere | `apps/vscode-plugin/BUNDLED_WEBVIEW` |
 | **intellij** (`apps/intellij-plugin`) | `apps/intellij-plugin` only | `apps/bpmn-webview`, `apps/deployment-webview`, `apps/modeler-bridge`, `libs/modeler-core`, `libs/shared`, the npm-package sphere | `apps/intellij-plugin/BUNDLED_WEBVIEW` |
+| **dmn-modeler** (`packages/dmn-modeler`) | `packages/dmn-modeler` only | `libs/modeler-types`, `libs/bpmn-i18n-extras` | `packages/dmn-modeler/BUNDLED_LIBS` |
 
 The 10 inlined libs (with `packages/bpmn-modeler`, the "npm-package sphere" —
 see `INLINED_LIBS` in `packages/bpmn-modeler/vite.config.mts`):
@@ -70,9 +72,13 @@ npm release line.
 ### Sync markers
 
 [`sync-release-markers.yml`](https://github.com/Miragon/bpmn-modeler/blob/main/.github/workflows/sync-release-markers.yml)
-maintains the two host markers. When a `feat`/`fix` lands on a bundled path, it
-commits **one marker commit** — touching the marker file of every host that
-bundles the change — whose subject mirrors the triggering PR title, e.g.
+maintains three markers: the two host `BUNDLED_WEBVIEW` markers and the
+`dmn-modeler` line's `BUNDLED_LIBS` marker (bundled *libs* into a package, vs
+`BUNDLED_WEBVIEW`'s webviews into a host — the DMN package inlines
+`libs/modeler-types` and `libs/bpmn-i18n-extras`). When a `feat`/`fix` lands on
+a bundled path, it commits **one marker commit** — touching the marker file of
+every component that bundles the change — whose subject mirrors the triggering
+PR title, e.g.
 `fix(append-menu): restore flat menu entries … (#1428) [sync d512d6c]`. That
 routes the real change, under its real title, into each host's release line and
 changelog. Key properties:
@@ -90,17 +96,18 @@ changelog. Key properties:
   next host release but get no changelog line. Deliberate noise/value cut.
 - **A host is left out of the marker commit when the push already routes
   natively** (it touched the host's own directory), so no double-bump.
-- Neither marker file sits under a workflow trigger path, so a marker push
-  cannot cascade into more markers.
+- No marker push can cascade into more markers: the two host markers sit
+  outside all trigger paths, and the DMN `BUNDLED_LIBS` marker is negated from
+  its own `packages/dmn-modeler/**` trigger path.
 - **Re-run red `Sync release markers` runs.** The ref update is
   fast-forward-only, so a run that races a concurrent push (or hits an API
   hiccup) fails without writing its marker — that `feat`/`fix` stays
   unattributed until the run is re-run. Re-running is safe: the same-sha guard
   makes it a no-op if the marker already landed.
 - **`workflow_dispatch`** is a manual seed/escape hatch: it bypasses the type
-  filter and writes a generic `fix: sync bundled sources` marker for every host
-  whose marker isn't already at `HEAD` (used once when this routing was
-  adopted).
+  filter and writes a generic `fix: sync bundled sources` marker for every
+  component whose marker isn't already at `HEAD` (used once when this routing
+  was adopted).
 
 ### Signalling severity
 
@@ -129,34 +136,39 @@ flowchart LR
     pr_v{{vscode Release PR}}
     pr_i{{intellij Release PR}}
     pr_n{{npm Release PR}}
+    pr_d{{dmn-modeler Release PR}}
     tag_v[(vscode-v&lt;version&gt; tag<br/>+ Release)]
     tag_i[(intellij-v&lt;version&gt; tag<br/>+ Release)]
     tag_n[(bpmn-modeler-v&lt;version&gt; tag<br/>+ Release)]
+    tag_d[(dmn-modeler-v&lt;version&gt; tag<br/>+ Release)]
 
     commits --> rp
     commits --> sync --> commits
     rp --> pr_v -->|merge| tag_v
     rp --> pr_i -->|merge| tag_i
     rp --> pr_n -->|merge| tag_n
+    rp --> pr_d -->|merge| tag_d
 
     tag_v --> p_vscode[publish-vscode-modeler.yml]
     tag_v --> p_ovsx[publish-open-vsx-modeler.yml]
     tag_v --> p_standalone[release-standalone.yml<br/>→ publish-standalone → homebrew]
     tag_i --> p_intellij[publish-intellij.yml]
-    tag_n --> p_npm[publish-npm-modeler.yml]
+    tag_n --> p_npm[publish-npm-modeler.yml<br/>npm job]
+    tag_d --> p_npm_dmn[publish-npm-modeler.yml<br/>npm-dmn job]
 
     p_vscode --> a_vscode[(VS Code Marketplace)]
     p_ovsx --> a_ovsx[(Open VSX)]
     p_standalone --> a_standalone[(DMG / NSIS / Flatpak + Homebrew)]
     p_intellij --> a_intellij[(updatePlugins.xml + ZIP)]
     p_npm --> a_npm[(npm registry)]
+    p_npm_dmn --> a_npm
 ```
 
 ## Configuration
 
 release-please is driven by two checked-in files:
 
-- **`release-please-config.json`** — three packages, `separate-pull-requests: true`:
+- **`release-please-config.json`** — four packages, `separate-pull-requests: true`:
   - `"."` — `release-type: node`, `component: bpmn-modeler`,
     `include-component-in-tag: true` → tag `bpmn-modeler-v<version>`. The root
     catch-all: `exclude-paths` removes `apps`, `docs`, `.github` and the
@@ -173,11 +185,17 @@ release-please is driven by two checked-in files:
     `include-component-in-tag: true` → tag `intellij-v<version>`. Its `extra-files`
     stamp `gradle.properties` (`pluginVersion`) via the `generic` updater,
     anchored by the `# x-release-please-start-version` markers.
+  - `"packages/dmn-modeler"` — `release-type: node`, `component: dmn-modeler`,
+    `include-component-in-tag: true` → tag `dmn-modeler-v<version>`. It lives in
+    its own directory, so no `changelog-path`/`extra-files` are needed — the
+    default `packages/dmn-modeler/{package.json,CHANGELOG.md}` handling applies.
+    (`packages/dmn-modeler` is already in the root's `exclude-paths`, so a
+    DMN-package change never feeds the npm line.)
   - `changelog-sections` map commit **types** (`feat`/`fix`/`refactor`/`docs`/
     `chore`) to changelog headings.
 - **`.release-please-manifest.json`** — `{ ".": "…", "apps/vscode-plugin": "…",
-  "apps/intellij-plugin": "…" }`, the current version of each line.
-  release-please updates these on each release.
+  "apps/intellij-plugin": "…", "packages/dmn-modeler": "…" }`, the current
+  version of each line. release-please updates these on each release.
 
 ## Releasing
 
@@ -200,20 +218,26 @@ Merging a Release PR fans out via `release-please.yml`:
 |---|---|---|
 | `vscode` | `publish-vscode-modeler.yml`, `publish-open-vsx-modeler.yml`, `release-standalone.yml` | Marketplace + Open VSX + DMG/NSIS/Flatpak + Homebrew. |
 | `intellij` | `publish-intellij.yml` | Multi-platform ZIP → JetBrains Marketplace, refreshes `docs/public/updatePlugins.xml`. |
-| `npm` | `publish-npm-modeler.yml` | Builds + packs + smoke-tests, then `npm publish --provenance` to the npm registry via Trusted Publishing (OIDC). |
+| `npm` | `publish-npm-modeler.yml` (`npm` job) | Builds + packs + smoke-tests, then `npm publish --provenance` to the npm registry via Trusted Publishing (OIDC). |
+| `dmn-modeler` | `publish-npm-modeler.yml` (`npm-dmn` job) | Same workflow, parameterised for `@miragon/dmn-modeler` (`workspace`/`package-dir`/`smoke-extra-deps: jsdom esbuild` inputs); publishes to npm via Trusted Publishing. |
 
 Each `publish-*` workflow is also runnable on its own via `workflow_dispatch`
 (pass the line's tag, e.g. `tag: vscode-v1.4.0` / `tag: intellij-v1.4.0`) with a
 `dry-run` option for reruns.
 
-> **`publish-npm-modeler.yml` dispatch is dry-run-only.** npm Trusted Publishing
-> validates the **top-level caller** workflow filename, and the trusted publisher
-> is configured for `release-please.yml`. A manual `workflow_dispatch` of the npm
-> workflow therefore always runs as a dry-run (build + pack + smoke +
-> `npm publish --dry-run`), even if you set `dry-run: false`. To re-run a failed
-> **real** publish, re-run the `npm` job on the triggering `release-please.yml`
-> run — not the standalone workflow. The publish step is idempotent: it skips if
-> the version is already on npm.
+> **`publish-npm-modeler.yml` dispatch is dry-run-only.** The one workflow
+> serves both npm packages — dispatch it with the `workspace` /`package-dir` /
+> `smoke-extra-deps` inputs (defaults target `@miragon/bpmn-modeler`; pass
+> `@miragon/dmn-modeler` + `packages/dmn-modeler` + `jsdom esbuild` for the DMN
+> package — the DMN smoke bundles its consumer, since the dmn-js stack only
+> resolves through a bundler). npm Trusted Publishing validates the **top-level caller** workflow
+> filename, and the trusted publisher is configured for `release-please.yml`. A
+> manual `workflow_dispatch` of the npm workflow therefore always runs as a
+> dry-run (build + pack + smoke + `npm publish --dry-run`), even if you set
+> `dry-run: false`. To re-run a failed **real** publish, re-run the `npm` (or
+> `npm-dmn`) job on the triggering `release-please.yml` run — not the standalone
+> workflow. The publish step is idempotent: it skips if the version is already
+> on npm.
 
 > The `@miragon/create-append-c7` polyfill that the BPMN webview depends on
 > lives in its [own repository](https://github.com/Miragon/create-append-c7)
@@ -230,7 +254,8 @@ environment:
 | VS Code | `vscode-marketplace` |
 | IntelliJ | `jetbrains-marketplace` |
 | Standalone | `standalone` |
-| npm package | `npm-registry` |
+| npm package (`@miragon/bpmn-modeler`) | `npm-registry` |
+| DMN npm package (`@miragon/dmn-modeler`) | `npm-registry` (shared) |
 
 The repo
 [Environments / Deployments page](https://github.com/Miragon/bpmn-modeler/deployments)
@@ -256,26 +281,31 @@ then shows the last-published version per host.
   manual, so the bundle is not mirrored to `standalone-latest`. The docs download
   page resolves the most recent release that carries an arm64 DMG, independent
   of the tag scheme.
-- **npm package** → the [`@miragon/bpmn-modeler`](https://www.npmjs.com/package/@miragon/bpmn-modeler)
-  npm registry entry, published with provenance. Each release publishes the
+- **npm packages** → the [`@miragon/bpmn-modeler`](https://www.npmjs.com/package/@miragon/bpmn-modeler)
+  and [`@miragon/dmn-modeler`](https://www.npmjs.com/package/@miragon/dmn-modeler)
+  npm registry entries, published with provenance. Each release publishes the
   yarn-packed tarball with the npm CLI (`npm publish <tarball> --provenance`);
   yarn `pack` rewrites the `workspace:*` ranges to real versions first.
 
 ## npm Trusted Publishing (one-time setup)
 
-The npm line uses **Trusted Publishing (OIDC)** — no long-lived npm token lives
+Both npm lines use **Trusted Publishing (OIDC)** — no long-lived npm token lives
 in CI. npm only lets you configure a trusted publisher *after* the package
-exists, so the first `0.1.0` release was a one-time manual bootstrap publish
-(build → `yarn workspace @miragon/bpmn-modeler pack` → `npm publish <tarball>
---access public` with a short-lived granular token, then the token was revoked).
-Every release since publishes over OIDC.
+exists, so each package's first `0.1.0` release is a one-time manual bootstrap
+publish (build → `yarn workspace <workspace> pack` → `npm publish <tarball>
+--access public` with a short-lived granular token, then the token is revoked).
+`@miragon/dmn-modeler@0.1.0` needs the same bootstrap before its trusted
+publisher can be configured. Every release since publishes over OIDC.
 
-Two constraints follow from how npm scopes the trusted publisher:
+The trusted publisher is configured **per package** on npmjs.com, but each one
+points at the **same** caller workflow (`release-please.yml`) and the shared
+`npm-registry` GitHub environment. Two constraints follow from how npm scopes it:
 
 - The trusted publisher is bound to the **top-level caller workflow**
   (`release-please.yml`) and the `npm-registry` GitHub environment, so
   `publish-npm-modeler.yml` must stay called from `release-please.yml` to
-  publish for real (see the dispatch-is-dry-run-only note above).
-- `id-token: write` is required in **both** the `npm` caller job in
+  publish for real (see the dispatch-is-dry-run-only note above). This holds for
+  both the `npm` and `npm-dmn` fan-out jobs.
+- `id-token: write` is required in **both** the caller job (`npm` / `npm-dmn`) in
   `release-please.yml` and `publish-npm-modeler.yml` itself, and npm ≥ 11.5.1
   (the workflow upgrades npm, since Node 22 ships npm 10).

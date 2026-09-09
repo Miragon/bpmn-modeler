@@ -1,11 +1,3 @@
-/* Dark theme for the DRD (Decision Requirements Diagram) canvas.
- *
- * The DRD is a diagram-js surface, so the generic diagram-js custom properties
- * (canvas, palette, context-pad, popup, search, selection) are driven from the
- * same `--dt-*` scale the BPMN dark theme uses. dmn-js's DrdRenderer paints
- * shapes with the same inline `style` defaults as bpmn-js (`fill: white`,
- * `stroke: rgb(34, 36, 42)`), so the value-scoped recolour rules below mirror
- * the BPMN theme exactly. */
 @import "./colors.css";
 
 [data-dmn-theme="dark"] .djs-parent {
@@ -77,44 +69,32 @@
     --tooltip-error-color: var(--dt-color-red-a20);
 }
 
-/**
- * The canvas
- */
 [data-dmn-theme="dark"] .djs-container {
     background-color: var(--canvas-fill-color) !important;
 }
 
-/*
- * Recolour ONLY dmn-js's default paint (`fill: white`, `stroke: rgb(34, 36, 42)`),
- * scoping each rule to the known value so a user's "Set color" choice (a
- * different inline value) survives. `fill: none` shapes match nothing and stay
- * transparent.
- */
+/* Target only default paint values to preserve custom colours and transparent shapes. */
 
-/* defaultFillColor (white) → dark surface */
 [data-dmn-theme="dark"] .djs-shape > .djs-visual > [style*="fill: white"] {
     fill: var(--bpmn-shape-fill-color) !important;
 }
 
-/* defaultStrokeColor used as a fill (filled markers, decision icons) → light */
 [data-dmn-theme="dark"] .djs-shape > .djs-visual > [style*="fill: rgb(34, 36, 42)"],
 [data-dmn-theme="dark"] defs marker > [style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-shape-stroke-color) !important;
 }
 
-/* defaultStrokeColor (rgb(34, 36, 42)) → light stroke */
 [data-dmn-theme="dark"] .djs-shape > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
 [data-dmn-theme="dark"] .djs-connection > .djs-visual > [style*="stroke: rgb(34, 36, 42)"],
 [data-dmn-theme="dark"] defs marker > [style*="stroke: rgb(34, 36, 42)"] {
     stroke: var(--bpmn-shape-stroke-color) !important;
 }
 
-/* Embedded labels — recolour only the default black text. */
 [data-dmn-theme="dark"] .djs-shape > .djs-visual > text[style*="fill: rgb(34, 36, 42)"] {
     fill: var(--bpmn-label-color) !important;
 }
 
-/* External labels sit on the dark canvas, so always light. */
+/* External labels always sit on the dark canvas. */
 [data-dmn-theme="dark"] .djs-label .djs-visual text {
     fill: var(--bpmn-label-color) !important;
 }
@@ -127,16 +107,10 @@
     background-color: var(--dt-surface-a10) !important;
 }
 
-/**
- * Context pad
- */
 [data-dmn-theme="dark"] .djs-context-pad {
     color: var(--dt-primary-a50) !important;
 }
 
-/**
- * Search box
- */
 [data-dmn-theme="dark"] .djs-search-container .djs-search-result {
     color: var(--dt-surface-a40) !important;
     background-color: var(--dt-surface-a10) !important;
@@ -146,9 +120,6 @@
     filter: invert(0.7);
 }
 
-/**
- * Popup
- */
 [data-dmn-theme="dark"] .djs-popup-title {
     color: var(--dt-surface-a70) !important;
 }
@@ -157,18 +128,11 @@
     color: var(--dt-primary-a50) !important;
 }
 
-/**
- * "Powered by dmn.io" attribution logo — hardcoded `color: #404040` is nearly
- * invisible on dark; lift it to a muted light grey.
- */
-[data-dmn-theme="dark"] .bjs-powered-by {
-    color: var(--dt-surface-a50) !important;
+/* The logo hardcodes path fills, so color has no effect. Preserve its licensed markup. */
+[data-dmn-theme="dark"] .bjs-powered-by svg path {
+    fill: var(--dt-surface-a60) !important;
 }
 
-/**
- * DRD definitions box (top-left name/id panel) — drives off the dmn-js grey
- * palette, which we leave light, so override the semantic variables here.
- */
 [data-dmn-theme="dark"] .dmn-drd-container {
     --dmn-definitions-background-color: var(--dt-surface-a10);
     --dmn-definitions-border-color: var(--dt-surface-a30);

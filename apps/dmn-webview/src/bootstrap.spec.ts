@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
         focusCanvas: vi.fn(),
         isCanvasFocused: vi.fn(() => true),
         setTheme: vi.fn(),
+        setLocale: vi.fn(async () => undefined),
         destroy: vi.fn(),
         getService: vi.fn(),
     };
@@ -203,6 +204,11 @@ describe("DMN bootstrap", () => {
         await vi.waitFor(() => expect(mocks.handle.setTheme).toHaveBeenCalledWith("dark"));
         document.body.classList.remove("vscode-dark");
 
+        // A LanguageQuery routes to the handle, which owns the resolved-locale
+        // guard and the active-view re-open.
+        dispatch({ type: "LanguageQuery", locale: "de" });
+        await vi.waitFor(() => expect(mocks.handle.setLocale).toHaveBeenCalledWith("de"));
+
         function dispatch(data: Record<string, unknown>): void {
             window.dispatchEvent(new MessageEvent("message", { data }));
         }
@@ -234,5 +240,35 @@ describe("DMN bootstrap", () => {
         // and the locale is seeded before the modeler renders.
         await vi.waitFor(() => expect(mocks.handle.setTheme).toHaveBeenCalledWith("dark"));
         expect(mocks.setLanguage).toHaveBeenCalledWith("de");
+    });
+
+    it("forwards injected additionalModules to createModeler", async () => {
+        vi.resetModules();
+        mocks.createModeler.mockClear();
+
+        document.body.className = "";
+        document.body.innerHTML = `
+            <main id="js-canvas"></main>
+            <aside id="js-properties-panel"></aside>
+        `;
+        Object.defineProperty(document, "readyState", { value: "complete", configurable: true });
+
+        const host = {
+            postMessage: vi.fn(),
+            getState: () => undefined,
+            setState: vi.fn(),
+            updateState: vi.fn(),
+        };
+
+        const drdRecorder = { id: "recorder" };
+        const { bootstrap } = await import("./bootstrap");
+        bootstrap(host as never, { additionalModules: { drd: [drdRecorder] } });
+
+        await vi.waitFor(() =>
+            expect(mocks.createModeler).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({ additionalModules: { drd: [drdRecorder] } }),
+            ),
+        );
     });
 });

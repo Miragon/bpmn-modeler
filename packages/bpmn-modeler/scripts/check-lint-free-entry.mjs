@@ -1,13 +1,4 @@
-// Acceptance criterion for issue #1407, mechanised: a `linting: false` consumer
-// must have no lint import in its module graph, in every bundling mode. The lint
-// stack now lives behind the `@miragon/bpmn-modeler/lint` subpath and is injected
-// by the host, so nothing the root entry *statically* reaches may name bpmnlint.
-//
-// We start at `dist/index.js` and follow only static import/export specifiers
-// (never `import(...)` — a dynamic import is a separate chunk a single-file
-// bundler inlines, which is the whole failure mode this replaces), collecting the
-// transitive closure of chunks the root entry pulls in unconditionally. If any of
-// them mentions `bpmnlint`, the lint stack leaked back into the critical path.
+// Linting is injected by consumers; the root entry must not statically pull in its stack.
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, relative } from "node:path";
@@ -16,8 +7,7 @@ const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const ROOT_ENTRY = resolve(distDir, "index.js");
 const FORBIDDEN = /bpmnlint/;
 
-// Static specifiers only: `import … from "x"`, bare `import "x"`, and
-// `export … from "x"`. `import(` (dynamic) is deliberately excluded.
+// This scan covers static imports and re-exports only; dynamic imports are excluded.
 const STATIC_SPECIFIER_PATTERNS = [
     /\bimport\s+[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
     /\bexport\s+[^;'"]*?\bfrom\s*["']([^"']+)["']/g,

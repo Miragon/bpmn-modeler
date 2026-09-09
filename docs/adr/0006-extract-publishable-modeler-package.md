@@ -87,3 +87,13 @@ aligned. They get inlined into the package's lib build instead.
   `dependencies` and the versions the monorepo hosts resolve. While both live
   in this repo the root lockfile keeps them aligned; once external consumers
   exist, keeping the ranges honest is a real coordination cost we accept.
+- `tiny-svg@4.1.4` is temporarily declared directly by the package because
+  `bpmn-js-token-simulation@0.40.0` imports it without declaring it. Hoisted
+  installs can mask that omission; nested installs and other strict resolvers
+  cannot. Remove the direct dependency after upgrading to a token-simulation
+  release that declares `tiny-svg` itself. Strict Yarn PnP support remains an
+  upstream follow-up until then.
+- `@lezer/lr@1.4.10` likewise bridges the undeclared import made directly by
+  `@bpmn-io/variable-resolver@3.3.0`. It is visible through that package's
+  declared `@bpmn-io/lezer-feel` dependency only in a hoisted layout, so it must
+  remain direct until variable-resolver declares it (or stops importing it).

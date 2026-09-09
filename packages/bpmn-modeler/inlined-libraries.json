@@ -1,0 +1,50 @@
+[
+    {
+        "name": "@miragon/bpmn-modeler-types",
+        "sourceRoot": "../../libs/modeler-types/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-diff",
+        "sourceRoot": "../../libs/bpmn-diff/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-clipboard",
+        "sourceRoot": "../../libs/bpmn-clipboard/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-i18n-extras",
+        "sourceRoot": "../../libs/bpmn-i18n-extras/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-element-template-chooser",
+        "sourceRoot": "../../libs/element-template-chooser/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-append-menu",
+        "sourceRoot": "../../libs/append-menu/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-properties-panel",
+        "sourceRoot": "../../libs/properties-panel/src"
+    },
+    {
+        "name": "@miragon/bpmn-model-navigation",
+        "sourceRoot": "../../libs/model-navigation/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-code-link",
+        "sourceRoot": "../../libs/code-link/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-inline-scripting",
+        "sourceRoot": "../../libs/inline-scripting/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-flow-navigation",
+        "sourceRoot": "../../libs/flow-navigation/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-layout",
+        "sourceRoot": "../../libs/bpmn-layout/src"
+    }
+]

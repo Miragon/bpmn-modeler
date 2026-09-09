@@ -1,226 +1,147 @@
 # Architecture overview
 
-This page gives contributors the mental model of how the modeler is put
-together. Deeper rationale for the big structural decisions lives in the
-[decision log (`docs/adr/`)](https://github.com/Miragon/bpmn-modeler/tree/main/docs/adr)
-in the repository.
+Miragon BPMN Modeler combines embeddable browser modelers with IDE integrations.
+Contributors work across three parts: public modeler packages, reusable internal
+libraries, and applications that assemble them. The browser packages own the
+modeling surfaces; `modeler-core` provides the shared services behind the IDEs.
 
-## Mental model
+## Platform map
 
-A Miragon BPMN Modeler session is two cooperating processes:
+The same BPMN and DMN packages power the IDE webviews and the browser demo.
+Browser applications call their APIs directly. IDE integrations add document
+management and host capabilities through a private message bridge.
 
-- The **extension host** (Node, built with webpack) runs inside VS Code. It
-  owns the filesystem, VS Code APIs, and the deployment sidebar backend, and it
-  wires the host-agnostic modeling engine (`@miragon/bpmn-modeler-core`) to VS
-  Code through port adapters. The engine itself — the long-lived domain services
-  — lives in that `vscode`-free package; see
-  [ADR 0002](https://github.com/Miragon/bpmn-modeler/blob/main/docs/adr/0002-modeler-core-extraction.md)
-  in the repository's decision log.
-- A **webview** (browser iframe, built with Vite) runs the bpmn-js / dmn-js
-  modeler itself. Each open `.bpmn` or `.dmn` file has its own webview. A diff
-  produces two webviews for one file.
-
-These two processes talk through **typed message contracts** defined in
-`libs/shared/src/lib/modeler.ts`. There is no shared memory and no direct
-function calls — everything crosses via `postMessage`.
-
-The same extension is shipped two ways:
-
-- as a **`.vsix`** to the VS Code Marketplace (the primary delivery channel), and
-- bundled into a **standalone Theia/Electron desktop app** (`apps/standalone`),
-  which loads the very same `.vsix` as a Theia plugin. The host/webview split
-  above is identical in both delivery modes.
-
-## Monorepo layout
-
-```
-apps/
-  vscode-plugin/     # Extension host (Node, webpack) — produces the .vsix
-  bpmn-webview/       # BPMN webview (browser, Vite)
-  dmn-webview/        # DMN webview (browser, Vite)
-  deployment-webview/ # Deployment sidebar UI (Vite)
-  standalone/         # Theia/Electron shell — bundles the .vsix into a desktop app
-libs/
-  shared/                        # Message contracts, cross-process utils
-  modeler-core/                  # Host-agnostic modeling engine (vscode-free)
-  bpmn-clipboard/                # bpmn-js DI module (copy/paste)
-  bpmn-i18n/                     # bpmn-js DI module (translations)
-  append-menu/                   # bpmn-js DI module (custom append UI)
-  element-template-chooser/      # bpmn-js DI module (template picker)
+```mermaid
+flowchart TB
+    vscode["VS Code"] --> extension["VS Code extension<br/>Node + modeler-core"]
+    standalone["Standalone<br/>Theia / Electron"] -->|loads VSIX| extension
+    intellij["IntelliJ<br/>Kotlin"] <-->|stdio JSON-RPC| bridge["Bun bridge<br/>modeler-core"]
+    extension <-->|postMessage| webviews["BPMN / DMN<br/>webview adapters"]
+    intellij <-->|JCEF messages: BPMN| webviews
+    webviews -->|imports| packages["Browser modeler packages<br/>BPMN / DMN"]
+    browser["Browser demo /<br/>external applications"] -->|imports| packages
+    packages -->|composes| libraries["Reusable browser libraries<br/>types, features, styles"]
 ```
 
-| Workspace | Lives at | What it does |
-|---|---|---|
-| `vs-code-bpmn-modeler` | `apps/vscode-plugin` | VS Code extension host entry; produces the `.vsix` |
-| `@miragon/bpmn-modeler-webview` | `apps/bpmn-webview` | BPMN editor UI + diff viewer |
-| `@miragon/dmn-modeler-webview` | `apps/dmn-webview` | DMN editor UI |
-| `@miragon/bpmn-modeler-deployment-webview` | `apps/deployment-webview` | Deploy / Start Instance sidebar UI |
-| `@miragon/bpmn-modeler-standalone` | `apps/standalone` | Theia/Electron shell — bundles the `.vsix` into macOS DMG, Windows NSIS, and Linux Flatpak packages |
-| `@miragon/bpmn-modeler-bridge` | `apps/modeler-bridge` | Out-of-process stdio JSON-RPC bridge running `modeler-core` for the IntelliJ host; ships as a Node-free Bun binary |
-| `@miragon/bpmn-modeler-shared` | `libs/shared` | Message types, cross-process utilities |
-| `@miragon/bpmn-modeler-core` | `libs/modeler-core` | Host-agnostic modeling engine (domain + services + ports), consumed by the VS Code plugin and the IntelliJ bridge |
-| `@miragon/bpmn-modeler-clipboard` | `libs/bpmn-clipboard` | Host-bridge clipboard override (native browser clipboard is the default; registered only when the webview can't reach the system clipboard) |
-| `@miragon/bpmn-modeler-i18n` | `libs/bpmn-i18n` | bpmn-js DI module for translations |
-| `@miragon/bpmn-modeler-append-menu` | `libs/append-menu` | Preact-based append menu overlay |
-| `@miragon/bpmn-modeler-element-template-chooser` | `libs/element-template-chooser` | Preact-based template chooser overlay |
+The `modeler-core` labels represent the same library running inside two different
+hosts. IntelliJ currently provides a BPMN visual editor and deployment tool
+window; VS Code registers BPMN, DMN, and Form editors. The standalone app loads
+the VS Code extension through Theia's plugin support, with its shell supplied
+by `apps/standalone` and `libs/standalone-extension`.
 
-Most `libs/*` are source-only — the consuming Vite/webpack build compiles the
-TypeScript and TSX files directly via the `@miragon/bpmn-modeler-<lib>` path alias.
-Only `@miragon/bpmn-modeler-shared` has its own `tsc` build step, compiled
-because it's also consumed by the extension host.
+## Package responsibilities
 
-The BPMN webview additionally depends on
-[`@miragon/create-append-c7`](https://github.com/Miragon/create-append-c7)
-— a bpmn-js polyfill for Camunda 7 template creation that lives in its own
-repository and is pulled in as a published npm dependency, not a workspace.
+| Location | Responsibility |
+| --- | --- |
+| `packages/bpmn-modeler` | Public `@miragon/bpmn-modeler` browser API over bpmn-js: modeling, viewing, design, diff, and optional linting. |
+| `packages/dmn-modeler` | Public `@miragon/dmn-modeler` browser API over dmn-js: decision diagrams, tables, expressions, and simulation. |
+| `libs/modeler-core` | Host-agnostic services for documents, editor sessions, deployment, templates, navigation, scripting, and diff coordination. |
+| `libs/modeler-types` | Public-facing model types and browser utilities suitable for inclusion in the published packages. |
+| `libs/shared` | Private Command/Query protocol, `HostApi`, document-flush helpers, and webview chrome such as panel resizing and host-theme adaptation. |
+| Other `libs/` | Reusable feature modules: menus, properties panel, clipboard, navigation, code links, scripting, diff, and translation overlays. |
+| `apps/` | Runnable applications and host adapters: IDE integrations, webviews, bridge, standalone shell, and browser demo. |
 
-## Extension host vs webview
+The `libs/` workspaces are private and are not published individually. Browser
+packages inline the reusable workspace code they need while keeping the upstream
+bpmn-io stack as npm dependencies. Shared translations come from the external
+`@miragon/bpmn-modeler-i18n` package; `libs/bpmn-i18n-extras` supplies the local
+overlay.
 
-| Concern | Extension host | Webview |
-|---|---|---|
-| File I/O | yes (`vscode.workspace.fs`) | no |
-| VS Code API | yes | no (bridged via messages) |
-| `vscode.env.clipboard` | yes | no (bridged) |
-| bpmn-js / dmn-js modeler | no | yes |
-| Preact overlays | no | yes |
-| Long-lived services | yes (`EditorSessionStore`, `BpmnModelerService`, …) | no |
-| Per-editor lifecycle | yes (`ModelerSession` per editor) | one per open `.bpmn`/`.dmn` tab |
+`apps/bpmn-webview` and `apps/dmn-webview` adapt the public modeler APIs to host
+messages, theme signals, and persisted view state. `apps/demo-webapp` demonstrates
+direct package embedding. `apps/form-webview` integrates form-js editing and
+preview; `apps/deployment-webview` renders the deployment UI, with its markup
+owned by `src/app/formTemplate.ts`.
 
-The extension host is organised **by feature**, with plain constructor wiring —
-no DI framework. Each feature folder owns the four classic layers as
-subfolders; cross-feature use is funnelled through the feature's `index.ts`
-barrel.
+## Boundaries and extension points
 
-```
-apps/vscode-plugin/src/
-  main.ts            Activation: build shared deps, then call each feature's register()
-  composition/       One register(context, deps) per feature — the wiring root
-  shared/            Cross-feature substrate — no feature owns it
-    domain/          Pure types (BpmnDocument, ModelerSession, ports) — no external deps
-    service/         Stateless shared services (ArtifactService)
-    infrastructure/  VS Code adapters (EditorSessionStore, VsCode*, WebviewMessageRouter, …)
-  modeler/
-    editor-session/  Generic custom-editor host (ModelerEditorController + participants)
-    bpmn/  dmn/       { domain/ service/ controller/ infrastructure/  index.ts }
-  diff/  deployment/  scriptTask/  navigation/  migration/
-                     each: { domain/ service/ controller/ infrastructure/  index.ts }
-```
+**Browser behavior belongs in the modeler packages and reusable feature libraries.**
+Their public contracts are factories, instance handles, options, and callbacks.
+BPMN offers View, Design, and Implement surfaces, with a mode-session API to
+coordinate switching. Optional capabilities connect navigation, code links,
+and script editing to a consumer. Linting is an explicitly supplied module;
+theme selection is scoped to modeler containers. API details live in the
+[BPMN package guide](https://github.com/Miragon/bpmn-modeler/blob/main/packages/bpmn-modeler/README.md)
+and [DMN package guide](https://github.com/Miragon/bpmn-modeler/blob/main/packages/dmn-modeler/README.md).
 
-The four layers still hold *within* each feature, and are now enforced in CI by
-`apps/vscode-plugin/src/architecture.spec.ts` (ArchUnitTS): `domain` imports no
-outer layer and no `vscode`/Node host modules; `service` never imports `vscode`
-or `controller`; the tree is cycle-free; and a feature reaches a sibling only
-through its `index.ts`. Three pieces are deliberately exempt from the
-feature-isolation rule because they are not features: `shared/`, `composition/`,
-and `modeler/editor-session/`.
+**Host services belong in `modeler-core`.** Features group domain models,
+services, and host-independent infrastructure together. Services access host
+facilities through capability ports; adapters implement filesystem, document,
+settings, notification, and secret-storage access. Deployment has separate
+engine ports and Camunda REST adapters. The core is shared across IDE hosts,
+but is not the browser modeler API.
 
-Two patterns keep the controllers thin and constant-size as features grow:
+**Host integration belongs in the applications.** VS Code controllers and
+adapters are wired through `main.ts` and `composition/`. The IntelliJ bridge has
+its own composition modules and RPC adapters. Its document and settings mirrors
+let the core read host-owned state synchronously across the asynchronous RPC
+boundary; see the
+[bridge guide](https://github.com/Miragon/bpmn-modeler/blob/main/apps/modeler-bridge/README.md).
 
-- **`WebviewMessageRouter`** — an open/closed dispatch table. A webview command
-  is handled by registering one more handler factory (see
-  `modeler/bpmn/controller/webview-handlers/`), not by editing a central
-  `switch`.
-- **`EditorSessionParticipant`** — each per-editor lifecycle concern (render,
-  element templates, settings, status bar, script-task teardown) is an
-  independent participant the generic `ModelerEditorController` runs on resolve.
-  Adding a concern is "write a participant + register it", with no controller
-  edit. Both `.bpmn` and `.dmn` share this one controller.
+Applications may depend on packages and libraries; packages may depend on
+reusable libraries; libraries must not depend back on applications or modeler
+packages. Published browser code cannot import `modeler-core` or the private
+`shared` protocol. Architecture specs in both modeler packages, the core, and
+the VS Code plugin, together with ESLint import rules, guard these boundaries.
+The VS Code checks also cover host isolation, import cycles, and selected
+feature-barrel boundaries.
 
-A webview module (`apps/bpmn-webview`) wires up bpmn-js via `BpmnModeler.create()`
-and passes additional DI modules (clipboard, i18n, append-menu, template-chooser).
-bpmn-js itself **uses didi**, a small DI framework inherited from the upstream
-bpmn-js / diagram-js projects.
+## Editor communication and lifecycle
 
-## Webview ↔ extension-host bridge
+Each IDE editor has a browser surface and a host-managed session. VS Code's
+generic `ModelerEditorController` serves BPMN, DMN, and Forms; participants add
+per-editor concerns such as rendering, settings, and cleanup. The core's
+`EditorSessionStore` tracks editor handles, and `WebviewMessageRouter` dispatches
+incoming messages to registered handlers. BPMN diff uses coordinated viewer panes.
 
-Messages are plain-object payloads wrapped in **`Query` and `Command` classes**
-defined in `libs/shared/src/lib/modeler.ts`:
+The private protocol lives in `libs/shared/src/lib/`: `messages.ts` defines
+base and cross-cutting messages, while feature files define their payloads.
+**Commands travel webview → host; Queries travel host → webview.** These names
+identify direction, rather than a generic request/response mechanism.
 
-- **`Command`** — one-way message, fire and forget. Usually webview → host to
-  request an action or notify of state.
-- **`Query`** — one-way message that expects a corresponding response Query in
-  the other direction. Host → webview Queries typically deliver data (e.g.
-  `BpmnFileQuery` carries the XML when an editor opens).
-
-The convention across the codebase:
-
-- Webview → host: `SetXCommand`, `GetXCommand`, `XChangedCommand`.
-- Host → webview: `XQuery` (deliver X) or `ApplyXQuery` (apply X to the pane).
-
-Example (clipboard):
-
-| Direction | Class | Purpose |
-|---|---|---|
-| webview → host | `GetClipboardCommand` | request element clipboard text |
-| webview → host | `SetClipboardCommand` | write element clipboard text |
-| host → webview | `ClipboardQuery` | deliver element clipboard text |
-
-Each feature page lists its own message protocol.
-
-## bpmn-js / diagram-js DI — the 30-second primer
-
-bpmn-js is composed from **DI modules** (didi). A module is an object like:
-
-```ts
-export const MyModule = {
-    __init__: ["myService"],
-    myService: ["type", MyService],
-};
+```mermaid
+sequenceDiagram
+    participant W as Webview adapter
+    participant H as Host adapter + core
+    participant D as Host document
+    W->>H: Request file (Command)
+    H->>D: Read current content
+    D-->>H: XML or Form JSON
+    H->>W: Deliver file (Query)
+    W->>W: Load surface, user edits
+    W->>H: SyncDocumentCommand
+    H->>D: Apply accepted changes
+    Note over H,D: Suppress own-write echoes and retain external edits
+    H->>W: FlushDocumentQuery before save
+    W->>H: DocumentFlushedCommand
+    H->>D: Apply pending changes, then save
 ```
 
-didi constructs `myService` once per modeler instance and injects it wherever
-another service names `myService` in its constructor's parameter list (via the
-`$inject` static). Registering your module means passing it in
-`additionalModules` when you instantiate the modeler:
+The host document is authoritative. Session guards prevent writes originating
+in the webview from echoing back as fresh edits, while revisions distinguish
+stale updates from current content. Flush coordination drains pending browser
+changes before persistence; IntelliJ also coordinates flushing before editor
+closure. Document contents and webview UI state have separate lifecycles.
 
-```ts
-new BpmnModeler({ additionalModules: [MyModule, ...] });
-```
+## Build and development
 
-**Event priorities.** Many bpmn-js services use `EventBus` handlers with a
-numeric priority. Higher priority runs first. Returning a non-`undefined` value
-(including `false`) stops propagation. This is how `BridgedClipboardModule`
-(the host-bridge clipboard override, registered only when the webview can't
-reach the system clipboard) intercepts copy at priority 2051 (above
-`NativeCopyPaste`'s 2050) — see `libs/bpmn-clipboard/` in the repository.
+Yarn 4 workspaces and `npm-run-all` coordinate the builds:
 
-**Patching existing services.** Several of our modules decorate a core bpmn-js
-method rather than adding a new service — e.g. `AppendMenuOverride` wraps
-`popupMenu.open()`. didi doesn't stop you; just save the original and call it
-(or not) from the replacement.
+- `corepack yarn build` builds/checks foundational libraries, then builds the
+  browser packages and four webviews in parallel, followed by the VS Code plugin.
+- Vite stages webview assets in `dist/webview-staging/`; the host builds package
+  those assets. Public browser packages have their own Vite library builds and
+  API checks. The VS Code host uses webpack; IntelliJ uses Gradle and the Bun bridge.
+- `corepack yarn watch` rebuilds files for the VS Code F5 workflow. A webview's
+  `serve` script runs its browser preview; `dev` uses portless for a stable URL.
+- `corepack yarn intellij:run` builds the IntelliJ artifacts and starts a sandbox
+  IDE. Standalone has its own Theia/Electron build and launch workflow.
+- Root Vitest configuration collects application, package, and library tests.
+  `corepack yarn docs:build` builds this VitePress site, including Mermaid diagrams.
 
-## Build pipelines
+## Further reading
 
-| Target | Tool | Config |
-|---|---|---|
-| Extension host (`.vsix`) | webpack + ts-loader | `apps/vscode-plugin/webpack.config.js` |
-| BPMN webview | Vite | `apps/bpmn-webview/vite.config.mts` |
-| DMN webview | Vite | `apps/dmn-webview/vite.config.mts` |
-| Deployment webview | Vite | `apps/deployment-webview/vite.config.mts` |
-| Standalone desktop packages (DMG / NSIS / Flatpak) | `@theia/cli` + electron-builder + flatpak-builder | `apps/standalone/package.json`, `apps/standalone/electron-builder.yml`, `apps/standalone/flatpak/io.miragon.BpmnModeler.yml` |
-| Shared lib (`@miragon/bpmn-modeler-shared`) | tsc | `libs/shared/tsconfig.lib.json` |
-| Tests | Vitest | `apps/vscode-plugin/vitest.config.ts` |
-| Path alias resolution | `TsconfigPathsPlugin` (webpack), `vite-tsconfig-paths` (Vite) | `tsconfig.base.json` |
-
-`yarn build` in the repo root uses `npm-run-all` to build libs first, then the
-webviews and the extension plugin in parallel. `yarn dev` runs all of them in
-watch mode; press F5 in VS Code to launch the Extension Development Host against
-the watch build.
-
-## Where to find things
-
-| Task | Start here |
-|---|---|
-| Run the extension locally | [Development](./development) — Setup + F5 workflow |
-| Add a new VS Code setting | `apps/vscode-plugin/package.json` → `contributes.configuration` + `VsCodeSettings` reader |
-| Add a new webview message type | `libs/shared/src/lib/modeler.ts` — add the class, re-export, consume in both ends |
-| Wire a new bpmn-js DI module | Create `libs/<name>/src/index.ts`, export the module, pass to `BpmnModeler.create({ additionalModules: [...] })` in `apps/bpmn-webview/src/app/modeler.ts` |
-| Debug extension code | VS Code Debug → "Run vscode-plugin" → F5, breakpoints work in `apps/vscode-plugin/src/**` |
-| Debug webview code | Reload extension host, open the webview, use Developer: Open Webview Developer Tools |
-| Understand a specific feature | Start at the feature's `libs/<name>/README.md` or the feature folder in `apps/vscode-plugin/src/` |
-
-## Related
-
-- [Development](./development) — prerequisites, setup, commands, CI/CD, code style
-- [Release process](./release-process) — how a release is cut
-- `CLAUDE.md` at the repo root — quick reference for AI assistants and new contributors
+- [Development](./development) and [release process](./release-process): commands and delivery workflows.
+- [IntelliJ development guide](https://github.com/Miragon/bpmn-modeler/blob/main/apps/intellij-plugin/README.md) and [standalone guide](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md): host-specific setup.
+- [Architecture decisions](https://github.com/Miragon/bpmn-modeler/tree/main/docs/adr): rationale for core extraction, package APIs, transports, and modes. Later records may amend earlier decisions.
+- [AGENTS.md](https://github.com/Miragon/bpmn-modeler/blob/main/AGENTS.md): contributor and coding-agent conventions, with specialist skills for deeper work.

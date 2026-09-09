@@ -1,0 +1,4 @@
+/* Replace the browser’s canvas outline with the focus indicator. */
+.djs-container svg:focus {
+    outline: none;
+}

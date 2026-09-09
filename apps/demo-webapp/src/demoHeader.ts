@@ -1,3 +1,4 @@
+import { applyPageThemeScope } from "@miragon/bpmn-modeler-shared";
 import { MODELS, getActiveModel, modelHref, type ModelType } from "./registry";
 
 export interface DemoHeaderLinks {
@@ -20,9 +21,10 @@ type DemoThemeKind = "light" | "dark";
 
 export interface MountDemoHeaderOptions {
     // Fired with the raw mode on every user theme change. The package surfaces
-    // (modeler / viewer / design pages) route it to the live handle's public
-    // `setTheme`, which themes per instance via `data-bpmn-theme`; the diff page
-    // themes ambiently off the `vscode-dark` body class and needs no callback.
+    // (bpmn/dmn modeler, viewer, design pages) route it to the live handle's
+    // public `setTheme`, which themes per instance via the package's scope
+    // attribute (`data-bpmn-theme` / `data-dmn-theme`); the diff page themes
+    // ambiently off the `vscode-dark` body class and needs no callback.
     onThemeChange?: (mode: DemoThemeMode) => void;
 }
 
@@ -52,13 +54,15 @@ let mediaQuery: MediaQueryList | undefined;
 let mediaListener: ((event: MediaQueryListEvent) => void) | undefined;
 
 function applyThemeKind(kind: DemoThemeKind): void {
-    // `data-bpmn-theme` themes every BPMN canvas, panel, and the demo chrome via
-    // CSS (the BPMN surfaces additionally re-theme per instance via `setTheme`).
+    // Page-scope attributes for anything outside a modeler's own scope roots:
+    // `data-bpmn-theme` themes the BPMN canvases + the demo chrome, `data-dmn-theme`
+    // the DMN page chrome. Each modeler instance additionally re-themes itself via
+    // its handle's `setTheme` (wired through `onThemeChange`), which is what a
+    // header-forced mode uses to override the package's OS-driven `"automatic"`.
     // The `vscode-dark` body class drives the package's `body.vscode-dark
     // .diff-legend*` rules on the diff page, which has no live handle to theme.
-    // The DMN page stays light regardless: its demo host forces `colorTheme:
-    // "light"` (dark DMN in the demo is #1465).
-    document.documentElement.setAttribute("data-bpmn-theme", kind);
+    applyPageThemeScope("data-bpmn-theme", kind);
+    applyPageThemeScope("data-dmn-theme", kind);
     document.body.classList.toggle("vscode-dark", kind === "dark");
 }
 

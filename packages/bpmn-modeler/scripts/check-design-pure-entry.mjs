@@ -1,22 +1,4 @@
-// Acceptance criterion for issue #1196, mechanised: the engine-neutral design
-// subpath (`@miragon/bpmn-modeler/design`) must stay free of the Camunda editor
-// stack at the *module-graph* level — in every bundling mode. Single-file hosts
-// (vite-plugin-singlefile) inline everything reachable, so a bare import that
-// survives here would land in the consumer's one bundle.
-//
-// Unlike `/viewer`, the design surface DOES ship the engine-neutral properties
-// panel — so `bpmn-js-properties-panel`, `@bpmn-io/properties-panel`, `preact`,
-// CodeMirror, and `bpmn-js-create-append-anything` are all *allowed*. What must
-// never appear is the Camunda engine stack (camunda-bpmn-js, the C7/C8 moddles
-// and behaviours, transaction boundaries, element templates) and the lint stack.
-// Token simulation is engine-neutral canvas chrome shared by every surface
-// (ADR 0022), so it is allowed.
-//
-// The heavy stacks are Vite `external`s — they survive as *bare import
-// specifiers* in dist/design.js and its relative chunks. So we start at
-// dist/design.js, follow only relative specifiers (the emitted chunks), and fail
-// if any bare specifier names a forbidden package. A content-grep for `bpmnlint`
-// catches an inlined-lib leak too.
+// Single-file bundlers include reachable imports, so the design graph must exclude engine and lint stacks.
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, relative } from "node:path";
@@ -24,9 +6,6 @@ import { dirname, resolve, relative } from "node:path";
 const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
 const ROOT_ENTRY = resolve(distDir, "design.js");
 
-// Forbidden bare specifiers — the Camunda engine + lint stacks the design
-// surface must never reach. Matched as a whole package name: `pkg` exactly or
-// `pkg/<subpath>`.
 const FORBIDDEN_PREFIXES = [
     "camunda-bpmn-js",
     "camunda-bpmn-moddle",
@@ -41,18 +20,14 @@ const FORBIDDEN_PREFIXES = [
     "@miragon/bpmnlint-plugin-rules",
 ];
 
-// A last-line content grep (mirrors check-lint-free-entry.mjs): catches the lint
-// stack even if it were inlined into a chunk rather than left external.
+// Catch lint code that was inlined instead of left as an external import.
 const FORBIDDEN_CONTENT = /bpmnlint/;
 
 function isForbidden(spec) {
     return FORBIDDEN_PREFIXES.some((prefix) => spec === prefix || spec.startsWith(`${prefix}/`));
 }
 
-// Static specifiers only: `import … from "x"`, bare `import "x"`, and
-// `export … from "x"`. `import(` (dynamic) is deliberately excluded — a reachable
-// dynamic import is a separate chunk a single-file bundler inlines anyway, so we
-// follow the static closure that decides the critical path.
+// This scan covers static imports and re-exports only; dynamic imports are excluded.
 const STATIC_SPECIFIER_PATTERNS = [
     /\bimport\s+[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
     /\bexport\s+[^;'"]*?\bfrom\s*["']([^"']+)["']/g,
@@ -90,7 +65,6 @@ while (queue.length > 0) {
 
     for (const spec of staticSpecifiers(code)) {
         if (spec.startsWith(".")) {
-            // Follow our own emitted chunks.
             const resolved = resolve(dirname(file), spec);
             if (existsSync(resolved)) queue.push(resolved);
             continue;

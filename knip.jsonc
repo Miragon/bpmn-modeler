@@ -31,6 +31,8 @@
         // Type declarations for the postcss plugin .mjs; reached only through
         // TS declaration resolution (sibling lookup), which knip does not track.
         "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
+        "packages/bpmn-modeler/scripts/check-externals.d.mts",
+        "packages/bpmn-modeler/scripts/check-inlined-peers.d.mts",
         "packages/dmn-modeler/scripts/postcss-strip-theme-scope.d.mts"
     ],
     "ignoreWorkspaces": ["apps/standalone"],
@@ -56,6 +58,7 @@
                 "dmn/main.ts",
                 "bpmn/dual.ts",
                 "bpmn/diff.ts",
+                "bpmn/diffRegressions.ts",
                 "bpmn/viewer.ts",
                 "bpmn/design.ts"
             ]
@@ -83,7 +86,11 @@
                 "minisearch",
                 "lodash",
                 "bpmn-js-differ",
-                "bpmn-auto-layout"
+                "bpmn-auto-layout",
+                // Temporary upstream manifest workarounds, verified by the
+                // nested packed-consumer smoke rather than package imports.
+                "@lezer/lr",
+                "tiny-svg"
             ]
         },
         "packages/dmn-modeler": {
