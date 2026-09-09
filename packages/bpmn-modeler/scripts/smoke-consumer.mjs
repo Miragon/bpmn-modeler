@@ -8,10 +8,12 @@
 //      versions; a survivor would `npm install`-fail for a real consumer);
 //   2. every `exports` subpath resolves to a file that exists (the root entry
 //      is resolved, never executed — it touches the DOM);
-//   3. the Node-safe `./diff` subpath actually runs end to end.
+//   3. representative browser consumers bundle without aliases or externals;
+//   4. the Node-safe `./diff` subpath actually runs end to end.
 import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { build, version as esbuildVersion } from "esbuild";
 
 const PKG = "@miragon/bpmn-modeler";
 const require = createRequire(import.meta.url);
@@ -65,7 +67,74 @@ for (const subpath of SUBPATHS) {
     }
 }
 
-// 3. The Node-safe ./diff subpath runs. Fixtures mirror scripts/check-diff-node.mjs.
+// 3. Bundle browser consumers without running their DOM-touching code in Node.
+// Factory calls are intentionally retained: each fixture exercises the actual
+// dependency closure for that public surface and option shape.
+if (esbuildVersion !== "0.28.2") {
+    fail(`expected esbuild 0.28.2, found ${esbuildVersion}`);
+}
+
+const BROWSER_FIXTURES = {
+    "modeler-c7": `
+        import "@miragon/bpmn-modeler/styles.css";
+        import { createModeler } from "@miragon/bpmn-modeler";
+        const canvas = document.querySelector("#canvas");
+        const panel = document.querySelector("#panel");
+        void createModeler(canvas, { engine: "c7", propertiesPanel: { parent: panel }, linting: false });
+    `,
+    "modeler-c8": `
+        import "@miragon/bpmn-modeler/styles.css";
+        import { createModeler } from "@miragon/bpmn-modeler";
+        const canvas = document.querySelector("#canvas");
+        const panel = document.querySelector("#panel");
+        void createModeler(canvas, { engine: "c8", propertiesPanel: { parent: panel }, linting: false });
+    `,
+    "design": `
+        import "@miragon/bpmn-modeler/design.css";
+        import { createDesigner } from "@miragon/bpmn-modeler/design";
+        const canvas = document.querySelector("#canvas");
+        const panel = document.querySelector("#panel");
+        void createDesigner(canvas, { propertiesPanel: { parent: panel }, linting: false });
+    `,
+    "viewer-with-panel": `
+        import "@miragon/bpmn-modeler/viewer.css";
+        import { createViewer } from "@miragon/bpmn-modeler/viewer";
+        const canvas = document.querySelector("#canvas");
+        const panel = document.querySelector("#panel");
+        void createViewer(canvas, { propertiesPanel: { parent: panel } });
+    `,
+    "viewer-without-panel": `
+        import "@miragon/bpmn-modeler/viewer.css";
+        import { createViewer } from "@miragon/bpmn-modeler/viewer";
+        const canvas = document.querySelector("#canvas");
+        void createViewer(canvas);
+    `,
+};
+
+for (const [name, contents] of Object.entries(BROWSER_FIXTURES)) {
+    try {
+        await build({
+            stdin: { contents, loader: "js", resolveDir: process.cwd(), sourcefile: `${name}.js` },
+            bundle: true,
+            platform: "browser",
+            format: "esm",
+            target: "es2021",
+            treeShaking: false,
+            write: false,
+            logLevel: "silent",
+            loader: {
+                ".css": "empty",
+                ".less": "empty",
+                ".sass": "empty",
+                ".scss": "empty",
+            },
+        });
+    } catch (error) {
+        fail(`browser fixture ${name} did not bundle: ${error.message}`);
+    }
+}
+
+// 4. The Node-safe ./diff subpath runs. Fixtures mirror scripts/check-diff-node.mjs.
 const { computeDiff, sideView } = await import(`${PKG}/diff`);
 
 const BEFORE = `<?xml version="1.0" encoding="UTF-8"?>
@@ -89,5 +158,5 @@ const after = sideView(result, "after");
 if (!after.added.includes("Task_1")) fail("sideView(after).added should carry Task_1");
 
 console.log(
-    `smoke-consumer: installed ${PKG}@${installedManifest.version} resolves every subpath and ./diff runs.`,
+    `smoke-consumer: installed ${PKG}@${installedManifest.version} resolves every subpath, bundles ${Object.keys(BROWSER_FIXTURES).length} browser consumers, and ./diff runs.`,
 );
