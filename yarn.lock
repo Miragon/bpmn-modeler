@@ -3935,8 +3935,10 @@ __metadata:
   dependencies:
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.2.0"
+    camunda-bpmn-moddle: "npm:7.0.2"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.11"
+    zeebe-bpmn-moddle: "npm:1.18.0"
   languageName: unknown
   linkType: soft
 

@@ -297,6 +297,11 @@ Ids are sorted by BPMN sequence-flow position (start event → end event) rather
 insertion order. `sideView(result, side)` projects the result onto one pane's canvas (blanks `added`
 on `before`, `removed` on `after`).
 
+Execution properties are engine-aware: Camunda 7 attributes and extension elements and Camunda
+8/Zeebe extensions are compared with their moddle-defined types and defaults. Unknown namespaced
+attributes are compared textually by qualified name, including on nested extension elements.
+Attribute order is insignificant; renaming a custom namespace prefix counts as a textual change.
+
 ```ts
 // Node — no DOM required:
 import { computeDiff } from "@miragon/bpmn-modeler/diff";

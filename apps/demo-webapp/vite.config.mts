@@ -65,6 +65,7 @@ export default defineConfig(({ mode }) => {
                               index: resolve(__dirname, "bpmn/index.html"),
                               dual: resolve(__dirname, "bpmn/dual.html"),
                               diff: resolve(__dirname, "bpmn/diff.html"),
+                              diffRegressions: resolve(__dirname, "bpmn/diff-regressions.html"),
                               viewer: resolve(__dirname, "bpmn/viewer.html"),
                               design: resolve(__dirname, "bpmn/design.html"),
                           },
