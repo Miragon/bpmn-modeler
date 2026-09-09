@@ -30,7 +30,7 @@ VS Code `DeploymentWebviewHtml.ts`, the IntelliJ tool-window `WebviewServer.kt`)
 ships only an empty `<div id="app"></div>`; none carries a copy of the form.
 `DeploymentWebviewHtml.ts` keeps only the CSP nonce + asset-URI injection —
 edit form markup **only** in `formTemplate.ts` (see the Deployment Webview
-section in CLAUDE.md).
+section in AGENTS.md).
 
 ## Content Security Policy (CSP)
 
