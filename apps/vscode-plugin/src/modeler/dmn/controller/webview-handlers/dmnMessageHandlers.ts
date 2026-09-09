@@ -31,13 +31,16 @@ export function syncDmnDocumentHandler(dmnService: DmnModelerService): MessageHa
     };
 }
 
-/** `GetDmnModelerSettingCommand` → broadcast the current color theme to the webview. */
+/** `GetDmnModelerSettingCommand` → broadcast the current color theme and language. */
 export function getDmnModelerSettingHandler(
     settingsBroadcaster: DmnSettingsBroadcaster,
 ): MessageHandler {
-    // Await so a rejection propagates to the router's dispatch catch instead of
-    // floating off unlogged.
+    // Preserve the settings-then-language post order (settingsPromise starts
+    // first), but await settings so its rejection reaches the router's dispatch
+    // catch. setLanguage owns its own error handling and stays floating.
     return async (_message: Command, editorId: string) => {
-        await settingsBroadcaster.setSettings(editorId);
+        const settingsPromise = settingsBroadcaster.setSettings(editorId);
+        settingsBroadcaster.setLanguage(editorId);
+        await settingsPromise;
     };
 }

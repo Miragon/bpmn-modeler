@@ -32,6 +32,7 @@ jobs:
       modeler-core-src: ${{ steps.filter.outputs.modeler-core-src }}
       modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
       bpmn-modeler: ${{ steps.filter.outputs.bpmn-modeler }}
+      dmn-modeler: ${{ steps.filter.outputs.dmn-modeler }}
       dep-alignment: ${{ steps.filter.outputs.dep-alignment }}
       bpmn-webview: ${{ steps.filter.outputs.bpmn-webview }}
       dmn-webview: ${{ steps.filter.outputs.dmn-webview }}
@@ -91,13 +92,33 @@ jobs:
               - '!apps/modeler-bridge/package.json'
             bpmn-modeler:
               - 'packages/bpmn-modeler/**'
+              # The package inlines these private libraries from source; changes
+              # to any of them must re-run its build and packed-consumer gates.
+              - 'libs/modeler-types/**'
+              - 'libs/bpmn-diff/**'
+              - 'libs/bpmn-clipboard/**'
+              - 'libs/bpmn-i18n-extras/**'
+              - 'libs/element-template-chooser/**'
+              - 'libs/append-menu/**'
+              - 'libs/properties-panel/**'
+              - 'libs/model-navigation/**'
+              - 'libs/code-link/**'
+              - 'libs/inline-scripting/**'
+              - 'libs/flow-navigation/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.yarnrc.yml'
+              - 'tsconfig.base.json'
+            dmn-modeler:
+              - 'packages/dmn-modeler/**'
             # Version-skew guard runs on any manifest or lockfile change that
-            # could drift a shared dependency between the published package and
-            # its in-repo consumers. Kept separate from `bpmn-modeler` so the
-            # lockfile is NOT in that filter (it would rebuild the package on
+            # could drift a shared dependency between the published packages and
+            # their in-repo consumers. Kept separate from the package filters so
+            # the lockfile is NOT in them (it would rebuild the packages on
             # every unrelated dependency change).
             dep-alignment:
               - 'packages/bpmn-modeler/package.json'
+              - 'packages/dmn-modeler/package.json'
               - 'apps/*/package.json'
               - 'libs/*/package.json'
               - 'yarn.lock'
@@ -158,7 +179,17 @@ jobs:
         run: yarn install --immutable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: yarn npm audit --all --severity high
+      # npm's bulk-advisory endpoint intermittently takes far longer than yarn's
+      # default 60s httpTimeout (observed 50-180s+), so allow 300s and retry.
+      - name: Audit
+        run: |
+          for attempt in 1 2 3; do
+            if yarn npm audit --all --severity high; then exit 0; fi
+            echo "audit attempt ${attempt} timed out; retrying"
+          done
+          exit 1
+        env:
+          YARN_HTTP_TIMEOUT: "300000"
 
   test-standalone-extension:
     needs: detect-changes
@@ -452,6 +483,7 @@ jobs:
       needs.detect-changes.outputs.vscode-plugin == 'true' ||
       needs.detect-changes.outputs.modeler-core == 'true' ||
       needs.detect-changes.outputs.bpmn-modeler == 'true' ||
+      needs.detect-changes.outputs.dmn-modeler == 'true' ||
       needs.detect-changes.outputs.bpmn-webview == 'true' ||
       needs.detect-changes.outputs.dmn-webview == 'true' ||
       needs.detect-changes.outputs.form-webview == 'true' ||
@@ -515,6 +547,34 @@ jobs:
           fail_ci_if_error: false
           flags: bpmn-webview
           name: bpmn-webview
+          verbose: true
+
+  test-dmn-webview:
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.dmn-webview == 'true' ||
+      needs.detect-changes.outputs.dmn-modeler == 'true' ||
+      needs.detect-changes.outputs.shared == 'true' ||
+      needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/dmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras
+      - run: yarn workspace @miragon/dmn-modeler-webview test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/apps/dmn-webview"
+          fail_ci_if_error: false
+          flags: dmn-webview
+          name: dmn-webview
           verbose: true
 
   test-form-webview:
@@ -652,9 +712,72 @@ jobs:
         run: |
           test -f packages/bpmn-modeler/dist/index.js
           test -f packages/bpmn-modeler/dist/index.d.ts
+          test -f packages/bpmn-modeler/dist/lint.js
+          test -f packages/bpmn-modeler/dist/lint.d.ts
+          test -f packages/bpmn-modeler/dist/viewer.js
+          test -f packages/bpmn-modeler/dist/viewer.d.ts
+          test -f packages/bpmn-modeler/dist/viewer.css
+          test -f packages/bpmn-modeler/dist/design.js
+          test -f packages/bpmn-modeler/dist/design.d.ts
+          test -f packages/bpmn-modeler/dist/design.css
+          test -f packages/bpmn-modeler/dist/mode.js
+          test -f packages/bpmn-modeler/dist/mode.d.ts
+          test -f packages/bpmn-modeler/dist/mode.css
           test -f packages/bpmn-modeler/dist/bpmn-modeler.css
           test -f packages/bpmn-modeler/dist/lightTheme.css
           test -f packages/bpmn-modeler/dist/darkTheme.css
+      - name: Pack tarball
+        run: yarn workspace @miragon/bpmn-modeler pack --out "$RUNNER_TEMP/miragon-bpmn-modeler.tgz"
+      - name: Test hoisted and nested packed consumers
+        run: node packages/bpmn-modeler/scripts/smoke-packed-consumer.mjs "$RUNNER_TEMP/miragon-bpmn-modeler.tgz"
+
+  test-dmn-modeler:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dmn-modeler == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/dmn-modeler
+      - run: yarn workspace @miragon/dmn-modeler test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: "./coverage/packages/dmn-modeler"
+          fail_ci_if_error: false
+          flags: dmn-modeler
+          name: dmn-modeler
+          verbose: true
+
+  build-dmn-modeler:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dmn-modeler == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: yarn
+      - name: Install dependencies (focused)
+        run: yarn workspaces focus @miragon/dmn-modeler
+      # Full package build: tsc typecheck + public-api typecheck + Vite lib +
+      # theme CSS + check-dts + check-externals gates.
+      - run: yarn workspace @miragon/dmn-modeler build
+      - name: Verify published dist artefacts
+        run: |
+          test -f packages/dmn-modeler/dist/index.js
+          test -f packages/dmn-modeler/dist/index.d.ts
+          test -f packages/dmn-modeler/dist/dmn-modeler.css
+          test -f packages/dmn-modeler/dist/lightTheme.css
+          test -f packages/dmn-modeler/dist/darkTheme.css
 
   check-dep-alignment:
     needs: detect-changes
@@ -673,6 +796,7 @@ jobs:
     needs: detect-changes
     if: >-
       needs.detect-changes.outputs.dmn-webview == 'true' ||
+      needs.detect-changes.outputs.dmn-modeler == 'true' ||
       needs.detect-changes.outputs.shared == 'true' ||
       needs.detect-changes.outputs.bpmn-i18n-extras == 'true'
     runs-on: ubuntu-latest
@@ -684,7 +808,7 @@ jobs:
           node-version: '22'
           cache: yarn
       - name: Install dependencies (focused)
-        run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types
+        run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/dmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras
       - run: yarn workspace @miragon/dmn-modeler-webview build
 
   build-form-webview:
@@ -754,12 +878,15 @@ jobs:
       - test-intellij-plugin
       - e2e-vscode-plugin
       - test-bpmn-webview
+      - test-dmn-webview
       - test-form-webview
       - test-model-navigation
       - test-bpmn-i18n-extras
       - test-standalone-extension
       - test-bpmn-modeler
       - build-bpmn-modeler
+      - test-dmn-modeler
+      - build-dmn-modeler
       - check-dep-alignment
       - build-bpmn-webview
       - build-dmn-webview

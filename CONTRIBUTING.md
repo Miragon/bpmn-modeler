@@ -122,7 +122,7 @@ see [`docs/development.md`](docs/development.md).
       protocol come with an ADR in [`docs/adr/`](docs/adr/) — see the rules in
       [ADR 0001](docs/adr/0001-record-architecture-decisions.md). If you work
       with an AI coding agent, the repo-bundled `adr` skill
-      (`.agent/skills/adr/`) applies these rules automatically.
+      (`.agents/skills/adr/`) applies these rules automatically.
 5. **Commit** with a [semantic message](#commit-messages).
 6. **Push** your branch and open a Pull Request against `main`.
 7. **CI must pass** (lint → test → build) before review.

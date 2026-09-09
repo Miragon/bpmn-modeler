@@ -8,9 +8,7 @@ import {
  * The webview-side capabilities the flush responder drives, named in domain
  * terms so every modeler webview can supply them without the
  * responder importing either modeler. Kept as a tiny port so the responder is
- * unit-testable from the `shared` vitest project — the DMN webview has no
- * vitest project of its own, so covering the shared responder is how the DMN
- * flush path gets tested at all.
+ * unit-testable from the `shared` vitest project independently of either webview.
  */
 export interface FlushSource {
     /** Whether the modeler has finished bootstrapping (`modelerIsInitialized`). */

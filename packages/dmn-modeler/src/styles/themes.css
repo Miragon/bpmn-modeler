@@ -1,0 +1,3 @@
+/* Scope dark overrides so instances can use different themes on the same page. */
+@import "./light-theme/index.css";
+@import "./dark-theme/overrides.css";

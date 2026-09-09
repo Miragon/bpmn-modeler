@@ -7,9 +7,11 @@
  * `BpmnDocument` instead of mutating `this.xml`.
  */
 
-import { detectEngine, Engine } from "@miragon/bpmn-modeler-types";
+import { DetectedEngine, detectEngine, Engine } from "@miragon/bpmn-modeler-types";
 
+import { getLatestVersion } from "./engineVersions";
 import { ExecutionPlatformNotDetectedError } from "./errors";
+import { NewModelEngine } from "./newModelEngine";
 
 export class BpmnDocument {
     constructor(readonly xml: string) {}
@@ -55,6 +57,42 @@ export class BpmnDocument {
     }
 
     /**
+     * Returns an engine-neutral (untagged) empty diagram: no `modeler:*`
+     * metadata, no exporter, no camunda/zeebe namespace, `isExecutable="false"`.
+     * With no execution platform it opens in Design mode by the mode-marker
+     * semantics — the scaffold for the new-model picker's "Engine-neutral" choice.
+     */
+    static emptyEngineNeutral(): BpmnDocument {
+        return new BpmnDocument(`
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_neutral" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_neutral" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_neutral">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds x="179" y="159" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
+`);
+    }
+
+    /**
+     * Scaffolds a new model for a {@link NewModelEngine} picker choice: an
+     * engine-neutral diagram for `"neutral"`, or an execution-platform-stamped
+     * empty diagram at the latest version for a concrete engine.
+     */
+    static forNewModel(choice: NewModelEngine): BpmnDocument {
+        if (choice === "neutral") {
+            return BpmnDocument.emptyEngineNeutral();
+        }
+        return BpmnDocument.empty(choice, getLatestVersion(choice));
+    }
+
+    /**
      * Returns `true` when the document holds no XML (new, unsaved file).
      */
     isEmpty(): boolean {
@@ -62,15 +100,14 @@ export class BpmnDocument {
     }
 
     /**
-     * Detects the Camunda execution platform from the XML.
+     * Detects the Camunda execution platform from the XML, or `undefined` for
+     * an engine-neutral (untagged) model — the caller owns the fallback policy.
      *
      * Delegates to the shared {@link detectEngine} helper for the spec-defined
      * `modeler:*` signals, then falls back to namespace declarations
      * (`xmlns:camunda` for C7, `xmlns:zeebe` for C8).
-     *
-     * @throws {ExecutionPlatformNotDetectedError} When no platform signal is found.
      */
-    detectPlatform(): Engine {
+    detectEngine(): DetectedEngine {
         const detected = detectEngine(this.xml);
         if (detected) {
             return detected;
@@ -80,9 +117,23 @@ export class BpmnDocument {
             return "c7";
         } else if (this.xml.match(/xmlns:zeebe=".*"/)) {
             return "c8";
-        } else {
+        }
+        return undefined;
+    }
+
+    /**
+     * Detects the Camunda execution platform, throwing when the model carries no
+     * platform signal. Prefer {@link detectEngine} where an untagged model is a
+     * valid, non-exceptional case.
+     *
+     * @throws {ExecutionPlatformNotDetectedError} When no platform signal is found.
+     */
+    detectPlatform(): Engine {
+        const engine = this.detectEngine();
+        if (!engine) {
             throw new ExecutionPlatformNotDetectedError();
         }
+        return engine;
     }
 
     /**

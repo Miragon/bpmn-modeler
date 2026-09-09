@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     BpmnFileQuery,
+    BpmnlintInPageQuery,
     BpmnModelerSettingQuery,
     ElementTemplatesQuery,
     FlushDocumentQuery,
@@ -13,9 +14,13 @@ import {
 
 const mocks = vi.hoisted(() => ({
     createModeler: vi.fn(),
+    createViewer: vi.fn(),
+    createDesigner: vi.fn(),
     locale: "en",
     reload: vi.fn(),
     flushViewport: vi.fn(),
+    persistMode: vi.fn(),
+    savedMode: undefined as string | undefined,
     initResizer: vi.fn(() => ({
         setVisible: vi.fn(),
         onVisibilityChanged: vi.fn(),
@@ -29,15 +34,32 @@ vi.mock("@miragon/bpmn-modeler", () => ({
     UnsupportedEngineError: class extends Error {},
 }));
 
+vi.mock("@miragon/bpmn-modeler/viewer", () => ({
+    createViewer: mocks.createViewer,
+}));
+
+vi.mock("@miragon/bpmn-modeler/design", () => ({
+    createDesigner: mocks.createDesigner,
+}));
+
+vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({
+    extras: {},
+}));
+
 vi.mock("@miragon/bpmn-modeler-types", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-types")>();
     return {
         ...actual,
-        initResizer: mocks.initResizer,
-        initTheme: vi.fn(),
-        installPanelShortcuts: vi.fn(),
         observeCanvasSize: vi.fn(),
-        setColorThemeMode: vi.fn(),
+    };
+});
+
+vi.mock("@miragon/bpmn-modeler-shared", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@miragon/bpmn-modeler-shared")>();
+    return {
+        ...actual,
+        initResizer: mocks.initResizer,
+        installPanelShortcuts: vi.fn(),
     };
 });
 
@@ -49,6 +71,7 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({
             mocks.locale = locale;
         }),
         translate: vi.fn((value: string) => value),
+        extend: vi.fn(),
     },
 }));
 
@@ -56,6 +79,7 @@ vi.mock("./diffMode", () => ({ DiffMode: class {} }));
 vi.mock("./hostEditorActions", () => ({ installHostEditorActions: vi.fn() }));
 vi.mock("./state", () => ({
     readSavedPanelVisibility: vi.fn(() => undefined),
+    readSavedMode: vi.fn(() => mocks.savedMode),
     WebviewStateManager: class {
         constructor() {
             mocks.stateManagerCreated();
@@ -67,6 +91,7 @@ vi.mock("./state", () => ({
         restorePanelUiState = vi.fn();
         restorePanelVisibility = vi.fn();
         persistPanelVisibility = vi.fn();
+        persistMode = mocks.persistMode;
         startPersisting = vi.fn();
         flushViewport = mocks.flushViewport;
     },
@@ -113,6 +138,7 @@ describe("bootstrap host document initialization", () => {
         document.body.innerHTML = "";
         document.body.inert = false;
         mocks.locale = "en";
+        mocks.savedMode = undefined;
         vi.clearAllMocks();
     });
 
@@ -120,6 +146,7 @@ describe("bootstrap host document initialization", () => {
         vi.useFakeTimers();
         document.body.innerHTML = `
             <div id="js-canvas"></div>
+            <div id="js-panel-resizer"></div>
             <div id="js-properties-panel"></div>
         `;
         Object.defineProperty(document, "readyState", {
@@ -211,6 +238,7 @@ describe("bootstrap host document initialization", () => {
             exportDiagram: vi.fn(async () => successfulImports.at(-1) ?? "<initial />"),
             alignElementsToOrigin: vi.fn(),
             newDiagram: vi.fn(async () => ({ warnings: [] })),
+            setMode: vi.fn(),
             onCommandStackChanged: vi.fn((listener: () => void) => {
                 commandStackChanged = listener;
             }),
@@ -218,6 +246,7 @@ describe("bootstrap host document initialization", () => {
             onWarning: vi.fn(),
             setElementTemplates: vi.fn(),
             setSettings: vi.fn(),
+            setTheme: vi.fn(),
             getService: vi.fn(() => canvas),
             viewport: { centerOnElement: vi.fn() },
         };
@@ -342,6 +371,7 @@ describe("bootstrap host document initialization", () => {
         vi.useFakeTimers();
         document.body.innerHTML = `
             <div id="js-canvas"></div>
+            <div id="js-panel-resizer"></div>
             <div id="js-properties-panel"></div>
         `;
         Object.defineProperty(document, "readyState", {
@@ -366,9 +396,11 @@ describe("bootstrap host document initialization", () => {
             exportDiagram: vi.fn(async () => "<latest />"),
             alignElementsToOrigin: vi.fn(),
             newDiagram: vi.fn(async () => ({ warnings: [] })),
+            setMode: vi.fn(),
             onCommandStackChanged: vi.fn(),
             setElementTemplates: vi.fn(),
             setSettings: vi.fn(),
+            setTheme: vi.fn(),
             getService: vi.fn(() => canvas),
             viewport: { centerOnElement: vi.fn() },
         };
@@ -426,6 +458,7 @@ describe("bootstrap host document initialization", () => {
         vi.useFakeTimers();
         document.body.innerHTML = `
             <div id="js-canvas"></div>
+            <div id="js-panel-resizer"></div>
             <div id="js-properties-panel"></div>
         `;
         Object.defineProperty(document, "readyState", {
@@ -460,11 +493,13 @@ describe("bootstrap host document initialization", () => {
             exportDiagram: vi.fn(async () => "<initial />"),
             alignElementsToOrigin: vi.fn(),
             newDiagram: vi.fn(async () => ({ warnings: [] })),
+            setMode: vi.fn(),
             onCommandStackChanged: vi.fn((listener: () => void) => {
                 commandStackListeners.push(listener);
             }),
             setElementTemplates: vi.fn(),
             setSettings: vi.fn(),
+            setTheme: vi.fn(),
             getService: vi.fn(() => canvas),
             getDefinitions: vi.fn(() => ({})),
             viewport: { centerOnElement },
@@ -547,5 +582,303 @@ describe("bootstrap host document initialization", () => {
         await drainMicrotasks();
 
         expect(mocks.flushViewport).toHaveBeenCalledOnce();
+    });
+});
+
+describe("bootstrap mode switching", () => {
+    let windowAddEventListener: ReturnType<typeof vi.spyOn>;
+    let documentAddEventListener: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        windowAddEventListener = vi.spyOn(window, "addEventListener");
+        documentAddEventListener = vi.spyOn(document, "addEventListener");
+        vi.useFakeTimers();
+        document.body.innerHTML = `
+            <div id="js-canvas"></div>
+            <div id="js-panel-resizer"></div>
+            <div id="js-properties-panel"></div>
+        `;
+        Object.defineProperty(document, "readyState", { configurable: true, value: "complete" });
+    });
+
+    afterEach(() => {
+        for (const [type, listener, options] of windowAddEventListener.mock.calls) {
+            window.removeEventListener(type, listener as EventListener, options);
+        }
+        for (const [type, listener, options] of documentAddEventListener.mock.calls) {
+            document.removeEventListener(type, listener as EventListener, options);
+        }
+        windowAddEventListener.mockRestore();
+        documentAddEventListener.mockRestore();
+        vi.useRealTimers();
+        document.body.innerHTML = "";
+        document.body.inert = false;
+        mocks.savedMode = undefined;
+        vi.clearAllMocks();
+    });
+
+    function makeCanvas() {
+        return {
+            focus: vi.fn(),
+            getContainer: () => document.getElementById("js-canvas")!,
+            isFocused: () => false,
+        };
+    }
+
+    function makeModeler(overrides: Record<string, unknown> = {}) {
+        const canvas = makeCanvas();
+        return {
+            loadDiagram: vi.fn(async () => ({ warnings: [] })),
+            exportDiagram: vi.fn(async () => "<exported />"),
+            alignElementsToOrigin: vi.fn(),
+            newDiagram: vi.fn(async () => ({ warnings: [] })),
+            onCommandStackChanged: vi.fn(),
+            setElementTemplates: vi.fn(),
+            setSettings: vi.fn(),
+            setTheme: vi.fn(),
+            setMode: vi.fn(),
+            getMode: vi.fn(() => "implement"),
+            captureViewState: vi.fn(() => ({})),
+            applyViewState: vi.fn(),
+            getDiagramSvg: vi.fn(),
+            getDefinitions: vi.fn(() => ({})),
+            applyLintResults: vi.fn(),
+            applyLintingDisabled: vi.fn(),
+            startInPageLinting: vi.fn(),
+            destroy: vi.fn(),
+            getService: vi.fn(() => canvas),
+            viewport: { centerOnElement: vi.fn() },
+            ...overrides,
+        };
+    }
+
+    function makeViewer(overrides: Record<string, unknown> = {}) {
+        const canvas = makeCanvas();
+        // No setMode, no newDiagram → the readonly viewer surface.
+        return {
+            loadDiagram: vi.fn(async () => ({ warnings: [] })),
+            exportDiagram: vi.fn(async () => "<exported />"),
+            getDiagramSvg: vi.fn(),
+            captureViewState: vi.fn(() => ({})),
+            applyViewState: vi.fn(),
+            setTheme: vi.fn(),
+            destroy: vi.fn(),
+            getService: vi.fn(() => canvas),
+            viewport: { centerOnElement: vi.fn() },
+            ...overrides,
+        };
+    }
+
+    function makeDesigner(overrides: Record<string, unknown> = {}) {
+        const canvas = makeCanvas();
+        const eventBus = { on: vi.fn() };
+        // Has newDiagram (editable) but no setMode → the designer surface.
+        return {
+            loadDiagram: vi.fn(async () => ({ warnings: [] })),
+            exportDiagram: vi.fn(async () => "<exported />"),
+            newDiagram: vi.fn(async () => ({ warnings: [] })),
+            getDiagramSvg: vi.fn(),
+            captureViewState: vi.fn(() => ({})),
+            applyViewState: vi.fn(),
+            setTheme: vi.fn(),
+            applyLintResults: vi.fn(),
+            applyLintingDisabled: vi.fn(),
+            startInPageLinting: vi.fn(),
+            destroy: vi.fn(),
+            getService: vi.fn((name: string) => (name === "eventBus" ? eventBus : canvas)),
+            viewport: { centerOnElement: vi.fn() },
+            ...overrides,
+        };
+    }
+
+    function makeHost(file: BpmnFileQuery) {
+        return {
+            getState: vi.fn(() => ({})),
+            setState: vi.fn(),
+            updateState: vi.fn(),
+            postMessage: vi.fn((message: { type: string }) => {
+                switch (message.type) {
+                    case "GetBpmnFileCommand":
+                        dispatch(file);
+                        break;
+                    case "GetElementTemplatesCommand":
+                        dispatch(new ElementTemplatesQuery([]));
+                        break;
+                    case "GetBpmnModelerSettingCommand":
+                        dispatch(
+                            new BpmnModelerSettingQuery({
+                                alignToOrigin: false,
+                                showTransactionBoundaries: false,
+                                colorTheme: "light",
+                            }),
+                        );
+                        break;
+                    case "GetPropertiesPanelStateCommand":
+                        dispatch(new PropertiesPanelStateQuery(true));
+                        break;
+                }
+            }),
+        };
+    }
+
+    const modeButtons = () =>
+        Array.from(
+            document
+                .getElementById("js-properties-panel")!
+                .querySelectorAll<HTMLButtonElement>(".mode-button"),
+        );
+
+    const sentTypes = (host: { postMessage: ReturnType<typeof vi.fn> }): string[] =>
+        host.postMessage.mock.calls.map(([m]) => (m as { type: string }).type);
+
+    function boot(host: unknown) {
+        bootstrap(host as never, { capabilities: {}, clipboard: "native", linting: false });
+    }
+
+    it("opens an untagged model in Design with Implement disabled", async () => {
+        mocks.createDesigner.mockResolvedValue(makeDesigner());
+        const host = makeHost(new BpmnFileQuery("<untagged />", undefined, "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        expect(mocks.createDesigner).toHaveBeenCalledOnce();
+        expect(mocks.createModeler).not.toHaveBeenCalled();
+        // The designer's panel mounts in the runtime-created mount, not the host.
+        expect(mocks.createDesigner.mock.calls[0][1].propertiesPanel.parent.id).toBe(
+            "js-properties-panel-mount",
+        );
+        // The strip always renders all three buttons; Implement is greyed out on
+        // an untagged model (discoverable rather than hidden).
+        const [view, design, implement] = modeButtons();
+        expect(view.getAttribute("aria-disabled")).toBeNull();
+        expect(design.getAttribute("aria-pressed")).toBe("true");
+        expect(implement.getAttribute("aria-disabled")).toBe("true");
+    });
+
+    it("requests the lint config for a designer and routes the in-page handback to it", async () => {
+        const designer = makeDesigner();
+        mocks.createDesigner.mockResolvedValue(designer);
+        const host = makeHost(new BpmnFileQuery("<untagged />", undefined, "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        // The designer lints too (ADR 0023): it asks the host for the workspace
+        // lint config, but never for the modeler-only element templates.
+        expect(sentTypes(host)).toContain("GetBpmnlintConfigCommand");
+        expect(sentTypes(host)).not.toContain("GetElementTemplatesCommand");
+
+        // The host's no-workspace-config handback reaches the designer's linter,
+        // which resolves the engine-neutral Design default in-page.
+        dispatch(new BpmnlintInPageQuery(undefined, "tok-1"));
+        await drainMicrotasks();
+        expect(designer.startInPageLinting).toHaveBeenCalledWith(undefined, "tok-1");
+    });
+
+    it("opens a saved View mode as the readonly viewer and ignores modeler-only queries", async () => {
+        mocks.savedMode = "view";
+        mocks.createViewer.mockResolvedValue(makeViewer());
+        const host = makeHost(new BpmnFileQuery("<tagged />", "c7", "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        expect(mocks.createViewer).toHaveBeenCalledOnce();
+        expect(mocks.createModeler).not.toHaveBeenCalled();
+        // No templates request on a non-modeler surface.
+        expect(sentTypes(host)).not.toContain("GetElementTemplatesCommand");
+        // A stray ElementTemplatesQuery is a no-op (no throw, viewer has no setter).
+        dispatch(new ElementTemplatesQuery([{ id: "tpl" }]));
+        await drainMicrotasks();
+        expect(sentTypes(host)).not.toContain("LogErrorCommand");
+    });
+
+    it("seeds the initial mode from the host defaultMode when nothing is persisted", async () => {
+        mocks.createViewer.mockResolvedValue(makeViewer());
+        const host = makeHost(new BpmnFileQuery("<tagged />", "c7", "modeler", 1, "view"));
+
+        boot(host);
+        await drainAsyncWork();
+
+        expect(mocks.createViewer).toHaveBeenCalledOnce();
+        expect(mocks.createModeler).not.toHaveBeenCalled();
+    });
+
+    it("toggles Design↔Implement live via setMode without recreating", async () => {
+        const modeler = makeModeler();
+        mocks.createModeler.mockResolvedValue(modeler);
+        const host = makeHost(new BpmnFileQuery("<tagged />", "c7", "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+        expect(mocks.createModeler).toHaveBeenCalledOnce();
+
+        // Click "Design": Design↔Implement on a tagged model is a live toggle.
+        modeButtons()[1].click();
+        await drainAsyncWork();
+
+        expect(modeler.setMode).toHaveBeenCalledWith("design");
+        expect(modeler.destroy).not.toHaveBeenCalled();
+        expect(mocks.createModeler).toHaveBeenCalledOnce();
+    });
+
+    it("recreates from Implement to View, carrying the diagram and view state over", async () => {
+        const modeler = makeModeler();
+        const viewer = makeViewer();
+        mocks.createModeler.mockResolvedValue(modeler);
+        mocks.createViewer.mockResolvedValue(viewer);
+        const host = makeHost(new BpmnFileQuery("<tagged />", "c7", "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        // Click "View": anything involving View recreates the surface.
+        modeButtons()[0].click();
+        await drainAsyncWork();
+
+        expect(modeler.exportDiagram).toHaveBeenCalled();
+        expect(modeler.destroy).toHaveBeenCalledOnce();
+        expect(mocks.createViewer).toHaveBeenCalledOnce();
+        expect(viewer.loadDiagram).toHaveBeenCalledWith("<exported />");
+        expect(viewer.applyViewState).toHaveBeenCalledOnce();
+        expect(mocks.persistMode).toHaveBeenCalledWith("view");
+        // Importing never fires commandStack.changed, so no outbound sync on a switch.
+        expect(sentTypes(host)).not.toContain("SyncDocumentCommand");
+        // The handle-less window is closed: inert restored, strip no longer busy.
+        expect(document.body.inert).toBe(false);
+        expect(document.getElementById("js-properties-panel")!.getAttribute("aria-busy")).toBe(
+            "false",
+        );
+    });
+
+    it("ignores a mode click while a switch is in flight", async () => {
+        const modeler = makeModeler();
+        const viewer = makeViewer();
+        let releaseExport!: () => void;
+        modeler.exportDiagram = vi.fn(
+            () =>
+                new Promise<string>((resolve) => {
+                    releaseExport = () => resolve("<exported />");
+                }),
+        );
+        mocks.createModeler.mockResolvedValue(modeler);
+        mocks.createViewer.mockResolvedValue(viewer);
+        const host = makeHost(new BpmnFileQuery("<tagged />", "c7", "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        modeButtons()[0].click(); // → View (recreate), blocks on export
+        await drainMicrotasks();
+        modeButtons()[1].click(); // → Design, must be ignored while switch pending
+        await drainMicrotasks();
+
+        releaseExport();
+        await drainAsyncWork();
+
+        // Only the View switch ran: one destroy, the viewer stood up once.
+        expect(modeler.destroy).toHaveBeenCalledOnce();
+        expect(mocks.createViewer).toHaveBeenCalledOnce();
     });
 });

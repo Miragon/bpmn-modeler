@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>Miragon Modeler — Design Mode Demo</title>
+        <style>
+            body {
+                margin: 0;
+            }
+            /* An editable canvas beside an engine-neutral properties panel.
+               #app is sized by the shared demo header (viewport minus header +
+               footer). */
+            .design {
+                display: flex;
+                height: 100%;
+            }
+            .design .canvas {
+                position: relative;
+                flex: 1;
+                min-width: 0;
+            }
+            .design .properties {
+                width: 320px;
+                flex: none;
+                border-left: 1px solid #d7d9de;
+                overflow: auto;
+                background: #fff;
+            }
+            :root[data-bpmn-theme="dark"] .design .properties {
+                border-left-color: #3a3a3a;
+                background: #1d1d1d;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app" style="height: 100vh">
+            <div class="design">
+                <div class="canvas" id="canvas"></div>
+                <div class="properties" id="properties"></div>
+            </div>
+        </div>
+        <script src="/design.ts" type="module"></script>
+    </body>
+</html>

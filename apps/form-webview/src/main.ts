@@ -4,8 +4,10 @@ import {
     Command,
     createFlushResponder,
     FormFileQuery,
+    FormInputValuesQuery,
     FlushDocumentQuery,
     GetFormFileCommand,
+    GetFormInputValuesCommand,
     LogErrorCommand,
     Query,
     ReleaseDocumentFlushQuery,
@@ -65,6 +67,8 @@ function bootstrap(): void {
         if (event.data.type === "FormFileQuery") {
             const query = event.data as FormFileQuery;
             void app.load(query.content, query.documentRevision);
+        } else if (event.data.type === "FormInputValuesQuery") {
+            void app.setInputValues((event.data as FormInputValuesQuery).content);
         } else if (
             event.data.type === "FlushDocumentQuery" ||
             event.data.type === "ReleaseDocumentFlushQuery"
@@ -73,6 +77,7 @@ function bootstrap(): void {
         }
     });
     host.postMessage(new GetFormFileCommand());
+    host.postMessage(new GetFormInputValuesCommand());
 }
 
 window.addEventListener("error", (event: ErrorEvent) => {

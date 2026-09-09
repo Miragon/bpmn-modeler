@@ -1,56 +1,32 @@
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "unplugin-dts/vite";
 
-// The private workspace libs inlined into the bundle (their source is pulled in
-// via the tsconfig path aliases). Everything else bare is a real dependency and
-// stays external — see `external` below. Keep this list in sync with the
-// `devDependencies` `workspace:*` entries and the architecture spec.
-const INLINED_LIBS = [
-    "@miragon/bpmn-modeler-types",
-    "@miragon/bpmn-modeler-diff",
-    "@miragon/bpmn-modeler-clipboard",
-    "@miragon/bpmn-modeler-i18n-extras",
-    "@miragon/bpmn-modeler-element-template-chooser",
-    "@miragon/bpmn-modeler-append-menu",
-    "@miragon/bpmn-model-navigation",
-    "@miragon/bpmn-modeler-code-link",
-    "@miragon/bpmn-modeler-inline-scripting",
-    "@miragon/bpmn-modeler-flow-navigation",
-];
+// Share the inventory with the peer guard to keep bundled libraries and runtime requirements aligned.
+const inlinedLibraries = JSON.parse(
+    readFileSync(new URL("./inlined-libraries.json", import.meta.url), "utf8"),
+) as { name: string; sourceRoot: string }[];
+const INLINED_LIBS = inlinedLibraries.map(({ name }) => name);
+const INLINED_LIB_SRC = inlinedLibraries.map(({ sourceRoot }) => sourceRoot);
 
-// The source roots of the inlined libs — their per-file declarations must be
-// emitted so api-extractor can flatten them into `dist/index.d.ts` /
-// `dist/diff.d.ts` (they carry no built `types` entry of their own). Only these
-// ten; globbing all of `libs/*` would drag in the engine core's declaration
-// errors too.
-const INLINED_LIB_SRC = [
-    "../../libs/modeler-types/src",
-    "../../libs/bpmn-diff/src",
-    "../../libs/bpmn-clipboard/src",
-    "../../libs/bpmn-i18n-extras/src",
-    "../../libs/element-template-chooser/src",
-    "../../libs/append-menu/src",
-    "../../libs/model-navigation/src",
-    "../../libs/code-link/src",
-    "../../libs/inline-scripting/src",
-    "../../libs/flow-navigation/src",
-];
+// Bundle descriptors as JavaScript so Node consumers do not need JSON import attributes.
+const INLINED_DESCRIPTOR_JSON = new Set([
+    "camunda-bpmn-moddle/resources/camunda.json",
+    "zeebe-bpmn-moddle/resources/zeebe.json",
+]);
 
 function isInlined(id: string): boolean {
     return INLINED_LIBS.some((name) => id === name || id.startsWith(`${name}/`));
 }
 
-// Bundle relatives, absolute (alias-resolved) paths, the inlined libs, and CSS;
-// externalise every other bare specifier so the bpmn-io stack is never bundled.
-// `@oxc-project/runtime` is Vite 8's oxc transform-helper runtime (the tslib
-// analogue for its own lowering) — inline it so consumers never take a
-// dependency on our build tool's internals.
 function isExternal(id: string): boolean {
     if (id.startsWith(".") || isAbsolute(id)) return false;
     if (id.endsWith(".css")) return false;
     if (isInlined(id)) return false;
+    if (INLINED_DESCRIPTOR_JSON.has(id)) return false;
+    // Consumers must not need a dependency on Vite's transform runtime.
     if (id === "@oxc-project/runtime" || id.startsWith("@oxc-project/runtime/")) return false;
     return true;
 }
@@ -63,11 +39,7 @@ export default defineConfig({
         dts({
             tsconfigPath: "./tsconfig.lib.json",
             include: ["src", ...INLINED_LIB_SRC],
-            // Keep the `@miragon/*` specifiers in the emitted d.ts (do NOT rewrite
-            // them to source `.ts` paths); api-extractor then resolves them via
-            // tsconfig `paths` and inlines the ones listed in `bundledPackages`,
-            // producing one self-contained `dist/index.d.ts` with only bare npm
-            // externals left as imports.
+            // Preserve package specifiers so API Extractor can resolve and inline bundled declarations.
             pathsToAliases: false,
             bundleTypes: {
                 bundledPackages: INLINED_LIBS,
@@ -80,15 +52,18 @@ export default defineConfig({
     },
     build: {
         target: "es2021",
+        // Viewer, design, and mode CSS are built separately to avoid merging them into the editor sheet.
         cssCodeSplit: false,
         commonjsOptions: { transformMixedEsModules: true },
         chunkSizeWarningLimit: 1200,
         lib: {
             entry: {
                 index: resolve(__dirname, "src/index.ts"),
-                // Data-layer subpath (`@miragon/bpmn-modeler/diff`): no CSS,
-                // bpmn-js, i18n, or preact — Node-safe (check-diff-node.mjs).
                 diff: resolve(__dirname, "src/diff/index.ts"),
+                lint: resolve(__dirname, "src/bpmnlint/index.ts"),
+                viewer: resolve(__dirname, "src/viewer/index.ts"),
+                design: resolve(__dirname, "src/design/index.ts"),
+                mode: resolve(__dirname, "src/modeSession/index.ts"),
             },
             formats: ["es"],
             cssFileName: "bpmn-modeler",

@@ -35,7 +35,7 @@
     "displayName": "BPMN Modeler",
     "description": "Create and edit BPMN 2.0, DMN, and Camunda Form models in VS Code. Supports Camunda 7 and Camunda 8.",
     "license": "SEE LICENSE IN LICENSE",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "publisher": "miragon-gmbh",
     "homepage": "https://www.miragon.io/",
     "galleryBanner": {
@@ -82,6 +82,10 @@
         "form"
     ],
     "main": "main.js",
+    "activationEvents": [
+        "onFileSystem:bpmn-form-input-values",
+        "onFileSystem:bpmn-form-output-values"
+    ],
     "contributes": {
         "walkthroughs": [
             {
@@ -252,6 +256,18 @@
                 "icon": "$(notebook-mimetype)"
             },
             {
+                "command": "bpmn-modeler.toggleFormInputValues",
+                "title": "Toggle Form Input Values",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(json)"
+            },
+            {
+                "command": "bpmn-modeler.toggleFormOutputValues",
+                "title": "Toggle Form Output Values",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(output)"
+            },
+            {
                 "command": "bpmn-modeler.openLoggingConsole",
                 "title": "Display Logging Information",
                 "category": "Miragon BPMN Modeler",
@@ -372,6 +388,14 @@
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {
+                    "command": "bpmn-modeler.toggleFormInputValues",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
+                    "command": "bpmn-modeler.toggleFormOutputValues",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
                     "command": "bpmn-modeler.openLoggingConsole",
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
@@ -442,6 +466,16 @@
                 }
             ],
             "editor/title": [
+                {
+                    "command": "bpmn-modeler.toggleFormInputValues",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
+                {
+                    "command": "bpmn-modeler.toggleFormOutputValues",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.form' || resourceScheme == bpmn-form-input-values || resourceScheme == bpmn-form-output-values"
+                },
                 {
                     "command": "bpmn-modeler.toggleTextEditor",
                     "group": "navigation",
@@ -534,6 +568,21 @@
                         "Light"
                     ],
                     "markdownDescription": "Controls the color theme of the BPMN modeler canvas. `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme."
+                },
+                "miragon.bpmnModeler.defaultMode": {
+                    "type": "string",
+                    "default": "implement",
+                    "enum": [
+                        "implement",
+                        "design",
+                        "view"
+                    ],
+                    "enumItemLabels": [
+                        "Implement",
+                        "Design",
+                        "View"
+                    ],
+                    "markdownDescription": "The mode a BPMN editor opens in when it has no remembered mode. `implement` is the full Camunda modeler, `design` is the engine-neutral editable surface, and `view` is the readonly viewer. Applies only per new editor — an already-open editor keeps its mode. On an untagged (engine-neutral) model, `implement` is unavailable and falls back to `design`."
                 },
                 "miragon.bpmnModeler.favouriteBpmnElements": {
                     "type": "array",

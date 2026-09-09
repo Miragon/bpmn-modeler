@@ -26,7 +26,14 @@
         // Pack-and-install smoke test: copied into a scratch dir and run by
         // publish-npm-modeler.yml (`node smoke-consumer.mjs`), never imported and
         // not a package.json script, so knip reads it as unused.
-        "packages/bpmn-modeler/scripts/smoke-consumer.mjs"
+        "packages/bpmn-modeler/scripts/smoke-consumer.mjs",
+        "packages/dmn-modeler/scripts/smoke-consumer.mjs",
+        // Type declarations for the postcss plugin .mjs; reached only through
+        // TS declaration resolution (sibling lookup), which knip does not track.
+        "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
+        "packages/bpmn-modeler/scripts/check-externals.d.mts",
+        "packages/bpmn-modeler/scripts/check-inlined-peers.d.mts",
+        "packages/dmn-modeler/scripts/postcss-strip-theme-scope.d.mts"
     ],
     "ignoreWorkspaces": ["apps/standalone"],
     "workspaces": {
@@ -40,20 +47,52 @@
         "apps/demo-webapp": {
             // dual.ts / diff.ts are reached only via their .html files, which the
             // vite plugin does not walk (single-mode root), so list them.
-            "entry": ["dmn/main.ts", "bpmn/dual.ts", "bpmn/diff.ts"]
+            "entry": [
+                "dmn/main.ts",
+                "bpmn/dual.ts",
+                "bpmn/diff.ts",
+                "bpmn/diffRegressions.ts",
+                "bpmn/viewer.ts",
+                "bpmn/design.ts"
+            ]
         },
         "packages/bpmn-modeler": {
-            // The lazy bpmnlint chunk is reached via `await import("./bpmnlint")`
-            // in modeler.ts; list its barrel so knip does not read the whole
-            // chunk as unused. `src/diff/index.ts` is the public `./diff`
-            // subpath entry (package.json exports), so its exports are API.
-            "entry": ["src/index.ts", "src/bpmnlint/index.ts", "src/diff/index.ts"],
+            // `src/bpmnlint/index.ts` is the public `@miragon/bpmn-modeler/lint`
+            // subpath entry a host injects (#1407) and `src/diff/index.ts` the
+            // public `./diff` subpath (both in package.json exports), so their
+            // exports are API — list them so knip does not read them as unused.
+            "entry": [
+                "src/index.ts",
+                "src/bpmnlint/index.ts",
+                "src/diff/index.ts",
+                "src/viewer/index.ts",
+                "src/design/index.ts",
+                "src/modeSession/index.ts"
+            ],
             // minisearch (via model-navigation), lodash (via modeler-types'
             // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)
             // are pulled in only through inlined workspace libs; the Vite lib
             // build externalises them, so the published package must declare them
             // even though no package source imports them directly.
-            "ignoreDependencies": ["minisearch", "lodash", "bpmn-js-differ"]
+            "ignoreDependencies": [
+                "minisearch",
+                "lodash",
+                "bpmn-js-differ",
+                // Temporary upstream manifest workarounds, verified by the
+                // nested packed-consumer smoke rather than package imports.
+                "@lezer/lr",
+                "tiny-svg"
+            ]
+        },
+        "packages/dmn-modeler": {
+            // `src/index.ts` is the public `@miragon/dmn-modeler` entry (in
+            // package.json exports), so list it as the entry.
+            "entry": ["src/index.ts"],
+            // lodash enters as a bare side-effect import through the inlined
+            // modeler-types barrel (asyncDebounce), which the Vite lib build
+            // externalises; no package source imports it directly, so it must be
+            // declared as a real dependency and ignored here.
+            "ignoreDependencies": ["lodash"]
         }
     }
 }

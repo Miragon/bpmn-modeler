@@ -9,13 +9,13 @@
  */
 export * from "./asyncDebounce";
 export * from "./engine";
+export * from "./surfaceMode";
 export * from "./lint";
 export * from "./settings";
 export * from "./scripting";
 export * from "./implementation";
 export * from "./diff";
 export * from "./errors";
-export * from "./theme";
 export * from "./canvasResize";
-export * from "./propertiesPanelResizer";
-export * from "./propertiesPanelFocus";
+export * from "./canvasFocusIndicator";
+export * from "./textEditingSurface";

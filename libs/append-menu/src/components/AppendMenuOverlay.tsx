@@ -35,7 +35,7 @@ interface AppendMenuOverlayProps {
     favourites: string[];
     position: { x: number; y: number };
     canvasBounds: { right: number; bottom: number };
-    onSelect: (action: PopupMenuEntryAction, event: Event) => void;
+    onSelect: (action: PopupMenuEntryAction | undefined, event: Event) => void;
     onCancel: () => void;
 }
 
@@ -239,7 +239,7 @@ export function AppendMenuOverlay({
     // With a multi-type template selected, creates the element via the template's
     // action; otherwise creates a plain BPMN element.
     const handleBpmnSelect = useCallback(
-        (action: PopupMenuEntryAction, event: Event) => {
+        (action: PopupMenuEntryAction | undefined, event: Event) => {
             if (selectedTemplate) {
                 onSelect(selectedTemplate.entry.action, event);
             } else {

@@ -7,7 +7,6 @@
 
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link id="theme-link" href="src/styles/light-theme/index.css" rel="stylesheet" />
 </head>
 <body>
 <div class="content with-diagram" id="js-drop-zone">
@@ -15,6 +14,18 @@
     <div class="panel-resizer" id="js-panel-resizer"></div>
     <div class="properties-panel-parent" id="js-properties-panel"></div>
 </div>
+<!--
+    Dev-only theme switch for the standalone browser preview (`yarn ... serve`).
+    Hosts (VS Code / IntelliJ) inject their own HTML and never load this shell, so
+    this affects local preview only. Open `?theme=dark` to exercise the dark
+    theme without launching a host, since the MockHost forces `automatic` and the
+    host adapter reads the `vscode-dark` body class. Runs before the module below.
+-->
+<script>
+    if (new URLSearchParams(location.search).get("theme") === "dark") {
+        document.body.classList.add("vscode-dark");
+    }
+</script>
 <script src="/src/main.ts" type="module"></script>
 </body>
 </html>

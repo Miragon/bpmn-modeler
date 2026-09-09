@@ -1,18 +1,14 @@
 import { BpmnFileQuery } from "@miragon/bpmn-modeler-shared";
-import { ENGINE_EXECUTION_PLATFORM } from "@miragon/bpmn-modeler-types";
 
 import { ModelerSession } from "../../../shared/domain/session";
-import {
-    ExecutionPlatformNotDetectedError,
-    isHiddenEditorError,
-    UserCancelledError,
-} from "../../../shared/domain/errors";
-import { getLatestVersion, getVersions } from "../../../shared/domain/engineVersions";
+import { isHiddenEditorError, UserCancelledError } from "../../../shared/domain/errors";
+import { getVersions } from "../../../shared/domain/engineVersions";
 import { BpmnDocument } from "../../../shared/domain/BpmnDocument";
 import {
     DocumentPort,
     NotifierPort,
     PickerPort,
+    SettingsPort,
     StatusBarPort,
 } from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
@@ -32,6 +28,7 @@ export class BpmnModelerService {
         private readonly picker: PickerPort,
         private readonly statusBar: StatusBarPort,
         private readonly notifier: NotifierPort,
+        private readonly settings: SettingsPort,
     ) {}
 
     registerSession(editorId: string): void {
@@ -53,15 +50,14 @@ export class BpmnModelerService {
             let doc = new BpmnDocument(content);
 
             if (doc.isEmpty()) {
-                const ep = await this.picker.pickExecutionPlatform("Select the engine.", [
-                    "c7",
-                    "c8",
-                ]);
+                const choice = await this.picker.pickNewModelEngine(
+                    "Select the execution platform.",
+                );
                 if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision)) {
                     return false;
                 }
 
-                doc = BpmnDocument.empty(ep, getLatestVersion(ep));
+                doc = BpmnDocument.forNewModel(choice);
                 if (!(await this.writeGuarded(session, editorId, doc.xml, documentRevision))) {
                     return false;
                 }
@@ -75,59 +71,34 @@ export class BpmnModelerService {
             }
 
             try {
-                const ep = doc.detectPlatform();
+                // Untagged models are first-class: `detectEngine` returns
+                // `undefined` rather than throwing, and the webview routes to
+                // Design. The default mode seeds the editor's initial surface.
+                const engine = doc.detectEngine();
                 const sent = await this.editorStore.postMessage(
                     editorId,
-                    new BpmnFileQuery(doc.xml, ep, "modeler", documentRevision),
+                    new BpmnFileQuery(
+                        doc.xml,
+                        engine,
+                        "modeler",
+                        documentRevision,
+                        this.settings.getDefaultMode(),
+                    ),
                 );
 
-                const version = doc.detectPlatformVersion();
-                if (version) {
-                    this.statusBar.showEngineVersion(ep, version);
+                const version = engine ? doc.detectPlatformVersion() : undefined;
+                if (engine && version) {
+                    this.statusBar.showEngineVersion(engine, version);
+                } else {
+                    this.statusBar.hideEngineVersion();
                 }
 
                 return sent;
             } catch (error) {
                 if (isHiddenEditorError(error)) {
                     return false;
-                } else if (error instanceof ExecutionPlatformNotDetectedError) {
-                    const ep = await this.picker.pickExecutionPlatform(
-                        "Select the execution platform.",
-                        ["c7", "c8"],
-                    );
-                    if (!this.isSnapshotCurrent(editorId, editorSession, documentRevision)) {
-                        return false;
-                    }
-
-                    const latestVersion = getLatestVersion(ep);
-                    const newDoc = doc.withExecutionPlatform(
-                        ENGINE_EXECUTION_PLATFORM[ep],
-                        latestVersion,
-                        ep === "c7"
-                            ? `xmlns:camunda="http://camunda.org/schema/1.0/bpmn"`
-                            : `xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"`,
-                    );
-
-                    if (
-                        !(await this.writeGuarded(
-                            session,
-                            editorId,
-                            newDoc.xml,
-                            documentRevision,
-                        )) ||
-                        !this.isSnapshotCurrent(editorId, editorSession, documentRevision)
-                    ) {
-                        return false;
-                    }
-                    const sent = await this.editorStore.postMessage(
-                        editorId,
-                        new BpmnFileQuery(newDoc.xml, ep, "modeler", documentRevision),
-                    );
-                    this.statusBar.showEngineVersion(ep, latestVersion);
-                    return sent;
-                } else {
-                    return this.handleError(error as Error);
                 }
+                return this.handleError(error as Error);
             }
         } catch (error) {
             if (error instanceof UserCancelledError) {
@@ -157,7 +128,13 @@ export class BpmnModelerService {
             const documentRevision = this.editorStore.currentHostDocumentRevision(editorId);
             const session = this.sessions.get(editorId);
             const doc = new BpmnDocument(this.vsDocument.getContent(editorId));
-            const platform = doc.detectPlatform();
+            const platform = doc.detectEngine();
+            if (!platform) {
+                this.notifier.showInfo(
+                    "This diagram has no execution platform, so there is no engine version to change.",
+                );
+                return false;
+            }
             const versions = getVersions(platform);
 
             const newVersion = await this.picker.pickEngineVersion(platform, versions);

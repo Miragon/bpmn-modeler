@@ -1,0 +1,65 @@
+/*
+ * Canvas-side mode strip for the BPMN modeler demo (#1446). The layout, sizing,
+ * and badge positioning come from `@miragon/bpmn-modeler/mode.css`; this file only
+ * re-skins it with the demo's `--cd-*` design tokens (declared on `:root` by the
+ * demo header's style block).
+ */
+@import "../../../packages/bpmn-modeler/src/styles/mode.css";
+
+/* The package sheet stamps the flex column on `.panel-host`; the demo needs a
+ * higher-specificity selector to out-specify `.content.with-diagram
+ * .properties-panel-parent`'s `display:block`. */
+#js-properties-panel.panel-host {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.mode-strip {
+    background: var(--cd-grau);
+}
+
+.mode-group {
+    background: var(--cd-weiss);
+    border-radius: var(--cd-radius-sm);
+}
+
+.mode-button[aria-pressed="true"] {
+    background: var(--cd-grau);
+    color: var(--cd-blau);
+    box-shadow: var(--cd-shadow-1);
+}
+
+.mode-button:focus-visible {
+    outline-color: var(--cd-blau);
+}
+
+.mode-badge {
+    background: var(--cd-blau);
+    color: var(--cd-weiss);
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+:root[data-bpmn-theme="dark"] .mode-strip {
+    background: #1a1a1a;
+    border-bottom-color: #2a2a2a;
+}
+
+:root[data-bpmn-theme="dark"] .mode-group {
+    background: #2a2a2a;
+    border-color: #3a3a3a;
+}
+
+:root[data-bpmn-theme="dark"] .mode-button {
+    color: #9aa0aa;
+}
+
+:root[data-bpmn-theme="dark"] .mode-button:hover {
+    background: rgba(51, 93, 229, 0.18);
+}
+
+:root[data-bpmn-theme="dark"] .mode-button[aria-pressed="true"] {
+    background: var(--cd-schwarz);
+    color: #6f8cf0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}

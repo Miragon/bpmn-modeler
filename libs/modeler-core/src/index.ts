@@ -13,6 +13,7 @@ export * from "./shared/domain/EditorSession";
 export * from "./shared/domain/engineVersions";
 export * from "./shared/domain/errors";
 export * from "./shared/domain/hostPorts";
+export * from "./shared/domain/newModelEngine";
 export * from "./shared/domain/session";
 export * from "./shared/domain/viewTypes";
 

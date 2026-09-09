@@ -3,19 +3,19 @@
  * `WebviewStateManager`. Not part of the public modeler API.
  */
 
-import type { ViewportData } from "@miragon/bpmn-modeler";
+import type { ViewportData, ViewState } from "@miragon/bpmn-modeler";
+import type { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 /**
- * Snapshot of the canvas view that can be captured from the live
- * modeler and re-applied after a re-import (undo/redo, XML push,
- * language switch) to preserve the user's drill-down plane, viewport,
- * and selection.
+ * Snapshot of the canvas view that can be captured from the live modeler and
+ * re-applied after a re-import (undo/redo, XML push, language switch) to
+ * preserve the user's drill-down plane, viewport, and selection.
+ *
+ * Aliases the package's public {@link ViewState} — the handle owns the
+ * capture/apply composition now (the fields are identical), so the webview
+ * carries no separate copy of the shape.
  */
-export interface CanvasViewState {
-    rootElementId?: string;
-    viewport: ViewportData;
-    selectedElementIds: string[];
-}
+export type CanvasViewState = ViewState;
 
 /**
  * Webview state persisted via the host's `setState` / `getState`.
@@ -33,4 +33,10 @@ export interface WebviewState {
      * that default so two tabs in one group keep independent panel state.
      */
     panelVisible?: boolean;
+    /**
+     * Per-editor surface mode (View / Design / Implement). Absent until first
+     * resolved; seeded from the host's `defaultMode` on a first-ever open and
+     * re-resolved against the engine on every rebuild via `resolveInitialMode`.
+     */
+    mode?: SurfaceMode;
 }

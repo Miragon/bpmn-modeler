@@ -17,6 +17,22 @@ export default defineConfig({
                 __dirname,
                 "../../packages/bpmn-modeler/src/diff/index.ts",
             ),
+            "@miragon/bpmn-modeler/lint": resolve(
+                __dirname,
+                "../../packages/bpmn-modeler/src/bpmnlint/index.ts",
+            ),
+            "@miragon/bpmn-modeler/viewer": resolve(
+                __dirname,
+                "../../packages/bpmn-modeler/src/viewer/index.ts",
+            ),
+            "@miragon/bpmn-modeler/design": resolve(
+                __dirname,
+                "../../packages/bpmn-modeler/src/design/index.ts",
+            ),
+            "@miragon/bpmn-modeler/mode": resolve(
+                __dirname,
+                "../../packages/bpmn-modeler/src/modeSession/index.ts",
+            ),
             "@miragon/bpmn-modeler": resolve(__dirname, "../../packages/bpmn-modeler/src/index.ts"),
             "@miragon/bpmn-modeler-shared": resolve(__dirname, "../../libs/shared/src/index.ts"),
             "@miragon/bpmn-modeler-types": resolve(

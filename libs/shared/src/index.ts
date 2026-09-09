@@ -4,4 +4,8 @@ export * from "./lib/messages";
 export * from "./lib/documentFlush";
 export * from "./lib/modeler";
 export * from "./lib/processVariables";
+export * from "./lib/propertiesPanelResizer";
+export * from "./lib/propertiesPanelFocus";
+export * from "./lib/hostTheme";
 export * from "./lib/variableManifest";
+export * from "./lib/harvestRecorder";

@@ -1,0 +1,63 @@
+/* Paint layout gaps dark to prevent bright strips at fractional panel widths.
+ * Page chrome needs the root theme attribute because it sits outside modeler containers. */
+@import "./colors.css";
+
+:root[data-dmn-theme="dark"],
+:root[data-dmn-theme="dark"] body {
+    background-color: var(--dt-surface-a0);
+    color: var(--dt-surface-a70);
+}
+
+:root[data-dmn-theme="dark"] .content > .message {
+    color: var(--dt-surface-a70);
+}
+
+.properties-panel-parent[data-dmn-theme="dark"],
+:root[data-dmn-theme="dark"] .properties-panel-parent {
+    border-left-color: var(--dt-surface-a30);
+}
+
+:root[data-dmn-theme="dark"] .panel-resizer {
+    border-left-color: var(--dt-surface-a20);
+}
+
+:root[data-dmn-theme="dark"] .panel-resizer:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+    border-left-color: var(--dt-primary-a10);
+}
+
+/* Avoid a doubled hover halo behind the toggle button. */
+:root[data-dmn-theme="dark"] .panel-resizer:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+    border-left-color: var(--dt-surface-a20);
+}
+
+/* Override the pseudo-element variables so stylesheet load order cannot restore the accent. */
+:root[data-dmn-theme="dark"] .panel-resizer.collapsed {
+    --panel-resizer-accent-color: var(--dt-surface-a30);
+    --panel-resizer-accent-hover-color: var(--dt-primary-a10);
+}
+
+:root[data-dmn-theme="dark"] .panel-resizer.collapsed:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+}
+
+:root[data-dmn-theme="dark"] .panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+}
+
+:root[data-dmn-theme="dark"] .panel-resizer-toggle {
+    background-color: var(--dt-surface-a10);
+    border-color: var(--dt-surface-a30);
+    color: var(--dt-surface-a70);
+}
+
+:root[data-dmn-theme="dark"] .panel-resizer-toggle:hover {
+    background-color: var(--dt-primary-a0-opacity-30);
+    border-color: var(--dt-primary-a10);
+    color: var(--dt-primary-a10);
+}
+
+:root[data-dmn-theme="dark"] .panel-resizer-toggle:focus-visible {
+    outline-color: var(--dt-primary-a10);
+}

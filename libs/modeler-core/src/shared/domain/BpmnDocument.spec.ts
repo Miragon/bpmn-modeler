@@ -117,6 +117,42 @@ describe("BpmnDocument.detectPlatform", () => {
     });
 });
 
+describe("BpmnDocument.detectEngine", () => {
+    it("detects the platform like detectPlatform", () => {
+        expect(new BpmnDocument(c7Xml).detectEngine()).toBe("c7");
+        expect(new BpmnDocument(c8Xml).detectEngine()).toBe("c8");
+        expect(new BpmnDocument(c7XmlNoVersion).detectEngine()).toBe("c7");
+        expect(new BpmnDocument(c8XmlNameOnly).detectEngine()).toBe("c8");
+    });
+
+    it("returns undefined for an untagged model instead of throwing", () => {
+        expect(new BpmnDocument(unknownXml).detectEngine()).toBeUndefined();
+    });
+});
+
+describe("BpmnDocument.emptyEngineNeutral", () => {
+    it("scaffolds an untagged, non-executable diagram", () => {
+        const doc = BpmnDocument.emptyEngineNeutral();
+        expect(doc.detectEngine()).toBeUndefined();
+        expect(doc.xml).toContain('isExecutable="false"');
+        expect(doc.xml).not.toContain("modeler:executionPlatform");
+        expect(doc.xml).not.toContain("xmlns:camunda");
+        expect(doc.xml).not.toContain("xmlns:zeebe");
+        expect(doc.xml).not.toContain("exporter");
+    });
+});
+
+describe("BpmnDocument.forNewModel", () => {
+    it("scaffolds the engine-neutral diagram for 'neutral'", () => {
+        expect(BpmnDocument.forNewModel("neutral").detectEngine()).toBeUndefined();
+    });
+
+    it("stamps a concrete engine at its latest version", () => {
+        expect(BpmnDocument.forNewModel("c7").detectEngine()).toBe("c7");
+        expect(BpmnDocument.forNewModel("c8").detectEngine()).toBe("c8");
+    });
+});
+
 describe("BpmnDocument.detectPlatformVersion", () => {
     it("should return the version string when present", () => {
         expect(new BpmnDocument(c7Xml).detectPlatformVersion()).toBe("7.20.0");

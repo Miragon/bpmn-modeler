@@ -9,6 +9,15 @@ literal expressions) that runs inside the VS Code webview hosted by
 host via the typed Query/Command protocol from
 [`libs/shared`](../../libs/shared/README.md).
 
+The host-free modeler facade now lives in the publishable
+[`packages/dmn-modeler`](../../packages/dmn-modeler/README.md); this app is the
+thin host adapter that consumes it.
+
+The adapter is a flat `src/` layout mirroring
+[`apps/bpmn-webview`](../bpmn-webview/README.md): `bootstrap.ts` runs the
+protocol dispatch and handshake, `host.ts` selects the `HostApi`, and
+`state.ts` + `webviewState.ts` hold the persisted properties-panel UI state.
+
 ## Local development
 
 From the repo root:

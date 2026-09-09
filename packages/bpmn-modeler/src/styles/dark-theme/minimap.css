@@ -1,12 +1,12 @@
 @import "colors.css";
 
-.djs-minimap {
+[data-bpmn-theme="dark"] .djs-minimap {
     background-color: var(--dt-surface-a10) !important;
     color: var(--dt-primary-a50) !important;
     border-color: var(--dt-surface-tonal-a50) !important;
     cursor: pointer;
 }
 
-.djs-minimap:hover {
+[data-bpmn-theme="dark"] .djs-minimap:hover {
     background-color: var(--dt-surface-tonal-a20) !important;
 }

@@ -48,7 +48,7 @@ action name.
 
 | Action | Description |
 |---|---|
-| New BPMN Model… | Create a new BPMN diagram and open it in the modeler (also under *Project view ▸ New*) |
+| New BPMN Model… | Create a new BPMN diagram and open it in the modeler — the picker offers **Camunda 7**, **Camunda 8**, and **Engine-neutral** (an untagged model that opens in the Design surface). Also under *Project view ▸ New* |
 | New DMN Model… | Create a new DMN decision file (also under *Project view ▸ New*) |
 | Add Template Marketplace… | Register a GitHub/GitLab repository or local folder holding a `marketplace.json` |
 | Update Template Marketplaces | Re-fetch every configured [template marketplace](/vscode/features/template-marketplace) |
@@ -59,6 +59,15 @@ action name.
 | Change Modeler Language… | Switch the modeler UI language |
 | Copy Diagram as SVG | Copy the focused diagram to the clipboard as SVG |
 | Save Diagram as SVG… | Export the focused diagram to an SVG file |
+
+## Settings
+
+Plugin settings live under *Settings ▸ Tools ▸ Miragon BPMN Modeler*. The
+**Default mode** row seeds the mode a BPMN editor opens in when it has no
+remembered mode — **Implement** (full Camunda modeler), **Design**
+(engine-neutral editable surface), or **View** (readonly viewer). On an
+untagged model, Implement is unavailable and falls back to Design. See
+[Editor Modes](/vscode/features/modes) for the full behaviour.
 
 ## Where to next
 

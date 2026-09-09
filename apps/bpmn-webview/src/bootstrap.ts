@@ -48,27 +48,51 @@ import {
     createFlushResponder,
     createResolver,
     extractProcessVariables,
+    initResizer,
+    installPanelShortcuts,
 } from "@miragon/bpmn-modeler-shared";
 import {
     NoModelerError,
     asyncDebounce,
     formatErrors,
-    initResizer,
-    initTheme,
-    installPanelShortcuts,
     observeCanvasSize,
     serializeAsync,
-    setColorThemeMode,
+    type DetectedEngine,
+    type SurfaceMode,
 } from "@miragon/bpmn-modeler-types";
+import {
+    SURFACE_MODES,
+    createModeSession,
+    mountModeStrip,
+    type ModeSession,
+    type ModeStrip,
+    type SurfaceFactories,
+} from "@miragon/bpmn-modeler/mode";
+import {
+    type HostThemeAdapter,
+    applyPageThemeScope,
+    createHostThemeAdapter,
+    resolveHostThemeKind,
+} from "@miragon/bpmn-modeler-shared";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
-import { BpmnModeler, createModeler, UnsupportedEngineError } from "@miragon/bpmn-modeler";
-import type { ClipboardOptions, LintingOptions, ModelerCapabilities } from "@miragon/bpmn-modeler";
+import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
+import { createModeler, UnsupportedEngineError } from "@miragon/bpmn-modeler";
+import { createViewer } from "@miragon/bpmn-modeler/viewer";
+import { createDesigner } from "@miragon/bpmn-modeler/design";
+import type {
+    ClipboardOptions,
+    LintingOptions,
+    ModelerCapabilities,
+    ModelerMode,
+} from "@miragon/bpmn-modeler";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
-import type { Engine, LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
 import type { WebviewState } from "./webviewState";
 import { DiffMode } from "./diffMode";
 import { installHostEditorActions } from "./hostEditorActions";
-import { readSavedPanelVisibility, WebviewStateManager } from "./state";
+import { readSavedMode, readSavedPanelVisibility, WebviewStateManager } from "./state";
+import { isEditableHandle, isLintingHandle, isModelerHandle, type SurfaceHandle } from "./surface";
+import "../../../packages/bpmn-modeler/src/styles/mode.css";
 
 /**
  * Upper bound (ms) on how long bootstrap waits for a host reply before
@@ -139,9 +163,22 @@ function startSession(
     injectedOnLintResults: ((event: LintRunEvent) => void) | undefined,
     injectedReload: (() => void) | undefined,
 ): void {
-    // Assigned in run() once the engine is known — flush/capability callbacks
-    // only fire post-init, so the definite-assignment assertion is safe.
-    let bpmnModeler!: BpmnModeler;
+    // The single live surface (View / Design / Implement). Assigned in run()
+    // once the engine + initial mode are known, and reassigned on every mode
+    // switch — flush/capability callbacks only fire post-init, so the
+    // definite-assignment assertion is safe.
+    let surface!: SurfaceHandle;
+    // The mode the live surface renders, and the segmented control that drives
+    // it. `switchPending` blocks re-entrant switches while a recreate is in
+    // flight; `disposeCanvasObserver` tears down the per-surface size observer.
+    let surfaceMode!: SurfaceMode;
+    let strip!: ModeStrip;
+    let modeSession: ModeSession | undefined;
+    let switchPending = false;
+    // Saved `document.body.inert` from the start of a recreate switch, restored
+    // when it lands (unless a concurrent engine reload has taken ownership).
+    let inertBeforeSwitch: boolean | undefined;
+    let disposeCanvasObserver: (() => void) | undefined;
 
     let modelerIsInitialized = false;
     let modelerCanImportHostUpdates = false;
@@ -153,7 +190,10 @@ function startSession(
     let initialViewerMode = false;
     let latestBpmnFileQuery: BpmnFileQuery | undefined;
     let refreshDiagramWhenReady = false;
-    let modelerEngine: Engine | undefined;
+    let modelerEngine: DetectedEngine;
+    // Host theme adapter (VS Code `<body>` class → page scope + instance theme).
+    // Created in run(); the settings handler switches its mode on `colorTheme`.
+    let themeAdapter: HostThemeAdapter | undefined;
     let engineReloadPending = false;
     let pendingSessionActionDrain: Promise<void> | undefined;
     let cancelPendingVariablePublish: (() => void) | undefined;
@@ -264,7 +304,7 @@ function startSession(
                 stateManager?.flushViewport();
             } finally {
                 try {
-                    bpmnModeler.destroy();
+                    surface.destroy();
                 } finally {
                     (injectedReload ?? (() => window.location.reload()))();
                 }
@@ -301,7 +341,7 @@ function startSession(
                     }
 
                     if (pendingFocusId !== undefined) {
-                        bpmnModeler.viewport.centerOnElement(pendingFocusId);
+                        surface.viewport.centerOnElement(pendingFocusId);
                         pendingFocusId = undefined;
                     }
                     return;
@@ -341,7 +381,7 @@ function startSession(
                 document.body.inert = inertBeforeDestructiveFlush;
                 inertBeforeDestructiveFlush = undefined;
             },
-            exportContent: () => bpmnModeler.exportDiagram(),
+            exportContent: () => surface.exportDiagram(),
         },
         (reply) => host.postMessage(reply),
     );
@@ -394,7 +434,7 @@ function startSession(
      * The default capability adapter: each port posts the protocol command to
      * the host. Selected whenever `bootstrap()` is called without explicit
      * capabilities, so every real host (VS Code, IntelliJ, Theia) runs through
-     * it. Closes over the session {@link host} and {@link bpmnModeler}.
+     * it. Closes over the session {@link host} and {@link surface}.
      *
      * `scripting` is always populated here even though its DI cluster is C7-only;
      * `capabilityModules` gates the registration, so the surplus port on C8 is inert.
@@ -428,7 +468,11 @@ function startSession(
                             event.eventName,
                             event.scriptFormat,
                             event.content,
-                            extractProcessVariables(bpmnModeler.getDefinitions()),
+                            // Scripting is a modeler-only cluster (C7), but the
+                            // port closes over the polymorphic surface.
+                            isModelerHandle(surface)
+                                ? extractProcessVariables(surface.getDefinitions())
+                                : [],
                         ),
                     ),
                 scriptSourceChanged: (event) =>
@@ -459,13 +503,30 @@ function startSession(
     async function run(): Promise<void> {
         window.addEventListener("message", onReceiveMessage);
 
-        // The modeler's Camunda-7 / dmn-js / internal translation overlay is
-        // merged onto the shared dictionaries inside createModeler(). Viewer
-        // (diff) mode never calls it, but its only translated surface is the diff
-        // legend, whose keys ship in the base @miragon/bpmn-modeler-i18n package
-        // — not the overlay — so it needs no extend here.
+        // Merge the modeler's local overlay (mode-strip labels, script-lock
+        // badges, C7/dmn-js internals the shared package lacks) onto the shared
+        // dictionaries. createModeler/createDesigner also extend it, but the mode
+        // strip mounts before any surface and a View-first start never builds a
+        // modeler, so the webview extends here so the strip is translated either
+        // way. Idempotent — a later surface's extend is a no-op merge.
+        i18n.extend(i18nExtras);
 
-        initTheme();
+        // Theme is host policy: drive the page-level scope (host chrome + the
+        // viewer/diff branch, which has no modeler) and the modeler instance's
+        // own theme off the VS Code `<body>`-class signal. The instance is also
+        // born correct via `theme: resolveHostThemeKind()` below, so this mainly
+        // covers the page chrome and later live theme switches.
+        themeAdapter = createHostThemeAdapter((kind) => {
+            applyPageThemeScope("data-bpmn-theme", kind);
+            // Route through the session so its stored theme stays current — a
+            // later recreate then builds the next surface in the right theme.
+            if (modeSession) {
+                modeSession.setTheme(kind);
+            } else {
+                surface?.setTheme(kind);
+            }
+        });
+        themeAdapter.setMode("automatic");
 
         // Viewer mode (one side of a diff view) skips the resizer + properties
         // panel + palette, so we don't call initResizer() here — the chrome is
@@ -559,6 +620,21 @@ function startSession(
             return;
         }
 
+        // The mode strip + panel mount are created at runtime inside the host's
+        // empty `#js-properties-panel` (all three shells ship only that host).
+        // The strip sits above a scrolling mount; the mount — not the host — is
+        // the properties-panel parent and the panel-shortcut root. `initResizer`
+        // still binds to the host by its hard-coded id, so its collapse behaviour
+        // is unchanged.
+        propertiesPanelParent.classList.add("panel-host");
+        const stripEl = document.createElement("div");
+        stripEl.id = "js-mode-strip";
+        stripEl.className = "mode-strip";
+        const mountEl = document.createElement("div");
+        mountEl.id = "js-properties-panel-mount";
+        mountEl.className = "panel-mount";
+        propertiesPanelParent.append(stripEl, mountEl);
+
         const propertiesPanelHandle = initResizer({
             getToggleLabel: (state) =>
                 i18n.translate(
@@ -579,34 +655,35 @@ function startSession(
             propertiesPanelHandle.setVisible(savedPanelVisible);
         }
 
-        // The engine is known here (the file handshake above completed), so the
-        // modeler is created in one async call. A missing engine is fatal — bail
-        // before construction.
+        // The engine may be undefined here — an untagged (engine-neutral) model
+        // is first-class now and opens in Design. The initial mode resolves from
+        // this editor's saved mode, then the host's default, then the engine's
+        // own default — the mode session vets it against availability.
         const engine = bpmnFileQuery?.engine;
-        if (!engine) {
-            host.postMessage(new LogErrorCommand("ExecutionPlatformVersion undefined!"));
-            return;
-        }
+        modelerEngine = engine;
 
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
         const extraModules = (injectedModules as unknown[]) ?? [];
-        // Real hosts run the linter themselves and push results, so the default
-        // tier is external. A consumer (or the demo) can opt into in-page linting
-        // by passing an explicit `linting`. The user's in-canvas toggle is relayed
-        // to the host, which re-lints and pushes the new state down.
-        try {
-            bpmnModeler = await createModeler(canvasEl, {
-                engine,
-                propertiesPanel: { parent: propertiesPanelParent },
-                additionalModules: extraModules,
-                clipboard,
-                capabilities,
-                linting: injectedLinting ?? { results: "external" },
-                // A real host activates in-page linting only after it answers the
-                // GetBpmnlintConfigCommand with BpmnlintInPageQuery (no workspace
-                // config); the webview then pushes its findings back so the host
-                // feeds its Problems panel + status bar. `??` keeps the demo's
-                // injected sink authoritative when one is supplied.
+        const resizerEl = document.getElementById("js-panel-resizer") ?? undefined;
+
+        const focusCanvas = (): void => surface.getService<{ focus(): void }>("canvas").focus();
+
+        // The shared lint options for both editable surfaces (Implement + Design):
+        // the injected tier or the external default a real host uses, plus the
+        // result/toggle sinks that feed the host's Problems panel + status bar
+        // (ADR 0023). The designer resolves the engine-neutral Design config; the
+        // modeler re-resolves per mode on a live toggle. `/lint` is imported lazily
+        // and cached, so building this per (re)creation is free after the first.
+        async function lintingOptions(): Promise<{
+            linting: LintingOptions;
+            onLintResults: (event: LintRunEvent) => void;
+            onLintingToggled: (enabled: boolean) => void;
+        }> {
+            return {
+                linting: injectedLinting ?? {
+                    results: "external",
+                    module: await import("@miragon/bpmn-modeler/lint"),
+                },
                 onLintResults:
                     injectedOnLintResults ??
                     ((e: LintRunEvent) =>
@@ -619,43 +696,238 @@ function startSession(
                         )),
                 onLintingToggled: (enabled: boolean) =>
                     host.postMessage(new SetLintingEnabledCommand(enabled)),
-                // Forward the modeler's non-fatal warnings (element-not-found,
-                // missing inline script) to the output channel — console-only before.
-                onWarning: (warning: string) => host.postMessage(new LogWarningCommand(warning)),
-                // Surface templates bpmn-js rejects (invalid schema, bad
-                // `appliesTo`, …). Subscribed inside init() *before* the first
-                // template push (GetElementTemplatesCommand's reply below), so
-                // those errors are observed. It's a warning, not an error: bpmn-js
-                // skips an invalid template non-fatally, and its message already
-                // carries the offending template's id/name.
-                onElementTemplatesErrors: (errors: unknown[]) => {
-                    for (const error of errors ?? []) {
-                        const message = error instanceof Error ? error.message : String(error);
-                        host.postMessage(
-                            new LogWarningCommand(`Element template rejected: ${message}`),
-                        );
+            };
+        }
+
+        // The three surface factories the mode session switches between. View →
+        // readonly viewer; Design on an untagged model → the engine-neutral
+        // designer; Design/Implement on a tagged model → one createModeler whose
+        // `mode` toggles live. Every surface is born in the IDE's forced theme so
+        // the first frame paints correctly (the body class is the IDE signal, not
+        // "automatic"). Both editable surfaces share `lintingOptions()`: real
+        // hosts run the linter themselves and push results, so the default tier is
+        // external (the `/lint` subpath is imported lazily; the module cache makes
+        // repeat switches free).
+        const surfaces: SurfaceFactories = {
+            view: ({ container, theme }) =>
+                createViewer(container, {
+                    theme,
+                    propertiesPanel: { parent: mountEl },
+                    capabilities: { modelNavigation: capabilities.modelNavigation },
+                    additionalModules: extraModules,
+                }),
+            design: async ({ container, theme }) =>
+                createDesigner(container, {
+                    theme,
+                    propertiesPanel: { parent: mountEl },
+                    clipboard,
+                    capabilities: { modelNavigation: capabilities.modelNavigation },
+                    additionalModules: extraModules,
+                    ...(await lintingOptions()),
+                }),
+            implement: async ({ container, theme, mode, engine: ctxEngine }) => {
+                if (ctxEngine === undefined) {
+                    // The session only routes Implement (and tagged-model Design)
+                    // here, so this is unreachable — throw rather than lie to
+                    // createModeler's `engine: Engine`.
+                    throw new Error("implement surface requires a tagged model");
+                }
+                return createModeler(container, {
+                    engine: ctxEngine,
+                    mode,
+                    theme,
+                    propertiesPanel: { parent: mountEl },
+                    additionalModules: extraModules,
+                    clipboard,
+                    capabilities,
+                    ...(await lintingOptions()),
+                    onWarning: (warning: string) =>
+                        host.postMessage(new LogWarningCommand(warning)),
+                    onElementTemplatesErrors: (errors: unknown[]) => {
+                        for (const error of errors ?? []) {
+                            const message = error instanceof Error ? error.message : String(error);
+                            host.postMessage(
+                                new LogWarningCommand(`Element template rejected: ${message}`),
+                            );
+                        }
+                    },
+                    // The modeler's own toggle notification. The session also
+                    // fires onModeChanged("toggle"); both write the same values, so
+                    // keeping this (the session cannot inject into the options bag)
+                    // is a harmless redundancy, not a second source of truth.
+                    onModeChanged: (m: ModelerMode) => {
+                        surfaceMode = m;
+                        stateManager?.persistMode(m);
+                        strip?.render({ mode: m, engine: modelerEngine, busy: switchPending });
+                    },
+                    handleGlobalEscape: true,
+                });
+            },
+        };
+
+        // Rebinds the per-surface subscriptions on every (re)creation: outbound
+        // sync, the C7 variable publisher, the state manager, and the canvas-size
+        // observer. All of these live on the instance and die with it, so a mode
+        // switch that forgot to rebind would silently stop syncing/persisting.
+        function bindSurface(handle: SurfaceHandle): void {
+            // Outbound sync: the modeler exposes onCommandStackChanged; the
+            // designer emits via the shared eventBus; the readonly viewer never
+            // schedules a sync (so respondToFlush sees nothing pending in View).
+            if (isModelerHandle(handle)) {
+                handle.onCommandStackChanged(() => void debouncedSendXmlChanges());
+            } else if (isEditableHandle(handle)) {
+                handle
+                    .getService<{ on(event: string, cb: () => void): void }>("eventBus")
+                    .on("commandStack.changed", () => void debouncedSendXmlChanges());
+            }
+
+            // C7 process-variable publisher — modeler-only (scripting is a C7
+            // cluster). Gated on the engine and the port being present, like the
+            // capability that owns it.
+            if (isModelerHandle(handle) && modelerEngine === "c7" && capabilities.scripting) {
+                let lastVariablesJson = "";
+                const sendVariables = asyncDebounce(async () => {
+                    if (engineReloadPending) return;
+                    const variables = extractProcessVariables(handle.getDefinitions());
+                    const json = JSON.stringify(variables);
+                    if (json === lastVariablesJson) {
+                        return;
+                    }
+                    lastVariablesJson = json;
+                    host.postMessage(new UpdateScriptVariablesCommand(variables));
+                }, 300);
+                cancelPendingVariablePublish = () => sendVariables.cancel();
+                handle.onCommandStackChanged(() => {
+                    if (!engineReloadPending) void sendVariables();
+                });
+                // commandStack.changed doesn't fire on import, and a webview
+                // reload starts with an empty host-side store, so seed it.
+                void sendVariables();
+            } else {
+                cancelPendingVariablePublish = undefined;
+            }
+
+            stateManager = new WebviewStateManager(host, handle, mountEl);
+
+            const canvas = handle.getService<ResizableCanvas & { getContainer(): Element }>(
+                "canvas",
+            );
+            disposeCanvasObserver = observeCanvasSize(canvas, canvas.getContainer(), {
+                applyInitialViewport: () => stateManager.restoreViewport(),
+            });
+        }
+
+        // Element templates are modeler-only; a viewer/designer never receives
+        // them, so its ElementTemplatesQuery would never arrive and the restore
+        // chain's Promise.all would stall — resolve the templates gate immediately
+        // instead. The lint config request goes to any editable (linting) surface:
+        // the designer lints too (ADR 0023), and the host answers an untagged doc
+        // with the engine-less default the webview builds.
+        function requestSurfaceResources(): void {
+            if (isModelerHandle(surface)) {
+                host.postMessage(new GetElementTemplatesCommand());
+            } else {
+                elementTemplatesResolver.done(undefined);
+            }
+            if (isLintingHandle(surface)) {
+                host.postMessage(new GetBpmnlintConfigCommand());
+            }
+        }
+
+        // The session owns the single live surface and switches it between the
+        // available modes: a Design↔Implement change on a tagged model is a live
+        // `setMode` toggle (undo/selection/plane survive), anything else exports →
+        // destroys → recreates → restores. It builds the initial surface but does
+        // not load a diagram — the webview's own import path (below) does that.
+        try {
+            modeSession = await createModeSession({
+                container: canvasEl,
+                engine,
+                surfaces,
+                initialMode: readSavedMode(host) ?? bpmnFileQuery?.defaultMode ?? null,
+                theme: resolveHostThemeKind(),
+                onSurfaceCreated: (handle) => {
+                    surface = handle as SurfaceHandle;
+                    // The initial surface binds after its import (below), matching
+                    // the pre-session flow; a recreate/fallback binds here, before
+                    // the session loads the carried XML.
+                    if (modelerIsInitialized) {
+                        bindSurface(surface);
                     }
                 },
-                handleGlobalEscape: true,
+                onSwitchStateChanged: (busy) => {
+                    switchPending = busy;
+                    if (busy) {
+                        inertBeforeSwitch = Boolean(document.body.inert);
+                        document.body.inert = true;
+                    } else if (!engineReloadPending) {
+                        // A concurrent engine reload owns `inert` from here on.
+                        document.body.inert = inertBeforeSwitch ?? false;
+                    }
+                    strip.render({ mode: surfaceMode, engine: modelerEngine, busy });
+                },
+                onModeChanged: (mode, transition) => {
+                    surfaceMode = mode;
+                    stateManager.persistMode(mode);
+                    strip.render({ mode, engine: modelerEngine, busy: switchPending });
+                    // A recreate/fallback stood up a fresh instance: restore its
+                    // panel UI, resume persistence, and re-request modeler resources.
+                    if (transition === "recreate" || transition === "fallback") {
+                        stateManager.restorePanelUiState();
+                        stateManager.startPersisting();
+                        requestSurfaceResources();
+                    }
+                },
+                beforeDestroy: async () => {
+                    await flushPendingXmlChanges();
+                    debouncedSendXmlChanges.cancel();
+                    cancelPendingVariablePublish?.();
+                    disposeCanvasObserver?.();
+                },
+                onError: (error) => {
+                    const cause = error instanceof Error ? error : new Error(String(error));
+                    host.postMessage(
+                        new LogErrorCommand(`Unable to switch mode\n${cause.message}`, cause.stack),
+                    );
+                },
             });
-            modelerEngine = engine;
-
-            // Lets the IntelliJ JCEF host drive undo/redo: it swallows Ctrl+Z/Ctrl+Y
-            // at the IDE level before bpmn-js sees them (works fine in VS Code/Theia).
-            installHostEditorActions((action) =>
-                bpmnModeler
-                    .getService<{ trigger(action: string): void }>("editorActions")
-                    .trigger(action),
-            );
-            bpmnModeler.onCommandStackChanged(() => void debouncedSendXmlChanges());
         } catch (error: any) {
             if (error instanceof NoModelerError || error instanceof UnsupportedEngineError) {
                 host.postMessage(new LogErrorCommand(error.message));
             } else {
-                host.postMessage(new LogErrorCommand(`Unable to open XML\n${error.message}`));
+                const cause = error instanceof Error ? error : new Error(String(error));
+                host.postMessage(
+                    new LogErrorCommand(
+                        `Unable to create modeler surface\n${cause.message}`,
+                        cause.stack,
+                    ),
+                );
             }
             return;
         }
+        surfaceMode = modeSession.getMode();
+
+        // Always render all three buttons, greying out the ones the current
+        // engine can't reach (Implement on an untagged model) so the mode is
+        // discoverable — the strip ignores clicks on an aria-disabled button. A
+        // click is also dropped while a switch or engine reload is in flight, and
+        // otherwise queues behind the other modeler operations so it never
+        // interleaves with an import.
+        strip = mountModeStrip({
+            host: propertiesPanelParent,
+            stripEl,
+            resizerEl,
+            revealPanel: () => propertiesPanelHandle.setVisible(true),
+            modes: SURFACE_MODES,
+            translate: (template, replacements) => i18n.translate(template, replacements),
+            onLabelChange: (apply) => i18n.onChange(apply),
+            onSelect: (mode) => {
+                if (switchPending || engineReloadPending) return;
+                void serializedModelerOperation(() => modeSession!.requestMode(mode));
+            },
+            onEscape: focusCanvas,
+        });
+        strip.render({ mode: surfaceMode, engine, busy: true });
 
         let importedBpmnFileQuery = latestBpmnFileQuery ?? bpmnFileQuery;
         while (importedBpmnFileQuery) {
@@ -706,63 +978,33 @@ function startSession(
             host.postMessage(new GetFormReferenceStatusCommand());
         }
 
-        // The "Edit Script" / divergence bridge lives in the scripting capability
-        // port (InlineScriptingPortForwarder → createProtocolCapabilities),
-        // registered by capabilityModules on C7. Only the process-variable
-        // publisher stays here because it drives the host from a commandStack
-        // subscription rather than a lib-owned event. It belongs to the scripting
-        // capability, so gate it on both the engine and the port being present.
-        if (currentBpmnFileQuery?.engine === "c7" && capabilities.scripting) {
-            // Publish the process-variable model to the host so open script
-            // editors get live variable completion. The chain is a feedback loop,
-            // not an echo loop — a keystroke in a script edits the moddle, which
-            // fires commandStack.changed, which re-extracts — so it is gated
-            // twice: the 300ms debounce collapses per-keystroke bursts, and the
-            // JSON compare suppresses re-publishes when the model is unchanged.
-            let lastVariablesJson = "";
-            const sendVariables = asyncDebounce(async () => {
-                if (engineReloadPending) return;
-                const variables = extractProcessVariables(bpmnModeler.getDefinitions());
-                const json = JSON.stringify(variables);
-                if (json === lastVariablesJson) {
-                    return;
-                }
-                lastVariablesJson = json;
-                host.postMessage(new UpdateScriptVariablesCommand(variables));
-            }, 300);
-            cancelPendingVariablePublish = () => sendVariables.cancel();
-            bpmnModeler.onCommandStackChanged(() => {
-                if (!engineReloadPending) void sendVariables();
-            });
-            // commandStack.changed doesn't fire on import, and a webview reload
-            // starts with an empty host-side store, so seed it unconditionally on
-            // every load.
-            void sendVariables();
-        }
-
         console.debug("[DEBUG] Modeler is initialized...");
 
-        stateManager = new WebviewStateManager(host, bpmnModeler, propertiesPanelParent);
+        bindSurface(surface);
+
+        // Lets the IntelliJ JCEF host drive undo/redo: it swallows Ctrl+Z/Ctrl+Y
+        // at the IDE level before bpmn-js sees them. Installed once, over the
+        // polymorphic surface; the readonly viewer has no editorActions service,
+        // so the trigger is guarded.
+        installHostEditorActions((action) => {
+            if (isEditableHandle(surface)) {
+                surface
+                    .getService<{ trigger(action: string): void }>("editorActions")
+                    .trigger(action);
+            }
+        });
 
         // Phase 1: restore viewport (canvas exists after openXml). Retried from
-        // the observer because hosts mount the webview before laying it out, and
-        // the observer then keeps the cached viewbox in sync for the session.
+        // the observer because hosts mount the webview before laying it out.
         stateManager.restoreViewport();
-        const canvas = bpmnModeler.getService<ResizableCanvas & { getContainer(): Element }>(
-            "canvas",
-        );
-        observeCanvasSize(canvas, canvas.getContainer(), {
-            applyInitialViewport: () => stateManager.restoreViewport(),
-        });
 
         await drainPendingSessionActions();
         if (engineReloadPending) return;
         modelerIsInitialized = true;
-        // Request templates + settings + panel state, wait for all to apply
-        host.postMessage(new GetElementTemplatesCommand());
+        // Templates + lint config are modeler-only; settings + panel state always.
+        requestSurfaceResources();
         host.postMessage(new GetBpmnModelerSettingCommand());
         host.postMessage(new GetPropertiesPanelStateCommand());
-        host.postMessage(new GetBpmnlintConfigCommand());
 
         // Panel visibility: this editor's own saved entry (applied early above)
         // wins. Only when absent do we fall back to the host's global default —
@@ -786,17 +1028,17 @@ function startSession(
             host.postMessage(new SetPropertiesPanelStateCommand(visible));
         });
 
-        // `p` focuses the properties panel (expanding it first if collapsed);
-        // `Shift+P` toggles panel visibility from anywhere except text fields.
-        // Escape stays with keyboardFocus.ts in BPMN — no escapeToCanvas here.
-        // Registered off the panel branch (not behind the templates/settings
-        // await) so Shift+P works during slow loads.
-        installPanelShortcuts({
-            handle: propertiesPanelHandle,
-            focusCanvas: () => bpmnModeler.getService<{ focus(): void }>("canvas").focus(),
-            isCanvasFocused: () =>
-                bpmnModeler.getService<{ isFocused(): boolean }>("canvas").isFocused(),
-        });
+        // `p` focuses the panel mount (expanding it first if collapsed); `Shift+P`
+        // toggles panel visibility. Installed once, over the polymorphic surface.
+        installPanelShortcuts(
+            {
+                handle: propertiesPanelHandle,
+                focusCanvas,
+                isCanvasFocused: () =>
+                    surface.getService<{ isFocused(): boolean }>("canvas").isFocused(),
+            },
+            { getPanelRoot: () => mountEl },
+        );
 
         // Selection + panel-side UI state must wait until element-template and
         // settings side-effects have run (they clear selection; group indexes are
@@ -811,6 +1053,11 @@ function startSession(
         // Phase 2: restore selection + panel-side UI state (side-effects done)
         stateManager.restoreSelection();
         stateManager.restorePanelUiState();
+
+        // The initial surface is live: drop the strip's busy state and persist the
+        // resolved mode so a first-ever open remembers where it landed.
+        strip.render({ mode: surfaceMode, engine: modelerEngine, busy: false });
+        stateManager.persistMode(surfaceMode);
 
         // Phase 3: begin persisting changes
         stateManager.startPersisting();
@@ -832,10 +1079,12 @@ function startSession(
      */
     async function openXml(bpmn?: string): Promise<void> {
         let result: ImportXMLResult;
-        if (!bpmn) {
-            result = await bpmnModeler.newDiagram();
+        // Only an editable surface can create a blank diagram; the readonly
+        // viewer always loads the host XML (a diff/View pane never opens blank).
+        if (!bpmn && isEditableHandle(surface)) {
+            result = await surface.newDiagram();
         } else {
-            result = await bpmnModeler.loadDiagram(bpmn);
+            result = await surface.loadDiagram(bpmn ?? "");
         }
 
         if (result.warnings.length > 0) {
@@ -860,14 +1109,17 @@ function startSession(
         // catch it so the failure is named and deterministic on the channel.
         try {
             const version = hostUpdateVersion;
-            const bpmn = await bpmnModeler.exportDiagram();
+            const bpmn = await surface.exportDiagram();
 
             if (version !== hostUpdateVersion || debouncedUpdateXML.pending()) {
                 return;
             }
 
             host.postMessage(new SyncDocumentCommand(bpmn, hostDocumentRevision));
-            bpmnModeler.alignElementsToOrigin();
+            // Align-to-origin is a modeler-only feature; the designer/viewer skip it.
+            if (isModelerHandle(surface)) {
+                surface.alignElementsToOrigin();
+            }
         } catch (error) {
             const e = error instanceof Error ? error : new Error(String(error));
             host.postMessage(
@@ -936,7 +1188,9 @@ function startSession(
                 const query = message.data as ElementTemplatesQuery;
                 try {
                     console.debug("Received element templates: ", query.elementTemplates);
-                    bpmnModeler.setElementTemplates(query.elementTemplates);
+                    if (isModelerHandle(surface)) {
+                        surface.setElementTemplates(query.elementTemplates);
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 } finally {
@@ -949,7 +1203,9 @@ function startSession(
             case queryOrCommand.type === "BpmnlintResultsQuery": {
                 try {
                     const query = message.data as BpmnlintResultsQuery;
-                    bpmnModeler.applyLintResults(query.results);
+                    if (isLintingHandle(surface)) {
+                        surface.applyLintResults(query.results);
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -957,7 +1213,9 @@ function startSession(
             }
             case queryOrCommand.type === "BpmnLintDisabledQuery": {
                 try {
-                    bpmnModeler.applyLintingDisabled();
+                    if (isLintingHandle(surface)) {
+                        surface.applyLintingDisabled();
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -971,10 +1229,13 @@ function startSession(
                     // where the tier state is known, so a stale token from an
                     // intervening disabled push cannot drop a re-enable.
                     currentLintConfigToken = q.configToken;
-                    // No workspace config → engine-aware default; a covered config
-                    // → lint it in-page. Either way onLintResults pushes the
-                    // findings back so the host feeds its Problems panel + status bar.
-                    bpmnModeler.startInPageLinting(q.config, q.configToken);
+                    // No workspace config → the surface's mode default (engine-aware
+                    // in Implement, engine-neutral in Design); a covered config →
+                    // lint it in-page. Either way onLintResults pushes the findings
+                    // back so the host feeds its Problems panel + status bar.
+                    if (isLintingHandle(surface)) {
+                        surface.startInPageLinting(q.config, q.configToken);
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -983,11 +1244,15 @@ function startSession(
             case queryOrCommand.type === "BpmnModelerSettingQuery": {
                 const query = message.data as BpmnModelerSettingQuery;
                 try {
-                    // Theme is host policy: the adapter drives the page theme off
-                    // the VS Code `<body>`-class watcher (initTheme) here, because
-                    // the package's setSettings does not apply `colorTheme`.
-                    setColorThemeMode(query.setting.colorTheme);
-                    bpmnModeler.setSettings(query.setting);
+                    // Theme is host policy: the adapter drives the page scope +
+                    // instance theme off the VS Code `<body>`-class watcher here,
+                    // because the package's setSettings does not apply `colorTheme`.
+                    themeAdapter?.setMode(query.setting.colorTheme);
+                    // Theme always applies (page scope); the modeler-only settings
+                    // (align, favourites, …) only reach a modeler surface.
+                    if (isModelerHandle(surface)) {
+                        surface.setSettings(query.setting);
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 } finally {
@@ -1038,7 +1303,7 @@ function startSession(
                 try {
                     const command = message.data as GetDiagramAsSVGCommand;
                     // Populate the SVG field and echo the command back to the host.
-                    command.svg = await bpmnModeler.getDiagramSvg();
+                    command.svg = await surface.getDiagramSvg();
                     host.postMessage(command);
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
@@ -1050,13 +1315,16 @@ function startSession(
                     // Reply as a single bulk command so the host opens the scripts
                     // sequentially; the variable model is identical for every
                     // script in the diagram, so it is extracted once and shared.
-                    const scripts = bpmnModeler.collectInlineScriptTasks();
-                    host.postMessage(
-                        new OpenScriptEditorsCommand(
-                            scripts,
-                            extractProcessVariables(bpmnModeler.getDefinitions()),
-                        ),
-                    );
+                    // Script tasks are a modeler-only concern (no-op otherwise).
+                    if (isModelerHandle(surface)) {
+                        const scripts = surface.collectInlineScriptTasks();
+                        host.postMessage(
+                            new OpenScriptEditorsCommand(
+                                scripts,
+                                extractProcessVariables(surface.getDefinitions()),
+                            ),
+                        );
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -1065,12 +1333,14 @@ function startSession(
             case queryOrCommand.type === "UpdateScriptContentQuery": {
                 try {
                     const query = message.data as UpdateScriptContentQuery;
-                    bpmnModeler.updateScriptContent(
-                        query.elementId,
-                        query.kind,
-                        query.listenerIndex,
-                        query.content,
-                    );
+                    if (isModelerHandle(surface)) {
+                        surface.updateScriptContent(
+                            query.elementId,
+                            query.kind,
+                            query.listenerIndex,
+                            query.content,
+                        );
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -1079,12 +1349,14 @@ function startSession(
             case queryOrCommand.type === "UpdateScriptFormatQuery": {
                 try {
                     const query = message.data as UpdateScriptFormatQuery;
-                    bpmnModeler.updateScriptFormat(
-                        query.elementId,
-                        query.kind,
-                        query.listenerIndex,
-                        query.scriptFormat,
-                    );
+                    if (isModelerHandle(surface)) {
+                        surface.updateScriptFormat(
+                            query.elementId,
+                            query.kind,
+                            query.listenerIndex,
+                            query.scriptFormat,
+                        );
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -1093,7 +1365,9 @@ function startSession(
             case queryOrCommand.type === "UpdateOpenScriptEditorsQuery": {
                 try {
                     const query = message.data as UpdateOpenScriptEditorsQuery;
-                    bpmnModeler.applyOpenScriptEditors(query.openScripts);
+                    if (isModelerHandle(surface)) {
+                        surface.applyOpenScriptEditors(query.openScripts);
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -1102,7 +1376,9 @@ function startSession(
             case queryOrCommand.type === "ImplementationStatusQuery": {
                 try {
                     const query = message.data as ImplementationStatusQuery;
-                    bpmnModeler.applyImplementationStatus(query.resolved);
+                    if (isModelerHandle(surface)) {
+                        surface.applyImplementationStatus(query.resolved);
+                    }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
                 }
@@ -1155,10 +1431,10 @@ function startSession(
      * bpmn-js to re-invoke `translate()` for all UI elements.
      */
     async function refreshDiagram(): Promise<void> {
-        const xml = await bpmnModeler.exportDiagram();
+        const xml = await surface.exportDiagram();
         const snapshot = stateManager.captureViewState();
         try {
-            await bpmnModeler.loadDiagram(xml);
+            await surface.loadDiagram(xml);
         } finally {
             // Same rationale as reloadXmlPreservingView: the re-import has
             // already reset the plane, so restore even on a late throw.

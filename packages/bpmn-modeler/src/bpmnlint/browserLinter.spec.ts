@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { getDefaultLintConfig } from "@miragon/bpmnlint-plugin-rules";
 
 import { BrowserLinter } from "./browserLinter";
+
+// The engine-aware default the resolver would hand the linter in Implement mode;
+// BrowserLinter now takes the resolved config, not the engine.
+const C7_DEFAULT = getDefaultLintConfig({ engine: "c7", preset: "modeling" });
 
 type ModdleFactory = (ext?: Record<string, unknown>) => {
     fromXML: (x: string) => Promise<{ rootElement: unknown }>;
@@ -48,7 +53,7 @@ describe("BrowserLinter (jsdom browser-compat smoke)", () => {
     it("lints a parsed tree with the engine-aware default config without throwing", async () => {
         const definitions = await parse(XML);
 
-        const event = await new BrowserLinter("c7").run(definitions);
+        const event = await new BrowserLinter(C7_DEFAULT).run(definitions);
 
         expect(event.results).toBeTypeOf("object");
         expect(Array.isArray(event.unresolved)).toBe(true);
@@ -61,7 +66,7 @@ describe("BrowserLinter (jsdom browser-compat smoke)", () => {
     it("flags a missing label with the default modeling preset", async () => {
         const definitions = await parse(XML);
 
-        const { results } = await new BrowserLinter("c7").run(definitions);
+        const { results } = await new BrowserLinter(C7_DEFAULT).run(definitions);
 
         // The task carries no name; bpmnlint:recommended's label-required is part of
         // the structural base, so it must report at least one finding.

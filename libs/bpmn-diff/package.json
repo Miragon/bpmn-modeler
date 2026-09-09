@@ -9,7 +9,9 @@
     },
     "dependencies": {
         "bpmn-js-differ": "3.2.0",
-        "bpmn-moddle": "10.2.0"
+        "bpmn-moddle": "10.2.0",
+        "camunda-bpmn-moddle": "7.0.2",
+        "zeebe-bpmn-moddle": "1.18.0"
     },
     "devDependencies": {
         "typescript": "6.0.3",

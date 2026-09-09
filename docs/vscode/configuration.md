@@ -12,6 +12,7 @@ Code's settings UI (search for "BPMN Modeler") or directly in `settings.json`.
 | `miragon.bpmnModeler.alignToOrigin` | boolean | `false` | Align the diagram to the top-left origin when opening. See [bpmn-io/align-to-origin](https://github.com/bpmn-io/align-to-origin). |
 | `miragon.bpmnModeler.colorTheme` | enum | `automatic` | `automatic` follows the active VS Code theme; `light` always uses the default bpmn-js light theme. |
 | `miragon.bpmnModeler.propertiesPanel.initialState` | enum | `remember` | How a freshly opened diagram decides whether to show its properties panel. `remember` follows the global default the last toggle wrote; `collapsed` / `open` pin every new diagram to that state. The toggle still writes the global default, so switching back to `remember` returns to your last real choice. Applies to BPMN and DMN alike. |
+| `miragon.bpmnModeler.defaultMode` | enum | `implement` | Mode a BPMN editor opens in when it has no remembered mode. One of `implement` (full Camunda modeler), `design` (engine-neutral editable surface), `view` (readonly viewer). On an untagged (engine-neutral) model, `implement` is unavailable and falls back to `design`. See [Editor Modes](/vscode/features/modes). |
 | `miragon.bpmnModeler.showTransactionBoundaries` | boolean | `true` | Show transaction boundaries on the canvas (Camunda 7 only). |
 | `miragon.bpmnModeler.favouriteBpmnElements` | string[] | `["bpmn:ServiceTask","bpmn:UserTask","bpmn:CallActivity","bpmn:ExclusiveGateway"]` | BPMN element types pinned at the top of the append menu (max 6). |
 | `miragon.bpmnModeler.c8ApiVersion` | string | `v2` | REST API version prefix for Camunda 8 endpoints. Change this if your cluster exposes a different API version. |
@@ -24,6 +25,7 @@ Code's settings UI (search for "BPMN Modeler") or directly in `settings.json`.
     "miragon.bpmnModeler.language": "de",
     "miragon.bpmnModeler.configFolder": ".camunda",
     "miragon.bpmnModeler.alignToOrigin": true,
+    "miragon.bpmnModeler.defaultMode": "design",
     "miragon.bpmnModeler.favouriteBpmnElements": [
         "bpmn:ServiceTask",
         "bpmn:UserTask",

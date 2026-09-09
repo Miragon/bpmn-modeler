@@ -1,0 +1,176 @@
+/*
+ * Page chrome + layout for the DMN modeler demo. `@miragon/dmn-modeler` ships
+ * only the dmn-js vendor CSS and its scoped dark overrides (via `styles.css`),
+ * no page layout — this is the subset of the old webview `styles.css` the demo
+ * page needs: the flex canvas/panel split, the panel-resizer chrome, and the
+ * decision-table padding. Webview-only parts (error/message states, the VS Code
+ * scrollbar workaround) are dropped.
+ */
+
+* {
+    box-sizing: border-box;
+}
+
+body,
+html {
+    color: #1f1f1f;
+    background-color: #fff;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    height: 100%;
+    max-height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+#js-properties-panel {
+    width: 400px;
+}
+
+.content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
+
+.content .canvas {
+    width: 100%;
+}
+
+.content .canvas:has(.dmn-decision-table-container) {
+    padding: 16px 20px;
+}
+
+.content .canvas,
+.content .panel-resizer,
+.content .properties-panel-parent {
+    display: none;
+}
+
+.content.with-diagram .canvas,
+.content.with-diagram .panel-resizer,
+.content.with-diagram .properties-panel-parent {
+    display: block;
+}
+
+.panel-resizer {
+    width: 4px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background-color: transparent;
+    border-left: 1px solid #e0e0e0;
+    transition: background-color 0.15s ease, width 0.15s ease;
+    position: relative;
+    --panel-resizer-accent-color: rgba(0, 120, 212, 0.4);
+    --panel-resizer-accent-hover-color: rgba(0, 120, 212, 0.8);
+}
+
+.panel-resizer:hover {
+    background-color: rgba(0, 120, 212, 0.15);
+    border-left-color: rgba(0, 120, 212, 0.6);
+}
+
+/* The button supplies its own hover styling; suppress the resizer's tint so
+ * the two don't stack into a halo around the pill. */
+.panel-resizer:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+    border-left-color: #e0e0e0;
+}
+
+.panel-resizer.collapsed {
+    width: 8px;
+    border-left-width: 0;
+}
+
+/* Two segments around the button; gap from its 40px height (20px half + 2px). */
+.panel-resizer.collapsed::before,
+.panel-resizer.collapsed::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 1px;
+    background-color: var(--panel-resizer-accent-color);
+    pointer-events: none;
+}
+
+.panel-resizer.collapsed::before {
+    top: 0;
+    bottom: calc(50% + 22px);
+}
+
+.panel-resizer.collapsed::after {
+    top: calc(50% + 22px);
+    bottom: 0;
+}
+
+.panel-resizer.collapsed:hover {
+    background-color: rgba(0, 120, 212, 0.2);
+}
+
+.panel-resizer.collapsed:hover::before,
+.panel-resizer.collapsed:hover::after {
+    background-color: var(--panel-resizer-accent-hover-color);
+}
+
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover) {
+    background-color: transparent;
+}
+
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover)::before,
+.panel-resizer.collapsed:has(.panel-resizer-toggle:hover)::after {
+    background-color: var(--panel-resizer-accent-color);
+}
+
+/* Always visible: "open" affordance while collapsed, "close" while open
+ * (chevron flipped from JS). Protrudes slightly left over the canvas. */
+.panel-resizer-toggle {
+    display: flex;
+    position: absolute;
+    top: 50%;
+    margin-top: -20px;
+    right: 0;
+    width: 14px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid rgba(0, 120, 212, 0.4);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    background-color: #f5f5f5;
+    color: #555;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.panel-resizer-toggle:hover {
+    background-color: rgba(0, 120, 212, 0.15);
+    color: rgba(0, 120, 212, 0.9);
+}
+
+.panel-resizer-toggle:focus-visible {
+    outline: 2px solid rgba(0, 120, 212, 0.8);
+    outline-offset: 1px;
+}
+
+.properties-panel-parent {
+    flex-shrink: 0;
+    border-left: 1px solid #ccc;
+    overflow: auto;
+}
+
+.properties-panel-parent.collapsed {
+    overflow: hidden;
+    border-left-width: 0;
+}
+
+.properties-panel-parent:empty {
+    display: none;
+}
+
+.properties-panel-parent > .djs-properties-panel {
+    padding-bottom: 70px;
+    min-height: 100%;
+}

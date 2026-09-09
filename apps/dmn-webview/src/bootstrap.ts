@@ -1,12 +1,13 @@
-// dmn-js
-import { DiagramWarning } from "dmn-js/lib/Modeler";
-// css — base layout only; the swappable dmn-js stylesheets (light/dark) load
-// through the `#theme-link` element rather than being bundled here.
+// css — webview page chrome first, then the package's own light base + scoped
+// dark theme (folded into the bundle via `@miragon/dmn-modeler`'s styles import),
+// matching the previous `styles.css`-then-`#theme-link` cascade order.
 import "./styles.css";
 
 import {
+    applyPageThemeScope,
     Command,
     createFlushResponder,
+    createHostThemeAdapter,
     createResolver,
     DmnFileQuery,
     DmnModelerSettingQuery,
@@ -14,43 +15,49 @@ import {
     GetDmnFileCommand,
     GetDmnModelerSettingCommand,
     GetPropertiesPanelStateCommand,
+    type HostThemeAdapter,
+    type HostThemeMode,
+    initResizer,
+    installPanelShortcuts,
+    LanguageQuery,
     LogErrorCommand,
     LogWarningCommand,
     PropertiesPanelStateQuery,
     Query,
     ReleaseDocumentFlushQuery,
+    resolveHostThemeKind,
     SetPropertiesPanelStateCommand,
     SyncDocumentCommand,
 } from "@miragon/bpmn-modeler-shared";
-import {
-    asyncDebounce,
-    formatErrors,
-    initResizer,
-    initTheme,
-    installPanelShortcuts,
-    NoModelerError,
-    serializeAsync,
-    setColorThemeMode,
-} from "@miragon/bpmn-modeler-types";
-import { i18n } from "@miragon/bpmn-modeler-i18n";
-import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
-
+import { asyncDebounce, NoModelerError, serializeAsync } from "@miragon/bpmn-modeler-types";
+import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import {
     createModeler,
-    exportDiagram,
-    getActiveFocusableCanvas,
-    isDrdViewActive,
-    loadDiagram,
-    onCommandStackChanged,
-    readSavedPanelVisibility,
-    syncCanvasSize,
-    WebviewStateManager,
-} from "./app";
-import type { HostApi } from "@miragon/bpmn-modeler-shared";
-import type { WebviewState } from "./app/host";
+    type DmnAdditionalModules,
+    type DmnModelerHandle,
+} from "@miragon/dmn-modeler";
 
-// Injected by bootstrap(); the app/demo entry chooses the concrete host.
+import { readSavedPanelVisibility, WebviewStateManager } from "./state";
+import type { HostApi } from "@miragon/bpmn-modeler-shared";
+import type { WebviewState } from "./webviewState";
+
+/**
+ * Injection seam for the entry (real or demo). `theme`/`locale` seed the initial
+ * mode; `additionalModules` lets the dev entry register per-view didi modules
+ * (the translate-harvest recorder) without touching the production path.
+ */
+interface BootstrapOptions {
+    theme?: HostThemeMode;
+    locale?: SupportedLocale;
+    additionalModules?: DmnAdditionalModules;
+}
+
+// Injected by bootstrap(); the app/demo entry chooses the concrete host and,
+// optionally, seeds the initial theme mode / locale.
 let host: HostApi<WebviewState, Command | Query>;
+let bootstrapOpts: BootstrapOptions = {};
+let modeler: DmnModelerHandle | undefined;
+let themeAdapter: HostThemeAdapter | undefined;
 
 // Global safety net for throws outside the per-message try/catch below — dmn-js
 // event-bus callbacks run outside it, so an error there would otherwise vanish
@@ -98,8 +105,6 @@ document.addEventListener("visibilitychange", () => {
  * at least once per second. The host recovers the sub-300ms tail via the flush
  * protocol ({@link respondToFlush}) so a save never persists stale XML.
  *
- * dmn-js rebinds `commandStack.changed` per view switch and stacks duplicate
- * listeners; the debounce coalescing those duplicates is a strict improvement.
  */
 const debouncedSendChanges = asyncDebounce(sendChanges, 300, { maxWait: 1000 });
 
@@ -150,7 +155,7 @@ const respondToFlush = createFlushResponder(
             document.body.inert = inertBeforeDestructiveFlush;
             inertBeforeDestructiveFlush = undefined;
         },
-        exportContent: () => exportDiagram(),
+        exportContent: () => getModeler().exportDiagram(),
     },
     (reply) => host.postMessage(reply),
 );
@@ -179,21 +184,45 @@ const RESOLVER_TIMEOUT_MS = 5000;
  * 2. User switched to another tab and now switched back
  */
 async function run(): Promise<void> {
-    const stateManager = new WebviewStateManager(host);
+    const canvas = requireElement("#js-canvas");
+    const propertiesPanel = requireElement("#js-properties-panel");
+    const stateManager = new WebviewStateManager(host, propertiesPanel);
     window.addEventListener("message", onReceiveMessage);
 
-    // Merge the modeler's local overlay (resizer toggle + dmn-js labels) onto
-    // the shared library's dictionaries before anything translates. The shared
-    // package is C8-seeded and lacks these keys; extend() persists across any
-    // later setLanguage().
-    i18n.extend(i18nExtras);
+    // Theme is host policy: drive the page-level scope (host chrome, keyed off
+    // `:root[data-dmn-theme="dark"]`) and the modeler instance's own theme off
+    // the VS Code `<body>`-class signal. The instance is also born correct via
+    // `theme: resolveHostThemeKind()` below; the adapter covers the page chrome,
+    // a forced `opts.theme` seam, and later live theme switches. The host's
+    // `colorTheme` preference (which may force light) is applied once the setting
+    // query arrives below.
+    themeAdapter = createHostThemeAdapter((kind) => {
+        applyPageThemeScope("data-dmn-theme", kind);
+        modeler?.setTheme(kind);
+    });
 
-    // Follow the VS Code theme immediately; the host's `colorTheme` preference
-    // (which may force light) is applied once the setting query arrives below.
-    initTheme();
+    // Seed the locale before the modeler renders so the resizer labels and the
+    // dmn-js UI come up translated on first paint.
+    if (bootstrapOpts.locale) {
+        i18n.setLanguage(bootstrapOpts.locale);
+    }
 
-    // Labels reuse the BPMN i18n keys; DMN has no language wiring yet, so they
-    // render the English fallback until that lands.
+    modeler = await createModeler(canvas, {
+        propertiesPanel: { parent: propertiesPanel },
+        theme: resolveHostThemeKind(),
+        additionalModules: bootstrapOpts.additionalModules,
+        onContentChanged: () => void debouncedSendChanges(),
+        onWarning: (message) => host.postMessage(new LogWarningCommand(message)),
+    });
+
+    // Drive the mode only after the instance exists so a forced `opts.theme`
+    // (the demo, which never gets a settings reply) actually reaches
+    // `modeler.setTheme`; "automatic" reproduces today's follow-the-IDE
+    // behaviour and installs the live `<body>`-class observer.
+    themeAdapter.setMode(bootstrapOpts.theme ?? "automatic");
+
+    // Resizer labels reuse the shared i18n keys and follow the locale live via
+    // `i18n.onChange` (the dmn-js UI itself re-translates on a view re-open).
     const propertiesPanelHandle = initResizer({
         getToggleLabel: (state) =>
             i18n.translate(
@@ -243,9 +272,9 @@ async function run(): Promise<void> {
     // views (where Escape must not steal focus from cell editing).
     installPanelShortcuts({
         handle: propertiesPanelHandle,
-        focusCanvas: () => getActiveFocusableCanvas()?.focus(),
-        isCanvasFocused: () => getActiveFocusableCanvas()?.isFocused() ?? false,
-        isEnabled: () => isDrdViewActive(),
+        focusCanvas: () => getModeler().focusCanvas(),
+        isCanvasFocused: () => getModeler().isCanvasFocused(),
+        isEnabled: () => getModeler().isDrdViewActive(),
         escapeToCanvas: true,
     });
 
@@ -255,12 +284,6 @@ async function run(): Promise<void> {
 
 async function initializeModeler(dmnFile: string | undefined, documentRevision = 0) {
     try {
-        createModeler();
-        onCommandStackChanged(() => void debouncedSendChanges());
-        const canvasElement = document.querySelector("#js-canvas");
-        if (canvasElement) {
-            syncCanvasSize(canvasElement);
-        }
         await serializedOpenXML(dmnFile, documentRevision);
     } catch (error) {
         if (error instanceof NoModelerError) {
@@ -275,7 +298,6 @@ async function initializeModeler(dmnFile: string | undefined, documentRevision =
 /**
  * Open the given XML content in the modeler.
  * @param dmn
- * @returns ImportWarning with warnings if any
  * @throws NoModelerError if the modeler is not initialized
  */
 async function openXML(dmn: string | undefined) {
@@ -283,16 +305,7 @@ async function openXML(dmn: string | undefined) {
         return;
     }
 
-    const result: DiagramWarning = await loadDiagram(dmn);
-
-    if (result.warnings.length > 0) {
-        const warnings = result.warnings.map(
-            (warning) => `${warning.message}\n${warning.error.message}\n${warning.error.stack}\n`,
-        );
-        const message = `Diagram was opened with following warnings: ${formatErrors(warnings)}
-            `;
-        host.postMessage(new LogWarningCommand(message));
-    }
+    await getModeler().loadDiagram(dmn);
 }
 
 async function openHostXML(dmn: string | undefined, documentRevision: number): Promise<void> {
@@ -308,7 +321,7 @@ async function sendChanges() {
     // catch it so the failure is named and deterministic on the channel.
     try {
         const version = hostUpdateVersion;
-        const dmn = await exportDiagram();
+        const dmn = await getModeler().exportDiagram();
         if (version !== hostUpdateVersion || debouncedUpdateXML.pending()) return;
         host.postMessage(new SyncDocumentCommand(dmn, hostDocumentRevision));
     } catch (error) {
@@ -357,8 +370,19 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
             // Applied live so a VS Code theme change in `"automatic"` mode
             // re-themes an already-open editor, not just on first load.
             const settingQuery = message.data as DmnModelerSettingQuery;
-            setColorThemeMode(settingQuery.setting.colorTheme);
+            themeAdapter?.setMode(settingQuery.setting.colorTheme);
             settingsResolver.done(settingQuery);
+            break;
+        }
+        case queryOrCommand.type === "LanguageQuery": {
+            try {
+                // The handle compares resolved locales itself, so a re-push on a
+                // tab re-show is a no-op and never re-opens the view.
+                await getModeler().setLocale((message.data as LanguageQuery).locale);
+            } catch (error) {
+                const detail = error instanceof Error ? error.message : String(error);
+                host.postMessage(new LogErrorCommand(`Failed to set language: ${detail}`));
+            }
             break;
         }
         case ["FlushDocumentQuery", "ReleaseDocumentFlushQuery"].includes(queryOrCommand.type): {
@@ -370,14 +394,34 @@ async function onReceiveMessage(message: MessageEvent<Query | Command>) {
 
 /**
  * Starts the DMN webview against the given host. The entry (real or demo)
- * chooses the host.
+ * chooses the host and, optionally, the initial theme mode / locale — the demo
+ * seeds them directly since it has no host settings reply to wait on.
  */
-export function bootstrap(injectedHost: HostApi<WebviewState, Command | Query>): void {
+export function bootstrap(
+    injectedHost: HostApi<WebviewState, Command | Query>,
+    opts: BootstrapOptions = {},
+): void {
     host = injectedHost;
+    bootstrapOpts = opts;
     registerGlobalErrorHandlers();
     if (document.readyState === "complete") {
         void run();
     } else {
         window.addEventListener("load", () => void run());
     }
+}
+
+function getModeler(): DmnModelerHandle {
+    if (!modeler) {
+        throw new NoModelerError();
+    }
+    return modeler;
+}
+
+function requireElement(selector: string): HTMLElement {
+    const element = document.querySelector<HTMLElement>(selector);
+    if (!element) {
+        throw new Error(`Missing required DMN modeler element <${selector}>`);
+    }
+    return element;
 }
