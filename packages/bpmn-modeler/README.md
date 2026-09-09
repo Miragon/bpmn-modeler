@@ -14,6 +14,16 @@ npm install @miragon/bpmn-modeler
 The bpmn-io stack (`bpmn-js`, `diagram-js`, `camunda-bpmn-js`, …) ships as real
 `dependencies`, so a single install pulls everything the modeler needs.
 
+> `tiny-svg@4.1.4` is currently a direct runtime dependency as a compatibility
+> workaround for `bpmn-js-token-simulation@0.40.0`, which imports it without
+> declaring it. Hoisting can hide that omission, while nested installs and
+> strict resolvers expose it. This workaround can be removed once the package is
+> upgraded to an upstream token-simulation release that declares `tiny-svg`;
+> strict Yarn PnP support remains an upstream follow-up in the meantime.
+> `@lezer/lr@1.4.10` is direct for the same isolation reason:
+> `@bpmn-io/variable-resolver@3.3.0` imports it without declaring it, and can be
+> removed once that upstream manifest is fixed.
+
 ## Usage
 
 ```ts

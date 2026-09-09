@@ -137,7 +137,15 @@ jobs:
       - name: Pack tarball
         run: yarn workspace ${{ inputs.workspace }} pack --out "$RUNNER_TEMP/${{ steps.meta.outputs.slug }}.tgz"
 
+      - name: BPMN hoisted and nested consumer smoke test
+        if: inputs.workspace == '@miragon/bpmn-modeler'
+        run: node ${{ inputs.package-dir }}/scripts/smoke-packed-consumer.mjs "$RUNNER_TEMP/${{ steps.meta.outputs.slug }}.tgz"
+
+      # Preserve the existing generic scratch smoke for DMN. BPMN uses the
+      # package-specific runner above because it exercises both npm layouts and
+      # five browser entry/option combinations in addition to the Node smoke.
       - name: Scratch-consumer smoke test
+        if: inputs.workspace != '@miragon/bpmn-modeler'
         run: |
           SCRATCH="$RUNNER_TEMP/smoke"
           mkdir -p "$SCRATCH"

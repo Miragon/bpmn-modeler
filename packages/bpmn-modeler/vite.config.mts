@@ -1,44 +1,17 @@
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "unplugin-dts/vite";
 
-// The private workspace libs inlined into the bundle (their source is pulled in
-// via the tsconfig path aliases). Everything else bare is a real dependency and
-// stays external — see `external` below. Keep this list in sync with the
-// `devDependencies` `workspace:*` entries and the architecture spec.
-const INLINED_LIBS = [
-    "@miragon/bpmn-modeler-types",
-    "@miragon/bpmn-modeler-diff",
-    "@miragon/bpmn-modeler-clipboard",
-    "@miragon/bpmn-modeler-i18n-extras",
-    "@miragon/bpmn-modeler-element-template-chooser",
-    "@miragon/bpmn-modeler-append-menu",
-    "@miragon/bpmn-modeler-properties-panel",
-    "@miragon/bpmn-model-navigation",
-    "@miragon/bpmn-modeler-code-link",
-    "@miragon/bpmn-modeler-inline-scripting",
-    "@miragon/bpmn-modeler-flow-navigation",
-];
-
-// The source roots of the inlined libs — their per-file declarations must be
-// emitted so api-extractor can flatten them into `dist/index.d.ts` /
-// `dist/diff.d.ts` (they carry no built `types` entry of their own). Only these
-// eleven; globbing all of `libs/*` would drag in the engine core's declaration
-// errors too.
-const INLINED_LIB_SRC = [
-    "../../libs/modeler-types/src",
-    "../../libs/bpmn-diff/src",
-    "../../libs/bpmn-clipboard/src",
-    "../../libs/bpmn-i18n-extras/src",
-    "../../libs/element-template-chooser/src",
-    "../../libs/append-menu/src",
-    "../../libs/properties-panel/src",
-    "../../libs/model-navigation/src",
-    "../../libs/code-link/src",
-    "../../libs/inline-scripting/src",
-    "../../libs/flow-navigation/src",
-];
+// One shared inventory drives both bundling/declaration emission and the peer
+// dependency guard. Everything else bare is a real dependency and stays
+// external — see `external` below and ADR 0006.
+const inlinedLibraries = JSON.parse(
+    readFileSync(new URL("./inlined-libraries.json", import.meta.url), "utf8"),
+) as { name: string; sourceRoot: string }[];
+const INLINED_LIBS = inlinedLibraries.map(({ name }) => name);
+const INLINED_LIB_SRC = inlinedLibraries.map(({ sourceRoot }) => sourceRoot);
 
 function isInlined(id: string): boolean {
     return INLINED_LIBS.some((name) => id === name || id.startsWith(`${name}/`));
