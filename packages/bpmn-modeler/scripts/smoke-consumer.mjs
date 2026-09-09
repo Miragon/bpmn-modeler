@@ -138,22 +138,32 @@ for (const [name, contents] of Object.entries(BROWSER_FIXTURES)) {
 const { computeDiff, sideView } = await import(`${PKG}/diff`);
 
 const BEFORE = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:custom="urn:custom" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_1" isExecutable="false">
     <bpmn:startEvent id="StartEvent_1" />
+    <bpmn:serviceTask id="ExecutionTask_1" camunda:class="OldDelegate">
+      <bpmn:extensionElements><zeebe:taskDefinition type="old-job" /></bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:task id="CustomTask_1" custom:value="old" />
   </bpmn:process>
 </bpmn:definitions>`;
 
 const AFTER = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:custom="urn:custom" id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_1" isExecutable="false">
     <bpmn:startEvent id="StartEvent_1" />
+    <bpmn:serviceTask id="ExecutionTask_1" camunda:class="NewDelegate">
+      <bpmn:extensionElements><zeebe:taskDefinition type="new-job" /></bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:task id="CustomTask_1" custom:value="new" />
     <bpmn:task id="Task_1" />
   </bpmn:process>
 </bpmn:definitions>`;
 
 const result = await computeDiff(BEFORE, AFTER);
 if (!result.added.includes("Task_1")) fail("expected the added Task_1 in computeDiff result.added");
+if (!result.changed.includes("ExecutionTask_1")) fail("expected execution properties to change");
+if (!result.changed.includes("CustomTask_1")) fail("expected the custom attribute to change");
 const after = sideView(result, "after");
 if (!after.added.includes("Task_1")) fail("sideView(after).added should carry Task_1");
 

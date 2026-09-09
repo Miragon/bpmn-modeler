@@ -3,8 +3,13 @@ import { describe, expect, it } from "vitest";
 import { computeDiff } from "./computeDiff";
 import { sideView } from "./sideView";
 import { MOCK_DIFF_AFTER_XML, MOCK_DIFF_BEFORE_XML } from "./__fixtures__/mock-diff";
+import { ALL_EXECUTION_PROPERTY_FIXTURES } from "./__fixtures__/execution-properties";
 
 describe("computeDiff", () => {
+    it.each(ALL_EXECUTION_PROPERTY_FIXTURES)("compares $name", async (fixture) => {
+        await expect(computeDiff(fixture.before, fixture.after)).resolves.toEqual(fixture.expected);
+    });
+
     it("sorts each of the four categories into their expected ids", async () => {
         const result = await computeDiff(MOCK_DIFF_BEFORE_XML, MOCK_DIFF_AFTER_XML);
 
@@ -61,6 +66,17 @@ describe("computeDiff", () => {
 
     it("rejects on invalid XML instead of returning a partial result", async () => {
         await expect(computeDiff("this is not xml", MOCK_DIFF_AFTER_XML)).rejects.toThrow();
+    });
+
+    it("rejects when a descriptor failure makes the parser skip XML content", async () => {
+        const invalidDescriptorContent = MOCK_DIFF_BEFORE_XML.replace(
+            "</bpmn:serviceTask>",
+            "<bpmn:extensionElements><camunda:Unknown /></bpmn:extensionElements></bpmn:serviceTask>",
+        );
+
+        await expect(computeDiff(invalidDescriptorContent, MOCK_DIFF_AFTER_XML)).rejects.toThrow(
+            /unparsable content/i,
+        );
     });
 });
 

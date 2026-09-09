@@ -13,6 +13,15 @@ const inlinedLibraries = JSON.parse(
 const INLINED_LIBS = inlinedLibraries.map(({ name }) => name);
 const INLINED_LIB_SRC = inlinedLibraries.map(({ sourceRoot }) => sourceRoot);
 
+// These descriptor JSON files are lazy imports of the inlined diff library.
+// Turn exactly these two into JavaScript chunks so the published Node entry
+// never relies on JSON import attributes. All other npm dependencies remain
+// external.
+const INLINED_DESCRIPTOR_JSON = new Set([
+    "camunda-bpmn-moddle/resources/camunda.json",
+    "zeebe-bpmn-moddle/resources/zeebe.json",
+]);
+
 function isInlined(id: string): boolean {
     return INLINED_LIBS.some((name) => id === name || id.startsWith(`${name}/`));
 }
@@ -26,6 +35,7 @@ function isExternal(id: string): boolean {
     if (id.startsWith(".") || isAbsolute(id)) return false;
     if (id.endsWith(".css")) return false;
     if (isInlined(id)) return false;
+    if (INLINED_DESCRIPTOR_JSON.has(id)) return false;
     if (id === "@oxc-project/runtime" || id.startsWith("@oxc-project/runtime/")) return false;
     return true;
 }
