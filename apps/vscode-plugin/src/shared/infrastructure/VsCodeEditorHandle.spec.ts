@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const applyEditMock = vi.fn();
 
+// `workspace.fs.isWritableFileSystem` decides whether a non-`file:` document may
+// be edited: `true` for a writable provider, `false` for a read-only one,
+// `undefined` when VS Code knows no provider for the scheme.
+const isWritableFileSystemMock = vi.fn<(scheme: string) => boolean | undefined>();
+
 // `WorkspaceEdit.replace` is the only method the subject calls; capturing the
 // args lets us assert the edit targets the full document range.
 const replaceMock = vi.fn();
@@ -9,6 +14,7 @@ const replaceMock = vi.fn();
 vi.mock("vscode", () => ({
     workspace: {
         applyEdit: (...args: unknown[]) => applyEditMock(...args),
+        fs: { isWritableFileSystem: (scheme: string) => isWritableFileSystemMock(scheme) },
         onDidChangeTextDocument: vi.fn(),
         onDidChangeConfiguration: vi.fn(),
     },
@@ -91,20 +97,55 @@ beforeEach(() => {
     vi.clearAllMocks();
 });
 
+function makeSchemeDocument(scheme: string, overrides: Partial<FakeDocument> = {}): FakeDocument {
+    return makeDocument({
+        uri: { scheme, path: "/a.bpmn", fsPath: "/a.bpmn", toString: () => `${scheme}:/a.bpmn` },
+        ...overrides,
+    });
+}
+
 describe("VsCodeEditorHandle.writeContent", () => {
-    it("throws for a non-file scheme without issuing an edit", async () => {
-        const document = makeDocument({
-            uri: {
-                scheme: "git",
-                path: "/a.bpmn",
-                fsPath: "/a.bpmn",
-                toString: () => "git:/a.bpmn",
-            },
-        });
-        const handle = createHandle(makePanel(), document);
+    it("throws for a read-only file system (git:) without issuing an edit", async () => {
+        isWritableFileSystemMock.mockReturnValue(false);
+        const handle = createHandle(makePanel(), makeSchemeDocument("git"));
 
         await expect(handle.writeContent("<new/>")).rejects.toThrow(/git/);
+        expect(isWritableFileSystemMock).toHaveBeenCalledWith("git");
         expect(applyEditMock).not.toHaveBeenCalled();
+    });
+
+    it("throws for a scheme VS Code knows no file system for (untitled:)", async () => {
+        isWritableFileSystemMock.mockReturnValue(undefined);
+        const handle = createHandle(makePanel(), makeSchemeDocument("untitled"));
+
+        await expect(handle.writeContent("<new/>")).rejects.toThrow(/untitled/);
+        expect(applyEditMock).not.toHaveBeenCalled();
+    });
+
+    it("applies an edit to a document on a writable custom file system (a collaborative provider)", async () => {
+        isWritableFileSystemMock.mockReturnValue(true);
+        applyEditMock.mockResolvedValue(true);
+        const document = makeSchemeDocument("bpm-live", { getText: () => "<old/>", lineCount: 3 });
+        const handle = createHandle(makePanel(), document);
+
+        const result = await handle.writeContent("<new/>");
+
+        expect(result).toBe(true);
+        expect(isWritableFileSystemMock).toHaveBeenCalledWith("bpm-live");
+        expect(replaceMock).toHaveBeenCalledWith(
+            document.uri,
+            expect.objectContaining({ startLine: 0, startChar: 0, endLine: 3, endChar: 0 }),
+            "<new/>",
+        );
+    });
+
+    it("never consults the file-system registry for a file: document", async () => {
+        applyEditMock.mockResolvedValue(true);
+        const handle = createHandle(makePanel(), makeDocument());
+
+        await handle.writeContent("<new/>");
+
+        expect(isWritableFileSystemMock).not.toHaveBeenCalled();
     });
 
     it("returns false without an edit when content is unchanged", async () => {
@@ -135,19 +176,22 @@ describe("VsCodeEditorHandle.writeContent", () => {
 });
 
 describe("VsCodeEditorHandle.save", () => {
-    it("throws for a non-file scheme", async () => {
-        const document = makeDocument({
-            uri: {
-                scheme: "untitled",
-                path: "/a.bpmn",
-                fsPath: "/a.bpmn",
-                toString: () => "untitled:/a.bpmn",
-            },
-        });
+    it("throws for a scheme without a writable file system (untitled:)", async () => {
+        isWritableFileSystemMock.mockReturnValue(undefined);
+        const document = makeSchemeDocument("untitled");
         const handle = createHandle(makePanel(), document);
 
         await expect(handle.save()).rejects.toThrow(/untitled/);
         expect(document.save).not.toHaveBeenCalled();
+    });
+
+    it("delegates to document.save on a writable custom file system", async () => {
+        isWritableFileSystemMock.mockReturnValue(true);
+        const document = makeSchemeDocument("bpm-live");
+        const handle = createHandle(makePanel(), document);
+
+        expect(await handle.save()).toBe(true);
+        expect(document.save).toHaveBeenCalledTimes(1);
     });
 
     it("delegates to document.save for a file scheme", async () => {
