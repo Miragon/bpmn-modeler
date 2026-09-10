@@ -209,7 +209,12 @@ describe("bpmn-modeler import direction", () => {
             // Engine-neutral navigation capability (#1444): designer.ts value-imports
             // createModelNavigationModule. The lib's only bare runtime import is
             // bpmn-js/lib/util/ModelUtil, so it drags in no Camunda stack.
-            spec === "@miragon/bpmn-model-navigation";
+            spec === "@miragon/bpmn-model-navigation" ||
+            // Engine-neutral formatting/cleanup (#1477): designer.ts value-imports
+            // createBpmnLayoutModule. Layout is pure geometry — the lib's runtime
+            // imports are bpmn-auto-layout and bpmn-moddle, neither of which
+            // carries a Camunda stack.
+            spec === "@miragon/bpmn-modeler-layout";
         const offenders: string[] = [];
         for (const file of listSourceFiles(PKG_SRC)) {
             if (!file.startsWith(DESIGN_DIR)) continue;

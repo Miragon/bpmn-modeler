@@ -15,8 +15,10 @@ bpmn-js-properties-panel v5.65.0. The renderer, the standard-BPMN (neutral)
 property provider, and their supporting utilities were adapted from that project;
 group ids, entry ids, and translation keys are preserved. Modifications include
 optionalising the command stack so the panel mounts on a readonly viewer,
-deriving a readonly flag from the absence of the `modeling` service, adding a
-design/implement mode filter, and dropping the bundled element icons.
+deriving a readonly flag from the absence of the `modeling` service, and adding a
+design/implement mode filter. The per-type element header icons are vendored as
+generated preact components (`src/render/icons/`); the placeholder empty/multiple
+icons and template-driven icons remain dropped.
 
 The MIT License (MIT)
 

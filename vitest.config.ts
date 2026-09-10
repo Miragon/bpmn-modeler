@@ -17,6 +17,7 @@ export default defineConfig({
             "libs/inline-scripting",
             "libs/properties-panel",
             "libs/bpmn-diff",
+            "libs/bpmn-layout",
             "libs/modeler-core",
             "libs/modeler-types",
             "libs/shared",

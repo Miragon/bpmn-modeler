@@ -50,6 +50,8 @@ import {
     NotifierOpenDocumentParams,
     NotifierProgressParams,
     OAuth2Credentials,
+    ConfirmShowParams,
+    ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
     RegisterParams,
@@ -107,11 +109,14 @@ export const METHODS = {
     marketplaceRemove: "marketplace/remove",
     modelerChangeEngineVersion: "modeler/changeEngineVersion",
     migrationMigrateAll: "migration/migrateAll",
+    layoutFormat: "layout/format",
+    layoutCleanup: "layout/cleanup",
 
     // Core → Host requests
     documentWrite: "document/write",
     documentSave: "document/save",
     pickerShow: "picker/show",
+    confirmShow: "confirm/show",
     clipboardRead: "clipboard/read",
     secretStoreSaveBasicAuth: "secretStore/saveBasicAuth",
     secretStoreGetBasicAuth: "secretStore/getBasicAuth",
@@ -335,6 +340,18 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: { workspaceRoot: "/repo" } satisfies MigrateAllParams,
     },
+    {
+        method: METHODS.layoutFormat,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
+        method: METHODS.layoutCleanup,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
     {
@@ -368,6 +385,17 @@ export const PROTOCOL = [
             items: [{ label: "a", description: "/a" }],
         } satisfies PickerShowParams,
         resultFixture: { selected: [0] } satisfies PickerShowResult,
+    },
+    {
+        method: METHODS.confirmShow,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            title: "Remove 2 leftover item(s)?",
+            confirmLabel: "Clean Up",
+            details: ["bpmndi:BPMNShape without a model element"],
+        } satisfies ConfirmShowParams,
+        resultFixture: { confirmed: true } satisfies ConfirmShowResult,
     },
     {
         method: METHODS.clipboardRead,

@@ -47,6 +47,8 @@ import {
     DocumentSaveResult,
     DocumentWriteResult,
     OAuth2Credentials,
+    ConfirmShowParams,
+    ConfirmShowResult,
     PickerShowParams,
     PickerShowResult,
     TokenPromptShowResult,
@@ -845,6 +847,25 @@ export class RpcPicker implements PickerPort {
             })),
         });
         return selected === null ? undefined : formats[selected[0]];
+    }
+
+    /**
+     * Modal confirmation, rendered natively by the host.
+     *
+     * A cancelled or failed round trip resolves to `false`: silence must never
+     * be read as consent to delete.
+     */
+    async confirmDestructive(options: {
+        title: string;
+        confirmLabel: string;
+        details: string[];
+    }): Promise<boolean> {
+        const result = (await this.rpc.request(METHODS.confirmShow, {
+            title: options.title,
+            confirmLabel: options.confirmLabel,
+            details: options.details,
+        } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
+        return result?.confirmed === true;
     }
 
     async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(

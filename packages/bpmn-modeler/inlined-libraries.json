@@ -42,5 +42,9 @@
     {
         "name": "@miragon/bpmn-modeler-flow-navigation",
         "sourceRoot": "../../libs/flow-navigation/src"
+    },
+    {
+        "name": "@miragon/bpmn-modeler-layout",
+        "sourceRoot": "../../libs/bpmn-layout/src"
     }
 ]
