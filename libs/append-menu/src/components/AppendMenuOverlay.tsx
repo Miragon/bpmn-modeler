@@ -12,12 +12,19 @@
  * ↑/↓ move a highlight in the active column, ←/→ switch columns, Enter selects.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "preact/hooks";
-import type { EnrichedTemplateEntry, BpmnElementGroup, PopupMenuEntryAction } from "../types";
+import type {
+    EnrichedTemplateEntry,
+    BpmnElementGroup,
+    PopupMenuEntry,
+    PopupMenuEntryAction,
+} from "../types";
+import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 import {
     filterTemplates,
     extractCategories,
     processPaletteGroups,
     flattenPaletteItems,
+    resolveSelectedType,
 } from "../filtering";
 import {
     initialHighlight,
@@ -36,6 +43,7 @@ interface AppendMenuOverlayProps {
     position: { x: number; y: number };
     canvasBounds: { right: number; bottom: number };
     onSelect: (action: PopupMenuEntryAction | undefined, event: Event) => void;
+    onTemplateTypeSelect: (template: ElementTemplate, bpmnType: string, event: Event) => void;
     onCancel: () => void;
 }
 
@@ -84,6 +92,7 @@ export function AppendMenuOverlay({
     position,
     canvasBounds,
     onSelect,
+    onTemplateTypeSelect,
     onCancel,
 }: AppendMenuOverlayProps) {
     const hasTemplates = templateEntries.length > 0;
@@ -236,17 +245,29 @@ export function AppendMenuOverlay({
         [onSelect],
     );
 
-    // With a multi-type template selected, creates the element via the template's
-    // action; otherwise creates a plain BPMN element.
+    // With a multi-type template selected, the clicked palette entry names the
+    // concrete BPMN type to instantiate the template as; otherwise it's a plain
+    // BPMN element creation.
     const handleBpmnSelect = useCallback(
-        (action: PopupMenuEntryAction | undefined, event: Event) => {
-            if (selectedTemplate) {
+        (item: { id: string; entry: PopupMenuEntry }, event: Event) => {
+            if (selectedTemplate?.template) {
+                const bpmnType = resolveSelectedType(
+                    item.id,
+                    item.entry.label,
+                    selectedTemplate.template.appliesTo,
+                );
+                if (bpmnType) {
+                    onTemplateTypeSelect(selectedTemplate.template, bpmnType, event);
+                    return;
+                }
+                // Non-matching entries are disabled, so this shouldn't happen;
+                // fall back to the template's baked (first-type) action.
                 onSelect(selectedTemplate.entry.action, event);
-            } else {
-                onSelect(action, event);
+                return;
             }
+            onSelect(item.entry.action, event);
         },
-        [onSelect, selectedTemplate],
+        [onSelect, onTemplateTypeSelect, selectedTemplate],
     );
 
     /**
@@ -265,7 +286,7 @@ export function AppendMenuOverlay({
             } else {
                 const item = paletteNav[highlight.index];
                 if (item && !item.disabled) {
-                    handleBpmnSelect(item.entry.action, event);
+                    handleBpmnSelect(item, event);
                 }
             }
         },

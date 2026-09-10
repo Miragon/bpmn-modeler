@@ -5,6 +5,7 @@ import {
     filterTemplates,
     flattenPaletteItems,
     processPaletteGroups,
+    resolveSelectedType,
 } from "./filtering";
 import type { BpmnElementGroup, EnrichedTemplateEntry, PopupMenuEntry } from "./types";
 
@@ -151,5 +152,37 @@ describe("flattenPaletteItems", () => {
         const item = flattenPaletteItems(processed).find((i) => i.key.startsWith("grp:"))!;
         expect(item.disabled).toBe(true); // fails the appliesTo filter
         expect(item.hidden).toBe(true); // fails the search
+    });
+
+    it("exposes the raw entry id alongside the namespaced key", () => {
+        const processed = processPaletteGroups(groups, ["bpmn:ServiceTask"], "", null);
+        const items = flattenPaletteItems(processed);
+        expect(items.map((i) => i.id)).toEqual(["create.service-task", "create.service-task"]);
+    });
+});
+
+describe("resolveSelectedType", () => {
+    const appliesTo = ["bpmn:ServiceTask", "bpmn:SendTask"];
+
+    it("resolves the type by normalized label", () => {
+        expect(resolveSelectedType("append-send-task", "Send task", appliesTo)).toBe(
+            "bpmn:SendTask",
+        );
+    });
+
+    it("resolves the type by entry id when the label does not match", () => {
+        expect(resolveSelectedType("append-send-task", "Mail", appliesTo)).toBe("bpmn:SendTask");
+    });
+
+    it("prefers the exact label match over an id substring, avoiding type shadowing", () => {
+        // `append-user-task` contains "task", which would match bpmn:Task via
+        // id-substring, but the label pins bpmn:UserTask.
+        expect(
+            resolveSelectedType("append-user-task", "User task", ["bpmn:Task", "bpmn:UserTask"]),
+        ).toBe("bpmn:UserTask");
+    });
+
+    it("returns undefined when no type matches", () => {
+        expect(resolveSelectedType("append-gateway", "Gateway", appliesTo)).toBeUndefined();
     });
 });
