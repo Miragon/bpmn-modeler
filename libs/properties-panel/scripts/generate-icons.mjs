@@ -1,6 +1,7 @@
 /**
  * Regenerates `src/render/icons/index.tsx` from the pinned
- * `bpmn-js-properties-panel` dist sourcemap — offline, no deps.
+ * `bpmn-js-properties-panel` dist sourcemap — offline, using only the repo's
+ * prettier for formatting.
  *
  * The upstream header icons ship only as svgr-compiled modules inside
  * `dist/index.esm.js.map`'s `sourcesContent` (see ADR 0017 + #1456). This script
@@ -13,6 +14,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import prettier from "prettier";
 
 const UPSTREAM_VERSION = "5.65.0";
 const here = dirname(fileURLToPath(import.meta.url));
@@ -132,8 +135,12 @@ ${mapLines.join("\n")}
 export default iconsByType;
 `;
 
+// Match the pre-commit prettier pass so regeneration stays diff-clean.
+const prettierConfig = await prettier.resolveConfig(outPath);
+const formatted = await prettier.format(output, { ...prettierConfig, filepath: outPath });
+
 mkdirSync(dirname(outPath), { recursive: true });
-writeFileSync(outPath, output);
+writeFileSync(outPath, formatted);
 
 console.log(
     `Generated ${outPath} (${components.length} components, ${entries.length} type mappings).`,
