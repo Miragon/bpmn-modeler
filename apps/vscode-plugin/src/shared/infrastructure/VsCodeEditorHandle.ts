@@ -84,15 +84,15 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     /**
-     * Refuses non-`file:` schemes (e.g. `git:`) — those documents are owned by a
-     * FileSystemProvider and any `applyEdit` against them either silently no-ops
-     * or bubbles a confusing provider error. Reaching here with a non-file
+     * Refuses documents on a read-only file system (e.g. `git:`, the compare
+     * viewer's provider) — an `applyEdit` against those either silently no-ops
+     * or bubbles a confusing provider error. Reaching here with a read-only
      * document signals a missing viewer-mode branch upstream; fail loudly.
      *
      * @returns `true` if the edit was applied, `false` if content was unchanged.
      */
     async writeContent(content: string, _expectedDocumentRevision?: number): Promise<boolean> {
-        this.assertFileScheme("write to", "editable");
+        this.assertWritableFileSystem("write to", "editable");
 
         if (this.document.getText() === content) {
             return false;
@@ -104,7 +104,7 @@ export class VsCodeEditorHandle implements EditorHandle {
     }
 
     async save(): Promise<boolean> {
-        this.assertFileScheme("save", "persistable");
+        this.assertWritableFileSystem("save", "persistable");
         return this.document.save();
     }
 
@@ -188,11 +188,19 @@ export class VsCodeEditorHandle implements EditorHandle {
         return workspace.onDidChangeConfiguration((event) => callback(event));
     }
 
-    private assertFileScheme(verb: string, adjective: string): void {
-        if (this.document.uri.scheme !== "file") {
+    /**
+     * The gate is the file system's writability, not the `file:` scheme: a
+     * document served by a custom, writable FileSystemProvider (a collaborative
+     * `bpm-live:` model, `memfs:`, …) is as editable as one on disk, and VS Code
+     * answers for every registered provider. `undefined` means no provider is
+     * known for the scheme (e.g. `untitled:`) — refused, as before.
+     */
+    private assertWritableFileSystem(verb: string, adjective: string): void {
+        const scheme = this.document.uri.scheme;
+        if (scheme !== "file" && workspace.fs.isWritableFileSystem(scheme) !== true) {
             throw new Error(
-                `Refusing to ${verb} a ${this.document.uri.scheme}: document ` +
-                    `(${this.document.uri.toString()}). Only file:-scheme documents are ${adjective}.`,
+                `Refusing to ${verb} a ${scheme}: document (${this.document.uri.toString()}). ` +
+                    `Only documents on a writable file system are ${adjective}.`,
             );
         }
     }
