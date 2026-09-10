@@ -17,15 +17,14 @@ export class SelectionManager {
     }
 
     /**
-     * Silently skips IDs that no longer exist in the diagram (e.g. element
-     * was deleted before the tab switch).
+     * Silently skips IDs that no longer exist in the diagram (e.g. element was
+     * deleted before the tab switch). An empty or all-missing `ids` clears the
+     * selection, so a snapshot captured with nothing selected restores faithfully.
      */
     selectElementsByIds(ids: string[]): void {
         const registry = this.getService<any>("elementRegistry");
         const elements = ids.map((id: string) => registry.get(id)).filter(Boolean);
-        if (elements.length > 0) {
-            this.getService<any>("selection").select(elements);
-        }
+        this.getService<any>("selection").select(elements);
     }
 
     onSelectionChanged(cb: (elementIds: string[]) => void): void {

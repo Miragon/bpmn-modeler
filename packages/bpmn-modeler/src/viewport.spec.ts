@@ -216,6 +216,79 @@ describe("ViewportManager.setViewport", () => {
     });
 });
 
+describe("ViewportManager initial-viewport decision", () => {
+    const inner = { x: 150, y: 80, width: 600, height: 300 };
+    const saved = { x: 10, y: 20, width: 500, height: 400 };
+
+    // A fake canvas whose outer size can grow between calls, to model a host
+    // that mounts the container before laying it out.
+    function setupResizable(initialOuter: { width: number; height: number }) {
+        let outer = initialOuter;
+        const container = document.createElement("div");
+        const viewbox = vi.fn((box?: unknown) => (box ? undefined : { inner, outer }));
+        const zoom = vi.fn();
+        const canvas = { viewbox, zoom, getContainer: () => container };
+        const manager = new ViewportManager((name: string) => {
+            if (name === "canvas") return canvas as any;
+            throw new Error(`unexpected service: ${name}`);
+        });
+        const sizeCanvas = (next: { width: number; height: number }) => {
+            outer = next;
+        };
+        return { manager, viewbox, zoom, sizeCanvas };
+    }
+
+    it("stashes a usable box while unsized and applies it on the next delivery once sized", () => {
+        const { manager, viewbox, sizeCanvas } = setupResizable({ width: 0, height: 0 });
+
+        expect(manager.setViewport(saved)).toBe(false);
+        expect(setterCalls(viewbox)).toHaveLength(0);
+
+        sizeCanvas({ width: 1000, height: 800 });
+        expect(manager.applyInitialViewportOnce()).toBe(true);
+        expect(setterCalls(viewbox)).toEqual([[saved]]);
+    });
+
+    it("makes applyInitialViewportOnce a no-op once the viewport is decided", () => {
+        const { manager, viewbox, zoom } = setupResizable({ width: 1000, height: 800 });
+
+        expect(manager.setViewport(saved)).toBe(true);
+        const callsAfterSet = viewbox.mock.calls.length;
+
+        expect(manager.applyInitialViewportOnce()).toBe(true);
+        expect(viewbox.mock.calls.length).toBe(callsAfterSet);
+        expect(zoom).not.toHaveBeenCalled();
+    });
+
+    it("fits when no viewport was stashed", () => {
+        const { manager, viewbox } = setupResizable({ width: 1000, height: 800 });
+
+        expect(manager.applyInitialViewportOnce()).toBe(true);
+        expect(setterCalls(viewbox).length).toBeGreaterThan(0);
+    });
+
+    it("re-arms after resetInitialViewportDecision so the next delivery fits again", () => {
+        const { manager, viewbox } = setupResizable({ width: 1000, height: 800 });
+
+        expect(manager.applyInitialViewportOnce()).toBe(true);
+        const before = setterCalls(viewbox).length;
+
+        manager.resetInitialViewportDecision();
+        expect(manager.applyInitialViewportOnce()).toBe(true);
+        expect(setterCalls(viewbox).length).toBeGreaterThan(before);
+    });
+
+    it("falls back to a fit for an unusable box and latches the decision", () => {
+        const { manager, viewbox } = setupResizable({ width: 1000, height: 800 });
+
+        expect(manager.setViewport({ x: NaN, y: NaN, width: NaN, height: NaN } as any)).toBe(true);
+        const callsAfterSet = viewbox.mock.calls.length;
+
+        expect(manager.applyInitialViewportOnce()).toBe(true);
+        expect(viewbox.mock.calls.length).toBe(callsAfterSet);
+    });
+});
+
 describe("ViewportManager.onViewportChanged", () => {
     const inner = { x: 150, y: 80, width: 600, height: 300 };
 

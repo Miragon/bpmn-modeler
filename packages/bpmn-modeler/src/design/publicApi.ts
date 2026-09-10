@@ -202,7 +202,9 @@ export interface BpmnDesignerHandle {
     /**
      * Re-apply a {@link captureViewState} snapshot: plane, viewbox, and
      * selection are restored root → viewport → selection; a stale plane or
-     * missing element ids degrade gracefully.
+     * missing element ids degrade gracefully, and an empty selection clears.
+     * A restore called right after `loadDiagram` survives the delayed initial
+     * fit — the snapshot viewport decides, not a later observer delivery.
      */
     applyViewState(state: ViewState): void;
 

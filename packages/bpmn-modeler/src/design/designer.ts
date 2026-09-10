@@ -281,10 +281,13 @@ export class BpmnDesigner {
             // The host may mount the container before laying it out, so the box
             // can be zero when the import lands; the fit retries until it isn't.
             this.stopObservingSize?.();
+            this._viewport!.resetInitialViewportDecision();
             const canvas = this.getModeler().get<any>("canvas");
             this.stopObservingSize = observeCanvasSize(canvas, canvas.getContainer(), {
-                applyInitialViewport: () => this._viewport!.fitViewport(),
+                applyInitialViewport: () => this._viewport!.applyInitialViewportOnce(),
             });
+            // Unlatched best-effort fit: it must not decide the viewport, or a
+            // consumer's post-load applyViewState / saved-state restore is skipped.
             this._viewport!.fitViewport();
             return result;
         } catch (error: unknown) {

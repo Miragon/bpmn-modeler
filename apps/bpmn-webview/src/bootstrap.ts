@@ -904,6 +904,13 @@ function startSession(
                     // A recreate/fallback stood up a fresh instance: restore its
                     // panel UI, resume persistence, and re-request modeler resources.
                     if (transition === "recreate" || transition === "fallback") {
+                        // A recreate already applied the carried snapshot via the
+                        // handle, bypassing this fresh state manager — latch so the
+                        // canvas-size observer won't fit stale saved state over it.
+                        // A fallback applied no snapshot, so its restore must run.
+                        if (transition === "recreate") {
+                            stateManager.markViewportRestored();
+                        }
                         stateManager.restorePanelUiState();
                         stateManager.startPersisting();
                         requestSurfaceResources();

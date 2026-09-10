@@ -177,6 +177,28 @@ describe("WebviewStateManager.captureViewState / applyViewState", () => {
 
         expect(applyViewState).toHaveBeenCalledWith(snapshot);
     });
+
+    it("latches the initial restore so a later restoreViewport no-ops", () => {
+        const viewport = { x: 100, y: 200, width: 500, height: 300 };
+        const { manager, setViewport, fitViewport } = setup({ viewport });
+
+        manager.applyViewState({ viewport, selectedElementIds: [] });
+        expect(manager.restoreViewport()).toBe(true);
+
+        expect(setViewport).not.toHaveBeenCalled();
+        expect(fitViewport).not.toHaveBeenCalled();
+    });
+
+    it("markViewportRestored latches without applying a viewport", () => {
+        const viewport = { x: 100, y: 200, width: 500, height: 300 };
+        const { manager, setViewport, fitViewport } = setup({ viewport });
+
+        manager.markViewportRestored();
+        expect(manager.restoreViewport()).toBe(true);
+
+        expect(setViewport).not.toHaveBeenCalled();
+        expect(fitViewport).not.toHaveBeenCalled();
+    });
 });
 
 describe("WebviewStateManager panel scoping", () => {

@@ -23,6 +23,15 @@ const MIN_FOCUS_ZOOM = 0.75;
 
 /** Reads, restores, and subscribes to canvas viewbox changes. */
 export class ViewportManager {
+    // An explicit setViewport/applyViewState with a usable box, or a successful
+    // initial fit, decides the initial viewport; later observer deliveries must
+    // not fit over that decision.
+    private initialViewportDecided = false;
+
+    // A usable box handed to setViewport before the container was laid out, held
+    // until an observer delivery finds the canvas sized.
+    private pendingViewport: ViewportData | undefined;
+
     constructor(private readonly getService: ServiceAccessor) {}
 
     /**
@@ -55,8 +64,16 @@ export class ViewportManager {
      * @returns `false` if nothing was applied, so the caller can retry.
      */
     setViewport(viewport: ViewportData): boolean {
-        if (!isUsableViewbox(viewport) || !this.isCanvasSized()) {
-            return this.fitViewport();
+        if (!isUsableViewbox(viewport)) {
+            const fitted = this.fitViewport();
+            if (fitted) {
+                this.markInitialViewportDecided();
+            }
+            return fitted;
+        }
+        if (!this.isCanvasSized()) {
+            this.pendingViewport = viewport;
+            return false;
         }
         const canvas = this.getService<any>("canvas");
         // Pin saved zoom explicitly because the container may have resized since capture.
@@ -71,7 +88,46 @@ export class ViewportManager {
         } else {
             canvas.viewbox(viewport);
         }
+        this.markInitialViewportDecided();
         return true;
+    }
+
+    /**
+     * The observer callback ({@link observeCanvasSize}) driving the initial fit.
+     * Returns `true` immediately once the viewport has been decided, so an
+     * explicit {@link setViewport}/`applyViewState` restore is never fitted over.
+     * Otherwise it applies a viewport stashed by {@link setViewport} while the
+     * canvas was unsized, or falls back to a fresh {@link fitViewport}.
+     *
+     * @returns `true` once the initial viewport is decided; `false` while the
+     *   caller should keep retrying.
+     */
+    applyInitialViewportOnce(): boolean {
+        if (this.initialViewportDecided) {
+            return true;
+        }
+        const applied = this.pendingViewport
+            ? this.setViewport(this.pendingViewport)
+            : this.fitViewport();
+        if (applied) {
+            this.markInitialViewportDecided();
+        }
+        return applied;
+    }
+
+    /**
+     * Re-arms the initial-viewport decision for a fresh diagram. Called by
+     * `loadDiagram` before installing a new observer: a new diagram is a new
+     * decision.
+     */
+    resetInitialViewportDecision(): void {
+        this.initialViewportDecided = false;
+        this.pendingViewport = undefined;
+    }
+
+    private markInitialViewportDecided(): void {
+        this.initialViewportDecided = true;
+        this.pendingViewport = undefined;
     }
 
     /**

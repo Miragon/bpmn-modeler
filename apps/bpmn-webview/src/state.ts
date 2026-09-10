@@ -277,6 +277,19 @@ export class WebviewStateManager {
      */
     applyViewState(snapshot: CanvasViewState): void {
         this.modeler.applyViewState(snapshot);
+        // An explicit snapshot re-apply settles the initial-restore question, so
+        // the canvas-size observer stops re-applying possibly stale saved state.
+        this.viewportRestored = true;
+    }
+
+    /**
+     * Latches the initial-viewport restore without applying one. Called when the
+     * viewport was already restored out-of-band (a mode-session recreate applies
+     * the carried snapshot directly via the handle, bypassing this manager), so
+     * the canvas-size observer does not re-apply stale saved state over it.
+     */
+    markViewportRestored(): void {
+        this.viewportRestored = true;
     }
 
     private getSavedState(): WebviewState | undefined {
