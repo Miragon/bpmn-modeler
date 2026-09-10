@@ -80,7 +80,11 @@ export interface ModeSessionOptions {
     onSwitchStateChanged?: (busy: boolean) => void;
     /** Runs before `destroy()` on a recreate — the place for a host to flush pending sync. */
     beforeDestroy?: () => void | Promise<void>;
-    /** Fires when a switch fails (both the export-failure and post-destroy paths). */
+    /**
+     * Fires when a switch fails — the export/capture/`beforeDestroy` path and the
+     * post-destroy path. Fires twice when the fallback surface itself also fails,
+     * after which the session holds no live surface until the next `requestMode`.
+     */
     onError?: (error: unknown) => void;
 }
 
@@ -95,11 +99,16 @@ export interface ModeSession {
     isAvailable(mode: SurfaceMode): boolean;
     /**
      * Requests a switch to `mode`. Ignored when unavailable, a no-op transition,
-     * or a switch is in flight; the returned promise resolves once applied.
+     * a switch is in flight, or the session was destroyed; the returned promise
+     * resolves once applied.
      */
     requestMode(mode: SurfaceMode): Promise<void>;
     /** Switches the colour theme on the live surface (and future ones). */
     setTheme(theme: ThemeMode): void;
-    /** Tears the live surface down. */
-    destroy(): void;
+    /**
+     * Tears the live surface down. Idempotent; awaits an in-flight switch and
+     * destroys whichever surface that transaction owns, so no callbacks fire
+     * after `destroy()` and no surface is ever left orphaned.
+     */
+    destroy(): Promise<void>;
 }

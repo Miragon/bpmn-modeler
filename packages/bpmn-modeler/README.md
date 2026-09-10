@@ -722,13 +722,14 @@ viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no group
 | `onModeChanged`        | `(mode, transition) => void`       | Once per applied change; `transition` is `"toggle"` / `"recreate"` / `"fallback"`.         |
 | `onSwitchStateChanged` | `(busy: boolean) => void`          | Enters/leaves a recreate's handle-less window (drive `aria-busy` / `inert`).               |
 | `beforeDestroy`        | `() => void \| Promise<void>`      | Runs before `destroy()` on a recreate — flush pending host sync here.                      |
-| `onError`              | `(error: unknown) => void`         | A switch failed (export-failure and post-destroy paths).                                   |
+| `onError`              | `(error: unknown) => void`         | A switch failed (capture/export/`beforeDestroy` and post-destroy paths). Fires **twice** when the fallback surface itself also fails, after which the session holds no live surface until the next `requestMode`. |
 
 ### `ModeSession`
 
 `getMode()`, `getHandle()`, `availableModes()`, `isAvailable(mode)`,
-`requestMode(mode)` (ignored when unavailable / a no-op / mid-switch; resolves when applied),
-`setTheme(theme)`, and `destroy()`.
+`requestMode(mode)` (ignored when unavailable / a no-op / mid-switch / after `destroy()`; resolves when applied),
+`setTheme(theme)`, and `destroy(): Promise<void>` (idempotent; awaits an in-flight switch and
+tears down whichever surface that transaction owns, so no callbacks fire after it).
 
 ### `mountModeStrip`
 

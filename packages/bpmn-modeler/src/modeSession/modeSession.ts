@@ -45,9 +45,29 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
 
     let currentMode = resolveInitialMode(options.initialMode ?? null, engine, available);
     let handle = await buildSurface(currentMode);
-    options.onSurfaceCreated?.(handle, currentMode);
+    try {
+        options.onSurfaceCreated?.(handle, currentMode);
+    } catch (error) {
+        handle.destroy();
+        throw error;
+    }
 
     let busy = false;
+    let disposed = false;
+    // The in-flight recreate transaction, or null when idle. `busy` already drops
+    // concurrent requests, so at most one exists; `disposed` is terminal. Should
+    // #1499 change drop-while-busy to supersede, a per-op token would be needed.
+    let inFlight: Promise<void> | null = null;
+
+    function safeDestroy(surface: SurfaceHandle | null): void {
+        try {
+            surface?.destroy();
+        } catch (error) {
+            if (!disposed) {
+                options.onError?.(error);
+            }
+        }
+    }
 
     function buildSurface(mode: SurfaceMode): Promise<SurfaceHandle> {
         const base: SurfaceContext = { container, engine, theme };
@@ -70,7 +90,7 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
     }
 
     async function requestMode(target: SurfaceMode): Promise<void> {
-        if (!isAvailable(target) || busy) {
+        if (disposed || !isAvailable(target) || busy) {
             return;
         }
         const kind = planTransition(currentMode, target, engine);
@@ -90,39 +110,102 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
     async function recreate(target: SurfaceMode): Promise<void> {
         busy = true;
         options.onSwitchStateChanged?.(true);
-
-        const snapshot = handle.captureViewState();
-        let xml: string;
+        inFlight = runSwitch(target);
         try {
-            xml = await handle.exportDiagram();
-        } catch (error) {
+            await inFlight;
+        } finally {
+            inFlight = null;
             busy = false;
-            options.onSwitchStateChanged?.(false);
+            if (!disposed) {
+                options.onSwitchStateChanged?.(false);
+            }
+        }
+    }
+
+    async function runSwitch(target: SurfaceMode): Promise<void> {
+        const original = handle;
+        let snapshot: ReturnType<SurfaceHandle["captureViewState"]>;
+        let xml: string;
+
+        // Phase 1 — the original stays authoritative until we are certain we can
+        // proceed, so a throw here leaves exactly one live surface (the original).
+        try {
+            snapshot = original.captureViewState();
+            xml = await original.exportDiagram();
+            if (disposed) {
+                safeDestroy(original);
+                return;
+            }
+            await options.beforeDestroy?.();
+            if (disposed) {
+                safeDestroy(original);
+                return;
+            }
+        } catch (error) {
+            if (disposed) {
+                safeDestroy(original);
+                return;
+            }
             options.onError?.(error);
             return;
         }
 
+        // Phase 2 — point of no return: the original is gone from here on.
+        original.destroy();
+
+        // Phase 3 — stand up the candidate; any failure destroys it and falls back.
+        let candidate: SurfaceHandle | null = null;
         try {
-            await options.beforeDestroy?.();
-            handle.destroy();
-            handle = await buildSurface(target);
+            candidate = await buildSurface(target);
+            if (disposed) {
+                safeDestroy(candidate);
+                return;
+            }
+            handle = candidate;
             currentMode = target;
             options.onSurfaceCreated?.(handle, target);
             await handle.loadDiagram(xml);
+            if (disposed) {
+                safeDestroy(candidate);
+                return;
+            }
             handle.applyViewState(snapshot);
             options.onModeChanged?.(target, "recreate");
         } catch (error) {
-            // Recover a usable surface if switching fails after the old instance was destroyed.
+            safeDestroy(candidate);
+            if (disposed) {
+                return;
+            }
             options.onError?.(error);
-            const fallback = defaultMode(engine, available);
-            handle = await buildSurface(fallback);
+            await buildFallback(xml);
+        }
+    }
+
+    async function buildFallback(xml: string): Promise<void> {
+        const fallback = defaultMode(engine, available);
+        let surface: SurfaceHandle | null = null;
+        try {
+            surface = await buildSurface(fallback);
+            if (disposed) {
+                safeDestroy(surface);
+                return;
+            }
+            handle = surface;
             currentMode = fallback;
             options.onSurfaceCreated?.(handle, fallback);
             await handle.loadDiagram(xml);
+            if (disposed) {
+                safeDestroy(surface);
+                return;
+            }
             options.onModeChanged?.(fallback, "fallback");
-        } finally {
-            busy = false;
-            options.onSwitchStateChanged?.(false);
+        } catch (error) {
+            // A double failure escapes nowhere: the session simply holds no live
+            // surface until the next requestMode rebuilds one.
+            safeDestroy(surface);
+            if (!disposed) {
+                options.onError?.(error);
+            }
         }
     }
 
@@ -133,10 +216,24 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
         isAvailable,
         requestMode,
         setTheme: (next: ThemeMode) => {
+            if (disposed) {
+                return;
+            }
             theme = next;
             handle.setTheme(next);
         },
-        destroy: () => handle.destroy(),
+        destroy: async () => {
+            if (disposed) {
+                return;
+            }
+            disposed = true;
+            if (inFlight) {
+                // The transaction destroys whichever surface it owns at its next checkpoint.
+                await inFlight;
+            } else {
+                handle.destroy();
+            }
+        },
     };
 }
 
