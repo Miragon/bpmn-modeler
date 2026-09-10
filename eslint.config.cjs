@@ -60,7 +60,7 @@ module.exports = [
             "scripts/**/*.mjs",
             ".github/scripts/**/*.mjs",
             "apps/standalone/scripts/**/*.mjs",
-            "libs/standalone-extension/scripts/**/*.mjs",
+            "libs/*/scripts/**/*.mjs",
             "packages/*/scripts/**/*.mjs",
             "apps/demo-webapp/serve-demo.mjs",
         ],

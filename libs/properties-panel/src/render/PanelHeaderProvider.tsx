@@ -1,14 +1,14 @@
 /**
  * Forked from bpmn-js-properties-panel v5.65.0 (MIT). See LICENSE-upstream.
  *
- * Delta: the upstream header renders a per-type element icon from the bundled
- * `../icons` SVG set, which ships only in the upstream dist this lib must not
- * import. Icons are cosmetic, so `getElementIcon` returns `undefined` and the
- * header shows the element label + humanised type only. Template-driven icons
- * and documentation refs are likewise dropped (they need the `elementTemplates`
- * service, absent from a neutral modeler).
+ * Delta: per-type element icons are resolved from the vendored `./icons` set
+ * (generated from the upstream dist, see #1456) instead of importing that dist.
+ * Template-driven icons and documentation refs remain dropped (they need the
+ * `elementTemplates` service, absent from a neutral modeler).
  */
 import { getLabel } from "bpmn-js/lib/features/label-editing/LabelUtil";
+
+import iconsByType from "./icons";
 
 import { is, getBusinessObject } from "bpmn-js/lib/util/ModelUtil";
 
@@ -73,8 +73,12 @@ export const PanelHeaderProvider = (translate?: (text: string) => string) => {
             return getLabel(element);
         },
 
-        getElementIcon: (_element: any): undefined => {
-            return undefined;
+        getElementIcon: (element: any) => {
+            const concreteType = getConcreteType(element);
+
+            // undefined for unmapped types — the Header's `ElementIcon &&`
+            // guard then skips rendering.
+            return iconsByType[concreteType];
         },
 
         getTypeLabel: (element: any): string => {

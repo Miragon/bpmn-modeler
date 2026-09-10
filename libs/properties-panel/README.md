@@ -53,6 +53,11 @@ service's `setMode(mode)`.
 - **Pinned to upstream 5.65.0.** Bumping `bpmn-js-properties-panel` /
   `@bpmn-io/properties-panel` means re-diffing the renderer and neutral entries
   and re-verifying the hard-coded Camunda ids in `modeFilter/engineGroupData.ts`.
+- **Vendored header icons.** `src/render/icons/index.tsx` is generated — the
+  upstream per-type icons ship only in the dist this lib must not import, so
+  `scripts/generate-icons.mjs` reconstructs them as preact components from the
+  pinned dist sourcemap (offline, no deps). After an upstream bump, re-run
+  `node scripts/generate-icons.mjs` and diff. Do not hand-edit the generated file.
 
 Private workspace lib — inlined into `@miragon/bpmn-modeler`, not published on its
 own. See [ADR 0017](../../docs/adr/0017-engine-neutral-properties-panel-lib.md).
