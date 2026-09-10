@@ -235,7 +235,35 @@ export class VsCodePicker implements PickerPort {
             qp.dispose();
         }
     }
+
+    /**
+     * Modal confirmation listing what is about to be removed.
+     *
+     * Modal rather than a plain warning toast because the user is consenting to
+     * deletion, and a toast can be missed or auto-dismissed. `detail` is capped
+     * because VS Code renders it in a fixed-height dialog; the full list is in
+     * the output channel, where the caller has already logged it.
+     */
+    async confirmDestructive(options: {
+        title: string;
+        confirmLabel: string;
+        details: string[];
+    }): Promise<boolean> {
+        const shown = options.details.slice(0, MAX_CONFIRM_DETAILS);
+        const remainder = options.details.length - shown.length;
+        const detail = [...shown, ...(remainder > 0 ? [`…and ${remainder} more`] : [])].join("\n");
+
+        const choice = await window.showWarningMessage(
+            options.title,
+            { modal: true, detail },
+            options.confirmLabel,
+        );
+        return choice === options.confirmLabel;
+    }
 }
+
+/** VS Code's modal dialog clips a long detail block, so the list is capped. */
+const MAX_CONFIRM_DETAILS = 12;
 
 interface ReferencedModelItem extends QuickPickItem {
     readonly path: string;

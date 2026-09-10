@@ -28,6 +28,7 @@ can be composed into a webview and unit-tested in isolation.
 | `inline-scripting` | This lets the user edit a Camunda 7 script task's (or script-typed listener's) inline script in a real host editor tab, arbitrating a single writer per script surface and keeping the panel field in sync. |
 | `model-navigation` | This adds a "Navigate to referenced model" action, jumping from a Call Activity to its BPMN process or from a Business Rule Task to its DMN decision. |
 | `bpmn-i18n` | This provides runtime language switching for bpmn-js, dmn-js, the properties panel, and the app's own strings. |
+| `bpmn-layout` | This formats a diagram (left-to-right relayout through `bpmn-auto-layout`, applied as one undoable step) and cleans up orphan DI, dangling flows and invisible leftovers. The engine sits behind a geometry-only port, which is what keeps its greenfield relayout from destroying what it does not understand. |
 
 ## Host extension
 

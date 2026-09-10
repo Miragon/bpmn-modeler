@@ -1,7 +1,7 @@
 package io.miragon.intellij.bpmn.bridge
 
 /**
- * Routes the two portable modeler commands as outbound Host→Core notifications
+ * Routes the portable modeler commands as outbound Host→Core notifications
  * (mirrors [MarketplaceRouter]'s notify pattern): change the active diagram's
  * engine version, and migrate every `.bpmn` in the workspace. Both results surface
  * through the core's existing ports (`picker/show`, `document/write`, notifier),
@@ -32,11 +32,34 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         deps.ensureStartedAsync()
     }
 
+    /**
+     * Fires `layout/format` for the core's active editor.
+     *
+     * No editorId: the core resolves the active session itself, matching how the
+     * VS Code command works, so both hosts refuse identically when no diagram
+     * has focus.
+     */
+    fun formatDiagram() {
+        deps.channel.notify(METHODS_LAYOUT_FORMAT, linkedMapOf<String, Any>())
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `layout/cleanup`. The core replies with a report and asks for
+     * confirmation over `confirm/show` before anything is removed.
+     */
+    fun cleanupDiagram() {
+        deps.channel.notify(METHODS_LAYOUT_CLEANUP, linkedMapOf<String, Any>())
+        deps.ensureStartedAsync()
+    }
+
     private companion object {
         // Mirrors METHODS.modelerChangeEngineVersion / migrationMigrateAll in
         // apps/modeler-bridge/src/protocol/descriptor.ts (the protocol.json snapshot
         // keeps the two sides honest).
         const val METHODS_CHANGE_ENGINE_VERSION = "modeler/changeEngineVersion"
         const val METHODS_MIGRATE_ALL = "migration/migrateAll"
+        const val METHODS_LAYOUT_FORMAT = "layout/format"
+        const val METHODS_LAYOUT_CLEANUP = "layout/cleanup"
     }
 }

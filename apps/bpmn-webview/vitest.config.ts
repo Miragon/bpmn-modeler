@@ -55,6 +55,10 @@ export default defineConfig({
                 __dirname,
                 "../../libs/inline-scripting/src/index.ts",
             ),
+            "@miragon/bpmn-modeler-layout": resolve(
+                __dirname,
+                "../../libs/bpmn-layout/src/index.ts",
+            ),
             "@miragon/bpmn-modeler-clipboard": resolve(
                 __dirname,
                 "../../libs/bpmn-clipboard/src/index.ts",

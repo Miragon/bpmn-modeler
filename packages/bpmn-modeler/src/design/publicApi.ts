@@ -1,6 +1,12 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModelNavigationPort } from "@miragon/bpmn-model-navigation";
-import type { BpmnlintConfig, LintResults, LintRunEvent } from "@miragon/bpmn-modeler-types";
+import type {
+    BpmnlintConfig,
+    CleanupOutcome,
+    LintResults,
+    LintRunEvent,
+} from "@miragon/bpmn-modeler-types";
+import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type {
     ClipboardOptions,
     ContentSavedEvent,
@@ -160,6 +166,18 @@ export interface BpmnDesignerHandle {
 
     /** Export the current diagram as SVG markup. */
     getDiagramSvg(): Promise<string>;
+
+    /**
+     * Rearrange the diagram left to right and reroute its connections.
+     *
+     * Touches only diagram interchange, and lands as one undoable step.
+     * Available here as well as on the modeler because layout is pure
+     * geometry, and therefore engine-neutral.
+     */
+    formatDiagram(): Promise<LayoutOutcome>;
+
+    /** Report — or, with `apply`, remove — orphan DI and other leftovers. */
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome;
 
     /** Viewport (zoom/scroll/fit) accessor. */
     readonly viewport: ViewportManager;

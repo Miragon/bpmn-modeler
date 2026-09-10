@@ -23,6 +23,9 @@ import {
     GetTextClipboardCommand,
     ImplementationStatusQuery,
     LanguageQuery,
+    CleanupDiagramQuery,
+    CleanupReportCommand,
+    DiagramFormattedCommand,
     LogErrorCommand,
     LogWarningCommand,
     NavigateToImplementationCommand,
@@ -86,12 +89,20 @@ import type {
     ModelerMode,
 } from "@miragon/bpmn-modeler";
 import type { HostApi } from "@miragon/bpmn-modeler-shared";
-import type { LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import type { CleanupOutcome, LintRunEvent, ResizableCanvas } from "@miragon/bpmn-modeler-types";
+import { LAYOUT_FORMATTED_EVENT } from "@miragon/bpmn-modeler-layout";
+import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type { WebviewState } from "./webviewState";
 import { DiffMode } from "./diffMode";
 import { installHostEditorActions } from "./hostEditorActions";
 import { readSavedMode, readSavedPanelVisibility, WebviewStateManager } from "./state";
-import { isEditableHandle, isLintingHandle, isModelerHandle, type SurfaceHandle } from "./surface";
+import {
+    isEditableHandle,
+    isFormattableHandle,
+    isLintingHandle,
+    isModelerHandle,
+    type SurfaceHandle,
+} from "./surface";
 import "../../../packages/bpmn-modeler/src/styles/mode.css";
 
 /**
@@ -781,6 +792,26 @@ function startSession(
                     .on("commandStack.changed", () => void debouncedSendXmlChanges());
             }
 
+            // One report path for both triggers: the canvas shortcut and the
+            // host command both end in `Layouter.format`, which announces every
+            // outcome here rather than returning it to two different callers.
+            if (isFormattableHandle(handle)) {
+                handle
+                    .getService<{
+                        on(event: string, cb: (outcome: LayoutOutcome) => void): void;
+                    }>("eventBus")
+                    .on(LAYOUT_FORMATTED_EVENT, (outcome) => {
+                        host.postMessage(
+                            new DiagramFormattedCommand(
+                                outcome.status,
+                                outcome.diagnostics,
+                                outcome.code,
+                                outcome.message,
+                            ),
+                        );
+                    });
+            }
+
             // C7 process-variable publisher — modeler-only (scripting is a C7
             // cluster). Gated on the engine and the port being present, like the
             // capability that owns it.
@@ -1327,6 +1358,55 @@ function startSession(
                     }
                 } catch (error: any) {
                     host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                }
+                break;
+            }
+            case queryOrCommand.type === "FormatDiagramQuery": {
+                try {
+                    if (isFormattableHandle(surface)) {
+                        // The outcome is reported by the `layout.formatted`
+                        // subscription in `bindSurface`, so the keyboard
+                        // shortcut and this command report through one path.
+                        await surface.formatDiagram();
+                    } else {
+                        host.postMessage(
+                            new DiagramFormattedCommand("failed", [], "UNSUPPORTED_SURFACE"),
+                        );
+                    }
+                } catch (error: any) {
+                    host.postMessage(
+                        new DiagramFormattedCommand("failed", [], "ENGINE_FAILED", error.message),
+                    );
+                }
+                break;
+            }
+            case queryOrCommand.type === "CleanupDiagramQuery": {
+                const apply = (message.data as CleanupDiagramQuery).apply;
+                try {
+                    // A surface without the capability is a failure to report,
+                    // not a clean diagram — an empty report would be shown as
+                    // "nothing to clean up".
+                    const outcome: CleanupOutcome = isFormattableHandle(surface)
+                        ? surface.cleanupDiagram({ apply })
+                        : {
+                              status: "failed",
+                              items: [],
+                              message: "this surface cannot be cleaned up",
+                          };
+                    if (outcome.status === "failed" && outcome.message) {
+                        host.postMessage(new LogErrorCommand(errorPrefix + outcome.message));
+                    }
+                    host.postMessage(new CleanupReportCommand(outcome, apply));
+                } catch (error: any) {
+                    host.postMessage(new LogErrorCommand(errorPrefix + error.message));
+                    // Always reply: the host holds a one-shot subscription that
+                    // would otherwise leak waiting for a report.
+                    host.postMessage(
+                        new CleanupReportCommand(
+                            { status: "failed", items: [], message: error.message },
+                            apply,
+                        ),
+                    );
                 }
                 break;
             }

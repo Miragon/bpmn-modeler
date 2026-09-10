@@ -1,0 +1,26 @@
+{
+    "name": "@miragon/bpmn-modeler-layout",
+    "types": "./src/index.ts",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "build": "tsc --noEmit",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "bpmn-auto-layout": "2.0.0-alpha.2"
+    },
+    "peerDependencies": {
+        "bpmn-js": "18.25.1",
+        "bpmn-moddle": "10.2.0",
+        "diagram-js": "15.24.1"
+    },
+    "devDependencies": {
+        "bpmn-js": "18.25.1",
+        "bpmn-moddle": "10.2.0",
+        "diagram-js": "15.24.1",
+        "jsdom": "30.0.1",
+        "typescript": "6.0.3",
+        "vitest": "4.1.11"
+    }
+}
