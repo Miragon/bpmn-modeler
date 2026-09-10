@@ -1,6 +1,10 @@
 import { PropertiesPanelStateQuery } from "@miragon/bpmn-modeler-shared";
 
-import { NotifierPort, PropertiesPanelStatePort } from "../../../shared/domain/hostPorts";
+import {
+    NotifierPort,
+    PropertiesPanelInitialState,
+    PropertiesPanelStatePort,
+} from "../../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../../shared/infrastructure/EditorSessionStore";
 
 /**
@@ -15,7 +19,29 @@ export class BpmnPropertiesPanelService {
         private readonly editorStore: EditorSessionStore,
         private readonly panelStateRepo: PropertiesPanelStatePort,
         private readonly notifier: NotifierPort,
+        /**
+         * Read per call, not captured, so a settings change takes effect on the
+         * next diagram without rebuilding the service. Defaults to `remember`
+         * so a host that does not offer the setting keeps the old behaviour.
+         */
+        private readonly getInitialState: () => PropertiesPanelInitialState = () => "remember",
     ) {}
+
+    /**
+     * The visibility a freshly opened webview should start with: the pinned
+     * `collapsed` / `open` choice when the user has made one, otherwise the
+     * persisted global default.
+     */
+    private initialVisibility(): boolean {
+        const initialState = this.getInitialState();
+        if (initialState === "collapsed") {
+            return false;
+        }
+        if (initialState === "open") {
+            return true;
+        }
+        return this.panelStateRepo.getVisibility();
+    }
 
     /**
      * Sync read so the webview HTML can be pre-rendered with the correct
@@ -23,12 +49,12 @@ export class BpmnPropertiesPanelService {
      * {@link sendPropertiesPanelState} delivers the value over the channel.
      */
     getPersistedPanelVisibility(): boolean {
-        return this.panelStateRepo.getVisibility();
+        return this.initialVisibility();
     }
 
     async sendPropertiesPanelState(editorId: string): Promise<boolean> {
         try {
-            const visible = this.panelStateRepo.getVisibility();
+            const visible = this.initialVisibility();
             return await this.editorStore.postMessage(
                 editorId,
                 new PropertiesPanelStateQuery(visible),
