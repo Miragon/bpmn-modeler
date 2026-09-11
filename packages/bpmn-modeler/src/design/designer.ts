@@ -61,6 +61,9 @@ export class BpmnDesigner {
 
     private focusDisposers: Array<() => void> = [];
 
+    // Separate from focusDisposers: the polyfill registers at the top of init() before the canvas exists.
+    private disposeClipboardPolyfill?: () => void;
+
     // Retain the debouncer so destroy can cancel a pending export.
     private contentSaved?: AsyncDebounced<() => Promise<void>>;
 
@@ -127,6 +130,8 @@ export class BpmnDesigner {
     /** @internal */
     async init(): Promise<void> {
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
 
         // Register NativeCopyPaste even with a bridge: the bridge module expects to disable it.
         const clip = this.options.clipboard;
@@ -136,9 +141,14 @@ export class BpmnDesigner {
         if (clip) {
             // The FEEL editor sits outside bpmn-js DI and needs the document-level text bridge.
             const textBridge = clip.text ?? clip.bridge;
-            installContentEditableClipboardPolyfill(
-                () => textBridge.requestClipboard(),
-                (text) => textBridge.writeClipboard(text),
+            this.disposeClipboardPolyfill = installContentEditableClipboardPolyfill(
+                [this.container, this.options.propertiesPanel.parent],
+                {
+                    requestClipboard: () => textBridge.requestClipboard(),
+                    writeClipboard: (text) => {
+                        void textBridge.writeClipboard(text);
+                    },
+                },
             );
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
@@ -383,6 +393,8 @@ export class BpmnDesigner {
         this.stopObservingSize = undefined;
         this.themeController?.dispose();
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
         this.modeler?.destroy();
         this.modeler = undefined;
         this._viewport = undefined;

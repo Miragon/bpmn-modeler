@@ -93,6 +93,9 @@ export class BpmnModeler {
 
     private focusDisposers: Array<() => void> = [];
 
+    // Separate from focusDisposers: the polyfill registers at the top of init() before the canvas exists.
+    private disposeClipboardPolyfill?: () => void;
+
     // Retain the debouncer so destroy can cancel a pending export.
     private contentSaved?: AsyncDebounced<() => Promise<void>>;
 
@@ -173,6 +176,8 @@ export class BpmnModeler {
     async init(): Promise<void> {
         const engine = this.options.engine;
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
 
         // Inject the panel root so script controls cannot target a sibling modeler's panel.
         const propertiesPanelRootModule = {
@@ -207,9 +212,14 @@ export class BpmnModeler {
             // FEEL editors sit outside bpmn-js DI and need the document-level text bridge.
             // Wrap callbacks to preserve the bridge's this binding.
             const textBridge = clip.text ?? clip.bridge;
-            installContentEditableClipboardPolyfill(
-                () => textBridge.requestClipboard(),
-                (text) => textBridge.writeClipboard(text),
+            this.disposeClipboardPolyfill = installContentEditableClipboardPolyfill(
+                [this.container, this.options.propertiesPanel.parent],
+                {
+                    requestClipboard: () => textBridge.requestClipboard(),
+                    writeClipboard: (text) => {
+                        void textBridge.writeClipboard(text);
+                    },
+                },
             );
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
@@ -393,6 +403,8 @@ export class BpmnModeler {
         this.container.removeAttribute(MODE_ATTRIBUTE);
         this.options.propertiesPanel.parent.removeAttribute(MODE_ATTRIBUTE);
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
         this.modeler?.destroy();
         this.modeler = undefined;
         this._viewport = undefined;

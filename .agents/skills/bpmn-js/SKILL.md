@@ -139,7 +139,7 @@ For Cmd/Ctrl+C it reads `window.getSelection()` and writes via the injected `tex
 
 ### Layer 3: FEEL Editor Polyfill + Select-All Guard (`propertiesPanelClipboard.ts`)
 
-The C8 properties panel's FEEL expression editor is **CodeMirror 6**, which lives *outside* the bpmn-js DI context — so the two DI modules above can't reach it. `installContentEditableClipboardPolyfill(requestTextClipboard, writeTextClipboard)` (still webview-local in `apps/bpmn-webview/src/app/propertiesPanelClipboard.ts`, installed from `main.ts`) fills that gap: a capture-phase `keydown` listener that bridges Cmd/Ctrl+C/V on any contenteditable/text-editing surface through the host **text** clipboard.
+The C8 properties panel's FEEL expression editor is **CodeMirror 6**, which lives *outside* the bpmn-js DI context — so the two DI modules above can't reach it. `installContentEditableClipboardPolyfill(roots, { requestClipboard, writeClipboard })` (in `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`, installed by `BpmnModeler.init()` / `BpmnDesigner.init()`) fills that gap: a capture-phase `keydown` listener that bridges Cmd/Ctrl+C/V on any contenteditable/text-editing surface through the host **text** clipboard. It is a per-instance root registry — each `init()` registers its `[container, propertiesPanel.parent]` roots and returns a disposer that `destroy()` (and the next `init()`) calls; the document listeners and the `execCommand` patch install on the first registration and tear down on the last. Clipboard operations resolve against the root containing `document.activeElement`, so sibling instances route to their own bridge. Direct-editing labels (`.djs-direct-editing-content`) are excluded from the capture keydown so `LabelClipboardModule` owns them without a double paste.
 
 It also guards **Cmd/Ctrl+A**: without it, bpmn-js's `Keyboard` service steals Ctrl+A in a text field and selects all diagram shapes. The polyfill lets Ctrl+A select text within the focused editable element (canvas Ctrl+A stays owned by bpmn-js's `SelectionKeyBindings`).
 
@@ -177,6 +177,6 @@ through `@miragon/dmn-modeler` with a `data-dmn-theme` attribute — ADR 0026.)
 - **Webview entry** (installs the clipboard modules): `apps/bpmn-webview/src/main.ts`
 - **Element clipboard module** (priority 2051, `createReviver`): `libs/bpmn-clipboard/src/BridgedClipboardModule.ts` (built via `createClipboardModules`)
 - **Label overlay clipboard module**: `libs/bpmn-clipboard/src/LabelClipboardModule.ts`
-- **FEEL editor + Ctrl+A polyfill**: `apps/bpmn-webview/src/app/propertiesPanelClipboard.ts`
+- **FEEL editor + Ctrl+A polyfill** (per-instance root registry + disposer): `packages/bpmn-modeler/src/propertiesPanelClipboard.ts`
 - **Barrel exports**: `apps/bpmn-webview/src/app/index.ts`
 - **Host API wrapper + dev mock** (`getHostApi`/`MockHost`): `apps/bpmn-webview/src/app/host.ts`
