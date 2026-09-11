@@ -233,10 +233,15 @@ export class ViewportManager {
      * since every later rebuild of that tab would restore an unusable box.
      *
      * @param cb Callback invoked with the new {@link ViewportData} after each change.
+     * @returns a disposer that unsubscribes the listener and cancels any pending
+     *   debounced callback — call it when tearing the surface down.
      */
-    onViewportChanged(cb: (viewport: ViewportData) => void): void {
+    onViewportChanged(cb: (viewport: ViewportData) => void): () => void {
         let timer: ReturnType<typeof setTimeout> | undefined;
-        this.getService<any>("eventBus").on("canvas.viewbox.changed", (event: any) => {
+        // Capture the bus so the disposer works after facade destroy, when the
+        // service accessor would throw NoModelerError.
+        const eventBus = this.getService<any>("eventBus");
+        const handler = (event: any): void => {
             clearTimeout(timer);
             timer = setTimeout(() => {
                 const { x, y, width, height, scale } = event.viewbox;
@@ -245,6 +250,16 @@ export class ViewportManager {
                     cb(viewport);
                 }
             }, 100);
-        });
+        };
+        const dispose = (): void => {
+            clearTimeout(timer);
+            eventBus.off("canvas.viewbox.changed", handler);
+            eventBus.off("diagram.destroy", dispose);
+        };
+        eventBus.on("canvas.viewbox.changed", handler);
+        // Self-hook teardown so the trailing debounce is cancelled even when the
+        // host never unsubscribes.
+        eventBus.on("diagram.destroy", dispose);
+        return dispose;
     }
 }

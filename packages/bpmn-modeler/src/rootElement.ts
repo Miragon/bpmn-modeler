@@ -71,11 +71,16 @@ export class RootElementManager {
      * @param cb Callback invoked with the new root element's ID (or
      *   `undefined` for the implicit root) whenever the active plane
      *   changes — e.g. drill-down into a collapsed sub-process.
+     * @returns a disposer that detaches the listener — call it when tearing the
+     *   surface down so repeated subscribe cycles don't accumulate listeners.
      */
-    onRootChanged(cb: (rootElementId: string | undefined) => void): void {
-        this.getService<any>("eventBus").on("root.set", (event: any) => {
+    onRootChanged(cb: (rootElementId: string | undefined) => void): () => void {
+        const eventBus = this.getService<any>("eventBus");
+        const handler = (event: any): void => {
             const id = event.element?.id;
             cb(id && !id.startsWith(IMPLICIT_ROOT_PREFIX) ? id : undefined);
-        });
+        };
+        eventBus.on("root.set", handler);
+        return () => eventBus.off("root.set", handler);
     }
 }

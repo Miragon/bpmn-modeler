@@ -11,10 +11,16 @@ function setup(currentRootId: string, elements: Record<string, unknown> = {}) {
     const elementRegistry = {
         get: vi.fn((id: string) => elements[id]),
     };
-    const listeners: Record<string, (event: any) => void> = {};
+    const listeners: Record<string, ((event: any) => void)[]> = {};
     const eventBus = {
         on: (event: string, handler: (event: any) => void) => {
-            listeners[event] = handler;
+            (listeners[event] ??= []).push(handler);
+        },
+        off: (event: string, handler: (event: any) => void) => {
+            const handlers = listeners[event];
+            if (!handlers) return;
+            const index = handlers.indexOf(handler);
+            if (index !== -1) handlers.splice(index, 1);
         },
     };
     const manager = new RootElementManager((name: string) => {
@@ -24,8 +30,9 @@ function setup(currentRootId: string, elements: Record<string, unknown> = {}) {
         throw new Error(`unexpected service: ${name}`);
     });
     const emitRootSet = (elementId: string) =>
-        listeners["root.set"]?.({ element: { id: elementId } });
-    return { manager, canvas, elementRegistry, setRootElement, emitRootSet };
+        (listeners["root.set"] ?? []).forEach((handler) => handler({ element: { id: elementId } }));
+    const listenerCount = (event: string) => (listeners[event] ?? []).length;
+    return { manager, canvas, elementRegistry, setRootElement, emitRootSet, listenerCount };
 }
 
 afterEach(() => {
@@ -107,5 +114,17 @@ describe("RootElementManager.onRootChanged", () => {
         emitRootSet("__implicitrootbase");
 
         expect(cb).toHaveBeenCalledWith(undefined);
+    });
+
+    it("detaches its listener on dispose", () => {
+        const { manager, emitRootSet, listenerCount } = setup("Process_1");
+        const cb = vi.fn();
+
+        const dispose = manager.onRootChanged(cb);
+        dispose();
+        emitRootSet("SubProcess_1_plane");
+
+        expect(cb).not.toHaveBeenCalled();
+        expect(listenerCount("root.set")).toBe(0);
     });
 });
