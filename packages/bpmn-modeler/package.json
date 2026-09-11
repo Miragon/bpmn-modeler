@@ -104,7 +104,7 @@
         "bpmnlint": "11.13.0",
         "camunda-bpmn-js": "5.33.1",
         "camunda-bpmn-js-behaviors": "1.18.0",
-        "camunda-bpmn-moddle": "7.0.2",
+        "camunda-bpmn-moddle": "8.0.1",
         "camunda-transaction-boundaries": "1.1.2",
         "diagram-js": "15.24.1",
         "diagram-js-minimap": "5.4.1",
@@ -116,7 +116,7 @@
         "preact": "10.29.3",
         "tiny-svg": "4.1.4",
         "tslib": "2.8.1",
-        "zeebe-bpmn-moddle": "1.18.0"
+        "zeebe-bpmn-moddle": "2.0.0"
     },
     "devDependencies": {
         "@microsoft/api-extractor": "7.59.0",
@@ -132,7 +132,7 @@
         "@miragon/bpmn-modeler-layout": "workspace:*",
         "@miragon/bpmn-modeler-properties-panel": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
-        "@types/node": "26.1.2",
+        "@types/node": "26.4.0",
         "@vitest/browser-playwright": "4.1.11",
         "@vitest/coverage-v8": "4.1.11",
         "didi": "11.0.0",
