@@ -9862,6 +9862,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bpmn-js-properties-panel@patch:bpmn-js-properties-panel@npm%3A5.65.0#~/.yarn/patches/bpmn-js-properties-panel-npm-5.65.0-7e66ff7b5f.patch":
+  version: 5.65.0
+  resolution: "bpmn-js-properties-panel@patch:bpmn-js-properties-panel@npm%3A5.65.0#~/.yarn/patches/bpmn-js-properties-panel-npm-5.65.0-7e66ff7b5f.patch::version=5.65.0&hash=625c47"
+  dependencies:
+    "@bpmn-io/extract-process-variables": "npm:^2.2.1"
+    array-move: "npm:^4.0.0"
+    ids: "npm:^3.0.2"
+    min-dash: "npm:^5.0.0"
+    min-dom: "npm:^5.3.0"
+  peerDependencies:
+    "@bpmn-io/properties-panel": ">= 3.42.0"
+    bpmn-js: ">= 11.5"
+    camunda-bpmn-js-behaviors: ">= 0.4"
+    diagram-js: ">= 11.9"
+  checksum: 10c0/b4541fb53ef21fff9a9d3f3f73187f328bcfbee7b0a87f972874da6440be145124d425fc2d78588e198fd09dbafd43a1b8c787c219928b8b939b74207ea3b2a2
+  languageName: node
+  linkType: hard
+
 "bpmn-js-token-simulation@npm:0.40.0":
   version: 0.40.0
   resolution: "bpmn-js-token-simulation@npm:0.40.0"

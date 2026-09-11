@@ -1,0 +1,36 @@
+diff --git a/dist/index.esm.js b/dist/index.esm.js
+index 392f9e053f77841b1775bdd2500eafdd20289336..cc63875fc5ff32358a804941e36748bca72b7405 100644
+--- a/dist/index.esm.js
++++ b/dist/index.esm.js
+@@ -1543,6 +1543,13 @@ function BpmnPropertiesPanel(props) {
+       _update(newElement || rootElement);
+     };
+     eventBus.on('selection.changed', onSelectionChanged);
++    const selection = injector.get('selection', false);
++    const currentSelection = selection && selection.get();
++    if (currentSelection && currentSelection.length) {
++      onSelectionChanged({
++        newSelection: currentSelection
++      });
++    }
+     return () => {
+       eventBus.off('selection.changed', onSelectionChanged);
+     };
+diff --git a/dist/index.js b/dist/index.js
+index ce3e014617627530012a0ca5cee1b887dba407db..6a68d455f6db32fb38f5b0a4f0072f5961d63535 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1545,6 +1545,13 @@ function BpmnPropertiesPanel(props) {
+       _update(newElement || rootElement);
+     };
+     eventBus.on('selection.changed', onSelectionChanged);
++    const selection = injector.get('selection', false);
++    const currentSelection = selection && selection.get();
++    if (currentSelection && currentSelection.length) {
++      onSelectionChanged({
++        newSelection: currentSelection
++      });
++    }
+     return () => {
+       eventBus.off('selection.changed', onSelectionChanged);
+     };
