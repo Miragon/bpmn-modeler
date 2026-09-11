@@ -4194,7 +4194,7 @@ __metadata:
     bpmn-js-create-append-anything: "npm:2.0.0"
     bpmn-js-differ: "npm:3.2.0"
     bpmn-js-native-copy-paste: "npm:0.3.0"
-    bpmn-js-properties-panel: "patch:bpmn-js-properties-panel@npm%3A5.65.0#~/.yarn/patches/bpmn-js-properties-panel-npm-5.65.0-7e66ff7b5f.patch"
+    bpmn-js-properties-panel: "npm:5.65.0"
     bpmn-js-token-simulation: "npm:0.40.0"
     bpmn-moddle: "npm:10.2.0"
     bpmnlint: "npm:11.13.0"
