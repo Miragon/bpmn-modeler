@@ -7,6 +7,10 @@
  * groups as the deterministic last transform — disabling every entry and
  * stripping ListGroup add/remove affordances — so a `NavigatedViewer` shows the
  * full neutral panel without any write path.
+ *
+ * Delta (#1492): the `selection.changed` effect reconciles against the current
+ * selection when it subscribes, so a selection made before the effect ran (e.g.
+ * `selectElementsByIds` right after the create factory resolved) is not lost.
  */
 import { useState, useMemo, useEffect, useCallback } from "@bpmn-io/properties-panel/preact/hooks";
 
@@ -98,6 +102,16 @@ export default function BpmnPropertiesPanel(props: any) {
         };
 
         eventBus.on("selection.changed", onSelectionChanged);
+
+        // Reconcile against a selection.changed that fired before this effect
+        // subscribed (e.g. selectElementsByIds right after the create factory
+        // resolved) — otherwise the panel keeps editing the root (#1492).
+        const selection = injector.get("selection", false);
+        const currentSelection = selection && selection.get();
+
+        if (currentSelection && currentSelection.length) {
+            onSelectionChanged({ newSelection: currentSelection });
+        }
 
         return () => {
             eventBus.off("selection.changed", onSelectionChanged);
