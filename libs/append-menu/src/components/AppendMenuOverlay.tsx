@@ -240,6 +240,9 @@ export function AppendMenuOverlay({
                 onSelect(enriched.entry.action, event);
             } else {
                 setSelectedTemplate(enriched);
+                // The search that located the template would otherwise keep
+                // hiding every palette entry in the type-pick step.
+                setSearch("");
             }
         },
         [onSelect],
