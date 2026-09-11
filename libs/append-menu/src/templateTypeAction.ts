@@ -4,9 +4,14 @@
  *
  * The upstream template action bakes in `elementType.value || appliesTo[0]`, so
  * a multi-type template always yields the first type. Cloning the template with
- * an explicit `elementType` makes `elementTemplates.createElement` produce the
- * chosen type with the template bound, in a single create command (one undo
- * step), then places it exactly as the upstream append/create providers do.
+ * `appliesTo` narrowed to the chosen type makes `elementTemplates.createElement`
+ * produce that type with the template bound, then places it exactly as the
+ * upstream append/create providers do.
+ *
+ * The clone deliberately narrows `appliesTo` instead of setting `elementType`:
+ * C7's `changeTemplate` handler compares `element.$type` (undefined on a shape)
+ * against `elementType.value` and would `bpmnReplace` the still-detached shape,
+ * crashing in the ordering provider.
  */
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 
@@ -37,7 +42,8 @@ export function executeTemplateTypeAction(
     const { elementTemplates, autoPlace, create, mouse } = services;
     const { providerId, target } = context;
 
-    const typed: ElementTemplate = { ...template, elementType: { value: bpmnType } };
+    const { elementType: _dropped, ...rest } = template;
+    const typed: ElementTemplate = { ...rest, appliesTo: [bpmnType] };
     const newElement = elementTemplates.createElement(typed);
 
     if (providerId === "bpmn-append" && autoPlace && !NON_AUTO_PLACEABLE.has(bpmnType)) {
