@@ -69,8 +69,8 @@ contributor-facing record, not user documentation.
 | [0022](0022-mode-invariant-canvas-chrome.md) | Minimap, token simulation, and the canvas focus reticle are mode-invariant: registered on `/viewer`, `/design`, and `createModeler` alike; design mode stops hiding the simulation toggle | accepted |
 | [0023](0023-mode-aware-linting.md) | Opt-in linting on `/design` and per-mode lint configs: injection-only on both surfaces, `LintingOptions.config` accepts a `{ design?, implement? }` map, Design default drops the Camunda engine layer, `setMode` re-resolves in-page; workspace config mode-invariant, viewer excluded | accepted |
 | [0029](0029-compare-execution-properties-with-isolated-moddle-descriptors.md) | Compare execution properties through isolated Camunda 7 and Camunda 8 moddle passes; compare custom attributes textually | accepted |
-| [0030](0030-async-mode-session-destroy.md) | `ModeSession.destroy()` returns a `Promise` and awaits the in-flight switch so the session owns 0 or exactly 1 live surface at every instant; source-compatible for callers | accepted |
-| [0031](0031-diagram-formatting-and-cleanup.md) | Diagram formatting and cleanup: wrap `bpmn-auto-layout` behind a geometry-only `LayoutEngine` port (which contains its greenfield destructiveness), apply via nested `preExecute` as one undo step, own refusal taxonomy, no settings and no format-on-save | accepted |
+| [0030](0031-diagram-formatting-and-cleanup.md) | Diagram formatting and cleanup: wrap `bpmn-auto-layout` behind a geometry-only `LayoutEngine` port (which contains its greenfield destructiveness), apply via nested `preExecute` as one undo step, own refusal taxonomy, no settings and no format-on-save | accepted |
+| [0031](0030-async-mode-session-destroy.md) | `ModeSession.destroy()` returns a `Promise` and awaits the in-flight switch so the session owns 0 or exactly 1 live surface at every instant; source-compatible for callers | accepted |
 
 ### dmn-webview
 
