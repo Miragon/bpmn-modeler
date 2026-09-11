@@ -95,9 +95,9 @@ export function extractCategories(entries: EnrichedTemplateEntry[]): TemplateCat
 
 /** A palette entry annotated with its filter state. */
 export interface ProcessedEntry extends BpmnElementEntry {
-    /** Greyed out (fails the selected multi-type template's `appliesTo`). */
+    /** Greyed out (the entry itself is marked disabled upstream). */
     disabled: boolean;
-    /** Not rendered (fails the current search). */
+    /** Not rendered (fails the current search or the selected template's `appliesTo`). */
     hidden: boolean;
 }
 
@@ -190,7 +190,7 @@ function findFavouriteEntry(entries: ProcessedEntry[], type: string): ProcessedE
  * @param groups BPMN element entries grouped by category.
  * @param favourites Ordered BPMN type strings to pin at the top.
  * @param search The raw search query.
- * @param appliesToFilter Set of BPMN types to keep enabled, or null for all.
+ * @param appliesToFilter Set of BPMN types to keep visible, or null for all.
  * @returns The favourites row plus annotated groups.
  */
 export function processPaletteGroups(
@@ -205,8 +205,10 @@ export function processPaletteGroups(
         ...group,
         entries: group.entries.map((entry) => ({
             ...entry,
-            disabled: appliesToFilter ? !entryMatchesFilter(entry, appliesToFilter) : false,
-            hidden: query ? !entryMatchesSearch(entry, query) : false,
+            disabled: false,
+            hidden:
+                (appliesToFilter ? !entryMatchesFilter(entry, appliesToFilter) : false) ||
+                (query ? !entryMatchesSearch(entry, query) : false),
         })),
     }));
 

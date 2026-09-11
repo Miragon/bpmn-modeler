@@ -110,14 +110,13 @@ describe("processPaletteGroups", () => {
         expect(flags.every(([d, h]) => !d && !h)).toBe(true);
     });
 
-    it("disables entries that fail the appliesTo filter but keeps them visible", () => {
+    it("hides entries that fail the appliesTo filter", () => {
         const p = processPaletteGroups(groups, [], "", new Set(["bpmn:ServiceTask"]));
         const service = p.groups[0].entries.find((e) => e.entry.label === "Service Task")!;
         const user = p.groups[0].entries.find((e) => e.entry.label === "User Task")!;
-        expect(service.disabled).toBe(false);
-        expect(user.disabled).toBe(true);
-        // disabled is not hidden — the button still renders greyed out.
-        expect(user.hidden).toBe(false);
+        expect(service.hidden).toBe(false);
+        expect(user.hidden).toBe(true);
+        expect(user.disabled).toBe(false);
     });
 
     it("hides entries that fail the search but leaves them enabled", () => {
@@ -147,11 +146,11 @@ describe("flattenPaletteItems", () => {
         ]);
     });
 
-    it("carries disabled/hidden flags through to the flattened items", () => {
+    it("carries the hidden flag through to the flattened items", () => {
         const processed = processPaletteGroups(groups, [], "gateway", new Set(["bpmn:UserTask"]));
         const item = flattenPaletteItems(processed).find((i) => i.key.startsWith("grp:"))!;
-        expect(item.disabled).toBe(true); // fails the appliesTo filter
-        expect(item.hidden).toBe(true); // fails the search
+        expect(item.hidden).toBe(true); // fails both the appliesTo filter and the search
+        expect(item.disabled).toBe(false);
     });
 
     it("exposes the raw entry id alongside the namespaced key", () => {

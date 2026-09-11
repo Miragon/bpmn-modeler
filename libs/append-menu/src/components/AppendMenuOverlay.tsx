@@ -263,7 +263,7 @@ export function AppendMenuOverlay({
                     onTemplateTypeSelect(selectedTemplate.template, bpmnType, event);
                     return;
                 }
-                // Non-matching entries are disabled, so this shouldn't happen;
+                // Non-matching entries are hidden, so this shouldn't happen;
                 // fall back to the template's baked (first-type) action.
                 onSelect(selectedTemplate.entry.action, event);
                 return;
