@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.12.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.11.0...vscode-v1.12.0) (2026-09-11)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** add capabilities.modelNavigation on /design ([#1457](https://github.com/Miragon/bpmn-modeler/issues/1457)) [sync ca82ae1] ([47cb2a9](https://github.com/Miragon/bpmn-modeler/commit/47cb2a9b80fcdd21b678333ff1a6a65c34659f73))
+* **bpmn-modeler:** add capabilities.modelNavigation on /viewer ([#1458](https://github.com/Miragon/bpmn-modeler/issues/1458)) [sync fe59e3c] ([9c7ddf4](https://github.com/Miragon/bpmn-modeler/commit/9c7ddf4f2d55bb851cf73f97c800fe4d573c4815))
+* **bpmn-modeler:** add engine-neutral createDesigner() on /design subpath ([#1437](https://github.com/Miragon/bpmn-modeler/issues/1437)) [sync 7a43774] ([c144a7f](https://github.com/Miragon/bpmn-modeler/commit/c144a7f6bd0c14f0038bd86ee3d8275a4608d61b))
+* **bpmn-modeler:** add engine-neutral properties-panel lib with mode filter ([#1451](https://github.com/Miragon/bpmn-modeler/issues/1451)) [sync 860badb] ([cca21d7](https://github.com/Miragon/bpmn-modeler/commit/cca21d7369134fe5f56339272528176d77680b1c))
+* **bpmn-modeler:** add opt-in readonly properties panel on /viewer ([#1455](https://github.com/Miragon/bpmn-modeler/issues/1455)) [sync fc045c0] ([13ffbcc](https://github.com/Miragon/bpmn-modeler/commit/13ffbcca9be16b9b5552b9e90c4367feaa5c2e1d))
+* **bpmn-modeler:** add public view-state capture/restore on all handles ([#1450](https://github.com/Miragon/bpmn-modeler/issues/1450)) [sync fb1f042] ([f693325](https://github.com/Miragon/bpmn-modeler/commit/f6933253d83fb73e3bd925b9d1ff91885c18e911))
+* **bpmn-modeler:** add runtime design/implement mode on createModeler ([#1452](https://github.com/Miragon/bpmn-modeler/issues/1452)) [sync 786a045] ([f6e6d2c](https://github.com/Miragon/bpmn-modeler/commit/f6e6d2cfd39c24a7793ea0397375c9fef70e503b))
+* **bpmn-modeler:** add view/design/implement session on /mode subpath ([#1469](https://github.com/Miragon/bpmn-modeler/issues/1469)) ([ddc666f](https://github.com/Miragon/bpmn-modeler/commit/ddc666f2be8cc63cf0757dbdb56814a97d80585c))
+* **bpmn-modeler:** mode-invariant minimap, token simulation and focus reticle ([#1471](https://github.com/Miragon/bpmn-modeler/issues/1471)) [sync 6b20f9a] ([75ff878](https://github.com/Miragon/bpmn-modeler/commit/75ff87854ee292811b3099cfee4f9d069958b603))
+* **bpmn-modeler:** opt-in linting on /design and per-mode lint configs ([#1472](https://github.com/Miragon/bpmn-modeler/issues/1472)) [sync 5141b8a] ([84fd907](https://github.com/Miragon/bpmn-modeler/commit/84fd9078b7ffd1ac7d22977f12fb18a3682f2391))
+* **bpmn-webview:** add view/design/implement mode switch to the hosts ([#1468](https://github.com/Miragon/bpmn-modeler/issues/1468)) ([46a0d58](https://github.com/Miragon/bpmn-modeler/commit/46a0d58a7ade3a77da273b7a8356bd2f39a867ec))
+* **demo-webapp:** consume @miragon/dmn-modeler on the dmn page ([#1483](https://github.com/Miragon/bpmn-modeler/issues/1483)) [sync b4c06a3] ([bd62532](https://github.com/Miragon/bpmn-modeler/commit/bd625322225168d4a7fad4e2c5318dfeaa803717))
+* **dmn-modeler:** container-scoped theming via data-dmn-theme ([#1475](https://github.com/Miragon/bpmn-modeler/issues/1475)) ([e2eb4b8](https://github.com/Miragon/bpmn-modeler/commit/e2eb4b89287ad4ef91c4918a0221f471f5c6d721))
+* **dmn-modeler:** translate the dmn-js ui ([#1480](https://github.com/Miragon/bpmn-modeler/issues/1480)) ([4cf70dd](https://github.com/Miragon/bpmn-modeler/commit/4cf70ddd12974083c377c92b0f0bc44c33708adf))
+* **dmn-webview:** extract the host-free dmn modeler into @miragon/dmn-modeler ([#1474](https://github.com/Miragon/bpmn-modeler/issues/1474)) [sync 383a949] ([463e1c7](https://github.com/Miragon/bpmn-modeler/commit/463e1c72a4b90bd44689a1848100a05e6560a9e4))
+* format diagram ([#1482](https://github.com/Miragon/bpmn-modeler/issues/1482)) ([e724883](https://github.com/Miragon/bpmn-modeler/commit/e724883f10d2758fdf7f74415bcbdec7fa59c335))
+* **properties-panel:** vendor upstream element-type header icons ([#1512](https://github.com/Miragon/bpmn-modeler/issues/1512)) [sync 9e33736] ([1914104](https://github.com/Miragon/bpmn-modeler/commit/191410473953948cf715d3537a3b27e88b372c80))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** destroy partially initialised surfaces when a factory fails ([#1522](https://github.com/Miragon/bpmn-modeler/issues/1522)) ([9ac9031](https://github.com/Miragon/bpmn-modeler/commit/9ac90313fcafe2c1ca8657bc4ad4d258d8c6a40a))
+* **bpmn-modeler:** keep restored viewport and clear empty selection ([#1518](https://github.com/Miragon/bpmn-modeler/issues/1518)) [sync fa5298c] ([4628843](https://github.com/Miragon/bpmn-modeler/commit/46288439b33fb94ee15c11962fcdda47c42be805))
+* **bpmn-modeler:** make mode-session recreate transaction-safe ([#1515](https://github.com/Miragon/bpmn-modeler/issues/1515)) [sync 7c4a85d] ([6187228](https://github.com/Miragon/bpmn-modeler/commit/618722897daac1a6e16d6bc0fc36f7c529a7c23f))
+* **bpmn-modeler:** make text clipboard polyfill per-instance and disposable ([#1513](https://github.com/Miragon/bpmn-modeler/issues/1513)) [sync 88d0a93] ([1f48285](https://github.com/Miragon/bpmn-modeler/commit/1f48285c4c343213a1f741a98a44dd555c51cabb))
+* **bpmn-modeler:** stop debounced callbacks firing after destroy ([#1523](https://github.com/Miragon/bpmn-modeler/issues/1523)) [sync 9414cc9] ([52587fc](https://github.com/Miragon/bpmn-modeler/commit/52587fc1608c60dbccbf3f1dcae19b8e9e54207f))
+* **bpmn-modeler:** support packed packages in nested installs ([#1508](https://github.com/Miragon/bpmn-modeler/issues/1508)) [sync bbefb36] ([a20df6f](https://github.com/Miragon/bpmn-modeler/commit/a20df6fd6f23bf41a7e0c97c3de257e8037b0e67))
+* **diff:** detect execution property changes across engines ([#1510](https://github.com/Miragon/bpmn-modeler/issues/1510)) [sync 23bf6d9] ([39868c2](https://github.com/Miragon/bpmn-modeler/commit/39868c24c8d1aaffc625f7471122c0db17eefe31))
+* **vscode-plugin:** edit and save documents on any writable file system, not only file: ([#1519](https://github.com/Miragon/bpmn-modeler/issues/1519)) ([c2aa225](https://github.com/Miragon/bpmn-modeler/commit/c2aa225c56d2287b299ea7d1fdb53551be7beeb0))
+
 ## [1.11.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.10.0...vscode-v1.11.0) (2026-09-02)
 
 
