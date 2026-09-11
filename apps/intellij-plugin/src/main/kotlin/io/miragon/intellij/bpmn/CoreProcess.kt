@@ -204,6 +204,12 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Fires `migration/migrateAll` for the project's workspace root. */
     fun migrateAllDiagrams() = modelerCommandsRouter.migrateAllDiagrams()
 
+    /** Fires `layout/format` for the core's active editor session. */
+    fun formatDiagram() = modelerCommandsRouter.formatDiagram()
+
+    /** Fires `layout/cleanup`; nothing is removed before the user confirms. */
+    fun cleanupDiagram() = modelerCommandsRouter.cleanupDiagram()
+
     /**
      * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script
      * variable and reveal the manifest — backs the "Declare in variable manifest"

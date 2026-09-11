@@ -143,6 +143,18 @@
         "paramKeys": ["workspaceRoot"]
     },
     {
+        "method": "layout/format",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
+        "method": "layout/cleanup",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": []
+    },
+    {
         "method": "document/write",
         "direction": "coreToHost",
         "kind": "request",
@@ -162,6 +174,13 @@
         "kind": "request",
         "paramKeys": ["canPickMany", "items", "placeholder", "title"],
         "resultKeys": ["selected"]
+    },
+    {
+        "method": "confirm/show",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": ["confirmLabel", "details", "title"],
+        "resultKeys": ["confirmed"]
     },
     {
         "method": "clipboard/read",

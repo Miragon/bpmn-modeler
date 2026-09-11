@@ -219,6 +219,23 @@
 
             <separator/>
 
+            <action
+                id="io.miragon.bpmn-modeler.formatDiagram"
+                class="io.miragon.intellij.bpmn.FormatDiagramAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Format Diagram"
+                description="Rearrange the active diagram left to right and reroute its connections; one undo step">
+                <keyboard-shortcut keymap="$default" first-keystroke="control alt L"/>
+            </action>
+            <action
+                id="io.miragon.bpmn-modeler.cleanupDiagram"
+                class="io.miragon.intellij.bpmn.CleanupDiagramAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Clean Up Diagram"
+                description="Remove orphan diagram interchange, dangling flows and other invisible leftovers, after confirmation"/>
+
+            <separator/>
+
             <!-- New-file actions. Also added to Project view ▸ New (NewGroup), the native
                  discovery path for creating a model. -->
             <action

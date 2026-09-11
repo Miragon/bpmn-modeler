@@ -1,5 +1,7 @@
 import {
+    CleanupReportCommand,
     Command,
+    DiagramFormattedCommand,
     OpenScriptEditorCommand,
     OpenScriptEditorsCommand,
     NavigateToImplementationCommand,
@@ -33,6 +35,7 @@ import { MessageHandler } from "@miragon/bpmn-modeler-core";
 import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnClipboardMediator } from "@miragon/bpmn-modeler-core";
 import { BpmnElementTemplatesService } from "@miragon/bpmn-modeler-core";
+import { BpmnLayoutService } from "@miragon/bpmn-modeler-core";
 import { BpmnLintConfigService } from "@miragon/bpmn-modeler-core";
 import { BpmnPropertiesPanelService } from "@miragon/bpmn-modeler-core";
 import { BpmnSettingsBroadcaster } from "@miragon/bpmn-modeler-core";
@@ -195,6 +198,20 @@ export function setTextClipboardHandler(clipboardMediator: BpmnClipboardMediator
 }
 
 /** `SyncDocumentCommand` → persist the current XML; session guard lives in the service. */
+/** `DiagramFormattedCommand` → surface the outcome of a format attempt. */
+export function diagramFormattedHandler(layoutSvc: BpmnLayoutService): MessageHandler {
+    return (message: Command) => {
+        layoutSvc.reportFormatted(message as DiagramFormattedCommand);
+    };
+}
+
+/** `CleanupReportCommand` → confirm the findings, then ask for them to be applied. */
+export function cleanupReportHandler(layoutSvc: BpmnLayoutService): MessageHandler {
+    return async (message: Command, editorId: string) => {
+        await layoutSvc.reportCleanup(message as CleanupReportCommand, editorId);
+    };
+}
+
 export function syncDocumentHandler(bpmnService: BpmnModelerService): MessageHandler {
     return async (message: Command, editorId: string) => {
         const sync = message as SyncDocumentCommand;

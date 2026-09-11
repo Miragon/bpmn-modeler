@@ -372,12 +372,29 @@
                 "command": "bpmn-modeler.focusLintElement",
                 "title": "Focus Lint Element",
                 "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.formatDiagram",
+                "title": "Format Diagram",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(wand)"
+            },
+            {
+                "command": "bpmn-modeler.cleanupDiagram",
+                "title": "Clean Up Diagram",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(clear-all)"
             }
         ],
         "keybindings": [
             {
                 "command": "bpmn-modeler.toggleTextEditor",
                 "key": "ctrl+shift+e",
+                "when": "bpmn-modeler.openCustomEditors > 0"
+            },
+            {
+                "command": "bpmn-modeler.formatDiagram",
+                "key": "shift+alt+f",
                 "when": "bpmn-modeler.openCustomEditors > 0"
             }
         ],
@@ -446,6 +463,14 @@
                 {
                     "command": "bpmn-modeler.focusLintElement",
                     "when": "false"
+                },
+                {
+                    "command": "bpmn-modeler.formatDiagram",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.cleanupDiagram",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
                 }
             ],
             "explorer/context": [
@@ -483,6 +508,11 @@
                 },
                 {
                     "command": "bpmn-modeler.deployDiagram",
+                    "group": "navigation",
+                    "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
+                },
+                {
+                    "command": "bpmn-modeler.formatDiagram",
                     "group": "navigation",
                     "when": "activeWebviewPanelId == 'bpmn-modeler.bpmn'"
                 }

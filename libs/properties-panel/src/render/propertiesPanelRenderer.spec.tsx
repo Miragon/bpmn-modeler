@@ -67,6 +67,12 @@ describe("PropertiesPanelRenderer readonly derivation", () => {
         expect(fields.every((f) => f.disabled)).toBe(true);
     });
 
+    it("renders the vendored element icon in the header", () => {
+        const container = setup(undefined);
+
+        expect(container.querySelector(".bio-properties-panel-header-icon svg")).not.toBeNull();
+    });
+
     it("leaves entries editable when a modeling service is present (modeler)", () => {
         const container = setup({ updateProperties: vi.fn() });
 

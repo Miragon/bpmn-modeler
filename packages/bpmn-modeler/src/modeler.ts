@@ -10,6 +10,9 @@ import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anythi
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
+import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
+import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-modeler-layout";
+import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
 import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
@@ -89,6 +92,9 @@ export class BpmnModeler {
     private onWarningSink?: (message: string) => void;
 
     private focusDisposers: Array<() => void> = [];
+
+    // Separate from focusDisposers: the polyfill registers at the top of init() before the canvas exists.
+    private disposeClipboardPolyfill?: () => void;
 
     // Retain the debouncer so destroy can cancel a pending export.
     private contentSaved?: AsyncDebounced<() => Promise<void>>;
@@ -170,6 +176,8 @@ export class BpmnModeler {
     async init(): Promise<void> {
         const engine = this.options.engine;
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
 
         // Inject the panel root so script controls cannot target a sibling modeler's panel.
         const propertiesPanelRootModule = {
@@ -189,6 +197,7 @@ export class BpmnModeler {
             ElementTemplateChooserModule,
             AppendMenuModule,
             FlowNavigationModule,
+            createBpmnLayoutModule(),
             propertiesPanelRootModule,
             ModeFilterModule,
             CustomGroupsModule,
@@ -203,9 +212,14 @@ export class BpmnModeler {
             // FEEL editors sit outside bpmn-js DI and need the document-level text bridge.
             // Wrap callbacks to preserve the bridge's this binding.
             const textBridge = clip.text ?? clip.bridge;
-            installContentEditableClipboardPolyfill(
-                () => textBridge.requestClipboard(),
-                (text) => textBridge.writeClipboard(text),
+            this.disposeClipboardPolyfill = installContentEditableClipboardPolyfill(
+                [this.container, this.options.propertiesPanel.parent],
+                {
+                    requestClipboard: () => textBridge.requestClipboard(),
+                    writeClipboard: (text) => {
+                        void textBridge.writeClipboard(text);
+                    },
+                },
             );
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
@@ -389,6 +403,8 @@ export class BpmnModeler {
         this.container.removeAttribute(MODE_ATTRIBUTE);
         this.options.propertiesPanel.parent.removeAttribute(MODE_ATTRIBUTE);
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
         this.modeler?.destroy();
         this.modeler = undefined;
         this._viewport = undefined;
@@ -457,6 +473,25 @@ export class BpmnModeler {
     async getDiagramSvg(): Promise<string> {
         const result = await this.getModeler().saveSVG();
         return result.svg;
+    }
+
+    /**
+     * Rearranges the diagram left to right, applied as one undoable step.
+     *
+     * @see BpmnModelerHandle.formatDiagram
+     */
+    async formatDiagram(): Promise<LayoutOutcome> {
+        return this.getModeler().get<Layouter>("bpmnLayouter").format();
+    }
+
+    /**
+     * Reports or removes diagram garbage.
+     *
+     * @see BpmnModelerHandle.cleanupDiagram
+     */
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
+        const cleanup = this.getModeler().get<CleanupService>("bpmnCleanup");
+        return options?.apply ? cleanup.apply() : cleanup.inspect();
     }
 
     setElementTemplates(templates: object[]): void {

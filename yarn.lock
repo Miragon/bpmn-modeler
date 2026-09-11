@@ -4011,6 +4011,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@miragon/bpmn-modeler-layout@workspace:*, @miragon/bpmn-modeler-layout@workspace:libs/bpmn-layout":
+  version: 0.0.0-use.local
+  resolution: "@miragon/bpmn-modeler-layout@workspace:libs/bpmn-layout"
+  dependencies:
+    bpmn-auto-layout: "npm:2.0.0-alpha.2"
+    bpmn-js: "npm:18.25.1"
+    bpmn-moddle: "npm:10.2.0"
+    diagram-js: "npm:15.24.1"
+    jsdom: "npm:30.0.1"
+    typescript: "npm:6.0.3"
+    vitest: "npm:4.1.11"
+  peerDependencies:
+    bpmn-js: 18.25.1
+    bpmn-moddle: 10.2.0
+    diagram-js: 15.24.1
+  languageName: unknown
+  linkType: soft
+
 "@miragon/bpmn-modeler-properties-panel@workspace:*, @miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel":
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-properties-panel@workspace:libs/properties-panel"
@@ -4132,6 +4150,7 @@ __metadata:
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.11"
+    bpmn-auto-layout: "npm:2.0.0-alpha.2"
     bpmn-js: "npm:18.25.1"
     bpmn-js-bpmnlint: "npm:0.24.0"
     bpmnlint: "npm:11.13.0"
@@ -4162,12 +4181,14 @@ __metadata:
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-inline-scripting": "workspace:*"
+    "@miragon/bpmn-modeler-layout": "workspace:*"
     "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@miragon/create-append-c7": "npm:0.1.0"
     "@types/node": "npm:26.1.2"
     "@vitest/coverage-v8": "npm:4.1.11"
+    bpmn-auto-layout: "npm:2.0.0-alpha.2"
     bpmn-js: "npm:18.25.1"
     bpmn-js-bpmnlint: "npm:0.24.0"
     bpmn-js-create-append-anything: "npm:2.0.0"
@@ -9657,6 +9678,18 @@ __metadata:
   version: 2.0.0
   resolution: "boundary@npm:2.0.0"
   checksum: 10c0/dbe3bd68f1a7d6b13f83c12ef2e763d9c1514e3454640a64b5b24a096aaa78846582af517da92e96bb4d19194d0670e5fe87e9f4ff42e9134253ec5c75d58cde
+  languageName: node
+  linkType: hard
+
+"bpmn-auto-layout@npm:2.0.0-alpha.2":
+  version: 2.0.0-alpha.2
+  resolution: "bpmn-auto-layout@npm:2.0.0-alpha.2"
+  dependencies:
+    bpmn-moddle: "npm:^10.0.0"
+    min-dash: "npm:^5.0.0"
+  bin:
+    bpmn-auto-layout: bin/bpmn-auto-layout.js
+  checksum: 10c0/9ec03036ca041436dbd9a7400b9178bc98c4a0bf05a9d7d302f300f75e812deebb94fc93b55e5b26c2cee01c9d2122b3a70f6f99d19bd15efdcdbec8bdc09877
   languageName: node
   linkType: hard
 

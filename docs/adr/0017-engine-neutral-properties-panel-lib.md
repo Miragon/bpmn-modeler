@@ -129,6 +129,11 @@ Alternatives that avoid the fork were weighed and rejected:
 - **Element icons dropped.** The forked header provider returns no element icon —
   the bundled SVG icon set lives only in the upstream dist, which the lib must not
   import. The header shows the element label + humanised type.
+  - _Amended (#1456):_ the per-type header icons are now vendored as generated
+    preact components under `src/render/icons/`, reconstructed offline from the
+    pinned dist sourcemap by `scripts/generate-icons.mjs` (no dist import, no new
+    dependency). All neutral surfaces (`/design`, readonly `/viewer`) render them.
+    Placeholder empty/multiple icons and template-driven icons remain dropped.
 - **Timer / multi-instance dropped in design mode on an engine modeler.** Their
   neutral entries are not restorable once an engine replaces them, so an engine
   modeler switched to design mode simply omits those groups; pure `/design` keeps

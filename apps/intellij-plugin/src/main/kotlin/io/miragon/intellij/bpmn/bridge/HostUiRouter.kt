@@ -7,6 +7,7 @@ import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.ui.Messages
 import io.miragon.intellij.bpmn.EngineStatusBarWidget
 import io.miragon.intellij.bpmn.HostPicker
 import java.awt.datatransfer.DataFlavor
@@ -34,6 +35,7 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
     fun register() {
         deps.handlers
             .on("picker/show") { params, id -> handlePick(params, id) }
+            .on("confirm/show") { params, id -> handleConfirm(params, id) }
             .on("clipboard/read") { _, id -> handleClipboardRead(id) }
             .on("clipboard/write") { params, _ -> handleClipboardWrite(params) }
             .on("statusBar/showEngineVersion") { params, _ ->
@@ -116,6 +118,40 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
      * chosen item indices, or `null` on dismissal. The host renders only the
      * chooser; the cancel-vs-throw convention is applied core-side.
      */
+    /**
+     * Modal yes/no listing what is about to be removed.
+     *
+     * Every path that cannot ask replies `false`: a disposed project or a
+     * missing reply id must never be read as consent to delete.
+     */
+    private fun handleConfirm(params: JsonObject, id: Int?) {
+        if (id == null) return
+        val title = params.get("title")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+        val confirmLabel =
+            params.get("confirmLabel")?.takeIf { !it.isJsonNull }?.asString ?: "Continue"
+        val details =
+            params.getAsJsonArray("details")?.map { it.asString }.orEmpty()
+                .take(MAX_CONFIRM_DETAILS)
+
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) {
+                deps.channel.reply(id, mapOf("confirmed" to false))
+                return@invokeLater
+            }
+            val message = (listOf(title) + details).joinToString("\n")
+            val choice =
+                Messages.showYesNoDialog(
+                    project,
+                    message,
+                    confirmLabel,
+                    confirmLabel,
+                    "Cancel",
+                    Messages.getWarningIcon(),
+                )
+            deps.channel.reply(id, mapOf("confirmed" to (choice == Messages.YES)))
+        }
+    }
+
     private fun handlePick(params: JsonObject, id: Int?) {
         // A picker prompt is always a request expecting a reply; a missing id
         // would mean nothing to answer, so there is nothing to do.
@@ -166,5 +202,10 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
         ApplicationManager.getApplication().invokeLater {
             CopyPasteManager.getInstance().setContents(StringSelection(text))
         }
+    }
+
+    private companion object {
+        /** The dialog clips a long body, so the listed findings are capped. */
+        const val MAX_CONFIRM_DETAILS = 12
     }
 }

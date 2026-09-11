@@ -28,6 +28,9 @@
         // not a package.json script, so knip reads it as unused.
         "packages/bpmn-modeler/scripts/smoke-consumer.mjs",
         "packages/dmn-modeler/scripts/smoke-consumer.mjs",
+        // Icon regeneration script, run by hand on upstream bumps
+        // (`node scripts/generate-icons.mjs`), never imported.
+        "libs/properties-panel/scripts/generate-icons.mjs",
         // Type declarations for the postcss plugin .mjs; reached only through
         // TS declaration resolution (sibling lookup), which knip does not track.
         "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
@@ -43,6 +46,13 @@
                 "test/e2e/.vscode-test.mjs",
                 "test/e2e/**/*.test.ts"
             ]
+        },
+        "apps/bpmn-webview": {
+            // The webview bundles `@miragon/bpmn-modeler` from source, so the
+            // layout engine enters through the inlined bpmn-layout lib rather
+            // than through any webview import — but Vite still has to resolve
+            // the bare specifier from this workspace, so it must be declared.
+            "ignoreDependencies": ["bpmn-auto-layout"]
         },
         "apps/demo-webapp": {
             // dual.ts / diff.ts are reached only via their .html files, which the
@@ -70,14 +80,16 @@
                 "src/modeSession/index.ts"
             ],
             // minisearch (via model-navigation), lodash (via modeler-types'
-            // asyncDebounce), and bpmn-js-differ (via the inlined bpmn-diff lib)
-            // are pulled in only through inlined workspace libs; the Vite lib
-            // build externalises them, so the published package must declare them
-            // even though no package source imports them directly.
+            // asyncDebounce), bpmn-js-differ (via the inlined bpmn-diff lib) and
+            // bpmn-auto-layout (via the inlined bpmn-layout lib) are pulled in
+            // only through inlined workspace libs; the Vite lib build
+            // externalises them, so the published package must declare them even
+            // though no package source imports them directly.
             "ignoreDependencies": [
                 "minisearch",
                 "lodash",
                 "bpmn-js-differ",
+                "bpmn-auto-layout",
                 // Temporary upstream manifest workarounds, verified by the
                 // nested packed-consumer smoke rather than package imports.
                 "@lezer/lr",

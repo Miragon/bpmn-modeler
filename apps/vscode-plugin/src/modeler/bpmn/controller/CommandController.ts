@@ -26,7 +26,7 @@ import { VsCodeDocument } from "../../../shared/infrastructure/VsCodeDocument";
 import { VsCodeNotifier } from "../../../shared/infrastructure/VsCodeNotifier";
 import { VsCodeTextEditor } from "../../../shared/infrastructure/VsCodeTextEditor";
 import { VsCodePicker } from "../../../shared/infrastructure/VsCodePicker";
-import { BpmnModelerService } from "@miragon/bpmn-modeler-core";
+import { BpmnLayoutService, BpmnModelerService } from "@miragon/bpmn-modeler-core";
 import { BpmnMigrationService } from "../../../migration/index";
 import type { EditorFlushResult } from "../../editor-session/DocumentSaveFlushController";
 
@@ -45,6 +45,8 @@ export const NEW_FORM_MODEL_CMD = "bpmn-modeler.newFormModel";
 // for setups where the element-template file watcher never fires (WSL +
 // symlinked workspace): a reload re-requests the templates from the host.
 export const RELOAD_MODELER_CMD = "bpmn-modeler.reloadModeler";
+export const FORMAT_DIAGRAM_CMD = "bpmn-modeler.formatDiagram";
+export const CLEANUP_DIAGRAM_CMD = "bpmn-modeler.cleanupDiagram";
 
 export interface DocumentFlusher {
     flush(editorId: string, destructive?: boolean): Promise<EditorFlushResult>;
@@ -66,6 +68,7 @@ export class CommandController {
         private readonly migrationSvc: BpmnMigrationService,
         private readonly picker: VsCodePicker,
         private readonly documentFlush: DocumentFlusher,
+        private readonly layoutSvc: BpmnLayoutService,
     ) {}
 
     /** Registers all commands and pushes their disposables into the extension context. */
@@ -83,7 +86,33 @@ export class CommandController {
             commands.registerCommand(NEW_DMN_MODEL_CMD, this.newDmnModel, this),
             commands.registerCommand(NEW_FORM_MODEL_CMD, this.newFormModel, this),
             commands.registerCommand(RELOAD_MODELER_CMD, this.reloadModeler, this),
+            commands.registerCommand(FORMAT_DIAGRAM_CMD, this.formatDiagram, this),
+            commands.registerCommand(CLEANUP_DIAGRAM_CMD, this.cleanupDiagram, this),
         );
+    }
+
+    /**
+     * Rearranges the active diagram. The outcome comes back asynchronously as a
+     * `DiagramFormattedCommand` and is surfaced by {@link BpmnLayoutService},
+     * so there is nothing to report here.
+     */
+    async formatDiagram(): Promise<void> {
+        try {
+            await this.layoutSvc.format(this.editorStore.getActiveEditorId());
+        } catch (error) {
+            this.notifier.logError(error as Error);
+            this.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+        }
+    }
+
+    /** Reports what a cleanup would remove; removal happens only after confirmation. */
+    async cleanupDiagram(): Promise<void> {
+        try {
+            await this.layoutSvc.inspectCleanup(this.editorStore.getActiveEditorId());
+        } catch (error) {
+            this.notifier.logError(error as Error);
+            this.notifier.showInfo("Focus a BPMN diagram tab, then run the command again.");
+        }
     }
 
     /** Toggles the standard VS Code text editor for the active document. */

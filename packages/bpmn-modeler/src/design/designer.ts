@@ -12,6 +12,8 @@ import MinimapModule from "diagram-js-minimap";
 import TokenSimulationModule from "bpmn-js-token-simulation";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
+import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
+import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-modeler-layout";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
@@ -36,7 +38,7 @@ import { installKeyboardFocus } from "../keyboardFocus";
 import { buildLintModules } from "../lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "../lintHandle";
 import type { LintConfigService } from "../bpmnlint/LintConfigService";
-import type { BpmnlintConfig, LintResults } from "@miragon/bpmn-modeler-types";
+import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
@@ -58,6 +60,9 @@ export class BpmnDesigner {
     private stopObservingSize?: () => void;
 
     private focusDisposers: Array<() => void> = [];
+
+    // Separate from focusDisposers: the polyfill registers at the top of init() before the canvas exists.
+    private disposeClipboardPolyfill?: () => void;
 
     // Retain the debouncer so destroy can cancel a pending export.
     private contentSaved?: AsyncDebounced<() => Promise<void>>;
@@ -125,6 +130,8 @@ export class BpmnDesigner {
     /** @internal */
     async init(): Promise<void> {
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
 
         // Register NativeCopyPaste even with a bridge: the bridge module expects to disable it.
         const clip = this.options.clipboard;
@@ -134,9 +141,14 @@ export class BpmnDesigner {
         if (clip) {
             // The FEEL editor sits outside bpmn-js DI and needs the document-level text bridge.
             const textBridge = clip.text ?? clip.bridge;
-            installContentEditableClipboardPolyfill(
-                () => textBridge.requestClipboard(),
-                (text) => textBridge.writeClipboard(text),
+            this.disposeClipboardPolyfill = installContentEditableClipboardPolyfill(
+                [this.container, this.options.propertiesPanel.parent],
+                {
+                    requestClipboard: () => textBridge.requestClipboard(),
+                    writeClipboard: (text) => {
+                        void textBridge.writeClipboard(text);
+                    },
+                },
             );
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
@@ -163,6 +175,9 @@ export class BpmnDesigner {
                 CreateAppendAnythingModule,
                 AppendMenuModule,
                 FlowNavigationModule,
+                // Formatting is pure geometry, so it is engine-neutral and
+                // belongs on this surface as much as on the modeler.
+                createBpmnLayoutModule(),
                 MinimapModule,
                 TokenSimulationModule,
                 // Design never enabled linting implicitly, so omission needs no migration notice.
@@ -293,6 +308,17 @@ export class BpmnDesigner {
         throw new Error("Failed to serialise the diagram!");
     }
 
+    /** @see BpmnDesignerHandle.formatDiagram */
+    async formatDiagram(): Promise<LayoutOutcome> {
+        return this.getModeler().get<Layouter>("bpmnLayouter").format();
+    }
+
+    /** @see BpmnDesignerHandle.cleanupDiagram */
+    cleanupDiagram(options?: { apply?: boolean }): CleanupOutcome {
+        const cleanup = this.getModeler().get<CleanupService>("bpmnCleanup");
+        return options?.apply ? cleanup.apply() : cleanup.inspect();
+    }
+
     async getDiagramSvg(): Promise<string> {
         const result = await this.getModeler().saveSVG();
         return result.svg;
@@ -367,6 +393,8 @@ export class BpmnDesigner {
         this.stopObservingSize = undefined;
         this.themeController?.dispose();
         this.disposeFocusFeatures();
+        this.disposeClipboardPolyfill?.();
+        this.disposeClipboardPolyfill = undefined;
         this.modeler?.destroy();
         this.modeler = undefined;
         this._viewport = undefined;
