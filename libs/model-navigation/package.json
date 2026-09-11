@@ -8,10 +8,10 @@
         "test": "vitest run"
     },
     "peerDependencies": {
-        "bpmn-js": "18.25.1"
+        "bpmn-js": "18.28.0"
     },
     "devDependencies": {
-        "bpmn-js": "18.25.1",
+        "bpmn-js": "18.28.0",
         "typescript": "6.0.3",
         "vitest": "4.1.11"
     }

@@ -12,7 +12,7 @@
         "preview": "node serve-demo.mjs"
     },
     "dependencies": {
-        "@bpmn-io/properties-panel": "3.52.0",
+        "@bpmn-io/properties-panel": "3.54.0",
         "@miragon/bpmn-modeler": "workspace:*",
         "@miragon/bpmn-modeler-shared": "workspace:*",
         "@miragon/dmn-modeler": "workspace:*"
