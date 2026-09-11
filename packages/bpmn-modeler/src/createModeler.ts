@@ -2,6 +2,7 @@ import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 import type { ModelerOptions } from "./publicApi";
 import { BpmnModeler } from "./modeler";
+import { destroyOnFailure } from "./destroyOnFailure";
 
 export interface CreateModelerOptions extends ModelerOptions {
     /**
@@ -22,20 +23,20 @@ export async function createModeler(
     i18n.extend(i18nExtras);
 
     const modeler = new BpmnModeler(container, options);
-    await modeler.init();
+    return destroyOnFailure(modeler, async () => {
+        await modeler.init();
 
-    if (options.elementTemplates) {
-        modeler.setElementTemplates(options.elementTemplates);
-    }
-    if (options.settings) {
-        modeler.setSettings(options.settings);
-    }
-    // Apply the default on the first frame, even when the caller omitted a theme.
-    modeler.setTheme(options.theme ?? "automatic");
-    // Locale is page-global; an omitted option must preserve the host's existing language.
-    if (options.locale) {
-        i18n.setLanguage(options.locale as SupportedLocale);
-    }
-
-    return modeler;
+        if (options.elementTemplates) {
+            modeler.setElementTemplates(options.elementTemplates);
+        }
+        if (options.settings) {
+            modeler.setSettings(options.settings);
+        }
+        // Apply the default on the first frame, even when the caller omitted a theme.
+        modeler.setTheme(options.theme ?? "automatic");
+        // Locale is page-global; an omitted option must preserve the host's existing language.
+        if (options.locale) {
+            i18n.setLanguage(options.locale as SupportedLocale);
+        }
+    });
 }

@@ -1,5 +1,6 @@
 import { BpmnViewer } from "./viewer";
 import type { ViewerOptions } from "./publicApi";
+import { destroyOnFailure } from "../destroyOnFailure";
 
 /**
  * Stands up one independent readonly viewer bound to `container`, then engages
@@ -14,11 +15,11 @@ export async function createViewer(
     options: ViewerOptions = {},
 ): Promise<BpmnViewer> {
     const viewer = new BpmnViewer(container, options);
-    await viewer.init();
+    return destroyOnFailure(viewer, async () => {
+        await viewer.init();
 
-    // Always engage theming so the per-instance `data-bpmn-theme` attribute is
-    // set from the first frame; `"automatic"` then follows `prefers-color-scheme`.
-    viewer.setTheme(options.theme ?? "automatic");
-
-    return viewer;
+        // Always engage theming so the per-instance `data-bpmn-theme` attribute is
+        // set from the first frame; `"automatic"` then follows `prefers-color-scheme`.
+        viewer.setTheme(options.theme ?? "automatic");
+    });
 }

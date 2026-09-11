@@ -232,7 +232,15 @@ export interface ModelerOptions {
     /** A non-fatal warning (element-not-found, missing inline script) for the host log. */
     onWarning?: (message: string) => void;
 
-    /** The element-templates loader reported validation errors. */
+    /**
+     * The element-templates loader reported validation errors.
+     *
+     * During {@link createModeler}, this is the consumer's control point over a
+     * bad template set: return normally to continue creation (valid templates
+     * are applied, invalid ones skipped), or throw to abort — the partially
+     * initialised instance is destroyed and the factory rejects with the thrown
+     * error, so nothing is leaked.
+     */
     onElementTemplatesErrors?: (errors: unknown[]) => void;
 
     /** The design/implement mode changed — fired once per actual change (never on a redundant `setMode`). */
@@ -405,6 +413,10 @@ export interface CoreModelerServices {
  * resolve its {@link BpmnModelerHandle}. Async for API stability (a host that
  * learns the engine late simply calls this late); the lint stack is now injected
  * synchronously rather than awaited internally.
+ *
+ * On any initialisation failure after allocation the factory destroys the
+ * partial instance (owned DOM and document listeners removed) before rejecting,
+ * so the same container and panel roots can be reused for a retry.
  */
 export type CreateModeler = (
     container: HTMLElement,

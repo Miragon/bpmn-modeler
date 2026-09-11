@@ -276,6 +276,47 @@ describe("createViewer (runtime, jsdom)", () => {
         });
     });
 
+    describe("leaves no residue when initialisation fails (#1495)", () => {
+        it("destroys the partial viewer and restores the container and document", async () => {
+            container = mount();
+            const parent = mount();
+
+            const realMatchMedia = window.matchMedia;
+            // `setTheme("automatic")` reads matchMedia on the first frame — the
+            // post-allocation failure the guard has to clean up after.
+            (window as any).matchMedia = () => {
+                throw new Error("matchMedia boom");
+            };
+            const addSpy = vi.spyOn(document, "addEventListener");
+            const removeSpy = vi.spyOn(document, "removeEventListener");
+
+            try {
+                await expect(
+                    createViewer(container, { propertiesPanel: { parent } }),
+                ).rejects.toThrow("matchMedia boom");
+
+                expect(container.querySelector(".bjs-container")).toBeNull();
+                expect(container.querySelector(".canvas-focus-indicator")).toBeNull();
+                expect(parent.getAttribute("data-bpmn-theme")).toBeNull();
+
+                const keydownAdds = addSpy.mock.calls.filter(([type]) => type === "keydown").length;
+                const keydownRemoves = removeSpy.mock.calls.filter(
+                    ([type]) => type === "keydown",
+                ).length;
+                expect(keydownRemoves).toBe(keydownAdds);
+            } finally {
+                addSpy.mockRestore();
+                removeSpy.mockRestore();
+                (window as any).matchMedia = realMatchMedia;
+            }
+
+            // The same roots must be reusable once the failure condition is gone.
+            viewer = await createViewer(container, { propertiesPanel: { parent } });
+            expect(viewer.getService("canvas")).toBeDefined();
+            parent.remove();
+        });
+    });
+
     // Render-dependent: jsdom has no SVG layout, so bpmn-js's viewbox transform
     // throws on import. Covered manually via the demo page + Playwright.
     it.skip("loads a diagram, selects an element, and round-trips XML/SVG", async () => {
