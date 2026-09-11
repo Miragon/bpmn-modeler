@@ -417,6 +417,17 @@ a host capability (see [Capabilities](#capabilities--default-overrides)).
 | `additionalModules` / `moddleExtensions`                                                                             | `unknown[]` / `Record<string, object>` | —             | bpmn-js [escape hatches](#escape-hatches).                                       |
 | `onContentSaved` / `onLintResults` / `onLintingToggled` / `onWarning` / `onElementTemplatesErrors` / `onModeChanged` | callbacks                              | —             | Outbound notifications. `onModeChanged(mode)` fires once per actual mode change. |
 
+### Creation failures & `onElementTemplatesErrors`
+
+The factory owns the instance until it resolves: if anything after allocation fails, it destroys
+the partial instance (owned DOM and document listeners removed) before rejecting, so the same
+container and panel roots can be reused for a retry. The same guarantee holds for `createViewer`
+and `createDesigner`.
+
+During creation, `onElementTemplatesErrors` is your control point over a bad `elementTemplates`
+set: return normally to continue (valid templates are applied, invalid ones skipped), or throw to
+abort — the factory rejects with the thrown error and nothing is left mounted.
+
 ### `BpmnModelerHandle`
 
 | Method                                                                                         | Meaning                                                                               |

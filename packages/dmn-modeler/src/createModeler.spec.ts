@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
     setLanguage: vi.fn(),
     extras: { overlay: true },
     instances: [] as Array<{ container: HTMLElement; options: unknown }>,
+    themeImpl: (() => {}) as (theme: string) => void,
 }));
 
 vi.mock("@miragon/bpmn-modeler-i18n", () => ({
@@ -13,7 +14,8 @@ vi.mock("@miragon/bpmn-modeler-i18n", () => ({
 vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({ extras: mocks.extras }));
 vi.mock("./modeler", () => ({
     DmnModeler: class {
-        setTheme = vi.fn();
+        setTheme = vi.fn(mocks.themeImpl);
+        destroy = vi.fn();
         constructor(
             public readonly container: HTMLElement,
             public readonly options: unknown,
@@ -83,5 +85,22 @@ describe("createModeler", () => {
         await createModeler(container, options);
 
         expect(mocks.setLanguage).not.toHaveBeenCalled();
+    });
+
+    it("destroys the modeler and rethrows when setTheme fails", async () => {
+        const container = document.createElement("main");
+        const options = { propertiesPanel: { parent: document.createElement("aside") } };
+        const error = new Error("theme boom");
+        mocks.themeImpl = () => {
+            throw error;
+        };
+
+        await expect(createModeler(container, options)).rejects.toBe(error);
+
+        const failed = mocks.instances[mocks.instances.length - 1] as unknown as {
+            destroy: ReturnType<typeof vi.fn>;
+        };
+        expect(failed.destroy).toHaveBeenCalledTimes(1);
+        mocks.themeImpl = () => {};
     });
 });

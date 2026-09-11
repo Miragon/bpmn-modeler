@@ -167,6 +167,10 @@ export interface BpmnViewerHandle {
  * The `@miragon/bpmn-modeler/viewer` entry point: stand up one readonly viewer
  * bound to `container` and resolve its {@link BpmnViewerHandle}. Async for API
  * stability symmetry with {@link createModeler}.
+ *
+ * On any initialisation failure after allocation the factory destroys the
+ * partial instance (owned DOM and document listeners removed) before rejecting,
+ * so the same container can be reused for a retry.
  */
 export type CreateViewer = (
     container: HTMLElement,

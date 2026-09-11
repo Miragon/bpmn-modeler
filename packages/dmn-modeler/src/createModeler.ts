@@ -11,10 +11,19 @@ export async function createModeler(
 ): Promise<DmnModelerHandle> {
     i18n.extend(i18nExtras);
     const modeler = new DmnModeler(container, options);
-    modeler.setTheme(options.theme ?? "automatic");
-    // Preserve the page-global locale unless explicitly overridden.
-    if (options.locale) {
-        i18n.setLanguage(options.locale as SupportedLocale);
+    try {
+        modeler.setTheme(options.theme ?? "automatic");
+        // Preserve the page-global locale unless explicitly overridden.
+        if (options.locale) {
+            i18n.setLanguage(options.locale as SupportedLocale);
+        }
+    } catch (error) {
+        try {
+            modeler.destroy();
+        } catch {
+            // A secondary teardown failure must not mask the root cause.
+        }
+        throw error;
     }
     return modeler;
 }

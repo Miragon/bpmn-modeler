@@ -35,6 +35,7 @@ import {
     PropertiesPanelStateQuery,
     Query,
     ReleaseDocumentFlushQuery,
+    ShowInfoCommand,
     SetClipboardCommand,
     SetLintingEnabledCommand,
     SetPropertiesPanelStateCommand,
@@ -755,10 +756,21 @@ function startSession(
                     onWarning: (warning: string) =>
                         host.postMessage(new LogWarningCommand(warning)),
                     onElementTemplatesErrors: (errors: unknown[]) => {
-                        for (const error of errors ?? []) {
-                            const message = error instanceof Error ? error.message : String(error);
+                        const messages = (errors ?? []).map((error) =>
+                            error instanceof Error ? error.message : String(error),
+                        );
+                        for (const message of messages) {
                             host.postMessage(
                                 new LogWarningCommand(`Element template rejected: ${message}`),
+                            );
+                        }
+                        if (messages.length > 0) {
+                            host.postMessage(
+                                new ShowInfoCommand(
+                                    messages.length === 1
+                                        ? "An element template was rejected and is ignored. See the log for details."
+                                        : `${messages.length} element templates were rejected and are ignored. See the log for details.`,
+                                ),
                             );
                         }
                     },

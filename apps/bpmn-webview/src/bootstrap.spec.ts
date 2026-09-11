@@ -823,6 +823,35 @@ describe("bootstrap mode switching", () => {
         expect(mocks.createModeler).toHaveBeenCalledOnce();
     });
 
+    it("reports rejected element templates as one info box plus per-error log lines", async () => {
+        mocks.createModeler.mockResolvedValue(makeModeler());
+        const host = makeHost(new BpmnFileQuery("<tagged />", "c7", "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        const options = mocks.createModeler.mock.calls[0][1] as {
+            onElementTemplatesErrors: (errors: unknown[]) => void;
+        };
+        host.postMessage.mockClear();
+        options.onElementTemplatesErrors([new Error("bad"), "worse"]);
+
+        const sent = host.postMessage.mock.calls.map(
+            ([m]) => m as { type: string; message?: string },
+        );
+        expect(sent.filter((m) => m.type === "LogWarningCommand").map((m) => m.message)).toEqual([
+            "Element template rejected: bad",
+            "Element template rejected: worse",
+        ]);
+        expect(sent.filter((m) => m.type === "ShowInfoCommand").map((m) => m.message)).toEqual([
+            "2 element templates were rejected and are ignored. See the log for details.",
+        ]);
+
+        host.postMessage.mockClear();
+        options.onElementTemplatesErrors([]);
+        expect(host.postMessage).not.toHaveBeenCalled();
+    });
+
     it("recreates from Implement to View, carrying the diagram and view state over", async () => {
         const modeler = makeModeler();
         const viewer = makeViewer();
