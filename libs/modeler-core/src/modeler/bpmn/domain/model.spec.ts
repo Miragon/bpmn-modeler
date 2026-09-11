@@ -10,6 +10,7 @@ describe("SettingBuilder", () => {
         expect(setting.showTransactionBoundaries).toBe(true);
         expect(setting.colorTheme).toBe("automatic");
         expect(setting.favouriteBpmnElements).toEqual([]);
+        expect(setting.resizableActivities).toBe(false);
     });
 
     it("returns the same builder from each setter so calls can chain", () => {
@@ -19,6 +20,7 @@ describe("SettingBuilder", () => {
         expect(builder.showTransactionBoundaries(false)).toBe(builder);
         expect(builder.colorTheme("light")).toBe(builder);
         expect(builder.favouriteBpmnElements(["bpmn:Task"])).toBe(builder);
+        expect(builder.resizableActivities(true)).toBe(builder);
     });
 
     it("carries every configured field into the built setting", () => {
@@ -27,11 +29,13 @@ describe("SettingBuilder", () => {
             .showTransactionBoundaries(false)
             .colorTheme("light")
             .favouriteBpmnElements(["bpmn:Task", "bpmn:Gateway"])
+            .resizableActivities(true)
             .buildBpmnModeler();
 
         expect(setting.alignToOrigin).toBe(true);
         expect(setting.showTransactionBoundaries).toBe(false);
         expect(setting.colorTheme).toBe("light");
         expect(setting.favouriteBpmnElements).toEqual(["bpmn:Task", "bpmn:Gateway"]);
+        expect(setting.resizableActivities).toBe(true);
     });
 });
