@@ -1,4 +1,4 @@
-# 0030 — `ModeSession.destroy()` returns a `Promise` and awaits the in-flight switch
+# 0031 — `ModeSession.destroy()` returns a `Promise` and awaits the in-flight switch
 
 - Status: accepted (#1489)
 - Date: 2026-09-10
