@@ -59,6 +59,10 @@ vite.config.*.timestamp*
 
 vitest.config.*.timestamp*
 
+# Vitest browser-mode run artifacts (failure screenshots, attachments)
+**/__screenshots__/
+**/.vitest-attachments/
+
 docs/.vitepress/dist
 docs/.vitepress/cache
 .gstack/

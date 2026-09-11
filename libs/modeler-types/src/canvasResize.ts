@@ -52,6 +52,8 @@ export interface CanvasResizeOptions {
     /**
      * Applies the initial viewport. Retried after every resize until it
      * returns `true`, so the canvas alone decides when its box is trustworthy.
+     * A consumer that has already settled its viewport out-of-band (an explicit
+     * `applyViewState`/`setViewport` restore) reports `true` to stop the retry.
      */
     applyInitialViewport?: () => boolean;
 }

@@ -45,6 +45,14 @@ export class DiffViewer {
     /** Disposes the canvas-size observer installed by {@link importXML}. */
     private stopObservingSize: (() => void) | undefined;
 
+    // A setViewport with a usable box, or a successful initial fit, decides the
+    // pane's initial viewport; later observer deliveries must not fit over it.
+    private initialViewportDecided = false;
+
+    // A usable box handed to setViewport before the pane was laid out, held
+    // until an observer delivery finds the pane sized.
+    private pendingViewport: Viewport | undefined;
+
     constructor(container: HTMLElement) {
         this.viewer = new NavigatedViewer({ container });
     }
@@ -55,13 +63,32 @@ export class DiffViewer {
         // Panes open side by side, so one regularly has no box yet when the
         // import lands; the fit retries until it does.
         this.stopObservingSize?.();
+        this.initialViewportDecided = false;
+        this.pendingViewport = undefined;
         const canvas = this.getCanvas();
         this.stopObservingSize = observeCanvasSize(canvas, canvas.getContainer(), {
-            applyInitialViewport: () => this.fitViewport(),
+            applyInitialViewport: () => this.applyInitialViewportOnce(),
         });
         this.fitViewport();
 
         return result;
+    }
+
+    /**
+     * The observer callback: returns `true` once the pane's initial viewport is
+     * decided, so a {@link setViewport} sync arriving before the first delivery
+     * is never fitted over. Applies a viewport stashed while the pane was unsized,
+     * else the fresh {@link fitViewport}.
+     */
+    private applyInitialViewportOnce(): boolean {
+        if (this.initialViewportDecided) {
+            return true;
+        }
+        if (this.pendingViewport) {
+            this.setViewport(this.pendingViewport);
+            return this.initialViewportDecided;
+        }
+        return this.fitViewport();
     }
 
     /**
@@ -70,13 +97,16 @@ export class DiffViewer {
      * @returns `false` if the pane has no usable box yet.
      */
     private fitViewport(): boolean {
-        const canvas = this.getCanvas();
-        const { outer } = canvas.viewbox();
-        if (outer.width < MIN_CANVAS_SIZE_PX || outer.height < MIN_CANVAS_SIZE_PX) {
+        if (!this.isPaneSized()) {
             return false;
         }
-        canvas.zoom("fit-viewport", "auto");
+        this.getCanvas().zoom("fit-viewport", "auto");
         return true;
+    }
+
+    private isPaneSized(): boolean {
+        const { outer } = this.getCanvas().viewbox();
+        return outer.width >= MIN_CANVAS_SIZE_PX && outer.height >= MIN_CANVAS_SIZE_PX;
     }
 
     /**
@@ -124,8 +154,16 @@ export class DiffViewer {
         if (!isUsableViewbox(viewport)) {
             return;
         }
+        // Applying onto a zero-sized pane blanks it; hold the box until a delivery
+        // finds the pane laid out, and let it win over the pending initial fit.
+        if (!this.isPaneSized()) {
+            this.pendingViewport = viewport;
+            return;
+        }
         this.suppressNextChangeEvent = true;
         this.getCanvas().viewbox({ ...viewport });
+        this.initialViewportDecided = true;
+        this.pendingViewport = undefined;
     }
 
     /**

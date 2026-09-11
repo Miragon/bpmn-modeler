@@ -18,6 +18,7 @@ import type { SelectionManager } from "./selection";
  *   captured and applying `undefined` leaves the canvas on the top-level plane.
  * - `selectedElementIds` that no longer exist on apply are silently skipped, so
  *   a snapshot taken against a since-edited diagram still degrades gracefully.
+ *   An empty captured selection restores to "nothing selected".
  */
 export interface ViewState {
     viewport: ViewportData;
