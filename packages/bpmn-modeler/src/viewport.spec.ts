@@ -14,10 +14,16 @@ function setup(inner: Rect, outer: { width: number; height: number }) {
     const viewbox = vi.fn((box?: unknown) => (box ? undefined : { inner, outer }));
     const zoom = vi.fn();
     const canvas = { viewbox, zoom, getContainer: () => container };
-    const listeners: Record<string, (event: any) => void> = {};
+    const listeners: Record<string, ((event: any) => void)[]> = {};
     const eventBus = {
         on: (event: string, handler: (event: any) => void) => {
-            listeners[event] = handler;
+            (listeners[event] ??= []).push(handler);
+        },
+        off: (event: string, handler: (event: any) => void) => {
+            const handlers = listeners[event];
+            if (!handlers) return;
+            const index = handlers.indexOf(handler);
+            if (index !== -1) handlers.splice(index, 1);
         },
     };
     const manager = new ViewportManager((name: string) => {
@@ -25,10 +31,13 @@ function setup(inner: Rect, outer: { width: number; height: number }) {
         if (name === "eventBus") return eventBus as any;
         throw new Error(`unexpected service: ${name}`);
     });
+    const emit = (event: string, payload?: any) =>
+        (listeners[event] ?? []).forEach((handler) => handler(payload));
     /** Fires a `canvas.viewbox.changed` event at the manager's subscriber. */
     const emitViewboxChanged = (box: Partial<Rect>) =>
-        listeners["canvas.viewbox.changed"]({ viewbox: box });
-    return { manager, viewbox, zoom, emitViewboxChanged, container };
+        emit("canvas.viewbox.changed", { viewbox: box });
+    const listenerCount = (event: string) => (listeners[event] ?? []).length;
+    return { manager, viewbox, zoom, emitViewboxChanged, emit, listenerCount, container };
 }
 
 type Rect = { x: number; y: number; width: number; height: number; scale?: number };
@@ -317,6 +326,47 @@ describe("ViewportManager.onViewportChanged", () => {
 
         expect(cb).not.toHaveBeenCalled();
         vi.useRealTimers();
+    });
+
+    it("cancels a pending debounce on diagram.destroy", () => {
+        vi.useFakeTimers();
+        const { manager, emitViewboxChanged, emit } = setup(inner, { width: 1000, height: 800 });
+        const cb = vi.fn();
+        manager.onViewportChanged(cb);
+
+        emitViewboxChanged({ x: 1, y: 2, width: 300, height: 200, scale: 2.5 });
+        emit("diagram.destroy");
+        vi.advanceTimersByTime(100);
+
+        expect(cb).not.toHaveBeenCalled();
+        vi.useRealTimers();
+    });
+
+    it("cancels a pending debounce when the disposer is called", () => {
+        vi.useFakeTimers();
+        const { manager, emitViewboxChanged } = setup(inner, { width: 1000, height: 800 });
+        const cb = vi.fn();
+        const dispose = manager.onViewportChanged(cb);
+
+        emitViewboxChanged({ x: 1, y: 2, width: 300, height: 200, scale: 2.5 });
+        dispose();
+        vi.advanceTimersByTime(100);
+
+        expect(cb).not.toHaveBeenCalled();
+        vi.useRealTimers();
+    });
+
+    it("detaches its listeners on dispose and tolerates a double dispose", () => {
+        const { manager, listenerCount } = setup(inner, { width: 1000, height: 800 });
+
+        for (let i = 0; i < 3; i++) {
+            const dispose = manager.onViewportChanged(vi.fn());
+            dispose();
+            dispose();
+        }
+
+        expect(listenerCount("canvas.viewbox.changed")).toBe(0);
+        expect(listenerCount("diagram.destroy")).toBe(0);
     });
 });
 

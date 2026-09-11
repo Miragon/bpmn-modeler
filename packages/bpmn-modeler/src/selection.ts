@@ -27,10 +27,17 @@ export class SelectionManager {
         this.getService<any>("selection").select(elements);
     }
 
-    onSelectionChanged(cb: (elementIds: string[]) => void): void {
-        this.getService<any>("eventBus").on("selection.changed", (event: any) => {
+    /**
+     * @returns a disposer that detaches the listener — call it when tearing the
+     *   surface down so repeated subscribe cycles don't accumulate listeners.
+     */
+    onSelectionChanged(cb: (elementIds: string[]) => void): () => void {
+        const eventBus = this.getService<any>("eventBus");
+        const handler = (event: any): void => {
             const ids = (event.newSelection ?? []).map((el: any) => el.id);
             cb(ids);
-        });
+        };
+        eventBus.on("selection.changed", handler);
+        return () => eventBus.off("selection.changed", handler);
     }
 }

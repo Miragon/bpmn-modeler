@@ -71,6 +71,11 @@ export class CodeLinkMapClient {
 
     private syncTimer: ReturnType<typeof setTimeout> | undefined;
 
+    // The client is a bpmn-js DI singleton with no facade handle, so the only
+    // teardown channel is the `diagram.destroy` event; without it the trailing
+    // debounce timer outlives the modeler and pushes stale data to the host.
+    private destroyed = false;
+
     constructor(
         eventBus: EventBus,
         elementRegistry: ElementRegistryLike,
@@ -88,6 +93,13 @@ export class CodeLinkMapClient {
         });
         eventBus.on("contextPad.close", () => {
             this.currentPadTarget = undefined;
+        });
+        eventBus.on("diagram.destroy", () => {
+            this.destroyed = true;
+            if (this.syncTimer !== undefined) {
+                clearTimeout(this.syncTimer);
+                this.syncTimer = undefined;
+            }
         });
     }
 
@@ -129,6 +141,9 @@ export class CodeLinkMapClient {
     }
 
     private sendDebounced(): void {
+        if (this.destroyed) {
+            return;
+        }
         if (this.syncTimer !== undefined) {
             clearTimeout(this.syncTimer);
         }
@@ -139,6 +154,9 @@ export class CodeLinkMapClient {
     }
 
     private sendNow(): void {
+        if (this.destroyed) {
+            return;
+        }
         const entries: ImplementationEntry[] = collectImplementations(this.elementRegistry);
         const signature = JSON.stringify(entries);
         if (signature === this.lastSentSignature) {

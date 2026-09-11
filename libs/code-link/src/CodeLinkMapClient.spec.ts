@@ -94,6 +94,29 @@ describe("CodeLinkMapClient — syncing", () => {
         expect(port.syncActivities).toHaveBeenCalledTimes(1);
     });
 
+    it("cancels the pending debounce on diagram.destroy", () => {
+        vi.useFakeTimers();
+        const { fire, port } = setup([serviceTask("Activity_1", "com.example.A")]);
+
+        fire("commandStack.changed");
+        fire("diagram.destroy");
+        vi.advanceTimersByTime(400);
+
+        expect(port.syncActivities).not.toHaveBeenCalled();
+    });
+
+    it("ignores further events once destroyed", () => {
+        vi.useFakeTimers();
+        const { fire, port } = setup([serviceTask("Activity_1", "com.example.A")]);
+
+        fire("diagram.destroy");
+        fire("commandStack.changed");
+        fire("import.done");
+        vi.advanceTimersByTime(400);
+
+        expect(port.syncActivities).not.toHaveBeenCalled();
+    });
+
     it("syncs again once a binding actually changes", () => {
         vi.useFakeTimers();
         const element = serviceTask("Activity_1", "com.example.A");
