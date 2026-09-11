@@ -1,7 +1,11 @@
 import { basename } from "node:path";
 
 import { Command, Query, SyncDocumentCommand } from "@miragon/bpmn-modeler-shared";
-import { BpmnModelerService, registerWebviewLogHandlers } from "@miragon/bpmn-modeler-core";
+import {
+    BpmnModelerService,
+    registerWebviewLogHandlers,
+    registerWebviewNotificationHandlers,
+} from "@miragon/bpmn-modeler-core";
 
 import { RpcEditorHandle } from "../adapters";
 import { METHODS } from "../protocol/descriptor";
@@ -79,6 +83,7 @@ export function register(
         }
     };
     registerWebviewLogHandlers(deps.router, deps.notifier, resolveSource);
+    registerWebviewNotificationHandlers(deps.router, deps.notifier);
 
     const disposeRegisteredSession = (editorId: string, entry: RegisteredHandle): void => {
         bpmnService.disposeSession(editorId);

@@ -13,6 +13,8 @@
  * - {@link LogDebugCommand} / {@link LogInfoCommand} / {@link LogWarningCommand} /
  *   {@link LogErrorCommand} — webview forwards a levelled log entry to the host's
  *   output channel
+ * - {@link ShowInfoCommand} — webview asks the host to surface a user-facing
+ *   information notification
  *
  * @see modeler.ts for the modeler-specific Query and Command implementations that
  * extend these base classes.
@@ -145,4 +147,19 @@ export class LogWarningCommand extends LogMessageCommand {
 
 export class LogErrorCommand extends LogMessageCommand {
     public override readonly type: string = "LogErrorCommand";
+}
+
+/**
+ * A user-facing information notification (VS Code toast / IntelliJ balloon).
+ * Unlike the `Log*Command`s, which only reach the host's log sink, this is for
+ * messages the user must see without opening the output channel — the sandboxed
+ * webview has no notification UI of its own.
+ */
+export class ShowInfoCommand extends Command {
+    public readonly message: string;
+
+    constructor(message: string) {
+        super("ShowInfoCommand");
+        this.message = message;
+    }
 }

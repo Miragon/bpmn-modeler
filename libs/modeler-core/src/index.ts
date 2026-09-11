@@ -24,6 +24,7 @@ export * from "./shared/service/DocumentFlushService";
 export * from "./shared/infrastructure/EditorSessionStore";
 export * from "./shared/infrastructure/WebviewMessageRouter";
 export * from "./shared/infrastructure/webviewLogHandlers";
+export * from "./shared/infrastructure/webviewNotificationHandlers";
 export * from "./shared/infrastructure/helpers";
 
 // ── modeler ─────────────────────────────────────────────────────────────────
