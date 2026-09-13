@@ -514,7 +514,26 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/vscode-plugin/.vscode-test
-          key: vscode-test-${{ runner.os }}
+          key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs', 'yarn.lock') }}-${{ github.run_id }}
+          restore-keys: |
+            vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/vscode-plugin/test/e2e/.vscode-test.mjs', 'yarn.lock') }}-
+            vscode-test-${{ runner.os }}-${{ runner.arch }}-
+      - name: Download VS Code test versions
+        working-directory: apps/vscode-plugin
+        run: |
+          for attempt in 1 2 3; do
+            echo "VS Code provisioning attempt ${attempt}/3"
+            if corepack yarn node --input-type=module -e '
+              import { downloadAndUnzipVSCode } from "@vscode/test-electron";
+              for (const version of ["1.76.0", "stable"]) {
+                await downloadAndUnzipVSCode({ version, timeout: 60_000 });
+              }
+            '; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 5; fi
+          done
+          exit 1
       - name: Run Extension-Host smoke test
         run: xvfb-run -a corepack yarn workspace vs-code-bpmn-modeler test:e2e
 
