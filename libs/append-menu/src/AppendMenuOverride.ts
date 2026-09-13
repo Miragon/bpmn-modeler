@@ -10,6 +10,7 @@
 import { render, h } from "preact";
 import { AppendMenuOverlay } from "./components/AppendMenuOverlay";
 import { classifyEntries, executeEntryAction } from "./types";
+import { executeTemplateTypeAction } from "./templateTypeAction";
 import type { PopupMenuEntry, PopupMenuEntryAction } from "./types";
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 
@@ -122,16 +123,16 @@ class AppendMenuOverride {
                 container.remove();
             };
 
-            const handleSelect = (action: PopupMenuEntryAction | undefined, event: Event) => {
+            // Close the overlay, run the chosen action, then return focus to the
+            // canvas so keyboard-driven modelling chains without the mouse
+            // (A → nav → Enter → A → …); on unmount focus would otherwise fall to
+            // <body>. Deferred a microtask and gated on directEditing so we never
+            // steal the caret from a label-edit session that creating may open.
+            const finishSelection = (run: () => void) => {
                 close();
                 customMenuOpen = false;
                 closeCustomMenu = null;
-                executeEntryAction(action, event);
-                // Return focus to the canvas so keyboard-driven modelling chains
-                // without the mouse (A → nav → Enter → A → …); on unmount focus
-                // would otherwise fall to <body>. Deferred a microtask and
-                // gated on directEditing so we never steal the caret from a
-                // label-edit session that appending may open.
+                run();
                 queueMicrotask(() => {
                     const directEditing = injector.get("directEditing", false);
                     if (directEditing?.isActive?.()) {
@@ -139,6 +140,35 @@ class AppendMenuOverride {
                     }
                     canvas.focus();
                 });
+            };
+
+            const handleSelect = (action: PopupMenuEntryAction | undefined, event: Event) => {
+                finishSelection(() => executeEntryAction(action, event));
+            };
+
+            const handleTemplateTypeSelect = (
+                template: ElementTemplate,
+                bpmnType: string,
+                event: Event,
+            ) => {
+                const create = injector.get("create", false);
+                if (!elementTemplates || !create) {
+                    return;
+                }
+                finishSelection(() =>
+                    executeTemplateTypeAction(
+                        {
+                            elementTemplates,
+                            autoPlace: injector.get("autoPlace", false) || undefined,
+                            create,
+                            mouse: injector.get("mouse", false) || undefined,
+                        },
+                        { providerId: providerId as "bpmn-append" | "bpmn-create", target },
+                        template,
+                        bpmnType,
+                        event,
+                    ),
+                );
             };
 
             const handleCancel = () => {
@@ -161,6 +191,7 @@ class AppendMenuOverride {
                         bottom: canvasBounds.bottom,
                     },
                     onSelect: handleSelect,
+                    onTemplateTypeSelect: handleTemplateTypeSelect,
                     onCancel: handleCancel,
                 }),
                 container,

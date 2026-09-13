@@ -5,6 +5,7 @@ import {
     filterTemplates,
     flattenPaletteItems,
     processPaletteGroups,
+    resolveSelectedType,
 } from "./filtering";
 import type { BpmnElementGroup, EnrichedTemplateEntry, PopupMenuEntry } from "./types";
 
@@ -109,14 +110,13 @@ describe("processPaletteGroups", () => {
         expect(flags.every(([d, h]) => !d && !h)).toBe(true);
     });
 
-    it("disables entries that fail the appliesTo filter but keeps them visible", () => {
+    it("hides entries that fail the appliesTo filter", () => {
         const p = processPaletteGroups(groups, [], "", new Set(["bpmn:ServiceTask"]));
         const service = p.groups[0].entries.find((e) => e.entry.label === "Service Task")!;
         const user = p.groups[0].entries.find((e) => e.entry.label === "User Task")!;
-        expect(service.disabled).toBe(false);
-        expect(user.disabled).toBe(true);
-        // disabled is not hidden — the button still renders greyed out.
-        expect(user.hidden).toBe(false);
+        expect(service.hidden).toBe(false);
+        expect(user.hidden).toBe(true);
+        expect(user.disabled).toBe(false);
     });
 
     it("hides entries that fail the search but leaves them enabled", () => {
@@ -146,10 +146,42 @@ describe("flattenPaletteItems", () => {
         ]);
     });
 
-    it("carries disabled/hidden flags through to the flattened items", () => {
+    it("carries the hidden flag through to the flattened items", () => {
         const processed = processPaletteGroups(groups, [], "gateway", new Set(["bpmn:UserTask"]));
         const item = flattenPaletteItems(processed).find((i) => i.key.startsWith("grp:"))!;
-        expect(item.disabled).toBe(true); // fails the appliesTo filter
-        expect(item.hidden).toBe(true); // fails the search
+        expect(item.hidden).toBe(true); // fails both the appliesTo filter and the search
+        expect(item.disabled).toBe(false);
+    });
+
+    it("exposes the raw entry id alongside the namespaced key", () => {
+        const processed = processPaletteGroups(groups, ["bpmn:ServiceTask"], "", null);
+        const items = flattenPaletteItems(processed);
+        expect(items.map((i) => i.id)).toEqual(["create.service-task", "create.service-task"]);
+    });
+});
+
+describe("resolveSelectedType", () => {
+    const appliesTo = ["bpmn:ServiceTask", "bpmn:SendTask"];
+
+    it("resolves the type by normalized label", () => {
+        expect(resolveSelectedType("append-send-task", "Send task", appliesTo)).toBe(
+            "bpmn:SendTask",
+        );
+    });
+
+    it("resolves the type by entry id when the label does not match", () => {
+        expect(resolveSelectedType("append-send-task", "Mail", appliesTo)).toBe("bpmn:SendTask");
+    });
+
+    it("prefers the exact label match over an id substring, avoiding type shadowing", () => {
+        // `append-user-task` contains "task", which would match bpmn:Task via
+        // id-substring, but the label pins bpmn:UserTask.
+        expect(
+            resolveSelectedType("append-user-task", "User task", ["bpmn:Task", "bpmn:UserTask"]),
+        ).toBe("bpmn:UserTask");
+    });
+
+    it("returns undefined when no type matches", () => {
+        expect(resolveSelectedType("append-gateway", "Gateway", appliesTo)).toBeUndefined();
     });
 });

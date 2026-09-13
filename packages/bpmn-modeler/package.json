@@ -91,7 +91,7 @@
         "@lezer/lr": "1.4.10",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmnlint-plugin-rules": "0.10.0",
-        "@miragon/create-append-c7": "0.1.0",
+        "@miragon/create-append-c7": "1.0.1",
         "bpmn-auto-layout": "2.0.0-alpha.2",
         "bpmn-js": "18.25.1",
         "bpmn-js-bpmnlint": "0.24.0",

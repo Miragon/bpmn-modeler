@@ -7,7 +7,6 @@
  * buttons and reflects the highlighted key.
  */
 import { useEffect, useRef } from "preact/hooks";
-import type { PopupMenuEntryAction } from "../types";
 import type { ProcessedEntry, ProcessedGroup } from "../filtering";
 
 interface BpmnElementPaletteProps {
@@ -19,7 +18,7 @@ interface BpmnElementPaletteProps {
     onToggleExpand: () => void;
     /** Reports hover-peek state so the parent can transiently expand the palette on hover. */
     onPeekChange?: (peek: boolean) => void;
-    onSelect: (action: PopupMenuEntryAction | undefined, event: Event) => void;
+    onSelect: (entry: ProcessedEntry, event: Event) => void;
 }
 
 /**
@@ -88,7 +87,8 @@ export function BpmnElementPalette({
                     <div class="am-bpmn-group am-bpmn-group--favourites">
                         {expanded && <h4 class="am-bpmn-group-title">Favourites</h4>}
                         <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
-                            {favouriteEntries.map(({ id, entry, disabled, hidden }) => {
+                            {favouriteEntries.map((processed) => {
+                                const { id, entry, disabled, hidden } = processed;
                                 if (hidden) return null;
                                 const navKey = `fav:${id}`;
                                 const isDisabled = disabled || !!entry.disabled;
@@ -99,9 +99,7 @@ export function BpmnElementPalette({
                                         data-nav-key={navKey}
                                         class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${isFocused ? "am-bpmn-button--focused" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
                                         disabled={isDisabled}
-                                        onClick={(e) =>
-                                            onSelect(entry.action, e as unknown as Event)
-                                        }
+                                        onClick={(e) => onSelect(processed, e as unknown as Event)}
                                         title={entry.label}
                                         type="button"
                                     >
@@ -128,7 +126,8 @@ export function BpmnElementPalette({
                         <div key={group.id} class="am-bpmn-group">
                             {expanded && <h4 class="am-bpmn-group-title">{group.name}</h4>}
                             <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
-                                {visibleEntries.map(({ id, entry, disabled }) => {
+                                {visibleEntries.map((processed) => {
+                                    const { id, entry, disabled } = processed;
                                     const navKey = `grp:${group.id}:${id}`;
                                     const isDisabled = disabled || !!entry.disabled;
                                     const isFocused = navKey === highlightedKey;
@@ -139,7 +138,7 @@ export function BpmnElementPalette({
                                             class={`am-bpmn-button ${isDisabled ? "am-bpmn-button--disabled" : ""} ${isFocused ? "am-bpmn-button--focused" : ""} ${expanded ? "" : "am-bpmn-button--icon-only"}`}
                                             disabled={isDisabled}
                                             onClick={(e) =>
-                                                onSelect(entry.action, e as unknown as Event)
+                                                onSelect(processed, e as unknown as Event)
                                             }
                                             title={entry.label}
                                             type="button"

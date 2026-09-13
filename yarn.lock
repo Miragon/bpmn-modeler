@@ -4192,7 +4192,7 @@ __metadata:
     "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
-    "@miragon/create-append-c7": "npm:0.1.0"
+    "@miragon/create-append-c7": "npm:1.0.1"
     "@types/node": "npm:26.1.2"
     "@vitest/browser-playwright": "npm:4.1.11"
     "@vitest/coverage-v8": "npm:4.1.11"
@@ -4249,13 +4249,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@miragon/create-append-c7@npm:0.1.0":
-  version: 0.1.0
-  resolution: "@miragon/create-append-c7@npm:0.1.0"
+"@miragon/create-append-c7@npm:1.0.1":
+  version: 1.0.1
+  resolution: "@miragon/create-append-c7@npm:1.0.1"
   peerDependencies:
     bpmn-js: ^18.0.0
-    bpmn-js-create-append-anything: ^1.2.0
-  checksum: 10c0/d3a5e84e969bc2cd3f9d9438cff470f70fe1727dd4d2b4d6d9fb60f89173ccb5c1b01f0266291170af278aa73af581a726ad86e0facbbee073ec2ea428b7a615
+    bpmn-js-create-append-anything: ^1.2.0 || ^2.0.0
+    bpmn-js-element-templates: ^2.27.0
+  checksum: 10c0/edd140a3e937630ad457730c3c5eda8d3cda12a063c94d01a1d752cae17b89845598411306cd6f9a0e2b6210e2838375d94f3862058c34c58e61a537fb78481f
   languageName: node
   linkType: hard
 
@@ -20094,20 +20095,20 @@ __metadata:
 
 "resolve@patch:resolve@npm%3A^1.10.0#optional!builtin<compat/resolve>":
   version: 1.22.11
-  resolution: "resolve@patch:resolve@npm%3A1.22.11#optional!builtin<compat/resolve>::version=1.22.11&hash=c3c19d"
+  resolution: "resolve@patch:resolve@npm%3A1.22.11#optional!builtin<compat/resolve>::version=1.22.11&hash=9bd1a5"
   dependencies:
     is-core-module: "npm:^2.16.1"
     path-parse: "npm:^1.0.7"
     supports-preserve-symlinks-flag: "npm:^1.0.0"
   bin:
     resolve: bin/resolve
-  checksum: 10c0/ee5b182f2e37cb1165465e58c6abc797fec0a80b5ba3231607beb4677db0c9291ac010c47cf092b6daa2b7f518d69a0e21888e7e2b633f68d501a874212a8c63
+  checksum: 10c0/55f7a298977b1aacf6dbec6dcfc81100ba98675bced193b57d3ac58ced65acc40c3a38927853cea86b7f75edb3c20e1f099a09d48b0d8ceccc25d466993eec47
   languageName: node
   linkType: hard
 
 "resolve@patch:resolve@npm%3A^1.12.0#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.20.0#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.22.11#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A~1.22.1#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A~1.22.2#optional!builtin<compat/resolve>":
   version: 1.22.12
-  resolution: "resolve@patch:resolve@npm%3A1.22.12#optional!builtin<compat/resolve>::version=1.22.12&hash=c3c19d"
+  resolution: "resolve@patch:resolve@npm%3A1.22.12#optional!builtin<compat/resolve>::version=1.22.12&hash=9bd1a5"
   dependencies:
     es-errors: "npm:^1.3.0"
     is-core-module: "npm:^2.16.1"
@@ -20115,7 +20116,7 @@ __metadata:
     supports-preserve-symlinks-flag: "npm:^1.0.0"
   bin:
     resolve: bin/resolve
-  checksum: 10c0/fc6519984ae1f894d877c0060ba8b1f5ba3bc0e85a02f74e141929c118c23d74d9735619a9cc2965397387e514884245c65d72a40731dcb6cfc84c7bcdc8321e
+  checksum: 10c0/e12af106e16e652bd83060e8afacece4ee3dcbd0f4cf028e3d9ad178e6ced9ecb1c87ee60158b239582313902a717f8adc57a9b76ea54b1994141ba15f420c65
   languageName: node
   linkType: hard
 

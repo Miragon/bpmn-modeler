@@ -33,6 +33,7 @@ export interface ElementTemplate {
     description?: string;
     documentationRef?: string;
     appliesTo: string[];
+    elementType?: { value: string; eventDefinition?: string };
     category?: {
         id: string;
         name: string;
