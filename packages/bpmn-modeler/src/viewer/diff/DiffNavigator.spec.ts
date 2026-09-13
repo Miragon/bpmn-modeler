@@ -74,6 +74,49 @@ describe("DiffNavigator", () => {
         expect(nav.advance(-1)).toBe(2); // wrap backward
     });
 
+    it("starts backward navigation at the last change (#1498)", () => {
+        const { viewer } = stubViewer({ present: ["A", "B", "C"] });
+        const nav = new DiffNavigator(viewer);
+        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+
+        expect(nav.advance(-1)).toBe(2);
+    });
+
+    it("anchors the initial step at an end of the cycle for lengths 1-3", () => {
+        const len1 = stubViewer({ present: ["A"] });
+        const nav1 = new DiffNavigator(len1.viewer);
+        nav1.setChanges(view({ changed: ["A"] }), ["A"]);
+        expect(nav1.advance(1)).toBe(0);
+        nav1.setChanges(view({ changed: ["A"] }), ["A"]);
+        expect(nav1.advance(-1)).toBe(0);
+
+        const len2 = stubViewer({ present: ["A", "B"] });
+        const nav2 = new DiffNavigator(len2.viewer);
+        nav2.setChanges(view({ changed: ["A", "B"] }), ["A", "B"]);
+        expect(nav2.advance(1)).toBe(0);
+        nav2.setChanges(view({ changed: ["A", "B"] }), ["A", "B"]);
+        expect(nav2.advance(-1)).toBe(1);
+
+        const len3 = stubViewer({ present: ["A", "B", "C"] });
+        const nav3 = new DiffNavigator(len3.viewer);
+        nav3.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        expect(nav3.advance(1)).toBe(0);
+        nav3.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        expect(nav3.advance(-1)).toBe(2);
+    });
+
+    it("resets the initial step after a new diff", () => {
+        const { viewer } = stubViewer({ present: ["A", "B", "C"] });
+        const nav = new DiffNavigator(viewer);
+        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+
+        expect(nav.advance(1)).toBe(0);
+        expect(nav.advance(1)).toBe(1);
+
+        nav.setChanges(view({ changed: ["A", "B", "C"] }), ["A", "B", "C"]);
+        expect(nav.advance(-1)).toBe(2);
+    });
+
     it("focuses a target present on this canvas", () => {
         const { viewer, calls } = stubViewer({ present: ["A", "B"] });
         const nav = new DiffNavigator(viewer);

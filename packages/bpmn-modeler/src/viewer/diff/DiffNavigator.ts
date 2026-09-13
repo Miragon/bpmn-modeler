@@ -1,6 +1,7 @@
 import { DiffSideView } from "@miragon/bpmn-modeler-diff";
 
 import { DiffViewer } from "./DiffViewer";
+import { stepCursor } from "./stepCursor";
 
 /**
  * Portable diff-stepper logic for a single {@link DiffViewer} pane.
@@ -63,7 +64,7 @@ export class DiffNavigator {
         if (this.changeIds.length === 0) {
             return undefined;
         }
-        const next = (this._cursor + direction + this.changeIds.length) % this.changeIds.length;
+        const next = stepCursor(this._cursor, direction, this.changeIds.length);
         this.applyCursor(next, direction);
         return this._cursor;
     }

@@ -99,6 +99,42 @@ describe("DiffPaneCoordinator", () => {
         expect(after.calls.focus.at(-1)).toBe("S2");
     });
 
+    it("starts backward navigation at the last change (#1498)", () => {
+        const before = stubViewer(["S1", "U", "G", "S2"]);
+        const after = stubViewer(["S1", "U", "G", "S2"]);
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+        coord.apply(RESULT);
+
+        coord.previous();
+        expect(coord.cursor).toBe(3);
+        expect(before.calls.focus.at(-1)).toBe("S2");
+        expect(after.calls.focus.at(-1)).toBe("S2");
+    });
+
+    it("resets the initial step after a new diff", () => {
+        const before = stubViewer(["S1", "U", "G", "S2"]);
+        const after = stubViewer(["S1", "U", "G", "S2"]);
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+        coord.apply(RESULT);
+
+        coord.next();
+        expect(coord.cursor).toBe(0);
+
+        coord.apply(RESULT);
+        coord.previous();
+        expect(coord.cursor).toBe(3);
+    });
+
+    it("ignores navigation before any diff is applied", () => {
+        const before = stubViewer();
+        const after = stubViewer();
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+
+        coord.previous();
+        coord.next();
+        expect(coord.cursor).toBe(-1);
+    });
+
     it("unhooks both viewport subscriptions on destroy", () => {
         const before = stubViewer();
         const after = stubViewer();
