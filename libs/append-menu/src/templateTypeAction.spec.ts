@@ -32,7 +32,7 @@ afterAll(() => {
 });
 
 describe("executeTemplateTypeAction", () => {
-    it("clones the template with appliesTo narrowed to the chosen type", () => {
+    it("clones the template with elementType set to the chosen type", () => {
         const s = services();
         executeTemplateTypeAction(
             s,
@@ -42,13 +42,10 @@ describe("executeTemplateTypeAction", () => {
             new Event("click"),
         );
         const passed = s.elementTemplates.createElement.mock.calls[0]![0];
-        expect(passed.appliesTo).toEqual(["bpmn:SendTask"]);
-        // elementType must not be set — C7's changeTemplate handler would
-        // bpmnReplace the still-detached shape and crash.
-        expect(passed.elementType).toBeUndefined();
+        expect(passed.elementType).toEqual({ value: "bpmn:SendTask" });
         expect(passed.id).toBe("t1");
         // The original template is left untouched.
-        expect(template.appliesTo).toEqual(["bpmn:ServiceTask", "bpmn:SendTask"]);
+        expect(template.elementType).toBeUndefined();
     });
 
     it("auto-places on the append path when autoPlace is available", () => {

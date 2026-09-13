@@ -4192,7 +4192,7 @@ __metadata:
     "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
-    "@miragon/create-append-c7": "npm:0.1.0"
+    "@miragon/create-append-c7": "npm:1.0.1"
     "@types/node": "npm:26.1.2"
     "@vitest/browser-playwright": "npm:4.1.11"
     "@vitest/coverage-v8": "npm:4.1.11"
@@ -4249,13 +4249,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@miragon/create-append-c7@npm:0.1.0":
-  version: 0.1.0
-  resolution: "@miragon/create-append-c7@npm:0.1.0"
+"@miragon/create-append-c7@npm:1.0.1":
+  version: 1.0.1
+  resolution: "@miragon/create-append-c7@npm:1.0.1"
   peerDependencies:
     bpmn-js: ^18.0.0
-    bpmn-js-create-append-anything: ^1.2.0
-  checksum: 10c0/d3a5e84e969bc2cd3f9d9438cff470f70fe1727dd4d2b4d6d9fb60f89173ccb5c1b01f0266291170af278aa73af581a726ad86e0facbbee073ec2ea428b7a615
+    bpmn-js-create-append-anything: ^1.2.0 || ^2.0.0
+    bpmn-js-element-templates: ^2.27.0
+  checksum: 10c0/edd140a3e937630ad457730c3c5eda8d3cda12a063c94d01a1d752cae17b89845598411306cd6f9a0e2b6210e2838375d94f3862058c34c58e61a537fb78481f
   languageName: node
   linkType: hard
 
