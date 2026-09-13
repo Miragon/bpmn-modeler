@@ -1,5 +1,5 @@
 /** @jsxImportSource @bpmn-io/properties-panel/preact */
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import EventBus from "diagram-js/lib/core/EventBus";
 
 import PropertiesPanelRenderer from "./PropertiesPanelRenderer";
@@ -55,6 +55,15 @@ function setup(modeling: any) {
 
     return renderer._container as HTMLElement;
 }
+
+beforeAll(() => {
+    class IntersectionObserverStub {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+    }
+    (globalThis as any).IntersectionObserver = IntersectionObserverStub;
+});
 
 describe("PropertiesPanelRenderer readonly derivation", () => {
     it("disables every entry when no modeling service is registered (viewer)", () => {
