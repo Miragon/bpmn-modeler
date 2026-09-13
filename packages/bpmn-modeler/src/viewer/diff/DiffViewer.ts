@@ -28,11 +28,9 @@ const DIFF_SELECTED_CLASS = "diff-selected";
 export class DiffViewer {
     private readonly viewer: NavigatedViewer;
 
-    /**
-     * When `true`, the next viewbox-change event is ignored.  Set by
-     * {@link setViewport} so an incoming viewport sync doesn't bounce back.
-     */
-    private suppressNextChangeEvent = false;
+    private programmaticPositioningDepth = 0;
+
+    private readonly cancelPendingViewportNotifications = new Set<() => void>();
 
     /**
      * Id of the element currently highlighted as the stepper's focus, or
@@ -154,16 +152,17 @@ export class DiffViewer {
         if (!isUsableViewbox(viewport)) {
             return;
         }
-        // Applying onto a zero-sized pane blanks it; hold the box until a delivery
-        // finds the pane laid out, and let it win over the pending initial fit.
-        if (!this.isPaneSized()) {
-            this.pendingViewport = viewport;
-            return;
-        }
-        this.suppressNextChangeEvent = true;
-        this.getCanvas().viewbox({ ...viewport });
-        this.initialViewportDecided = true;
-        this.pendingViewport = undefined;
+        this.positionProgrammatically(() => {
+            // Applying onto a zero-sized pane blanks it; hold the box until a delivery
+            // finds the pane laid out, and let it win over the pending initial fit.
+            if (!this.isPaneSized()) {
+                this.pendingViewport = viewport;
+                return;
+            }
+            this.getCanvas().viewbox({ ...viewport });
+            this.initialViewportDecided = true;
+            this.pendingViewport = undefined;
+        });
     }
 
     /**
@@ -177,9 +176,13 @@ export class DiffViewer {
     onViewportChanged(cb: (viewport: Viewport) => void): () => void {
         let debounceTimer: ReturnType<typeof setTimeout> | undefined;
         const eventBus = this.viewer.get<any>("eventBus");
+        const cancelPendingNotification = (): void => {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        };
         const handler = (event: any): void => {
-            if (this.suppressNextChangeEvent) {
-                this.suppressNextChangeEvent = false;
+            if (this.programmaticPositioningDepth > 0) {
+                cancelPendingNotification();
                 return;
             }
             const { x, y, width, height } = event.viewbox;
@@ -187,12 +190,17 @@ export class DiffViewer {
             if (!isUsableViewbox(viewport)) {
                 return;
             }
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => cb(viewport), 80);
+            cancelPendingNotification();
+            debounceTimer = setTimeout(() => {
+                debounceTimer = undefined;
+                cb(viewport);
+            }, 80);
         };
+        this.cancelPendingViewportNotifications.add(cancelPendingNotification);
         eventBus.on("canvas.viewbox.changed", handler);
         return () => {
-            clearTimeout(debounceTimer);
+            cancelPendingNotification();
+            this.cancelPendingViewportNotifications.delete(cancelPendingNotification);
             eventBus.off("canvas.viewbox.changed", handler);
         };
     }
@@ -226,12 +234,10 @@ export class DiffViewer {
      * neighbour when the target id only exists on the partner pane (e.g. a
      * removed element when this is the after pane).
      *
-     * Sets {@link suppressNextChangeEvent} so the resulting viewbox change
-     * does NOT emit `ViewportChangedCommand`.  The cursor-sync channel
-     * already keeps the partner pane positioned (each pane independently
-     * resolves the cursor against its own registry), so re-emitting via
-     * viewport-sync would race the cursor sync and overwrite the partner's
-     * correctly-focused viewbox with this pane's anchor position.
+     * The cursor-sync channel already keeps the partner pane positioned (each
+     * pane independently resolves the cursor against its own registry), so
+     * re-emitting via viewport-sync would race the cursor sync and overwrite
+     * the partner's correctly-focused viewbox with this pane's anchor position.
      */
     centerOnElement(id: string): boolean {
         const registry = this.viewer.get<any>("elementRegistry");
@@ -245,12 +251,20 @@ export class DiffViewer {
         }
         const canvas = this.getCanvas();
         const viewbox = canvas.viewbox();
-        this.suppressNextChangeEvent = true;
-        canvas.viewbox({
-            x: centre.x - viewbox.width / 2,
-            y: centre.y - viewbox.height / 2,
-            width: viewbox.width,
-            height: viewbox.height,
+        const root = canvas.findRoot(element);
+        if (!root) {
+            return false;
+        }
+        this.positionProgrammatically(() => {
+            if (canvas.getRootElement() !== root) {
+                canvas.setRootElement(root);
+            }
+            canvas.viewbox({
+                x: centre.x - viewbox.width / 2,
+                y: centre.y - viewbox.height / 2,
+                width: viewbox.width,
+                height: viewbox.height,
+            });
         });
         return true;
     }
@@ -303,5 +317,17 @@ export class DiffViewer {
 
     private getCanvas(): any {
         return this.viewer.get<any>("canvas");
+    }
+
+    private positionProgrammatically(action: () => void): void {
+        for (const cancel of this.cancelPendingViewportNotifications) {
+            cancel();
+        }
+        this.programmaticPositioningDepth += 1;
+        try {
+            action();
+        } finally {
+            this.programmaticPositioningDepth -= 1;
+        }
     }
 }
