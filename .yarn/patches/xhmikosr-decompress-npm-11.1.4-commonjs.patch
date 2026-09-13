@@ -1,0 +1,17 @@
+diff --git a/index.cjs b/index.cjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..250cfd70c3a3fd8527d29aac25f86411c32d196d
+--- /dev/null
++++ b/index.cjs
+@@ -0,0 +1 @@
++module.exports = (...args) => import('./index.js').then(({default: decompress}) => decompress(...args));
+diff --git a/package.json b/package.json
+index 6a01f961221cd93a7f1d0d8fbdebbc7971a1e51e..6010e8b69bf5d575eb7526672ff825f24a018e7c 100644
+--- a/package.json
++++ b/package.json
+@@ -32 +32,4 @@
+-		".": "./index.js"
++		".": {
++			"import": "./index.js",
++			"require": "./index.cjs"
++		}

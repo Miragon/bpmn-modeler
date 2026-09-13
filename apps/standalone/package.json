@@ -88,6 +88,7 @@
     "webpack": "5.109.2"
   },
   "scripts": {
+    "test:security": "node --test scripts/dependency-security.test.mjs",
     "bundle": "node scripts/bundle-extension.mjs",
     "clean": "theia clean && rimraf node_modules lib src-gen dist gen-webpack*.js",
     "clean:dist": "rimraf dist",
