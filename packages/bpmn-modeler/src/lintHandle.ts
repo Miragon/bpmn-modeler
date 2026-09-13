@@ -5,7 +5,9 @@ import type { LintConfigService } from "./bpmnlint/LintConfigService";
 /**
  * The three lint handle methods {@link BpmnModeler} and {@link BpmnDesigner}
  * expose. Signature-identical on both surfaces so the designer handle stays a
- * subset of the modeler handle (asserted in `publicApi.spec.ts`).
+ * subset of the modeler handle (asserted in `publicApi.spec.ts`). A config-less
+ * `startInPageLinting()` resets a previously handed-back host config to the
+ * resolved default/mode rules.
  */
 export interface LintHandleMethods {
     applyLintResults(results: LintResults | null): void;

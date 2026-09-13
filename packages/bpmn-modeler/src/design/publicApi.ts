@@ -232,10 +232,10 @@ export interface BpmnDesignerHandle {
     applyLintingDisabled(): void;
 
     /**
-     * Start (or restart) the in-webview linter with the host's
-     * no-workspace-config handback. Optional `config` overrides the Design
-     * default; optional `configToken` dedups a repeat instruction. Never
-     * re-enables a user-disabled linter.
+     * Start (or restart) the in-webview linter. Optional `config` overrides the
+     * Design default; a config-less call resets a previously handed-back config
+     * to the resolved default rules. Optional `configToken` dedups a repeat
+     * instruction. Never re-enables a user-disabled linter.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
 
