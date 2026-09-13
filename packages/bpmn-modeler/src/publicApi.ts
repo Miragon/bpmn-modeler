@@ -362,11 +362,12 @@ export interface BpmnModelerHandle {
     applyLintingDisabled(): void;
 
     /**
-     * [B] Start (or restart) the in-webview linter with the host's
-     * no-workspace-config handback. Optional `config` overrides the engine-aware
-     * default; optional `configToken` lets a repeat instruction with the same
-     * version dedup while linting is live. Never re-enables a user-disabled
-     * linter.
+     * [B] Start (or restart) the in-webview linter. Optional `config` overrides
+     * the engine-aware default; a config-less call resets any previously
+     * handed-back config to the resolved default/mode rules (e.g. after the
+     * host deletes its workspace `.bpmnlintrc`). Optional `configToken` lets a
+     * repeat instruction with the same version dedup while linting is live.
+     * Never re-enables a user-disabled linter.
      */
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void;
 

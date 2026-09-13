@@ -281,6 +281,86 @@ describe("LintConfigService: startInPageLinting (host handback)", () => {
     });
 });
 
+describe("LintConfigService: payload-free reset (workspace config deleted)", () => {
+    const CUSTOM = { rules: { "label-required": "error" as const } };
+    const DEFAULT_IMPLEMENT = resolveLintConfig("implement", "c7", undefined);
+
+    it("resets a live in-page host config to the resolved default", () => {
+        const { service } = makeService({ tier: "in-page", imported: true });
+        service.startInPageLinting(CUSTOM, "cfg-v1");
+        expect(ctorMock).toHaveBeenLastCalledWith(CUSTOM);
+
+        service.startInPageLinting();
+
+        expect(ctorMock).toHaveBeenLastCalledWith(DEFAULT_IMPLEMENT);
+    });
+
+    it("resets after an intervening external push (deleted rules must not survive)", () => {
+        const { service } = makeService({ tier: "external", imported: true });
+        service.startInPageLinting(CUSTOM, "cfg-v1");
+        service.applyLintResults({ "rule-y": [{ id: "B", message: "y", category: "error" }] });
+
+        service.startInPageLinting();
+
+        expect(ctorMock).toHaveBeenLastCalledWith(DEFAULT_IMPLEMENT);
+    });
+
+    it("follows a create → replace → delete sequence", () => {
+        const configA = { extends: "bpmnlint:recommended" };
+        const configB = { extends: "bpmnlint:all" };
+        const { service } = makeService({ tier: "external", imported: true });
+        ctorMock.mockClear();
+
+        service.startInPageLinting(configA, "cfg-v1");
+        service.startInPageLinting(configB, "cfg-v2");
+        service.startInPageLinting();
+
+        expect(ctorMock.mock.calls).toEqual([[configA], [configB], [DEFAULT_IMPLEMENT]]);
+    });
+
+    it("unfreezes mode switching after the reset", () => {
+        const { service } = makeService({ tier: "in-page", imported: true });
+        service.startInPageLinting(CUSTOM, "cfg-v1");
+
+        service.startInPageLinting();
+        service.setMode("design");
+
+        expect(ctorMock).toHaveBeenLastCalledWith(resolveLintConfig("design", "c7", undefined));
+    });
+
+    it("treats a repeat payload-free handback with no host config as a no-op", () => {
+        const { service, linting } = makeService({ tier: "external", imported: true });
+        service.startInPageLinting();
+        ctorMock.mockClear();
+        linting.toggle.mockClear();
+
+        service.startInPageLinting();
+
+        expect(ctorMock).not.toHaveBeenCalled();
+        expect(linting.toggle).not.toHaveBeenCalled();
+    });
+
+    it("keeps a user-disabled linter off but re-enables with the resolved default", () => {
+        const { service, canvas, bus, linting } = makeService({ tier: "in-page" });
+        bus.fire("import.done");
+        service.startInPageLinting(CUSTOM, "cfg-v1");
+        clickOffButton(canvas.getContainer());
+        ctorMock.mockClear();
+        linting.toggle.mockClear();
+
+        service.startInPageLinting();
+
+        expect(linting.isActive()).toBe(false);
+        expect(ctorMock).not.toHaveBeenCalled();
+        expect(linting.toggle).not.toHaveBeenCalled();
+
+        clickEnableButton(canvas.getContainer());
+
+        expect(linting.isActive()).toBe(true);
+        expect(ctorMock).toHaveBeenLastCalledWith(DEFAULT_IMPLEMENT);
+    });
+});
+
 describe("LintConfigService: setMode (mode-aware re-resolve)", () => {
     it("is a no-op on the same mode", () => {
         const { service, linting } = makeService({ tier: "in-page", imported: true });

@@ -142,23 +142,30 @@ export class LintConfigService {
         }
     }
 
-    // Deduplicate only while in-page: an intervening external push makes the previous token stale.
+    // Three intents: same-token dedupe while live, a new host config, or a
+    // payload-free reset that clears the host config back to resolved defaults.
     startInPageLinting(config?: BpmnlintConfig, configToken?: string): void {
         if (this.state === "in-page-disabled") {
+            // Record the host's new reality, but never re-enable a user-disabled
+            // linter; handleEnableClick() rebuilds from these fields on re-enable.
+            this.hostConfig = config;
+            this.lastConfigToken = configToken;
             return;
         }
         if (this.state === "in-page" && this.browserLinter) {
-            if (config === undefined) {
+            if (configToken !== undefined && configToken === this.lastConfigToken) {
                 return;
             }
-            if (configToken !== undefined && configToken === this.lastConfigToken) {
+            if (
+                config === undefined &&
+                configToken === undefined &&
+                this.hostConfig === undefined
+            ) {
                 return;
             }
         }
         this.lastConfigToken = configToken;
-        if (config !== undefined) {
-            this.hostConfig = config;
-        }
+        this.hostConfig = config;
         this.browserLinter = this.buildLinter();
         this.state = "in-page";
         if (this.bpmnjs.getDefinitions()) {

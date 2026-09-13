@@ -170,7 +170,9 @@ selects the **per-mode default**:
 | `design`    | `getDefaultLintConfig({ preset: "modeling" })` — the same base **without** the engine layer (the engine-neutral surface has no execution platform to check). |
 
 A **workspace `.bpmnlintrc`** a host hands back through `startInPageLinting` is mode-invariant: it
-applies to both modes unchanged, and a `setMode` while it is active only stores the new mode.
+applies to both modes unchanged, and a `setMode` while it is active only stores the new mode. A
+later config-less `startInPageLinting()` (e.g. after the host deletes the workspace file) clears
+the handed-back config and resets linting to the per-mode default.
 See [ADR 0023](../../docs/adr/0023-mode-aware-linting.md).
 
 ```ts
