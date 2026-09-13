@@ -2,6 +2,7 @@ import { DiffResult, sideView } from "@miragon/bpmn-modeler-diff";
 
 import { DiffNavigator } from "./DiffNavigator";
 import { DiffViewer } from "./DiffViewer";
+import { stepCursor } from "./stepCursor";
 
 /**
  * In-page coordinator for a two-pane BPMN diff — the host-free counterpart to
@@ -89,7 +90,7 @@ export class DiffPaneCoordinator {
         if (len === 0) {
             return;
         }
-        this._cursor = (this._cursor + direction + len) % len;
+        this._cursor = stepCursor(this._cursor, direction, len);
         this.beforeNav.applyCursor(this._cursor, direction);
         this.afterNav.applyCursor(this._cursor, direction);
     }
