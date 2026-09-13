@@ -4,6 +4,13 @@ export interface BpmnModelerSetting {
     readonly colorTheme: "automatic" | "light";
     // BPMN type strings to pin at the top of the append menu palette (max 6).
     readonly favouriteBpmnElements?: string[];
+    /**
+     * Whether every `bpmn:Activity` (task, call activity, collapsed
+     * sub-process) shows resize handles. Off by default — bpmn-js pins those
+     * shapes to 100x80 and BPMN attaches no meaning to element size, so the
+     * handles are a hand-layout affordance rather than a default.
+     */
+    readonly resizableActivities?: boolean;
 }
 
 /**
