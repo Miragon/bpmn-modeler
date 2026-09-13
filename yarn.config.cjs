@@ -10,11 +10,15 @@
 // package's `dependencies` onto that package's exact pin. When both packages pin
 // the *same* dependency at *different* ranges there is no single truth to follow,
 // so each of those pins is flagged as an error to be resolved by hand instead of
-// silently letting one win. Peer dependencies are exempt: they are deliberately
-// wide ranges, not install pins.
+// silently letting one win. Peer dependencies follow the same pin unless the
+// pair is listed in PEER_PIN_EXCEPTIONS below with a reason.
 //
 // Check with `yarn constraints`; auto-align with `yarn constraints --fix`.
 const PACKAGES = ["@miragon/bpmn-modeler", "@miragon/dmn-modeler"];
+
+// Peers that deliberately diverge from the package pin.
+// Key: "<workspace ident> → <dependency ident>", value: the reason.
+const PEER_PIN_EXCEPTIONS = new Map([]);
 
 module.exports = {
     async constraints({ Yarn }) {
@@ -46,7 +50,11 @@ module.exports = {
             }
             const [range] = ranges;
             for (const dep of Yarn.dependencies({ ident })) {
-                if (dep.type === "peerDependencies") continue;
+                if (
+                    dep.type === "peerDependencies" &&
+                    PEER_PIN_EXCEPTIONS.has(`${dep.workspace.ident} → ${dep.ident}`)
+                )
+                    continue;
                 dep.update(range);
             }
         }
