@@ -3872,7 +3872,7 @@ __metadata:
     bpmn-js-native-copy-paste: "npm:0.3.0"
     typescript: "npm:6.0.3"
   peerDependencies:
-    bpmn-js: 18.19.0
+    bpmn-js: 18.25.1
   languageName: unknown
   linkType: soft
 
@@ -3981,7 +3981,7 @@ __metadata:
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.11"
   peerDependencies:
-    bpmn-js: 18.19.0
+    bpmn-js: 18.25.1
   languageName: unknown
   linkType: soft
 
@@ -4014,7 +4014,7 @@ __metadata:
     vitest: "npm:4.1.11"
   peerDependencies:
     "@bpmn-io/properties-panel": 3.52.0
-    bpmn-js: 18.19.0
+    bpmn-js: 18.25.1
   languageName: unknown
   linkType: soft
 
