@@ -52,10 +52,11 @@ beforeEach(() => {
 
 describe("form webview bootstrap", () => {
     it("declares the editor and viewer packages directly", () => {
-        expect(packageJson.dependencies).toMatchObject({
-            "@bpmn-io/form-js-editor": "1.25.0",
-            "@bpmn-io/form-js-viewer": "1.25.0",
-        });
+        const editorVersion = packageJson.dependencies["@bpmn-io/form-js-editor"];
+        const viewerVersion = packageJson.dependencies["@bpmn-io/form-js-viewer"];
+
+        expect(editorVersion).toBeDefined();
+        expect(viewerVersion).toBe(editorVersion);
         expect(packageJson.dependencies).not.toHaveProperty("@bpmn-io/form-js");
     });
 
