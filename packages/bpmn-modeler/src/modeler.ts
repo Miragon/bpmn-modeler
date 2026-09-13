@@ -23,7 +23,6 @@ import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
 import { ThemeController } from "./theme";
 import {
-    asyncDebounce,
     type AsyncDebounced,
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -44,6 +43,7 @@ import {
 import { buildLintModules } from "./lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { capabilityModules } from "./capabilityModules";
+import { createContentSavedNotifier } from "./contentSaved";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
@@ -291,11 +291,12 @@ export class BpmnModeler {
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
-            this.contentSaved = asyncDebounce(
-                async () => onContentSaved({ xml: await this.exportDiagram() }),
-                300,
-                { maxWait: 1000 },
-            );
+            this.contentSaved = createContentSavedNotifier({
+                exportDiagram: () => this.exportDiagram(),
+                onContentSaved,
+                onError: this.options.onError,
+                isDisposed: () => this.modeler === undefined,
+            });
             this.onCommandStackChanged(() => void this.contentSaved!());
         }
 

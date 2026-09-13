@@ -211,6 +211,14 @@ const _builtinsShape = {
 } satisfies ModelerOptions;
 void _builtinsShape;
 
+const _asyncContentSaved = {
+    engine: "c7",
+    propertiesPanel: { parent: document.createElement("div") },
+    onContentSaved: async ({ xml }: ContentSavedEvent) => void xml,
+    onError: (error: unknown) => void error,
+} satisfies ModelerOptions;
+void _asyncContentSaved;
+
 const _modes = ["design", "implement"] satisfies ModelerMode[];
 void _modes;
 const _scenarioDesignMode = {
@@ -374,6 +382,12 @@ const _designerAcceptsLinting = {
     onLintingToggled: (enabled: boolean) => void enabled,
 } satisfies DesignerOptions;
 void _designerAcceptsLinting;
+const _designerAsyncContentSaved = {
+    propertiesPanel: { parent: document.createElement("div") },
+    onContentSaved: async ({ xml }: ContentSavedEvent) => void xml,
+    onError: (error: unknown) => void error,
+} satisfies DesignerOptions;
+void _designerAsyncContentSaved;
 const _designerLintOff = {
     propertiesPanel: { parent: document.createElement("div") },
     linting: false,

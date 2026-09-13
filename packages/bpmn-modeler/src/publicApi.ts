@@ -130,7 +130,8 @@ export interface ClipboardOptions {
  * 1000ms maxWait), because every consumer needs exactly that debounce; raw
  * `commandStack.changed` stays reachable through the
  * {@link BpmnModelerHandle.getService} escape hatch for the rare consumer that
- * wants it un-debounced.
+ * wants it un-debounced. A failing save (export or `onContentSaved`) is reported
+ * through {@link ModelerOptions.onError}, not by rejecting the debounced run.
  */
 export interface ContentSavedEvent {
     readonly xml: string;
@@ -221,13 +222,21 @@ export interface ModelerOptions {
 
     // ── Events (outbound notifications) ─────────────────────────────────────
     /** Debounced diagram content — see {@link ContentSavedEvent}. */
-    onContentSaved?: (event: ContentSavedEvent) => void;
+    onContentSaved?: (event: ContentSavedEvent) => void | Promise<void>;
 
     /** One lint pass completed — findings + gracefully-degraded rules. */
     onLintResults?: (event: LintRunEvent) => void;
 
     /** The in-canvas lint chip was toggled on/off. */
     onLintingToggled?: (enabled: boolean) => void;
+
+    /**
+     * A failing debounced save — export failure, or an error thrown by (or a
+     * rejected promise returned from) `onContentSaved`. Fires exactly once per
+     * debounced execution, never after `destroy()`; later edits keep saving.
+     * When unset, failures fall back to `console.error`.
+     */
+    onError?: (error: unknown) => void;
 
     /** A non-fatal warning (element-not-found, missing inline script) for the host log. */
     onWarning?: (message: string) => void;

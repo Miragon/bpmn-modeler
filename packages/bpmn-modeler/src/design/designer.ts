@@ -18,7 +18,6 @@ import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import {
-    asyncDebounce,
     type AsyncDebounced,
     installCanvasFocusIndicator,
     NoModelerError,
@@ -37,6 +36,7 @@ import {
 import { installKeyboardFocus } from "../keyboardFocus";
 import { buildLintModules } from "../lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "../lintHandle";
+import { createContentSavedNotifier } from "../contentSaved";
 import type { LintConfigService } from "../bpmnlint/LintConfigService";
 import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
@@ -211,11 +211,12 @@ export class BpmnDesigner {
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
-            this.contentSaved = asyncDebounce(
-                async () => onContentSaved({ xml: await this.exportDiagram() }),
-                300,
-                { maxWait: 1000 },
-            );
+            this.contentSaved = createContentSavedNotifier({
+                exportDiagram: () => this.exportDiagram(),
+                onContentSaved,
+                onError: this.options.onError,
+                isDisposed: () => this.modeler === undefined,
+            });
             this.getModeler()
                 .get<any>("eventBus")
                 .on("commandStack.changed", () => void this.contentSaved!());
