@@ -3884,6 +3884,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-model-navigation@workspace:libs/model-navigation"
   dependencies:
+    "@miragon/bpmn-modeler-types": "workspace:*"
     bpmn-js: "npm:18.28.0"
     typescript: "npm:6.0.3"
     vitest: "npm:4.1.11"
@@ -4081,6 +4082,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-layout@workspace:libs/bpmn-layout"
   dependencies:
+    "@miragon/bpmn-modeler-types": "workspace:*"
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
     bpmn-js: "npm:18.28.0"
     bpmn-moddle: "npm:10.2.0"

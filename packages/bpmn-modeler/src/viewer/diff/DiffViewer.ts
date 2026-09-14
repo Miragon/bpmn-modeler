@@ -2,13 +2,17 @@ import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
 
 import {
+    DisposableStore,
     MIN_CANVAS_SIZE_PX,
+    MutableDisposable,
+    NoModelerError,
     Viewport,
     isUsableViewbox,
-    observeCanvasSize,
 } from "@miragon/bpmn-modeler-types";
 
 import { centreOf } from "../../elementGeometry";
+import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
+import { subscribeViewboxChanged } from "../../viewport";
 
 /**
  * CSS class applied to each element category on the canvas.
@@ -23,14 +27,13 @@ const DIFF_SELECTED_CLASS = "diff-selected";
  * Readonly BPMN canvas for one side of a diff view.
  *
  * Wraps `bpmn-js/lib/NavigatedViewer` so the pane supports mouse + keyboard
- * pan/zoom but not editing.
+ * pan/zoom but not editing. A destroyed pane throws {@link NoModelerError} from
+ * every accessor.
  */
 export class DiffViewer {
-    private readonly viewer: NavigatedViewer;
+    private viewer: NavigatedViewer | undefined;
 
     private programmaticPositioningDepth = 0;
-
-    private readonly cancelPendingViewportNotifications = new Set<() => void>();
 
     /**
      * Id of the element currently highlighted as the stepper's focus, or
@@ -40,60 +43,57 @@ export class DiffViewer {
      */
     private selectedId: string | undefined;
 
-    /** Disposes the canvas-size observer installed by {@link importXML}. */
-    private stopObservingSize: (() => void) | undefined;
+    private readonly store = new DisposableStore();
 
-    // A setViewport with a usable box, or a successful initial fit, decides the
-    // pane's initial viewport; later observer deliveries must not fit over it.
-    private initialViewportDecided = false;
+    // Re-armed per importXML, so it can't be a plain store entry.
+    private readonly sizeObserver = new MutableDisposable();
 
-    // A usable box handed to setViewport before the pane was laid out, held
-    // until an observer delivery finds the pane sized.
-    private pendingViewport: Viewport | undefined;
+    // Keeps its own plain fit: ViewportManager's palette-inset fit would visibly change diff panes.
+    private readonly latch = new InitialViewportLatch<Viewport>({
+        applyViewport: (viewport) => {
+            if (!this.isPaneSized()) {
+                return false;
+            }
+            this.applyViewbox(viewport);
+            return true;
+        },
+        fitViewport: () => this.fitViewport(),
+    });
 
     constructor(container: HTMLElement) {
-        this.viewer = new NavigatedViewer({ container });
+        try {
+            this.viewer = new NavigatedViewer({ container });
+        } catch (error) {
+            // A partially-constructed bpmn-js attaches `.bjs-container` with no
+            // handle to destroy; clear the dedicated container before rethrowing.
+            container.replaceChildren();
+            throw error;
+        }
+        this.store.add(() => {
+            this.viewer?.destroy();
+            this.viewer = undefined;
+        });
+        this.store.add(() => this.sizeObserver.dispose());
     }
 
     async importXML(xml: string): Promise<ImportXMLResult> {
-        const result = await this.viewer.importXML(xml);
+        const result = await this.getViewer().importXML(xml);
 
         // Panes open side by side, so one regularly has no box yet when the
         // import lands; the fit retries until it does.
-        this.stopObservingSize?.();
-        this.initialViewportDecided = false;
-        this.pendingViewport = undefined;
         const canvas = this.getCanvas();
-        this.stopObservingSize = observeCanvasSize(canvas, canvas.getContainer(), {
-            applyInitialViewport: () => this.applyInitialViewportOnce(),
-        });
-        this.fitViewport();
+        this.sizeObserver.set(
+            armInitialViewportPolicy(canvas, {
+                resetInitialViewportDecision: () => this.latch.reset(),
+                applyInitialViewportOnce: () => this.latch.applyOnce(),
+                fitViewport: () => this.fitViewport(),
+            }),
+        );
 
         return result;
     }
 
-    /**
-     * The observer callback: returns `true` once the pane's initial viewport is
-     * decided, so a {@link setViewport} sync arriving before the first delivery
-     * is never fitted over. Applies a viewport stashed while the pane was unsized,
-     * else the fresh {@link fitViewport}.
-     */
-    private applyInitialViewportOnce(): boolean {
-        if (this.initialViewportDecided) {
-            return true;
-        }
-        if (this.pendingViewport) {
-            this.setViewport(this.pendingViewport);
-            return this.initialViewportDecided;
-        }
-        return this.fitViewport();
-    }
-
-    /**
-     * Fits the diagram into the pane.
-     *
-     * @returns `false` if the pane has no usable box yet.
-     */
+    /** Fits the diagram into the pane; `false` if it has no usable box yet. */
     private fitViewport(): boolean {
         if (!this.isPaneSized()) {
             return false;
@@ -108,13 +108,12 @@ export class DiffViewer {
     }
 
     /**
-     * Applies a marker CSS class to each id in `ids`.  Silently skips ids
-     * that do not exist on this canvas (the partner pane may have deliveries
-     * specific to its side).
+     * Applies a marker class to each id, skipping ids absent from this canvas
+     * (the partner pane may carry deliveries specific to its side).
      */
     applyHighlights(ids: readonly string[], klass: DiffMarkerClass): void {
         const canvas = this.getCanvas();
-        const registry = this.viewer.get<any>("elementRegistry");
+        const registry = this.getViewer().get<any>("elementRegistry");
         for (const id of ids) {
             if (registry.get(id)) {
                 canvas.addMarker(id, klass);
@@ -122,12 +121,10 @@ export class DiffViewer {
         }
     }
 
-    /**
-     * Removes all diff markers (including the stepper selection) from the canvas.
-     */
+    /** Removes all diff markers (including the stepper selection) from the canvas. */
     clearHighlights(): void {
         const canvas = this.getCanvas();
-        const registry = this.viewer.get<any>("elementRegistry");
+        const registry = this.getViewer().get<any>("elementRegistry");
         const classes: string[] = [
             "diff-added",
             "diff-removed",
@@ -152,57 +149,35 @@ export class DiffViewer {
         if (!isUsableViewbox(viewport)) {
             return;
         }
-        this.positionProgrammatically(() => {
-            // Applying onto a zero-sized pane blanks it; hold the box until a delivery
-            // finds the pane laid out, and let it win over the pending initial fit.
-            if (!this.isPaneSized()) {
-                this.pendingViewport = viewport;
-                return;
-            }
-            this.getCanvas().viewbox({ ...viewport });
-            this.initialViewportDecided = true;
-            this.pendingViewport = undefined;
-        });
+        // Applying onto a zero-sized pane blanks it; hold the box until a delivery
+        // finds the pane laid out, and let it win over the pending initial fit.
+        if (!this.isPaneSized()) {
+            this.latch.hold(viewport);
+            return;
+        }
+        this.applyViewbox(viewport);
+        this.latch.markDecided();
+    }
+
+    private applyViewbox(viewport: Viewport): void {
+        this.positionProgrammatically(() => this.getCanvas().viewbox({ ...viewport }));
     }
 
     /**
-     * Subscribes to user-driven viewport changes.  Calls to
-     * {@link setViewport} are filtered out by the internal suppression
-     * guard so the partner pane doesn't bounce the sync back.
-     *
-     * @returns a disposer that unsubscribes the listener and cancels any
-     *   pending debounced callback — call it when tearing the pane down.
+     * Subscribes to user-driven viewport changes; changes made during a
+     * programmatic reposition are rejected (also cancelling a stale pending
+     * notification) so the partner pane doesn't bounce the sync back. Returns a
+     * disposer that unsubscribes and cancels the debounce.
      */
     onViewportChanged(cb: (viewport: Viewport) => void): () => void {
-        let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-        const eventBus = this.viewer.get<any>("eventBus");
-        const cancelPendingNotification = (): void => {
-            clearTimeout(debounceTimer);
-            debounceTimer = undefined;
-        };
-        const handler = (event: any): void => {
-            if (this.programmaticPositioningDepth > 0) {
-                cancelPendingNotification();
-                return;
-            }
-            const { x, y, width, height } = event.viewbox;
-            const viewport = { x, y, width, height };
-            if (!isUsableViewbox(viewport)) {
-                return;
-            }
-            cancelPendingNotification();
-            debounceTimer = setTimeout(() => {
-                debounceTimer = undefined;
-                cb(viewport);
-            }, 80);
-        };
-        this.cancelPendingViewportNotifications.add(cancelPendingNotification);
-        eventBus.on("canvas.viewbox.changed", handler);
-        return () => {
-            cancelPendingNotification();
-            this.cancelPendingViewportNotifications.delete(cancelPendingNotification);
-            eventBus.off("canvas.viewbox.changed", handler);
-        };
+        return subscribeViewboxChanged<Viewport>({
+            eventBus: this.getViewer().get("eventBus"),
+            // Diff sync latency is unchanged from the hand-rolled version.
+            debounceMs: 80,
+            accept: () => this.programmaticPositioningDepth === 0,
+            map: ({ x, y, width, height }) => ({ x, y, width, height }),
+            onChange: cb,
+        });
     }
 
     /**
@@ -240,7 +215,7 @@ export class DiffViewer {
      * the partner's correctly-focused viewbox with this pane's anchor position.
      */
     centerOnElement(id: string): boolean {
-        const registry = this.viewer.get<any>("elementRegistry");
+        const registry = this.getViewer().get<any>("elementRegistry");
         const element = registry.get(id);
         if (!element) {
             return false;
@@ -273,7 +248,7 @@ export class DiffViewer {
      * Returns `true` when `id` is present in this pane's element registry.
      */
     hasElement(id: string): boolean {
-        const registry = this.viewer.get<any>("elementRegistry");
+        const registry = this.getViewer().get<any>("elementRegistry");
         return !!registry.get(id);
     }
 
@@ -299,30 +274,35 @@ export class DiffViewer {
      * redundant with the attached shape's change.
      */
     isConnection(id: string): boolean {
-        const registry = this.viewer.get<any>("elementRegistry");
+        const registry = this.getViewer().get<any>("elementRegistry");
         const element = registry.get(id);
         return !!element && Array.isArray(element.waypoints);
     }
 
     /**
-     * Tears the pane down: stops the canvas-size observer and destroys the
-     * underlying bpmn-js viewer (detaches its DOM and event listeners). The
-     * instance must not be used afterwards.
+     * Tears the pane down: disposes the canvas-size observer and destroys the
+     * underlying bpmn-js viewer (detaches its DOM and event listeners) in
+     * reverse order. Idempotent; a destroyed pane throws {@link NoModelerError}.
      */
     destroy(): void {
-        this.stopObservingSize?.();
-        this.stopObservingSize = undefined;
-        this.viewer.destroy();
+        this.store.dispose();
+        this.viewer = undefined;
     }
 
     private getCanvas(): any {
-        return this.viewer.get<any>("canvas");
+        return this.getViewer().get<any>("canvas");
     }
 
-    private positionProgrammatically(action: () => void): void {
-        for (const cancel of this.cancelPendingViewportNotifications) {
-            cancel();
+    private getViewer(): NavigatedViewer {
+        if (!this.viewer) {
+            throw new NoModelerError();
         }
+        return this.viewer;
+    }
+
+    // The synchronous viewbox/root events fired inside `action` are rejected by
+    // the subscription guard, which also cancels a stale pending notification.
+    private positionProgrammatically(action: () => void): void {
         this.programmaticPositioningDepth += 1;
         try {
             action();

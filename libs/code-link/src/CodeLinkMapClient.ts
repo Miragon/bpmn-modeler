@@ -13,7 +13,7 @@
  * does not run the command stack — so a status push can't loop back into a
  * `commandStack.changed` event and re-trigger a sync.
  */
-import { implementationStatusKey } from "@miragon/bpmn-modeler-types";
+import { DisposableStore, implementationStatusKey } from "@miragon/bpmn-modeler-types";
 import type { ImplementationEntry } from "@miragon/bpmn-modeler-types";
 
 import { collectImplementations, ElementRegistryLike } from "./collectImplementations";
@@ -74,7 +74,7 @@ export class CodeLinkMapClient {
     // The client is a bpmn-js DI singleton with no facade handle, so the only
     // teardown channel is the `diagram.destroy` event; without it the trailing
     // debounce timer outlives the modeler and pushes stale data to the host.
-    private destroyed = false;
+    private readonly store = new DisposableStore();
 
     constructor(
         eventBus: EventBus,
@@ -94,13 +94,13 @@ export class CodeLinkMapClient {
         eventBus.on("contextPad.close", () => {
             this.currentPadTarget = undefined;
         });
-        eventBus.on("diagram.destroy", () => {
-            this.destroyed = true;
+        this.store.add(() => {
             if (this.syncTimer !== undefined) {
                 clearTimeout(this.syncTimer);
                 this.syncTimer = undefined;
             }
         });
+        eventBus.on("diagram.destroy", () => this.store.dispose());
     }
 
     /**
@@ -141,7 +141,7 @@ export class CodeLinkMapClient {
     }
 
     private sendDebounced(): void {
-        if (this.destroyed) {
+        if (this.store.isDisposed) {
             return;
         }
         if (this.syncTimer !== undefined) {
@@ -154,7 +154,7 @@ export class CodeLinkMapClient {
     }
 
     private sendNow(): void {
-        if (this.destroyed) {
+        if (this.store.isDisposed) {
             return;
         }
         const entries: ImplementationEntry[] = collectImplementations(this.elementRegistry);

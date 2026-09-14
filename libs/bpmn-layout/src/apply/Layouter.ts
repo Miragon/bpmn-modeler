@@ -1,3 +1,4 @@
+import { DisposableStore } from "@miragon/bpmn-modeler-types";
 import type { LayoutDiagnostic, LayoutErrorCode, LayoutStatus } from "@miragon/bpmn-modeler-types";
 
 import { computeLayoutPlan } from "../plan";
@@ -101,7 +102,9 @@ export class Layouter {
      */
     private revision = 0;
 
-    private destroyed = false;
+    // The service is a bpmn-js DI singleton with no facade handle; `diagram.destroy`
+    // is its only teardown channel and marks the store disposed.
+    private readonly lifecycle = new DisposableStore();
 
     /** The run in flight, if any. See {@link format}. */
     private inFlight?: Promise<LayoutOutcome>;
@@ -120,9 +123,7 @@ export class Layouter {
                 this.revision++;
             });
         }
-        this.eventBus.on("diagram.destroy", () => {
-            this.destroyed = true;
-        });
+        this.eventBus.on("diagram.destroy", () => this.lifecycle.dispose());
     }
 
     /**
@@ -163,7 +164,7 @@ export class Layouter {
 
         // A destroyed diagram has no host listening; firing would reach a bus
         // whose subscribers are gone.
-        if (!this.destroyed) this.eventBus.fire(LAYOUT_FORMATTED_EVENT, outcome);
+        if (!this.lifecycle.isDisposed) this.eventBus.fire(LAYOUT_FORMATTED_EVENT, outcome);
         return outcome;
     }
 
@@ -223,7 +224,7 @@ export class Layouter {
 
     /** Whether the document moved on, or went away, since `startedAt`. */
     private isStale(startedAt: number): boolean {
-        return this.destroyed || this.revision !== startedAt;
+        return this.lifecycle.isDisposed || this.revision !== startedAt;
     }
 
     /**

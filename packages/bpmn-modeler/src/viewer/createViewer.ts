@@ -1,6 +1,6 @@
 import { BpmnViewer } from "./viewer";
 import type { ViewerOptions } from "./publicApi";
-import { destroyOnFailure } from "../destroyOnFailure";
+import { createSurface } from "../createSurface";
 
 /**
  * Stands up one independent readonly viewer bound to `container`, then engages
@@ -14,12 +14,14 @@ export async function createViewer(
     container: HTMLElement,
     options: ViewerOptions = {},
 ): Promise<BpmnViewer> {
-    const viewer = new BpmnViewer(container, options);
-    return destroyOnFailure(viewer, async () => {
-        await viewer.init();
+    return createSurface(
+        () => new BpmnViewer(container, options),
+        async (viewer) => {
+            await viewer.init();
 
-        // Always engage theming so the per-instance `data-bpmn-theme` attribute is
-        // set from the first frame; `"automatic"` then follows `prefers-color-scheme`.
-        viewer.setTheme(options.theme ?? "automatic");
-    });
+            // Always engage theming so the per-instance `data-bpmn-theme` attribute is
+            // set from the first frame; `"automatic"` then follows `prefers-color-scheme`.
+            viewer.setTheme(options.theme ?? "automatic");
+        },
+    );
 }

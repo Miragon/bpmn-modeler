@@ -23,16 +23,16 @@ import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { installContentEditableClipboardPolyfill } from "./propertiesPanelClipboard";
 import { ThemeController } from "./theme";
 import {
-    type AsyncDebounced,
     BpmnlintConfig,
     BpmnModelerSetting,
+    DisposableStore,
     Engine,
-    installCanvasFocusIndicator,
     LintResults,
     NoModelerError,
     OpenScriptEditorRef,
     ScriptKind,
     ScriptTaskScript,
+    subscribe,
 } from "@miragon/bpmn-modeler-types";
 import {
     collectInlineScriptTasks,
@@ -43,7 +43,9 @@ import {
 import { buildLintModules } from "./lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { capabilityModules } from "./capabilityModules";
-import { createContentSavedNotifier } from "./contentSaved";
+import { wireContentSaved } from "./contentSaved";
+import { createReporter, type SurfaceReporter } from "./reporting";
+import { installSurfaceFocusFeatures } from "./focusFeatures";
 import { ViewportManager } from "./viewport";
 import { SelectionManager } from "./selection";
 import { RootElementManager } from "./rootElement";
@@ -55,7 +57,6 @@ import {
 import { deriveEngines } from "./engines";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
 import { ModeUiModule } from "./modeModules";
-import { installKeyboardFocus } from "./keyboardFocus";
 import type { CreateModelerOptions } from "./createModeler";
 import type { CoreModelerServices, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
@@ -89,17 +90,12 @@ export class BpmnModeler {
 
     private _rootElement: RootElementManager | undefined;
 
-    private onWarningSink?: (message: string) => void;
-
-    private focusDisposers: Array<() => void> = [];
-
-    // Separate from focusDisposers: the polyfill registers at the top of init() before the canvas exists.
-    private disposeClipboardPolyfill?: () => void;
-
-    // Retain the debouncer so destroy can cancel a pending export.
-    private contentSaved?: AsyncDebounced<() => Promise<void>>;
+    private readonly reporter: SurfaceReporter;
 
     private themeController?: ThemeController;
+
+    // Reset on every init() so a re-entry starts from a clean disposal ledger.
+    private store = new DisposableStore();
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -109,7 +105,7 @@ export class BpmnModeler {
         private readonly container: HTMLElement,
         private readonly options: CreateModelerOptions,
     ) {
-        this.onWarningSink = options.onWarning;
+        this.reporter = createReporter({ onWarning: options.onWarning, onError: options.onError });
     }
 
     /**
@@ -175,9 +171,8 @@ export class BpmnModeler {
      */
     async init(): Promise<void> {
         const engine = this.options.engine;
-        this.disposeFocusFeatures();
-        this.disposeClipboardPolyfill?.();
-        this.disposeClipboardPolyfill = undefined;
+        this.store.dispose();
+        this.store = new DisposableStore();
 
         // Inject the panel root so script controls cannot target a sibling modeler's panel.
         const propertiesPanelRootModule = {
@@ -212,14 +207,16 @@ export class BpmnModeler {
             // FEEL editors sit outside bpmn-js DI and need the document-level text bridge.
             // Wrap callbacks to preserve the bridge's this binding.
             const textBridge = clip.text ?? clip.bridge;
-            this.disposeClipboardPolyfill = installContentEditableClipboardPolyfill(
-                [this.container, this.options.propertiesPanel.parent],
-                {
-                    requestClipboard: () => textBridge.requestClipboard(),
-                    writeClipboard: (text) => {
-                        void textBridge.writeClipboard(text);
+            this.store.add(
+                installContentEditableClipboardPolyfill(
+                    [this.container, this.options.propertiesPanel.parent],
+                    {
+                        requestClipboard: () => textBridge.requestClipboard(),
+                        writeClipboard: (text) => {
+                            void textBridge.writeClipboard(text);
+                        },
                     },
-                },
+                ),
             );
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
@@ -239,40 +236,24 @@ export class BpmnModeler {
 
         this.engine = engine;
 
-        switch (engine) {
-            case "c7": {
-                this.modeler = new BpmnModeler7({
-                    ...modelerOptions,
-                    additionalModules: [
-                        ...commonModules,
-                        CreateAppendElementTemplatesModule,
-                        CreateAppendC7ElementTemplatesModule,
-                        TransactionBoundariesModule,
-                        ...capModules,
-                        ...clipModules,
-                        ...extra,
-                    ],
-                });
-                break;
-            }
-            case "c8": {
-                this.modeler = new BpmnModeler8({
-                    ...modelerOptions,
-                    additionalModules: [...commonModules, ...capModules, ...clipModules, ...extra],
-                });
-                break;
-            }
-            default: {
-                throw new UnsupportedEngineError(engine);
-            }
-        }
+        this.allocateModeler(engine, modelerOptions, commonModules, capModules, clipModules, extra);
+        this.store.add(() => {
+            this.modeler?.destroy();
+            this.modeler = undefined;
+        });
 
         const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
         this._viewport = new ViewportManager(accessor);
         this._selection = new SelectionManager(accessor);
         this._rootElement = new RootElementManager(accessor);
 
-        this.installFocusFeatures();
+        this.store.add(
+            installSurfaceFocusFeatures(accessor, {
+                extraRoots: [this.options.propertiesPanel.parent],
+                handleGlobalEscape: this.options.handleGlobalEscape ?? false,
+                hasSearchPad: true,
+            }),
+        );
 
         if (this.settings.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
@@ -284,24 +265,79 @@ export class BpmnModeler {
         // Subscribe before initial templates are supplied so their validation errors are observed.
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
         if (onElementTemplatesErrors) {
-            this.getModeler().on("elementTemplates.errors", (event: any) => {
-                onElementTemplatesErrors(event.errors ?? []);
-            });
+            this.store.add(
+                subscribe(this.getModeler(), "elementTemplates.errors", (event: any) => {
+                    onElementTemplatesErrors(event.errors ?? []);
+                }),
+            );
         }
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
-            this.contentSaved = createContentSavedNotifier({
+            wireContentSaved({
+                store: this.store,
+                eventBus: this.getModeler().get("eventBus"),
                 exportDiagram: () => this.exportDiagram(),
                 onContentSaved,
-                onError: this.options.onError,
-                isDisposed: () => this.modeler === undefined,
+                reporter: this.reporter,
             });
-            this.onCommandStackChanged(() => void this.contentSaved!());
         }
 
         // Apply before the first paint to avoid flashing engine controls in design mode.
         this.setModeAttribute(normalizeMode(this.options.mode));
+        this.store.add(() => {
+            this.container.removeAttribute(MODE_ATTRIBUTE);
+            this.options.propertiesPanel.parent.removeAttribute(MODE_ATTRIBUTE);
+        });
+    }
+
+    private allocateModeler(
+        engine: Engine,
+        modelerOptions: object,
+        commonModules: any[],
+        capModules: any[],
+        clipModules: any[],
+        extra: any[],
+    ): void {
+        try {
+            switch (engine) {
+                case "c7": {
+                    this.modeler = new BpmnModeler7({
+                        ...modelerOptions,
+                        additionalModules: [
+                            ...commonModules,
+                            CreateAppendElementTemplatesModule,
+                            CreateAppendC7ElementTemplatesModule,
+                            TransactionBoundariesModule,
+                            ...capModules,
+                            ...clipModules,
+                            ...extra,
+                        ],
+                    });
+                    break;
+                }
+                case "c8": {
+                    this.modeler = new BpmnModeler8({
+                        ...modelerOptions,
+                        additionalModules: [
+                            ...commonModules,
+                            ...capModules,
+                            ...clipModules,
+                            ...extra,
+                        ],
+                    });
+                    break;
+                }
+                default: {
+                    throw new UnsupportedEngineError(engine);
+                }
+            }
+        } catch (error) {
+            // A partially-constructed bpmn-js attaches `.bjs-container` with no
+            // handle to destroy; clear the dedicated container before rethrowing.
+            this.container.replaceChildren();
+            throw error;
+        }
     }
 
     /**
@@ -342,80 +378,23 @@ export class BpmnModeler {
         );
     }
 
-    private installFocusFeatures(): void {
-        const canvas = this.getModeler().get<{
-            getContainer(): HTMLElement;
-            focus(): void;
-            isFocused(): boolean;
-        }>("canvas");
-        const canvasContainer = canvas.getContainer();
-        const eventBus = () => this.getModeler().get<any>("eventBus");
-        const selection = () => this.getModeler().get<{ get(): unknown[] }>("selection");
-
-        this.focusDisposers.push(
-            installKeyboardFocus({
-                roots: [canvasContainer, this.options.propertiesPanel.parent],
-                handleGlobalEscape: this.options.handleGlobalEscape ?? false,
-                focusCanvas: () => canvas.focus(),
-                isCanvasFocused: () => canvas.isFocused(),
-                hasSelection: () => selection().get().length > 0,
-                clearSelection: () =>
-                    this.getModeler()
-                        .get<{ select(elements: null): void }>("selection")
-                        .select(null),
-                isSearchPadOpen: () =>
-                    this.getModeler().get<{ isOpen(): boolean }>("searchPad").isOpen(),
-                closeSearchPad: () => this.getModeler().get<{ close(): void }>("searchPad").close(),
-            }),
-        );
-
-        // Canvas focus events exclude controls such as the lint chip that would match container focusin.
-        this.focusDisposers.push(
-            installCanvasFocusIndicator({
-                parent: canvasContainer,
-                isFocused: () => canvas.isFocused(),
-                onFocusChanged: (listener) =>
-                    eventBus().on("canvas.focus.changed", (e: { focused: boolean }) =>
-                        listener(e.focused),
-                    ),
-                hasSelection: () => selection().get().length > 0,
-                onSelectionChanged: (listener) =>
-                    eventBus().on("selection.changed", (e: { newSelection: unknown[] }) =>
-                        listener(e.newSelection.length > 0),
-                    ),
-            }),
-        );
-    }
-
-    private disposeFocusFeatures(): void {
-        for (const dispose of this.focusDisposers.splice(0)) {
-            dispose();
-        }
-    }
-
     /**
-     * Tears the instance down: disposes the focus features and destroys the
-     * underlying bpmn-js modeler (which frees its event bus, DI graph, and DOM).
-     * A destroyed facade throws {@link NoModelerError} from every accessor.
+     * Tears the instance down: disposes every registered lifecycle resource (the
+     * debounced export, focus features, event subscriptions, mode attributes,
+     * theme controller, clipboard polyfill, and the underlying bpmn-js modeler)
+     * in reverse order. Idempotent. A destroyed facade throws
+     * {@link NoModelerError} from every accessor.
      */
     destroy(): void {
-        this.contentSaved?.cancel();
-        this.themeController?.dispose();
-        this.container.removeAttribute(MODE_ATTRIBUTE);
-        this.options.propertiesPanel.parent.removeAttribute(MODE_ATTRIBUTE);
-        this.disposeFocusFeatures();
-        this.disposeClipboardPolyfill?.();
-        this.disposeClipboardPolyfill = undefined;
-        this.modeler?.destroy();
-        this.modeler = undefined;
+        this.store.dispose();
         this._viewport = undefined;
         this._selection = undefined;
         this._rootElement = undefined;
     }
 
     /** @internal Use onContentSaved for debounced content notifications. */
-    onCommandStackChanged(cb: () => void): void {
-        this.getModeler().get<any>("eventBus").on("commandStack.changed", cb);
+    onCommandStackChanged(cb: () => void): () => void {
+        return subscribe(this.getModeler().get<any>("eventBus"), "commandStack.changed", cb);
     }
 
     /**
@@ -558,7 +537,7 @@ export class BpmnModeler {
         const modeling = modeler.get<any>("modeling");
         const element = elementRegistry.get(elementId);
         if (!element) {
-            this.warn(`Element not found: ${elementId}`);
+            this.reporter.warn(`Element not found: ${elementId}`);
             return;
         }
 
@@ -574,7 +553,9 @@ export class BpmnModeler {
             kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
         const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
         if (!listener || !listener.script) {
-            this.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
+            this.reporter.warn(
+                `${listenerType} #${listenerIndex} on ${elementId} has no inline script`,
+            );
             return;
         }
         modeling.updateModdleProperties(element, listener.script, {
@@ -594,7 +575,7 @@ export class BpmnModeler {
         const modeling = modeler.get<any>("modeling");
         const element = elementRegistry.get(elementId);
         if (!element) {
-            this.warn(`Element not found: ${elementId}`);
+            this.reporter.warn(`Element not found: ${elementId}`);
             return;
         }
 
@@ -614,7 +595,9 @@ export class BpmnModeler {
             kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
         const listener = findListenerAt(element.businessObject, listenerType, listenerIndex);
         if (!listener || !listener.script) {
-            this.warn(`${listenerType} #${listenerIndex} on ${elementId} has no inline script`);
+            this.reporter.warn(
+                `${listenerType} #${listenerIndex} on ${elementId} has no inline script`,
+            );
             return;
         }
         modeling.updateModdleProperties(element, listener.script, {
@@ -642,6 +625,7 @@ export class BpmnModeler {
                 this.container,
                 this.options.propertiesPanel.parent,
             ]);
+            this.store.add(() => this.themeController?.dispose());
         }
         this.themeController.setMode(theme);
     }
@@ -690,11 +674,6 @@ export class BpmnModeler {
     /** @internal A missing code-link capability must tolerate host status pushes. */
     applyImplementationStatus(resolved: Record<string, boolean>): void {
         this.getModeler().get<CodeLinkMapClient>("codeLinkMapClient", false)?.applyStatus(resolved);
-    }
-
-    private warn(message: string): void {
-        console.warn(message);
-        this.onWarningSink?.(message);
     }
 
     // Read the engine profile from imported definitions to match template engine filtering.

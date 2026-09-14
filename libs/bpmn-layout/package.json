@@ -8,6 +8,7 @@
         "test": "vitest run"
     },
     "dependencies": {
+        "@miragon/bpmn-modeler-types": "workspace:*",
         "bpmn-auto-layout": "2.0.0-alpha.2"
     },
     "peerDependencies": {

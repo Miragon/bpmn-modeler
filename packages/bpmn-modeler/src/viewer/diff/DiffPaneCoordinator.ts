@@ -1,4 +1,5 @@
 import { DiffResult, sideView } from "@miragon/bpmn-modeler-diff";
+import { DisposableStore } from "@miragon/bpmn-modeler-types";
 
 import { DiffNavigator } from "./DiffNavigator";
 import { DiffViewer } from "./DiffViewer";
@@ -29,7 +30,7 @@ export class DiffPaneCoordinator {
 
     private readonly afterNav: DiffNavigator;
 
-    private readonly disposers: readonly (() => void)[];
+    private readonly store = new DisposableStore();
 
     private _cursor = -1;
 
@@ -39,10 +40,10 @@ export class DiffPaneCoordinator {
     ) {
         this.beforeNav = new DiffNavigator(before);
         this.afterNav = new DiffNavigator(after);
-        this.disposers = [
+        this.store.add(
             before.onViewportChanged((viewport) => after.setViewport(viewport)),
             after.onViewportChanged((viewport) => before.setViewport(viewport)),
-        ];
+        );
     }
 
     /**
@@ -80,9 +81,7 @@ export class DiffPaneCoordinator {
     }
 
     destroy(): void {
-        for (const dispose of this.disposers) {
-            dispose();
-        }
+        this.store.dispose();
     }
 
     private step(direction: 1 | -1): void {

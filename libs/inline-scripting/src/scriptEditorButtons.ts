@@ -1,3 +1,5 @@
+import { DisposableStore } from "@miragon/bpmn-modeler-types";
+
 import { EDITOR_ICON_SVG } from "./editorIcon";
 import type { ScriptEditorOpener } from "./scriptEditorOpener";
 
@@ -51,6 +53,8 @@ const INJECTED_MARKER = "data-script-btn-injected";
 class ScriptEditorButtons {
     private observer: MutationObserver | undefined;
 
+    private readonly store = new DisposableStore();
+
     // The properties-panel host element to observe. Resolved from the optional
     // `propertiesPanelRoot` DI value (the modeler facade registers it per
     // instance) so two modelers on one page each watch their own panel; falls
@@ -69,7 +73,7 @@ class ScriptEditorButtons {
             injector.get("propertiesPanelRoot", false) ??
             document.querySelector("#js-properties-panel");
         this.startObserving();
-        this.eventBus.on("diagram.destroy", () => this.stopObserving());
+        this.eventBus.on("diagram.destroy", () => this.store.dispose());
     }
 
     private startObserving(): void {
@@ -80,11 +84,10 @@ class ScriptEditorButtons {
         this.injectButtons(container);
         this.observer = new MutationObserver(() => this.injectButtons(container));
         this.observer.observe(container, { childList: true, subtree: true });
-    }
-
-    private stopObserving(): void {
-        this.observer?.disconnect();
-        this.observer = undefined;
+        this.store.add(() => {
+            this.observer?.disconnect();
+            this.observer = undefined;
+        });
     }
 
     private injectButtons(container: Element): void {

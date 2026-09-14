@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DisposableStore } from "@miragon/bpmn-modeler-types";
 
-import { createContentSavedNotifier, type ContentSavedWiring } from "./contentSaved";
+import {
+    createContentSavedNotifier,
+    wireContentSaved,
+    type ContentSavedWiring,
+} from "./contentSaved";
+import { createReporter } from "./reporting";
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -14,6 +20,7 @@ function wiring(overrides: Partial<ContentSavedWiring> = {}): ContentSavedWiring
     return {
         exportDiagram: vi.fn().mockResolvedValue("<xml/>"),
         onContentSaved: vi.fn(),
+        reporter: createReporter({}),
         isDisposed: () => false,
         ...overrides,
     };
@@ -23,7 +30,10 @@ describe("createContentSavedNotifier", () => {
     it("reports an export failure once and resolves the caller with undefined", async () => {
         const onError = vi.fn();
         const notifier = createContentSavedNotifier(
-            wiring({ exportDiagram: vi.fn().mockRejectedValue(new Error("export")), onError }),
+            wiring({
+                exportDiagram: vi.fn().mockRejectedValue(new Error("export")),
+                reporter: createReporter({ onError }),
+            }),
         );
 
         const caller = notifier();
@@ -40,7 +50,7 @@ describe("createContentSavedNotifier", () => {
                 onContentSaved: vi.fn(() => {
                     throw new Error("sync");
                 }),
-                onError,
+                reporter: createReporter({ onError }),
             }),
         );
 
@@ -54,7 +64,10 @@ describe("createContentSavedNotifier", () => {
     it("reports an asynchronous callback rejection once", async () => {
         const onError = vi.fn();
         const notifier = createContentSavedNotifier(
-            wiring({ onContentSaved: vi.fn().mockRejectedValue(new Error("async")), onError }),
+            wiring({
+                onContentSaved: vi.fn().mockRejectedValue(new Error("async")),
+                reporter: createReporter({ onError }),
+            }),
         );
 
         const caller = notifier();
@@ -67,7 +80,10 @@ describe("createContentSavedNotifier", () => {
     it("reports once for a burst coalesced into a single failing run", async () => {
         const onError = vi.fn();
         const notifier = createContentSavedNotifier(
-            wiring({ onContentSaved: vi.fn().mockRejectedValue(new Error("boom")), onError }),
+            wiring({
+                onContentSaved: vi.fn().mockRejectedValue(new Error("boom")),
+                reporter: createReporter({ onError }),
+            }),
         );
 
         const callers = [notifier(), notifier(), notifier()];
@@ -83,7 +99,9 @@ describe("createContentSavedNotifier", () => {
             .fn()
             .mockRejectedValueOnce(new Error("boom"))
             .mockResolvedValue(undefined);
-        const notifier = createContentSavedNotifier(wiring({ onContentSaved, onError }));
+        const notifier = createContentSavedNotifier(
+            wiring({ onContentSaved, reporter: createReporter({ onError }) }),
+        );
 
         void notifier();
         await vi.advanceTimersByTimeAsync(300);
@@ -117,7 +135,7 @@ describe("createContentSavedNotifier", () => {
         const notifier = createContentSavedNotifier(
             wiring({
                 onContentSaved: vi.fn().mockRejectedValue(new Error("boom")),
-                onError,
+                reporter: createReporter({ onError }),
                 isDisposed: () => disposed,
             }),
         );
@@ -130,5 +148,61 @@ describe("createContentSavedNotifier", () => {
         expect(consoleError).not.toHaveBeenCalled();
         await expect(caller).resolves.toBeUndefined();
         consoleError.mockRestore();
+    });
+});
+
+describe("wireContentSaved", () => {
+    function fakeBus() {
+        const handlers = new Map<string, Set<(...args: any[]) => void>>();
+        return {
+            on: (event: string, handler: (...args: any[]) => void) => {
+                (handlers.get(event) ?? handlers.set(event, new Set()).get(event)!).add(handler);
+            },
+            off: (event: string, handler: (...args: any[]) => void) => {
+                handlers.get(event)?.delete(handler);
+            },
+            fire: (event: string) => handlers.get(event)?.forEach((handler) => handler()),
+            count: (event: string) => handlers.get(event)?.size ?? 0,
+        };
+    }
+
+    it("saves on commandStack.changed and reports the disposal-suppressed failure via the store", async () => {
+        const store = new DisposableStore();
+        const eventBus = fakeBus();
+        const onContentSaved = vi.fn();
+
+        wireContentSaved({
+            store,
+            eventBus,
+            exportDiagram: vi.fn().mockResolvedValue("<xml/>"),
+            onContentSaved,
+            reporter: createReporter({}),
+        });
+
+        eventBus.fire("commandStack.changed");
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(onContentSaved).toHaveBeenCalledWith({ xml: "<xml/>" });
+    });
+
+    it("unsubscribes and cancels the pending export on store dispose", async () => {
+        const store = new DisposableStore();
+        const eventBus = fakeBus();
+        const onContentSaved = vi.fn();
+
+        wireContentSaved({
+            store,
+            eventBus,
+            exportDiagram: vi.fn().mockResolvedValue("<xml/>"),
+            onContentSaved,
+            reporter: createReporter({}),
+        });
+
+        eventBus.fire("commandStack.changed");
+        store.dispose();
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(eventBus.count("commandStack.changed")).toBe(0);
+        expect(onContentSaved).not.toHaveBeenCalled();
     });
 });
