@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.12.0...vscode-v1.13.0) (2026-09-14)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** stamp execution platform on engine-bound newDiagram ([#1536](https://github.com/Miragon/bpmn-modeler/issues/1536)) [sync e742f59] ([7418949](https://github.com/Miragon/bpmn-modeler/commit/74189491726340cf1cf110e1b85c6ca1331b2a2b))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** keep panel-host flex layout under the diagram shell ([#1541](https://github.com/Miragon/bpmn-modeler/issues/1541)) [sync 69391c5] ([b2cce93](https://github.com/Miragon/bpmn-modeler/commit/b2cce934ce8213b9708caea64ec1f7c7caf4facf))
+
 ## [1.12.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.11.0...vscode-v1.12.0) (2026-09-13)
 
 
