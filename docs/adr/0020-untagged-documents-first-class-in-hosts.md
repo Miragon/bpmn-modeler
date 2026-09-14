@@ -11,6 +11,11 @@
 > `libs/shared` to `@miragon/bpmn-modeler-types`. The per-editor-state and
 > `defaultMode`-seed decisions here are unchanged.
 
+> Amended by [ADR 0035](0035-engine-bound-new-diagram-stamps-execution-platform.md):
+> the package's engine-bound `newDiagram()` stamps an execution platform on the
+> diagram it *creates*. The never-stamp-on-*open* rule below is unchanged —
+> explicit engine-bound creation is not an open.
+
 ## Context
 
 Epic #1438 ("one document, three modes") landed every package step — runtime

@@ -9,6 +9,7 @@
  */
 export * from "./asyncDebounce";
 export * from "./engine";
+export * from "./engineVersions";
 export * from "./surfaceMode";
 export * from "./lint";
 export * from "./settings";

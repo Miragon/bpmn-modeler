@@ -27,6 +27,7 @@ import {
     BpmnModelerSetting,
     DisposableStore,
     Engine,
+    getLatestVersion,
     LintResults,
     NoModelerError,
     OpenScriptEditorRef,
@@ -55,6 +56,7 @@ import {
     type ViewState,
 } from "./viewState";
 import { deriveEngines } from "./engines";
+import { initialDiagram } from "./initialDiagram";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
 import { ModeUiModule } from "./modeModules";
 import type { CreateModelerOptions } from "./createModeler";
@@ -412,7 +414,8 @@ export class BpmnModeler {
     }
 
     async newDiagram(): Promise<ImportXMLResult> {
-        const result = await this.getModeler().createDiagram();
+        const version = this.options.engineVersion ?? getLatestVersion(this.engine!);
+        const result = await this.getModeler().importXML(initialDiagram(this.engine!, version));
         this.applyEnginesFromDefinitions();
         return result;
     }

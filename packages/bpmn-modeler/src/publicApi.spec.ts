@@ -84,6 +84,7 @@ void _handleSuperset;
 
 const _scenarioTemplates = {
     engine: "c7",
+    engineVersion: "7.23.0",
     propertiesPanel: { parent: document.createElement("div") },
     elementTemplates: [{ id: "tpl", name: "Fetched template" }],
 } satisfies ModelerOptions;
