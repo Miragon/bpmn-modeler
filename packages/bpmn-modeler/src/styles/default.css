@@ -80,7 +80,7 @@ a:link {
 
 .content.with-diagram .canvas,
 .content.with-diagram .panel-resizer,
-.content.with-diagram .properties-panel-parent {
+.content.with-diagram .properties-panel-parent:not(.panel-host) {
     display: block;
 }
 
