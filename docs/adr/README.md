@@ -76,6 +76,7 @@ contributor-facing record, not user documentation.
 | [0031](0031-async-mode-session-destroy.md) | `ModeSession.destroy()` returns a `Promise` and awaits the in-flight switch so the session owns 0 or exactly 1 live surface at every instant; source-compatible for callers | accepted |
 | [0033](0033-content-saved-error-channel.md) | Report failing debounced saves once through a public `onError` channel (`console.error` fallback, destroy-suppressed); widen `onContentSaved` to `void \| Promise<void>` | accepted |
 | [0034](0034-shared-surface-lifecycle-primitives.md) | Share surface lifecycle primitives across modeler/designer/viewer/diff-viewer: `DisposableStore`/`MutableDisposable`/`subscribe` in `modeler-types`, package-internal `createSurface`, one initial-viewport policy, one save/error path; idempotent LIFO `destroy()`; no base class | accepted |
+| [0035](0035-engine-bound-new-diagram-stamps-execution-platform.md) | Engine-bound `newDiagram()` stamps `modeler:executionPlatform*` + `isExecutable="true"` (version from new `engineVersion` option); version registry moves to `@miragon/bpmn-modeler-types` (amends [0020](0020-untagged-documents-first-class-in-hosts.md)) | accepted |
 
 ### dmn-webview
 

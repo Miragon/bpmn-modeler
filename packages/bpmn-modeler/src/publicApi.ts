@@ -148,6 +148,15 @@ export interface ModelerOptions {
     engine: Engine;
 
     /**
+     * [A] Execution-platform version stamped verbatim into a fresh diagram's
+     * `modeler:executionPlatformVersion` by {@link BpmnModelerHandle.newDiagram}.
+     * Defaults to the latest known version for {@link engine}. Never applied to
+     * diagrams opened via {@link BpmnModelerHandle.loadDiagram} — loaded
+     * documents keep whatever metadata they carry (or none).
+     */
+    engineVersion?: string;
+
+    /**
      * [A] The panel host. Each instance owns its own properties-panel parent so
      * several modelers can coexist on one page.
      */
@@ -263,7 +272,11 @@ export interface BpmnModelerHandle {
     /** [A] Serialise the current diagram to formatted XML. */
     exportDiagram(): Promise<string>;
 
-    /** [A] Replace the diagram with a new empty one. */
+    /**
+     * [A] Replace the diagram with a fresh empty one stamped for this instance's
+     * {@link ModelerOptions.engine} (and {@link ModelerOptions.engineVersion}),
+     * so it reopens with the same engine and mode availability.
+     */
     newDiagram(): Promise<ImportXMLResult>;
 
     /** [A] Export the current diagram as SVG markup. */

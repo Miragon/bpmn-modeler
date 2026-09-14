@@ -407,6 +407,7 @@ a host capability (see [Capabilities](#capabilities--default-overrides)).
 | Field                                                                                                                | Type                                   | Default       | Meaning                                                                          |
 |----------------------------------------------------------------------------------------------------------------------|----------------------------------------|---------------|----------------------------------------------------------------------------------|
 | `engine`                                                                                                             | `"c7" \| "c8"`                         | — (required)  | Camunda engine version. Switching engines = `destroy()` + a new instance.        |
+| `engineVersion`                                                                                                      | `string`                               | latest for `engine` | Execution-platform version `newDiagram()` stamps verbatim as `modeler:executionPlatformVersion`. Never applied to loaded diagrams. |
 | `propertiesPanel`                                                                                                    | `{ parent: HTMLElement }`              | — (required)  | The per-instance panel host.                                                     |
 | `mode`                                                                                                               | `"design" \| "implement"`              | `"implement"` | Initial design/implement mode; toggle live with `setMode`.                       |
 | `elementTemplates`                                                                                                   | `object[]`                             | —             | Initial element templates as data (never a path).                                |
@@ -435,7 +436,8 @@ abort — the factory rejects with the thrown error and nothing is left mounted.
 
 | Method                                                                                         | Meaning                                                                               |
 |------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| `loadDiagram(xml)` / `exportDiagram()` / `newDiagram()` / `getDiagramSvg()`                    | Load / serialise the diagram.                                                         |
+| `loadDiagram(xml)` / `exportDiagram()` / `getDiagramSvg()`                                     | Load / serialise the diagram.                                                         |
+| `newDiagram()`                                                                                 | Replace the diagram with a fresh empty one stamped for `engine`/`engineVersion`, so it reopens in the same engine and mode. |
 | `setElementTemplates(templates)`                                                               | Push a new template set (data, never a path).                                         |
 | `setSettings(settings)`                                                                        | Merge a partial settings update (`colorTheme` excluded — theme is host policy).       |
 | `viewport` / `selection`                                                                       | Viewport (zoom/scroll/fit) and selection accessors.                                   |
@@ -639,8 +641,9 @@ narrows to a designer handle with no adapter.
 [View state](#view-state-capture--restore)) carry the user's plane, viewbox, and selection across a
 mode switch. `getService` is typed against `CoreDesignerServices`, which equals the full
 [core services](#core-services--escape-hatch) set (`modeling` and `commandStack`
-included) — the surface is editable by construction. `newDiagram()` uses the base bpmn-js template,
-which carries **no** `modeler:executionPlatform`, so a fresh diagram stays in Design mode.
+included) — the surface is editable by construction. Unlike the engine-bound
+`BpmnModelerHandle.newDiagram()`, the designer's `newDiagram()` uses the base bpmn-js template,
+which carries **no** `modeler:executionPlatform`, so a fresh diagram stays engine-neutral in Design mode.
 
 ### Guaranteed absent from the module graph
 
