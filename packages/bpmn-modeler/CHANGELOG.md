@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.1.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.0.0...bpmn-modeler-v1.1.0) (2026-09-14)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** stamp execution platform on engine-bound newDiagram ([#1536](https://github.com/Miragon/bpmn-modeler/issues/1536)) ([e742f59](https://github.com/Miragon/bpmn-modeler/commit/e742f59ba5135625cd5576857d77e37a2f313255))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** keep panel-host flex layout under the diagram shell ([#1541](https://github.com/Miragon/bpmn-modeler/issues/1541)) ([69391c5](https://github.com/Miragon/bpmn-modeler/commit/69391c55d59753abe33560f51279f825a9482538))
+
+
+### 🔨 Refactoring
+
+* **bpmn-modeler:** isolate private upstream access behind typed adapters ([#1537](https://github.com/Miragon/bpmn-modeler/issues/1537)) ([60c58a8](https://github.com/Miragon/bpmn-modeler/commit/60c58a862728187d3ba7908eca82dcd486c20921))
+* **bpmn-modeler:** share lifecycle primitives across surfaces ([#1535](https://github.com/Miragon/bpmn-modeler/issues/1535)) ([bba5706](https://github.com/Miragon/bpmn-modeler/commit/bba57064d09c0096882c53108181538947f92fa8))
+
+
+### 🛠️ Misc
+
+* **main:** release intellij 1.8.0 ([#1368](https://github.com/Miragon/bpmn-modeler/issues/1368)) ([b46c535](https://github.com/Miragon/bpmn-modeler/commit/b46c535ad8ec8c7a602bfc437889f9ea2f55265d))
+* **main:** release vscode 1.12.0 ([#1448](https://github.com/Miragon/bpmn-modeler/issues/1448)) ([c917f93](https://github.com/Miragon/bpmn-modeler/commit/c917f934085f59eb51a2f9813942f6fa65205905))
+
 ## [1.0.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v0.2.0...bpmn-modeler-v1.0.0) (2026-09-13)
 
 
