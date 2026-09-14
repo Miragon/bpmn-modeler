@@ -14,6 +14,11 @@
  * `config.*` to ensure the bridge is always available when the module loads.
  */
 import { ClipboardBridge } from "./BridgedClipboardModule";
+import { getDirectEditingContent } from "./directEditingInternals";
+
+interface EventBusLike {
+    on(event: string, cb: () => void): void;
+}
 
 /**
  * Dispatches a synthetic `ClipboardEvent("paste")` with the given text.
@@ -56,12 +61,17 @@ class LabelClipboard {
     // The contenteditable element the handler is currently attached to.
     private activeElement: HTMLElement | null = null;
 
-    constructor(bridge: ClipboardBridge, eventBus: any, directEditing: any) {
+    constructor(bridge: ClipboardBridge, eventBus: EventBusLike, directEditing: unknown) {
         const { requestClipboard, writeClipboard } = bridge;
 
         eventBus.on("directEditing.activate", () => {
-            const content: HTMLElement | undefined = directEditing._textbox?.content;
-            if (!content) {
+            let content: HTMLElement;
+            try {
+                content = getDirectEditingContent(directEditing);
+            } catch (err) {
+                // Degrade to no label clipboard; label editing itself keeps
+                // working. The pinned shape test supplies the loud failure.
+                console.error(err);
                 return;
             }
 

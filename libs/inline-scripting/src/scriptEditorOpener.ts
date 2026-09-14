@@ -1,3 +1,4 @@
+import type { Element, ElementLookup, ListenerModdle, ModdleElement } from "./bpmnTypes";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
 import { readScriptTaskFormat } from "./scriptModel";
 
@@ -13,6 +14,22 @@ import { readScriptTaskFormat } from "./scriptModel";
 
 type ListenerType = "executionListener" | "taskListener";
 
+interface EventBus {
+    fire(event: string, payload?: unknown): void;
+}
+
+interface Modeling {
+    updateModdleProperties(
+        element: Element,
+        moddleElement: ModdleElement,
+        properties: Record<string, unknown>,
+    ): void;
+}
+
+interface BpmnFactory {
+    create(type: string, attrs: Record<string, unknown>): ModdleElement;
+}
+
 /**
  * DI service that fires {@link OPEN_SCRIPT_EDITOR_EVENT} for a script task's
  * inline script or a listener script, converting listener implementations to
@@ -22,10 +39,10 @@ export class ScriptEditorOpener {
     static $inject = ["eventBus", "elementRegistry", "modeling", "bpmnFactory"];
 
     constructor(
-        private readonly eventBus: any,
-        private readonly elementRegistry: any,
-        private readonly modeling: any,
-        private readonly bpmnFactory: any,
+        private readonly eventBus: EventBus,
+        private readonly elementRegistry: ElementLookup,
+        private readonly modeling: Modeling,
+        private readonly bpmnFactory: BpmnFactory,
     ) {}
 
     /**
@@ -36,7 +53,7 @@ export class ScriptEditorOpener {
      *
      * @returns `true` if a script editor was opened.
      */
-    openFirstScript(element: any): boolean {
+    openFirstScript(element: Element): boolean {
         if (this.openScriptTask(element)) {
             return true;
         }
@@ -55,7 +72,7 @@ export class ScriptEditorOpener {
      *
      * @returns `true` if the element is a script task and the event fired.
      */
-    openScriptTask(element: any): boolean {
+    openScriptTask(element: Element): boolean {
         const bo = element?.businessObject;
         if (!bo || bo.$type !== "bpmn:ScriptTask") {
             return false;
@@ -100,8 +117,8 @@ export class ScriptEditorOpener {
             listenerIndex,
             eventName: listener.get?.("event") ?? listener.event ?? undefined,
             scriptFormat:
-                listener.script.get?.("scriptFormat") ?? listener.script.scriptFormat ?? "",
-            content: listener.script.get?.("value") ?? listener.script.value ?? "",
+                listener.script?.get?.("scriptFormat") ?? listener.script?.scriptFormat ?? "",
+            content: listener.script?.get?.("value") ?? listener.script?.value ?? "",
         } as OpenScriptEditorEvent);
         return true;
     }
@@ -120,7 +137,7 @@ export class ScriptEditorOpener {
      *   the other implementation attributes in the same update so the
      *   entire switch is one undoable command.
      */
-    private ensureInlineScript(element: any, listener: any): void {
+    private ensureInlineScript(element: Element, listener: ListenerModdle): void {
         const existingScript = listener.script;
         const existingValue = existingScript?.get?.("value") ?? existingScript?.value;
         if (typeof existingValue === "string") {
@@ -152,13 +169,13 @@ export class ScriptEditorOpener {
         });
     }
 
-    private listenersOf(element: any, listenerType: ListenerType): any[] {
+    private listenersOf(element: Element, listenerType: ListenerType): ListenerModdle[] {
         const extensionType =
             listenerType === "executionListener"
                 ? "camunda:ExecutionListener"
                 : "camunda:TaskListener";
         return (element?.businessObject?.extensionElements?.values || []).filter(
-            (e: any) => e.$type === extensionType,
+            (e) => e.$type === extensionType,
         );
     }
 }

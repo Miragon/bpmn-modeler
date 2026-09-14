@@ -1,8 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
-import { LockedScriptEntry, ScriptLockPropertiesProvider } from "./scriptLockPropertiesProvider";
+import {
+    LockedScriptEntry,
+    LockedScriptEntryProps,
+    PropertiesEntry,
+    ScriptLockPropertiesProvider,
+} from "./scriptLockPropertiesProvider";
 import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
+
+/** The slice of a preact vnode these tree-walking helpers touch. */
+interface VNode {
+    type?: unknown;
+    props?: {
+        children?: unknown;
+        class?: string;
+        readOnly?: boolean;
+        disabled?: boolean;
+        value?: string;
+        onClick?: () => void;
+        [key: string]: unknown;
+    };
+}
 
 /**
  * The locked entry is a hook-free renderer, so its returned preact vnode tree
@@ -10,23 +29,24 @@ import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
  * from that tree so the component tests below assert on the actual markup
  * (readOnly textarea, badge, hint) that the crash previously hid.
  */
-function childrenOf(node: any): any[] {
+function childrenOf(node: VNode): unknown[] {
     const kids = node?.props?.children;
     return Array.isArray(kids) ? kids : kids != null ? [kids] : [];
 }
 
-function walkVNodes(root: any, visit: (node: any) => void): void {
+function walkVNodes(root: unknown, visit: (node: VNode) => void): void {
     if (root == null || typeof root !== "object") {
         return;
     }
-    visit(root);
-    for (const child of childrenOf(root)) {
+    const node = root as VNode;
+    visit(node);
+    for (const child of childrenOf(node)) {
         walkVNodes(child, visit);
     }
 }
 
-function findByType(root: any, type: string): any[] {
-    const found: any[] = [];
+function findByType(root: unknown, type: string): VNode[] {
+    const found: VNode[] = [];
     walkVNodes(root, (node) => {
         if (node && node.type === type) {
             found.push(node);
@@ -35,7 +55,7 @@ function findByType(root: any, type: string): any[] {
     return found;
 }
 
-function textContentOf(root: any): string {
+function textContentOf(root: unknown): string {
     let text = "";
     // walkVNodes only descends into element nodes, so primitive (string/number)
     // children are collected here from each element's child list.
@@ -128,12 +148,16 @@ function listenerElement() {
     };
 }
 
-let eventBus: { fire: ReturnType<typeof vi.fn> };
+function createEventBus() {
+    return { fire: vi.fn<(event: string, payload?: unknown) => void>() };
+}
+
+let eventBus: ReturnType<typeof createEventBus>;
 let store: OpenScriptEditorsStore;
 let provider: ScriptLockPropertiesProvider;
 
 beforeEach(() => {
-    eventBus = { fire: vi.fn() };
+    eventBus = createEventBus();
     store = new OpenScriptEditorsStore(eventBus);
     provider = new ScriptLockPropertiesProvider(
         { registerProvider: vi.fn() },
@@ -179,12 +203,12 @@ describe("ScriptLockPropertiesProvider (script task)", () => {
         const groups = scriptTaskGroups();
 
         provider.getGroups(scriptTaskElement())(groups);
-        const entry = groups[0].entries[0] as any;
+        const entry = groups[0].entries[0] as PropertiesEntry;
 
         expect(entry.component).not.toBe(ORIGINAL_SCRIPT_COMPONENT);
         expect(entry.lockHintText).toContain("Task_1.js");
         // The locked field still reflects the live model content.
-        expect(entry.lockGetValue()).toBe("task code");
+        expect(entry.lockGetValue?.()).toBe("task code");
     });
 
     it("reveal fires the open-editor event with the current model payload", () => {
@@ -199,7 +223,7 @@ describe("ScriptLockPropertiesProvider (script task)", () => {
         const groups = scriptTaskGroups();
 
         provider.getGroups(scriptTaskElement())(groups);
-        (groups[0].entries[0] as any).lockReveal();
+        (groups[0].entries[0] as PropertiesEntry).lockReveal?.();
 
         expect(eventBus.fire).toHaveBeenCalledWith(OPEN_SCRIPT_EDITOR_EVENT, {
             elementId: "Task_1",
@@ -226,7 +250,7 @@ describe("LockedScriptEntry (rendered vnode tree)", () => {
         ]);
         const groups = scriptTaskGroups();
         provider.getGroups(scriptTaskElement())(groups);
-        return groups[0].entries[0] as any;
+        return groups[0].entries[0] as unknown as LockedScriptEntryProps;
     }
 
     it("renders a read-only textarea carrying the live script value", () => {
@@ -235,11 +259,11 @@ describe("LockedScriptEntry (rendered vnode tree)", () => {
 
         expect(textareas).toHaveLength(1);
         const textarea = textareas[0];
-        expect(textarea.props.readOnly).toBe(true);
+        expect(textarea.props?.readOnly).toBe(true);
         // A `disabled` textarea is unselectable in Chromium, defeating copy.
-        expect(textarea.props.disabled).toBeUndefined();
-        expect(textarea.props.class).toContain("bio-properties-panel-input-monospace");
-        expect(textarea.props.value).toBe("task code");
+        expect(textarea.props?.disabled).toBeUndefined();
+        expect(textarea.props?.class).toContain("bio-properties-panel-input-monospace");
+        expect(textarea.props?.value).toBe("task code");
     });
 
     it("marks the label with the read-only badge", () => {
@@ -254,13 +278,13 @@ describe("LockedScriptEntry (rendered vnode tree)", () => {
         const entry = lockedEntry();
         const tree = LockedScriptEntry(entry);
         const hints = findByType(tree, "div").filter((node) =>
-            (node.props.class ?? "").includes("script-lock-hint"),
+            (node.props?.class ?? "").includes("script-lock-hint"),
         );
 
         expect(hints).toHaveLength(1);
         expect(textContentOf(hints[0])).toContain("Task_1.js");
 
-        hints[0].props.onClick();
+        hints[0].props?.onClick?.();
         expect(eventBus.fire).toHaveBeenCalledWith(
             OPEN_SCRIPT_EDITOR_EVENT,
             expect.objectContaining({ elementId: "Task_1", kind: "script-task" }),
@@ -281,12 +305,12 @@ describe("ScriptLockPropertiesProvider (listener)", () => {
         const groups = listenerGroups();
 
         provider.getGroups(listenerElement())(groups);
-        const entry = (groups[0] as any).items[0].entries[0];
+        const entry = groups[0].items[0].entries[0] as PropertiesEntry;
 
         expect(entry.component).not.toBe(ORIGINAL_SCRIPT_COMPONENT);
-        expect(entry.lockGetValue()).toBe("listener code");
+        expect(entry.lockGetValue?.()).toBe("listener code");
 
-        entry.lockReveal();
+        entry.lockReveal?.();
         expect(eventBus.fire).toHaveBeenCalledWith(OPEN_SCRIPT_EDITOR_EVENT, {
             elementId: "Task_1",
             kind: "execution-listener",
@@ -310,7 +334,7 @@ describe("ScriptLockPropertiesProvider (listener)", () => {
 
         provider.getGroups(listenerElement())(groups);
 
-        expect((groups[0] as any).items[0].entries[0].component).toBe(ORIGINAL_SCRIPT_COMPONENT);
+        expect(groups[0].items[0].entries[0].component).toBe(ORIGINAL_SCRIPT_COMPONENT);
     });
 });
 

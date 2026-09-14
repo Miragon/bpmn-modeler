@@ -1,3 +1,5 @@
+import type { ModuleDeclaration } from "didi";
+
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { createCodeLinkModule } from "@miragon/bpmn-modeler-code-link";
 import { createInlineScriptingModules } from "@miragon/bpmn-modeler-inline-scripting";
@@ -14,8 +16,11 @@ import type { ModelerCapabilities } from "./capabilities";
  * Split out of {@link BpmnModeler} so the gating is unit-testable without
  * dragging in camunda-bpmn-js.
  */
-export function capabilityModules(engine: Engine, capabilities?: ModelerCapabilities): any[] {
-    const modules: any[] = [];
+export function capabilityModules(
+    engine: Engine,
+    capabilities?: ModelerCapabilities,
+): ModuleDeclaration[] {
+    const modules: ModuleDeclaration[] = [];
     if (capabilities?.modelNavigation) {
         modules.push(createModelNavigationModule(capabilities.modelNavigation));
     }

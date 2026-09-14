@@ -5,7 +5,8 @@ import {
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
 
-import { centreOf } from "./elementGeometry";
+import { centreOf, type PositionedElement } from "./elementGeometry";
+import type { CoreServiceAccessor } from "./coreServices";
 import { InitialViewportLatch } from "./initialViewport";
 
 /**
@@ -22,8 +23,6 @@ export interface ViewportData {
     scale?: number;
 }
 
-type ServiceAccessor = <T>(name: string) => T;
-
 // Keep focused elements legible without zooming out from the current view.
 const MIN_FOCUS_ZOOM = 0.75;
 
@@ -34,13 +33,13 @@ export class ViewportManager {
         fitViewport: () => this.fitViewport(),
     });
 
-    constructor(private readonly getService: ServiceAccessor) {}
+    constructor(private readonly getService: CoreServiceAccessor) {}
 
     /**
      * Returns the current canvas viewbox (position and zoom level).
      */
     getViewport(): ViewportData {
-        const { x, y, width, height, scale } = this.getService<any>("canvas").viewbox();
+        const { x, y, width, height, scale } = this.getService("canvas").viewbox();
         return { x, y, width, height, scale };
     }
 
@@ -51,7 +50,7 @@ export class ViewportManager {
      * container yields a NaN transform, which SVG renders as nothing.
      */
     isCanvasSized(): boolean {
-        const { outer } = this.getService<any>("canvas").viewbox();
+        const { outer } = this.getService("canvas").viewbox();
         return outer.width >= MIN_CANVAS_SIZE_PX && outer.height >= MIN_CANVAS_SIZE_PX;
     }
 
@@ -77,7 +76,7 @@ export class ViewportManager {
             this.latch.hold(viewport);
             return false;
         }
-        const canvas = this.getService<any>("canvas");
+        const canvas = this.getService("canvas");
         // Pin saved zoom explicitly because the container may have resized since capture.
         if (viewport.scale !== undefined && Number.isFinite(viewport.scale) && viewport.scale > 0) {
             const { outer } = canvas.viewbox();
@@ -135,7 +134,7 @@ export class ViewportManager {
      * @returns `false` if nothing was applied, so the caller can retry.
      */
     fitViewport(): boolean {
-        const canvas = this.getService<any>("canvas");
+        const canvas = this.getService("canvas");
         const { inner, outer } = canvas.viewbox();
 
         // Fitting a zero-sized container would produce a NaN transform and blank the canvas.
@@ -185,12 +184,12 @@ export class ViewportManager {
      * `viewbox.changed` event through, so the focused position is persisted.
      */
     centerOnElement(id: string): boolean {
-        const canvas = this.getService<any>("canvas");
-        const element = this.getService<any>("elementRegistry").get(id);
+        const canvas = this.getService("canvas");
+        const element = this.getService("elementRegistry").get(id);
         if (!element) {
             return false;
         }
-        const centre = centreOf(element);
+        const centre = centreOf(element as PositionedElement);
         if (!centre) {
             return false;
         }
@@ -227,11 +226,16 @@ export class ViewportManager {
         return subscribeViewboxChanged<ViewportData>({
             // Capture the bus so the disposer works after facade destroy, when the
             // service accessor would throw NoModelerError.
-            eventBus: this.getService<MinimalEventBus>("eventBus"),
+            eventBus: this.getService("eventBus"),
             map: ({ x, y, width, height, scale }) => ({ x, y, width, height, scale }),
             onChange: cb,
         });
     }
+}
+
+/** The `canvas.viewbox.changed` payload slice {@link subscribeViewboxChanged} reads. */
+interface ViewboxChangedEvent {
+    viewbox: { x: number; y: number; width: number; height: number; scale?: number };
 }
 
 /**
@@ -251,13 +255,13 @@ export function subscribeViewboxChanged<
 >(options: {
     eventBus: MinimalEventBus;
     debounceMs?: number;
-    accept?: (event: any) => boolean;
-    map: (viewbox: any) => V;
+    accept?: (event: ViewboxChangedEvent) => boolean;
+    map: (viewbox: ViewboxChangedEvent["viewbox"]) => V;
     onChange: (viewport: V) => void;
 }): Disposer {
     const { eventBus, debounceMs = 100, accept, map, onChange } = options;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const handler = (event: any): void => {
+    const handler = (event: ViewboxChangedEvent): void => {
         if (accept && !accept(event)) {
             clearTimeout(timer);
             return;

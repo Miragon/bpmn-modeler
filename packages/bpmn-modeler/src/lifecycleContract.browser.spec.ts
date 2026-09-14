@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "./createModeler";
+import type { BpmnModeler } from "./modeler";
 import { createDesigner } from "./design/createDesigner";
+import type { BpmnDesigner } from "./design/designer";
 import { createViewer } from "./viewer/createViewer";
+import type { BpmnViewer } from "./viewer/viewer";
 import { DiffViewer } from "./viewer/diff/DiffViewer";
 
 /**
@@ -115,11 +118,11 @@ function trackDocumentKeydown() {
     let removed = 0;
     document.addEventListener = ((type: string, ...rest: unknown[]) => {
         if (type === "keydown") added++;
-        return (originalAdd as any)(type, ...rest);
+        return (originalAdd as (...a: unknown[]) => void)(type, ...rest);
     }) as typeof document.addEventListener;
     document.removeEventListener = ((type: string, ...rest: unknown[]) => {
         if (type === "keydown") removed++;
-        return (originalRemove as any)(type, ...rest);
+        return (originalRemove as (...a: unknown[]) => void)(type, ...rest);
     }) as typeof document.removeEventListener;
     return {
         counts: () => ({ added, removed }),
@@ -145,13 +148,13 @@ const surfaces: SurfaceDescriptor[] = [
                 propertiesPanel: { parent: m.panelParent! },
                 additionalModules: [POISON_MODULE] as never,
             }),
-        load: (h) => (h as any).loadDiagram(XML),
+        load: async (h) => void (await (h as BpmnModeler).loadDiagram(XML)),
         subscribeChannels: (h, onFire) => [
-            (h as any).viewport.onViewportChanged(onFire),
-            (h as any).onCommandStackChanged(onFire),
+            (h as BpmnModeler).viewport.onViewportChanged(onFire),
+            (h as BpmnModeler).onCommandStackChanged(onFire),
         ],
-        triggerViewbox: (h) => (h as any).getService("canvas").zoom(2),
-        probeDead: (h) => void (h as any).viewport,
+        triggerViewbox: (h) => (h as BpmnModeler).getService("canvas").zoom(2),
+        probeDead: (h) => void (h as BpmnModeler).viewport,
     },
     {
         name: "designer",
@@ -162,10 +165,10 @@ const surfaces: SurfaceDescriptor[] = [
                 propertiesPanel: { parent: m.panelParent! },
                 additionalModules: [POISON_MODULE] as never,
             }),
-        load: (h) => (h as any).loadDiagram(XML),
-        subscribeChannels: (h, onFire) => [(h as any).viewport.onViewportChanged(onFire)],
-        triggerViewbox: (h) => (h as any).getService("canvas").zoom(2),
-        probeDead: (h) => void (h as any).viewport,
+        load: async (h) => void (await (h as BpmnDesigner).loadDiagram(XML)),
+        subscribeChannels: (h, onFire) => [(h as BpmnDesigner).viewport.onViewportChanged(onFire)],
+        triggerViewbox: (h) => (h as BpmnDesigner).getService("canvas").zoom(2),
+        probeDead: (h) => void (h as BpmnDesigner).viewport,
     },
     {
         name: "viewer",
@@ -176,10 +179,10 @@ const surfaces: SurfaceDescriptor[] = [
                 propertiesPanel: { parent: m.panelParent! },
                 additionalModules: [POISON_MODULE] as never,
             }),
-        load: (h) => (h as any).loadDiagram(XML),
-        subscribeChannels: (h, onFire) => [(h as any).viewport.onViewportChanged(onFire)],
-        triggerViewbox: (h) => (h as any).getService("canvas").zoom(2),
-        probeDead: (h) => void (h as any).viewport,
+        load: async (h) => void (await (h as BpmnViewer).loadDiagram(XML)),
+        subscribeChannels: (h, onFire) => [(h as BpmnViewer).viewport.onViewportChanged(onFire)],
+        triggerViewbox: (h) => (h as BpmnViewer).getService("canvas").zoom(2),
+        probeDead: (h) => void (h as BpmnViewer).viewport,
     },
     {
         name: "diffViewer",

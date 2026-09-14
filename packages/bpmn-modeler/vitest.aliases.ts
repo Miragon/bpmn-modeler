@@ -35,6 +35,7 @@ export const bpmnModelerTestAliases: Record<string, string> = {
         "../../libs/inline-scripting/src/index.ts",
     ),
     "@miragon/bpmn-modeler-clipboard": resolve(__dirname, "../../libs/bpmn-clipboard/src/index.ts"),
+    "@miragon/bpmn-modeler-append-menu": resolve(__dirname, "../../libs/append-menu/src/index.ts"),
     "@miragon/bpmn-modeler-layout": resolve(__dirname, "../../libs/bpmn-layout/src/index.ts"),
     // Entry-point-less libs the editable surfaces value-import; the lifecycle
     // contract stands up a real designer/modeler, so map them explicitly.

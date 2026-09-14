@@ -94,10 +94,14 @@ export class MutableDisposable {
     }
 }
 
+// Bivariant seam: `any[]` keeps real event buses and narrow handlers mutually assignable.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type EventHandler = (...args: any[]) => void;
+
 /** The slice of a bpmn-js / diagram-js event bus {@link subscribe} needs. */
 export interface MinimalEventBus {
-    on(event: string, handler: (...args: any[]) => void): void;
-    off(event: string, handler: (...args: any[]) => void): void;
+    on(event: string, handler: EventHandler): void;
+    off(event: string, handler: EventHandler): void;
 }
 
 /**
@@ -105,11 +109,7 @@ export interface MinimalEventBus {
  * Captures the bus so the disposer still works after the surface is destroyed,
  * when a lazy service accessor would throw.
  */
-export function subscribe(
-    bus: MinimalEventBus,
-    event: string,
-    handler: (...args: any[]) => void,
-): Disposer {
+export function subscribe(bus: MinimalEventBus, event: string, handler: EventHandler): Disposer {
     bus.on(event, handler);
     return () => bus.off(event, handler);
 }

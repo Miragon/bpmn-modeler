@@ -13,6 +13,7 @@
         "bpmn-js": "18.28.0"
     },
     "devDependencies": {
+        "diagram-js": "15.26.0",
         "typescript": "6.0.3"
     }
 }

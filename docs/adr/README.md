@@ -26,6 +26,7 @@ contributor-facing record, not user documentation.
 | [0028](0028-dmn-modeler-as-subpath-release-component.md) | `@miragon/dmn-modeler` as a subpath release component (`dmn-modeler-v<version>`); `BUNDLED_LIBS` marker for its two inlined libs; one parameterised publish workflow | accepted |
 | [0032](0032-vitest-browser-mode-for-bpmn-modeler.md) | Vitest browser mode (Playwright/Chromium) as a second project for `@miragon/bpmn-modeler`; real-ResizeObserver view-state specs, coverage off, shared aliases | accepted |
 | [0034](0034-patch-vulnerable-transitive-build-dependencies.md) | Pin patched transitive dependencies and replace Theia's archive extractor | accepted |
+| [0035](0035-typed-adapters-for-private-upstream-apis.md) | Isolate private upstream access behind typed adapters with pinned shape tests; escalate `no-explicit-any` to `error` off the fork | accepted |
 
 ### modeler-core
 

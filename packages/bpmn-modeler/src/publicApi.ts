@@ -1,11 +1,7 @@
 import type { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
-import type Canvas from "diagram-js/lib/core/Canvas";
-import type ElementRegistry from "diagram-js/lib/core/ElementRegistry";
-import type EventBus from "diagram-js/lib/core/EventBus";
-import type CommandStack from "diagram-js/lib/command/CommandStack";
-import type Selection from "diagram-js/lib/features/selection/Selection";
-import type Overlays from "diagram-js/lib/features/overlays/Overlays";
-import type Modeling from "bpmn-js/lib/features/modeling/Modeling";
+import type { CoreModelerServices } from "./coreServices";
+
+export type { CoreModelerServices } from "./coreServices";
 import type {
     BpmnlintConfig,
     BpmnModelerSetting,
@@ -400,22 +396,6 @@ export interface BpmnModelerHandle {
      *   typed option/method; open an issue if one is missing.
      */
     getService<T = unknown>(name: string): T;
-}
-
-/**
- * The core diagram-js/bpmn-js services whose names and documented shapes are
- * semver-stable through {@link BpmnModelerHandle.getService} across minor
- * versions. Modelled as a name→type map so it stays `Pick`-able: a future
- * viewer handle (#1405) can freeze exactly the subset it exposes.
- */
-export interface CoreModelerServices {
-    canvas: Canvas;
-    commandStack: CommandStack;
-    elementRegistry: ElementRegistry;
-    eventBus: EventBus;
-    modeling: Modeling;
-    overlays: Overlays;
-    selection: Selection;
 }
 
 /**

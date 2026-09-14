@@ -1,5 +1,6 @@
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
+import type { ElementLookup } from "./bpmnTypes";
 import {
     OPEN_SCRIPT_EDITORS_CHANGED_EVENT,
     openScriptKey,
@@ -39,6 +40,11 @@ export interface ScriptSourceChangedEvent {
  * so `commandStack.changed` sees model == baseline and stays silent; only
  * genuinely model-originated changes (undo, reload) differ from the baseline.
  */
+interface EventBus {
+    on(event: string, callback: () => void): void;
+    fire(event: string, payload?: unknown): void;
+}
+
 export class ScriptSourceWatcher {
     /** Last model content per open script key — the divergence baseline. */
     private lastKnown = new Map<string, string | undefined>();
@@ -46,8 +52,8 @@ export class ScriptSourceWatcher {
     static $inject = ["eventBus", "elementRegistry", "openScriptEditorsStore"];
 
     constructor(
-        private readonly eventBus: any,
-        private readonly elementRegistry: any,
+        private readonly eventBus: EventBus,
+        private readonly elementRegistry: ElementLookup,
         private readonly store: OpenScriptEditorsStore,
     ) {
         // Baselines are (re)established the moment the open-set changes —

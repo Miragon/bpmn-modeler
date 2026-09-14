@@ -16,6 +16,7 @@
     },
     "devDependencies": {
         "bpmn-js": "18.28.0",
+        "diagram-js": "15.26.0",
         "typescript": "6.0.3",
         "vitest": "4.1.11"
     }

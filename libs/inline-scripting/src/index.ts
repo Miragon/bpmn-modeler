@@ -56,6 +56,7 @@ export {
     findListenerAt,
 };
 export type { OpenScriptEditorEvent, ScriptSourceChangedEvent, InlineScriptingPort };
+export type { ScriptTaskBusinessObject } from "./bpmnTypes";
 
 /**
  * All C7 inline-scripting DI modules for the given host port, in registration

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ViewportManager } from "./viewport";
+import { ViewportManager, type ViewportData } from "./viewport";
+import type { CoreServiceAccessor } from "./coreServices";
 
 /**
  * Builds a `ViewportManager` over a fake bpmn-js canvas whose `viewbox()`
@@ -14,24 +15,24 @@ function setup(inner: Rect, outer: { width: number; height: number }) {
     const viewbox = vi.fn((box?: unknown) => (box ? undefined : { inner, outer }));
     const zoom = vi.fn();
     const canvas = { viewbox, zoom, getContainer: () => container };
-    const listeners: Record<string, ((event: any) => void)[]> = {};
+    const listeners: Record<string, ((event: unknown) => void)[]> = {};
     const eventBus = {
-        on: (event: string, handler: (event: any) => void) => {
+        on: (event: string, handler: (event: unknown) => void) => {
             (listeners[event] ??= []).push(handler);
         },
-        off: (event: string, handler: (event: any) => void) => {
+        off: (event: string, handler: (event: unknown) => void) => {
             const handlers = listeners[event];
             if (!handlers) return;
             const index = handlers.indexOf(handler);
             if (index !== -1) handlers.splice(index, 1);
         },
     };
-    const manager = new ViewportManager((name: string) => {
-        if (name === "canvas") return canvas as any;
-        if (name === "eventBus") return eventBus as any;
+    const manager = new ViewportManager(((name: string) => {
+        if (name === "canvas") return canvas;
+        if (name === "eventBus") return eventBus;
         throw new Error(`unexpected service: ${name}`);
-    });
-    const emit = (event: string, payload?: any) =>
+    }) as unknown as CoreServiceAccessor);
+    const emit = (event: string, payload?: unknown) =>
         (listeners[event] ?? []).forEach((handler) => handler(payload));
     /** Fires a `canvas.viewbox.changed` event at the manager's subscriber. */
     const emitViewboxChanged = (box: Partial<Rect>) =>
@@ -186,7 +187,7 @@ describe("ViewportManager.setViewport", () => {
     ])("falls back to a fit for a saved viewbox with %s", (_case, saved) => {
         const { manager, viewbox } = setup(inner, { width: 1000, height: 800 });
 
-        expect(manager.setViewport(saved as any)).toBe(true);
+        expect(manager.setViewport(saved as ViewportData)).toBe(true);
 
         // The fit ran instead: the applied box is computed, not the saved one.
         const applied = setterCalls(viewbox).at(-1) as [Rect];
@@ -237,10 +238,10 @@ describe("ViewportManager initial-viewport decision", () => {
         const viewbox = vi.fn((box?: unknown) => (box ? undefined : { inner, outer }));
         const zoom = vi.fn();
         const canvas = { viewbox, zoom, getContainer: () => container };
-        const manager = new ViewportManager((name: string) => {
-            if (name === "canvas") return canvas as any;
+        const manager = new ViewportManager(((name: string) => {
+            if (name === "canvas") return canvas;
             throw new Error(`unexpected service: ${name}`);
-        });
+        }) as unknown as CoreServiceAccessor);
         const sizeCanvas = (next: { width: number; height: number }) => {
             outer = next;
         };
@@ -290,7 +291,9 @@ describe("ViewportManager initial-viewport decision", () => {
     it("falls back to a fit for an unusable box and latches the decision", () => {
         const { manager, viewbox } = setupResizable({ width: 1000, height: 800 });
 
-        expect(manager.setViewport({ x: NaN, y: NaN, width: NaN, height: NaN } as any)).toBe(true);
+        expect(
+            manager.setViewport({ x: NaN, y: NaN, width: NaN, height: NaN } as ViewportData),
+        ).toBe(true);
         const callsAfterSet = viewbox.mock.calls.length;
 
         expect(manager.applyInitialViewportOnce()).toBe(true);
@@ -380,11 +383,11 @@ function setupFocus(
     const viewbox = vi.fn((box?: unknown) => (box ? undefined : { ...current, outer }));
     const canvas = { viewbox };
     const registry = { get: (id: string) => elements[id] };
-    const manager = new ViewportManager((name: string) => {
-        if (name === "canvas") return canvas as any;
-        if (name === "elementRegistry") return registry as any;
+    const manager = new ViewportManager(((name: string) => {
+        if (name === "canvas") return canvas;
+        if (name === "elementRegistry") return registry;
         throw new Error(`unexpected service: ${name}`);
-    });
+    }) as unknown as CoreServiceAccessor);
     return { manager, viewbox };
 }
 

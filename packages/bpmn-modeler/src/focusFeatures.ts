@@ -35,7 +35,8 @@ export function installSurfaceFocusFeatures(
 ): Disposer {
     const canvas = getService<CanvasService>("canvas");
     const canvasContainer = canvas.getContainer();
-    const eventBus = () => getService<any>("eventBus");
+    const eventBus = () =>
+        getService<{ on(event: string, handler: (event: never) => void): void }>("eventBus");
     const selection = () =>
         getService<{ get(): unknown[]; select(elements: null): void }>("selection");
 

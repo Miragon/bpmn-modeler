@@ -1,5 +1,12 @@
 import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
 
+import type {
+    ElementCollection,
+    ElementLookup,
+    ListenerModdle,
+    ScriptTaskBusinessObject,
+} from "./bpmnTypes";
+
 /**
  * Model-side script lookups shared by {@link BpmnModeler}'s write path and the
  * {@link ScriptSourceWatcher}'s read path, so both resolve a script through
@@ -16,15 +23,15 @@ import type { ScriptKind, ScriptTaskScript } from "@miragon/bpmn-modeler-types";
  * with what the user sees in the properties panel.
  */
 export function findListenerAt(
-    bo: any,
+    bo: ScriptTaskBusinessObject | undefined,
     listenerType: "camunda:ExecutionListener" | "camunda:TaskListener",
     index: number | undefined,
-): any {
+): ListenerModdle | undefined {
     if (index === undefined) {
         return undefined;
     }
     const values = bo?.extensionElements?.values ?? [];
-    const filtered = values.filter((v: any) => v.$type === listenerType);
+    const filtered = values.filter((v) => v.$type === listenerType);
     return filtered[index];
 }
 
@@ -38,7 +45,7 @@ export function findListenerAt(
  * writable on the element, so the tab can stay open on empty content.
  */
 export function readScriptContent(
-    elementRegistry: any,
+    elementRegistry: ElementLookup,
     elementId: string,
     kind: ScriptKind,
     listenerIndex: number | undefined,
@@ -56,7 +63,7 @@ export function readScriptContent(
         if (element.businessObject?.$type !== "bpmn:ScriptTask") {
             return undefined;
         }
-        return element.businessObject.script ?? "";
+        return element.businessObject?.script ?? "";
     }
     const listenerType =
         kind === "execution-listener" ? "camunda:ExecutionListener" : "camunda:TaskListener";
@@ -76,7 +83,7 @@ export function readScriptContent(
  * disagree about which value the host receives. `bo.get` is guarded because a
  * plain moddle object may expose the attribute only as a direct property.
  */
-export function readScriptTaskFormat(bo: any): string {
+export function readScriptTaskFormat(bo: ScriptTaskBusinessObject | undefined): string {
     return bo?.get?.("camunda:scriptFormat") || bo?.get?.("scriptFormat") || bo?.scriptFormat || "";
 }
 
@@ -91,7 +98,7 @@ export function readScriptTaskFormat(bo: any): string {
  * included on purpose — the command exists to hand the user an editable stub for
  * every script task, including ones they have not written yet.
  */
-export function collectInlineScriptTasks(elementRegistry: any): ScriptTaskScript[] {
+export function collectInlineScriptTasks(elementRegistry: ElementCollection): ScriptTaskScript[] {
     const scripts: ScriptTaskScript[] = [];
     for (const element of elementRegistry.getAll()) {
         if (element.type === "label") {

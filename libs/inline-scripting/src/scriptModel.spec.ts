@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+    Element,
+    ElementCollection,
+    ElementLookup,
+    ScriptTaskBusinessObject,
+} from "./bpmnTypes";
 import { collectInlineScriptTasks, readScriptContent, readScriptTaskFormat } from "./scriptModel";
 
 /**
@@ -7,12 +13,12 @@ import { collectInlineScriptTasks, readScriptContent, readScriptTaskFormat } fro
  * attributes passed in, mirroring how bpmn-js exposes both namespaced and
  * plain attributes through a single accessor.
  */
-function businessObject(attrs: Record<string, unknown>): any {
-    return { ...attrs, get: (name: string) => attrs[name] };
+function businessObject(attrs: Record<string, unknown>): ScriptTaskBusinessObject {
+    return { ...attrs, get: (name: string) => attrs[name] } as unknown as ScriptTaskBusinessObject;
 }
 
 /** Minimal element-registry double: `getAll` returns the seeded elements. */
-function elementRegistry(elements: any[]): any {
+function elementRegistry(elements: Element[]): ElementCollection {
     return { getAll: () => elements };
 }
 
@@ -37,7 +43,7 @@ describe("readScriptTaskFormat", () => {
 
 describe("readScriptContent", () => {
     /** Element-registry double whose `get(id)` returns the single seeded element. */
-    function registryWith(element: any): any {
+    function registryWith(element: Element): ElementLookup {
         return { get: (id: string) => (element?.id === id ? element : undefined) };
     }
 

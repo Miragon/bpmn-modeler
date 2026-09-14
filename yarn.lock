@@ -3930,6 +3930,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-clipboard@workspace:libs/bpmn-clipboard"
   dependencies:
     bpmn-js-native-copy-paste: "npm:0.3.0"
+    diagram-js: "npm:15.26.0"
     typescript: "npm:6.0.3"
   peerDependencies:
     bpmn-js: 18.28.0
@@ -4025,6 +4026,7 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-element-template-chooser@workspace:libs/element-template-chooser"
   dependencies:
     bpmn-js: "npm:18.28.0"
+    diagram-js: "npm:15.26.0"
     minisearch: "npm:7.2.0"
     preact: "npm:10.29.3"
     typescript: "npm:6.0.3"

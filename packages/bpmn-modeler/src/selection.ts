@@ -1,19 +1,20 @@
-/** Accessor for a service from the bpmn-js DI container, by name. */
-type ServiceAccessor = <T>(name: string) => T;
+import type { Event } from "diagram-js/lib/core/EventBus";
+
+import type { CoreServiceAccessor } from "./coreServices";
 
 /**
  * Reads, writes, and subscribes to element selection changes.
  *
- * Decoupled from the modeler through a {@link ServiceAccessor} so the
+ * Decoupled from the modeler through a {@link CoreServiceAccessor} so the
  * selection concern can be tested and composed independently.
  */
 export class SelectionManager {
-    constructor(private readonly getService: ServiceAccessor) {}
+    constructor(private readonly getService: CoreServiceAccessor) {}
 
     getSelectedElementIds(): string[] {
-        return this.getService<any>("selection")
+        return this.getService("selection")
             .get()
-            .map((el: any) => el.id);
+            .map((el) => el.id);
     }
 
     /**
@@ -22,9 +23,9 @@ export class SelectionManager {
      * selection, so a snapshot captured with nothing selected restores faithfully.
      */
     selectElementsByIds(ids: string[]): void {
-        const registry = this.getService<any>("elementRegistry");
-        const elements = ids.map((id: string) => registry.get(id)).filter(Boolean);
-        this.getService<any>("selection").select(elements);
+        const registry = this.getService("elementRegistry");
+        const elements = ids.map((id) => registry.get(id)).filter(Boolean);
+        this.getService("selection").select(elements);
     }
 
     /**
@@ -32,9 +33,9 @@ export class SelectionManager {
      *   surface down so repeated subscribe cycles don't accumulate listeners.
      */
     onSelectionChanged(cb: (elementIds: string[]) => void): () => void {
-        const eventBus = this.getService<any>("eventBus");
-        const handler = (event: any): void => {
-            const ids = (event.newSelection ?? []).map((el: any) => el.id);
+        const eventBus = this.getService("eventBus");
+        const handler = (event: Event & { newSelection?: { id: string }[] }): void => {
+            const ids = (event.newSelection ?? []).map((el) => el.id);
             cb(ids);
         };
         eventBus.on("selection.changed", handler);

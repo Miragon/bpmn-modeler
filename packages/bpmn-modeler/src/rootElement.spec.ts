@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RootElementManager } from "./rootElement";
+import type { CoreServiceAccessor } from "./coreServices";
 
 function setup(currentRootId: string, elements: Record<string, unknown> = {}) {
     const setRootElement = vi.fn();
@@ -11,24 +12,24 @@ function setup(currentRootId: string, elements: Record<string, unknown> = {}) {
     const elementRegistry = {
         get: vi.fn((id: string) => elements[id]),
     };
-    const listeners: Record<string, ((event: any) => void)[]> = {};
+    const listeners: Record<string, ((event: unknown) => void)[]> = {};
     const eventBus = {
-        on: (event: string, handler: (event: any) => void) => {
+        on: (event: string, handler: (event: unknown) => void) => {
             (listeners[event] ??= []).push(handler);
         },
-        off: (event: string, handler: (event: any) => void) => {
+        off: (event: string, handler: (event: unknown) => void) => {
             const handlers = listeners[event];
             if (!handlers) return;
             const index = handlers.indexOf(handler);
             if (index !== -1) handlers.splice(index, 1);
         },
     };
-    const manager = new RootElementManager((name: string) => {
-        if (name === "canvas") return canvas as any;
-        if (name === "elementRegistry") return elementRegistry as any;
-        if (name === "eventBus") return eventBus as any;
+    const manager = new RootElementManager(((name: string) => {
+        if (name === "canvas") return canvas;
+        if (name === "elementRegistry") return elementRegistry;
+        if (name === "eventBus") return eventBus;
         throw new Error(`unexpected service: ${name}`);
-    });
+    }) as unknown as CoreServiceAccessor);
     const emitRootSet = (elementId: string) =>
         (listeners["root.set"] ?? []).forEach((handler) => handler({ element: { id: elementId } }));
     const listenerCount = (event: string) => (listeners[event] ?? []).length;
@@ -52,10 +53,10 @@ describe("RootElementManager.getRootElementId", () => {
 
     it("returns undefined when canvas has no root element", () => {
         const canvas = { getRootElement: vi.fn().mockReturnValue(null) };
-        const manager = new RootElementManager((name: string) => {
-            if (name === "canvas") return canvas as any;
+        const manager = new RootElementManager(((name: string) => {
+            if (name === "canvas") return canvas;
             throw new Error(`unexpected service: ${name}`);
-        });
+        }) as unknown as CoreServiceAccessor);
         expect(manager.getRootElementId()).toBeUndefined();
     });
 });
