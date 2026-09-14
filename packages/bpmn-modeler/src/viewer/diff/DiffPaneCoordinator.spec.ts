@@ -18,12 +18,14 @@ function stubViewer(present: string[] = []) {
         highlights: {} as Record<string, readonly string[]>,
         focus: [] as string[],
         disposed: false,
+        disposeCount: 0,
     };
     const viewer = {
         onViewportChanged: (cb: (v: Viewport) => void) => {
             vpCb = cb;
             return () => {
                 calls.disposed = true;
+                calls.disposeCount++;
                 vpCb = undefined;
             };
         },
@@ -146,5 +148,17 @@ describe("DiffPaneCoordinator", () => {
 
         before.fireViewport(VP);
         expect(after.calls.setViewport).toEqual([]);
+    });
+
+    it("does not re-run disposers on a second destroy", () => {
+        const before = stubViewer();
+        const after = stubViewer();
+        const coord = new DiffPaneCoordinator(before.viewer, after.viewer);
+
+        coord.destroy();
+        coord.destroy();
+
+        expect(before.calls.disposeCount).toBe(1);
+        expect(after.calls.disposeCount).toBe(1);
     });
 });

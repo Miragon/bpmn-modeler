@@ -19,6 +19,26 @@ export default defineConfig({
     optimizeDeps: {
         rolldownOptions: { transform: { jsx: { development: false } } },
     },
+    // Standing up the full modeler pulls in the FEEL editor; without deduping
+    // these singletons the runner loads two @codemirror/state copies and their
+    // instanceof checks break ("Unrecognized extension value"). Mirrors the
+    // webview's dedupe list.
+    resolve: {
+        dedupe: [
+            "preact",
+            "@bpmn-io/properties-panel",
+            "@codemirror/state",
+            "@codemirror/view",
+            "@codemirror/language",
+            "@codemirror/autocomplete",
+            "@codemirror/commands",
+            "@codemirror/lint",
+            "@codemirror/search",
+            "@lezer/common",
+            "@lezer/highlight",
+            "@lezer/lr",
+        ],
+    },
     test: {
         name: "bpmn-modeler-browser",
         include: ["src/**/*.browser.spec.ts"],

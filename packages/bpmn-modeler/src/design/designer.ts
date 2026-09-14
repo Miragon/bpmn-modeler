@@ -17,12 +17,7 @@ import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-mode
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 import { createModelNavigationModule } from "@miragon/bpmn-model-navigation";
 import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
-import {
-    type AsyncDebounced,
-    installCanvasFocusIndicator,
-    NoModelerError,
-    observeCanvasSize,
-} from "@miragon/bpmn-modeler-types";
+import { DisposableStore, MutableDisposable, NoModelerError } from "@miragon/bpmn-modeler-types";
 import { installContentEditableClipboardPolyfill } from "../propertiesPanelClipboard";
 import { ThemeController } from "../theme";
 import { ViewportManager } from "../viewport";
@@ -33,10 +28,12 @@ import {
     captureViewState as captureViewStateComposition,
     type ViewState,
 } from "../viewState";
-import { installKeyboardFocus } from "../keyboardFocus";
+import { armInitialViewportPolicy } from "../initialViewport";
+import { installSurfaceFocusFeatures } from "../focusFeatures";
 import { buildLintModules } from "../lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "../lintHandle";
-import { createContentSavedNotifier } from "../contentSaved";
+import { wireContentSaved } from "../contentSaved";
+import { createReporter } from "../reporting";
 import type { LintConfigService } from "../bpmnlint/LintConfigService";
 import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-modeler-types";
 import type { ThemeMode } from "../publicApi";
@@ -57,15 +54,10 @@ export class BpmnDesigner {
 
     private themeController?: ThemeController;
 
-    private stopObservingSize?: () => void;
+    private readonly store = new DisposableStore();
 
-    private focusDisposers: Array<() => void> = [];
-
-    // Separate from focusDisposers: the polyfill registers at the top of init() before the canvas exists.
-    private disposeClipboardPolyfill?: () => void;
-
-    // Retain the debouncer so destroy can cancel a pending export.
-    private contentSaved?: AsyncDebounced<() => Promise<void>>;
+    // Re-armed per loadDiagram, so it can't be a plain store entry.
+    private readonly sizeObserver = new MutableDisposable();
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -129,10 +121,6 @@ export class BpmnDesigner {
 
     /** @internal */
     async init(): Promise<void> {
-        this.disposeFocusFeatures();
-        this.disposeClipboardPolyfill?.();
-        this.disposeClipboardPolyfill = undefined;
-
         // Register NativeCopyPaste even with a bridge: the bridge module expects to disable it.
         const clip = this.options.clipboard;
         const clipModules = clip
@@ -141,14 +129,16 @@ export class BpmnDesigner {
         if (clip) {
             // The FEEL editor sits outside bpmn-js DI and needs the document-level text bridge.
             const textBridge = clip.text ?? clip.bridge;
-            this.disposeClipboardPolyfill = installContentEditableClipboardPolyfill(
-                [this.container, this.options.propertiesPanel.parent],
-                {
-                    requestClipboard: () => textBridge.requestClipboard(),
-                    writeClipboard: (text) => {
-                        void textBridge.writeClipboard(text);
+            this.store.add(
+                installContentEditableClipboardPolyfill(
+                    [this.container, this.options.propertiesPanel.parent],
+                    {
+                        requestClipboard: () => textBridge.requestClipboard(),
+                        writeClipboard: (text) => {
+                            void textBridge.writeClipboard(text);
+                        },
                     },
-                },
+                ),
             );
         }
         const extra = (this.options.additionalModules as any[]) ?? [];
@@ -157,44 +147,10 @@ export class BpmnDesigner {
         const navigationPort = this.options.capabilities?.modelNavigation;
         const capModules = navigationPort ? [createModelNavigationModule(navigationPort)] : [];
 
-        this.modeler = new Modeler({
-            container: this.container,
-            propertiesPanel: {
-                parent: this.options.propertiesPanel.parent,
-                // Keep popups within this instance's theme scope instead of document.body.
-                feelPopupContainer: this.container,
-            },
-            minimap: { open: false },
-            moddleExtensions: this.options.moddleExtensions,
-            additionalModules: [
-                TranslateModule,
-                PropertiesPanelModule,
-                NeutralPropertiesProviderModule,
-                ModeFilterModule,
-                CustomGroupsModule,
-                CreateAppendAnythingModule,
-                AppendMenuModule,
-                FlowNavigationModule,
-                // Formatting is pure geometry, so it is engine-neutral and
-                // belongs on this surface as much as on the modeler.
-                createBpmnLayoutModule(),
-                MinimapModule,
-                TokenSimulationModule,
-                // Design never enabled linting implicitly, so omission needs no migration notice.
-                ...buildLintModules(
-                    this.options.linting,
-                    { engine: undefined, mode: "design" },
-                    {
-                        onLintResults: this.options.onLintResults,
-                        onLintingToggled: this.options.onLintingToggled,
-                    },
-                    { nudgeWhenOmitted: false },
-                ),
-                ...capModules,
-                NativeCopyPasteModule,
-                ...clipModules,
-                ...extra,
-            ],
+        this.allocateModeler(clipModules, capModules, extra);
+        this.store.add(() => {
+            this.modeler?.destroy();
+            this.modeler = undefined;
         });
 
         const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
@@ -202,7 +158,12 @@ export class BpmnDesigner {
         this._selection = new SelectionManager(accessor);
         this._rootElement = new RootElementManager(accessor);
 
-        this.installFocusFeatures();
+        this.store.add(
+            installSurfaceFocusFeatures(accessor, {
+                extraRoots: [this.options.propertiesPanel.parent],
+                hasSearchPad: true,
+            }),
+        );
 
         if (this.options.favouriteBpmnElements) {
             const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
@@ -211,64 +172,64 @@ export class BpmnDesigner {
 
         const onContentSaved = this.options.onContentSaved;
         if (onContentSaved) {
-            this.contentSaved = createContentSavedNotifier({
+            wireContentSaved({
+                store: this.store,
+                eventBus: this.getModeler().get("eventBus"),
                 exportDiagram: () => this.exportDiagram(),
                 onContentSaved,
-                onError: this.options.onError,
-                isDisposed: () => this.modeler === undefined,
+                reporter: createReporter({ onError: this.options.onError }),
             });
-            this.getModeler()
-                .get<any>("eventBus")
-                .on("commandStack.changed", () => void this.contentSaved!());
         }
+
+        this.store.add(() => this.sizeObserver.dispose());
     }
 
-    private installFocusFeatures(): void {
-        const canvas = this.getModeler().get<{
-            getContainer(): HTMLElement;
-            focus(): void;
-            isFocused(): boolean;
-        }>("canvas");
-        const canvasContainer = canvas.getContainer();
-        const eventBus = () => this.getModeler().get<any>("eventBus");
-        const selection = () => this.getModeler().get<{ get(): unknown[] }>("selection");
-
-        this.focusDisposers.push(
-            installKeyboardFocus({
-                roots: [canvasContainer, this.options.propertiesPanel.parent],
-                focusCanvas: () => canvas.focus(),
-                isCanvasFocused: () => canvas.isFocused(),
-                hasSelection: () => selection().get().length > 0,
-                clearSelection: () =>
-                    this.getModeler()
-                        .get<{ select(elements: null): void }>("selection")
-                        .select(null),
-                isSearchPadOpen: () =>
-                    this.getModeler().get<{ isOpen(): boolean }>("searchPad").isOpen(),
-                closeSearchPad: () => this.getModeler().get<{ close(): void }>("searchPad").close(),
-            }),
-        );
-
-        this.focusDisposers.push(
-            installCanvasFocusIndicator({
-                parent: canvasContainer,
-                isFocused: () => canvas.isFocused(),
-                onFocusChanged: (listener) =>
-                    eventBus().on("canvas.focus.changed", (e: { focused: boolean }) =>
-                        listener(e.focused),
+    private allocateModeler(clipModules: unknown[], capModules: unknown[], extra: unknown[]): void {
+        try {
+            this.modeler = new Modeler({
+                container: this.container,
+                propertiesPanel: {
+                    parent: this.options.propertiesPanel.parent,
+                    // Keep popups within this instance's theme scope instead of document.body.
+                    feelPopupContainer: this.container,
+                },
+                minimap: { open: false },
+                moddleExtensions: this.options.moddleExtensions,
+                additionalModules: [
+                    TranslateModule,
+                    PropertiesPanelModule,
+                    NeutralPropertiesProviderModule,
+                    ModeFilterModule,
+                    CustomGroupsModule,
+                    CreateAppendAnythingModule,
+                    AppendMenuModule,
+                    FlowNavigationModule,
+                    // Formatting is pure geometry, so it is engine-neutral and
+                    // belongs on this surface as much as on the modeler.
+                    createBpmnLayoutModule(),
+                    MinimapModule,
+                    TokenSimulationModule,
+                    // Design never enabled linting implicitly, so omission needs no migration notice.
+                    ...buildLintModules(
+                        this.options.linting,
+                        { engine: undefined, mode: "design" },
+                        {
+                            onLintResults: this.options.onLintResults,
+                            onLintingToggled: this.options.onLintingToggled,
+                        },
+                        { nudgeWhenOmitted: false },
                     ),
-                hasSelection: () => selection().get().length > 0,
-                onSelectionChanged: (listener) =>
-                    eventBus().on("selection.changed", (e: { newSelection: unknown[] }) =>
-                        listener(e.newSelection.length > 0),
-                    ),
-            }),
-        );
-    }
-
-    private disposeFocusFeatures(): void {
-        for (const dispose of this.focusDisposers.splice(0)) {
-            dispose();
+                    ...capModules,
+                    NativeCopyPasteModule,
+                    ...clipModules,
+                    ...extra,
+                ],
+            });
+        } catch (error) {
+            // A partially-constructed bpmn-js attaches `.bjs-container` with no
+            // handle to destroy; clear the dedicated container before rethrowing.
+            this.container.replaceChildren();
+            throw error;
         }
     }
 
@@ -279,17 +240,8 @@ export class BpmnDesigner {
     async loadDiagram(xml: string): Promise<ImportXMLResult> {
         try {
             const result = await this.getModeler().importXML(xml);
-            // The host may mount the container before laying it out, so the box
-            // can be zero when the import lands; the fit retries until it isn't.
-            this.stopObservingSize?.();
-            this._viewport!.resetInitialViewportDecision();
             const canvas = this.getModeler().get<any>("canvas");
-            this.stopObservingSize = observeCanvasSize(canvas, canvas.getContainer(), {
-                applyInitialViewport: () => this._viewport!.applyInitialViewportOnce(),
-            });
-            // Unlatched best-effort fit: it must not decide the viewport, or a
-            // consumer's post-load applyViewState / saved-state restore is skipped.
-            this._viewport!.fitViewport();
+            this.sizeObserver.set(armInitialViewportPolicy(canvas, this._viewport!));
             return result;
         } catch (error: unknown) {
             if ((error as ImportXMLError).warnings) {
@@ -339,6 +291,7 @@ export class BpmnDesigner {
                 this.container,
                 this.options.propertiesPanel.parent,
             ]);
+            this.store.add(() => this.themeController?.dispose());
         }
         this.themeController.setMode(theme);
     }
@@ -386,21 +339,14 @@ export class BpmnDesigner {
     }
 
     /**
-     * Tears the instance down: cancels the debounced export, stops the
-     * canvas-size observer, disposes the focus features and theme controller, and
-     * destroys the underlying bpmn-js modeler. A destroyed facade throws
-     * {@link NoModelerError} from every accessor.
+     * Tears the instance down: disposes every registered lifecycle resource (the
+     * debounced export, canvas-size observer, focus features, theme controller,
+     * clipboard polyfill, and the underlying bpmn-js modeler) in reverse order.
+     * Idempotent. A destroyed facade throws {@link NoModelerError} from every
+     * accessor.
      */
     destroy(): void {
-        this.contentSaved?.cancel();
-        this.stopObservingSize?.();
-        this.stopObservingSize = undefined;
-        this.themeController?.dispose();
-        this.disposeFocusFeatures();
-        this.disposeClipboardPolyfill?.();
-        this.disposeClipboardPolyfill = undefined;
-        this.modeler?.destroy();
-        this.modeler = undefined;
+        this.store.dispose();
         this._viewport = undefined;
         this._selection = undefined;
         this._rootElement = undefined;

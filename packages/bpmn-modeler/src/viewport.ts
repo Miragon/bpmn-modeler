@@ -1,6 +1,12 @@
-import { MIN_CANVAS_SIZE_PX, isUsableViewbox } from "@miragon/bpmn-modeler-types";
+import {
+    type Disposer,
+    MIN_CANVAS_SIZE_PX,
+    type MinimalEventBus,
+    isUsableViewbox,
+} from "@miragon/bpmn-modeler-types";
 
 import { centreOf } from "./elementGeometry";
+import { InitialViewportLatch } from "./initialViewport";
 
 /**
  * A canvas viewbox snapshot — the position and zoom {@link ViewportManager}
@@ -23,14 +29,10 @@ const MIN_FOCUS_ZOOM = 0.75;
 
 /** Reads, restores, and subscribes to canvas viewbox changes. */
 export class ViewportManager {
-    // An explicit setViewport/applyViewState with a usable box, or a successful
-    // initial fit, decides the initial viewport; later observer deliveries must
-    // not fit over that decision.
-    private initialViewportDecided = false;
-
-    // A usable box handed to setViewport before the container was laid out, held
-    // until an observer delivery finds the canvas sized.
-    private pendingViewport: ViewportData | undefined;
+    private readonly latch = new InitialViewportLatch<ViewportData>({
+        applyViewport: (viewport) => this.setViewport(viewport),
+        fitViewport: () => this.fitViewport(),
+    });
 
     constructor(private readonly getService: ServiceAccessor) {}
 
@@ -67,12 +69,12 @@ export class ViewportManager {
         if (!isUsableViewbox(viewport)) {
             const fitted = this.fitViewport();
             if (fitted) {
-                this.markInitialViewportDecided();
+                this.latch.markDecided();
             }
             return fitted;
         }
         if (!this.isCanvasSized()) {
-            this.pendingViewport = viewport;
+            this.latch.hold(viewport);
             return false;
         }
         const canvas = this.getService<any>("canvas");
@@ -88,7 +90,7 @@ export class ViewportManager {
         } else {
             canvas.viewbox(viewport);
         }
-        this.markInitialViewportDecided();
+        this.latch.markDecided();
         return true;
     }
 
@@ -103,16 +105,7 @@ export class ViewportManager {
      *   caller should keep retrying.
      */
     applyInitialViewportOnce(): boolean {
-        if (this.initialViewportDecided) {
-            return true;
-        }
-        const applied = this.pendingViewport
-            ? this.setViewport(this.pendingViewport)
-            : this.fitViewport();
-        if (applied) {
-            this.markInitialViewportDecided();
-        }
-        return applied;
+        return this.latch.applyOnce();
     }
 
     /**
@@ -121,13 +114,7 @@ export class ViewportManager {
      * decision.
      */
     resetInitialViewportDecision(): void {
-        this.initialViewportDecided = false;
-        this.pendingViewport = undefined;
-    }
-
-    private markInitialViewportDecided(): void {
-        this.initialViewportDecided = true;
-        this.pendingViewport = undefined;
+        this.latch.reset();
     }
 
     /**
@@ -237,29 +224,57 @@ export class ViewportManager {
      *   debounced callback — call it when tearing the surface down.
      */
     onViewportChanged(cb: (viewport: ViewportData) => void): () => void {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        // Capture the bus so the disposer works after facade destroy, when the
-        // service accessor would throw NoModelerError.
-        const eventBus = this.getService<any>("eventBus");
-        const handler = (event: any): void => {
-            clearTimeout(timer);
-            timer = setTimeout(() => {
-                const { x, y, width, height, scale } = event.viewbox;
-                const viewport: ViewportData = { x, y, width, height, scale };
-                if (isUsableViewbox(viewport)) {
-                    cb(viewport);
-                }
-            }, 100);
-        };
-        const dispose = (): void => {
-            clearTimeout(timer);
-            eventBus.off("canvas.viewbox.changed", handler);
-            eventBus.off("diagram.destroy", dispose);
-        };
-        eventBus.on("canvas.viewbox.changed", handler);
-        // Self-hook teardown so the trailing debounce is cancelled even when the
-        // host never unsubscribes.
-        eventBus.on("diagram.destroy", dispose);
-        return dispose;
+        return subscribeViewboxChanged<ViewportData>({
+            // Capture the bus so the disposer works after facade destroy, when the
+            // service accessor would throw NoModelerError.
+            eventBus: this.getService<MinimalEventBus>("eventBus"),
+            map: ({ x, y, width, height, scale }) => ({ x, y, width, height, scale }),
+            onChange: cb,
+        });
     }
+}
+
+/**
+ * Subscribes to debounced `canvas.viewbox.changed` events, mapping each viewbox
+ * to `V` and dropping degenerate boxes (persisting one makes the failure stick).
+ * Self-hooks `diagram.destroy` so the trailing debounce is cancelled even when
+ * the host never unsubscribes.
+ *
+ * @param accept Synchronous gate on the raw event, before debouncing — used by
+ *   the diff panes to swallow the echoes of their own programmatic positioning.
+ *   A rejected event also cancels a pending notification: the canvas has moved
+ *   since, so the held viewport is stale and syncing it would bounce back.
+ * @returns a disposer that unsubscribes and cancels any pending callback.
+ */
+export function subscribeViewboxChanged<
+    V extends { x: number; y: number; width: number; height: number },
+>(options: {
+    eventBus: MinimalEventBus;
+    debounceMs?: number;
+    accept?: (event: any) => boolean;
+    map: (viewbox: any) => V;
+    onChange: (viewport: V) => void;
+}): Disposer {
+    const { eventBus, debounceMs = 100, accept, map, onChange } = options;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const handler = (event: any): void => {
+        if (accept && !accept(event)) {
+            clearTimeout(timer);
+            return;
+        }
+        const viewport = map(event.viewbox);
+        if (!isUsableViewbox(viewport)) {
+            return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(() => onChange(viewport), debounceMs);
+    };
+    const dispose = (): void => {
+        clearTimeout(timer);
+        eventBus.off("canvas.viewbox.changed", handler);
+        eventBus.off("diagram.destroy", dispose);
+    };
+    eventBus.on("canvas.viewbox.changed", handler);
+    eventBus.on("diagram.destroy", dispose);
+    return dispose;
 }

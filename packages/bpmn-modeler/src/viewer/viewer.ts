@@ -10,11 +10,7 @@ import PropertiesPanelModule from "@miragon/bpmn-modeler-properties-panel/render
 import NeutralPropertiesProviderModule from "@miragon/bpmn-modeler-properties-panel/provider/index";
 import { ModeFilterModule } from "@miragon/bpmn-modeler-properties-panel/modeFilter/ModeFilterProvider";
 import { CustomGroupsModule } from "@miragon/bpmn-modeler-properties-panel/customGroups/CustomGroupsRegistry";
-import {
-    installCanvasFocusIndicator,
-    NoModelerError,
-    observeCanvasSize,
-} from "@miragon/bpmn-modeler-types";
+import { DisposableStore, MutableDisposable, NoModelerError } from "@miragon/bpmn-modeler-types";
 import { ThemeController } from "../theme";
 import { ViewportManager } from "../viewport";
 import { SelectionManager } from "../selection";
@@ -24,7 +20,8 @@ import {
     captureViewState as captureViewStateComposition,
     type ViewState,
 } from "../viewState";
-import { installKeyboardFocus } from "../keyboardFocus";
+import { armInitialViewportPolicy } from "../initialViewport";
+import { installSurfaceFocusFeatures } from "../focusFeatures";
 import type { ThemeMode } from "../publicApi";
 import type { CoreViewerServices, ViewerOptions } from "./publicApi";
 
@@ -43,9 +40,10 @@ export class BpmnViewer {
 
     private themeController?: ThemeController;
 
-    private stopObservingSize?: () => void;
+    private readonly store = new DisposableStore();
 
-    private focusDisposers: Array<() => void> = [];
+    // Re-armed per loadDiagram, so it can't be a plain store entry.
+    private readonly sizeObserver = new MutableDisposable();
 
     /**
      * @param container The canvas host element (bpmn-js `container`).
@@ -117,34 +115,10 @@ export class BpmnViewer {
             ? [ContextPadModule, createModelNavigationModule(navigationPort)]
             : [];
 
-        this.viewer = new NavigatedViewer({
-            container: this.container,
-            moddleExtensions: this.options.moddleExtensions,
-            minimap: { open: false },
-            ...(panel && {
-                propertiesPanel: {
-                    parent: panel.parent,
-                    // Keep popups within this instance's theme scope instead of document.body.
-                    feelPopupContainer: this.container,
-                },
-            }),
-            // NavigatedViewer omits Outline, which is needed to make selection and hover visible.
-            additionalModules: [
-                OutlineModule,
-                MinimapModule,
-                // The readonly variant does not require the absent modeling service.
-                TokenSimulationViewerModule,
-                ...(panel
-                    ? [
-                          PropertiesPanelModule,
-                          NeutralPropertiesProviderModule,
-                          ModeFilterModule,
-                          CustomGroupsModule,
-                      ]
-                    : []),
-                ...capModules,
-                ...((this.options.additionalModules as any[]) ?? []),
-            ],
+        this.allocateViewer(panel, capModules);
+        this.store.add(() => {
+            this.viewer?.destroy();
+            this.viewer = undefined;
         });
 
         const accessor = <T>(name: string): T => this.getViewer().get<T>(name);
@@ -152,70 +126,59 @@ export class BpmnViewer {
         this._selection = new SelectionManager(accessor);
         this._rootElement = new RootElementManager(accessor);
 
-        this.installFocusFeatures();
-    }
-
-    private installFocusFeatures(): void {
-        const canvas = this.getViewer().get<{
-            getContainer(): HTMLElement;
-            focus(): void;
-            isFocused(): boolean;
-        }>("canvas");
-        const canvasContainer = canvas.getContainer();
-        const eventBus = () => this.getViewer().get<any>("eventBus");
-        const selection = () =>
-            this.getViewer().get<{ get(): unknown[]; select(elements: null): void }>("selection");
-        const panelParent = this.options.propertiesPanel?.parent;
-
-        this.focusDisposers.push(
-            installKeyboardFocus({
-                roots: panelParent ? [canvasContainer, panelParent] : [canvasContainer],
-                focusCanvas: () => canvas.focus(),
-                isCanvasFocused: () => canvas.isFocused(),
-                hasSelection: () => selection().get().length > 0,
-                clearSelection: () => selection().select(null),
-                isSearchPadOpen: () => false,
-                closeSearchPad: () => {},
+        this.store.add(
+            installSurfaceFocusFeatures(accessor, {
+                extraRoots: panel ? [panel.parent] : [],
+                hasSearchPad: false,
             }),
         );
-
-        this.focusDisposers.push(
-            installCanvasFocusIndicator({
-                parent: canvasContainer,
-                isFocused: () => canvas.isFocused(),
-                onFocusChanged: (listener) =>
-                    eventBus().on("canvas.focus.changed", (e: { focused: boolean }) =>
-                        listener(e.focused),
-                    ),
-                hasSelection: () => selection().get().length > 0,
-                onSelectionChanged: (listener) =>
-                    eventBus().on("selection.changed", (e: { newSelection: unknown[] }) =>
-                        listener(e.newSelection.length > 0),
-                    ),
-            }),
-        );
+        this.store.add(() => this.sizeObserver.dispose());
     }
 
-    private disposeFocusFeatures(): void {
-        for (const dispose of this.focusDisposers.splice(0)) {
-            dispose();
+    private allocateViewer(panel: ViewerOptions["propertiesPanel"], capModules: unknown[]): void {
+        try {
+            this.viewer = new NavigatedViewer({
+                container: this.container,
+                moddleExtensions: this.options.moddleExtensions,
+                minimap: { open: false },
+                ...(panel && {
+                    propertiesPanel: {
+                        parent: panel.parent,
+                        // Keep popups within this instance's theme scope instead of document.body.
+                        feelPopupContainer: this.container,
+                    },
+                }),
+                // NavigatedViewer omits Outline, which is needed to make selection and hover visible.
+                additionalModules: [
+                    OutlineModule,
+                    MinimapModule,
+                    // The readonly variant does not require the absent modeling service.
+                    TokenSimulationViewerModule,
+                    ...(panel
+                        ? [
+                              PropertiesPanelModule,
+                              NeutralPropertiesProviderModule,
+                              ModeFilterModule,
+                              CustomGroupsModule,
+                          ]
+                        : []),
+                    ...capModules,
+                    ...((this.options.additionalModules as any[]) ?? []),
+                ],
+            });
+        } catch (error) {
+            // A partially-constructed bpmn-js attaches `.bjs-container` with no
+            // handle to destroy; clear the dedicated container before rethrowing.
+            this.container.replaceChildren();
+            throw error;
         }
     }
 
     async loadDiagram(xml: string): Promise<ImportXMLResult> {
         try {
             const result = await this.getViewer().importXML(xml);
-            // The host may mount the container before laying it out, so the box
-            // can be zero when the import lands; the fit retries until it isn't.
-            this.stopObservingSize?.();
-            this._viewport!.resetInitialViewportDecision();
             const canvas = this.getViewer().get<any>("canvas");
-            this.stopObservingSize = observeCanvasSize(canvas, canvas.getContainer(), {
-                applyInitialViewport: () => this._viewport!.applyInitialViewportOnce(),
-            });
-            // Unlatched best-effort fit: it must not decide the viewport, or a
-            // consumer's post-load applyViewState / saved-state restore is skipped.
-            this._viewport!.fitViewport();
+            this.sizeObserver.set(armInitialViewportPolicy(canvas, this._viewport!));
             return result;
         } catch (error: unknown) {
             if ((error as ImportXMLError).warnings) {
@@ -254,6 +217,7 @@ export class BpmnViewer {
             this.themeController = new ThemeController(
                 panel ? [this.container, panel.parent] : [this.container],
             );
+            this.store.add(() => this.themeController?.dispose());
         }
         this.themeController.setMode(theme);
     }
@@ -270,18 +234,13 @@ export class BpmnViewer {
     }
 
     /**
-     * Tears the instance down: stops the canvas-size observer, disposes the
-     * focus features and theme controller, and destroys the underlying bpmn-js
-     * viewer. A destroyed facade throws {@link NoModelerError} from every
-     * accessor.
+     * Tears the instance down: disposes every registered lifecycle resource (the
+     * canvas-size observer, focus features, theme controller, and the underlying
+     * bpmn-js viewer) in reverse order. Idempotent. A destroyed facade throws
+     * {@link NoModelerError} from every accessor.
      */
     destroy(): void {
-        this.stopObservingSize?.();
-        this.stopObservingSize = undefined;
-        this.disposeFocusFeatures();
-        this.themeController?.dispose();
-        this.viewer?.destroy();
-        this.viewer = undefined;
+        this.store.dispose();
         this._viewport = undefined;
         this._selection = undefined;
         this._rootElement = undefined;

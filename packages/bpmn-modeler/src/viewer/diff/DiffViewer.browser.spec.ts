@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { DiffResult } from "@miragon/bpmn-modeler-diff";
 
@@ -288,5 +289,18 @@ describe("DiffViewer collapsed-subprocess navigation", () => {
         dispose();
         viewer.destroy();
         testContainer.remove();
+    });
+});
+
+describe("DiffViewer destroy", () => {
+    it("throws NoModelerError from accessors after destroy and is idempotent", async () => {
+        container = mount(800, 600);
+        diff = new DiffViewer(container);
+        await diff.importXML(XML);
+
+        diff.destroy();
+
+        expect(() => diff!.getViewport()).toThrow(NoModelerError);
+        expect(() => diff!.destroy()).not.toThrow();
     });
 });

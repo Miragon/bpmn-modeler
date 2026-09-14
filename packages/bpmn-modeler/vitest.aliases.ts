@@ -36,6 +36,17 @@ export const bpmnModelerTestAliases: Record<string, string> = {
     ),
     "@miragon/bpmn-modeler-clipboard": resolve(__dirname, "../../libs/bpmn-clipboard/src/index.ts"),
     "@miragon/bpmn-modeler-layout": resolve(__dirname, "../../libs/bpmn-layout/src/index.ts"),
+    // Entry-point-less libs the editable surfaces value-import; the lifecycle
+    // contract stands up a real designer/modeler, so map them explicitly.
+    "@miragon/bpmn-modeler-append-menu": resolve(__dirname, "../../libs/append-menu/src/index.ts"),
+    "@miragon/bpmn-modeler-flow-navigation": resolve(
+        __dirname,
+        "../../libs/flow-navigation/src/index.ts",
+    ),
+    "@miragon/bpmn-modeler-element-template-chooser": resolve(
+        __dirname,
+        "../../libs/element-template-chooser/src/index.ts",
+    ),
     // Directory (not index.ts) so the viewer's deep imports
     // (`.../render/index` etc.) resolve through the same alias.
     "@miragon/bpmn-modeler-properties-panel": resolve(__dirname, "../../libs/properties-panel/src"),

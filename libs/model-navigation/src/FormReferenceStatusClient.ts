@@ -1,3 +1,5 @@
+import { DisposableStore } from "@miragon/bpmn-modeler-types";
+
 import { extractReference } from "./extractReference";
 import type { ModelNavigationPort } from "./ModelNavigationPort";
 
@@ -25,6 +27,8 @@ export class FormReferenceStatusClient {
 
     private currentPadTarget: Element | undefined;
 
+    private readonly store = new DisposableStore();
+
     constructor(
         eventBus: EventBus,
         private readonly contextPad: ContextPad,
@@ -41,8 +45,9 @@ export class FormReferenceStatusClient {
             this.refreshContextPad(),
         );
         if (unsubscribe) {
-            eventBus.on("diagram.destroy", unsubscribe);
+            this.store.add(unsubscribe);
         }
+        eventBus.on("diagram.destroy", () => this.store.dispose());
     }
 
     isResolved(formId: string): boolean {
