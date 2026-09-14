@@ -2596,6 +2596,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@electron-internal/extract-zip@npm:^1.0.1":
+  version: 1.0.5
+  resolution: "@electron-internal/extract-zip@npm:1.0.5"
+  checksum: 10c0/d3341937dcb37097fd4927b7e5dfb7cb6b1ba56a42b00d62a55a7a9bbd093545dd8c6711ab39b321b2696d968b2cc32c29ed9d60a1fa6aa1665588e03e60d4e1
+  languageName: node
+  linkType: hard
+
 "@electron/asar@npm:3.4.1, @electron/asar@npm:^3.3.1":
   version: 3.4.1
   resolution: "@electron/asar@npm:3.4.1"
@@ -3886,7 +3893,7 @@ __metadata:
   dependencies:
     "@miragon/bpmn-modeler-types": "workspace:*"
     bpmn-js: "npm:18.28.0"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     bpmn-js: 18.28.0
@@ -3900,7 +3907,7 @@ __metadata:
     "@miragon/bpmn-modeler-element-template-chooser": "workspace:*"
     bpmn-js: "npm:18.28.0"
     preact: "npm:10.29.3"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     bpmn-js: 18.28.0
@@ -3914,11 +3921,11 @@ __metadata:
     "@miragon/bpmn-modeler-core": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@types/node": "npm:26.1.2"
+    "@types/node": "npm:26.4.0"
     "@vitest/coverage-v8": "npm:4.1.11"
     chokidar: "npm:5.0.0"
     npm-run-all: "npm:4.1.5"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   bin:
     modeler-bridge: ./dist/modeler-bridge
@@ -3931,7 +3938,7 @@ __metadata:
   dependencies:
     bpmn-js-native-copy-paste: "npm:0.3.0"
     diagram-js: "npm:15.26.0"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
   peerDependencies:
     bpmn-js: 18.28.0
   languageName: unknown
@@ -3943,7 +3950,7 @@ __metadata:
   dependencies:
     "@miragon/bpmn-modeler-types": "workspace:*"
     bpmn-js: "npm:18.28.0"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     bpmn-js: 18.28.0
@@ -3958,13 +3965,13 @@ __metadata:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
-    "@types/node": "npm:26.1.2"
+    "@types/node": "npm:26.4.0"
     "@vitest/coverage-v8": "npm:4.1.11"
     bpmn-moddle: "npm:10.2.0"
     bpmnlint: "npm:11.13.0"
-    camunda-bpmn-moddle: "npm:7.0.2"
+    camunda-bpmn-moddle: "npm:8.0.1"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   languageName: unknown
   linkType: soft
@@ -3991,7 +3998,7 @@ __metadata:
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@types/vscode-webview": "npm:1.57.5"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
   languageName: unknown
@@ -4003,10 +4010,10 @@ __metadata:
   dependencies:
     bpmn-js-differ: "npm:3.2.0"
     bpmn-moddle: "npm:10.2.0"
-    camunda-bpmn-moddle: "npm:7.0.2"
-    typescript: "npm:6.0.3"
+    camunda-bpmn-moddle: "npm:8.0.1"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
-    zeebe-bpmn-moddle: "npm:1.18.0"
+    zeebe-bpmn-moddle: "npm:2.0.0"
   languageName: unknown
   linkType: soft
 
@@ -4029,7 +4036,7 @@ __metadata:
     diagram-js: "npm:15.26.0"
     minisearch: "npm:7.2.0"
     preact: "npm:10.29.3"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     bpmn-js: 18.28.0
@@ -4040,7 +4047,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@miragon/bpmn-modeler-flow-navigation@workspace:libs/flow-navigation"
   dependencies:
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     bpmn-js: 18.28.0
@@ -4053,7 +4060,7 @@ __metadata:
   dependencies:
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@vitest/coverage-v8": "npm:4.1.11"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   languageName: unknown
   linkType: soft
@@ -4072,7 +4079,7 @@ __metadata:
     "@bpmn-io/properties-panel": "npm:3.54.1"
     "@miragon/bpmn-modeler-types": "workspace:*"
     jsdom: "npm:30.0.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     "@bpmn-io/properties-panel": 3.54.1
@@ -4090,7 +4097,7 @@ __metadata:
     bpmn-moddle: "npm:10.2.0"
     diagram-js: "npm:15.26.0"
     jsdom: "npm:30.0.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     bpmn-js: 18.28.0
@@ -4110,7 +4117,7 @@ __metadata:
     jsdom: "npm:30.0.1"
     min-dash: "npm:5.1.0"
     min-dom: "npm:5.3.0"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   peerDependencies:
     "@bpmn-io/properties-panel": 3.54.1
@@ -4127,12 +4134,12 @@ __metadata:
   resolution: "@miragon/bpmn-modeler-shared@workspace:libs/shared"
   dependencies:
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@types/node": "npm:26.1.2"
+    "@types/node": "npm:26.4.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.11"
     jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   languageName: unknown
   linkType: soft
@@ -4147,7 +4154,7 @@ __metadata:
     "@vitest/coverage-v8": "npm:4.1.11"
     jsdom: "npm:30.0.1"
     rimraf: "npm:6.1.3"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   languageName: unknown
   linkType: soft
@@ -4181,7 +4188,7 @@ __metadata:
     "@theia/variable-resolver": "npm:1.74.1"
     "@theia/workspace": "npm:1.74.1"
     "@vscode/vsce": "npm:3.9.2"
-    electron: "npm:42.3.0"
+    electron: "npm:44.1.0"
     electron-builder: "npm:26.15.3"
     electron-updater: "npm:6.8.9"
     npm-run-all: "npm:4.1.5"
@@ -4202,7 +4209,7 @@ __metadata:
     "@types/lodash": "npm:4.17.25"
     jsdom: "npm:30.0.1"
     lodash: "npm:4.18.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   languageName: unknown
   linkType: soft
@@ -4226,7 +4233,7 @@ __metadata:
     bpmnlint: "npm:11.13.0"
     jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
     vitest: "npm:4.1.11"
@@ -4256,7 +4263,7 @@ __metadata:
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
     "@miragon/create-append-c7": "npm:1.0.1"
-    "@types/node": "npm:26.1.2"
+    "@types/node": "npm:26.4.0"
     "@vitest/browser-playwright": "npm:4.1.11"
     "@vitest/coverage-v8": "npm:4.1.11"
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
@@ -4271,7 +4278,7 @@ __metadata:
     bpmnlint: "npm:11.13.0"
     camunda-bpmn-js: "npm:5.34.0"
     camunda-bpmn-js-behaviors: "npm:1.18.0"
-    camunda-bpmn-moddle: "npm:7.0.2"
+    camunda-bpmn-moddle: "npm:8.0.1"
     camunda-transaction-boundaries: "npm:1.1.2"
     diagram-js: "npm:15.26.0"
     diagram-js-minimap: "npm:5.4.1"
@@ -4289,12 +4296,12 @@ __metadata:
     preact: "npm:10.29.3"
     tiny-svg: "npm:4.1.4"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     unplugin-dts: "npm:1.1.0"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
     vitest: "npm:4.1.11"
-    zeebe-bpmn-moddle: "npm:1.18.0"
+    zeebe-bpmn-moddle: "npm:2.0.0"
   languageName: unknown
   linkType: soft
 
@@ -4331,12 +4338,12 @@ __metadata:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@miragon/dmn-modeler": "workspace:*"
-    "@types/node": "npm:25.0.3"
+    "@types/node": "npm:26.4.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.11"
     jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
     vitest: "npm:4.1.11"
@@ -4354,7 +4361,7 @@ __metadata:
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@types/node": "npm:26.1.2"
+    "@types/node": "npm:26.4.0"
     "@vitest/coverage-v8": "npm:4.1.11"
     camunda-dmn-moddle: "npm:1.3.1"
     diagram-js: "npm:15.26.0"
@@ -4366,7 +4373,7 @@ __metadata:
     postcss: "npm:8.5.28"
     postcss-selector-parser: "npm:7.1.6"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     unplugin-dts: "npm:1.1.0"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
@@ -4383,11 +4390,11 @@ __metadata:
     "@bpmn-io/form-js-viewer": "npm:1.26.0"
     "@codemirror/state": "npm:6.7.4"
     "@miragon/bpmn-modeler-shared": "workspace:*"
-    "@types/node": "npm:25.0.3"
+    "@types/node": "npm:26.4.0"
     "@types/vscode-webview": "npm:1.57.5"
     "@vitest/coverage-v8": "npm:4.1.11"
     jsdom: "npm:30.0.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vite: "npm:8.2.2"
     vite-tsconfig-paths: "npm:6.1.1"
     vitest: "npm:4.1.11"
@@ -7426,21 +7433,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:25.0.3":
-  version: 25.0.3
-  resolution: "@types/node@npm:25.0.3"
-  dependencies:
-    undici-types: "npm:~7.16.0"
-  checksum: 10c0/b7568f0d765d9469621615e2bb257c7fd1953d95e9acbdb58dffb6627a2c4150d405a4600aa1ad8a40182a94fe5f903cafd3c0a2f5132814debd0e3bfd61f835
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:26.1.2":
-  version: 26.1.2
-  resolution: "@types/node@npm:26.1.2"
+"@types/node@npm:26.4.0":
+  version: 26.4.0
+  resolution: "@types/node@npm:26.4.0"
   dependencies:
     undici-types: "npm:~8.3.0"
-  checksum: 10c0/a45503222c7db8f374afd5c9381db63dd95b6b1f703abea0890dd3d4a09eeb41da489e08a1a45baf18fe89fb77fbf310ff2789f680c490b04dafc41a60800a86
+  checksum: 10c0/e6fc94ea3b58fb8040b38c465dec1c53c1fd9d2c092c81f699d28799726baf59f12e1600318e79e8e6f985bb919dab6ae820180b942b8e38c51acaad63e8aada
   languageName: node
   linkType: hard
 
@@ -7655,15 +7653,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/yauzl@npm:^2.9.1":
-  version: 2.10.3
-  resolution: "@types/yauzl@npm:2.10.3"
-  dependencies:
-    "@types/node": "npm:*"
-  checksum: 10c0/f1b7c1b99fef9f2fe7f1985ef7426d0cebe48cd031f1780fcdc7451eec7e31ac97028f16f50121a59bcf53086a1fc8c856fd5b7d3e00970e43d92ae27d6b43dc
-  languageName: node
-  linkType: hard
-
 "@typescript-eslint/eslint-plugin@npm:8.70.0":
   version: 8.70.0
   resolution: "@typescript-eslint/eslint-plugin@npm:8.70.0"
@@ -7796,6 +7785,146 @@ __metadata:
     "@typescript-eslint/types": "npm:8.70.0"
     eslint-visitor-keys: "npm:^5.0.0"
   checksum: 10c0/43fe28dc1045a686deead8c9334f6e9d8b3fa8f84917147aabd9747783b8bc531254a95a9bfb33355b25cf5ec9a72c62bcde313f13869d7a5e5603d96be593a9
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-aix-ppc64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-aix-ppc64@npm:7.0.2"
+  conditions: os=aix & cpu=ppc64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-darwin-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-darwin-arm64@npm:7.0.2"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-darwin-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-darwin-x64@npm:7.0.2"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-freebsd-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-freebsd-arm64@npm:7.0.2"
+  conditions: os=freebsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-freebsd-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-freebsd-x64@npm:7.0.2"
+  conditions: os=freebsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-arm64@npm:7.0.2"
+  conditions: os=linux & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-arm@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-arm@npm:7.0.2"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-loong64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-loong64@npm:7.0.2"
+  conditions: os=linux & cpu=loong64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-mips64el@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-mips64el@npm:7.0.2"
+  conditions: os=linux & cpu=mips64el
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-ppc64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-ppc64@npm:7.0.2"
+  conditions: os=linux & cpu=ppc64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-riscv64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-riscv64@npm:7.0.2"
+  conditions: os=linux & cpu=riscv64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-s390x@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-s390x@npm:7.0.2"
+  conditions: os=linux & cpu=s390x
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-linux-x64@npm:7.0.2"
+  conditions: os=linux & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-netbsd-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-netbsd-arm64@npm:7.0.2"
+  conditions: os=netbsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-netbsd-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-netbsd-x64@npm:7.0.2"
+  conditions: os=netbsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-openbsd-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-openbsd-arm64@npm:7.0.2"
+  conditions: os=openbsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-openbsd-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-openbsd-x64@npm:7.0.2"
+  conditions: os=openbsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-sunos-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-sunos-x64@npm:7.0.2"
+  conditions: os=sunos & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-win32-arm64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-win32-arm64@npm:7.0.2"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-win32-x64@npm:7.0.2":
+  version: 7.0.2
+  resolution: "@typescript/typescript-win32-x64@npm:7.0.2"
+  conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
@@ -10118,7 +10247,7 @@ __metadata:
     playwright: "npm:1.63.0"
     portless: "npm:0.15.6"
     prettier: "npm:3.9.6"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
   languageName: unknown
   linkType: soft
@@ -10571,14 +10700,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"camunda-bpmn-moddle@npm:7.0.2":
-  version: 7.0.2
-  resolution: "camunda-bpmn-moddle@npm:7.0.2"
-  checksum: 10c0/2738d18866cc934d49569d53f67bc0e80ae2595269c2542690881efed8d9f67c8ca032088feb0695ee6efca4f4cd132e87bea4d2c8485977fbc3e217c05b8afd
-  languageName: node
-  linkType: hard
-
-"camunda-bpmn-moddle@npm:^8.0.0":
+"camunda-bpmn-moddle@npm:8.0.1, camunda-bpmn-moddle@npm:^8.0.0":
   version: 8.0.1
   resolution: "camunda-bpmn-moddle@npm:8.0.1"
   dependencies:
@@ -12748,17 +12870,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"electron@npm:42.3.0":
-  version: 42.3.0
-  resolution: "electron@npm:42.3.0"
+"electron@npm:44.1.0":
+  version: 44.1.0
+  resolution: "electron@npm:44.1.0"
   dependencies:
+    "@electron-internal/extract-zip": "npm:^1.0.1"
     "@electron/get": "npm:^5.0.0"
     "@types/node": "npm:^24.9.0"
-    extract-zip: "npm:^2.0.1"
   bin:
     electron: cli.js
     install-electron: install.js
-  checksum: 10c0/bb692478704483dc1664dff2bc59a1515791d8eb4d6bccd5ad66975db4d442a05723bd8723d4ebe03c6de477823d494ddc6958dc74f73e349d8382b820ca03a3
+  checksum: 10c0/93e274242b7f87714d401c99294184037079abcb494ca09a73090e6d34b2bba711c5018b71342e9c72da4d4038e67e8af4babe9ba29b00501553b1fbf890f19d
   languageName: node
   linkType: hard
 
@@ -13743,23 +13865,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"extract-zip@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "extract-zip@npm:2.0.1"
-  dependencies:
-    "@types/yauzl": "npm:^2.9.1"
-    debug: "npm:^4.1.1"
-    get-stream: "npm:^5.1.0"
-    yauzl: "npm:^2.10.0"
-  dependenciesMeta:
-    "@types/yauzl":
-      optional: true
-  bin:
-    extract-zip: cli.js
-  checksum: 10c0/9afbd46854aa15a857ae0341a63a92743a7b89c8779102c3b4ffc207516b2019337353962309f85c66ee3d9092202a83cdc26dbf449a11981272038443974aee
-  languageName: node
-  linkType: hard
-
 "fast-deep-equal@npm:^3.1.1, fast-deep-equal@npm:^3.1.3":
   version: 3.1.3
   resolution: "fast-deep-equal@npm:3.1.3"
@@ -13839,15 +13944,6 @@ __metadata:
   dependencies:
     walk-up-path: "npm:^4.0.0"
   checksum: 10c0/a0a48745257bc09c939486608dad9f2ced238f0c64266222cc881618ed4c8f6aa0ccfe45a1e6d4f9ce828509e8d617cec60e2a114851bebb1ff4886dc5ed5112
-  languageName: node
-  linkType: hard
-
-"fd-slicer@npm:~1.1.0":
-  version: 1.1.0
-  resolution: "fd-slicer@npm:1.1.0"
-  dependencies:
-    pend: "npm:~1.2.0"
-  checksum: 10c0/304dd70270298e3ffe3bcc05e6f7ade2511acc278bc52d025f8918b48b6aa3b77f10361bddfadfe2a28163f7af7adbdce96f4d22c31b2f648ba2901f0c5fc20e
   languageName: node
   linkType: hard
 
@@ -22764,13 +22860,74 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:6.0.3":
-  version: 6.0.3
-  resolution: "typescript@npm:6.0.3"
+"typescript@npm:7.0.2":
+  version: 7.0.2
+  resolution: "typescript@npm:7.0.2"
+  dependencies:
+    "@typescript/typescript-aix-ppc64": "npm:7.0.2"
+    "@typescript/typescript-darwin-arm64": "npm:7.0.2"
+    "@typescript/typescript-darwin-x64": "npm:7.0.2"
+    "@typescript/typescript-freebsd-arm64": "npm:7.0.2"
+    "@typescript/typescript-freebsd-x64": "npm:7.0.2"
+    "@typescript/typescript-linux-arm": "npm:7.0.2"
+    "@typescript/typescript-linux-arm64": "npm:7.0.2"
+    "@typescript/typescript-linux-loong64": "npm:7.0.2"
+    "@typescript/typescript-linux-mips64el": "npm:7.0.2"
+    "@typescript/typescript-linux-ppc64": "npm:7.0.2"
+    "@typescript/typescript-linux-riscv64": "npm:7.0.2"
+    "@typescript/typescript-linux-s390x": "npm:7.0.2"
+    "@typescript/typescript-linux-x64": "npm:7.0.2"
+    "@typescript/typescript-netbsd-arm64": "npm:7.0.2"
+    "@typescript/typescript-netbsd-x64": "npm:7.0.2"
+    "@typescript/typescript-openbsd-arm64": "npm:7.0.2"
+    "@typescript/typescript-openbsd-x64": "npm:7.0.2"
+    "@typescript/typescript-sunos-x64": "npm:7.0.2"
+    "@typescript/typescript-win32-arm64": "npm:7.0.2"
+    "@typescript/typescript-win32-x64": "npm:7.0.2"
+  dependenciesMeta:
+    "@typescript/typescript-aix-ppc64":
+      optional: true
+    "@typescript/typescript-darwin-arm64":
+      optional: true
+    "@typescript/typescript-darwin-x64":
+      optional: true
+    "@typescript/typescript-freebsd-arm64":
+      optional: true
+    "@typescript/typescript-freebsd-x64":
+      optional: true
+    "@typescript/typescript-linux-arm":
+      optional: true
+    "@typescript/typescript-linux-arm64":
+      optional: true
+    "@typescript/typescript-linux-loong64":
+      optional: true
+    "@typescript/typescript-linux-mips64el":
+      optional: true
+    "@typescript/typescript-linux-ppc64":
+      optional: true
+    "@typescript/typescript-linux-riscv64":
+      optional: true
+    "@typescript/typescript-linux-s390x":
+      optional: true
+    "@typescript/typescript-linux-x64":
+      optional: true
+    "@typescript/typescript-netbsd-arm64":
+      optional: true
+    "@typescript/typescript-netbsd-x64":
+      optional: true
+    "@typescript/typescript-openbsd-arm64":
+      optional: true
+    "@typescript/typescript-openbsd-x64":
+      optional: true
+    "@typescript/typescript-sunos-x64":
+      optional: true
+    "@typescript/typescript-win32-arm64":
+      optional: true
+    "@typescript/typescript-win32-x64":
+      optional: true
   bin:
     tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/4a25ff5045b984370f48f196b3a0120779b1b343d40b9a68d114ea5e5fff099809b2bb777576991a63a5cd59cf7bffd96ff6fe10afcefbcb8bd6fb96ad4b6606
+  checksum: 10c0/3dcee51ec8c332492325bcdbf7df48b66668751f127e622ae7d41b6c716eb19184424a45e14f7750f50f340232388b69e6287859155f06a5ce2df76f12cb31cf
   languageName: node
   linkType: hard
 
@@ -22784,13 +22941,74 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>":
-  version: 6.0.3
-  resolution: "typescript@patch:typescript@npm%3A6.0.3#optional!builtin<compat/typescript>::version=6.0.3&hash=5786d5"
+"typescript@patch:typescript@npm%3A7.0.2#optional!builtin<compat/typescript>":
+  version: 7.0.2
+  resolution: "typescript@patch:typescript@npm%3A7.0.2#optional!builtin<compat/typescript>::version=7.0.2&hash=3bafbf"
+  dependencies:
+    "@typescript/typescript-aix-ppc64": "npm:7.0.2"
+    "@typescript/typescript-darwin-arm64": "npm:7.0.2"
+    "@typescript/typescript-darwin-x64": "npm:7.0.2"
+    "@typescript/typescript-freebsd-arm64": "npm:7.0.2"
+    "@typescript/typescript-freebsd-x64": "npm:7.0.2"
+    "@typescript/typescript-linux-arm": "npm:7.0.2"
+    "@typescript/typescript-linux-arm64": "npm:7.0.2"
+    "@typescript/typescript-linux-loong64": "npm:7.0.2"
+    "@typescript/typescript-linux-mips64el": "npm:7.0.2"
+    "@typescript/typescript-linux-ppc64": "npm:7.0.2"
+    "@typescript/typescript-linux-riscv64": "npm:7.0.2"
+    "@typescript/typescript-linux-s390x": "npm:7.0.2"
+    "@typescript/typescript-linux-x64": "npm:7.0.2"
+    "@typescript/typescript-netbsd-arm64": "npm:7.0.2"
+    "@typescript/typescript-netbsd-x64": "npm:7.0.2"
+    "@typescript/typescript-openbsd-arm64": "npm:7.0.2"
+    "@typescript/typescript-openbsd-x64": "npm:7.0.2"
+    "@typescript/typescript-sunos-x64": "npm:7.0.2"
+    "@typescript/typescript-win32-arm64": "npm:7.0.2"
+    "@typescript/typescript-win32-x64": "npm:7.0.2"
+  dependenciesMeta:
+    "@typescript/typescript-aix-ppc64":
+      optional: true
+    "@typescript/typescript-darwin-arm64":
+      optional: true
+    "@typescript/typescript-darwin-x64":
+      optional: true
+    "@typescript/typescript-freebsd-arm64":
+      optional: true
+    "@typescript/typescript-freebsd-x64":
+      optional: true
+    "@typescript/typescript-linux-arm":
+      optional: true
+    "@typescript/typescript-linux-arm64":
+      optional: true
+    "@typescript/typescript-linux-loong64":
+      optional: true
+    "@typescript/typescript-linux-mips64el":
+      optional: true
+    "@typescript/typescript-linux-ppc64":
+      optional: true
+    "@typescript/typescript-linux-riscv64":
+      optional: true
+    "@typescript/typescript-linux-s390x":
+      optional: true
+    "@typescript/typescript-linux-x64":
+      optional: true
+    "@typescript/typescript-netbsd-arm64":
+      optional: true
+    "@typescript/typescript-netbsd-x64":
+      optional: true
+    "@typescript/typescript-openbsd-arm64":
+      optional: true
+    "@typescript/typescript-openbsd-x64":
+      optional: true
+    "@typescript/typescript-sunos-x64":
+      optional: true
+    "@typescript/typescript-win32-arm64":
+      optional: true
+    "@typescript/typescript-win32-x64":
+      optional: true
   bin:
     tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 10c0/2f25c74e65663c248fa1ade2b8459d9ce5372ff9dad07067310f132966ebec1d93f6c42f0baf77a6b6a7a91460463f708e6887013aaade22111037457c6b25df
+  checksum: 10c0/6b3cdc369cd829d46e00734ea64233ee84419c2825ad8fe408915adde77abced4b7a2401f7eed517d54a7a4f5d1c1869753cb99018df1c2159c761d9f33483a6
   languageName: node
   linkType: hard
 
@@ -23673,7 +23891,7 @@ __metadata:
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
     "@types/mocha": "npm:10.0.10"
-    "@types/node": "npm:26.1.2"
+    "@types/node": "npm:26.4.0"
     "@types/vscode": "npm:1.93.0"
     "@vitest/coverage-v8": "npm:4.1.11"
     "@vscode/test-cli": "npm:0.0.15"
@@ -23683,7 +23901,7 @@ __metadata:
     ts-loader: "npm:9.6.2"
     tsconfig-paths-webpack-plugin: "npm:4.2.0"
     tslib: "npm:2.8.1"
-    typescript: "npm:6.0.3"
+    typescript: "npm:7.0.2"
     vitest: "npm:4.1.11"
     webpack: "npm:5.110.3"
     webpack-cli: "npm:7.2.3"
@@ -24524,16 +24742,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yauzl@npm:^2.10.0":
-  version: 2.10.0
-  resolution: "yauzl@npm:2.10.0"
-  dependencies:
-    buffer-crc32: "npm:~0.2.3"
-    fd-slicer: "npm:~1.1.0"
-  checksum: 10c0/f265002af7541b9ec3589a27f5fb8f11cf348b53cc15e2751272e3c062cd73f3e715bc72d43257de71bbaecae446c3f1b14af7559e8ab0261625375541816422
-  languageName: node
-  linkType: hard
-
 "yauzl@npm:^3.2.1":
   version: 3.3.2
   resolution: "yauzl@npm:3.3.2"
@@ -24566,16 +24774,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zeebe-bpmn-moddle@npm:1.18.0":
-  version: 1.18.0
-  resolution: "zeebe-bpmn-moddle@npm:1.18.0"
-  peerDependencies:
-    moddle: ">=8.2.0"
-  checksum: 10c0/db29a3368bb83976fb5e4fff3db976c2f93b399b7f0aef80be3cbad6429a2eb37493804c173715bb27cfbaf53b81e56beca86f441ed6b4a81a42fd7965438da9
-  languageName: node
-  linkType: hard
-
-"zeebe-bpmn-moddle@npm:^2.0.0":
+"zeebe-bpmn-moddle@npm:2.0.0, zeebe-bpmn-moddle@npm:^2.0.0":
   version: 2.0.0
   resolution: "zeebe-bpmn-moddle@npm:2.0.0"
   peerDependencies:
