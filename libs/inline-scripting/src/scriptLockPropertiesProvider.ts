@@ -1,6 +1,7 @@
 import { Fragment, jsx, jsxs } from "@bpmn-io/properties-panel/preact/jsx-runtime";
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
 
+import type { Element, ScriptModdle } from "./bpmnTypes";
 import { LISTENER_ENTRY_ID_PATTERN } from "./scriptEditorButtons";
 import { OPEN_SCRIPT_EDITOR_EVENT, OpenScriptEditorEvent } from "./scriptTaskContextPad";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
@@ -26,11 +27,57 @@ const MIN_ROWS = 2;
 const MAX_ROWS = 16;
 
 /**
+ * A single properties-panel entry. The stock Camunda script entry exposes `id`,
+ * `component` and (for listeners) the `script` moddle reference; the lock*
+ * members are the ones this provider attaches when it swaps in the read-only
+ * renderer.
+ */
+export interface PropertiesEntry {
+    id?: string;
+    component?: unknown;
+    script?: ScriptModdle;
+    lockLabel?: string;
+    lockBadgeText?: string;
+    lockHintText?: string;
+    lockGetValue?: () => string;
+    lockReveal?: () => void;
+}
+
+interface PropertiesListItem {
+    id?: string;
+    entries?: PropertiesEntry[];
+}
+
+interface PropertiesGroup {
+    id?: string;
+    entries?: PropertiesEntry[];
+    items?: PropertiesListItem[];
+}
+
+/** Props {@link ScriptLockPropertiesProvider} spreads onto the locked renderer. */
+export interface LockedScriptEntryProps {
+    id: string;
+    lockGetValue: () => string;
+    lockLabel: string;
+    lockBadgeText: string;
+    lockHintText: string;
+    lockReveal: () => void;
+}
+
+interface EventBus {
+    fire(event: string, payload?: unknown): void;
+}
+
+interface PropertiesPanel {
+    registerProvider(priority: number, provider: ScriptLockPropertiesProvider): void;
+}
+
+/**
  * Compact padlock rendered next to the label so the field reads as locked at a
  * glance. `currentColor` lets the badge's CSS `color` drive the icon in both
  * themes without a theme-specific asset.
  */
-function LockIcon(): unknown {
+function LockIcon() {
     return jsx("svg", {
         "class": "script-lock-badge-icon",
         "width": "10",
@@ -74,7 +121,7 @@ function clampRows(value: string): number {
  * the component), so this stays a stable module-level component — a fresh
  * closure per render would remount the subtree on every keystroke stream-in.
  */
-export function LockedScriptEntry(props: any): unknown {
+export function LockedScriptEntry(props: LockedScriptEntryProps): unknown {
     const { id, lockGetValue, lockLabel, lockBadgeText, lockHintText, lockReveal } = props;
 
     // Read on every render so the field mirrors keystrokes streamed from the
@@ -153,9 +200,9 @@ export class ScriptLockPropertiesProvider {
     static $inject = ["propertiesPanel", "openScriptEditorsStore", "eventBus", "translate"];
 
     constructor(
-        propertiesPanel: any,
+        propertiesPanel: PropertiesPanel,
         private readonly store: OpenScriptEditorsStore,
-        private readonly eventBus: any,
+        private readonly eventBus: EventBus,
         private readonly translate: (template: string) => string,
     ) {
         propertiesPanel.registerProvider(LOCK_PROVIDER_PRIORITY, this);
@@ -166,11 +213,11 @@ export class ScriptLockPropertiesProvider {
      * transform of the array the stock providers produced, which is what makes
      * it unit-testable without a live modeler.
      */
-    getGroups(element: any) {
-        return (groups: any[]) => this.lockGroups(element, groups);
+    getGroups(element: Element) {
+        return (groups: PropertiesGroup[]) => this.lockGroups(element, groups);
     }
 
-    private lockGroups(element: any, groups: any[]): any[] {
+    private lockGroups(element: Element, groups: PropertiesGroup[]): PropertiesGroup[] {
         for (const group of groups) {
             if (!group) {
                 continue;
@@ -206,7 +253,7 @@ export class ScriptLockPropertiesProvider {
         return groups;
     }
 
-    private isListenerGroup(group: any): boolean {
+    private isListenerGroup(group: PropertiesGroup): boolean {
         return (
             group.id === "CamundaPlatform__ExecutionListener" ||
             group.id === "CamundaPlatform__TaskListener"
@@ -219,9 +266,9 @@ export class ScriptLockPropertiesProvider {
      * unlocked field stays fully editable.
      */
     private lockEntry(
-        entries: any[],
+        entries: PropertiesEntry[],
         entryId: string,
-        element: any,
+        element: Element,
         elementId: string,
         kind: ScriptKind,
         listenerIndex: number | undefined,
@@ -252,9 +299,10 @@ export class ScriptLockPropertiesProvider {
     }
 
     /** Current inline-script content, read from the moddle so it stays live. */
-    private readScriptValue(element: any, script: any): string {
+    private readScriptValue(element: Element, script: ScriptModdle | undefined): string {
         const bo = script ?? element?.businessObject;
-        return bo?.get?.("value") ?? bo?.get?.("script") ?? bo?.script ?? "";
+        const inlineScript = bo && "script" in bo ? bo.script : undefined;
+        return bo?.get?.("value") ?? bo?.get?.("script") ?? inlineScript ?? "";
     }
 
     /**
@@ -264,7 +312,7 @@ export class ScriptLockPropertiesProvider {
      * second tab instead of revealing the first.
      */
     private buildOpenEvent(
-        element: any,
+        element: Element,
         kind: ScriptKind,
         listenerIndex: number | undefined,
     ): OpenScriptEditorEvent | undefined {

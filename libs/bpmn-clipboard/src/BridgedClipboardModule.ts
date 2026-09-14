@@ -14,6 +14,9 @@
  * so the bridge is always available when the module loads.
  */
 import { createReviver } from "bpmn-js-native-copy-paste/lib/PasteUtil.js";
+import type EventBus from "diagram-js/lib/core/EventBus";
+import type Canvas from "diagram-js/lib/core/Canvas";
+import type CopyPaste from "diagram-js/lib/features/copy-paste/CopyPaste";
 
 /**
  * Bridge interface for clipboard operations routed through the host (e.g. the
@@ -25,6 +28,23 @@ export interface ClipboardBridge {
     // Writes text to the system clipboard via the host. May be async; the return
     // is ignored, so a host may fire-and-forget or await internally.
     writeClipboard: (text: string) => void | Promise<void>;
+}
+
+/** Minimal surface of camunda's `nativeCopyPaste` service used here. */
+interface NativeCopyPaste {
+    toggle(enabled: boolean): void;
+}
+
+/** Payload of the `copyPaste.elementsCopied` event; `tree` is serialized as-is. */
+interface ElementsCopiedContext {
+    tree: unknown;
+    hints?: { clip?: boolean };
+}
+
+/** Payload of the `copyPaste.pasteElements` event; carries the paste context to fill. */
+interface PasteElementsContext {
+    tree?: unknown;
+    hints?: unknown;
 }
 
 const CLIP_PREFIX = "bpmn-js-clip----";
@@ -53,11 +73,11 @@ class BridgedClipboard {
 
     constructor(
         bridge: ClipboardBridge,
-        eventBus: any,
-        copyPaste: any,
-        moddle: any,
-        nativeCopyPaste: any,
-        canvas: any,
+        eventBus: EventBus,
+        copyPaste: CopyPaste,
+        moddle: unknown,
+        nativeCopyPaste: NativeCopyPaste,
+        canvas: Canvas,
     ) {
         // Disable NativeCopyPaste so the bridge owns copy/paste in this webview.
         nativeCopyPaste.toggle(false);
@@ -90,7 +110,7 @@ class BridgedClipboard {
         );
 
         // ── Copy interceptor ─────────────────────────────────────────────
-        eventBus.on("copyPaste.elementsCopied", 2051, (context: any) => {
+        eventBus.on<ElementsCopiedContext>("copyPaste.elementsCopied", 2051, (context) => {
             const serialized = CLIP_PREFIX + JSON.stringify(context.tree);
 
             // Store for the synchronous copy-event path.
@@ -107,7 +127,7 @@ class BridgedClipboard {
         });
 
         // ── Paste interceptor ────────────────────────────────────────────
-        eventBus.on("copyPaste.pasteElements", 2051, (context: any) => {
+        eventBus.on<PasteElementsContext>("copyPaste.pasteElements", 2051, (context) => {
             if (context.tree) {
                 return;
             }

@@ -1,5 +1,9 @@
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { ImportXMLResult } from "bpmn-js/lib/BaseViewer";
+import type Canvas from "diagram-js/lib/core/Canvas";
+import type ElementRegistry from "diagram-js/lib/core/ElementRegistry";
+import type EventBus from "diagram-js/lib/core/EventBus";
+import type { Point } from "diagram-js/lib/util/Types";
 
 import {
     DisposableStore,
@@ -10,7 +14,7 @@ import {
     isUsableViewbox,
 } from "@miragon/bpmn-modeler-types";
 
-import { centreOf } from "../../elementGeometry";
+import { centreOf, type PositionedElement } from "../../elementGeometry";
 import { armInitialViewportPolicy, InitialViewportLatch } from "../../initialViewport";
 import { subscribeViewboxChanged } from "../../viewport";
 
@@ -98,7 +102,9 @@ export class DiffViewer {
         if (!this.isPaneSized()) {
             return false;
         }
-        this.getCanvas().zoom("fit-viewport", "auto");
+        // diagram-js accepts the "auto" centring sentinel at runtime, but its
+        // Canvas.zoom types `center` as a Point only.
+        this.getCanvas().zoom("fit-viewport", "auto" as unknown as Point);
         return true;
     }
 
@@ -113,7 +119,7 @@ export class DiffViewer {
      */
     applyHighlights(ids: readonly string[], klass: DiffMarkerClass): void {
         const canvas = this.getCanvas();
-        const registry = this.getViewer().get<any>("elementRegistry");
+        const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
         for (const id of ids) {
             if (registry.get(id)) {
                 canvas.addMarker(id, klass);
@@ -124,7 +130,7 @@ export class DiffViewer {
     /** Removes all diff markers (including the stepper selection) from the canvas. */
     clearHighlights(): void {
         const canvas = this.getCanvas();
-        const registry = this.getViewer().get<any>("elementRegistry");
+        const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
         const classes: string[] = [
             "diff-added",
             "diff-removed",
@@ -171,7 +177,7 @@ export class DiffViewer {
      */
     onViewportChanged(cb: (viewport: Viewport) => void): () => void {
         return subscribeViewboxChanged<Viewport>({
-            eventBus: this.getViewer().get("eventBus"),
+            eventBus: this.getViewer().get<EventBus>("eventBus"),
             // Diff sync latency is unchanged from the hand-rolled version.
             debounceMs: 80,
             accept: () => this.programmaticPositioningDepth === 0,
@@ -215,12 +221,12 @@ export class DiffViewer {
      * the partner's correctly-focused viewbox with this pane's anchor position.
      */
     centerOnElement(id: string): boolean {
-        const registry = this.getViewer().get<any>("elementRegistry");
+        const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
         const element = registry.get(id);
         if (!element) {
             return false;
         }
-        const centre = centreOf(element);
+        const centre = centreOf(element as PositionedElement);
         if (!centre) {
             return false;
         }
@@ -248,7 +254,7 @@ export class DiffViewer {
      * Returns `true` when `id` is present in this pane's element registry.
      */
     hasElement(id: string): boolean {
-        const registry = this.getViewer().get<any>("elementRegistry");
+        const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
         return !!registry.get(id);
     }
 
@@ -274,8 +280,8 @@ export class DiffViewer {
      * redundant with the attached shape's change.
      */
     isConnection(id: string): boolean {
-        const registry = this.getViewer().get<any>("elementRegistry");
-        const element = registry.get(id);
+        const registry = this.getViewer().get<ElementRegistry>("elementRegistry");
+        const element = registry.get(id) as PositionedElement | undefined;
         return !!element && Array.isArray(element.waypoints);
     }
 
@@ -289,8 +295,8 @@ export class DiffViewer {
         this.viewer = undefined;
     }
 
-    private getCanvas(): any {
-        return this.getViewer().get<any>("canvas");
+    private getCanvas(): Canvas {
+        return this.getViewer().get<Canvas>("canvas");
     }
 
     private getViewer(): NavigatedViewer {

@@ -91,13 +91,16 @@ describe("LabelClipboard", () => {
         expect(addRange).toHaveBeenCalledTimes(1);
     });
 
-    it("does not attach when the textbox has no content element", () => {
+    it("degrades to no clipboard and logs when the textbox shape is unexpected", () => {
+        const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
         directEditing._textbox = undefined as unknown as { content: HTMLDivElement };
         emit("directEditing.activate");
 
         content.dispatchEvent(ctrl("v"));
 
         expect(bridge.requestClipboard).not.toHaveBeenCalled();
+        expect(consoleError).toHaveBeenCalledTimes(1);
+        consoleError.mockRestore();
     });
 
     it("detaches the handler on deactivate", () => {

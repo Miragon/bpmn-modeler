@@ -103,6 +103,10 @@ describe("isUsableViewbox", () => {
         ["zero area", { x: 0, y: 0, width: 0, height: 0 }, false],
         ["a negative extent", { x: 0, y: 0, width: -800, height: 600 }, false],
     ])("returns %s -> %s", (_case, viewbox, expected) => {
-        expect(isUsableViewbox(viewbox as any)).toBe(expected);
+        // Cases deliberately include malformed viewboxes (null/NaN members) the
+        // typed parameter rejects, so coerce through `unknown`.
+        expect(isUsableViewbox(viewbox as unknown as Parameters<typeof isUsableViewbox>[0])).toBe(
+            expected,
+        );
     });
 });

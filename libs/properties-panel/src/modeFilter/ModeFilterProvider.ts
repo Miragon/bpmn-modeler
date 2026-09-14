@@ -25,6 +25,29 @@ import {
 
 export type PropertiesPanelMode = "design" | "implement";
 
+// Structural slivers of the bpmn-js-properties-panel group/entry shapes and the
+// DI services this provider reads — only the members it touches.
+interface PropertiesEntry {
+    id?: string;
+}
+interface PropertiesGroup {
+    id: string;
+    entries?: PropertiesEntry[];
+    items?: unknown[];
+}
+interface CustomGroupsRegistry {
+    getIds(): string[];
+}
+interface ModeFilterEventBus {
+    fire(event: string): void;
+}
+interface ModeFilterInjector {
+    get<T>(name: string, strict: false): T | null;
+}
+interface PropertiesPanelLike {
+    registerProvider(priority: number, provider: unknown): void;
+}
+
 /**
  * Lower than every provider priority in the implement graph (C8 data provider
  * at 100 is the current lowest), so this middleware always runs last.
@@ -34,7 +57,7 @@ const MODE_FILTER_PRIORITY = 10;
 const NEUTRAL_GROUP_ID_SET: ReadonlySet<string> = new Set(NEUTRAL_GROUP_IDS);
 const REPLACED_GROUP_ID_SET: ReadonlySet<string> = new Set(ENGINE_REPLACED_GROUP_IDS);
 
-function isEmptyGroup(group: any): boolean {
+function isEmptyGroup(group: PropertiesGroup): boolean {
     const entries = Array.isArray(group.entries) ? group.entries : [];
     const items = Array.isArray(group.items) ? group.items : [];
     return entries.length === 0 && items.length === 0;
@@ -46,11 +69,11 @@ export class ModeFilterProvider {
     private mode: PropertiesPanelMode;
 
     constructor(
-        propertiesPanel: any,
-        private readonly eventBus: any,
-        private readonly injector: any,
+        propertiesPanel: PropertiesPanelLike,
+        private readonly eventBus: ModeFilterEventBus,
+        private readonly injector: ModeFilterInjector,
     ) {
-        const configured = injector.get("config.propertiesPanelMode", false);
+        const configured = injector.get<string>("config.propertiesPanelMode", false);
         this.mode = configured === "implement" ? "implement" : "design";
 
         propertiesPanel.registerProvider(MODE_FILTER_PRIORITY, this);
@@ -68,8 +91,8 @@ export class ModeFilterProvider {
         this.eventBus.fire("propertiesPanel.providersChanged");
     }
 
-    getGroups(_element: any) {
-        return (groups: any[]) => {
+    getGroups(_element: unknown) {
+        return (groups: PropertiesGroup[]) => {
             if (this.mode === "implement") {
                 return groups;
             }
@@ -78,15 +101,15 @@ export class ModeFilterProvider {
     }
 
     private customGroupIds(): ReadonlySet<string> {
-        const registry = this.injector.get("customPropertiesGroups", false);
+        const registry = this.injector.get<CustomGroupsRegistry>("customPropertiesGroups", false);
         return registry ? new Set<string>(registry.getIds()) : new Set<string>();
     }
 
-    private filterDesignGroups(groups: any[]): any[] {
+    private filterDesignGroups(groups: PropertiesGroup[]): PropertiesGroup[] {
         const custom = this.customGroupIds();
         const enginePresent = hasEngineGroups(groups.map((group) => group?.id));
 
-        const kept: any[] = [];
+        const kept: PropertiesGroup[] = [];
 
         for (const group of groups) {
             if (!group) {
@@ -112,7 +135,7 @@ export class ModeFilterProvider {
             if (appended && Array.isArray(group.entries)) {
                 const excluded = new Set(appended);
                 group.entries = group.entries.filter(
-                    (entry: any) => !entry || !excluded.has(entry.id),
+                    (entry) => !entry || !excluded.has(entry.id as string),
                 );
             }
 

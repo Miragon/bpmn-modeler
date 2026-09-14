@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { Element, ListenerModdle, ModdleElement } from "./bpmnTypes";
 import { ScriptEditorOpener } from "./scriptEditorOpener";
 import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
 
@@ -9,12 +10,14 @@ import { OPEN_SCRIPT_EDITOR_EVENT } from "./scriptTaskContextPad";
 
 function build(elements: Record<string, unknown> = {}) {
     const eventBus = { fire: vi.fn() };
-    const elementRegistry = { get: vi.fn((id: string) => elements[id]) };
+    const elementRegistry = {
+        get: vi.fn((id: string) => elements[id] as Element | undefined),
+    };
     // Applies the properties like the real command stack does — the opener
     // reads `listener.script` right after converting.
     const modeling = {
         updateModdleProperties: vi.fn(
-            (_element: unknown, target: Record<string, unknown>, props: Record<string, unknown>) =>
+            (_element: Element, target: ModdleElement, props: Record<string, unknown>) =>
                 Object.assign(target, props),
         ),
     };
@@ -30,7 +33,7 @@ function build(elements: Record<string, unknown> = {}) {
     return { opener, eventBus, modeling, bpmnFactory };
 }
 
-function scriptTaskElement(overrides: Record<string, unknown> = {}) {
+function scriptTaskElement(overrides: Record<string, unknown> = {}): Element {
     return {
         id: "Task_1",
         businessObject: {
@@ -39,10 +42,10 @@ function scriptTaskElement(overrides: Record<string, unknown> = {}) {
             script: "println 'hi'",
             ...overrides,
         },
-    };
+    } as unknown as Element;
 }
 
-function listenerElement(listeners: unknown[], id = "Task_1") {
+function listenerElement(listeners: ListenerModdle[], id = "Task_1"): Element {
     return {
         id,
         businessObject: {
@@ -52,13 +55,13 @@ function listenerElement(listeners: unknown[], id = "Task_1") {
     };
 }
 
-function inlineListener(type: string, overrides: Record<string, unknown> = {}) {
+function inlineListener(type: string, overrides: Record<string, unknown> = {}): ListenerModdle {
     return {
         $type: type,
         event: "start",
         script: { scriptFormat: "javascript", value: "code()" },
         ...overrides,
-    };
+    } as unknown as ListenerModdle;
 }
 
 // ---------------------------------------------------------------------------

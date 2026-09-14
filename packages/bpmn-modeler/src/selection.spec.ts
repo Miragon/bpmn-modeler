@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { SelectionManager } from "./selection";
+import type { CoreServiceAccessor } from "./coreServices";
 
 /**
  * Builds a `SelectionManager` over a fake element registry (only `elements`
@@ -10,25 +11,26 @@ function setup(elements: Record<string, unknown>) {
     const registry = { get: (id: string) => elements[id] };
     const select = vi.fn();
     const selection = { select, get: () => [] };
-    const listeners: Record<string, ((event: any) => void)[]> = {};
+    const listeners: Record<string, ((event: unknown) => void)[]> = {};
     const eventBus = {
-        on: (event: string, handler: (event: any) => void) => {
+        on: (event: string, handler: (event: unknown) => void) => {
             (listeners[event] ??= []).push(handler);
         },
-        off: (event: string, handler: (event: any) => void) => {
+        off: (event: string, handler: (event: unknown) => void) => {
             const handlers = listeners[event];
             if (!handlers) return;
             const index = handlers.indexOf(handler);
             if (index !== -1) handlers.splice(index, 1);
         },
     };
-    const manager = new SelectionManager((name: string) => {
-        if (name === "elementRegistry") return registry as any;
-        if (name === "selection") return selection as any;
-        if (name === "eventBus") return eventBus as any;
+    const getService = ((name: string) => {
+        if (name === "elementRegistry") return registry;
+        if (name === "selection") return selection;
+        if (name === "eventBus") return eventBus;
         throw new Error(`unexpected service: ${name}`);
-    });
-    const emit = (event: string, payload?: any) =>
+    }) as unknown as CoreServiceAccessor;
+    const manager = new SelectionManager(getService);
+    const emit = (event: string, payload?: unknown) =>
         (listeners[event] ?? []).forEach((handler) => handler(payload));
     const listenerCount = (event: string) => (listeners[event] ?? []).length;
     return { manager, select, emit, listenerCount };

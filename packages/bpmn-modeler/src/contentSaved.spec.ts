@@ -153,12 +153,12 @@ describe("createContentSavedNotifier", () => {
 
 describe("wireContentSaved", () => {
     function fakeBus() {
-        const handlers = new Map<string, Set<(...args: any[]) => void>>();
+        const handlers = new Map<string, Set<() => void>>();
         return {
-            on: (event: string, handler: (...args: any[]) => void) => {
+            on: (event: string, handler: () => void) => {
                 (handlers.get(event) ?? handlers.set(event, new Set()).get(event)!).add(handler);
             },
-            off: (event: string, handler: (...args: any[]) => void) => {
+            off: (event: string, handler: () => void) => {
                 handlers.get(event)?.delete(handler);
             },
             fire: (event: string) => handlers.get(event)?.forEach((handler) => handler()),

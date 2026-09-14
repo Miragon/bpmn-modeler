@@ -163,7 +163,7 @@ export class BpmnViewer {
                           ]
                         : []),
                     ...capModules,
-                    ...((this.options.additionalModules as any[]) ?? []),
+                    ...((this.options.additionalModules as unknown[]) ?? []),
                 ],
             });
         } catch (error) {
@@ -177,7 +177,7 @@ export class BpmnViewer {
     async loadDiagram(xml: string): Promise<ImportXMLResult> {
         try {
             const result = await this.getViewer().importXML(xml);
-            const canvas = this.getViewer().get<any>("canvas");
+            const canvas = this.getService("canvas");
             this.sizeObserver.set(armInitialViewportPolicy(canvas, this._viewport!));
             return result;
         } catch (error: unknown) {
@@ -229,8 +229,8 @@ export class BpmnViewer {
      */
     getService<K extends keyof CoreViewerServices>(name: K): CoreViewerServices[K];
     getService<T = unknown>(name: string): T;
-    getService(name: string): any {
-        return this.getViewer().get(name);
+    getService<T = unknown>(name: string): T {
+        return this.getViewer().get<T>(name);
     }
 
     /**

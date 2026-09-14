@@ -10,7 +10,7 @@ import { debounce } from "lodash";
  * the timer — it can't await our async `func` — so we track the in-flight
  * promise ourselves.
  */
-export interface AsyncDebounced<F extends (...args: any[]) => Promise<unknown>> {
+export interface AsyncDebounced<F extends (...args: never[]) => Promise<unknown>> {
     (...args: Parameters<F>): ReturnType<F>;
     /** Fires a pending invocation now; resolves after it (or an in-flight one) settles. No-op when idle. */
     flush(): Promise<void>;
@@ -30,7 +30,7 @@ export interface AsyncDebounced<F extends (...args: any[]) => Promise<unknown>> 
 }
 
 /** Runs async calls in invocation order, even when earlier calls are still pending. */
-export function serializeAsync<F extends (...args: any[]) => Promise<unknown>>(func: F): F {
+export function serializeAsync<F extends (...args: never[]) => Promise<unknown>>(func: F): F {
     let tail: Promise<unknown> = Promise.resolve();
     return ((...args: Parameters<F>): ReturnType<F> => {
         const result = tail.then(() => func(...args));
@@ -46,7 +46,7 @@ export function serializeAsync<F extends (...args: any[]) => Promise<unknown>>(f
  * @param options Forwarded to lodash `debounce` — notably `maxWait`, the upper
  *   bound on how long a sustained call stream can starve the trailing edge.
  */
-export function asyncDebounce<F extends (...args: any[]) => Promise<unknown>>(
+export function asyncDebounce<F extends (...args: never[]) => Promise<unknown>>(
     func: F,
     wait?: number,
     options?: { maxWait?: number },

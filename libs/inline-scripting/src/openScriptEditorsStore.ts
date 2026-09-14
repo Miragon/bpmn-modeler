@@ -33,12 +33,16 @@ export function openScriptKey(
  * panel to re-run its providers — that is what flips a field between editable
  * and locked live, without waiting for the next selection change.
  */
+interface EventBus {
+    fire(event: string): void;
+}
+
 export class OpenScriptEditorsStore {
     private readonly openByKey = new Map<string, OpenScriptEditorRef>();
 
     static $inject = ["eventBus"];
 
-    constructor(private readonly eventBus: any) {}
+    constructor(private readonly eventBus: EventBus) {}
 
     /**
      * Replaces the open-script set and re-renders the properties panel.

@@ -3,8 +3,9 @@
  * view-state restore. Not part of the public API.
  */
 
-/** Accessor for a service from the bpmn-js DI container, by name. */
-type ServiceAccessor = <T>(name: string) => T;
+import type { Event } from "diagram-js/lib/core/EventBus";
+
+import type { CoreServiceAccessor } from "./coreServices";
 
 /**
  * bpmn-js assigns synthetic root IDs prefixed with this token when no
@@ -23,7 +24,7 @@ const IMPLICIT_ROOT_PREFIX = "__implicitroot";
  * and composed independently.
  */
 export class RootElementManager {
-    constructor(private readonly getService: ServiceAccessor) {}
+    constructor(private readonly getService: CoreServiceAccessor) {}
 
     /**
      * Returns the ID of the active canvas root, or `undefined` when the
@@ -31,7 +32,7 @@ export class RootElementManager {
      * not be persisted because its ID is regenerated on every import.
      */
     getRootElementId(): string | undefined {
-        const root = this.getService<any>("canvas").getRootElement();
+        const root = this.getService("canvas").getRootElement();
         if (!root || root.id.startsWith(IMPLICIT_ROOT_PREFIX)) {
             return undefined;
         }
@@ -52,12 +53,12 @@ export class RootElementManager {
         if (!id) {
             return false;
         }
-        const canvas = this.getService<any>("canvas");
+        const canvas = this.getService("canvas");
         const current = canvas.getRootElement();
         if (current?.id === id) {
             return false;
         }
-        const element = this.getService<any>("elementRegistry").get(id);
+        const element = this.getService("elementRegistry").get(id);
         if (!element) {
             return false;
         }
@@ -75,8 +76,8 @@ export class RootElementManager {
      *   surface down so repeated subscribe cycles don't accumulate listeners.
      */
     onRootChanged(cb: (rootElementId: string | undefined) => void): () => void {
-        const eventBus = this.getService<any>("eventBus");
-        const handler = (event: any): void => {
+        const eventBus = this.getService("eventBus");
+        const handler = (event: Event & { element?: { id?: string } }): void => {
             const id = event.element?.id;
             cb(id && !id.startsWith(IMPLICIT_ROOT_PREFIX) ? id : undefined);
         };

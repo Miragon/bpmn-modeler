@@ -2,6 +2,9 @@ declare module "bpmn-js-properties-panel" {
     export const useService;
     export const BpmnPropertiesPanelModule;
     export const BpmnPropertiesProviderModule;
+    // Engine provider modules, consumed only by the upstream-shape pin test.
+    export const CamundaPlatformPropertiesProviderModule;
+    export const ZeebePropertiesProviderModule;
 }
 
 declare module "@bpmn-io/properties-panel" {
@@ -26,6 +29,11 @@ declare module "@bpmn-io/properties-panel" {
 }
 
 declare module "@bpmn-io/properties-panel/preact/jsx-runtime" {
+    /* eslint-disable @typescript-eslint/no-explicit-any -- a JSX runtime shim is
+       permissive by construction: the factory accepts any element type/props and
+       the intrinsic-element namespace must admit arbitrary host attributes.
+       Narrowing to `unknown` here would break every `.tsx` in the vendored
+       properties-panel fork that resolves its JSX through this subpath. */
     export const jsx: (type: any, props: any, key?: any) => any;
     export const jsxs: (type: any, props: any, key?: any) => any;
     export const Fragment: any;
@@ -53,6 +61,7 @@ declare module "@bpmn-io/properties-panel/preact/jsx-runtime" {
             [name: string]: any;
         }
     }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 declare module "camunda-bpmn-js-behaviors/lib/util/ElementUtil" {
@@ -88,7 +97,7 @@ declare module "diagram-js-minimap" {
 }
 
 declare module "bpmn-js-native-copy-paste/lib/PasteUtil.js" {
-    export function createReviver(moddle: any): (key: string, value: any) => any;
+    export function createReviver(moddle: unknown): (key: string, value: unknown) => unknown;
 }
 
 declare module "bpmn-js-native-copy-paste" {

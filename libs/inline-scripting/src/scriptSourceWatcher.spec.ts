@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import type { OpenScriptEditorRef } from "@miragon/bpmn-modeler-types";
 
+import type { Element } from "./bpmnTypes";
 import { OpenScriptEditorsStore } from "./openScriptEditorsStore";
 import {
     SCRIPT_SOURCE_CHANGED_EVENT,
@@ -54,7 +55,7 @@ describe("ScriptSourceWatcher", () => {
         store = new OpenScriptEditorsStore(eventBus);
         watcher = new ScriptSourceWatcher(
             eventBus,
-            { get: (id: string) => elements.get(id) },
+            { get: (id: string) => elements.get(id) as Element | undefined },
             store,
         );
         fired = [];

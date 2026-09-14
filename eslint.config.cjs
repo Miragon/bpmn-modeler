@@ -218,6 +218,35 @@ module.exports = [
             ],
         },
     },
+    // Escalate no-explicit-any to `error` on the Miragon-authored publishable
+    // paths (ADR 0035). Last matching block wins per rule, so this overrides the
+    // repo-wide `warn` above. The vendored bpmn-js-properties-panel fork
+    // (libs/properties-panel/src outside modeFilter/) is deliberately excluded —
+    // it uses `this._x` on its own ported classes pervasively and stays at
+    // `warn` via the base block.
+    {
+        files: [
+            "packages/bpmn-modeler/**/*.ts",
+            "packages/bpmn-modeler/**/*.tsx",
+            "libs/append-menu/**/*.ts",
+            "libs/append-menu/**/*.tsx",
+            "libs/bpmn-clipboard/**/*.ts",
+            "libs/bpmn-clipboard/**/*.tsx",
+            "libs/bpmn-diff/**/*.ts",
+            "libs/bpmn-diff/**/*.tsx",
+            "libs/element-template-chooser/**/*.ts",
+            "libs/element-template-chooser/**/*.tsx",
+            "libs/inline-scripting/**/*.ts",
+            "libs/inline-scripting/**/*.tsx",
+            "libs/modeler-types/**/*.ts",
+            "libs/modeler-types/**/*.tsx",
+            "libs/properties-panel/src/modeFilter/**/*.ts",
+            "libs/properties-panel/src/modeFilter/**/*.tsx",
+        ],
+        rules: {
+            "@typescript-eslint/no-explicit-any": "error",
+        },
+    },
     // Must come last: turns off ESLint rules that would conflict with Prettier.
     eslintConfigPrettier,
 ];

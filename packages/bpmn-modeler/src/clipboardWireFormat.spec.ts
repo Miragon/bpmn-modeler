@@ -37,7 +37,12 @@ function c7ServiceTaskPayload(): string {
     return JSON.stringify(tree);
 }
 
-type RevivedTree = Record<string, { businessObject: Record<string, any> }[]>;
+type RevivedBusinessObject = {
+    $type?: string;
+    class?: string;
+    extensionElements: { values: unknown[] };
+};
+type RevivedTree = Record<string, { businessObject: RevivedBusinessObject }[]>;
 
 describe("clipboard wire format — cross-engine paste policy", () => {
     it("serialises a copyTree the reviver can read back (round-trip is the wire contract)", () => {

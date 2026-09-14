@@ -1,5 +1,6 @@
 import { DisposableStore } from "@miragon/bpmn-modeler-types";
 
+import type { Element as BpmnElement } from "./bpmnTypes";
 import { EDITOR_ICON_SVG } from "./editorIcon";
 import type { ScriptEditorOpener } from "./scriptEditorOpener";
 
@@ -45,6 +46,14 @@ export const LISTENER_ENTRY_ID_PATTERN = /^(.+)-(executionListener|taskListener)
 // Attribute set on processed elements to avoid duplicate injection.
 const INJECTED_MARKER = "data-script-btn-injected";
 
+interface EventBus {
+    on(event: string, callback: () => void): void;
+}
+
+interface Selection {
+    get(): BpmnElement[];
+}
+
 /**
  * bpmn-js DI service that observes the properties panel DOM and injects
  * "Open in Editor" icon buttons into the script group header and every
@@ -64,8 +73,8 @@ class ScriptEditorButtons {
     static $inject = ["eventBus", "selection", "scriptEditorOpener", "injector"];
 
     constructor(
-        private readonly eventBus: any,
-        private readonly selection: any,
+        private readonly eventBus: EventBus,
+        private readonly selection: Selection,
         private readonly opener: ScriptEditorOpener,
         injector: { get(name: string, strict: false): HTMLElement | null | undefined },
     ) {

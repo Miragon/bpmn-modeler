@@ -1,4 +1,5 @@
 import type { ScriptKind } from "@miragon/bpmn-modeler-types";
+import type { Element } from "./bpmnTypes";
 import { EDITOR_ICON_SVG } from "./editorIcon";
 import { readScriptTaskFormat } from "./scriptModel";
 
@@ -33,12 +34,27 @@ export interface OpenScriptEditorEvent {
 // Event-bus event name shared by the context pad and properties panel.
 export const OPEN_SCRIPT_EDITOR_EVENT = "scriptEditor.open";
 
+interface EventBus {
+    fire(event: string, payload?: unknown): void;
+}
+
+interface ContextPad {
+    registerProvider(provider: ScriptTaskContextPadProvider): void;
+}
+
+interface ContextPadEntry {
+    group: string;
+    html: string;
+    title: string;
+    action: { click: () => void };
+}
+
 /**
  * bpmn-js context pad provider that adds an "Edit Script" action to
  * script task elements.
  */
 class ScriptTaskContextPadProvider {
-    private readonly eventBus: any;
+    private readonly eventBus: EventBus;
 
     static $inject = ["eventBus", "contextPad"];
 
@@ -48,7 +64,7 @@ class ScriptTaskContextPadProvider {
      *   register itself here, otherwise {@link getContextPadEntries} is
      *   never called even though the class is instantiated via `__init__`.
      */
-    constructor(eventBus: any, contextPad: any) {
+    constructor(eventBus: EventBus, contextPad: ContextPad) {
         this.eventBus = eventBus;
         contextPad.registerProvider(this);
     }
@@ -61,7 +77,7 @@ class ScriptTaskContextPadProvider {
      * @param element The currently selected BPMN element.
      * @returns A map of context pad entry descriptors.
      */
-    getContextPadEntries(element: any): Record<string, any> {
+    getContextPadEntries(element: Element): Record<string, ContextPadEntry> {
         const bo = element.businessObject;
         if (!bo || bo.$type !== "bpmn:ScriptTask") {
             return {};

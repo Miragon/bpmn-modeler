@@ -37,18 +37,22 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 beforeAll(() => {
     // jsdom lays out nothing, so `getBBox` is missing on SVG elements; bpmn-js
     // measures labels with it during construction.
-    if (!(SVGElement.prototype as any).getBBox) {
-        (SVGElement.prototype as any).getBBox = () => ({ x: 0, y: 0, width: 0, height: 0 });
+    const svgProto = SVGElement.prototype as unknown as { getBBox?: () => DOMRect };
+    if (!svgProto.getBBox) {
+        svgProto.getBBox = () => ({ x: 0, y: 0, width: 0, height: 0 }) as DOMRect;
     }
     // jsdom ships no `matchMedia`; the "automatic" theme reads it on the first
     // frame. A never-matching stub resolves the default to light.
     if (!window.matchMedia) {
-        (window as any).matchMedia = (query: string) => ({
-            matches: false,
-            media: query,
-            addEventListener: () => undefined,
-            removeEventListener: () => undefined,
-        });
+        (window as unknown as { matchMedia: (q: string) => MediaQueryList }).matchMedia = (
+            query: string,
+        ) =>
+            ({
+                matches: false,
+                media: query,
+                addEventListener: () => undefined,
+                removeEventListener: () => undefined,
+            }) as unknown as MediaQueryList;
     }
 });
 
@@ -282,9 +286,10 @@ describe("createViewer (runtime, jsdom)", () => {
             const parent = mount();
 
             const realMatchMedia = window.matchMedia;
+            const mediaHolder = window as unknown as { matchMedia: typeof window.matchMedia };
             // `setTheme("automatic")` reads matchMedia on the first frame — the
             // post-allocation failure the guard has to clean up after.
-            (window as any).matchMedia = () => {
+            mediaHolder.matchMedia = () => {
                 throw new Error("matchMedia boom");
             };
             const addSpy = vi.spyOn(document, "addEventListener");
@@ -307,7 +312,7 @@ describe("createViewer (runtime, jsdom)", () => {
             } finally {
                 addSpy.mockRestore();
                 removeSpy.mockRestore();
-                (window as any).matchMedia = realMatchMedia;
+                mediaHolder.matchMedia = realMatchMedia;
             }
 
             // The same roots must be reusable once the failure condition is gone.

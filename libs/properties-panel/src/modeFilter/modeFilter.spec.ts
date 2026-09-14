@@ -5,7 +5,9 @@ import { ModeFilterProvider, type PropertiesPanelMode } from "./ModeFilterProvid
 // Minimal group fixtures mimicking the shape real providers emit — an object
 // with an `id` and an `entries` (or `items`) array. Only the fields the filter
 // reads are populated.
-function group(id: string, entryIds: string[] = ["_x"]): any {
+type TestGroup = { id: string; entries: { id: string }[] };
+
+function group(id: string, entryIds: string[] = ["_x"]): TestGroup {
     return { id, entries: entryIds.map((eid) => ({ id: eid })) };
 }
 
@@ -20,23 +22,23 @@ function build(services: Services = {}) {
         services.customIds !== undefined ? { getIds: () => services.customIds } : false;
 
     const injector = {
-        get(name: string, _strict?: boolean) {
-            if (name === "config.propertiesPanelMode") return services.mode;
-            if (name === "customPropertiesGroups") return registry;
-            return undefined;
+        get<T>(name: string, _strict?: boolean): T | null {
+            if (name === "config.propertiesPanelMode") return (services.mode ?? null) as T | null;
+            if (name === "customPropertiesGroups") return registry as unknown as T;
+            return null;
         },
     };
 
     const propertiesPanel = { registerProvider: vi.fn() };
-    const provider = new ModeFilterProvider(propertiesPanel as any, eventBus, injector);
+    const provider = new ModeFilterProvider(propertiesPanel, eventBus, injector);
     return { provider, eventBus, propertiesPanel };
 }
 
-function run(provider: ModeFilterProvider, groups: any[]): any[] {
-    return provider.getGroups({})(groups);
+function run(provider: ModeFilterProvider, groups: TestGroup[]): TestGroup[] {
+    return provider.getGroups({})(groups) as TestGroup[];
 }
 
-function ids(groups: any[]): string[] {
+function ids(groups: TestGroup[]): string[] {
     return groups.map((g) => g.id);
 }
 
@@ -84,8 +86,8 @@ describe("ModeFilterProvider", () => {
         ];
 
         const [general, error] = run(provider, groups);
-        expect(general.entries.map((e: any) => e.id)).toEqual(["name", "id", "isExecutable"]);
-        expect(error.entries.map((e: any) => e.id)).toEqual(["errorRef", "errorName"]);
+        expect(general.entries.map((e) => e.id)).toEqual(["name", "id", "isExecutable"]);
+        expect(error.entries.map((e) => e.id)).toEqual(["errorRef", "errorName"]);
     });
 
     it("drops engine (CamundaPlatform__*) groups and the replaced timer/multiInstance when C7 is present", () => {

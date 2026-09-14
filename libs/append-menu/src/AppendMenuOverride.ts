@@ -11,8 +11,40 @@ import { render, h } from "preact";
 import { AppendMenuOverlay } from "./components/AppendMenuOverlay";
 import { classifyEntries, executeEntryAction } from "./types";
 import { executeTemplateTypeAction } from "./templateTypeAction";
-import type { PopupMenuEntry, PopupMenuEntryAction } from "./types";
+import { getPopupMenuContext } from "./popupMenuInternals";
+import type { PopupMenuEntryAction } from "./types";
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
+
+interface MenuPosition {
+    x: number;
+    y: number;
+}
+
+// Only the members the override reads or reassigns on the diagram-js popupMenu.
+interface PopupMenuLike {
+    open: (target: unknown, providerId: string, position: MenuPosition, options?: unknown) => void;
+    close: () => void;
+    isOpen: () => boolean;
+}
+
+interface CanvasLike {
+    getContainer(): HTMLElement;
+    focus(): void;
+}
+
+interface EventBusLike {
+    on(events: string | string[], cb: () => void): void;
+}
+
+interface InjectorLike {
+    get<T = unknown>(name: string, strict: false): T | null;
+}
+
+interface ElementTemplatesLike {
+    getAll(): ElementTemplate[];
+    isCompatible(template: ElementTemplate): boolean;
+    createElement(template: ElementTemplate): unknown;
+}
 
 // Provider IDs that this override intercepts.
 const INTERCEPTED_PROVIDERS = new Set(["bpmn-append", "bpmn-create"]);
@@ -40,8 +72,13 @@ class AppendMenuOverride {
         this.favourites = types.slice(0, MAX_FAVOURITES);
     }
 
-    constructor(popupMenu: any, canvas: any, eventBus: any, injector: any) {
-        const elementTemplates: any | null = injector.get("elementTemplates", false);
+    constructor(
+        popupMenu: PopupMenuLike,
+        canvas: CanvasLike,
+        eventBus: EventBusLike,
+        injector: InjectorLike,
+    ) {
+        const elementTemplates = injector.get<ElementTemplatesLike>("elementTemplates", false);
 
         const originalOpen = popupMenu.open.bind(popupMenu);
         const originalClose = popupMenu.close.bind(popupMenu);
@@ -60,7 +97,12 @@ class AppendMenuOverride {
         };
 
         // --- Override popupMenu.open ---
-        popupMenu.open = (target: any, providerId: string, position: any, options?: any) => {
+        popupMenu.open = (
+            target: unknown,
+            providerId: string,
+            position: MenuPosition,
+            options?: unknown,
+        ) => {
             if (!INTERCEPTED_PROVIDERS.has(providerId)) {
                 return originalOpen(target, providerId, position, options);
             }
@@ -75,11 +117,7 @@ class AppendMenuOverride {
             }
 
             // Collect entries from all registered providers.
-            const context: {
-                entries: Record<string, PopupMenuEntry>;
-                headerEntries: Record<string, PopupMenuEntry>;
-                empty: boolean;
-            } = popupMenu._getContext(target, providerId);
+            const context = getPopupMenuContext(popupMenu, target, providerId);
 
             // Gather full template objects for enrichment. `getAll()` ignores
             // engine compatibility (unlike `getLatest()`), so filter by the
@@ -134,7 +172,10 @@ class AppendMenuOverride {
                 closeCustomMenu = null;
                 run();
                 queueMicrotask(() => {
-                    const directEditing = injector.get("directEditing", false);
+                    const directEditing = injector.get<{ isActive?: () => boolean }>(
+                        "directEditing",
+                        false,
+                    );
                     if (directEditing?.isActive?.()) {
                         return;
                     }
@@ -151,7 +192,9 @@ class AppendMenuOverride {
                 bpmnType: string,
                 event: Event,
             ) => {
-                const create = injector.get("create", false);
+                const create = injector.get<{
+                    start(event: Event, element: unknown, context?: { source?: unknown }): void;
+                }>("create", false);
                 if (!elementTemplates || !create) {
                     return;
                 }
@@ -159,9 +202,15 @@ class AppendMenuOverride {
                     executeTemplateTypeAction(
                         {
                             elementTemplates,
-                            autoPlace: injector.get("autoPlace", false) || undefined,
+                            autoPlace:
+                                injector.get<{ append(source: unknown, element: unknown): void }>(
+                                    "autoPlace",
+                                    false,
+                                ) || undefined,
                             create,
-                            mouse: injector.get("mouse", false) || undefined,
+                            mouse:
+                                injector.get<{ getLastMoveEvent(): Event }>("mouse", false) ||
+                                undefined,
                         },
                         { providerId: providerId as "bpmn-append" | "bpmn-create", target },
                         template,

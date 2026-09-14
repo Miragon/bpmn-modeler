@@ -320,6 +320,51 @@ describe("bpmn-modeler import direction", () => {
         ).toEqual([]);
     });
 
+    it("private upstream state is reached only through the typed adapters (#1501)", () => {
+        // Every access to an upstream package's private `_`-prefixed state must go
+        // through a typed adapter that asserts the runtime shape (WP1), so a
+        // dependency bump fails loudly against a pinned shape test rather than
+        // silently no-op'ing. Only those adapter modules may name the private
+        // members. The vendored properties-panel fork is out of scope — it uses
+        // `this._x` on its own ported classes pervasively — except our own
+        // `modeFilter/` code.
+        const ADAPTER_SUFFIXES = [
+            "libs/bpmn-clipboard/src/directEditingInternals.ts",
+            "libs/bpmn-diff/src/differResult.ts",
+            "libs/append-menu/src/popupMenuInternals.ts",
+        ];
+        const inScope = (file: string): boolean => {
+            const rel = file.slice(REPO_ROOT.length + 1);
+            if (ADAPTER_SUFFIXES.some((suffix) => rel.endsWith(suffix))) return false;
+            if (
+                rel.includes("properties-panel/src/") &&
+                !rel.includes("properties-panel/src/modeFilter/")
+            ) {
+                return false;
+            }
+            return true;
+        };
+        // Dotted/optional-chained underscore access on anything but `this`.
+        const DOTTED_PRIVATE = /(?<!\bthis)(?:\?\.|\.)\s*_[A-Za-z]/;
+        // Bracket/quoted access to the specific known-private names (regression guard).
+        const QUOTED_PRIVATE =
+            /["'](_textbox|_getContext|_added|_removed|_changed|_layoutChanged)["']/;
+        const offenders: string[] = [];
+        for (const file of [...listSourceFiles(PKG_SRC), ...listSourceFiles(LIBS_ROOT)]) {
+            if (!inScope(file)) continue;
+            const code = stripComments(readFileSync(file, "utf8"));
+            if (DOTTED_PRIVATE.test(code) || QUOTED_PRIVATE.test(code)) {
+                offenders.push(file.slice(REPO_ROOT.length + 1));
+            }
+        }
+        expect(
+            offenders,
+            `private upstream state must be reached only through the typed ` +
+                `adapters (directEditingInternals / differResult / ` +
+                `popupMenuInternals):\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
     it("no libs/* source imports @miragon/bpmn-modeler", () => {
         const offenders: string[] = [];
         for (const file of listSourceFiles(LIBS_ROOT)) {

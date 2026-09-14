@@ -35,21 +35,22 @@ describe("stripTemplateEntries", () => {
 
 /** A recording double for the bpmn-js DI seam the filter constructs against. */
 function harness(mode: "design" | "implement" | undefined) {
+    type BusEvent = { stopPropagation(): void };
     const registered: Array<{ id: string; priority: number }> = [];
-    const busListeners: Record<string, Array<{ priority: number; fn: (e: any) => void }>> = {};
+    const busListeners: Record<string, Array<{ priority: number; fn: (e: BusEvent) => void }>> = {};
     const popupMenu = {
         registerProvider: (id: string, priority: number, _provider: unknown) =>
             registered.push({ id, priority }),
     };
     const eventBus = {
-        on: (type: string, priority: number, fn: (e: any) => void) => {
+        on: (type: string, priority: number, fn: (e: BusEvent) => void) => {
             (busListeners[type] ??= []).push({ priority, fn });
         },
     };
     const modeFilter = mode ? { getMode: () => mode } : null;
     const injector = {
-        get: (name: string, _strict: boolean) =>
-            name === "propertiesPanelModeFilter" ? modeFilter : undefined,
+        get: <T>(name: string, _strict: false): T | null =>
+            (name === "propertiesPanelModeFilter" ? modeFilter : null) as T | null,
     };
     const filter = new PopupMenuModeFilter(popupMenu, eventBus, injector);
     return { filter, registered, busListeners };
@@ -68,7 +69,7 @@ describe("PopupMenuModeFilter", () => {
 
     it("strips template entries in design mode", () => {
         const { filter } = harness("design");
-        const middleware = filter.getPopupMenuEntries(null) as (e: any) => any;
+        const middleware = filter.getPopupMenuEntries(null);
         const result = middleware({
             "replace-with-task": { label: "Task" },
             "replace.template-abc": { label: "Tpl", group: { id: "templates" } },
@@ -79,7 +80,7 @@ describe("PopupMenuModeFilter", () => {
 
     it("is the identity in implement mode", () => {
         const { filter } = harness("implement");
-        const middleware = filter.getPopupMenuEntries(null) as (e: any) => any;
+        const middleware = filter.getPopupMenuEntries(null);
         const menu = {
             "replace-with-task": { label: "Task" },
             "replace.template-abc": { label: "Tpl", group: { id: "templates" } },
@@ -89,7 +90,7 @@ describe("PopupMenuModeFilter", () => {
 
     it("defaults to identity when no panel filter is registered", () => {
         const { filter } = harness(undefined);
-        const middleware = filter.getPopupMenuEntries(null) as (e: any) => any;
+        const middleware = filter.getPopupMenuEntries(null);
         const menu = { "replace.template-abc": { label: "Tpl" } };
         expect(middleware(menu)).toEqual(menu);
     });

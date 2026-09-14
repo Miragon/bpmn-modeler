@@ -9,9 +9,8 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="./types/execution-moddle.d.ts" />
 
-import { diff } from "bpmn-js-differ";
-
 import { buildFlowOrder, buildRemovedAnchors, sortIdsByOrder } from "./bpmnFlowOrder";
+import { categoryIds, runDiff } from "./differResult";
 import { DiffCounts, DiffResult } from "./diffResult";
 
 const CAMUNDA_NAMESPACE = "http://camunda.org/schema/1.0/bpmn";
@@ -129,10 +128,10 @@ export async function computeDiff(beforeXml: string, afterXml: string): Promise<
     ]);
 
     const compared = [compare(camunda), compare(zeebe)];
-    const added = categoryIds(compared, "_added");
-    const removed = categoryIds(compared, "_removed");
-    const changed = categoryIds(compared, "_changed");
-    const layoutChanged = categoryIds(compared, "_layoutChanged");
+    const added = categoryIds(compared, "added");
+    const removed = categoryIds(compared, "removed");
+    const changed = categoryIds(compared, "changed");
+    const layoutChanged = categoryIds(compared, "layoutChanged");
 
     const beforeAttributes = mergeAttributeSnapshots([
         collectNamespacedAttributes(camunda.before, beforeCamundaPrefixes, beforeZeebePrefixes),
@@ -224,18 +223,8 @@ function assertNoSkippedContent(result: ParseResult, engine: Engine, revision: s
     }
 }
 
-function compare(parsed: EngineParse): ReturnType<typeof diff> {
-    return diff(
-        parsed.before as Parameters<typeof diff>[0],
-        parsed.after as Parameters<typeof diff>[1],
-    );
-}
-
-function categoryIds(
-    results: readonly ReturnType<typeof diff>[],
-    category: "_added" | "_removed" | "_changed" | "_layoutChanged",
-): Set<string> {
-    return new Set(results.flatMap((result) => Object.keys(result[category])));
+function compare(parsed: EngineParse): ReturnType<typeof runDiff> {
+    return runDiff(parsed.before, parsed.after);
 }
 
 function namespacePrefixes(xml: string, namespace: string, canonicalPrefix: string): Set<string> {

@@ -2,6 +2,7 @@ import Modeler from "camunda-bpmn-js/lib/base/Modeler";
 import BpmnModeler7 from "camunda-bpmn-js/lib/camunda-platform/Modeler";
 import BpmnModeler8 from "camunda-bpmn-js/lib/camunda-cloud/Modeler";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
+import type { ModuleDeclaration } from "didi";
 import TokenSimulationModule from "bpmn-js-token-simulation";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
 // The CJS entry wraps the ESM module in a default export, preventing DI registration under Vite.
@@ -40,6 +41,7 @@ import {
     OpenScriptEditorsStore,
     ScriptSourceWatcher,
 } from "@miragon/bpmn-modeler-inline-scripting";
+import type { ScriptTaskBusinessObject } from "@miragon/bpmn-modeler-inline-scripting";
 import { buildLintModules } from "./lintModules";
 import { createLintHandleMethods, type LintHandleMethods } from "./lintHandle";
 import { capabilityModules } from "./capabilityModules";
@@ -60,6 +62,39 @@ import { ModeUiModule } from "./modeModules";
 import type { CreateModelerOptions } from "./createModeler";
 import type { CoreModelerServices, ThemeMode } from "./publicApi";
 import type { LintConfigService } from "./bpmnlint/LintConfigService";
+
+// Structural slivers of non-core bpmn-js DI services — only the members this
+// facade calls, so the untyped `.get<any>` reaches are gone without adopting a
+// full didi service map (rejected in ADR 0035).
+interface AppendMenuOverrideService {
+    setFavourites(types: string[]): void;
+}
+interface TransactionBoundariesService {
+    show(): void;
+    hide(): void;
+}
+interface ElementTemplatesLoaderService {
+    setTemplates(templates: object[]): void;
+}
+interface AlignToOriginService {
+    align(): void;
+}
+interface ElementTemplatesEngineService {
+    setEngines(engines: ReturnType<typeof deriveEngines>): void;
+}
+interface ScriptModelElement {
+    businessObject: ScriptTaskBusinessObject;
+}
+interface ScriptModelElementRegistry {
+    get(id: string): ScriptModelElement | undefined;
+}
+interface ScriptModeling {
+    updateModdleProperties(
+        element: ScriptModelElement,
+        moddleElement: unknown,
+        properties: Record<string, unknown>,
+    ): void;
+}
 
 const DEFAULT_SETTINGS: BpmnModelerSetting = {
     alignToOrigin: false,
@@ -219,7 +254,7 @@ export class BpmnModeler {
                 ),
             );
         }
-        const extra = (this.options.additionalModules as any[]) ?? [];
+        const extra = (this.options.additionalModules as ModuleDeclaration[]) ?? [];
 
         const modelerOptions = {
             container: this.container,
@@ -256,7 +291,10 @@ export class BpmnModeler {
         );
 
         if (this.settings.favouriteBpmnElements) {
-            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
+            const appendMenuOverride = this.getModeler().get<AppendMenuOverrideService>(
+                "appendMenuOverride",
+                false,
+            );
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(this.settings.favouriteBpmnElements);
             }
@@ -266,9 +304,13 @@ export class BpmnModeler {
         const onElementTemplatesErrors = this.options.onElementTemplatesErrors;
         if (onElementTemplatesErrors) {
             this.store.add(
-                subscribe(this.getModeler(), "elementTemplates.errors", (event: any) => {
-                    onElementTemplatesErrors(event.errors ?? []);
-                }),
+                subscribe(
+                    this.getModeler(),
+                    "elementTemplates.errors",
+                    (event: { errors?: unknown[] }) => {
+                        onElementTemplatesErrors(event.errors ?? []);
+                    },
+                ),
             );
         }
 
@@ -294,10 +336,10 @@ export class BpmnModeler {
     private allocateModeler(
         engine: Engine,
         modelerOptions: object,
-        commonModules: any[],
-        capModules: any[],
-        clipModules: any[],
-        extra: any[],
+        commonModules: unknown[],
+        capModules: unknown[],
+        clipModules: unknown[],
+        extra: unknown[],
     ): void {
         try {
             switch (engine) {
@@ -324,7 +366,7 @@ export class BpmnModeler {
                             ...capModules,
                             ...clipModules,
                             ...extra,
-                        ],
+                        ] as ModuleDeclaration[],
                     });
                     break;
                 }
@@ -394,7 +436,7 @@ export class BpmnModeler {
 
     /** @internal Use onContentSaved for debounced content notifications. */
     onCommandStackChanged(cb: () => void): () => void {
-        return subscribe(this.getModeler().get<any>("eventBus"), "commandStack.changed", cb);
+        return subscribe(this.getService("eventBus"), "commandStack.changed", cb);
     }
 
     /**
@@ -402,13 +444,13 @@ export class BpmnModeler {
      * callers can walk the in-memory model — e.g. to extract process variables
      * for script IntelliSense — without round-tripping through XML.
      */
-    getDefinitions(): any {
+    getDefinitions(): ReturnType<Modeler["getDefinitions"]> {
         return this.getModeler().getDefinitions();
     }
 
     /** @internal */
     collectInlineScriptTasks(): ScriptTaskScript[] {
-        return collectInlineScriptTasks(this.getModeler().get<any>("elementRegistry"));
+        return collectInlineScriptTasks(this.getService("elementRegistry"));
     }
 
     async newDiagram(): Promise<ImportXMLResult> {
@@ -424,7 +466,9 @@ export class BpmnModeler {
                 .then((result: ImportXMLResult) => {
                     // Transaction boundaries are a C7-only feature.
                     if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
-                        this.getModeler().get<any>("transactionBoundaries").show();
+                        this.getModeler()
+                            .get<TransactionBoundariesService>("transactionBoundaries")
+                            .show();
                     }
                     this.applyEnginesFromDefinitions();
                     return result;
@@ -475,7 +519,9 @@ export class BpmnModeler {
     }
 
     setElementTemplates(templates: object[]): void {
-        this.getModeler().get<any>("elementTemplatesLoader").setTemplates(templates);
+        this.getModeler()
+            .get<ElementTemplatesLoaderService>("elementTemplatesLoader")
+            .setTemplates(templates);
     }
 
     setSettings(settings: Partial<BpmnModelerSetting> | undefined): void {
@@ -488,13 +534,16 @@ export class BpmnModeler {
         // colorTheme stays inert here; the host controls theme through setTheme.
 
         if (this.engine === "c7") {
-            const tb = this.getModeler().get<any>("transactionBoundaries");
+            const tb = this.getModeler().get<TransactionBoundariesService>("transactionBoundaries");
             // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
         }
 
         if (settings.favouriteBpmnElements !== undefined) {
-            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
+            const appendMenuOverride = this.getModeler().get<AppendMenuOverrideService>(
+                "appendMenuOverride",
+                false,
+            );
             if (appendMenuOverride) {
                 appendMenuOverride.setFavourites(settings.favouriteBpmnElements);
             }
@@ -504,7 +553,7 @@ export class BpmnModeler {
     /** @internal */
     alignElementsToOrigin(): void {
         if (this.settings.alignToOrigin) {
-            this.getModeler().get<any>("alignToOrigin").align();
+            this.getModeler().get<AlignToOriginService>("alignToOrigin").align();
         }
     }
 
@@ -521,8 +570,8 @@ export class BpmnModeler {
      */
     getService<K extends keyof CoreModelerServices>(name: K): CoreModelerServices[K];
     getService<T = unknown>(name: string): T;
-    getService(name: string): any {
-        return this.getModeler().get(name);
+    getService<T = unknown>(name: string): T {
+        return this.getModeler().get<T>(name);
     }
 
     /** @internal */
@@ -533,8 +582,8 @@ export class BpmnModeler {
         scriptFormat: string,
     ): void {
         const modeler = this.getModeler();
-        const elementRegistry = modeler.get<any>("elementRegistry");
-        const modeling = modeler.get<any>("modeling");
+        const elementRegistry = modeler.get<ScriptModelElementRegistry>("elementRegistry");
+        const modeling = modeler.get<ScriptModeling>("modeling");
         const element = elementRegistry.get(elementId);
         if (!element) {
             this.reporter.warn(`Element not found: ${elementId}`);
@@ -571,8 +620,8 @@ export class BpmnModeler {
         content: string,
     ): void {
         const modeler = this.getModeler();
-        const elementRegistry = modeler.get<any>("elementRegistry");
-        const modeling = modeler.get<any>("modeling");
+        const elementRegistry = modeler.get<ScriptModelElementRegistry>("elementRegistry");
+        const modeling = modeler.get<ScriptModeling>("modeling");
         const element = elementRegistry.get(elementId);
         if (!element) {
             this.reporter.warn(`Element not found: ${elementId}`);
@@ -684,7 +733,9 @@ export class BpmnModeler {
             definitions?.get("modeler:executionPlatform"),
             definitions?.get("modeler:executionPlatformVersion"),
         );
-        this.getModeler().get<any>("elementTemplates", false)?.setEngines(engines);
+        this.getModeler()
+            .get<ElementTemplatesEngineService>("elementTemplates", false)
+            ?.setEngines(engines);
     }
 
     /**

@@ -15,12 +15,12 @@ declare module "bpmn-js-differ" {
         [key: string]: unknown;
     }
 
-    interface ChangedEntry {
+    export interface ChangedEntry {
         model: ModdleElement;
         attrs: Record<string, { oldValue: unknown; newValue: unknown }>;
     }
 
-    interface DiffResult {
+    export interface DiffResult {
         _added: Record<string, ModdleElement>;
         _removed: Record<string, ModdleElement>;
         _changed: Record<string, ChangedEntry>;

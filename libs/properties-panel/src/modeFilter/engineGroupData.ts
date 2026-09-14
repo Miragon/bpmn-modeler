@@ -6,8 +6,10 @@
  * (`camunda-platform`) and Camunda 8 (`zeebe`) providers. They are NEVER
  * imported from the engine packages — pulling `camunda-platform`/`zeebe` provider
  * code into the design graph is exactly what `check-design-pure-entry.mjs`
- * forbids. When bumping the pinned properties-panel version, re-verify these
- * against the upstream `CamundaPlatformPropertiesProvider` / `ZeebePropertiesProvider`.
+ * forbids. `engineGroupData.upstream.spec.ts` pins these against the installed
+ * providers so a properties-panel bump that shifts a group id fails in CI; when
+ * bumping, re-verify against `CamundaPlatformPropertiesProvider` /
+ * `ZeebePropertiesProvider`.
  */
 
 /**

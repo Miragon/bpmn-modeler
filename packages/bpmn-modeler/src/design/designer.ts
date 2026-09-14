@@ -39,6 +39,12 @@ import type { BpmnlintConfig, CleanupOutcome, LintResults } from "@miragon/bpmn-
 import type { ThemeMode } from "../publicApi";
 import type { CoreDesignerServices, DesignerOptions } from "./publicApi";
 
+// Structural sliver of the non-core append-menu DI service — only the member
+// this surface calls.
+interface AppendMenuOverrideService {
+    setFavourites(types: string[]): void;
+}
+
 /**
  * An independent, editable BPMN surface without an execution platform.
  * Create it with {@link createDesigner}; accessors require a live instance.
@@ -141,7 +147,7 @@ export class BpmnDesigner {
                 ),
             );
         }
-        const extra = (this.options.additionalModules as any[]) ?? [];
+        const extra = (this.options.additionalModules as unknown[]) ?? [];
 
         // capabilityModules imports engine features and CSS, which must stay out of the design entry.
         const navigationPort = this.options.capabilities?.modelNavigation;
@@ -166,7 +172,10 @@ export class BpmnDesigner {
         );
 
         if (this.options.favouriteBpmnElements) {
-            const appendMenuOverride = this.getModeler().get<any>("appendMenuOverride", false);
+            const appendMenuOverride = this.getModeler().get<AppendMenuOverrideService>(
+                "appendMenuOverride",
+                false,
+            );
             appendMenuOverride?.setFavourites(this.options.favouriteBpmnElements);
         }
 
@@ -240,7 +249,7 @@ export class BpmnDesigner {
     async loadDiagram(xml: string): Promise<ImportXMLResult> {
         try {
             const result = await this.getModeler().importXML(xml);
-            const canvas = this.getModeler().get<any>("canvas");
+            const canvas = this.getService("canvas");
             this.sizeObserver.set(armInitialViewportPolicy(canvas, this._viewport!));
             return result;
         } catch (error: unknown) {
@@ -303,8 +312,8 @@ export class BpmnDesigner {
      */
     getService<K extends keyof CoreDesignerServices>(name: K): CoreDesignerServices[K];
     getService<T = unknown>(name: string): T;
-    getService(name: string): any {
-        return this.getModeler().get(name);
+    getService<T = unknown>(name: string): T {
+        return this.getModeler().get<T>(name);
     }
 
     /**

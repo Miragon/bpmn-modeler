@@ -10,6 +10,20 @@ import { render, h } from "preact";
 import { ChooserOverlay } from "./components/ChooserOverlay";
 import type { ElementTemplate } from "./types";
 import { getBusinessObject } from "bpmn-js/lib/util/ModelUtil";
+import type { Element } from "bpmn-js/lib/model/Types";
+import type EventBus from "diagram-js/lib/core/EventBus";
+import type Canvas from "diagram-js/lib/core/Canvas";
+
+/** The `config.connectorsExtension` value injected into the chooser. */
+interface ElementTemplateChooserConfig {
+    elementTemplateChooser?: boolean;
+}
+
+/** Minimal surface of the bpmn-js element-templates service used by the chooser. */
+interface ElementTemplatesService {
+    getLatest(element: Element): ElementTemplate[];
+    applyTemplate(element: Element, template: ElementTemplate): void;
+}
 
 /**
  * Opens the element template chooser overlay when the properties panel
@@ -21,14 +35,19 @@ import { getBusinessObject } from "bpmn-js/lib/util/ModelUtil";
 class ElementTemplateChooser {
     static $inject = ["config.connectorsExtension", "eventBus", "elementTemplates", "canvas"];
 
-    constructor(config: any, eventBus: any, elementTemplates: any, canvas: any) {
+    constructor(
+        config: ElementTemplateChooserConfig | null,
+        eventBus: EventBus,
+        elementTemplates: ElementTemplatesService,
+        canvas: Canvas,
+    ) {
         const enableChooser = !config || config.elementTemplateChooser !== false;
 
         if (!enableChooser) {
             return;
         }
 
-        eventBus.on("elementTemplates.select", (event: any) => {
+        eventBus.on<{ element: Element }>("elementTemplates.select", (event) => {
             const { element } = event;
 
             this.open(element, elementTemplates, canvas)
@@ -51,7 +70,11 @@ class ElementTemplateChooser {
      * @param canvas The bpmn-js canvas service.
      * @returns A promise that resolves with the chosen template or rejects on cancel.
      */
-    private open(element: any, elementTemplates: any, canvas: any): Promise<ElementTemplate> {
+    private open(
+        element: Element,
+        elementTemplates: ElementTemplatesService,
+        canvas: Canvas,
+    ): Promise<ElementTemplate> {
         return new Promise((resolve, reject) => {
             const templates: ElementTemplate[] = elementTemplates
                 .getLatest(element)
@@ -98,7 +121,7 @@ class ElementTemplateChooser {
  * @param template The template to check against.
  * @returns `true` if the template is currently applied.
  */
-function isTemplateApplied(element: any, template: ElementTemplate): boolean {
+function isTemplateApplied(element: Element, template: ElementTemplate): boolean {
     const bo = getBusinessObject(element);
     return bo ? bo.get("modelerTemplate") === template.id : false;
 }

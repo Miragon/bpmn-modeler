@@ -15,6 +15,9 @@
 import { AppendMenuOverride } from "./AppendMenuOverride";
 import "./append-menu.css";
 
+export { getPopupMenuContext } from "./popupMenuInternals";
+export type { PopupMenuContext } from "./popupMenuInternals";
+
 export const AppendMenuModule = {
     __init__: ["appendMenuOverride"],
     appendMenuOverride: ["type", AppendMenuOverride],
