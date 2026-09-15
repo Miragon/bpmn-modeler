@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { checkDts } from "../scripts/check-dts.mjs";
 import { checkExternals, collectModuleSpecifiers } from "../scripts/check-externals.mjs";
 import { checkInlinedPeers } from "../scripts/check-inlined-peers.mjs";
 
@@ -105,6 +106,77 @@ describe("emitted external dependency guard", () => {
         expect(() => checkExternals({ distDir: join(root, "dist"), manifestPath })).toThrow(
             /build output is missing/,
         );
+    });
+});
+
+describe("declaration roll-up guard", () => {
+    function dtsFixture(indexDts: string): { distDir: string; configPath: string } {
+        const root = temporaryDirectory();
+        const distDir = join(root, "dist");
+        mkdirSync(distDir);
+        writeFileSync(join(distDir, "index.d.ts"), indexDts);
+        const configPath = join(root, "inlined-libraries.json");
+        writeJson(configPath, [
+            { name: "@miragon/bpmn-modeler-layout", sourceRoot: "libs/bpmn-layout/src" },
+        ]);
+        return { distDir, configPath };
+    }
+
+    it("checks every inlined library named in the build config", () => {
+        const { distDir, configPath } = dtsFixture("export declare const value: number;\n");
+
+        expect(checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toEqual({
+            checkedEntries: 1,
+            privateLibs: 1,
+        });
+    });
+
+    it("rejects a config-listed lib import the hand-kept list used to miss", () => {
+        const { distDir, configPath } = dtsFixture(
+            'import { layout } from "@miragon/bpmn-modeler-layout";\n' +
+                "export declare function format(): ReturnType<typeof layout>;\n",
+        );
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toThrow(
+            /leaked private-lib import: @miragon\/bpmn-modeler-layout/,
+        );
+    });
+
+    it("rejects a leaked protocol symbol", () => {
+        const { distDir, configPath } = dtsFixture("export declare const api: HostApi;\n");
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toThrow(
+            /leaked protocol symbols: HostApi/,
+        );
+    });
+
+    it("rejects an ambient declaration that carries a body", () => {
+        const { distDir, configPath } = dtsFixture("declare function leaked(): void { return; }\n");
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toThrow(
+            /invalid ambient declaration/,
+        );
+    });
+
+    it("ignores backtick-quoted prose mentions of a private lib", () => {
+        const { distDir, configPath } = dtsFixture(
+            "/** Inlined from `@miragon/bpmn-modeler-layout`. */\n" +
+                "export declare const value: number;\n",
+        );
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).not.toThrow();
+    });
+
+    it("rejects a missing build output", () => {
+        const { configPath } = dtsFixture("export {};\n");
+
+        expect(() =>
+            checkDts({
+                distDir: join(temporaryDirectory(), "dist"),
+                configPath,
+                entries: ["index.d.ts"],
+            }),
+        ).toThrow(/not found — run the lib build first/);
     });
 });
 
