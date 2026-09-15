@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { checkConsumerTypes } from "../scripts/check-consumer-types.mjs";
 import { checkDts } from "../scripts/check-dts.mjs";
 import { checkExternals, collectModuleSpecifiers } from "../scripts/check-externals.mjs";
 import { checkInlinedPeers } from "../scripts/check-inlined-peers.mjs";
@@ -105,6 +106,58 @@ describe("emitted external dependency guard", () => {
 
         expect(() => checkExternals({ distDir: join(root, "dist"), manifestPath })).toThrow(
             /build output is missing/,
+        );
+    });
+});
+
+describe("consumer type-check guard", () => {
+    const FIXTURE = {
+        "consumer.ts": `
+            import { createModeler } from "@miragon/bpmn-modeler";
+
+            export async function use(canvas: HTMLElement): Promise<void> {
+                const modeler = await createModeler(canvas, { engine: "c7" });
+                modeler.destroy();
+            }
+        `,
+    };
+
+    function fakeInstall(indexDts: string): string {
+        const consumerDir = temporaryDirectory();
+        const packageDir = join(consumerDir, "node_modules", "@miragon", "bpmn-modeler");
+        mkdirSync(packageDir, { recursive: true });
+        writeJson(join(packageDir, "package.json"), {
+            name: "@miragon/bpmn-modeler",
+            version: "0.0.0-test",
+            type: "module",
+            exports: { ".": { types: "./index.d.ts", import: "./index.js" } },
+        });
+        writeFileSync(join(packageDir, "index.d.ts"), indexDts);
+        return consumerDir;
+    }
+
+    it("accepts declarations matching the consumer program", () => {
+        const consumerDir = fakeInstall(
+            "export declare function createModeler(\n" +
+                "    container: HTMLElement,\n" +
+                '    options: { engine: "c7" | "c8" },\n' +
+                "): Promise<{ destroy(): void }>;\n",
+        );
+
+        expect(checkConsumerTypes({ consumerDir, fixtures: FIXTURE })).toEqual({
+            checkedFixtures: 1,
+        });
+    });
+
+    it("rejects declarations with a broken factory arity", () => {
+        const consumerDir = fakeInstall(
+            "export declare function createModeler(\n" +
+                "    container: HTMLElement,\n" +
+                "): Promise<{ destroy(): void }>;\n",
+        );
+
+        expect(() => checkConsumerTypes({ consumerDir, fixtures: FIXTURE })).toThrow(
+            /consumer program failed to type-check/,
         );
     });
 });
