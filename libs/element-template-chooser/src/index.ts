@@ -19,4 +19,10 @@ export const ElementTemplateChooserModule = {
     elementTemplateChooser: ["type", ElementTemplateChooser],
 };
 
-export type { ElementTemplate, TemplateProperty } from "./types";
+export type {
+    ElementTemplate,
+    TemplateProperty,
+    ImplementationDetail,
+    BindingDirection,
+} from "./types";
+export { classifyBinding, extractImplementationDetail } from "./types";

@@ -39,7 +39,6 @@ export const bpmnModelerTestAliases: Record<string, string> = {
     "@miragon/bpmn-modeler-layout": resolve(__dirname, "../../libs/bpmn-layout/src/index.ts"),
     // Entry-point-less libs the editable surfaces value-import; the lifecycle
     // contract stands up a real designer/modeler, so map them explicitly.
-    "@miragon/bpmn-modeler-append-menu": resolve(__dirname, "../../libs/append-menu/src/index.ts"),
     "@miragon/bpmn-modeler-flow-navigation": resolve(
         __dirname,
         "../../libs/flow-navigation/src/index.ts",

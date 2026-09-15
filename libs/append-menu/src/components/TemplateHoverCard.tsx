@@ -5,8 +5,12 @@
  * focuses a template card, overlaying the BPMN palette.  Structured
  * similarly to the TemplatePreview in element-template-chooser.
  */
-import type { EnrichedTemplateEntry, TemplateProperty } from "../types";
-import { classifyBinding, extractImplementationDetail } from "../types";
+import {
+    classifyBinding,
+    extractImplementationDetail,
+    type TemplateProperty,
+} from "@miragon/bpmn-modeler-element-template-chooser";
+import type { EnrichedTemplateEntry } from "../types";
 
 interface TemplateHoverCardProps {
     enrichedEntry: EnrichedTemplateEntry;
