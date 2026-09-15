@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.2.0...dmn-modeler-v0.3.0) (2026-09-15)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** stamp execution platform on engine-bound newDiagram ([#1536](https://github.com/Miragon/bpmn-modeler/issues/1536)) [sync e742f59] ([7418949](https://github.com/Miragon/bpmn-modeler/commit/74189491726340cf1cf110e1b85c6ca1331b2a2b))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** translate append menu and element template chooser ([#1547](https://github.com/Miragon/bpmn-modeler/issues/1547)) [sync 63b0493] ([95865ca](https://github.com/Miragon/bpmn-modeler/commit/95865ca280c149adec5ad31972e1a86b0852e7db))
+
 ## [0.2.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.1.0...dmn-modeler-v0.2.0) (2026-09-13)
 
 
