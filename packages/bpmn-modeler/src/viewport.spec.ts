@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ViewportManager, type ViewportData } from "./viewport";
+import { CanvasViewportManager, type ViewportData } from "./viewport";
 import type { CoreServiceAccessor } from "./coreServices";
 
 /**
@@ -27,7 +27,7 @@ function setup(inner: Rect, outer: { width: number; height: number }) {
             if (index !== -1) handlers.splice(index, 1);
         },
     };
-    const manager = new ViewportManager(((name: string) => {
+    const manager = new CanvasViewportManager(((name: string) => {
         if (name === "canvas") return canvas;
         if (name === "eventBus") return eventBus;
         throw new Error(`unexpected service: ${name}`);
@@ -238,7 +238,7 @@ describe("ViewportManager initial-viewport decision", () => {
         const viewbox = vi.fn((box?: unknown) => (box ? undefined : { inner, outer }));
         const zoom = vi.fn();
         const canvas = { viewbox, zoom, getContainer: () => container };
-        const manager = new ViewportManager(((name: string) => {
+        const manager = new CanvasViewportManager(((name: string) => {
             if (name === "canvas") return canvas;
             throw new Error(`unexpected service: ${name}`);
         }) as unknown as CoreServiceAccessor);
@@ -383,7 +383,7 @@ function setupFocus(
     const viewbox = vi.fn((box?: unknown) => (box ? undefined : { ...current, outer }));
     const canvas = { viewbox };
     const registry = { get: (id: string) => elements[id] };
-    const manager = new ViewportManager(((name: string) => {
+    const manager = new CanvasViewportManager(((name: string) => {
         if (name === "canvas") return canvas;
         if (name === "elementRegistry") return registry;
         throw new Error(`unexpected service: ${name}`);

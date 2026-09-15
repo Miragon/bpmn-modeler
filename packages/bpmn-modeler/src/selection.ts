@@ -5,10 +5,32 @@ import type { CoreServiceAccessor } from "./coreServices";
 /**
  * Reads, writes, and subscribes to element selection changes.
  *
+ * An interface rather than the implementing class for the same reason as
+ * `ViewportManager`: each subpath's d.ts roll-up duplicates the declaration,
+ * and only a structural type keeps the copies mutually assignable.
+ */
+export interface SelectionManager {
+    getSelectedElementIds(): string[];
+
+    /**
+     * Silently skips IDs that no longer exist in the diagram. An empty or
+     * all-missing `ids` clears the selection, so a snapshot captured with
+     * nothing selected restores faithfully.
+     */
+    selectElementsByIds(ids: string[]): void;
+
+    /**
+     * @returns a disposer that detaches the listener — call it when tearing the
+     *   surface down so repeated subscribe cycles don't accumulate listeners.
+     */
+    onSelectionChanged(cb: (elementIds: string[]) => void): () => void;
+}
+
+/**
  * Decoupled from the modeler through a {@link CoreServiceAccessor} so the
  * selection concern can be tested and composed independently.
  */
-export class SelectionManager {
+export class ElementSelectionManager implements SelectionManager {
     constructor(private readonly getService: CoreServiceAccessor) {}
 
     getSelectedElementIds(): string[] {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RootElementManager } from "./rootElement";
+import { CanvasRootElementManager } from "./rootElement";
 import type { CoreServiceAccessor } from "./coreServices";
 
 function setup(currentRootId: string, elements: Record<string, unknown> = {}) {
@@ -24,7 +24,7 @@ function setup(currentRootId: string, elements: Record<string, unknown> = {}) {
             if (index !== -1) handlers.splice(index, 1);
         },
     };
-    const manager = new RootElementManager(((name: string) => {
+    const manager = new CanvasRootElementManager(((name: string) => {
         if (name === "canvas") return canvas;
         if (name === "elementRegistry") return elementRegistry;
         if (name === "eventBus") return eventBus;
@@ -53,7 +53,7 @@ describe("RootElementManager.getRootElementId", () => {
 
     it("returns undefined when canvas has no root element", () => {
         const canvas = { getRootElement: vi.fn().mockReturnValue(null) };
-        const manager = new RootElementManager(((name: string) => {
+        const manager = new CanvasRootElementManager(((name: string) => {
             if (name === "canvas") return canvas;
             throw new Error(`unexpected service: ${name}`);
         }) as unknown as CoreServiceAccessor);

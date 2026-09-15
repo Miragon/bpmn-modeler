@@ -2,6 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { checkConsumerTypes } from "../scripts/check-consumer-types.mjs";
+import { checkDts } from "../scripts/check-dts.mjs";
 import { checkExternals, collectModuleSpecifiers } from "../scripts/check-externals.mjs";
 import { checkInlinedPeers } from "../scripts/check-inlined-peers.mjs";
 
@@ -108,6 +110,129 @@ describe("emitted external dependency guard", () => {
     });
 });
 
+describe("consumer type-check guard", () => {
+    const FIXTURE = {
+        "consumer.ts": `
+            import { createModeler } from "@miragon/bpmn-modeler";
+
+            export async function use(canvas: HTMLElement): Promise<void> {
+                const modeler = await createModeler(canvas, { engine: "c7" });
+                modeler.destroy();
+            }
+        `,
+    };
+
+    function fakeInstall(indexDts: string): string {
+        const consumerDir = temporaryDirectory();
+        const packageDir = join(consumerDir, "node_modules", "@miragon", "bpmn-modeler");
+        mkdirSync(packageDir, { recursive: true });
+        writeJson(join(packageDir, "package.json"), {
+            name: "@miragon/bpmn-modeler",
+            version: "0.0.0-test",
+            type: "module",
+            exports: { ".": { types: "./index.d.ts", import: "./index.js" } },
+        });
+        writeFileSync(join(packageDir, "index.d.ts"), indexDts);
+        return consumerDir;
+    }
+
+    it("accepts declarations matching the consumer program", () => {
+        const consumerDir = fakeInstall(
+            "export declare function createModeler(\n" +
+                "    container: HTMLElement,\n" +
+                '    options: { engine: "c7" | "c8" },\n' +
+                "): Promise<{ destroy(): void }>;\n",
+        );
+
+        expect(checkConsumerTypes({ consumerDir, fixtures: FIXTURE })).toEqual({
+            checkedFixtures: 1,
+        });
+    });
+
+    it("rejects declarations with a broken factory arity", () => {
+        const consumerDir = fakeInstall(
+            "export declare function createModeler(\n" +
+                "    container: HTMLElement,\n" +
+                "): Promise<{ destroy(): void }>;\n",
+        );
+
+        expect(() => checkConsumerTypes({ consumerDir, fixtures: FIXTURE })).toThrow(
+            /consumer program failed to type-check/,
+        );
+    });
+});
+
+describe("declaration roll-up guard", () => {
+    function dtsFixture(indexDts: string): { distDir: string; configPath: string } {
+        const root = temporaryDirectory();
+        const distDir = join(root, "dist");
+        mkdirSync(distDir);
+        writeFileSync(join(distDir, "index.d.ts"), indexDts);
+        const configPath = join(root, "inlined-libraries.json");
+        writeJson(configPath, [
+            { name: "@miragon/bpmn-modeler-layout", sourceRoot: "libs/bpmn-layout/src" },
+        ]);
+        return { distDir, configPath };
+    }
+
+    it("checks every inlined library named in the build config", () => {
+        const { distDir, configPath } = dtsFixture("export declare const value: number;\n");
+
+        expect(checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toEqual({
+            checkedEntries: 1,
+            privateLibs: 1,
+        });
+    });
+
+    it("rejects a config-listed lib import the hand-kept list used to miss", () => {
+        const { distDir, configPath } = dtsFixture(
+            'import { layout } from "@miragon/bpmn-modeler-layout";\n' +
+                "export declare function format(): ReturnType<typeof layout>;\n",
+        );
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toThrow(
+            /leaked private-lib import: @miragon\/bpmn-modeler-layout/,
+        );
+    });
+
+    it("rejects a leaked protocol symbol", () => {
+        const { distDir, configPath } = dtsFixture("export declare const api: HostApi;\n");
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toThrow(
+            /leaked protocol symbols: HostApi/,
+        );
+    });
+
+    it("rejects an ambient declaration that carries a body", () => {
+        const { distDir, configPath } = dtsFixture("declare function leaked(): void { return; }\n");
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).toThrow(
+            /invalid ambient declaration/,
+        );
+    });
+
+    it("ignores backtick-quoted prose mentions of a private lib", () => {
+        const { distDir, configPath } = dtsFixture(
+            "/** Inlined from `@miragon/bpmn-modeler-layout`. */\n" +
+                "export declare const value: number;\n",
+        );
+
+        expect(() => checkDts({ distDir, configPath, entries: ["index.d.ts"] })).not.toThrow();
+    });
+
+    it("rejects a missing build output", () => {
+        const { configPath } = dtsFixture("export {};\n");
+
+        expect(() =>
+            checkDts({
+                distDir: join(temporaryDirectory(), "dist"),
+                configPath,
+                entries: ["index.d.ts"],
+            }),
+        ).toThrow(/not found — run the lib build first/);
+    });
+});
+
 describe("inlined library peer guard", () => {
     it("rejects a peer absent from published runtime dependencies", () => {
         const packageRoot = temporaryDirectory();
@@ -143,5 +268,46 @@ describe("inlined library peer guard", () => {
         });
 
         expect(checkInlinedPeers({ packageRoot })).toEqual({ checkedLibraries: 1 });
+    });
+
+    it("rejects a lib runtime dependency absent from published runtime dependencies", () => {
+        const packageRoot = temporaryDirectory();
+        mkdirSync(join(packageRoot, "libs", "inline", "src"), { recursive: true });
+        writeJson(join(packageRoot, "libs", "inline", "package.json"), {
+            name: "@example/inline",
+            dependencies: { "runtime-dep": "1.0.0" },
+        });
+        writeJson(join(packageRoot, "inlined-libraries.json"), [
+            { name: "@example/inline", sourceRoot: "libs/inline/src" },
+        ]);
+        writeJson(join(packageRoot, "package.json"), {
+            devDependencies: { "runtime-dep": "1.0.0" },
+        });
+
+        expect(() => checkInlinedPeers({ packageRoot })).toThrow(
+            /runtime dependencies must be published runtime dependencies or themselves inlined libraries:\n {2}- @example\/inline depends on runtime-dep/,
+        );
+    });
+
+    it("accepts a lib depending on another inlined library", () => {
+        const packageRoot = temporaryDirectory();
+        mkdirSync(join(packageRoot, "libs", "inline", "src"), { recursive: true });
+        mkdirSync(join(packageRoot, "libs", "other", "src"), { recursive: true });
+        writeJson(join(packageRoot, "libs", "inline", "package.json"), {
+            name: "@example/inline",
+            dependencies: { "@example/other": "workspace:*", "published-dep": "1.0.0" },
+        });
+        writeJson(join(packageRoot, "libs", "other", "package.json"), {
+            name: "@example/other",
+        });
+        writeJson(join(packageRoot, "inlined-libraries.json"), [
+            { name: "@example/inline", sourceRoot: "libs/inline/src" },
+            { name: "@example/other", sourceRoot: "libs/other/src" },
+        ]);
+        writeJson(join(packageRoot, "package.json"), {
+            dependencies: { "published-dep": "1.0.0" },
+        });
+
+        expect(checkInlinedPeers({ packageRoot })).toEqual({ checkedLibraries: 2 });
     });
 });
