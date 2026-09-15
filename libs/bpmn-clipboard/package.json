@@ -14,6 +14,6 @@
     },
     "devDependencies": {
         "diagram-js": "15.26.0",
-        "typescript": "6.0.3"
+        "typescript": "7.0.2"
     }
 }
