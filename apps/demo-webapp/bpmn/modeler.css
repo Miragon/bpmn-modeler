@@ -6,15 +6,6 @@
  */
 @import "../../../packages/bpmn-modeler/src/styles/mode.css";
 
-/* The package sheet stamps the flex column on `.panel-host`; the demo needs a
- * higher-specificity selector to out-specify `.content.with-diagram
- * .properties-panel-parent`'s `display:block`. */
-#js-properties-panel.panel-host {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
 .mode-strip {
     background: var(--cd-grau);
 }

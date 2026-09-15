@@ -11,7 +11,12 @@
  */
 
 /* Flex column so the strip stays pinned while the panel scrolls. `overflow:hidden`
- * lets the collapsed `width:0` win over the flex `min-width:auto` default. */
+ * lets the collapsed `width:0` win over the flex `min-width:auto` default. The
+ * compound `.properties-panel-parent.panel-host` selector wins the `overflow` tie
+ * with default.css `.properties-panel-parent { overflow:auto }` regardless of
+ * import order; bare `.panel-host` stays for consumers embedding without the
+ * `.content` shell. */
+.properties-panel-parent.panel-host,
 .panel-host {
     display: flex;
     flex-direction: column;
