@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.13.0...vscode-v1.13.1) (2026-09-15)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** translate append menu and element template chooser ([#1547](https://github.com/Miragon/bpmn-modeler/issues/1547)) [sync 63b0493] ([95865ca](https://github.com/Miragon/bpmn-modeler/commit/95865ca280c149adec5ad31972e1a86b0852e7db))
+
 ## [1.13.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.12.0...vscode-v1.13.0) (2026-09-14)
 
 
