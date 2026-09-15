@@ -1,7 +1,7 @@
-/**
- * @internal Host-adapter surface — drill-down root tracking used for canvas
- * view-state restore. Not part of the public API.
- */
+// Drill-down root tracking used for canvas view-state restore. Exposed on the
+// modeler/designer handles (`handle.rootElement`), so it must not be tagged
+// `@internal` — the d.ts roll-up would strip the getter from the published
+// class while the handle interface still requires it.
 
 import type { Event } from "diagram-js/lib/core/EventBus";
 
@@ -19,11 +19,44 @@ const IMPLICIT_ROOT_PREFIX = "__implicitroot";
  * Reads, writes, and subscribes to the active canvas root element.
  *
  * The root element determines which plane is visible — the top-level
- * process or a collapsed sub-process drill-down. Decoupled from the
- * modeler through a {@link ServiceAccessor} so the concern can be tested
- * and composed independently.
+ * process or a collapsed sub-process drill-down.
+ *
+ * An interface rather than the implementing class for the same reason as
+ * `ViewportManager`: each subpath's d.ts roll-up duplicates the declaration,
+ * and only a structural type keeps the copies mutually assignable.
  */
-export class RootElementManager {
+export interface RootElementManager {
+    /**
+     * Returns the ID of the active canvas root, or `undefined` when the
+     * canvas is on the implicit (top-level process) root — which should
+     * not be persisted because its ID is regenerated on every import.
+     */
+    getRootElementId(): string | undefined;
+
+    /**
+     * Switches the canvas to the root element with the given ID.
+     *
+     * @returns `false` when the element does not exist or is already the
+     *   current root, so the caller knows no plane switch occurred.
+     */
+    setRootElementById(id: string | undefined): boolean;
+
+    /**
+     * Subscribes to root element changes on the event bus.
+     *
+     * @param cb Callback invoked with the new root element's ID (or
+     *   `undefined` for the implicit root) whenever the active plane changes.
+     * @returns a disposer that detaches the listener — call it when tearing the
+     *   surface down so repeated subscribe cycles don't accumulate listeners.
+     */
+    onRootChanged(cb: (rootElementId: string | undefined) => void): () => void;
+}
+
+/**
+ * Decoupled from the modeler through a {@link CoreServiceAccessor} so the
+ * concern can be tested and composed independently.
+ */
+export class CanvasRootElementManager implements RootElementManager {
     constructor(private readonly getService: CoreServiceAccessor) {}
 
     /**

@@ -1,4 +1,4 @@
-import type { DetectedEngine, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import type { DetectedEngine, Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
 import type { ModelerMode, ThemeMode } from "../publicApi";
 import type { BpmnModelerHandle } from "../publicApi";
 import type { BpmnViewerHandle } from "../viewer/publicApi";
@@ -32,6 +32,12 @@ export interface SurfaceContext {
  */
 export interface ModelerSurfaceContext extends SurfaceContext {
     mode: ModelerMode;
+    /**
+     * Narrowed from {@link SurfaceContext.engine}: the implement factory only
+     * runs on a tagged model (the engine rule), so the factory can hand the
+     * engine straight to `createModeler` without an undefined check.
+     */
+    engine: Engine;
 }
 
 /**
