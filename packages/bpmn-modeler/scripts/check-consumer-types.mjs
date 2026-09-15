@@ -14,7 +14,7 @@ const PKG = "@miragon/bpmn-modeler";
 
 // One fixture per public entry, mirroring the documented README examples plus
 // typed handle use (exportDiagram, captureViewState/applyViewState).
-export const CONSUMER_FIXTURES = {
+const CONSUMER_FIXTURES = {
     "modeler.ts": `
         import { createModeler, detectEngine } from "${PKG}";
 
