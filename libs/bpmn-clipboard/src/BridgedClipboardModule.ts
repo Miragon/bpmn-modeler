@@ -96,18 +96,18 @@ class BridgedClipboard {
         // inject our serialized BPMN data synchronously — eliminating the
         // race condition where VS Code's handler would otherwise copy the
         // DOM text selection (e.g. a stale line break after Cmd+A).
-        document.addEventListener(
-            "copy",
-            (e: ClipboardEvent) => {
-                if (pendingClipData) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    e.clipboardData?.setData("text/plain", pendingClipData);
-                    pendingClipData = null;
-                }
-            },
-            true,
-        );
+        const onDocumentCopy = (e: ClipboardEvent): void => {
+            if (pendingClipData) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                e.clipboardData?.setData("text/plain", pendingClipData);
+                pendingClipData = null;
+            }
+        };
+        document.addEventListener("copy", onDocumentCopy, true);
+        eventBus.on("diagram.destroy", () => {
+            document.removeEventListener("copy", onDocumentCopy, true);
+        });
 
         // ── Copy interceptor ─────────────────────────────────────────────
         eventBus.on<ElementsCopiedContext>("copyPaste.elementsCopied", 2051, (context) => {
