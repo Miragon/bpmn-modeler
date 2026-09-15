@@ -4,6 +4,8 @@
  */
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 
+export type Translate = (template: string, replacements?: Record<string, string>) => string;
+
 /**
  * Action shape for a popup menu entry.
  *

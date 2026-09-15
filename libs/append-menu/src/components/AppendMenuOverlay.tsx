@@ -17,6 +17,7 @@ import type {
     BpmnElementGroup,
     PopupMenuEntry,
     PopupMenuEntryAction,
+    Translate,
 } from "../types";
 import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 import {
@@ -40,6 +41,7 @@ interface AppendMenuOverlayProps {
     templateEntries: EnrichedTemplateEntry[];
     bpmnGroups: BpmnElementGroup[];
     favourites: string[];
+    translate: Translate;
     position: { x: number; y: number };
     canvasBounds: { right: number; bottom: number };
     onSelect: (action: PopupMenuEntryAction | undefined, event: Event) => void;
@@ -89,6 +91,7 @@ export function AppendMenuOverlay({
     templateEntries,
     bpmnGroups,
     favourites,
+    translate,
     position,
     canvasBounds,
     onSelect,
@@ -376,7 +379,7 @@ export function AppendMenuOverlay({
                         ref={searchRef}
                         class="am-search-input"
                         type="text"
-                        placeholder="Search..."
+                        placeholder={translate("Search...")}
                         value={search}
                         onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                     />
@@ -388,7 +391,7 @@ export function AppendMenuOverlay({
                                 searchRef.current?.focus();
                             }}
                             type="button"
-                            aria-label="Clear search"
+                            aria-label={translate("Clear search")}
                         >
                             ×
                         </button>
@@ -401,6 +404,7 @@ export function AppendMenuOverlay({
                         <TemplatePanel
                             entries={filteredTemplates}
                             categories={categories}
+                            translate={translate}
                             search={search}
                             activeCategory={activeCategory}
                             selectedTemplateId={selectedTemplate?.id ?? null}
@@ -412,6 +416,7 @@ export function AppendMenuOverlay({
                     <BpmnElementPalette
                         favouriteEntries={processedPalette.favouriteEntries}
                         groups={processedPalette.groups}
+                        translate={translate}
                         expanded={paletteExpandedVisual}
                         highlightedKey={highlightedPaletteKey}
                         onToggleExpand={() => setPaletteExpanded((prev) => !prev)}

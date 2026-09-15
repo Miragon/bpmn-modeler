@@ -1,3 +1,5 @@
+export type Translate = (template: string, replacements?: Record<string, string>) => string;
+
 /** A single property (input/output, binding, or user-configurable field) an element template applies. */
 export interface TemplateProperty {
     label?: string;
@@ -78,9 +80,9 @@ const IMPLEMENTATION_BINDINGS: {
         bindingType: "property",
         bindingName: "camunda:delegateExpression",
     },
-    { label: "Java Class", bindingType: "property", bindingName: "camunda:class" },
+    { label: "Java class", bindingType: "property", bindingName: "camunda:class" },
     { label: "Expression", bindingType: "property", bindingName: "camunda:expression" },
-    { label: "Called Element", bindingType: "property", bindingName: "calledElement" },
+    { label: "Called element", bindingType: "property", bindingName: "calledElement" },
     // C8 bindings (binding.type carries the semantic directly)
     // Shorthand form: binding.type === "zeebe:taskDefinition:type"
     { label: "Task Type", bindingType: "zeebe:taskDefinition:type" },
