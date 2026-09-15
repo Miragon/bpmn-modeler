@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.1](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.9.0...intellij-v1.9.1) (2026-09-15)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** translate append menu and element template chooser ([#1547](https://github.com/Miragon/bpmn-modeler/issues/1547)) [sync 63b0493] ([95865ca](https://github.com/Miragon/bpmn-modeler/commit/95865ca280c149adec5ad31972e1a86b0852e7db))
+
+
+### 🛠️ Misc
+
+* **deps:** bump org.jetbrains.kotlin.jvm from 2.4.10 to 2.4.20 in /apps/intellij-plugin in the gradle-minor-patch group ([#1544](https://github.com/Miragon/bpmn-modeler/issues/1544)) ([1586a10](https://github.com/Miragon/bpmn-modeler/commit/1586a10fafecd99c81f448cb85718f6cbaee2bcb))
+
 ## [1.9.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.8.0...intellij-v1.9.0) (2026-09-14)
 
 
