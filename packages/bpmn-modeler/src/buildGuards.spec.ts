@@ -216,4 +216,45 @@ describe("inlined library peer guard", () => {
 
         expect(checkInlinedPeers({ packageRoot })).toEqual({ checkedLibraries: 1 });
     });
+
+    it("rejects a lib runtime dependency absent from published runtime dependencies", () => {
+        const packageRoot = temporaryDirectory();
+        mkdirSync(join(packageRoot, "libs", "inline", "src"), { recursive: true });
+        writeJson(join(packageRoot, "libs", "inline", "package.json"), {
+            name: "@example/inline",
+            dependencies: { "runtime-dep": "1.0.0" },
+        });
+        writeJson(join(packageRoot, "inlined-libraries.json"), [
+            { name: "@example/inline", sourceRoot: "libs/inline/src" },
+        ]);
+        writeJson(join(packageRoot, "package.json"), {
+            devDependencies: { "runtime-dep": "1.0.0" },
+        });
+
+        expect(() => checkInlinedPeers({ packageRoot })).toThrow(
+            /runtime dependencies must be published runtime dependencies or themselves inlined libraries:\n {2}- @example\/inline depends on runtime-dep/,
+        );
+    });
+
+    it("accepts a lib depending on another inlined library", () => {
+        const packageRoot = temporaryDirectory();
+        mkdirSync(join(packageRoot, "libs", "inline", "src"), { recursive: true });
+        mkdirSync(join(packageRoot, "libs", "other", "src"), { recursive: true });
+        writeJson(join(packageRoot, "libs", "inline", "package.json"), {
+            name: "@example/inline",
+            dependencies: { "@example/other": "workspace:*", "published-dep": "1.0.0" },
+        });
+        writeJson(join(packageRoot, "libs", "other", "package.json"), {
+            name: "@example/other",
+        });
+        writeJson(join(packageRoot, "inlined-libraries.json"), [
+            { name: "@example/inline", sourceRoot: "libs/inline/src" },
+            { name: "@example/other", sourceRoot: "libs/other/src" },
+        ]);
+        writeJson(join(packageRoot, "package.json"), {
+            dependencies: { "published-dep": "1.0.0" },
+        });
+
+        expect(checkInlinedPeers({ packageRoot })).toEqual({ checkedLibraries: 2 });
+    });
 });

@@ -16,7 +16,9 @@ export function checkInlinedPeers({
     const libraries = readJson(configPath);
     const manifest = readJson(manifestPath);
     const runtimeDependencies = manifest.dependencies ?? {};
-    const missing = [];
+    const inlinedNames = new Set(libraries.map((library) => library.name));
+    const missingPeers = [];
+    const missingDependencies = [];
 
     for (const library of libraries) {
         const libraryManifestPath = resolve(packageRoot, library.sourceRoot, "..", "package.json");
@@ -31,16 +33,36 @@ export function checkInlinedPeers({
 
         for (const peer of Object.keys(libraryManifest.peerDependencies ?? {})) {
             if (!(peer in runtimeDependencies)) {
-                missing.push(`${library.name} requires ${peer}`);
+                missingPeers.push(`${library.name} requires ${peer}`);
+            }
+        }
+
+        // The vite build externalizes lib `dependencies` too — every one must
+        // resolve for a consumer, either as a published runtime dependency or
+        // by being another inlined lib (lib→lib, bundled away at build time).
+        for (const dependency of Object.keys(libraryManifest.dependencies ?? {})) {
+            if (!(dependency in runtimeDependencies) && !inlinedNames.has(dependency)) {
+                missingDependencies.push(`${library.name} depends on ${dependency}`);
             }
         }
     }
 
-    if (missing.length > 0) {
-        throw new Error(
+    const failures = [];
+    if (missingPeers.length > 0) {
+        failures.push(
             "inlined library peers must be published runtime dependencies:\n" +
-                missing.map((item) => `  - ${item}`).join("\n"),
+                missingPeers.map((item) => `  - ${item}`).join("\n"),
         );
+    }
+    if (missingDependencies.length > 0) {
+        failures.push(
+            "inlined library runtime dependencies must be published runtime " +
+                "dependencies or themselves inlined libraries:\n" +
+                missingDependencies.map((item) => `  - ${item}`).join("\n"),
+        );
+    }
+    if (failures.length > 0) {
+        throw new Error(failures.join("\n"));
     }
 
     return { checkedLibraries: libraries.length };
