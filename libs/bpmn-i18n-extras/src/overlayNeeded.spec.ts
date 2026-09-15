@@ -46,6 +46,31 @@ const SOURCE_ONLY = new Set([
     "Mode",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.",
     "{mode} — open properties panel",
+    // Append-menu / element-template-chooser chrome. The harvest driver never
+    // opens either overlay (no popupMenu.open of bpmn-append/bpmn-create, no
+    // elementTemplates.select), and none of these are conditional on search /
+    // hover / selection states it could reach, so they cannot be harvested.
+    "Apply Template",
+    "Clear search",
+    "Close",
+    "Collapse",
+    "Delegate",
+    "Element Templates",
+    "Expand",
+    "Favourites",
+    "No templates found",
+    "No visible parameters",
+    "Other",
+    "Search templates...",
+    "Search...",
+    "Select a template to see its details",
+    "Task Type",
+    "Try a different search term",
+    "Unnamed",
+    "optional",
+    "read-only",
+    "required",
+    "{count} properties",
 ]);
 
 const HERE = dirname(fileURLToPath(import.meta.url));

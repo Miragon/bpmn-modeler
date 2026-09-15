@@ -2,11 +2,12 @@
  * Preview panel component that displays detailed information about a
  * selected element template, including its input/output parameters.
  */
-import type { ElementTemplate, TemplateProperty } from "../types";
+import type { ElementTemplate, TemplateProperty, Translate } from "../types";
 import { classifyBinding, extractImplementationDetail } from "../types";
 
 interface TemplatePreviewProps {
     template: ElementTemplate;
+    translate: Translate;
     onApply: () => void;
 }
 
@@ -19,7 +20,7 @@ interface TemplatePreviewProps {
  * @param props.template The template to preview.
  * @param props.onApply Callback invoked when the user clicks "Apply Template".
  */
-export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
+export function TemplatePreview({ template, translate, onApply }: TemplatePreviewProps) {
     const inputs = template.properties.filter(
         (p) => classifyBinding(p.binding) === "input" && p.type !== "Hidden",
     );
@@ -41,7 +42,7 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
                     <h3 class="etc-preview-name">{template.name}</h3>
                     {implDetail && (
                         <div class="etc-impl-detail">
-                            <span class="etc-impl-label">{implDetail.label}</span>
+                            <span class="etc-impl-label">{translate(implDetail.label)}</span>
                             <code class="etc-impl-value">{implDetail.value}</code>
                         </div>
                     )}
@@ -61,7 +62,7 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
                                 <path d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.001 1.001 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z" />
                                 <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 0 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243L6.586 4.672z" />
                             </svg>
-                            Documentation
+                            {translate("Documentation")}
                         </a>
                     )}
                     <div class="etc-preview-meta">
@@ -76,16 +77,30 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
 
                 {/* Parameter sections */}
                 <div class="etc-preview-params">
-                    {props.length > 0 && <ParameterSection title="Properties" items={props} />}
+                    {props.length > 0 && (
+                        <ParameterSection
+                            title={translate("Properties")}
+                            items={props}
+                            translate={translate}
+                        />
+                    )}
                     {inputs.length > 0 && (
-                        <ParameterSection title="Input Parameters" items={inputs} />
+                        <ParameterSection
+                            title={translate("Input Parameters")}
+                            items={inputs}
+                            translate={translate}
+                        />
                     )}
                     {outputs.length > 0 && (
-                        <ParameterSection title="Output Parameters" items={outputs} />
+                        <ParameterSection
+                            title={translate("Output Parameters")}
+                            items={outputs}
+                            translate={translate}
+                        />
                     )}
                     {props.length === 0 && inputs.length === 0 && outputs.length === 0 && (
                         <div class="etc-preview-no-params">
-                            <p>No visible parameters</p>
+                            <p>{translate("No visible parameters")}</p>
                         </div>
                     )}
                 </div>
@@ -94,7 +109,7 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
             {/* Apply button — pinned at the bottom */}
             <div class="etc-preview-footer">
                 <button class="etc-apply-btn" onClick={onApply} type="button">
-                    Apply Template
+                    {translate("Apply Template")}
                 </button>
             </div>
         </div>
@@ -107,7 +122,15 @@ export function TemplatePreview({ template, onApply }: TemplatePreviewProps) {
  * @param props.title Section heading text.
  * @param props.items Property items to display.
  */
-function ParameterSection({ title, items }: { title: string; items: TemplateProperty[] }) {
+function ParameterSection({
+    title,
+    items,
+    translate,
+}: {
+    title: string;
+    items: TemplateProperty[];
+    translate: Translate;
+}) {
     return (
         <div class="etc-param-section">
             <h4 class="etc-param-title">{title}</h4>
@@ -116,17 +139,23 @@ function ParameterSection({ title, items }: { title: string; items: TemplateProp
                     <li key={i} class="etc-param-item">
                         <div class="etc-param-header">
                             <span class="etc-param-label">
-                                {p.label ?? p.binding.name ?? p.binding.key ?? "Unnamed"}
+                                {p.label ?? p.binding.name ?? p.binding.key ?? translate("Unnamed")}
                             </span>
                             <div class="etc-param-badges">
                                 {p.constraints?.notEmpty && (
-                                    <span class="etc-badge etc-badge--required">required</span>
+                                    <span class="etc-badge etc-badge--required">
+                                        {translate("required")}
+                                    </span>
                                 )}
                                 {p.editable === false && (
-                                    <span class="etc-badge etc-badge--readonly">read-only</span>
+                                    <span class="etc-badge etc-badge--readonly">
+                                        {translate("read-only")}
+                                    </span>
                                 )}
                                 {p.optional && (
-                                    <span class="etc-badge etc-badge--optional">optional</span>
+                                    <span class="etc-badge etc-badge--optional">
+                                        {translate("optional")}
+                                    </span>
                                 )}
                             </div>
                         </div>

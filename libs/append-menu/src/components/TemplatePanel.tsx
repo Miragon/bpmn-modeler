@@ -8,7 +8,7 @@
  * {@link TemplateHoverCard}.
  */
 import { useEffect, useRef, useState, useMemo, useCallback } from "preact/hooks";
-import type { EnrichedTemplateEntry } from "../types";
+import type { EnrichedTemplateEntry, Translate } from "../types";
 import type { TemplateCategory } from "../filtering";
 import { ExpandableTemplateCard } from "./ExpandableTemplateCard";
 import { TemplateHoverCard } from "./TemplateHoverCard";
@@ -19,6 +19,7 @@ const HOVER_HIDE_DELAY = 150;
 interface TemplatePanelProps {
     entries: EnrichedTemplateEntry[];
     categories: TemplateCategory[];
+    translate: Translate;
     /** Non-empty when a search is active — drives only the empty-state hint. */
     search: string;
     activeCategory: string | null;
@@ -48,6 +49,7 @@ interface TemplatePanelProps {
 export function TemplatePanel({
     entries,
     categories,
+    translate,
     search,
     activeCategory,
     selectedTemplateId,
@@ -149,7 +151,7 @@ export function TemplatePanel({
                         onClick={() => onCategoryChange(null)}
                         type="button"
                     >
-                        All
+                        {translate("All")}
                     </button>
                     {categories.map((cat) => (
                         <button
@@ -170,8 +172,10 @@ export function TemplatePanel({
             <div class="am-template-list" ref={listRef}>
                 {entries.length === 0 ? (
                     <div class="am-empty">
-                        <p class="am-empty-text">No templates found</p>
-                        {search && <p class="am-empty-hint">Try a different search term</p>}
+                        <p class="am-empty-text">{translate("No templates found")}</p>
+                        {search && (
+                            <p class="am-empty-hint">{translate("Try a different search term")}</p>
+                        )}
                     </div>
                 ) : (
                     entries.map((enriched, idx) => (
@@ -191,6 +195,7 @@ export function TemplatePanel({
             {activeEntry && hoverCardStyle && (
                 <TemplateHoverCard
                     enrichedEntry={activeEntry}
+                    translate={translate}
                     style={hoverCardStyle}
                     onMouseEnter={handleHoverCardEnter}
                     onMouseLeave={handleHoverCardLeave}
