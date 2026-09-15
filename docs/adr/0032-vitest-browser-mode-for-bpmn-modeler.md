@@ -74,6 +74,13 @@ siblings.
   recreate relies on. Widening browser coverage to the full modeler/designer
   would need `optimizeDeps.include` tuning and missing lib aliases — deferred
   until a spec actually needs it.
+  - *Amended (#1505):* the full modeler and designer do stand up in the browser
+    project now — `lifecycleContract.browser.spec.ts` exercises all four
+    surfaces end to end, and `newDiagram.browser.spec.ts`,
+    `designerContract.browser.spec.ts`, `viewerRoundTrip.browser.spec.ts`, and
+    `clipboardBridge.browser.spec.ts` cover the surface contracts that used to
+    be `skip`ped or manual. Only the recreate acceptance itself remains
+    jsdom-covered as described above.
 - The viewer's static import of the neutral properties panel forces the browser
   dep pre-bundler to emit the production preact JSX runtime
   (`optimizeDeps.rolldownOptions.transform.jsx.development: false`), mirroring

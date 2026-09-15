@@ -13,26 +13,11 @@ import type { BpmnViewer } from "./viewer";
  * and `getService("commandStack")` throw because those services are never
  * registered on a viewer — and it needs no rendered diagram, so it runs for
  * real. The render-dependent cases (`loadDiagram` and everything that reads a
- * live element registry) are `it.skip`ped: jsdom lays nothing out, so bpmn-js's
- * `canvas.viewbox()` dereferences an SVG `transform.baseVal` jsdom does not
- * implement. Those paths are covered manually via the demo page
- * (`apps/demo-webapp/bpmn/viewer.html`) and the Playwright/Chrome MCP flow in
- * the PR's verification steps.
+ * live element registry) run against real Chromium in
+ * `viewerRoundTrip.browser.spec.ts` and `viewState.browser.spec.ts` (ADR
+ * 0032): jsdom lays nothing out, so bpmn-js's `canvas.viewbox()` dereferences
+ * an SVG `transform.baseVal` jsdom does not implement.
  */
-
-const XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="true">
-    <bpmn:startEvent id="StartEvent_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
-    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
-        <dc:Bounds x="156" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
 
 beforeAll(() => {
     // jsdom lays out nothing, so `getBBox` is missing on SVG elements; bpmn-js
@@ -320,24 +305,5 @@ describe("createViewer (runtime, jsdom)", () => {
             expect(viewer.getService("canvas")).toBeDefined();
             parent.remove();
         });
-    });
-
-    // Render-dependent: jsdom has no SVG layout, so bpmn-js's viewbox transform
-    // throws on import. Covered manually via the demo page + Playwright.
-    it.skip("loads a diagram, selects an element, and round-trips XML/SVG", async () => {
-        container = mount();
-        viewer = await createViewer(container);
-
-        const result = await viewer.loadDiagram(XML);
-        expect(result.warnings).toEqual([]);
-
-        const changes: string[][] = [];
-        viewer.selection.onSelectionChanged((ids) => changes.push(ids));
-        viewer.selection.selectElementsByIds(["StartEvent_1"]);
-        expect(viewer.selection.getSelectedElementIds()).toEqual(["StartEvent_1"]);
-        expect(changes.at(-1)).toEqual(["StartEvent_1"]);
-
-        expect(await viewer.exportDiagram()).toContain("StartEvent_1");
-        expect(await viewer.getDiagramSvg()).toContain("<svg");
     });
 });
