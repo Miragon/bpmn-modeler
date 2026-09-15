@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.1](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.1.0...bpmn-modeler-v1.1.1) (2026-09-15)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** translate append menu and element template chooser ([#1547](https://github.com/Miragon/bpmn-modeler/issues/1547)) ([63b0493](https://github.com/Miragon/bpmn-modeler/commit/63b0493e5c998c51af124465472ee0004b63127f))
+
+
+### 🛠️ Misc
+
+* **bpmn-modeler:** consolidate duplicated template metadata types ([#1546](https://github.com/Miragon/bpmn-modeler/issues/1546)) ([945a9c2](https://github.com/Miragon/bpmn-modeler/commit/945a9c2f2ee6c1d47c0767aa63c5b41dd5afe981))
+* **main:** release intellij 1.9.0 ([#1538](https://github.com/Miragon/bpmn-modeler/issues/1538)) ([08ea2c3](https://github.com/Miragon/bpmn-modeler/commit/08ea2c32ac05fdaeaab251229e56c5c0b2ae586b))
+* **main:** release vscode 1.13.0 ([#1539](https://github.com/Miragon/bpmn-modeler/issues/1539)) ([b7283e9](https://github.com/Miragon/bpmn-modeler/commit/b7283e9631e3c57b9d64ab0d080589e4d4902701))
+
 ## [1.1.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.0.0...bpmn-modeler-v1.1.0) (2026-09-14)
 
 
