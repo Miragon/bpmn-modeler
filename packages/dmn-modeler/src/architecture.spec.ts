@@ -18,9 +18,9 @@ function listSourceFiles(root: string): string[] {
                 if (SKIP_DIRS.has(entry)) continue;
                 walk(abs);
             } else if (
-                entry.endsWith(".ts") &&
+                /\.tsx?$/.test(entry) &&
                 !entry.endsWith(".d.ts") &&
-                !/\.(spec|test)\.ts$/.test(entry)
+                !/\.(spec|test)\.tsx?$/.test(entry)
             ) {
                 out.push(abs);
             }

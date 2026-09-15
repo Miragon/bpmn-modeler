@@ -98,7 +98,11 @@ function listSourceFiles(): string[] {
             const abs = join(absDir, entry);
             if (statSync(abs).isDirectory()) {
                 walk(abs);
-            } else if (entry.endsWith(".ts") && !/\.(spec|test)\.ts$/.test(entry)) {
+            } else if (
+                /\.tsx?$/.test(entry) &&
+                !entry.endsWith(".d.ts") &&
+                !/\.(spec|test)\.tsx?$/.test(entry)
+            ) {
                 out.push(
                     `src/${normalize(abs.slice(root.length + 1))
                         .split("\\")

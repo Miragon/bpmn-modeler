@@ -31,9 +31,9 @@ function listSourceFiles(root: string): string[] {
                 if (SKIP_DIRS.has(entry)) continue;
                 walk(abs);
             } else if (
-                entry.endsWith(".ts") &&
+                /\.tsx?$/.test(entry) &&
                 !entry.endsWith(".d.ts") &&
-                !/\.(spec|test)\.ts$/.test(entry)
+                !/\.(spec|test)\.tsx?$/.test(entry)
             ) {
                 out.push(abs);
             }
@@ -85,6 +85,11 @@ function valueImportedModules(content: string): string[] {
 const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 
 describe("bpmn-modeler import direction", () => {
+    it("collects .tsx sources — the #1486 blind spot must stay closed", () => {
+        const collected = listSourceFiles(join(LIBS_ROOT, "properties-panel", "src"));
+        expect(collected.some((file) => file.endsWith(".tsx"))).toBe(true);
+    });
+
     it("package source never names the protocol, the engine, or apps/", () => {
         const offenders: string[] = [];
         for (const file of listSourceFiles(PKG_SRC)) {
