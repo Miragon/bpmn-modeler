@@ -3,7 +3,7 @@ name: PR Issue Gate
 # Enforces the acceptance gate on PRs (see CONTRIBUTING → The Acceptance Gate):
 #   1. the PR must link an issue, and
 #   2. that issue must already be `accepted`.
-# Until then the PR is labelled `blocked: needs-triage` and put on hold.
+# Until then the PR is labelled `blocked: awaiting-acceptance` and put on hold.
 #
 # `pull_request_target` (not `pull_request`) so the token can label/comment on
 # PRs from forks. We never check out PR head code here — only the GitHub API is
@@ -41,7 +41,7 @@ jobs:
             const { owner, repo } = context.repo;
             const pr = context.payload.pull_request;
             const prNumber = pr.number;
-            const BLOCKED = 'blocked: needs-triage';
+            const BLOCKED = 'blocked: awaiting-acceptance';
             const MARKER = '<!-- pr-issue-gate -->';
 
             const headRef = pr.head.ref || '';

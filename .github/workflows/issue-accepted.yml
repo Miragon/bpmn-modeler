@@ -1,6 +1,6 @@
 name: Issue Accepted
 
-# When an issue is accepted, clear the `blocked: needs-triage` hold from any open
+# When an issue is accepted, clear the `blocked: awaiting-acceptance` hold from any open
 # PR that references it — so a PR opened before acceptance unblocks on its own.
 
 on:
@@ -22,7 +22,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issueNumber = context.payload.issue.number;
-            const BLOCKED = 'blocked: needs-triage';
+            const BLOCKED = 'blocked: awaiting-acceptance';
 
             const { repository } = await github.graphql(`
               query($owner:String!,$repo:String!,$number:Int!){

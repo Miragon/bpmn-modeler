@@ -49,7 +49,7 @@ The flow for any non-trivial change:
    mark it `accepted` (green light) or close it with a short reason.
 3. **Only then is an implementation PR reviewed.** A PR must link an `accepted`
    issue (`Closes #123`). PRs whose linked issue is still `needs-triage` are
-   labelled `blocked: needs-triage` and put on hold until the issue is accepted.
+   labelled `blocked: awaiting-acceptance` and put on hold until the issue is accepted.
 
 Please **do not open a PR before the issue is accepted.** Doing so wastes your
 effort if we decide the change isn't a fit. Trivial, obviously-correct fixes
