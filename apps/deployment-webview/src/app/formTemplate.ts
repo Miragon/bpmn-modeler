@@ -15,6 +15,7 @@ export const FORM_TEMPLATE = `
         <button id="target-new" type="button" title="New target">New</button>
         <button id="target-save" type="button" title="Save target" disabled>Save</button>
         <button id="target-delete" type="button" title="Delete target" disabled>Delete</button>
+        <button id="target-open" type="button" title="Open deployment-targets.json in the editor">Edit JSON</button>
     </div>
 
     <div class="section" id="section-connection">

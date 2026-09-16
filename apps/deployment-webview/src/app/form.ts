@@ -9,6 +9,7 @@ import {
     DeploymentTargetPayload,
     DeploymentTargetsQuery,
     LogInfoCommand,
+    OpenTargetsFileCommand,
     Query,
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
@@ -45,6 +46,8 @@ export class DeploymentForm {
     private readonly targetSaveBtn: HTMLButtonElement;
 
     private readonly targetDeleteBtn: HTMLButtonElement;
+
+    private readonly targetOpenBtn: HTMLButtonElement;
 
     private readonly targetNameInput: HTMLInputElement;
 
@@ -108,6 +111,7 @@ export class DeploymentForm {
         this.targetNewBtn = this.requireElement<HTMLButtonElement>("#target-new");
         this.targetSaveBtn = this.requireElement<HTMLButtonElement>("#target-save");
         this.targetDeleteBtn = this.requireElement<HTMLButtonElement>("#target-delete");
+        this.targetOpenBtn = this.requireElement<HTMLButtonElement>("#target-open");
         this.targetNameInput = this.requireElement<HTMLInputElement>("#target-name");
         this.deployUrlInput = this.requireElement<HTMLInputElement>("#deploy-url");
         this.startInstanceUrlInput = this.requireElement<HTMLInputElement>("#start-instance-url");
@@ -490,6 +494,10 @@ export class DeploymentForm {
             if (this.editingTargetName !== "") {
                 this.host.postMessage(new DeleteTargetCommand(this.editingTargetName));
             }
+        });
+
+        this.targetOpenBtn.addEventListener("click", () => {
+            this.host.postMessage(new OpenTargetsFileCommand());
         });
 
         this.additionalFilesBtn.addEventListener("click", () => {

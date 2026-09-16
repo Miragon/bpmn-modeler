@@ -52,7 +52,11 @@ function createService() {
         pickDeploymentTarget: vi.fn(),
         confirmDestructive: vi.fn().mockResolvedValue(true),
     };
-    const notifier = { notifyError: vi.fn(), logError: vi.fn() };
+    const notifier = {
+        notifyError: vi.fn(),
+        logError: vi.fn(),
+        openDocument: vi.fn().mockResolvedValue(undefined),
+    };
 
     const service = new DeploymentTargetService(
         artifactService as never,
@@ -105,6 +109,38 @@ describe("DeploymentTargetService.listTargets", () => {
 
         expect(await c.service.listTargets(DOC_DIR)).toEqual([]);
         expect(c.notifier.notifyError).toHaveBeenCalledOnce();
+    });
+});
+
+describe("DeploymentTargetService.openTargetsFile", () => {
+    it("opens the existing file without rewriting it", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+
+        await c.service.openTargetsFile(DOC_DIR);
+
+        expect(c.workspace.writeFile).not.toHaveBeenCalled();
+        expect(c.notifier.openDocument).toHaveBeenCalledWith(FILE_PATH);
+    });
+
+    it("creates an empty targets file first when none exists", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(undefined);
+
+        await c.service.openTargetsFile(DOC_DIR);
+
+        const [writtenPath, content] = c.workspace.writeFile.mock.calls[0];
+        expect(writtenPath).toMatch(/deployment-targets\.json$/);
+        expect(JSON.parse(content)).toEqual({ targets: [] });
+        expect(c.notifier.openDocument).toHaveBeenCalledWith(writtenPath);
+    });
+
+    it("throws when there is no workspace", async () => {
+        const c = createService();
+        c.workspace.getWorkspaceFolderPaths.mockReturnValue([]);
+
+        await expect(c.service.openTargetsFile(undefined)).rejects.toThrow(/workspace/);
+        expect(c.notifier.openDocument).not.toHaveBeenCalled();
     });
 });
 

@@ -1039,6 +1039,16 @@ export class DeleteTargetCommand extends Command {
     }
 }
 
+/**
+ * Sent by the deployment webview to open `deployment-targets.json` in the host
+ * editor for direct editing. The host creates an empty file first if none exists.
+ */
+export class OpenTargetsFileCommand extends Command {
+    constructor() {
+        super("OpenTargetsFileCommand");
+    }
+}
+
 // --- Extension → Webview queries ---
 
 /**

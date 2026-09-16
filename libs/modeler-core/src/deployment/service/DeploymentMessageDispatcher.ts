@@ -92,6 +92,9 @@ export class DeploymentMessageDispatcher {
             case "DeleteTargetCommand":
                 await this.handleDeleteTarget((message as DeleteTargetCommand).name);
                 break;
+            case "OpenTargetsFileCommand":
+                await this.handleOpenTargetsFile();
+                break;
             case "RequestAdditionalFilesCommand":
                 await this.handleAdditionalFilesRequest();
                 break;
@@ -242,6 +245,17 @@ export class DeploymentMessageDispatcher {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
             this.post(new TargetSavedQuery(false, errorMessage));
+        }
+    }
+
+    private async handleOpenTargetsFile(): Promise<void> {
+        try {
+            await this.deploymentTargetService.openTargetsFile(this.activeDocumentDir());
+        } catch (error) {
+            this.notifier.notifyError(
+                "Could not open deployment targets file",
+                error instanceof Error ? error : new Error(String(error)),
+            );
         }
     }
 

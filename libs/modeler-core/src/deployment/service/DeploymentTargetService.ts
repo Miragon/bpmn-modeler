@@ -163,6 +163,23 @@ export class DeploymentTargetService {
     }
 
     /**
+     * Opens the targets file in the host editor for direct editing, creating an
+     * empty one first so the user lands in a schema-validated document rather
+     * than a "file not found" error.
+     * @throws {Error} if there is no workspace to store the file in.
+     */
+    async openTargetsFile(documentDir?: string): Promise<void> {
+        const location = await this.locateTargetsFile(documentDir);
+        if (location === undefined) {
+            throw new Error("Open a workspace folder to edit deployment targets.");
+        }
+        if (!location.exists) {
+            await this.workspace.writeFile(location.filePath, serializeDeploymentTargets([]));
+        }
+        await this.notifier.openDocument(location.filePath);
+    }
+
+    /**
      * The active target, or `undefined` for ad-hoc mode. A persisted name that
      * no longer resolves to a target (file hand-edited) is tolerated as ad-hoc.
      */

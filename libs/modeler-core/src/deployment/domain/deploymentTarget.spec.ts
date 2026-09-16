@@ -71,6 +71,15 @@ describe("parseDeploymentTargetsFile", () => {
         expect(parsed.startInstanceUrl).toBeUndefined();
     });
 
+    it("ignores a top-level $schema reference", () => {
+        const parsed = parseDeploymentTargetsFile({
+            $schema: "./deployment-targets.schema.json",
+            targets: [{ name: "dev", engine: "c7", endpoint: "http://host" }],
+        });
+
+        expect(parsed.map((t) => t.name)).toEqual(["dev"]);
+    });
+
     it.each([
         ["a non-object", 42],
         ["a missing targets array", { targets: "nope" }],

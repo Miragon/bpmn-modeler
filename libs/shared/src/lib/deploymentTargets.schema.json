@@ -6,6 +6,10 @@
     "required": ["targets"],
     "additionalProperties": false,
     "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "Optional reference to this schema for editors without a registered mapping."
+        },
         "targets": {
             "type": "array",
             "items": {

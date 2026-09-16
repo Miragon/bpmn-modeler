@@ -122,6 +122,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
                 break;
             }
+            case "OpenTargetsFileCommand": {
+                console.debug("[DEBUG] OpenTargetsFileCommand (no editor in mock)");
+                break;
+            }
             case "RequestStoredCredentialsCommand": {
                 dispatchEvent(new StoredCredentialsQuery({ authType: "none" }));
                 break;

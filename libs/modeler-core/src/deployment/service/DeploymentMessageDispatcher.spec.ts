@@ -63,6 +63,7 @@ function createDispatcher() {
         deleteTarget: vi.fn().mockResolvedValue(true),
         getStoredCredentials: vi.fn().mockResolvedValue({ authType: "none" }),
         resolveSlot: vi.fn().mockResolvedValue(undefined),
+        openTargetsFile: vi.fn().mockResolvedValue(undefined),
     };
     const notifier = {
         showInfo: vi.fn(),
@@ -626,6 +627,23 @@ describe("DeploymentMessageDispatcher target commands", () => {
             expect.anything(),
         );
         expect(postedQuery(c.post, DeploymentTargetsQuery)).toBeTruthy();
+    });
+
+    it("opens the targets file for the active document on OpenTargetsFileCommand", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle({ type: "OpenTargetsFileCommand" } as Command);
+
+        expect(c.deploymentTargetService.openTargetsFile).toHaveBeenCalledWith("/work/trusted");
+    });
+
+    it("reports a failure to open the targets file via notifyError", async () => {
+        const c = createDispatcher();
+        c.deploymentTargetService.openTargetsFile.mockRejectedValue(new Error("no workspace"));
+
+        await c.dispatcher.handle({ type: "OpenTargetsFileCommand" } as Command);
+
+        expect(c.notifier.notifyError).toHaveBeenCalledOnce();
     });
 
     it("saves a target and posts a success TargetSavedQuery", async () => {
