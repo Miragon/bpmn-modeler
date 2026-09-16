@@ -5,13 +5,14 @@
  * list on the left and a detail preview panel on the right.
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from "preact/hooks";
-import type { ElementTemplate } from "../types";
+import type { ElementTemplate, Translate } from "../types";
 import { extractImplementationDetail } from "../types";
 import { TemplateSearchIndex } from "../search";
 import { TemplatePreview } from "./TemplatePreview";
 
 interface ChooserOverlayProps {
     templates: ElementTemplate[];
+    translate: Translate;
     onSelect: (template: ElementTemplate) => void;
     onCancel: () => void;
 }
@@ -23,7 +24,7 @@ interface ChooserOverlayProps {
  * @param props.onSelect Callback invoked with the chosen template.
  * @param props.onCancel Callback invoked when the user dismisses the overlay.
  */
-export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlayProps) {
+export function ChooserOverlay({ templates, translate, onSelect, onCancel }: ChooserOverlayProps) {
     const [search, setSearch] = useState("");
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -135,11 +136,11 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
             <div class="etc-modal" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
                 {/* Header */}
                 <div class="etc-header">
-                    <h2 class="etc-title">Element Templates</h2>
+                    <h2 class="etc-title">{translate("Element Templates")}</h2>
                     <button
                         class="etc-close-btn"
                         onClick={onCancel}
-                        aria-label="Close"
+                        aria-label={translate("Close")}
                         type="button"
                     >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -163,7 +164,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                         ref={searchRef}
                         class="etc-search-input"
                         type="text"
-                        placeholder="Search templates..."
+                        placeholder={translate("Search templates...")}
                         value={search}
                         onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
                     />
@@ -175,7 +176,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                 searchRef.current?.focus();
                             }}
                             type="button"
-                            aria-label="Clear search"
+                            aria-label={translate("Clear search")}
                         >
                             ×
                         </button>
@@ -190,7 +191,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                             onClick={() => setActiveCategory(null)}
                             type="button"
                         >
-                            All
+                            {translate("All")}
                         </button>
                         {categories.map((cat) => (
                             <button
@@ -212,9 +213,11 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                     <div class="etc-list-panel" ref={listRef}>
                         {filtered.length === 0 ? (
                             <div class="etc-empty">
-                                <p class="etc-empty-text">No templates found</p>
+                                <p class="etc-empty-text">{translate("No templates found")}</p>
                                 {search && (
-                                    <p class="etc-empty-hint">Try a different search term</p>
+                                    <p class="etc-empty-hint">
+                                        {translate("Try a different search term")}
+                                    </p>
                                 )}
                             </div>
                         ) : (
@@ -261,7 +264,8 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                                 );
                                                 return impl ? (
                                                     <span class="etc-card-impl">
-                                                        {impl.label}:<code>{impl.value}</code>
+                                                        {translate(impl.label)}:
+                                                        <code>{impl.value}</code>
                                                     </span>
                                                 ) : null;
                                             })()}
@@ -277,7 +281,9 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                             </span>
                                         )}
                                         <span class="etc-badge etc-badge--props">
-                                            {visiblePropertyCount(t)} properties
+                                            {translate("{count} properties", {
+                                                count: String(visiblePropertyCount(t)),
+                                            })}
                                         </span>
                                     </div>
                                 </div>
@@ -290,6 +296,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                         {selectedTemplate ? (
                             <TemplatePreview
                                 template={selectedTemplate}
+                                translate={translate}
                                 onApply={() => onSelect(selectedTemplate)}
                             />
                         ) : (
@@ -303,7 +310,7 @@ export function ChooserOverlay({ templates, onSelect, onCancel }: ChooserOverlay
                                 >
                                     <path d="M4 0h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4zm1 2h6v1H5V3zm0 3h6v1H5V6zm0 3h4v1H5V9z" />
                                 </svg>
-                                <p>Select a template to see its details</p>
+                                <p>{translate("Select a template to see its details")}</p>
                             </div>
                         )}
                     </div>

@@ -25,6 +25,17 @@ interface ElementTemplatesService {
     applyTemplate(element: Element, template: ElementTemplate): void;
 }
 
+interface InjectorLike {
+    get<T = unknown>(name: string, strict: false): T | null;
+}
+
+type Translate = (template: string, replacements?: Record<string, string>) => string;
+
+// Fallback when no TranslateModule is registered (third-party bpmn-js setups):
+// echo the template while still resolving {placeholders}, matching diagram-js.
+const fallbackTranslate: Translate = (template, replacements = {}) =>
+    template.replace(/{([^}]+)}/g, (_, key) => replacements[key] ?? `{${key}}`);
+
 /**
  * Opens the element template chooser overlay when the properties panel
  * fires an `elementTemplates.select` event.
@@ -33,13 +44,20 @@ interface ElementTemplatesService {
  * overlay, and applies the chosen template when the user confirms.
  */
 class ElementTemplateChooser {
-    static $inject = ["config.connectorsExtension", "eventBus", "elementTemplates", "canvas"];
+    static $inject = [
+        "config.connectorsExtension",
+        "eventBus",
+        "elementTemplates",
+        "canvas",
+        "injector",
+    ];
 
     constructor(
         config: ElementTemplateChooserConfig | null,
         eventBus: EventBus,
         elementTemplates: ElementTemplatesService,
         canvas: Canvas,
+        injector: InjectorLike,
     ) {
         const enableChooser = !config || config.elementTemplateChooser !== false;
 
@@ -47,10 +65,12 @@ class ElementTemplateChooser {
             return;
         }
 
+        const translate = injector.get<Translate>("translate", false) ?? fallbackTranslate;
+
         eventBus.on<{ element: Element }>("elementTemplates.select", (event) => {
             const { element } = event;
 
-            this.open(element, elementTemplates, canvas)
+            this.open(element, elementTemplates, canvas, translate)
                 .then((template) => {
                     elementTemplates.applyTemplate(element, template);
                 })
@@ -74,6 +94,7 @@ class ElementTemplateChooser {
         element: Element,
         elementTemplates: ElementTemplatesService,
         canvas: Canvas,
+        translate: Translate,
     ): Promise<ElementTemplate> {
         return new Promise((resolve, reject) => {
             const templates: ElementTemplate[] = elementTemplates
@@ -109,7 +130,7 @@ class ElementTemplateChooser {
                 reject("user-canceled");
             };
 
-            render(h(ChooserOverlay, { templates, onSelect, onCancel }), container);
+            render(h(ChooserOverlay, { templates, translate, onSelect, onCancel }), container);
         });
     }
 }
