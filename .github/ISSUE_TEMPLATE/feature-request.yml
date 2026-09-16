@@ -8,22 +8,27 @@ body:
       value: |
         Thanks for taking the time to suggest a feature!
 
+        We review the **problem** before any solution. This issue will be
+        triaged and only becomes a green light to implement once a maintainer
+        marks it `accepted` — please don't open a PR before then. See
+        [The Acceptance Gate](https://github.com/Miragon/bpmn-modeler/blob/main/CONTRIBUTING.md#the-acceptance-gate-triage).
+
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: Is your feature request related to a problem?
-      placeholder: I'm always frustrated when ...
+      label: Problem / Motivation
+      description: What problem are you trying to solve, and why does it matter? Describe the use case, not the solution.
+      placeholder: When I ... I can't ... because ...
     validations:
-      required: false
+      required: true
 
   - type: textarea
     id: solution
     attributes:
       label: Proposed Solution
-      description: A clear and concise description of what you want to happen.
+      description: If you have one, how might this be solved? Optional — we discuss the problem first.
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: alternatives
@@ -40,3 +45,11 @@ body:
       description: Add any other context, screenshots, or mockups about the feature request.
     validations:
       required: false
+
+  - type: checkboxes
+    id: accountability
+    attributes:
+      label: Accountability
+      options:
+        - label: I have read this request and stand behind it. If I used an AI assistant to draft it, I have verified the content myself.
+          required: true
