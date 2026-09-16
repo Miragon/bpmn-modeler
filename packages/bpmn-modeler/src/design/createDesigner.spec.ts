@@ -1,18 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Two specs live here. The mocked matrix below proves the failure contract
- * (`createDesigner` destroys a partially-initialised surface when a
- * post-allocation step throws, #1495) without a live bpmn-js instance.
- *
- * The runtime `describe.skip` documents the editable-services contract and is
- * ready to un-skip once the remaining wall lifts. The old i18n-extras blocker is
- * gone — `vitest.aliases.ts` resolves `@miragon/bpmn-modeler-i18n-extras` for
- * this project — but a full bpmn-js Modeler still lays out an SVG canvas jsdom
- * cannot (the wall `createViewer.spec.ts` documents, ADR 0011), so a
- * rendered-diagram assertion would throw. The real runtime proof lives in the
- * demo page `apps/demo-webapp/bpmn/design.html` and the type-level conformance
- * in `publicApi.spec.ts`.
+ * The mocked matrix below proves the failure contract (`createDesigner`
+ * destroys a partially-initialised surface when a post-allocation step throws,
+ * #1495) without a live bpmn-js instance. The runtime editable-services
+ * contract runs against real bpmn-js in `designerContract.browser.spec.ts`
+ * (ADR 0032); type-level conformance stays in `publicApi.spec.ts`.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -107,48 +100,5 @@ describe("createDesigner (mocked failure contract, #1495)", () => {
             createDesigner(document.createElement("main"), baseOptions() as never),
         ).rejects.toBe(error);
         expect(lastInstance().destroy).toHaveBeenCalledOnce();
-    });
-});
-
-describe.skip("createDesigner (runtime, jsdom — blocked by the SVG-layout wall)", () => {
-    it("exposes the editable core services (inverse of the viewer's readonly proof)", async () => {
-        const { createDesigner: realCreateDesigner } =
-            await vi.importActual<typeof import("./createDesigner")>("./createDesigner");
-        const container = document.createElement("div");
-        const panel = document.createElement("div");
-        document.body.append(container, panel);
-
-        const designer = await realCreateDesigner(container, {
-            propertiesPanel: { parent: panel },
-        });
-
-        // Editable: the modelling services a viewer never registers ARE present.
-        expect(designer.getService("modeling")).toBeDefined();
-        expect(designer.getService("commandStack")).toBeDefined();
-        // Engine-neutral: none of the Camunda services are registered.
-        expect(() => designer.getService("elementTemplates")).toThrow();
-        expect(() => designer.getService("transactionBoundaries")).toThrow();
-        // The panel renders under the supplied parent.
-        expect(panel.querySelector(".bio-properties-panel")).not.toBeNull();
-
-        designer.destroy();
-    });
-
-    it("creates a new diagram and exports XML with no execution platform", async () => {
-        const { createDesigner: realCreateDesigner } =
-            await vi.importActual<typeof import("./createDesigner")>("./createDesigner");
-        const container = document.createElement("div");
-        const panel = document.createElement("div");
-        document.body.append(container, panel);
-
-        const designer = await realCreateDesigner(container, {
-            propertiesPanel: { parent: panel },
-        });
-        await designer.newDiagram();
-        const xml = await designer.exportDiagram();
-        // The mode marker: a fresh Design diagram carries no execution platform.
-        expect(xml).not.toContain("modeler:executionPlatform");
-
-        designer.destroy();
     });
 });

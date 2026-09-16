@@ -92,6 +92,23 @@ afterEach(() => {
 });
 
 describe("BridgedClipboard", () => {
+    it("removes its capture-phase document copy listener on diagram destroy", () => {
+        const addSpy = vi.spyOn(document, "addEventListener");
+        const removeSpy = vi.spyOn(document, "removeEventListener");
+
+        const { eventBus } = instantiate(bridgeSpies("").bridge);
+
+        const added = addSpy.mock.calls.filter(([type]) => type === "copy");
+        expect(added).toHaveLength(1);
+
+        eventBus.fire("diagram.destroy", {});
+
+        const removed = removeSpy.mock.calls.filter(([type]) => type === "copy");
+        expect(removed).toHaveLength(1);
+        expect(removed[0][1]).toBe(added[0][1]);
+        expect(removed[0][2]).toBe(added[0][2]);
+    });
+
     it("disables the native copy-paste layer on construction", () => {
         const { nativeCopyPaste } = instantiate(bridgeSpies("").bridge);
         expect(nativeCopyPaste.toggle).toHaveBeenCalledWith(false);
