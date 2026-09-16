@@ -1,0 +1,10 @@
+# Code owners are auto-requested for review on every PR. Combined with a branch
+# ruleset that requires code-owner approval and forbids self-approval, this stops
+# a contributor (or an AI-generated PR) from merging their own change unreviewed.
+#
+# TODO(maintainers): replace the placeholder below with the real reviewer team or
+# handles before enabling "Require review from Code Owners" in the branch ruleset.
+# A team must have write access and every listed handle must exist, otherwise the
+# rule is silently ignored.
+
+# * @Miragon/maintainers

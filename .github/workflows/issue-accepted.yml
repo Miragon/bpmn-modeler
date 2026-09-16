@@ -1,0 +1,60 @@
+name: Issue Accepted
+
+# When an issue is accepted, clear the `blocked: needs-triage` hold from any open
+# PR that references it — so a PR opened before acceptance unblocks on its own.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  unblock-linked-prs:
+    if: github.event.label.name == 'accepted'
+    name: Unblock linked PRs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issueNumber = context.payload.issue.number;
+            const BLOCKED = 'blocked: needs-triage';
+
+            const { repository } = await github.graphql(`
+              query($owner:String!,$repo:String!,$number:Int!){
+                repository(owner:$owner,name:$repo){
+                  issue(number:$number){
+                    timelineItems(itemTypes:[CROSS_REFERENCED_EVENT], first:50){
+                      nodes {
+                        ... on CrossReferencedEvent {
+                          source {
+                            ... on PullRequest {
+                              number state
+                              labels(first:50){ nodes { name } }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`, { owner, repo, number: issueNumber });
+
+            const prs = repository.issue.timelineItems.nodes
+              .map(n => n.source)
+              .filter(s => s && s.state === 'OPEN'
+                && s.labels.nodes.some(l => l.name === BLOCKED));
+
+            for (const pr of prs) {
+              await github.rest.issues.removeLabel({
+                owner, repo, issue_number: pr.number, name: BLOCKED,
+              }).catch(() => {});
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr.number,
+                body: `✅ Linked issue #${issueNumber} is now accepted — this PR is off hold and ready for review.`,
+              });
+            }

@@ -1,0 +1,50 @@
+name: Issue Opened
+
+# Every new issue enters triage: it gets the `needs-triage` label and a comment
+# that sets expectations (idea is reviewed before any code) and invites the
+# author to say whether they want to implement it themselves once accepted.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+concurrency:
+  group: issue-opened-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    name: Label and greet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const author = context.payload.issue.user.login;
+
+            await github.rest.issues.addLabels({
+              owner, repo, issue_number, labels: ['needs-triage'],
+            });
+
+            const contributing =
+              `https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md`;
+            const body = [
+              `Thanks for opening this, @${author}! 🙏`,
+              ``,
+              `A maintainer will **triage** this and decide together with you whether it fits the project before any implementation starts. We've added the \`needs-triage\` label; once we've looked at it we'll either mark it \`accepted\` (green light to implement) or explain why we won't pursue it.`,
+              ``,
+              `**Please hold off on opening a pull request until this issue is \`accepted\`.** We review the *idea* first, on its own merits — code that already exists shouldn't tip that decision. PRs whose linked issue isn't \`accepted\` are put on hold and not reviewed.`,
+              ``,
+              `**Would you like to implement this yourself once it's accepted?** Just say so here — otherwise a maintainer or another contributor may pick it up.`,
+              ``,
+              `Used an AI assistant to draft this? That's fine — but please make sure you've read and stand behind every word; you're accountable for the content. See [AI-Assisted Contributions](${contributing}#ai-assisted-contributions).`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner, repo, issue_number, body,
+            });

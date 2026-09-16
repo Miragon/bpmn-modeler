@@ -11,6 +11,8 @@ development guide (project structure, build system, architecture, testing), see
 
 - [Code of Conduct](#code-of-conduct)
 - [Ways to Contribute](#ways-to-contribute)
+- [The Acceptance Gate (Triage)](#the-acceptance-gate-triage)
+- [AI-Assisted Contributions](#ai-assisted-contributions)
 - [Reporting Bugs](#reporting-bugs)
 - [Suggesting Enhancements](#suggesting-enhancements)
 - [Development Setup](#development-setup)
@@ -33,6 +35,42 @@ uphold this code.
   code; PRs are welcome.
 - **Submit code** — see [Development Setup](#development-setup) and
   [Pull Request Process](#pull-request-process) below.
+
+## The Acceptance Gate (Triage)
+
+We decide **whether** a change should happen *before* looking at **how** it is
+implemented. This keeps the decision on the idea's merits — an already-written
+diff should never bias us into merging something we didn't actually want.
+
+The flow for any non-trivial change:
+
+1. **Open an issue.** It is automatically labelled `needs-triage`.
+2. **A maintainer triages it.** We discuss scope and fit with you and either
+   mark it `accepted` (green light) or close it with a short reason.
+3. **Only then is an implementation PR reviewed.** A PR must link an `accepted`
+   issue (`Closes #123`). PRs whose linked issue is still `needs-triage` are
+   labelled `blocked: needs-triage` and put on hold until the issue is accepted.
+
+Please **do not open a PR before the issue is accepted.** Doing so wastes your
+effort if we decide the change isn't a fit. Trivial, obviously-correct fixes
+(typos, a broken link) may skip the wait — add the `no-issue` label if there is
+genuinely nothing to discuss.
+
+## AI-Assisted Contributions
+
+Using an AI assistant to help draft an issue, a PR, or code is **allowed and
+welcome** — the modeler itself is built with these tools. But:
+
+- **You are accountable for everything you submit.** Read and stand behind every
+  line. "The AI wrote it" is not a review, an explanation, or a defence.
+- **The acceptance gate applies fully.** An AI can generate a plausible-looking
+  issue *and* its PR in minutes; that is exactly the pattern the gate exists to
+  slow down. Propose the *problem* first, let it be accepted, *then* implement.
+- **Low-effort, unvetted AI output will be closed** — issues that restate the
+  obvious without a concrete use case, or PRs whose author cannot explain their
+  own diff. This is about quality and reviewer time, not about the tool.
+- If a change is substantially AI-generated, a one-line note to that effect in
+  the issue or PR helps reviewers calibrate — it is appreciated, not penalised.
 
 ## Reporting Bugs
 
@@ -57,7 +95,9 @@ Open an issue with the `Feature` type describing:
 - Why it matters (use case)
 - A proposed solution, if you have one
 
-Discussing scope in an issue *before* writing code saves everyone time.
+Discussing scope in an issue *before* writing code saves everyone time — and is
+required here: implementation PRs are only reviewed once the issue is `accepted`
+(see [The Acceptance Gate](#the-acceptance-gate-triage)).
 
 ## Development Setup
 
@@ -106,8 +146,10 @@ see [`docs/development.md`](docs/development.md).
 
 ## Pull Request Process
 
-1. **Open an issue** first so the proposed change can be discussed before you
-   invest significant effort.
+1. **Open an issue first and wait for it to be `accepted`.** A maintainer marks a
+   triaged issue with the `accepted` label — that label is the go-ahead. PRs
+   whose linked issue is not `accepted` are put on hold and not reviewed (see
+   [The Acceptance Gate](#the-acceptance-gate-triage)).
 2. **Fork** the repository and clone your fork locally.
 3. **Create a feature branch** off `main`:
    ```bash

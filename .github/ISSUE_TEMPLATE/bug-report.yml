@@ -97,3 +97,11 @@ body:
       description: Add any other context about the problem here.
     validations:
       required: false
+
+  - type: checkboxes
+    id: accountability
+    attributes:
+      label: Accountability
+      options:
+        - label: I have verified this report reproduces as described. If I used an AI assistant to draft it, I have checked the content myself.
+          required: true

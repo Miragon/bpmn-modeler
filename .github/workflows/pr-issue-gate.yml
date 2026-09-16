@@ -1,0 +1,105 @@
+name: PR Issue Gate
+
+# Enforces the acceptance gate on PRs (see CONTRIBUTING → The Acceptance Gate):
+#   1. the PR must link an issue, and
+#   2. that issue must already be `accepted`.
+# Until then the PR is labelled `blocked: needs-triage` and put on hold.
+#
+# `pull_request_target` (not `pull_request`) so the token can label/comment on
+# PRs from forks. We never check out PR head code here — only the GitHub API is
+# used — so running in the base context is safe.
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: write
+
+concurrency:
+  group: pr-issue-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  linked-issue:
+    name: PR links an issue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: nearform-actions/github-action-check-linked-issues@7140e2e01aa0c18b8ac61bddf5e89abde1ca760e # v1.8.3
+        with:
+          exclude-branches: "dependabot/**, release-please--**"
+
+  acceptance-gate:
+    name: Linked issue is accepted
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.0.1
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const prNumber = pr.number;
+            const BLOCKED = 'blocked: needs-triage';
+            const MARKER = '<!-- pr-issue-gate -->';
+
+            const headRef = pr.head.ref || '';
+            const prLabels = (pr.labels || []).map(l => l.name);
+            const skip =
+              prLabels.includes('no-issue') ||
+              headRef.startsWith('dependabot/') ||
+              headRef.startsWith('release-please--');
+            if (skip) return;
+
+            const { repository } = await github.graphql(`
+              query($owner:String!,$repo:String!,$number:Int!){
+                repository(owner:$owner,name:$repo){
+                  pullRequest(number:$number){
+                    closingIssuesReferences(first:20){
+                      nodes { number labels(first:50){ nodes { name } } }
+                    }
+                  }
+                }
+              }`, { owner, repo, number: prNumber });
+
+            const linked = repository.pullRequest.closingIssuesReferences.nodes;
+            // No closing reference: the linked-issue job already fails/comments.
+            if (linked.length === 0) return;
+
+            const accepted = linked.some(i =>
+              i.labels.nodes.some(l => l.name === 'accepted'));
+
+            const hasBlockedLabel = prLabels.includes(BLOCKED);
+
+            if (accepted) {
+              if (hasBlockedLabel) {
+                await github.rest.issues.removeLabel({
+                  owner, repo, issue_number: prNumber, name: BLOCKED,
+                }).catch(() => {});
+              }
+              return;
+            }
+
+            if (!hasBlockedLabel) {
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number: prNumber, labels: [BLOCKED],
+              });
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number: prNumber, per_page: 100,
+            });
+            const already = comments.some(c => c.body.includes(MARKER));
+            if (already) return;
+
+            const refs = linked.map(i => `#${i.number}`).join(', ');
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: prNumber,
+              body: [
+                MARKER,
+                `⏸️ **Review on hold.** The linked issue (${refs}) hasn't been \`accepted\` yet.`,
+                ``,
+                `We review the *idea* before the implementation, so this PR waits until a maintainer accepts the issue. Once it's accepted this label clears automatically. See [The Acceptance Gate](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md#the-acceptance-gate-triage).`,
+              ].join('\n'),
+            });
