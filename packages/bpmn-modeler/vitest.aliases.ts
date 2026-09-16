@@ -43,9 +43,11 @@ export const bpmnModelerTestAliases: Record<string, string> = {
         __dirname,
         "../../libs/flow-navigation/src/index.ts",
     ),
+    // Directory (not index.ts) so the append menu's deep import
+    // (`.../types`) resolves through the same alias.
     "@miragon/bpmn-modeler-element-template-chooser": resolve(
         __dirname,
-        "../../libs/element-template-chooser/src/index.ts",
+        "../../libs/element-template-chooser/src",
     ),
     // Directory (not index.ts) so the viewer's deep imports
     // (`.../render/index` etc.) resolve through the same alias.

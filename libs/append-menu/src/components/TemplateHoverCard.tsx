@@ -5,11 +5,13 @@
  * focuses a template card, overlaying the BPMN palette.  Structured
  * similarly to the TemplatePreview in element-template-chooser.
  */
+// Deep import: the chooser barrel value-imports the DI module (and with it
+// minisearch), which must stay out of the engine-neutral /design graph.
 import {
     classifyBinding,
     extractImplementationDetail,
     type TemplateProperty,
-} from "@miragon/bpmn-modeler-element-template-chooser";
+} from "@miragon/bpmn-modeler-element-template-chooser/types";
 import type { EnrichedTemplateEntry, Translate } from "../types";
 
 interface TemplateHoverCardProps {
