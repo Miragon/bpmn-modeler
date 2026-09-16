@@ -19,9 +19,9 @@ export type {
     ReferenceKind,
 } from "@miragon/bpmn-model-navigation";
 
-export { ViewportManager } from "../viewport";
+export type { ViewportManager } from "../viewport";
 export type { ViewportData } from "../viewport";
-export { SelectionManager } from "../selection";
+export type { SelectionManager } from "../selection";
 export type { RootElementManager } from "../rootElement";
 export type { ViewState } from "../viewState";
 

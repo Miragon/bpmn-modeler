@@ -26,8 +26,74 @@ export interface ViewportData {
 // Keep focused elements legible without zooming out from the current view.
 const MIN_FOCUS_ZOOM = 0.75;
 
-/** Reads, restores, and subscribes to canvas viewbox changes. */
-export class ViewportManager {
+/**
+ * Reads, restores, and subscribes to canvas viewbox changes.
+ *
+ * Deliberately an interface, not the implementing class: every subpath's d.ts
+ * roll-up carries its own copy of this declaration, and a class with private
+ * members is nominally typed — two copies would be mutually unassignable,
+ * breaking the documented cross-subpath wiring (e.g. a `/viewer` handle passed
+ * to a `/mode` session).
+ */
+export interface ViewportManager {
+    /** Returns the current canvas viewbox (position and zoom level). */
+    getViewport(): ViewportData;
+
+    /**
+     * Whether the host has laid the canvas out at a size worth fitting into.
+     * An unlaid-out container yields a NaN transform, which SVG renders as
+     * nothing.
+     */
+    isCanvasSized(): boolean;
+
+    /**
+     * Restores the canvas to a previously saved viewbox. Falls back to
+     * {@link fitViewport} for a box that cannot be applied safely.
+     *
+     * @param viewport The viewbox to apply.
+     * @returns `false` if nothing was applied, so the caller can retry.
+     */
+    setViewport(viewport: ViewportData): boolean;
+
+    /**
+     * The observer callback driving the initial fit.
+     *
+     * @returns `true` once the initial viewport is decided; `false` while the
+     *   caller should keep retrying.
+     */
+    applyInitialViewportOnce(): boolean;
+
+    /** Re-arms the initial-viewport decision for a fresh diagram. */
+    resetInitialViewportDecision(): void;
+
+    /**
+     * Fits the diagram into the viewport on a fresh file open (no saved
+     * viewbox), clearing the palette/controls chrome. Scale is capped at 1.0 —
+     * never zoom in.
+     *
+     * @returns `false` if nothing was applied, so the caller can retry.
+     */
+    fitViewport(): boolean;
+
+    /**
+     * Centres the viewport on `id`, enforcing a minimum focus zoom. Returns
+     * `false` when the element is not on the canvas (e.g. a stale lint
+     * finding), leaving the viewport untouched.
+     */
+    centerOnElement(id: string): boolean;
+
+    /**
+     * Subscribes to canvas viewbox changes with a 100 ms debounce; only the
+     * final position after a pan/zoom gesture is delivered.
+     *
+     * @param cb Callback invoked with the new {@link ViewportData} after each change.
+     * @returns a disposer that unsubscribes the listener and cancels any pending
+     *   debounced callback — call it when tearing the surface down.
+     */
+    onViewportChanged(cb: (viewport: ViewportData) => void): () => void;
+}
+
+export class CanvasViewportManager implements ViewportManager {
     private readonly latch = new InitialViewportLatch<ViewportData>({
         applyViewport: (viewport) => this.setViewport(viewport),
         fitViewport: () => this.fitViewport(),

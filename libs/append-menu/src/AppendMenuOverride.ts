@@ -40,6 +40,13 @@ interface InjectorLike {
     get<T = unknown>(name: string, strict: false): T | null;
 }
 
+type Translate = (template: string, replacements?: Record<string, string>) => string;
+
+// Fallback when no TranslateModule is registered (third-party bpmn-js setups):
+// echo the template while still resolving {placeholders}, matching diagram-js.
+const fallbackTranslate: Translate = (template, replacements = {}) =>
+    template.replace(/{([^}]+)}/g, (_, key) => replacements[key] ?? `{${key}}`);
+
 interface ElementTemplatesLike {
     getAll(): ElementTemplate[];
     isCompatible(template: ElementTemplate): boolean;
@@ -79,6 +86,7 @@ class AppendMenuOverride {
         injector: InjectorLike,
     ) {
         const elementTemplates = injector.get<ElementTemplatesLike>("elementTemplates", false);
+        const translate = injector.get<Translate>("translate", false) ?? fallbackTranslate;
 
         const originalOpen = popupMenu.open.bind(popupMenu);
         const originalClose = popupMenu.close.bind(popupMenu);
@@ -234,6 +242,7 @@ class AppendMenuOverride {
                     templateEntries: classified.templates,
                     bpmnGroups: classified.bpmnGroups,
                     favourites: this.favourites,
+                    translate,
                     position: { x: position.x, y: position.y },
                     canvasBounds: {
                         right: canvasBounds.right,

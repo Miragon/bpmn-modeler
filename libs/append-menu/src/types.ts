@@ -2,12 +2,9 @@
  * Type definitions for popup menu entries and utilities to classify them
  * into element template entries vs. standard BPMN element entries.
  */
-import type {
-    ElementTemplate,
-    TemplateProperty,
-} from "@miragon/bpmn-modeler-element-template-chooser";
+import type { ElementTemplate } from "@miragon/bpmn-modeler-element-template-chooser";
 
-export type { TemplateProperty };
+export type Translate = (template: string, replacements?: Record<string, string>) => string;
 
 /**
  * Action shape for a popup menu entry.
@@ -214,105 +211,4 @@ const BPMN_TYPE_ICON_MAP: Record<string, string> = {
 
 export function bpmnTypeToIconClass(bpmnType: string): string {
     return BPMN_TYPE_ICON_MAP[bpmnType] ?? "bpmn-icon-task";
-}
-
-// ─── Implementation detail extraction ────────────────────────────────────
-
-/**
- * An implementation detail extracted from template properties that
- * identifies the technical binding (topic, delegate, class, called element).
- */
-export interface ImplementationDetail {
-    label: string;
-    value: string;
-}
-
-/**
- * Well-known bindings that identify the implementation of a template.
- *
- * Each entry defines a matcher: either a `property` binding with a specific
- * `name` (C7 pattern), or a direct `bindingType` match (C8 pattern where
- * the binding type itself carries the semantic).
- *
- * Checked in priority order — the first match wins.
- */
-const IMPLEMENTATION_BINDINGS: {
-    label: string;
-    bindingType: string;
-    bindingName?: string;
-}[] = [
-    { label: "Topic", bindingType: "property", bindingName: "camunda:topic" },
-    {
-        label: "Delegate",
-        bindingType: "property",
-        bindingName: "camunda:delegateExpression",
-    },
-    { label: "Java Class", bindingType: "property", bindingName: "camunda:class" },
-    { label: "Expression", bindingType: "property", bindingName: "camunda:expression" },
-    { label: "Called Element", bindingType: "property", bindingName: "calledElement" },
-    { label: "Task Type", bindingType: "zeebe:taskDefinition:type" },
-    { label: "Task Type", bindingType: "zeebe:taskDefinition" },
-];
-
-/**
- * Extracts the primary implementation detail from a template's properties.
- *
- * Searches for well-known binding types and names across both C7 and C8
- * patterns and returns the first match with its value, or `undefined` if no
- * implementation binding is found or the value is empty.
- */
-export function extractImplementationDetail(
-    properties: TemplateProperty[],
-): ImplementationDetail | undefined {
-    for (const { label, bindingType, bindingName } of IMPLEMENTATION_BINDINGS) {
-        const prop = properties.find((p) => {
-            if (p.binding.type !== bindingType) {
-                return false;
-            }
-            if (bindingName && p.binding.name !== bindingName) {
-                return false;
-            }
-            return !!p.value;
-        });
-        if (prop) {
-            return { label, value: prop.value! };
-        }
-    }
-    return undefined;
-}
-
-// ─── Binding direction classification ─────────────────────────────────────
-
-export type BindingDirection = "input" | "output" | "property" | "hidden";
-
-/**
- * Classifies a template property binding into a direction category, used to
- * split properties into input, output, and property sections in the hover card
- * preview.
- */
-export function classifyBinding(binding: TemplateProperty["binding"]): BindingDirection {
-    const type = binding.type;
-
-    if (type === "camunda:out" || type === "camunda:outputParameter" || type === "zeebe:output") {
-        return "output";
-    }
-
-    if (
-        type === "camunda:in" ||
-        type === "camunda:inputParameter" ||
-        type === "camunda:in:businessKey" ||
-        type === "zeebe:input"
-    ) {
-        return "input";
-    }
-
-    if (type === "property" || type === "zeebe:property") {
-        return "property";
-    }
-
-    if (type === "zeebe:taskHeader") {
-        return "property";
-    }
-
-    return "hidden";
 }

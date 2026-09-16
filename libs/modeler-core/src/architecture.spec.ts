@@ -26,9 +26,9 @@ function listSourceFiles(): string[] {
             if (statSync(abs).isDirectory()) {
                 walk(abs);
             } else if (
-                entry.endsWith(".ts") &&
+                /\.tsx?$/.test(entry) &&
                 !entry.endsWith(".d.ts") &&
-                !/\.(spec|test)\.ts$/.test(entry)
+                !/\.(spec|test)\.tsx?$/.test(entry)
             ) {
                 out.push(
                     normalize(abs.slice(SRC_ROOT.length + 1))

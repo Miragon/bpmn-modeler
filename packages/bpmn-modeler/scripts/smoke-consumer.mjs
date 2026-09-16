@@ -151,6 +151,14 @@ if (!result.changed.includes("CustomTask_1")) fail("expected the custom attribut
 const after = sideView(result, "after");
 if (!after.added.includes("Task_1")) fail("sideView(after).added should carry Task_1");
 
+let checkedFixtures;
+try {
+    const { checkConsumerTypes } = await import("./check-consumer-types.mjs");
+    ({ checkedFixtures } = checkConsumerTypes({ consumerDir: process.cwd() }));
+} catch (error) {
+    fail(`consumer type-check failed: ${error.message}`);
+}
+
 console.log(
-    `smoke-consumer: installed ${PKG}@${installedManifest.version} resolves every subpath, bundles ${Object.keys(BROWSER_FIXTURES).length} browser consumers, and ./diff runs.`,
+    `smoke-consumer: installed ${PKG}@${installedManifest.version} resolves every subpath, bundles ${Object.keys(BROWSER_FIXTURES).length} browser consumers, type-checks ${checkedFixtures} fixtures, and ./diff runs.`,
 );

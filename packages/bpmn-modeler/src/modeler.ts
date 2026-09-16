@@ -49,9 +49,9 @@ import { capabilityModules } from "./capabilityModules";
 import { wireContentSaved } from "./contentSaved";
 import { createReporter, type SurfaceReporter } from "./reporting";
 import { installSurfaceFocusFeatures } from "./focusFeatures";
-import { ViewportManager } from "./viewport";
-import { SelectionManager } from "./selection";
-import { RootElementManager } from "./rootElement";
+import { CanvasViewportManager, type ViewportManager } from "./viewport";
+import { ElementSelectionManager, type SelectionManager } from "./selection";
+import { CanvasRootElementManager, type RootElementManager } from "./rootElement";
 import {
     applyViewState as applyViewStateComposition,
     captureViewState as captureViewStateComposition,
@@ -165,7 +165,7 @@ export class BpmnModeler {
         return this._selection;
     }
 
-    /** @internal */
+    /** Access the root element manager after {@link init}. */
     get rootElement(): RootElementManager {
         if (!this._rootElement) {
             throw new NoModelerError();
@@ -280,9 +280,9 @@ export class BpmnModeler {
         });
 
         const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
-        this._viewport = new ViewportManager(accessor);
-        this._selection = new SelectionManager(accessor);
-        this._rootElement = new RootElementManager(accessor);
+        this._viewport = new CanvasViewportManager(accessor);
+        this._selection = new ElementSelectionManager(accessor);
+        this._rootElement = new CanvasRootElementManager(accessor);
 
         this.store.add(
             installSurfaceFocusFeatures(accessor, {

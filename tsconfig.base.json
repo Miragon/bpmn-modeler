@@ -37,6 +37,9 @@
             "@miragon/bpmn-modeler-element-template-chooser": [
                 "./libs/element-template-chooser/src/index.ts"
             ],
+            "@miragon/bpmn-modeler-element-template-chooser/*": [
+                "./libs/element-template-chooser/src/*"
+            ],
             "@miragon/bpmn-modeler-append-menu": ["./libs/append-menu/src/index.ts"],
             "@miragon/bpmn-modeler-properties-panel": [
                 "./libs/properties-panel/src/index.ts"

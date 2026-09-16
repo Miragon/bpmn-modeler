@@ -38,6 +38,10 @@ function testInstallStrategy(installStrategy) {
             resolve(scriptDirectory, "smoke-consumer.mjs"),
             resolve(project, "smoke-consumer.mjs"),
         );
+        copyFileSync(
+            resolve(scriptDirectory, "check-consumer-types.mjs"),
+            resolve(project, "check-consumer-types.mjs"),
+        );
 
         console.log(`smoke-packed-consumer: installing ${installStrategy} consumer in ${project}`);
         run(
@@ -46,6 +50,7 @@ function testInstallStrategy(installStrategy) {
                 "install",
                 tarball,
                 "esbuild@0.28.2",
+                "typescript@6.0.3",
                 `--install-strategy=${installStrategy}`,
                 "--no-audit",
                 "--no-fund",

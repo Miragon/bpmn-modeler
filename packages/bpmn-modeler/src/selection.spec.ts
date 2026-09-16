@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { SelectionManager } from "./selection";
+import { ElementSelectionManager } from "./selection";
 import type { CoreServiceAccessor } from "./coreServices";
 
 /**
@@ -29,7 +29,7 @@ function setup(elements: Record<string, unknown>) {
         if (name === "eventBus") return eventBus;
         throw new Error(`unexpected service: ${name}`);
     }) as unknown as CoreServiceAccessor;
-    const manager = new SelectionManager(getService);
+    const manager = new ElementSelectionManager(getService);
     const emit = (event: string, payload?: unknown) =>
         (listeners[event] ?? []).forEach((handler) => handler(payload));
     const listenerCount = (event: string) => (listeners[event] ?? []).length;
