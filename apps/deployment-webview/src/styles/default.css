@@ -1,4 +1,39 @@
-/* Uses VS Code CSS variables for automatic light/dark theme support. */
+/*
+ * VS Code CSS variables drive light/dark theming; every var() carries a
+ * literal light fallback so the standalone Vite preview and IntelliJ (which
+ * only maps a fixed variable set in IdeThemeSignal.deploymentThemeVarsCss())
+ * render correctly. Only add --vscode-* vars that mapping already provides,
+ * or keep the literal fallback authoritative.
+ */
+
+:root {
+    --dep-fg: var(--vscode-foreground, #3b3b3b);
+    --dep-fg-muted: var(--vscode-descriptionForeground, #717171);
+    --dep-bg: var(--vscode-sideBar-background, #f8f8f8);
+    --dep-border: var(--vscode-panel-border, #e5e5e5);
+    --dep-card-bg: var(--vscode-editor-background, #ffffff);
+    --dep-input-bg: var(--vscode-input-background, #ffffff);
+    --dep-input-fg: var(--vscode-input-foreground, #3b3b3b);
+    --dep-input-border: var(--vscode-input-border, #cecece);
+    --dep-accent: var(--vscode-focusBorder, #0078d4);
+    --dep-hover-bg: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.12));
+    --dep-btn-bg: var(--vscode-button-background, #0078d4);
+    --dep-btn-fg: var(--vscode-button-foreground, #ffffff);
+    --dep-btn-hover-bg: var(--vscode-button-hoverBackground, #026ec1);
+    --dep-btn2-bg: var(--vscode-button-secondaryBackground, #e8e8e8);
+    --dep-btn2-fg: var(--vscode-button-secondaryForeground, #3b3b3b);
+    --dep-btn2-hover-bg: var(--vscode-button-secondaryHoverBackground, #dcdcdc);
+    --dep-error-fg: var(--vscode-errorForeground, #b01011);
+    --dep-icon-fg: var(--vscode-icon-foreground, #6c6c6c);
+
+    --dep-font: var(--vscode-font-family, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif);
+    --dep-font-size: var(--vscode-font-size, 13px);
+    --dep-radius-sm: 4px;
+    --dep-radius-md: 6px;
+    --dep-radius-lg: 8px;
+    --dep-control-h: 26px;
+    --dep-pad-x: 12px;
+}
 
 * {
     box-sizing: border-box;
@@ -6,124 +41,270 @@
 
 body,
 html {
-    color: var(--vscode-foreground);
-    background-color: var(--vscode-sideBar-background, var(--vscode-editor-background));
-    font-family: var(--vscode-font-family, "Helvetica Neue", Helvetica, Arial, sans-serif);
-    font-size: var(--vscode-font-size, 13px);
+    color: var(--dep-fg);
+    background-color: var(--dep-bg);
+    font-family: var(--dep-font);
+    font-size: var(--dep-font-size);
     padding: 0;
     margin: 0;
 }
 
 #app {
-    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 12px 16px;
+}
+
+/* --- Cards --- */
+
+.target-row,
+.section,
+.tab-panel.active {
+    background-color: var(--dep-card-bg);
+    border: 1px solid var(--dep-border);
+    border-radius: var(--dep-radius-lg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+/* --- Target row --- */
+
+.target-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: var(--dep-pad-x);
+}
+
+.target-row .select-wrapper {
+    flex: 1 1 100%;
+}
+
+#target-open {
+    margin-left: auto;
 }
 
 /* --- Collapsible sections --- */
 
-.section {
-    border-bottom: 1px solid var(--vscode-panel-border, transparent);
-}
-
 .section-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background-color: var(--vscode-sideBarSectionHeader-background, transparent);
-    color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+    gap: 8px;
+    padding: 10px var(--dep-pad-x);
+    color: var(--vscode-sideBarSectionHeader-foreground, var(--dep-fg));
     cursor: pointer;
     user-select: none;
 }
 
 .section-header:hover {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--dep-hover-bg);
 }
 
 .section-header:focus-visible {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--dep-accent);
     outline-offset: -1px;
 }
 
 .section-chevron {
-    display: inline-block;
-    width: 0;
-    height: 0;
-    border-top: 4px solid transparent;
-    border-bottom: 4px solid transparent;
-    border-left: 6px solid currentColor;
+    order: 2;
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid var(--dep-icon-fg);
+    border-bottom: 1.5px solid var(--dep-icon-fg);
+    transform: rotate(-45deg);
     transition: transform 0.15s ease;
     flex-shrink: 0;
 }
 
 .section-header[aria-expanded="true"] .section-chevron {
-    transform: rotate(90deg);
+    transform: rotate(45deg);
 }
 
 .section-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 .section-body {
-    padding: 8px 16px 12px;
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.2s ease;
+}
+
+.section-body-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     overflow: hidden;
-    max-height: 1000px;
-    opacity: 1;
-    transition: max-height 0.2s ease, opacity 0.15s ease, padding 0.2s ease;
+    min-height: 0;
+    padding: 2px var(--dep-pad-x) 14px;
+    transition: padding 0.2s ease;
 }
 
 .section.collapsed .section-body {
-    max-height: 0;
-    padding: 0 16px;
-    opacity: 0;
+    grid-template-rows: 0fr;
 }
 
-.form-group {
-    margin-bottom: 12px;
+/* border-box keeps padding as a height floor, so it must collapse too */
+.section.collapsed .section-body-inner {
+    padding-top: 0;
+    padding-bottom: 0;
 }
+
+/* --- Form controls --- */
 
 label {
     display: block;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--vscode-foreground);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--dep-fg);
     margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 input[type="text"],
 input[type="password"],
 select {
     width: 100%;
-    padding: 4px 8px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border, transparent);
-    border-radius: 2px;
-    font-size: var(--vscode-font-size, 13px);
-    font-family: var(--vscode-font-family);
+    height: var(--dep-control-h);
+    padding: 0 8px;
+    background-color: var(--dep-input-bg);
+    color: var(--dep-input-fg);
+    border: 1px solid var(--dep-input-border);
+    border-radius: var(--dep-radius-sm);
+    font-size: var(--dep-font-size);
+    font-family: var(--dep-font);
     outline: none;
+}
+
+input[type="text"]:hover:not(:focus):not([readonly]),
+input[type="password"]:hover:not(:focus),
+select:hover:not(:focus) {
+    border-color: var(--dep-fg-muted);
 }
 
 input[type="text"]:focus,
 input[type="password"]:focus,
 select:focus {
-    border-color: var(--vscode-focusBorder);
+    border-color: var(--dep-accent);
+    outline: 1px solid var(--dep-accent);
+    outline-offset: -1px;
 }
 
 input[readonly] {
-    opacity: 0.6;
+    color: var(--dep-fg-muted);
+    background-color: transparent;
+    border-style: dashed;
     cursor: default;
+}
+
+.select-wrapper {
+    position: relative;
+}
+
+.select-wrapper select {
+    appearance: none;
+    padding-right: 26px;
+    cursor: pointer;
+    text-overflow: ellipsis;
+}
+
+.select-wrapper::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    margin-top: -5px;
+    pointer-events: none;
+    border-right: 1.5px solid var(--dep-icon-fg);
+    border-bottom: 1.5px solid var(--dep-icon-fg);
+    transform: rotate(45deg);
+}
+
+#target-select.dirty {
+    border-color: var(--dep-accent);
 }
 
 .hint {
     font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    margin-top: 3px;
+    color: var(--dep-fg-muted);
+    margin-top: 4px;
+    line-height: 1.4;
 }
+
+#engine-mismatch-hint {
+    color: var(--vscode-editorWarning-foreground, #a37a00);
+}
+
+/* --- Buttons --- */
+
+.btn {
+    font-family: var(--dep-font);
+    font-size: var(--dep-font-size);
+    border: none;
+    border-radius: var(--dep-radius-sm);
+    cursor: pointer;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn:focus-visible {
+    outline: 1px solid var(--dep-accent);
+    outline-offset: 1px;
+}
+
+.btn-primary {
+    width: 100%;
+    height: 28px;
+    margin-top: 2px;
+    background-color: var(--dep-btn-bg);
+    color: var(--dep-btn-fg);
+    font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--dep-btn-hover-bg);
+}
+
+.btn-secondary {
+    height: 22px;
+    padding: 0 8px;
+    font-size: 11px;
+    background-color: var(--dep-btn2-bg);
+    color: var(--dep-btn2-fg);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--dep-btn2-hover-bg);
+}
+
+.btn-icon {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--dep-input-border);
+    color: var(--dep-icon-fg);
+    font-size: 14px;
+    line-height: 1;
+}
+
+.btn-icon:hover:not(:disabled) {
+    background-color: var(--dep-hover-bg);
+    color: var(--dep-fg);
+}
+
+/* --- File list --- */
 
 .additional-files-header {
     display: flex;
@@ -136,26 +317,6 @@ input[readonly] {
     margin-bottom: 0;
 }
 
-#add-files-btn {
-    background: none;
-    border: 1px solid var(--vscode-button-secondaryBackground, var(--vscode-input-border));
-    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
-    border-radius: 2px;
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#add-files-btn:hover {
-    background-color: var(--vscode-button-secondaryHoverBackground);
-}
-
 #file-list {
     list-style: none;
     margin: 4px 0 0 0;
@@ -166,14 +327,15 @@ input[readonly] {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2px 4px;
+    gap: 4px;
+    padding: 3px 6px;
     font-size: 12px;
-    color: var(--vscode-foreground);
-    border-radius: 2px;
+    color: var(--dep-fg);
+    border-radius: var(--dep-radius-sm);
 }
 
 .file-item:hover {
-    background-color: var(--vscode-list-hoverBackground);
+    background-color: var(--dep-hover-bg);
 }
 
 .file-item span {
@@ -186,68 +348,51 @@ input[readonly] {
 .remove-btn {
     background: none;
     border: none;
-    color: var(--vscode-icon-foreground);
+    color: var(--dep-icon-fg);
     cursor: pointer;
     font-size: 14px;
     padding: 0 2px;
     flex-shrink: 0;
     line-height: 1;
-    opacity: 0.7;
+    opacity: 0;
+}
+
+.file-item:hover .remove-btn,
+.remove-btn:focus-visible {
+    opacity: 1;
 }
 
 .remove-btn:hover {
-    opacity: 1;
-    color: var(--vscode-errorForeground);
+    color: var(--dep-error-fg);
 }
 
-#deploy-btn {
-    width: calc(100% - 32px);
-    padding: 6px 12px;
-    margin: 16px 16px 0;
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border: none;
-    border-radius: 2px;
-    font-size: var(--vscode-font-size, 13px);
-    font-family: var(--vscode-font-family);
-    cursor: pointer;
-    font-weight: 600;
-}
-
-#deploy-btn:hover:not(:disabled) {
-    background-color: var(--vscode-button-hoverBackground);
-}
-
-#deploy-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
+/* --- Status banners --- */
 
 .status-banner {
     display: none;
-    margin: 12px 16px 0;
-    padding: 8px 10px;
-    border-radius: 2px;
+    padding: 8px 10px 8px 12px;
+    border-radius: var(--dep-radius-sm);
+    border-left: 3px solid transparent;
     font-size: 12px;
-    line-height: 1.4;
+    line-height: 1.45;
 }
 
 .status-banner.progress {
-    background-color: var(--vscode-notifications-background);
-    color: var(--vscode-foreground);
-    border: 1px solid var(--vscode-input-border, transparent);
+    border-left-color: var(--dep-accent);
+    background-color: var(--vscode-notifications-background, #f3f3f3);
+    color: var(--dep-fg);
 }
 
 .status-banner.success {
-    background-color: var(--vscode-inputValidation-infoBackground);
-    color: var(--vscode-inputValidation-infoForeground, var(--vscode-foreground));
-    border: 1px solid var(--vscode-inputValidation-infoBorder);
+    border-left-color: var(--vscode-inputValidation-infoBorder, #007acc);
+    background-color: var(--vscode-inputValidation-infoBackground, #e6f3fb);
+    color: var(--vscode-inputValidation-infoForeground, #3b3b3b);
 }
 
 .status-banner.error {
-    background-color: var(--vscode-inputValidation-errorBackground);
-    color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
-    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-left-color: var(--vscode-inputValidation-errorBorder, #be1100);
+    background-color: var(--vscode-inputValidation-errorBackground, #fdecec);
+    color: var(--vscode-inputValidation-errorForeground, #3b3b3b);
 }
 
 /* --- Password toggle --- */
@@ -259,7 +404,7 @@ input[readonly] {
 
 .password-wrapper input {
     flex: 1;
-    padding-right: 28px;
+    padding-right: 30px;
 }
 
 .password-toggle {
@@ -269,16 +414,19 @@ input[readonly] {
     transform: translateY(-50%);
     background: none;
     border: none;
+    border-radius: 3px;
     cursor: pointer;
-    color: var(--vscode-icon-foreground);
+    color: var(--dep-icon-fg);
     opacity: 0.6;
-    padding: 2px;
+    padding: 3px;
     display: flex;
     align-items: center;
 }
 
-.password-toggle:hover {
+.password-toggle:hover,
+.password-toggle:focus-visible {
     opacity: 1;
+    background-color: var(--dep-hover-bg);
 }
 
 .password-toggle svg {
@@ -291,39 +439,48 @@ input[readonly] {
 }
 
 .auth-fields.visible {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
-/* --- Tab bar --- */
+/* --- Tab bar (segmented control) --- */
 
 .tab-bar {
     display: flex;
-    border-bottom: 1px solid var(--vscode-panel-border, transparent);
+    gap: 2px;
+    padding: 3px;
+    margin-top: 2px;
+    background-color: var(--dep-hover-bg);
+    border-radius: var(--dep-radius-md);
 }
 
 .tab-btn {
     flex: 1;
-    padding: 6px 12px;
-    background: none;
+    padding: 4px 8px;
+    background: transparent;
     border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--vscode-foreground);
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    border-radius: var(--dep-radius-sm);
+    color: var(--dep-fg-muted);
+    font-family: var(--dep-font);
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
-    opacity: 0.7;
-    font-family: var(--vscode-font-family);
 }
 
 .tab-btn:hover {
-    opacity: 1;
+    color: var(--dep-fg);
+}
+
+.tab-btn:focus-visible {
+    outline: 1px solid var(--dep-accent);
+    outline-offset: -1px;
 }
 
 .tab-btn.active {
-    opacity: 1;
-    border-bottom-color: var(--vscode-focusBorder);
+    background-color: var(--dep-card-bg);
+    color: var(--dep-fg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 /* --- Tab panels --- */
@@ -333,14 +490,17 @@ input[readonly] {
 }
 
 .tab-panel.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: var(--dep-pad-x) var(--dep-pad-x) 14px;
 }
 
 /* --- Payload selector --- */
 
 .payload-selector {
     display: flex;
-    gap: 4px;
+    gap: 6px;
 }
 
 .payload-selector input {
@@ -348,43 +508,15 @@ input[readonly] {
 }
 
 #select-payload-btn {
-    background: none;
-    border: 1px solid var(--vscode-button-secondaryBackground, var(--vscode-input-border));
-    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
-    border-radius: 2px;
-    width: 28px;
-    cursor: pointer;
-    font-size: 14px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 26px;
+    height: var(--dep-control-h);
     flex-shrink: 0;
 }
 
-#select-payload-btn:hover {
-    background-color: var(--vscode-button-secondaryHoverBackground);
-}
-
-#start-instance-btn {
-    width: calc(100% - 32px);
-    padding: 6px 12px;
-    margin: 16px 16px 0;
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border: none;
-    border-radius: 2px;
-    font-size: var(--vscode-font-size, 13px);
-    font-family: var(--vscode-font-family);
-    cursor: pointer;
-    font-weight: 600;
-}
-
-#start-instance-btn:hover:not(:disabled) {
-    background-color: var(--vscode-button-hoverBackground);
-}
-
-#start-instance-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+@media (prefers-reduced-motion: reduce) {
+    .section-body,
+    .section-body-inner,
+    .section-chevron {
+        transition: none;
+    }
 }
