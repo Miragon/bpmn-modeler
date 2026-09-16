@@ -53,6 +53,28 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         deps.ensureStartedAsync()
     }
 
+    /**
+     * Fires `deployment/switchTarget` for the project root. The core shows the
+     * target picker over `picker/show`, persists the choice, and refreshes the
+     * status bar + an open sidebar. Guarded on a non-null basePath — the targets
+     * file lives under a workspace root.
+     */
+    fun switchDeploymentTarget() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_SWITCH_TARGET, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `deployment/deployFiles` for the project root. The core resolves the
+     * active target (prompting if none), opens the file picker, and deploys each.
+     */
+    fun deployFiles() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_DEPLOY_FILES, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
     private companion object {
         // Mirrors METHODS.modelerChangeEngineVersion / migrationMigrateAll in
         // apps/modeler-bridge/src/protocol/descriptor.ts (the protocol.json snapshot
@@ -61,5 +83,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         const val METHODS_MIGRATE_ALL = "migration/migrateAll"
         const val METHODS_LAYOUT_FORMAT = "layout/format"
         const val METHODS_LAYOUT_CLEANUP = "layout/cleanup"
+        const val METHODS_SWITCH_TARGET = "deployment/switchTarget"
+        const val METHODS_DEPLOY_FILES = "deployment/deployFiles"
     }
 }

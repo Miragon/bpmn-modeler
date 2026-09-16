@@ -70,6 +70,18 @@ export class InvalidDeploymentConfigError extends Error {
 }
 
 /**
+ * Thrown when a `deployment-targets.json` file is malformed or names an
+ * unsupported capability. Surfaced via `notifyError`; the file is then treated
+ * as if it held no targets rather than crashing the sidebar.
+ */
+export class InvalidDeploymentTargetsFileError extends Error {
+    constructor(reason: string) {
+        super(`Invalid deployment targets file: ${reason}`);
+        this.name = "InvalidDeploymentTargetsFileError";
+    }
+}
+
+/**
  * Thrown when fetching an OAuth2 access token fails.
  */
 export class TokenFetchError extends Error {

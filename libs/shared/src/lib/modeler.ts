@@ -915,6 +915,26 @@ export interface DeploymentConfigPayload {
     readonly mainFilePath: string;
     readonly additionalFilePaths: string[];
     readonly auth: AuthConfigPayload;
+    /** Active deployment target, or `""` for ad-hoc mode (legacy persistence). */
+    readonly targetName: string;
+    /** Full-URL override for the deploy call; convention path used when absent. */
+    readonly deployUrl?: string;
+}
+
+/**
+ * Non-secret projection of a deployment target for the sidebar. Credentials
+ * live in the host secret store and never travel over the protocol.
+ */
+export interface DeploymentTargetPayload {
+    readonly name: string;
+    readonly engine: Engine;
+    readonly endpoint: string;
+    readonly tenantId: string;
+    readonly authType: AuthTypePayload;
+    readonly tokenEndpoint?: string;
+    readonly audience?: string;
+    readonly deployUrl?: string;
+    readonly startInstanceUrl?: string;
 }
 
 /**
@@ -964,10 +984,58 @@ export class RequestAdditionalFilesCommand extends Command {
 
 /**
  * Sent by the deployment webview to request previously stored credentials.
+ * `targetName` scopes the lookup to a saved target; `""`/absent = ad-hoc mode.
  */
 export class RequestStoredCredentialsCommand extends Command {
-    constructor() {
+    public readonly targetName: string;
+
+    constructor(targetName = "") {
         super("RequestStoredCredentialsCommand");
+        this.targetName = targetName;
+    }
+}
+
+/**
+ * Sent by the deployment webview when the user picks a target in the select.
+ * `name` is `""` for the ad-hoc "(none — use form values)" entry.
+ */
+export class SelectTargetCommand extends Command {
+    public readonly name: string;
+
+    constructor(name: string) {
+        super("SelectTargetCommand");
+        this.name = name;
+    }
+}
+
+/**
+ * Sent by the deployment webview to persist a target. `previousName` marks a
+ * rename so the host can drop the old entry and migrate its secret slot.
+ */
+export class SaveTargetCommand extends Command {
+    public readonly target: DeploymentTargetPayload;
+
+    public readonly auth: AuthConfigPayload;
+
+    public readonly previousName?: string;
+
+    constructor(target: DeploymentTargetPayload, auth: AuthConfigPayload, previousName?: string) {
+        super("SaveTargetCommand");
+        this.target = target;
+        this.auth = auth;
+        this.previousName = previousName;
+    }
+}
+
+/**
+ * Sent by the deployment webview to delete a saved target by name.
+ */
+export class DeleteTargetCommand extends Command {
+    public readonly name: string;
+
+    constructor(name: string) {
+        super("DeleteTargetCommand");
+        this.name = name;
     }
 }
 
@@ -1027,6 +1095,38 @@ export class AdditionalFilesQuery extends Query {
     }
 }
 
+/**
+ * Sent by the extension host with the saved targets and the active target name
+ * so the sidebar select can render and pre-select. `activeTargetName` is `""`
+ * for ad-hoc mode.
+ */
+export class DeploymentTargetsQuery extends Query {
+    public readonly targets: readonly DeploymentTargetPayload[];
+
+    public readonly activeTargetName: string;
+
+    constructor(targets: readonly DeploymentTargetPayload[], activeTargetName: string) {
+        super("DeploymentTargetsQuery");
+        this.targets = targets;
+        this.activeTargetName = activeTargetName;
+    }
+}
+
+/**
+ * Sent by the extension host after a save/delete target attempt completes.
+ */
+export class TargetSavedQuery extends Query {
+    public readonly success: boolean;
+
+    public readonly message: string;
+
+    constructor(success: boolean, message: string) {
+        super("TargetSavedQuery");
+        this.success = success;
+        this.message = message;
+    }
+}
+
 // <================================== Deployment ===================================
 
 // =================================== Start Instance ==================================>
@@ -1040,6 +1140,10 @@ export interface StartInstanceConfigPayload {
     readonly engine: Engine;
     readonly auth: AuthConfigPayload;
     readonly payloadFilePath: string;
+    /** Active deployment target, or `""` for ad-hoc mode (legacy persistence). */
+    readonly targetName: string;
+    /** Full-URL override with `{processDefinitionKey}` substituted before the call. */
+    readonly startInstanceUrl?: string;
 }
 
 // --- Webview → Extension commands ---

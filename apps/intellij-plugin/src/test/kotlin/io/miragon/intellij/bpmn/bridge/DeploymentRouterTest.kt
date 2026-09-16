@@ -51,6 +51,7 @@ class DeploymentRouterTest {
             mapOf("tokenEndpoint" to "https://token", "audience" to "zeebe"),
             id = 44,
         )
+        dispatchSave(wired, "deploymentState/saveActiveTarget", mapOf("name" to "dev"), id = 45)
 
         // The persist must have run before the ack, so the live state mirror reflects
         // every saved field — the same snapshot the bridge re-seeds on the next spawn.
@@ -60,6 +61,7 @@ class DeploymentRouterTest {
         assertEquals("oauth2", snapshot["authType"])
         assertEquals("https://token", snapshot["tokenEndpoint"])
         assertEquals("zeebe", snapshot["audience"])
+        assertEquals("dev", snapshot["activeTargetName"])
     }
 
     /** Dispatches one acknowledged save and asserts the matching empty reply frame. */

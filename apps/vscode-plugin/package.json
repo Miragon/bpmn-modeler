@@ -137,6 +137,10 @@
             {
                 "fileMatch": "**/*.form",
                 "url": "./schemas/form.schema.json"
+            },
+            {
+                "fileMatch": "**/deployment-targets.json",
+                "url": "./schemas/deployment-targets.schema.json"
             }
         ],
         "languages": [
@@ -300,6 +304,17 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
+                "command": "bpmn-modeler.switchDeploymentTarget",
+                "title": "Switch Deployment Target",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.deployFiles",
+                "title": "Deploy Files…",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(rocket)"
+            },
+            {
                 "command": "bpmn-modeler.migrateAllDiagrams",
                 "title": "Migrate All BPMN Diagrams",
                 "category": "Miragon BPMN Modeler"
@@ -437,6 +452,14 @@
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {
+                    "command": "bpmn-modeler.switchDeploymentTarget",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "bpmn-modeler.deployFiles",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
                     "command": "bpmn-modeler.migrateAllDiagrams",
                     "when": "workspaceFolderCount > 0"
                 },
@@ -488,6 +511,11 @@
                     "command": "bpmn-modeler.compareSelected",
                     "group": "3_compare",
                     "when": "resourceExtname == .bpmn && listDoubleSelection"
+                },
+                {
+                    "command": "bpmn-modeler.deployFiles",
+                    "group": "4_deploy",
+                    "when": "resourceExtname =~ /\\.(bpmn|dmn)$/"
                 }
             ],
             "editor/title": [

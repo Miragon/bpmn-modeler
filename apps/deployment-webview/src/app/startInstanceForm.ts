@@ -38,6 +38,8 @@ export class StartInstanceForm {
         private readonly getSharedConnection: () => {
             endpoint: string;
             engine: Engine;
+            targetName: string;
+            startInstanceUrl?: string;
         },
     ) {
         this.processDefinitionKeyInput =
@@ -127,6 +129,8 @@ export class StartInstanceForm {
             engine: connection.engine,
             auth: this.getSharedAuth(),
             payloadFilePath: this.payloadFilePath,
+            targetName: connection.targetName,
+            startInstanceUrl: connection.startInstanceUrl,
         };
     }
 

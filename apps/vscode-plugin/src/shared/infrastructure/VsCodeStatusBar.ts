@@ -5,6 +5,7 @@ import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import { StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
+const SWITCH_TARGET_CMD = "bpmn-modeler.switchDeploymentTarget";
 
 export class VsCodeStatusBar implements StatusBarPort {
     private templateStatusItem: StatusBarItem | undefined;
@@ -12,6 +13,8 @@ export class VsCodeStatusBar implements StatusBarPort {
     private engineVersionStatusItem: StatusBarItem | undefined;
 
     private bpmnlintStatusItem: StatusBarItem | undefined;
+
+    private deploymentTargetStatusItem: StatusBarItem | undefined;
 
     showElementTemplatesLoading(): void {
         const item = this.getOrCreateTemplateStatusItem();
@@ -103,6 +106,17 @@ export class VsCodeStatusBar implements StatusBarPort {
         this.bpmnlintStatusItem?.hide();
     }
 
+    showDeploymentTarget(name: string | undefined): void {
+        const item = this.getOrCreateDeploymentTargetStatusItem();
+        item.text = name ? `$(cloud-upload) ${name}` : "$(cloud-upload) No deployment target";
+        item.tooltip = "Click to switch the active deployment target";
+        item.show();
+    }
+
+    hideDeploymentTarget(): void {
+        this.deploymentTargetStatusItem?.hide();
+    }
+
     private getOrCreateTemplateStatusItem(): StatusBarItem {
         if (!this.templateStatusItem) {
             this.templateStatusItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
@@ -126,5 +140,16 @@ export class VsCodeStatusBar implements StatusBarPort {
             this.bpmnlintStatusItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
         }
         return this.bpmnlintStatusItem;
+    }
+
+    private getOrCreateDeploymentTargetStatusItem(): StatusBarItem {
+        if (!this.deploymentTargetStatusItem) {
+            this.deploymentTargetStatusItem = window.createStatusBarItem(
+                StatusBarAlignment.Right,
+                198,
+            );
+            this.deploymentTargetStatusItem.command = SWITCH_TARGET_CMD;
+        }
+        return this.deploymentTargetStatusItem;
     }
 }

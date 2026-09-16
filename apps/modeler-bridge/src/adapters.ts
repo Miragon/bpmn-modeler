@@ -478,6 +478,14 @@ export class RpcStatusBar implements StatusBarPort {
         this.rpc.notify(METHODS.statusBarDisposeEngineVersion, {});
     }
 
+    showDeploymentTarget(name: string | undefined): void {
+        this.rpc.notify(METHODS.statusBarShowDeploymentTarget, { name: name ?? null });
+    }
+
+    hideDeploymentTarget(): void {
+        this.rpc.notify(METHODS.statusBarHideDeploymentTarget, {});
+    }
+
     showBpmnlintActive(): void {
         /* not supported yet for intellij */
     }
@@ -540,28 +548,30 @@ export class RpcClipboard implements ClipboardPort {
 export class RpcSecretStore implements SecretStorePort {
     constructor(private readonly rpc: Rpc) {}
 
-    async saveBasicAuth(username: string, password: string): Promise<void> {
-        await this.rpc.request(METHODS.secretStoreSaveBasicAuth, { username, password });
+    async saveBasicAuth(username: string, password: string, slot?: string): Promise<void> {
+        await this.rpc.request(METHODS.secretStoreSaveBasicAuth, { username, password, slot });
     }
 
-    async getBasicAuth(): Promise<BasicAuthCredentials | undefined> {
-        const result = (await this.rpc.request(
-            METHODS.secretStoreGetBasicAuth,
-            {},
-        )) as BasicAuthCredentials | null;
+    async getBasicAuth(slot?: string): Promise<BasicAuthCredentials | undefined> {
+        const result = (await this.rpc.request(METHODS.secretStoreGetBasicAuth, {
+            slot,
+        })) as BasicAuthCredentials | null;
         return result ?? undefined;
     }
 
-    async saveOAuth2(clientId: string, clientSecret: string): Promise<void> {
-        await this.rpc.request(METHODS.secretStoreSaveOAuth2, { clientId, clientSecret });
+    async saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void> {
+        await this.rpc.request(METHODS.secretStoreSaveOAuth2, { clientId, clientSecret, slot });
     }
 
-    async getOAuth2(): Promise<OAuth2Credentials | undefined> {
-        const result = (await this.rpc.request(
-            METHODS.secretStoreGetOAuth2,
-            {},
-        )) as OAuth2Credentials | null;
+    async getOAuth2(slot?: string): Promise<OAuth2Credentials | undefined> {
+        const result = (await this.rpc.request(METHODS.secretStoreGetOAuth2, {
+            slot,
+        })) as OAuth2Credentials | null;
         return result ?? undefined;
+    }
+
+    async delete(slot: string): Promise<void> {
+        await this.rpc.request(METHODS.secretStoreDelete, { slot });
     }
 }
 
@@ -614,6 +624,7 @@ export interface DeploymentStateSnapshot {
     authType: AuthTypePayload;
     tokenEndpoint: string;
     audience: string;
+    activeTargetName: string;
 }
 
 /** Render-safe defaults before the host's first seed arrives. */
@@ -623,6 +634,7 @@ const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
     authType: "none",
     tokenEndpoint: "",
     audience: "",
+    activeTargetName: "",
 };
 
 /**
@@ -708,6 +720,15 @@ export class RpcDeploymentState implements DeploymentStatePort {
     async save(endpoint: string, tenantId: string): Promise<void> {
         this.snapshot = { ...this.snapshot, endpoint, tenantId };
         await this.persist(METHODS.deploymentStateSave, { endpoint, tenantId });
+    }
+
+    getActiveTargetName(): string {
+        return this.snapshot.activeTargetName;
+    }
+
+    async saveActiveTargetName(name: string): Promise<void> {
+        this.snapshot = { ...this.snapshot, activeTargetName: name };
+        await this.persist(METHODS.deploymentStateSaveActiveTarget, { name });
     }
 }
 
@@ -866,6 +887,20 @@ export class RpcPicker implements PickerPort {
             details: options.details,
         } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
         return result?.confirmed === true;
+    }
+
+    async pickDeploymentTarget(names: string[]): Promise<string | undefined> {
+        // Index 0 is the explicit ad-hoc entry (→ ""); the rest map to `names`.
+        const labels = ["(none — use form values)", ...names];
+        const selected = await this.show({
+            placeholder: "Select the active deployment target",
+            canPickMany: false,
+            items: labels.map((label) => ({ label })),
+        });
+        if (selected === null) {
+            return undefined;
+        }
+        return selected[0] === 0 ? "" : names[selected[0] - 1];
     }
 
     async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(

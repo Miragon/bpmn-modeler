@@ -2,6 +2,7 @@ import { DeploymentConfig, DeploymentResult } from "../../domain/deployment";
 import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
 import { CamundaEnginePort, HttpClient } from "../../domain/ports";
 import { StartInstanceConfig, StartInstanceResult } from "../../domain/startInstance";
+import { expandUrlTemplate, stripTrailingSlash } from "../../domain/urlTemplate";
 import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { MultipartBuilder } from "./MultipartBuilder";
 
@@ -50,8 +51,8 @@ export class Camunda7RestClient implements CamundaEnginePort {
 
         const { body, boundary } = builder.build();
 
-        const baseEndpoint = config.endpoint.replace(/\/$/, "");
-        const fullUrl = `${baseEndpoint}/deployment/create`;
+        const fullUrl =
+            config.deployUrl ?? `${stripTrailingSlash(config.endpoint)}/deployment/create`;
         const extraHeaders = await this.authResolver.resolve(config.auth);
 
         const { status, body: responseBody } = await this.httpClient.postMultipart(
@@ -89,10 +90,13 @@ export class Camunda7RestClient implements CamundaEnginePort {
      * @throws {StartInstanceFailedError} If the server returns a non-2xx status.
      */
     async startInstance(config: StartInstanceConfig): Promise<StartInstanceResult> {
-        const baseEndpoint = config.endpoint.replace(/\/$/, "");
         const extraHeaders = await this.authResolver.resolve(config.auth);
 
-        const fullUrl = `${baseEndpoint}/process-definition/key/${encodeURIComponent(config.processDefinitionKey)}/start`;
+        const fullUrl = config.startInstanceUrl
+            ? expandUrlTemplate(config.startInstanceUrl, {
+                  processDefinitionKey: config.processDefinitionKey,
+              })
+            : `${stripTrailingSlash(config.endpoint)}/process-definition/key/${encodeURIComponent(config.processDefinitionKey)}/start`;
         const requestBody = {
             variables: config.payload ?? {},
         };

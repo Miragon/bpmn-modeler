@@ -57,21 +57,36 @@ function createController() {
         getProcessDefinitionKey: vi.fn().mockReturnValue("proc-key"),
         selectPayloadFile: vi.fn(),
     };
+    const deploymentTargetService = {
+        listTargets: vi.fn().mockResolvedValue([]),
+        getActiveTarget: vi.fn().mockResolvedValue(undefined),
+        resolveSlot: vi.fn().mockResolvedValue(undefined),
+        switchActiveTarget: vi.fn().mockResolvedValue(undefined),
+        getCredentials: vi.fn(),
+    };
+    const picker = {
+        pickWorkspaceFiles: vi.fn().mockResolvedValue([]),
+    };
     const notifier = {
         showInfo: vi.fn(),
         showError: vi.fn(),
+        notifyError: vi.fn(),
         logDebug: vi.fn(),
         logInfo: vi.fn(),
+        logWarning: vi.fn(),
         logError: vi.fn(),
+        withProgress: vi.fn((_title: string, task: () => Promise<unknown>) => task()),
     };
 
     const postMessage = vi.fn();
     const onDidReceiveMessage = vi.fn();
     const onDidChangeVisibility = vi.fn();
+    const onDidDispose = vi.fn();
     const webviewView = {
         visible: true,
         webview: { options: {}, html: "", postMessage, onDidReceiveMessage },
         onDidChangeVisibility,
+        onDidDispose,
     };
 
     const controller = new DeploymentController(
@@ -79,6 +94,8 @@ function createController() {
         vsDocument as never,
         deploymentService as never,
         startInstanceService as never,
+        deploymentTargetService as never,
+        picker as never,
         notifier as never,
     );
 
@@ -88,11 +105,14 @@ function createController() {
         vsDocument,
         deploymentService,
         startInstanceService,
+        deploymentTargetService,
+        picker,
         notifier,
         webviewView,
         postMessage,
         onDidReceiveMessage,
         onDidChangeVisibility,
+        onDidDispose,
     };
 }
 
@@ -121,7 +141,8 @@ describe("DeploymentController.register", () => {
             { webviewOptions: { retainContextWhenHidden: true } },
         );
         expect(commands.registerCommand).toHaveBeenCalledWith(DEPLOY_CMD, expect.any(Function));
-        expect(context.subscriptions).toHaveLength(2);
+        // View provider + deploy + switch-target + deploy-files commands.
+        expect(context.subscriptions).toHaveLength(4);
     });
 });
 
@@ -138,6 +159,7 @@ describe("DeploymentController.resolveWebviewView", () => {
             mainFilePath: "/work/order-process.bpmn",
             additionalFilePaths: [],
             auth: { authType: "none" },
+            targetName: "",
         };
 
         await receive({ type: "DeployCommand", config: deployPayload } as DeployCommand);

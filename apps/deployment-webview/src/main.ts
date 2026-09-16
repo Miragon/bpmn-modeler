@@ -4,6 +4,7 @@ import {
     AdditionalFilesQuery,
     Command,
     DeploymentResultQuery,
+    DeploymentTargetsQuery,
     FormDefaultsQuery,
     LogErrorCommand,
     ProcessDefinitionKeyQuery,
@@ -12,6 +13,7 @@ import {
     SelectedPayloadFileQuery,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
+    TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import { DeploymentForm } from "./app/form";
@@ -145,6 +147,14 @@ function onReceiveMessage(
         case "StoredCredentialsQuery":
             form.populateCredentials((msg as StoredCredentialsQuery).auth);
             break;
+        case "DeploymentTargetsQuery":
+            form.setTargets(msg as DeploymentTargetsQuery);
+            break;
+        case "TargetSavedQuery": {
+            const saved = msg as TargetSavedQuery;
+            form.showTargetResult(saved.success, saved.message);
+            break;
+        }
         case "DeploymentResultQuery":
             form.showResult(msg as DeploymentResultQuery);
             break;

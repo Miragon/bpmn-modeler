@@ -237,6 +237,27 @@ export class VsCodePicker implements PickerPort {
     }
 
     /**
+     * Prompts for the active deployment target. An explicit
+     * "(none — use form values)" entry (resolving to `""`) sits above the saved
+     * targets; the active one is pre-marked. Returns `undefined` on dismissal so
+     * the caller can no-op, mirroring the engine-version cancel convention.
+     */
+    async pickDeploymentTarget(names: string[]): Promise<string | undefined> {
+        interface TargetItem extends QuickPickItem {
+            readonly value: string;
+        }
+        const items: TargetItem[] = [
+            { label: "(none — use form values)", value: "" },
+            ...names.map((name) => ({ label: name, value: name })),
+        ];
+
+        const picked = await window.showQuickPick<TargetItem>(items, {
+            placeHolder: "Select the active deployment target",
+        });
+        return picked?.value;
+    }
+
+    /**
      * Modal confirmation listing what is about to be removed.
      *
      * Modal rather than a plain warning toast because the user is consenting to

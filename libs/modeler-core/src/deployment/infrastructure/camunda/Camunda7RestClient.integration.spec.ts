@@ -118,6 +118,54 @@ describe("Camunda7RestClient (integration)", () => {
         expect(result.processInstanceId).toBe("inst-1");
     });
 
+    it("should post to the deployUrl override instead of the convention path", async () => {
+        let requestedUrl: string | undefined;
+        handler = (req, _body, res) => {
+            requestedUrl = req.url;
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ id: "1" }));
+        };
+
+        const client = createClient();
+        const config = new DeploymentConfig(
+            "my-deploy",
+            "",
+            baseUrl,
+            "c7",
+            "/tmp/proc.bpmn",
+            [],
+            new NoAuth(),
+            `${baseUrl}/custom/deploy`,
+        );
+
+        await client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]));
+
+        expect(requestedUrl).toBe("/custom/deploy");
+    });
+
+    it("should expand {processDefinitionKey} in the startInstanceUrl override", async () => {
+        let requestedUrl: string | undefined;
+        handler = (req, _body, res) => {
+            requestedUrl = req.url;
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ id: "inst-1" }));
+        };
+
+        const client = createClient();
+        const config = new StartInstanceConfig(
+            "myProc",
+            baseUrl,
+            "c7",
+            new NoAuth(),
+            null,
+            `${baseUrl}/custom/{processDefinitionKey}/start`,
+        );
+
+        await client.startInstance(config);
+
+        expect(requestedUrl).toBe("/custom/myProc/start");
+    });
+
     it("should throw StartInstanceFailedError on non-2xx start response", async () => {
         handler = (_req, _body, res) => {
             res.writeHead(404, { "Content-Type": "text/plain" });

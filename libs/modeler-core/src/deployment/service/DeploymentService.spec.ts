@@ -8,6 +8,7 @@ import {
     NoAuth,
     OAuth2Auth,
 } from "../domain/deployment";
+import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentService } from "./DeploymentService";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 
@@ -46,6 +47,10 @@ function createService() {
     };
     const notifier = {
         logError: vi.fn(),
+        logInfo: vi.fn(),
+        logWarning: vi.fn(),
+        showInfo: vi.fn(),
+        showError: vi.fn(),
         notifyError: vi.fn(),
     };
     const picker = {
@@ -254,7 +259,7 @@ describe("DeploymentService.deploy", () => {
         await service.deploy(buildConfig({ auth: new BasicAuth("admin", "secret") }));
 
         expect(deploymentState.saveAuthType).toHaveBeenCalledWith("basic");
-        expect(secretStore.saveBasicAuth).toHaveBeenCalledWith("admin", "secret");
+        expect(secretStore.saveBasicAuth).toHaveBeenCalledWith("admin", "secret", undefined);
     });
 
     it("stores oauth2 credentials and config on success", async () => {
@@ -268,11 +273,30 @@ describe("DeploymentService.deploy", () => {
             }),
         );
 
-        expect(secretStore.saveOAuth2).toHaveBeenCalledWith("cid", "csecret");
+        expect(secretStore.saveOAuth2).toHaveBeenCalledWith("cid", "csecret", undefined);
         expect(deploymentState.saveOAuth2Config).toHaveBeenCalledWith(
             "https://idp/token",
             "zeebe-api",
         );
+    });
+
+    it("persists only credentials under the slot (not legacy state) in target mode", async () => {
+        const { service, vsWorkspace, restClient, secretStore, deploymentState } = createService();
+        vsWorkspace.readFile.mockResolvedValue("<xml/>");
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        await service.deploy(
+            buildConfig({ auth: new BasicAuth("admin", "secret") }),
+            "/ws/.camunda/deployment-targets.json::dev",
+        );
+
+        expect(secretStore.saveBasicAuth).toHaveBeenCalledWith(
+            "admin",
+            "secret",
+            "/ws/.camunda/deployment-targets.json::dev",
+        );
+        expect(deploymentState.save).not.toHaveBeenCalled();
+        expect(deploymentState.saveAuthType).not.toHaveBeenCalled();
     });
 
     it("passes a failed result through without persisting any state", async () => {
@@ -307,5 +331,57 @@ describe("DeploymentService.deploy", () => {
         expect(result.success).toBe(false);
         expect(result.message).toBe("ENOENT");
         expect(restClient.deploy).not.toHaveBeenCalled();
+    });
+});
+
+describe("DeploymentService.deployFiles", () => {
+    const target = new DeploymentTarget(
+        "dev",
+        "c7",
+        "https://c/api",
+        "acme",
+        "none",
+        "",
+        "",
+        "https://gw/deploy",
+    );
+
+    it("deploys each file named by basename and reports a full-success summary", async () => {
+        const { service, vsWorkspace, restClient, notifier } = createService();
+        vsWorkspace.readFile.mockResolvedValue("<xml/>");
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        const results = await service.deployFiles(
+            ["/work/a.bpmn", "/work/b.dmn"],
+            target,
+            new NoAuth(),
+        );
+
+        expect(results).toHaveLength(2);
+        expect(results.every((r) => r.success)).toBe(true);
+        const firstConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
+        expect(firstConfig.deploymentName).toBe("a");
+        expect(firstConfig.endpoint).toBe("https://c/api");
+        expect(firstConfig.deployUrl).toBe("https://gw/deploy");
+        expect(notifier.showInfo).toHaveBeenCalledWith('Deployed 2/2 file(s) to "dev".');
+    });
+
+    it("continues after a per-file failure and reports a partial summary", async () => {
+        const { service, vsWorkspace, restClient, notifier } = createService();
+        vsWorkspace.readFile.mockResolvedValue("<xml/>");
+        restClient.deploy
+            .mockResolvedValueOnce(new DeploymentResult(true, "ok"))
+            .mockRejectedValueOnce(new Error("boom"));
+
+        const results = await service.deployFiles(
+            ["/work/a.bpmn", "/work/b.bpmn"],
+            target,
+            new NoAuth(),
+        );
+
+        expect(results[0].success).toBe(true);
+        expect(results[1].success).toBe(false);
+        expect(results[1].message).toContain("boom");
+        expect(notifier.showError).toHaveBeenCalledWith('Deployed 1/2 file(s) to "dev".');
     });
 });

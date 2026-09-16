@@ -3,7 +3,13 @@ import * as path from "path";
 import { AuthConfigPayload, DeploymentFormDefaults } from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
-import { DeploymentConfig, DeploymentResult } from "../domain/deployment";
+import {
+    AuthConfig,
+    DeploymentConfig,
+    DeploymentConfigBuilder,
+    DeploymentResult,
+} from "../domain/deployment";
+import { DeploymentTarget } from "../domain/deploymentTarget";
 import {
     DeploymentStatePort,
     DocumentPort,
@@ -143,32 +149,19 @@ export class DeploymentService {
      * {@link DeploymentResult} with `success: false`.
      *
      * @param config Validated deployment configuration.
+     * @param secretSlot When set, the deploy runs against a named target: only
+     *   credentials are persisted, under that slot, and the legacy connection
+     *   state is left untouched (it lives in the targets file). When absent, the
+     *   ad-hoc path persists connection + credentials to the legacy keys.
      * @returns The outcome of the deployment attempt.
      */
-    async deploy(config: DeploymentConfig): Promise<DeploymentResult> {
+    async deploy(config: DeploymentConfig, secretSlot?: string): Promise<DeploymentResult> {
         try {
             const fileContents = await this.readFileContents(config);
             const result = await this.restClient.deploy(config, fileContents);
 
             if (result.success) {
-                await this.deploymentState.save(config.endpoint, config.tenantId);
-                await this.deploymentState.saveAuthType(config.auth.type);
-
-                if (config.auth.type === "basic") {
-                    await this.secretStore.saveBasicAuth(
-                        config.auth.username,
-                        config.auth.password,
-                    );
-                } else if (config.auth.type === "oauth2") {
-                    await this.secretStore.saveOAuth2(
-                        config.auth.clientId,
-                        config.auth.clientSecret,
-                    );
-                    await this.deploymentState.saveOAuth2Config(
-                        config.auth.tokenEndpoint,
-                        config.auth.audience,
-                    );
-                }
+                await this.persistOnSuccess(config, secretSlot);
             }
 
             return result;
@@ -176,6 +169,78 @@ export class DeploymentService {
             const message = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(message));
             return new DeploymentResult(false, message);
+        }
+    }
+
+    /**
+     * Deploys each path as its own single-file deployment against `target`,
+     * naming the deployment after the file's basename. Never throws — a failed
+     * file yields a failed {@link DeploymentResult} so the batch always completes
+     * and the caller sees a per-file outcome. Credentials are assumed already
+     * stored on the target, so nothing is persisted here.
+     */
+    async deployFiles(
+        paths: string[],
+        target: DeploymentTarget,
+        auth: AuthConfig,
+    ): Promise<DeploymentResult[]> {
+        const results: DeploymentResult[] = [];
+        for (const filePath of paths) {
+            const name = path.basename(filePath, path.extname(filePath));
+            try {
+                const config = new DeploymentConfigBuilder()
+                    .withDeploymentName(name)
+                    .withTenantId(target.tenantId)
+                    .withEndpoint(target.endpoint)
+                    .withEngine(target.engine)
+                    .withMainFilePath(filePath)
+                    .withAdditionalFilePaths([])
+                    .withAuth(auth)
+                    .withDeployUrl(target.deployUrl)
+                    .build();
+                const fileContents = await this.readFileContents(config);
+                const result = await this.restClient.deploy(config, fileContents);
+                this.notifier.logInfo(`Deployed ${name}: ${result.message}`);
+                results.push(result);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                this.notifier.logWarning(`Deploy of ${name} failed: ${message}`);
+                results.push(new DeploymentResult(false, `${name}: ${message}`));
+            }
+        }
+
+        const succeeded = results.filter((result) => result.success).length;
+        const summary = `Deployed ${succeeded}/${results.length} file(s) to "${target.name}".`;
+        if (succeeded === results.length) {
+            this.notifier.showInfo(summary);
+        } else {
+            this.notifier.showError(summary);
+        }
+        return results;
+    }
+
+    private async persistOnSuccess(config: DeploymentConfig, secretSlot?: string): Promise<void> {
+        if (secretSlot !== undefined) {
+            await this.saveSecrets(config.auth, secretSlot);
+            return;
+        }
+
+        await this.deploymentState.save(config.endpoint, config.tenantId);
+        await this.deploymentState.saveAuthType(config.auth.type);
+        if (config.auth.type === "oauth2") {
+            await this.deploymentState.saveOAuth2Config(
+                config.auth.tokenEndpoint,
+                config.auth.audience,
+            );
+        }
+        await this.saveSecrets(config.auth);
+    }
+
+    private async saveSecrets(auth: AuthConfig, slot?: string): Promise<void> {
+        if (auth.type === "basic") {
+            await this.secretStore.saveBasicAuth(auth.username, auth.password, slot);
+        } else if (auth.type === "oauth2") {
+            await this.secretStore.saveOAuth2(auth.clientId, auth.clientSecret, slot);
         }
     }
 

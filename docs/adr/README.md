@@ -85,3 +85,9 @@ contributor-facing record, not user documentation.
 | [0024](0024-extract-publishable-dmn-modeler-package.md) | Extract the host-free DMN modeler into the publishable `@miragon/dmn-modeler` package; dmn-js stack externalised, `styles.css` from the themes rollup, page-global `#theme-link` theming retained | accepted |
 | [0026](0026-dmn-container-scoped-theming.md) | Container-scoped DMN theming via a per-instance `data-dmn-theme` attribute; one authored scoped source + stripped legacy split, `styles.css` from the lib entry, shared `hostTheme` adapter, `#theme-link` as silent fallback | accepted |
 | [0027](0027-dmn-modeler-page-global-locale.md) | Page-global DMN locale: `TranslateModule` as a built-in on all four views, `locale` option + `setLocale()` that re-opens the active view to re-translate, host `LanguageQuery` broadcast; harvest tooling extended to dmn-js | accepted |
+
+### deployment
+
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0036](0036-deployment-targets-file-and-endpoint-overrides.md) | Named deployment targets in `<configFolder>/deployment-targets.json` (secrets in the host store keyed by a `<file>::<name>` slot), active target on the seed + status bar, optional full-URL overrides per operation; ad-hoc legacy mode preserved | accepted |

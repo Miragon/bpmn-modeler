@@ -19,6 +19,8 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
 
     private static readonly AUDIENCE_KEY = "bpmn-modeler.deployment.audience";
 
+    private static readonly ACTIVE_TARGET_KEY = "bpmn-modeler.deployment.activeTargetName";
+
     getEndpoint(): string {
         return getContext().workspaceState.get<string>(VsCodeDeploymentState.ENDPOINT_KEY, "");
     }
@@ -60,5 +62,13 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
     async save(endpoint: string, tenantId: string): Promise<void> {
         await getContext().workspaceState.update(VsCodeDeploymentState.ENDPOINT_KEY, endpoint);
         await getContext().workspaceState.update(VsCodeDeploymentState.TENANT_ID_KEY, tenantId);
+    }
+
+    getActiveTargetName(): string {
+        return getContext().workspaceState.get<string>(VsCodeDeploymentState.ACTIVE_TARGET_KEY, "");
+    }
+
+    async saveActiveTargetName(name: string): Promise<void> {
+        await getContext().workspaceState.update(VsCodeDeploymentState.ACTIVE_TARGET_KEY, name);
     }
 }

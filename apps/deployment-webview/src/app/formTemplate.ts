@@ -8,6 +8,15 @@
  * bundle render the body — so the markup can never drift between hosts again.
  */
 export const FORM_TEMPLATE = `
+    <div class="target-row" id="target-row">
+        <select id="target-select" title="Active deployment target">
+            <option value="">(none — use form values)</option>
+        </select>
+        <button id="target-new" type="button" title="New target">New</button>
+        <button id="target-save" type="button" title="Save target" disabled>Save</button>
+        <button id="target-delete" type="button" title="Delete target" disabled>Delete</button>
+    </div>
+
     <div class="section" id="section-connection">
         <div class="section-header" data-section="connection" aria-expanded="true" role="button" tabindex="0">
             <span class="section-chevron"></span>
@@ -15,8 +24,9 @@ export const FORM_TEMPLATE = `
         </div>
         <div class="section-body">
             <div class="form-group">
-                <label for="deployment-name">Deployment Name</label>
-                <input id="deployment-name" type="text" placeholder="e.g. my-process" />
+                <label for="target-name">Target Name</label>
+                <input id="target-name" type="text" placeholder="e.g. dev" />
+                <div class="hint">Name this connection to save it as a reusable target.</div>
             </div>
             <div class="form-group">
                 <label for="tenant-id">Tenant ID</label>
@@ -33,6 +43,7 @@ export const FORM_TEMPLATE = `
                     <option value="c7">Camunda Platform 7</option>
                     <option value="c8">Camunda Cloud 8</option>
                 </select>
+                <div class="hint" id="engine-mismatch-hint" style="display: none;"></div>
             </div>
         </div>
     </div>
@@ -99,6 +110,25 @@ export const FORM_TEMPLATE = `
         </div>
     </div>
 
+    <div class="section collapsed" id="section-advanced">
+        <div class="section-header" data-section="advanced" aria-expanded="false" role="button" tabindex="0">
+            <span class="section-chevron"></span>
+            <span class="section-title">Advanced</span>
+        </div>
+        <div class="section-body">
+            <div class="form-group">
+                <label for="deploy-url">Deploy URL override</label>
+                <input id="deploy-url" type="text" />
+                <div class="hint">Full URL for the deploy call. Leave blank to use the convention path.</div>
+            </div>
+            <div class="form-group">
+                <label for="start-instance-url">Start-instance URL override</label>
+                <input id="start-instance-url" type="text" />
+                <div class="hint">Full URL; <code>{processDefinitionKey}</code> is substituted.</div>
+            </div>
+        </div>
+    </div>
+
     <div class="tab-bar">
         <button class="tab-btn active" data-tab="deploy">Deploy</button>
         <button class="tab-btn" data-tab="start-instance">Start Instance</button>
@@ -106,6 +136,10 @@ export const FORM_TEMPLATE = `
 
     <div class="tab-panel active" id="tab-deploy">
         <div class="form-group" style="padding: 8px 16px 0;">
+            <label for="deployment-name">Deployment Name</label>
+            <input id="deployment-name" type="text" placeholder="e.g. my-process" />
+        </div>
+        <div class="form-group" style="padding: 0 16px;">
             <label for="main-file-path">Main File</label>
             <input id="main-file-path" type="text" readonly />
         </div>

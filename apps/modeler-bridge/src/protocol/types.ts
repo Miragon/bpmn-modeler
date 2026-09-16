@@ -257,16 +257,37 @@ export interface ClipboardReadResult {
     text?: string;
 }
 
-/** `secretStore/saveBasicAuth` params and `secretStore/getBasicAuth` result. */
+/** `secretStore/getBasicAuth` and `secretStore/getOAuth2` results. */
 export interface BasicAuthCredentials {
     username: string;
     password: string;
 }
 
-/** `secretStore/saveOAuth2` params and `secretStore/getOAuth2` result. */
+/** `secretStore/getOAuth2` result / `secretStore/saveOAuth2` credential half. */
 export interface OAuth2Credentials {
     clientId: string;
     clientSecret: string;
+}
+
+/**
+ * `secretStore/*` params. Every credential call carries an optional `slot`
+ * scoping it to a named deployment target (absent = the legacy ad-hoc keys).
+ */
+export interface SecretSaveBasicAuthParams {
+    username: string;
+    password: string;
+    slot?: string;
+}
+export interface SecretSaveOAuth2Params {
+    clientId: string;
+    clientSecret: string;
+    slot?: string;
+}
+export interface SecretGetParams {
+    slot?: string;
+}
+export interface SecretDeleteParams {
+    slot: string;
 }
 
 /**
@@ -383,6 +404,25 @@ export interface DeploymentSaveOAuth2ConfigParams {
 export interface DeploymentSaveParams {
     endpoint: string;
     tenantId: string;
+}
+
+/** `deploymentState/saveActiveTarget` — persist the active deployment-target name. */
+export interface DeploymentSaveActiveTargetParams {
+    name: string;
+}
+
+/** `statusBar/showDeploymentTarget` — the active target name, or `null` for "no target". */
+export interface StatusBarDeploymentTargetParams {
+    name: string | null;
+}
+
+/**
+ * `deployment/switchTarget`, `deployment/deployFiles` — host-initiated. The
+ * workspace root is passed because `NodeWorkspace` only learns roots from
+ * `session/register`, so a host action fired with no active editor must name it.
+ */
+export interface DeploymentWorkspaceRootParams {
+    workspaceRoot: string;
 }
 
 /** `deployment/postMessage` — the core pushes a {@link Query} into the deployment panel. */

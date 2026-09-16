@@ -27,7 +27,10 @@ class IntellijDeploymentState(private val project: Project) {
             "authType" to props.getValue(AUTH_TYPE, "none"),
             "tokenEndpoint" to props.getValue(TOKEN_ENDPOINT, ""),
             "audience" to props.getValue(AUDIENCE, ""),
+            "activeTargetName" to props.getValue(ACTIVE_TARGET, ""),
         )
+
+    fun saveActiveTargetName(name: String) = props.setValue(ACTIVE_TARGET, name, "")
 
     fun saveAuthType(authType: String) = props.setValue(AUTH_TYPE, authType, "none")
 
@@ -51,5 +54,6 @@ class IntellijDeploymentState(private val project: Project) {
         private const val AUTH_TYPE = "bpmn-modeler.deployment.authType"
         private const val TOKEN_ENDPOINT = "bpmn-modeler.deployment.tokenEndpoint"
         private const val AUDIENCE = "bpmn-modeler.deployment.audience"
+        private const val ACTIVE_TARGET = "bpmn-modeler.deployment.activeTargetName"
     }
 }

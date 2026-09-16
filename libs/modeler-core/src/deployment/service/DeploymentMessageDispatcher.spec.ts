@@ -2,19 +2,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     AdditionalFilesQuery,
+    DeleteTargetCommand,
     DeploymentResultQuery,
+    DeploymentTargetsQuery,
     FormDefaultsQuery,
     LogDebugCommand,
     LogErrorCommand,
     LogInfoCommand,
     LogWarningCommand,
     ProcessDefinitionKeyQuery,
+    SaveTargetCommand,
     SelectedPayloadFileQuery,
+    SelectTargetCommand,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
+    TargetSavedQuery,
     type AuthConfigPayload,
     type Command,
     type DeployCommand,
+    type DeploymentTargetPayload,
     type StartInstanceCommand,
 } from "@miragon/bpmn-modeler-shared";
 
@@ -49,9 +55,19 @@ function createDispatcher() {
         getProcessDefinitionKey: vi.fn(),
         selectPayloadFile: vi.fn(),
     };
+    const deploymentTargetService = {
+        listTargets: vi.fn().mockResolvedValue([]),
+        getActiveTarget: vi.fn().mockResolvedValue(undefined),
+        setActiveTarget: vi.fn().mockResolvedValue(undefined),
+        saveTarget: vi.fn().mockResolvedValue(undefined),
+        deleteTarget: vi.fn().mockResolvedValue(true),
+        getStoredCredentials: vi.fn().mockResolvedValue({ authType: "none" }),
+        resolveSlot: vi.fn().mockResolvedValue(undefined),
+    };
     const notifier = {
         showInfo: vi.fn(),
         showError: vi.fn(),
+        notifyError: vi.fn(),
         logDebug: vi.fn(),
         logInfo: vi.fn(),
         logWarning: vi.fn(),
@@ -65,6 +81,7 @@ function createDispatcher() {
         documentPort as never,
         deploymentService as never,
         startInstanceService as never,
+        deploymentTargetService as never,
         notifier as never,
         post,
     );
@@ -75,6 +92,7 @@ function createDispatcher() {
         documentPort,
         deploymentService,
         startInstanceService,
+        deploymentTargetService,
         notifier,
         post,
     };
@@ -97,6 +115,7 @@ const deployPayload = (auth: AuthConfigPayload): DeployCommand["config"] => ({
     mainFilePath: "/work/order-process.bpmn",
     additionalFilePaths: [],
     auth,
+    targetName: "",
 });
 
 const startPayload = (auth: AuthConfigPayload): StartInstanceCommand["config"] => ({
@@ -105,6 +124,7 @@ const startPayload = (auth: AuthConfigPayload): StartInstanceCommand["config"] =
     engine: "c7",
     auth,
     payloadFilePath: "",
+    targetName: "",
 });
 
 const deploy = (c: ReturnType<typeof createDispatcher>, auth: AuthConfigPayload) =>
@@ -555,6 +575,127 @@ describe("DeploymentMessageDispatcher.handle routing", () => {
         } as StartInstanceCommand);
 
         expect(c.startInstanceService.startInstance).toHaveBeenCalledOnce();
+    });
+});
+
+describe("DeploymentMessageDispatcher target commands", () => {
+    const targetPayload: DeploymentTargetPayload = {
+        name: "dev",
+        engine: "c7",
+        endpoint: "http://localhost:8080/engine-rest",
+        tenantId: "",
+        authType: "none",
+    };
+
+    it("scopes the stored-credentials lookup to a named target", async () => {
+        const c = createDispatcher();
+        c.deploymentTargetService.getStoredCredentials.mockResolvedValue({
+            authType: "basic",
+            username: "u",
+            password: "p",
+        });
+
+        await c.dispatcher.handle({
+            type: "RequestStoredCredentialsCommand",
+            targetName: "dev",
+        } as Command);
+
+        expect(c.deploymentTargetService.getStoredCredentials).toHaveBeenCalledWith(
+            "dev",
+            expect.anything(),
+        );
+        expect(c.deploymentService.getStoredCredentials).not.toHaveBeenCalled();
+        expect(postedQuery(c.post, StoredCredentialsQuery).auth.authType).toBe("basic");
+    });
+
+    it("persists the active target and re-sends targets on SelectTargetCommand", async () => {
+        const c = createDispatcher();
+        c.deploymentService.getFormDefaults.mockReturnValue({
+            deploymentName: "",
+            tenantId: "",
+            endpoint: "",
+            engine: "c7" as const,
+            authType: "none" as const,
+        });
+        c.startInstanceService.getProcessDefinitionKey.mockReturnValue("");
+
+        await c.dispatcher.handle(new SelectTargetCommand("dev"));
+
+        expect(c.deploymentTargetService.setActiveTarget).toHaveBeenCalledWith(
+            "dev",
+            expect.anything(),
+        );
+        expect(postedQuery(c.post, DeploymentTargetsQuery)).toBeTruthy();
+    });
+
+    it("saves a target and posts a success TargetSavedQuery", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle(
+            new SaveTargetCommand(targetPayload, { authType: "none" }, undefined),
+        );
+
+        expect(c.deploymentTargetService.saveTarget).toHaveBeenCalledWith(
+            targetPayload,
+            { authType: "none" },
+            undefined,
+            expect.anything(),
+        );
+        expect(postedQuery(c.post, TargetSavedQuery).success).toBe(true);
+    });
+
+    it("posts a failure TargetSavedQuery when saving throws", async () => {
+        const c = createDispatcher();
+        c.deploymentTargetService.saveTarget.mockRejectedValue(new Error("no workspace"));
+
+        await c.dispatcher.handle(
+            new SaveTargetCommand(targetPayload, { authType: "none" }, undefined),
+        );
+
+        const query = postedQuery(c.post, TargetSavedQuery);
+        expect(query.success).toBe(false);
+        expect(query.message).toBe("no workspace");
+    });
+
+    it("deletes a target and re-sends targets when confirmed", async () => {
+        const c = createDispatcher();
+        c.deploymentTargetService.deleteTarget.mockResolvedValue(true);
+
+        await c.dispatcher.handle(new DeleteTargetCommand("dev"));
+
+        expect(c.deploymentTargetService.deleteTarget).toHaveBeenCalledWith(
+            "dev",
+            expect.anything(),
+        );
+        expect(postedQuery(c.post, TargetSavedQuery).success).toBe(true);
+    });
+
+    it("does not post when a delete is cancelled", async () => {
+        const c = createDispatcher();
+        c.deploymentTargetService.deleteTarget.mockResolvedValue(false);
+
+        await c.dispatcher.handle(new DeleteTargetCommand("dev"));
+
+        expect(
+            c.post.mock.calls.map((call) => call[0]).some((q) => q instanceof TargetSavedQuery),
+        ).toBe(false);
+    });
+
+    it("resolves and passes the secret slot through on a target deploy", async () => {
+        const c = createDispatcher();
+        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+        c.deploymentTargetService.resolveSlot.mockResolvedValue("/ws/targets.json::dev");
+
+        await c.dispatcher.handle({
+            type: "DeployCommand",
+            config: { ...deployPayload({ authType: "none" }), targetName: "dev" },
+        } as DeployCommand);
+
+        expect(c.deploymentTargetService.resolveSlot).toHaveBeenCalledWith(
+            "dev",
+            expect.anything(),
+        );
+        expect(c.deploymentService.deploy.mock.calls[0][1]).toBe("/ws/targets.json::dev");
     });
 });
 

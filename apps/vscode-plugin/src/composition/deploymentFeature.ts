@@ -8,19 +8,32 @@ import {
     Camunda8RestClient,
     CamundaEngineRouter,
     DeploymentService,
+    DeploymentTargetService,
     FetchHttpClient,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
 import { DeploymentController } from "../deployment/controller/DeploymentController";
+import { DeploymentTargetStatusBarParticipant } from "../deployment/controller/editor-participants/DeploymentTargetStatusBarParticipant";
 import { SharedDeps } from "./sharedDeps";
 
 /**
- * The deployment feature owns its entire stack: deployment state, secret store,
- * and the whole Camunda 7/8 client chain. None of it is shared, so the engine
- * router is assembled here rather than in `activate`. `artifactSvc` (shared with
- * the editor feature) is the only collaborator pulled from `deps`.
+ * Lifecycle-bearing collaborator the editor feature routes into: the deployment
+ * status bar participant shows the active target while a BPMN panel is focused.
+ * Returned (not registered here) because the editor session owns the participant
+ * lifecycle, mirroring the code-link participant hand-off.
  */
-export function register(context: ExtensionContext, deps: SharedDeps): void {
+export interface DeploymentHandles {
+    deploymentTargetStatusBarParticipant: DeploymentTargetStatusBarParticipant;
+}
+
+/**
+ * The deployment feature owns its entire stack: deployment state, secret store,
+ * the target service, and the whole Camunda 7/8 client chain. None of it is
+ * shared, so the engine router is assembled here rather than in `activate`.
+ * `artifactSvc` (shared with the editor feature) is the only collaborator pulled
+ * from `deps`.
+ */
+export function register(context: ExtensionContext, deps: SharedDeps): DeploymentHandles {
     const deploymentState = new VsCodeDeploymentState();
     const secretStore = new VsCodeSecretStore();
     const httpClient = new FetchHttpClient();
@@ -50,12 +63,31 @@ export function register(context: ExtensionContext, deps: SharedDeps): void {
         deps.picker,
         deps.artifactSvc,
     );
+    const deploymentTargetSvc = new DeploymentTargetService(
+        deps.artifactSvc,
+        deps.vsSettings,
+        deps.vsWorkspace,
+        secretStore,
+        deploymentState,
+        deps.statusBar,
+        deps.picker,
+        deps.notifier,
+    );
 
     new DeploymentController(
         deps.editorStore,
         deps.vsDocument,
         deploymentSvc,
         startInstanceSvc,
+        deploymentTargetSvc,
+        deps.picker,
         deps.notifier,
     ).register(context);
+
+    return {
+        deploymentTargetStatusBarParticipant: new DeploymentTargetStatusBarParticipant(
+            deps.statusBar,
+            deploymentTargetSvc,
+        ),
+    };
 }

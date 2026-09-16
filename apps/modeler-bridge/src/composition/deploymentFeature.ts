@@ -5,6 +5,7 @@ import {
     CamundaEngineRouter,
     DeploymentMessageDispatcher,
     DeploymentService,
+    DeploymentTargetService,
     FetchHttpClient,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
@@ -15,6 +16,7 @@ import {
     DeploymentOpenParams,
     DeploymentSeedParams,
     DeploymentWebviewMessageParams,
+    DeploymentWorkspaceRootParams,
 } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
 
@@ -60,11 +62,22 @@ export function register(deps: BridgeSharedDeps): void {
         deps.picker,
         deps.artifactSvc,
     );
+    const deploymentTargetService = new DeploymentTargetService(
+        deps.artifactSvc,
+        deps.settings,
+        deps.nodeWorkspace,
+        secretStore,
+        deploymentState,
+        deps.statusBar,
+        deps.picker,
+        deps.notifier,
+    );
     const deploymentDispatcher = new DeploymentMessageDispatcher(
         deps.store,
         deps.documentPort,
         deploymentService,
         startInstanceService,
+        deploymentTargetService,
         deps.notifier,
         (message) => deps.rpc.notify(METHODS.deploymentPostMessage, { message }),
     );
@@ -98,5 +111,48 @@ export function register(deps: BridgeSharedDeps): void {
         if (params.open) {
             deploymentDispatcher.sendFormDefaults();
         }
+    });
+
+    // Host-initiated (status bar widget / action): switch the active target via a
+    // native picker, then refresh an open sidebar. The workspace root rides the
+    // notification because NodeWorkspace only learns roots from session/register.
+    deps.rpc.on(METHODS.deploymentSwitchTarget, (params: DeploymentWorkspaceRootParams) => {
+        void (async () => {
+            await deploymentTargetService.switchActiveTarget(params.workspaceRoot);
+            await deploymentDispatcher.sendTargets();
+        })();
+    });
+
+    // Host-initiated "Deploy Files…": mirror the VS Code controller — resolve the
+    // active target (prompting for one if none), pick files, and deploy each.
+    deps.rpc.on(METHODS.deploymentDeployFiles, (params: DeploymentWorkspaceRootParams) => {
+        void (async () => {
+            const root = params.workspaceRoot;
+            let target = await deploymentTargetService.getActiveTarget(root);
+            if (target === undefined) {
+                await deploymentTargetService.switchActiveTarget(root);
+                await deploymentDispatcher.sendTargets();
+                target = await deploymentTargetService.getActiveTarget(root);
+                if (target === undefined) {
+                    return;
+                }
+            }
+
+            const files = await deps.picker.pickWorkspaceFiles({
+                glob: "**/*.{bpmn,dmn}",
+                exclude: "**/node_modules/**",
+                placeholder: `Select files to deploy to "${target.name}"`,
+            });
+            if (files.length === 0) {
+                return;
+            }
+
+            const resolvedTarget = target;
+            const auth = await deploymentTargetService.getCredentials(resolvedTarget, root);
+            await deps.notifier.withProgress(
+                `Deploying ${files.length} file(s) to "${resolvedTarget.name}"`,
+                () => deploymentService.deployFiles(files, resolvedTarget, auth),
+            );
+        })();
     });
 }

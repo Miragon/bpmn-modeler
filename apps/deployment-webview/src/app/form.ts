@@ -1,19 +1,33 @@
 import {
     AuthConfigPayload,
     Command,
+    DeleteTargetCommand,
     DeployCommand,
     DeploymentConfigPayload,
     DeploymentFormDefaults,
     DeploymentResultQuery,
+    DeploymentTargetPayload,
+    DeploymentTargetsQuery,
     LogInfoCommand,
     Query,
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
+    SaveTargetCommand,
+    SelectTargetCommand,
     HostApi,
 } from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { WebviewState } from "./host";
+
+const CONVENTION_DEPLOY_URL: Record<Engine, string> = {
+    c7: "<endpoint>/deployment/create",
+    c8: "<endpoint>/v2/deployments",
+};
+const CONVENTION_START_URL: Record<Engine, string> = {
+    c7: "<endpoint>/process-definition/key/{processDefinitionKey}/start",
+    c8: "<endpoint>/v2/process-instances",
+};
 
 /**
  * Intentionally framework-free — manipulates the DOM directly and talks to
@@ -23,6 +37,22 @@ export class DeploymentForm {
     private static readonly DEFAULT_COLLAPSED_SECTIONS: string[] = [];
 
     private readonly deploymentNameInput: HTMLInputElement;
+
+    private readonly targetSelect: HTMLSelectElement;
+
+    private readonly targetNewBtn: HTMLButtonElement;
+
+    private readonly targetSaveBtn: HTMLButtonElement;
+
+    private readonly targetDeleteBtn: HTMLButtonElement;
+
+    private readonly targetNameInput: HTMLInputElement;
+
+    private readonly deployUrlInput: HTMLInputElement;
+
+    private readonly startInstanceUrlInput: HTMLInputElement;
+
+    private readonly engineMismatchHint: HTMLDivElement;
 
     private readonly tenantIdInput: HTMLInputElement;
 
@@ -60,11 +90,28 @@ export class DeploymentForm {
 
     private additionalFilePaths: string[] = [];
 
+    private targets: DeploymentTargetPayload[] = [];
+
+    // The target name currently loaded into the form ("" = ad-hoc). Distinct from
+    // the target-name input so a rename can carry the previous name on save.
+    private editingTargetName = "";
+
+    // Detected engine of the focused document, used only for the mismatch hint.
+    private detectedEngine: Engine | undefined;
+
     /**
      * @throws {Error} If any expected DOM element is missing.
      */
     constructor(private readonly host: HostApi<unknown, Command | Query>) {
         this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
+        this.targetSelect = this.requireElement<HTMLSelectElement>("#target-select");
+        this.targetNewBtn = this.requireElement<HTMLButtonElement>("#target-new");
+        this.targetSaveBtn = this.requireElement<HTMLButtonElement>("#target-save");
+        this.targetDeleteBtn = this.requireElement<HTMLButtonElement>("#target-delete");
+        this.targetNameInput = this.requireElement<HTMLInputElement>("#target-name");
+        this.deployUrlInput = this.requireElement<HTMLInputElement>("#deploy-url");
+        this.startInstanceUrlInput = this.requireElement<HTMLInputElement>("#start-instance-url");
+        this.engineMismatchHint = this.requireElement<HTMLDivElement>("#engine-mismatch-hint");
         this.tenantIdInput = this.requireElement<HTMLInputElement>("#tenant-id");
         this.endpointInput = this.requireElement<HTMLInputElement>("#endpoint");
         this.engineSelect = this.requireElement<HTMLSelectElement>("#engine");
@@ -91,26 +138,68 @@ export class DeploymentForm {
     }
 
     populate(defaults: DeploymentFormDefaults): void {
+        this.detectedEngine = defaults.engine;
         this.deploymentNameInput.value = defaults.deploymentName;
-        this.tenantIdInput.value = defaults.tenantId;
-        this.endpointInput.value = defaults.endpoint;
-        this.engineSelect.value = defaults.engine;
-        this.authTypeSelect.value = defaults.authType;
-        if (defaults.tokenEndpoint) {
-            this.authTokenEndpointInput.value = defaults.tokenEndpoint;
-        }
-        if (defaults.audience) {
-            this.authAudienceInput.value = defaults.audience;
-        }
-        this.toggleAuthFields();
         // Read-only — managed by the extension host.
         this.mainFilePathInput.value = defaults.deploymentName
             ? `(current file: ${defaults.deploymentName}.bpmn)`
             : "";
 
-        if (defaults.authType !== "none") {
-            this.host.postMessage(new RequestStoredCredentialsCommand());
+        // Connection fields are ad-hoc defaults; a later DeploymentTargetsQuery
+        // overrides them when a named target is active.
+        if (this.editingTargetName === "") {
+            this.tenantIdInput.value = defaults.tenantId;
+            this.endpointInput.value = defaults.endpoint;
+            this.engineSelect.value = defaults.engine;
+            this.authTypeSelect.value = defaults.authType;
+            if (defaults.tokenEndpoint) {
+                this.authTokenEndpointInput.value = defaults.tokenEndpoint;
+            }
+            if (defaults.audience) {
+                this.authAudienceInput.value = defaults.audience;
+            }
+            this.toggleAuthFields();
+
+            if (defaults.authType !== "none") {
+                this.host.postMessage(new RequestStoredCredentialsCommand());
+            }
         }
+
+        this.updateAdvancedPlaceholders();
+        this.updateEngineMismatchHint();
+    }
+
+    /**
+     * Rebuilds the target select and, when a target is active, loads its
+     * connection into the form. Resets dirty state — the form now mirrors the
+     * persisted target.
+     */
+    setTargets(query: DeploymentTargetsQuery): void {
+        this.targets = [...query.targets];
+        this.editingTargetName = query.activeTargetName;
+
+        this.targetSelect.innerHTML = "";
+        const noneOption = document.createElement("option");
+        noneOption.value = "";
+        noneOption.textContent = "(none — use form values)";
+        this.targetSelect.appendChild(noneOption);
+        for (const target of this.targets) {
+            const option = document.createElement("option");
+            option.value = target.name;
+            option.textContent = target.name;
+            this.targetSelect.appendChild(option);
+        }
+        this.targetSelect.value = query.activeTargetName;
+
+        const active = this.targets.find((t) => t.name === query.activeTargetName);
+        if (active) {
+            this.loadTargetIntoForm(active);
+        }
+
+        this.targetDeleteBtn.disabled = query.activeTargetName === "";
+        this.setDirty(false);
+        this.updateAdvancedPlaceholders();
+        this.updateEngineMismatchHint();
     }
 
     populateCredentials(auth: AuthConfigPayload): void {
@@ -181,6 +270,23 @@ export class DeploymentForm {
             mainFilePath: "", // Populated by the extension host from the active editor
             additionalFilePaths: [...this.additionalFilePaths],
             auth,
+            targetName: this.editingTargetName,
+            deployUrl: this.deployUrlInput.value.trim() || undefined,
+        };
+    }
+
+    /** Non-secret projection of the current form for a save. */
+    getTargetPayload(): DeploymentTargetPayload {
+        return {
+            name: this.targetNameInput.value.trim(),
+            engine: this.engineSelect.value as Engine,
+            endpoint: this.endpointInput.value.trim(),
+            tenantId: this.tenantIdInput.value.trim(),
+            authType: this.authTypeSelect.value as AuthConfigPayload["authType"],
+            tokenEndpoint: this.authTokenEndpointInput.value.trim() || undefined,
+            audience: this.authAudienceInput.value.trim() || undefined,
+            deployUrl: this.deployUrlInput.value.trim() || undefined,
+            startInstanceUrl: this.startInstanceUrlInput.value.trim() || undefined,
         };
     }
 
@@ -232,10 +338,17 @@ export class DeploymentForm {
         return auth;
     }
 
-    getConnectionPayload(): { endpoint: string; engine: Engine } {
+    getConnectionPayload(): {
+        endpoint: string;
+        engine: Engine;
+        targetName: string;
+        startInstanceUrl?: string;
+    } {
         return {
             endpoint: this.endpointInput.value.trim(),
             engine: this.engineSelect.value as Engine,
+            targetName: this.editingTargetName,
+            startInstanceUrl: this.startInstanceUrlInput.value.trim() || undefined,
         };
     }
 
@@ -315,8 +428,67 @@ export class DeploymentForm {
     private bindEvents(): void {
         this.authTypeSelect.addEventListener("change", () => {
             this.toggleAuthFields();
+            this.markDirty();
             if (this.authTypeSelect.value !== "none") {
-                this.host.postMessage(new RequestStoredCredentialsCommand());
+                this.host.postMessage(new RequestStoredCredentialsCommand(this.editingTargetName));
+            }
+        });
+
+        this.engineSelect.addEventListener("change", () => {
+            this.updateAdvancedPlaceholders();
+            this.updateEngineMismatchHint();
+            this.markDirty();
+        });
+
+        // Any edit to a connection/auth/advanced field enables Save and detaches
+        // the form from the persisted target until it is saved again.
+        for (const input of [
+            this.targetNameInput,
+            this.tenantIdInput,
+            this.endpointInput,
+            this.authUsernameInput,
+            this.authPasswordInput,
+            this.authClientIdInput,
+            this.authClientSecretInput,
+            this.authTokenEndpointInput,
+            this.authAudienceInput,
+            this.deployUrlInput,
+            this.startInstanceUrlInput,
+        ]) {
+            input.addEventListener("input", () => this.markDirty());
+        }
+
+        this.targetSelect.addEventListener("change", () => {
+            this.host.postMessage(new SelectTargetCommand(this.targetSelect.value));
+        });
+
+        this.targetNewBtn.addEventListener("click", () => {
+            this.editingTargetName = "";
+            this.targetSelect.value = "";
+            this.targetNameInput.value = "";
+            this.targetDeleteBtn.disabled = true;
+            this.targetNameInput.focus();
+            this.markDirty();
+        });
+
+        this.targetSaveBtn.addEventListener("click", () => {
+            const target = this.getTargetPayload();
+            if (!target.name) {
+                this.showBanner("error", "Target Name is required to save a target.");
+                return;
+            }
+            const previousName =
+                this.editingTargetName !== "" && this.editingTargetName !== target.name
+                    ? this.editingTargetName
+                    : undefined;
+            this.host.postMessage(
+                new SaveTargetCommand(target, this.getAuthPayload(), previousName),
+            );
+        });
+
+        this.targetDeleteBtn.addEventListener("click", () => {
+            if (this.editingTargetName !== "") {
+                this.host.postMessage(new DeleteTargetCommand(this.editingTargetName));
             }
         });
 
@@ -430,6 +602,67 @@ export class DeploymentForm {
             toggle.title = label;
             toggle.setAttribute("aria-label", label);
         });
+    }
+
+    /** Shows a save/delete outcome in the deploy status banner. */
+    showTargetResult(success: boolean, message: string): void {
+        this.showBanner(success ? "success" : "error", message);
+    }
+
+    private loadTargetIntoForm(target: DeploymentTargetPayload): void {
+        this.targetNameInput.value = target.name;
+        this.tenantIdInput.value = target.tenantId;
+        this.endpointInput.value = target.endpoint;
+        this.engineSelect.value = target.engine;
+        this.authTypeSelect.value = target.authType;
+        this.authTokenEndpointInput.value = target.tokenEndpoint ?? "";
+        this.authAudienceInput.value = target.audience ?? "";
+        this.deployUrlInput.value = target.deployUrl ?? "";
+        this.startInstanceUrlInput.value = target.startInstanceUrl ?? "";
+        this.toggleAuthFields();
+
+        if (target.authType !== "none") {
+            this.host.postMessage(new RequestStoredCredentialsCommand(target.name));
+        }
+    }
+
+    private updateAdvancedPlaceholders(): void {
+        const engine = this.engineSelect.value as Engine;
+        this.deployUrlInput.placeholder = CONVENTION_DEPLOY_URL[engine];
+        this.startInstanceUrlInput.placeholder = CONVENTION_START_URL[engine];
+    }
+
+    /**
+     * Shows a non-blocking hint when the selected engine differs from the
+     * focused diagram's detected execution platform.
+     */
+    private updateEngineMismatchHint(): void {
+        const engine = this.engineSelect.value as Engine;
+        if (this.detectedEngine !== undefined && this.detectedEngine !== engine) {
+            const label: Record<Engine, string> = {
+                c7: "Camunda Platform 7",
+                c8: "Camunda Cloud 8",
+            };
+            this.engineMismatchHint.textContent = `This diagram looks like ${label[this.detectedEngine]}, but the selected engine is ${label[engine]}.`;
+            this.engineMismatchHint.style.display = "block";
+        } else {
+            this.engineMismatchHint.style.display = "none";
+        }
+    }
+
+    private markDirty(): void {
+        this.setDirty(true);
+    }
+
+    private setDirty(dirty: boolean): void {
+        this.targetSaveBtn.disabled = !(dirty && this.targetNameInput.value.trim() !== "");
+        this.targetSelect.classList.toggle("dirty", dirty);
+    }
+
+    private showBanner(kind: "success" | "error" | "progress", message: string): void {
+        this.statusBanner.className = `status-banner ${kind}`;
+        this.statusBanner.textContent = message;
+        this.statusBanner.style.display = "block";
     }
 
     /**

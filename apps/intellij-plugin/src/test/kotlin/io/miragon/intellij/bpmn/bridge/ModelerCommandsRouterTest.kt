@@ -68,4 +68,32 @@ class ModelerCommandsRouterTest {
             "layout/cleanup carries no params",
         )
     }
+
+    @Test
+    fun `switchDeploymentTarget notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.switchDeploymentTarget()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/switchTarget", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/switchTarget carries the workspace root",
+        )
+    }
+
+    @Test
+    fun `deployFiles notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.deployFiles()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/deployFiles", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/deployFiles carries the workspace root",
+        )
+    }
 }

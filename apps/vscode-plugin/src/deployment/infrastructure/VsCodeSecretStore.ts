@@ -10,31 +10,20 @@ const SECRET_PREFIX = "bpmn-modeler.deployment";
  * deployment credentials (e.g. Basic Auth username/password).
  *
  * Secrets are encrypted at rest by VS Code and are never written to
- * workspace state or settings files.
+ * workspace state or settings files. A `slot` scopes the keys to a named
+ * deployment target; `undefined` addresses the legacy unnamed (ad-hoc) keys.
  */
 export class VsCodeSecretStore implements SecretStorePort {
-    /**
-     * Persists Basic Auth credentials in VS Code's secret storage.
-     *
-     * @param username The Basic Auth username.
-     * @param password The Basic Auth password.
-     */
-    async saveBasicAuth(username: string, password: string): Promise<void> {
+    async saveBasicAuth(username: string, password: string, slot?: string): Promise<void> {
         const secrets = getContext().secrets;
-        await secrets.store(`${SECRET_PREFIX}.basicUsername`, username);
-        await secrets.store(`${SECRET_PREFIX}.basicPassword`, password);
+        await secrets.store(this.key("basicUsername", slot), username);
+        await secrets.store(this.key("basicPassword", slot), password);
     }
 
-    /**
-     * Retrieves previously stored Basic Auth credentials.
-     *
-     * @returns An object with `username` and `password`, or `undefined` if
-     *   no credentials have been stored yet.
-     */
-    async getBasicAuth(): Promise<{ username: string; password: string } | undefined> {
+    async getBasicAuth(slot?: string): Promise<{ username: string; password: string } | undefined> {
         const secrets = getContext().secrets;
-        const username = await secrets.get(`${SECRET_PREFIX}.basicUsername`);
-        const password = await secrets.get(`${SECRET_PREFIX}.basicPassword`);
+        const username = await secrets.get(this.key("basicUsername", slot));
+        const password = await secrets.get(this.key("basicPassword", slot));
 
         if (username === undefined || password === undefined) {
             return undefined;
@@ -43,33 +32,37 @@ export class VsCodeSecretStore implements SecretStorePort {
         return { username, password };
     }
 
-    /**
-     * Persists OAuth2 client credentials in VS Code's secret storage.
-     *
-     * @param clientId The OAuth2 client identifier.
-     * @param clientSecret The OAuth2 client secret.
-     */
-    async saveOAuth2(clientId: string, clientSecret: string): Promise<void> {
+    async saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void> {
         const secrets = getContext().secrets;
-        await secrets.store(`${SECRET_PREFIX}.oauth2ClientId`, clientId);
-        await secrets.store(`${SECRET_PREFIX}.oauth2ClientSecret`, clientSecret);
+        await secrets.store(this.key("oauth2ClientId", slot), clientId);
+        await secrets.store(this.key("oauth2ClientSecret", slot), clientSecret);
     }
 
-    /**
-     * Retrieves previously stored OAuth2 client credentials.
-     *
-     * @returns An object with `clientId` and `clientSecret`, or `undefined` if
-     *   no credentials have been stored yet.
-     */
-    async getOAuth2(): Promise<{ clientId: string; clientSecret: string } | undefined> {
+    async getOAuth2(
+        slot?: string,
+    ): Promise<{ clientId: string; clientSecret: string } | undefined> {
         const secrets = getContext().secrets;
-        const clientId = await secrets.get(`${SECRET_PREFIX}.oauth2ClientId`);
-        const clientSecret = await secrets.get(`${SECRET_PREFIX}.oauth2ClientSecret`);
+        const clientId = await secrets.get(this.key("oauth2ClientId", slot));
+        const clientSecret = await secrets.get(this.key("oauth2ClientSecret", slot));
 
         if (clientId === undefined || clientSecret === undefined) {
             return undefined;
         }
 
         return { clientId, clientSecret };
+    }
+
+    async delete(slot: string): Promise<void> {
+        const secrets = getContext().secrets;
+        await secrets.delete(this.key("basicUsername", slot));
+        await secrets.delete(this.key("basicPassword", slot));
+        await secrets.delete(this.key("oauth2ClientId", slot));
+        await secrets.delete(this.key("oauth2ClientSecret", slot));
+    }
+
+    private key(field: string, slot?: string): string {
+        return slot === undefined
+            ? `${SECRET_PREFIX}.${field}`
+            : `${SECRET_PREFIX}.${slot}.${field}`;
     }
 }

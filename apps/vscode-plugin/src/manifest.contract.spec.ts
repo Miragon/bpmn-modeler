@@ -34,7 +34,11 @@ import {
     COMPARE_WITH_SELECTED_CMD,
     SELECT_FOR_COMPARE_CMD,
 } from "./diff/controller/BpmnCompareController";
-import { DEPLOY_CMD } from "./deployment/controller/DeploymentController";
+import {
+    DEPLOY_CMD,
+    DEPLOY_FILES_CMD,
+    SWITCH_TARGET_CMD,
+} from "./deployment/controller/DeploymentController";
 import {
     ADD_MARKETPLACE_CMD,
     REMOVE_MARKETPLACE_CMD,
@@ -97,6 +101,8 @@ const CODE_COMMAND_IDS = [
     COMPARE_WITH_SELECTED_CMD,
     COMPARE_SELECTED_CMD,
     DEPLOY_CMD,
+    SWITCH_TARGET_CMD,
+    DEPLOY_FILES_CMD,
     ADD_MARKETPLACE_CMD,
     UPDATE_MARKETPLACES_CMD,
     REMOVE_MARKETPLACE_CMD,
