@@ -11,16 +11,15 @@ Hosted by [`apps/vscode-plugin`](../vscode-plugin/README.md). Talks to the
 extension host via the typed Query/Command protocol from
 [`libs/shared`](../../libs/shared/README.md).
 
-## Dual-HTML pattern
+## Single-source markup
 
-The deployment sidebar has **two copies** of its HTML that must stay in
-sync:
-
-- `apps/deployment-webview/index.html` — Vite development.
-- `apps/vscode-plugin/src/infrastructure/DeploymentWebviewHtml.ts` —
-  runtime in VS Code (CSP nonce, theme variables).
-
-When modifying deployment form markup, update **both**.
+The form markup lives in **one** place:
+`src/app/formTemplate.ts` (`FORM_TEMPLATE`), injected into `#app` by
+`main.ts` at runtime. Every host shell — the Vite `index.html`,
+`apps/vscode-plugin/src/deployment/infrastructure/DeploymentWebviewHtml.ts`,
+and the IntelliJ deployment tool-window shell — ships only an empty
+`<div id="app"></div>`. When modifying form markup, edit `formTemplate.ts`
+only.
 
 ## Local development
 
