@@ -3,7 +3,7 @@
 
 accepted:
   issues:
-    comment: |
+    comment: >
       This is now **accepted** — thanks for your patience! ✅
 
       Implementation is welcome. If you told us you'd like to work on it, it's
@@ -13,7 +13,7 @@ accepted:
 
 wontfix:
   issues:
-    comment: |
+    comment: >
       Thanks again for the suggestion, @{issue-author}. After triage we've
       decided **not to pursue this** for now, so we're closing the issue. This is
       about scope and fit, not the effort you put in — please don't let it
