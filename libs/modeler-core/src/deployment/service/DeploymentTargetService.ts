@@ -8,7 +8,6 @@ import {
     PickerPort,
     SecretStorePort,
     SettingsPort,
-    StatusBarPort,
     WorkspacePort,
 } from "../../shared/domain/hostPorts";
 import { ArtifactService } from "../../shared/service/ArtifactService";
@@ -37,6 +36,7 @@ interface TargetsLocation {
  * read, CRUD), the active target (persistence + status bar), and per-target
  * credential slots. Kept separate from {@link DeploymentService} (which owns the
  * REST call and the ad-hoc legacy path) so target lifecycle is its own concern.
+ * The status bar is owned by `DeploymentStatusService`, not here.
  */
 export class DeploymentTargetService {
     constructor(
@@ -45,7 +45,6 @@ export class DeploymentTargetService {
         private readonly workspace: WorkspacePort,
         private readonly secretStore: SecretStorePort,
         private readonly deploymentState: DeploymentStatePort,
-        private readonly statusBar: StatusBarPort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}
@@ -191,9 +190,8 @@ export class DeploymentTargetService {
         return new DeploymentTargets(await this.listTargets(documentDir)).find(name);
     }
 
-    async setActiveTarget(name: string, documentDir?: string): Promise<void> {
+    async setActiveTarget(name: string): Promise<void> {
         await this.deploymentState.saveActiveTargetName(name.trim());
-        await this.refreshStatusBar(documentDir);
     }
 
     /**
@@ -206,7 +204,7 @@ export class DeploymentTargetService {
         if (picked === undefined) {
             return;
         }
-        await this.setActiveTarget(picked, documentDir);
+        await this.setActiveTarget(picked);
     }
 
     /** Resolves an active target's stored credentials into an auth payload. */
@@ -278,11 +276,6 @@ export class DeploymentTargetService {
         }
         const location = await this.locateTargetsFile(documentDir);
         return location ? this.slotFor(location.filePath, targetName) : undefined;
-    }
-
-    async refreshStatusBar(documentDir?: string): Promise<void> {
-        const target = await this.getActiveTarget(documentDir);
-        this.statusBar.showDeploymentTarget(target?.name);
     }
 
     private slotFor(filePath: string, name: string): string {

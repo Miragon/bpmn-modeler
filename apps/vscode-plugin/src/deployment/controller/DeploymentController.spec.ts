@@ -64,6 +64,11 @@ function createController() {
         switchActiveTarget: vi.fn().mockResolvedValue(undefined),
         getCredentials: vi.fn(),
     };
+    const deploymentStatusService = {
+        refresh: vi.fn().mockResolvedValue(undefined),
+        refreshActive: vi.fn().mockResolvedValue(undefined),
+        hide: vi.fn(),
+    };
     const picker = {
         pickWorkspaceFiles: vi.fn().mockResolvedValue([]),
     };
@@ -95,6 +100,7 @@ function createController() {
         deploymentService as never,
         startInstanceService as never,
         deploymentTargetService as never,
+        deploymentStatusService as never,
         picker as never,
         notifier as never,
     );
@@ -106,6 +112,7 @@ function createController() {
         deploymentService,
         startInstanceService,
         deploymentTargetService,
+        deploymentStatusService,
         picker,
         notifier,
         webviewView,

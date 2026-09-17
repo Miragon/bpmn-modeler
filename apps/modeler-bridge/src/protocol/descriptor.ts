@@ -24,6 +24,7 @@ import {
     DeploymentPostMessageParams,
     DeploymentSaveActiveTargetParams,
     DeploymentSaveAuthTypeParams,
+    DeploymentSaveDeployedRevisionParams,
     DeploymentSaveOAuth2ConfigParams,
     DeploymentSaveParams,
     DeploymentSeedParams,
@@ -136,6 +137,7 @@ export const METHODS = {
     deploymentStateSaveOAuth2Config: "deploymentState/saveOAuth2Config",
     deploymentStateSave: "deploymentState/save",
     deploymentStateSaveActiveTarget: "deploymentState/saveActiveTarget",
+    deploymentStateSaveDeployedRevision: "deploymentState/saveDeployedRevision",
     marketplaceStateSave: "marketplaceState/save",
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
@@ -509,6 +511,19 @@ export const PROTOCOL = [
         kind: "request",
         paramsFixture: { name: "dev" } satisfies DeploymentSaveActiveTargetParams,
     },
+    {
+        method: METHODS.deploymentStateSaveDeployedRevision,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            ledgerKey: "target:dev::/work/order.bpmn",
+            revision: {
+                fingerprint: "0123456789abcdef",
+                deployedAt: "2026-09-17T14:32:00.000Z",
+                deploymentId: "dep-1",
+            },
+        } satisfies DeploymentSaveDeployedRevisionParams,
+    },
     // Acknowledged persist: the host adds the entry, fans the snapshot to all
     // bridges, then acks an empty reply — the core awaits only the round-trip.
     {
@@ -652,7 +667,11 @@ export const PROTOCOL = [
         method: METHODS.statusBarShowDeploymentTarget,
         direction: "coreToHost",
         kind: "notification",
-        paramsFixture: { name: "dev" } satisfies StatusBarDeploymentTargetParams,
+        paramsFixture: {
+            name: "dev",
+            freshness: "deployed",
+            deployedAt: "2026-09-17T14:32:00.000Z",
+        } satisfies StatusBarDeploymentTargetParams,
     },
     {
         method: METHODS.statusBarHideDeploymentTarget,

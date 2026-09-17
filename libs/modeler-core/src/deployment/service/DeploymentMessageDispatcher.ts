@@ -21,11 +21,13 @@ import {
 import { posix } from "path";
 
 import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domain/deployment";
+import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHandlers";
 import { DeploymentService } from "./DeploymentService";
+import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService, toTargetPayload } from "./DeploymentTargetService";
 import { StartInstanceService } from "./StartInstanceService";
 
@@ -58,6 +60,7 @@ export class DeploymentMessageDispatcher {
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,
         private readonly deploymentTargetService: DeploymentTargetService,
+        private readonly deploymentStatusService: DeploymentStatusService,
         private readonly notifier: NotifierPort,
         private readonly post: (message: Query) => void,
     ) {}
@@ -201,7 +204,8 @@ export class DeploymentMessageDispatcher {
 
     private async handleSelectTarget(name: string): Promise<void> {
         try {
-            await this.deploymentTargetService.setActiveTarget(name, this.activeDocumentDir());
+            await this.deploymentTargetService.setActiveTarget(name);
+            await this.deploymentStatusService.refreshActive();
             await this.sendTargets();
             this.sendFormDefaults();
         } catch (error) {
@@ -257,6 +261,25 @@ export class DeploymentMessageDispatcher {
                 error instanceof Error ? error : new Error(String(error)),
             );
         }
+    }
+
+    /**
+     * The ledger identity for this deploy: the active named target when one is
+     * selected, else the ad-hoc endpoint-host + tenant key.
+     */
+    private async resolveTargetIdentity(
+        targetName: string,
+        endpoint: string,
+        tenantId: string,
+        documentDir: string | undefined,
+    ): Promise<DeploymentTargetIdentity> {
+        if (targetName.trim() !== "") {
+            const target = await this.deploymentTargetService.getActiveTarget(documentDir);
+            if (target !== undefined) {
+                return DeploymentTargetIdentity.fromTarget(target);
+            }
+        }
+        return DeploymentTargetIdentity.adHoc(endpoint, tenantId);
     }
 
     /** Directory of the active editor's document, or `undefined` if none is focused. */
@@ -392,9 +415,16 @@ export class DeploymentMessageDispatcher {
                 .withDeployUrl(configPayload.deployUrl)
                 .build();
 
+            const documentDir = this.activeDocumentDir();
             const secretSlot = await this.deploymentTargetService.resolveSlot(
                 configPayload.targetName,
-                this.activeDocumentDir(),
+                documentDir,
+            );
+            const identity = await this.resolveTargetIdentity(
+                configPayload.targetName,
+                config.endpoint,
+                config.tenantId,
+                documentDir,
             );
 
             // Breadcrumb. Only host[:port] is logged (never the full URL, which can
@@ -403,7 +433,7 @@ export class DeploymentMessageDispatcher {
                 `Deployment started: ${this.fileBasename(mainFilePath)} -> ${configPayload.engine} @ ${this.endpointHost(config.deployUrl ?? configPayload.endpoint)}`,
             );
 
-            const result = await this.deploymentService.deploy(config, secretSlot);
+            const result = await this.deploymentService.deploy(config, secretSlot, identity);
 
             if (result.success) {
                 this.notifier.logInfo(`Deployment succeeded: ${result.message}`);
@@ -412,6 +442,8 @@ export class DeploymentMessageDispatcher {
                 this.notifier.logWarning(`Deployment failed: ${result.message}`);
                 this.notifier.showError(result.message);
             }
+
+            await this.deploymentStatusService.refreshActive();
 
             this.post(
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),

@@ -20,6 +20,8 @@ import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
     ClipboardPort,
+    DeployedRevision,
+    DeploymentFreshness,
     DeploymentStatePort,
     DocumentPort,
     EditorHandle,
@@ -83,6 +85,7 @@ export interface SessionMeta {
 export class DocumentMirror {
     private readonly meta = new Map<string, SessionMeta>();
     private readonly text = new Map<string, string>();
+    private readonly contentListeners = new Set<(editorId: string) => void>();
 
     // Causation belongs to an exact editor generation: same-URI replacement
     // sessions may mint the same revision numbers without sharing pending writes.
@@ -98,6 +101,13 @@ export class DocumentMirror {
 
     setContent(editorId: string, content: string): void {
         this.text.set(editorId, content);
+        this.contentListeners.forEach((listener) => listener(editorId));
+    }
+
+    /** Fires after any mirrored content update, so features can react to edits. */
+    onDidChangeContent(listener: (editorId: string) => void): { dispose(): void } {
+        this.contentListeners.add(listener);
+        return { dispose: () => this.contentListeners.delete(listener) };
     }
 
     content(editorId: string): string {
@@ -478,8 +488,16 @@ export class RpcStatusBar implements StatusBarPort {
         this.rpc.notify(METHODS.statusBarDisposeEngineVersion, {});
     }
 
-    showDeploymentTarget(name: string | undefined): void {
-        this.rpc.notify(METHODS.statusBarShowDeploymentTarget, { name: name ?? null });
+    showDeploymentTarget(
+        name: string | undefined,
+        freshness: DeploymentFreshness,
+        deployedAt?: string,
+    ): void {
+        this.rpc.notify(METHODS.statusBarShowDeploymentTarget, {
+            name: name ?? null,
+            freshness,
+            deployedAt: deployedAt ?? null,
+        });
     }
 
     hideDeploymentTarget(): void {
@@ -625,6 +643,7 @@ export interface DeploymentStateSnapshot {
     tokenEndpoint: string;
     audience: string;
     activeTargetName: string;
+    ledger: Record<string, DeployedRevision>;
 }
 
 /** Render-safe defaults before the host's first seed arrives. */
@@ -635,6 +654,7 @@ const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
     tokenEndpoint: "",
     audience: "",
     activeTargetName: "",
+    ledger: {},
 };
 
 /**
@@ -729,6 +749,18 @@ export class RpcDeploymentState implements DeploymentStatePort {
     async saveActiveTargetName(name: string): Promise<void> {
         this.snapshot = { ...this.snapshot, activeTargetName: name };
         await this.persist(METHODS.deploymentStateSaveActiveTarget, { name });
+    }
+
+    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
+        return this.snapshot.ledger[ledgerKey];
+    }
+
+    async saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
+        this.snapshot = {
+            ...this.snapshot,
+            ledger: { ...this.snapshot.ledger, [ledgerKey]: revision },
+        };
+        await this.persist(METHODS.deploymentStateSaveDeployedRevision, { ledgerKey, revision });
     }
 }
 

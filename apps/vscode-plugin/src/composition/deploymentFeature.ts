@@ -8,22 +8,23 @@ import {
     Camunda8RestClient,
     CamundaEngineRouter,
     DeploymentService,
+    DeploymentStatusService,
     DeploymentTargetService,
     FetchHttpClient,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
 import { DeploymentController } from "../deployment/controller/DeploymentController";
-import { DeploymentTargetStatusBarParticipant } from "../deployment/controller/editor-participants/DeploymentTargetStatusBarParticipant";
+import { DeploymentStatusParticipant } from "../deployment/controller/editor-participants/DeploymentStatusParticipant";
 import { SharedDeps } from "./sharedDeps";
 
 /**
  * Lifecycle-bearing collaborator the editor feature routes into: the deployment
- * status bar participant shows the active target while a BPMN panel is focused.
- * Returned (not registered here) because the editor session owns the participant
- * lifecycle, mirroring the code-link participant hand-off.
+ * status participant shows the active target and freshness dot while a BPMN panel
+ * is focused. Returned (not registered here) because the editor session owns the
+ * participant lifecycle, mirroring the code-link participant hand-off.
  */
 export interface DeploymentHandles {
-    deploymentTargetStatusBarParticipant: DeploymentTargetStatusBarParticipant;
+    deploymentStatusParticipant: DeploymentStatusParticipant;
 }
 
 /**
@@ -46,15 +47,6 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
     );
     const restClient = new CamundaEngineRouter(c7Client, c8Client);
 
-    const deploymentSvc = new DeploymentService(
-        deps.vsDocument,
-        deps.vsWorkspace,
-        deploymentState,
-        restClient,
-        deps.notifier,
-        deps.picker,
-        secretStore,
-    );
     const startInstanceSvc = new StartInstanceService(
         deps.vsDocument,
         deps.vsWorkspace,
@@ -69,9 +61,26 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deps.vsWorkspace,
         secretStore,
         deploymentState,
-        deps.statusBar,
         deps.picker,
         deps.notifier,
+    );
+    const deploymentStatusSvc = new DeploymentStatusService(
+        deps.editorStore,
+        deps.vsDocument,
+        deploymentTargetSvc,
+        deploymentState,
+        deps.statusBar,
+        deps.notifier,
+    );
+    const deploymentSvc = new DeploymentService(
+        deps.vsDocument,
+        deps.vsWorkspace,
+        deploymentState,
+        restClient,
+        deps.notifier,
+        deps.picker,
+        secretStore,
+        deploymentStatusSvc,
     );
 
     new DeploymentController(
@@ -80,14 +89,12 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deploymentSvc,
         startInstanceSvc,
         deploymentTargetSvc,
+        deploymentStatusSvc,
         deps.picker,
         deps.notifier,
     ).register(context);
 
     return {
-        deploymentTargetStatusBarParticipant: new DeploymentTargetStatusBarParticipant(
-            deps.statusBar,
-            deploymentTargetSvc,
-        ),
+        deploymentStatusParticipant: new DeploymentStatusParticipant(deploymentStatusSvc),
     };
 }

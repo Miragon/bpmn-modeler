@@ -5,6 +5,7 @@ import {
     CamundaEngineRouter,
     DeploymentMessageDispatcher,
     DeploymentService,
+    DeploymentStatusService,
     DeploymentTargetService,
     FetchHttpClient,
     StartInstanceService,
@@ -45,15 +46,6 @@ export function register(deps: BridgeSharedDeps): void {
     );
     const deploymentState = new RpcDeploymentState(deps.rpc, deps.notifier);
     const secretStore = new RpcSecretStore(deps.rpc);
-    const deploymentService = new DeploymentService(
-        deps.documentPort,
-        deps.nodeWorkspace,
-        deploymentState,
-        camundaRouter,
-        deps.notifier,
-        deps.picker,
-        secretStore,
-    );
     const startInstanceService = new StartInstanceService(
         deps.documentPort,
         deps.nodeWorkspace,
@@ -68,9 +60,26 @@ export function register(deps: BridgeSharedDeps): void {
         deps.nodeWorkspace,
         secretStore,
         deploymentState,
-        deps.statusBar,
         deps.picker,
         deps.notifier,
+    );
+    const deploymentStatusService = new DeploymentStatusService(
+        deps.store,
+        deps.documentPort,
+        deploymentTargetService,
+        deploymentState,
+        deps.statusBar,
+        deps.notifier,
+    );
+    const deploymentService = new DeploymentService(
+        deps.documentPort,
+        deps.nodeWorkspace,
+        deploymentState,
+        camundaRouter,
+        deps.notifier,
+        deps.picker,
+        secretStore,
+        deploymentStatusService,
     );
     const deploymentDispatcher = new DeploymentMessageDispatcher(
         deps.store,
@@ -78,6 +87,7 @@ export function register(deps: BridgeSharedDeps): void {
         deploymentService,
         startInstanceService,
         deploymentTargetService,
+        deploymentStatusService,
         deps.notifier,
         (message) => deps.rpc.notify(METHODS.deploymentPostMessage, { message }),
     );
@@ -90,6 +100,22 @@ export function register(deps: BridgeSharedDeps): void {
         if (deploymentPanelOpen) {
             deploymentDispatcher.sendFormDefaults();
         }
+        void deploymentStatusService.refreshActive();
+    });
+
+    // Keep the freshness dot live on edits. The status-bar widget tracks the
+    // focused editor regardless of the deployment panel's visibility, so this
+    // refresh is independent of `deploymentPanelOpen`. Debounced so a burst of
+    // keystroke-driven syncs collapses into one ledger lookup.
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    deps.mirror.onDidChangeContent(() => {
+        if (refreshTimer) {
+            clearTimeout(refreshTimer);
+        }
+        refreshTimer = setTimeout(() => {
+            refreshTimer = undefined;
+            void deploymentStatusService.refreshActive();
+        }, 300);
     });
 
     // Seed the deployment-state mirror once at startup (and after a persisted
@@ -119,6 +145,7 @@ export function register(deps: BridgeSharedDeps): void {
     deps.rpc.on(METHODS.deploymentSwitchTarget, (params: DeploymentWorkspaceRootParams) => {
         void (async () => {
             await deploymentTargetService.switchActiveTarget(params.workspaceRoot);
+            await deploymentStatusService.refreshActive();
             await deploymentDispatcher.sendTargets();
         })();
     });

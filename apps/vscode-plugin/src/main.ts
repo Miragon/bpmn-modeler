@@ -46,7 +46,7 @@ export function activate(context: ExtensionContext): TestApi {
     const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
     // Before the editor feature so its status bar participant can join the BPMN
     // session participant list (the same forward hand-off as code-link).
-    const { deploymentTargetStatusBarParticipant } = deploymentFeature.register(context, deps);
+    const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
     const { bpmnService, templatesSvc, documentFlush, layoutSvc } = editorFeature.register(
         context,
         deps,
@@ -57,7 +57,7 @@ export function activate(context: ExtensionContext): TestApi {
             scriptManifestParticipant,
             codeLink,
             marketplaceSvc,
-            deploymentTargetStatusBarParticipant,
+            deploymentStatusParticipant,
         },
     );
     templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });

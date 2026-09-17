@@ -47,7 +47,6 @@ function createService() {
         getActiveTargetName: vi.fn().mockReturnValue(""),
         saveActiveTargetName: vi.fn().mockResolvedValue(undefined),
     };
-    const statusBar = { showDeploymentTarget: vi.fn() };
     const picker = {
         pickDeploymentTarget: vi.fn(),
         confirmDestructive: vi.fn().mockResolvedValue(true),
@@ -64,7 +63,6 @@ function createService() {
         workspace as never,
         secretStore as never,
         deploymentState as never,
-        statusBar as never,
         picker as never,
         notifier as never,
     );
@@ -75,7 +73,6 @@ function createService() {
         workspace,
         secretStore,
         deploymentState,
-        statusBar,
         picker,
         notifier,
     };
@@ -168,7 +165,6 @@ describe("DeploymentTargetService.saveTarget", () => {
         expect(written).toContain('"dev"');
         expect(c.secretStore.saveBasicAuth).toHaveBeenCalledWith("u", "p", `${FILE_PATH}::dev`);
         expect(c.deploymentState.saveActiveTargetName).toHaveBeenCalledWith("dev");
-        expect(c.statusBar.showDeploymentTarget).toHaveBeenCalled();
     });
 
     it("deletes the previous credential slot on rename", async () => {
@@ -253,7 +249,7 @@ describe("DeploymentTargetService.switchActiveTarget", () => {
         expect(c.deploymentState.saveActiveTargetName).not.toHaveBeenCalled();
     });
 
-    it("persists the picked target and refreshes the status bar", async () => {
+    it("persists the picked target", async () => {
         const c = createService();
         c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
         c.workspace.readFile.mockResolvedValue(fileWith(target("dev")));
@@ -262,7 +258,6 @@ describe("DeploymentTargetService.switchActiveTarget", () => {
         await c.service.switchActiveTarget(DOC_DIR);
 
         expect(c.deploymentState.saveActiveTargetName).toHaveBeenCalledWith("dev");
-        expect(c.statusBar.showDeploymentTarget).toHaveBeenCalled();
     });
 });
 

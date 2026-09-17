@@ -10,7 +10,12 @@
  * the `Rpc.request` call-sites used to carry.
  */
 
-import { GlobalFunctionDef, MethodDef } from "@miragon/bpmn-modeler-core";
+import {
+    DeployedRevision,
+    DeploymentFreshness,
+    GlobalFunctionDef,
+    MethodDef,
+} from "@miragon/bpmn-modeler-core";
 import { AuthTypePayload, Command, Query, VariableDef } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, Engine } from "@miragon/bpmn-modeler-types";
 
@@ -411,9 +416,20 @@ export interface DeploymentSaveActiveTargetParams {
     name: string;
 }
 
-/** `statusBar/showDeploymentTarget` — the active target name, or `null` for "no target". */
+/** `deploymentState/saveDeployedRevision` — persist one ledger entry (target×file). */
+export interface DeploymentSaveDeployedRevisionParams {
+    ledgerKey: string;
+    revision: DeployedRevision;
+}
+
+/**
+ * `statusBar/showDeploymentTarget` — the active target name (or `null` for "no
+ * target"), the freshness dot state, and the last-deploy timestamp (or `null`).
+ */
 export interface StatusBarDeploymentTargetParams {
     name: string | null;
+    freshness: DeploymentFreshness;
+    deployedAt: string | null;
 }
 
 /**

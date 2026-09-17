@@ -91,3 +91,4 @@ contributor-facing record, not user documentation.
 | ADR | Decision | Status |
 | --- | --- | --- |
 | [0036](0036-deployment-targets-file-and-endpoint-overrides.md) | Named deployment targets in `<configFolder>/deployment-targets.json` (secrets in the host store keyed by a `<file>::<name>` slot), active target on the seed + status bar, optional full-URL overrides per operation; ad-hoc legacy mode preserved | accepted |
+| [0037](0037-deployment-ledger-in-host-state.md) | Deployment freshness ledger (content fingerprint at last deploy, keyed by target×file) in per-developer host state; drives a green/yellow/gray dot on the target status-bar item, fully local (no engine round-trip) | accepted |

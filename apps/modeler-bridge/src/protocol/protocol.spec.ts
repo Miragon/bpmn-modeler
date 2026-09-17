@@ -136,6 +136,7 @@ describe("RPC protocol descriptor", () => {
                     "  deploymentState/saveOAuth2Config",
                     "  deploymentState/save",
                     "  deploymentState/saveActiveTarget",
+                    "  deploymentState/saveDeployedRevision",
                     "  marketplaceState/save",
                     "  tokenStore/get",
                     "  tokenStore/set",

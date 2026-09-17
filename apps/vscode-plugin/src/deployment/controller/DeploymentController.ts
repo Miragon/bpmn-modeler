@@ -14,6 +14,7 @@ import { posix } from "path";
 import { DeploymentMessageDispatcher } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { DeploymentService } from "@miragon/bpmn-modeler-core";
+import { DeploymentStatusService } from "@miragon/bpmn-modeler-core";
 import { DeploymentTargetService } from "@miragon/bpmn-modeler-core";
 import { StartInstanceService } from "@miragon/bpmn-modeler-core";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
@@ -57,6 +58,7 @@ export class DeploymentController implements WebviewViewProvider {
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,
         private readonly deploymentTargetService: DeploymentTargetService,
+        private readonly deploymentStatusService: DeploymentStatusService,
         private readonly picker: VsCodePicker,
         private readonly notifier: VsCodeNotifier,
     ) {}
@@ -104,6 +106,7 @@ export class DeploymentController implements WebviewViewProvider {
             this.deploymentService,
             this.startInstanceService,
             this.deploymentTargetService,
+            this.deploymentStatusService,
             this.notifier,
             (message: Query) => void webviewView.webview.postMessage(message),
         );
@@ -141,6 +144,7 @@ export class DeploymentController implements WebviewViewProvider {
      */
     private async switchTarget(): Promise<void> {
         await this.deploymentTargetService.switchActiveTarget(this.activeDocumentDir());
+        await this.deploymentStatusService.refreshActive();
         await this.currentDispatcher?.sendTargets();
     }
 

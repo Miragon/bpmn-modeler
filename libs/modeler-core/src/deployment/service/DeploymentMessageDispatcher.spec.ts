@@ -74,6 +74,10 @@ function createDispatcher() {
         logWarning: vi.fn(),
         logError: vi.fn(),
     };
+    const deploymentStatusService = {
+        refreshActive: vi.fn().mockResolvedValue(undefined),
+        recordDeployment: vi.fn().mockResolvedValue(undefined),
+    };
 
     const post = vi.fn();
 
@@ -83,6 +87,7 @@ function createDispatcher() {
         deploymentService as never,
         startInstanceService as never,
         deploymentTargetService as never,
+        deploymentStatusService as never,
         notifier as never,
         post,
     );
@@ -94,6 +99,7 @@ function createDispatcher() {
         deploymentService,
         startInstanceService,
         deploymentTargetService,
+        deploymentStatusService,
         notifier,
         post,
     };
@@ -622,10 +628,8 @@ describe("DeploymentMessageDispatcher target commands", () => {
 
         await c.dispatcher.handle(new SelectTargetCommand("dev"));
 
-        expect(c.deploymentTargetService.setActiveTarget).toHaveBeenCalledWith(
-            "dev",
-            expect.anything(),
-        );
+        expect(c.deploymentTargetService.setActiveTarget).toHaveBeenCalledWith("dev");
+        expect(c.deploymentStatusService.refreshActive).toHaveBeenCalled();
         expect(postedQuery(c.post, DeploymentTargetsQuery)).toBeTruthy();
     });
 

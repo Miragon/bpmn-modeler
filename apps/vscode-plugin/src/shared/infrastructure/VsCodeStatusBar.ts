@@ -2,10 +2,32 @@ import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
-import { StatusBarPort } from "@miragon/bpmn-modeler-core";
+import { DeploymentFreshness, StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
 const SWITCH_TARGET_CMD = "bpmn-modeler.switchDeploymentTarget";
+
+const DEPLOYMENT_FRESHNESS_COLORS: Record<DeploymentFreshness, ThemeColor | undefined> = {
+    deployed: new ThemeColor("testing.iconPassed"),
+    changed: new ThemeColor("charts.yellow"),
+    unknown: undefined,
+};
+
+function deploymentTooltip(freshness: DeploymentFreshness, deployedAt?: string): string {
+    const when = deployedAt ? new Date(deployedAt).toLocaleString() : undefined;
+    switch (freshness) {
+        case "deployed":
+            return when
+                ? `Deployed — last deployed ${when}`
+                : "Deployed — matches the last deployment";
+        case "changed":
+            return when
+                ? `Undeployed changes — last deployed ${when}`
+                : "Undeployed changes since the last deployment";
+        case "unknown":
+            return "Never deployed to this target from this machine — click to switch target";
+    }
+}
 
 export class VsCodeStatusBar implements StatusBarPort {
     private templateStatusItem: StatusBarItem | undefined;
@@ -106,10 +128,17 @@ export class VsCodeStatusBar implements StatusBarPort {
         this.bpmnlintStatusItem?.hide();
     }
 
-    showDeploymentTarget(name: string | undefined): void {
+    showDeploymentTarget(
+        name: string | undefined,
+        freshness: DeploymentFreshness,
+        deployedAt?: string,
+    ): void {
         const item = this.getOrCreateDeploymentTargetStatusItem();
-        item.text = name ? `$(cloud-upload) ${name}` : "$(cloud-upload) No deployment target";
-        item.tooltip = "Click to switch the active deployment target";
+        item.text = `$(circle-filled) ${name ?? "No deployment target"}`;
+        // A status bar item colours its whole text, so the dot and the (short)
+        // name share one colour — acceptable, and cheaper than a second item.
+        item.color = DEPLOYMENT_FRESHNESS_COLORS[freshness];
+        item.tooltip = deploymentTooltip(freshness, deployedAt);
         item.show();
     }
 

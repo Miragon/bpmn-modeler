@@ -62,6 +62,9 @@ function createService() {
         getOAuth2: vi.fn(),
         saveOAuth2: vi.fn().mockResolvedValue(undefined),
     };
+    const deploymentStatus = {
+        recordDeployment: vi.fn().mockResolvedValue(undefined),
+    };
 
     const service = new DeploymentService(
         vsDocument as never,
@@ -71,6 +74,7 @@ function createService() {
         notifier as never,
         picker as never,
         secretStore as never,
+        deploymentStatus as never,
     );
 
     return {
@@ -82,6 +86,7 @@ function createService() {
         notifier,
         picker,
         secretStore,
+        deploymentStatus,
     };
 }
 

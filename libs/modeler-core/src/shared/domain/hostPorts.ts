@@ -14,6 +14,7 @@
 import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
 import { Engine, LintResults, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
+import { DeployedRevision, DeploymentFreshness } from "../../deployment/domain/deploymentLedger";
 import { MigrationScope } from "../../migration/domain/MigrationPlan";
 import { NewModelEngine } from "./newModelEngine";
 
@@ -245,8 +246,16 @@ export interface StatusBarPort {
     showBpmnlintDisabled(): void;
     showBpmnlintNoConfig(): void;
     hideBpmnlintStatus(): void;
-    /** `undefined` renders "No deployment target"; a name renders the active target. */
-    showDeploymentTarget(name: string | undefined): void;
+    /**
+     * `undefined` name renders "No deployment target"; a name renders the active
+     * target. `freshness` drives the coloured dot; `deployedAt` (ISO) enriches
+     * the tooltip when a revision was recorded.
+     */
+    showDeploymentTarget(
+        name: string | undefined,
+        freshness: DeploymentFreshness,
+        deployedAt?: string,
+    ): void;
     hideDeploymentTarget(): void;
 }
 
@@ -370,4 +379,11 @@ export interface DeploymentStatePort {
      */
     getActiveTargetName(): string;
     saveActiveTargetName(name: string): Promise<void>;
+    /**
+     * The recorded revision last deployed under `ledgerKey`, or `undefined` when
+     * this machine has no record. Synchronous (per ADR 0005) so freshness can be
+     * resolved during the initial status-bar render.
+     */
+    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined;
+    saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void>;
 }

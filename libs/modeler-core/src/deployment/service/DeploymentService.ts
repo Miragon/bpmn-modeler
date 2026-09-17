@@ -10,6 +10,7 @@ import {
     DeploymentResult,
 } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
+import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import {
     DeploymentStatePort,
     DocumentPort,
@@ -20,6 +21,7 @@ import {
 } from "../../shared/domain/hostPorts";
 import { CamundaEnginePort } from "../domain/ports";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { DeploymentStatusService } from "./DeploymentStatusService";
 
 /**
  * Orchestrates the full BPMN deployment workflow.
@@ -52,6 +54,7 @@ export class DeploymentService {
         private readonly notifier: NotifierPort,
         private readonly picker: PickerPort,
         private readonly secretStore: SecretStorePort,
+        private readonly deploymentStatus: DeploymentStatusService,
     ) {}
 
     /**
@@ -155,13 +158,26 @@ export class DeploymentService {
      *   ad-hoc path persists connection + credentials to the legacy keys.
      * @returns The outcome of the deployment attempt.
      */
-    async deploy(config: DeploymentConfig, secretSlot?: string): Promise<DeploymentResult> {
+    async deploy(
+        config: DeploymentConfig,
+        secretSlot?: string,
+        targetIdentity?: DeploymentTargetIdentity,
+    ): Promise<DeploymentResult> {
         try {
             const fileContents = await this.readFileContents(config);
             const result = await this.restClient.deploy(config, fileContents);
 
             if (result.success) {
                 await this.persistOnSuccess(config, secretSlot);
+                if (targetIdentity !== undefined) {
+                    const content = fileContents.get(path.basename(config.mainFilePath)) ?? "";
+                    await this.deploymentStatus.recordDeployment(
+                        config.mainFilePath,
+                        content,
+                        targetIdentity,
+                        result.deploymentId,
+                    );
+                }
             }
 
             return result;
@@ -200,6 +216,14 @@ export class DeploymentService {
                     .build();
                 const fileContents = await this.readFileContents(config);
                 const result = await this.restClient.deploy(config, fileContents);
+                if (result.success) {
+                    await this.deploymentStatus.recordDeployment(
+                        filePath,
+                        fileContents.get(name + path.extname(filePath)) ?? "",
+                        DeploymentTargetIdentity.fromTarget(target),
+                        result.deploymentId,
+                    );
+                }
                 this.notifier.logInfo(`Deployed ${name}: ${result.message}`);
                 results.push(result);
             } catch (error) {

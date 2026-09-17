@@ -52,7 +52,9 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
             .on("statusBar/templatesLoading") { _, _ -> EngineStatusBarWidget.showTemplatesLoading(project) }
             .on("statusBar/showDeploymentTarget") { params, _ ->
                 val name = params.get("name")?.takeIf { !it.isJsonNull }?.asString
-                DeploymentTargetStatusBarWidget.updateTarget(project, name)
+                val freshness = params.get("freshness")?.takeIf { !it.isJsonNull }?.asString ?: "unknown"
+                val deployedAt = params.get("deployedAt")?.takeIf { !it.isJsonNull }?.asString
+                DeploymentTargetStatusBarWidget.updateTarget(project, name, freshness, deployedAt)
             }
             .on("statusBar/hideDeploymentTarget") { _, _ -> DeploymentTargetStatusBarWidget.hide(project) }
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }

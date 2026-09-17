@@ -28,10 +28,25 @@ storage, keyed per target.
 - **Ad-hoc mode:** with **(none — use form values)** selected, the form behaves
   exactly as before and persists to per-workspace state — nothing is written to
   the file until you save a target.
-- **Active target:** shown in the status bar (`$(cloud-upload) <name>`, or
-  *No deployment target*). Click it — or run **Switch Deployment Target** — to
-  change it via a Quick Pick; the sidebar select and the status bar are two views
-  of the same active target.
+- **Active target:** shown in the status bar with a coloured freshness dot
+  (`$(circle-filled) <name>`, or *No deployment target*). Click it — or run
+  **Switch Deployment Target** — to change it via a Quick Pick; the sidebar
+  select and the status bar are two views of the same active target.
+- **Deployment freshness dot:** the dot colour tells you whether the diagram in
+  front of you matches what was last deployed to the active target *from this
+  machine*:
+  - **Green** — deployed: the content matches the last deployment.
+  - **Yellow** — undeployed changes: the content differs; the tooltip shows when
+    you last deployed.
+  - **Gray** — unknown: this machine has never deployed this file to this target.
+    Gray means "no local record", not "absent on the engine".
+
+  Freshness is decided entirely locally (no engine call): the modeler records a
+  content fingerprint on each successful deploy, per target and file. Because the
+  deploy sends the **saved file on disk**, a diagram with **unsaved edits** shows
+  yellow until you save — the engine does not run the bytes you haven't saved.
+  The record is per-developer state and is *not* written to
+  `deployment-targets.json`.
 
 ### File format
 

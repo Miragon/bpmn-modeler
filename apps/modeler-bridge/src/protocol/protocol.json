@@ -378,6 +378,15 @@
         ]
     },
     {
+        "method": "deploymentState/saveDeployedRevision",
+        "direction": "coreToHost",
+        "kind": "request",
+        "paramKeys": [
+            "ledgerKey",
+            "revision"
+        ]
+    },
+    {
         "method": "marketplaceState/save",
         "direction": "coreToHost",
         "kind": "request",
@@ -546,6 +555,8 @@
         "direction": "coreToHost",
         "kind": "notification",
         "paramKeys": [
+            "deployedAt",
+            "freshness",
             "name"
         ]
     },
