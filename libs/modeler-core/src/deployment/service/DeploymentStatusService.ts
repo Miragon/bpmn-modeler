@@ -4,6 +4,7 @@ import {
     DeploymentStatePort,
     DocumentPort,
     NotifierPort,
+    PickerPort,
     StatusBarPort,
 } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
@@ -13,6 +14,7 @@ import {
     DeploymentTargetIdentity,
     freshnessFor,
     ledgerKeyFor,
+    ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 
@@ -36,6 +38,7 @@ export class DeploymentStatusService {
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentState: DeploymentStatePort,
         private readonly statusBar: StatusBarPort,
+        private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
     ) {}
 
@@ -49,8 +52,49 @@ export class DeploymentStatusService {
             fingerprint: contentFingerprint(content),
             deployedAt: new Date().toISOString(),
             deploymentId,
+            origin: "local",
         };
         await this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision);
+    }
+
+    getRevision(
+        filePath: string,
+        identity: DeploymentTargetIdentity,
+    ): DeployedRevision | undefined {
+        return this.deploymentState.getDeployedRevision(ledgerKeyFor(identity, filePath));
+    }
+
+    async adoptRevision(
+        filePath: string,
+        identity: DeploymentTargetIdentity,
+        revision: DeployedRevision,
+    ): Promise<void> {
+        await this.deploymentState.saveDeployedRevision(ledgerKeyFor(identity, filePath), revision);
+    }
+
+    async forgetRevision(filePath: string, identity: DeploymentTargetIdentity): Promise<void> {
+        await this.deploymentState.deleteDeployedRevisions([ledgerKeyFor(identity, filePath)]);
+    }
+
+    /** Drops every ledger row of `identity` — target deleted or renamed. */
+    async pruneTarget(identity: DeploymentTargetIdentity): Promise<void> {
+        const prefix = ledgerKeyPrefixFor(identity);
+        const keys = this.deploymentState.listLedgerKeys().filter((key) => key.startsWith(prefix));
+        if (keys.length > 0) {
+            await this.deploymentState.deleteDeployedRevisions(keys);
+        }
+    }
+
+    /**
+     * The status-bar item's click menu, shared by both hosts: offers switching
+     * the target and — for a named Camunda 7 target — engine verification.
+     */
+    async pickStatusBarAction(documentDir?: string): Promise<"switch" | "verify" | undefined> {
+        const target = await this.deploymentTargetService.getActiveTarget(documentDir);
+        return this.picker.pickDeploymentStatusAction({
+            targetName: target?.name,
+            canVerify: target?.engine === "c7",
+        });
     }
 
     /**
@@ -78,7 +122,12 @@ export class DeploymentStatusService {
                 ledgerKeyFor(identity, filePath),
             );
             const freshness = freshnessFor(revision, this.documentPort.getContent(editorId));
-            this.statusBar.showDeploymentTarget(target?.name, freshness, revision?.deployedAt);
+            this.statusBar.showDeploymentTarget(
+                target?.name,
+                freshness,
+                revision?.deployedAt,
+                revision?.verifiedAt,
+            );
         } catch (error) {
             this.notifier.logDebug(
                 `Deployment status refresh skipped: ${(error as Error).message}`,

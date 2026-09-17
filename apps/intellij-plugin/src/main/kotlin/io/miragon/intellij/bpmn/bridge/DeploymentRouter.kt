@@ -58,6 +58,12 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
                 )
                 id?.let { deps.channel.reply(it, null) }
             }
+            .on("deploymentState/deleteDeployedRevisions") { params, id ->
+                deploymentState.deleteDeployedRevisions(
+                    params.get("ledgerKeys").asJsonArray.map { it.asString },
+                )
+                id?.let { deps.channel.reply(it, null) }
+            }
     }
 
     /**

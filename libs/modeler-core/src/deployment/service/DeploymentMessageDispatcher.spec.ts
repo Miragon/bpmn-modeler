@@ -24,6 +24,7 @@ import {
     type StartInstanceCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { BasicAuth, DeploymentResult, NoAuth, OAuth2Auth } from "../domain/deployment";
 import { StartInstanceResult } from "../domain/startInstance";
@@ -79,6 +80,7 @@ function createDispatcher() {
     const deploymentStatusService = {
         refreshActive: vi.fn().mockResolvedValue(undefined),
         recordDeployment: vi.fn().mockResolvedValue(undefined),
+        pruneTarget: vi.fn().mockResolvedValue(undefined),
     };
 
     const post = vi.fn();
@@ -718,7 +720,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
         expect(c.deploymentTargetService.resolveSlot).toHaveBeenCalledWith("dev", "/work/trusted");
         const [config, , identity] = c.deploymentService.deploy.mock.calls[0];
         expect(config.mainFilePath).toBe("/work/trusted/order-process.bpmn");
-        expect(identity.key()).toBe("target:dev");
+        expect(identity.key()).toBe("target:dev@localhost:8080");
     });
 
     it.each([
@@ -861,6 +863,64 @@ describe("DeploymentMessageDispatcher target commands", () => {
         expect(
             c.post.mock.calls.map((call) => call[0]).some((q) => q instanceof TargetSavedQuery),
         ).toBe(false);
+        expect(c.deploymentStatusService.pruneTarget).not.toHaveBeenCalled();
+    });
+
+    it("prunes the deleted target's ledger rows", async () => {
+        const c = createDispatcher();
+        const target = new DeploymentTarget(
+            "dev",
+            "c7",
+            "http://localhost:8080/engine-rest",
+            "",
+            "none",
+            "",
+            "",
+        );
+        c.deploymentTargetService.getTarget.mockResolvedValue(target);
+        c.deploymentTargetService.deleteTarget.mockResolvedValue(true);
+
+        await c.dispatcher.handle(new DeleteTargetCommand("dev"));
+
+        expect(c.deploymentStatusService.pruneTarget).toHaveBeenCalledWith(
+            DeploymentTargetIdentity.fromTarget(target),
+        );
+    });
+
+    it("prunes the old identity's ledger rows on a rename", async () => {
+        const c = createDispatcher();
+        const oldTarget = new DeploymentTarget(
+            "staging",
+            "c7",
+            "http://localhost:8080/engine-rest",
+            "",
+            "none",
+            "",
+            "",
+        );
+        c.deploymentTargetService.getTarget.mockResolvedValue(oldTarget);
+
+        await c.dispatcher.handle(
+            new SaveTargetCommand(targetPayload, { authType: "none" }, "staging"),
+        );
+
+        expect(c.deploymentTargetService.getTarget).toHaveBeenCalledWith(
+            "staging",
+            expect.anything(),
+        );
+        expect(c.deploymentStatusService.pruneTarget).toHaveBeenCalledWith(
+            DeploymentTargetIdentity.fromTarget(oldTarget),
+        );
+    });
+
+    it("does not prune when a save keeps the target name", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle(
+            new SaveTargetCommand(targetPayload, { authType: "none" }, targetPayload.name),
+        );
+
+        expect(c.deploymentStatusService.pruneTarget).not.toHaveBeenCalled();
     });
 
     it("resolves and passes the secret slot through on a target deploy", async () => {

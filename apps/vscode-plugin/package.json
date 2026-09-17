@@ -315,6 +315,16 @@
                 "icon": "$(rocket)"
             },
             {
+                "command": "bpmn-modeler.verifyDeployment",
+                "title": "Verify Deployment on Engine",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.deploymentStatusMenu",
+                "title": "Deployment Status Menu",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.migrateAllDiagrams",
                 "title": "Migrate All BPMN Diagrams",
                 "category": "Miragon BPMN Modeler"
@@ -458,6 +468,14 @@
                 {
                     "command": "bpmn-modeler.deployFiles",
                     "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "bpmn-modeler.verifyDeployment",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.deploymentStatusMenu",
+                    "when": "false"
                 },
                 {
                     "command": "bpmn-modeler.migrateAllDiagrams",

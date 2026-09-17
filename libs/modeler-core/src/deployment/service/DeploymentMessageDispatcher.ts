@@ -237,12 +237,28 @@ export class DeploymentMessageDispatcher {
 
     private async handleSaveTarget(message: SaveTargetCommand): Promise<void> {
         try {
+            const documentDir = this.activeDocumentDir();
+            // Resolve the pre-rename target before the save rewrites the file,
+            // so its ledger rows (keyed by name@host) can be pruned afterwards.
+            const renamedFrom =
+                message.previousName !== undefined &&
+                message.previousName.trim() !== message.target.name.trim()
+                    ? await this.deploymentTargetService.getTarget(
+                          message.previousName,
+                          documentDir,
+                      )
+                    : undefined;
             await this.deploymentTargetService.saveTarget(
                 message.target,
                 message.auth,
                 message.previousName,
-                this.activeDocumentDir(),
+                documentDir,
             );
+            if (renamedFrom !== undefined) {
+                await this.deploymentStatusService.pruneTarget(
+                    DeploymentTargetIdentity.fromTarget(renamedFrom),
+                );
+            }
             this.post(
                 new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
             );
@@ -257,11 +273,15 @@ export class DeploymentMessageDispatcher {
 
     private async handleDeleteTarget(name: string): Promise<void> {
         try {
-            const deleted = await this.deploymentTargetService.deleteTarget(
-                name,
-                this.activeDocumentDir(),
-            );
+            const documentDir = this.activeDocumentDir();
+            const target = await this.deploymentTargetService.getTarget(name, documentDir);
+            const deleted = await this.deploymentTargetService.deleteTarget(name, documentDir);
             if (deleted) {
+                if (target !== undefined) {
+                    await this.deploymentStatusService.pruneTarget(
+                        DeploymentTargetIdentity.fromTarget(target),
+                    );
+                }
                 this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
                 await this.sendTargets();
                 await this.deploymentStatusService.refreshActive();

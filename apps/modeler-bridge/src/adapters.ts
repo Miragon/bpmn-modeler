@@ -492,11 +492,13 @@ export class RpcStatusBar implements StatusBarPort {
         name: string | undefined,
         freshness: DeploymentFreshness,
         deployedAt?: string,
+        verifiedAt?: string,
     ): void {
         this.rpc.notify(METHODS.statusBarShowDeploymentTarget, {
             name: name ?? null,
             freshness,
             deployedAt: deployedAt ?? null,
+            verifiedAt: verifiedAt ?? null,
         });
     }
 
@@ -762,6 +764,19 @@ export class RpcDeploymentState implements DeploymentStatePort {
         };
         await this.persist(METHODS.deploymentStateSaveDeployedRevision, { ledgerKey, revision });
     }
+
+    listLedgerKeys(): string[] {
+        return Object.keys(this.snapshot.ledger);
+    }
+
+    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
+        const ledger = { ...this.snapshot.ledger };
+        for (const key of ledgerKeys) {
+            delete ledger[key];
+        }
+        this.snapshot = { ...this.snapshot, ledger };
+        await this.persist(METHODS.deploymentStateDeleteDeployedRevisions, { ledgerKeys });
+    }
 }
 
 /**
@@ -933,6 +948,26 @@ export class RpcPicker implements PickerPort {
             return undefined;
         }
         return selected[0] === 0 ? "" : names[selected[0] - 1];
+    }
+
+    async pickDeploymentStatusAction(opts: {
+        targetName?: string;
+        canVerify: boolean;
+    }): Promise<"switch" | "verify" | undefined> {
+        // Index 0 is always switch; index 1 (verify) only exists for a C7 target.
+        const actions: ("switch" | "verify")[] = opts.canVerify ? ["switch", "verify"] : ["switch"];
+        const labels = [
+            "Switch deployment target…",
+            ...(opts.canVerify ? [`Verify on ${opts.targetName}`] : []),
+        ];
+        const selected = await this.show({
+            placeholder: opts.targetName
+                ? `Deployment target "${opts.targetName}"`
+                : "No deployment target selected",
+            canPickMany: false,
+            items: labels.map((label) => ({ label })),
+        });
+        return selected === null ? undefined : actions[selected[0]];
     }
 
     async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(

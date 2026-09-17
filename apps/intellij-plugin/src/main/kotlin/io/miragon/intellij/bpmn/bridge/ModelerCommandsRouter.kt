@@ -75,6 +75,26 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         deps.ensureStartedAsync()
     }
 
+    /**
+     * Fires `deployment/verify` for the project root. The core reconciles the
+     * active diagram's ledger row against the target's Camunda 7 engine.
+     */
+    fun verifyDeployment() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_VERIFY, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `deployment/statusBarMenu` for the project root. The core renders
+     * the switch/verify chooser through the generic `picker/show`.
+     */
+    fun deploymentStatusMenu() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_STATUS_BAR_MENU, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
     private companion object {
         // Mirrors METHODS.modelerChangeEngineVersion / migrationMigrateAll in
         // apps/modeler-bridge/src/protocol/descriptor.ts (the protocol.json snapshot
@@ -85,5 +105,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         const val METHODS_LAYOUT_CLEANUP = "layout/cleanup"
         const val METHODS_SWITCH_TARGET = "deployment/switchTarget"
         const val METHODS_DEPLOY_FILES = "deployment/deployFiles"
+        const val METHODS_VERIFY = "deployment/verify"
+        const val METHODS_STATUS_BAR_MENU = "deployment/statusBarMenu"
     }
 }

@@ -139,6 +139,98 @@ describe("deployment commands over the bridge", () => {
         },
     );
 
+    const DIAGRAM = '<bpmn:process id="order"/>';
+
+    /** Focuses a fake editor on `<root>/order.bpmn` with a parseable diagram. */
+    function focusEditor(c: Awaited<ReturnType<typeof setup>>) {
+        vi.spyOn(c.deps.store, "getActiveEditorId").mockReturnValue("editor");
+        vi.spyOn(c.deps.documentPort, "getFilePath").mockReturnValue(join(c.root, "order.bpmn"));
+        vi.spyOn(c.deps.documentPort, "getContent").mockReturnValue(DIAGRAM);
+    }
+
+    function mockEngineLookup() {
+        return vi
+            .spyOn(FetchHttpClient.prototype, "getJson")
+            .mockImplementation(async (url: string) => {
+                if (url.includes("/process-definition/key/")) {
+                    return {
+                        status: 200,
+                        body: JSON.stringify({
+                            id: "order:1:def-1",
+                            deploymentId: "dep-9",
+                            resource: "order.bpmn",
+                        }),
+                    };
+                }
+                if (url.endsWith("/xml")) {
+                    return { status: 200, body: JSON.stringify({ bpmn20Xml: DIAGRAM }) };
+                }
+                return {
+                    status: 200,
+                    body: JSON.stringify({ deploymentTime: "2026-09-17T14:40:00.000Z" }),
+                };
+            });
+    }
+
+    it("verifies against the engine and adopts the revision into the ledger", async () => {
+        const c = await setup();
+        await c.seed("dev");
+        focusEditor(c);
+        const getJson = mockEngineLookup();
+
+        await c.command(METHODS.deploymentVerify);
+
+        expect(getJson.mock.calls[0][0]).toBe("https://root.test/process-definition/key/order");
+        const save = c.frames.find(
+            (frame) => frame.method === METHODS.deploymentStateSaveDeployedRevision,
+        )!;
+        expect(save.params).toMatchObject({
+            revision: { deploymentId: "dep-9", origin: "engine" },
+        });
+        expect(c.frames.some((frame) => frame.method === METHODS.notifierShowInfo)).toBe(true);
+        expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
+    it("routes the status-bar menu's verify entry into a verification", async () => {
+        const c = await setup();
+        await c.seed("dev");
+        focusEditor(c);
+        const getJson = mockEngineLookup();
+        c.setPicker((params) => {
+            expect(params.items.map((item: { label: string }) => item.label)).toEqual([
+                "Switch deployment target…",
+                "Verify on dev",
+            ]);
+            return [1];
+        });
+
+        await c.command(METHODS.deploymentStatusBarMenu);
+
+        expect(getJson).toHaveBeenCalled();
+        expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
+    it("routes the status-bar menu's switch entry into the target picker", async () => {
+        const c = await setup();
+        await c.seed("dev");
+        const shown: string[][] = [];
+        c.setPicker((params) => {
+            shown.push(params.items.map((item: { label: string }) => item.label));
+            // Dismiss whichever picker opens; only the sequence matters here.
+            return null;
+        });
+
+        await c.command(METHODS.deploymentStatusBarMenu);
+        c.setPicker((params) => {
+            shown.push(params.items.map((item: { label: string }) => item.label));
+            return params.items[0].label.startsWith("Switch") ? [0] : null;
+        });
+        await c.command(METHODS.deploymentStatusBarMenu);
+
+        expect(shown[0]).toEqual(["Switch deployment target…", "Verify on dev"]);
+        expect(shown[shown.length - 1]).toEqual(["(none — use form values)", "dev"]);
+    });
+
     it("surfaces command failures and still releases the root", async () => {
         const c = await setup();
         await c.seed("dev");

@@ -30,6 +30,7 @@ class DeploymentTargetStatusBarWidget(private val project: Project) : CustomStat
     private var targetName: String? = null
     private var freshness: String = "unknown"
     private var deployedAt: String? = null
+    private var verifiedAt: String? = null
     private var shown: Boolean = false
 
     private var statusBar: StatusBar? = null
@@ -47,7 +48,7 @@ class DeploymentTargetStatusBarWidget(private val project: Project) : CustomStat
             it.addMouseListener(
                 object : MouseAdapter() {
                     override fun mouseClicked(e: MouseEvent) {
-                        project.getService(CoreProcess::class.java).switchDeploymentTarget()
+                        project.getService(CoreProcess::class.java).deploymentStatusMenu()
                     }
                 },
             )
@@ -55,10 +56,11 @@ class DeploymentTargetStatusBarWidget(private val project: Project) : CustomStat
             refresh()
         }
 
-    private fun setTarget(name: String?, freshness: String, deployedAt: String?) {
+    private fun setTarget(name: String?, freshness: String, deployedAt: String?, verifiedAt: String?) {
         this.targetName = name
         this.freshness = freshness
         this.deployedAt = deployedAt
+        this.verifiedAt = verifiedAt
         shown = true
         refresh()
     }
@@ -78,7 +80,7 @@ class DeploymentTargetStatusBarWidget(private val project: Project) : CustomStat
         }
         label.text = targetName ?: "No deployment target"
         label.icon = dotFor(freshness)
-        label.toolTipText = tooltipFor(freshness, deployedAt)
+        label.toolTipText = tooltipFor(freshness, deployedAt, verifiedAt)
     }
 
     override fun dispose() {
@@ -92,11 +94,17 @@ class DeploymentTargetStatusBarWidget(private val project: Project) : CustomStat
 
         private val DOT_DEPLOYED = JBColor(0x59A869, 0x499C54)
         private val DOT_CHANGED = JBColor(0xD9A343, 0xD9A343)
+        private val DOT_SUPERSEDED = JBColor(0x3574F0, 0x548AF7)
         private val DOT_UNKNOWN = JBColor.GRAY
 
         /** Renders the active target + freshness dot (null name = "No deployment target"), on the EDT. */
-        fun updateTarget(project: Project, name: String?, freshness: String, deployedAt: String?) =
-            withWidget(project) { it.setTarget(name, freshness, deployedAt) }
+        fun updateTarget(
+            project: Project,
+            name: String?,
+            freshness: String,
+            deployedAt: String?,
+            verifiedAt: String?,
+        ) = withWidget(project) { it.setTarget(name, freshness, deployedAt, verifiedAt) }
 
         /** Hides the widget (no BPMN editor focused), on the EDT. */
         fun hide(project: Project) = withWidget(project) { it.hide() }
@@ -106,20 +114,31 @@ class DeploymentTargetStatusBarWidget(private val project: Project) : CustomStat
                 when (freshness) {
                     "deployed" -> DOT_DEPLOYED
                     "changed" -> DOT_CHANGED
+                    "superseded" -> DOT_SUPERSEDED
                     else -> DOT_UNKNOWN
                 }
             return ColorIcon(8, color)
         }
 
-        private fun tooltipFor(freshness: String, deployedAt: String?): String {
+        private fun tooltipFor(freshness: String, deployedAt: String?, verifiedAt: String?): String {
             val whenText = deployedAt?.let { formatDeployedAt(it) }
+            val verifiedSuffix = verifiedAt?.let { " — verified ${formatDeployedAt(it)}" } ?: ""
             return when (freshness) {
                 "deployed" ->
-                    whenText?.let { "Deployed — last deployed $it" }
-                        ?: "Deployed — matches the last deployment"
+                    (
+                        whenText?.let { "Deployed — last deployed $it" }
+                            ?: "Deployed — matches the last deployment"
+                    ) + verifiedSuffix
                 "changed" ->
-                    whenText?.let { "Undeployed changes — last deployed $it" }
-                        ?: "Undeployed changes since the last deployment"
+                    (
+                        whenText?.let { "Undeployed changes — last deployed $it" }
+                            ?: "Undeployed changes since the last deployment"
+                    ) + verifiedSuffix
+                "superseded" ->
+                    (
+                        whenText?.let { "Newer version on the target (deployed $it) — differs from your diagram" }
+                            ?: "Newer version on the target — differs from your diagram"
+                    ) + verifiedSuffix
                 else -> "Never deployed to this target from this machine — click to switch target"
             }
         }

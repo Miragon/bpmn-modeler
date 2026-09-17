@@ -54,7 +54,8 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
                 val name = params.get("name")?.takeIf { !it.isJsonNull }?.asString
                 val freshness = params.get("freshness")?.takeIf { !it.isJsonNull }?.asString ?: "unknown"
                 val deployedAt = params.get("deployedAt")?.takeIf { !it.isJsonNull }?.asString
-                DeploymentTargetStatusBarWidget.updateTarget(project, name, freshness, deployedAt)
+                val verifiedAt = params.get("verifiedAt")?.takeIf { !it.isJsonNull }?.asString
+                DeploymentTargetStatusBarWidget.updateTarget(project, name, freshness, deployedAt, verifiedAt)
             }
             .on("statusBar/hideDeploymentTarget") { _, _ -> DeploymentTargetStatusBarWidget.hide(project) }
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }

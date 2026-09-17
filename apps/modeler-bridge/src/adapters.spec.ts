@@ -449,6 +449,36 @@ describe("RpcDeploymentState", () => {
         expect(state.getAudience()).toBe("aud");
     });
 
+    it("lists ledger keys and deletes revisions optimistically with an acknowledged request", async () => {
+        const { frames, rpc, answerLast } = harness();
+        const state = new RpcDeploymentState(rpc, fakeNotifier());
+        const revision = { fingerprint: "f", deployedAt: "2026-09-17T14:32:00.000Z" };
+        state.seed({
+            ledger: {
+                "target:dev@localhost:8080::/a.bpmn": revision,
+                "target:prod@localhost:8080::/a.bpmn": revision,
+            },
+        });
+
+        expect(state.listLedgerKeys()).toEqual([
+            "target:dev@localhost:8080::/a.bpmn",
+            "target:prod@localhost:8080::/a.bpmn",
+        ]);
+
+        const pending = state.deleteDeployedRevisions(["target:dev@localhost:8080::/a.bpmn"]);
+        expect(last(frames)).toMatchObject({
+            method: "deploymentState/deleteDeployedRevisions",
+            params: { ledgerKeys: ["target:dev@localhost:8080::/a.bpmn"] },
+        });
+        expect(last(frames).id).toBeTypeOf("number");
+        // The mirror drops the row before the host acks (optimistic update).
+        expect(state.listLedgerKeys()).toEqual(["target:prod@localhost:8080::/a.bpmn"]);
+        expect(state.getDeployedRevision("target:dev@localhost:8080::/a.bpmn")).toBeUndefined();
+
+        await answerLast(null);
+        await expect(pending).resolves.toBeUndefined();
+    });
+
     it("logs and does not reject when the host's persist fails", async () => {
         const { frames, rpc } = harness();
         const notifier = fakeNotifier();
@@ -655,6 +685,33 @@ describe("RpcStatusBar", () => {
         statusBar.hideEngineVersion();
         expect(last(frames)).toEqual({ method: "statusBar/hideEngineVersion", params: {} });
     });
+
+    it("forwards the deployment target with verifiedAt, nulling absent values", () => {
+        const { frames, rpc } = harness();
+        const statusBar = new RpcStatusBar(rpc);
+
+        statusBar.showDeploymentTarget(
+            "dev",
+            "superseded",
+            "2026-09-17T14:40:00.000Z",
+            "2026-09-17T15:00:00.000Z",
+        );
+        expect(last(frames)).toEqual({
+            method: "statusBar/showDeploymentTarget",
+            params: {
+                name: "dev",
+                freshness: "superseded",
+                deployedAt: "2026-09-17T14:40:00.000Z",
+                verifiedAt: "2026-09-17T15:00:00.000Z",
+            },
+        });
+
+        statusBar.showDeploymentTarget(undefined, "unknown");
+        expect(last(frames)).toEqual({
+            method: "statusBar/showDeploymentTarget",
+            params: { name: null, freshness: "unknown", deployedAt: null, verifiedAt: null },
+        });
+    });
 });
 
 describe("RpcPicker", () => {
@@ -749,6 +806,36 @@ describe("RpcPicker", () => {
         const pending = picker.pickPayloadFile(["/w/a.json"]);
         await answerLast({ selected: null });
         await expect(pending).resolves.toBeNull();
+    });
+
+    it("pickDeploymentStatusAction offers verify only for a C7 target and maps the index", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickDeploymentStatusAction({ targetName: "dev", canVerify: true });
+        expect(last(frames)).toMatchObject({
+            method: "picker/show",
+            params: {
+                placeholder: 'Deployment target "dev"',
+                canPickMany: false,
+                items: [{ label: "Switch deployment target…" }, { label: "Verify on dev" }],
+            },
+        });
+        await answerLast({ selected: [1] });
+        await expect(pending).resolves.toBe("verify");
+    });
+
+    it("pickDeploymentStatusAction hides verify when the target cannot be verified", async () => {
+        const { frames, picker, answerLast } = setup();
+        const pending = picker.pickDeploymentStatusAction({ canVerify: false });
+        expect(last(frames).params.items).toEqual([{ label: "Switch deployment target…" }]);
+        await answerLast({ selected: [0] });
+        await expect(pending).resolves.toBe("switch");
+    });
+
+    it("pickDeploymentStatusAction resolves undefined on dismissal", async () => {
+        const { picker, answerLast } = setup();
+        const pending = picker.pickDeploymentStatusAction({ targetName: "dev", canVerify: true });
+        await answerLast({ selected: null });
+        await expect(pending).resolves.toBeUndefined();
     });
 
     it("searchAndPickReferencedModel brackets the search with progress, then picks from multiple matches", async () => {

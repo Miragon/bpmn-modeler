@@ -7,18 +7,24 @@ import { DeploymentTarget } from "./deploymentTarget";
  * - `unknown` — never deployed to this target from this machine (no local record).
  * - `deployed` — content matches the last deploy to this target.
  * - `changed` — content differs from the last deploy to this target.
+ * - `superseded` — the engine holds a newer version whose content differs from
+ *   the editor (only ever produced by an engine-origin revision).
  */
-export type DeploymentFreshness = "unknown" | "deployed" | "changed";
+export type DeploymentFreshness = "unknown" | "deployed" | "changed" | "superseded";
 
 /**
  * Content fingerprint at the moment of a successful deploy, plus when it
- * happened and (for the follow-up engine-verify feature) the server-assigned
- * deployment id.
+ * happened and the server-assigned deployment id. `origin` marks how the row
+ * got here: absent/`"local"` means this machine deployed it, `"engine"` means
+ * an on-demand verification adopted it from the engine. `verifiedAt` is set
+ * whenever a verification confirmed the row against the engine.
  */
 export interface DeployedRevision {
     readonly fingerprint: string;
     readonly deployedAt: string;
     readonly deploymentId?: string;
+    readonly origin?: "local" | "engine";
+    readonly verifiedAt?: string;
 }
 
 /**
@@ -45,14 +51,19 @@ function fnv1a(value: string, seed: number): string {
 
 /**
  * Identifies a deployment destination for ledger keying. A named target keys by
- * its name; ad-hoc mode (no named target) keys by endpoint host + tenant so two
- * different engines behind different URLs never share a ledger slot.
+ * its name *and* endpoint host, so hand-editing the endpoint in
+ * `deployment-targets.json` self-invalidates the old rows instead of reporting
+ * a false green against a different engine. Ad-hoc mode (no named target) keys
+ * by endpoint host + tenant so two different engines behind different URLs
+ * never share a ledger slot.
  */
 export class DeploymentTargetIdentity {
     private constructor(private readonly value: string) {}
 
     static fromTarget(target: DeploymentTarget): DeploymentTargetIdentity {
-        return new DeploymentTargetIdentity(`target:${target.name.trim()}`);
+        return new DeploymentTargetIdentity(
+            `target:${target.name.trim()}@${endpointHost(target.endpoint)}`,
+        );
     }
 
     static adHoc(endpoint: string, tenantId: string): DeploymentTargetIdentity {
@@ -76,6 +87,9 @@ function endpointHost(endpoint: string): string {
 /**
  * Compares `currentContent` against a recorded revision. A missing revision is
  * `unknown` — no local record, which is not the same as "absent on the engine".
+ * A mismatch against an engine-origin revision is `superseded` (the engine runs
+ * something newer), not `changed`; the next local deploy writes a local-origin
+ * row and leaves that state again.
  */
 export function freshnessFor(
     revision: DeployedRevision | undefined,
@@ -84,10 +98,18 @@ export function freshnessFor(
     if (revision === undefined) {
         return "unknown";
     }
-    return revision.fingerprint === contentFingerprint(currentContent) ? "deployed" : "changed";
+    if (revision.fingerprint === contentFingerprint(currentContent)) {
+        return "deployed";
+    }
+    return revision.origin === "engine" ? "superseded" : "changed";
 }
 
 /** `${identity}::${filePath}` — the per (target, file) ledger slot. */
 export function ledgerKeyFor(identity: DeploymentTargetIdentity, filePath: string): string {
     return `${identity.key()}::${filePath}`;
+}
+
+/** Prefix matching every ledger slot of `identity`, for pruning on delete/rename. */
+export function ledgerKeyPrefixFor(identity: DeploymentTargetIdentity): string {
+    return `${identity.key()}::`;
 }

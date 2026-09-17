@@ -10,6 +10,7 @@ import {
     DeploymentService,
     DeploymentStatusService,
     DeploymentTargetService,
+    DeploymentVerificationService,
     FetchHttpClient,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
@@ -70,6 +71,15 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deploymentTargetSvc,
         deploymentState,
         deps.statusBar,
+        deps.picker,
+        deps.notifier,
+    );
+    const verificationSvc = new DeploymentVerificationService(
+        deps.editorStore,
+        deps.vsDocument,
+        deploymentTargetSvc,
+        deploymentStatusSvc,
+        c7Client,
         deps.notifier,
     );
     const deploymentSvc = new DeploymentService(
@@ -90,6 +100,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         startInstanceSvc,
         deploymentTargetSvc,
         deploymentStatusSvc,
+        verificationSvc,
         deps.picker,
         deps.notifier,
     ).register(context);

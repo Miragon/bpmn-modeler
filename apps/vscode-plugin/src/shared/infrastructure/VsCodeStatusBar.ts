@@ -5,25 +5,41 @@ import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import { DeploymentFreshness, StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
-const SWITCH_TARGET_CMD = "bpmn-modeler.switchDeploymentTarget";
+const DEPLOYMENT_STATUS_MENU_CMD = "bpmn-modeler.deploymentStatusMenu";
 
 const DEPLOYMENT_FRESHNESS_COLORS: Record<DeploymentFreshness, ThemeColor | undefined> = {
     deployed: new ThemeColor("testing.iconPassed"),
     changed: new ThemeColor("charts.yellow"),
+    superseded: new ThemeColor("charts.blue"),
     unknown: undefined,
 };
 
-function deploymentTooltip(freshness: DeploymentFreshness, deployedAt?: string): string {
+function deploymentTooltip(
+    freshness: DeploymentFreshness,
+    deployedAt?: string,
+    verifiedAt?: string,
+): string {
     const when = deployedAt ? new Date(deployedAt).toLocaleString() : undefined;
+    const verifiedSuffix = verifiedAt ? ` — verified ${new Date(verifiedAt).toLocaleString()}` : "";
     switch (freshness) {
         case "deployed":
-            return when
-                ? `Deployed — last deployed ${when}`
-                : "Deployed — matches the last deployment";
+            return (
+                (when
+                    ? `Deployed — last deployed ${when}`
+                    : "Deployed — matches the last deployment") + verifiedSuffix
+            );
         case "changed":
-            return when
-                ? `Undeployed changes — last deployed ${when}`
-                : "Undeployed changes since the last deployment";
+            return (
+                (when
+                    ? `Undeployed changes — last deployed ${when}`
+                    : "Undeployed changes since the last deployment") + verifiedSuffix
+            );
+        case "superseded":
+            return (
+                (when
+                    ? `Newer version on the target (deployed ${when}) — differs from your diagram`
+                    : "Newer version on the target — differs from your diagram") + verifiedSuffix
+            );
         case "unknown":
             return "Never deployed to this target from this machine — click to switch target";
     }
@@ -132,13 +148,14 @@ export class VsCodeStatusBar implements StatusBarPort {
         name: string | undefined,
         freshness: DeploymentFreshness,
         deployedAt?: string,
+        verifiedAt?: string,
     ): void {
         const item = this.getOrCreateDeploymentTargetStatusItem();
         item.text = `$(circle-filled) ${name ?? "No deployment target"}`;
         // A status bar item colours its whole text, so the dot and the (short)
         // name share one colour — acceptable, and cheaper than a second item.
         item.color = DEPLOYMENT_FRESHNESS_COLORS[freshness];
-        item.tooltip = deploymentTooltip(freshness, deployedAt);
+        item.tooltip = deploymentTooltip(freshness, deployedAt, verifiedAt);
         item.show();
     }
 
@@ -177,7 +194,7 @@ export class VsCodeStatusBar implements StatusBarPort {
                 StatusBarAlignment.Right,
                 198,
             );
-            this.deploymentTargetStatusItem.command = SWITCH_TARGET_CMD;
+            this.deploymentTargetStatusItem.command = DEPLOYMENT_STATUS_MENU_CMD;
         }
         return this.deploymentTargetStatusItem;
     }

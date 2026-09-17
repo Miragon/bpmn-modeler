@@ -8,7 +8,11 @@ import { AuthHeaderResolver } from "./AuthHeaderResolver";
 import { Camunda7RestClient } from "./Camunda7RestClient";
 import { BasicAuth, DeploymentConfig, NoAuth, OAuth2Auth } from "../../domain/deployment";
 import { StartInstanceConfig } from "../../domain/startInstance";
-import { DeploymentFailedError, StartInstanceFailedError } from "../../../shared/domain/errors";
+import {
+    DeploymentFailedError,
+    EngineInspectionFailedError,
+    StartInstanceFailedError,
+} from "../../../shared/domain/errors";
 
 /**
  * Integration tests for {@link Camunda7RestClient}.
@@ -324,5 +328,125 @@ describe("Camunda7RestClient (integration)", () => {
 
         expect(receivedBody).toContain('name="proc.bpmn"; filename="proc.bpmn"');
         expect(receivedBody).not.toContain('name="resources"');
+    });
+
+    // ── Deployment lookup (fetchLatestDefinition) ───────────────────────
+
+    const DEPLOYED_XML = '<bpmn:process id="order"/>ä';
+
+    function installLookupHandler(opts: { withTenant?: boolean; deploymentStatus?: number } = {}) {
+        const urls: string[] = [];
+        handler = (req, _body, res) => {
+            urls.push(req.url ?? "");
+            const keyPath = opts.withTenant
+                ? "/process-definition/key/order/tenant-id/acme"
+                : "/process-definition/key/order";
+            if (req.url === keyPath) {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(
+                    JSON.stringify({
+                        id: "order:3:def-1",
+                        deploymentId: "dep-9",
+                        resource: "order.bpmn",
+                        version: 3,
+                    }),
+                );
+            } else if (req.url === "/process-definition/order%3A3%3Adef-1/xml") {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ id: "order:3:def-1", bpmn20Xml: DEPLOYED_XML }));
+            } else if (req.url === "/deployment/dep-9") {
+                res.writeHead(opts.deploymentStatus ?? 200, {
+                    "Content-Type": "application/json",
+                });
+                res.end(
+                    JSON.stringify({ id: "dep-9", deploymentTime: "2026-09-17T14:40:00.000Z" }),
+                );
+            } else {
+                res.writeHead(404, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ type: "RestException", message: "not found" }));
+            }
+        };
+        return urls;
+    }
+
+    it("fetches the latest definition, its XML bytes, and the deployment time", async () => {
+        installLookupHandler();
+
+        const snapshot = await createClient().fetchLatestDefinition({
+            endpoint: `${baseUrl}/`,
+            tenantId: "",
+            processKey: "order",
+            auth: new NoAuth(),
+        });
+
+        expect(snapshot).toEqual({
+            processDefinitionId: "order:3:def-1",
+            deploymentId: "dep-9",
+            resourceName: "order.bpmn",
+            xml: DEPLOYED_XML,
+            deploymentTime: "2026-09-17T14:40:00.000Z",
+        });
+    });
+
+    it("routes the lookup through the tenant path when the target has a tenant", async () => {
+        const urls = installLookupHandler({ withTenant: true });
+
+        const snapshot = await createClient().fetchLatestDefinition({
+            endpoint: baseUrl,
+            tenantId: "acme",
+            processKey: "order",
+            auth: new NoAuth(),
+        });
+
+        expect(urls[0]).toBe("/process-definition/key/order/tenant-id/acme");
+        expect(snapshot?.deploymentId).toBe("dep-9");
+    });
+
+    it("returns undefined when the process key is not deployed (404)", async () => {
+        handler = (_req, _body, res) => {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ type: "RestException", message: "no matching definition" }));
+        };
+
+        const snapshot = await createClient().fetchLatestDefinition({
+            endpoint: baseUrl,
+            tenantId: "",
+            processKey: "missing",
+            auth: new NoAuth(),
+        });
+
+        expect(snapshot).toBeUndefined();
+    });
+
+    it("throws EngineInspectionFailedError flagged as auth failure on 401", async () => {
+        handler = (_req, _body, res) => {
+            res.writeHead(401, { "Content-Type": "text/plain" });
+            res.end("Unauthorized");
+        };
+
+        const lookup = createClient().fetchLatestDefinition({
+            endpoint: baseUrl,
+            tenantId: "",
+            processKey: "order",
+            auth: new NoAuth(),
+        });
+
+        await expect(lookup).rejects.toSatisfy(
+            (error: unknown) => error instanceof EngineInspectionFailedError && error.isAuthFailure,
+        );
+    });
+
+    it("leaves deploymentTime undefined when the deployment lookup fails", async () => {
+        installLookupHandler({ deploymentStatus: 500 });
+
+        const snapshot = await createClient().fetchLatestDefinition({
+            endpoint: baseUrl,
+            tenantId: "",
+            processKey: "order",
+            auth: new NoAuth(),
+        });
+
+        expect(snapshot?.deploymentTime).toBeUndefined();
+        expect(snapshot?.xml).toBe(DEPLOYED_XML);
     });
 });

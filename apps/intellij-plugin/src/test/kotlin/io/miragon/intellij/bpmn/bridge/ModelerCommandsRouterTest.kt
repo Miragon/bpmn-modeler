@@ -96,4 +96,32 @@ class ModelerCommandsRouterTest {
             "deployment/deployFiles carries the workspace root",
         )
     }
+
+    @Test
+    fun `verifyDeployment notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.verifyDeployment()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/verify", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/verify carries the workspace root",
+        )
+    }
+
+    @Test
+    fun `deploymentStatusMenu notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.deploymentStatusMenu()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/statusBarMenu", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/statusBarMenu carries the workspace root",
+        )
+    }
 }

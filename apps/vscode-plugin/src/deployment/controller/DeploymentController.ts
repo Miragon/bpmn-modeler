@@ -16,6 +16,7 @@ import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { DeploymentService } from "@miragon/bpmn-modeler-core";
 import { DeploymentStatusService } from "@miragon/bpmn-modeler-core";
 import { DeploymentTargetService } from "@miragon/bpmn-modeler-core";
+import { DeploymentVerificationService } from "@miragon/bpmn-modeler-core";
 import { StartInstanceService } from "@miragon/bpmn-modeler-core";
 import { Command, Query } from "@miragon/bpmn-modeler-shared";
 import { deploymentWebviewHtml } from "../infrastructure/DeploymentWebviewHtml";
@@ -35,6 +36,12 @@ export const SWITCH_TARGET_CMD = "bpmn-modeler.switchDeploymentTarget";
 
 // Deploys a multi-select set of workspace BPMN/DMN files to the active target.
 export const DEPLOY_FILES_CMD = "bpmn-modeler.deployFiles";
+
+// Verifies the active diagram's ledger row against the target's C7 engine.
+export const VERIFY_DEPLOYMENT_CMD = "bpmn-modeler.verifyDeployment";
+
+// The status-bar item's click menu (switch target / verify); hidden from the palette.
+export const DEPLOYMENT_STATUS_MENU_CMD = "bpmn-modeler.deploymentStatusMenu";
 
 /**
  * Registers and manages the deployment sidebar WebviewView and the
@@ -59,6 +66,7 @@ export class DeploymentController implements WebviewViewProvider {
         private readonly startInstanceService: StartInstanceService,
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentStatusService: DeploymentStatusService,
+        private readonly verificationService: DeploymentVerificationService,
         private readonly picker: VsCodePicker,
         private readonly notifier: VsCodeNotifier,
     ) {}
@@ -75,6 +83,8 @@ export class DeploymentController implements WebviewViewProvider {
             commands.registerCommand(DEPLOY_CMD, () => this.openDeploymentPanel()),
             commands.registerCommand(SWITCH_TARGET_CMD, () => this.switchTarget()),
             commands.registerCommand(DEPLOY_FILES_CMD, () => this.deployFiles()),
+            commands.registerCommand(VERIFY_DEPLOYMENT_CMD, () => this.verifyDeployment()),
+            commands.registerCommand(DEPLOYMENT_STATUS_MENU_CMD, () => this.statusMenu()),
         );
     }
 
@@ -146,6 +156,22 @@ export class DeploymentController implements WebviewViewProvider {
         await this.deploymentTargetService.switchActiveTarget(this.activeDocumentDir());
         await this.deploymentStatusService.refreshActive();
         await this.currentDispatcher?.sendTargets();
+    }
+
+    private async verifyDeployment(): Promise<void> {
+        await this.verificationService.verifyActive(this.activeDocumentDir());
+    }
+
+    /** Status-bar click: the shared menu decides between switching and verifying. */
+    private async statusMenu(): Promise<void> {
+        const action = await this.deploymentStatusService.pickStatusBarAction(
+            this.activeDocumentDir(),
+        );
+        if (action === "switch") {
+            await this.switchTarget();
+        } else if (action === "verify") {
+            await this.verifyDeployment();
+        }
     }
 
     /**

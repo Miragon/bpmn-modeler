@@ -31,7 +31,8 @@ isn't talking to VS Code.
 | host → core | `deployment/webviewMessage`             | inbound deployment `Command` → `DeploymentMessageDispatcher`                                  |
 | core → host | `deployment/postMessage`                | deployment `Query` → tool-window webview (`window.postMessage`)                               |
 | host → core | `deployment/switchTarget`, `deployment/deployFiles` | status-bar/action → switch the active target, or pick + deploy files to it (carries `workspaceRoot`) |
-| core → host | `deploymentState/save*`                 | `DeploymentStatePort` persist → `PropertiesComponent` (non-secret form state, incl. active target) |
+| host → core | `deployment/verify`, `deployment/statusBarMenu` | verify the active diagram against the C7 engine; status-bar click menu (switch/verify) (carries `workspaceRoot`) |
+| core → host | `deploymentState/save*`, `deploymentState/deleteDeployedRevisions` | `DeploymentStatePort` persist/prune → `PropertiesComponent` (non-secret form state, incl. active target + ledger) |
 | host → core | `marketplace/add`, `marketplace/update` | Tools-menu actions → `TemplateMarketplaceService` (settings snapshot piggybacked)             |
 | core → host | `marketplaceState/save`                 | persist the added registration + fan the snapshot to every open bridge                        |
 | core → host | `tokenStore/*`                          | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem)             |

@@ -21,6 +21,7 @@ import {
     ClipboardReadResult,
     ClipboardWriteParams,
     DeploymentOpenParams,
+    DeploymentDeleteDeployedRevisionsParams,
     DeploymentPostMessageParams,
     DeploymentSaveActiveTargetParams,
     DeploymentSaveAuthTypeParams,
@@ -121,6 +122,8 @@ export const METHODS = {
     layoutCleanup: "layout/cleanup",
     deploymentSwitchTarget: "deployment/switchTarget",
     deploymentDeployFiles: "deployment/deployFiles",
+    deploymentVerify: "deployment/verify",
+    deploymentStatusBarMenu: "deployment/statusBarMenu",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -138,6 +141,7 @@ export const METHODS = {
     deploymentStateSave: "deploymentState/save",
     deploymentStateSaveActiveTarget: "deploymentState/saveActiveTarget",
     deploymentStateSaveDeployedRevision: "deploymentState/saveDeployedRevision",
+    deploymentStateDeleteDeployedRevisions: "deploymentState/deleteDeployedRevisions",
     marketplaceStateSave: "marketplaceState/save",
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
@@ -379,6 +383,18 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
     },
+    {
+        method: METHODS.deploymentVerify,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.deploymentStatusBarMenu,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
     {
@@ -516,13 +532,23 @@ export const PROTOCOL = [
         direction: "coreToHost",
         kind: "request",
         paramsFixture: {
-            ledgerKey: "target:dev::/work/order.bpmn",
+            ledgerKey: "target:dev@localhost:8080::/work/order.bpmn",
             revision: {
                 fingerprint: "0123456789abcdef",
                 deployedAt: "2026-09-17T14:32:00.000Z",
                 deploymentId: "dep-1",
+                origin: "engine",
+                verifiedAt: "2026-09-17T15:00:00.000Z",
             },
         } satisfies DeploymentSaveDeployedRevisionParams,
+    },
+    {
+        method: METHODS.deploymentStateDeleteDeployedRevisions,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            ledgerKeys: ["target:dev@localhost:8080::/work/order.bpmn"],
+        } satisfies DeploymentDeleteDeployedRevisionsParams,
     },
     // Acknowledged persist: the host adds the entry, fans the snapshot to all
     // bridges, then acks an empty reply — the core awaits only the round-trip.
@@ -671,6 +697,7 @@ export const PROTOCOL = [
             name: "dev",
             freshness: "deployed",
             deployedAt: "2026-09-17T14:32:00.000Z",
+            verifiedAt: "2026-09-17T15:00:00.000Z",
         } satisfies StatusBarDeploymentTargetParams,
     },
     {

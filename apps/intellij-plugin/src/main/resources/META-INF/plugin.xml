@@ -204,6 +204,12 @@
                 text="Switch Deployment Target…"
                 description="Choose the active named deployment target for the project"/>
             <action
+                id="io.miragon.bpmn-modeler.verifyDeployment"
+                class="io.miragon.intellij.bpmn.VerifyDeploymentAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Verify Deployment on Engine…"
+                description="Verify the focused diagram against the active Camunda 7 deployment target"/>
+            <action
                 id="io.miragon.bpmn-modeler.deployFiles"
                 class="io.miragon.intellij.bpmn.DeployFilesAction"
                 icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"

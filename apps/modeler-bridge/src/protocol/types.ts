@@ -422,20 +422,28 @@ export interface DeploymentSaveDeployedRevisionParams {
     revision: DeployedRevision;
 }
 
+/** `deploymentState/deleteDeployedRevisions` — drop ledger entries (prune / engine says "not deployed"). */
+export interface DeploymentDeleteDeployedRevisionsParams {
+    ledgerKeys: string[];
+}
+
 /**
  * `statusBar/showDeploymentTarget` — the active target name (or `null` for "no
- * target"), the freshness dot state, and the last-deploy timestamp (or `null`).
+ * target"), the freshness dot state, and the last-deploy / last-verify
+ * timestamps (or `null`).
  */
 export interface StatusBarDeploymentTargetParams {
     name: string | null;
     freshness: DeploymentFreshness;
     deployedAt: string | null;
+    verifiedAt: string | null;
 }
 
 /**
- * `deployment/switchTarget`, `deployment/deployFiles` — host-initiated. The
- * workspace root is passed because `NodeWorkspace` only learns roots from
- * `session/register`, so a host action fired with no active editor must name it.
+ * `deployment/switchTarget`, `deployment/deployFiles`, `deployment/verify`,
+ * `deployment/statusBarMenu` — host-initiated. The workspace root is passed
+ * because `NodeWorkspace` only learns roots from `session/register`, so a host
+ * action fired with no active editor must name it.
  */
 export interface DeploymentWorkspaceRootParams {
     workspaceRoot: string;

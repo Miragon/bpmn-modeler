@@ -83,6 +83,18 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
         await getContext().workspaceState.update(VsCodeDeploymentState.LEDGER_KEY, ledger);
     }
 
+    listLedgerKeys(): string[] {
+        return Object.keys(this.readLedger());
+    }
+
+    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
+        const ledger = { ...this.readLedger() };
+        for (const key of ledgerKeys) {
+            delete ledger[key];
+        }
+        await getContext().workspaceState.update(VsCodeDeploymentState.LEDGER_KEY, ledger);
+    }
+
     private readLedger(): Record<string, DeployedRevision> {
         return getContext().workspaceState.get<Record<string, DeployedRevision>>(
             VsCodeDeploymentState.LEDGER_KEY,

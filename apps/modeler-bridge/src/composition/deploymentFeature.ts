@@ -9,6 +9,7 @@ import {
     DeploymentService,
     DeploymentStatusService,
     DeploymentTargetService,
+    DeploymentVerificationService,
     FetchHttpClient,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
@@ -42,8 +43,9 @@ export function register(deps: BridgeSharedDeps): void {
     // the deployment tool-window's JCEF browser.
     const httpClient = new FetchHttpClient();
     const authResolver = new AuthHeaderResolver(httpClient);
+    const c7Client = new Camunda7RestClient(httpClient, authResolver);
     const camundaRouter = new CamundaEngineRouter(
-        new Camunda7RestClient(httpClient, authResolver),
+        c7Client,
         new Camunda8RestClient(httpClient, authResolver, deps.settings.getC8ApiVersion()),
     );
     const deploymentState = new RpcDeploymentState(deps.rpc, deps.notifier);
@@ -71,6 +73,15 @@ export function register(deps: BridgeSharedDeps): void {
         deploymentTargetService,
         deploymentState,
         deps.statusBar,
+        deps.picker,
+        deps.notifier,
+    );
+    const deploymentVerificationService = new DeploymentVerificationService(
+        deps.store,
+        deps.documentPort,
+        deploymentTargetService,
+        deploymentStatusService,
+        c7Client,
         deps.notifier,
     );
     const deploymentService = new DeploymentService(
@@ -171,6 +182,27 @@ export function register(deps: BridgeSharedDeps): void {
             await deploymentTargetService.switchActiveTarget(documentDir);
             await deploymentStatusService.refreshActive();
             await deploymentDispatcher.sendTargets();
+        }),
+    );
+
+    deps.rpc.on(METHODS.deploymentVerify, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            await deploymentVerificationService.verifyActive(documentDir);
+        }),
+    );
+
+    // The status-bar click: the core renders the switch/verify chooser through
+    // the generic picker, then runs the chosen flow.
+    deps.rpc.on(METHODS.deploymentStatusBarMenu, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            const action = await deploymentStatusService.pickStatusBarAction(documentDir);
+            if (action === "switch") {
+                await deploymentTargetService.switchActiveTarget(documentDir);
+                await deploymentStatusService.refreshActive();
+                await deploymentDispatcher.sendTargets();
+            } else if (action === "verify") {
+                await deploymentVerificationService.verifyActive(documentDir);
+            }
         }),
     );
 

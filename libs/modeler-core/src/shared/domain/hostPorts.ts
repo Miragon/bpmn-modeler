@@ -124,6 +124,17 @@ export interface PickerPort {
      *   on dismissal (a no-op, mirroring the engine-version cancel convention).
      */
     pickDeploymentTarget(names: string[]): Promise<string | undefined>;
+
+    /**
+     * The status-bar item's click menu: switch the active target, or (for a
+     * Camunda 7 target) verify the ledger against the engine.
+     *
+     * @returns the chosen action, or `undefined` on dismissal (a no-op).
+     */
+    pickDeploymentStatusAction(opts: {
+        targetName?: string;
+        canVerify: boolean;
+    }): Promise<"switch" | "verify" | undefined>;
 }
 
 /**
@@ -248,13 +259,14 @@ export interface StatusBarPort {
     hideBpmnlintStatus(): void;
     /**
      * `undefined` name renders "No deployment target"; a name renders the active
-     * target. `freshness` drives the coloured dot; `deployedAt` (ISO) enriches
-     * the tooltip when a revision was recorded.
+     * target. `freshness` drives the coloured dot; `deployedAt` / `verifiedAt`
+     * (ISO) enrich the tooltip when a revision was recorded / engine-verified.
      */
     showDeploymentTarget(
         name: string | undefined,
         freshness: DeploymentFreshness,
         deployedAt?: string,
+        verifiedAt?: string,
     ): void;
     hideDeploymentTarget(): void;
 }
@@ -386,4 +398,8 @@ export interface DeploymentStatePort {
      */
     getDeployedRevision(ledgerKey: string): DeployedRevision | undefined;
     saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void>;
+    /** Every recorded ledger key. Synchronous (per ADR 0005), like the getters. */
+    listLedgerKeys(): string[];
+    /** Removes the given ledger slots (target delete/rename, engine says "not deployed"). */
+    deleteDeployedRevisions(ledgerKeys: string[]): Promise<void>;
 }

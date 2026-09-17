@@ -111,6 +111,24 @@ export class DeploymentFailedError extends Error {
 }
 
 /**
+ * Thrown by the C7 inspection client when a deployment lookup returns a
+ * non-2xx, non-404 status (404 means "not deployed", not an error).
+ */
+export class EngineInspectionFailedError extends Error {
+    constructor(
+        readonly status: number,
+        body: string,
+    ) {
+        super(`Deployment verification failed with HTTP ${status}: ${body}`);
+        this.name = "EngineInspectionFailedError";
+    }
+
+    get isAuthFailure(): boolean {
+        return this.status === 401 || this.status === 403;
+    }
+}
+
+/**
  * Thrown by {@link CamundaRestClient} when starting a process instance returns a non-2xx status.
  */
 export class StartInstanceFailedError extends Error {

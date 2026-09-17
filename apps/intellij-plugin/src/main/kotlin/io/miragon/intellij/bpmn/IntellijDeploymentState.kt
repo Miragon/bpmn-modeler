@@ -43,6 +43,13 @@ class IntellijDeploymentState(private val project: Project) {
         props.setValue(LEDGER, ledger.toString(), EMPTY_LEDGER)
     }
 
+    /** Drops ledger entries (target prune / engine reports "not deployed"). */
+    fun deleteDeployedRevisions(ledgerKeys: List<String>) {
+        val ledger = readLedger()
+        ledgerKeys.forEach { ledger.remove(it) }
+        props.setValue(LEDGER, ledger.toString(), EMPTY_LEDGER)
+    }
+
     private fun readLedger(): JsonObject =
         runCatching { JsonParser.parseString(props.getValue(LEDGER, EMPTY_LEDGER)).asJsonObject }
             .getOrElse { JsonObject() }
