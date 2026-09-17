@@ -20,6 +20,7 @@ export const FORM_TEMPLATE = `
         <button id="target-open" type="button" class="btn btn-secondary" title="Open deployment-targets.json in the editor">Edit JSON</button>
     </div>
 
+    <div id="execution-hint" class="hint" role="status" hidden></div>
     <div class="section" id="section-connection">
         <div class="section-header" data-section="connection" aria-expanded="true" role="button" tabindex="0">
             <span class="section-chevron"></span>

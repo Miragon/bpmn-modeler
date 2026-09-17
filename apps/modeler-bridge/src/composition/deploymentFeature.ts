@@ -1,3 +1,5 @@
+import { posix } from "path";
+
 import {
     AuthHeaderResolver,
     Camunda7RestClient,
@@ -139,30 +141,48 @@ export function register(deps: BridgeSharedDeps): void {
         }
     });
 
-    // Host-initiated (status bar widget / action): switch the active target via a
-    // native picker, then refresh an open sidebar. The workspace root rides the
-    // notification because NodeWorkspace only learns roots from session/register.
-    deps.rpc.on(METHODS.deploymentSwitchTarget, (params: DeploymentWorkspaceRootParams) => {
-        void (async () => {
-            await deploymentTargetService.switchActiveTarget(params.workspaceRoot);
+    async function withDeploymentContext(
+        params: DeploymentWorkspaceRootParams,
+        action: (documentDir: string) => Promise<void>,
+    ): Promise<void> {
+        deps.nodeWorkspace.registerRoot(params.workspaceRoot);
+        try {
+            let documentDir = params.workspaceRoot;
+            try {
+                documentDir = posix.dirname(
+                    deps.documentPort.getFilePath(deps.store.getActiveEditorId()),
+                );
+            } catch {
+                // Commands also work before any diagram is opened.
+            }
+            await action(documentDir);
+        } catch (error) {
+            deps.notifier.notifyError(
+                "Deployment command failed",
+                error instanceof Error ? error : new Error(String(error)),
+            );
+        } finally {
+            deps.nodeWorkspace.unregisterRoot(params.workspaceRoot);
+        }
+    }
+
+    deps.rpc.on(METHODS.deploymentSwitchTarget, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            await deploymentTargetService.switchActiveTarget(documentDir);
             await deploymentStatusService.refreshActive();
             await deploymentDispatcher.sendTargets();
-        })();
-    });
+        }),
+    );
 
-    // Host-initiated "Deploy Files…": mirror the VS Code controller — resolve the
-    // active target (prompting for one if none), pick files, and deploy each.
-    deps.rpc.on(METHODS.deploymentDeployFiles, (params: DeploymentWorkspaceRootParams) => {
-        void (async () => {
-            const root = params.workspaceRoot;
-            let target = await deploymentTargetService.getActiveTarget(root);
+    deps.rpc.on(METHODS.deploymentDeployFiles, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            let target = await deploymentTargetService.getActiveTarget(documentDir);
             if (target === undefined) {
-                await deploymentTargetService.switchActiveTarget(root);
+                await deploymentTargetService.switchActiveTarget(documentDir);
+                await deploymentStatusService.refreshActive();
                 await deploymentDispatcher.sendTargets();
-                target = await deploymentTargetService.getActiveTarget(root);
-                if (target === undefined) {
-                    return;
-                }
+                target = await deploymentTargetService.getActiveTarget(documentDir);
+                if (target === undefined) return;
             }
 
             const files = await deps.picker.pickWorkspaceFiles({
@@ -170,16 +190,15 @@ export function register(deps: BridgeSharedDeps): void {
                 exclude: "**/node_modules/**",
                 placeholder: `Select files to deploy to "${target.name}"`,
             });
-            if (files.length === 0) {
-                return;
-            }
+            if (files.length === 0) return;
 
             const resolvedTarget = target;
-            const auth = await deploymentTargetService.getCredentials(resolvedTarget, root);
+            const auth = await deploymentTargetService.getCredentials(resolvedTarget, documentDir);
             await deps.notifier.withProgress(
                 `Deploying ${files.length} file(s) to "${resolvedTarget.name}"`,
                 () => deploymentService.deployFiles(files, resolvedTarget, auth),
             );
-        })();
-    });
+            await deploymentStatusService.refreshActive();
+        }),
+    );
 }

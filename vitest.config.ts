@@ -8,6 +8,7 @@ export default defineConfig({
             "apps/bpmn-webview",
             "apps/dmn-webview",
             "apps/form-webview",
+            "apps/deployment-webview",
             "packages/bpmn-modeler",
             "packages/bpmn-modeler/vitest.browser.config.ts",
             "packages/dmn-modeler",

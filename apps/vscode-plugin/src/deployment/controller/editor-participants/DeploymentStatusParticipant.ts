@@ -23,33 +23,51 @@ const REFRESH_DEBOUNCE_MS = 300;
  */
 export class DeploymentStatusParticipant implements EditorSessionParticipant {
     private readonly refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    private focusedEditorId: string | undefined;
 
     constructor(private readonly statusService: DeploymentStatusService) {}
 
     onResolve(session: EditorSessionContext): void {
         const subscription = session.panel.onDidChangeViewState(() => {
             if (session.panel.active) {
+                this.focusedEditorId = session.editorId;
                 void this.statusService.refresh(session.editorId);
             } else {
-                this.statusService.hide();
+                this.cancelRefresh(session.editorId);
+                this.hideFor(session.editorId);
             }
         });
         session.addDisposable(subscription);
 
         session.onDocumentChange((event) => {
-            if (event.hasContentChanges() && event.documentUriString() === session.editorId) {
+            if (
+                session.panel.active &&
+                event.hasContentChanges() &&
+                event.documentUriString() === session.editorId
+            ) {
                 this.scheduleRefresh(session);
             }
         });
 
         session.onDispose(() => {
-            const timer = this.refreshTimers.get(session.editorId);
-            if (timer) {
-                clearTimeout(timer);
-                this.refreshTimers.delete(session.editorId);
-            }
-            this.statusService.hide();
+            this.cancelRefresh(session.editorId);
+            this.hideFor(session.editorId);
         });
+        if (session.panel.active) {
+            this.focusedEditorId = session.editorId;
+            void this.statusService.refresh(session.editorId);
+        }
+    }
+
+    private hideFor(editorId: string): void {
+        if (this.focusedEditorId !== editorId) return;
+        this.focusedEditorId = undefined;
+        this.statusService.hide();
+    }
+
+    private cancelRefresh(editorId: string): void {
+        clearTimeout(this.refreshTimers.get(editorId));
+        this.refreshTimers.delete(editorId);
     }
 
     private scheduleRefresh(session: EditorSessionContext): void {
@@ -61,7 +79,7 @@ export class DeploymentStatusParticipant implements EditorSessionParticipant {
             session.editorId,
             setTimeout(() => {
                 this.refreshTimers.delete(session.editorId);
-                void this.statusService.refresh(session.editorId);
+                if (session.panel.active) void this.statusService.refresh(session.editorId);
             }, REFRESH_DEBOUNCE_MS),
         );
     }

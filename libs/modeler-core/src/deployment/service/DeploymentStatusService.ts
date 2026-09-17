@@ -28,6 +28,8 @@ import { DeploymentTargetService } from "./DeploymentTargetService";
  * "absent on the engine".
  */
 export class DeploymentStatusService {
+    private refreshGeneration = 0;
+
     constructor(
         private readonly editorStore: EditorSessionStore,
         private readonly documentPort: DocumentPort,
@@ -57,10 +59,13 @@ export class DeploymentStatusService {
      * hides the item.
      */
     async refresh(editorId: string): Promise<void> {
+        if (!this.isActive(editorId)) return;
+        const generation = ++this.refreshGeneration;
         try {
             const filePath = this.documentPort.getFilePath(editorId);
             const documentDir = posix.dirname(filePath);
             const target = await this.deploymentTargetService.getActiveTarget(documentDir);
+            if (generation !== this.refreshGeneration || !this.isActive(editorId)) return;
             const identity =
                 target !== undefined
                     ? DeploymentTargetIdentity.fromTarget(target)
@@ -78,7 +83,7 @@ export class DeploymentStatusService {
             this.notifier.logDebug(
                 `Deployment status refresh skipped: ${(error as Error).message}`,
             );
-            this.hide();
+            if (generation === this.refreshGeneration && this.isActive(editorId)) this.hide();
         }
     }
 
@@ -86,6 +91,7 @@ export class DeploymentStatusService {
         try {
             await this.refresh(this.editorStore.getActiveEditorId());
         } catch (error) {
+            this.hide();
             this.notifier.logDebug(
                 `No active editor for deployment status: ${(error as Error).message}`,
             );
@@ -93,6 +99,15 @@ export class DeploymentStatusService {
     }
 
     hide(): void {
+        this.refreshGeneration++;
         this.statusBar.hideDeploymentTarget();
+    }
+
+    private isActive(editorId: string): boolean {
+        try {
+            return this.editorStore.getActiveEditorId() === editorId;
+        } catch {
+            return false;
+        }
     }
 }

@@ -54,6 +54,8 @@ export class UserCancelledError extends Error {
     }
 }
 
+export class DeploymentTargetChangedError extends Error {}
+
 /**
  * Thrown when {@link DeploymentConfigBuilder.build} finds empty required fields.
  */

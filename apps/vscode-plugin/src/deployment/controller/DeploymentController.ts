@@ -179,6 +179,7 @@ export class DeploymentController implements WebviewViewProvider {
             `Deploying ${files.length} file(s) to "${target.name}"`,
             () => this.deploymentService.deployFiles(files, resolvedTarget, auth),
         );
+        await this.deploymentStatusService.refreshActive();
     }
 
     private activeDocumentDir(): string | undefined {

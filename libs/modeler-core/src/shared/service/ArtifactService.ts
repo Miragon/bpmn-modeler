@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
+import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
 
 /**
@@ -142,8 +142,9 @@ export class ArtifactService {
         try {
             await this.vsWorkspace.readFile(path);
             return true;
-        } catch {
-            return false;
+        } catch (error) {
+            if (error instanceof FileNotFound) return false;
+            throw error;
         }
     }
 

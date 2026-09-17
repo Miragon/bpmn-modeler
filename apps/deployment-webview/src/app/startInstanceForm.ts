@@ -18,6 +18,8 @@ import { Engine } from "@miragon/bpmn-modeler-types";
  * Follows the same framework-free pattern as {@link DeploymentForm}.
  */
 export class StartInstanceForm {
+    private starting = false;
+    private blockedReason: string | undefined;
     private readonly processDefinitionKeyInput: HTMLInputElement;
 
     private readonly payloadFileInput: HTMLInputElement;
@@ -63,7 +65,8 @@ export class StartInstanceForm {
     }
 
     showProgress(): void {
-        this.startInstanceBtn.disabled = true;
+        this.starting = true;
+        this.updateButton();
         this.statusBanner.className = "status-banner progress";
         this.statusBanner.textContent = "Starting process instance\u2026";
         this.statusBanner.style.display = "block";
@@ -71,7 +74,8 @@ export class StartInstanceForm {
 
     /** Shows the start-instance result in the status banner and re-enables the button. */
     showResult(result: StartInstanceResultQuery): void {
-        this.startInstanceBtn.disabled = false;
+        this.starting = false;
+        this.updateButton();
         this.statusBanner.className = result.success
             ? "status-banner success"
             : "status-banner error";
@@ -113,6 +117,7 @@ export class StartInstanceForm {
 
     /** Builds a {@link StartInstanceConfigPayload} from the form, throwing on empty required fields. */
     private getConfigPayload(): StartInstanceConfigPayload {
+        if (this.blockedReason) throw new Error(this.blockedReason);
         const processDefinitionKey = this.processDefinitionKeyInput.value.trim();
         if (!processDefinitionKey) {
             throw new Error("Process Definition Key is required.");
@@ -132,6 +137,15 @@ export class StartInstanceForm {
             targetName: connection.targetName,
             startInstanceUrl: connection.startInstanceUrl,
         };
+    }
+
+    setExecutionBlockedReason(reason: string | undefined): void {
+        this.blockedReason = reason;
+        this.updateButton();
+    }
+
+    private updateButton(): void {
+        this.startInstanceBtn.disabled = this.starting || this.blockedReason !== undefined;
     }
 
     /** Returns the DOM element matching `selector`, or throws if none matches. */

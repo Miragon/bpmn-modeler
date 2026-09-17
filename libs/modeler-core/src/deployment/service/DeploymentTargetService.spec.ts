@@ -142,6 +142,77 @@ describe("DeploymentTargetService.openTargetsFile", () => {
 });
 
 describe("DeploymentTargetService.saveTarget", () => {
+    it.each(["{ broken", JSON.stringify({ targets: [{ name: "broken" }] })])(
+        "leaves the file, secrets, and active target untouched after a parse failure: %s",
+        async (content) => {
+            const c = createService();
+            c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+            c.workspace.readFile.mockResolvedValue(content);
+            await expect(
+                c.service.saveTarget(
+                    {
+                        name: "new",
+                        engine: "c7",
+                        endpoint: "https://host",
+                        tenantId: "",
+                        authType: "none",
+                    },
+                    { authType: "none" },
+                    undefined,
+                    DOC_DIR,
+                ),
+            ).rejects.toThrow();
+            await expect(c.service.deleteTarget("old", DOC_DIR)).rejects.toThrow();
+            expect(c.workspace.writeFile).not.toHaveBeenCalled();
+            expect(c.secretStore.saveBasicAuth).not.toHaveBeenCalled();
+            expect(c.secretStore.saveOAuth2).not.toHaveBeenCalled();
+            expect(c.secretStore.delete).not.toHaveBeenCalled();
+            expect(c.deploymentState.saveActiveTargetName).not.toHaveBeenCalled();
+        },
+    );
+
+    it("aborts mutations when the existing file is unreadable", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+        c.workspace.readFile.mockRejectedValue(new Error("EACCES"));
+        await expect(
+            c.service.saveTarget(
+                {
+                    name: "new",
+                    engine: "c7",
+                    endpoint: "https://host",
+                    tenantId: "",
+                    authType: "none",
+                },
+                { authType: "none" },
+                undefined,
+                DOC_DIR,
+            ),
+        ).rejects.toThrow("EACCES");
+        await expect(c.service.deleteTarget("old", DOC_DIR)).rejects.toThrow("EACCES");
+        expect(c.workspace.writeFile).not.toHaveBeenCalled();
+        expect(c.secretStore.delete).not.toHaveBeenCalled();
+        expect(c.deploymentState.saveActiveTargetName).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { name: "", endpoint: "https://host" },
+        { name: "new", endpoint: " " },
+    ])("rejects invalid input before writing: %j", async (fields) => {
+        const c = createService();
+        await expect(
+            c.service.saveTarget(
+                { ...fields, engine: "c7", tenantId: "", authType: "basic" },
+                { authType: "basic", username: "u", password: "p" },
+                undefined,
+                DOC_DIR,
+            ),
+        ).rejects.toThrow();
+        expect(c.workspace.writeFile).not.toHaveBeenCalled();
+        expect(c.secretStore.saveBasicAuth).not.toHaveBeenCalled();
+        expect(c.deploymentState.saveActiveTargetName).not.toHaveBeenCalled();
+    });
+
     it("writes the upserted file, stores secrets under the slot, and activates", async () => {
         const c = createService();
         c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
@@ -200,6 +271,25 @@ describe("DeploymentTargetService.saveTarget", () => {
                 undefined,
             ),
         ).rejects.toThrow(/workspace/);
+    });
+});
+
+it("returns OAuth metadata even when this machine has no credentials", async () => {
+    const c = createService();
+    c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+    c.workspace.readFile.mockResolvedValue(
+        fileWith(
+            target("shared", {
+                authType: "oauth2",
+                tokenEndpoint: "https://login/token",
+                audience: "api",
+            }),
+        ),
+    );
+    expect(await c.service.getStoredCredentials("shared", DOC_DIR)).toEqual({
+        authType: "oauth2",
+        tokenEndpoint: "https://login/token",
+        audience: "api",
     });
 });
 

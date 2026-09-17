@@ -989,7 +989,10 @@ export class RequestAdditionalFilesCommand extends Command {
 export class RequestStoredCredentialsCommand extends Command {
     public readonly targetName: string;
 
-    constructor(targetName = "") {
+    constructor(
+        targetName = "",
+        public readonly requestId = 0,
+    ) {
         super("RequestStoredCredentialsCommand");
         this.targetName = targetName;
     }
@@ -1087,7 +1090,11 @@ export class DeploymentResultQuery extends Query {
 export class StoredCredentialsQuery extends Query {
     public readonly auth: AuthConfigPayload;
 
-    constructor(auth: AuthConfigPayload) {
+    constructor(
+        auth: AuthConfigPayload,
+        public readonly targetName = "",
+        public readonly requestId = 0,
+    ) {
         super("StoredCredentialsQuery");
         this.auth = auth;
     }
@@ -1115,7 +1122,11 @@ export class DeploymentTargetsQuery extends Query {
 
     public readonly activeTargetName: string;
 
-    constructor(targets: readonly DeploymentTargetPayload[], activeTargetName: string) {
+    constructor(
+        targets: readonly DeploymentTargetPayload[],
+        activeTargetName: string,
+        public readonly documentDir?: string,
+    ) {
         super("DeploymentTargetsQuery");
         this.targets = targets;
         this.activeTargetName = activeTargetName;

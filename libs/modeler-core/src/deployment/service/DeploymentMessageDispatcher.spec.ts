@@ -24,6 +24,7 @@ import {
     type StartInstanceCommand,
 } from "@miragon/bpmn-modeler-shared";
 
+import { DeploymentTarget } from "../domain/deploymentTarget";
 import { BasicAuth, DeploymentResult, NoAuth, OAuth2Auth } from "../domain/deployment";
 import { StartInstanceResult } from "../domain/startInstance";
 import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
@@ -58,6 +59,7 @@ function createDispatcher() {
     const deploymentTargetService = {
         listTargets: vi.fn().mockResolvedValue([]),
         getActiveTarget: vi.fn().mockResolvedValue(undefined),
+        getTarget: vi.fn().mockResolvedValue(undefined),
         setActiveTarget: vi.fn().mockResolvedValue(undefined),
         saveTarget: vi.fn().mockResolvedValue(undefined),
         deleteTarget: vi.fn().mockResolvedValue(true),
@@ -586,6 +588,164 @@ describe("DeploymentMessageDispatcher.handle routing", () => {
 });
 
 describe("DeploymentMessageDispatcher target commands", () => {
+    it("rejects changed start URLs and OAuth metadata before starting", async () => {
+        const c = createDispatcher();
+        c.deploymentTargetService.getTarget.mockResolvedValue(
+            new DeploymentTarget(
+                "dev",
+                "c7",
+                "http://localhost:8080/engine-rest",
+                "",
+                "oauth2",
+                "https://login/token",
+                "api",
+                undefined,
+                "https://host/start",
+            ),
+        );
+        const config = {
+            ...startPayload({
+                authType: "oauth2",
+                clientId: "id",
+                clientSecret: "secret",
+                tokenEndpoint: "https://login/token",
+                audience: "api",
+            }),
+            targetName: "dev",
+            startInstanceUrl: "https://host/start",
+        };
+        await c.dispatcher.handle({
+            type: "StartInstanceCommand",
+            config: { ...config, startInstanceUrl: "https://other/start" },
+        } as StartInstanceCommand);
+        await c.dispatcher.handle({
+            type: "StartInstanceCommand",
+            config: { ...config, auth: { ...config.auth, audience: "another" } },
+        } as StartInstanceCommand);
+        expect(c.startInstanceService.startInstance).not.toHaveBeenCalled();
+    });
+
+    it("accepts formatting whitespace in a hand-edited target", async () => {
+        const c = createDispatcher();
+        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+        c.deploymentTargetService.getTarget.mockResolvedValue(
+            new DeploymentTarget(
+                "dev",
+                "c7",
+                " http://localhost:8080/engine-rest ",
+                " ",
+                "none",
+                "",
+                "",
+            ),
+        );
+        await c.dispatcher.handle({
+            type: "DeployCommand",
+            config: { ...deployPayload({ authType: "none" }), targetName: "dev" },
+        } as DeployCommand);
+        expect(c.deploymentService.deploy).toHaveBeenCalledOnce();
+    });
+
+    it("echoes credential request identity on success and failure", async () => {
+        const c = createDispatcher();
+        await c.dispatcher.handle({
+            type: "RequestStoredCredentialsCommand",
+            targetName: "dev",
+            requestId: 42,
+        } as Command);
+        expect(postedQuery(c.post, StoredCredentialsQuery)).toMatchObject({
+            targetName: "dev",
+            requestId: 42,
+        });
+        c.post.mockClear();
+        c.deploymentTargetService.getStoredCredentials.mockRejectedValue(new Error("locked"));
+        await c.dispatcher.handle({
+            type: "RequestStoredCredentialsCommand",
+            targetName: "dev",
+            requestId: 43,
+        } as Command);
+        expect(postedQuery(c.post, StoredCredentialsQuery)).toMatchObject({
+            targetName: "dev",
+            requestId: 43,
+            auth: { authType: "none" },
+        });
+    });
+
+    it.each([
+        undefined,
+        new DeploymentTarget("dev", "c7", "https://different", "", "none", "", ""),
+    ])("rejects a missing or changed target before deploying or starting: %j", async (target) => {
+        const c = createDispatcher();
+        c.deploymentTargetService.getTarget.mockResolvedValue(target);
+        await c.dispatcher.handle({
+            type: "DeployCommand",
+            config: { ...deployPayload({ authType: "none" }), targetName: "dev" },
+        } as DeployCommand);
+        await c.dispatcher.handle({
+            type: "StartInstanceCommand",
+            config: { ...startPayload({ authType: "none" }), targetName: "dev" },
+        } as StartInstanceCommand);
+        expect(c.deploymentService.deploy).not.toHaveBeenCalled();
+        expect(c.startInstanceService.startInstance).not.toHaveBeenCalled();
+        expect(c.deploymentTargetService.resolveSlot).not.toHaveBeenCalled();
+        expect(postedQuery(c.post, DeploymentResultQuery).success).toBe(false);
+        expect(postedQuery(c.post, StartInstanceResultQuery).success).toBe(false);
+    });
+
+    it("records the submitted target and captures the document context before asynchronous lookup", async () => {
+        const c = createDispatcher();
+        c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
+            new DeploymentTarget("other", "c7", "https://other", "", "none", "", ""),
+        );
+        c.deploymentTargetService.getTarget.mockImplementation(async () => {
+            c.documentPort.getFilePath.mockReturnValue("/another/diagram.bpmn");
+            return new DeploymentTarget(
+                "dev",
+                "c7",
+                "http://localhost:8080/engine-rest",
+                "",
+                "none",
+                "",
+                "",
+            );
+        });
+        await c.dispatcher.handle({
+            type: "DeployCommand",
+            config: { ...deployPayload({ authType: "none" }), targetName: "dev" },
+        } as DeployCommand);
+        expect(c.deploymentTargetService.getTarget).toHaveBeenCalledWith("dev", "/work/trusted");
+        expect(c.deploymentTargetService.resolveSlot).toHaveBeenCalledWith("dev", "/work/trusted");
+        const [config, , identity] = c.deploymentService.deploy.mock.calls[0];
+        expect(config.mainFilePath).toBe("/work/trusted/order-process.bpmn");
+        expect(identity.key()).toBe("target:dev");
+    });
+
+    it.each([
+        { tenantId: "another" },
+        { deployUrl: "https://other/deploy" },
+        { engine: "c8" },
+        { auth: { authType: "basic", username: "u", password: "p" } },
+    ])("rejects a changed named deployment field: %j", async (overrides) => {
+        const c = createDispatcher();
+        c.deploymentTargetService.getTarget.mockResolvedValue(
+            new DeploymentTarget(
+                "dev",
+                "c7",
+                "http://localhost:8080/engine-rest",
+                "",
+                "none",
+                "",
+                "",
+            ),
+        );
+        await c.dispatcher.handle({
+            type: "DeployCommand",
+            config: { ...deployPayload({ authType: "none" }), targetName: "dev", ...overrides },
+        } as DeployCommand);
+        expect(c.deploymentService.deploy).not.toHaveBeenCalled();
+    });
+
     const targetPayload: DeploymentTargetPayload = {
         name: "dev",
         engine: "c7",
@@ -707,6 +867,17 @@ describe("DeploymentMessageDispatcher target commands", () => {
         const c = createDispatcher();
         c.deploymentService.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
         c.deploymentTargetService.resolveSlot.mockResolvedValue("/ws/targets.json::dev");
+        c.deploymentTargetService.getTarget.mockResolvedValue(
+            new DeploymentTarget(
+                "dev",
+                "c7",
+                "http://localhost:8080/engine-rest",
+                "",
+                "none",
+                "",
+                "",
+            ),
+        );
 
         await c.dispatcher.handle({
             type: "DeployCommand",

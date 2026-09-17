@@ -8,6 +8,7 @@ import {
     FormDefaultsQuery,
     ProcessDefinitionKeyQuery,
     Query,
+    RequestStoredCredentialsCommand,
     SaveTargetCommand,
     SelectedPayloadFileQuery,
     SelectTargetCommand,
@@ -127,7 +128,19 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 break;
             }
             case "RequestStoredCredentialsCommand": {
-                dispatchEvent(new StoredCredentialsQuery({ authType: "none" }));
+                const { targetName, requestId } = message as RequestStoredCredentialsCommand;
+                const target = this.mockTargets.find((entry) => entry.name === targetName);
+                dispatchEvent(
+                    new StoredCredentialsQuery(
+                        {
+                            authType: target?.authType ?? "none",
+                            tokenEndpoint: target?.tokenEndpoint,
+                            audience: target?.audience,
+                        },
+                        targetName,
+                        requestId,
+                    ),
+                );
                 break;
             }
             case "RequestAdditionalFilesCommand": {

@@ -91,20 +91,28 @@ export class DeploymentTargetService {
     }
 
     async listTargets(documentDir?: string): Promise<DeploymentTarget[]> {
-        const location = await this.locateTargetsFile(documentDir);
-        if (location === undefined || !location.exists) {
-            return [];
-        }
         try {
-            const content = await this.workspace.readFile(location.filePath);
-            return parseDeploymentTargetsFile(JSON.parse(content));
+            return await this.readTargets(await this.locateTargetsFile(documentDir));
         } catch (error) {
             this.notifier.notifyError(
-                `Could not read deployment targets from ${location.filePath}`,
+                "Could not read deployment targets",
                 error instanceof Error ? error : new Error(String(error)),
             );
             return [];
         }
+    }
+
+    private async readTargets(location: TargetsLocation | undefined): Promise<DeploymentTarget[]> {
+        if (location === undefined || !location.exists) return [];
+        return parseDeploymentTargetsFile(
+            JSON.parse(await this.workspace.readFile(location.filePath)),
+        );
+    }
+
+    async getTarget(name: string, documentDir?: string): Promise<DeploymentTarget | undefined> {
+        return new DeploymentTargets(
+            await this.readTargets(await this.locateTargetsFile(documentDir)),
+        ).find(name);
     }
 
     /**
@@ -123,8 +131,10 @@ export class DeploymentTargetService {
             throw new Error("Open a workspace folder before saving a deployment target.");
         }
 
-        const target = toDomainTarget(payload);
-        const current = await this.listTargets(documentDir);
+        const [target] = parseDeploymentTargetsFile({
+            targets: [toDomainTarget(payload).toJson()],
+        });
+        const current = await this.readTargets(location);
         const next = new DeploymentTargets(current).upsert(target, previousName);
         await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
 
@@ -150,7 +160,7 @@ export class DeploymentTargetService {
         if (location === undefined || !location.exists) {
             return false;
         }
-        const current = await this.listTargets(documentDir);
+        const current = await this.readTargets(location);
         const next = new DeploymentTargets(current).remove(name);
         await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
         await this.secretStore.delete(this.slotFor(location.filePath, name));
@@ -240,7 +250,12 @@ export class DeploymentTargetService {
                 };
             }
         }
-        return { authType: target.authType };
+        return {
+            authType: target.authType,
+            ...(target.authType === "oauth2"
+                ? { tokenEndpoint: target.tokenEndpoint, audience: target.audience }
+                : {}),
+        };
     }
 
     /** Resolves an active target's stored credentials into a domain auth object. */

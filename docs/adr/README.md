@@ -27,6 +27,7 @@ contributor-facing record, not user documentation.
 | [0032](0032-vitest-browser-mode-for-bpmn-modeler.md) | Vitest browser mode (Playwright/Chromium) as a second project for `@miragon/bpmn-modeler`; real-ResizeObserver view-state specs, coverage off, shared aliases | accepted |
 | [0034](0034-patch-vulnerable-transitive-build-dependencies.md) | Pin patched transitive dependencies and replace Theia's archive extractor | accepted |
 | [0035](0035-typed-adapters-for-private-upstream-apis.md) | Isolate private upstream access behind typed adapters with pinned shape tests; escalate `no-explicit-any` to `error` off the fork | accepted |
+| [0038](0038-bind-deployment-actions-to-saved-targets.md) | Bind deployment actions and credential replies to the selected saved target; require Save for connection changes | accepted |
 
 ### modeler-core
 

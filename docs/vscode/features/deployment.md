@@ -22,7 +22,9 @@ storage, keyed per target.
 - **Editing:** the sidebar's Connection/Authentication/Advanced fields are the
   target editor. The row above Connection has a target select plus **New**,
   **Save**, and **Delete**. Type a **Target Name**, fill the connection, and
-  **Save**. Editing any field enables **Save**; renaming (saving under a new name)
+  **Save**. Save connection changes before using **Deploy** or **Start Instance**.
+  Credential-only changes can be used immediately. Editing any field enables
+  **Save**; renaming (saving under a new name)
   migrates the stored credentials. **Edit JSON** opens `deployment-targets.json`
   in the editor (creating an empty one first) for direct, schema-assisted editing.
 - **Ad-hoc mode:** with **(none — use form values)** selected, the form behaves

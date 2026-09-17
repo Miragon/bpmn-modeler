@@ -22,7 +22,11 @@ import { posix } from "path";
 
 import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domain/deployment";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
-import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { DeploymentTarget } from "../domain/deploymentTarget";
+import {
+    DeploymentTargetChangedError,
+    InvalidDeploymentConfigError,
+} from "../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHandlers";
@@ -46,6 +50,7 @@ import { StartInstanceService } from "./StartInstanceService";
  * redirect which file is deployed.
  */
 export class DeploymentMessageDispatcher {
+    private targetsGeneration = 0;
     /**
      * @param editorStore Active-editor registry; resolves which document to act on.
      * @param documentPort Document path/content access for the trusted main file.
@@ -84,6 +89,7 @@ export class DeploymentMessageDispatcher {
             case "RequestStoredCredentialsCommand":
                 await this.handleStoredCredentialsRequest(
                     (message as RequestStoredCredentialsCommand).targetName ?? "",
+                    (message as RequestStoredCredentialsCommand).requestId ?? 0,
                 );
                 break;
             case "SelectTargetCommand":
@@ -170,14 +176,23 @@ export class DeploymentMessageDispatcher {
      * mutation so the form's select always mirrors the persisted state.
      */
     async sendTargets(): Promise<void> {
+        const generation = ++this.targetsGeneration;
+        const documentDir = this.activeDocumentDir();
         try {
-            const documentDir = this.activeDocumentDir();
             const targets = await this.deploymentTargetService.listTargets(documentDir);
             const active = await this.deploymentTargetService.getActiveTarget(documentDir);
-            this.post(new DeploymentTargetsQuery(targets.map(toTargetPayload), active?.name ?? ""));
+            if (generation !== this.targetsGeneration) return;
+            this.post(
+                new DeploymentTargetsQuery(
+                    targets.map(toTargetPayload),
+                    active?.name ?? "",
+                    documentDir,
+                ),
+            );
         } catch (error) {
+            if (generation !== this.targetsGeneration) return;
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            this.post(new DeploymentTargetsQuery([], ""));
+            this.post(new DeploymentTargetsQuery([], "", documentDir));
         }
     }
 
@@ -186,7 +201,10 @@ export class DeploymentMessageDispatcher {
      * webview so it can pre-fill the auth fields. A `targetName` scopes the
      * lookup to a saved target; otherwise the ad-hoc legacy credentials are used.
      */
-    private async handleStoredCredentialsRequest(targetName: string): Promise<void> {
+    private async handleStoredCredentialsRequest(
+        targetName: string,
+        requestId: number,
+    ): Promise<void> {
         try {
             const auth =
                 targetName.trim() === ""
@@ -195,10 +213,10 @@ export class DeploymentMessageDispatcher {
                           targetName,
                           this.activeDocumentDir(),
                       );
-            this.post(new StoredCredentialsQuery(auth));
+            this.post(new StoredCredentialsQuery(auth, targetName, requestId));
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            this.post(new StoredCredentialsQuery({ authType: "none" }));
+            this.post(new StoredCredentialsQuery({ authType: "none" }, targetName, requestId));
         }
     }
 
@@ -213,6 +231,7 @@ export class DeploymentMessageDispatcher {
                 "Could not switch deployment target",
                 error instanceof Error ? error : new Error(String(error)),
             );
+            await this.sendTargets();
         }
     }
 
@@ -228,6 +247,7 @@ export class DeploymentMessageDispatcher {
                 new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
             );
             await this.sendTargets();
+            await this.deploymentStatusService.refreshActive();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
@@ -244,6 +264,7 @@ export class DeploymentMessageDispatcher {
             if (deleted) {
                 this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
                 await this.sendTargets();
+                await this.deploymentStatusService.refreshActive();
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -263,23 +284,38 @@ export class DeploymentMessageDispatcher {
         }
     }
 
-    /**
-     * The ledger identity for this deploy: the active named target when one is
-     * selected, else the ad-hoc endpoint-host + tenant key.
-     */
-    private async resolveTargetIdentity(
-        targetName: string,
-        endpoint: string,
-        tenantId: string,
+    private async resolveRequestTarget(
+        payload: DeployCommand["config"] | StartInstanceCommand["config"],
         documentDir: string | undefined,
-    ): Promise<DeploymentTargetIdentity> {
-        if (targetName.trim() !== "") {
-            const target = await this.deploymentTargetService.getActiveTarget(documentDir);
-            if (target !== undefined) {
-                return DeploymentTargetIdentity.fromTarget(target);
-            }
+    ): Promise<DeploymentTarget | undefined> {
+        if (!payload.targetName?.trim()) return undefined;
+        const target = await this.deploymentTargetService.getTarget(
+            payload.targetName,
+            documentDir,
+        );
+        if (target === undefined) {
+            throw new DeploymentTargetChangedError(
+                "The deployment target no longer exists. Select a target again.",
+            );
         }
-        return DeploymentTargetIdentity.adHoc(endpoint, tenantId);
+        const matches =
+            payload.endpoint.trim() === target.endpoint.trim() &&
+            payload.engine === target.engine &&
+            payload.auth.authType === target.authType &&
+            (target.authType !== "oauth2" ||
+                ((payload.auth.tokenEndpoint ?? "").trim() === target.tokenEndpoint.trim() &&
+                    (payload.auth.audience ?? "").trim() === target.audience.trim())) &&
+            ("deploymentName" in payload
+                ? payload.tenantId.trim() === target.tenantId.trim() &&
+                  (payload.deployUrl ?? "").trim() === (target.deployUrl ?? "").trim()
+                : (payload.startInstanceUrl ?? "").trim() ===
+                  (target.startInstanceUrl ?? "").trim());
+        if (!matches) {
+            throw new DeploymentTargetChangedError(
+                "The deployment target changed. Save or reload the target before continuing.",
+            );
+        }
+        return target;
     }
 
     /** Directory of the active editor's document, or `undefined` if none is focused. */
@@ -350,6 +386,7 @@ export class DeploymentMessageDispatcher {
         configPayload: StartInstanceCommand["config"],
     ): Promise<void> {
         try {
+            await this.resolveRequestTarget(configPayload, this.activeDocumentDir());
             const auth = this.buildAuth(configPayload.auth);
 
             // Breadcrumb. Host[:port] only — never the full URL or auth payload.
@@ -382,7 +419,10 @@ export class DeploymentMessageDispatcher {
                 ),
             );
         } catch (error) {
-            const message = "An unexpected error occurred while starting the process instance.";
+            const message =
+                error instanceof DeploymentTargetChangedError
+                    ? error.message
+                    : "An unexpected error occurred while starting the process instance.";
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             this.notifier.showError(message);
             this.post(new StartInstanceResultQuery(false, message));
@@ -415,17 +455,16 @@ export class DeploymentMessageDispatcher {
                 .withDeployUrl(configPayload.deployUrl)
                 .build();
 
-            const documentDir = this.activeDocumentDir();
-            const secretSlot = await this.deploymentTargetService.resolveSlot(
-                configPayload.targetName,
-                documentDir,
-            );
-            const identity = await this.resolveTargetIdentity(
-                configPayload.targetName,
-                config.endpoint,
-                config.tenantId,
-                documentDir,
-            );
+            const documentDir = posix.dirname(mainFilePath);
+            const target = await this.resolveRequestTarget(configPayload, documentDir);
+            const secretSlot =
+                target === undefined
+                    ? undefined
+                    : await this.deploymentTargetService.resolveSlot(target.name, documentDir);
+            const identity =
+                target === undefined
+                    ? DeploymentTargetIdentity.adHoc(config.endpoint, config.tenantId)
+                    : DeploymentTargetIdentity.fromTarget(target);
 
             // Breadcrumb. Only host[:port] is logged (never the full URL, which can
             // carry credentials, and never the auth payload) — see endpointHost.
@@ -450,7 +489,8 @@ export class DeploymentMessageDispatcher {
             );
         } catch (error) {
             const message =
-                error instanceof InvalidDeploymentConfigError
+                error instanceof InvalidDeploymentConfigError ||
+                error instanceof DeploymentTargetChangedError
                     ? error.message
                     : "An unexpected error occurred during deployment.";
 

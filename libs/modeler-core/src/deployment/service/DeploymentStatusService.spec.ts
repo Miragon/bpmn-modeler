@@ -8,6 +8,16 @@ import {
 } from "../domain/deploymentLedger";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (error: Error) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
+
 const FILE_PATH = "/work/order-process.bpmn";
 const target = (name: string): DeploymentTarget =>
     new DeploymentTarget(name, "c7", "http://localhost:8080/engine-rest", "", "none", "", "");
@@ -81,6 +91,54 @@ describe("DeploymentStatusService.recordDeployment", () => {
 });
 
 describe("DeploymentStatusService.refresh", () => {
+    it("ignores requests from an inactive editor", async () => {
+        const c = createService();
+        await c.service.refresh("background");
+        expect(c.statusBar.showDeploymentTarget).not.toHaveBeenCalled();
+        expect(c.statusBar.hideDeploymentTarget).not.toHaveBeenCalled();
+    });
+
+    it.each(["resolve", "reject"])("ignores a stale lookup that later %s", async (outcome) => {
+        const c = createService();
+        const pending = deferred<DeploymentTarget | undefined>();
+        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const oldRefresh = c.service.refresh("editor-1");
+        c.editorStore.getActiveEditorId.mockReturnValue("editor-2");
+        await c.service.refresh("editor-2");
+        c.statusBar.showDeploymentTarget.mockClear();
+        if (outcome === "resolve") pending.resolve(target("old"));
+        else pending.reject(new Error("stale error"));
+        await oldRefresh;
+        expect(c.statusBar.showDeploymentTarget).not.toHaveBeenCalled();
+        expect(c.statusBar.hideDeploymentTarget).not.toHaveBeenCalled();
+    });
+
+    it("invalidates pending refreshes when hidden, even if the active pointer is unchanged", async () => {
+        const c = createService();
+        const pending = deferred<DeploymentTarget | undefined>();
+        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const refresh = c.service.refresh("editor-1");
+        c.service.hide();
+        pending.resolve(target("old"));
+        await refresh;
+        expect(c.statusBar.showDeploymentTarget).not.toHaveBeenCalled();
+    });
+
+    it("only publishes the newest lookup for the same editor", async () => {
+        const c = createService();
+        const pending = deferred<DeploymentTarget | undefined>();
+        c.deploymentTargetService.getActiveTarget.mockReturnValueOnce(pending.promise);
+        const old = c.service.refresh("editor-1");
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(target("new"));
+        await c.service.refresh("editor-1");
+        pending.resolve(target("old"));
+        await old;
+        expect(c.statusBar.showDeploymentTarget).toHaveBeenCalledExactlyOnceWith(
+            "new",
+            "unknown",
+            undefined,
+        );
+    });
     it("renders unknown when no revision is recorded", async () => {
         const c = createService();
 
