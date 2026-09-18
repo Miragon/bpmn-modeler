@@ -28,6 +28,8 @@ export class StartInstanceForm {
 
     private readonly startInstanceBtn: HTMLButtonElement;
 
+    private readonly startHint: HTMLDivElement;
+
     private readonly statusBanner: HTMLDivElement;
 
     // Absolute path to the selected payload file, or empty string.
@@ -49,6 +51,7 @@ export class StartInstanceForm {
         this.payloadFileInput = this.requireElement<HTMLInputElement>("#payload-file");
         this.selectPayloadBtn = this.requireElement<HTMLButtonElement>("#select-payload-btn");
         this.startInstanceBtn = this.requireElement<HTMLButtonElement>("#start-instance-btn");
+        this.startHint = this.requireElement<HTMLDivElement>("#start-hint");
         this.statusBanner = this.requireElement<HTMLDivElement>("#start-status-banner");
 
         this.bindEvents();
@@ -146,6 +149,9 @@ export class StartInstanceForm {
 
     private updateButton(): void {
         this.startInstanceBtn.disabled = this.starting || this.blockedReason !== undefined;
+        this.startInstanceBtn.title = this.blockedReason ?? "";
+        this.startHint.textContent = this.blockedReason ?? "";
+        this.startHint.hidden = this.blockedReason === undefined;
     }
 
     /** Returns the DOM element matching `selector`, or throws if none matches. */

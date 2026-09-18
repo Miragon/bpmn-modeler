@@ -153,7 +153,7 @@ describe("deployment target form", () => {
         c.start.showResult(new StartInstanceResultQuery(true, "old operation finished"));
         expect(button("deploy-btn").disabled).toBe(true);
         expect(button("start-instance-btn").disabled).toBe(true);
-        expect(document.getElementById("execution-hint")?.textContent).toBe(
+        expect(document.getElementById("deploy-hint")?.textContent).toBe(
             "Save target changes before deploying or starting an instance.",
         );
         button("target-save").click();
@@ -216,5 +216,56 @@ describe("deployment target form", () => {
         c.form.setTargets(new DeploymentTargetsQuery([dev], "dev"));
         expect(field("target-name").value).toBe("new");
         expect(button("deploy-btn").disabled).toBe(true);
+    });
+
+    it("enables Save for an ad-hoc edit but blocks the save when the name is empty", () => {
+        const c = setup();
+        c.form.setTargets(new DeploymentTargetsQuery([], ""));
+        edit("endpoint", "https://edited.test");
+        expect(field("target-name").value).toBe("");
+        expect(button("target-save").disabled).toBe(false);
+        button("target-save").click();
+        expect(
+            c.host.postMessage.mock.calls
+                .map(([message]) => message)
+                .some((message) => message.type === "SaveTargetCommand"),
+        ).toBe(false);
+        expect(document.getElementById("status-banner")?.textContent).toBe(
+            "Target Name is required to save a target.",
+        );
+        expect(document.activeElement).toBe(field("target-name"));
+    });
+
+    it("surfaces the deploy block reason at the button while keeping Save enabled", () => {
+        const c = setup();
+        const dev = target("dev");
+        c.form.setTargets(new DeploymentTargetsQuery([dev], "dev"));
+        edit("endpoint", "https://edited.test");
+        expect(button("deploy-btn").disabled).toBe(true);
+        expect(document.getElementById("deploy-hint")?.textContent).toBe(
+            "Save target changes before deploying or starting an instance.",
+        );
+        expect(button("deploy-btn").title).toBe(
+            "Save target changes before deploying or starting an instance.",
+        );
+        expect(button("target-save").disabled).toBe(false);
+    });
+
+    it("releases the credentials gate on a matching requestId for a different target", () => {
+        const c = setup();
+        const dev = target("dev", { authType: "basic" });
+        c.form.setTargets(new DeploymentTargetsQuery([dev], "dev"));
+        const request = c.lastRequest();
+        expect(button("deploy-btn").disabled).toBe(true);
+        c.form.populateCredentials(
+            new StoredCredentialsQuery(
+                { authType: "basic", username: "x", password: "y" },
+                "stale-target",
+                request.requestId,
+            ),
+        );
+        expect(button("deploy-btn").disabled).toBe(false);
+        expect(button("target-save").disabled).toBe(true);
+        expect(field("auth-password").value).toBe("");
     });
 });

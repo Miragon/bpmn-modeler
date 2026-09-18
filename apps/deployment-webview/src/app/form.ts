@@ -215,15 +215,18 @@ export class DeploymentForm {
     }
 
     populateCredentials(query: StoredCredentialsQuery): void {
-        if (
-            this.pendingCredentials === undefined ||
-            query.requestId !== this.pendingCredentials ||
-            query.targetName !== this.editingTargetName
-        )
+        if (this.pendingCredentials === undefined || query.requestId !== this.pendingCredentials) {
             return;
+        }
+        // A matching monotonic requestId is proof this is the reply to our
+        // outstanding request, so release the gate unconditionally. Only skip
+        // *applying* the values when they no longer describe the loaded target.
         this.pendingCredentials = undefined;
         const auth = query.auth;
-        if (auth.authType !== this.authTypeSelect.value) {
+        if (
+            query.targetName !== this.editingTargetName ||
+            auth.authType !== this.authTypeSelect.value
+        ) {
             this.updateReadiness();
             return;
         }
@@ -513,6 +516,7 @@ export class DeploymentForm {
             const target = this.getTargetPayload();
             if (!target.name) {
                 this.showBanner("error", "Target Name is required to save a target.");
+                this.targetNameInput.focus();
                 return;
             }
             const previousName =
@@ -733,12 +737,13 @@ export class DeploymentForm {
     private updateReadiness(): void {
         const reason = this.executionBlockedReason();
         this.deployBtn.disabled = this.deploying || reason !== undefined;
+        this.deployBtn.title = reason ?? "";
         this.targetSaveBtn.disabled =
             !this.dirty ||
-            !this.targetNameInput.value.trim() ||
             this.savingTarget ||
             this.switchingTarget ||
             this.pendingCredentials !== undefined;
+        this.targetSaveBtn.title = this.saveBlockedReason() ?? "Save target";
         for (const control of document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
             "#section-connection input, #section-connection select, #section-authentication input, #section-authentication select, #section-advanced input",
         )) {
@@ -748,10 +753,18 @@ export class DeploymentForm {
         this.targetNewBtn.disabled = this.savingTarget || this.switchingTarget;
         this.targetDeleteBtn.disabled =
             this.savingTarget || this.switchingTarget || !this.editingTargetName;
-        const hint = this.requireElement<HTMLDivElement>("#execution-hint");
-        hint.textContent = reason ?? "";
-        hint.hidden = reason === undefined;
+        const deployHint = this.requireElement<HTMLDivElement>("#deploy-hint");
+        deployHint.textContent = reason ?? "";
+        deployHint.hidden = reason === undefined;
         this.readinessListeners.forEach((listener) => listener(reason));
+    }
+
+    private saveBlockedReason(): string | undefined {
+        if (!this.dirty) return "No unsaved changes.";
+        if (this.savingTarget) return "Saving deployment target…";
+        if (this.switchingTarget) return "Loading deployment target…";
+        if (this.pendingCredentials !== undefined) return "Loading credentials…";
+        return undefined;
     }
 
     private clearCredentials(): void {

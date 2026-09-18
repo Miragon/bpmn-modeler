@@ -20,7 +20,6 @@ export const FORM_TEMPLATE = `
         <button id="target-open" type="button" class="btn btn-secondary" title="Open deployment-targets.json in the editor">Edit JSON</button>
     </div>
 
-    <div id="execution-hint" class="hint" role="status" hidden></div>
     <div class="section" id="section-connection">
         <div class="section-header" data-section="connection" aria-expanded="true" role="button" tabindex="0">
             <span class="section-chevron"></span>
@@ -167,6 +166,7 @@ export const FORM_TEMPLATE = `
 
         <div id="status-banner" class="status-banner"></div>
 
+        <div id="deploy-hint" class="hint" role="status" hidden></div>
         <button id="deploy-btn" class="btn btn-primary">Deploy</button>
     </div>
 
@@ -186,6 +186,7 @@ export const FORM_TEMPLATE = `
 
         <div id="start-status-banner" class="status-banner"></div>
 
+        <div id="start-hint" class="hint" role="status" hidden></div>
         <button id="start-instance-btn" class="btn btn-primary">Start Instance</button>
     </div>
 `;
