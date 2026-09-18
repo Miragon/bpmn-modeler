@@ -10,12 +10,12 @@
     border: none;
     background: none;
     cursor: pointer;
-    color: var(--color-grey-225-10-75, #666);
+    color: var(--arrow-fill-color);
     border-radius: 2px;
 }
 
 .script-editor-button:hover {
-    background-color: var(--color-grey-225-10-90, #e1e1e1);
+    background-color: var(--arrow-hover-background-color);
 }
 
 /* Compact variant injected into a listener row's collapsible-entry header.
@@ -34,7 +34,7 @@
    it reveals the owning tab rather than editing the field in place. */
 .bio-properties-panel .script-lock-hint {
     margin-top: 4px;
-    color: var(--color-blue-205-100-50, #4d90ff);
+    color: var(--link-color);
     cursor: pointer;
     font-size: 12px;
 }
