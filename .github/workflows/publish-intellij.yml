@@ -61,7 +61,7 @@ jobs:
           persist-credentials: false
 
       - name: Check pinned dependencies
-        uses: Miragon/pin-npm-dependencies@58fe24377aef66748a1444ff69ab05e3f938a798 # v1.2.1
+        uses: Miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
 
       - name: Corepack enable
         run: corepack enable
