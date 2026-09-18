@@ -1,6 +1,9 @@
 import { Engine } from "@miragon/bpmn-modeler-types";
 
-import { InvalidDeploymentTargetsFileError } from "../../shared/domain/errors";
+import {
+    DuplicateDeploymentTargetError,
+    InvalidDeploymentTargetsFileError,
+} from "../../shared/domain/errors";
 
 export type TargetAuthType = "none" | "basic" | "oauth2";
 
@@ -65,10 +68,27 @@ export class DeploymentTargets {
     }
 
     /**
-     * Inserts or replaces a target. `previousName` (a rename) removes the old
-     * entry; identity is the trimmed `name`, matched case-sensitively.
+     * Appends a new target. Throws {@link DuplicateDeploymentTargetError} when
+     * its name already exists so a create never silently overwrites.
+     */
+    add(target: DeploymentTarget): DeploymentTarget[] {
+        if (this.find(target.name) !== undefined) {
+            throw new DuplicateDeploymentTargetError(target.name);
+        }
+        return [...this.targets, target];
+    }
+
+    /**
+     * Replaces a target in place. `previousName` (a rename) removes the old
+     * entry; identity is the trimmed `name`, matched case-sensitively. A rename
+     * onto another existing target's name throws
+     * {@link DuplicateDeploymentTargetError}.
      */
     upsert(target: DeploymentTarget, previousName?: string): DeploymentTarget[] {
+        const isRename = previousName !== undefined && previousName.trim() !== target.name;
+        if (isRename && this.find(target.name) !== undefined) {
+            throw new DuplicateDeploymentTargetError(target.name);
+        }
         const removeNames = new Set<string>([target.name]);
         if (previousName !== undefined) {
             removeNames.add(previousName.trim());

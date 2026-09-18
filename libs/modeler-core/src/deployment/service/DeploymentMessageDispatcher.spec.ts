@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     AdditionalFilesQuery,
+    CreateTargetCommand,
     DeleteTargetCommand,
     DeploymentResultQuery,
     DeploymentTargetsQuery,
@@ -62,6 +63,7 @@ function createDispatcher() {
         getActiveTarget: vi.fn().mockResolvedValue(undefined),
         getTarget: vi.fn().mockResolvedValue(undefined),
         setActiveTarget: vi.fn().mockResolvedValue(undefined),
+        createTarget: vi.fn().mockResolvedValue(undefined),
         saveTarget: vi.fn().mockResolvedValue(undefined),
         deleteTarget: vi.fn().mockResolvedValue(true),
         getStoredCredentials: vi.fn().mockResolvedValue({ authType: "none" }),
@@ -810,6 +812,34 @@ describe("DeploymentMessageDispatcher target commands", () => {
         await c.dispatcher.handle({ type: "OpenTargetsFileCommand" } as Command);
 
         expect(c.notifier.notifyError).toHaveBeenCalledOnce();
+    });
+
+    it("creates a target and posts a success TargetSavedQuery", async () => {
+        const c = createDispatcher();
+
+        await c.dispatcher.handle(new CreateTargetCommand(targetPayload, { authType: "none" }));
+
+        expect(c.deploymentTargetService.createTarget).toHaveBeenCalledWith(
+            targetPayload,
+            { authType: "none" },
+            expect.anything(),
+        );
+        const query = postedQuery(c.post, TargetSavedQuery);
+        expect(query.success).toBe(true);
+        expect(query.message).toContain(targetPayload.name);
+    });
+
+    it("posts a failure TargetSavedQuery when creating throws", async () => {
+        const c = createDispatcher();
+        c.deploymentTargetService.createTarget.mockRejectedValue(
+            new Error('A deployment target named "dev" already exists.'),
+        );
+
+        await c.dispatcher.handle(new CreateTargetCommand(targetPayload, { authType: "none" }));
+
+        const query = postedQuery(c.post, TargetSavedQuery);
+        expect(query.success).toBe(false);
+        expect(query.message).toBe('A deployment target named "dev" already exists.');
     });
 
     it("saves a target and posts a success TargetSavedQuery", async () => {

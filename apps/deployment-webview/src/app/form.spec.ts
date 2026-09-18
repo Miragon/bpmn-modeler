@@ -207,33 +207,67 @@ describe("deployment target form", () => {
         expect(button("deploy-btn").disabled).toBe(true);
     });
 
-    it("requires saving a new target and keeps it through a redundant refresh", () => {
+    it("creates a target from the entered form data and credentials on New", () => {
         const c = setup();
-        const dev = target("dev");
-        c.form.setTargets(new DeploymentTargetsQuery([dev], "dev"));
-        button("target-new").click();
+        c.form.setTargets(new DeploymentTargetsQuery([], ""));
+        edit("endpoint", "https://edited.test");
         edit("target-name", "new");
-        c.form.setTargets(new DeploymentTargetsQuery([dev], "dev"));
-        expect(field("target-name").value).toBe("new");
-        expect(button("deploy-btn").disabled).toBe(true);
+        edit("auth-type", "basic", "change");
+        edit("auth-username", "u");
+        edit("auth-password", "p");
+        button("target-new").click();
+        const created = c.host.postMessage.mock.calls
+            .map(([message]) => message)
+            .find((message) => message.type === "CreateTargetCommand");
+        expect(created).toBeDefined();
+        expect(created.target).toMatchObject({ name: "new", endpoint: "https://edited.test" });
+        expect(created.auth).toMatchObject({ authType: "basic", username: "u", password: "p" });
     });
 
-    it("enables Save for an ad-hoc edit but blocks the save when the name is empty", () => {
+    it("blocks New and shows a banner when the name is empty", () => {
         const c = setup();
         c.form.setTargets(new DeploymentTargetsQuery([], ""));
         edit("endpoint", "https://edited.test");
         expect(field("target-name").value).toBe("");
-        expect(button("target-save").disabled).toBe(false);
-        button("target-save").click();
+        button("target-new").click();
         expect(
             c.host.postMessage.mock.calls
                 .map(([message]) => message)
-                .some((message) => message.type === "SaveTargetCommand"),
+                .some((message) => message.type === "CreateTargetCommand"),
         ).toBe(false);
         expect(document.getElementById("status-banner")?.textContent).toBe(
-            "Target Name is required to save a target.",
+            "Target Name is required to create a target.",
         );
         expect(document.activeElement).toBe(field("target-name"));
+    });
+
+    it("disables Save when no target is selected", () => {
+        const c = setup();
+        c.form.setTargets(new DeploymentTargetsQuery([], ""));
+        edit("endpoint", "https://edited.test");
+        expect(button("target-save").disabled).toBe(true);
+        expect(button("target-save").title).toBe(
+            "Select a target to save changes, or use New to create one.",
+        );
+    });
+
+    it("keeps the entered values when a create fails", () => {
+        const c = setup();
+        c.form.setTargets(new DeploymentTargetsQuery([], ""));
+        edit("endpoint", "https://edited.test");
+        edit("target-name", "dup");
+        button("target-new").click();
+        c.form.showTargetResult(false, 'A deployment target named "dup" already exists.');
+        expect(field("target-name").value).toBe("dup");
+        expect(field("endpoint").value).toBe("https://edited.test");
+    });
+
+    it("disables New while credentials are loading", () => {
+        const c = setup();
+        c.form.setTargets(
+            new DeploymentTargetsQuery([target("dev", { authType: "basic" })], "dev"),
+        );
+        expect(button("target-new").disabled).toBe(true);
     });
 
     it("surfaces the deploy block reason at the button while keeping Save enabled", () => {

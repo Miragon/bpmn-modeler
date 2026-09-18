@@ -1,6 +1,7 @@
 import {
     AdditionalFilesQuery,
     Command,
+    CreateTargetCommand,
     DeleteTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
@@ -94,6 +95,9 @@ export class DeploymentMessageDispatcher {
                 break;
             case "SelectTargetCommand":
                 await this.handleSelectTarget((message as SelectTargetCommand).name);
+                break;
+            case "CreateTargetCommand":
+                await this.handleCreateTarget(message as CreateTargetCommand);
                 break;
             case "SaveTargetCommand":
                 await this.handleSaveTarget(message as SaveTargetCommand);
@@ -232,6 +236,25 @@ export class DeploymentMessageDispatcher {
                 error instanceof Error ? error : new Error(String(error)),
             );
             await this.sendTargets();
+        }
+    }
+
+    private async handleCreateTarget(message: CreateTargetCommand): Promise<void> {
+        try {
+            await this.deploymentTargetService.createTarget(
+                message.target,
+                message.auth,
+                this.activeDocumentDir(),
+            );
+            this.post(
+                new TargetSavedQuery(true, `Created deployment target "${message.target.name}".`),
+            );
+            await this.sendTargets();
+            await this.deploymentStatusService.refreshActive();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
+            this.post(new TargetSavedQuery(false, errorMessage));
         }
     }
 

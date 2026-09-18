@@ -38,10 +38,18 @@ credentials in application-scoped IntelliJ PasswordSafe. Optional secret-store
 slots retain the legacy unnamed keys when absent; deletion/rename cleans up
 the target slot. Never write secrets into the shared file.
 
+Creating and updating are separate operations so a target is never overwritten
+by accident. **New** creates a target from the entered form data and rejects a
+name that already exists; **Save** updates the selected target in place and is
+disabled when none is selected. A rename onto another existing target's name is
+rejected the same way. Both surface a `DuplicateDeploymentTargetError` before
+anything is written, so a rejected create or rename leaves the file and secret
+store untouched.
+
 Persist the active target name in non-secret host state. The sidebar and
 status-bar target picker use the same value. An unresolved persisted name falls
 back to ad-hoc mode. With no selected target, preserve the legacy unnamed
-connection behavior and write no target file until the user saves a target.
+connection behavior and write no target file until the user creates a target.
 
 Targets can override complete operation URLs through `endpoints.deploy` and
 `endpoints.startInstance`. Substitute a percent-encoded process definition key

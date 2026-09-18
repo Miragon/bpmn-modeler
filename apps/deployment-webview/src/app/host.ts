@@ -1,6 +1,7 @@
 import {
     AdditionalFilesQuery,
     Command,
+    CreateTargetCommand,
     DeleteTargetCommand,
     DeploymentResultQuery,
     DeploymentTargetPayload,
@@ -102,8 +103,37 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                 dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
                 break;
             }
+            case "CreateTargetCommand": {
+                const { target } = message as CreateTargetCommand;
+                if (this.mockTargets.some((t) => t.name === target.name)) {
+                    dispatchEvent(
+                        new TargetSavedQuery(
+                            false,
+                            `A deployment target named "${target.name}" already exists.`,
+                        ),
+                    );
+                    break;
+                }
+                this.mockTargets.push(target);
+                this.mockActiveTarget = target.name;
+                dispatchEvent(
+                    new TargetSavedQuery(true, `Created target "${target.name}" (mock).`),
+                );
+                dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
+                break;
+            }
             case "SaveTargetCommand": {
                 const { target, previousName } = message as SaveTargetCommand;
+                const isRename = previousName !== undefined && previousName !== target.name;
+                if (isRename && this.mockTargets.some((t) => t.name === target.name)) {
+                    dispatchEvent(
+                        new TargetSavedQuery(
+                            false,
+                            `A deployment target named "${target.name}" already exists.`,
+                        ),
+                    );
+                    break;
+                }
                 this.mockTargets = this.mockTargets.filter(
                     (t) => t.name !== target.name && t.name !== previousName,
                 );

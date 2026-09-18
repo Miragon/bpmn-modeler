@@ -84,6 +84,17 @@ export class InvalidDeploymentTargetsFileError extends Error {
 }
 
 /**
+ * Thrown when creating or renaming a target would collide with an existing
+ * target's name, which must stay unique.
+ */
+export class DuplicateDeploymentTargetError extends Error {
+    constructor(name: string) {
+        super(`A deployment target named "${name}" already exists.`);
+        this.name = "DuplicateDeploymentTargetError";
+    }
+}
+
+/**
  * Thrown when fetching an OAuth2 access token fails.
  */
 export class TokenFetchError extends Error {

@@ -1031,6 +1031,23 @@ export class SaveTargetCommand extends Command {
 }
 
 /**
+ * Sent by the deployment webview to create a target from the entered form data.
+ * A name that already exists is rejected; unlike {@link SaveTargetCommand} it
+ * never overwrites.
+ */
+export class CreateTargetCommand extends Command {
+    public readonly target: DeploymentTargetPayload;
+
+    public readonly auth: AuthConfigPayload;
+
+    constructor(target: DeploymentTargetPayload, auth: AuthConfigPayload) {
+        super("CreateTargetCommand");
+        this.target = target;
+        this.auth = auth;
+    }
+}
+
+/**
  * Sent by the deployment webview to delete a saved target by name.
  */
 export class DeleteTargetCommand extends Command {

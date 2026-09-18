@@ -30,7 +30,7 @@ export const FORM_TEMPLATE = `
                 <div class="form-group">
                     <label for="target-name">Target Name</label>
                     <input id="target-name" type="text" placeholder="e.g. dev" />
-                    <div class="hint">Name this connection to save it as a reusable target.</div>
+                    <div class="hint">Fill in the connection, name it, and click New to save it as a reusable target.</div>
                 </div>
                 <div class="form-group">
                     <label for="tenant-id">Tenant ID</label>
