@@ -116,9 +116,27 @@ export class DeploymentTargetService {
     }
 
     /**
+     * Creates a target from the entered form data, persists its credentials, and
+     * makes it active. Throws {@link DuplicateDeploymentTargetError} when the
+     * name already exists — nothing is written and no secret is stored in that
+     * case, so a failed create leaves the file untouched.
+     */
+    async createTarget(
+        payload: DeploymentTargetPayload,
+        auth: AuthConfigPayload,
+        documentDir?: string,
+    ): Promise<void> {
+        await this.persistTarget(payload, auth, documentDir, (targets, target) =>
+            targets.add(target),
+        );
+    }
+
+    /**
      * Upserts `target`, persists credentials to its slot, and makes it active. A
      * rename (`previousName` set and different) removes the old entry and its
-     * credential slot so no orphaned secret survives.
+     * credential slot so no orphaned secret survives; a rename onto an existing
+     * name throws {@link DuplicateDeploymentTargetError} before anything is
+     * written.
      */
     async saveTarget(
         payload: DeploymentTargetPayload,
@@ -126,6 +144,23 @@ export class DeploymentTargetService {
         previousName: string | undefined,
         documentDir?: string,
     ): Promise<void> {
+        const { location, target } = await this.persistTarget(
+            payload,
+            auth,
+            documentDir,
+            (targets, next) => targets.upsert(next, previousName),
+        );
+        if (previousName !== undefined && previousName.trim() !== target.name) {
+            await this.secretStore.delete(this.slotFor(location.filePath, previousName.trim()));
+        }
+    }
+
+    private async persistTarget(
+        payload: DeploymentTargetPayload,
+        auth: AuthConfigPayload,
+        documentDir: string | undefined,
+        apply: (targets: DeploymentTargets, target: DeploymentTarget) => DeploymentTarget[],
+    ): Promise<{ location: TargetsLocation; target: DeploymentTarget }> {
         const location = await this.locateTargetsFile(documentDir);
         if (location === undefined) {
             throw new Error("Open a workspace folder before saving a deployment target.");
@@ -135,15 +170,12 @@ export class DeploymentTargetService {
             targets: [toDomainTarget(payload).toJson()],
         });
         const current = await this.readTargets(location);
-        const next = new DeploymentTargets(current).upsert(target, previousName);
+        const next = apply(new DeploymentTargets(current), target);
         await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
 
         await this.saveSecrets(this.slotFor(location.filePath, target.name), auth);
-        if (previousName !== undefined && previousName.trim() !== target.name) {
-            await this.secretStore.delete(this.slotFor(location.filePath, previousName.trim()));
-        }
-
         await this.setActiveTarget(target.name);
+        return { location, target };
     }
 
     async deleteTarget(name: string, documentDir?: string): Promise<boolean> {

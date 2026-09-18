@@ -21,12 +21,15 @@ storage, keyed per target.
   so the editor validates and autocompletes the file.
 - **Editing:** the sidebar's Connection/Authentication/Advanced fields are the
   target editor. The row above Connection has a target select plus **New**,
-  **Save**, and **Delete**. Type a **Target Name**, fill the connection, and
-  **Save**. Save connection changes before using **Deploy** or **Start Instance**.
-  Credential-only changes can be used immediately. Editing any field enables
-  **Save**; renaming (saving under a new name)
-  migrates the stored credentials. **Edit JSON** opens `deployment-targets.json`
-  in the editor (creating an empty one first) for direct, schema-assisted editing.
+  **Save**, and **Delete**. Fill the connection, type a **Target Name**, and
+  click **New** to create the target from the entered data — a name that already
+  exists is rejected so a create never overwrites. **Save** updates the currently
+  selected target (including a rename, which migrates the stored credentials);
+  it is disabled when no target is selected, and a rename onto another target's
+  name is rejected. Save connection changes before using **Deploy** or **Start
+  Instance**. Credential-only changes can be used immediately. **Edit JSON**
+  opens `deployment-targets.json` in the editor (creating an empty one first) for
+  direct, schema-assisted editing.
 - **Ad-hoc mode:** with **(none — use form values)** selected, the form behaves
   exactly as before and persists to per-workspace state — nothing is written to
   the file until you save a target.

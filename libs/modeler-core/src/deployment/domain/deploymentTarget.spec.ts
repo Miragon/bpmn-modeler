@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { InvalidDeploymentTargetsFileError } from "../../shared/domain/errors";
+import {
+    DuplicateDeploymentTargetError,
+    InvalidDeploymentTargetsFileError,
+} from "../../shared/domain/errors";
 
 import {
     DeploymentTarget,
@@ -129,6 +132,17 @@ describe("serializeDeploymentTargets", () => {
 });
 
 describe("DeploymentTargets", () => {
+    it("appends a new target on add", () => {
+        const result = new DeploymentTargets([target("dev")]).add(target("prod"));
+        expect(result.map((t) => t.name)).toEqual(["dev", "prod"]);
+    });
+
+    it("throws on add of a duplicate name", () => {
+        expect(() => new DeploymentTargets([target("dev")]).add(target("dev"))).toThrow(
+            DuplicateDeploymentTargetError,
+        );
+    });
+
     it("appends a new target on upsert", () => {
         const result = new DeploymentTargets([target("dev")]).upsert(target("prod"));
         expect(result.map((t) => t.name)).toEqual(["dev", "prod"]);
@@ -148,6 +162,12 @@ describe("DeploymentTargets", () => {
             "dev",
         );
         expect(result.map((t) => t.name)).toEqual(["prod", "staging"]);
+    });
+
+    it("throws when a rename collides with another target's name", () => {
+        expect(() =>
+            new DeploymentTargets([target("dev"), target("prod")]).upsert(target("prod"), "dev"),
+        ).toThrow(DuplicateDeploymentTargetError);
     });
 
     it("removes by name", () => {

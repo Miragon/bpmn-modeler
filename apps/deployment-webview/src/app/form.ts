@@ -1,6 +1,7 @@
 import {
     AuthConfigPayload,
     Command,
+    CreateTargetCommand,
     DeleteTargetCommand,
     DeployCommand,
     DeploymentConfigPayload,
@@ -106,7 +107,6 @@ export class DeploymentForm {
     private connectionSnapshot = "";
     private documentDir: string | undefined;
     private dirty = false;
-    private creatingTarget = false;
     private switchingTarget = true;
     private savingTarget = false;
     private reloadTarget = false;
@@ -164,12 +164,7 @@ export class DeploymentForm {
             : "";
 
         this.latestDefaults = defaults;
-        if (
-            !this.editingTargetName &&
-            !this.dirty &&
-            !this.switchingTarget &&
-            !this.creatingTarget
-        ) {
+        if (!this.editingTargetName && !this.dirty && !this.switchingTarget) {
             this.loadAdHocDefaults();
         }
 
@@ -184,13 +179,12 @@ export class DeploymentForm {
             !this.switchingTarget &&
             !this.reloadTarget &&
             this.dirty &&
-            (this.creatingTarget || this.editingTargetName === query.activeTargetName);
+            this.editingTargetName === query.activeTargetName;
         if (preserveDraft) return;
         this.documentDir = query.documentDir;
 
         this.switchingTarget = false;
         this.reloadTarget = false;
-        this.creatingTarget = false;
         this.targetSelect.innerHTML = "";
         const noneOption = document.createElement("option");
         noneOption.value = "";
@@ -502,14 +496,15 @@ export class DeploymentForm {
         });
 
         this.targetNewBtn.addEventListener("click", () => {
-            this.creatingTarget = true;
-            this.editingTargetName = "";
-            this.targetSelect.value = "";
-            this.targetNameInput.value = "";
-            this.targetDeleteBtn.disabled = true;
-            this.clearCredentials();
-            this.targetNameInput.focus();
-            this.markDirty();
+            const target = this.getTargetPayload();
+            if (!target.name) {
+                this.showBanner("error", "Target Name is required to create a target.");
+                this.targetNameInput.focus();
+                return;
+            }
+            this.savingTarget = true;
+            this.updateReadiness();
+            this.host.postMessage(new CreateTargetCommand(target, this.getAuthPayload()));
         });
 
         this.targetSaveBtn.addEventListener("click", () => {
@@ -720,9 +715,8 @@ export class DeploymentForm {
         if (this.switchingTarget || this.reloadTarget) return "Loading deployment target…";
         if (this.pendingCredentials !== undefined) return "Loading credentials…";
         if (
-            this.creatingTarget ||
-            (this.editingTargetName &&
-                JSON.stringify(this.getTargetPayload()) !== this.connectionSnapshot)
+            this.editingTargetName &&
+            JSON.stringify(this.getTargetPayload()) !== this.connectionSnapshot
         ) {
             return "Save target changes before deploying or starting an instance.";
         }
@@ -742,7 +736,8 @@ export class DeploymentForm {
             !this.dirty ||
             this.savingTarget ||
             this.switchingTarget ||
-            this.pendingCredentials !== undefined;
+            this.pendingCredentials !== undefined ||
+            this.editingTargetName === "";
         this.targetSaveBtn.title = this.saveBlockedReason() ?? "Save target";
         for (const control of document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
             "#section-connection input, #section-connection select, #section-authentication input, #section-authentication select, #section-advanced input",
@@ -750,7 +745,8 @@ export class DeploymentForm {
             control.disabled = this.savingTarget;
         }
         this.targetSelect.disabled = this.savingTarget || this.switchingTarget;
-        this.targetNewBtn.disabled = this.savingTarget || this.switchingTarget;
+        this.targetNewBtn.disabled =
+            this.savingTarget || this.switchingTarget || this.pendingCredentials !== undefined;
         this.targetDeleteBtn.disabled =
             this.savingTarget || this.switchingTarget || !this.editingTargetName;
         const deployHint = this.requireElement<HTMLDivElement>("#deploy-hint");
@@ -760,6 +756,9 @@ export class DeploymentForm {
     }
 
     private saveBlockedReason(): string | undefined {
+        if (this.editingTargetName === "") {
+            return "Select a target to save changes, or use New to create one.";
+        }
         if (!this.dirty) return "No unsaved changes.";
         if (this.savingTarget) return "Saving deployment target…";
         if (this.switchingTarget) return "Loading deployment target…";

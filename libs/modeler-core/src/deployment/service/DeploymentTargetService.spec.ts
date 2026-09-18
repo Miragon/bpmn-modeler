@@ -272,6 +272,78 @@ describe("DeploymentTargetService.saveTarget", () => {
             ),
         ).rejects.toThrow(/workspace/);
     });
+
+    it("throws and leaves the file untouched on a rename collision", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+        c.workspace.readFile.mockResolvedValue(fileWith(target("dev"), target("prod")));
+
+        await expect(
+            c.service.saveTarget(
+                {
+                    name: "prod",
+                    engine: "c7",
+                    endpoint: "http://h",
+                    tenantId: "",
+                    authType: "none",
+                },
+                { authType: "none" },
+                "dev",
+                DOC_DIR,
+            ),
+        ).rejects.toThrow(/already exists/);
+        expect(c.workspace.writeFile).not.toHaveBeenCalled();
+        expect(c.secretStore.delete).not.toHaveBeenCalled();
+    });
+});
+
+describe("DeploymentTargetService.createTarget", () => {
+    it("writes the appended file, stores secrets under the slot, and activates", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+        c.workspace.readFile.mockResolvedValue(fileWith(target("prod")));
+
+        await c.service.createTarget(
+            {
+                name: "dev",
+                engine: "c7",
+                endpoint: "http://h",
+                tenantId: "",
+                authType: "basic",
+            },
+            { authType: "basic", username: "u", password: "p" },
+            DOC_DIR,
+        );
+
+        const written = c.workspace.writeFile.mock.calls[0][1] as string;
+        expect(written).toContain('"prod"');
+        expect(written).toContain('"dev"');
+        expect(c.secretStore.saveBasicAuth).toHaveBeenCalledWith("u", "p", `${FILE_PATH}::dev`);
+        expect(c.deploymentState.saveActiveTargetName).toHaveBeenCalledWith("dev");
+    });
+
+    it("throws and writes nothing when the name already exists", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+        c.workspace.readFile.mockResolvedValue(fileWith(target("dev")));
+
+        await expect(
+            c.service.createTarget(
+                {
+                    name: "dev",
+                    engine: "c7",
+                    endpoint: "http://h",
+                    tenantId: "",
+                    authType: "basic",
+                },
+                { authType: "basic", username: "u", password: "p" },
+                DOC_DIR,
+            ),
+        ).rejects.toThrow(/already exists/);
+        expect(c.workspace.writeFile).not.toHaveBeenCalled();
+        expect(c.secretStore.saveBasicAuth).not.toHaveBeenCalled();
+        expect(c.deploymentState.saveActiveTargetName).not.toHaveBeenCalled();
+    });
 });
 
 it("returns OAuth metadata even when this machine has no credentials", async () => {
