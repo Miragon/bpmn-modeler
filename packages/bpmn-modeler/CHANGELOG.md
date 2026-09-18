@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.2.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.1.0...bpmn-modeler-v1.2.0) (2026-09-18)
+
+
+### 🎉 New Features
+
+* **deployment:** add named deployment targets and endpoint overrides ([#1552](https://github.com/Miragon/bpmn-modeler/issues/1552)) ([77f36e5](https://github.com/Miragon/bpmn-modeler/commit/77f36e5ebfcb7c9e73f9341ff9fce50cc51eee2b))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** translate append menu and element template chooser ([#1547](https://github.com/Miragon/bpmn-modeler/issues/1547)) ([63b0493](https://github.com/Miragon/bpmn-modeler/commit/63b0493e5c998c51af124465472ee0004b63127f))
+* **editor:** bump bpmnlint to 11.14.0 with bundled superfluous-label ([#1564](https://github.com/Miragon/bpmn-modeler/issues/1564)) ([e121ad1](https://github.com/Miragon/bpmn-modeler/commit/e121ad1805be8c84852e2c9f401334b2ca9c6d21))
+
+
+### 📔 Documentation
+
+* **adr:** consolidate decisions into living topic records ([#1554](https://github.com/Miragon/bpmn-modeler/issues/1554)) ([583663d](https://github.com/Miragon/bpmn-modeler/commit/583663da6052b10c6bba16b297829d697ea18123))
+
+
+### 🛠️ Misc
+
+* add acceptance-gate triage and AI-contribution governance ([#1551](https://github.com/Miragon/bpmn-modeler/issues/1551)) ([a2094d4](https://github.com/Miragon/bpmn-modeler/commit/a2094d406f640ad1ff4c7a47a9c1d8bf5de18224))
+* **bpmn-modeler:** close the release-gate blind spots ([#1549](https://github.com/Miragon/bpmn-modeler/issues/1549)) ([90a07d5](https://github.com/Miragon/bpmn-modeler/commit/90a07d598f7fabeb04dcb1ca3fde8774dbfb9c68))
+* **bpmn-modeler:** consolidate duplicated template metadata types ([#1546](https://github.com/Miragon/bpmn-modeler/issues/1546)) ([945a9c2](https://github.com/Miragon/bpmn-modeler/commit/945a9c2f2ee6c1d47c0767aa63c5b41dd5afe981))
+* **deps:** bump knip and lint-staged ([#1557](https://github.com/Miragon/bpmn-modeler/issues/1557)) ([ed40592](https://github.com/Miragon/bpmn-modeler/commit/ed4059274a1d248b99fed93f92de02d22072cf0f))
+* **deps:** bump properties-panel, vite and archunit ([#1560](https://github.com/Miragon/bpmn-modeler/issues/1560)) ([e43a387](https://github.com/Miragon/bpmn-modeler/commit/e43a387ed71c18fa34821ae68bfb76725a9066d5))
+* **deps:** bump the npm-major group across 1 directory with 5 updates ([#1527](https://github.com/Miragon/bpmn-modeler/issues/1527)) ([165049f](https://github.com/Miragon/bpmn-modeler/commit/165049f757243bad1e4e98fab16f90132c798048))
+* **main:** release intellij 1.9.0 ([#1538](https://github.com/Miragon/bpmn-modeler/issues/1538)) ([08ea2c3](https://github.com/Miragon/bpmn-modeler/commit/08ea2c32ac05fdaeaab251229e56c5c0b2ae586b))
+* **main:** release vscode 1.13.0 ([#1539](https://github.com/Miragon/bpmn-modeler/issues/1539)) ([b7283e9](https://github.com/Miragon/bpmn-modeler/commit/b7283e9631e3c57b9d64ab0d080589e4d4902701))
+
 ## [1.1.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.0.0...bpmn-modeler-v1.1.0) (2026-09-14)
 
 
