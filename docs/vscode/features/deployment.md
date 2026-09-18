@@ -92,6 +92,7 @@ optional — see [Endpoint overrides](#endpoint-overrides).
 | Command | Description |
 |---|---|
 | **Switch Deployment Target** (`bpmn-modeler.switchDeploymentTarget`) | Pick the active target (or ad-hoc) via a Quick Pick. |
+| **Deploy Diagram** (`bpmn-modeler.deployDiagram`) | Save the focused diagram, then deploy only that file to the active target (prompting for a target first if none is active). Additional resources still need the sidebar. Also the editor title-bar rocket button. |
 | **Deploy Files…** (`bpmn-modeler.deployFiles`) | Multi-select workspace `.bpmn`/`.dmn` files and deploy each to the active target (one deployment per file, named after the file). Also available on the Explorer context menu for `.bpmn`/`.dmn`. |
 | **Verify Deployment on Engine** (`bpmn-modeler.verifyDeployment`) | Reconcile the focused diagram's freshness record against the active Camunda 7 target's engine. Also reachable from the status-bar item's click menu. |
 

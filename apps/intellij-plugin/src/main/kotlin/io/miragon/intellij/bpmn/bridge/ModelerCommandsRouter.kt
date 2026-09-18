@@ -76,6 +76,16 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
     }
 
     /**
+     * Fires `deployment/deployActive` for the project root. The core saves and
+     * deploys the active diagram to the active target (prompting if none).
+     */
+    fun deployDiagram() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_DEPLOY_ACTIVE, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
+    /**
      * Fires `deployment/verify` for the project root. The core reconciles the
      * active diagram's ledger row against the target's Camunda 7 engine.
      */
@@ -105,6 +115,7 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         const val METHODS_LAYOUT_CLEANUP = "layout/cleanup"
         const val METHODS_SWITCH_TARGET = "deployment/switchTarget"
         const val METHODS_DEPLOY_FILES = "deployment/deployFiles"
+        const val METHODS_DEPLOY_ACTIVE = "deployment/deployActive"
         const val METHODS_VERIFY = "deployment/verify"
         const val METHODS_STATUS_BAR_MENU = "deployment/statusBarMenu"
     }

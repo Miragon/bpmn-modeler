@@ -98,6 +98,20 @@ class ModelerCommandsRouterTest {
     }
 
     @Test
+    fun `deployDiagram notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.deployDiagram()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/deployActive", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/deployActive carries the workspace root",
+        )
+    }
+
+    @Test
     fun `verifyDeployment notifies with the project workspace root`() {
         val (wired, router) = router()
 

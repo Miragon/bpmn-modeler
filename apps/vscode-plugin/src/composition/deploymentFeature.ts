@@ -7,6 +7,7 @@ import {
     Camunda7RestClient,
     Camunda8RestClient,
     CamundaEngineRouter,
+    DeployActiveDiagramService,
     DeploymentService,
     DeploymentStatusService,
     DeploymentTargetService,
@@ -92,6 +93,14 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         secretStore,
         deploymentStatusSvc,
     );
+    const deployActiveSvc = new DeployActiveDiagramService(
+        deps.editorStore,
+        deps.vsDocument,
+        deploymentTargetSvc,
+        deploymentSvc,
+        deploymentStatusSvc,
+        deps.notifier,
+    );
 
     new DeploymentController(
         deps.editorStore,
@@ -101,6 +110,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deploymentTargetSvc,
         deploymentStatusSvc,
         verificationSvc,
+        deployActiveSvc,
         deps.picker,
         deps.notifier,
     ).register(context);

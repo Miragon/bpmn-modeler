@@ -122,6 +122,7 @@ export const METHODS = {
     layoutCleanup: "layout/cleanup",
     deploymentSwitchTarget: "deployment/switchTarget",
     deploymentDeployFiles: "deployment/deployFiles",
+    deploymentDeployActive: "deployment/deployActive",
     deploymentVerify: "deployment/verify",
     deploymentStatusBarMenu: "deployment/statusBarMenu",
 
@@ -379,6 +380,12 @@ export const PROTOCOL = [
     },
     {
         method: METHODS.deploymentDeployFiles,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.deploymentDeployActive,
         direction: "hostToCore",
         kind: "notification",
         paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,

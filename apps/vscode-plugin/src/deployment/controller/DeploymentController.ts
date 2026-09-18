@@ -11,6 +11,7 @@ import {
 
 import { posix } from "path";
 
+import { DeployActiveDiagramService } from "@miragon/bpmn-modeler-core";
 import { DeploymentMessageDispatcher } from "@miragon/bpmn-modeler-core";
 import { EditorSessionStore } from "@miragon/bpmn-modeler-core";
 import { DeploymentService } from "@miragon/bpmn-modeler-core";
@@ -28,7 +29,7 @@ import { getContext } from "../../shared/infrastructure/extensionContext";
 // VS Code view ID for the deployment sidebar WebviewView.
 const DEPLOYMENT_VIEW_ID = "bpmn-modeler.deploymentView";
 
-// VS Code command ID for triggering the deployment panel.
+// Saves and deploys the active diagram to the active target (title-bar rocket).
 export const DEPLOY_CMD = "bpmn-modeler.deployDiagram";
 
 // Switches the active deployment target via a QuickPick (status bar / palette).
@@ -44,8 +45,8 @@ export const VERIFY_DEPLOYMENT_CMD = "bpmn-modeler.verifyDeployment";
 export const DEPLOYMENT_STATUS_MENU_CMD = "bpmn-modeler.deploymentStatusMenu";
 
 /**
- * Registers and manages the deployment sidebar WebviewView and the
- * `bpmn-modeler.deployDiagram` command.
+ * Registers and manages the deployment sidebar WebviewView and the deployment
+ * commands (including the one-click `bpmn-modeler.deployDiagram`).
  *
  * Host glue only: it owns the VS Code `WebviewView` lifecycle and forwards the
  * deployment message protocol to the host-agnostic
@@ -67,6 +68,7 @@ export class DeploymentController implements WebviewViewProvider {
         private readonly deploymentTargetService: DeploymentTargetService,
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly verificationService: DeploymentVerificationService,
+        private readonly deployActiveDiagramService: DeployActiveDiagramService,
         private readonly picker: VsCodePicker,
         private readonly notifier: VsCodeNotifier,
     ) {}
@@ -80,7 +82,7 @@ export class DeploymentController implements WebviewViewProvider {
             window.registerWebviewViewProvider(DEPLOYMENT_VIEW_ID, this, {
                 webviewOptions: { retainContextWhenHidden: true },
             }),
-            commands.registerCommand(DEPLOY_CMD, () => this.openDeploymentPanel()),
+            commands.registerCommand(DEPLOY_CMD, () => this.deployDiagram()),
             commands.registerCommand(SWITCH_TARGET_CMD, () => this.switchTarget()),
             commands.registerCommand(DEPLOY_FILES_CMD, () => this.deployFiles()),
             commands.registerCommand(VERIFY_DEPLOYMENT_CMD, () => this.verifyDeployment()),
@@ -208,18 +210,20 @@ export class DeploymentController implements WebviewViewProvider {
         await this.deploymentStatusService.refreshActive();
     }
 
+    /**
+     * Saves and deploys the active diagram to the active target. The picker may
+     * run first (no active target), so re-push targets into an open sidebar.
+     */
+    private async deployDiagram(): Promise<void> {
+        await this.deployActiveDiagramService.deployActive(this.activeDocumentDir());
+        await this.currentDispatcher?.sendTargets();
+    }
+
     private activeDocumentDir(): string | undefined {
         try {
             return posix.dirname(this.vsDocument.getFilePath(this.editorStore.getActiveEditorId()));
         } catch {
             return undefined;
         }
-    }
-
-    /**
-     * Triggers {@link resolveWebviewView} if the sidebar isn't open yet.
-     */
-    private async openDeploymentPanel(): Promise<void> {
-        await commands.executeCommand(`${DEPLOYMENT_VIEW_ID}.focus`);
     }
 }

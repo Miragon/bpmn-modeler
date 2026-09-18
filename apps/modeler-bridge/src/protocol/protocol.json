@@ -228,6 +228,14 @@
         ]
     },
     {
+        "method": "deployment/deployActive",
+        "direction": "hostToCore",
+        "kind": "notification",
+        "paramKeys": [
+            "workspaceRoot"
+        ]
+    },
+    {
         "method": "deployment/verify",
         "direction": "hostToCore",
         "kind": "notification",

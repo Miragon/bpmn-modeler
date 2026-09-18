@@ -118,12 +118,12 @@
                     {
                         "id": "deploy",
                         "title": "Deploy your diagram",
-                        "description": "Deploy a BPMN diagram to a Camunda 7 or Camunda 8 engine straight from the editor.\n[Deploy Diagram](command:bpmn-modeler.deployDiagram)",
+                        "description": "Deploy a BPMN diagram to a Camunda 7 or Camunda 8 engine straight from the editor.\n[Open Deployment](command:bpmn-modeler.deploymentView.focus)",
                         "media": {
                             "markdown": "media/walkthrough/deploy.md"
                         },
                         "completionEvents": [
-                            "onCommand:bpmn-modeler.deployDiagram"
+                            "onView:bpmn-modeler.deploymentView"
                         ]
                     }
                 ]

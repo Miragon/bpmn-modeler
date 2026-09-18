@@ -72,6 +72,7 @@ export * from "./deployment/domain/deploymentVerification";
 export * from "./deployment/domain/ports";
 export * from "./deployment/domain/startInstance";
 export * from "./deployment/domain/urlTemplate";
+export * from "./deployment/service/DeployActiveDiagramService";
 export * from "./deployment/service/DeploymentService";
 export * from "./deployment/service/DeploymentStatusService";
 export * from "./deployment/service/DeploymentTargetService";

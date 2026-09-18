@@ -5,6 +5,7 @@ import {
     Camunda7RestClient,
     Camunda8RestClient,
     CamundaEngineRouter,
+    DeployActiveDiagramService,
     DeploymentMessageDispatcher,
     DeploymentService,
     DeploymentStatusService,
@@ -93,6 +94,14 @@ export function register(deps: BridgeSharedDeps): void {
         deps.picker,
         secretStore,
         deploymentStatusService,
+    );
+    const deployActiveDiagramService = new DeployActiveDiagramService(
+        deps.store,
+        deps.documentPort,
+        deploymentTargetService,
+        deploymentService,
+        deploymentStatusService,
+        deps.notifier,
     );
     const deploymentDispatcher = new DeploymentMessageDispatcher(
         deps.store,
@@ -231,6 +240,13 @@ export function register(deps: BridgeSharedDeps): void {
                 () => deploymentService.deployFiles(files, resolvedTarget, auth),
             );
             await deploymentStatusService.refreshActive();
+        }),
+    );
+
+    deps.rpc.on(METHODS.deploymentDeployActive, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            await deployActiveDiagramService.deployActive(documentDir);
+            await deploymentDispatcher.sendTargets();
         }),
     );
 }

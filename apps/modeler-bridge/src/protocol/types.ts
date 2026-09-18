@@ -440,8 +440,8 @@ export interface StatusBarDeploymentTargetParams {
 }
 
 /**
- * `deployment/switchTarget`, `deployment/deployFiles`, `deployment/verify`,
- * `deployment/statusBarMenu` — host-initiated. The workspace root is passed
+ * `deployment/switchTarget`, `deployment/deployFiles`, `deployment/deployActive`,
+ * `deployment/verify`, `deployment/statusBarMenu` — host-initiated. The workspace root is passed
  * because `NodeWorkspace` only learns roots from `session/register`, so a host
  * action fired with no active editor must name it.
  */

@@ -78,6 +78,9 @@ function createController() {
     const verificationService = {
         verifyActive: vi.fn().mockResolvedValue(undefined),
     };
+    const deployActiveDiagramService = {
+        deployActive: vi.fn().mockResolvedValue(undefined),
+    };
     const picker = {
         pickWorkspaceFiles: vi.fn().mockResolvedValue([]),
     };
@@ -111,6 +114,7 @@ function createController() {
         deploymentTargetService as never,
         deploymentStatusService as never,
         verificationService as never,
+        deployActiveDiagramService as never,
         picker as never,
         notifier as never,
     );
@@ -124,6 +128,7 @@ function createController() {
         deploymentTargetService,
         deploymentStatusService,
         verificationService,
+        deployActiveDiagramService,
         picker,
         notifier,
         webviewView,
@@ -178,6 +183,14 @@ describe("DeploymentController deployment verification commands", () => {
         if (!call) throw new Error(`No handler registered for ${commandId}`);
         return call[1] as () => Promise<void>;
     }
+
+    it("deploys the active diagram against the active document's directory", async () => {
+        const c = createController();
+
+        await registeredHandler(c, DEPLOY_CMD)();
+
+        expect(c.deployActiveDiagramService.deployActive).toHaveBeenCalledWith("/work/trusted");
+    });
 
     it("verifies against the active document's directory", async () => {
         const c = createController();

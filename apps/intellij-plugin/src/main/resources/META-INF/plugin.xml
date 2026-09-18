@@ -216,6 +216,12 @@
                 text="Deploy Files…"
                 description="Deploy selected BPMN/DMN files to the active deployment target"/>
             <action
+                id="io.miragon.bpmn-modeler.deployDiagram"
+                class="io.miragon.intellij.bpmn.DeployDiagramAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Deploy Diagram"
+                description="Save and deploy the active diagram to the active deployment target"/>
+            <action
                 id="io.miragon.bpmn-modeler.changeModelerLanguage"
                 class="io.miragon.intellij.bpmn.ChangeModelerLanguageAction"
                 icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"

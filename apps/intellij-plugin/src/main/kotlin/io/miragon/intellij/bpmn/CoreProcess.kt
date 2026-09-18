@@ -216,6 +216,9 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Fires `deployment/deployFiles`; the core picks files and deploys to the active target. */
     fun deployFiles() = modelerCommandsRouter.deployFiles()
 
+    /** Fires `deployment/deployActive`; the core saves and deploys the active diagram. */
+    fun deployDiagram() = modelerCommandsRouter.deployDiagram()
+
     /** Fires `deployment/verify`; the core reconciles the ledger against the C7 engine. */
     fun verifyDeployment() = modelerCommandsRouter.verifyDeployment()
 

@@ -120,6 +120,7 @@ describe("RPC protocol descriptor", () => {
                     "  layout/cleanup",
                     "  deployment/switchTarget",
                     "  deployment/deployFiles",
+                    "  deployment/deployActive",
                     "  deployment/verify",
                     "  deployment/statusBarMenu",
                     "",

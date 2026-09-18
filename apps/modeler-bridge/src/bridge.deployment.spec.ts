@@ -231,6 +231,31 @@ describe("deployment commands over the bridge", () => {
         expect(shown[shown.length - 1]).toEqual(["(none — use form values)", "dev"]);
     });
 
+    it("saves and deploys the active diagram to the active target", async () => {
+        const c = await setup();
+        await c.seed("dev");
+        focusEditor(c);
+        const save = vi.spyOn(c.deps.documentPort, "save").mockResolvedValue(true);
+
+        await c.command(METHODS.deploymentDeployActive);
+
+        expect(save).toHaveBeenCalledWith("editor");
+        expect(c.post.mock.calls[0][0]).toBe("https://root.test/deployment/create");
+        expect(c.frames.some((frame) => frame.method === METHODS.pickerShow)).toBe(false);
+        expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
+    it("reports and deploys nothing when no diagram is focused", async () => {
+        const c = await setup();
+        await c.seed("dev");
+
+        await c.command(METHODS.deploymentDeployActive);
+
+        expect(c.post).not.toHaveBeenCalled();
+        expect(c.frames.some((frame) => frame.method === METHODS.notifierShowInfo)).toBe(true);
+        expect(c.deps.nodeWorkspace.getWorkspaceFolderPaths()).toEqual([]);
+    });
+
     it("surfaces command failures and still releases the root", async () => {
         const c = await setup();
         await c.seed("dev");
