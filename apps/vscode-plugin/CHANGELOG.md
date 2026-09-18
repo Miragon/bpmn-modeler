@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.14.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.13.0...vscode-v1.14.0) (2026-09-18)
+
+
+### 🎉 New Features
+
+* **deployment:** add named deployment targets and endpoint overrides ([#1552](https://github.com/Miragon/bpmn-modeler/issues/1552)) ([77f36e5](https://github.com/Miragon/bpmn-modeler/commit/77f36e5ebfcb7c9e73f9341ff9fce50cc51eee2b))
+* **deployment:** create target from entered form data via New ([#1562](https://github.com/Miragon/bpmn-modeler/issues/1562)) [sync 91f6167] ([dd1f42c](https://github.com/Miragon/bpmn-modeler/commit/dd1f42cfd8526ebf6428775695bfcc8137e173c3))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** translate append menu and element template chooser ([#1547](https://github.com/Miragon/bpmn-modeler/issues/1547)) [sync 63b0493] ([95865ca](https://github.com/Miragon/bpmn-modeler/commit/95865ca280c149adec5ad31972e1a86b0852e7db))
+* **editor:** bump bpmnlint to 11.14.0 with bundled superfluous-label ([#1564](https://github.com/Miragon/bpmn-modeler/issues/1564)) [sync e121ad1] ([257135c](https://github.com/Miragon/bpmn-modeler/commit/257135c96563568d3989457d13c9d3e617aba060))
+
+
+### 🛠️ Misc
+
+* **bpmn-modeler:** close the release-gate blind spots ([#1549](https://github.com/Miragon/bpmn-modeler/issues/1549)) ([90a07d5](https://github.com/Miragon/bpmn-modeler/commit/90a07d598f7fabeb04dcb1ca3fde8774dbfb9c68))
+* **deps:** bump properties-panel, vite and archunit ([#1560](https://github.com/Miragon/bpmn-modeler/issues/1560)) ([e43a387](https://github.com/Miragon/bpmn-modeler/commit/e43a387ed71c18fa34821ae68bfb76725a9066d5))
+* **deps:** bump the npm-major group across 1 directory with 5 updates ([#1527](https://github.com/Miragon/bpmn-modeler/issues/1527)) ([165049f](https://github.com/Miragon/bpmn-modeler/commit/165049f757243bad1e4e98fab16f90132c798048))
+
 ## [1.13.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.12.0...vscode-v1.13.0) (2026-09-14)
 
 
