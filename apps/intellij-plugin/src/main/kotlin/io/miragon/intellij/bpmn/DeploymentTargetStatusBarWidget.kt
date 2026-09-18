@@ -136,8 +136,8 @@ class DeploymentTargetStatusBarWidget(private val project: Project) : CustomStat
                     ) + verifiedSuffix
                 "superseded" ->
                     (
-                        whenText?.let { "Newer version on the target (deployed $it) — differs from your diagram" }
-                            ?: "Newer version on the target — differs from your diagram"
+                        whenText?.let { "Deployed version differs from your diagram (deployed $it)" }
+                            ?: "Deployed version differs from your diagram"
                     ) + verifiedSuffix
                 else -> "Never deployed to this target from this machine — click to switch target"
             }

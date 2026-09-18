@@ -17,7 +17,7 @@ export interface EngineDeploymentSnapshot {
  * - `current` — the engine still runs the deployment this machine recorded.
  * - `adopted` — the engine's latest version matches the editor content, so the
  *   row is (re-)seeded from the engine (covers colleague deploys, fresh clones).
- * - `superseded` — the engine holds a newer version that differs from the editor.
+ * - `superseded` — the engine's deployed version differs from the editor.
  * - `missing` — the process is not deployed on the engine.
  */
 export type VerificationOutcome = "current" | "adopted" | "superseded" | "missing";

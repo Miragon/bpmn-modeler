@@ -37,8 +37,8 @@ function deploymentTooltip(
         case "superseded":
             return (
                 (when
-                    ? `Newer version on the target (deployed ${when}) — differs from your diagram`
-                    : "Newer version on the target — differs from your diagram") + verifiedSuffix
+                    ? `Deployed version differs from your diagram (deployed ${when})`
+                    : "Deployed version differs from your diagram") + verifiedSuffix
             );
         case "unknown":
             return "Never deployed to this target from this machine — click to switch target";

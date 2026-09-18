@@ -41,9 +41,9 @@ storage, keyed per target.
   - **Green** — deployed: the content matches the last deployment.
   - **Yellow** — undeployed changes: the content differs; the tooltip shows when
     you last deployed.
-  - **Blue** — superseded: a verification found a newer version on the engine
-    whose content differs from your diagram. Deploying from the modeler turns
-    it green again.
+  - **Blue** — superseded: a verification found that the deployed version on
+    the engine differs from your diagram. Deploying from the modeler turns it
+    green again.
   - **Gray** — unknown: this machine has never deployed this file to this target.
     Gray means "no local record", not "absent on the engine".
 
@@ -57,8 +57,9 @@ storage, keyed per target.
   pick *Verify* from the status-bar menu) to reconcile the local record against
   the engine's latest deployed version of the process. If the engine runs
   exactly this diagram (deployed by a colleague, or before a fresh clone), the
-  dot turns green; a newer, different version turns it blue with a warning; a
-  process that is not deployed clears the record. Verification is only ever on
+  dot turns green; a differing deployed version turns it blue and shows an
+  informational notification; a process that is not deployed clears the
+  record. Verification is only ever on
   demand, needs the plain REST base URL (the `endpoints.deploy` override is not
   applied to lookups), and is not available for Camunda 8 targets.
 
@@ -206,4 +207,3 @@ The sidebar supports three authentication modes, selectable in the form:
 | **OAuth2 Client Credentials** | `Authorization: Bearer <token>` | Fetches an access token from the configured token endpoint using `client_credentials` grant. Optionally includes an `audience` parameter. |
 
 Credentials are stored securely using VS Code's encrypted `SecretStorage` API and restored automatically on the next deployment.
-

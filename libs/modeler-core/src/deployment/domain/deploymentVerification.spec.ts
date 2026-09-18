@@ -46,16 +46,16 @@ describe("reconcile", () => {
         });
     });
 
-    it("is superseded when the engine holds different content under a new deployment", () => {
+    it("is superseded when the engine deployment differs from the editor", () => {
         const result = reconcile(
             recorded({ deploymentId: "dep-1" }),
             XML,
-            snapshot({ xml: "<newer/>" }),
+            snapshot({ xml: "<different/>" }),
         );
 
         expect(result.outcome).toBe("superseded");
         expect(result.revision).toMatchObject({
-            fingerprint: contentFingerprint("<newer/>"),
+            fingerprint: contentFingerprint("<different/>"),
             deploymentId: "dep-9",
             origin: "engine",
         });
@@ -78,7 +78,7 @@ describe("reconcile", () => {
         const result = reconcile(
             recorded({ deploymentId: undefined }),
             "<edited/>",
-            snapshot({ xml: "<newer/>" }),
+            snapshot({ xml: "<different/>" }),
         );
 
         expect(result.outcome).toBe("superseded");

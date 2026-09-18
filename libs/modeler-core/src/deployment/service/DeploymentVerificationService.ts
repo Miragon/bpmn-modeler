@@ -86,6 +86,7 @@ export class DeploymentVerificationService {
             await this.deploymentStatusService.refreshActive();
 
             const deployedTime = timeOf(revision?.deployedAt);
+            const reportedDeploymentTime = timeOf(snapshot?.deploymentTime);
             switch (outcome) {
                 case "current":
                     this.notifier.showInfo(
@@ -98,8 +99,8 @@ export class DeploymentVerificationService {
                     );
                     break;
                 case "superseded":
-                    this.notifier.showError(
-                        `${target.name} has a newer version${deployedTime ? ` (deployed ${deployedTime})` : ""} that differs from your diagram.`,
+                    this.notifier.showInfo(
+                        `The version deployed on ${target.name}${reportedDeploymentTime ? ` (deployed ${reportedDeploymentTime})` : ""} differs from your diagram.`,
                     );
                     break;
                 case "missing":

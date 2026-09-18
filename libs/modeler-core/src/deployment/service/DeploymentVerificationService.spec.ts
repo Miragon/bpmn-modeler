@@ -174,9 +174,9 @@ describe("DeploymentVerificationService.verifyActive", () => {
         );
     });
 
-    it("warns about a superseding engine version", async () => {
+    it("reports a differing engine deployment as information", async () => {
         const c = createService();
-        c.inspection.fetchLatestDefinition.mockResolvedValue(snapshot({ xml: "<newer/>" }));
+        c.inspection.fetchLatestDefinition.mockResolvedValue(snapshot({ xml: "<different/>" }));
 
         await c.service.verifyActive("/work");
 
@@ -185,9 +185,28 @@ describe("DeploymentVerificationService.verifyActive", () => {
             identity,
             expect.objectContaining({ origin: "engine" }),
         );
-        expect(c.notifier.showError).toHaveBeenCalledWith(
-            expect.stringContaining("dev has a newer version"),
+        const deployedTime = new Date("2026-09-17T14:40:00.000Z").toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        expect(c.notifier.showInfo).toHaveBeenCalledWith(
+            `The version deployed on dev (deployed ${deployedTime}) differs from your diagram.`,
         );
+        expect(c.notifier.showError).not.toHaveBeenCalled();
+    });
+
+    it("omits the deployment time when it is unavailable", async () => {
+        const c = createService();
+        c.inspection.fetchLatestDefinition.mockResolvedValue(
+            snapshot({ xml: "<different/>", deploymentTime: undefined }),
+        );
+
+        await c.service.verifyActive("/work");
+
+        expect(c.notifier.showInfo).toHaveBeenCalledWith(
+            "The version deployed on dev differs from your diagram.",
+        );
+        expect(c.notifier.showError).not.toHaveBeenCalled();
     });
 
     it("forgets the row when the process is not deployed", async () => {

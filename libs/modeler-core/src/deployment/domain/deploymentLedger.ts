@@ -7,8 +7,7 @@ import { DeploymentTarget } from "./deploymentTarget";
  * - `unknown` — never deployed to this target from this machine (no local record).
  * - `deployed` — content matches the last deploy to this target.
  * - `changed` — content differs from the last deploy to this target.
- * - `superseded` — the engine holds a newer version whose content differs from
- *   the editor (only ever produced by an engine-origin revision).
+ * - `superseded` — the engine-origin revision differs from the editor.
  */
 export type DeploymentFreshness = "unknown" | "deployed" | "changed" | "superseded";
 
@@ -87,9 +86,8 @@ function endpointHost(endpoint: string): string {
 /**
  * Compares `currentContent` against a recorded revision. A missing revision is
  * `unknown` — no local record, which is not the same as "absent on the engine".
- * A mismatch against an engine-origin revision is `superseded` (the engine runs
- * something newer), not `changed`; the next local deploy writes a local-origin
- * row and leaves that state again.
+ * A mismatch against an engine-origin revision is `superseded`, not `changed`;
+ * the next local deploy writes a local-origin row and leaves that state again.
  */
 export function freshnessFor(
     revision: DeployedRevision | undefined,
