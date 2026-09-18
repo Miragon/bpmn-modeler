@@ -4,19 +4,10 @@ import { createViewer } from "./createViewer";
 import type { BpmnViewer } from "./viewer";
 
 /**
- * The first runtime-testable factory in the package: a real bpmn-js
- * `NavigatedViewer` stands up in jsdom — with two stubs jsdom lacks (`getBBox`,
- * `matchMedia`) and the minimap aliased to its ESM build in `vitest.config.ts`
- * (its CJS interop is the jsdom blocker recorded in ADR 0011).
- *
- * The load-bearing assertion is the readonly proof — `getService("modeling")`
- * and `getService("commandStack")` throw because those services are never
- * registered on a viewer — and it needs no rendered diagram, so it runs for
- * real. The render-dependent cases (`loadDiagram` and everything that reads a
- * live element registry) run against real Chromium in
- * `viewerRoundTrip.browser.spec.ts` and `viewState.browser.spec.ts` (ADR
- * 0032): jsdom lays nothing out, so bpmn-js's `canvas.viewbox()` dereferences
- * an SVG `transform.baseVal` jsdom does not implement.
+ * Readonly service absence needs no rendered diagram, so it can be checked
+ * against a real viewer in jsdom. Import and viewport behavior need SVG layout
+ * and run in `viewerRoundTrip.browser.spec.ts` and `viewState.browser.spec.ts`;
+ * see docs/adr/engineering-practices.md#test-environments.
  */
 
 beforeAll(() => {
@@ -84,7 +75,7 @@ describe("createViewer (runtime, jsdom)", () => {
         expect(() => viewer!.getService("commandStack")).toThrow();
     });
 
-    it("registers the mode-invariant canvas chrome (ADR 0022)", async () => {
+    it("registers the mode-invariant canvas chrome", async () => {
         container = mount();
         viewer = await createViewer(container);
 

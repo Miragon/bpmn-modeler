@@ -5,7 +5,7 @@ import type { BpmnDesigner } from "./designer";
 
 /**
  * The designer's runtime contract — editable services present, Camunda
- * services absent, panel rendered. Needs a real bpmn-js instance (ADR 0032);
+ * services absent, panel rendered. Needs a real bpmn-js instance;
  * the factory's failure paths stay covered by the jsdom
  * `createDesigner.spec.ts`.
  */

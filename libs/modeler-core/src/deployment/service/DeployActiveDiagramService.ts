@@ -9,8 +9,8 @@ import { DeploymentTargetService } from "./DeploymentTargetService";
 const DEPLOYABLE_EXTENSIONS = [".bpmn", ".dmn"];
 
 /**
- * One-click deploy of the active editor's diagram to the active target (ADR
- * 0038). Saves first, then reuses {@link DeploymentService.deployFiles} so the
+ * One-click deploy of the active editor's diagram to the active target. Saves
+ * first, then reuses {@link DeploymentService.deployFiles} so the
  * ledger record and summary notification match the sidebar path. Split from the
  * sidebar dispatcher (SRP): this owns only the "deploy what's on screen" flow.
  */

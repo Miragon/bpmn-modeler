@@ -5,7 +5,7 @@ export default withMermaid(defineConfig({
     title: "Miragon BPMN Modeler",
     description: "Professional BPMN/DMN process modeling — as a VS Code extension or a standalone desktop app",
     base: "/bpmn-modeler/",
-    // The decision log is contributor-facing, not user documentation (ADR 0001).
+    // ADRs are contributor-facing; see adr/README.md#publication.
     srcExclude: ["adr/**"],
     vite: {
         server: {

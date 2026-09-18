@@ -219,8 +219,9 @@ module.exports = [
         },
     },
     // Escalate no-explicit-any to `error` on the Miragon-authored publishable
-    // paths (ADR 0035). Last matching block wins per rule, so this overrides the
-    // repo-wide `warn` above. The vendored bpmn-js-properties-panel fork
+    // paths (see docs/adr/engineering-practices.md#private-upstream-apis).
+    // Last matching block wins per rule, overriding the repo-wide `warn` above.
+    // The vendored bpmn-js-properties-panel fork
     // (libs/properties-panel/src outside modeFilter/) is deliberately excluded —
     // it uses `this._x` on its own ported classes pervasively and stays at
     // `warn` via the base block.

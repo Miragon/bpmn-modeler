@@ -13,7 +13,8 @@ import type { BpmnDesignerHandle } from "../design/publicApi";
  * per-mode surface factories (`createViewer` / `createDesigner` / `createModeler`),
  * so a consumer that supplies one factory gets one mode and no buttons. The strip
  * ({@link mountModeStrip}) is a separate export that only renders a group when two
- * or more modes are available. See ADR 0021.
+ * or more modes are available. See the
+ * [mode-session decision](../../../../docs/adr/bpmn-modeler.md#mode-session-and-lifecycle).
  */
 
 /** Any of the three surfaces the session can hold; the modeler is the superset. */

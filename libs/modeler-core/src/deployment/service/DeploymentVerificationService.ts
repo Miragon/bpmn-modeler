@@ -12,8 +12,9 @@ import { DeploymentTargetService } from "./DeploymentTargetService";
 
 /**
  * On-demand reconciliation of the local deployment ledger against a Camunda 7
- * engine (ADR 0039). Split from {@link DeploymentStatusService} (SRP): that
- * service owns the ledger and the status bar, this one owns the REST lookup and
+ * engine (see docs/adr/deployment.md#engine-reconciliation). Split from
+ * {@link DeploymentStatusService}: that service owns the ledger and the status
+ * bar, this one owns the REST lookup and
  * the reconcile → ledger-write mapping. Never automatic — only the palette
  * command and the status-bar menu call it.
  */

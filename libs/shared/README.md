@@ -20,7 +20,7 @@ reverse — a `no-restricted-imports` eslint rule (`BND-PROTOCOL-PRIVATE`) keeps
 the publishable libraries and webview `app/` layers off this protocol package.
 
 Alongside the protocol, this package also holds the private webview chrome that
-is not worth publishing (ADR 0019): the properties-panel `propertiesPanelFocus`
+is not worth publishing ([Architecture and hosts: package boundaries](../../docs/adr/architecture-and-hosts.md#package-boundaries)): the properties-panel `propertiesPanelFocus`
 / `propertiesPanelResizer` (DOM-id-coupled page chrome) and the shared
 `hostTheme` adapter (`hostTheme.ts`) — it maps the VS Code `<body>`-class
 light/dark signal to a page-level scope attribute on `<html>` plus each modeler

@@ -17,12 +17,13 @@ Client settings are separate: `.claude/settings.json` configures Claude only.
 See `docs/vscode/contributing/development.md` (Coding agents) for browser tool
 setup and verification in both clients, including Conductor.
 
-Architecture decisions are recorded in **`docs/adr/`** (Nygard format,
-categorized by module — see `docs/adr/README.md`). When a change moves a
-package boundary, public API, dependency, protocol, or another hard-to-reverse
-choice, add an ADR in the same PR — use the `adr` skill for the rules and template.
-The log is contributor-facing and deliberately excluded from the published
-VitePress site.
+Architecture decisions are recorded in **`docs/adr/`** as living topic records
+(Context / Decision / Consequences — see `docs/adr/README.md`). When a change
+moves a package boundary, public API, dependency, protocol, or another
+hard-to-reverse choice, update or add an ADR in the same PR. Update the existing
+topic first and replace superseded text; Git preserves history. Use the `adr`
+skill for the rules. These records are contributor-facing and deliberately
+excluded from the published VitePress site.
 
 ## Commands
 
@@ -88,7 +89,7 @@ apps/
   standalone/            # Theia/Electron desktop host shell
 libs/
   modeler-core/          # Host-agnostic engine core (domain/service/
-                         # infrastructure), consumed by all hosts (ADR 0002)
+                         # infrastructure), consumed by all hosts
   modeler-types/         # Public, host-agnostic modeler types + browser
                          # utilities (engine/lint/settings/scripting/diff,
                          # theme, canvas-resize, panel focus/resizer). No

@@ -5,14 +5,9 @@ import NativeCopyPasteModule from "bpmn-js-native-copy-paste";
 import { createClipboardModules, type ClipboardBridge } from "@miragon/bpmn-modeler-clipboard";
 
 /**
- * Didi-level contract test for the designer's clipboard wiring. The designer
- * itself cannot boot in jsdom (diagram-js-minimap CJS interop — see ADR 0011 and
- * the createDesigner.spec.ts header), so this asserts the DI contract directly:
- * the bridge path (`BridgedClipboard`) only works because the designer also
- * registers `NativeCopyPasteModule`, whose `nativeCopyPaste` service the bridge
- * disables on construction. Plain bpmn-js does not register that service — the
- * regression this guards is the designer opening to a blank canvas with
- * `No provider for "nativeCopyPaste"`.
+ * Plain bpmn-js lacks `nativeCopyPaste`, which the bridge requires to disable
+ * native clipboard handling. Pin that DI dependency here; real surface behavior
+ * is covered by `clipboardBridge.browser.spec.ts`.
  */
 
 /** A fake EventBus with the on/off/fire NativeCopyPaste + BridgedClipboard need. */

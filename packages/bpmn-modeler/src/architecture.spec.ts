@@ -198,7 +198,7 @@ describe("bpmn-modeler import direction", () => {
             spec === "@miragon/bpmn-modeler-properties-panel" ||
             spec === "bpmn-js-create-append-anything" ||
             spec === "diagram-js-minimap" ||
-            // Engine-neutral canvas chrome shared by every surface (ADR 0022):
+            // Engine-neutral canvas chrome shared by every surface:
             // plain bpmn-js simulation, no Camunda stack behind it.
             spec === "bpmn-js-token-simulation" ||
             // Engine-neutral browser clipboard (parity with camunda-bpmn-js's base

@@ -67,7 +67,7 @@ second line of defence.
 
 The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
 checklist for adding the next synchronous port) is written up once in
-`docs/adr/0005-host-replicated-state.md`.
+[Architecture and hosts: host replicated state](../../docs/adr/architecture-and-hosts.md#host-replicated-state).
 
 > **Why not a WebSocket seam between the webview and the server?** That would be
 > the right tool for a plain browser host, where the webview talks to the server
@@ -75,7 +75,7 @@ checklist for adding the next synchronous port) is written up once in
 > webview messages over the _same_ stdio pipe keeps the transport single and
 > supervised (one crash signal, no WS-reconnect ↔ stdio-restart reconciliation)
 > and keeps this binary free of a bundled HTTP/WS server and any open TCP port.
-> See `docs/adr/0004-intellij-host-foundation.md`.
+> See [Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle).
 
 ## Scope
 

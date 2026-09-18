@@ -6,7 +6,7 @@ import type { BpmnViewer } from "./viewer";
 /**
  * The viewer's rendered round trip — load, select, export XML/SVG. Render-
  * dependent (bpmn-js's viewbox transform needs real SVG layout), so it runs in
- * the browser project (ADR 0032); jsdom coverage of the same factory stays in
+ * the browser project; jsdom coverage of the same factory stays in
  * `createViewer.spec.ts`. Kept separate from `viewState.browser.spec.ts`,
  * which covers view-state restore, a different concern.
  */
