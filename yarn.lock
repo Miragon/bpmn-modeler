@@ -3983,12 +3983,12 @@ __metadata:
     "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.10.1"
     "@types/node": "npm:26.4.0"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:4.1.11"
     bpmn-moddle: "npm:10.2.0"
-    bpmnlint: "npm:11.13.0"
+    bpmnlint: "npm:11.14.0"
     camunda-bpmn-moddle: "npm:8.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -4255,14 +4255,14 @@ __metadata:
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.10.1"
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:4.1.11"
     bpmn-auto-layout: "npm:2.0.0-alpha.2"
     bpmn-js: "npm:18.28.0"
     bpmn-js-bpmnlint: "npm:0.24.0"
-    bpmnlint: "npm:11.13.0"
+    bpmnlint: "npm:11.14.0"
     jsdom: "npm:30.0.1"
     tslib: "npm:2.8.1"
     typescript: "npm:@typescript/typescript6@6.0.2"
@@ -4293,7 +4293,7 @@ __metadata:
     "@miragon/bpmn-modeler-layout": "workspace:*"
     "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.10.0"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.10.1"
     "@miragon/create-append-c7": "npm:1.0.1"
     "@types/node": "npm:26.4.0"
     "@typescript/native": "npm:typescript@7.0.2"
@@ -4308,7 +4308,7 @@ __metadata:
     bpmn-js-properties-panel: "npm:5.65.0"
     bpmn-js-token-simulation: "npm:0.40.0"
     bpmn-moddle: "npm:10.2.0"
-    bpmnlint: "npm:11.13.0"
+    bpmnlint: "npm:11.14.0"
     camunda-bpmn-js: "npm:5.34.0"
     camunda-bpmn-js-behaviors: "npm:1.18.0"
     camunda-bpmn-moddle: "npm:8.0.1"
@@ -4338,17 +4338,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmnlint-plugin-rules@npm:0.10.0":
-  version: 0.10.0
-  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.10.0"
+"@miragon/bpmnlint-plugin-rules@npm:0.10.1":
+  version: 0.10.1
+  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.10.1"
   dependencies:
-    bpmnlint-plugin-camunda-compat: "npm:2.59.2"
+    bpmnlint-plugin-camunda-compat: "npm:2.60.1"
     bpmnlint-utils: "npm:1.1.1"
-    camunda-bpmn-moddle: "npm:7.0.1"
-    zeebe-bpmn-moddle: "npm:1.17.0"
+    camunda-bpmn-moddle: "npm:8.0.1"
+    zeebe-bpmn-moddle: "npm:2.0.0"
   peerDependencies:
     bpmnlint: ">=11"
-  checksum: 10c0/ce196d4acb336bf49376602b134fe5fb25a0016b4b3bbb35fc27d72947b45c7f0e49e18341194c121a13028fc647a08b9977365398bd644346b38188425f10bd
+  checksum: 10c0/82609dd666e8ef9fffa46c96bc04c8de2f6ee73fb57893e65f155e8d542a2b5937731669f6fc895e7ce2b8476160bd0ddba921735388c40952559b1ae6330716
   languageName: node
   linkType: hard
 
@@ -10379,9 +10379,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"bpmnlint-plugin-camunda-compat@npm:2.59.2":
-  version: 2.59.2
-  resolution: "bpmnlint-plugin-camunda-compat@npm:2.59.2"
+"bpmnlint-plugin-camunda-compat@npm:2.60.1":
+  version: 2.60.1
+  resolution: "bpmnlint-plugin-camunda-compat@npm:2.60.1"
   dependencies:
     "@bpmn-io/feel-analyzer": "npm:^0.3.0"
     "@bpmn-io/lezer-feel": "npm:^2.5.0"
@@ -10393,7 +10393,7 @@ __metadata:
     semver-compare: "npm:^1.0.0"
   peerDependencies:
     bpmnlint: ">= 11.6.0"
-  checksum: 10c0/db237830ac8bc96d4042d7da96a17f3331b879ca9e552b382dc53bc4590e4b1ba8061434065886fc264242a78439740818e5f3d67d5954167da202fbd7785967
+  checksum: 10c0/5970063640de72ae9379d2565218d4d3563164e6970bf407f8b97b0c41f3271c7fc84fed1837e2dc391b31fd2ca9d9bc70f69e03d1150339ce3b9cdcfbee0ee5
   languageName: node
   linkType: hard
 
@@ -10404,9 +10404,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmnlint@npm:11.13.0, bpmnlint@npm:^11.13.0":
-  version: 11.13.0
-  resolution: "bpmnlint@npm:11.13.0"
+"bpmnlint@npm:11.14.0, bpmnlint@npm:^11.13.0":
+  version: 11.14.0
+  resolution: "bpmnlint@npm:11.14.0"
   dependencies:
     "@bpmn-io/moddle-utils": "npm:^0.3.0"
     ansi-colors: "npm:^4.1.3"
@@ -10420,7 +10420,7 @@ __metadata:
     tiny-glob: "npm:^0.2.9"
   bin:
     bpmnlint: bin/bpmnlint.js
-  checksum: 10c0/4a31fff2ffdeab25bba8620ea93fc9b08278aefab3e5ae226bfdeb2086b22bd3907815fbdab38c40f25dae47f94f8fac73be8281bfd75198dac45eb45f8d63ab
+  checksum: 10c0/38ec8352992daf89c84fa3f4543d882fbcca15532689b0915498ad4b8f91cbc6646a0586e797a8f730444a79a35aa625c065a807485c9d9e3667165ec906c2bf
   languageName: node
   linkType: hard
 
@@ -10817,13 +10817,6 @@ __metadata:
   peerDependencies:
     bpmn-js-properties-panel: ">= 3.0.0"
   checksum: 10c0/fdf2e29f5f96d320438bfa9cd20f9d716c1ba9b8a488ac54cd1ccccebc5f73e8642d7f935ba9b1d7bed6b6b31681650bf31db16fc23092f1698ae1563cab62de
-  languageName: node
-  linkType: hard
-
-"camunda-bpmn-moddle@npm:7.0.1":
-  version: 7.0.1
-  resolution: "camunda-bpmn-moddle@npm:7.0.1"
-  checksum: 10c0/cf18a733b752f82159879755f5e03b7bd6618d47f9e98c4a037ae58084139b81d4e50657e306826db1a15605906f6acaf24780f2f57e9116565f93728565d6e6
   languageName: node
   linkType: hard
 
@@ -24801,13 +24794,6 @@ __metadata:
   version: 0.1.0
   resolution: "yocto-queue@npm:0.1.0"
   checksum: 10c0/dceb44c28578b31641e13695d200d34ec4ab3966a5729814d5445b194933c096b7ced71494ce53a0e8820685d1d010df8b2422e5bf2cdea7e469d97ffbea306f
-  languageName: node
-  linkType: hard
-
-"zeebe-bpmn-moddle@npm:1.17.0":
-  version: 1.17.0
-  resolution: "zeebe-bpmn-moddle@npm:1.17.0"
-  checksum: 10c0/c2f35b88cff143d52fb0910db214a5f55c77d10df37889e2eebc433c3d48b2a0b5a1fee39b367e9b7b8be153d18645b468386eb5d0dd226bf076ab9674963101
   languageName: node
   linkType: hard
 

@@ -12,6 +12,15 @@ describe("RecordingBrowserResolver", () => {
         expect(resolver.unresolved).toEqual([]);
     });
 
+    it("resolves the superfluous-label rule added in bpmnlint 11.14.0", () => {
+        const resolver = new RecordingBrowserResolver();
+
+        const rule = resolver.resolveRule("bpmnlint", "superfluous-label");
+
+        expect(rule).toBeDefined();
+        expect(resolver.unresolved).toEqual([]);
+    });
+
     it("records an unknown rule and returns a reporting no-op", () => {
         const resolver = new RecordingBrowserResolver();
 
