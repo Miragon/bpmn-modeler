@@ -68,6 +68,14 @@ describe("DeploymentConfigBuilder", () => {
             expect(completeBuilder().build().auth).toBeInstanceOf(NoAuth);
         });
 
+        it("carries a deployUrl override and normalises blank values to undefined", () => {
+            expect(completeBuilder().withDeployUrl("https://gw/deploy").build().deployUrl).toBe(
+                "https://gw/deploy",
+            );
+            expect(completeBuilder().withDeployUrl("   ").build().deployUrl).toBeUndefined();
+            expect(completeBuilder().build().deployUrl).toBeUndefined();
+        });
+
         it.each([
             ["deploymentName", (b: DeploymentConfigBuilder) => b.withDeploymentName("")],
             ["endpoint", (b: DeploymentConfigBuilder) => b.withEndpoint("")],

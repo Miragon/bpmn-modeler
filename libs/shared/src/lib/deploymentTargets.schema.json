@@ -1,0 +1,76 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Miragon BPMN Modeler deployment targets",
+    "description": "Named, team-shareable deployment connections. Secrets are never stored here.",
+    "type": "object",
+    "required": ["targets"],
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "Optional reference to this schema for editors without a registered mapping."
+        },
+        "targets": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["name", "engine", "endpoint"],
+                "additionalProperties": false,
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Unique target name (identity)."
+                    },
+                    "engine": {
+                        "type": "string",
+                        "enum": ["c7", "c8"],
+                        "description": "Camunda Platform 7 or Camunda 8."
+                    },
+                    "endpoint": {
+                        "type": "string",
+                        "description": "Base URL of the Camunda REST API."
+                    },
+                    "tenantId": {
+                        "type": "string",
+                        "description": "Optional tenant identifier."
+                    },
+                    "auth": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["none", "basic", "oauth2"]
+                            },
+                            "tokenEndpoint": {
+                                "type": "string",
+                                "description": "OAuth2 token endpoint (oauth2 only)."
+                            },
+                            "audience": {
+                                "type": "string",
+                                "description": "OAuth2 audience (oauth2 only)."
+                            }
+                        },
+                        "required": ["type"]
+                    },
+                    "endpoints": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "description": "Optional full-URL overrides for gateways with custom routes.",
+                        "properties": {
+                            "deploy": {
+                                "type": "string",
+                                "description": "Full URL for the deploy call."
+                            },
+                            "startInstance": {
+                                "type": "string",
+                                "description": "Full URL for start-instance; {processDefinitionKey} is substituted."
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

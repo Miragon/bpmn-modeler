@@ -27,6 +27,8 @@ contributor-facing record, not user documentation.
 | [0032](0032-vitest-browser-mode-for-bpmn-modeler.md) | Vitest browser mode (Playwright/Chromium) as a second project for `@miragon/bpmn-modeler`; real-ResizeObserver view-state specs, coverage off, shared aliases | accepted |
 | [0034](0034-patch-vulnerable-transitive-build-dependencies.md) | Pin patched transitive dependencies and replace Theia's archive extractor | accepted |
 | [0035](0035-typed-adapters-for-private-upstream-apis.md) | Isolate private upstream access behind typed adapters with pinned shape tests; escalate `no-explicit-any` to `error` off the fork | accepted |
+| [0038](0038-bind-deployment-actions-to-saved-targets.md) | Bind deployment actions and credential replies to the selected saved target; require Save for connection changes | accepted |
+| [0039](0039-engine-reconciliation-of-the-deployment-ledger.md) | On-demand ledger reconciliation against Camunda 7 (C7-only inspection port, engine-origin revisions → blue `superseded` state, identity keyed by name@endpoint-host, pruning on delete/rename) | accepted |
 
 ### modeler-core
 
@@ -85,3 +87,10 @@ contributor-facing record, not user documentation.
 | [0024](0024-extract-publishable-dmn-modeler-package.md) | Extract the host-free DMN modeler into the publishable `@miragon/dmn-modeler` package; dmn-js stack externalised, `styles.css` from the themes rollup, page-global `#theme-link` theming retained | accepted |
 | [0026](0026-dmn-container-scoped-theming.md) | Container-scoped DMN theming via a per-instance `data-dmn-theme` attribute; one authored scoped source + stripped legacy split, `styles.css` from the lib entry, shared `hostTheme` adapter, `#theme-link` as silent fallback | accepted |
 | [0027](0027-dmn-modeler-page-global-locale.md) | Page-global DMN locale: `TranslateModule` as a built-in on all four views, `locale` option + `setLocale()` that re-opens the active view to re-translate, host `LanguageQuery` broadcast; harvest tooling extended to dmn-js | accepted |
+
+### deployment
+
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0036](0036-deployment-targets-file-and-endpoint-overrides.md) | Named deployment targets in `<configFolder>/deployment-targets.json` (secrets in the host store keyed by a `<file>::<name>` slot), active target on the seed + status bar, optional full-URL overrides per operation; ad-hoc legacy mode preserved | accepted |
+| [0037](0037-deployment-ledger-in-host-state.md) | Deployment freshness ledger (content fingerprint at last deploy, keyed by target×file) in per-developer host state; drives a green/yellow/gray dot on the target status-bar item, fully local (no engine round-trip) | accepted |

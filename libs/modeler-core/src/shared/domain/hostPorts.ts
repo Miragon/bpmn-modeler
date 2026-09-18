@@ -14,6 +14,7 @@
 import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
 import { Engine, LintResults, SurfaceMode } from "@miragon/bpmn-modeler-types";
 
+import { DeployedRevision, DeploymentFreshness } from "../../deployment/domain/deploymentLedger";
 import { MigrationScope } from "../../migration/domain/MigrationPlan";
 import { NewModelEngine } from "./newModelEngine";
 
@@ -113,6 +114,27 @@ export interface PickerPort {
         confirmLabel: string;
         details: string[];
     }): Promise<boolean>;
+
+    /**
+     * Prompts for the active deployment target. `names` are the saved targets;
+     * the picker also offers an explicit "(none — use form values)" entry for
+     * ad-hoc mode.
+     *
+     * @returns the chosen target name, `""` for the ad-hoc entry, or `undefined`
+     *   on dismissal (a no-op, mirroring the engine-version cancel convention).
+     */
+    pickDeploymentTarget(names: string[]): Promise<string | undefined>;
+
+    /**
+     * The status-bar item's click menu: switch the active target, or (for a
+     * Camunda 7 target) verify the ledger against the engine.
+     *
+     * @returns the chosen action, or `undefined` on dismissal (a no-op).
+     */
+    pickDeploymentStatusAction(opts: {
+        targetName?: string;
+        canVerify: boolean;
+    }): Promise<"switch" | "verify" | undefined>;
 }
 
 /**
@@ -235,6 +257,18 @@ export interface StatusBarPort {
     showBpmnlintDisabled(): void;
     showBpmnlintNoConfig(): void;
     hideBpmnlintStatus(): void;
+    /**
+     * `undefined` name renders "No deployment target"; a name renders the active
+     * target. `freshness` drives the coloured dot; `deployedAt` / `verifiedAt`
+     * (ISO) enrich the tooltip when a revision was recorded / engine-verified.
+     */
+    showDeploymentTarget(
+        name: string | undefined,
+        freshness: DeploymentFreshness,
+        deployedAt?: string,
+        verifiedAt?: string,
+    ): void;
+    hideDeploymentTarget(): void;
 }
 
 /**
@@ -283,12 +317,20 @@ export interface DiagnosticsPort {
 
 /**
  * Encrypted-at-rest storage for sensitive deployment credentials.
+ *
+ * Every method takes an optional trailing `slot` so credentials can be scoped to
+ * a named deployment target. `undefined` addresses the legacy unnamed keys
+ * (ad-hoc mode). A slot is `<targetsFilePath>::<name>` so the same target name in
+ * two workspaces cannot collide in an application-scoped store like IntelliJ's
+ * PasswordSafe.
  */
 export interface SecretStorePort {
-    saveBasicAuth(username: string, password: string): Promise<void>;
-    getBasicAuth(): Promise<{ username: string; password: string } | undefined>;
-    saveOAuth2(clientId: string, clientSecret: string): Promise<void>;
-    getOAuth2(): Promise<{ clientId: string; clientSecret: string } | undefined>;
+    saveBasicAuth(username: string, password: string, slot?: string): Promise<void>;
+    getBasicAuth(slot?: string): Promise<{ username: string; password: string } | undefined>;
+    saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void>;
+    getOAuth2(slot?: string): Promise<{ clientId: string; clientSecret: string } | undefined>;
+    /** Removes every credential kind stored under `slot` (target delete / rename). */
+    delete(slot: string): Promise<void>;
 }
 
 /**
@@ -343,4 +385,21 @@ export interface DeploymentStatePort {
     getAudience(): string;
     saveOAuth2Config(tokenEndpoint: string, audience: string): Promise<void>;
     save(endpoint: string, tenantId: string): Promise<void>;
+    /**
+     * The persisted active deployment-target name, or `""` for ad-hoc mode.
+     * Synchronous (per ADR 0005) so it can ride the initial webview seed.
+     */
+    getActiveTargetName(): string;
+    saveActiveTargetName(name: string): Promise<void>;
+    /**
+     * The recorded revision last deployed under `ledgerKey`, or `undefined` when
+     * this machine has no record. Synchronous (per ADR 0005) so freshness can be
+     * resolved during the initial status-bar render.
+     */
+    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined;
+    saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void>;
+    /** Every recorded ledger key. Synchronous (per ADR 0005), like the getters. */
+    listLedgerKeys(): string[];
+    /** Removes the given ledger slots (target delete/rename, engine says "not deployed"). */
+    deleteDeployedRevisions(ledgerKeys: string[]): Promise<void>;
 }

@@ -68,4 +68,74 @@ class ModelerCommandsRouterTest {
             "layout/cleanup carries no params",
         )
     }
+
+    @Test
+    fun `switchDeploymentTarget notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.switchDeploymentTarget()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/switchTarget", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/switchTarget carries the workspace root",
+        )
+    }
+
+    @Test
+    fun `deployFiles notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.deployFiles()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/deployFiles", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/deployFiles carries the workspace root",
+        )
+    }
+
+    @Test
+    fun `deployDiagram notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.deployDiagram()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/deployActive", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/deployActive carries the workspace root",
+        )
+    }
+
+    @Test
+    fun `verifyDeployment notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.verifyDeployment()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/verify", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/verify carries the workspace root",
+        )
+    }
+
+    @Test
+    fun `deploymentStatusMenu notifies with the project workspace root`() {
+        val (wired, router) = router()
+
+        router.deploymentStatusMenu()
+
+        val frame = parse(wired.fake.nextFrame())
+        assertEquals("deployment/statusBarMenu", frame.get("method").asString)
+        assertTrue(
+            frame.getAsJsonObject("params").has("workspaceRoot"),
+            "deployment/statusBarMenu carries the workspace root",
+        )
+    }
 }

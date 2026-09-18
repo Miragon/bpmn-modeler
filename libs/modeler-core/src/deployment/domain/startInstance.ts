@@ -13,6 +13,8 @@ export class StartInstanceConfig {
      * @param engine Target execution platform: `"c7"` or `"c8"`.
      * @param auth Authentication configuration for the REST API.
      * @param payload Parsed JSON payload to pass as process variables, or `null` for no payload.
+     * @param startInstanceUrl Optional full-URL override for the start-instance
+     *   call; `{processDefinitionKey}` is substituted before the request.
      */
     constructor(
         readonly processDefinitionKey: string,
@@ -20,6 +22,7 @@ export class StartInstanceConfig {
         readonly engine: Engine,
         readonly auth: AuthConfig = new NoAuth(),
         readonly payload: Record<string, unknown> | null = null,
+        readonly startInstanceUrl?: string,
     ) {}
 }
 

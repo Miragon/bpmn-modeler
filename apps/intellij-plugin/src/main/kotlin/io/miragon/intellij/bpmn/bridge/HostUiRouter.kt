@@ -8,6 +8,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.Messages
+import io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidget
 import io.miragon.intellij.bpmn.EngineStatusBarWidget
 import io.miragon.intellij.bpmn.HostPicker
 import java.awt.datatransfer.DataFlavor
@@ -49,6 +50,14 @@ internal class HostUiRouter(private val deps: BridgeDeps) {
             }
             .on("statusBar/templatesHide") { _, _ -> EngineStatusBarWidget.updateTemplateCount(project, null) }
             .on("statusBar/templatesLoading") { _, _ -> EngineStatusBarWidget.showTemplatesLoading(project) }
+            .on("statusBar/showDeploymentTarget") { params, _ ->
+                val name = params.get("name")?.takeIf { !it.isJsonNull }?.asString
+                val freshness = params.get("freshness")?.takeIf { !it.isJsonNull }?.asString ?: "unknown"
+                val deployedAt = params.get("deployedAt")?.takeIf { !it.isJsonNull }?.asString
+                val verifiedAt = params.get("verifiedAt")?.takeIf { !it.isJsonNull }?.asString
+                DeploymentTargetStatusBarWidget.updateTarget(project, name, freshness, deployedAt, verifiedAt)
+            }
+            .on("statusBar/hideDeploymentTarget") { _, _ -> DeploymentTargetStatusBarWidget.hide(project) }
             .on("notifier/showInfo") { params, _ -> notifications.showInfo(params.get("message").asString) }
             .on("notifier/showError") { params, _ -> notifications.showError(params.get("message").asString) }
             .on("notifier/notifyError") { params, _ ->

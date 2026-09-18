@@ -18,6 +18,8 @@ import { Engine } from "@miragon/bpmn-modeler-types";
  * Follows the same framework-free pattern as {@link DeploymentForm}.
  */
 export class StartInstanceForm {
+    private starting = false;
+    private blockedReason: string | undefined;
     private readonly processDefinitionKeyInput: HTMLInputElement;
 
     private readonly payloadFileInput: HTMLInputElement;
@@ -25,6 +27,8 @@ export class StartInstanceForm {
     private readonly selectPayloadBtn: HTMLButtonElement;
 
     private readonly startInstanceBtn: HTMLButtonElement;
+
+    private readonly startHint: HTMLDivElement;
 
     private readonly statusBanner: HTMLDivElement;
 
@@ -38,6 +42,8 @@ export class StartInstanceForm {
         private readonly getSharedConnection: () => {
             endpoint: string;
             engine: Engine;
+            targetName: string;
+            startInstanceUrl?: string;
         },
     ) {
         this.processDefinitionKeyInput =
@@ -45,6 +51,7 @@ export class StartInstanceForm {
         this.payloadFileInput = this.requireElement<HTMLInputElement>("#payload-file");
         this.selectPayloadBtn = this.requireElement<HTMLButtonElement>("#select-payload-btn");
         this.startInstanceBtn = this.requireElement<HTMLButtonElement>("#start-instance-btn");
+        this.startHint = this.requireElement<HTMLDivElement>("#start-hint");
         this.statusBanner = this.requireElement<HTMLDivElement>("#start-status-banner");
 
         this.bindEvents();
@@ -61,7 +68,8 @@ export class StartInstanceForm {
     }
 
     showProgress(): void {
-        this.startInstanceBtn.disabled = true;
+        this.starting = true;
+        this.updateButton();
         this.statusBanner.className = "status-banner progress";
         this.statusBanner.textContent = "Starting process instance\u2026";
         this.statusBanner.style.display = "block";
@@ -69,7 +77,8 @@ export class StartInstanceForm {
 
     /** Shows the start-instance result in the status banner and re-enables the button. */
     showResult(result: StartInstanceResultQuery): void {
-        this.startInstanceBtn.disabled = false;
+        this.starting = false;
+        this.updateButton();
         this.statusBanner.className = result.success
             ? "status-banner success"
             : "status-banner error";
@@ -111,6 +120,7 @@ export class StartInstanceForm {
 
     /** Builds a {@link StartInstanceConfigPayload} from the form, throwing on empty required fields. */
     private getConfigPayload(): StartInstanceConfigPayload {
+        if (this.blockedReason) throw new Error(this.blockedReason);
         const processDefinitionKey = this.processDefinitionKeyInput.value.trim();
         if (!processDefinitionKey) {
             throw new Error("Process Definition Key is required.");
@@ -127,7 +137,21 @@ export class StartInstanceForm {
             engine: connection.engine,
             auth: this.getSharedAuth(),
             payloadFilePath: this.payloadFilePath,
+            targetName: connection.targetName,
+            startInstanceUrl: connection.startInstanceUrl,
         };
+    }
+
+    setExecutionBlockedReason(reason: string | undefined): void {
+        this.blockedReason = reason;
+        this.updateButton();
+    }
+
+    private updateButton(): void {
+        this.startInstanceBtn.disabled = this.starting || this.blockedReason !== undefined;
+        this.startInstanceBtn.title = this.blockedReason ?? "";
+        this.startHint.textContent = this.blockedReason ?? "";
+        this.startHint.hidden = this.blockedReason === undefined;
     }
 
     /** Returns the DOM element matching `selector`, or throws if none matches. */

@@ -1,9 +1,10 @@
 <idea-plugin>
     <extensions defaultExtensionNs="JavaScript.JsonSchema">
-        <!-- Associates the bundled JSON Schema with *.bpmn.vars.json manifests
-             (validation + completion + hover docs). Same schema as the VS Code
-             jsonValidation contribution. See VarsManifestJsonSchemaProviderFactory. -->
+        <!-- Associates the bundled JSON Schemas with *.bpmn.vars.json manifests and
+             deployment-targets.json (validation + completion + hover docs). Same
+             schemas as the VS Code jsonValidation contributions. See
+             ModelerJsonSchemaProviderFactory. -->
         <ProviderFactory
-            implementation="io.miragon.intellij.bpmn.VarsManifestJsonSchemaProviderFactory"/>
+            implementation="io.miragon.intellij.bpmn.ModelerJsonSchemaProviderFactory"/>
     </extensions>
 </idea-plugin>

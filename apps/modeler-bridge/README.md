@@ -24,13 +24,15 @@ isn't talking to VS Code.
 | core → host | `document/write`, `document/save`       | `DocumentPort.write` / `.save`                                                                |
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
-| core → host | `statusBar/*`                           | `StatusBarPort` → `StatusBarWidget` (engine version + template count)                         |
-| core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted at rest)                    |
+| core → host | `statusBar/*`                           | `StatusBarPort` → `StatusBarWidget`s (engine version + template count; active deployment target) |
+| core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted); `slot` scopes a named target, `delete` removes one |
 | host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror (synchronous getters; see BridgeSettings)              |
 | host → core | `deployment/open`                       | deployment tool-window visibility → refresh form defaults on open                             |
 | host → core | `deployment/webviewMessage`             | inbound deployment `Command` → `DeploymentMessageDispatcher`                                  |
 | core → host | `deployment/postMessage`                | deployment `Query` → tool-window webview (`window.postMessage`)                               |
-| core → host | `deploymentState/save*`                 | `DeploymentStatePort` persist → `PropertiesComponent` (non-secret form state)                 |
+| host → core | `deployment/switchTarget`, `deployment/deployFiles` | status-bar/action → switch the active target, or pick + deploy files to it (carries `workspaceRoot`) |
+| host → core | `deployment/verify`, `deployment/statusBarMenu` | verify the active diagram against the C7 engine; status-bar click menu (switch/verify) (carries `workspaceRoot`) |
+| core → host | `deploymentState/save*`, `deploymentState/deleteDeployedRevisions` | `DeploymentStatePort` persist/prune → `PropertiesComponent` (non-secret form state, incl. active target + ledger) |
 | host → core | `marketplace/add`, `marketplace/update` | Tools-menu actions → `TemplateMarketplaceService` (settings snapshot piggybacked)             |
 | core → host | `marketplaceState/save`                 | persist the added registration + fan the snapshot to every open bridge                        |
 | core → host | `tokenStore/*`                          | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem)             |

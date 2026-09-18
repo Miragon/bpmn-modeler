@@ -70,7 +70,7 @@ lint/tsc globs never touch the Kotlin sources.
 | `copyWebview` | `dist/webview-staging/bpmn-webview/` | `/webview/…` |
 | `copyDeploymentWebview` | `dist/webview-staging/deployment-webview/` | deployment webview |
 | `copyBridge` | `apps/modeler-bridge/dist/modeler-bridge` | `/bin/<os>-<arch>/modeler-bridge` |
-| `copySchema` | `libs/shared/src/lib/variableManifest.schema.json` | `*.bpmn.vars.json` schema |
+| `copySchema` | `libs/shared/src/lib/variableManifest.schema.json`, `libs/shared/src/lib/deploymentTargets.schema.json` | `*.bpmn.vars.json` + `deployment-targets.json` schemas |
 
 Each task has a `doFirst` that throws a `GradleException` naming the exact yarn
 command if its source is missing. Release builds pass `-PbundleAllPlatforms` to

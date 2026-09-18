@@ -141,6 +141,54 @@ describe("Camunda8RestClient (integration)", () => {
         await expect(client.startInstance(config)).rejects.toThrow(StartInstanceFailedError);
     });
 
+    it("should post to the deployUrl override instead of the convention path", async () => {
+        let requestedUrl: string | undefined;
+        handler = (req, _body, res) => {
+            requestedUrl = req.url;
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ deploymentKey: "1" }));
+        };
+
+        const client = createClient();
+        const config = new DeploymentConfig(
+            "my-deploy",
+            "",
+            baseUrl,
+            "c8",
+            "/tmp/proc.bpmn",
+            [],
+            new NoAuth(),
+            `${baseUrl}/custom/deploy`,
+        );
+
+        await client.deploy(config, new Map([["proc.bpmn", "<bpmn/>"]]));
+
+        expect(requestedUrl).toBe("/custom/deploy");
+    });
+
+    it("should expand {processDefinitionKey} in the startInstanceUrl override", async () => {
+        let requestedUrl: string | undefined;
+        handler = (req, _body, res) => {
+            requestedUrl = req.url;
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ processInstanceKey: "pi-1" }));
+        };
+
+        const client = createClient();
+        const config = new StartInstanceConfig(
+            "myProc",
+            baseUrl,
+            "c8",
+            new NoAuth(),
+            null,
+            `${baseUrl}/custom/{processDefinitionKey}/start`,
+        );
+
+        await client.startInstance(config);
+
+        expect(requestedUrl).toBe("/custom/myProc/start");
+    });
+
     // ── Custom C8 API version ─────────────────────────────────────────
 
     it("should use custom API version in C8 deploy URL", async () => {

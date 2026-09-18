@@ -1,13 +1,20 @@
 import {
     AdditionalFilesQuery,
     Command,
+    DeleteTargetCommand,
     DeploymentResultQuery,
+    DeploymentTargetPayload,
+    DeploymentTargetsQuery,
     FormDefaultsQuery,
     ProcessDefinitionKeyQuery,
     Query,
+    RequestStoredCredentialsCommand,
+    SaveTargetCommand,
     SelectedPayloadFileQuery,
+    SelectTargetCommand,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
+    TargetSavedQuery,
     HostApi,
     HostApiImpl,
     MockHostApi,
@@ -46,6 +53,29 @@ export function getHostApi(): HostApi<StateType, MessageType> {
  * synthetic `MessageEvent`s in response to outbound commands.
  */
 class MockHost extends MockHostApi<StateType, MessageType> {
+    // Two fake targets so the sidebar's select/save/delete flow is exercisable
+    // in a standalone browser (`yarn workspace … serve`).
+    private mockTargets: DeploymentTargetPayload[] = [
+        {
+            name: "dev",
+            engine: "c7",
+            endpoint: "http://localhost:8080/engine-rest",
+            tenantId: "",
+            authType: "none",
+        },
+        {
+            name: "prod",
+            engine: "c8",
+            endpoint: "https://prod.example.com",
+            tenantId: "acme",
+            authType: "oauth2",
+            tokenEndpoint: "https://login.example.com/oauth/token",
+            audience: "zeebe-api",
+        },
+    ];
+
+    private mockActiveTarget = "";
+
     /**
      * Intercepts outbound messages and dispatches synthetic inbound responses
      * so the deployment form can be developed standalone in a browser.
@@ -64,10 +94,53 @@ class MockHost extends MockHostApi<StateType, MessageType> {
                         authType: "none",
                     }),
                 );
+                dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
+                break;
+            }
+            case "SelectTargetCommand": {
+                this.mockActiveTarget = (message as SelectTargetCommand).name;
+                dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
+                break;
+            }
+            case "SaveTargetCommand": {
+                const { target, previousName } = message as SaveTargetCommand;
+                this.mockTargets = this.mockTargets.filter(
+                    (t) => t.name !== target.name && t.name !== previousName,
+                );
+                this.mockTargets.push(target);
+                this.mockActiveTarget = target.name;
+                dispatchEvent(new TargetSavedQuery(true, `Saved target "${target.name}" (mock).`));
+                dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
+                break;
+            }
+            case "DeleteTargetCommand": {
+                const { name } = message as DeleteTargetCommand;
+                this.mockTargets = this.mockTargets.filter((t) => t.name !== name);
+                if (this.mockActiveTarget === name) {
+                    this.mockActiveTarget = "";
+                }
+                dispatchEvent(new TargetSavedQuery(true, `Deleted target "${name}" (mock).`));
+                dispatchEvent(new DeploymentTargetsQuery(this.mockTargets, this.mockActiveTarget));
+                break;
+            }
+            case "OpenTargetsFileCommand": {
+                console.debug("[DEBUG] OpenTargetsFileCommand (no editor in mock)");
                 break;
             }
             case "RequestStoredCredentialsCommand": {
-                dispatchEvent(new StoredCredentialsQuery({ authType: "none" }));
+                const { targetName, requestId } = message as RequestStoredCredentialsCommand;
+                const target = this.mockTargets.find((entry) => entry.name === targetName);
+                dispatchEvent(
+                    new StoredCredentialsQuery(
+                        {
+                            authType: target?.authType ?? "none",
+                            tokenEndpoint: target?.tokenEndpoint,
+                            audience: target?.audience,
+                        },
+                        targetName,
+                        requestId,
+                    ),
+                );
                 break;
             }
             case "RequestAdditionalFilesCommand": {

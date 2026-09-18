@@ -87,6 +87,7 @@ import {
 } from "@miragon/bpmn-modeler-core";
 import { TemplateMarketplaceService } from "@miragon/bpmn-modeler-core";
 import { CodeLinkHandles } from "./codeLinkFeature";
+import { DeploymentStatusParticipant } from "../deployment/controller/editor-participants/DeploymentStatusParticipant";
 import { SharedDeps } from "./sharedDeps";
 import { FormReferenceStatusService } from "../navigation";
 import { FormReferenceStatusParticipant } from "../navigation/controller/editor-participants/FormReferenceStatusParticipant";
@@ -106,6 +107,7 @@ interface EditorHandles {
     scriptManifestParticipant: ScriptManifestParticipant;
     codeLink: CodeLinkHandles;
     marketplaceSvc: TemplateMarketplaceService;
+    deploymentStatusParticipant: DeploymentStatusParticipant;
 }
 
 /**
@@ -134,6 +136,7 @@ export function register(
         scriptManifestParticipant,
         codeLink,
         marketplaceSvc,
+        deploymentStatusParticipant,
     } = handles;
 
     const panelStateRepo = new PropertiesPanelStateRepository(context);
@@ -326,6 +329,7 @@ export function register(
             ),
             new SettingsParticipant(settingsBroadcaster),
             new EngineVersionStatusBarParticipant(deps.statusBar, deps.vsDocument),
+            deploymentStatusParticipant,
             new ScriptTaskTeardownParticipant(scriptTaskSvc, scriptVariableStore),
             scriptManifestParticipant,
             codeLink.codeLinkParticipant,

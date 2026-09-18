@@ -1,19 +1,35 @@
 import {
     AuthConfigPayload,
     Command,
+    DeleteTargetCommand,
     DeployCommand,
     DeploymentConfigPayload,
     DeploymentFormDefaults,
     DeploymentResultQuery,
+    DeploymentTargetPayload,
+    DeploymentTargetsQuery,
     LogInfoCommand,
+    OpenTargetsFileCommand,
     Query,
     RequestAdditionalFilesCommand,
     RequestStoredCredentialsCommand,
+    SaveTargetCommand,
+    SelectTargetCommand,
+    StoredCredentialsQuery,
     HostApi,
 } from "@miragon/bpmn-modeler-shared";
 import { Engine } from "@miragon/bpmn-modeler-types";
 
 import { WebviewState } from "./host";
+
+const CONVENTION_DEPLOY_URL: Record<Engine, string> = {
+    c7: "<endpoint>/deployment/create",
+    c8: "<endpoint>/v2/deployments",
+};
+const CONVENTION_START_URL: Record<Engine, string> = {
+    c7: "<endpoint>/process-definition/key/{processDefinitionKey}/start",
+    c8: "<endpoint>/v2/process-instances",
+};
 
 /**
  * Intentionally framework-free — manipulates the DOM directly and talks to
@@ -23,6 +39,24 @@ export class DeploymentForm {
     private static readonly DEFAULT_COLLAPSED_SECTIONS: string[] = [];
 
     private readonly deploymentNameInput: HTMLInputElement;
+
+    private readonly targetSelect: HTMLSelectElement;
+
+    private readonly targetNewBtn: HTMLButtonElement;
+
+    private readonly targetSaveBtn: HTMLButtonElement;
+
+    private readonly targetDeleteBtn: HTMLButtonElement;
+
+    private readonly targetOpenBtn: HTMLButtonElement;
+
+    private readonly targetNameInput: HTMLInputElement;
+
+    private readonly deployUrlInput: HTMLInputElement;
+
+    private readonly startInstanceUrlInput: HTMLInputElement;
+
+    private readonly engineMismatchHint: HTMLDivElement;
 
     private readonly tenantIdInput: HTMLInputElement;
 
@@ -60,11 +94,41 @@ export class DeploymentForm {
 
     private additionalFilePaths: string[] = [];
 
+    private targets: DeploymentTargetPayload[] = [];
+
+    // The target name currently loaded into the form ("" = ad-hoc). Distinct from
+    // the target-name input so a rename can carry the previous name on save.
+    private editingTargetName = "";
+
+    // Detected engine of the focused document, used only for the mismatch hint.
+    private detectedEngine: Engine | undefined;
+    private latestDefaults: DeploymentFormDefaults | undefined;
+    private connectionSnapshot = "";
+    private documentDir: string | undefined;
+    private dirty = false;
+    private creatingTarget = false;
+    private switchingTarget = true;
+    private savingTarget = false;
+    private reloadTarget = false;
+    private deploying = false;
+    private credentialRequestId = 0;
+    private pendingCredentials: number | undefined;
+    private readonly readinessListeners = new Set<(reason: string | undefined) => void>();
+
     /**
      * @throws {Error} If any expected DOM element is missing.
      */
     constructor(private readonly host: HostApi<unknown, Command | Query>) {
         this.deploymentNameInput = this.requireElement<HTMLInputElement>("#deployment-name");
+        this.targetSelect = this.requireElement<HTMLSelectElement>("#target-select");
+        this.targetNewBtn = this.requireElement<HTMLButtonElement>("#target-new");
+        this.targetSaveBtn = this.requireElement<HTMLButtonElement>("#target-save");
+        this.targetDeleteBtn = this.requireElement<HTMLButtonElement>("#target-delete");
+        this.targetOpenBtn = this.requireElement<HTMLButtonElement>("#target-open");
+        this.targetNameInput = this.requireElement<HTMLInputElement>("#target-name");
+        this.deployUrlInput = this.requireElement<HTMLInputElement>("#deploy-url");
+        this.startInstanceUrlInput = this.requireElement<HTMLInputElement>("#start-instance-url");
+        this.engineMismatchHint = this.requireElement<HTMLDivElement>("#engine-mismatch-hint");
         this.tenantIdInput = this.requireElement<HTMLInputElement>("#tenant-id");
         this.endpointInput = this.requireElement<HTMLInputElement>("#endpoint");
         this.engineSelect = this.requireElement<HTMLSelectElement>("#engine");
@@ -88,47 +152,99 @@ export class DeploymentForm {
         this.toggleAuthFields();
         this.attachPasswordToggle(this.authPasswordInput);
         this.attachPasswordToggle(this.authClientSecretInput);
+        this.updateReadiness();
     }
 
     populate(defaults: DeploymentFormDefaults): void {
+        this.detectedEngine = defaults.engine;
         this.deploymentNameInput.value = defaults.deploymentName;
-        this.tenantIdInput.value = defaults.tenantId;
-        this.endpointInput.value = defaults.endpoint;
-        this.engineSelect.value = defaults.engine;
-        this.authTypeSelect.value = defaults.authType;
-        if (defaults.tokenEndpoint) {
-            this.authTokenEndpointInput.value = defaults.tokenEndpoint;
-        }
-        if (defaults.audience) {
-            this.authAudienceInput.value = defaults.audience;
-        }
-        this.toggleAuthFields();
         // Read-only — managed by the extension host.
         this.mainFilePathInput.value = defaults.deploymentName
             ? `(current file: ${defaults.deploymentName}.bpmn)`
             : "";
 
-        if (defaults.authType !== "none") {
-            this.host.postMessage(new RequestStoredCredentialsCommand());
+        this.latestDefaults = defaults;
+        if (
+            !this.editingTargetName &&
+            !this.dirty &&
+            !this.switchingTarget &&
+            !this.creatingTarget
+        ) {
+            this.loadAdHocDefaults();
         }
+
+        this.updateAdvancedPlaceholders();
+        this.updateEngineMismatchHint();
     }
 
-    populateCredentials(auth: AuthConfigPayload): void {
+    setTargets(query: DeploymentTargetsQuery): void {
+        this.targets = [...query.targets];
+        const preserveDraft =
+            query.documentDir === this.documentDir &&
+            !this.switchingTarget &&
+            !this.reloadTarget &&
+            this.dirty &&
+            (this.creatingTarget || this.editingTargetName === query.activeTargetName);
+        if (preserveDraft) return;
+        this.documentDir = query.documentDir;
+
+        this.switchingTarget = false;
+        this.reloadTarget = false;
+        this.creatingTarget = false;
+        this.targetSelect.innerHTML = "";
+        const noneOption = document.createElement("option");
+        noneOption.value = "";
+        noneOption.textContent = "(none — use form values)";
+        this.targetSelect.appendChild(noneOption);
+        for (const target of this.targets) {
+            const option = document.createElement("option");
+            option.value = target.name;
+            option.textContent = target.name;
+            this.targetSelect.appendChild(option);
+        }
+        const active = this.targets.find((target) => target.name === query.activeTargetName);
+        this.editingTargetName = active?.name ?? "";
+        this.targetSelect.value = this.editingTargetName;
+        if (active) this.loadTargetIntoForm(active);
+        else this.loadAdHocDefaults();
+        this.connectionSnapshot = JSON.stringify(this.getTargetPayload());
+        this.targetDeleteBtn.disabled = !active;
+        this.setDirty(false);
+        this.updateAdvancedPlaceholders();
+        this.updateEngineMismatchHint();
+    }
+
+    populateCredentials(query: StoredCredentialsQuery): void {
+        if (this.pendingCredentials === undefined || query.requestId !== this.pendingCredentials) {
+            return;
+        }
+        // A matching monotonic requestId is proof this is the reply to our
+        // outstanding request, so release the gate unconditionally. Only skip
+        // *applying* the values when they no longer describe the loaded target.
+        this.pendingCredentials = undefined;
+        const auth = query.auth;
+        if (
+            query.targetName !== this.editingTargetName ||
+            auth.authType !== this.authTypeSelect.value
+        ) {
+            this.updateReadiness();
+            return;
+        }
         if (auth.authType === "basic") {
             this.authUsernameInput.value = auth.username ?? "";
             this.authPasswordInput.value = auth.password ?? "";
         } else if (auth.authType === "oauth2") {
             this.authClientIdInput.value = auth.clientId ?? "";
             this.authClientSecretInput.value = auth.clientSecret ?? "";
-            this.authTokenEndpointInput.value = auth.tokenEndpoint ?? "";
-            this.authAudienceInput.value = auth.audience ?? "";
         }
+        this.updateReadiness();
     }
 
     /**
      * @throws {Error} If `deploymentName` or `endpoint` are empty.
      */
     getConfigPayload(): DeploymentConfigPayload {
+        this.assertExecutionReady();
         const deploymentName = this.deploymentNameInput.value.trim();
         const endpoint = this.endpointInput.value.trim();
 
@@ -181,6 +297,23 @@ export class DeploymentForm {
             mainFilePath: "", // Populated by the extension host from the active editor
             additionalFilePaths: [...this.additionalFilePaths],
             auth,
+            targetName: this.editingTargetName,
+            deployUrl: this.deployUrlInput.value.trim() || undefined,
+        };
+    }
+
+    /** Non-secret projection of the current form for a save. */
+    getTargetPayload(): DeploymentTargetPayload {
+        return {
+            name: this.targetNameInput.value.trim(),
+            engine: this.engineSelect.value as Engine,
+            endpoint: this.endpointInput.value.trim(),
+            tenantId: this.tenantIdInput.value.trim(),
+            authType: this.authTypeSelect.value as AuthConfigPayload["authType"],
+            tokenEndpoint: this.authTokenEndpointInput.value.trim() || undefined,
+            audience: this.authAudienceInput.value.trim() || undefined,
+            deployUrl: this.deployUrlInput.value.trim() || undefined,
+            startInstanceUrl: this.startInstanceUrlInput.value.trim() || undefined,
         };
     }
 
@@ -194,14 +327,16 @@ export class DeploymentForm {
     }
 
     showProgress(): void {
-        this.deployBtn.disabled = true;
+        this.deploying = true;
+        this.updateReadiness();
         this.statusBanner.className = "status-banner progress";
         this.statusBanner.textContent = "Deploying\u2026";
         this.statusBanner.style.display = "block";
     }
 
     showResult(result: DeploymentResultQuery): void {
-        this.deployBtn.disabled = false;
+        this.deploying = false;
+        this.updateReadiness();
         this.statusBanner.className = result.success
             ? "status-banner success"
             : "status-banner error";
@@ -232,15 +367,24 @@ export class DeploymentForm {
         return auth;
     }
 
-    getConnectionPayload(): { endpoint: string; engine: Engine } {
+    getConnectionPayload(): {
+        endpoint: string;
+        engine: Engine;
+        targetName: string;
+        startInstanceUrl?: string;
+    } {
+        this.assertExecutionReady();
         return {
             endpoint: this.endpointInput.value.trim(),
             engine: this.engineSelect.value as Engine,
+            targetName: this.editingTargetName,
+            startInstanceUrl: this.startInstanceUrlInput.value.trim() || undefined,
         };
     }
 
     reset(): void {
-        this.deployBtn.disabled = false;
+        this.deploying = false;
+        this.updateReadiness();
         this.statusBanner.style.display = "none";
         this.statusBanner.textContent = "";
     }
@@ -314,10 +458,86 @@ export class DeploymentForm {
 
     private bindEvents(): void {
         this.authTypeSelect.addEventListener("change", () => {
+            this.clearCredentials();
             this.toggleAuthFields();
-            if (this.authTypeSelect.value !== "none") {
-                this.host.postMessage(new RequestStoredCredentialsCommand());
+            this.markDirty();
+        });
+
+        this.engineSelect.addEventListener("change", () => {
+            this.updateAdvancedPlaceholders();
+            this.updateEngineMismatchHint();
+            this.markDirty();
+        });
+
+        for (const input of [
+            this.targetNameInput,
+            this.tenantIdInput,
+            this.endpointInput,
+            this.authTokenEndpointInput,
+            this.authAudienceInput,
+            this.deployUrlInput,
+            this.startInstanceUrlInput,
+        ]) {
+            input.addEventListener("input", () => this.markDirty());
+        }
+
+        for (const input of [
+            this.authUsernameInput,
+            this.authPasswordInput,
+            this.authClientIdInput,
+            this.authClientSecretInput,
+        ]) {
+            input.addEventListener("input", () => {
+                this.credentialRequestId++;
+                this.pendingCredentials = undefined;
+                this.markDirty();
+            });
+        }
+
+        this.targetSelect.addEventListener("change", () => {
+            this.switchingTarget = true;
+            this.clearCredentials();
+            this.updateReadiness();
+            this.host.postMessage(new SelectTargetCommand(this.targetSelect.value));
+        });
+
+        this.targetNewBtn.addEventListener("click", () => {
+            this.creatingTarget = true;
+            this.editingTargetName = "";
+            this.targetSelect.value = "";
+            this.targetNameInput.value = "";
+            this.targetDeleteBtn.disabled = true;
+            this.clearCredentials();
+            this.targetNameInput.focus();
+            this.markDirty();
+        });
+
+        this.targetSaveBtn.addEventListener("click", () => {
+            const target = this.getTargetPayload();
+            if (!target.name) {
+                this.showBanner("error", "Target Name is required to save a target.");
+                this.targetNameInput.focus();
+                return;
             }
+            const previousName =
+                this.editingTargetName !== "" && this.editingTargetName !== target.name
+                    ? this.editingTargetName
+                    : undefined;
+            this.savingTarget = true;
+            this.updateReadiness();
+            this.host.postMessage(
+                new SaveTargetCommand(target, this.getAuthPayload(), previousName),
+            );
+        });
+
+        this.targetDeleteBtn.addEventListener("click", () => {
+            if (this.editingTargetName !== "") {
+                this.host.postMessage(new DeleteTargetCommand(this.editingTargetName));
+            }
+        });
+
+        this.targetOpenBtn.addEventListener("click", () => {
+            this.host.postMessage(new OpenTargetsFileCommand());
         });
 
         this.additionalFilesBtn.addEventListener("click", () => {
@@ -430,6 +650,166 @@ export class DeploymentForm {
             toggle.title = label;
             toggle.setAttribute("aria-label", label);
         });
+    }
+
+    /** Shows a save/delete outcome in the deploy status banner. */
+    showTargetResult(success: boolean, message: string): void {
+        this.savingTarget = false;
+        this.reloadTarget = success;
+        this.updateReadiness();
+        this.showBanner(success ? "success" : "error", message);
+    }
+
+    private loadTargetIntoForm(target: DeploymentTargetPayload): void {
+        this.targetNameInput.value = target.name;
+        this.tenantIdInput.value = target.tenantId;
+        this.endpointInput.value = target.endpoint;
+        this.engineSelect.value = target.engine;
+        this.authTypeSelect.value = target.authType;
+        this.authTokenEndpointInput.value = target.tokenEndpoint ?? "";
+        this.authAudienceInput.value = target.audience ?? "";
+        this.deployUrlInput.value = target.deployUrl ?? "";
+        this.startInstanceUrlInput.value = target.startInstanceUrl ?? "";
+        this.toggleAuthFields();
+
+        this.requestCredentials();
+    }
+
+    private updateAdvancedPlaceholders(): void {
+        const engine = this.engineSelect.value as Engine;
+        this.deployUrlInput.placeholder = CONVENTION_DEPLOY_URL[engine];
+        this.startInstanceUrlInput.placeholder = CONVENTION_START_URL[engine];
+    }
+
+    /**
+     * Shows a non-blocking hint when the selected engine differs from the
+     * focused diagram's detected execution platform.
+     */
+    private updateEngineMismatchHint(): void {
+        const engine = this.engineSelect.value as Engine;
+        if (this.detectedEngine !== undefined && this.detectedEngine !== engine) {
+            const label: Record<Engine, string> = {
+                c7: "Camunda Platform 7",
+                c8: "Camunda Cloud 8",
+            };
+            this.engineMismatchHint.textContent = `This diagram looks like ${label[this.detectedEngine]}, but the selected engine is ${label[engine]}.`;
+            this.engineMismatchHint.style.display = "block";
+        } else {
+            this.engineMismatchHint.style.display = "none";
+        }
+    }
+
+    private markDirty(): void {
+        this.setDirty(true);
+    }
+
+    private setDirty(dirty: boolean): void {
+        this.dirty = dirty;
+        this.updateReadiness();
+        this.targetSelect.classList.toggle("dirty", dirty);
+    }
+
+    onExecutionReadinessChange(listener: (reason: string | undefined) => void): () => void {
+        this.readinessListeners.add(listener);
+        listener(this.executionBlockedReason());
+        return () => this.readinessListeners.delete(listener);
+    }
+
+    private executionBlockedReason(): string | undefined {
+        if (this.savingTarget) return "Saving deployment target…";
+        if (this.switchingTarget || this.reloadTarget) return "Loading deployment target…";
+        if (this.pendingCredentials !== undefined) return "Loading credentials…";
+        if (
+            this.creatingTarget ||
+            (this.editingTargetName &&
+                JSON.stringify(this.getTargetPayload()) !== this.connectionSnapshot)
+        ) {
+            return "Save target changes before deploying or starting an instance.";
+        }
+        return undefined;
+    }
+
+    private assertExecutionReady(): void {
+        const reason = this.executionBlockedReason();
+        if (reason) throw new Error(reason);
+    }
+
+    private updateReadiness(): void {
+        const reason = this.executionBlockedReason();
+        this.deployBtn.disabled = this.deploying || reason !== undefined;
+        this.deployBtn.title = reason ?? "";
+        this.targetSaveBtn.disabled =
+            !this.dirty ||
+            this.savingTarget ||
+            this.switchingTarget ||
+            this.pendingCredentials !== undefined;
+        this.targetSaveBtn.title = this.saveBlockedReason() ?? "Save target";
+        for (const control of document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+            "#section-connection input, #section-connection select, #section-authentication input, #section-authentication select, #section-advanced input",
+        )) {
+            control.disabled = this.savingTarget;
+        }
+        this.targetSelect.disabled = this.savingTarget || this.switchingTarget;
+        this.targetNewBtn.disabled = this.savingTarget || this.switchingTarget;
+        this.targetDeleteBtn.disabled =
+            this.savingTarget || this.switchingTarget || !this.editingTargetName;
+        const deployHint = this.requireElement<HTMLDivElement>("#deploy-hint");
+        deployHint.textContent = reason ?? "";
+        deployHint.hidden = reason === undefined;
+        this.readinessListeners.forEach((listener) => listener(reason));
+    }
+
+    private saveBlockedReason(): string | undefined {
+        if (!this.dirty) return "No unsaved changes.";
+        if (this.savingTarget) return "Saving deployment target…";
+        if (this.switchingTarget) return "Loading deployment target…";
+        if (this.pendingCredentials !== undefined) return "Loading credentials…";
+        return undefined;
+    }
+
+    private clearCredentials(): void {
+        this.credentialRequestId++;
+        this.pendingCredentials = undefined;
+        this.authUsernameInput.value = "";
+        this.authPasswordInput.value = "";
+        this.authClientIdInput.value = "";
+        this.authClientSecretInput.value = "";
+    }
+
+    private requestCredentials(): void {
+        this.clearCredentials();
+        if (this.authTypeSelect.value !== "none") {
+            this.pendingCredentials = this.credentialRequestId;
+            this.updateReadiness();
+            this.host.postMessage(
+                new RequestStoredCredentialsCommand(
+                    this.editingTargetName,
+                    this.pendingCredentials,
+                ),
+            );
+        }
+        this.updateReadiness();
+    }
+
+    private loadAdHocDefaults(): void {
+        const defaults = this.latestDefaults;
+        this.targetNameInput.value = "";
+        this.tenantIdInput.value = defaults?.tenantId ?? "";
+        this.endpointInput.value = defaults?.endpoint ?? "";
+        this.engineSelect.value = defaults?.engine ?? "c7";
+        this.authTypeSelect.value = defaults?.authType ?? "none";
+        this.authTokenEndpointInput.value = defaults?.tokenEndpoint ?? "";
+        this.authAudienceInput.value = defaults?.audience ?? "";
+        this.deployUrlInput.value = "";
+        this.startInstanceUrlInput.value = "";
+        this.toggleAuthFields();
+        this.requestCredentials();
+    }
+
+    private showBanner(kind: "success" | "error" | "progress", message: string): void {
+        this.statusBanner.className = `status-banner ${kind}`;
+        this.statusBanner.textContent = message;
+        this.statusBanner.style.display = "block";
     }
 
     /**

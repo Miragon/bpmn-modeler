@@ -118,12 +118,12 @@
                     {
                         "id": "deploy",
                         "title": "Deploy your diagram",
-                        "description": "Deploy a BPMN diagram to a Camunda 7 or Camunda 8 engine straight from the editor.\n[Deploy Diagram](command:bpmn-modeler.deployDiagram)",
+                        "description": "Deploy a BPMN diagram to a Camunda 7 or Camunda 8 engine straight from the editor.\n[Open Deployment](command:bpmn-modeler.deploymentView.focus)",
                         "media": {
                             "markdown": "media/walkthrough/deploy.md"
                         },
                         "completionEvents": [
-                            "onCommand:bpmn-modeler.deployDiagram"
+                            "onView:bpmn-modeler.deploymentView"
                         ]
                     }
                 ]
@@ -137,6 +137,10 @@
             {
                 "fileMatch": "**/*.form",
                 "url": "./schemas/form.schema.json"
+            },
+            {
+                "fileMatch": "**/deployment-targets.json",
+                "url": "./schemas/deployment-targets.schema.json"
             }
         ],
         "languages": [
@@ -300,6 +304,27 @@
                 "category": "Miragon BPMN Modeler"
             },
             {
+                "command": "bpmn-modeler.switchDeploymentTarget",
+                "title": "Switch Deployment Target",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.deployFiles",
+                "title": "Deploy Files…",
+                "category": "Miragon BPMN Modeler",
+                "icon": "$(rocket)"
+            },
+            {
+                "command": "bpmn-modeler.verifyDeployment",
+                "title": "Verify Deployment on Engine",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
+                "command": "bpmn-modeler.deploymentStatusMenu",
+                "title": "Deployment Status Menu",
+                "category": "Miragon BPMN Modeler"
+            },
+            {
                 "command": "bpmn-modeler.migrateAllDiagrams",
                 "title": "Migrate All BPMN Diagrams",
                 "category": "Miragon BPMN Modeler"
@@ -437,6 +462,22 @@
                     "when": "bpmn-modeler.openCustomEditors > 0"
                 },
                 {
+                    "command": "bpmn-modeler.switchDeploymentTarget",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "bpmn-modeler.deployFiles",
+                    "when": "workspaceFolderCount > 0"
+                },
+                {
+                    "command": "bpmn-modeler.verifyDeployment",
+                    "when": "bpmn-modeler.openCustomEditors > 0"
+                },
+                {
+                    "command": "bpmn-modeler.deploymentStatusMenu",
+                    "when": "false"
+                },
+                {
                     "command": "bpmn-modeler.migrateAllDiagrams",
                     "when": "workspaceFolderCount > 0"
                 },
@@ -488,6 +529,11 @@
                     "command": "bpmn-modeler.compareSelected",
                     "group": "3_compare",
                     "when": "resourceExtname == .bpmn && listDoubleSelection"
+                },
+                {
+                    "command": "bpmn-modeler.deployFiles",
+                    "group": "4_deploy",
+                    "when": "resourceExtname =~ /\\.(bpmn|dmn)$/"
                 }
             ],
             "editor/title": [

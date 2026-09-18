@@ -1,10 +1,16 @@
+import { posix } from "path";
+
 import {
     AuthHeaderResolver,
     Camunda7RestClient,
     Camunda8RestClient,
     CamundaEngineRouter,
+    DeployActiveDiagramService,
     DeploymentMessageDispatcher,
     DeploymentService,
+    DeploymentStatusService,
+    DeploymentTargetService,
+    DeploymentVerificationService,
     FetchHttpClient,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
@@ -15,6 +21,7 @@ import {
     DeploymentOpenParams,
     DeploymentSeedParams,
     DeploymentWebviewMessageParams,
+    DeploymentWorkspaceRootParams,
 } from "../protocol/types";
 import { BridgeSharedDeps } from "./sharedDeps";
 
@@ -37,21 +44,13 @@ export function register(deps: BridgeSharedDeps): void {
     // the deployment tool-window's JCEF browser.
     const httpClient = new FetchHttpClient();
     const authResolver = new AuthHeaderResolver(httpClient);
+    const c7Client = new Camunda7RestClient(httpClient, authResolver);
     const camundaRouter = new CamundaEngineRouter(
-        new Camunda7RestClient(httpClient, authResolver),
+        c7Client,
         new Camunda8RestClient(httpClient, authResolver, deps.settings.getC8ApiVersion()),
     );
     const deploymentState = new RpcDeploymentState(deps.rpc, deps.notifier);
     const secretStore = new RpcSecretStore(deps.rpc);
-    const deploymentService = new DeploymentService(
-        deps.documentPort,
-        deps.nodeWorkspace,
-        deploymentState,
-        camundaRouter,
-        deps.notifier,
-        deps.picker,
-        secretStore,
-    );
     const startInstanceService = new StartInstanceService(
         deps.documentPort,
         deps.nodeWorkspace,
@@ -60,11 +59,57 @@ export function register(deps: BridgeSharedDeps): void {
         deps.picker,
         deps.artifactSvc,
     );
+    const deploymentTargetService = new DeploymentTargetService(
+        deps.artifactSvc,
+        deps.settings,
+        deps.nodeWorkspace,
+        secretStore,
+        deploymentState,
+        deps.picker,
+        deps.notifier,
+    );
+    const deploymentStatusService = new DeploymentStatusService(
+        deps.store,
+        deps.documentPort,
+        deploymentTargetService,
+        deploymentState,
+        deps.statusBar,
+        deps.picker,
+        deps.notifier,
+    );
+    const deploymentVerificationService = new DeploymentVerificationService(
+        deps.store,
+        deps.documentPort,
+        deploymentTargetService,
+        deploymentStatusService,
+        c7Client,
+        deps.notifier,
+    );
+    const deploymentService = new DeploymentService(
+        deps.documentPort,
+        deps.nodeWorkspace,
+        deploymentState,
+        camundaRouter,
+        deps.notifier,
+        deps.picker,
+        secretStore,
+        deploymentStatusService,
+    );
+    const deployActiveDiagramService = new DeployActiveDiagramService(
+        deps.store,
+        deps.documentPort,
+        deploymentTargetService,
+        deploymentService,
+        deploymentStatusService,
+        deps.notifier,
+    );
     const deploymentDispatcher = new DeploymentMessageDispatcher(
         deps.store,
         deps.documentPort,
         deploymentService,
         startInstanceService,
+        deploymentTargetService,
+        deploymentStatusService,
         deps.notifier,
         (message) => deps.rpc.notify(METHODS.deploymentPostMessage, { message }),
     );
@@ -77,6 +122,22 @@ export function register(deps: BridgeSharedDeps): void {
         if (deploymentPanelOpen) {
             deploymentDispatcher.sendFormDefaults();
         }
+        void deploymentStatusService.refreshActive();
+    });
+
+    // Keep the freshness dot live on edits. The status-bar widget tracks the
+    // focused editor regardless of the deployment panel's visibility, so this
+    // refresh is independent of `deploymentPanelOpen`. Debounced so a burst of
+    // keystroke-driven syncs collapses into one ledger lookup.
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    deps.mirror.onDidChangeContent(() => {
+        if (refreshTimer) {
+            clearTimeout(refreshTimer);
+        }
+        refreshTimer = setTimeout(() => {
+            refreshTimer = undefined;
+            void deploymentStatusService.refreshActive();
+        }, 300);
     });
 
     // Seed the deployment-state mirror once at startup (and after a persisted
@@ -99,4 +160,93 @@ export function register(deps: BridgeSharedDeps): void {
             deploymentDispatcher.sendFormDefaults();
         }
     });
+
+    async function withDeploymentContext(
+        params: DeploymentWorkspaceRootParams,
+        action: (documentDir: string) => Promise<void>,
+    ): Promise<void> {
+        deps.nodeWorkspace.registerRoot(params.workspaceRoot);
+        try {
+            let documentDir = params.workspaceRoot;
+            try {
+                documentDir = posix.dirname(
+                    deps.documentPort.getFilePath(deps.store.getActiveEditorId()),
+                );
+            } catch {
+                // Commands also work before any diagram is opened.
+            }
+            await action(documentDir);
+        } catch (error) {
+            deps.notifier.notifyError(
+                "Deployment command failed",
+                error instanceof Error ? error : new Error(String(error)),
+            );
+        } finally {
+            deps.nodeWorkspace.unregisterRoot(params.workspaceRoot);
+        }
+    }
+
+    deps.rpc.on(METHODS.deploymentSwitchTarget, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            await deploymentTargetService.switchActiveTarget(documentDir);
+            await deploymentStatusService.refreshActive();
+            await deploymentDispatcher.sendTargets();
+        }),
+    );
+
+    deps.rpc.on(METHODS.deploymentVerify, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            await deploymentVerificationService.verifyActive(documentDir);
+        }),
+    );
+
+    // The status-bar click: the core renders the switch/verify chooser through
+    // the generic picker, then runs the chosen flow.
+    deps.rpc.on(METHODS.deploymentStatusBarMenu, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            const action = await deploymentStatusService.pickStatusBarAction(documentDir);
+            if (action === "switch") {
+                await deploymentTargetService.switchActiveTarget(documentDir);
+                await deploymentStatusService.refreshActive();
+                await deploymentDispatcher.sendTargets();
+            } else if (action === "verify") {
+                await deploymentVerificationService.verifyActive(documentDir);
+            }
+        }),
+    );
+
+    deps.rpc.on(METHODS.deploymentDeployFiles, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            let target = await deploymentTargetService.getActiveTarget(documentDir);
+            if (target === undefined) {
+                await deploymentTargetService.switchActiveTarget(documentDir);
+                await deploymentStatusService.refreshActive();
+                await deploymentDispatcher.sendTargets();
+                target = await deploymentTargetService.getActiveTarget(documentDir);
+                if (target === undefined) return;
+            }
+
+            const files = await deps.picker.pickWorkspaceFiles({
+                glob: "**/*.{bpmn,dmn}",
+                exclude: "**/node_modules/**",
+                placeholder: `Select files to deploy to "${target.name}"`,
+            });
+            if (files.length === 0) return;
+
+            const resolvedTarget = target;
+            const auth = await deploymentTargetService.getCredentials(resolvedTarget, documentDir);
+            await deps.notifier.withProgress(
+                `Deploying ${files.length} file(s) to "${resolvedTarget.name}"`,
+                () => deploymentService.deployFiles(files, resolvedTarget, auth),
+            );
+            await deploymentStatusService.refreshActive();
+        }),
+    );
+
+    deps.rpc.on(METHODS.deploymentDeployActive, (params: DeploymentWorkspaceRootParams) =>
+        withDeploymentContext(params, async (documentDir) => {
+            await deployActiveDiagramService.deployActive(documentDir);
+            await deploymentDispatcher.sendTargets();
+        }),
+    );
 }

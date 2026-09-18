@@ -24,21 +24,34 @@ import com.intellij.ide.passwordSafe.PasswordSafe
 class IntellijSecretStore {
     private val passwordSafe get() = PasswordSafe.instance
 
-    fun saveBasicAuth(username: String, password: String) =
-        passwordSafe.set(basicAuthAttributes, Credentials(username, password))
+    fun saveBasicAuth(username: String, password: String, slot: String?) =
+        passwordSafe.set(attributesFor("basicAuth", slot), Credentials(username, password))
 
-    fun getBasicAuth(): Credentials? = passwordSafe.get(basicAuthAttributes)
+    fun getBasicAuth(slot: String?): Credentials? = passwordSafe.get(attributesFor("basicAuth", slot))
 
-    fun saveOAuth2(clientId: String, clientSecret: String) =
-        passwordSafe.set(oauth2Attributes, Credentials(clientId, clientSecret))
+    fun saveOAuth2(clientId: String, clientSecret: String, slot: String?) =
+        passwordSafe.set(attributesFor("oauth2", slot), Credentials(clientId, clientSecret))
 
-    fun getOAuth2(): Credentials? = passwordSafe.get(oauth2Attributes)
+    fun getOAuth2(slot: String?): Credentials? = passwordSafe.get(attributesFor("oauth2", slot))
+
+    /** Removes every credential kind stored under [slot] (target delete / rename). */
+    fun delete(slot: String) {
+        passwordSafe.set(attributesFor("basicAuth", slot), null)
+        passwordSafe.set(attributesFor("oauth2", slot), null)
+    }
 
     private companion object {
         // generateServiceName namespaces the keychain entry under the IDE +
-        // subsystem so it never collides with other plugins' stored secrets.
+        // subsystem so it never collides with other plugins' stored secrets. A
+        // slot (`<targetsFile>::<name>`) scopes credentials to a named target;
+        // `null` keeps the legacy unnamed keys (ad-hoc mode). PasswordSafe is
+        // application-scoped, so the targets-file path in the slot is what keeps
+        // a "dev" target in two workspaces from colliding.
         const val SUBSYSTEM = "Miragon BPMN Modeler Deployment"
-        val basicAuthAttributes = CredentialAttributes(generateServiceName(SUBSYSTEM, "basicAuth"))
-        val oauth2Attributes = CredentialAttributes(generateServiceName(SUBSYSTEM, "oauth2"))
+
+        fun attributesFor(kind: String, slot: String?): CredentialAttributes {
+            val key = if (slot == null) kind else "$kind:$slot"
+            return CredentialAttributes(generateServiceName(SUBSYSTEM, key))
+        }
     }
 }

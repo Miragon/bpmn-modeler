@@ -2,9 +2,48 @@ import { StatusBarAlignment, StatusBarItem, ThemeColor, window } from "vscode";
 
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 
-import { StatusBarPort } from "@miragon/bpmn-modeler-core";
+import { DeploymentFreshness, StatusBarPort } from "@miragon/bpmn-modeler-core";
 const CHANGE_ENGINE_VERSION_CMD = "bpmn-modeler.changeEngineVersion";
 const TOGGLE_LINTING_CMD = "bpmn-modeler.toggleLinting";
+const DEPLOYMENT_STATUS_MENU_CMD = "bpmn-modeler.deploymentStatusMenu";
+
+const DEPLOYMENT_FRESHNESS_COLORS: Record<DeploymentFreshness, ThemeColor | undefined> = {
+    deployed: new ThemeColor("testing.iconPassed"),
+    changed: new ThemeColor("charts.yellow"),
+    superseded: new ThemeColor("charts.blue"),
+    unknown: undefined,
+};
+
+function deploymentTooltip(
+    freshness: DeploymentFreshness,
+    deployedAt?: string,
+    verifiedAt?: string,
+): string {
+    const when = deployedAt ? new Date(deployedAt).toLocaleString() : undefined;
+    const verifiedSuffix = verifiedAt ? ` — verified ${new Date(verifiedAt).toLocaleString()}` : "";
+    switch (freshness) {
+        case "deployed":
+            return (
+                (when
+                    ? `Deployed — last deployed ${when}`
+                    : "Deployed — matches the last deployment") + verifiedSuffix
+            );
+        case "changed":
+            return (
+                (when
+                    ? `Undeployed changes — last deployed ${when}`
+                    : "Undeployed changes since the last deployment") + verifiedSuffix
+            );
+        case "superseded":
+            return (
+                (when
+                    ? `Deployed version differs from your diagram (deployed ${when})`
+                    : "Deployed version differs from your diagram") + verifiedSuffix
+            );
+        case "unknown":
+            return "Never deployed to this target from this machine — click to switch target";
+    }
+}
 
 export class VsCodeStatusBar implements StatusBarPort {
     private templateStatusItem: StatusBarItem | undefined;
@@ -12,6 +51,8 @@ export class VsCodeStatusBar implements StatusBarPort {
     private engineVersionStatusItem: StatusBarItem | undefined;
 
     private bpmnlintStatusItem: StatusBarItem | undefined;
+
+    private deploymentTargetStatusItem: StatusBarItem | undefined;
 
     showElementTemplatesLoading(): void {
         const item = this.getOrCreateTemplateStatusItem();
@@ -103,6 +144,25 @@ export class VsCodeStatusBar implements StatusBarPort {
         this.bpmnlintStatusItem?.hide();
     }
 
+    showDeploymentTarget(
+        name: string | undefined,
+        freshness: DeploymentFreshness,
+        deployedAt?: string,
+        verifiedAt?: string,
+    ): void {
+        const item = this.getOrCreateDeploymentTargetStatusItem();
+        item.text = `$(circle-filled) ${name ?? "No deployment target"}`;
+        // A status bar item colours its whole text, so the dot and the (short)
+        // name share one colour — acceptable, and cheaper than a second item.
+        item.color = DEPLOYMENT_FRESHNESS_COLORS[freshness];
+        item.tooltip = deploymentTooltip(freshness, deployedAt, verifiedAt);
+        item.show();
+    }
+
+    hideDeploymentTarget(): void {
+        this.deploymentTargetStatusItem?.hide();
+    }
+
     private getOrCreateTemplateStatusItem(): StatusBarItem {
         if (!this.templateStatusItem) {
             this.templateStatusItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
@@ -126,5 +186,16 @@ export class VsCodeStatusBar implements StatusBarPort {
             this.bpmnlintStatusItem = window.createStatusBarItem(StatusBarAlignment.Right, 199);
         }
         return this.bpmnlintStatusItem;
+    }
+
+    private getOrCreateDeploymentTargetStatusItem(): StatusBarItem {
+        if (!this.deploymentTargetStatusItem) {
+            this.deploymentTargetStatusItem = window.createStatusBarItem(
+                StatusBarAlignment.Right,
+                198,
+            );
+            this.deploymentTargetStatusItem.command = DEPLOYMENT_STATUS_MENU_CMD;
+        }
+        return this.deploymentTargetStatusItem;
     }
 }

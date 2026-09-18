@@ -8,31 +8,49 @@
  * bundle render the body — so the markup can never drift between hosts again.
  */
 export const FORM_TEMPLATE = `
+    <div class="target-row" id="target-row">
+        <div class="select-wrapper">
+            <select id="target-select" title="Active deployment target">
+                <option value="">(none — use form values)</option>
+            </select>
+        </div>
+        <button id="target-new" type="button" class="btn btn-secondary" title="New target">New</button>
+        <button id="target-save" type="button" class="btn btn-secondary" title="Save target" disabled>Save</button>
+        <button id="target-delete" type="button" class="btn btn-secondary" title="Delete target" disabled>Delete</button>
+        <button id="target-open" type="button" class="btn btn-secondary" title="Open deployment-targets.json in the editor">Edit JSON</button>
+    </div>
+
     <div class="section" id="section-connection">
         <div class="section-header" data-section="connection" aria-expanded="true" role="button" tabindex="0">
             <span class="section-chevron"></span>
             <span class="section-title">Connection</span>
         </div>
         <div class="section-body">
-            <div class="form-group">
-                <label for="deployment-name">Deployment Name</label>
-                <input id="deployment-name" type="text" placeholder="e.g. my-process" />
-            </div>
-            <div class="form-group">
-                <label for="tenant-id">Tenant ID</label>
-                <input id="tenant-id" type="text" placeholder="(optional)" />
-            </div>
-            <div class="form-group">
-                <label for="endpoint">REST Endpoint</label>
-                <input id="endpoint" type="text" placeholder="http://localhost:8080/engine-rest" />
-                <div class="hint">Should point to a running Camunda REST API.</div>
-            </div>
-            <div class="form-group">
-                <label for="engine">Engine</label>
-                <select id="engine">
-                    <option value="c7">Camunda Platform 7</option>
-                    <option value="c8">Camunda Cloud 8</option>
-                </select>
+            <div class="section-body-inner">
+                <div class="form-group">
+                    <label for="target-name">Target Name</label>
+                    <input id="target-name" type="text" placeholder="e.g. dev" />
+                    <div class="hint">Name this connection to save it as a reusable target.</div>
+                </div>
+                <div class="form-group">
+                    <label for="tenant-id">Tenant ID</label>
+                    <input id="tenant-id" type="text" placeholder="(optional)" />
+                </div>
+                <div class="form-group">
+                    <label for="endpoint">REST Endpoint</label>
+                    <input id="endpoint" type="text" placeholder="http://localhost:8080/engine-rest" />
+                    <div class="hint">Should point to a running Camunda REST API.</div>
+                </div>
+                <div class="form-group">
+                    <label for="engine">Engine</label>
+                    <div class="select-wrapper">
+                        <select id="engine">
+                            <option value="c7">Camunda Platform 7</option>
+                            <option value="c8">Camunda Cloud 8</option>
+                        </select>
+                    </div>
+                    <div class="hint" id="engine-mismatch-hint" style="display: none;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -43,57 +61,82 @@ export const FORM_TEMPLATE = `
             <span class="section-title">Authentication</span>
         </div>
         <div class="section-body">
-            <div class="form-group">
-                <label for="auth-type">Authentication</label>
-                <select id="auth-type">
-                    <option value="none">None</option>
-                    <option value="basic">Basic Auth</option>
-                    <option value="oauth2">OAuth2 Client Credentials</option>
-                </select>
-            </div>
-            <div id="basic-auth-fields" class="auth-fields">
+            <div class="section-body-inner">
                 <div class="form-group">
-                    <label for="auth-username">Username</label>
-                    <input id="auth-username" type="text" placeholder="Username" />
+                    <label for="auth-type">Method</label>
+                    <div class="select-wrapper">
+                        <select id="auth-type">
+                            <option value="none">None</option>
+                            <option value="basic">Basic Auth</option>
+                            <option value="oauth2">OAuth2 Client Credentials</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="auth-password">Password</label>
-                    <div class="password-wrapper">
-                        <input id="auth-password" type="password" placeholder="Password" />
-                        <button type="button" class="password-toggle" title="Show password" aria-label="Show password">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                        </button>
+                <div id="basic-auth-fields" class="auth-fields">
+                    <div class="form-group">
+                        <label for="auth-username">Username</label>
+                        <input id="auth-username" type="text" placeholder="Username" />
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-password">Password</label>
+                        <div class="password-wrapper">
+                            <input id="auth-password" type="password" placeholder="Password" />
+                            <button type="button" class="password-toggle" title="Show password" aria-label="Show password">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="oauth2-auth-fields" class="auth-fields">
+                    <div class="form-group">
+                        <label for="auth-client-id">Client ID</label>
+                        <input id="auth-client-id" type="text" placeholder="Client ID" />
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-client-secret">Client Secret</label>
+                        <div class="password-wrapper">
+                            <input id="auth-client-secret" type="password" placeholder="Client Secret" />
+                            <button type="button" class="password-toggle" title="Show password" aria-label="Show password">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-token-endpoint">Token Endpoint</label>
+                        <input id="auth-token-endpoint" type="text" placeholder="https://login.example.com/oauth/token" />
+                        <div class="hint">URL of the OAuth2 token endpoint.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-audience">Audience</label>
+                        <input id="auth-audience" type="text" placeholder="(optional)" />
                     </div>
                 </div>
             </div>
-            <div id="oauth2-auth-fields" class="auth-fields">
+        </div>
+    </div>
+
+    <div class="section collapsed" id="section-advanced">
+        <div class="section-header" data-section="advanced" aria-expanded="false" role="button" tabindex="0">
+            <span class="section-chevron"></span>
+            <span class="section-title">Advanced</span>
+        </div>
+        <div class="section-body">
+            <div class="section-body-inner">
                 <div class="form-group">
-                    <label for="auth-client-id">Client ID</label>
-                    <input id="auth-client-id" type="text" placeholder="Client ID" />
+                    <label for="deploy-url">Deploy URL override</label>
+                    <input id="deploy-url" type="text" />
+                    <div class="hint">Full URL for the deploy call. Leave blank to use the convention path.</div>
                 </div>
                 <div class="form-group">
-                    <label for="auth-client-secret">Client Secret</label>
-                    <div class="password-wrapper">
-                        <input id="auth-client-secret" type="password" placeholder="Client Secret" />
-                        <button type="button" class="password-toggle" title="Show password" aria-label="Show password">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="auth-token-endpoint">Token Endpoint</label>
-                    <input id="auth-token-endpoint" type="text" placeholder="https://login.example.com/oauth/token" />
-                    <div class="hint">URL of the OAuth2 token endpoint.</div>
-                </div>
-                <div class="form-group">
-                    <label for="auth-audience">Audience</label>
-                    <input id="auth-audience" type="text" placeholder="(optional)" />
+                    <label for="start-instance-url">Start-instance URL override</label>
+                    <input id="start-instance-url" type="text" />
+                    <div class="hint">Full URL; <code>{processDefinitionKey}</code> is substituted.</div>
                 </div>
             </div>
         </div>
@@ -105,39 +148,45 @@ export const FORM_TEMPLATE = `
     </div>
 
     <div class="tab-panel active" id="tab-deploy">
-        <div class="form-group" style="padding: 8px 16px 0;">
+        <div class="form-group">
+            <label for="deployment-name">Deployment Name</label>
+            <input id="deployment-name" type="text" placeholder="e.g. my-process" />
+        </div>
+        <div class="form-group">
             <label for="main-file-path">Main File</label>
             <input id="main-file-path" type="text" readonly />
         </div>
-        <div class="form-group" style="padding: 0 16px;">
+        <div class="form-group">
             <div class="additional-files-header">
                 <label>Include additional files</label>
-                <button id="add-files-btn" title="Select additional files">+</button>
+                <button id="add-files-btn" class="btn btn-icon" title="Select additional files">+</button>
             </div>
             <ul id="file-list"></ul>
         </div>
 
         <div id="status-banner" class="status-banner"></div>
 
-        <button id="deploy-btn">Deploy</button>
+        <div id="deploy-hint" class="hint" role="status" hidden></div>
+        <button id="deploy-btn" class="btn btn-primary">Deploy</button>
     </div>
 
     <div class="tab-panel" id="tab-start-instance">
-        <div class="form-group" style="padding: 8px 16px 0;">
+        <div class="form-group">
             <label for="process-definition-key">Process Definition Key</label>
             <input id="process-definition-key" type="text" placeholder="e.g. Process_0gjrx3e" />
         </div>
-        <div class="form-group" style="padding: 0 16px;">
+        <div class="form-group">
             <label>Payload</label>
             <div class="payload-selector">
                 <input id="payload-file" type="text" readonly placeholder="(none)" />
-                <button id="select-payload-btn" title="Select payload file">...</button>
+                <button id="select-payload-btn" class="btn btn-icon" title="Select payload file">...</button>
             </div>
             <div class="hint">JSON file from &lt;configFolder&gt;/payloads/</div>
         </div>
 
         <div id="start-status-banner" class="status-banner"></div>
 
-        <button id="start-instance-btn">Start Instance</button>
+        <div id="start-hint" class="hint" role="status" hidden></div>
+        <button id="start-instance-btn" class="btn btn-primary">Start Instance</button>
     </div>
 `;

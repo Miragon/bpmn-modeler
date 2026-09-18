@@ -44,6 +44,9 @@ export function activate(context: ExtensionContext): TestApi {
     // Service built before the editor feature (which merges its cache); commands
     // deferred after, since they re-run the resulting template service.
     const { marketplaceSvc } = templateMarketplaceFeature.register(context, deps);
+    // Before the editor feature so its status bar participant can join the BPMN
+    // session participant list (the same forward hand-off as code-link).
+    const { deploymentStatusParticipant } = deploymentFeature.register(context, deps);
     const { bpmnService, templatesSvc, documentFlush, layoutSvc } = editorFeature.register(
         context,
         deps,
@@ -54,12 +57,12 @@ export function activate(context: ExtensionContext): TestApi {
             scriptManifestParticipant,
             codeLink,
             marketplaceSvc,
+            deploymentStatusParticipant,
         },
     );
     templateMarketplaceFeature.registerCommands(context, deps, { marketplaceSvc, templatesSvc });
     compareFeature.register(context, deps, { diffController });
     commandsFeature.register(context, deps, { bpmnService, documentFlush, layoutSvc });
-    deploymentFeature.register(context, deps);
 
     return {
         diff: {

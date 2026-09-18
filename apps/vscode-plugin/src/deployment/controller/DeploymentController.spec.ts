@@ -25,7 +25,12 @@ import {
     type Command,
     type DeployCommand,
 } from "@miragon/bpmn-modeler-shared";
-import { DeploymentController, DEPLOY_CMD } from "./DeploymentController";
+import {
+    DeploymentController,
+    DEPLOY_CMD,
+    DEPLOYMENT_STATUS_MENU_CMD,
+    VERIFY_DEPLOYMENT_CMD,
+} from "./DeploymentController";
 
 /**
  * Assembles the controller with structural port doubles and a fake `WebviewView`
@@ -57,21 +62,48 @@ function createController() {
         getProcessDefinitionKey: vi.fn().mockReturnValue("proc-key"),
         selectPayloadFile: vi.fn(),
     };
+    const deploymentTargetService = {
+        listTargets: vi.fn().mockResolvedValue([]),
+        getActiveTarget: vi.fn().mockResolvedValue(undefined),
+        resolveSlot: vi.fn().mockResolvedValue(undefined),
+        switchActiveTarget: vi.fn().mockResolvedValue(undefined),
+        getCredentials: vi.fn(),
+    };
+    const deploymentStatusService = {
+        refresh: vi.fn().mockResolvedValue(undefined),
+        refreshActive: vi.fn().mockResolvedValue(undefined),
+        hide: vi.fn(),
+        pickStatusBarAction: vi.fn().mockResolvedValue(undefined),
+    };
+    const verificationService = {
+        verifyActive: vi.fn().mockResolvedValue(undefined),
+    };
+    const deployActiveDiagramService = {
+        deployActive: vi.fn().mockResolvedValue(undefined),
+    };
+    const picker = {
+        pickWorkspaceFiles: vi.fn().mockResolvedValue([]),
+    };
     const notifier = {
         showInfo: vi.fn(),
         showError: vi.fn(),
+        notifyError: vi.fn(),
         logDebug: vi.fn(),
         logInfo: vi.fn(),
+        logWarning: vi.fn(),
         logError: vi.fn(),
+        withProgress: vi.fn((_title: string, task: () => Promise<unknown>) => task()),
     };
 
     const postMessage = vi.fn();
     const onDidReceiveMessage = vi.fn();
     const onDidChangeVisibility = vi.fn();
+    const onDidDispose = vi.fn();
     const webviewView = {
         visible: true,
         webview: { options: {}, html: "", postMessage, onDidReceiveMessage },
         onDidChangeVisibility,
+        onDidDispose,
     };
 
     const controller = new DeploymentController(
@@ -79,6 +111,11 @@ function createController() {
         vsDocument as never,
         deploymentService as never,
         startInstanceService as never,
+        deploymentTargetService as never,
+        deploymentStatusService as never,
+        verificationService as never,
+        deployActiveDiagramService as never,
+        picker as never,
         notifier as never,
     );
 
@@ -88,11 +125,17 @@ function createController() {
         vsDocument,
         deploymentService,
         startInstanceService,
+        deploymentTargetService,
+        deploymentStatusService,
+        verificationService,
+        deployActiveDiagramService,
+        picker,
         notifier,
         webviewView,
         postMessage,
         onDidReceiveMessage,
         onDidChangeVisibility,
+        onDidDispose,
     };
 }
 
@@ -121,7 +164,69 @@ describe("DeploymentController.register", () => {
             { webviewOptions: { retainContextWhenHidden: true } },
         );
         expect(commands.registerCommand).toHaveBeenCalledWith(DEPLOY_CMD, expect.any(Function));
-        expect(context.subscriptions).toHaveLength(2);
+        // View provider + deploy + switch-target + deploy-files + verify +
+        // status-menu commands.
+        expect(context.subscriptions).toHaveLength(6);
+    });
+});
+
+describe("DeploymentController deployment verification commands", () => {
+    /** Registers commands and returns the handler registered for `commandId`. */
+    function registeredHandler(
+        c: ReturnType<typeof createController>,
+        commandId: string,
+    ): () => Promise<void> {
+        c.controller.register({ subscriptions: [] } as never);
+        const call = vi
+            .mocked(commands.registerCommand)
+            .mock.calls.find(([id]) => id === commandId);
+        if (!call) throw new Error(`No handler registered for ${commandId}`);
+        return call[1] as () => Promise<void>;
+    }
+
+    it("deploys the active diagram against the active document's directory", async () => {
+        const c = createController();
+
+        await registeredHandler(c, DEPLOY_CMD)();
+
+        expect(c.deployActiveDiagramService.deployActive).toHaveBeenCalledWith("/work/trusted");
+    });
+
+    it("verifies against the active document's directory", async () => {
+        const c = createController();
+
+        await registeredHandler(c, VERIFY_DEPLOYMENT_CMD)();
+
+        expect(c.verificationService.verifyActive).toHaveBeenCalledWith("/work/trusted");
+    });
+
+    it("routes the status menu's switch action to the target switch", async () => {
+        const c = createController();
+        c.deploymentStatusService.pickStatusBarAction.mockResolvedValue("switch");
+
+        await registeredHandler(c, DEPLOYMENT_STATUS_MENU_CMD)();
+
+        expect(c.deploymentTargetService.switchActiveTarget).toHaveBeenCalledWith("/work/trusted");
+        expect(c.verificationService.verifyActive).not.toHaveBeenCalled();
+    });
+
+    it("routes the status menu's verify action to the verification service", async () => {
+        const c = createController();
+        c.deploymentStatusService.pickStatusBarAction.mockResolvedValue("verify");
+
+        await registeredHandler(c, DEPLOYMENT_STATUS_MENU_CMD)();
+
+        expect(c.verificationService.verifyActive).toHaveBeenCalledWith("/work/trusted");
+        expect(c.deploymentTargetService.switchActiveTarget).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the status menu is dismissed", async () => {
+        const c = createController();
+
+        await registeredHandler(c, DEPLOYMENT_STATUS_MENU_CMD)();
+
+        expect(c.verificationService.verifyActive).not.toHaveBeenCalled();
+        expect(c.deploymentTargetService.switchActiveTarget).not.toHaveBeenCalled();
     });
 });
 
@@ -138,6 +243,7 @@ describe("DeploymentController.resolveWebviewView", () => {
             mainFilePath: "/work/order-process.bpmn",
             additionalFilePaths: [],
             auth: { authType: "none" },
+            targetName: "",
         };
 
         await receive({ type: "DeployCommand", config: deployPayload } as DeployCommand);
