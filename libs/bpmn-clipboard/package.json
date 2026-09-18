@@ -13,7 +13,8 @@
         "bpmn-js": "18.28.0"
     },
     "devDependencies": {
+        "@typescript/native": "npm:typescript@7.0.2",
         "diagram-js": "15.26.0",
-        "typescript": "7.0.2"
+        "typescript": "npm:@typescript/typescript6@6.0.2"
     }
 }

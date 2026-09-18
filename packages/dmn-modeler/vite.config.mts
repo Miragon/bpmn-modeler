@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
-import { isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
+import ts from "typescript";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "unplugin-dts/vite";
 
@@ -34,6 +35,10 @@ export default defineConfig({
             pathsToAliases: false,
             bundleTypes: {
                 bundledPackages: INLINED_LIBS,
+                invokeOptions: {
+                    // The compatibility package re-exports the API but carries no standard libraries.
+                    typescriptCompilerFolder: dirname(dirname(ts.getDefaultLibFilePath({}))),
+                },
             },
         }),
     ],

@@ -14,9 +14,10 @@
   "devDependencies": {
     "@types/node": "26.4.0",
     "@types/vscode-webview": "1.57.5",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "4.1.11",
     "jsdom": "30.0.1",
-    "typescript": "7.0.2",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
     "vitest": "4.1.11"
   }
 }

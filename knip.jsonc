@@ -1,6 +1,7 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
     "ignoreDependencies": [
+        "@typescript/native", // keeps tsc available for focused/manual checks without a tsc script
         "tslib", // injected by TS `importHelpers` (tsconfig.base.json), not imported
         "preact", // provided via `jsxImportSource: "preact"` in tsconfig.base.json
         "lint-staged", // invoked by .githooks/pre-commit, which knip does not parse
