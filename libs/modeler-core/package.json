@@ -11,9 +11,9 @@
     "@miragon/bpmn-modeler-diff": "workspace:*",
     "@miragon/bpmn-modeler-shared": "workspace:*",
     "@miragon/bpmn-modeler-types": "workspace:*",
-    "@miragon/bpmnlint-plugin-rules": "0.10.0",
+    "@miragon/bpmnlint-plugin-rules": "0.10.1",
     "bpmn-moddle": "10.2.0",
-    "bpmnlint": "11.13.0",
+    "bpmnlint": "11.14.0",
     "camunda-bpmn-moddle": "8.0.1",
     "tslib": "2.8.1"
   },

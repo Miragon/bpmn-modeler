@@ -79,6 +79,68 @@ describe("NodeBpmnLinter", () => {
         expect(Object.keys(results)).toContain("camunda-compat/implementation");
     });
 
+    // A label on an unconditional flow duplicates what the diagram already says —
+    // bpmnlint 11.14.0's `superfluous-label` (recommended) flags it.
+    const BPMN_LABELED_UNCONDITIONAL_FLOW = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="Start_1" />
+    <bpmn:sequenceFlow id="Flow_1" name="then" sourceRef="Start_1" targetRef="Task_1" />
+    <bpmn:task id="Task_1" name="Do the thing" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
+    <bpmn:endEvent id="End_1" />
+  </bpmn:process>
+</bpmn:definitions>`;
+
+    // Labels that carry meaning: a conditional flow, a gateway's default flow, and
+    // a fork out of an exclusive gateway — the rule's upstream exceptions.
+    const BPMN_MEANINGFUL_FLOW_LABELS = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="Start_1" />
+    <bpmn:sequenceFlow id="Flow_In" sourceRef="Start_1" targetRef="Gateway_1" />
+    <bpmn:exclusiveGateway id="Gateway_1" default="Flow_Default">
+      <bpmn:outgoing>Flow_Conditional</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fork</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Default</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_Conditional" name="yes" sourceRef="Gateway_1" targetRef="Task_1">
+      <bpmn:conditionExpression>approved</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Fork" name="maybe" sourceRef="Gateway_1" targetRef="Task_2" />
+    <bpmn:sequenceFlow id="Flow_Default" name="no" sourceRef="Gateway_1" targetRef="Task_3" />
+    <bpmn:task id="Task_1" name="Approve" />
+    <bpmn:task id="Task_2" name="Review" />
+    <bpmn:task id="Task_3" name="Reject" />
+    <bpmn:sequenceFlow id="Flow_End_1" sourceRef="Task_1" targetRef="End_1" />
+    <bpmn:sequenceFlow id="Flow_End_2" sourceRef="Task_2" targetRef="End_1" />
+    <bpmn:sequenceFlow id="Flow_End_3" sourceRef="Task_3" targetRef="End_1" />
+    <bpmn:endEvent id="End_1" />
+  </bpmn:process>
+</bpmn:definitions>`;
+
+    it("reports a labeled unconditional sequence flow via the bundled superfluous-label rule", async () => {
+        const { results, unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_LABELED_UNCONDITIONAL_FLOW,
+            CONFIG_PATH,
+            { extends: "bpmnlint:recommended" },
+        );
+
+        expect(unresolved).toEqual([]);
+        expect(results["superfluous-label"]).toEqual([expect.objectContaining({ id: "Flow_1" })]);
+    });
+
+    it("keeps conditional, default, and gateway-fork labels exempt from superfluous-label", async () => {
+        const { results, unresolved } = await new NodeBpmnLinter().lint(
+            BPMN_MEANINGFUL_FLOW_LABELS,
+            CONFIG_PATH,
+            { extends: "bpmnlint:recommended" },
+        );
+
+        expect(unresolved).toEqual([]);
+        expect(results["superfluous-label"]).toBeUndefined();
+    });
+
     it("reports base bpmnlint:recommended findings under the bundled default", async () => {
         const config = await new DefaultBpmnlintConfigService().build(undefined);
 
