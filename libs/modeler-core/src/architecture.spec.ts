@@ -8,12 +8,6 @@ import { describe, expect, it } from "vitest";
  * `domain/` layer additionally avoids Node host modules (`node:*`, `fs`,
  * `http`). Pure Node utilities that exist in any Node host (`path`, `Buffer`)
  * are allowed — they are not host capabilities.
- *
- * The checks read source text and follow relative imports themselves rather
- * than using archunit's graph: under this workspace's `moduleResolution:
- * "bundler"` tsconfig, archunit resolves no cross-file edges, so it cannot see
- * the indirection this guard exists to catch (a file reaching `vscode` through
- * an imported sibling).
  */
 const SRC_ROOT = __dirname;
 

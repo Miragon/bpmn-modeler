@@ -3,7 +3,6 @@ import { join, normalize } from "node:path";
 import postcss from "postcss";
 import { describe, expect, it } from "vitest";
 
-// Archunit resolves no cross-file edges with this workspace’s bundler resolution.
 const PKG_SRC = __dirname;
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
 const LIBS_ROOT = join(REPO_ROOT, "libs");

@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, normalize, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { extractGraph, projectFiles } from "archunit";
 import type { FileInfo } from "archunit";
@@ -79,86 +79,41 @@ function isHostModule(specifier: string): boolean {
 // imports* — it never follows the import graph. That is exactly how a `service`
 // file importing a concrete `Vs*` adapter (which in turn imports `vscode`)
 // slips through: the service's own source never names `vscode`. We close that
-// hole by following relative imports transitively and tainting any file that
-// can *reach* a host-importing file.
+// hole by following imports transitively and tainting any file that can *reach*
+// a host-importing file.
 //
-// The graph is built from source text rather than archunit's `extractGraph`,
-// because under this workspace's `moduleResolution: "bundler"` tsconfig that
-// resolver yields no cross-file edges (every edge is a self-edge) — so the
-// dependency-based archunit rules cannot see indirection. Only relative
-// specifiers are followed; bare/aliased packages are external and (for the
-// engine) never reach `vscode`.
+// Propagation walks archunit's import graph, but the seed stays a text scan:
+// the graph records no edge for Node builtins (`node:fs`, `http`, …).
 
-/** All non-spec `.ts` files under `src/`, as `src/…`-relative POSIX-ish paths. */
-function listSourceFiles(): string[] {
-    const root = resolve(WORKSPACE_ROOT, "src");
-    const out: string[] = [];
-    const walk = (absDir: string): void => {
-        for (const entry of readdirSync(absDir)) {
-            const abs = join(absDir, entry);
-            if (statSync(abs).isDirectory()) {
-                walk(abs);
-            } else if (
-                /\.tsx?$/.test(entry) &&
-                !entry.endsWith(".d.ts") &&
-                !/\.(spec|test)\.tsx?$/.test(entry)
-            ) {
-                out.push(
-                    `src/${normalize(abs.slice(root.length + 1))
-                        .split("\\")
-                        .join("/")}`,
-                );
-            }
-        }
-    };
-    walk(root);
-    return out;
+type ImportEdge = Awaited<ReturnType<typeof extractGraph>>[number];
+
+function isProductionSource(path: string): boolean {
+    return path.startsWith("src/") && !/\.(spec|test)\.tsx?$/.test(path);
 }
 
-/** Resolves a relative import specifier from `fromFile` to a known source path. */
-function resolveRelative(
-    fromFile: string,
-    specifier: string,
-    known: Set<string>,
-): string | undefined {
-    const base = normalize(join(dirname(fromFile), specifier))
-        .split("\\")
-        .join("/");
-    for (const candidate of [`${base}.ts`, `${base}/index.ts`, base]) {
-        if (known.has(candidate)) {
-            return candidate;
-        }
-    }
-    return undefined;
+function productionSourceFiles(graph: readonly ImportEdge[]): string[] {
+    const files = graph.flatMap((edge) => [edge.source, edge.target]).filter(isProductionSource);
+    return [...new Set(files)];
 }
 
-/**
- * Files that transitively reach a host module: seeded with every file whose own
- * source imports one (the reliable text scan, which also catches type-only
- * imports), then propagated backwards along relative-import edges.
- */
-function hostReachingFiles(files: string[]): Set<string> {
-    const known = new Set(files);
-    const importers = new Map<string, string[]>(); // target → files that import it
-    const tainted = new Set<string>();
-    for (const file of files) {
-        const specifiers = importedModules(readSource({ path: file } as FileInfo));
-        if (specifiers.some(isHostModule)) {
-            tainted.add(file); // directly imports a host module
+function hostReachingFiles(graph: readonly ImportEdge[]): Set<string> {
+    const importersByTarget = new Map<string, string[]>();
+    for (const edge of graph) {
+        if (!isProductionSource(edge.source) || !isProductionSource(edge.target)) {
+            continue;
         }
-        for (const specifier of specifiers) {
-            if (!specifier.startsWith(".")) {
-                continue; // bare/aliased — external, never reaches vscode in the engine
-            }
-            const target = resolveRelative(file, specifier, known);
-            if (target) {
-                (importers.get(target) ?? importers.set(target, []).get(target)!).push(file);
-            }
-        }
+        const importers = importersByTarget.get(edge.target) ?? [];
+        importers.push(edge.source);
+        importersByTarget.set(edge.target, importers);
     }
+    const tainted = new Set(
+        productionSourceFiles(graph).filter((file) =>
+            importedModules(readSource({ path: file } as FileInfo)).some(isHostModule),
+        ),
+    );
     const queue = [...tainted];
     while (queue.length > 0) {
-        for (const importer of importers.get(queue.pop()!) ?? []) {
+        for (const importer of importersByTarget.get(queue.pop()!) ?? []) {
             if (!tainted.has(importer)) {
                 tainted.add(importer);
                 queue.push(importer);
@@ -188,14 +143,12 @@ describe("architecture", () => {
     // This guard is the regression lock against the engine creeping back into
     // the plugin: if a `domain/`/`service/` file is ever (re)introduced here, it
     // must reach the host only through ports — never by importing a concrete
-    // `Vs*` adapter, directly or transitively. The check follows relative
-    // imports through source text because archunit resolves no cross-file edges
-    // under this workspace's `moduleResolution: "bundler"` tsconfig.
+    // `Vs*` adapter, directly or transitively.
     describe("host isolation (regression lock — green)", () => {
-        it("any domain/service code does not transitively reach a host module", () => {
-            const files = listSourceFiles();
-            const tainted = hostReachingFiles(files);
-            const offenders = files.filter(
+        it("any domain/service code does not transitively reach a host module", async () => {
+            const graph = await extractGraph(TSCONFIG);
+            const tainted = hostReachingFiles(graph);
+            const offenders = productionSourceFiles(graph).filter(
                 (file) =>
                     (file.includes("/domain/") || file.includes("/service/")) && tainted.has(file),
             );

@@ -12,10 +12,6 @@ import { describe, expect, it } from "vitest";
  * the extension engine (`@miragon/bpmn-modeler-core`), or anything under
  * `apps/`. Conversely, no `libs/*` may depend on the package (that would invert
  * the layering `packages → libs`, not `libs → packages`).
- *
- * Text-scan rather than archunit's graph: under this workspace's
- * `moduleResolution: "bundler"` tsconfig archunit resolves no cross-file edges
- * (see `libs/modeler-core/src/architecture.spec.ts`).
  */
 const PKG_SRC = __dirname;
 const REPO_ROOT = normalize(join(__dirname, "../../.."));
