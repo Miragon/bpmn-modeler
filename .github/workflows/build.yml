@@ -154,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: Miragon/pin-npm-dependencies@58fe24377aef66748a1444ff69ab05e3f938a798 # v1.2.1
+      - uses: Miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -177,7 +177,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: Miragon/pin-npm-dependencies@58fe24377aef66748a1444ff69ab05e3f938a798 # v1.2.1
+      - uses: Miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -364,7 +364,7 @@ jobs:
           name: vscode-plugin
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.vscode-plugin-src == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/vscode-plugin"
@@ -407,7 +407,7 @@ jobs:
           name: modeler-core
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.modeler-core-src == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/libs/modeler-core"
@@ -451,7 +451,7 @@ jobs:
           name: modeler-bridge
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.modeler-bridge-src == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/modeler-bridge"
@@ -478,7 +478,7 @@ jobs:
         run: ./gradlew jacocoTestReport --no-daemon
       - name: Upload coverage to Codecov
         if: needs.detect-changes.outputs.intellij-plugin-src == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/intellij-plugin/build/reports/jacoco/test/jacocoTestReport.xml
@@ -506,7 +506,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: Miragon/pin-npm-dependencies@58fe24377aef66748a1444ff69ab05e3f938a798 # v1.2.1
+      - uses: Miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -572,7 +572,7 @@ jobs:
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler @miragon/bpmn-modeler-webview @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras @miragon/bpmn-modeler-append-menu @miragon/bpmn-modeler-element-template-chooser @miragon/bpmn-modeler-clipboard
       - run: yarn workspace @miragon/bpmn-modeler-webview test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/bpmn-webview"
@@ -600,7 +600,7 @@ jobs:
         run: yarn workspaces focus @miragon/dmn-modeler-webview @miragon/dmn-modeler @miragon/bpmn-modeler-shared @miragon/bpmn-modeler-types @miragon/bpmn-modeler-i18n-extras
       - run: yarn workspace @miragon/dmn-modeler-webview test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/dmn-webview"
@@ -626,7 +626,7 @@ jobs:
         run: yarn workspaces focus bpmn-modeler @miragon/form-modeler-webview @miragon/bpmn-modeler-shared
       - run: yarn workspace @miragon/form-modeler-webview test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/apps/form-webview"
@@ -668,7 +668,7 @@ jobs:
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-i18n-extras
       - run: yarn workspace @miragon/bpmn-modeler-i18n-extras test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/libs/bpmn-i18n-extras"
@@ -717,7 +717,7 @@ jobs:
         run: yarn workspace @miragon/bpmn-modeler exec playwright install chromium --with-deps
       - run: yarn workspace @miragon/bpmn-modeler test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/packages/bpmn-modeler"
@@ -780,7 +780,7 @@ jobs:
         run: yarn workspaces focus @miragon/dmn-modeler
       - run: yarn workspace @miragon/dmn-modeler test
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: "./coverage/packages/dmn-modeler"
@@ -885,7 +885,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: Miragon/pin-npm-dependencies@58fe24377aef66748a1444ff69ab05e3f938a798 # v1.2.1
+      - uses: Miragon/pin-npm-dependencies@3f7f02fa2454cdd2cdb65df19b081c0d77d301a5 # v1.2.2
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
