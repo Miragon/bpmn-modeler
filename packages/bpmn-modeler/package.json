@@ -132,7 +132,7 @@
         "@miragon/bpmn-modeler-layout": "workspace:*",
         "@miragon/bpmn-modeler-properties-panel": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
-        "@types/node": "26.4.0",
+        "@types/node": "26.5.1",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/browser-playwright": "4.1.11",
         "@vitest/coverage-v8": "4.1.11",
