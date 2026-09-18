@@ -8,10 +8,12 @@
  */
 import { useEffect, useRef } from "preact/hooks";
 import type { ProcessedEntry, ProcessedGroup } from "../filtering";
+import type { Translate } from "../types";
 
 interface BpmnElementPaletteProps {
     favouriteEntries: ProcessedEntry[];
     groups: ProcessedGroup[];
+    translate: Translate;
     expanded: boolean;
     /** Nav key of the keyboard-highlighted button, or null when in the other column. */
     highlightedKey: string | null;
@@ -40,6 +42,7 @@ interface BpmnElementPaletteProps {
 export function BpmnElementPalette({
     favouriteEntries,
     groups,
+    translate,
     expanded,
     highlightedKey,
     onToggleExpand,
@@ -65,11 +68,11 @@ export function BpmnElementPalette({
             onMouseLeave={() => onPeekChange?.(false)}
         >
             <div class="am-palette-header">
-                <h3 class="am-palette-title">BPMN</h3>
+                <h3 class="am-palette-title">{translate("BPMN")}</h3>
                 <button
                     class="am-palette-toggle"
                     onClick={onToggleExpand}
-                    title={expanded ? "Collapse" : "Expand"}
+                    title={expanded ? translate("Collapse") : translate("Expand")}
                     type="button"
                 >
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
@@ -85,7 +88,7 @@ export function BpmnElementPalette({
                 {/* Favourites section — pinned at the top */}
                 {favouriteEntries.length > 0 && (
                     <div class="am-bpmn-group am-bpmn-group--favourites">
-                        {expanded && <h4 class="am-bpmn-group-title">Favourites</h4>}
+                        {expanded && <h4 class="am-bpmn-group-title">{translate("Favourites")}</h4>}
                         <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                             {favouriteEntries.map((processed) => {
                                 const { id, entry, disabled, hidden } = processed;
@@ -124,7 +127,13 @@ export function BpmnElementPalette({
                     }
                     return (
                         <div key={group.id} class="am-bpmn-group">
-                            {expanded && <h4 class="am-bpmn-group-title">{group.name}</h4>}
+                            {/* Upstream group names arrive already translated; only the
+                                synthesized "Other" fallback needs the overlay. */}
+                            {expanded && (
+                                <h4 class="am-bpmn-group-title">
+                                    {group.id === "other" ? translate(group.name) : group.name}
+                                </h4>
+                            )}
                             <div class={`am-bpmn-grid ${expanded ? "" : "am-bpmn-grid--compact"}`}>
                                 {visibleEntries.map((processed) => {
                                     const { id, entry, disabled } = processed;

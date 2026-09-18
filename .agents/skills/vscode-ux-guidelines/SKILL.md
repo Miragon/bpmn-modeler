@@ -186,7 +186,7 @@ channels because `createClipboardModules` defaults `text` to `element`.
 Webviews **must** respect the user's VS Code theme:
 
 - Theme detection via VS Code's body classes — `document.body.classList.contains("vscode-dark")` / `"vscode-high-contrast"`, watched by a `MutationObserver` on the body `class` attribute
-- Both BPMN and DMN theme per-instance via their package's scope attribute (`data-bpmn-theme` / `data-dmn-theme`); theme CSS is in the bundle, no `#theme-link`. The shared host adapter lives in `libs/shared/src/lib/hostTheme.ts` — see ADR 0012 (BPMN) and ADR 0026 (DMN)
+- Both BPMN and DMN theme per-instance via their package's scope attribute (`data-bpmn-theme` / `data-dmn-theme`); theme CSS is in the bundle, no `#theme-link`. The shared host adapter lives in `libs/shared/src/lib/hostTheme.ts` — see [BPMN modeler: themes and locale](../../../docs/adr/bpmn-modeler.md#themes-and-locale) (BPMN) and [DMN modeler: themes](../../../docs/adr/dmn-modeler.md#themes) (DMN)
 - Use VS Code CSS custom properties (`--vscode-*`) for colors when possible
 - Test with light, dark, and high-contrast themes
 - See the vscode-webviews skill for implementation details

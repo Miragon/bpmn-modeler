@@ -1,0 +1,22 @@
+# Config for dessant/label-actions (.github/workflows/label-actions.yml).
+# Actions run when a maintainer adds one of these labels to an issue.
+
+accepted:
+  issues:
+    comment: >
+      This is now **accepted** — thanks for your patience! ✅
+
+      Implementation is welcome. If you told us you'd like to work on it, it's
+      yours; otherwise a maintainer or another contributor may pick it up. Open a
+      PR that links this issue with `Closes #<this-number>` when you're ready.
+    unlabel: needs-triage
+
+wontfix:
+  issues:
+    comment: >
+      Thanks again for the suggestion, @{issue-author}. After triage we've
+      decided **not to pursue this** for now, so we're closing the issue. This is
+      about scope and fit, not the effort you put in — please don't let it
+      discourage you from future contributions.
+    unlabel: needs-triage
+    close: true

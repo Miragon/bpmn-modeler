@@ -64,7 +64,7 @@ All commands are accessible via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift
 | BPMN Modeler: Copy Diagram as SVG | | Copy the current diagram to the clipboard as SVG |
 | BPMN Modeler: Save Diagram as SVG | | Save a SVG file of the current diagram next to the BPMN file |
 | BPMN Modeler: Change Modeler Language | | Switch the modeler UI language |
-| BPMN Modeler: Deploy Diagram | | Open the Deployment sidebar for the current diagram |
+| BPMN Modeler: Deploy Diagram | | Deploy the current diagram to the active deployment target |
 | BPMN Modeler: Change Engine Version | | Switch between engine versions |
 | BPMN Modeler: Migrate All BPMN Diagrams | | Switch engine version for all BPMN diagrams in the workspace |
 | BPMN Modeler: Display Logging Information | | Open a console showing modeler log output |

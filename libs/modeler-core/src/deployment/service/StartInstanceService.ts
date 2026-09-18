@@ -85,6 +85,7 @@ export class StartInstanceService {
      * @param engine Target execution platform.
      * @param auth Authentication configuration.
      * @param payloadFilePath Absolute path to a JSON payload file, or empty string for no payload.
+     * @param startInstanceUrl Optional full-URL override for the start-instance call.
      * @returns The outcome of the start-instance attempt.
      */
     async startInstance(
@@ -93,6 +94,7 @@ export class StartInstanceService {
         engine: Engine,
         auth: AuthConfig,
         payloadFilePath: string,
+        startInstanceUrl?: string,
     ): Promise<StartInstanceResult> {
         try {
             let payload: Record<string, unknown> | null = null;
@@ -108,6 +110,7 @@ export class StartInstanceService {
                 engine,
                 auth,
                 payload,
+                startInstanceUrl,
             );
 
             return await this.restClient.startInstance(config);

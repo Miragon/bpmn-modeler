@@ -10,14 +10,13 @@ import type { ViewState } from "../viewState";
  * The public TypeScript surface of `@miragon/bpmn-modeler/viewer`: the readonly
  * analogue of the full modeler.
  *
- * The viewer is a lean, view-only surface for hosts with view-only permissions
- * or embedded previews — it drags none of the editing stack (camunda-bpmn-js,
- * properties-panel/preact, CodeMirror, lint) into the module graph; the
- * minimap and the readonly token-simulation variant are the one piece of
- * canvas chrome it shares with the editable surfaces (ADR 0022). Leanness holds at the *module-graph* level, not a runtime flag, so it
- * survives single-file bundlers (`vite-plugin-singlefile`) that inline
- * everything reachable — hence a separate subpath, mirroring the `/lint`
- * precedent (ADR 0013). See ADR 0014.
+ * Readonly is enforced by the absence of editing services, including when the
+ * optional properties panel or navigation capability is enabled. The viewer
+ * shares minimap, readonly token simulation and focus chrome with editable
+ * surfaces. Its entry also exposes translated diff rendering and reaches the
+ * optional panel's dependencies; it does not promise a panel-free module graph.
+ * Load `viewer.css` separately: the entry imports no CSS or Camunda editor.
+ * See the [surfaces decision](../../../../docs/adr/bpmn-modeler.md#surfaces-and-modes).
  *
  * Every handle member below is signature-identical to its {@link
  * BpmnModelerHandle} counterpart (subset compatibility is asserted in
@@ -31,7 +30,7 @@ import type { ViewState } from "../viewState";
 /**
  * The core diagram-js/bpmn-js services a viewer exposes through
  * {@link BpmnViewerHandle.getService}. A `Pick` of {@link CoreModelerServices}
- * (ADR 0011) — the readonly subset: no `modeling` or `commandStack`, so the
+ * — the readonly subset: no `modeling` or `commandStack`, so the
  * absence of an editing surface is expressed in the type.
  */
 export type CoreViewerServices = Pick<

@@ -60,4 +60,4 @@ service's `setMode(mode)`.
   `node scripts/generate-icons.mjs` and diff. Do not hand-edit the generated file.
 
 Private workspace lib — inlined into `@miragon/bpmn-modeler`, not published on its
-own. See [ADR 0017](../../docs/adr/0017-engine-neutral-properties-panel-lib.md).
+own. See [BPMN modeler: properties panel](../../docs/adr/bpmn-modeler.md#properties-panel).

@@ -5,7 +5,8 @@
  * services can be tested with simple in-memory stubs.
  */
 
-import { DeploymentConfig, DeploymentResult } from "./deployment";
+import { AuthConfig, DeploymentConfig, DeploymentResult } from "./deployment";
+import { EngineDeploymentSnapshot } from "./deploymentVerification";
 import { StartInstanceConfig, StartInstanceResult } from "./startInstance";
 
 /**
@@ -43,6 +44,29 @@ export interface CamundaEnginePort {
      * @throws {StartInstanceFailedError} If the server returns a non-2xx status.
      */
     startInstance(config: StartInstanceConfig): Promise<StartInstanceResult>;
+}
+
+/** Addresses the latest deployed version of one process on an engine. */
+export interface DefinitionLookup {
+    readonly endpoint: string;
+    readonly tenantId: string;
+    readonly processKey: string;
+    readonly auth: AuthConfig;
+}
+
+/**
+ * Read-only deployment lookup for on-demand verification. Deliberately separate
+ * from {@link CamundaEnginePort}: only Camunda 7 exposes a deployment/resource
+ * lookup without Operate, so C8 simply never implements it — no router, no
+ * "unsupported" stub.
+ */
+export interface EngineInspectionPort {
+    /**
+     * @returns the engine's latest version of the process, or `undefined` when
+     *   it is not deployed (404).
+     * @throws {EngineInspectionFailedError} on any other non-2xx response.
+     */
+    fetchLatestDefinition(request: DefinitionLookup): Promise<EngineDeploymentSnapshot | undefined>;
 }
 
 /**

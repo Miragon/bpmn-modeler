@@ -1,4 +1,4 @@
-import type { DetectedEngine, SurfaceMode } from "@miragon/bpmn-modeler-types";
+import type { DetectedEngine, Engine, SurfaceMode } from "@miragon/bpmn-modeler-types";
 import type { ModelerMode, ThemeMode } from "../publicApi";
 import type { BpmnModelerHandle } from "../publicApi";
 import type { BpmnViewerHandle } from "../viewer/publicApi";
@@ -13,7 +13,8 @@ import type { BpmnDesignerHandle } from "../design/publicApi";
  * per-mode surface factories (`createViewer` / `createDesigner` / `createModeler`),
  * so a consumer that supplies one factory gets one mode and no buttons. The strip
  * ({@link mountModeStrip}) is a separate export that only renders a group when two
- * or more modes are available. See ADR 0021.
+ * or more modes are available. See the
+ * [mode-session decision](../../../../docs/adr/bpmn-modeler.md#mode-session-and-lifecycle).
  */
 
 /** Any of the three surfaces the session can hold; the modeler is the superset. */
@@ -32,6 +33,12 @@ export interface SurfaceContext {
  */
 export interface ModelerSurfaceContext extends SurfaceContext {
     mode: ModelerMode;
+    /**
+     * Narrowed from {@link SurfaceContext.engine}: the implement factory only
+     * runs on a tagged model (the engine rule), so the factory can hand the
+     * engine straight to `createModeler` without an undefined check.
+     */
+    engine: Engine;
 }
 
 /**

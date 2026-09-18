@@ -101,6 +101,11 @@
             id="BpmnEngineWidget"
             implementation="io.miragon.intellij.bpmn.EngineStatusBarWidgetFactory"/>
 
+        <!-- Active deployment target; clickable → switch-target. Driven by StatusBarPort. -->
+        <statusBarWidgetFactory
+            id="BpmnDeploymentTargetWidget"
+            implementation="io.miragon.intellij.bpmn.DeploymentTargetStatusBarWidgetFactory"/>
+
         <!-- Balloons for the core's NotifierPort (showInfo / showError / notifyError). -->
         <notificationGroup id="Miragon BPMN Modeler" displayType="BALLOON"/>
 
@@ -192,6 +197,30 @@
                 icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
                 text="Migrate All Diagrams…"
                 description="Migrate every BPMN diagram in the workspace to a chosen engine version"/>
+            <action
+                id="io.miragon.bpmn-modeler.switchDeploymentTarget"
+                class="io.miragon.intellij.bpmn.SwitchDeploymentTargetAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Switch Deployment Target…"
+                description="Choose the active named deployment target for the project"/>
+            <action
+                id="io.miragon.bpmn-modeler.verifyDeployment"
+                class="io.miragon.intellij.bpmn.VerifyDeploymentAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Verify Deployment on Engine…"
+                description="Verify the focused diagram against the active Camunda 7 deployment target"/>
+            <action
+                id="io.miragon.bpmn-modeler.deployFiles"
+                class="io.miragon.intellij.bpmn.DeployFilesAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Deploy Files…"
+                description="Deploy selected BPMN/DMN files to the active deployment target"/>
+            <action
+                id="io.miragon.bpmn-modeler.deployDiagram"
+                class="io.miragon.intellij.bpmn.DeployDiagramAction"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                text="Deploy Diagram"
+                description="Save and deploy the active diagram to the active deployment target"/>
             <action
                 id="io.miragon.bpmn-modeler.changeModelerLanguage"
                 class="io.miragon.intellij.bpmn.ChangeModelerLanguageAction"

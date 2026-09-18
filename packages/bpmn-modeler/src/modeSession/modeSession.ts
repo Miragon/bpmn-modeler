@@ -75,11 +75,12 @@ export async function createModeSession(options: ModeSessionOptions): Promise<Mo
             return surfaces.view!(base);
         }
         if (mode === "implement") {
-            const context: ModelerSurfaceContext = { ...base, mode: "implement" };
+            // The engine rule makes implement available only on a tagged model.
+            const context: ModelerSurfaceContext = { ...base, engine: engine!, mode: "implement" };
             return surfaces.implement!(context);
         }
         if (engine !== undefined && surfaces.implement) {
-            const context: ModelerSurfaceContext = { ...base, mode: "design" };
+            const context: ModelerSurfaceContext = { ...base, engine, mode: "design" };
             return surfaces.implement(context);
         }
         return surfaces.design!(base);

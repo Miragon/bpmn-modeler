@@ -5,14 +5,15 @@
 // workspace lib name (those are inlined, so a surviving import means the d.ts
 // roll-up leaked an un-bundled dependency the consumer cannot install).
 //
-// All three public entries are checked — the root `dist/index.d.ts`, the
-// `dist/diff.d.ts` data-layer subpath (#1378), and the `dist/lint.d.ts`
-// injectable-lint subpath (#1407).
+// All public entries are checked — the root `dist/index.d.ts`, the
+// `dist/diff.d.ts` data-layer subpath (#1378), the `dist/lint.d.ts`
+// injectable-lint subpath (#1407), and the surface subpaths.
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, resolve } from "node:path";
 
-const distDir = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
+const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
 const ENTRY_DTS = [
     "index.d.ts",
     "diff.d.ts",
@@ -28,31 +29,34 @@ const ENTRY_DTS = [
 const FORBIDDEN_CONTENT =
     /\bHostApi\b|\bQuery\b|\bCommand\b|@miragon\/bpmn-modeler-shared|@miragon\/bpmn-modeler-core/g;
 
-// Private workspace libs are inlined at build time — none may survive as an
-// import in the flattened d.ts. The public npm `@miragon/*` packages
-// (`-i18n`, `bpmnlint-plugin-rules`, `create-append-c7`) are allowed.
-const PRIVATE_LIBS = [
-    "@miragon/bpmn-modeler-types",
-    "@miragon/bpmn-modeler-diff",
-    "@miragon/bpmn-modeler-clipboard",
-    "@miragon/bpmn-modeler-i18n-extras",
-    "@miragon/bpmn-modeler-element-template-chooser",
-    "@miragon/bpmn-modeler-append-menu",
-    "@miragon/bpmn-modeler-properties-panel",
-    "@miragon/bpmn-model-navigation",
-    "@miragon/bpmn-modeler-code-link",
-    "@miragon/bpmn-modeler-inline-scripting",
-    "@miragon/bpmn-modeler-flow-navigation",
-];
+export function checkDts({
+    packageRoot = PACKAGE_ROOT,
+    distDir = resolve(packageRoot, "dist"),
+    configPath = resolve(packageRoot, "inlined-libraries.json"),
+    entries = ENTRY_DTS,
+} = {}) {
+    // Every inlined workspace lib is a private name — none may survive as an
+    // import in the flattened d.ts. Deriving the list from the build config
+    // keeps this gate from drifting when a lib is added (the hand-kept list
+    // missed `@miragon/bpmn-modeler-layout`). The public npm `@miragon/*`
+    // packages (`-i18n`, `bpmnlint-plugin-rules`, `create-append-c7`) are not
+    // in the config and stay allowed.
+    const privateLibs = JSON.parse(readFileSync(configPath, "utf8")).map((library) => library.name);
 
-function checkEntry(fileName) {
+    for (const entry of entries) {
+        checkEntry(distDir, entry, privateLibs);
+    }
+
+    return { checkedEntries: entries.length, privateLibs: privateLibs.length };
+}
+
+function checkEntry(distDir, fileName, privateLibs) {
     const dtsPath = resolve(distDir, fileName);
     let dts;
     try {
         dts = readFileSync(dtsPath, "utf8");
     } catch {
-        console.error(`check-dts: ${dtsPath} not found — run the lib build first.`);
-        process.exit(1);
+        throw new Error(`${dtsPath} not found — run the lib build first.`);
     }
 
     const failures = [];
@@ -77,7 +81,7 @@ function checkEntry(fileName) {
         );
     }
 
-    for (const lib of PRIVATE_LIBS) {
+    for (const lib of privateLibs) {
         // Match only as a real module specifier — single/double quoted, never a
         // backtick (JSDoc wraps `@miragon/...` prose mentions in backticks, and
         // d.ts import specifiers are never template literals).
@@ -88,15 +92,22 @@ function checkEntry(fileName) {
     }
 
     if (failures.length > 0) {
-        console.error(
-            `check-dts: dist/${fileName} leaks private surface:\n  ` + failures.join("\n  "),
-        );
-        process.exit(1);
+        throw new Error(`dist/${fileName} leaks private surface:\n  ` + failures.join("\n  "));
     }
-
-    console.log(`check-dts: dist/${fileName} is clean.`);
 }
 
-for (const entry of ENTRY_DTS) {
-    checkEntry(entry);
+function isMain() {
+    return process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+}
+
+if (isMain()) {
+    try {
+        const { checkedEntries, privateLibs } = checkDts();
+        console.log(
+            `check-dts: ${checkedEntries} entries are clean against ${privateLibs} private libs.`,
+        );
+    } catch (error) {
+        console.error(`check-dts: ${error.message}`);
+        process.exitCode = 1;
+    }
 }

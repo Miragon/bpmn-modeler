@@ -120,6 +120,13 @@ module.exports = (env, argv) => {
                     {
                         from: path.resolve(
                             __dirname,
+                            "../../libs/shared/src/lib/deploymentTargets.schema.json",
+                        ),
+                        to: "schemas/deployment-targets.schema.json",
+                    },
+                    {
+                        from: path.resolve(
+                            __dirname,
                             "../../node_modules/@bpmn-io/form-json-schema/resources/schema.json",
                         ),
                         to: "schemas/form.schema.json",

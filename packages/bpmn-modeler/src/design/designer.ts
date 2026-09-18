@@ -20,9 +20,9 @@ import { TranslateModule } from "@miragon/bpmn-modeler-i18n";
 import { DisposableStore, MutableDisposable, NoModelerError } from "@miragon/bpmn-modeler-types";
 import { installContentEditableClipboardPolyfill } from "../propertiesPanelClipboard";
 import { ThemeController } from "../theme";
-import { ViewportManager } from "../viewport";
-import { SelectionManager } from "../selection";
-import { RootElementManager } from "../rootElement";
+import { CanvasViewportManager, type ViewportManager } from "../viewport";
+import { ElementSelectionManager, type SelectionManager } from "../selection";
+import { CanvasRootElementManager, type RootElementManager } from "../rootElement";
 import {
     applyViewState as applyViewStateComposition,
     captureViewState as captureViewStateComposition,
@@ -160,9 +160,9 @@ export class BpmnDesigner {
         });
 
         const accessor = <T>(name: string): T => this.getModeler().get<T>(name);
-        this._viewport = new ViewportManager(accessor);
-        this._selection = new SelectionManager(accessor);
-        this._rootElement = new RootElementManager(accessor);
+        this._viewport = new CanvasViewportManager(accessor);
+        this._selection = new ElementSelectionManager(accessor);
+        this._rootElement = new CanvasRootElementManager(accessor);
 
         this.store.add(
             installSurfaceFocusFeatures(accessor, {

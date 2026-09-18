@@ -1,6 +1,6 @@
 import { posix } from "path";
 
-import { DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
+import { DirectoryNotFound, FileNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { LoggerPort, SettingsPort, WorkspacePort } from "../domain/hostPorts";
 
 /**
@@ -102,6 +102,50 @@ export class ArtifactService {
         }
 
         return dirs;
+    }
+
+    /**
+     * Walks from `documentDir` to `workspaceRoot` (inclusive), nearest-first,
+     * returning the absolute path of the first `<configFolder>/<fileName>` that
+     * exists, or `undefined` if none does. The generalised sibling of
+     * {@link collectSubDirs} for single-file config lookups (deployment targets).
+     */
+    async findConfigFile(
+        documentDir: string,
+        configFolder: string,
+        fileName: string,
+        workspaceRoot: string,
+    ): Promise<string | undefined> {
+        const root = this.stripTrailingSlash(workspaceRoot);
+        let current = documentDir;
+
+        while (current === root || current.startsWith(root + "/")) {
+            const candidate = posix.join(current, configFolder, fileName);
+            if (await this.fileExists(candidate)) {
+                return candidate;
+            }
+
+            if (current === root) {
+                break;
+            }
+            const parent = posix.dirname(current);
+            if (parent === current) {
+                break;
+            }
+            current = parent;
+        }
+
+        return undefined;
+    }
+
+    private async fileExists(path: string): Promise<boolean> {
+        try {
+            await this.vsWorkspace.readFile(path);
+            return true;
+        } catch (error) {
+            if (error instanceof FileNotFound) return false;
+            throw error;
+        }
     }
 
     /**

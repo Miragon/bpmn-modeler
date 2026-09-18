@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
+import { FileNotFound, DirectoryNotFound, NoWorkspaceFolderFoundError } from "../domain/errors";
 import { ArtifactService } from "./ArtifactService";
 
 /**
@@ -27,6 +27,48 @@ function createService() {
 
 beforeEach(() => {
     vi.clearAllMocks();
+});
+
+describe("ArtifactService.findConfigFile", () => {
+    it("does not skip an unreadable nearest file in favor of another destination", async () => {
+        const { service, vsWorkspace } = createService();
+        vsWorkspace.readFile.mockRejectedValue(new Error("EACCES"));
+        await expect(
+            service.findConfigFile("/root/nested", ".camunda", "deployment-targets.json", "/root"),
+        ).rejects.toThrow("EACCES");
+        expect(vsWorkspace.readFile).toHaveBeenCalledOnce();
+    });
+    it("returns the nearest existing config file, walking up from the document dir", async () => {
+        const { service, vsWorkspace } = createService();
+        vsWorkspace.readFile.mockImplementation((path: string) =>
+            path === "/root/nested/.camunda/deployment-targets.json"
+                ? Promise.resolve("{}")
+                : Promise.reject(new FileNotFound(path)),
+        );
+
+        const found = await service.findConfigFile(
+            "/root/nested/deep",
+            ".camunda",
+            "deployment-targets.json",
+            "/root",
+        );
+
+        expect(found).toBe("/root/nested/.camunda/deployment-targets.json");
+    });
+
+    it("returns undefined when no config file exists up to the root", async () => {
+        const { service, vsWorkspace } = createService();
+        vsWorkspace.readFile.mockRejectedValue(new FileNotFound("x"));
+
+        const found = await service.findConfigFile(
+            "/root/nested",
+            ".camunda",
+            "deployment-targets.json",
+            "/root",
+        );
+
+        expect(found).toBeUndefined();
+    });
 });
 
 describe("ArtifactService.getWorkspaceRoot", () => {

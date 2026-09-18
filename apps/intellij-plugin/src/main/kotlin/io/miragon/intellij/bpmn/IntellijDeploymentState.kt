@@ -1,5 +1,8 @@
 package io.miragon.intellij.bpmn
 
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
@@ -27,7 +30,29 @@ class IntellijDeploymentState(private val project: Project) {
             "authType" to props.getValue(AUTH_TYPE, "none"),
             "tokenEndpoint" to props.getValue(TOKEN_ENDPOINT, ""),
             "audience" to props.getValue(AUDIENCE, ""),
+            "activeTargetName" to props.getValue(ACTIVE_TARGET, ""),
+            "ledger" to readLedger(),
         )
+
+    fun saveActiveTargetName(name: String) = props.setValue(ACTIVE_TARGET, name, "")
+
+    /** Upserts one ledger entry (target×file → deployed revision), persisted as JSON. */
+    fun saveDeployedRevision(ledgerKey: String, revision: JsonElement) {
+        val ledger = readLedger()
+        ledger.add(ledgerKey, revision)
+        props.setValue(LEDGER, ledger.toString(), EMPTY_LEDGER)
+    }
+
+    /** Drops ledger entries (target prune / engine reports "not deployed"). */
+    fun deleteDeployedRevisions(ledgerKeys: List<String>) {
+        val ledger = readLedger()
+        ledgerKeys.forEach { ledger.remove(it) }
+        props.setValue(LEDGER, ledger.toString(), EMPTY_LEDGER)
+    }
+
+    private fun readLedger(): JsonObject =
+        runCatching { JsonParser.parseString(props.getValue(LEDGER, EMPTY_LEDGER)).asJsonObject }
+            .getOrElse { JsonObject() }
 
     fun saveAuthType(authType: String) = props.setValue(AUTH_TYPE, authType, "none")
 
@@ -51,5 +76,8 @@ class IntellijDeploymentState(private val project: Project) {
         private const val AUTH_TYPE = "bpmn-modeler.deployment.authType"
         private const val TOKEN_ENDPOINT = "bpmn-modeler.deployment.tokenEndpoint"
         private const val AUDIENCE = "bpmn-modeler.deployment.audience"
+        private const val ACTIVE_TARGET = "bpmn-modeler.deployment.activeTargetName"
+        private const val LEDGER = "bpmn-modeler.deployment.ledger"
+        private const val EMPTY_LEDGER = "{}"
     }
 }

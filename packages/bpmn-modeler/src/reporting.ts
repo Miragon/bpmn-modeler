@@ -1,8 +1,8 @@
 /**
  * One warn/error surface shared by the facades. Warnings mirror to `console.warn`
  * and an optional host sink; errors go to the host's `onError` if set, else
- * `console.error` (the ADR 0033 fallback). Disposal-race suppression is the
- * caller's concern — see {@link wireContentSaved}.
+ * `console.error` (see docs/adr/bpmn-modeler.md#mode-session-and-lifecycle).
+ * Disposal-race suppression is the caller's concern — see {@link wireContentSaved}.
  */
 export interface SurfaceReporter {
     warn(message: string): void;

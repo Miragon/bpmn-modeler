@@ -26,11 +26,11 @@ jobs:
       modeler-core: ${{ steps.filter.outputs.modeler-core }}
       modeler-bridge: ${{ steps.filter.outputs.modeler-bridge }}
       vscode-plugin: ${{ steps.filter.outputs.vscode-plugin }}
-      vscode-plugin-src: ${{ steps.filter.outputs.vscode-plugin-src }}
+      vscode-plugin-src: ${{ steps.filter-src.outputs.vscode-plugin-src }}
       intellij-plugin: ${{ steps.filter.outputs.intellij-plugin }}
-      intellij-plugin-src: ${{ steps.filter.outputs.intellij-plugin-src }}
-      modeler-core-src: ${{ steps.filter.outputs.modeler-core-src }}
-      modeler-bridge-src: ${{ steps.filter.outputs.modeler-bridge-src }}
+      intellij-plugin-src: ${{ steps.filter-src.outputs.intellij-plugin-src }}
+      modeler-core-src: ${{ steps.filter-src.outputs.modeler-core-src }}
+      modeler-bridge-src: ${{ steps.filter-src.outputs.modeler-bridge-src }}
       bpmn-modeler: ${{ steps.filter.outputs.bpmn-modeler }}
       dmn-modeler: ${{ steps.filter.outputs.dmn-modeler }}
       dep-alignment: ${{ steps.filter.outputs.dep-alignment }}
@@ -42,10 +42,16 @@ jobs:
       docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Two filter steps because the quantifier is per-step: the OR-style
+      # filters below need `some` (any pattern may match a changed file),
+      # while the negation `*-src` filters in the second step need `every`
+      # (a file must match the positive glob AND the exclusion). Under
+      # `every`, a filter listing several positive globs can never match —
+      # that silently skipped the bpmn-modeler build/test jobs (#1505).
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
-          predicate-quantifier: 'every'
+          predicate-quantifier: 'some'
           filters: |
             shared:
               - 'libs/shared/**'
@@ -73,23 +79,6 @@ jobs:
               - 'apps/vscode-plugin/**'
             intellij-plugin:
               - 'apps/intellij-plugin/**'
-            # `*-src` mirror the package filters above but drop the file
-            # release-please bumps (package.json, or gradle.properties for the
-            # IntelliJ plugin), so a version-bump-only PR skips the Codecov
-            # coverage report while build+test still run via the broad filters.
-            # Relies on `predicate-quantifier: every` to honour the negation.
-            vscode-plugin-src:
-              - 'apps/vscode-plugin/**'
-              - '!apps/vscode-plugin/package.json'
-            intellij-plugin-src:
-              - 'apps/intellij-plugin/**'
-              - '!apps/intellij-plugin/gradle.properties'
-            modeler-core-src:
-              - 'libs/modeler-core/**'
-              - '!libs/modeler-core/package.json'
-            modeler-bridge-src:
-              - 'apps/modeler-bridge/**'
-              - '!apps/modeler-bridge/package.json'
             bpmn-modeler:
               - 'packages/bpmn-modeler/**'
               # The package inlines these private libraries from source; changes
@@ -105,6 +94,7 @@ jobs:
               - 'libs/code-link/**'
               - 'libs/inline-scripting/**'
               - 'libs/flow-navigation/**'
+              - 'libs/bpmn-layout/**'
               - 'package.json'
               - 'yarn.lock'
               - '.yarnrc.yml'
@@ -137,6 +127,28 @@ jobs:
               - 'yarn.lock'
             docs:
               - 'docs/**'
+      # `*-src` mirror the package filters above but drop the file
+      # release-please bumps (package.json, or gradle.properties for the
+      # IntelliJ plugin), so a version-bump-only PR skips the Codecov
+      # coverage report while build+test still run via the broad filters.
+      # `every` makes each changed file honour the negation pattern too.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter-src
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            vscode-plugin-src:
+              - 'apps/vscode-plugin/**'
+              - '!apps/vscode-plugin/package.json'
+            intellij-plugin-src:
+              - 'apps/intellij-plugin/**'
+              - '!apps/intellij-plugin/gradle.properties'
+            modeler-core-src:
+              - 'libs/modeler-core/**'
+              - '!libs/modeler-core/package.json'
+            modeler-bridge-src:
+              - 'apps/modeler-bridge/**'
+              - '!apps/modeler-bridge/package.json'
 
   lint:
     runs-on: ubuntu-latest
@@ -455,7 +467,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup JDK 21
-        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '21'

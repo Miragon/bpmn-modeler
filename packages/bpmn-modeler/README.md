@@ -173,7 +173,7 @@ A **workspace `.bpmnlintrc`** a host hands back through `startInPageLinting` is 
 applies to both modes unchanged, and a `setMode` while it is active only stores the new mode. A
 later config-less `startInPageLinting()` (e.g. after the host deletes the workspace file) clears
 the handed-back config and resets linting to the per-mode default.
-See [ADR 0023](../../docs/adr/0023-mode-aware-linting.md).
+See [BPMN modeler: linting](../../docs/adr/bpmn-modeler.md#linting).
 
 ```ts
 import { createModeler } from "@miragon/bpmn-modeler";
@@ -375,7 +375,7 @@ element-template chooser. It also **re-resolves the in-page lint config** for th
 the Camunda deployability layer (so `camunda-compat`
 findings the neutral panel cannot act on disappear), and switching back restores it —
 see [Linting tiers](#linting-tiers). A host-handed workspace config is mode-invariant. The canvas
-chrome (minimap, token simulation, focus reticle) is the same in every mode (ADR 0022). Because
+chrome (minimap, token simulation, focus reticle) is the same in every mode ([BPMN modeler: surfaces and modes](../../docs/adr/bpmn-modeler.md#surfaces-and-modes)). Because
 nothing in the DI module graph is added or removed on a toggle, `zeebe:*` / `camunda:*` extensions
 are **never** at risk: replace and copy-paste keep engine data in both modes, and the drill-down
 plane, selection, and undo history survive the toggle.
@@ -391,7 +391,7 @@ plane, selection, and undo history survive the toggle.
 > **Timer / multi-instance in design mode.** On an engine model these two groups
 > are *wholesale-replaced* by the Camunda providers, so their neutral entries are
 > not restorable and design mode simply omits them (a pure `/design` panel keeps
-> them). See [ADR 0017](../../docs/adr/0017-engine-neutral-properties-panel-lib.md).
+> them). See [BPMN modeler: properties panel](../../docs/adr/bpmn-modeler.md#properties-panel).
 
 ### `mode` is unrelated to `theme`
 
@@ -474,10 +474,12 @@ context-pad entry (#1445 — the one interaction a readonly surface still offers
 browser-only
 [diff rendering primitives](#diff) (`DiffViewer`, `DiffLegend`, `DiffNavigator`,
 `DiffPaneCoordinator`), plus the mode-invariant canvas chrome every surface shares — the minimap,
-the readonly token-simulation variant, and the canvas focus reticle (ADR 0022). The Camunda editor
-stack (camunda-bpmn-js, CodeMirror, lint) stays out of its module graph, so it survives single-file
-bundlers that inline everything reachable. The `DiffLegend` does pull the shared i18n translator in
-for its labels (#1439), and opting into the panel pulls in `@bpmn-io/properties-panel`/preact.
+the readonly token-simulation variant, and the canvas focus reticle
+([surface and mode decisions](../../docs/adr/bpmn-modeler.md#surfaces-and-modes)).
+Camunda editing and lint stay out of its module graph. The entry includes the shared i18n
+translator for `DiffLegend` labels and reaches the optional panel's dependencies, including
+`@bpmn-io/properties-panel`, Preact and CodeMirror. Omitting the panel prevents its DI registration;
+it does not guarantee those dependencies disappear in every bundling mode.
 
 ```ts
 import { createViewer } from "@miragon/bpmn-modeler/viewer";
@@ -527,14 +529,14 @@ throws too.
 
 ### Kept out of the module graph
 
-`camunda-bpmn-js`, `codemirror` / `@codemirror/*`, `bpmnlint` /
+`camunda-bpmn-js`, `bpmnlint` /
 `bpmn-js-bpmnlint`, `bpmn-js-create-append-anything`,
 `camunda-transaction-boundaries`, and `minisearch` — the Camunda editor stack.
 `bpmn-js-token-simulation` (its viewer module) and `diagram-js-minimap` **are**
-present: engine-neutral canvas chrome shared by every surface (ADR 0022). The shared i18n translator
+present: engine-neutral canvas chrome shared by every surface ([BPMN modeler: surfaces and modes](../../docs/adr/bpmn-modeler.md#surfaces-and-modes)). The shared i18n translator
 (`@miragon/bpmn-modeler-i18n`) **is** present, pulled in by `DiffLegend` for its labels (#1439), and
 the engine-neutral panel fork (with
-`@bpmn-io/properties-panel`/preact) enters the closure for the opt-in readonly panel (#1443). The
+`@bpmn-io/properties-panel`, Preact and CodeMirror) enters the closure for the opt-in readonly panel. The
 dedicated build-time purity gate was retired in #1439 as the surface grows custom features; the
 viewer still imports **no CSS** and
 `check:dts` still guards the dist surface.
@@ -580,7 +582,7 @@ XML is *editable Design*, not readonly.
 This subpath and `createModeler` are **different factories** — moving between them is a host concern
 (stamp or strip the execution platform on the XML,
 `destroy()` the instance, stand up the other factory; the stamp/strip conversion helpers are
-deferred to a follow-up, ADR 0016). It exists for *untagged* models and lean hosts that need the
+deferred to a follow-up, [BPMN modeler: surfaces and modes](../../docs/adr/bpmn-modeler.md#surfaces-and-modes)). It exists for *untagged* models and lean hosts that need the
 Camunda stack out of their bundle. To show an *engine-tagged* model in a design view without losing
 engine data, do **not**
 route here — use the [runtime `setMode` toggle](#design--implement-mode-runtime)
@@ -653,11 +655,11 @@ which carries **no** `modeler:executionPlatform`, so a fresh diagram stays engin
 (`bpmnlint` / `bpmn-js-bpmnlint` / `@miragon/bpmnlint-plugin-rules`)
 is **also** absent from the design chunk **unless you inject it** via `/lint` — the designer
 references only the lint *types*, so an omitted `linting` keeps the stack out. A build-time gate
-(`scripts/check-design-pure-entry.mjs`) fails the build if any of these reappears. Unlike
-`/viewer`, `preact` and CodeMirror (`@codemirror/*`) **are** present (legitimate dependencies of the
+(`scripts/check-design-pure-entry.mjs`) fails the build if any of these reappears.
+`preact` and CodeMirror (`@codemirror/*`) **are** present (legitimate dependencies of the
 engine-neutral properties panel), as are
 `diagram-js-minimap` and `bpmn-js-token-simulation` — the engine-neutral canvas chrome every surface
-shares (ADR 0022).
+shares ([BPMN modeler: surfaces and modes](../../docs/adr/bpmn-modeler.md#surfaces-and-modes)).
 
 ### Theming & stylesheet
 

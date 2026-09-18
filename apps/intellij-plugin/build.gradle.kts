@@ -156,6 +156,8 @@ val stagedResourcesRoot = layout.buildDirectory.dir("modeler-resources")
 // next to the type it mirrors. Staged into resources so the JsonSchemaProviderFactory
 // loads it from the classpath at `/schemas/bpmn-vars.schema.json`.
 val varsSchema = layout.projectDirectory.file("../../libs/shared/src/lib/variableManifest.schema.json")
+val deploymentTargetsSchema =
+    layout.projectDirectory.file("../../libs/shared/src/lib/deploymentTargets.schema.json")
 
 /**
  * Release distribution mode: when set, stage every per-platform bridge binary
@@ -276,16 +278,21 @@ val copyBridge =
 
 val copySchema =
     tasks.register<Copy>("copySchema") {
-        description = "Stages the shared *.bpmn.vars.json JSON Schema into plugin resources (loaded from the classpath by the JsonSchemaProviderFactory)."
+        description = "Stages the shared JSON Schemas (*.bpmn.vars.json, deployment-targets.json) into plugin resources (loaded from the classpath by the JsonSchemaProviderFactory)."
         doFirst {
-            if (!varsSchema.asFile.exists()) {
-                throw GradleException("Vars manifest schema not found at ${varsSchema.asFile}.")
+            for (schema in listOf(varsSchema, deploymentTargetsSchema)) {
+                if (!schema.asFile.exists()) {
+                    throw GradleException("JSON schema not found at ${schema.asFile}.")
+                }
             }
         }
         from(varsSchema) {
             rename { "bpmn-vars.schema.json" }
         }
-        // Lands at `/schemas/bpmn-vars.schema.json` on the classpath.
+        from(deploymentTargetsSchema) {
+            rename { "deployment-targets.schema.json" }
+        }
+        // Lands at `/schemas/<name>.schema.json` on the classpath.
         into(stagedResourcesRoot.map { it.dir("schemas") })
     }
 

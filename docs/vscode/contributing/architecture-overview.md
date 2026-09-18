@@ -143,5 +143,5 @@ Yarn 4 workspaces and `npm-run-all` coordinate the builds:
 
 - [Development](./development) and [release process](./release-process): commands and delivery workflows.
 - [IntelliJ development guide](https://github.com/Miragon/bpmn-modeler/blob/main/apps/intellij-plugin/README.md) and [standalone guide](https://github.com/Miragon/bpmn-modeler/blob/main/apps/standalone/README.md): host-specific setup.
-- [Architecture decisions](https://github.com/Miragon/bpmn-modeler/tree/main/docs/adr): rationale for core extraction, package APIs, transports, and modes. Later records may amend earlier decisions.
+- [Architecture decisions](https://github.com/Miragon/bpmn-modeler/tree/main/docs/adr): rationale for core extraction, package APIs, transports, and modes. Related decisions share a living topic record; superseded choices remain in Git history.
 - [AGENTS.md](https://github.com/Miragon/bpmn-modeler/blob/main/AGENTS.md): contributor and coding-agent conventions, with specialist skills for deeper work.

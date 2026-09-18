@@ -31,9 +31,9 @@ function listSourceFiles(root: string): string[] {
                 if (SKIP_DIRS.has(entry)) continue;
                 walk(abs);
             } else if (
-                entry.endsWith(".ts") &&
+                /\.tsx?$/.test(entry) &&
                 !entry.endsWith(".d.ts") &&
-                !/\.(spec|test)\.ts$/.test(entry)
+                !/\.(spec|test)\.tsx?$/.test(entry)
             ) {
                 out.push(abs);
             }
@@ -85,6 +85,11 @@ function valueImportedModules(content: string): string[] {
 const PACKAGE_SELF = /^@miragon\/bpmn-modeler(\/|$)/;
 
 describe("bpmn-modeler import direction", () => {
+    it("collects .tsx sources — the #1486 blind spot must stay closed", () => {
+        const collected = listSourceFiles(join(LIBS_ROOT, "properties-panel", "src"));
+        expect(collected.some((file) => file.endsWith(".tsx"))).toBe(true);
+    });
+
     it("package source never names the protocol, the engine, or apps/", () => {
         const offenders: string[] = [];
         for (const file of listSourceFiles(PKG_SRC)) {
@@ -193,7 +198,7 @@ describe("bpmn-modeler import direction", () => {
             spec === "@miragon/bpmn-modeler-properties-panel" ||
             spec === "bpmn-js-create-append-anything" ||
             spec === "diagram-js-minimap" ||
-            // Engine-neutral canvas chrome shared by every surface (ADR 0022):
+            // Engine-neutral canvas chrome shared by every surface:
             // plain bpmn-js simulation, no Camunda stack behind it.
             spec === "bpmn-js-token-simulation" ||
             // Engine-neutral browser clipboard (parity with camunda-bpmn-js's base
@@ -255,6 +260,31 @@ describe("bpmn-modeler import direction", () => {
             `the /viewer subpath must deep-import ` +
                 `@miragon/bpmn-modeler-properties-panel/* (the barrel imports ` +
                 `CSS, and the viewer entry must stay CSS-free):\n${offenders.join("\n")}`,
+        ).toEqual([]);
+    });
+
+    it("the append menu deep-imports the template chooser, never its barrel (#1505)", () => {
+        // The chooser barrel value-imports the DI module — and with it
+        // minisearch and the chooser CSS. The append menu is reachable from the
+        // engine-neutral /design entry, so its value imports must target
+        // chooser subpaths; only tree-shaking luck kept minisearch out of the
+        // design graph before `check-design-pure-entry.mjs` caught it.
+        const APPEND_MENU_SRC = join(LIBS_ROOT, "append-menu", "src");
+        const BARREL = "@miragon/bpmn-modeler-element-template-chooser";
+        const offenders: string[] = [];
+        for (const file of listSourceFiles(APPEND_MENU_SRC)) {
+            for (const spec of valueImportedModules(readFileSync(file, "utf8"))) {
+                if (spec === BARREL) {
+                    offenders.push(`${file.slice(APPEND_MENU_SRC.length + 1)} → ${spec}`);
+                }
+            }
+        }
+        expect(
+            offenders,
+            `the append menu must deep-import ` +
+                `@miragon/bpmn-modeler-element-template-chooser/* (the barrel ` +
+                `pulls the DI module, minisearch, and CSS into the design ` +
+                `graph):\n${offenders.join("\n")}`,
         ).toEqual([]);
     });
 

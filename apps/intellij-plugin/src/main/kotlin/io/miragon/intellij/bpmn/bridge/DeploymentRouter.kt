@@ -47,6 +47,23 @@ internal class DeploymentRouter(private val deps: BridgeDeps) {
                 )
                 id?.let { deps.channel.reply(it, null) }
             }
+            .on("deploymentState/saveActiveTarget") { params, id ->
+                deploymentState.saveActiveTargetName(params.get("name").asString)
+                id?.let { deps.channel.reply(it, null) }
+            }
+            .on("deploymentState/saveDeployedRevision") { params, id ->
+                deploymentState.saveDeployedRevision(
+                    params.get("ledgerKey").asString,
+                    params.get("revision"),
+                )
+                id?.let { deps.channel.reply(it, null) }
+            }
+            .on("deploymentState/deleteDeployedRevisions") { params, id ->
+                deploymentState.deleteDeployedRevisions(
+                    params.get("ledgerKeys").asJsonArray.map { it.asString },
+                )
+                id?.let { deps.channel.reply(it, null) }
+            }
     }
 
     /**

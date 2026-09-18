@@ -36,6 +36,8 @@
         "packages/bpmn-modeler/scripts/postcss-strip-theme-scope.d.mts",
         "packages/bpmn-modeler/scripts/check-externals.d.mts",
         "packages/bpmn-modeler/scripts/check-inlined-peers.d.mts",
+        "packages/bpmn-modeler/scripts/check-dts.d.mts",
+        "packages/bpmn-modeler/scripts/check-consumer-types.d.mts",
         "packages/dmn-modeler/scripts/postcss-strip-theme-scope.d.mts"
     ],
     "ignoreWorkspaces": ["apps/standalone"],

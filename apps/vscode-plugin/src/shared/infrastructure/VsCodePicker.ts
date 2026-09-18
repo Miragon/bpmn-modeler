@@ -237,6 +237,58 @@ export class VsCodePicker implements PickerPort {
     }
 
     /**
+     * Prompts for the active deployment target. An explicit
+     * "(none — use form values)" entry (resolving to `""`) sits above the saved
+     * targets; the active one is pre-marked. Returns `undefined` on dismissal so
+     * the caller can no-op, mirroring the engine-version cancel convention.
+     */
+    async pickDeploymentTarget(names: string[]): Promise<string | undefined> {
+        interface TargetItem extends QuickPickItem {
+            readonly value: string;
+        }
+        const items: TargetItem[] = [
+            { label: "(none — use form values)", value: "" },
+            ...names.map((name) => ({ label: name, value: name })),
+        ];
+
+        const picked = await window.showQuickPick<TargetItem>(items, {
+            placeHolder: "Select the active deployment target",
+        });
+        return picked?.value;
+    }
+
+    /**
+     * The deployment status-bar item's click menu. The verify entry only
+     * appears for a named Camunda 7 target — C8 has no deployment lookup.
+     */
+    async pickDeploymentStatusAction(opts: {
+        targetName?: string;
+        canVerify: boolean;
+    }): Promise<"switch" | "verify" | undefined> {
+        interface ActionItem extends QuickPickItem {
+            readonly value: "switch" | "verify";
+        }
+        const items: ActionItem[] = [
+            { label: "$(arrow-swap) Switch deployment target…", value: "switch" },
+            ...(opts.canVerify
+                ? [
+                      {
+                          label: `$(cloud) Verify on ${opts.targetName}`,
+                          value: "verify" as const,
+                      },
+                  ]
+                : []),
+        ];
+
+        const picked = await window.showQuickPick<ActionItem>(items, {
+            placeHolder: opts.targetName
+                ? `Deployment target "${opts.targetName}"`
+                : "No deployment target selected",
+        });
+        return picked?.value;
+    }
+
+    /**
      * Modal confirmation listing what is about to be removed.
      *
      * Modal rather than a plain warning toast because the user is consenting to

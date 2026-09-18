@@ -1,87 +1,62 @@
 # Architecture Decision Records
 
-This directory is the decision log for the BPMN modeler monorepo. Each record
-captures one architecturally significant decision — the context that forced
-it, the alternatives that lost, and the trade-offs we accepted — so future
-contributors don't re-litigate settled questions.
+These living records describe the current architectural decisions of the BPMN
+modeler monorepo: the constraints, rationale, alternatives, and trade-offs a
+contributor needs to understand before changing the design. Related decisions
+share a topic document. Git preserves earlier decisions and their evolution.
 
-The rules of the game (format, numbering, categorization) are themselves a
-decision: see [ADR 0001](0001-record-architecture-decisions.md).
+## Topics
 
-These files are intentionally **not** part of the published VitePress site
-(excluded via `srcExclude` in `docs/.vitepress/config.mts`); they are a
-contributor-facing record, not user documentation.
+| Record | Owns |
+| --- | --- |
+| [Architecture and hosts](architecture-and-hosts.md) | Package boundaries, host ports, IntelliJ runtime and transport, state mirrors, host integration |
+| [BPMN modeler](bpmn-modeler.md) | Public API, capabilities, surfaces and modes, properties panel, themes, lint, diff, layout, lifecycle |
+| [DMN modeler](dmn-modeler.md) | Separate embeddable package, public API, themes, locale |
+| [Deployment](deployment.md) | Targets, credentials, execution, freshness ledger, engine reconciliation |
+| [Release and publishing](release-and-publishing.md) | Release components, source markers, npm packing, authentication and consumer checks |
+| [Engineering practices](engineering-practices.md) | Test environments, private upstream APIs, dependency compatibility and security |
 
-## Index
+## Recording rules
 
-### cross-cutting
+Update or add an ADR in the same change as a significant architectural decision:
+package boundaries, public APIs, runtimes, transports, dependencies,
+distribution, infrastructure, or a consequential trade-off not apparent from
+the code. Routine fixes, naming changes, and dependency bumps without changed
+constraints do not need a new decision section.
 
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0001](0001-record-architecture-decisions.md) | Record architecture decisions as ADRs, categorized by module | accepted |
-| [0009](0009-npm-publishing-pipeline.md) | Publishing pipeline for `@miragon/bpmn-modeler`: npm CLI, yarn-packed tarball, Trusted Publishing | accepted |
-| [0014](0014-make-bpmn-modeler-the-root-release-component.md) | Make the npm package the root release component; hosts release via sync markers | accepted |
-| [0019](0019-webview-panel-chrome-in-shared.md) | Webview panel chrome (resizer/focus/shortcuts) lives in `libs/shared`; publishable `modeler-types` keeps only `isTextEditingSurface` | accepted |
-| [0020](0020-untagged-documents-first-class-in-hosts.md) | Untagged documents are first-class in the hosts (no stamp-on-open); mode is per-editor webview state seeded by `defaultMode`; engine-neutral new-file scaffold | accepted |
-| [0028](0028-dmn-modeler-as-subpath-release-component.md) | `@miragon/dmn-modeler` as a subpath release component (`dmn-modeler-v<version>`); `BUNDLED_LIBS` marker for its two inlined libs; one parameterised publish workflow | accepted |
-| [0032](0032-vitest-browser-mode-for-bpmn-modeler.md) | Vitest browser mode (Playwright/Chromium) as a second project for `@miragon/bpmn-modeler`; real-ResizeObserver view-state specs, coverage off, shared aliases | accepted |
-| [0034](0034-patch-vulnerable-transitive-build-dependencies.md) | Pin patched transitive dependencies and replace Theia's archive extractor | accepted |
-| [0035](0035-typed-adapters-for-private-upstream-apis.md) | Isolate private upstream access behind typed adapters with pinned shape tests; escalate `no-explicit-any` to `error` off the fork | accepted |
+- **Update the existing topic first.** Add a file only for a distinct
+  architectural area that has no coherent home. A new feature or PR does not
+  automatically need a new file.
+- **Keep only the current decision.** Replace superseded text in place,
+  including affected context and consequences. Remove completed migration
+  plans and obsolete limitations; retain the rationale and alternatives that
+  still explain the current choice. Do not append amendment histories or keep
+  superseded records alongside their replacements.
+- **Give each decision one home.** A change can update several topics. Put
+  cross-cutting rules in their owning topic and link to the relevant section
+  rather than repeating the rule in every module's record.
+- **Use descriptive filenames and section links.** Files live directly under
+  `docs/adr/` as `<topic>.md`, without sequence numbers or category directories.
+  Keep headings stable where possible and repair incoming links when moving a
+  section. Update the table above when adding or changing a topic.
+- **Use Context / Decision / Consequences**, with optional Alternatives and
+  topic subsections. Longer records need a short contents list. Be concise,
+  but preserve constraints and accepted costs instead of imposing a page limit.
+- **State status and last review date.** `Status: accepted` describes the
+  current record; `Last reviewed: YYYY-MM-DD` records the review, not a new
+  decision date for all its contents. Clearly mark a proposed section if a
+  choice is still pending.
+- **Check source and enforcement.** Link relevant architecture tests or build
+  checks. Resolve partial amendments against current implementation; do not
+  invent intent when code and the recorded rationale disagree. Identify
+  inferred rationale for review. Retain issue/PR references when they provide
+  useful evidence, without making readers reconstruct the decision from them.
 
-### modeler-core
+This replaces the chronological, one-file-per-decision convention. Consult Git
+history for superseded choices; the working tree is the current reference.
 
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0002](0002-modeler-core-extraction.md) | Extract `@miragon/bpmn-modeler-core` and fix the host-protocol seam | accepted |
+## Publication
 
-### modeler-bridge
-
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0003](0003-runtime-distribution.md) | Ship the modeler runtime as a self-contained Bun binary | accepted |
-| [0005](0005-host-replicated-state.md) | Host-replicated state: the bridge's synchronous-mirror pattern | accepted |
-
-### intellij-plugin
-
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0004](0004-intellij-host-foundation.md) | IntelliJ host foundation: stdio JSON-RPC transport & process supervision | accepted |
-
-### vscode-plugin
-
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0015](0015-integrate-form-js-into-the-bpmn-modeler-extension.md) | Integrate form-js into the BPMN modeler extension | accepted |
-
-### bpmn-webview
-
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0006](0006-extract-publishable-modeler-package.md) | Extract the host-free modeler composition into a publishable npm package | accepted |
-| [0007](0007-public-modeler-api.md) | Fix the public `@miragon/bpmn-modeler` API surface before extraction | accepted |
-| [0008](0008-public-diff-api.md) | Public diff API: serializable `computeDiff` data layer, promoted primitives, in-page coordinator | accepted |
-| [0010](0010-expose-reference-availability-through-navigation-port.md) | Expose reference availability through the model navigation port | accepted |
-| [0011](0011-stable-core-service-contract.md) | Freeze a typed, semver-covered contract for the seven core bpmn-js services reached via `getService` | accepted |
-| [0012](0012-container-scoped-theming.md) | Container-scoped theming via a per-instance `data-bpmn-theme` attribute; `#theme-link` swap kept as permanent legacy fallback | accepted |
-| [0013](0013-injectable-lint-stack.md) | Injectable lint stack via the `@miragon/bpmn-modeler/lint` subpath; omitted `linting` now means off | accepted |
-| [0014](0014-readonly-viewer-subpath.md) | Readonly `createViewer` via the `@miragon/bpmn-modeler/viewer` subpath: NavigatedViewer + outline, `Pick`'d services, scope-preserving `viewer.css`, `locale` omitted | accepted |
-| [0016](0016-design-mode-subpath.md) | Engine-neutral `createDesigner` via the `@miragon/bpmn-modeler/design` subpath: base bpmn-js + plain-BPMN panel, `executionPlatform` absence as mode marker, Camunda/lint stack gated out | accepted |
-| [0017](0017-engine-neutral-properties-panel-lib.md) | Engine-neutral properties panel via an inlined `@miragon/bpmn-modeler-properties-panel` fork: viewer-safe renderer, readonly derived from missing `modeling`, neutral provider, priority-10 design/implement mode filter, host custom-group slot | accepted |
-| [0018](0018-runtime-design-implement-mode.md) | Runtime design/implement mode on `createModeler`: same live instance (mode-invariant module graph = no engine-data loss), `propertiesPanelModeFilter` as source of truth, `setMode`/`onModeChanged` | accepted |
-| [0021](0021-mode-session-subpath.md) | Publish the View↔Design↔Implement session + opt-in strip via the `@miragon/bpmn-modeler/mode` subpath (consumer-injected surface factories); mode model moves to `@miragon/bpmn-modeler-types` | accepted |
-| [0022](0022-mode-invariant-canvas-chrome.md) | Minimap, token simulation, and the canvas focus reticle are mode-invariant: registered on `/viewer`, `/design`, and `createModeler` alike; design mode stops hiding the simulation toggle | accepted |
-| [0023](0023-mode-aware-linting.md) | Opt-in linting on `/design` and per-mode lint configs: injection-only on both surfaces, `LintingOptions.config` accepts a `{ design?, implement? }` map, Design default drops the Camunda engine layer, `setMode` re-resolves in-page; workspace config mode-invariant, viewer excluded | accepted |
-| [0029](0029-compare-execution-properties-with-isolated-moddle-descriptors.md) | Compare execution properties through isolated Camunda 7 and Camunda 8 moddle passes; compare custom attributes textually | accepted |
-| [0030](0030-diagram-formatting-and-cleanup.md) | Diagram formatting and cleanup: wrap `bpmn-auto-layout` behind a geometry-only `LayoutEngine` port (which contains its greenfield destructiveness), apply via nested `preExecute` as one undo step, own refusal taxonomy, no settings and no format-on-save | accepted |
-| [0031](0031-async-mode-session-destroy.md) | `ModeSession.destroy()` returns a `Promise` and awaits the in-flight switch so the session owns 0 or exactly 1 live surface at every instant; source-compatible for callers | accepted |
-| [0033](0033-content-saved-error-channel.md) | Report failing debounced saves once through a public `onError` channel (`console.error` fallback, destroy-suppressed); widen `onContentSaved` to `void \| Promise<void>` | accepted |
-| [0034](0034-shared-surface-lifecycle-primitives.md) | Share surface lifecycle primitives across modeler/designer/viewer/diff-viewer: `DisposableStore`/`MutableDisposable`/`subscribe` in `modeler-types`, package-internal `createSurface`, one initial-viewport policy, one save/error path; idempotent LIFO `destroy()`; no base class | accepted |
-| [0035](0035-engine-bound-new-diagram-stamps-execution-platform.md) | Engine-bound `newDiagram()` stamps `modeler:executionPlatform*` + `isExecutable="true"` (version from new `engineVersion` option); version registry moves to `@miragon/bpmn-modeler-types` (amends [0020](0020-untagged-documents-first-class-in-hosts.md)) | accepted |
-
-### dmn-webview
-
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0024](0024-extract-publishable-dmn-modeler-package.md) | Extract the host-free DMN modeler into the publishable `@miragon/dmn-modeler` package; dmn-js stack externalised, `styles.css` from the themes rollup, page-global `#theme-link` theming retained | accepted |
-| [0026](0026-dmn-container-scoped-theming.md) | Container-scoped DMN theming via a per-instance `data-dmn-theme` attribute; one authored scoped source + stripped legacy split, `styles.css` from the lib entry, shared `hostTheme` adapter, `#theme-link` as silent fallback | accepted |
-| [0027](0027-dmn-modeler-page-global-locale.md) | Page-global DMN locale: `TranslateModule` as a built-in on all four views, `locale` option + `setLocale()` that re-opens the active view to re-translate, host `LanguageQuery` broadcast; harvest tooling extended to dmn-js | accepted |
+ADRs are contributor documentation. `docs/.vitepress/config.mts` excludes
+`adr/**` from the published site. Do not add these records to its sidebar;
+published contributor guides can link to their GitHub source.

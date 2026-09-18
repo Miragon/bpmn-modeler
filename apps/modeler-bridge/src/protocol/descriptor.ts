@@ -21,12 +21,16 @@ import {
     ClipboardReadResult,
     ClipboardWriteParams,
     DeploymentOpenParams,
+    DeploymentDeleteDeployedRevisionsParams,
     DeploymentPostMessageParams,
+    DeploymentSaveActiveTargetParams,
     DeploymentSaveAuthTypeParams,
+    DeploymentSaveDeployedRevisionParams,
     DeploymentSaveOAuth2ConfigParams,
     DeploymentSaveParams,
     DeploymentSeedParams,
     DeploymentWebviewMessageParams,
+    DeploymentWorkspaceRootParams,
     DiffDisposeParams,
     DiffOpenParams,
     DiffPostMessageParams,
@@ -55,6 +59,11 @@ import {
     PickerShowParams,
     PickerShowResult,
     RegisterParams,
+    SecretDeleteParams,
+    SecretGetParams,
+    SecretSaveBasicAuthParams,
+    SecretSaveOAuth2Params,
+    StatusBarDeploymentTargetParams,
     ScriptAppendToManifestParams,
     ScriptCloseNotifyParams,
     ScriptCloseParams,
@@ -111,6 +120,11 @@ export const METHODS = {
     migrationMigrateAll: "migration/migrateAll",
     layoutFormat: "layout/format",
     layoutCleanup: "layout/cleanup",
+    deploymentSwitchTarget: "deployment/switchTarget",
+    deploymentDeployFiles: "deployment/deployFiles",
+    deploymentDeployActive: "deployment/deployActive",
+    deploymentVerify: "deployment/verify",
+    deploymentStatusBarMenu: "deployment/statusBarMenu",
 
     // Core → Host requests
     documentWrite: "document/write",
@@ -122,9 +136,13 @@ export const METHODS = {
     secretStoreGetBasicAuth: "secretStore/getBasicAuth",
     secretStoreSaveOAuth2: "secretStore/saveOAuth2",
     secretStoreGetOAuth2: "secretStore/getOAuth2",
+    secretStoreDelete: "secretStore/delete",
     deploymentStateSaveAuthType: "deploymentState/saveAuthType",
     deploymentStateSaveOAuth2Config: "deploymentState/saveOAuth2Config",
     deploymentStateSave: "deploymentState/save",
+    deploymentStateSaveActiveTarget: "deploymentState/saveActiveTarget",
+    deploymentStateSaveDeployedRevision: "deploymentState/saveDeployedRevision",
+    deploymentStateDeleteDeployedRevisions: "deploymentState/deleteDeployedRevisions",
     marketplaceStateSave: "marketplaceState/save",
     tokenStoreGet: "tokenStore/get",
     tokenStoreSet: "tokenStore/set",
@@ -147,6 +165,8 @@ export const METHODS = {
     statusBarShowEngineVersion: "statusBar/showEngineVersion",
     statusBarHideEngineVersion: "statusBar/hideEngineVersion",
     statusBarDisposeEngineVersion: "statusBar/disposeEngineVersion",
+    statusBarShowDeploymentTarget: "statusBar/showDeploymentTarget",
+    statusBarHideDeploymentTarget: "statusBar/hideDeploymentTarget",
     diffPostMessage: "diff/postMessage",
     deploymentPostMessage: "deployment/postMessage",
     scriptOpen: "script/open",
@@ -352,6 +372,36 @@ export const PROTOCOL = [
         kind: "notification",
         paramsFixture: {} satisfies EmptyParams,
     },
+    {
+        method: METHODS.deploymentSwitchTarget,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.deploymentDeployFiles,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.deploymentDeployActive,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.deploymentVerify,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
+    {
+        method: METHODS.deploymentStatusBarMenu,
+        direction: "hostToCore",
+        kind: "notification",
+        paramsFixture: { workspaceRoot: "/repo" } satisfies DeploymentWorkspaceRootParams,
+    },
 
     // ── Core → Host requests ─────────────────────────────────────────────────
     {
@@ -408,28 +458,48 @@ export const PROTOCOL = [
         method: METHODS.secretStoreSaveBasicAuth,
         direction: "coreToHost",
         kind: "request",
-        paramsFixture: { username: "u", password: "p" } satisfies BasicAuthCredentials,
+        paramsFixture: {
+            username: "u",
+            password: "p",
+            slot: "/ws/.camunda/deployment-targets.json::dev",
+        } satisfies SecretSaveBasicAuthParams,
         // No result: the host acks an empty reply; the core awaits only the round-trip.
     },
     {
         method: METHODS.secretStoreGetBasicAuth,
         direction: "coreToHost",
         kind: "request",
-        paramsFixture: {} satisfies EmptyParams,
+        paramsFixture: {
+            slot: "/ws/.camunda/deployment-targets.json::dev",
+        } satisfies SecretGetParams,
         resultFixture: { username: "u", password: "p" } satisfies BasicAuthCredentials,
     },
     {
         method: METHODS.secretStoreSaveOAuth2,
         direction: "coreToHost",
         kind: "request",
-        paramsFixture: { clientId: "id", clientSecret: "secret" } satisfies OAuth2Credentials,
+        paramsFixture: {
+            clientId: "id",
+            clientSecret: "secret",
+            slot: "/ws/.camunda/deployment-targets.json::dev",
+        } satisfies SecretSaveOAuth2Params,
     },
     {
         method: METHODS.secretStoreGetOAuth2,
         direction: "coreToHost",
         kind: "request",
-        paramsFixture: {} satisfies EmptyParams,
+        paramsFixture: {
+            slot: "/ws/.camunda/deployment-targets.json::dev",
+        } satisfies SecretGetParams,
         resultFixture: { clientId: "id", clientSecret: "secret" } satisfies OAuth2Credentials,
+    },
+    {
+        method: METHODS.secretStoreDelete,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            slot: "/ws/.camunda/deployment-targets.json::dev",
+        } satisfies SecretDeleteParams,
     },
     // Acknowledged persists (requests, not notifications): the bridge awaits the
     // host's empty ack so a persist failure is logged instead of diverging
@@ -457,6 +527,35 @@ export const PROTOCOL = [
             endpoint: "https://engine",
             tenantId: "t1",
         } satisfies DeploymentSaveParams,
+    },
+    {
+        method: METHODS.deploymentStateSaveActiveTarget,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: { name: "dev" } satisfies DeploymentSaveActiveTargetParams,
+    },
+    {
+        method: METHODS.deploymentStateSaveDeployedRevision,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            ledgerKey: "target:dev@localhost:8080::/work/order.bpmn",
+            revision: {
+                fingerprint: "0123456789abcdef",
+                deployedAt: "2026-09-17T14:32:00.000Z",
+                deploymentId: "dep-1",
+                origin: "engine",
+                verifiedAt: "2026-09-17T15:00:00.000Z",
+            },
+        } satisfies DeploymentSaveDeployedRevisionParams,
+    },
+    {
+        method: METHODS.deploymentStateDeleteDeployedRevisions,
+        direction: "coreToHost",
+        kind: "request",
+        paramsFixture: {
+            ledgerKeys: ["target:dev@localhost:8080::/work/order.bpmn"],
+        } satisfies DeploymentDeleteDeployedRevisionsParams,
     },
     // Acknowledged persist: the host adds the entry, fans the snapshot to all
     // bridges, then acks an empty reply — the core awaits only the round-trip.
@@ -593,6 +692,23 @@ export const PROTOCOL = [
     },
     {
         method: METHODS.statusBarDisposeEngineVersion,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: {} satisfies EmptyParams,
+    },
+    {
+        method: METHODS.statusBarShowDeploymentTarget,
+        direction: "coreToHost",
+        kind: "notification",
+        paramsFixture: {
+            name: "dev",
+            freshness: "deployed",
+            deployedAt: "2026-09-17T14:32:00.000Z",
+            verifiedAt: "2026-09-17T15:00:00.000Z",
+        } satisfies StatusBarDeploymentTargetParams,
+    },
+    {
+        method: METHODS.statusBarHideDeploymentTarget,
         direction: "coreToHost",
         kind: "notification",
         paramsFixture: {} satisfies EmptyParams,

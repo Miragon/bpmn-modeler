@@ -1,90 +1,63 @@
 ---
 name: adr
-description: Create and maintain Architecture Decision Records in docs/adr/ for this repository. Use whenever a change embodies an architecturally significant decision — adding/swapping a dependency, runtime, or transport, moving a package boundary or public API surface, adopting a protocol or distribution mechanism, introducing infrastructure — even when the user only asks for the implementation and never mentions documentation. Also use when the user asks to document a decision, asks why a past architectural choice was made, or when ticking the "ADR added" box in the PR template.
+description: Maintain the repository's living architecture decision records in docs/adr/. Use for significant changes to package boundaries, public APIs, dependencies, runtimes, protocols, infrastructure or distribution; for documenting architectural rationale; and for the "ADR updated or added" PR checklist. Update an existing topic before creating another file.
 ---
 
-# Architecture Decision Records (this repo's convention)
+# Architecture Decision Records
 
-The decision log lives in **`docs/adr/`**. The rules below are themselves
-recorded in [ADR 0001](../../../docs/adr/0001-record-architecture-decisions.md);
-this skill is the working summary.
+The current decisions live in [docs/adr](../../../docs/adr/README.md).
+That README owns the recording rules and topic index; Git preserves history.
 
-## When to write one
+## When to update a record
 
-Write an ADR when the change is something a competent new contributor would
-look at and ask *"why is it like this?"*:
+Record choices that constrain future work, are costly to reverse, or explain a
+trade-off the code cannot show: package boundaries, public API, runtime,
+transport, dependencies, infrastructure and distribution. Routine fixes,
+renames and dependency bumps without changed constraints do not need a new
+section.
 
-- It constrains future work: package boundaries, public API surface,
-  supported platforms, protocol/transport shapes.
-- It is costly to reverse: runtime (e.g. Bun binary), framework, distribution
-  mechanism, license.
-- It embodies a trade-off invisible in the code (chose X *despite* Y).
-- It introduces or removes a dependency, service, or infrastructure.
+Include an ADR update in the same change when its implementation embodies such
+a decision, even if documentation was not explicitly requested. Identify any
+rationale you inferred so the user can correct it during review.
 
-Do **not** write one for routine work: bug fixes, refactors that keep
-boundaries intact, naming, dependency bumps without behavioral consequences.
-A log where every third PR carries an ADR trains readers to ignore it —
-selectivity keeps it trustworthy.
+## Choose the owning topic
 
-If mid-task you realize the work embodies a significant decision the user
-never asked to document, write the ADR as part of the same change and point
-it out in the summary. The PR template's Author checklist has an "ADR" box
-for exactly this check. When you wrote the ADR on the user's behalf, flag
-any rationale you *inferred* rather than were told — the user must be able
-to correct the "why" before it hardens into the immutable record.
+- [Architecture and hosts](../../../docs/adr/architecture-and-hosts.md): shared
+  boundaries, host facilities, bridge/runtime and state ownership.
+- [BPMN modeler](../../../docs/adr/bpmn-modeler.md): BPMN API, surfaces, modes,
+  capabilities, rendering and lifecycle.
+- [DMN modeler](../../../docs/adr/dmn-modeler.md): DMN package, API, theme and locale.
+- [Deployment](../../../docs/adr/deployment.md): destinations, credentials,
+  execution, ledger and verification.
+- [Release and publishing](../../../docs/adr/release-and-publishing.md): release
+  routing, markers, packaging and publishing.
+- [Engineering practices](../../../docs/adr/engineering-practices.md): test
+  environments, upstream internals and dependency compatibility/security.
 
-## How to write one
+Update the relevant section, or add a section within that topic. A feature that
+spans layers can still have one owning topic; link to shared rules rather than
+copying them. Create another descriptive `<topic>.md` only for a distinct area
+that has no coherent home, then update the README index. Do not number records.
 
-One file per decision: `docs/adr/NNNN-short-kebab-title.md`, numbered
-sequentially (flat directory, no subfolders). Nygard format with this repo's
-header:
+## Keep the current decision coherent
 
-```markdown
-# NNNN — <The decision as a decision — "Ship the runtime as a Bun binary", not "Runtime">
+Replace superseded statements and reconcile their context, alternatives and
+consequences. Preserve active constraints, rationale and accepted costs; remove
+obsolete limitations, completed migrations and amendment narratives. Do not
+keep archive copies or superseded stubs. Check current source and tests rather
+than assuming the newest prose is accurate, and do not invent an explanation
+for an unexplained discrepancy.
 
-- Status: accepted | proposed | superseded by [NNNN](NNNN-title.md)
-- Date: YYYY-MM-DD
-- Category: <module>
+Use Context / Decision / Consequences with topic subsections and optional
+Alternatives. Add contents links when a record is long. Keep the accepted
+status and update `Last reviewed: YYYY-MM-DD`; that is a review date, not a
+new decision date for everything in the file. Mark proposed sections clearly.
 
-## Context
-<Neutral facts: constraints, forces, what breaks if nothing is decided.>
+Link the enforcing test/build check and useful driving issue or PR. Keep
+headings stable where possible; repair incoming references if moving a section.
+ADRs remain excluded from VitePress via `srcExclude`; do not add them to the
+published sidebar.
 
-## Decision
-<What was decided, one or two paragraphs.>
-
-## Alternatives considered / rejected
-<Optional — only when there was a real contest. One block per serious
-alternative: what it was, the one reason it lost.>
-
-## Consequences
-<What follows — good AND bad. Name the accepted trade-offs explicitly.>
-```
-
-Rules:
-
-- **Category = the workspace the decision primarily constrains**
-  (`modeler-core`, `modeler-bridge`, `intellij-plugin`, `vscode-plugin`,
-  `bpmn-webview`, `shared`, …), or `cross-cutting` for repo-wide decisions.
-  Categorization is by module, not by feature — features span webview + host
-  + core and give decisions no single home (ADR 0001).
-- **One ADR per decision.** A change embodying two decisions gets two files.
-- **Accepted ADRs are immutable.** A change of direction gets a *new* ADR
-  that marks the old one `superseded by NNNN`. Never rewrite history.
-- **Update the index**: add a row in the category's table in
-  `docs/adr/README.md`.
-- Reference the driving issue/PR in the Status line (e.g.
-  `accepted (#1061)`), matching the existing records.
-- If the ADR's rule is mechanically enforced (e.g. the `vscode`-free gate in
-  `libs/modeler-core/src/architecture.spec.ts`), name the enforcement in the
-  ADR.
-- Keep it to roughly a page; compress to what a future reader needs to *not*
-  re-litigate the decision.
-- `docs/adr/` is deliberately **excluded from the published VitePress site**
-  (`srcExclude` in `docs/.vitepress/config.mts`) — it is contributor-facing.
-  Don't add ADRs to the site sidebar.
-
-## When asked "why is X like this?"
-
-Check `docs/adr/` before doing git archaeology. If the answer is there, cite
-the ADR. If you reconstruct it from history instead, offer to capture it as a
-dated, clearly-retrospective ADR.
+For a "why" question, cite the owning section. If the rationale must be
+reconstructed from Git history, distinguish evidence from inference before
+adding it to the current record.

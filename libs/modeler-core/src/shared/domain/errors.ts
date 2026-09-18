@@ -54,6 +54,8 @@ export class UserCancelledError extends Error {
     }
 }
 
+export class DeploymentTargetChangedError extends Error {}
+
 /**
  * Thrown when {@link DeploymentConfigBuilder.build} finds empty required fields.
  */
@@ -66,6 +68,18 @@ export class InvalidDeploymentConfigError extends Error {
             `Invalid deployment configuration. Missing required fields: ${missingFields.join(", ")}.`,
         );
         this.name = "InvalidDeploymentConfigError";
+    }
+}
+
+/**
+ * Thrown when a `deployment-targets.json` file is malformed or names an
+ * unsupported capability. Surfaced via `notifyError`; the file is then treated
+ * as if it held no targets rather than crashing the sidebar.
+ */
+export class InvalidDeploymentTargetsFileError extends Error {
+    constructor(reason: string) {
+        super(`Invalid deployment targets file: ${reason}`);
+        this.name = "InvalidDeploymentTargetsFileError";
     }
 }
 
@@ -93,6 +107,24 @@ export class DeploymentFailedError extends Error {
     constructor(status: number, body: string) {
         super(`Deployment failed with HTTP ${status}: ${body}`);
         this.name = "DeploymentFailedError";
+    }
+}
+
+/**
+ * Thrown by the C7 inspection client when a deployment lookup returns a
+ * non-2xx, non-404 status (404 means "not deployed", not an error).
+ */
+export class EngineInspectionFailedError extends Error {
+    constructor(
+        readonly status: number,
+        body: string,
+    ) {
+        super(`Deployment verification failed with HTTP ${status}: ${body}`);
+        this.name = "EngineInspectionFailedError";
+    }
+
+    get isAuthFailure(): boolean {
+        return this.status === 401 || this.status === 403;
     }
 }
 

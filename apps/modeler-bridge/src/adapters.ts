@@ -20,6 +20,8 @@ import { AuthTypePayload, Command, Query } from "@miragon/bpmn-modeler-shared";
 import { Engine, ENGINE_LABEL } from "@miragon/bpmn-modeler-types";
 import {
     ClipboardPort,
+    DeployedRevision,
+    DeploymentFreshness,
     DeploymentStatePort,
     DocumentPort,
     EditorHandle,
@@ -83,6 +85,7 @@ export interface SessionMeta {
 export class DocumentMirror {
     private readonly meta = new Map<string, SessionMeta>();
     private readonly text = new Map<string, string>();
+    private readonly contentListeners = new Set<(editorId: string) => void>();
 
     // Causation belongs to an exact editor generation: same-URI replacement
     // sessions may mint the same revision numbers without sharing pending writes.
@@ -98,6 +101,13 @@ export class DocumentMirror {
 
     setContent(editorId: string, content: string): void {
         this.text.set(editorId, content);
+        this.contentListeners.forEach((listener) => listener(editorId));
+    }
+
+    /** Fires after any mirrored content update, so features can react to edits. */
+    onDidChangeContent(listener: (editorId: string) => void): { dispose(): void } {
+        this.contentListeners.add(listener);
+        return { dispose: () => this.contentListeners.delete(listener) };
     }
 
     content(editorId: string): string {
@@ -478,6 +488,24 @@ export class RpcStatusBar implements StatusBarPort {
         this.rpc.notify(METHODS.statusBarDisposeEngineVersion, {});
     }
 
+    showDeploymentTarget(
+        name: string | undefined,
+        freshness: DeploymentFreshness,
+        deployedAt?: string,
+        verifiedAt?: string,
+    ): void {
+        this.rpc.notify(METHODS.statusBarShowDeploymentTarget, {
+            name: name ?? null,
+            freshness,
+            deployedAt: deployedAt ?? null,
+            verifiedAt: verifiedAt ?? null,
+        });
+    }
+
+    hideDeploymentTarget(): void {
+        this.rpc.notify(METHODS.statusBarHideDeploymentTarget, {});
+    }
+
     showBpmnlintActive(): void {
         /* not supported yet for intellij */
     }
@@ -540,28 +568,30 @@ export class RpcClipboard implements ClipboardPort {
 export class RpcSecretStore implements SecretStorePort {
     constructor(private readonly rpc: Rpc) {}
 
-    async saveBasicAuth(username: string, password: string): Promise<void> {
-        await this.rpc.request(METHODS.secretStoreSaveBasicAuth, { username, password });
+    async saveBasicAuth(username: string, password: string, slot?: string): Promise<void> {
+        await this.rpc.request(METHODS.secretStoreSaveBasicAuth, { username, password, slot });
     }
 
-    async getBasicAuth(): Promise<BasicAuthCredentials | undefined> {
-        const result = (await this.rpc.request(
-            METHODS.secretStoreGetBasicAuth,
-            {},
-        )) as BasicAuthCredentials | null;
+    async getBasicAuth(slot?: string): Promise<BasicAuthCredentials | undefined> {
+        const result = (await this.rpc.request(METHODS.secretStoreGetBasicAuth, {
+            slot,
+        })) as BasicAuthCredentials | null;
         return result ?? undefined;
     }
 
-    async saveOAuth2(clientId: string, clientSecret: string): Promise<void> {
-        await this.rpc.request(METHODS.secretStoreSaveOAuth2, { clientId, clientSecret });
+    async saveOAuth2(clientId: string, clientSecret: string, slot?: string): Promise<void> {
+        await this.rpc.request(METHODS.secretStoreSaveOAuth2, { clientId, clientSecret, slot });
     }
 
-    async getOAuth2(): Promise<OAuth2Credentials | undefined> {
-        const result = (await this.rpc.request(
-            METHODS.secretStoreGetOAuth2,
-            {},
-        )) as OAuth2Credentials | null;
+    async getOAuth2(slot?: string): Promise<OAuth2Credentials | undefined> {
+        const result = (await this.rpc.request(METHODS.secretStoreGetOAuth2, {
+            slot,
+        })) as OAuth2Credentials | null;
         return result ?? undefined;
+    }
+
+    async delete(slot: string): Promise<void> {
+        await this.rpc.request(METHODS.secretStoreDelete, { slot });
     }
 }
 
@@ -614,6 +644,8 @@ export interface DeploymentStateSnapshot {
     authType: AuthTypePayload;
     tokenEndpoint: string;
     audience: string;
+    activeTargetName: string;
+    ledger: Record<string, DeployedRevision>;
 }
 
 /** Render-safe defaults before the host's first seed arrives. */
@@ -623,6 +655,8 @@ const EMPTY_DEPLOYMENT_STATE: DeploymentStateSnapshot = {
     authType: "none",
     tokenEndpoint: "",
     audience: "",
+    activeTargetName: "",
+    ledger: {},
 };
 
 /**
@@ -708,6 +742,40 @@ export class RpcDeploymentState implements DeploymentStatePort {
     async save(endpoint: string, tenantId: string): Promise<void> {
         this.snapshot = { ...this.snapshot, endpoint, tenantId };
         await this.persist(METHODS.deploymentStateSave, { endpoint, tenantId });
+    }
+
+    getActiveTargetName(): string {
+        return this.snapshot.activeTargetName;
+    }
+
+    async saveActiveTargetName(name: string): Promise<void> {
+        this.snapshot = { ...this.snapshot, activeTargetName: name };
+        await this.persist(METHODS.deploymentStateSaveActiveTarget, { name });
+    }
+
+    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
+        return this.snapshot.ledger[ledgerKey];
+    }
+
+    async saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
+        this.snapshot = {
+            ...this.snapshot,
+            ledger: { ...this.snapshot.ledger, [ledgerKey]: revision },
+        };
+        await this.persist(METHODS.deploymentStateSaveDeployedRevision, { ledgerKey, revision });
+    }
+
+    listLedgerKeys(): string[] {
+        return Object.keys(this.snapshot.ledger);
+    }
+
+    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
+        const ledger = { ...this.snapshot.ledger };
+        for (const key of ledgerKeys) {
+            delete ledger[key];
+        }
+        this.snapshot = { ...this.snapshot, ledger };
+        await this.persist(METHODS.deploymentStateDeleteDeployedRevisions, { ledgerKeys });
     }
 }
 
@@ -866,6 +934,40 @@ export class RpcPicker implements PickerPort {
             details: options.details,
         } satisfies ConfirmShowParams)) as ConfirmShowResult | null;
         return result?.confirmed === true;
+    }
+
+    async pickDeploymentTarget(names: string[]): Promise<string | undefined> {
+        // Index 0 is the explicit ad-hoc entry (→ ""); the rest map to `names`.
+        const labels = ["(none — use form values)", ...names];
+        const selected = await this.show({
+            placeholder: "Select the active deployment target",
+            canPickMany: false,
+            items: labels.map((label) => ({ label })),
+        });
+        if (selected === null) {
+            return undefined;
+        }
+        return selected[0] === 0 ? "" : names[selected[0] - 1];
+    }
+
+    async pickDeploymentStatusAction(opts: {
+        targetName?: string;
+        canVerify: boolean;
+    }): Promise<"switch" | "verify" | undefined> {
+        // Index 0 is always switch; index 1 (verify) only exists for a C7 target.
+        const actions: ("switch" | "verify")[] = opts.canVerify ? ["switch", "verify"] : ["switch"];
+        const labels = [
+            "Switch deployment target…",
+            ...(opts.canVerify ? [`Verify on ${opts.targetName}`] : []),
+        ];
+        const selected = await this.show({
+            placeholder: opts.targetName
+                ? `Deployment target "${opts.targetName}"`
+                : "No deployment target selected",
+            canPickMany: false,
+            items: labels.map((label) => ({ label })),
+        });
+        return selected === null ? undefined : actions[selected[0]];
     }
 
     async searchAndPickReferencedModel<R extends { kind: string; paths?: string[] }>(

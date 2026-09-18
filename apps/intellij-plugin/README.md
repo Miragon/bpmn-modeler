@@ -49,7 +49,7 @@ flowchart TD
 
 ### Two key decisions (see the ADR)
 
-`docs/adr/0004-intellij-host-foundation.md` records:
+[Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle) records:
 
 - **Transport — one stdio JSON-RPC pipe.** Core↔host *and* the webview-message
   relay ride a single supervised NDJSON pipe (not a webview↔server WebSocket
@@ -189,12 +189,13 @@ so Yarn's `apps/*` glob ignores it, and the ESLint/Prettier/tsc globs only match
 JS/TS, so the Kotlin sources are untouched. Build output (`build/`, `.gradle/`,
 `.idea/`, `.kotlin/`) is gitignored.
 
-## Cross-platform packaging (release follow-up)
+## Cross-platform packaging
 
-The build stages only the **host** platform's binary. Shipping to the JetBrains
-Marketplace needs the Bun `--target` matrix (darwin-arm64/x64, linux-x64,
-windows-x64) each staged under `bin/<os>-<arch>/`, plus macOS codesign /
-notarization — see `docs/adr/0003-runtime-distribution.md`.
+Local builds stage the **host** platform's binary. Release builds use
+`-PbundleAllPlatforms` to stage the precompiled darwin-arm64/x64,
+linux-arm64/x64 and windows-x64 binaries under `bin/<os>-<arch>/`.
+The bridge workspace's `compile:all` script builds that matrix; see the
+[runtime and transport decision](../../docs/adr/architecture-and-hosts.md#runtime-and-transport).
 
 ## If `runIde` fails to resolve versions
 

@@ -53,6 +53,58 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         deps.ensureStartedAsync()
     }
 
+    /**
+     * Fires `deployment/switchTarget` for the project root. The core shows the
+     * target picker over `picker/show`, persists the choice, and refreshes the
+     * status bar + an open sidebar. Guarded on a non-null basePath — the targets
+     * file lives under a workspace root.
+     */
+    fun switchDeploymentTarget() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_SWITCH_TARGET, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `deployment/deployFiles` for the project root. The core resolves the
+     * active target (prompting if none), opens the file picker, and deploys each.
+     */
+    fun deployFiles() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_DEPLOY_FILES, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `deployment/deployActive` for the project root. The core saves and
+     * deploys the active diagram to the active target (prompting if none).
+     */
+    fun deployDiagram() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_DEPLOY_ACTIVE, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `deployment/verify` for the project root. The core reconciles the
+     * active diagram's ledger row against the target's Camunda 7 engine.
+     */
+    fun verifyDeployment() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_VERIFY, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
+    /**
+     * Fires `deployment/statusBarMenu` for the project root. The core renders
+     * the switch/verify chooser through the generic `picker/show`.
+     */
+    fun deploymentStatusMenu() {
+        val workspaceRoot = deps.project.basePath ?: return
+        deps.channel.notify(METHODS_STATUS_BAR_MENU, linkedMapOf("workspaceRoot" to workspaceRoot))
+        deps.ensureStartedAsync()
+    }
+
     private companion object {
         // Mirrors METHODS.modelerChangeEngineVersion / migrationMigrateAll in
         // apps/modeler-bridge/src/protocol/descriptor.ts (the protocol.json snapshot
@@ -61,5 +113,10 @@ internal class ModelerCommandsRouter(private val deps: BridgeDeps) {
         const val METHODS_MIGRATE_ALL = "migration/migrateAll"
         const val METHODS_LAYOUT_FORMAT = "layout/format"
         const val METHODS_LAYOUT_CLEANUP = "layout/cleanup"
+        const val METHODS_SWITCH_TARGET = "deployment/switchTarget"
+        const val METHODS_DEPLOY_FILES = "deployment/deployFiles"
+        const val METHODS_DEPLOY_ACTIVE = "deployment/deployActive"
+        const val METHODS_VERIFY = "deployment/verify"
+        const val METHODS_STATUS_BAR_MENU = "deployment/statusBarMenu"
     }
 }

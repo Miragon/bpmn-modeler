@@ -4,6 +4,7 @@ import {
     AdditionalFilesQuery,
     Command,
     DeploymentResultQuery,
+    DeploymentTargetsQuery,
     FormDefaultsQuery,
     LogErrorCommand,
     ProcessDefinitionKeyQuery,
@@ -12,6 +13,7 @@ import {
     SelectedPayloadFileQuery,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
+    TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
 import { DeploymentForm } from "./app/form";
@@ -60,6 +62,7 @@ window.onload = function () {
             () => form.getAuthPayload(),
             () => form.getConnectionPayload(),
         );
+        form.onExecutionReadinessChange((reason) => startForm.setExecutionBlockedReason(reason));
     } catch (err) {
         console.error("[DeploymentWebview] Failed to initialise forms:", err);
         const e = err instanceof Error ? err : new Error(String(err));
@@ -143,8 +146,16 @@ function onReceiveMessage(
             form.setAdditionalFiles((msg as AdditionalFilesQuery).filePaths);
             break;
         case "StoredCredentialsQuery":
-            form.populateCredentials((msg as StoredCredentialsQuery).auth);
+            form.populateCredentials(msg as StoredCredentialsQuery);
             break;
+        case "DeploymentTargetsQuery":
+            form.setTargets(msg as DeploymentTargetsQuery);
+            break;
+        case "TargetSavedQuery": {
+            const saved = msg as TargetSavedQuery;
+            form.showTargetResult(saved.success, saved.message);
+            break;
+        }
         case "DeploymentResultQuery":
             form.showResult(msg as DeploymentResultQuery);
             break;

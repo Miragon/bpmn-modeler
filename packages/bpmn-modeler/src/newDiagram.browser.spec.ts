@@ -14,7 +14,7 @@ import type { BpmnDesigner } from "./design/designer";
 
 /**
  * A stamped `newDiagram()` only round-trips through a real bpmn-js
- * import/export, which jsdom cannot lay out (ADR 0032) — so it runs here.
+ * import/export, which jsdom cannot lay out — so it runs here.
  */
 
 const UNTAGGED_XML = `<?xml version="1.0" encoding="UTF-8"?>

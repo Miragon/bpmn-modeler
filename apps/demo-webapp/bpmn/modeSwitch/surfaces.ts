@@ -13,7 +13,7 @@ import { registerDemoCustomGroup } from "../../src/demoCustomGroup";
  * capability wired everywhere is model navigation; both editable surfaces lint
  * in-page (the eager `/lint` module) — the designer with the engine-neutral
  * Design config, the modeler additionally toggling Design↔Implement live and
- * re-resolving its lint config per mode (ADR 0023).
+ * re-resolving its lint config per mode.
  */
 export function buildDemoSurfaces(panelMount: HTMLElement): SurfaceFactories {
     const propertiesPanel = { parent: panelMount };

@@ -5,7 +5,7 @@
  * scoped under `[data-bpmn-theme="dark"]`, the neutral diff-view markers +
  * legend chip (`diffView.css`, #1439), the engine-neutral properties-panel
  * chrome (readonly opt-in, #1443), and the mode-invariant canvas chrome
- * (minimap, token simulation, canvas focus indicator — ADR 0022) so a `/viewer`
+ * (minimap, token simulation, canvas focus indicator) so a `/viewer`
  * consumer needs no other sheet — none of the Camunda editor chrome
  * (camunda-bpmn-js) the full `styles.css` loads. Do not also load `styles.css`
  * on a viewer-only page; the two overlap.

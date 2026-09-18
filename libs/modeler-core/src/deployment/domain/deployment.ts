@@ -64,6 +64,8 @@ export class DeploymentConfig {
      * @param mainFilePath Absolute path to the primary BPMN file being deployed.
      * @param additionalFilePaths Absolute paths of supplementary files (forms, DMN, etc.).
      * @param auth Authentication configuration for the REST API.
+     * @param deployUrl Optional full-URL override for the deploy call; when set,
+     *   the client posts here instead of deriving the URL from `endpoint`.
      */
     constructor(
         readonly deploymentName: string,
@@ -73,6 +75,7 @@ export class DeploymentConfig {
         readonly mainFilePath: string,
         readonly additionalFilePaths: string[],
         readonly auth: AuthConfig = new NoAuth(),
+        readonly deployUrl?: string,
     ) {}
 }
 
@@ -96,6 +99,8 @@ export class DeploymentConfigBuilder {
     private _additionalFilePaths: string[] = [];
 
     private _auth: AuthConfig = new NoAuth();
+
+    private _deployUrl: string | undefined = undefined;
 
     withDeploymentName(name: string): this {
         this._deploymentName = name;
@@ -132,6 +137,11 @@ export class DeploymentConfigBuilder {
         return this;
     }
 
+    withDeployUrl(deployUrl: string | undefined): this {
+        this._deployUrl = deployUrl?.trim() ? deployUrl.trim() : undefined;
+        return this;
+    }
+
     /**
      * Validates and creates the {@link DeploymentConfig}.
      *
@@ -161,6 +171,7 @@ export class DeploymentConfigBuilder {
             this._mainFilePath,
             this._additionalFilePaths,
             this._auth,
+            this._deployUrl,
         );
     }
 }

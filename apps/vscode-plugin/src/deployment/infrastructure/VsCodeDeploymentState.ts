@@ -1,6 +1,6 @@
 import { AuthTypePayload } from "@miragon/bpmn-modeler-shared";
 
-import { DeploymentStatePort } from "@miragon/bpmn-modeler-core";
+import { DeployedRevision, DeploymentStatePort } from "@miragon/bpmn-modeler-core";
 
 import { getContext } from "../../shared/infrastructure/extensionContext";
 
@@ -18,6 +18,10 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
     private static readonly TOKEN_ENDPOINT_KEY = "bpmn-modeler.deployment.tokenEndpoint";
 
     private static readonly AUDIENCE_KEY = "bpmn-modeler.deployment.audience";
+
+    private static readonly ACTIVE_TARGET_KEY = "bpmn-modeler.deployment.activeTargetName";
+
+    private static readonly LEDGER_KEY = "bpmn-modeler.deployment.ledger";
 
     getEndpoint(): string {
         return getContext().workspaceState.get<string>(VsCodeDeploymentState.ENDPOINT_KEY, "");
@@ -60,5 +64,41 @@ export class VsCodeDeploymentState implements DeploymentStatePort {
     async save(endpoint: string, tenantId: string): Promise<void> {
         await getContext().workspaceState.update(VsCodeDeploymentState.ENDPOINT_KEY, endpoint);
         await getContext().workspaceState.update(VsCodeDeploymentState.TENANT_ID_KEY, tenantId);
+    }
+
+    getActiveTargetName(): string {
+        return getContext().workspaceState.get<string>(VsCodeDeploymentState.ACTIVE_TARGET_KEY, "");
+    }
+
+    async saveActiveTargetName(name: string): Promise<void> {
+        await getContext().workspaceState.update(VsCodeDeploymentState.ACTIVE_TARGET_KEY, name);
+    }
+
+    getDeployedRevision(ledgerKey: string): DeployedRevision | undefined {
+        return this.readLedger()[ledgerKey];
+    }
+
+    async saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void> {
+        const ledger = { ...this.readLedger(), [ledgerKey]: revision };
+        await getContext().workspaceState.update(VsCodeDeploymentState.LEDGER_KEY, ledger);
+    }
+
+    listLedgerKeys(): string[] {
+        return Object.keys(this.readLedger());
+    }
+
+    async deleteDeployedRevisions(ledgerKeys: string[]): Promise<void> {
+        const ledger = { ...this.readLedger() };
+        for (const key of ledgerKeys) {
+            delete ledger[key];
+        }
+        await getContext().workspaceState.update(VsCodeDeploymentState.LEDGER_KEY, ledger);
+    }
+
+    private readLedger(): Record<string, DeployedRevision> {
+        return getContext().workspaceState.get<Record<string, DeployedRevision>>(
+            VsCodeDeploymentState.LEDGER_KEY,
+            {},
+        );
     }
 }

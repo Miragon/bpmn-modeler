@@ -10,7 +10,12 @@
  * the `Rpc.request` call-sites used to carry.
  */
 
-import { GlobalFunctionDef, MethodDef } from "@miragon/bpmn-modeler-core";
+import {
+    DeployedRevision,
+    DeploymentFreshness,
+    GlobalFunctionDef,
+    MethodDef,
+} from "@miragon/bpmn-modeler-core";
 import { AuthTypePayload, Command, Query, VariableDef } from "@miragon/bpmn-modeler-shared";
 import { DiffOrigin, Engine } from "@miragon/bpmn-modeler-types";
 
@@ -257,16 +262,37 @@ export interface ClipboardReadResult {
     text?: string;
 }
 
-/** `secretStore/saveBasicAuth` params and `secretStore/getBasicAuth` result. */
+/** `secretStore/getBasicAuth` and `secretStore/getOAuth2` results. */
 export interface BasicAuthCredentials {
     username: string;
     password: string;
 }
 
-/** `secretStore/saveOAuth2` params and `secretStore/getOAuth2` result. */
+/** `secretStore/getOAuth2` result / `secretStore/saveOAuth2` credential half. */
 export interface OAuth2Credentials {
     clientId: string;
     clientSecret: string;
+}
+
+/**
+ * `secretStore/*` params. Every credential call carries an optional `slot`
+ * scoping it to a named deployment target (absent = the legacy ad-hoc keys).
+ */
+export interface SecretSaveBasicAuthParams {
+    username: string;
+    password: string;
+    slot?: string;
+}
+export interface SecretSaveOAuth2Params {
+    clientId: string;
+    clientSecret: string;
+    slot?: string;
+}
+export interface SecretGetParams {
+    slot?: string;
+}
+export interface SecretDeleteParams {
+    slot: string;
 }
 
 /**
@@ -383,6 +409,44 @@ export interface DeploymentSaveOAuth2ConfigParams {
 export interface DeploymentSaveParams {
     endpoint: string;
     tenantId: string;
+}
+
+/** `deploymentState/saveActiveTarget` — persist the active deployment-target name. */
+export interface DeploymentSaveActiveTargetParams {
+    name: string;
+}
+
+/** `deploymentState/saveDeployedRevision` — persist one ledger entry (target×file). */
+export interface DeploymentSaveDeployedRevisionParams {
+    ledgerKey: string;
+    revision: DeployedRevision;
+}
+
+/** `deploymentState/deleteDeployedRevisions` — drop ledger entries (prune / engine says "not deployed"). */
+export interface DeploymentDeleteDeployedRevisionsParams {
+    ledgerKeys: string[];
+}
+
+/**
+ * `statusBar/showDeploymentTarget` — the active target name (or `null` for "no
+ * target"), the freshness dot state, and the last-deploy / last-verify
+ * timestamps (or `null`).
+ */
+export interface StatusBarDeploymentTargetParams {
+    name: string | null;
+    freshness: DeploymentFreshness;
+    deployedAt: string | null;
+    verifiedAt: string | null;
+}
+
+/**
+ * `deployment/switchTarget`, `deployment/deployFiles`, `deployment/deployActive`,
+ * `deployment/verify`, `deployment/statusBarMenu` — host-initiated. The workspace root is passed
+ * because `NodeWorkspace` only learns roots from `session/register`, so a host
+ * action fired with no active editor must name it.
+ */
+export interface DeploymentWorkspaceRootParams {
+    workspaceRoot: string;
 }
 
 /** `deployment/postMessage` — the core pushes a {@link Query} into the deployment panel. */

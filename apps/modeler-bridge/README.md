@@ -24,13 +24,15 @@ isn't talking to VS Code.
 | core → host | `document/write`, `document/save`       | `DocumentPort.write` / `.save`                                                                |
 | core → host | `editor/postMessage`                    | `EditorHandle.postMessage` (Query/Command → webview)                                          |
 | core → host | `notifier/*`                            | `NotifierPort` → IntelliJ `Notifications.Bus` + IDE log                                       |
-| core → host | `statusBar/*`                           | `StatusBarPort` → `StatusBarWidget` (engine version + template count)                         |
-| core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted at rest)                    |
+| core → host | `statusBar/*`                           | `StatusBarPort` → `StatusBarWidget`s (engine version + template count; active deployment target) |
+| core → host | `secretStore/*`                         | `SecretStorePort` → `PasswordSafe` (application-scoped, encrypted); `slot` scopes a named target, `delete` removes one |
 | host → core | `deploymentState/seed`                  | seeds the `DeploymentStatePort` mirror (synchronous getters; see BridgeSettings)              |
 | host → core | `deployment/open`                       | deployment tool-window visibility → refresh form defaults on open                             |
 | host → core | `deployment/webviewMessage`             | inbound deployment `Command` → `DeploymentMessageDispatcher`                                  |
 | core → host | `deployment/postMessage`                | deployment `Query` → tool-window webview (`window.postMessage`)                               |
-| core → host | `deploymentState/save*`                 | `DeploymentStatePort` persist → `PropertiesComponent` (non-secret form state)                 |
+| host → core | `deployment/switchTarget`, `deployment/deployFiles` | status-bar/action → switch the active target, or pick + deploy files to it (carries `workspaceRoot`) |
+| host → core | `deployment/verify`, `deployment/statusBarMenu` | verify the active diagram against the C7 engine; status-bar click menu (switch/verify) (carries `workspaceRoot`) |
+| core → host | `deploymentState/save*`, `deploymentState/deleteDeployedRevisions` | `DeploymentStatePort` persist/prune → `PropertiesComponent` (non-secret form state, incl. active target + ledger) |
 | host → core | `marketplace/add`, `marketplace/update` | Tools-menu actions → `TemplateMarketplaceService` (settings snapshot piggybacked)             |
 | core → host | `marketplaceState/save`                 | persist the added registration + fan the snapshot to every open bridge                        |
 | core → host | `tokenStore/*`                          | `TokenStorePort` → `PasswordSafe` (per-host marketplace PATs, distinct subsystem)             |
@@ -65,7 +67,7 @@ second line of defence.
 
 The mirror lifecycle (seed/re-seed, ownership/single-writer, echo rules, and the
 checklist for adding the next synchronous port) is written up once in
-`docs/adr/0005-host-replicated-state.md`.
+[Architecture and hosts: host replicated state](../../docs/adr/architecture-and-hosts.md#host-replicated-state).
 
 > **Why not a WebSocket seam between the webview and the server?** That would be
 > the right tool for a plain browser host, where the webview talks to the server
@@ -73,7 +75,7 @@ checklist for adding the next synchronous port) is written up once in
 > webview messages over the _same_ stdio pipe keeps the transport single and
 > supervised (one crash signal, no WS-reconnect ↔ stdio-restart reconciliation)
 > and keeps this binary free of a bundled HTTP/WS server and any open TCP port.
-> See `docs/adr/0004-intellij-host-foundation.md`.
+> See [Architecture and hosts: process lifecycle](../../docs/adr/architecture-and-hosts.md#process-lifecycle).
 
 ## Scope
 

@@ -682,8 +682,8 @@ function startSession(
 
         // The shared lint options for both editable surfaces (Implement + Design):
         // the injected tier or the external default a real host uses, plus the
-        // result/toggle sinks that feed the host's Problems panel + status bar
-        // (ADR 0023). The designer resolves the engine-neutral Design config; the
+        // result/toggle sinks that feed the host's Problems panel + status bar.
+        // The designer resolves the engine-neutral Design config; the
         // modeler re-resolves per mode on a live toggle. `/lint` is imported lazily
         // and cached, so building this per (re)creation is free after the first.
         async function lintingOptions(): Promise<{
@@ -864,7 +864,7 @@ function startSession(
         // them, so its ElementTemplatesQuery would never arrive and the restore
         // chain's Promise.all would stall — resolve the templates gate immediately
         // instead. The lint config request goes to any editable (linting) surface:
-        // the designer lints too (ADR 0023), and the host answers an untagged doc
+        // the designer lints too, and the host answers an untagged doc
         // with the engine-less default the webview builds.
         function requestSurfaceResources(): void {
             if (isModelerHandle(surface)) {

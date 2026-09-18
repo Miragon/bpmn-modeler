@@ -210,6 +210,21 @@ class CoreProcess(private val project: Project) : Disposable {
     /** Fires `layout/cleanup`; nothing is removed before the user confirms. */
     fun cleanupDiagram() = modelerCommandsRouter.cleanupDiagram()
 
+    /** Fires `deployment/switchTarget`; the core shows the target picker. */
+    fun switchDeploymentTarget() = modelerCommandsRouter.switchDeploymentTarget()
+
+    /** Fires `deployment/deployFiles`; the core picks files and deploys to the active target. */
+    fun deployFiles() = modelerCommandsRouter.deployFiles()
+
+    /** Fires `deployment/deployActive`; the core saves and deploys the active diagram. */
+    fun deployDiagram() = modelerCommandsRouter.deployDiagram()
+
+    /** Fires `deployment/verify`; the core reconciles the ledger against the C7 engine. */
+    fun verifyDeployment() = modelerCommandsRouter.verifyDeployment()
+
+    /** Fires `deployment/statusBarMenu`; the core shows the switch/verify chooser. */
+    fun deploymentStatusMenu() = modelerCommandsRouter.deploymentStatusMenu()
+
     /**
      * Asks the core to scaffold a `*.bpmn.vars.json` entry for an unknown script
      * variable and reveal the manifest — backs the "Declare in variable manifest"

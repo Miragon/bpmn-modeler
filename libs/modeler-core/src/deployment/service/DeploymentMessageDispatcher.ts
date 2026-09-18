@@ -1,23 +1,38 @@
 import {
     AdditionalFilesQuery,
     Command,
+    DeleteTargetCommand,
     DeployCommand,
     DeploymentResultQuery,
+    DeploymentTargetsQuery,
     FormDefaultsQuery,
     ProcessDefinitionKeyQuery,
     Query,
+    RequestStoredCredentialsCommand,
+    SaveTargetCommand,
     SelectedPayloadFileQuery,
+    SelectTargetCommand,
     StartInstanceCommand,
     StartInstanceResultQuery,
     StoredCredentialsQuery,
+    TargetSavedQuery,
 } from "@miragon/bpmn-modeler-shared";
 
+import { posix } from "path";
+
 import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "../domain/deployment";
-import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
+import { DeploymentTarget } from "../domain/deploymentTarget";
+import {
+    DeploymentTargetChangedError,
+    InvalidDeploymentConfigError,
+} from "../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { routeWebviewLogCommand } from "../../shared/infrastructure/webviewLogHandlers";
 import { DeploymentService } from "./DeploymentService";
+import { DeploymentStatusService } from "./DeploymentStatusService";
+import { DeploymentTargetService, toTargetPayload } from "./DeploymentTargetService";
 import { StartInstanceService } from "./StartInstanceService";
 
 /**
@@ -35,6 +50,7 @@ import { StartInstanceService } from "./StartInstanceService";
  * redirect which file is deployed.
  */
 export class DeploymentMessageDispatcher {
+    private targetsGeneration = 0;
     /**
      * @param editorStore Active-editor registry; resolves which document to act on.
      * @param documentPort Document path/content access for the trusted main file.
@@ -48,6 +64,8 @@ export class DeploymentMessageDispatcher {
         private readonly documentPort: DocumentPort,
         private readonly deploymentService: DeploymentService,
         private readonly startInstanceService: StartInstanceService,
+        private readonly deploymentTargetService: DeploymentTargetService,
+        private readonly deploymentStatusService: DeploymentStatusService,
         private readonly notifier: NotifierPort,
         private readonly post: (message: Query) => void,
     ) {}
@@ -69,7 +87,22 @@ export class DeploymentMessageDispatcher {
                 this.sendFormDefaults();
                 break;
             case "RequestStoredCredentialsCommand":
-                await this.handleStoredCredentialsRequest();
+                await this.handleStoredCredentialsRequest(
+                    (message as RequestStoredCredentialsCommand).targetName ?? "",
+                    (message as RequestStoredCredentialsCommand).requestId ?? 0,
+                );
+                break;
+            case "SelectTargetCommand":
+                await this.handleSelectTarget((message as SelectTargetCommand).name);
+                break;
+            case "SaveTargetCommand":
+                await this.handleSaveTarget(message as SaveTargetCommand);
+                break;
+            case "DeleteTargetCommand":
+                await this.handleDeleteTarget((message as DeleteTargetCommand).name);
+                break;
+            case "OpenTargetsFileCommand":
+                await this.handleOpenTargetsFile();
                 break;
             case "RequestAdditionalFilesCommand":
                 await this.handleAdditionalFilesRequest();
@@ -130,19 +163,188 @@ export class DeploymentMessageDispatcher {
             );
             this.post(new ProcessDefinitionKeyQuery(""));
         }
+
+        // The targets select follows the focused diagram's workspace, so refresh
+        // it alongside the form defaults. Fire-and-forget: a targets-file read
+        // must not block the (synchronous) form seed.
+        void this.sendTargets();
+    }
+
+    /**
+     * Posts the saved targets and the active target name so the sidebar select
+     * can render. Called after {@link sendFormDefaults} and after any target
+     * mutation so the form's select always mirrors the persisted state.
+     */
+    async sendTargets(): Promise<void> {
+        const generation = ++this.targetsGeneration;
+        const documentDir = this.activeDocumentDir();
+        try {
+            const targets = await this.deploymentTargetService.listTargets(documentDir);
+            const active = await this.deploymentTargetService.getActiveTarget(documentDir);
+            if (generation !== this.targetsGeneration) return;
+            this.post(
+                new DeploymentTargetsQuery(
+                    targets.map(toTargetPayload),
+                    active?.name ?? "",
+                    documentDir,
+                ),
+            );
+        } catch (error) {
+            if (generation !== this.targetsGeneration) return;
+            this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
+            this.post(new DeploymentTargetsQuery([], "", documentDir));
+        }
     }
 
     /**
      * Retrieves stored credentials from the secret store and sends them to the
-     * webview so it can pre-fill the auth fields.
+     * webview so it can pre-fill the auth fields. A `targetName` scopes the
+     * lookup to a saved target; otherwise the ad-hoc legacy credentials are used.
      */
-    private async handleStoredCredentialsRequest(): Promise<void> {
+    private async handleStoredCredentialsRequest(
+        targetName: string,
+        requestId: number,
+    ): Promise<void> {
         try {
-            const auth = await this.deploymentService.getStoredCredentials();
-            this.post(new StoredCredentialsQuery(auth));
+            const auth =
+                targetName.trim() === ""
+                    ? await this.deploymentService.getStoredCredentials()
+                    : await this.deploymentTargetService.getStoredCredentials(
+                          targetName,
+                          this.activeDocumentDir(),
+                      );
+            this.post(new StoredCredentialsQuery(auth, targetName, requestId));
         } catch (error) {
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
-            this.post(new StoredCredentialsQuery({ authType: "none" }));
+            this.post(new StoredCredentialsQuery({ authType: "none" }, targetName, requestId));
+        }
+    }
+
+    private async handleSelectTarget(name: string): Promise<void> {
+        try {
+            await this.deploymentTargetService.setActiveTarget(name);
+            await this.deploymentStatusService.refreshActive();
+            await this.sendTargets();
+            this.sendFormDefaults();
+        } catch (error) {
+            this.notifier.notifyError(
+                "Could not switch deployment target",
+                error instanceof Error ? error : new Error(String(error)),
+            );
+            await this.sendTargets();
+        }
+    }
+
+    private async handleSaveTarget(message: SaveTargetCommand): Promise<void> {
+        try {
+            const documentDir = this.activeDocumentDir();
+            // Resolve the pre-rename target before the save rewrites the file,
+            // so its ledger rows (keyed by name@host) can be pruned afterwards.
+            const renamedFrom =
+                message.previousName !== undefined &&
+                message.previousName.trim() !== message.target.name.trim()
+                    ? await this.deploymentTargetService.getTarget(
+                          message.previousName,
+                          documentDir,
+                      )
+                    : undefined;
+            await this.deploymentTargetService.saveTarget(
+                message.target,
+                message.auth,
+                message.previousName,
+                documentDir,
+            );
+            if (renamedFrom !== undefined) {
+                await this.deploymentStatusService.pruneTarget(
+                    DeploymentTargetIdentity.fromTarget(renamedFrom),
+                );
+            }
+            this.post(
+                new TargetSavedQuery(true, `Saved deployment target "${message.target.name}".`),
+            );
+            await this.sendTargets();
+            await this.deploymentStatusService.refreshActive();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
+            this.post(new TargetSavedQuery(false, errorMessage));
+        }
+    }
+
+    private async handleDeleteTarget(name: string): Promise<void> {
+        try {
+            const documentDir = this.activeDocumentDir();
+            const target = await this.deploymentTargetService.getTarget(name, documentDir);
+            const deleted = await this.deploymentTargetService.deleteTarget(name, documentDir);
+            if (deleted) {
+                if (target !== undefined) {
+                    await this.deploymentStatusService.pruneTarget(
+                        DeploymentTargetIdentity.fromTarget(target),
+                    );
+                }
+                this.post(new TargetSavedQuery(true, `Deleted deployment target "${name}".`));
+                await this.sendTargets();
+                await this.deploymentStatusService.refreshActive();
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.notifier.logError(error instanceof Error ? error : new Error(errorMessage));
+            this.post(new TargetSavedQuery(false, errorMessage));
+        }
+    }
+
+    private async handleOpenTargetsFile(): Promise<void> {
+        try {
+            await this.deploymentTargetService.openTargetsFile(this.activeDocumentDir());
+        } catch (error) {
+            this.notifier.notifyError(
+                "Could not open deployment targets file",
+                error instanceof Error ? error : new Error(String(error)),
+            );
+        }
+    }
+
+    private async resolveRequestTarget(
+        payload: DeployCommand["config"] | StartInstanceCommand["config"],
+        documentDir: string | undefined,
+    ): Promise<DeploymentTarget | undefined> {
+        if (!payload.targetName?.trim()) return undefined;
+        const target = await this.deploymentTargetService.getTarget(
+            payload.targetName,
+            documentDir,
+        );
+        if (target === undefined) {
+            throw new DeploymentTargetChangedError(
+                "The deployment target no longer exists. Select a target again.",
+            );
+        }
+        const matches =
+            payload.endpoint.trim() === target.endpoint.trim() &&
+            payload.engine === target.engine &&
+            payload.auth.authType === target.authType &&
+            (target.authType !== "oauth2" ||
+                ((payload.auth.tokenEndpoint ?? "").trim() === target.tokenEndpoint.trim() &&
+                    (payload.auth.audience ?? "").trim() === target.audience.trim())) &&
+            ("deploymentName" in payload
+                ? payload.tenantId.trim() === target.tenantId.trim() &&
+                  (payload.deployUrl ?? "").trim() === (target.deployUrl ?? "").trim()
+                : (payload.startInstanceUrl ?? "").trim() ===
+                  (target.startInstanceUrl ?? "").trim());
+        if (!matches) {
+            throw new DeploymentTargetChangedError(
+                "The deployment target changed. Save or reload the target before continuing.",
+            );
+        }
+        return target;
+    }
+
+    /** Directory of the active editor's document, or `undefined` if none is focused. */
+    private activeDocumentDir(): string | undefined {
+        try {
+            const activeEditorId = this.editorStore.getActiveEditorId();
+            return posix.dirname(this.documentPort.getFilePath(activeEditorId));
+        } catch {
+            return undefined;
         }
     }
 
@@ -204,11 +406,12 @@ export class DeploymentMessageDispatcher {
         configPayload: StartInstanceCommand["config"],
     ): Promise<void> {
         try {
+            await this.resolveRequestTarget(configPayload, this.activeDocumentDir());
             const auth = this.buildAuth(configPayload.auth);
 
             // Breadcrumb. Host[:port] only — never the full URL or auth payload.
             this.notifier.logInfo(
-                `Instance start requested: ${configPayload.processDefinitionKey} @ ${this.endpointHost(configPayload.endpoint)}`,
+                `Instance start requested: ${configPayload.processDefinitionKey} @ ${this.endpointHost(configPayload.startInstanceUrl ?? configPayload.endpoint)}`,
             );
 
             const result = await this.startInstanceService.startInstance(
@@ -217,6 +420,7 @@ export class DeploymentMessageDispatcher {
                 configPayload.engine,
                 auth,
                 configPayload.payloadFilePath,
+                configPayload.startInstanceUrl,
             );
 
             if (result.success) {
@@ -235,7 +439,10 @@ export class DeploymentMessageDispatcher {
                 ),
             );
         } catch (error) {
-            const message = "An unexpected error occurred while starting the process instance.";
+            const message =
+                error instanceof DeploymentTargetChangedError
+                    ? error.message
+                    : "An unexpected error occurred while starting the process instance.";
             this.notifier.logError(error instanceof Error ? error : new Error(String(error)));
             this.notifier.showError(message);
             this.post(new StartInstanceResultQuery(false, message));
@@ -265,15 +472,27 @@ export class DeploymentMessageDispatcher {
                 .withMainFilePath(mainFilePath)
                 .withAdditionalFilePaths(configPayload.additionalFilePaths)
                 .withAuth(auth)
+                .withDeployUrl(configPayload.deployUrl)
                 .build();
+
+            const documentDir = posix.dirname(mainFilePath);
+            const target = await this.resolveRequestTarget(configPayload, documentDir);
+            const secretSlot =
+                target === undefined
+                    ? undefined
+                    : await this.deploymentTargetService.resolveSlot(target.name, documentDir);
+            const identity =
+                target === undefined
+                    ? DeploymentTargetIdentity.adHoc(config.endpoint, config.tenantId)
+                    : DeploymentTargetIdentity.fromTarget(target);
 
             // Breadcrumb. Only host[:port] is logged (never the full URL, which can
             // carry credentials, and never the auth payload) — see endpointHost.
             this.notifier.logInfo(
-                `Deployment started: ${this.fileBasename(mainFilePath)} -> ${configPayload.engine} @ ${this.endpointHost(configPayload.endpoint)}`,
+                `Deployment started: ${this.fileBasename(mainFilePath)} -> ${configPayload.engine} @ ${this.endpointHost(config.deployUrl ?? configPayload.endpoint)}`,
             );
 
-            const result = await this.deploymentService.deploy(config);
+            const result = await this.deploymentService.deploy(config, secretSlot, identity);
 
             if (result.success) {
                 this.notifier.logInfo(`Deployment succeeded: ${result.message}`);
@@ -283,12 +502,15 @@ export class DeploymentMessageDispatcher {
                 this.notifier.showError(result.message);
             }
 
+            await this.deploymentStatusService.refreshActive();
+
             this.post(
                 new DeploymentResultQuery(result.success, result.message, result.deploymentId),
             );
         } catch (error) {
             const message =
-                error instanceof InvalidDeploymentConfigError
+                error instanceof InvalidDeploymentConfigError ||
+                error instanceof DeploymentTargetChangedError
                     ? error.message
                     : "An unexpected error occurred during deployment.";
 

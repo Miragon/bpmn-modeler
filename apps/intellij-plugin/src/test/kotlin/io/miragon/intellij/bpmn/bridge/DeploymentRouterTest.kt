@@ -51,6 +51,7 @@ class DeploymentRouterTest {
             mapOf("tokenEndpoint" to "https://token", "audience" to "zeebe"),
             id = 44,
         )
+        dispatchSave(wired, "deploymentState/saveActiveTarget", mapOf("name" to "dev"), id = 45)
 
         // The persist must have run before the ack, so the live state mirror reflects
         // every saved field — the same snapshot the bridge re-seeds on the next spawn.
@@ -60,6 +61,71 @@ class DeploymentRouterTest {
         assertEquals("oauth2", snapshot["authType"])
         assertEquals("https://token", snapshot["tokenEndpoint"])
         assertEquals("zeebe", snapshot["audience"])
+        assertEquals("dev", snapshot["activeTargetName"])
+    }
+
+    @Test
+    fun `saveDeployedRevision acknowledges and persists the ledger entry`() {
+        val project = projectFixture.get()
+        val wired = wireChannel().also { this.wired = it }
+        DeploymentRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
+
+        val revision =
+            JsonObject().apply {
+                addProperty("fingerprint", "0123456789abcdef")
+                addProperty("deployedAt", "2026-09-17T14:32:00.000Z")
+                addProperty("deploymentId", "dep-1")
+            }
+        val params =
+            JsonObject().apply {
+                addProperty("ledgerKey", "target:dev::/work/order.bpmn")
+                add("revision", revision)
+            }
+        wired.handlers.dispatch("deploymentState/saveDeployedRevision", params, 50)
+        val reply = parse(wired.fake.nextFrame())
+        assertEquals(50, reply.get("id").asInt, "saveDeployedRevision must acknowledge its request id")
+        assertFalse(reply.has("method"), "an ack is a reply frame, never another request")
+
+        val ledger =
+            gson.toJsonTree(IntellijDeploymentState.getInstance(project).snapshotMap()["ledger"])
+                .asJsonObject
+        val stored = ledger.getAsJsonObject("target:dev::/work/order.bpmn")
+        assertEquals("0123456789abcdef", stored.get("fingerprint").asString)
+        assertEquals("dep-1", stored.get("deploymentId").asString)
+    }
+
+    @Test
+    fun `deleteDeployedRevisions acknowledges and drops exactly the named entries`() {
+        val project = projectFixture.get()
+        val wired = wireChannel().also { this.wired = it }
+        DeploymentRouter(bridgeDeps(project, wired.channel, wired.handlers)).register()
+        val state = IntellijDeploymentState.getInstance(project)
+        val revision =
+            JsonObject().apply {
+                addProperty("fingerprint", "0123456789abcdef")
+                addProperty("deployedAt", "2026-09-17T14:32:00.000Z")
+            }
+        state.saveDeployedRevision("target:dev@localhost:8080::/work/a.bpmn", revision)
+        state.saveDeployedRevision("target:prod@localhost:8080::/work/a.bpmn", revision)
+
+        val params =
+            JsonObject().apply {
+                add(
+                    "ledgerKeys",
+                    gson.toJsonTree(listOf("target:dev@localhost:8080::/work/a.bpmn")),
+                )
+            }
+        wired.handlers.dispatch("deploymentState/deleteDeployedRevisions", params, 51)
+        val reply = parse(wired.fake.nextFrame())
+        assertEquals(51, reply.get("id").asInt, "deleteDeployedRevisions must acknowledge its request id")
+        assertFalse(reply.has("method"), "an ack is a reply frame, never another request")
+
+        val ledger = gson.toJsonTree(state.snapshotMap()["ledger"]).asJsonObject
+        assertFalse(ledger.has("target:dev@localhost:8080::/work/a.bpmn"))
+        assertEquals(
+            "0123456789abcdef",
+            ledger.getAsJsonObject("target:prod@localhost:8080::/work/a.bpmn").get("fingerprint").asString,
+        )
     }
 
     /** Dispatches one acknowledged save and asserts the matching empty reply frame. */

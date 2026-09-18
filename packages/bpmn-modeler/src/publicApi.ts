@@ -37,8 +37,8 @@ export type { LintConfigByMode, LintConfigOption } from "./bpmnlint/lintConfigRe
  * - **[A] Engine-intrinsic** — the diagram surface itself. Always present; not
  *   a toggle. Loading/exporting XML, the viewport, the selection, the engine.
  * - **[B] Opinionated built-in** — on by sensible default, but turning one off
- *   is one option away and replacing one is one override away (linting,
- *   clipboard, theme, locale).
+ *   is one option away and replacing one is one override away (clipboard,
+ *   theme, locale). Linting is opt-in through an injected module.
  * - **[C] Host capability** — off by default; a host opts in by supplying a
  *   port. Absent port ⇒ no UI, no dead buttons (model navigation, code link,
  *   inline scripting).
