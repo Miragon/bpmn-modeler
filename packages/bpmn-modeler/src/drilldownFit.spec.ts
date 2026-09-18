@@ -5,7 +5,7 @@ import { DrilldownFit, DrilldownFitModule } from "./drilldownFit";
 const fitViewport = vi.fn(() => true);
 
 vi.mock("./viewport", () => ({
-    ViewportManager: class {
+    CanvasViewportManager: class {
         fitViewport = fitViewport;
     },
 }));
@@ -14,31 +14,46 @@ function plane(id: string, type = "bpmn:SubProcess") {
     return { id, businessObject: { $instanceOf: (t: string) => t === type } };
 }
 
+type RootElement = ReturnType<typeof plane> | { id: string; businessObject?: undefined };
+
 function build() {
     fitViewport.mockClear();
-    let handler!: (event: { element?: unknown }) => void;
+    let rootSetHandler!: (event: {
+        element?: { id: string; businessObject?: { $instanceOf(type: string): boolean } };
+    }) => void;
+    let clearHandler!: () => void;
     let priority = 0;
 
     const eventBus = {
-        on: vi.fn((_event: string, p: number, callback: typeof handler) => {
-            priority = p;
-            handler = callback;
-        }),
+        on: vi.fn(
+            (
+                event: string,
+                priorityOrCallback: number | (() => void),
+                callback?: typeof rootSetHandler,
+            ) => {
+                if (event === "diagram.clear") {
+                    clearHandler = priorityOrCallback as () => void;
+                    return;
+                }
+                priority = priorityOrCallback as number;
+                rootSetHandler = callback!;
+            },
+        ),
     };
     const injector = { get: vi.fn() };
 
-    const service = new DrilldownFit(eventBus, injector);
+    new DrilldownFit(eventBus, injector);
 
     return {
-        service,
         eventBus,
         priority,
-        rootSet: (element: unknown) => handler({ element }),
+        clear: () => clearHandler(),
+        rootSet: (element: RootElement | undefined) => rootSetHandler({ element }),
     };
 }
 
 describe("DrilldownFit", () => {
-    it("subscribes to root.set below the diagram-js default priority", () => {
+    it("subscribes to root.set after drilldown centering", () => {
         const { eventBus, priority } = build();
 
         expect(eventBus.on).toHaveBeenCalledWith(
@@ -46,12 +61,11 @@ describe("DrilldownFit", () => {
             expect.any(Number),
             expect.any(Function),
         );
-        expect(priority).toBeLessThan(1000);
+        expect(priority).toBe(500);
     });
 
     it("fits a sub-process plane on its first visit", () => {
-        const { service, rootSet } = build();
-        service.setEnabled(true);
+        const { rootSet } = build();
 
         rootSet(plane("sub_plane"));
 
@@ -59,8 +73,7 @@ describe("DrilldownFit", () => {
     });
 
     it("leaves a revisited plane at its remembered position", () => {
-        const { service, rootSet } = build();
-        service.setEnabled(true);
+        const { rootSet } = build();
 
         rootSet(plane("sub_plane"));
         rootSet(plane("other_plane"));
@@ -70,8 +83,7 @@ describe("DrilldownFit", () => {
     });
 
     it("ignores the top-level root, which the host positions itself", () => {
-        const { service, rootSet } = build();
-        service.setEnabled(true);
+        const { rootSet } = build();
 
         rootSet(plane("Process_1", "bpmn:Process"));
         rootSet({ id: "no-business-object" });
@@ -80,22 +92,28 @@ describe("DrilldownFit", () => {
         expect(fitViewport).not.toHaveBeenCalled();
     });
 
-    it("does not fit while the setting is off", () => {
+    it("fits the same plane ID again after the diagram is cleared", () => {
+        const { clear, rootSet } = build();
+
+        rootSet(plane("sub_plane"));
+        clear();
+        rootSet(plane("sub_plane"));
+
+        expect(fitViewport).toHaveBeenCalledTimes(2);
+    });
+
+    it("fits synchronously before a saved viewport is restored", () => {
+        const actions: string[] = [];
+        fitViewport.mockImplementationOnce(() => {
+            actions.push("fit");
+            return true;
+        });
         const { rootSet } = build();
 
         rootSet(plane("sub_plane"));
+        actions.push("restore");
 
-        expect(fitViewport).not.toHaveBeenCalled();
-    });
-
-    it("does not retro-fit a plane first opened while the setting was off", () => {
-        const { service, rootSet } = build();
-
-        rootSet(plane("sub_plane"));
-        service.setEnabled(true);
-        rootSet(plane("sub_plane"));
-
-        expect(fitViewport).not.toHaveBeenCalled();
+        expect(actions).toEqual(["fit", "restore"]);
     });
 
     it("registers the service under a stable DI name", () => {

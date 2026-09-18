@@ -29,7 +29,6 @@ export class BpmnSettingsBroadcaster {
                 .showTransactionBoundaries(this.settings.getShowTransactionBoundaries())
                 .colorTheme(this.settings.getColorTheme())
                 .favouriteBpmnElements(this.settings.getFavouriteBpmnElements())
-                .fitOnDrilldown(this.settings.getFitOnDrilldown())
                 .buildBpmnModeler();
 
             if (
@@ -40,7 +39,6 @@ export class BpmnSettingsBroadcaster {
                         showTransactionBoundaries: settings.showTransactionBoundaries,
                         colorTheme: settings.colorTheme,
                         favouriteBpmnElements: settings.favouriteBpmnElements,
-                        fitOnDrilldown: settings.fitOnDrilldown,
                     }),
                 )
             ) {
@@ -77,8 +75,7 @@ export class BpmnSettingsBroadcaster {
                 event.affectsConfiguration("miragon.bpmnModeler.alignToOrigin") ||
                 event.affectsConfiguration("miragon.bpmnModeler.showTransactionBoundaries") ||
                 event.affectsConfiguration("miragon.bpmnModeler.colorTheme") ||
-                event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements") ||
-                event.affectsConfiguration("miragon.bpmnModeler.fitOnDrilldown")
+                event.affectsConfiguration("miragon.bpmnModeler.favouriteBpmnElements")
             ) {
                 // The change listener has no caller to await it, so guard the
                 // floating promise even though setSettings already logs its own

@@ -21,7 +21,6 @@ function createBroadcaster() {
         getShowTransactionBoundaries: vi.fn().mockReturnValue(false),
         getColorTheme: vi.fn().mockReturnValue("light"),
         getFavouriteBpmnElements: vi.fn().mockReturnValue(["bpmn:Task"]),
-        getFitOnDrilldown: vi.fn().mockReturnValue(true),
         getLanguage: vi.fn().mockReturnValue("de"),
     };
     const notifier = { notifyError: vi.fn(), logError: vi.fn() };
@@ -54,7 +53,6 @@ describe("BpmnSettingsBroadcaster.setSettings", () => {
             showTransactionBoundaries: false,
             colorTheme: "light",
             favouriteBpmnElements: ["bpmn:Task"],
-            fitOnDrilldown: true,
         });
     });
 
