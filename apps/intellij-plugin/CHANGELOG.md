@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.10.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.9.0...intellij-v1.10.0) (2026-09-18)
+
+
+### 🎉 New Features
+
+* **deployment:** add named deployment targets and endpoint overrides ([#1552](https://github.com/Miragon/bpmn-modeler/issues/1552)) ([77f36e5](https://github.com/Miragon/bpmn-modeler/commit/77f36e5ebfcb7c9e73f9341ff9fce50cc51eee2b))
+* **deployment:** create target from entered form data via New ([#1562](https://github.com/Miragon/bpmn-modeler/issues/1562)) [sync 91f6167] ([dd1f42c](https://github.com/Miragon/bpmn-modeler/commit/dd1f42cfd8526ebf6428775695bfcc8137e173c3))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** translate append menu and element template chooser ([#1547](https://github.com/Miragon/bpmn-modeler/issues/1547)) [sync 63b0493] ([95865ca](https://github.com/Miragon/bpmn-modeler/commit/95865ca280c149adec5ad31972e1a86b0852e7db))
+* **editor:** bump bpmnlint to 11.14.0 with bundled superfluous-label ([#1564](https://github.com/Miragon/bpmn-modeler/issues/1564)) [sync e121ad1] ([257135c](https://github.com/Miragon/bpmn-modeler/commit/257135c96563568d3989457d13c9d3e617aba060))
+
+
+### 📔 Documentation
+
+* **adr:** consolidate decisions into living topic records ([#1554](https://github.com/Miragon/bpmn-modeler/issues/1554)) ([583663d](https://github.com/Miragon/bpmn-modeler/commit/583663da6052b10c6bba16b297829d697ea18123))
+
+
+### 🛠️ Misc
+
+* **deps:** bump org.jetbrains.kotlin.jvm from 2.4.10 to 2.4.20 in /apps/intellij-plugin in the gradle-minor-patch group ([#1544](https://github.com/Miragon/bpmn-modeler/issues/1544)) ([1586a10](https://github.com/Miragon/bpmn-modeler/commit/1586a10fafecd99c81f448cb85718f6cbaee2bcb))
+
 ## [1.9.0](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.8.0...intellij-v1.9.0) (2026-09-14)
 
 
