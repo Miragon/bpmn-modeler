@@ -87,6 +87,26 @@ maintained adapter code and the upstream fork when updating dependencies.
 
 ### Dependency compatibility and security
 
+Use TypeScript 7.0.2 for the `tsc` CLI through the exact alias
+`@typescript/native: npm:typescript@7.0.2`. Keep the JavaScript compiler API
+available through `typescript: npm:@typescript/typescript6@6.0.2` for ESLint,
+`ts-loader`, declaration generation and package verification scripts. TypeScript
+7 cannot replace that API yet; use Microsoft's
+[side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0)
+instead of rewriting those tools. Declare both aliases in every workspace that
+uses TypeScript so focused installations retain the CLI and API independently
+of the root workspace. Keep the isolated packed-consumer check on TypeScript
+6.0.3 to verify compatibility with existing consumers.
+Point API Extractor at the compiler directory reported by
+`ts.getDefaultLibFilePath`, since the compatibility wrapper does not contain the
+standard-library declarations.
+
+The root `lint` and `build` commands and the BPMN package's
+[packed-consumer smoke check](../../packages/bpmn-modeler/scripts/smoke-packed-consumer.mjs)
+exercise these compiler paths. Remove the compatibility alias only when all API
+consumers support the native compiler. Keep Electron aligned with Theia's pinned
+42.3.0 runtime; a major Electron upgrade requires separate host validation.
+
 The dependency changes address the
 [shell-quote](https://github.com/advisories/GHSA-w7jw-789q-3m8p),
 [tar](https://github.com/advisories/GHSA-23hp-3jrh-7fpw) and
@@ -124,3 +144,5 @@ and archive compatibility through real extraction. This adds browser/runtime
 maintenance and explicit upstream pin reviews, but catches failures that compile
 checks or import mocks would miss. Security overrides add a new dependency tree
 and do not imply that all lower-severity findings have been remediated.
+The compiler transition temporarily retains two TypeScript implementations and
+requires checking both CLI compilation and API-based tooling when upgrading.

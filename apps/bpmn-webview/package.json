@@ -28,9 +28,10 @@
     },
     "devDependencies": {
         "@types/vscode-webview": "1.57.5",
+        "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "4.1.11",
         "jsdom": "30.0.1",
-        "typescript": "6.0.3",
+        "typescript": "npm:@typescript/typescript6@6.0.2",
         "vite": "8.2.2",
         "vite-tsconfig-paths": "6.1.1",
         "vitest": "4.1.11"
