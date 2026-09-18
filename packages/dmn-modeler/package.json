@@ -67,7 +67,7 @@
         "@microsoft/api-extractor": "7.59.1",
         "@miragon/bpmn-modeler-i18n-extras": "workspace:*",
         "@miragon/bpmn-modeler-types": "workspace:*",
-        "@types/node": "26.4.0",
+        "@types/node": "26.5.1",
         "@typescript/native": "npm:typescript@7.0.2",
         "@vitest/coverage-v8": "4.1.11",
         "jsdom": "30.0.1",
