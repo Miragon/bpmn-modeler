@@ -3,11 +3,6 @@ import type { ViewerOptions } from "./publicApi";
 import { createSurface } from "../createSurface";
 
 /**
- * Stands up one independent readonly viewer bound to `container`, then engages
- * theming. Mirrors {@link createModeler} minus the editor-only setup (i18n,
- * element templates, settings) — a viewer has no translatable UI, so the i18n
- * dictionaries stay out of the lean graph (ADR 0014).
- *
  * Async for API-stability symmetry with {@link createModeler}.
  */
 export async function createViewer(

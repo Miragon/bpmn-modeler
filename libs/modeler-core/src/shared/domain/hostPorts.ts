@@ -387,18 +387,18 @@ export interface DeploymentStatePort {
     save(endpoint: string, tenantId: string): Promise<void>;
     /**
      * The persisted active deployment-target name, or `""` for ad-hoc mode.
-     * Synchronous (per ADR 0005) so it can ride the initial webview seed.
+     * Synchronous so it can ride the initial webview seed.
      */
     getActiveTargetName(): string;
     saveActiveTargetName(name: string): Promise<void>;
     /**
      * The recorded revision last deployed under `ledgerKey`, or `undefined` when
-     * this machine has no record. Synchronous (per ADR 0005) so freshness can be
+     * this machine has no record. Synchronous so freshness can be
      * resolved during the initial status-bar render.
      */
     getDeployedRevision(ledgerKey: string): DeployedRevision | undefined;
     saveDeployedRevision(ledgerKey: string, revision: DeployedRevision): Promise<void>;
-    /** Every recorded ledger key. Synchronous (per ADR 0005), like the getters. */
+    /** Every recorded ledger key. Synchronous, like the getters. */
     listLedgerKeys(): string[];
     /** Removes the given ledger slots (target delete/rename, engine says "not deployed"). */
     deleteDeployedRevisions(ledgerKeys: string[]): Promise<void>;

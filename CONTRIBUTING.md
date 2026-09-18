@@ -161,8 +161,9 @@ see [`docs/development.md`](docs/development.md).
     - New features include tests
     - Code follows the project's style (Prettier-formatted, 4-space indent)
     - Changes that move a package boundary, public API, dependency, or
-      protocol come with an ADR in [`docs/adr/`](docs/adr/) — see the rules in
-      [ADR 0001](docs/adr/0001-record-architecture-decisions.md). If you work
+      protocol have an ADR updated or added in [`docs/adr/`](docs/adr/).
+      Update the existing topic and replace superseded text; see the
+      [recording rules](docs/adr/README.md#recording-rules). If you work
       with an AI coding agent, the repo-bundled `adr` skill
       (`.agents/skills/adr/`) applies these rules automatically.
 5. **Commit** with a [semantic message](#commit-messages).

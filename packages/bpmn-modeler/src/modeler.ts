@@ -67,7 +67,7 @@ import type { LintConfigService } from "./bpmnlint/LintConfigService";
 
 // Structural slivers of non-core bpmn-js DI services — only the members this
 // facade calls, so the untyped `.get<any>` reaches are gone without adopting a
-// full didi service map (rejected in ADR 0035).
+// full didi service map (see docs/adr/engineering-practices.md#private-upstream-apis).
 interface AppendMenuOverrideService {
     setFavourites(types: string[]): void;
 }

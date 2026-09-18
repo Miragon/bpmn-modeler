@@ -4,7 +4,7 @@
  * prettier for formatting.
  *
  * The upstream header icons ship only as svgr-compiled modules inside
- * `dist/index.esm.js.map`'s `sourcesContent` (see ADR 0017 + #1456). This script
+ * `dist/index.esm.js.map`'s `sourcesContent`. This script
  * evaluates each `src/icons/*.svg` module body with a recording
  * `React.createElement` stub, serialises the captured tree to preact TSX, and
  * reproduces the `iconsByType` map from `src/icons/index.js` verbatim.

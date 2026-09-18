@@ -81,5 +81,5 @@ Consult only the specialist guidance needed for the task:
 
 Use `corepack yarn` and the owning workspace's checks, including relevant
 architecture tests. Consult [adr](../adr/SKILL.md) for public API, dependency,
-package-boundary, or protocol changes; record new decisions in
-[docs/adr](../../../docs/adr/README.md).
+package-boundary, or protocol changes; update the existing topic in
+[docs/adr](../../../docs/adr/README.md), replacing superseded decisions.

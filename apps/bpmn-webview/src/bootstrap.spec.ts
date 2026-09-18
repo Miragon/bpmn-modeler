@@ -764,7 +764,7 @@ describe("bootstrap mode switching", () => {
         boot(host);
         await drainAsyncWork();
 
-        // The designer lints too (ADR 0023): it asks the host for the workspace
+        // The designer lints too: it asks the host for the workspace
         // lint config, but never for the modeler-only element templates.
         expect(sentTypes(host)).toContain("GetBpmnlintConfigCommand");
         expect(sentTypes(host)).not.toContain("GetElementTemplatesCommand");

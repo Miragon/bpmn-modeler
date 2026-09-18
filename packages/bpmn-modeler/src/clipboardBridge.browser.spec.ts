@@ -9,8 +9,8 @@ import type { BpmnModeler } from "./modeler";
  * paste in another sharing the same {@link ClipboardBridge} — the sandboxed-
  * webview round trip the bridge exists for. The async bridge re-entry only
  * exercises real bpmn-js copy/paste rules, so it runs in the browser project
- * (ADR 0032). The wire format itself stays covered by the jsdom
- * `bridgedClipboard.spec.ts`.
+ * (see docs/adr/engineering-practices.md#test-environments). The wire format
+ * stays covered by the jsdom `bridgedClipboard.spec.ts`.
  */
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>

@@ -36,20 +36,20 @@ import type { ViewState } from "../viewState";
  * **The mode marker is the absence of `modeler:executionPlatform` on
  * `bpmn:Definitions`.** A host routes a document with `detectEngine(xml) ===
  * undefined` here (editable Design), and one with a detected engine to
- * {@link createModeler} (Implement). Switching modes is a host concern: stamp or
- * strip the execution platform on the XML, `destroy()` this instance, and stand
- * up the other factory — the conversion helpers are deferred (see ADR 0016).
+ * {@link createModeler}. A tagged diagram uses that engine modeler's live
+ * Design/Implement toggle so engine data and undo history survive. This neutral
+ * designer does not supply engine-conversion helpers or stamp XML on load.
  *
  * Leanness holds at the *module-graph* level, not a runtime flag, so it survives
  * single-file bundlers (`vite-plugin-singlefile`) that inline everything
- * reachable — hence a separate subpath, mirroring the `/viewer` (ADR 0014) and
- * `/lint` (ADR 0013) precedents. See ADR 0016.
+ * reachable — hence a separate subpath. See the
+ * [surfaces decision](../../../../docs/adr/bpmn-modeler.md#surfaces-and-modes).
  */
 
 /**
  * The core diagram-js/bpmn-js services a designer exposes through
  * {@link BpmnDesignerHandle.getService}. Identical to {@link CoreModelerServices}
- * (ADR 0011) — Design mode is fully editable, so `modeling` and `commandStack`
+ * — Design mode is fully editable, so `modeling` and `commandStack`
  * are present, unlike the readonly viewer's `Pick`.
  */
 export type CoreDesignerServices = CoreModelerServices;
