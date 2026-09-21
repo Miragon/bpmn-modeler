@@ -1,5 +1,5 @@
 id: io.miragon.BpmnModeler
-runtime: org.freedesktop.Platform
+runtime: org.freedesktop.Sdk
 runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
@@ -10,6 +10,7 @@ finish-args:
   - --share=ipc
   - --socket=x11
   - --socket=pulseaudio
+  - --socket=ssh-auth
   - --device=dri
   - --share=network
   - --filesystem=home

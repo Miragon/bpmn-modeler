@@ -168,15 +168,12 @@ view reflects modifications immediately. Disable or change the delay in
 
 The standalone ships with the same VS Code Git extension that powers the
 Source Control view in VS Code, including BPMN-aware diffs for modified
-diagrams. Git operations rely on the system `git` binary:
+diagrams.
 
 - **macOS** — install Xcode Command Line Tools (`xcode-select --install`)
   or [git-scm.com](https://git-scm.com/).
-- **Windows** — [git-scm.com](https://git-scm.com/).
+- **Windows** — install Git from [git-scm.com](https://git-scm.com/).
+- **Linux (Flatpak)** — the Freedesktop SDK runtime supplies Git inside the
+  sandbox. You do not need to install Git on the host.
 
-The Flatpak sandbox does not expose the host's `git` executable, so the Source
-Control view is currently unavailable in the Linux package. Host-side Git tools
-can still manage the same workspace files.
 
-If `git --version` works in your terminal, the standalone app will pick it
-up on launch.

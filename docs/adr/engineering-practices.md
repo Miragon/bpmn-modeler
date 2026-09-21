@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-09-18
+- Last reviewed: 2026-09-21
 
 ## Context
 
@@ -86,6 +86,16 @@ ratchet that makes unrelated warnings fatal. Preserve the distinction between
 maintained adapter code and the upstream fork when updating dependencies.
 
 ### Dependency compatibility and security
+
+All standalone Theia extensions must resolve the same core widget runtime;
+duplicate core instances apply Inversify decorators to the shared Lumino Widget
+twice and prevent frontend startup. The [runtime compatibility check](../../apps/standalone/scripts/theia-runtime.test.mjs)
+uses Theia's extension discovery to verify installed module resolution in CI.
+Use `@theia/scm` and the Timeline integration for Git history. The
+[deprecated `@theia/scm-extra`](https://github.com/eclipse-theia/theia/blob/v1.75.0/packages/scm-extra/README.md)
+stopped publishing in 1.75; keeping its last release introduces an older core.
+The standalone uses Theia's generated esbuild configuration, with no custom
+Webpack configuration.
 
 Use TypeScript 7.0.2 for the `tsc` CLI through the exact alias
 `@typescript/native: npm:typescript@7.0.2`. Keep the JavaScript compiler API
