@@ -16,7 +16,7 @@ const showSiteFooter = computed(() =>
             <div class="nav-extras">
                 <a
                     class="demo-btn"
-                    href="https://miragon-bpmn-modeler-demo.netlify.app"
+                    href="https://bpmn.modeler.miragon.io"
                     target="_blank"
                     rel="noopener"
                 >
@@ -47,7 +47,7 @@ const showSiteFooter = computed(() =>
                 </a>
                 <a
                     class="btn btn-demo"
-                    href="https://miragon-bpmn-modeler-demo.netlify.app"
+                    href="https://bpmn.modeler.miragon.io"
                     target="_blank"
                     rel="noopener"
                 >

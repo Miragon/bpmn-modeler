@@ -2780,14 +2780,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@emaarco/dmn-js-simulation@npm:0.2.0":
-  version: 0.2.0
-  resolution: "@emaarco/dmn-js-simulation@npm:0.2.0"
+"@emaarco/dmn-js-simulation@npm:0.3.0":
+  version: 0.3.0
+  resolution: "@emaarco/dmn-js-simulation@npm:0.3.0"
   dependencies:
     feelin: "npm:7.0.1"
   peerDependencies:
     diagram-js: ">=15"
-    dmn-js: ">=17"
+    dmn-js: ^17.10.2
     inferno: ">=5.6 <6"
   peerDependenciesMeta:
     diagram-js:
@@ -2796,7 +2796,7 @@ __metadata:
       optional: true
     inferno:
       optional: true
-  checksum: 10c0/f43e95572732116325397aab7c68bd5f3f9fce67b0d7996cd12cb1f6e62ea8afe664697013b8eaa78f7d70cecafa5c764d9e7867d733e59370a2b04acd2a9a7f
+  checksum: 10c0/1da14ce2ef55abf93f39749ccdcf616ebb67a481834d310938a31ca0f4cbe9af603075b2cdaef4796ed85a10b1c51ac68b8824f72adcbfa81194777ebbc1c189
   languageName: node
   linkType: hard
 
@@ -4390,7 +4390,7 @@ __metadata:
   dependencies:
     "@bpmn-io/cm-theme": "npm:0.2.2"
     "@bpmn-io/properties-panel": "npm:3.55.0"
-    "@emaarco/dmn-js-simulation": "npm:0.2.0"
+    "@emaarco/dmn-js-simulation": "npm:0.3.0"
     "@microsoft/api-extractor": "npm:7.59.1"
     "@miragon/bpmn-modeler-i18n": "npm:0.2.0"
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
