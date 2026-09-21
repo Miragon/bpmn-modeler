@@ -429,7 +429,8 @@ export class DeploymentMessageDispatcher {
         configPayload: StartInstanceCommand["config"],
     ): Promise<void> {
         try {
-            await this.resolveRequestTarget(configPayload, this.activeDocumentDir());
+            const documentDir = this.activeDocumentDir();
+            await this.resolveRequestTarget(configPayload, documentDir);
             const auth = this.buildAuth(configPayload.auth);
 
             // Breadcrumb. Host[:port] only — never the full URL or auth payload.
@@ -444,6 +445,7 @@ export class DeploymentMessageDispatcher {
                 auth,
                 configPayload.payloadFilePath,
                 configPayload.startInstanceUrl,
+                documentDir,
             );
 
             if (result.success) {

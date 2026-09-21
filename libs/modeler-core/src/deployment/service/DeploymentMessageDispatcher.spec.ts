@@ -357,6 +357,15 @@ describe("DeploymentMessageDispatcher start-instance auth construction", () => {
 
         expect(c.startInstanceService.startInstance.mock.calls[0][3]).toBeInstanceOf(NoAuth);
     });
+
+    it("threads the active document directory so env refs resolve against its .env", async () => {
+        const c = createDispatcher();
+        c.startInstanceService.startInstance.mockResolvedValue(new StartInstanceResult(true, "ok"));
+
+        await startInstance(c, { authType: "none" });
+
+        expect(c.startInstanceService.startInstance.mock.calls[0][6]).toBe("/work/trusted");
+    });
 });
 
 describe("DeploymentMessageDispatcher start-instance result handling", () => {

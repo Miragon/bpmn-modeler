@@ -1,7 +1,10 @@
 import { posix } from "path";
 
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
-import { EngineInspectionFailedError } from "../../shared/domain/errors";
+import {
+    EngineInspectionFailedError,
+    UnresolvedEnvVariableError,
+} from "../../shared/domain/errors";
 import { DocumentPort, NotifierPort } from "../../shared/domain/hostPorts";
 import { EditorSessionStore } from "../../shared/infrastructure/EditorSessionStore";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
@@ -9,6 +12,8 @@ import { reconcile } from "../domain/deploymentVerification";
 import { EngineInspectionPort } from "../domain/ports";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
+import { EnvValueResolver } from "./EnvValueResolver";
+import { EnvLookup } from "../domain/envRef";
 
 /**
  * On-demand reconciliation of the local deployment ledger against a Camunda 7
@@ -26,6 +31,7 @@ export class DeploymentVerificationService {
         private readonly deploymentStatusService: DeploymentStatusService,
         private readonly inspection: EngineInspectionPort,
         private readonly notifier: NotifierPort,
+        private readonly envResolver: EnvValueResolver,
     ) {}
 
     /**
@@ -63,12 +69,19 @@ export class DeploymentVerificationService {
         }
 
         try {
-            const auth = await this.deploymentTargetService.getCredentials(target, dir);
+            const literalAuth = await this.deploymentTargetService.getCredentials(target, dir);
+            const lookup: EnvLookup = await this.envResolver.createLookup(dir);
+            const auth = this.envResolver.resolveAuthWith(literalAuth, lookup);
+            const endpoint = this.envResolver.resolveValueWith(
+                target.endpoint,
+                "endpoint",
+                lookup,
+            )!;
             const snapshot = await this.notifier.withProgress(
                 `Verifying on "${target.name}"…`,
                 () =>
                     this.inspection.fetchLatestDefinition({
-                        endpoint: target.endpoint,
+                        endpoint,
                         tenantId: target.tenantId,
                         processKey,
                         auth,
@@ -115,6 +128,10 @@ export class DeploymentVerificationService {
                 this.notifier.showError(
                     `Could not verify deployment on "${target.name}" — check the target credentials.`,
                 );
+                return;
+            }
+            if (error instanceof UnresolvedEnvVariableError) {
+                this.notifier.showError(error.message);
                 return;
             }
             this.notifier.notifyError(

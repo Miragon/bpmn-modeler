@@ -11,7 +11,9 @@ import {
     DeploymentStatusService,
     DeploymentTargetService,
     DeploymentVerificationService,
+    EnvValueResolver,
     FetchHttpClient,
+    ProcessEnv,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
 
@@ -51,6 +53,11 @@ export function register(deps: BridgeSharedDeps): void {
     );
     const deploymentState = new RpcDeploymentState(deps.rpc, deps.notifier);
     const secretStore = new RpcSecretStore(deps.rpc);
+    const envResolver = new EnvValueResolver(
+        deps.artifactSvc,
+        deps.nodeWorkspace,
+        new ProcessEnv(),
+    );
     const startInstanceService = new StartInstanceService(
         deps.documentPort,
         deps.nodeWorkspace,
@@ -58,6 +65,7 @@ export function register(deps: BridgeSharedDeps): void {
         deps.notifier,
         deps.picker,
         deps.artifactSvc,
+        envResolver,
     );
     const deploymentTargetService = new DeploymentTargetService(
         deps.artifactSvc,
@@ -84,6 +92,7 @@ export function register(deps: BridgeSharedDeps): void {
         deploymentStatusService,
         c7Client,
         deps.notifier,
+        envResolver,
     );
     const deploymentService = new DeploymentService(
         deps.documentPort,
@@ -94,6 +103,7 @@ export function register(deps: BridgeSharedDeps): void {
         deps.picker,
         secretStore,
         deploymentStatusService,
+        envResolver,
     );
     const deployActiveDiagramService = new DeployActiveDiagramService(
         deps.store,

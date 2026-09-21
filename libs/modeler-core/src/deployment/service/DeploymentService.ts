@@ -22,6 +22,8 @@ import {
 import { CamundaEnginePort } from "../domain/ports";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { DeploymentStatusService } from "./DeploymentStatusService";
+import { EnvValueResolver } from "./EnvValueResolver";
+import { EnvLookup } from "../domain/envRef";
 
 /**
  * Orchestrates the full BPMN deployment workflow.
@@ -55,6 +57,7 @@ export class DeploymentService {
         private readonly picker: PickerPort,
         private readonly secretStore: SecretStorePort,
         private readonly deploymentStatus: DeploymentStatusService,
+        private readonly envResolver: EnvValueResolver,
     ) {}
 
     /**
@@ -165,9 +168,15 @@ export class DeploymentService {
     ): Promise<DeploymentResult> {
         try {
             const fileContents = await this.readFileContents(config);
-            const result = await this.restClient.deploy(config, fileContents);
+            const requestConfig = await this.resolveConfig(
+                config,
+                path.dirname(config.mainFilePath),
+            );
+            const result = await this.restClient.deploy(requestConfig, fileContents);
 
             if (result.success) {
+                // Persist the literal config, never the resolved copy — a
+                // resolved secret must never reach the secret store.
                 await this.persistOnSuccess(config, secretSlot);
                 if (targetIdentity !== undefined) {
                     const content = fileContents.get(path.basename(config.mainFilePath)) ?? "";
@@ -201,18 +210,31 @@ export class DeploymentService {
         auth: AuthConfig,
     ): Promise<DeploymentResult[]> {
         const results: DeploymentResult[] = [];
+        // The target's connection fields are identical across the batch, so the
+        // env refs in them resolve once against a single `.env` read.
+        const lookup =
+            paths.length > 0
+                ? await this.envResolver.createLookup(path.dirname(paths[0]))
+                : undefined;
         for (const filePath of paths) {
             const name = path.basename(filePath, path.extname(filePath));
             try {
                 const config = new DeploymentConfigBuilder()
                     .withDeploymentName(name)
-                    .withTenantId(target.tenantId)
-                    .withEndpoint(target.endpoint)
+                    .withTenantId(
+                        this.envResolver.resolveValueWith(target.tenantId, "tenantId", lookup!) ??
+                            "",
+                    )
+                    .withEndpoint(
+                        this.envResolver.resolveValueWith(target.endpoint, "endpoint", lookup!)!,
+                    )
                     .withEngine(target.engine)
                     .withMainFilePath(filePath)
                     .withAdditionalFilePaths([])
-                    .withAuth(auth)
-                    .withDeployUrl(target.deployUrl)
+                    .withAuth(this.envResolver.resolveAuthWith(auth, lookup!))
+                    .withDeployUrl(
+                        this.envResolver.resolveValueWith(target.deployUrl, "deployUrl", lookup!),
+                    )
                     .build();
                 const fileContents = await this.readFileContents(config);
                 const result = await this.restClient.deploy(config, fileContents);
@@ -241,6 +263,30 @@ export class DeploymentService {
             this.notifier.showError(summary);
         }
         return results;
+    }
+
+    /**
+     * A request-only copy of `config` with every `${env:VAR}` reference expanded
+     * from `.env` / the process environment. The caller keeps the literal
+     * `config` for persistence; only this copy carries resolved secrets.
+     */
+    private async resolveConfig(
+        config: DeploymentConfig,
+        documentDir: string,
+    ): Promise<DeploymentConfig> {
+        const lookup: EnvLookup = await this.envResolver.createLookup(documentDir);
+        return new DeploymentConfigBuilder()
+            .withDeploymentName(config.deploymentName)
+            .withTenantId(
+                this.envResolver.resolveValueWith(config.tenantId, "tenantId", lookup) ?? "",
+            )
+            .withEndpoint(this.envResolver.resolveValueWith(config.endpoint, "endpoint", lookup)!)
+            .withEngine(config.engine)
+            .withMainFilePath(config.mainFilePath)
+            .withAdditionalFilePaths(config.additionalFilePaths)
+            .withAuth(this.envResolver.resolveAuthWith(config.auth, lookup))
+            .withDeployUrl(this.envResolver.resolveValueWith(config.deployUrl, "deployUrl", lookup))
+            .build();
     }
 
     private async persistOnSuccess(config: DeploymentConfig, secretSlot?: string): Promise<void> {

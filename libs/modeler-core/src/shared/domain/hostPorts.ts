@@ -138,6 +138,15 @@ export interface PickerPort {
 }
 
 /**
+ * Read access to the host process environment. Behind a port so domain code and
+ * specs never touch `process` directly — the process env is host-process state,
+ * not something the engine core may reach for.
+ */
+export interface EnvPort {
+    get(name: string): string | undefined;
+}
+
+/**
  * Host clipboard access. Isolated so the sandboxed-iframe mediator pattern
  * (host reads/writes on behalf of the webview) stays confined to infrastructure.
  */

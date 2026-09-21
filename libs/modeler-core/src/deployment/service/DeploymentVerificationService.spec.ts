@@ -1,11 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { EngineInspectionFailedError } from "../../shared/domain/errors";
-import { NoAuth } from "../domain/deployment";
+import { EngineInspectionFailedError, FileNotFound } from "../../shared/domain/errors";
+import { BasicAuth, NoAuth } from "../domain/deployment";
 import { contentFingerprint, DeploymentTargetIdentity } from "../domain/deploymentLedger";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { EngineDeploymentSnapshot } from "../domain/deploymentVerification";
 import { DeploymentVerificationService } from "./DeploymentVerificationService";
+import { EnvValueResolver } from "./EnvValueResolver";
+
+function createEnvResolver(
+    dotEnv: Record<string, string> = {},
+    processEnv: Record<string, string> = {},
+): EnvValueResolver {
+    const artifactService = { getWorkspaceRoot: vi.fn().mockResolvedValue("/work") };
+    const workspace = {
+        readFile: vi.fn().mockImplementation(async (path: string) => {
+            if (path.endsWith(".env")) {
+                return Object.entries(dotEnv)
+                    .map(([key, value]) => `${key}=${value}`)
+                    .join("\n");
+            }
+            throw new FileNotFound(path);
+        }),
+        getWorkspaceFolderPaths: vi.fn().mockReturnValue(["/work"]),
+    };
+    const env = { get: (name: string) => processEnv[name] };
+    return new EnvValueResolver(artifactService as never, workspace as never, env as never);
+}
 
 const FILE_PATH = "/work/order-process.bpmn";
 const XML = '<bpmn:process id="order"/>';
@@ -31,7 +52,7 @@ const snapshot = (overrides: Partial<EngineDeploymentSnapshot> = {}): EngineDepl
     ...overrides,
 });
 
-function createService() {
+function createService(envResolver: EnvValueResolver = createEnvResolver()) {
     const editorStore = {
         getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
     };
@@ -66,6 +87,7 @@ function createService() {
         deploymentStatusService as never,
         inspection as never,
         notifier as never,
+        envResolver,
     );
 
     return {
@@ -258,5 +280,40 @@ describe("DeploymentVerificationService.verifyActive", () => {
             'Verifying on "dev"…',
             expect.any(Function),
         );
+    });
+
+    it("resolves ${env:VAR} in endpoint and credentials before the lookup", async () => {
+        const refTarget = new DeploymentTarget(
+            "dev",
+            "c7",
+            "https://camunda.${env:STAGE}/rest",
+            "",
+            "basic",
+            "",
+            "",
+        );
+        const c = createService(createEnvResolver({ STAGE: "prod", PW: "p@ss" }));
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(refTarget);
+        c.deploymentTargetService.getCredentials.mockResolvedValue(
+            new BasicAuth("admin", "${env:PW}"),
+        );
+
+        await c.service.verifyActive("/work");
+
+        const call = c.inspection.fetchLatestDefinition.mock.calls[0][0];
+        expect(call.endpoint).toBe("https://camunda.prod/rest");
+        expect((call.auth as BasicAuth).password).toBe("p@ss");
+    });
+
+    it("shows the env error and skips the lookup when a referenced variable is unset", async () => {
+        const c = createService(createEnvResolver());
+        c.deploymentTargetService.getCredentials.mockResolvedValue(
+            new BasicAuth("admin", "${env:MISSING_PW}"),
+        );
+
+        await c.service.verifyActive("/work");
+
+        expect(c.notifier.showError).toHaveBeenCalledWith(expect.stringContaining("MISSING_PW"));
+        expect(c.inspection.fetchLatestDefinition).not.toHaveBeenCalled();
     });
 });

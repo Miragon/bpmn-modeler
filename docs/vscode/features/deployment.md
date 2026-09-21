@@ -211,3 +211,36 @@ The sidebar supports three authentication modes, selectable in the form:
 | **OAuth2 Client Credentials** | `Authorization: Bearer <token>` | Fetches an access token from the configured token endpoint using `client_credentials` grant. Optionally includes an `audience` parameter. |
 
 Credentials are stored securely using VS Code's encrypted `SecretStorage` API and restored automatically on the next deployment.
+
+## Environment variable references
+
+Any connection or authentication field may contain `${env:VAR_NAME}` references,
+resolved at deploy / start-instance / verify time — first from a `.env` file at
+the **workspace root**, then from the **process environment**. Multiple
+references may appear in one value, so a URL such as
+`https://camunda.${env:STAGE}.example/engine-rest` interpolates cleanly.
+
+Supported fields: `username`, `password`, `clientId`, `clientSecret`,
+`tokenEndpoint`, `audience`, the REST `endpoint`, `tenantId`, and the deploy /
+start-instance URL overrides. The literal `${env:...}` string is what is stored
+and shown in the form — resolution happens only when the outbound request is
+built, so the webview never sees a resolved secret.
+
+If a referenced variable is set nowhere, the operation fails with an error
+naming the variable (it never falls back to the literal text).
+
+**Team-shareable credential references.** A reference is not a secret, so a
+credential field whose entire value is a single `${env:VAR}` is written to
+`deployment-targets.json` (committable to VCS) instead of the secret store. A
+teammate clones the repo, creates their own `.env`, and deploys with no
+per-machine credential setup. Any other value (a literal, or partial
+interpolation like `user-${env:X}`) stays in the encrypted secret store as
+before.
+
+Notes:
+
+- **Multi-root workspaces:** the `.env` is read from the workspace folder of the
+  document being deployed, not a global location.
+- **macOS:** GUI-launched IDEs do not inherit shell exports, so a variable you
+  `export`ed in a terminal may be invisible to the app — a workspace-root `.env`
+  is the reliable path.

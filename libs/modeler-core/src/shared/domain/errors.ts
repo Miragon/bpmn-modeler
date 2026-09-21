@@ -95,6 +95,25 @@ export class DuplicateDeploymentTargetError extends Error {
 }
 
 /**
+ * Thrown when a `${env:VAR}` reference in a deployment field cannot be resolved
+ * from the workspace-root `.env` file or the host process environment. Names the
+ * variable (and field, when known) so the failure is actionable in the webview
+ * error area — it never falls back to the literal ref.
+ */
+export class UnresolvedEnvVariableError extends Error {
+    constructor(
+        readonly variable: string,
+        readonly field?: string,
+    ) {
+        const where = field ? ` in "${field}"` : "";
+        super(
+            `Environment variable "${variable}"${where} is not set. Define it in a .env file at the workspace root or in the IDE's environment.`,
+        );
+        this.name = "UnresolvedEnvVariableError";
+    }
+}
+
+/**
  * Thrown when fetching an OAuth2 access token fails.
  */
 export class TokenFetchError extends Error {

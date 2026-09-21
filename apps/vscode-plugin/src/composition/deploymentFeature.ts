@@ -12,7 +12,9 @@ import {
     DeploymentStatusService,
     DeploymentTargetService,
     DeploymentVerificationService,
+    EnvValueResolver,
     FetchHttpClient,
+    ProcessEnv,
     StartInstanceService,
 } from "@miragon/bpmn-modeler-core";
 import { DeploymentController } from "../deployment/controller/DeploymentController";
@@ -48,6 +50,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deps.vsSettings.getC8ApiVersion(),
     );
     const restClient = new CamundaEngineRouter(c7Client, c8Client);
+    const envResolver = new EnvValueResolver(deps.artifactSvc, deps.vsWorkspace, new ProcessEnv());
 
     const startInstanceSvc = new StartInstanceService(
         deps.vsDocument,
@@ -56,6 +59,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deps.notifier,
         deps.picker,
         deps.artifactSvc,
+        envResolver,
     );
     const deploymentTargetSvc = new DeploymentTargetService(
         deps.artifactSvc,
@@ -82,6 +86,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deploymentStatusSvc,
         c7Client,
         deps.notifier,
+        envResolver,
     );
     const deploymentSvc = new DeploymentService(
         deps.vsDocument,
@@ -92,6 +97,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deps.picker,
         secretStore,
         deploymentStatusSvc,
+        envResolver,
     );
     const deployActiveSvc = new DeployActiveDiagramService(
         deps.editorStore,

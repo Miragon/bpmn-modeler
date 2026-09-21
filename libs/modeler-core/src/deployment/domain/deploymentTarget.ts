@@ -4,13 +4,20 @@ import {
     DuplicateDeploymentTargetError,
     InvalidDeploymentTargetsFileError,
 } from "../../shared/domain/errors";
+import { isWholeEnvRef } from "./envRef";
 
 export type TargetAuthType = "none" | "basic" | "oauth2";
 
 /**
  * A named, team-shareable deployment connection persisted in
  * `deployment-targets.json`. Holds only non-secret connection metadata —
- * credentials live in the host secret store keyed by the target's slot.
+ * literal credentials live in the host secret store keyed by the target's slot.
+ *
+ * The optional `username`/`password`/`clientId`/`clientSecret` fields hold
+ * *env references* (`${env:VAR}`) only: a reference is not a secret, so it may be
+ * committed to the shared file and resolved from each machine's `.env`. The
+ * parser rejects any literal value in these fields, so a real secret can never
+ * land here.
  */
 export class DeploymentTarget {
     constructor(
@@ -23,6 +30,10 @@ export class DeploymentTarget {
         readonly audience: string,
         readonly deployUrl?: string,
         readonly startInstanceUrl?: string,
+        readonly username?: string,
+        readonly password?: string,
+        readonly clientId?: string,
+        readonly clientSecret?: string,
     ) {}
 
     toJson(): Record<string, unknown> {
@@ -31,6 +42,10 @@ export class DeploymentTarget {
             auth.tokenEndpoint = this.tokenEndpoint;
             auth.audience = this.audience;
         }
+        if (this.username !== undefined) auth.username = this.username;
+        if (this.password !== undefined) auth.password = this.password;
+        if (this.clientId !== undefined) auth.clientId = this.clientId;
+        if (this.clientSecret !== undefined) auth.clientSecret = this.clientSecret;
 
         const json: Record<string, unknown> = {
             name: this.name,
@@ -154,7 +169,8 @@ function parseTarget(entry: unknown, index: number): DeploymentTarget {
     const endpoint = parseRequiredString(source.endpoint, index, "endpoint");
     const tenantId = parseOptionalString(source.tenantId, index, "tenantId") ?? "";
 
-    const { authType, tokenEndpoint, audience } = parseAuth(source.auth, index);
+    const { authType, tokenEndpoint, audience, username, password, clientId, clientSecret } =
+        parseAuth(source.auth, index);
     const { deployUrl, startInstanceUrl } = parseEndpoints(source.endpoints, index);
 
     return new DeploymentTarget(
@@ -167,13 +183,24 @@ function parseTarget(entry: unknown, index: number): DeploymentTarget {
         audience,
         deployUrl,
         startInstanceUrl,
+        username,
+        password,
+        clientId,
+        clientSecret,
     );
 }
 
-function parseAuth(
-    raw: unknown,
-    index: number,
-): { authType: TargetAuthType; tokenEndpoint: string; audience: string } {
+interface ParsedAuth {
+    authType: TargetAuthType;
+    tokenEndpoint: string;
+    audience: string;
+    username?: string;
+    password?: string;
+    clientId?: string;
+    clientSecret?: string;
+}
+
+function parseAuth(raw: unknown, index: number): ParsedAuth {
     if (raw === undefined) {
         return { authType: "none", tokenEndpoint: "", audience: "" };
     }
@@ -191,7 +218,32 @@ function parseAuth(
         authType: type,
         tokenEndpoint: parseOptionalString(auth.tokenEndpoint, index, "auth.tokenEndpoint") ?? "",
         audience: parseOptionalString(auth.audience, index, "auth.audience") ?? "",
+        username: parseCredentialRef(auth.username, index, "auth.username"),
+        password: parseCredentialRef(auth.password, index, "auth.password"),
+        clientId: parseCredentialRef(auth.clientId, index, "auth.clientId"),
+        clientSecret: parseCredentialRef(auth.clientSecret, index, "auth.clientSecret"),
     };
+}
+
+/**
+ * A credential field in the shared file may only hold a whole `${env:VAR}`
+ * reference — a literal secret is rejected so it can never be committed here.
+ */
+function parseCredentialRef(raw: unknown, index: number, field: string): string | undefined {
+    if (raw === undefined) {
+        return undefined;
+    }
+    if (typeof raw !== "string") {
+        throw new InvalidDeploymentTargetsFileError(
+            `targets[${index}] "${field}" must be a string`,
+        );
+    }
+    if (!isWholeEnvRef(raw)) {
+        throw new InvalidDeploymentTargetsFileError(
+            `targets[${index}] "${field}" must be an environment reference like "\${env:VAR}" — use the form to store a literal secret`,
+        );
+    }
+    return raw.trim();
 }
 
 function parseEndpoints(

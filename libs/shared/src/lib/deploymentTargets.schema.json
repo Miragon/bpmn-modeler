@@ -29,11 +29,11 @@
                     },
                     "endpoint": {
                         "type": "string",
-                        "description": "Base URL of the Camunda REST API."
+                        "description": "Base URL of the Camunda REST API. May contain ${env:VAR} references, resolved at request time from a workspace-root .env file or the process environment."
                     },
                     "tenantId": {
                         "type": "string",
-                        "description": "Optional tenant identifier."
+                        "description": "Optional tenant identifier. May contain ${env:VAR} references."
                     },
                     "auth": {
                         "type": "object",
@@ -45,11 +45,31 @@
                             },
                             "tokenEndpoint": {
                                 "type": "string",
-                                "description": "OAuth2 token endpoint (oauth2 only)."
+                                "description": "OAuth2 token endpoint (oauth2 only). May contain ${env:VAR} references."
                             },
                             "audience": {
                                 "type": "string",
-                                "description": "OAuth2 audience (oauth2 only)."
+                                "description": "OAuth2 audience (oauth2 only). May contain ${env:VAR} references."
+                            },
+                            "username": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\}$",
+                                "description": "Basic-auth username as an environment reference (${env:VAR}) only — never a literal secret. Resolved at request time."
+                            },
+                            "password": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\}$",
+                                "description": "Basic-auth password as an environment reference (${env:VAR}) only — never a literal secret. Resolved at request time."
+                            },
+                            "clientId": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\}$",
+                                "description": "OAuth2 client ID as an environment reference (${env:VAR}) only — never a literal secret. Resolved at request time."
+                            },
+                            "clientSecret": {
+                                "type": "string",
+                                "pattern": "^\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\}$",
+                                "description": "OAuth2 client secret as an environment reference (${env:VAR}) only — never a literal secret. Resolved at request time."
                             }
                         },
                         "required": ["type"]
@@ -61,11 +81,11 @@
                         "properties": {
                             "deploy": {
                                 "type": "string",
-                                "description": "Full URL for the deploy call."
+                                "description": "Full URL for the deploy call. May contain ${env:VAR} references."
                             },
                             "startInstance": {
                                 "type": "string",
-                                "description": "Full URL for start-instance; {processDefinitionKey} is substituted."
+                                "description": "Full URL for start-instance; {processDefinitionKey} is substituted. May contain ${env:VAR} references."
                             }
                         }
                     }
