@@ -10,8 +10,8 @@ vi.mock("./viewport", () => ({
     },
 }));
 
-function plane(id: string, type = "bpmn:SubProcess") {
-    return { id, businessObject: { $instanceOf: (t: string) => t === type } };
+function plane(id: string, type = "bpmn:SubProcess", children: unknown[] = [{}]) {
+    return { id, businessObject: { $instanceOf: (t: string) => t === type }, children };
 }
 
 type RootElement = ReturnType<typeof plane> | { id: string; businessObject?: undefined };
@@ -80,6 +80,22 @@ describe("DrilldownFit", () => {
         rootSet(plane("sub_plane"));
 
         expect(fitViewport).toHaveBeenCalledTimes(2);
+    });
+
+    it("leaves an empty plane alone and fits it once it has content", () => {
+        const { rootSet } = build();
+
+        rootSet(plane("sub_plane", "bpmn:SubProcess", []));
+
+        expect(fitViewport).not.toHaveBeenCalled();
+
+        rootSet(plane("sub_plane"));
+
+        expect(fitViewport).toHaveBeenCalledOnce();
+
+        rootSet(plane("sub_plane"));
+
+        expect(fitViewport).toHaveBeenCalledOnce();
     });
 
     it("ignores the top-level root, which the host positions itself", () => {

@@ -9,6 +9,7 @@ interface BusinessObject {
 interface RootElement {
     id: string;
     businessObject?: BusinessObject;
+    children?: unknown[];
 }
 
 interface RootSetEvent {
@@ -45,6 +46,11 @@ export class DrilldownFit {
     private onRootSet(event: RootSetEvent): void {
         const root = event.element;
         if (!root || !isSubProcessPlane(root)) {
+            return;
+        }
+        // An empty plane (drilled into to author its content) must not consume
+        // the one-shot fit — the first *contentful* visit is the one to fit.
+        if (!root.children?.length) {
             return;
         }
         const firstVisit = !this.seen.has(root.id);
