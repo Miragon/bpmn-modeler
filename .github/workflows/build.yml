@@ -221,6 +221,7 @@ jobs:
       - name: Install dependencies (focused)
         run: yarn workspaces focus bpmn-modeler @miragon/bpmn-modeler-standalone @miragon/bpmn-modeler-standalone-extension
       - run: yarn workspace @miragon/bpmn-modeler-standalone-extension test
+      - run: yarn workspace @miragon/bpmn-modeler-standalone test:runtime
       - run: yarn workspace @miragon/bpmn-modeler-standalone test:security
       - run: yarn workspace @miragon/bpmn-modeler-standalone build
       - name: Verify secondary-window bundle

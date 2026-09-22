@@ -22,6 +22,8 @@ module.exports = [
             "**/src-gen",
             "**/plugins",
             "**/gen-webpack*.js",
+            "**/gen-esbuild*.mjs",
+            "apps/standalone/esbuild.mjs",
             "**/.browser_modules",
             "docs/**",
             // Sample workspaces shipped for manual testing (e.g. the example

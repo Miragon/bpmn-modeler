@@ -16,6 +16,8 @@
 # Generated code
 **/src-gen
 **/gen-webpack*.js
+**/gen-esbuild*.mjs
+apps/standalone/esbuild.mjs
 
 # Theia plugin downloads (apps/standalone)
 apps/standalone/plugins

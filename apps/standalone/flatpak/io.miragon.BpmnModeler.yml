@@ -10,6 +10,7 @@ finish-args:
   - --share=ipc
   - --socket=x11
   - --socket=pulseaudio
+  - --socket=ssh-auth
   - --device=dri
   - --share=network
   - --filesystem=home
@@ -20,6 +21,7 @@ finish-args:
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
 
 modules:
+  - git.yml
   - name: miragon-bpmn-modeler
     buildsystem: simple
     build-commands:

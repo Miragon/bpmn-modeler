@@ -37,7 +37,7 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone prepare-plugin
 # 3. Rebuild Theia's native modules against Electron's Node ABI
 corepack yarn workspace @miragon/bpmn-modeler-standalone run rebuild
 
-# 4. Build Theia (webpack frontend + backend bundles)
+# 4. Build Theia (esbuild frontend + backend bundles)
 corepack yarn workspace @miragon/bpmn-modeler-standalone build
 
 # 5. Launch the Electron app in dev mode
@@ -57,6 +57,16 @@ applications and the normal `start` command keep their existing sandbox behavior
 > **Note:** step 3 must be invoked as `yarn ... run rebuild`, not `yarn ...
 > rebuild` — Yarn 4 reserves `rebuild` as a built-in command and won't dispatch
 > to our script otherwise.
+
+After changing Theia dependencies, run the runtime compatibility check:
+
+```bash
+corepack yarn workspace @miragon/bpmn-modeler-standalone test:runtime
+```
+
+It verifies that every discovered Theia extension resolves the same core widget
+runtime. Duplicate core instances can crash the frontend during startup even
+when the build succeeds.
 
 ## Detaching editors
 
@@ -175,8 +185,17 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak:bun
 
 Flatpak builds disable `electron-updater`; updates should be delivered by
 installing a newer Flatpak bundle or, later, through a signed Flatpak repository.
-The sandbox does not expose the host's `git` executable, so Theia's Source
-Control view is currently unavailable in the Flatpak package.
+
+The Flatpak uses the Freedesktop Platform runtime and bundles Git under `/app`
+for Theia's Source Control view. The build SDK compiles the pinned source archive
+in [`flatpak/git.yml`](flatpak/git.yml).
+
+Git commands run inside the sandbox. The
+`--socket=ssh-auth` permission exposes the host SSH agent for SSH remotes;
+load keys into that agent on the host before launching the app.
+
+The release workflow verifies the bundled Git binary and HTTPS helper using
+`flatpak build --runtime`, so the build SDK cannot supply a missing dependency.
 
 ### Auto-update on macOS and Windows
 

@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-09-18
+- Last reviewed: 2026-09-21
 
 ## Context
 
@@ -11,10 +11,14 @@ without treating every package API break as a host break. npm publishing also
 needs installable tarballs, consumer validation and authentication without a
 standing CI token.
 
+The standalone Linux app needs Git inside its Flatpak sandbox without requiring
+users to install a full development SDK or allowing host-command execution.
+
 ## Contents
 
 - [Release components and markers](#release-components-and-markers)
 - [Packing and publishing](#packing-and-publishing)
+- [Standalone Linux Git](#standalone-linux-git)
 - [Consequences](#consequences)
 
 ## Decision
@@ -100,6 +104,21 @@ conflicting shared pins fail rather than choosing one silently. Immutable CI
 installs additionally catch lockfile drift. Package build/declaration checks and
 the consumer smoke scripts enforce the distribution boundary.
 
+### Standalone Linux Git
+
+Use `org.freedesktop.Platform` at runtime and `org.freedesktop.Sdk` only for
+building. Bundle Git under `/app` from the checksum-pinned source archive in
+[`git.yml`](../../apps/standalone/flatpak/git.yml), following
+[Obsidian's packaging](https://github.com/flathub/md.obsidian.Obsidian/blob/master/md.obsidian.Obsidian.yml).
+Disable Perl, Rust, and Tcl/Tk components; the modeler uses the Git CLI and its
+HTTPS helper. The Platform runtime supplies SSH, and `--socket=ssh-auth` lets
+sandboxed Git use the host's SSH agent.
+
+The [release workflow](../../.github/workflows/publish-standalone.yml) checks
+Git in the finished application's runtime rather than the build SDK. Running
+the full SDK at runtime would ship unnecessary development tools; forwarding
+Git to the host would require general host-command execution permission.
+
 ## Consequences
 
 Packages retain separate version lines while bundled feature/fix changes reach
@@ -114,6 +133,11 @@ declares `tiny-svg` and `@lezer/lr` directly to cover upstream undeclared import
 remove those bridges only when the corresponding upstream packages declare or
 stop using them. Hoisted installs can hide those gaps, and strict Yarn PnP
 compatibility is not established merely by a successful hoisted build.
+
+The standalone package carries its own Git version and must update the source
+URL and checksum for Git fixes. Users need neither host Git nor the SDK runtime.
+Git and its subprocesses remain sandboxed; host-only credential helpers and
+hook dependencies need sandbox-compatible alternatives.
 
 Operational instructions live in the
 [release guide](../vscode/contributing/release-process.md); architecture and

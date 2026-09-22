@@ -1,0 +1,16 @@
+name: git
+buildsystem: autotools
+make-args:
+  - INSTALL_SYMLINKS=1
+  - NO_PERL=YesPlease
+  - NO_RUST=YesPlease
+  - NO_TCLTK=YesPlease
+make-install-args:
+  - INSTALL_SYMLINKS=1
+  - NO_PERL=YesPlease
+  - NO_RUST=YesPlease
+  - NO_TCLTK=YesPlease
+sources:
+  - type: archive
+    url: https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.55.0.tar.xz
+    sha256: 457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357
