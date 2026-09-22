@@ -188,10 +188,7 @@ installing a newer Flatpak bundle or, later, through a signed Flatpak repository
 
 The Flatpak uses the Freedesktop Platform runtime and bundles Git under `/app`
 for Theia's Source Control view. The build SDK compiles the pinned source archive
-in [`flatpak/git.yml`](flatpak/git.yml), following
-[Obsidian's Git packaging](https://github.com/flathub/md.obsidian.Obsidian/blob/master/md.obsidian.Obsidian.yml)
-with Perl, Rust, and Tcl/Tk components disabled. Update the archive URL and SHA-256
-together when upgrading Git.
+in [`flatpak/git.yml`](flatpak/git.yml).
 
 Git commands run inside the sandbox. The
 `--socket=ssh-auth` permission exposes the host SSH agent for SSH remotes;
