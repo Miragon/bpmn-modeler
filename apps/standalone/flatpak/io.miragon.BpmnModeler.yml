@@ -1,5 +1,5 @@
 id: io.miragon.BpmnModeler
-runtime: org.freedesktop.Sdk
+runtime: org.freedesktop.Platform
 runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
@@ -21,6 +21,7 @@ finish-args:
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
 
 modules:
+  - git.yml
   - name: miragon-bpmn-modeler
     buildsystem: simple
     build-commands:

@@ -186,10 +186,19 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak:bun
 Flatpak builds disable `electron-updater`; updates should be delivered by
 installing a newer Flatpak bundle or, later, through a signed Flatpak repository.
 
-The Flatpak uses the Freedesktop SDK as its runtime, which supplies Git for
-Theia's Source Control view. Git commands run inside the sandbox. The
+The Flatpak uses the Freedesktop Platform runtime and bundles Git under `/app`
+for Theia's Source Control view. The build SDK compiles the pinned source archive
+in [`flatpak/git.yml`](flatpak/git.yml), following
+[Obsidian's Git packaging](https://github.com/flathub/md.obsidian.Obsidian/blob/master/md.obsidian.Obsidian.yml)
+with Perl, Rust, and Tcl/Tk components disabled. Update the archive URL and SHA-256
+together when upgrading Git.
+
+Git commands run inside the sandbox. The
 `--socket=ssh-auth` permission exposes the host SSH agent for SSH remotes;
 load keys into that agent on the host before launching the app.
+
+The release workflow verifies the bundled Git binary and HTTPS helper using
+`flatpak build --runtime`, so the build SDK cannot supply a missing dependency.
 
 ### Auto-update on macOS and Windows
 

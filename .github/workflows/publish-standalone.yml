@@ -381,6 +381,14 @@ jobs:
       - name: Build Flatpak bundle
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak:bundle
 
+      - name: Verify bundled Git in the application runtime
+        run: |
+          flatpak build --runtime --readonly apps/standalone/dist/flatpak-build /bin/sh -ec '
+            test "$(command -v git)" = /app/bin/git
+            git --version
+            test -x "$(git --exec-path)/git-remote-https"
+          '
+
       - name: Upload Flatpak artifact (dry-run)
         if: inputs.dry-run == true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
