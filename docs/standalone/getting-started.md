@@ -170,10 +170,8 @@ The standalone ships with the same VS Code Git extension that powers the
 Source Control view in VS Code, including BPMN-aware diffs for modified
 diagrams.
 
-- **macOS** — install Xcode Command Line Tools (`xcode-select --install`)
-  or [git-scm.com](https://git-scm.com/).
-- **Windows** — install Git from [git-scm.com](https://git-scm.com/).
-- **Linux (Flatpak)** — the Freedesktop SDK runtime supplies Git inside the
-  sandbox. You do not need to install Git on the host.
+The macOS and Windows build of the standalone app rely on the system `git` binary.
+Make sure to install and configure git on the host.
 
-
+The Linux (Flatpak) app runs in a sandbox and bundles `git` inside the package and
+forwards the ssh-agent.
