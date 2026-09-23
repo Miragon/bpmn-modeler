@@ -78,6 +78,7 @@ export function register(context: ExtensionContext, deps: SharedDeps): Deploymen
         deps.statusBar,
         deps.picker,
         deps.notifier,
+        envResolver,
     );
     const verificationSvc = new DeploymentVerificationService(
         deps.editorStore,

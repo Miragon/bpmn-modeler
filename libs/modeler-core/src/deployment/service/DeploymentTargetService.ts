@@ -18,7 +18,7 @@ import {
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
 } from "../domain/deploymentTarget";
-import { isWholeEnvRef } from "../domain/envRef";
+import { blankIfWholeEnvRef, isWholeEnvRef } from "../domain/envRef";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
 
@@ -167,9 +167,7 @@ export class DeploymentTargetService {
             throw new Error("Open a workspace folder before saving a deployment target.");
         }
 
-        // A whole-value env ref is not a secret: it goes in the shared JSON, and
-        // only the literal (or partially interpolated) values reach the secret
-        // store. Parsing round-trips the JSON so the ref pattern is re-validated.
+        // Round-tripping through the parser re-validates the credential refs.
         const [target] = parseDeploymentTargetsFile({
             targets: [toDomainTarget(payload, credentialRefs(auth)).toJson()],
         });
@@ -381,7 +379,6 @@ function toDomainTarget(payload: DeploymentTargetPayload, refs: CredentialRefs):
     );
 }
 
-/** The credential fields whose whole value is an env ref, destined for the JSON. */
 function credentialRefs(auth: AuthConfigPayload): CredentialRefs {
     const refIf = (value?: string) =>
         value !== undefined && isWholeEnvRef(value) ? value.trim() : undefined;
@@ -393,13 +390,9 @@ function credentialRefs(auth: AuthConfigPayload): CredentialRefs {
     };
 }
 
-/**
- * The auth payload with whole-env-ref credential fields blanked, so the secret
- * store keeps only literal (or partially interpolated) values. Blanking a
- * ref-valued field also overwrites any real secret a prior literal save left.
- */
+/** Blanking also overwrites a real secret that a prior literal save left behind. */
 function literalSecrets(auth: AuthConfigPayload): AuthConfigPayload {
-    const literal = (value?: string) => (value !== undefined && isWholeEnvRef(value) ? "" : value);
+    const literal = (value?: string) => (value === undefined ? value : blankIfWholeEnvRef(value));
     return {
         ...auth,
         username: literal(auth.username),

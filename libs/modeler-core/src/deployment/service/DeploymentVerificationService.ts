@@ -13,7 +13,7 @@ import { EngineInspectionPort } from "../domain/ports";
 import { DeploymentStatusService } from "./DeploymentStatusService";
 import { DeploymentTargetService } from "./DeploymentTargetService";
 import { EnvValueResolver } from "./EnvValueResolver";
-import { EnvLookup } from "../domain/envRef";
+import { expandEnvRefs } from "../domain/envRef";
 
 /**
  * On-demand reconciliation of the local deployment ledger against a Camunda 7
@@ -69,26 +69,23 @@ export class DeploymentVerificationService {
         }
 
         try {
-            const literalAuth = await this.deploymentTargetService.getCredentials(target, dir);
-            const lookup: EnvLookup = await this.envResolver.createLookup(dir);
-            const auth = this.envResolver.resolveAuthWith(literalAuth, lookup);
-            const endpoint = this.envResolver.resolveValueWith(
-                target.endpoint,
-                "endpoint",
-                lookup,
-            )!;
+            const credentials = await this.deploymentTargetService.getCredentials(target, dir);
+            const lookup = await this.envResolver.createLookup(dir);
+            const auth = credentials.expandEnvRefs(lookup);
+            const endpoint = expandEnvRefs(target.endpoint, lookup, "endpoint");
+            const tenantId = expandEnvRefs(target.tenantId, lookup, "tenantId");
             const snapshot = await this.notifier.withProgress(
                 `Verifying on "${target.name}"…`,
                 () =>
                     this.inspection.fetchLatestDefinition({
                         endpoint,
-                        tenantId: target.tenantId,
+                        tenantId,
                         processKey,
                         auth,
                     }),
             );
 
-            const identity = DeploymentTargetIdentity.fromTarget(target);
+            const identity = DeploymentTargetIdentity.fromTarget(target, lookup);
             const recorded = this.deploymentStatusService.getRevision(filePath, identity);
             const { outcome, revision } = reconcile(recorded, content, snapshot);
 

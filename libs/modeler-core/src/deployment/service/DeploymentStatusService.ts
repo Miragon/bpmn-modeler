@@ -16,7 +16,9 @@ import {
     ledgerKeyFor,
     ledgerKeyPrefixFor,
 } from "../domain/deploymentLedger";
+import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentTargetService } from "./DeploymentTargetService";
+import { EnvValueResolver } from "./EnvValueResolver";
 
 /**
  * Owns the deployment status-bar item and the "what was last deployed where"
@@ -40,7 +42,30 @@ export class DeploymentStatusService {
         private readonly statusBar: StatusBarPort,
         private readonly picker: PickerPort,
         private readonly notifier: NotifierPort,
+        private readonly envResolver: EnvValueResolver,
     ) {}
+
+    async targetIdentity(
+        target: DeploymentTarget,
+        documentDir?: string,
+    ): Promise<DeploymentTargetIdentity> {
+        return DeploymentTargetIdentity.fromTarget(
+            target,
+            await this.envResolver.createLookup(documentDir),
+        );
+    }
+
+    async adHocIdentity(
+        endpoint: string,
+        tenantId: string,
+        documentDir?: string,
+    ): Promise<DeploymentTargetIdentity> {
+        return DeploymentTargetIdentity.adHoc(
+            endpoint,
+            tenantId,
+            await this.envResolver.createLookup(documentDir),
+        );
+    }
 
     async recordDeployment(
         filePath: string,
@@ -109,14 +134,15 @@ export class DeploymentStatusService {
             const filePath = this.documentPort.getFilePath(editorId);
             const documentDir = posix.dirname(filePath);
             const target = await this.deploymentTargetService.getActiveTarget(documentDir);
-            if (generation !== this.refreshGeneration || !this.isActive(editorId)) return;
             const identity =
                 target !== undefined
-                    ? DeploymentTargetIdentity.fromTarget(target)
-                    : DeploymentTargetIdentity.adHoc(
+                    ? await this.targetIdentity(target, documentDir)
+                    : await this.adHocIdentity(
                           this.deploymentState.getEndpoint(),
                           this.deploymentState.getTenantId(),
+                          documentDir,
                       );
+            if (generation !== this.refreshGeneration || !this.isActive(editorId)) return;
 
             const revision = this.deploymentState.getDeployedRevision(
                 ledgerKeyFor(identity, filePath),

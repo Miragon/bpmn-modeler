@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FileNotFound, UnresolvedEnvVariableError } from "../../shared/domain/errors";
-import { BasicAuth, NoAuth, OAuth2Auth } from "../domain/deployment";
+import { FileNotFound } from "../../shared/domain/errors";
 import { EnvValueResolver } from "./EnvValueResolver";
 
 function setup(options: {
@@ -45,30 +44,32 @@ describe("EnvValueResolver", () => {
             dotEnv: { X: "from-dotenv" },
             processEnv: { X: "from-proc" },
         });
-        await expect(resolver.resolveValue("${env:X}", "f", "/work/dir")).resolves.toBe(
-            "from-dotenv",
-        );
+        const lookup = await resolver.createLookup("/work/dir");
+        expect(lookup("X")).toBe("from-dotenv");
     });
 
     it("falls back to the process environment when .env is missing the variable", async () => {
         const { resolver } = setup({ dotEnv: {}, processEnv: { X: "from-proc" } });
-        await expect(resolver.resolveValue("${env:X}", "f", "/work/dir")).resolves.toBe(
-            "from-proc",
-        );
+        const lookup = await resolver.createLookup("/work/dir");
+        expect(lookup("X")).toBe("from-proc");
     });
 
     it("falls back to the process environment when there is no .env file", async () => {
         const { resolver } = setup({ dotEnv: "missing", processEnv: { X: "from-proc" } });
-        await expect(resolver.resolveValue("${env:X}", "f", "/work/dir")).resolves.toBe(
-            "from-proc",
-        );
+        const lookup = await resolver.createLookup("/work/dir");
+        expect(lookup("X")).toBe("from-proc");
     });
 
-    it("throws when the variable is in neither source", async () => {
+    it("returns undefined when the variable is in neither source", async () => {
         const { resolver } = setup({ dotEnv: {} });
-        await expect(
-            resolver.resolveValue("${env:MISSING}", "endpoint", "/work/dir"),
-        ).rejects.toThrow(UnresolvedEnvVariableError);
+        const lookup = await resolver.createLookup("/work/dir");
+        expect(lookup("MISSING")).toBeUndefined();
+    });
+
+    it("reads .env from the document's workspace root", async () => {
+        const { resolver, readFile } = setup({ dotEnv: {}, workspaceRoot: "/ws" });
+        await resolver.createLookup("/ws/sub");
+        expect(readFile).toHaveBeenCalledWith("/ws/.env");
     });
 
     it("uses the first workspace folder when no documentDir is given", async () => {
@@ -76,41 +77,15 @@ describe("EnvValueResolver", () => {
             dotEnv: { X: "root" },
             workspaceFolders: ["/root-ws"],
         });
-        await expect(resolver.resolveValue("${env:X}", "f")).resolves.toBe("root");
+        const lookup = await resolver.createLookup();
+        expect(lookup("X")).toBe("root");
         expect(artifactService.getWorkspaceRoot).not.toHaveBeenCalled();
         expect(readFile).toHaveBeenCalledWith("/root-ws/.env");
     });
 
-    it("does no file I/O when the value has no ref (fast path)", async () => {
-        const { resolver, readFile } = setup({ dotEnv: { X: "v" } });
-        await expect(resolver.resolveValue("plain", "f", "/work/dir")).resolves.toBe("plain");
-        expect(readFile).not.toHaveBeenCalled();
-    });
-
-    it("does no file I/O when the auth has no ref (fast path)", async () => {
-        const { resolver, readFile } = setup({ dotEnv: { X: "v" } });
-        await resolver.resolveAuth(new BasicAuth("admin", "literal"), "/work/dir");
-        expect(readFile).not.toHaveBeenCalled();
-    });
-
-    it("returns NoAuth untouched", async () => {
-        const { resolver } = setup({ dotEnv: {} });
-        const auth = new NoAuth();
-        await expect(resolver.resolveAuth(auth, "/work/dir")).resolves.toBe(auth);
-    });
-
-    it("resolves every ref-bearing oauth2 field", async () => {
-        const { resolver } = setup({
-            dotEnv: { CID: "cid", SECRET: "sec", AUD: "aud" },
-            processEnv: {},
-        });
-        const resolved = (await resolver.resolveAuth(
-            new OAuth2Auth("${env:CID}", "${env:SECRET}", "https://idp/token", "${env:AUD}"),
-            "/work/dir",
-        )) as OAuth2Auth;
-        expect(resolved.clientId).toBe("cid");
-        expect(resolved.clientSecret).toBe("sec");
-        expect(resolved.tokenEndpoint).toBe("https://idp/token");
-        expect(resolved.audience).toBe("aud");
+    it("propagates .env read failures other than a missing file", async () => {
+        const { resolver, workspace } = setup({});
+        workspace.readFile.mockRejectedValueOnce(new Error("EACCES"));
+        await expect(resolver.createLookup("/work/dir")).rejects.toThrow("EACCES");
     });
 });

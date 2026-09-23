@@ -41,7 +41,7 @@ const c7Target = new DeploymentTarget(
     "",
 );
 const c8Target = new DeploymentTarget("cloud", "c8", "https://c8.example.com", "", "none", "", "");
-const identity = DeploymentTargetIdentity.fromTarget(c7Target);
+const identity = DeploymentTargetIdentity.fromTarget(c7Target, () => undefined);
 
 const snapshot = (overrides: Partial<EngineDeploymentSnapshot> = {}): EngineDeploymentSnapshot => ({
     processDefinitionId: "order:3:def-1",
@@ -303,6 +303,24 @@ describe("DeploymentVerificationService.verifyActive", () => {
         const call = c.inspection.fetchLatestDefinition.mock.calls[0][0];
         expect(call.endpoint).toBe("https://camunda.prod/rest");
         expect((call.auth as BasicAuth).password).toBe("p@ss");
+    });
+
+    it("resolves ${env:VAR} in the tenant id before the lookup", async () => {
+        const refTarget = new DeploymentTarget(
+            "dev",
+            "c7",
+            "http://localhost:8080/engine-rest",
+            "${env:TENANT}",
+            "none",
+            "",
+            "",
+        );
+        const c = createService(createEnvResolver({ TENANT: "acme" }));
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(refTarget);
+
+        await c.service.verifyActive("/work");
+
+        expect(c.inspection.fetchLatestDefinition.mock.calls[0][0].tenantId).toBe("acme");
     });
 
     it("shows the env error and skips the lookup when a referenced variable is unset", async () => {

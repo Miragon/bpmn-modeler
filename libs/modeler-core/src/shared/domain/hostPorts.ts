@@ -137,11 +137,7 @@ export interface PickerPort {
     }): Promise<"switch" | "verify" | undefined>;
 }
 
-/**
- * Read access to the host process environment. Behind a port so domain code and
- * specs never touch `process` directly — the process env is host-process state,
- * not something the engine core may reach for.
- */
+/** Keeps `process` out of the engine core and its specs. */
 export interface EnvPort {
     get(name: string): string | undefined;
 }

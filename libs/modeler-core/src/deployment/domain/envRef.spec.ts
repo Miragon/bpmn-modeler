@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import { UnresolvedEnvVariableError } from "../../shared/domain/errors";
-import { expandEnvRefs, isWholeEnvRef } from "./envRef";
+import {
+    blankIfWholeEnvRef,
+    expandEnvRefs,
+    expandEnvRefsLeniently,
+    expandOptionalEnvRefs,
+    isWholeEnvRef,
+} from "./envRef";
 
 const lookup = (map: Record<string, string>) => (name: string) => map[name];
 
 describe("expandEnvRefs", () => {
-    it("returns the same string instance when there is no ref", () => {
+    it("returns a value without refs unchanged", () => {
         const value = "https://camunda.example/engine-rest";
-        expect(expandEnvRefs(value, lookup({}))).toBe(value);
+        expect(expandEnvRefs(value, lookup({}), "endpoint")).toBe(value);
     });
 
     it("expands multiple refs inside one value", () => {
@@ -19,13 +25,14 @@ describe("expandEnvRefs", () => {
                     STAGE: "prod",
                     REGION: "eu",
                 }),
+                "endpoint",
             ),
         ).toBe("https://camunda.prod.eu/rest");
     });
 
     it("leaves malformed refs (invalid variable names) untouched", () => {
         const value = "${env:1BAD} ${env:} ${notenv:X}";
-        expect(expandEnvRefs(value, lookup({}))).toBe(value);
+        expect(expandEnvRefs(value, lookup({}), "endpoint")).toBe(value);
     });
 
     it("throws naming the variable and field when a matched ref is unset", () => {
@@ -38,6 +45,26 @@ describe("expandEnvRefs", () => {
             expect((error as UnresolvedEnvVariableError).variable).toBe("CAMUNDA_PASSWORD");
             expect((error as UnresolvedEnvVariableError).field).toBe("password");
         }
+    });
+});
+
+describe("expandOptionalEnvRefs", () => {
+    it("passes undefined through", () => {
+        expect(expandOptionalEnvRefs(undefined, lookup({}), "deployUrl")).toBeUndefined();
+    });
+});
+
+describe("expandEnvRefsLeniently", () => {
+    it("expands known refs and keeps unknown ones verbatim", () => {
+        expect(expandEnvRefsLeniently("${env:A}-${env:B}", lookup({ A: "a" }))).toBe("a-${env:B}");
+    });
+});
+
+describe("blankIfWholeEnvRef", () => {
+    it("blanks a whole ref and keeps literals and partial interpolation", () => {
+        expect(blankIfWholeEnvRef("${env:P}")).toBe("");
+        expect(blankIfWholeEnvRef("secret")).toBe("secret");
+        expect(blankIfWholeEnvRef("x-${env:P}")).toBe("x-${env:P}");
     });
 });
 

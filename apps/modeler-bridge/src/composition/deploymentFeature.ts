@@ -84,6 +84,7 @@ export function register(deps: BridgeSharedDeps): void {
         deps.statusBar,
         deps.picker,
         deps.notifier,
+        envResolver,
     );
     const deploymentVerificationService = new DeploymentVerificationService(
         deps.store,

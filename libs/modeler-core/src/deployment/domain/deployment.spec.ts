@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import {
+    InvalidDeploymentConfigError,
+    UnresolvedEnvVariableError,
+} from "../../shared/domain/errors";
 
-import { BasicAuth, DeploymentConfigBuilder, NoAuth } from "./deployment";
+import { BasicAuth, DeploymentConfigBuilder, NoAuth, OAuth2Auth } from "./deployment";
 
 function completeBuilder(): DeploymentConfigBuilder {
     return new DeploymentConfigBuilder()
@@ -99,5 +102,56 @@ describe("DeploymentConfigBuilder", () => {
                 new InvalidDeploymentConfigError(["deploymentName", "endpoint", "mainFilePath"]),
             );
         });
+    });
+});
+
+describe("env reference expansion", () => {
+    const lookup = (map: Record<string, string>) => (name: string) => map[name];
+
+    it("expands every oauth2 field", () => {
+        const resolved = new OAuth2Auth(
+            "${env:CID}",
+            "${env:SECRET}",
+            "https://idp/token",
+            "${env:AUD}",
+        ).expandEnvRefs(lookup({ CID: "cid", SECRET: "sec", AUD: "aud" }));
+        expect(resolved).toEqual(new OAuth2Auth("cid", "sec", "https://idp/token", "aud"));
+    });
+
+    it("returns NoAuth untouched", () => {
+        const auth = new NoAuth();
+        expect(auth.expandEnvRefs(lookup({}))).toBe(auth);
+    });
+
+    it("expands the connection fields of a config and leaves the original literal", () => {
+        const config = completeBuilder()
+            .withEndpoint("${env:URL}")
+            .withTenantId("${env:TENANT}")
+            .withDeployUrl("${env:URL}/deployment/create")
+            .withAuth(new BasicAuth("${env:USER}", "${env:PASS}"))
+            .build();
+        const resolved = config.expandEnvRefs(
+            lookup({ URL: "https://c.example", TENANT: "acme", USER: "u", PASS: "p" }),
+        );
+        expect(resolved.endpoint).toBe("https://c.example");
+        expect(resolved.tenantId).toBe("acme");
+        expect(resolved.deployUrl).toBe("https://c.example/deployment/create");
+        expect(resolved.auth).toEqual(new BasicAuth("u", "p"));
+        expect(resolved.mainFilePath).toBe(config.mainFilePath);
+        expect(config.endpoint).toBe("${env:URL}");
+    });
+
+    it("throws naming the field when a variable is unset", () => {
+        const config = completeBuilder().withEndpoint("${env:URL}").build();
+        expect(() => config.expandEnvRefs(lookup({}))).toThrow(UnresolvedEnvVariableError);
+    });
+
+    it("blanks whole-ref credentials but keeps literals and partial interpolation", () => {
+        expect(new BasicAuth("${env:U}", "x-${env:P}").withoutWholeEnvRefs()).toEqual(
+            new BasicAuth("", "x-${env:P}"),
+        );
+        expect(
+            new OAuth2Auth("cid", "${env:S}", "${env:TOKEN_URL}", "aud").withoutWholeEnvRefs(),
+        ).toEqual(new OAuth2Auth("cid", "", "${env:TOKEN_URL}", "aud"));
     });
 });

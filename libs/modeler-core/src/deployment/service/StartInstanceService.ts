@@ -12,7 +12,7 @@ import { CamundaEnginePort } from "../domain/ports";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { EnvValueResolver } from "./EnvValueResolver";
-import { EnvLookup } from "../domain/envRef";
+import { expandEnvRefs, expandOptionalEnvRefs } from "../domain/envRef";
 
 import { Engine } from "@miragon/bpmn-modeler-types";
 /**
@@ -109,16 +109,15 @@ export class StartInstanceService {
                 payload = JSON.parse(content);
             }
 
-            // Env expansion runs before the REST client substitutes
-            // {processDefinitionKey} into the resolved URL.
-            const lookup: EnvLookup = await this.envResolver.createLookup(documentDir);
+            // Expanded before the REST client substitutes {processDefinitionKey}.
+            const lookup = await this.envResolver.createLookup(documentDir);
             const config = new StartInstanceConfig(
                 processDefinitionKey,
-                this.envResolver.resolveValueWith(endpoint, "endpoint", lookup)!,
+                expandEnvRefs(endpoint, lookup, "endpoint"),
                 engine,
-                this.envResolver.resolveAuthWith(auth, lookup),
+                auth.expandEnvRefs(lookup),
                 payload,
-                this.envResolver.resolveValueWith(startInstanceUrl, "startInstanceUrl", lookup),
+                expandOptionalEnvRefs(startInstanceUrl, lookup, "startInstanceUrl"),
             );
 
             return await this.restClient.startInstance(config);

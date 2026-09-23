@@ -13,11 +13,8 @@ export type TargetAuthType = "none" | "basic" | "oauth2";
  * `deployment-targets.json`. Holds only non-secret connection metadata —
  * literal credentials live in the host secret store keyed by the target's slot.
  *
- * The optional `username`/`password`/`clientId`/`clientSecret` fields hold
- * *env references* (`${env:VAR}`) only: a reference is not a secret, so it may be
- * committed to the shared file and resolved from each machine's `.env`. The
- * parser rejects any literal value in these fields, so a real secret can never
- * land here.
+ * The credential fields hold whole `${env:VAR}` refs only — a ref is not a
+ * secret, and the parser rejects literals so one can never be committed here.
  */
 export class DeploymentTarget {
     constructor(
@@ -225,10 +222,6 @@ function parseAuth(raw: unknown, index: number): ParsedAuth {
     };
 }
 
-/**
- * A credential field in the shared file may only hold a whole `${env:VAR}`
- * reference — a literal secret is rejected so it can never be committed here.
- */
 function parseCredentialRef(raw: unknown, index: number, field: string): string | undefined {
     if (raw === undefined) {
         return undefined;

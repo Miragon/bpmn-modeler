@@ -94,12 +94,7 @@ export class DuplicateDeploymentTargetError extends Error {
     }
 }
 
-/**
- * Thrown when a `${env:VAR}` reference in a deployment field cannot be resolved
- * from the workspace-root `.env` file or the host process environment. Names the
- * variable (and field, when known) so the failure is actionable in the webview
- * error area — it never falls back to the literal ref.
- */
+/** Names the variable and field so the failure is actionable where it surfaces. */
 export class UnresolvedEnvVariableError extends Error {
     constructor(
         readonly variable: string,

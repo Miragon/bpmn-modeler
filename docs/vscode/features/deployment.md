@@ -244,3 +244,10 @@ Notes:
 - **macOS:** GUI-launched IDEs do not inherit shell exports, so a variable you
   `export`ed in a terminal may be invisible to the app — a workspace-root `.env`
   is the reliable path.
+- **`.env` syntax:** plain `KEY=VALUE` lines, `#` comment lines, an optional
+  `export ` prefix, and surrounding single or double quotes. Inline comments
+  (`KEY=value # note`) and escape sequences such as `\n` are **not** interpreted
+  — they become part of the value.
+- **Trust:** references in a committed `deployment-targets.json` can read any
+  variable of the IDE process environment and embed it in a request URL. Review
+  the endpoint and URL overrides of targets from repositories you do not trust.
