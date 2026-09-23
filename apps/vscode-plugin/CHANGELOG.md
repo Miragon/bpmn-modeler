@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.14.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.14.0...vscode-v1.14.1) (2026-09-23)
+
+
+### 🐞 Bug Fixes
+
+* **dark-mode:** change color in property panel ([#1584](https://github.com/Miragon/bpmn-modeler/issues/1584)) [sync d9bda28] ([6ba2dfe](https://github.com/Miragon/bpmn-modeler/commit/6ba2dfe1dd4ea59bbf015cbe96dbaf503b370481))
+* support git in linux standalone app ([#1576](https://github.com/Miragon/bpmn-modeler/issues/1576)) [sync 679668f] ([a3015e1](https://github.com/Miragon/bpmn-modeler/commit/a3015e1bd32d47824c3ddca70cce0a6c3f3d1092))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the npm-minor-patch group across 1 directory with 26 updates ([#1566](https://github.com/Miragon/bpmn-modeler/issues/1566)) ([1c798c6](https://github.com/Miragon/bpmn-modeler/commit/1c798c6cfc9e98a19d489d1aa65aa930453d5109))
+* **deps:** bump the npm-minor-patch group across 1 directory with 9 updates ([#1579](https://github.com/Miragon/bpmn-modeler/issues/1579)) ([bff9451](https://github.com/Miragon/bpmn-modeler/commit/bff945149e4b616a270d0f9685e0d34b1f1f4d78))
+
 ## [1.14.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.13.0...vscode-v1.14.0) (2026-09-21)
 
 
