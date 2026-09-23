@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.1](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.2.0...bpmn-modeler-v1.2.1) (2026-09-23)
+
+
+### 🐞 Bug Fixes
+
+* **dark-mode:** change color in property panel ([#1584](https://github.com/Miragon/bpmn-modeler/issues/1584)) ([d9bda28](https://github.com/Miragon/bpmn-modeler/commit/d9bda28190e5f09adc4eb8da8f5ebdc97866a7de))
+* support git in linux standalone app ([#1576](https://github.com/Miragon/bpmn-modeler/issues/1576)) ([679668f](https://github.com/Miragon/bpmn-modeler/commit/679668fd3f681a4d7fd593cd05fa6d032f885d51))
+
+
+### 🛠️ Misc
+
+* **deps:** bump the npm-minor-patch group across 1 directory with 26 updates ([#1566](https://github.com/Miragon/bpmn-modeler/issues/1566)) ([1c798c6](https://github.com/Miragon/bpmn-modeler/commit/1c798c6cfc9e98a19d489d1aa65aa930453d5109))
+* **deps:** bump the npm-minor-patch group across 1 directory with 9 updates ([#1579](https://github.com/Miragon/bpmn-modeler/issues/1579)) ([bff9451](https://github.com/Miragon/bpmn-modeler/commit/bff945149e4b616a270d0f9685e0d34b1f1f4d78))
+* **main:** release dmn-modeler 0.3.0 ([#1540](https://github.com/Miragon/bpmn-modeler/issues/1540)) ([f315e1e](https://github.com/Miragon/bpmn-modeler/commit/f315e1e2f6248536e16e05a2f8cee0e2f135ea26))
+* **main:** release intellij 1.10.0 ([#1548](https://github.com/Miragon/bpmn-modeler/issues/1548)) ([14f407f](https://github.com/Miragon/bpmn-modeler/commit/14f407fa3e3c40a0c5fb97e94e28cd13e6d6af26))
+* **main:** release vscode 1.14.0 ([#1550](https://github.com/Miragon/bpmn-modeler/issues/1550)) ([688f8a9](https://github.com/Miragon/bpmn-modeler/commit/688f8a9d9eab0cdc742619c6791818201cb2db00))
+
 ## [1.2.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.1.0...bpmn-modeler-v1.2.0) (2026-09-21)
 
 
