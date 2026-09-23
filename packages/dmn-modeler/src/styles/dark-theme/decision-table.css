@@ -74,3 +74,14 @@
 [data-dmn-theme="dark"] .dmn-decision-table-container .description-indicator {
     border-bottom-color: var(--dt-surface-a60);
 }
+
+/* dmn-js mounts the light FEEL editor theme in table cells and the column editor. */
+[data-dmn-theme="dark"] .dmn-decision-table-container .cm-editor {
+    color: var(--dt-surface-a70);
+    caret-color: var(--dt-surface-a70);
+}
+
+[data-dmn-theme="dark"] .dmn-decision-table-container .cm-editor .cm-line,
+[data-dmn-theme="dark"] .dmn-decision-table-container .cm-editor .cm-line span {
+    color: inherit !important;
+}
