@@ -100,6 +100,30 @@
     --feel-popup-gutters-background-color: var(--dt-surface-a20);
 }
 
+/* The popup mounts outside .bio-properties-panel, so the panel-scoped input colours do not reach it. */
+[data-bpmn-theme="dark"] .bio-properties-panel-popup .bio-properties-panel-input {
+    color: var(--dt-surface-a70) !important;
+    caret-color: var(--dt-surface-a70) !important;
+}
+
+[data-bpmn-theme="dark"] .bio-properties-panel-popup__close {
+    color: var(--dt-surface-a70) !important;
+    fill: var(--dt-surface-a70) !important;
+}
+
+[data-bpmn-theme="dark"] .bio-properties-panel-popup__drag-handle svg path:last-child {
+    fill: var(--dt-surface-a60) !important;
+}
+
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-popup__title-link {
+    color: var(--dt-color-blue-a50) !important;
+    fill: currentColor;
+}
+
+[data-bpmn-theme="dark"] .bio-properties-panel-popup .cm-gutters {
+    color: var(--dt-surface-a50) !important;
+}
+
 [data-bpmn-theme="dark"] .bio-properties-panel-container {
     background-color: var(--dt-surface-a10) !important;
 }
@@ -155,14 +179,18 @@
  * unreadable on a dark background.  Override all text colors inside the
  * editor so content remains legible.
  */
-[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor {
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor,
+[data-bpmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor {
     color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
 
 [data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-cursor,
+[data-bpmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-cursor,
 [data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-dropCursor,
-[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-content {
+[data-bpmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-dropCursor,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-content,
+[data-bpmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-content {
     border-left-color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
@@ -173,7 +201,9 @@
 }
 
 [data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line,
-[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line span {
+[data-bpmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-line,
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line span,
+[data-bpmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-line span {
     color: inherit !important;
 }
 

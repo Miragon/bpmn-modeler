@@ -18,3 +18,14 @@
     --view-drd-button-color: var(--dt-surface-a70);
     --view-drd-button-hover-background-color: var(--dt-surface-a30);
 }
+
+/* dmn-js mounts the light FEEL editor theme for the expression text. */
+[data-dmn-theme="dark"] .dmn-literal-expression-container .cm-editor {
+    color: var(--dt-surface-a70);
+    caret-color: var(--dt-surface-a70);
+}
+
+[data-dmn-theme="dark"] .dmn-literal-expression-container .cm-editor .cm-line,
+[data-dmn-theme="dark"] .dmn-literal-expression-container .cm-editor .cm-line span {
+    color: inherit !important;
+}
