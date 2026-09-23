@@ -100,6 +100,17 @@
     --feel-popup-gutters-background-color: var(--dt-surface-a20);
 }
 
+/* The popup mounts outside .bio-properties-panel, so the panel-scoped input colours do not reach it. */
+[data-dmn-theme="dark"] .bio-properties-panel-popup .bio-properties-panel-input {
+    color: var(--dt-surface-a70) !important;
+    caret-color: var(--dt-surface-a70) !important;
+}
+
+[data-dmn-theme="dark"] .bio-properties-panel-popup__close {
+    color: var(--dt-surface-a70) !important;
+    fill: var(--dt-surface-a70) !important;
+}
+
 [data-dmn-theme="dark"] .bio-properties-panel-container {
     background-color: var(--dt-surface-a10) !important;
 }
@@ -149,14 +160,18 @@
 }
 
 /* The properties panel never enables the FEEL editor’s darkMode, leaving light syntax colours. */
-[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor {
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor,
+[data-dmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor {
     color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
 
 [data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-cursor,
+[data-dmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-cursor,
 [data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-dropCursor,
-[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-content {
+[data-dmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-dropCursor,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-content,
+[data-dmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-content {
     border-left-color: var(--dt-surface-a70) !important;
     caret-color: var(--dt-surface-a70) !important;
 }
@@ -167,7 +182,9 @@
 }
 
 [data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line,
-[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line span {
+[data-dmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-line,
+[data-dmn-theme="dark"] .bio-properties-panel-feel-editor-container .cm-editor .cm-line span,
+[data-dmn-theme="dark"] .bio-properties-panel-feelers-editor-container .cm-editor .cm-line span {
     color: inherit !important;
 }
 
