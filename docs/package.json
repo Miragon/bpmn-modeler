@@ -12,6 +12,6 @@
         "mermaid": "11.17.2",
         "vitepress": "1.6.4",
         "vitepress-plugin-mermaid": "2.0.17",
-        "vitest": "4.1.11"
+        "vitest": "5.0.0"
     }
 }
