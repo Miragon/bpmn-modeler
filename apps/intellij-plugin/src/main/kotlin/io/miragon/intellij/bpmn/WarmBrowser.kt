@@ -47,6 +47,8 @@ class WarmBrowser : Disposable {
 
     private val jsQuery: JBCefJSQuery
 
+    private val textInputClipboardShortcuts: TextInputClipboardShortcuts
+
     // Guards the loaded/pendingSink handoff between onLoadEnd (CEF thread) and
     // bind() (EDT): without it, bind() could observe loaded=false and set the
     // pending flag *after* onLoadEnd already checked it, dropping the sink inject.
@@ -61,8 +63,8 @@ class WarmBrowser : Disposable {
         // $Copy/$Paste/$Cut) on this component that hijack ⌘-shortcuts and route
         // them to native CEF frame commands acting only on focused text fields.
         // bpmn-js is a canvas app, so ⌘A/⌘Z silently no-op there. Unregistering the
-        // forwarders lets ⌘-keystrokes fall through to the webview like Ctrl does,
-        // restoring select-all/undo/redo/copy/paste. No-op off macOS.
+        // forwarders lets ⌘-keystrokes fall through to the webview like Ctrl does;
+        // text inputs get focus-gated replacements below. No-op off macOS.
         runCatching {
             JcefShortcutProvider.getActions().forEach {
                 it.second.unregisterCustomShortcutSet(browser.component)
@@ -70,6 +72,7 @@ class WarmBrowser : Disposable {
         }
 
         forwardUndoRedoToWebview()
+        textInputClipboardShortcuts = TextInputClipboardShortcuts(browser)
 
         // Created before createImmediately() so its message router binds to the
         // render process; the handler delegates to the swappable forwarder.
@@ -93,6 +96,7 @@ class WarmBrowser : Disposable {
                             pendingSinkInject
                         }
                     if (injectNow) injectSink(b)
+                    textInputClipboardShortcuts.installFocusTracking(b)
                     // Re-apply on (re)load so a theme change racing the pre-warm load
                     // is not lost; indexHtml() already bakes in the initial theme.
                     b.executeJavaScript(service<IdeThemeSignal>().applyJs(), b.url, 0)
