@@ -111,6 +111,19 @@
     fill: var(--dt-surface-a70) !important;
 }
 
+[data-bpmn-theme="dark"] .bio-properties-panel-popup__drag-handle svg path:last-child {
+    fill: var(--dt-surface-a60) !important;
+}
+
+[data-bpmn-theme="dark"] .bio-properties-panel-feel-popup__title-link {
+    color: var(--dt-color-blue-a50) !important;
+    fill: currentColor;
+}
+
+[data-bpmn-theme="dark"] .bio-properties-panel-popup .cm-gutters {
+    color: var(--dt-surface-a50) !important;
+}
+
 [data-bpmn-theme="dark"] .bio-properties-panel-container {
     background-color: var(--dt-surface-a10) !important;
 }

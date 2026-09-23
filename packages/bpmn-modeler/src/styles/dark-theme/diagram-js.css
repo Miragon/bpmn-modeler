@@ -204,6 +204,11 @@
     color: var(--dt-surface-a70) !important;
 }
 
+/* Entry names inherit the page colour, which stays dark when only this instance is themed. */
+[data-bpmn-theme="dark"] .djs-popup .entry {
+    color: var(--popup-entry-title-color);
+}
+
 [data-bpmn-theme="dark"] .djs-popup-header-group > li > button {
     color: var(--dt-primary-a50) !important;
 }
