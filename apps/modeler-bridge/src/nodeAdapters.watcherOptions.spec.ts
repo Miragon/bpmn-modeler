@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NodeWorkspace } from "./nodeAdapters";
 
@@ -10,22 +10,25 @@ import { NodeWorkspace } from "./nodeAdapters";
  * matters. Mocking makes the assertion deterministic on every OS — it pins that
  * the Windows branch sets stat-based polling instead of `fs.watch`.
  */
-const { watchSpy } = vi.hoisted(() => ({
-    watchSpy: vi.fn((_root: string, _opts: Record<string, unknown>) => ({
-        on() {
-            return this;
-        },
-        close() {
-            return Promise.resolve();
-        },
-    })),
-}));
+const { watchSpy, closeSpy } = vi.hoisted(() => {
+    const closeSpy = vi.fn(() => Promise.resolve());
+    return {
+        closeSpy,
+        watchSpy: vi.fn((_root: string, _opts: Record<string, unknown>) => ({
+            on() {
+                return this;
+            },
+            close: closeSpy,
+        })),
+    };
+});
 
 vi.mock("chokidar", () => ({ watch: watchSpy }));
 
 describe("NodeWorkspace.createWatcher chokidar options", () => {
     afterEach(() => {
         watchSpy.mockClear();
+        closeSpy.mockClear();
         vi.unstubAllGlobals();
     });
 
@@ -50,5 +53,54 @@ describe("NodeWorkspace.createWatcher chokidar options", () => {
         vi.stubGlobal("process", { ...process, platform: "linux" });
 
         expect(capturedOptions().usePolling).toBe(false);
+    });
+
+    it("prunes generated trees below the root but not the root's own ancestors", () => {
+        vi.stubGlobal("process", { ...process, platform: "linux" });
+        new NodeWorkspace().createWatcher("/work/build/repo", "**/*.json", {});
+        const ignored = watchSpy.mock.calls[0][1].ignored as (path: string) => boolean;
+
+        expect(ignored("/work/build/repo/.camunda/element-templates/a.json")).toBe(false);
+        expect(ignored("/work/build/repo/service/bin/test/process.bpmn")).toBe(true);
+        expect(ignored("/work/build/repo/service/build/classes")).toBe(true);
+        expect(ignored("/work/build/repo/web/node_modules/x/index.js")).toBe(true);
+        expect(ignored("/work/build/repo/.gradle/caches")).toBe(true);
+    });
+});
+
+describe("NodeWorkspace.createWatcher sharing", () => {
+    beforeEach(() => {
+        vi.stubGlobal("process", { ...process, platform: "linux" });
+    });
+
+    afterEach(() => {
+        watchSpy.mockClear();
+        closeSpy.mockClear();
+        vi.unstubAllGlobals();
+    });
+
+    it("arms one chokidar watcher per root regardless of subscriber count", () => {
+        const workspace = new NodeWorkspace();
+
+        workspace.createWatcher("/repo", "**/*.form", {});
+        workspace.createWatcher("/repo", "**/*.java", {});
+        workspace.createWatcher("/other", "**/*.java", {});
+
+        expect(watchSpy.mock.calls.map(([root]) => root)).toEqual(["/repo", "/other"]);
+    });
+
+    it("closes the shared watcher only when its last subscriber disposes", () => {
+        const workspace = new NodeWorkspace();
+        const first = workspace.createWatcher("/repo", "**/*.form", {});
+        const second = workspace.createWatcher("/repo", "**/*.java", {});
+
+        first.dispose();
+        expect(closeSpy).not.toHaveBeenCalled();
+
+        second.dispose();
+        expect(closeSpy).toHaveBeenCalledTimes(1);
+
+        workspace.createWatcher("/repo", "**/*.form", {});
+        expect(watchSpy).toHaveBeenCalledTimes(2);
     });
 });

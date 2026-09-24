@@ -14,6 +14,7 @@ export const EXCLUDED_DIRS: ReadonlySet<string> = new Set([
     "build",
     "out",
     "target",
+    "bin",
     "coverage",
     ".git",
     ".svn",

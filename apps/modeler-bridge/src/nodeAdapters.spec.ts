@@ -298,6 +298,20 @@ describe("NodeWorkspace.createWatcher", () => {
         expect(onChange).not.toHaveBeenCalled();
     }, 15000);
 
+    it("routes each event only to the subscribers whose glob matches", async () => {
+        const onTemplate = vi.fn();
+        const onForm = vi.fn();
+        handle = workspace.createWatcher(root, PATTERN, { onCreate: onTemplate });
+        const formHandle = workspace.createWatcher(root, "**/*.form", { onCreate: onForm });
+        await sleep(SETTLE_MS);
+
+        await fs.writeFile(join(root, "order.form"), "{}", "utf8");
+
+        await waitForCall(onForm);
+        expect(onTemplate).not.toHaveBeenCalled();
+        formHandle.dispose();
+    }, 15000);
+
     it("fires for any file inside element-templates, not only json", async () => {
         // The extension-less glob deliberately over-fires: a one-shot folder
         // copy can surface as a bare directory event, so the watcher must catch
