@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.2](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.2.1...bpmn-modeler-v1.2.2) (2026-09-24)
+
+
+### 🛠️ Misc
+
+* **main:** release dmn-modeler 0.3.1 ([#1573](https://github.com/Miragon/bpmn-modeler/issues/1573)) ([2b8f54a](https://github.com/Miragon/bpmn-modeler/commit/2b8f54a9175ca9e1fd92b474f8ae434e413f11b8))
+* **main:** release intellij 1.10.1 ([#1581](https://github.com/Miragon/bpmn-modeler/issues/1581)) ([09d46b3](https://github.com/Miragon/bpmn-modeler/commit/09d46b3ce4a98386c69cd72e331fa5e0088e857d))
+* **main:** release vscode 1.14.1 ([#1574](https://github.com/Miragon/bpmn-modeler/issues/1574)) ([436ab2a](https://github.com/Miragon/bpmn-modeler/commit/436ab2abd63c9be55b6fcafb7b91327830307704))
+
 ## [1.2.1](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.2.0...bpmn-modeler-v1.2.1) (2026-09-23)
 
 
