@@ -29,8 +29,8 @@
  */
 
 import { watch } from "chokidar";
-import { promises as fs } from "node:fs";
-import { posix, sep } from "node:path";
+import { promises as fs, watch as watchFs } from "node:fs";
+import { join, posix, relative, sep } from "node:path";
 
 import {
     DirectoryNotFound,
@@ -100,6 +100,85 @@ function globToRegExp(glob: string): RegExp {
  * templates path are implemented; the rest throw, since the bridge type-checks
  * `src/**` and an unimplemented interface member would not compile.
  */
+interface WatchSubscriber {
+    onAdd(path: string): void;
+    onChange(path: string): void;
+    onUnlink(path: string): void;
+}
+
+interface SharedRootWatcher {
+    watcher: { close(): unknown };
+    subscribers: Set<WatchSubscriber>;
+}
+
+/**
+ * Generated or tool-owned trees never hold templates, lint configs, forms or
+ * worker sources, but can dwarf the sources on a big repo. Dot-dirs in general
+ * must stay watched — templates live under `.camunda/`.
+ */
+const IGNORED_WATCH_DIRS = new Set([
+    "node_modules",
+    ".git",
+    ".svn",
+    ".hg",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "bin",
+    "coverage",
+    ".gradle",
+    ".idea",
+    ".angular",
+]);
+
+function isIgnoredWatchPath(root: string, path: string): boolean {
+    return relative(root, path)
+        .split(/[/\\]/)
+        .some((segment) => IGNORED_WATCH_DIRS.has(segment));
+}
+
+function watchWithChokidar(root: string, emit: WatchSubscriber): { close(): unknown } {
+    return watch(root, {
+        ignoreInitial: true,
+        ignored: (path: string) => isIgnoredWatchPath(root, path),
+        usePolling: process.platform === "win32",
+        interval: 300,
+        binaryInterval: 300,
+    })
+        .on("add", emit.onAdd)
+        .on("change", emit.onChange)
+        .on("unlink", emit.onUnlink);
+}
+
+/**
+ * chokidar calls `fs.watch` once per directory, and Bun backs every call on
+ * macOS with its own FSEvents stream: on a repo with thousands of directories
+ * arming them blocked the event loop for minutes and starved every RPC. A
+ * single recursive watch is one stream, armed in milliseconds.
+ */
+function watchRecursivelyWithFsEvents(root: string, emit: WatchSubscriber): { close(): unknown } {
+    return watchFs(root, { recursive: true }, (_event, filename) => {
+        if (!filename) {
+            return;
+        }
+        const changed = join(root, filename);
+        if (isIgnoredWatchPath(root, changed)) {
+            return;
+        }
+        // FSEvents reports create, modify and delete alike as `rename`, so a
+        // path that still exists fires both create and change — every consumer
+        // treats the two the same.
+        fs.stat(changed).then(
+            () => {
+                emit.onAdd(changed);
+                emit.onChange(changed);
+            },
+            () => emit.onUnlink(changed),
+        );
+    });
+}
+
 export class NodeWorkspace implements WorkspacePort {
     /**
      * Host-provided workspace roots, in whatever scheme space the host sent
@@ -108,6 +187,8 @@ export class NodeWorkspace implements WorkspacePort {
      * discovery.
      */
     private readonly roots = new Map<string, number>();
+
+    private readonly rootWatchers = new Map<string, SharedRootWatcher>();
 
     registerRoot(root: string): void {
         this.roots.set(root, (this.roots.get(root) ?? 0) + 1);
@@ -246,9 +327,8 @@ export class NodeWorkspace implements WorkspacePort {
      * version-independent recursive watching on macOS/Windows/Linux, matching
      * VS Code's `FileSystemWatcher` behaviour.
      *
-     * `node_modules`/`.git` are pruned so arming the recursive watch on a large
-     * repo stays within the OS watch-descriptor budget (inotify on Linux).
-     * Dot-dirs in general must stay watched — templates live under `.camunda/`.
+     * {@link IGNORED_WATCH_DIRS} are pruned so arming the recursive watch on a
+     * large repo stays within the OS watch-descriptor budget (inotify on Linux).
      */
     createWatcher(
         rootPath: string,
@@ -292,36 +372,60 @@ export class NodeWorkspace implements WorkspacePort {
             );
         };
 
-        const watcher = watch(root, {
-            // The initial load runs via the webview's `GetElementTemplatesCommand`;
-            // skip the synthetic `add` storm chokidar emits for existing files.
-            ignoreInitial: true,
-            ignored: /(^|[/\\])(node_modules|\.git)([/\\]|$)/,
-            // chokidar v3 has no native recursive watch on Windows, so it opens a
-            // `ReadDirectoryChangesW` handle per directory — including
-            // `element-templates`. That held handle makes Windows reject a `mv`
-            // into the folder while a BPMN file is open. Polling uses `fs.watchFile`
-            // (stat-based, implemented by Bun) and holds no directory handle, so the
-            // lock disappears; the cost is bounded by the node_modules/.git prune.
-            usePolling: process.platform === "win32",
-            interval: 300,
-            binaryInterval: 300,
-        });
-        watcher
-            .on("add", (p) => fireDebounced(handlers.onCreate, p))
-            .on("change", (p) => fireDebounced(handlers.onChange, p))
-            .on("unlink", (p) => fireDebounced(handlers.onDelete, p));
+        const subscriber: WatchSubscriber = {
+            onAdd: (p) => fireDebounced(handlers.onCreate, p),
+            onChange: (p) => fireDebounced(handlers.onChange, p),
+            onUnlink: (p) => fireDebounced(handlers.onDelete, p),
+        };
+        const shared = this.acquireRootWatcher(root);
+        shared.subscribers.add(subscriber);
 
         return {
-            dispose(): void {
+            dispose: (): void => {
                 for (const timer of timers.values()) {
                     clearTimeout(timer);
                 }
                 timers.clear();
-                // chokidar's close() is async; nothing awaits teardown here.
-                void watcher.close();
+                this.releaseRootWatcher(root, subscriber);
             },
         };
+    }
+
+    /**
+     * One watcher per root, fanned out to its subscribers: each consumer and
+     * editor arming its own recursive watch multiplied the cost on a big repo.
+     */
+    private acquireRootWatcher(root: string): SharedRootWatcher {
+        const existing = this.rootWatchers.get(root);
+        if (existing) {
+            return existing;
+        }
+        const subscribers = new Set<WatchSubscriber>();
+        const emit: WatchSubscriber = {
+            onAdd: (p) => subscribers.forEach((s) => s.onAdd(p)),
+            onChange: (p) => subscribers.forEach((s) => s.onChange(p)),
+            onUnlink: (p) => subscribers.forEach((s) => s.onUnlink(p)),
+        };
+        const watcher =
+            process.platform === "darwin"
+                ? watchRecursivelyWithFsEvents(root, emit)
+                : watchWithChokidar(root, emit);
+        const shared = { watcher, subscribers };
+        this.rootWatchers.set(root, shared);
+        return shared;
+    }
+
+    private releaseRootWatcher(root: string, subscriber: WatchSubscriber): void {
+        const shared = this.rootWatchers.get(root);
+        if (!shared) {
+            return;
+        }
+        shared.subscribers.delete(subscriber);
+        if (shared.subscribers.size === 0) {
+            this.rootWatchers.delete(root);
+            // chokidar's close() is async; nothing awaits teardown here.
+            void shared.watcher.close();
+        }
     }
 
     /**

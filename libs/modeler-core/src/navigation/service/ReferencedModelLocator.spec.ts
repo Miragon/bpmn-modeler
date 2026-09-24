@@ -211,6 +211,7 @@ describe("findDeclaringFiles — workspace folder open (findFiles path)", () => 
                 "/work/build/inner.bpmn": bpmnWithProcess("Wanted"),
                 "/work/out/inner.bpmn": bpmnWithProcess("Wanted"),
                 "/work/target/inner.bpmn": bpmnWithProcess("Wanted"),
+                "/work/service/bin/test/inner.bpmn": bpmnWithProcess("Wanted"),
                 "/work/coverage/inner.bpmn": bpmnWithProcess("Wanted"),
                 "/work/node_modules/lib/inner.bpmn": bpmnWithProcess("Wanted"),
                 "/work/nested/dist/deep.bpmn": bpmnWithProcess("Wanted"),
