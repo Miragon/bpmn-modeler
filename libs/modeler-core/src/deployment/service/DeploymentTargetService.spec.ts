@@ -22,6 +22,10 @@ function target(name: string, overrides: Partial<DeploymentTarget> = {}): Deploy
         overrides.audience ?? "",
         overrides.deployUrl,
         overrides.startInstanceUrl,
+        overrides.username,
+        overrides.password,
+        overrides.clientId,
+        overrides.clientSecret,
     );
 }
 
@@ -236,6 +240,46 @@ describe("DeploymentTargetService.saveTarget", () => {
         expect(written).toContain('"dev"');
         expect(c.secretStore.saveBasicAuth).toHaveBeenCalledWith("u", "p", `${FILE_PATH}::dev`);
         expect(c.deploymentState.saveActiveTargetName).toHaveBeenCalledWith("dev");
+    });
+
+    it("routes a whole-value credential ref to the JSON and blanks it in the secret store", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+        c.workspace.readFile.mockResolvedValue(fileWith());
+
+        await c.service.saveTarget(
+            { name: "dev", engine: "c7", endpoint: "http://h", tenantId: "", authType: "basic" },
+            { authType: "basic", username: "admin", password: "${env:CAMUNDA_PASSWORD}" },
+            undefined,
+            DOC_DIR,
+        );
+
+        const written = c.workspace.writeFile.mock.calls[0][1] as string;
+        expect(written).toContain("${env:CAMUNDA_PASSWORD}");
+        // The literal username reaches the store; the ref password is blanked so
+        // any prior real secret is overwritten and file-wins read stays inert.
+        expect(c.secretStore.saveBasicAuth).toHaveBeenCalledWith("admin", "", `${FILE_PATH}::dev`);
+    });
+
+    it("keeps a literal credential out of the JSON and in the secret store", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+        c.workspace.readFile.mockResolvedValue(fileWith());
+
+        await c.service.saveTarget(
+            { name: "dev", engine: "c7", endpoint: "http://h", tenantId: "", authType: "basic" },
+            { authType: "basic", username: "admin", password: "plain-secret" },
+            undefined,
+            DOC_DIR,
+        );
+
+        const written = c.workspace.writeFile.mock.calls[0][1] as string;
+        expect(written).not.toContain("plain-secret");
+        expect(c.secretStore.saveBasicAuth).toHaveBeenCalledWith(
+            "admin",
+            "plain-secret",
+            `${FILE_PATH}::dev`,
+        );
     });
 
     it("deletes the previous credential slot on rename", async () => {
@@ -455,6 +499,21 @@ describe("DeploymentTargetService.getStoredCredentials", () => {
 
         await expect(c.service.getStoredCredentials("missing", DOC_DIR)).resolves.toEqual({
             authType: "none",
+        });
+    });
+
+    it("prefers a file credential ref over the secret store (file wins)", async () => {
+        const c = createService();
+        c.artifactService.findConfigFile.mockResolvedValue(FILE_PATH);
+        c.workspace.readFile.mockResolvedValue(
+            fileWith(target("dev", { authType: "basic", password: "${env:PW}" })),
+        );
+        c.secretStore.getBasicAuth.mockResolvedValue({ username: "admin", password: "old-stored" });
+
+        await expect(c.service.getStoredCredentials("dev", DOC_DIR)).resolves.toEqual({
+            authType: "basic",
+            username: "admin",
+            password: "${env:PW}",
         });
     });
 });

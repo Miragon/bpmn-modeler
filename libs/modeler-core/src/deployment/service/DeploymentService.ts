@@ -11,6 +11,7 @@ import {
 } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentTargetIdentity } from "../domain/deploymentLedger";
+import { EnvLookup } from "../domain/envRef";
 import {
     DeploymentStatePort,
     DocumentPort,
@@ -22,6 +23,7 @@ import {
 import { CamundaEnginePort } from "../domain/ports";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
 import { DeploymentStatusService } from "./DeploymentStatusService";
+import { EnvValueResolver } from "./EnvValueResolver";
 
 /**
  * Orchestrates the full BPMN deployment workflow.
@@ -55,6 +57,7 @@ export class DeploymentService {
         private readonly picker: PickerPort,
         private readonly secretStore: SecretStorePort,
         private readonly deploymentStatus: DeploymentStatusService,
+        private readonly envResolver: EnvValueResolver,
     ) {}
 
     /**
@@ -165,7 +168,8 @@ export class DeploymentService {
     ): Promise<DeploymentResult> {
         try {
             const fileContents = await this.readFileContents(config);
-            const result = await this.restClient.deploy(config, fileContents);
+            const lookup = await this.envResolver.createLookup(path.dirname(config.mainFilePath));
+            const result = await this.restClient.deploy(config.expandEnvRefs(lookup), fileContents);
 
             if (result.success) {
                 await this.persistOnSuccess(config, secretSlot);
@@ -201,9 +205,12 @@ export class DeploymentService {
         auth: AuthConfig,
     ): Promise<DeploymentResult[]> {
         const results: DeploymentResult[] = [];
+        let pendingLookup: Promise<EnvLookup> | undefined;
         for (const filePath of paths) {
             const name = path.basename(filePath, path.extname(filePath));
             try {
+                pendingLookup ??= this.envResolver.createLookup(path.dirname(filePath));
+                const envLookup = await pendingLookup;
                 const config = new DeploymentConfigBuilder()
                     .withDeploymentName(name)
                     .withTenantId(target.tenantId)
@@ -215,12 +222,15 @@ export class DeploymentService {
                     .withDeployUrl(target.deployUrl)
                     .build();
                 const fileContents = await this.readFileContents(config);
-                const result = await this.restClient.deploy(config, fileContents);
+                const result = await this.restClient.deploy(
+                    config.expandEnvRefs(envLookup),
+                    fileContents,
+                );
                 if (result.success) {
                     await this.deploymentStatus.recordDeployment(
                         filePath,
                         fileContents.get(name + path.extname(filePath)) ?? "",
-                        DeploymentTargetIdentity.fromTarget(target),
+                        DeploymentTargetIdentity.fromTarget(target, envLookup),
                         result.deploymentId,
                     );
                 }
@@ -245,7 +255,7 @@ export class DeploymentService {
 
     private async persistOnSuccess(config: DeploymentConfig, secretSlot?: string): Promise<void> {
         if (secretSlot !== undefined) {
-            await this.saveSecrets(config.auth, secretSlot);
+            await this.saveSecrets(config.auth.withoutWholeEnvRefs(), secretSlot);
             return;
         }
 

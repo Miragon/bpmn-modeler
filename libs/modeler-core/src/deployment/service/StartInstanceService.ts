@@ -11,6 +11,8 @@ import {
 import { CamundaEnginePort } from "../domain/ports";
 import { ArtifactService } from "../../shared/service/ArtifactService";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { EnvValueResolver } from "./EnvValueResolver";
+import { expandEnvRefs, expandOptionalEnvRefs } from "../domain/envRef";
 
 import { Engine } from "@miragon/bpmn-modeler-types";
 /**
@@ -37,6 +39,7 @@ export class StartInstanceService {
         private readonly notifier: NotifierPort,
         private readonly picker: PickerPort,
         private readonly artifactService: ArtifactService,
+        private readonly envResolver: EnvValueResolver,
     ) {}
 
     /**
@@ -86,6 +89,7 @@ export class StartInstanceService {
      * @param auth Authentication configuration.
      * @param payloadFilePath Absolute path to a JSON payload file, or empty string for no payload.
      * @param startInstanceUrl Optional full-URL override for the start-instance call.
+     * @param documentDir Directory anchoring the `.env` lookup for env refs.
      * @returns The outcome of the start-instance attempt.
      */
     async startInstance(
@@ -95,6 +99,7 @@ export class StartInstanceService {
         auth: AuthConfig,
         payloadFilePath: string,
         startInstanceUrl?: string,
+        documentDir?: string,
     ): Promise<StartInstanceResult> {
         try {
             let payload: Record<string, unknown> | null = null;
@@ -104,13 +109,15 @@ export class StartInstanceService {
                 payload = JSON.parse(content);
             }
 
+            // Expanded before the REST client substitutes {processDefinitionKey}.
+            const lookup = await this.envResolver.createLookup(documentDir);
             const config = new StartInstanceConfig(
                 processDefinitionKey,
-                endpoint,
+                expandEnvRefs(endpoint, lookup, "endpoint"),
                 engine,
-                auth,
+                auth.expandEnvRefs(lookup),
                 payload,
-                startInstanceUrl,
+                expandOptionalEnvRefs(startInstanceUrl, lookup, "startInstanceUrl"),
             );
 
             return await this.restClient.startInstance(config);
