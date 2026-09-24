@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.2](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.10.1...intellij-v1.10.2) (2026-09-24)
+
+
+### 🐞 Bug Fixes
+
+* **modeler-bridge:** stop file watchers from freezing the bridge on large repos ([#1588](https://github.com/Miragon/bpmn-modeler/issues/1588)) [sync 328775a] ([073f014](https://github.com/Miragon/bpmn-modeler/commit/073f014452f759b9f71e34cb9a54d99dd063dc03))
+
 ## [1.10.1](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.10.0...intellij-v1.10.1) (2026-09-23)
 
 
