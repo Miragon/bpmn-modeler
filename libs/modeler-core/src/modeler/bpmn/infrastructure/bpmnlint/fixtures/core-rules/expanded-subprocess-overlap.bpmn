@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1">
+    <bpmn:task id="Task_BesideSubProcess" />
+    <bpmn:subProcess id="SubProcess_1">
+      <bpmn:task id="Task_InnerB" />
+      <bpmn:task id="Task_InnerA" />
+      <bpmn:task id="Task_InnerAlone" />
+    </bpmn:subProcess>
+    <bpmn:task id="Task_OverlapsSubProcess" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_BesideSubProcess_di" bpmnElement="Task_BesideSubProcess"><dc:Bounds x="0" y="600" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_1_di" bpmnElement="SubProcess_1" isExpanded="true"><dc:Bounds x="100" y="100" width="500" height="300" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_InnerB_di" bpmnElement="Task_InnerB"><dc:Bounds x="200" y="150" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_InnerA_di" bpmnElement="Task_InnerA"><dc:Bounds x="150" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_InnerAlone_di" bpmnElement="Task_InnerAlone"><dc:Bounds x="400" y="250" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OverlapsSubProcess_di" bpmnElement="Task_OverlapsSubProcess"><dc:Bounds x="550" y="350" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

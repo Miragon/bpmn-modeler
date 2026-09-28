@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1">
+    <bpmn:task id="Task_Other" />
+    <bpmn:boundaryEvent id="Boundary_OverlapsOther" attachedToRef="Task_Host" />
+    <bpmn:task id="Task_Host" />
+    <bpmn:boundaryEvent id="Boundary_OverlapsSibling" attachedToRef="Task_Host" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_Other_di" bpmnElement="Task_Other"><dc:Bounds x="100" y="190" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_OverlapsOther_di" bpmnElement="Boundary_OverlapsOther"><dc:Bounds x="132" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Host_di" bpmnElement="Task_Host"><dc:Bounds x="100" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_OverlapsSibling_di" bpmnElement="Boundary_OverlapsSibling"><dc:Bounds x="160" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,6 +1,8 @@
 export interface LargeModelShape {
     rows: number;
     perRow: number;
+    overlapEvery?: number;
+    omitDiEvery?: number;
 }
 
 export interface LargeC7Model {

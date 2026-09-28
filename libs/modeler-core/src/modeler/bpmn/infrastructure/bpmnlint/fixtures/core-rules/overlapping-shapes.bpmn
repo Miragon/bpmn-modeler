@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1">
+    <bpmn:task id="Task_Right" />
+    <bpmn:task id="Task_Left" />
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Task_Left" targetRef="Task_Right" />
+    <bpmn:task id="Task_Wide" />
+    <bpmn:task id="Task_OverlapsLeft" />
+    <bpmn:task id="Task_OverlapsRight" />
+    <bpmn:task id="Task_Isolated" />
+    <bpmn:task id="Task_SameX" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_Right_di" bpmnElement="Task_Right"><dc:Bounds x="400" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Left_di" bpmnElement="Task_Left"><dc:Bounds x="100" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="200" y="140" /><di:waypoint x="400" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Task_Wide_di" bpmnElement="Task_Wide"><dc:Bounds x="0" y="300" width="1000" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OverlapsLeft_di" bpmnElement="Task_OverlapsLeft"><dc:Bounds x="150" y="120" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OverlapsRight_di" bpmnElement="Task_OverlapsRight"><dc:Bounds x="420" y="150" width="100" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Isolated_di" bpmnElement="Task_Isolated"><dc:Bounds x="700" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SameX_di" bpmnElement="Task_SameX"><dc:Bounds x="100" y="500" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

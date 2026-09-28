@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1">
+    <bpmn:task id="Task_Far" />
+    <bpmn:task id="Task_TouchesRight" />
+    <bpmn:task id="Task_Anchor" />
+    <bpmn:task id="Task_TouchesBottom" />
+    <bpmn:task id="Task_TouchesCorner" />
+    <bpmn:task id="Task_OnePixelApart" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_Far_di" bpmnElement="Task_Far"><dc:Bounds x="900" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_TouchesRight_di" bpmnElement="Task_TouchesRight"><dc:Bounds x="200" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Anchor_di" bpmnElement="Task_Anchor"><dc:Bounds x="100" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_TouchesBottom_di" bpmnElement="Task_TouchesBottom"><dc:Bounds x="100" y="180" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_TouchesCorner_di" bpmnElement="Task_TouchesCorner"><dc:Bounds x="200" y="260" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OnePixelApart_di" bpmnElement="Task_OnePixelApart"><dc:Bounds x="501" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

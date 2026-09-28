@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_C" processRef="Process_C" />
+    <bpmn:participant id="Participant_A" processRef="Process_A" />
+    <bpmn:participant id="Participant_B" processRef="Process_B" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_A">
+    <bpmn:task id="Task_A_Inside" />
+    <bpmn:task id="Task_A_Outside" />
+  </bpmn:process>
+  <bpmn:process id="Process_B">
+    <bpmn:task id="Task_B_OverlapsTaskAAcrossPools" />
+  </bpmn:process>
+  <bpmn:process id="Process_C" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_C_di" bpmnElement="Participant_C" isHorizontal="true"><dc:Bounds x="100" y="900" width="600" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_A_di" bpmnElement="Participant_A" isHorizontal="true"><dc:Bounds x="100" y="100" width="600" height="250" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_B_di" bpmnElement="Participant_B" isHorizontal="true"><dc:Bounds x="100" y="300" width="600" height="250" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_A_Inside_di" bpmnElement="Task_A_Inside"><dc:Bounds x="200" y="280" width="100" height="60" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_A_Outside_di" bpmnElement="Task_A_Outside"><dc:Bounds x="650" y="150" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_B_OverlapsTaskAAcrossPools_di" bpmnElement="Task_B_OverlapsTaskAAcrossPools"><dc:Bounds x="220" y="310" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
