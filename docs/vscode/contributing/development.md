@@ -249,6 +249,79 @@ Coverage reports are uploaded
 to [Codecov](https://app.codecov.io/gh/Miragon/bpmn-modeler)
 on CI.
 
+## Performance harness
+
+Large models are generated on demand rather than committed. Everything lives
+in `scripts/perf/`.
+
+### Generate a large model
+
+```bash
+yarn perf:gen-model 100 50 > large-5000.bpmn   # rows × perRow flow nodes
+```
+
+This produces a flat Camunda 7 process of laid-out chains that mix user tasks,
+`asyncAfter` service tasks and gateways. The presets are 500 (`10 50`), 2,000
+(`40 50`) and 5,000 (`100 50`) nodes. `largeBpmnModel.mjs` exports the same
+generator for scripts and specs, together with counts such as the expected
+number of transaction boundaries.
+
+### Benchmark the production webview
+
+```bash
+yarn build:libs && yarn build:bpmn-webview
+yarn perf:webview                                  # full matrix, 5 runs per cell
+yarn perf:webview --sizes 5000 --lint in-page --locales de --runs 3
+yarn perf:webview --json results.json              # also write raw samples
+```
+
+The bench serves the production bundle from
+`dist/webview-staging/bpmn-webview/` and opens it in headless Chromium. It uses
+its own host shim, because the dev `MockHost` is compiled out of production
+builds. The shim answers the webview's requests asynchronously, in the same
+order as the real host: file, lint config, settings, then `LanguageQuery`.
+
+- **Lint `off`**: the host replies with `BpmnLintDisabledQuery`.
+- **Lint `in-page`**: the host replies with a payload-free
+  `BpmnlintInPageQuery`, the zero-config VS Code default.
+
+For every cell it prints a Markdown table (median and min–max) with these
+columns:
+
+- **Open: busy until**: the time from navigation start to the end of the last
+  long task, once the main thread has been quiet for 7 s. The window is longer
+  than the longest lint deferral, so a debounced lint pass after the last edit
+  is still measured. Deferral time counts towards the metric.
+- **Open: longest task**: the longest single main-thread block while opening.
+- **Edit burst**: the same two metrics after five real mouse drags on the
+  canvas. The canvas is first zoomed in so that the drags hit their elements.
+
+The numbers are a lower bound. They include no host IPC, no JCEF and no
+extension-host work, so compare runs only on the same machine. If the webview
+never clears its busy state, the run fails and lists the host messages the
+shim left unanswered. This usually means the protocol changed and the shim in
+`bench-webview.mjs` needs updating.
+
+### Counter spec
+
+`packages/bpmn-modeler/src/largeModelCounters.browser.spec.ts` runs in CI as
+part of the Chromium browser project. It opens a generated 2k-node model
+through `createModeler`, following the package's in-page lint path, the
+webview's external → `startInPageLinting` handback path, and an external path
+with host-pushed results.
+
+For open, re-import, an unchanged relint and a five-edit burst, it pins these
+counters:
+
+- imports
+- full lint rule runs
+- transaction-boundary overlays that were added and that are present
+- lint overlays that were added and removed
+
+The pinned values record the current behaviour, not targets. A change that
+removes redundant work updates the matching value in the same PR, so the
+improvement shows up in the diff and a regression fails CI.
+
 ## Code Style
 
 | Tool             | Configuration       | Key rules                                           |

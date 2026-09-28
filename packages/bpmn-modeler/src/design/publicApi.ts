@@ -137,7 +137,12 @@ export interface DesignerOptions {
     /** Debounced diagram content — see {@link ContentSavedEvent}. */
     onContentSaved?: (event: ContentSavedEvent) => void | Promise<void>;
 
-    /** One lint pass completed — findings + gracefully-degraded rules. */
+    /**
+     * One in-page lint pass completed — findings + gracefully-degraded rules.
+     * Passes are debounced and run when the browser is idle, so a burst of
+     * edits (or an import) yields one call shortly after it settles, not one
+     * per change.
+     */
     onLintResults?: (event: LintRunEvent) => void;
 
     /** The in-canvas lint chip was toggled on/off. */

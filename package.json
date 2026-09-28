@@ -1,6 +1,6 @@
 {
     "name": "bpmn-modeler",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "license": "Apache-2.0",
     "private": true,
     "workspaces": [
@@ -52,6 +52,8 @@
         "docs:preview": "corepack yarn workspace @miragon/bpmn-modeler-docs preview",
         "docs:test": "corepack yarn workspace @miragon/bpmn-modeler-docs test",
         "test": "vitest run --coverage",
+        "perf:gen-model": "node scripts/perf/gen-large-bpmn.mjs",
+        "perf:webview": "node scripts/perf/bench-webview.mjs",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "knip": "knip",
