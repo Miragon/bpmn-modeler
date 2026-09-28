@@ -211,3 +211,39 @@
 .bjs-container.simulation .lint-disabled-chip {
     display: none;
 }
+
+/**
+ * Below 0.7 zoom diagram-js scales each overlay wrapper, which traps the vendor's
+ * hover z-index inside it; raise the wrapper so the issue list covers
+ * neighbouring lint icons. Hover outranks a pinned list.
+ */
+.djs-container.bpmnlint-active .djs-overlay:has(> .bjsl-overlay > .bjsl-dropdown.open) {
+    z-index: 1000;
+}
+
+.djs-container.bpmnlint-active .djs-overlay:has(> .bjsl-overlay:hover) {
+    z-index: 1001;
+}
+
+.djs-container.bpmnlint-active .bjsl-icon {
+    cursor: pointer;
+}
+
+.djs-container.bpmnlint-active .bjsl-icon:focus-visible {
+    outline: 2px solid rgba(0, 120, 212, 0.7);
+    outline-offset: 1px;
+}
+
+.djs-container.bpmnlint-active .bjsl-dropdown:focus {
+    outline: none;
+}
+
+.djs-container.bpmnlint-active .bjsl-issues {
+    user-select: text;
+}
+
+.djs-container.bpmnlint-active .bjsl-overlay.lint-popover-left .bjsl-dropdown,
+.djs-container.bpmnlint-active .bjsl-overlay.lint-popover-left .bjsl-dropdown-content {
+    left: auto;
+    right: 0;
+}

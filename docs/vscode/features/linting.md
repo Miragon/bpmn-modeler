@@ -57,8 +57,11 @@ Everything resolves from rules bundled into the extension — no workspace
 
 2. Open (or reopen) a `.bpmn` file with a known issue — e.g. a task without a
    label or a process missing an end event. Violations show up as overlays on
-   the diagram, and the in-canvas lint button summarises the counts. The VS Code
-   status bar shows `$(check) BPMNlint` (hover for the config path).
+   the diagram, and the in-canvas lint button summarises the counts. Hover an
+   overlay icon to see its findings, or click it (or focus it and press
+   <kbd>Enter</kbd>) to pin the list open; <kbd>Esc</kbd> or a click elsewhere
+   closes it. The VS Code status bar shows `$(check) BPMNlint` (hover for the
+   config path).
 
 3. Fix the issue and the overlay clears **live** — no save required.
 
