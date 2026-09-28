@@ -206,6 +206,11 @@
     text-decoration: underline;
 }
 
+.bjs-container.simulation .lint-toolbar,
+.bjs-container.simulation .lint-disabled-chip {
+    display: none;
+}
+
 /**
  * Below 0.7 zoom diagram-js scales each overlay wrapper, which traps the vendor's
  * hover z-index inside it; raise the wrapper so the issue list covers
@@ -240,4 +245,3 @@
 .djs-container.bpmnlint-active .bjsl-overlay.lint-popover-left .bjsl-dropdown-content {
     left: auto;
     right: 0;
-}
