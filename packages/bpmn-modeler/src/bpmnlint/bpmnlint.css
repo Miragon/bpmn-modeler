@@ -205,3 +205,9 @@
 .djs-container.bpmnlint-disabled .lint-enable-button:hover {
     text-decoration: underline;
 }
+
+/* Token simulation pins its speed control to the same bottom-centre spot. */
+.bjs-container.simulation .lint-toolbar,
+.bjs-container.simulation .lint-disabled-chip {
+    display: none;
+}
