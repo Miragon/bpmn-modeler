@@ -6,15 +6,9 @@ Theia frontend extension consumed by `apps/standalone/`. Contributes the Miragon
 
 Theia's extension generator only iterates `dependencies` and `peerDependencies` — the root package's own `theiaExtensions` are silently ignored.
 
-`@theia/application-package@1.70.2` (`src/extension-package-collector.ts:38-46`):
-
-```ts
-for (const [dep, ver] of [
-    ...Object.entries(pck.dependencies ?? {}),
-    ...Object.entries(pck.peerDependencies ?? {})
-]) {
-    this.collectPackage(packagePath, dep, ver, optional);
-}
-```
-
-A yarn `workspace:^` self-reference would bypass this, but it forces three competing build outputs (tsc-for-scripts, tsc-for-extension, Theia webpack) into the same `apps/standalone/lib/`. No public Theia app uses that pattern — `browser-app`, `electron-app`, `theia-blueprint` all ship sibling extension packages.
+In Theia 1.75, `@theia/application-package` discovers extension packages from
+the application's dependencies and peers, not its own `theiaExtensions` field.
+Keeping this package separate also keeps its TypeScript compilation and asset
+copy separate from the application's generated esbuild bundles. Its React peers
+are provided by the standalone host; matching development dependencies support
+building the extension on its own.

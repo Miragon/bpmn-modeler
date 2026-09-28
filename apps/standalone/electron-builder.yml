@@ -1,13 +1,14 @@
 appId: io.miragon.bpmn-modeler
 productName: Miragon BPMN Modeler
 copyright: Copyright (c) Miragon
-electronVersion: 42.3.0
 directories:
   buildResources: resources
   output: dist
 publish:
   provider: generic
   url: https://github.com/Miragon/bpmn-modeler/releases/download/standalone-latest
+asarUnpack:
+  - lib/backend/native/rg*
 fileAssociations:
   - ext: bpmn
     name: BPMN Process Model

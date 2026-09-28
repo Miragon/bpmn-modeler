@@ -353,7 +353,7 @@ jobs:
             flatpak flatpak-builder elfutils \
             build-essential python3 make g++ pkg-config \
             libx11-dev libxkbfile-dev libsecret-1-dev \
-            desktop-file-utils appstream libxml2-utils
+            desktop-file-utils appstream libxml2-utils xvfb xauth
           flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
       - name: Install dependencies
@@ -377,6 +377,11 @@ jobs:
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:linux:dir
         env:
           NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Verify packaged file search binary
+        run: |
+          yarn workspace @miragon/bpmn-modeler-standalone test:packaged
+          xvfb-run -a yarn workspace @miragon/bpmn-modeler-standalone test:packaged-search
 
       - name: Build Flatpak bundle
         run: yarn workspace @miragon/bpmn-modeler-standalone run package:flatpak:bundle

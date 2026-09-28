@@ -17,6 +17,9 @@ the same `.vsix` that ships to the VS Code Marketplace.
 This workspace is **opt-in**. It is intentionally *not* included in the root
 `build` / `test` / `lint` scripts. Run its scripts explicitly.
 
+The dated [Theia 1.75 validation record](VALIDATION.md) distinguishes completed
+checks from packaging and desktop behavior still requiring verification.
+
 ## Requirements
 
 - Node.js **>= 22** (matches Theia Blueprint)
@@ -34,7 +37,8 @@ corepack yarn build
 # 2. Download the built-in plugins, package the .vsix, and populate plugins/
 corepack yarn workspace @miragon/bpmn-modeler-standalone prepare-plugin
 
-# 3. Rebuild Theia's native modules against Electron's Node ABI
+# 3. Install Electron's binary and rebuild native modules against its Node ABI
+corepack yarn workspace @miragon/bpmn-modeler-standalone ensure-electron
 corepack yarn workspace @miragon/bpmn-modeler-standalone run rebuild
 
 # 4. Build Theia (esbuild frontend + backend bundles)
@@ -58,15 +62,33 @@ applications and the normal `start` command keep their existing sandbox behavior
 > rebuild` — Yarn 4 reserves `rebuild` as a built-in command and won't dispatch
 > to our script otherwise.
 
-After changing Theia dependencies, run the runtime compatibility check:
+After changing Theia or React dependencies, run the runtime compatibility check:
 
 ```bash
 corepack yarn workspace @miragon/bpmn-modeler-standalone test:runtime
 ```
 
-It verifies that every discovered Theia extension resolves the same core widget
-runtime. Duplicate core instances can crash the frontend during startup even
-when the build succeeds.
+It verifies that discovered Theia extensions resolve one core widget runtime,
+the extension shares React with the host, Electron packaging uses Theia's pinned
+peer version, and SCM/Timeline are discovered. Duplicate core instances can crash
+the frontend even when the build succeeds. On Node 24, prefix Theia tests/builds
+with `NODE_OPTIONS=--no-experimental-webstorage` if the experimental global
+`localStorage` interferes; CI uses Node 22.
+
+After packaging on Linux, run `corepack yarn workspace
+@miragon/bpmn-modeler-standalone test:packaged`. It verifies that Theia's
+file-search ripgrep binary can execute from the packaged app. Run
+`xvfb-run -a corepack yarn workspace @miragon/bpmn-modeler-standalone
+test:packaged-search` to verify that Quick Open actually finds a file through
+the packaged backend. The Linux release job runs both checks before wrapping
+the directory as a Flatpak. The test uses `--no-sandbox` only for the isolated
+Xvfb process; the packaged application's normal launch is unchanged.
+
+For a fresh generated build, run `corepack yarn workspace
+@miragon/bpmn-modeler-standalone clean`, reinstall with `corepack yarn install`,
+then rebuild. The clean script removes generated esbuild entrypoints and bundles
+as well as the app's `node_modules` link; it preserves the tracked `esbuild.mjs`
+wrapper that keeps ripgrep executable from a packaged ASAR app.
 
 ## Detaching editors
 
@@ -104,7 +126,8 @@ corepack yarn build
 # 2. Unpack it into apps/standalone/plugins/
 corepack yarn workspace @miragon/bpmn-modeler-standalone bundle
 
-# 3. Rebuild native modules
+# 3. Install Electron and rebuild native modules (also done by the packaging scripts)
+corepack yarn workspace @miragon/bpmn-modeler-standalone ensure-electron
 corepack yarn workspace @miragon/bpmn-modeler-standalone run rebuild
 
 # 4. Pick one packaging script:
@@ -126,9 +149,38 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone run package:signed   # 
 |---|---|---|
 | macOS | DMG | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-arm64.dmg` |
 | Windows | NSIS installer | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x64.exe` |
-| Linux | Flatpak bundle | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x86_64.flatpak` |
+| Linux (`package`) | Unpacked app | `apps/standalone/dist/linux-unpacked/` |
+| Linux (`package:flatpak`) | Flatpak bundle | `apps/standalone/dist/Miragon.BPMN.Modeler-<version>-x86_64.flatpak` |
 
 The `<version>` comes from `apps/standalone/package.json`.
+The packaged Electron runtime comes from the app's exact `electron` devDependency,
+which must match `@theia/electron`'s peer version.
+
+### Desktop smoke check
+
+Use a disposable workspace with a Git repository and sample `.bpmn`/`.dmn`
+files. On macOS/Windows, `start:isolated` builds and launches the packaged app
+with temporary profile state. On Linux, `start:isolated:run` is not supported;
+after `package:linux:dir`, launch the unpacked binary with an isolated profile:
+
+```bash
+profile="$(mktemp -d)"
+HOME="$profile" XDG_CONFIG_HOME="$profile/config" XDG_DATA_HOME="$profile/data" \
+  XDG_CACHE_HOME="$profile/cache" apps/standalone/dist/linux-unpacked/miragon-bpmn-modeler
+# After closing the app, remove the temporary profile when no longer needed.
+```
+
+Check these interactions in the packaged build:
+
+1. Open BPMN and DMN, edit each, save, close and reopen; confirm edits persist.
+2. Switch light/dark themes and confirm modeler controls and canvas stay legible.
+3. Detach a BPMN/DMN editor, edit and save there, then close the secondary window
+   and confirm the editor returns to the main window with the changes.
+4. Make an unsaved change and compare closing the editor tab with closing the
+   entire window; verify the expected save/dirty behavior in both cases.
+5. Open Source Control's Git graph and a file's Timeline in the Git workspace.
+6. Capture renderer, plugin-host and backend errors/logs with the platform,
+   Node version, and packaged Electron version for any failure.
 
 `package:signed` needs `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`,
 `APPLE_TEAM_ID` as env variables and a Developer ID Application cert in
