@@ -218,6 +218,20 @@ the per-mode map is a package option and never a host wire payload. The viewer
 remains lint-free. Unresolvable rules are reported through lint results instead
 of failing the entire pass.
 
+Both tiers render through `bpmn-js-bpmnlint`, pinned to an exact version. The
+package replaces its `lint()` and `update()` on the instance instead of forking
+it: every relint trigger (import, element change, toggle, host push) goes
+through one scheduler — a trailing quiet period as long as the last pass took
+(0.3–5 s), then an idle callback — with at most one pass in flight, cancelled
+on `diagram.clear`/destroy. Scaling the wait with the pass cost keeps a burst of
+edits on a large model from paying one blocking pass per edit. Each pass redraws
+only the overlays of elements whose issues changed. The update reuses the
+vendor's private formatting and overlay helpers through the typed
+`lintingInternals` adapter, pinned by the upstream-shape test, so a version bump
+fails loudly. A `Linter` is still built per pass: bpmnlint rules keep per-run
+state in their closures. Consequence: `onLintResults` arrives after the
+debounce/idle delay rather than synchronously after an import or edit.
+
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
 and source architecture tests guard the import boundary.

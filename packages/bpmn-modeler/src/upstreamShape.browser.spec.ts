@@ -1,13 +1,18 @@
 import Modeler from "bpmn-js/lib/Modeler";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import bpmnLintingModule from "bpmn-js-bpmnlint";
+import type { ModuleDeclaration } from "didi";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDirectEditingContent } from "@miragon/bpmn-modeler-clipboard";
 import { getPopupMenuContext } from "@miragon/bpmn-modeler-append-menu";
 
+import { LintingInternals } from "./bpmnlint/lintingInternals";
+
 /**
  * Pins the private upstream shapes the typed adapters (WP1) reach into against
- * the *installed* bpmn-js / diagram-js — so a renovate bump that moves
- * `directEditing._textbox.content` or `popupMenu._getContext` fails here loudly
+ * the *installed* bpmn-js / diagram-js / bpmn-js-bpmnlint — so a renovate bump
+ * that moves `directEditing._textbox.content`, `popupMenu._getContext` or the
+ * `linting` overlay bookkeeping fails here loudly
  * rather than silently no-op'ing in production. Runs against real Chromium
  * because direct editing and the popup menu need layout and focus jsdom lacks.
  */
@@ -35,7 +40,10 @@ beforeEach(async () => {
     container.style.height = "600px";
     container.style.position = "absolute";
     document.body.appendChild(container);
-    modeler = new Modeler({ container });
+    modeler = new Modeler({
+        container,
+        additionalModules: [bpmnLintingModule as ModuleDeclaration],
+    });
     await modeler.importXML(XML);
 });
 
@@ -84,5 +92,29 @@ describe("getPopupMenuContext (diagram-js popupMenu shape pin)", () => {
         expect(() => getPopupMenuContext({}, task(), "bpmn-replace")).toThrow(
             /diagram-js popupMenu/,
         );
+    });
+});
+
+describe("LintingInternals (bpmn-js-bpmnlint linting shape pin)", () => {
+    it("tracks the overlay the vendor creates for an element's issues", () => {
+        const linting = new LintingInternals(modeler!.get("linting"));
+        const issues = linting.formatIssues({
+            "label-required": [{ id: "Task_1", message: "Missing label", category: "warn" }],
+        });
+
+        linting.createElementOverlays("Task_1", issues.Task_1);
+
+        const overlayId = linting.overlayIdOf("Task_1");
+        expect(overlayId).toBeDefined();
+        expect(modeler!.get<{ get(id: string): unknown }>("overlays").get(overlayId!)).toBeTruthy();
+
+        linting.clearOverlays();
+        expect(linting.overlayIdOf("Task_1")).toBeUndefined();
+    });
+
+    it("throws when linting lacks its private members", () => {
+        expect(
+            () => new LintingInternals({ lint: vi.fn(), update: vi.fn(), isActive: vi.fn() }),
+        ).toThrow(/bpmn-js-bpmnlint linting/);
     });
 });
