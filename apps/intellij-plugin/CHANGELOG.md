@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.10.2](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.10.1...intellij-v1.10.2) (2026-09-28)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** hide lint toolbar during token simulation ([#1601](https://github.com/Miragon/bpmn-modeler/issues/1601)) [sync c6bc75f] ([f2daef3](https://github.com/Miragon/bpmn-modeler/commit/f2daef3a9ba0f667ce58bc62f6c6d75fb4179e34))
+* **bpmn-modeler:** keep lint issue list above neighbouring icons ([#1602](https://github.com/Miragon/bpmn-modeler/issues/1602)) [sync c269238] ([59f84d4](https://github.com/Miragon/bpmn-modeler/commit/59f84d4250b193619700ca65ae76ec44c7e2b71d))
+* **modeler-bridge:** stop file watchers from freezing the bridge on large repos ([#1588](https://github.com/Miragon/bpmn-modeler/issues/1588)) [sync 328775a] ([073f014](https://github.com/Miragon/bpmn-modeler/commit/073f014452f759b9f71e34cb9a54d99dd063dc03))
+
 ## [1.10.1](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.10.0...intellij-v1.10.1) (2026-09-23)
 
 
