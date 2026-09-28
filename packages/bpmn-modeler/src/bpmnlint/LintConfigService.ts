@@ -68,15 +68,6 @@ type LintTierState = "external" | "in-page" | "in-page-disabled";
 
 const OFF_ICON = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="4" x2="12" y2="12"/></svg>`;
 
-// The vendor mutates reports when formatting overlays; clone them to preserve emitted results.
-function shallowCopyResults(results: LintResults): LintResults {
-    const copy: LintResults = {};
-    for (const [rule, reports] of Object.entries(results)) {
-        copy[rule] = reports.map((report) => ({ ...report }));
-    }
-    return copy;
-}
-
 // Override vendor lint() so every tier reuses its overlay rendering and update lifecycle.
 export class LintConfigService {
     static $inject = [
@@ -206,7 +197,7 @@ export class LintConfigService {
         if (this.state === "in-page" && this.browserLinter) {
             const event = await this.browserLinter.run(this.bpmnjs.getDefinitions());
             this.callbacks.onLintResults?.(event);
-            return shallowCopyResults(event.results);
+            return event.results;
         }
         if (this.state === "in-page-disabled") {
             return {};

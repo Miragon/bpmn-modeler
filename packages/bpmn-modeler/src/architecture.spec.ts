@@ -358,6 +358,7 @@ describe("bpmn-modeler import direction", () => {
             "libs/bpmn-clipboard/src/directEditingInternals.ts",
             "libs/bpmn-diff/src/differResult.ts",
             "libs/append-menu/src/popupMenuInternals.ts",
+            "packages/bpmn-modeler/src/bpmnlint/lintingInternals.ts",
         ];
         const inScope = (file: string): boolean => {
             const rel = file.slice(REPO_ROOT.length + 1);
@@ -387,7 +388,7 @@ describe("bpmn-modeler import direction", () => {
             offenders,
             `private upstream state must be reached only through the typed ` +
                 `adapters (directEditingInternals / differResult / ` +
-                `popupMenuInternals):\n${offenders.join("\n")}`,
+                `popupMenuInternals / lintingInternals):\n${offenders.join("\n")}`,
         ).toEqual([]);
     });
 

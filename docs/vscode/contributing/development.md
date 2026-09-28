@@ -289,7 +289,9 @@ For every cell it prints a Markdown table (median and min–max) with these
 columns:
 
 - **Open: busy until**: the time from navigation start to the end of the last
-  long task, once the main thread has been quiet for 3 s.
+  long task, once the main thread has been quiet for 7 s. The window is longer
+  than the longest lint deferral, so a debounced lint pass after the last edit
+  is still measured. Deferral time counts towards the metric.
 - **Open: longest task**: the longest single main-thread block while opening.
 - **Edit burst**: the same two metrics after five real mouse drags on the
   canvas. The canvas is first zoomed in so that the drags hit their elements.
@@ -304,14 +306,17 @@ shim left unanswered. This usually means the protocol changed and the shim in
 
 `packages/bpmn-modeler/src/largeModelCounters.browser.spec.ts` runs in CI as
 part of the Chromium browser project. It opens a generated 2k-node model
-through `createModeler`, following both the package's in-page lint path and
-the webview's external → `startInPageLinting` handback path.
+through `createModeler`, following the package's in-page lint path, the
+webview's external → `startInPageLinting` handback path, and an external path
+with host-pushed results.
 
-For open, re-import and a five-edit burst, it pins these counters:
+For open, re-import, an unchanged relint and a five-edit burst, it pins these
+counters:
 
 - imports
 - full lint rule runs
 - transaction-boundary overlays that were added and that are present
+- lint overlays that were added and removed
 
 The pinned values record the current behaviour, not targets. A change that
 removes redundant work updates the matching value in the same PR, so the

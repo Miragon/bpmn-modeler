@@ -17,7 +17,9 @@ import { generateLargeC7Model, largeModelPresets } from "./largeBpmnModel.mjs";
 const repoRoot = resolve(fileURLToPath(import.meta.url), "..", "..", "..");
 const webviewDist = resolve(repoRoot, "dist/webview-staging/bpmn-webview");
 
-const QUIET_WINDOW_MS = 3000;
+// Longer than the longest lint deferral (5 s quiet period + 1 s idle timeout), so a
+// debounced pass after the last edit is measured rather than cut off.
+const QUIET_WINDOW_MS = 7000;
 const SETTLE_TIMEOUT_MS = 120_000;
 const EDIT_DRAGS = 5;
 // Fit-to-viewport renders 2k+ models too small to hit an element without landing on a neighbour.
@@ -206,14 +208,20 @@ async function readHarness(page) {
 
 async function waitForQuietMainThread(page, sinceMs) {
     const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    let quietSinceLongTaskEnd;
     for (;;) {
         const harness = await readHarness(page);
         const lastLongTaskEnd = Math.max(
             sinceMs,
             ...harness.longTasks.map((task) => task.startTime + task.duration),
         );
-        if (harness.now - lastLongTaskEnd >= QUIET_WINDOW_MS) {
+        // A poll queued behind a long task runs before the observer reports that task.
+        if (harness.now - lastLongTaskEnd < QUIET_WINDOW_MS) {
+            quietSinceLongTaskEnd = undefined;
+        } else if (quietSinceLongTaskEnd === lastLongTaskEnd) {
             return harness;
+        } else {
+            quietSinceLongTaskEnd = lastLongTaskEnd;
         }
         if (Date.now() > deadline) {
             throw new Error("Main thread never went quiet");

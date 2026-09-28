@@ -14,7 +14,7 @@ const DROPDOWN_SELECTOR = ".bjsl-dropdown";
 const DROPDOWN_CONTENT_SELECTOR = ".bjsl-dropdown-content";
 const PINNED_CLASS = "open";
 
-// The vendor recreates every lint overlay on each relint, so listeners are
+// A relint recreates the overlays of changed elements, so listeners are
 // delegated to the canvas container and the pin is tracked by element id.
 export class LintIssuePopover {
     static $inject = ["eventBus", "canvas", "overlays", "translate"];

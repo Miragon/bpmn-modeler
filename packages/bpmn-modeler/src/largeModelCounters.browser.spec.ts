@@ -11,21 +11,37 @@ import type { BpmnModeler } from "./modeler";
 // updates its number in the same change, so improvements show up and regressions fail.
 
 const TRANSACTION_BOUNDARY_OVERLAY = "transaction-boundaries";
+const LINT_OVERLAY = "linting";
 const EDIT_BURST_SIZE = 5;
 const TEST_TIMEOUT_MS = 120_000;
 
 const largeModel = generateLargeC7Model(largeModelPresets[2000]);
 const BOUNDARIES = largeModel.transactionBoundaryCount;
+const IN_PAGE_LINT_OVERLAYS = 361;
+
+const PUSHED_ISSUE_ELEMENT_IDS = largeModel.editableElementIds.slice(0, 2 * EDIT_BURST_SIZE);
+const PUSHED_RESULTS = {
+    "label-required": PUSHED_ISSUE_ELEMENT_IDS.map((id) => ({
+        id,
+        message: "Element is missing label/name",
+        category: "warn",
+    })),
+};
 
 const lintRunSpy = vi.spyOn(BrowserLinter.prototype, "run");
 
-type LintPath = "in-page from construction" | "external → startInPageLinting handback";
+type LintPath =
+    | "in-page from construction"
+    | "external → startInPageLinting handback"
+    | "external with host-pushed results";
 
 interface PhaseCounters {
     imports: number;
     lintRuns: number;
     boundaryOverlaysAdded: number;
     boundaryOverlays: number;
+    lintOverlaysAdded: number;
+    lintOverlaysRemoved: number;
 }
 
 let modeler: BpmnModeler | undefined;
@@ -80,6 +96,7 @@ async function openLargeModel(lintPath: LintPath) {
                 ? { module: lintModule }
                 : { module: lintModule, results: "external" },
     });
+    const pushesResults = lintPath === "external with host-pushed results";
     modeler = handle;
 
     const eventBus = handle.getService("eventBus");
@@ -94,16 +111,28 @@ async function openLargeModel(lintPath: LintPath) {
     });
 
     let boundaryOverlaysAdded = 0;
+    let lintOverlaysAdded = 0;
+    let lintOverlaysRemoved = 0;
     const addOverlay = overlays.add.bind(overlays);
     overlays.add = ((element, type, overlay) => {
         if (type === TRANSACTION_BOUNDARY_OVERLAY) boundaryOverlaysAdded++;
+        if (type === LINT_OVERLAY) lintOverlaysAdded++;
         return addOverlay(element, type, overlay);
     }) as typeof overlays.add;
+    const removeOverlays = overlays.remove.bind(overlays);
+    overlays.remove = ((filter) => {
+        lintOverlaysRemoved += [overlays.get(filter)]
+            .flat()
+            .filter((overlay) => overlay?.type === LINT_OVERLAY).length;
+        removeOverlays(filter);
+    }) as typeof overlays.remove;
 
     const totals = () => ({
         imports,
         lintRuns: lintRunSpy.mock.calls.length,
         boundaryOverlaysAdded,
+        lintOverlaysAdded,
+        lintOverlaysRemoved,
     });
 
     async function measure(phase: () => Promise<void>): Promise<PhaseCounters> {
@@ -115,6 +144,8 @@ async function openLargeModel(lintPath: LintPath) {
             lintRuns: after.lintRuns - before.lintRuns,
             boundaryOverlaysAdded: after.boundaryOverlaysAdded - before.boundaryOverlaysAdded,
             boundaryOverlays: [overlays.get({ type: TRANSACTION_BOUNDARY_OVERLAY })].flat().length,
+            lintOverlaysAdded: after.lintOverlaysAdded - before.lintOverlaysAdded,
+            lintOverlaysRemoved: after.lintOverlaysRemoved - before.lintOverlaysRemoved,
         };
     }
 
@@ -122,6 +153,9 @@ async function openLargeModel(lintPath: LintPath) {
     const open = async () => {
         if (lintPath === "in-page from construction") {
             await settleAfter(eventBus, () => handle.loadDiagram(largeModel.xml));
+        } else if (pushesResults) {
+            await handle.loadDiagram(largeModel.xml);
+            await settleAfter(eventBus, () => handle.applyLintResults(PUSHED_RESULTS));
         } else {
             await handle.loadDiagram(largeModel.xml);
             await settleAfter(eventBus, () => handle.startInPageLinting());
@@ -130,6 +164,9 @@ async function openLargeModel(lintPath: LintPath) {
     };
 
     const reimport = () => settleAfter(eventBus, () => handle.loadDiagram(largeModel.xml));
+
+    const unchangedRelint = () =>
+        settleAfter(eventBus, () => eventBus.fire("linting.configChanged"));
 
     // One frame apart, like keystrokes or drag steps, so a debounce can coalesce them.
     const editBurst = async () => {
@@ -148,6 +185,7 @@ async function openLargeModel(lintPath: LintPath) {
     return {
         measureOpen: () => measure(open),
         measureReimport: () => measure(reimport),
+        measureUnchangedRelint: () => measure(unchangedRelint),
         measureEditBurst: () => measure(editBurst),
     };
 }
@@ -156,27 +194,42 @@ const pinnedCounters: {
     lintPath: LintPath;
     open: PhaseCounters;
     reimport: PhaseCounters;
+    unchangedRelint: PhaseCounters;
     editBurst: PhaseCounters;
 }[] = [
     {
         lintPath: "in-page from construction",
         open: {
             imports: 1,
-            lintRuns: 2,
+            lintRuns: 1,
             boundaryOverlaysAdded: 2 * BOUNDARIES,
             boundaryOverlays: 2 * BOUNDARIES,
+            lintOverlaysAdded: IN_PAGE_LINT_OVERLAYS,
+            lintOverlaysRemoved: 0,
         },
         reimport: {
             imports: 1,
-            lintRuns: 2,
+            lintRuns: 1,
             boundaryOverlaysAdded: BOUNDARIES,
             boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: IN_PAGE_LINT_OVERLAYS,
+            lintOverlaysRemoved: 0,
+        },
+        unchangedRelint: {
+            imports: 0,
+            lintRuns: 1,
+            boundaryOverlaysAdded: 0,
+            boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: 0,
+            lintOverlaysRemoved: 0,
         },
         editBurst: {
             imports: 0,
-            lintRuns: EDIT_BURST_SIZE,
+            lintRuns: 1,
             boundaryOverlaysAdded: EDIT_BURST_SIZE * BOUNDARIES,
             boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: 0,
+            lintOverlaysRemoved: 0,
         },
     },
     {
@@ -186,30 +239,83 @@ const pinnedCounters: {
             lintRuns: 1,
             boundaryOverlaysAdded: 2 * BOUNDARIES,
             boundaryOverlays: 2 * BOUNDARIES,
+            lintOverlaysAdded: IN_PAGE_LINT_OVERLAYS,
+            lintOverlaysRemoved: 0,
         },
         reimport: {
             imports: 1,
-            lintRuns: 2,
+            lintRuns: 1,
             boundaryOverlaysAdded: BOUNDARIES,
             boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: IN_PAGE_LINT_OVERLAYS,
+            lintOverlaysRemoved: 0,
+        },
+        unchangedRelint: {
+            imports: 0,
+            lintRuns: 1,
+            boundaryOverlaysAdded: 0,
+            boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: 0,
+            lintOverlaysRemoved: 0,
         },
         editBurst: {
             imports: 0,
-            lintRuns: EDIT_BURST_SIZE,
+            lintRuns: 1,
             boundaryOverlaysAdded: EDIT_BURST_SIZE * BOUNDARIES,
             boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: 0,
+            lintOverlaysRemoved: 0,
+        },
+    },
+    {
+        lintPath: "external with host-pushed results",
+        open: {
+            imports: 1,
+            lintRuns: 0,
+            boundaryOverlaysAdded: 2 * BOUNDARIES,
+            boundaryOverlays: 2 * BOUNDARIES,
+            lintOverlaysAdded: PUSHED_ISSUE_ELEMENT_IDS.length,
+            lintOverlaysRemoved: 0,
+        },
+        reimport: {
+            imports: 1,
+            lintRuns: 0,
+            boundaryOverlaysAdded: BOUNDARIES,
+            boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: PUSHED_ISSUE_ELEMENT_IDS.length,
+            lintOverlaysRemoved: 0,
+        },
+        unchangedRelint: {
+            imports: 0,
+            lintRuns: 0,
+            boundaryOverlaysAdded: 0,
+            boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: 0,
+            lintOverlaysRemoved: 0,
+        },
+        // Every edit relints; without a new push the cached results must not touch overlays.
+        editBurst: {
+            imports: 0,
+            lintRuns: 0,
+            boundaryOverlaysAdded: EDIT_BURST_SIZE * BOUNDARIES,
+            boundaryOverlays: BOUNDARIES,
+            lintOverlaysAdded: 0,
+            lintOverlaysRemoved: 0,
         },
     },
 ];
 
 describe.each(pinnedCounters)("2k-node C7 model, lint $lintPath", (pinned) => {
     it(
-        "pins imports, lint runs and transaction-boundary overlays per phase",
+        "pins imports, lint runs and overlay work per phase",
         async () => {
             const model = await openLargeModel(pinned.lintPath);
 
             expect.soft(await model.measureOpen(), "open").toEqual(pinned.open);
             expect.soft(await model.measureReimport(), "reimport").toEqual(pinned.reimport);
+            expect
+                .soft(await model.measureUnchangedRelint(), "unchanged relint")
+                .toEqual(pinned.unchangedRelint);
             expect.soft(await model.measureEditBurst(), "edit burst").toEqual(pinned.editBurst);
         },
         TEST_TIMEOUT_MS,
