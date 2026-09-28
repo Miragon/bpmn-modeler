@@ -1,0 +1,156 @@
+diff --git a/rules/no-bpmndi.js b/rules/no-bpmndi.js
+index e43f10e49063d309d4551c4b140325de9166f4d5..2d35f9b5b0dc27c641ed63fc07353ed4baf9111c 100644
+--- a/rules/no-bpmndi.js
++++ b/rules/no-bpmndi.js
+@@ -35,12 +35,12 @@ module.exports = function() {
+     // (2) Filter BPMN elements without visual representation
+     const visualBpmnElements = bpmnElements.filter(hasVisualRepresentation);
+ 
+-    // (3) Construct array of BPMNDI references
+-    const diBpmnReferences = getAllDiBpmnReferences(node);
++    // (3) Construct set of BPMNDI references
++    const diBpmnReferences = new Set(getAllDiBpmnReferences(node));
+ 
+     // (4) Report elements without BPMNDI
+     visualBpmnElements.forEach((element) => {
+-      if (diBpmnReferences.indexOf(element.id) === -1) {
++      if (!diBpmnReferences.has(element.id)) {
+         reporter.report(element.id, 'Element is missing bpmndi');
+       }
+     });
+diff --git a/rules/no-overlapping-elements.js b/rules/no-overlapping-elements.js
+index 4ca2805a54dfdb776e99ce0b36942bc8998df558..781ba4404daa43e86107909c85cb6938086c5dd8 100644
+--- a/rules/no-overlapping-elements.js
++++ b/rules/no-overlapping-elements.js
+@@ -99,36 +99,95 @@ function checkProcess(node, elementsToReport, elementsOutsideToReport, diObjects
+ }
+ 
+ /**
++ * Sort-and-sweep on the x axis: only pairs whose x ranges intersect are tested,
++ * instead of every pair. Colliding pairs are replayed in their original (i, j)
++ * index order so `elementsToReport` keeps the insertion order of the all-pairs loop.
++ *
+  * @param {Array} elements
+  * @param {Set} elementsToReport
++ * @param {Map} diObjects
+  */
+ function checkElementsArray(elements, elementsToReport, diObjects) {
+-  for (let i = 0; i < elements.length - 1; i++) {
+-    const element = elements[i];
++  const candidates = [];
++
++  elements.forEach((element, index) => {
++    const bounds = diObjects.get(element)?.bounds;
++
++    if (canCollide(bounds)) {
++      candidates.push({
++        element,
++        index,
++        left: bounds.x,
++        top: bounds.y,
++        right: bounds.x + bounds.width,
++        bottom: bounds.y + bounds.height
++      });
++    }
++  });
+ 
+-    for (let j = i + 1; j < elements.length; j++) {
+-      const element2 = elements[j];
++  candidates.sort(compareLeftEdge);
+ 
+-      // ignore if Boundary events overlap their host
+-      // but still check if they overlap other elements
+-      if (element.attachedToRef === element2 || element2.attachedToRef === element) {
+-        continue;
+-      }
++  const collidingPairs = [];
++
++  for (let i = 0; i < candidates.length - 1; i++) {
++    const candidate = candidates[i];
+ 
+-      const bounds1 = diObjects.get(element)?.bounds;
+-      const bounds2 = diObjects.get(element2)?.bounds;
++    for (let j = i + 1; j < candidates.length; j++) {
++      const candidate2 = candidates[j];
++
++      // collisions are inclusive (touching shapes collide), and every later
++      // candidate starts even further right
++      if (candidate2.left > candidate.right) {
++        break;
++      }
+ 
+-      // ignore if an element doesn't have bounds
+-      if (!bounds1 || !bounds2) {
++      // ignore if Boundary events overlap their host
++      // but still check if they overlap other elements
++      if (candidate.element.attachedToRef === candidate2.element || candidate2.element.attachedToRef === candidate.element) {
+         continue;
+       }
+ 
+-      if (isCollision(bounds1, bounds2)) {
+-        elementsToReport.add(element);
+-        elementsToReport.add(element2);
++      if (isCollision(candidate, candidate2)) {
++        collidingPairs.push(
++          candidate.index < candidate2.index
++            ? [ candidate.index, candidate2.index ]
++            : [ candidate2.index, candidate.index ]
++        );
+       }
+     }
+   }
++
++  collidingPairs
++    .sort((pair, pair2) => pair[0] - pair2[0] || pair[1] - pair2[1])
++    .forEach(([ index, index2 ]) => {
++      elementsToReport.add(elements[index]);
++      elementsToReport.add(elements[index2]);
++    });
++}
++
++/**
++ * Elements without valid bounds, or whose right / bottom edge is NaN, never
++ * collide; dropping them up front also keeps NaN out of the sort.
++ */
++function canCollide(bounds) {
++  return isValidShapeElement(bounds) &&
++    !Number.isNaN(bounds.x + bounds.width) &&
++    !Number.isNaN(bounds.y + bounds.height);
++}
++
++/**
++ * Compares by `<` / `>` instead of subtraction, which is NaN for two infinite edges.
++ */
++function compareLeftEdge(candidate, candidate2) {
++  if (candidate.left < candidate2.left) {
++    return -1;
++  }
++
++  if (candidate.left > candidate2.left) {
++    return 1;
++  }
++
++  return 0;
+ }
+ 
+ /**
+@@ -147,15 +206,11 @@ function isOutsideParentBoundary(childBounds, parentBounds) {
+ }
+ 
+ /**
+- * Check if two rectangle shapes collides
++ * Check if two rectangle shapes collides; both must already have passed `canCollide`.
+  */
+-function isCollision(firstBounds, secondBounds) {
+-  if (!isValidShapeElement(firstBounds) || !isValidShapeElement(secondBounds)) {
+-    return false;
+-  }
+-
+-  const collisionX = firstBounds.x + firstBounds.width >= secondBounds.x && secondBounds.x + secondBounds.width >= firstBounds.x;
+-  const collisionY = firstBounds.y + firstBounds.height >= secondBounds.y && secondBounds.y + secondBounds.height >= firstBounds.y;
++function isCollision(first, second) {
++  const collisionX = first.right >= second.left && second.right >= first.left;
++  const collisionY = first.bottom >= second.top && second.bottom >= first.top;
+ 
+   // collision on both axis
+   return collisionX && collisionY;
