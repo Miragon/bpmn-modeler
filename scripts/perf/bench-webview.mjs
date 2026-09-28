@@ -68,37 +68,50 @@ function fail(message) {
 function installHostShim({ lintMode, locale }) {
     const modelXml = fetch("/model.bpmn").then((response) => response.text());
     const reply = (message) => globalThis.postMessage(message, "*");
-    const repliesByRequest = {
-        GetBpmnFileCommand: async () =>
-            reply({
-                type: "BpmnFileQuery",
-                content: await modelXml,
-                engine: "c7",
-                documentRevision: 0,
-            }),
-        GetElementTemplatesCommand: () =>
-            reply({ type: "ElementTemplatesQuery", elementTemplates: [] }),
-        GetBpmnlintConfigCommand: () =>
-            reply(
-                lintMode === "in-page"
-                    ? { type: "BpmnlintInPageQuery" }
-                    : { type: "BpmnLintDisabledQuery" },
-            ),
+    const repliesByRequest = new Map([
+        [
+            "GetBpmnFileCommand",
+            async () =>
+                reply({
+                    type: "BpmnFileQuery",
+                    content: await modelXml,
+                    engine: "c7",
+                    documentRevision: 0,
+                }),
+        ],
+        [
+            "GetElementTemplatesCommand",
+            () => reply({ type: "ElementTemplatesQuery", elementTemplates: [] }),
+        ],
+        [
+            "GetBpmnlintConfigCommand",
+            () =>
+                reply(
+                    lintMode === "in-page"
+                        ? { type: "BpmnlintInPageQuery" }
+                        : { type: "BpmnLintDisabledQuery" },
+                ),
+        ],
         // Same order as the real host: settings first, then the locale.
-        GetBpmnModelerSettingCommand: () => {
-            reply({
-                type: "BpmnModelerSettingQuery",
-                setting: {
-                    alignToOrigin: false,
-                    showTransactionBoundaries: true,
-                    colorTheme: "light",
-                },
-            });
-            reply({ type: "LanguageQuery", locale });
-        },
-        GetPropertiesPanelStateCommand: () =>
-            reply({ type: "PropertiesPanelStateQuery", visible: true }),
-    };
+        [
+            "GetBpmnModelerSettingCommand",
+            () => {
+                reply({
+                    type: "BpmnModelerSettingQuery",
+                    setting: {
+                        alignToOrigin: false,
+                        showTransactionBoundaries: true,
+                        colorTheme: "light",
+                    },
+                });
+                reply({ type: "LanguageQuery", locale });
+            },
+        ],
+        [
+            "GetPropertiesPanelStateCommand",
+            () => reply({ type: "PropertiesPanelStateQuery", visible: true }),
+        ],
+    ]);
 
     const harness = { longTasks: [], ignoredMessageTypes: [] };
     globalThis.__perfHarness = harness;
@@ -106,7 +119,7 @@ function installHostShim({ lintMode, locale }) {
     let webviewState;
     globalThis.acquireVsCodeApi = () => ({
         postMessage(message) {
-            const answer = repliesByRequest[message.type];
+            const answer = repliesByRequest.get(message.type);
             if (answer) {
                 answer();
             } else if (!harness.ignoredMessageTypes.includes(message.type)) {
