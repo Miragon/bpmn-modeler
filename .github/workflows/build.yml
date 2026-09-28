@@ -81,6 +81,8 @@ jobs:
               - 'apps/intellij-plugin/**'
             bpmn-modeler:
               - 'packages/bpmn-modeler/**'
+              # The large-model counter spec imports its generator from here.
+              - 'scripts/perf/**'
               # The package inlines these private libraries from source; changes
               # to any of them must re-run its build and packed-consumer gates.
               - 'libs/modeler-types/**'
