@@ -68,50 +68,13 @@ function fail(message) {
 function installHostShim({ lintMode, locale }) {
     const modelXml = fetch("/model.bpmn").then((response) => response.text());
     const reply = (message) => globalThis.postMessage(message, "*");
-    const repliesByRequest = new Map([
-        [
-            "GetBpmnFileCommand",
-            async () =>
-                reply({
-                    type: "BpmnFileQuery",
-                    content: await modelXml,
-                    engine: "c7",
-                    documentRevision: 0,
-                }),
-        ],
-        [
-            "GetElementTemplatesCommand",
-            () => reply({ type: "ElementTemplatesQuery", elementTemplates: [] }),
-        ],
-        [
-            "GetBpmnlintConfigCommand",
-            () =>
-                reply(
-                    lintMode === "in-page"
-                        ? { type: "BpmnlintInPageQuery" }
-                        : { type: "BpmnLintDisabledQuery" },
-                ),
-        ],
-        // Same order as the real host: settings first, then the locale.
-        [
-            "GetBpmnModelerSettingCommand",
-            () => {
-                reply({
-                    type: "BpmnModelerSettingQuery",
-                    setting: {
-                        alignToOrigin: false,
-                        showTransactionBoundaries: true,
-                        colorTheme: "light",
-                    },
-                });
-                reply({ type: "LanguageQuery", locale });
-            },
-        ],
-        [
-            "GetPropertiesPanelStateCommand",
-            () => reply({ type: "PropertiesPanelStateQuery", visible: true }),
-        ],
-    ]);
+    const replyWithModelFile = async () =>
+        reply({
+            type: "BpmnFileQuery",
+            content: await modelXml,
+            engine: "c7",
+            documentRevision: 0,
+        });
 
     const harness = { longTasks: [], ignoredMessageTypes: [] };
     globalThis.__perfHarness = harness;
@@ -119,11 +82,39 @@ function installHostShim({ lintMode, locale }) {
     let webviewState;
     globalThis.acquireVsCodeApi = () => ({
         postMessage(message) {
-            const answer = repliesByRequest.get(message.type);
-            if (answer) {
-                answer();
-            } else if (!harness.ignoredMessageTypes.includes(message.type)) {
-                harness.ignoredMessageTypes.push(message.type);
+            switch (message.type) {
+                case "GetBpmnFileCommand":
+                    replyWithModelFile();
+                    break;
+                case "GetElementTemplatesCommand":
+                    reply({ type: "ElementTemplatesQuery", elementTemplates: [] });
+                    break;
+                case "GetBpmnlintConfigCommand":
+                    reply(
+                        lintMode === "in-page"
+                            ? { type: "BpmnlintInPageQuery" }
+                            : { type: "BpmnLintDisabledQuery" },
+                    );
+                    break;
+                // Same order as the real host: settings first, then the locale.
+                case "GetBpmnModelerSettingCommand":
+                    reply({
+                        type: "BpmnModelerSettingQuery",
+                        setting: {
+                            alignToOrigin: false,
+                            showTransactionBoundaries: true,
+                            colorTheme: "light",
+                        },
+                    });
+                    reply({ type: "LanguageQuery", locale });
+                    break;
+                case "GetPropertiesPanelStateCommand":
+                    reply({ type: "PropertiesPanelStateQuery", visible: true });
+                    break;
+                default:
+                    if (!harness.ignoredMessageTypes.includes(message.type)) {
+                        harness.ignoredMessageTypes.push(message.type);
+                    }
             }
         },
         getState: () => webviewState,
