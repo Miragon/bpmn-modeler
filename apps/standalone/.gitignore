@@ -3,9 +3,9 @@ lib/
 src-gen/
 dist/
 plugins/
-esbuild.mjs
 gen-webpack*.js
 gen-esbuild*.mjs
+esbuild.mjs
 *.log
 .theia-ide/
 .miragon-bpmn-modeler/
