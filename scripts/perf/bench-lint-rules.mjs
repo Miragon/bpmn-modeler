@@ -37,6 +37,14 @@ const rules = options.rules.split(",");
 const runsPerCell = Number(options.runs);
 const warmupRuns = Number(options.warmup);
 
+if (!Number.isInteger(runsPerCell) || runsPerCell < 1) {
+    fail(`--runs must be a positive integer, got ${options.runs}`);
+}
+
+if (!Number.isInteger(warmupRuns) || warmupRuns < 0) {
+    fail(`--warmup must be a non-negative integer, got ${options.warmup}`);
+}
+
 for (const size of sizes) {
     if (!largeModelPresets[size]) {
         fail(`Unknown size ${size}; available: ${Object.keys(largeModelPresets).join(", ")}`);
