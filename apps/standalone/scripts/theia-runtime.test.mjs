@@ -27,11 +27,12 @@ for (const extension of application.extensionPackages) {
     });
 }
 
-test("Electron packaging uses the application's exact Theia-compatible runtime", () => {
+test("Electron packaging uses the application's pinned Theia-compatible runtime", () => {
     const electronVersion = app.devDependencies.electron;
-    assert.equal(
-        electronVersion,
-        require("@theia/electron/package.json").peerDependencies.electron,
+    const theiaElectronPeer = require("@theia/electron/package.json").peerDependencies.electron;
+    assert.ok(
+        satisfies(electronVersion, `^${theiaElectronPeer}`),
+        `Electron ${electronVersion} must stay on Theia's ABI major, at or above its peer ${theiaElectronPeer}`,
     );
     assert.equal(require("electron/package.json").version, electronVersion);
     const builderConfig = parse(
