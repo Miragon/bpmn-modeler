@@ -94,9 +94,19 @@ uses Theia's extension discovery to verify installed module resolution in CI.
 Use `@theia/scm` and the Timeline integration for Git history. The
 [deprecated `@theia/scm-extra`](https://github.com/eclipse-theia/theia/blob/v1.75.0/packages/scm-extra/README.md)
 stopped publishing in 1.75; keeping its last release introduces an older core.
-Pin the standalone app's Electron runtime to `@theia/electron`'s exact peer and
-do not override that version independently in electron-builder
+Pin the standalone app's Electron runtime to an exact version in
+`@theia/electron`'s peer major, at or above that peer, and do not override it
+independently in electron-builder
 ([runtime compatibility check](../../apps/standalone/scripts/theia-runtime.test.mjs)).
+Patch releases within a major keep the native-module ABI, so moving ahead of
+Theia's exact peer is allowed when a security advisory needs a newer patch
+before Theia ships one. Return to Theia's peer once it reaches the fixed
+version. The app currently runs Electron 42.11.8 because Theia 1.76 still pins
+42.8.1, which is affected by
+[GHSA-gr2m-v5gq-v685](https://github.com/advisories/GHSA-gr2m-v5gq-v685),
+[GHSA-j84w-jfhq-vhvj](https://github.com/advisories/GHSA-j84w-jfhq-vhvj),
+[GHSA-9qh4-3jw8-366w](https://github.com/advisories/GHSA-9qh4-3jw8-366w) and
+[GHSA-qmv3-fv6v-rmhq](https://github.com/advisories/GHSA-qmv3-fv6v-rmhq).
 
 Keep the app in ASAR, but unpack only the generated `lib/backend/native/rg*`  
 binary for file search. A native subprocess cannot execute from inside ASAR.  Since 1.76 Theia resolves the unpacked sidecar path. Limit the exception to that binary  
