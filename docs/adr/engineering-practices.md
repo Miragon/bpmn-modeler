@@ -98,10 +98,9 @@ Pin the standalone app's Electron runtime to `@theia/electron`'s exact peer and
 do not override that version independently in electron-builder
 ([runtime compatibility check](../../apps/standalone/scripts/theia-runtime.test.mjs)).
 
-Keep the app in ASAR, but unpack only the generated `lib/backend/native/rg*`
-binary for file search. A native subprocess cannot execute from inside ASAR;
-Theia resolves the unpacked sidecar path. Limit the exception to that binary
-rather than unpacking all app code
+Keep the app in ASAR, but unpack only the generated `lib/backend/native/rg*`  
+binary for file search. A native subprocess cannot execute from inside ASAR.  Since 1.76 Theia resolves the unpacked sidecar path. Limit the exception to that binary  
+rather than unpacking all app code  
 ([packaged binary check](../../apps/standalone/scripts/packaged-runtime.test.mjs),
 [Quick Open check](../../apps/standalone/scripts/packaged-search.test.mjs)).
 
