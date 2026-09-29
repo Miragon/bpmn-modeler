@@ -19,16 +19,18 @@ index e43f10e49063d309d4551c4b140325de9166f4d5..2d35f9b5b0dc27c641ed63fc07353ed4
        }
      });
 diff --git a/rules/no-overlapping-elements.js b/rules/no-overlapping-elements.js
-index 4ca2805a54dfdb776e99ce0b36942bc8998df558..781ba4404daa43e86107909c85cb6938086c5dd8 100644
+index 4ca2805a54dfdb776e99ce0b36942bc8998df558..5797a83cf48a47268fedd29b99b8b185521ff03d 100644
 --- a/rules/no-overlapping-elements.js
 +++ b/rules/no-overlapping-elements.js
-@@ -99,36 +99,95 @@ function checkProcess(node, elementsToReport, elementsOutsideToReport, diObjects
+@@ -99,36 +99,113 @@ function checkProcess(node, elementsToReport, elementsOutsideToReport, diObjects
  }
  
  /**
 + * Sort-and-sweep on the x axis: only pairs whose x ranges intersect are tested,
-+ * instead of every pair. Colliding pairs are replayed in their original (i, j)
-+ * index order so `elementsToReport` keeps the insertion order of the all-pairs loop.
++ * instead of every pair. In the all-pairs loop an element first enters
++ * `elementsToReport` through the pair with its lowest-index partner, so ordering
++ * elements by that pair keeps the original report order while memory stays
++ * linear in the element count.
 + *
   * @param {Array} elements
   * @param {Set} elementsToReport
@@ -63,7 +65,7 @@ index 4ca2805a54dfdb776e99ce0b36942bc8998df558..781ba4404daa43e86107909c85cb6938
 -      if (element.attachedToRef === element2 || element2.attachedToRef === element) {
 -        continue;
 -      }
-+  const collidingPairs = [];
++  const lowestPartnerIndex = new Map();
 +
 +  for (let i = 0; i < candidates.length - 1; i++) {
 +    const candidate = candidates[i];
@@ -72,15 +74,15 @@ index 4ca2805a54dfdb776e99ce0b36942bc8998df558..781ba4404daa43e86107909c85cb6938
 -      const bounds2 = diObjects.get(element2)?.bounds;
 +    for (let j = i + 1; j < candidates.length; j++) {
 +      const candidate2 = candidates[j];
-+
-+      // collisions are inclusive (touching shapes collide), and every later
-+      // candidate starts even further right
-+      if (candidate2.left > candidate.right) {
-+        break;
-+      }
  
 -      // ignore if an element doesn't have bounds
 -      if (!bounds1 || !bounds2) {
++      // collisions are inclusive (touching shapes collide), and every later
++      // candidate starts at least as far right
++      if (candidate2.left > candidate.right) {
++        break;
++      }
++
 +      // ignore if Boundary events overlap their host
 +      // but still check if they overlap other elements
 +      if (candidate.element.attachedToRef === candidate2.element || candidate2.element.attachedToRef === candidate.element) {
@@ -91,26 +93,42 @@ index 4ca2805a54dfdb776e99ce0b36942bc8998df558..781ba4404daa43e86107909c85cb6938
 -        elementsToReport.add(element);
 -        elementsToReport.add(element2);
 +      if (isCollision(candidate, candidate2)) {
-+        collidingPairs.push(
-+          candidate.index < candidate2.index
-+            ? [ candidate.index, candidate2.index ]
-+            : [ candidate2.index, candidate.index ]
-+        );
++        recordPartner(lowestPartnerIndex, candidate.index, candidate2.index);
++        recordPartner(lowestPartnerIndex, candidate2.index, candidate.index);
        }
      }
    }
 +
-+  collidingPairs
-+    .sort((pair, pair2) => pair[0] - pair2[0] || pair[1] - pair2[1])
-+    .forEach(([ index, index2 ]) => {
-+      elementsToReport.add(elements[index]);
-+      elementsToReport.add(elements[index2]);
-+    });
++  Array.from(lowestPartnerIndex, ([ index, partnerIndex ]) => firstAppearance(index, partnerIndex))
++    .sort(compareAppearance)
++    .forEach(({ index }) => elementsToReport.add(elements[index]));
++}
++
++function recordPartner(lowestPartnerIndex, index, partnerIndex) {
++  const currentPartnerIndex = lowestPartnerIndex.get(index);
++
++  if (currentPartnerIndex === undefined || partnerIndex < currentPartnerIndex) {
++    lowestPartnerIndex.set(index, partnerIndex);
++  }
 +}
 +
 +/**
-+ * Elements without valid bounds, or whose right / bottom edge is NaN, never
-+ * collide; dropping them up front also keeps NaN out of the sort.
++ * The all-pairs loop visits pairs (i, j) with i < j and adds i before j.
++ */
++function firstAppearance(index, partnerIndex) {
++  return partnerIndex < index
++    ? { index, pair: [ partnerIndex, index ], slot: 1 }
++    : { index, pair: [ index, partnerIndex ], slot: 0 };
++}
++
++function compareAppearance(appearance, appearance2) {
++  return appearance.pair[0] - appearance2.pair[0] ||
++    appearance.pair[1] - appearance2.pair[1] ||
++    appearance.slot - appearance2.slot;
++}
++
++/**
++ * NaN edges are dropped up front so they never reach the sort.
 + */
 +function canCollide(bounds) {
 +  return isValidShapeElement(bounds) &&
@@ -134,7 +152,7 @@ index 4ca2805a54dfdb776e99ce0b36942bc8998df558..781ba4404daa43e86107909c85cb6938
  }
  
  /**
-@@ -147,15 +206,11 @@ function isOutsideParentBoundary(childBounds, parentBounds) {
+@@ -147,15 +224,11 @@ function isOutsideParentBoundary(childBounds, parentBounds) {
  }
  
  /**

@@ -9313,7 +9313,7 @@ __metadata:
 
 "bpmnlint@patch:bpmnlint@npm%3A11.14.0#~/.yarn/patches/bpmnlint-npm-11.14.0-4301b18e5b.patch":
   version: 11.14.0
-  resolution: "bpmnlint@patch:bpmnlint@npm%3A11.14.0#~/.yarn/patches/bpmnlint-npm-11.14.0-4301b18e5b.patch::version=11.14.0&hash=d7db1e"
+  resolution: "bpmnlint@patch:bpmnlint@npm%3A11.14.0#~/.yarn/patches/bpmnlint-npm-11.14.0-4301b18e5b.patch::version=11.14.0&hash=689e19"
   dependencies:
     "@bpmn-io/moddle-utils": "npm:^0.3.0"
     ansi-colors: "npm:^4.1.3"
@@ -9327,7 +9327,7 @@ __metadata:
     tiny-glob: "npm:^0.2.9"
   bin:
     bpmnlint: bin/bpmnlint.js
-  checksum: 10c0/f12015ad99876f2be5c068e249d8f8b89683500f1fb7997943ebf7d9fe74f39144c7c1fdf97bc2811ed777560e0903404c9a83e1c04956224040e9f6ebe7f140
+  checksum: 10c0/8e89bd989ac835d5fa91d568f7bdcb7675cada59f04aba43dda37586412c4184c00271f1f8ba42bebed886d998eeac647d754a5e0d153f7c238eb7360039a351
   languageName: node
   linkType: hard
 
