@@ -20,6 +20,27 @@ const PACKAGES = ["@miragon/bpmn-modeler", "@miragon/dmn-modeler"];
 // Key: "<workspace ident> → <dependency ident>", value: the reason.
 const PEER_PIN_EXCEPTIONS = new Map([]);
 
+// A patch in the root `resolutions` overrides every declared range, so a bump
+// would silently keep shipping the old patched version. Fail until the patch is
+// regenerated for the new version or dropped in the same change.
+const PATCHED_RESOLUTION = /^patch:(.+)@npm%3A([^#]+)#/;
+
+function constrainPatchedVersions(Yarn) {
+    const rootManifest = Yarn.workspace({ cwd: "." }).manifest;
+    for (const resolution of Object.values(rootManifest.resolutions ?? {})) {
+        const patched = PATCHED_RESOLUTION.exec(resolution);
+        if (!patched) continue;
+        const [, ident, patchedVersion] = patched;
+        for (const dep of Yarn.dependencies({ ident })) {
+            if (dep.range === patchedVersion) continue;
+            dep.error(
+                `${ident} is patched at ${patchedVersion} in the root resolutions; ` +
+                    `regenerate or drop the patch in the same PR that moves it to ${dep.range}.`,
+            );
+        }
+    }
+}
+
 module.exports = {
     async constraints({ Yarn }) {
         // ident → [{ range, from, pin }] across the publishable packages.
@@ -58,5 +79,7 @@ module.exports = {
                 dep.update(range);
             }
         }
+
+        constrainPatchedVersions(Yarn);
     },
 };

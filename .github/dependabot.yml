@@ -21,7 +21,8 @@ updates:
     groups:
       # bpmnlint must move in lockstep with the bundled resolver in
       # @miragon/bpmnlint-plugin-rules. The root `resolutions` pin bpmnlint to a
-      # patched 11.14.0, so a bump PR must also drop or regenerate that patch.
+      # patched 11.14.0; the patched-version constraint in yarn.config.cjs fails
+      # a bump PR until it drops or regenerates that patch.
       bpmnlint:
         applies-to: version-updates
         patterns:

@@ -240,8 +240,11 @@ pins their reports and order against a snapshot recorded on the unpatched
 version. The patch covers only hosts built here (VS Code, IntelliJ bridge,
 standalone). `bpmnlint` is external in `@miragon/bpmn-modeler`, so npm consumers
 get the fix only from an upstream release. Because `resolutions` override every
-range, a `bpmnlint` bump stays on patched 11.14.0 until the patch is dropped or
-regenerated. Drop it once upstream ships the fix.
+range, a `bpmnlint` bump would silently stay on patched 11.14.0; the
+patched-version constraint in `yarn.config.cjs` fails such a bump until the
+patch is dropped or regenerated, and the
+[patch counter spec](../../libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnlint/coreRulePatch.spec.ts)
+fails if the patch stops applying. Drop it once upstream ships the fix.
 
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)

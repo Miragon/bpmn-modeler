@@ -73,6 +73,8 @@ jobs:
               - 'libs/model-navigation/**'
             modeler-core:
               - 'libs/modeler-core/**'
+              # Patches change what every host ships; the core rule specs guard them.
+              - '.yarn/patches/**'
             modeler-bridge:
               - 'apps/modeler-bridge/**'
             vscode-plugin:
