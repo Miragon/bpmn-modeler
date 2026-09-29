@@ -30,10 +30,10 @@ test("packaged Quick Open finds files through Theia's ripgrep backend", async (t
                     await Promise.race([
                         quit.then(() => exited),
                         new Promise((_, reject) => {
-                            timer = setTimeout(
-                                () => reject(new Error("Electron exit timed out")),
-                                8000,
-                            );
+                            timer = setTimeout(() => {
+                                child.kill("SIGKILL");
+                                reject(new Error("Electron exit timed out"));
+                            }, 8000);
                         }),
                     ]);
                 } finally {
