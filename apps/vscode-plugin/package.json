@@ -21,7 +21,7 @@
         "@types/node": "26.6.1",
         "@types/vscode": "1.93.0",
         "@typescript/native": "npm:typescript@7.0.2",
-        "@vitest/coverage-v8": "4.1.11",
+        "@vitest/coverage-v8": "5.0.0",
         "@vscode/test-cli": "0.0.15",
         "@vscode/test-electron": "3.1.0",
         "archunit": "2.5.4",
@@ -29,7 +29,7 @@
         "ts-loader": "9.6.2",
         "tsconfig-paths-webpack-plugin": "4.2.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",
-        "vitest": "4.1.11",
+        "vitest": "5.0.0",
         "webpack": "5.111.0",
         "webpack-cli": "7.2.3"
     },
