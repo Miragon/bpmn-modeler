@@ -21,6 +21,7 @@ module.exports = [
             "**/build",
             "**/src-gen",
             "**/plugins",
+            "apps/standalone/esbuild.mjs",
             "**/gen-webpack*.js",
             "**/gen-esbuild*.mjs",
             "**/.browser_modules",

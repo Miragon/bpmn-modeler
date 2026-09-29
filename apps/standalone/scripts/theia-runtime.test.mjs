@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -6,11 +7,9 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(new URL("../package.json", import.meta.url));
 const app = require("./package.json");
 const extensionManifest = require("../../libs/standalone-extension/package.json");
-const { ApplicationPackage } = createRequire(require.resolve("@theia/cli/package.json"))(
-    "@theia/application-package",
-);
-const { getElectronVersion } = require("app-builder-lib/out/electron/electronVersion");
+const { ApplicationPackage } = require("@theia/application-package");
 const { satisfies } = require("semver");
+const { parse } = require("yaml");
 const application = new ApplicationPackage({
     projectPath: fileURLToPath(new URL("../", import.meta.url)),
 });
@@ -28,13 +27,21 @@ for (const extension of application.extensionPackages) {
     });
 }
 
-test("Electron packaging uses the application's exact Theia-compatible runtime", async () => {
+test("Electron packaging uses the application's exact Theia-compatible runtime", () => {
     const electronVersion = app.devDependencies.electron;
     assert.equal(
         electronVersion,
         require("@theia/electron/package.json").peerDependencies.electron,
     );
-    assert.equal(await getElectronVersion(application.projectPath), electronVersion);
+    assert.equal(require("electron/package.json").version, electronVersion);
+    const builderConfig = parse(
+        readFileSync(new URL("../electron-builder.yml", import.meta.url), "utf8"),
+    );
+    assert.equal(
+        builderConfig.electronVersion,
+        undefined,
+        "do not override the app's Electron pin",
+    );
 });
 
 test("the standalone extension uses the host's React runtime and compatible types", () => {

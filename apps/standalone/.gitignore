@@ -3,6 +3,7 @@ lib/
 src-gen/
 dist/
 plugins/
+esbuild.mjs
 gen-webpack*.js
 gen-esbuild*.mjs
 *.log

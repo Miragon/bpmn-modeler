@@ -8,7 +8,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(new URL("../package.json", import.meta.url));
-const asar = createRequire(require.resolve("app-builder-lib/package.json"))("@electron/asar");
+const asar = require("@electron/asar");
 const appDir = fileURLToPath(new URL("../", import.meta.url));
 const resources =
     process.env.STANDALONE_RESOURCES_DIR ?? path.join(appDir, "dist/linux-unpacked/resources");
@@ -21,7 +21,7 @@ test("packaged file search can spawn its bundled ripgrep binary", (t) => {
     const binary = path.join(resources, "app.asar.unpacked", rg);
     assert.ok(statSync(binary).isFile());
 
-    const workspace = mkdtempSync(path.join(tmpdir(), "modeler-packaged-search-"));
+    const workspace = mkdtempSync(path.join(tmpdir(), "modeler-packaged-ripgrep-"));
     t.after(() => rmSync(workspace, { recursive: true, force: true }));
     writeFileSync(path.join(workspace, "example.bpmn"), "fixture");
     const result = spawnSync(binary, ["--files", "--hidden", "--no-config"], {

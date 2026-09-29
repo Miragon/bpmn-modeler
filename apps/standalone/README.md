@@ -17,9 +17,6 @@ the same `.vsix` that ships to the VS Code Marketplace.
 This workspace is **opt-in**. It is intentionally *not* included in the root
 `build` / `test` / `lint` scripts. Run its scripts explicitly.
 
-The dated [Theia 1.75 validation record](VALIDATION.md) distinguishes completed
-checks from packaging and desktop behavior still requiring verification.
-
 ## Requirements
 
 - Node.js **>= 22** (matches Theia Blueprint)
@@ -69,11 +66,12 @@ corepack yarn workspace @miragon/bpmn-modeler-standalone test:runtime
 ```
 
 It verifies that discovered Theia extensions resolve one core widget runtime,
-the extension shares React with the host, Electron packaging uses Theia's pinned
-peer version, and SCM/Timeline are discovered. Duplicate core instances can crash
-the frontend even when the build succeeds. On Node 24, prefix Theia tests/builds
-with `NODE_OPTIONS=--no-experimental-webstorage` if the experimental global
-`localStorage` interferes; CI uses Node 22.
+the extension shares React with the host (including matching React type pins),
+the installed Electron runtime matches Theia's exact peer and electron-builder
+has no independent version override, and SCM/Timeline are discovered. Duplicate
+core instances can crash the frontend even when the build succeeds. On Node 24,
+prefix Theia tests/builds with `NODE_OPTIONS=--no-experimental-webstorage` if
+the experimental global `localStorage` interferes; CI uses Node 22.
 
 After packaging on Linux, run `corepack yarn workspace
 @miragon/bpmn-modeler-standalone test:packaged`. It verifies that Theia's
@@ -82,13 +80,17 @@ file-search ripgrep binary can execute from the packaged app. Run
 test:packaged-search` to verify that Quick Open actually finds a file through
 the packaged backend. The Linux release job runs both checks before wrapping
 the directory as a Flatpak. The test uses `--no-sandbox` only for the isolated
-Xvfb process; the packaged application's normal launch is unchanged.
+Xvfb process; the packaged application's normal launch is unchanged. These
+automated packaged search checks run on Linux; Windows and macOS packaging
+and native-window behavior still require platform-specific validation. The app
+stays in ASAR while `lib/backend/native/rg*` is unpacked for subprocess execution.
 
 For a fresh generated build, run `corepack yarn workspace
 @miragon/bpmn-modeler-standalone clean`, reinstall with `corepack yarn install`,
-then rebuild. The clean script removes generated esbuild entrypoints and bundles
-as well as the app's `node_modules` link; it preserves the tracked `esbuild.mjs`
-wrapper that keeps ripgrep executable from a packaged ASAR app.
+then rebuild. Theia's clean command removes generated bundler configurations
+and output, while the script also removes the app's `node_modules` link and
+`dist`. The generated default `esbuild.mjs` wrapper is retained by clean; if
+it needs regeneration, remove that file before rebuilding.
 
 ## Detaching editors
 

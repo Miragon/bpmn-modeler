@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-09-25
+- Last reviewed: 2026-09-29
 
 ## Context
 
@@ -94,27 +94,16 @@ uses Theia's extension discovery to verify installed module resolution in CI.
 Use `@theia/scm` and the Timeline integration for Git history. The
 [deprecated `@theia/scm-extra`](https://github.com/eclipse-theia/theia/blob/v1.75.0/packages/scm-extra/README.md)
 stopped publishing in 1.75; keeping its last release introduces an older core.
-The standalone uses Theia's generated esbuild options, with a small tracked
-`esbuild.mjs` wrapper to redirect the bundled ripgrep path to ASAR's unpacked
-sidecar at runtime. There is no custom Webpack configuration. Its React 19
-runtime is supplied by the app to the standalone extension through peers; both
-build workspaces pin matching React 19 types. The runtime check also verifies
-React resolution, SCM/Timeline discovery,
-and that electron-builder selects the app's exact Electron version, matching
-`@theia/electron`'s peer. Do not override that version independently in the
-builder config. Packaging invokes the named `rebuild` script via `yarn run`
-because Yarn 4 reserves `yarn rebuild` for its built-in command.
+Pin the standalone app's Electron runtime to `@theia/electron`'s exact peer and
+do not override that version independently in electron-builder
+([runtime compatibility check](../../apps/standalone/scripts/theia-runtime.test.mjs)).
 
-Keep the app in ASAR, but unpack the generated `lib/backend/native/rg` binary.
-Theia's esbuild copies ripgrep there and its file-search backend spawns that
-path directly. The backend runs in a Node subprocess whose `spawn` cannot
-execute a path inside ASAR, even when electron-builder marks the entry unpacked;
-the wrapper rewrites only this native path to `app.asar.unpacked`. The
-[packaged runtime check](../../apps/standalone/scripts/packaged-runtime.test.mjs)
-spawns the unpacked binary from a temporary workspace in the Linux release job;
-the [packaged Quick Open test](../../apps/standalone/scripts/packaged-search.test.mjs)
-also exercises the backend path against a real workspace.
-Limit the exception to that binary rather than unpacking all app code.
+Keep the app in ASAR, but unpack only the generated `lib/backend/native/rg*`
+binary for file search. A native subprocess cannot execute from inside ASAR;
+Theia resolves the unpacked sidecar path. Limit the exception to that binary
+rather than unpacking all app code
+([packaged binary check](../../apps/standalone/scripts/packaged-runtime.test.mjs),
+[Quick Open check](../../apps/standalone/scripts/packaged-search.test.mjs)).
 
 Use TypeScript 7.0.2 for the `tsc` CLI through the exact alias
 `@typescript/native: npm:typescript@7.0.2`. Keep the JavaScript compiler API
@@ -133,8 +122,7 @@ standard-library declarations.
 The root `lint` and `build` commands and the BPMN package's
 [packed-consumer smoke check](../../packages/bpmn-modeler/scripts/smoke-packed-consumer.mjs)
 exercise these compiler paths. Remove the compatibility alias only when all API
-consumers support the native compiler. Keep Electron aligned with Theia 1.75's
-exact 42.8.1 peer; a major Electron upgrade requires separate host validation.
+consumers support the native compiler.
 
 The dependency changes address the
 [shell-quote](https://github.com/advisories/GHSA-w7jw-789q-3m8p),

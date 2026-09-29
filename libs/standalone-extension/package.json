@@ -20,9 +20,9 @@
     "clean": "rimraf lib"
   },
   "dependencies": {
-    "@theia/core": "1.75.0",
-    "@theia/editor": "1.75.0",
-    "@theia/monaco": "1.75.0"
+    "@theia/core": "1.76.0",
+    "@theia/editor": "1.76.0",
+    "@theia/monaco": "1.76.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
