@@ -11,7 +11,7 @@
  *   panels never appear in the activity bar.
  *
  *   The widget IDs below are Theia internals — re-check them when bumping
- *   the Theia version (currently pinned to 1.70.x).
+ *   Theia.
  */
 import { inject, injectable } from "@theia/core/shared/inversify";
 import { FrontendApplication, FrontendApplicationContribution } from "@theia/core/lib/browser";

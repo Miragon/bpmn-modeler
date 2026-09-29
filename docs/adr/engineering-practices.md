@@ -1,7 +1,7 @@
 # Engineering practices
 
 - Status: accepted
-- Last reviewed: 2026-09-21
+- Last reviewed: 2026-09-29
 
 ## Context
 
@@ -94,8 +94,15 @@ uses Theia's extension discovery to verify installed module resolution in CI.
 Use `@theia/scm` and the Timeline integration for Git history. The
 [deprecated `@theia/scm-extra`](https://github.com/eclipse-theia/theia/blob/v1.75.0/packages/scm-extra/README.md)
 stopped publishing in 1.75; keeping its last release introduces an older core.
-The standalone uses Theia's generated esbuild configuration, with no custom
-Webpack configuration.
+Pin the standalone app's Electron runtime to `@theia/electron`'s exact peer and
+do not override that version independently in electron-builder
+([runtime compatibility check](../../apps/standalone/scripts/theia-runtime.test.mjs)).
+
+Keep the app in ASAR, but unpack only the generated `lib/backend/native/rg*`  
+binary for file search. A native subprocess cannot execute from inside ASAR.  Since 1.76 Theia resolves the unpacked sidecar path. Limit the exception to that binary  
+rather than unpacking all app code  
+([packaged binary check](../../apps/standalone/scripts/packaged-runtime.test.mjs),
+[Quick Open check](../../apps/standalone/scripts/packaged-search.test.mjs)).
 
 Use TypeScript 7.0.2 for the `tsc` CLI through the exact alias
 `@typescript/native: npm:typescript@7.0.2`. Keep the JavaScript compiler API
@@ -114,8 +121,7 @@ standard-library declarations.
 The root `lint` and `build` commands and the BPMN package's
 [packed-consumer smoke check](../../packages/bpmn-modeler/scripts/smoke-packed-consumer.mjs)
 exercise these compiler paths. Remove the compatibility alias only when all API
-consumers support the native compiler. Keep Electron aligned with Theia's pinned
-42.3.0 runtime; a major Electron upgrade requires separate host validation.
+consumers support the native compiler.
 
 The dependency changes address the
 [shell-quote](https://github.com/advisories/GHSA-w7jw-789q-3m8p),
