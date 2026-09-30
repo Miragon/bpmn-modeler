@@ -279,7 +279,8 @@ The bench serves the production bundle from
 `dist/webview-staging/bpmn-webview/` and opens it in headless Chromium. It uses
 its own host shim, because the dev `MockHost` is compiled out of production
 builds. The shim answers the webview's requests asynchronously, in the same
-order as the real host: file, lint config, settings, then `LanguageQuery`.
+order as the real host: file (carrying the initial locale), lint config,
+settings, then `LanguageQuery`.
 
 - **Lint `off`**: the host replies with `BpmnLintDisabledQuery`.
 - **Lint `in-page`**: the host replies with a payload-free

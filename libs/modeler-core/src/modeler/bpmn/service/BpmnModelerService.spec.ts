@@ -45,7 +45,10 @@ function createService() {
     };
     const statusBar = { showEngineVersion: vi.fn(), hideEngineVersion: vi.fn() };
     const notifier = { notifyError: vi.fn(), showInfo: vi.fn() };
-    const settings = { getDefaultMode: vi.fn(() => "implement") };
+    const settings = {
+        getDefaultMode: vi.fn(() => "implement"),
+        getLanguage: vi.fn(() => "de"),
+    };
 
     const service = new BpmnModelerService(
         editorStore as never,
@@ -91,6 +94,7 @@ describe("BpmnModelerService.display", () => {
         expect(msg.type).toBe("BpmnFileQuery");
         expect(msg.engine).toBe("c8");
         expect(msg.defaultMode).toBe("implement");
+        expect(msg.locale).toBe("de");
         expect(settings.getDefaultMode).toHaveBeenCalled();
         expect(statusBar.showEngineVersion).toHaveBeenCalledWith("c8", "8.8.0");
     });

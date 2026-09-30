@@ -83,6 +83,7 @@ export class BpmnModelerService {
                         "modeler",
                         documentRevision,
                         this.settings.getDefaultMode(),
+                        this.settings.getLanguage(),
                     ),
                 );
 

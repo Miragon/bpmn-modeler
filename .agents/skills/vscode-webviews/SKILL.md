@@ -69,7 +69,7 @@ Each message has a `type` string discriminator used for routing.
 ### Modeler Message Types (`modeler.ts`)
 
 **Queries (host → webview):**
-- `BpmnFileQuery` — delivers BPMN XML and engine type (`c7` | `c8`)
+- `BpmnFileQuery` — delivers BPMN XML, engine type (`c7` | `c8`) and the initial UI locale
 - `DmnFileQuery` — delivers DMN XML
 - `ElementTemplatesQuery` — delivers the resolved element-template list
 - `BpmnModelerSettingQuery` — delivers modeler settings (alignToOrigin, showTransactionBoundaries)

@@ -76,6 +76,7 @@ function installHostShim({ lintMode, locale }) {
             content: await modelXml,
             engine: "c7",
             documentRevision: 0,
+            locale,
         });
 
     const harness = { longTasks: [], ignoredMessageTypes: [] };
