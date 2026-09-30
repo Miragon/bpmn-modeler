@@ -9,6 +9,11 @@ export const largeModelPresets = {
 
 const ROW_HEIGHT = 140;
 const COLUMN_WIDTH = 160;
+const OVERLAP_OFFSET = 10;
+
+function isNthOrdinal(ordinal, every) {
+    return every > 0 && ordinal % every === 0;
+}
 
 function createFlowNode(row, column, perRow) {
     const x = 100 + column * COLUMN_WIDTH;
@@ -73,12 +78,15 @@ function createFlowNode(row, column, perRow) {
 
 // Each boundary node has at most one sequence flow on its boundary side, so
 // `transactionBoundaryCount` equals the overlay count a correct renderer shows.
-export function generateLargeC7Model({ rows, perRow }) {
+// `overlapEvery` / `omitDiEvery` distort every nth shape's DI so lint specs get
+// deterministic findings; leaving them unset keeps the baseline XML byte-identical.
+export function generateLargeC7Model({ rows, perRow, overlapEvery, omitDiEvery }) {
     const processElements = [];
     const shapes = [];
     const edges = [];
     const editableElementIds = [];
     let transactionBoundaryCount = 0;
+    let flowNodeOrdinal = 0;
 
     for (let row = 0; row < rows; row++) {
         const flowNodes = [];
@@ -95,9 +103,16 @@ export function generateLargeC7Model({ rows, perRow }) {
                     ? `<bpmn:outgoing>f_${row}_${index}</bpmn:outgoing>`
                     : "";
             processElements.push(`    ${node.openTag}${incoming}${outgoing}</bpmn:${tagName}>`);
-            shapes.push(
-                `      <bpmndi:BPMNShape id="${node.id}_di" bpmnElement="${node.id}"><dc:Bounds x="${node.x}" y="${y}" width="${node.width}" height="${node.height}" /></bpmndi:BPMNShape>`,
-            );
+            flowNodeOrdinal++;
+            const shapeX =
+                index > 0 && isNthOrdinal(flowNodeOrdinal, overlapEvery)
+                    ? flowNodes[index - 1].x + OVERLAP_OFFSET
+                    : node.x;
+            if (!isNthOrdinal(flowNodeOrdinal, omitDiEvery)) {
+                shapes.push(
+                    `      <bpmndi:BPMNShape id="${node.id}_di" bpmnElement="${node.id}"><dc:Bounds x="${shapeX}" y="${y}" width="${node.width}" height="${node.height}" /></bpmndi:BPMNShape>`,
+                );
+            }
             if (node.hasTransactionBoundary) {
                 transactionBoundaryCount++;
             }

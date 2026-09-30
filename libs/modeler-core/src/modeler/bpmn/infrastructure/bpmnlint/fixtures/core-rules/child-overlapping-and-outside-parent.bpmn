@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1">
+    <bpmn:subProcess id="SubProcess_1">
+      <bpmn:task id="Task_Inside" />
+      <bpmn:task id="Task_OverlapsAndOutside" />
+      <bpmn:task id="Task_OnlyOutside" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="SubProcess_1_di" bpmnElement="SubProcess_1" isExpanded="true"><dc:Bounds x="100" y="100" width="400" height="250" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Inside_di" bpmnElement="Task_Inside"><dc:Bounds x="380" y="150" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OverlapsAndOutside_di" bpmnElement="Task_OverlapsAndOutside"><dc:Bounds x="440" y="180" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_OnlyOutside_di" bpmnElement="Task_OnlyOutside"><dc:Bounds x="50" y="300" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

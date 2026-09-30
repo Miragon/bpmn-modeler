@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_1" processRef="Process_1" />
+    <bpmn:participant id="Participant_NoDi" processRef="Process_2" />
+    <bpmn:messageFlow id="MessageFlow_NoDi" sourceRef="Participant_1" targetRef="Participant_NoDi" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_1">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_WithDi" />
+      <bpmn:lane id="Lane_NoDi" />
+    </bpmn:laneSet>
+    <bpmn:task id="Task_WithDi" />
+    <bpmn:task id="Task_NoDi" />
+    <bpmn:sequenceFlow id="Flow_NoDi" sourceRef="Task_WithDi" targetRef="Task_NoDi" />
+    <bpmn:dataObject id="DataObject_NeverReported" />
+    <bpmn:subProcess id="SubProcess_1">
+      <bpmn:task id="Task_NestedNoDi" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmn:process id="Process_2" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_1_di" bpmnElement="Participant_1" isHorizontal="true"><dc:Bounds x="0" y="0" width="1000" height="400" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_WithDi_di" bpmnElement="Lane_WithDi" isHorizontal="true"><dc:Bounds x="30" y="0" width="970" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WithDi_di" bpmnElement="Task_WithDi"><dc:Bounds x="100" y="50" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_1_di" bpmnElement="SubProcess_1" isExpanded="true"><dc:Bounds x="300" y="50" width="300" height="150" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

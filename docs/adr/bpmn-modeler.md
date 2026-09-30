@@ -232,6 +232,20 @@ fails loudly. A `Linter` is still built per pass: bpmnlint rules keep per-run
 state in their closures. Consequence: `onLintResults` arrives after the
 debounce/idle delay rather than synchronously after an import or edit.
 
+bpmnlint 11.14.0's `no-overlapping-elements` and `no-bpmndi` scale
+quadratically with model size and dominate every lint pass on large models. A
+Yarn patch in the root `resolutions` makes both near-linear. The
+[equivalence spec](../../libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnlint/coreRuleEquivalence.spec.ts)
+pins their reports and order against a snapshot recorded on the unpatched
+version. The patch covers only hosts built here (VS Code, IntelliJ bridge,
+standalone). `bpmnlint` is external in `@miragon/bpmn-modeler`, so npm consumers
+get the fix only from an upstream release. Because `resolutions` override every
+range, a `bpmnlint` bump would silently stay on patched 11.14.0; the
+patched-version constraint in `yarn.config.cjs` fails such a bump until the
+patch is dropped or regenerated, and the
+[patch counter spec](../../libs/modeler-core/src/modeler/bpmn/infrastructure/bpmnlint/coreRulePatch.spec.ts)
+fails if the patch stops applying. Drop it once upstream ships the fix.
+
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
 and source architecture tests guard the import boundary.

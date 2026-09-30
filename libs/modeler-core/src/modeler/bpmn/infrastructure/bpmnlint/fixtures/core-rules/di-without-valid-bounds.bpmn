@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1">
+    <bpmn:task id="Task_NoBounds" />
+    <bpmn:task id="Task_PartialBounds" />
+    <bpmn:task id="Task_NaNBounds" />
+    <bpmn:task id="Task_Regular" />
+    <bpmn:task id="Task_InfiniteWidth" />
+    <bpmn:task id="Task_NegativeWidth" />
+    <bpmn:task id="Task_RightOfRegular" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_NoBounds_di" bpmnElement="Task_NoBounds" />
+      <bpmndi:BPMNShape id="Task_PartialBounds_di" bpmnElement="Task_PartialBounds"><dc:Bounds x="100" y="100" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NaNBounds_di" bpmnElement="Task_NaNBounds"><dc:Bounds x="NaN" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Regular_di" bpmnElement="Task_Regular"><dc:Bounds x="100" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_InfiniteWidth_di" bpmnElement="Task_InfiniteWidth"><dc:Bounds x="400" y="500" width="Infinity" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NegativeWidth_di" bpmnElement="Task_NegativeWidth"><dc:Bounds x="5000" y="500" width="-4500" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RightOfRegular_di" bpmnElement="Task_RightOfRegular"><dc:Bounds x="700" y="490" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

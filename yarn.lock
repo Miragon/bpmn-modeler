@@ -9248,6 +9248,9 @@ __metadata:
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/browser-playwright": "npm:4.1.11"
     "@vitest/coverage-v8": "npm:4.1.11"
+    bpmn-moddle: "npm:10.2.0"
+    bpmnlint: "npm:11.14.0"
+    camunda-bpmn-moddle: "npm:8.0.1"
     eslint: "npm:10.10.0"
     eslint-config-prettier: "npm:10.1.8"
     globals: "npm:17.12.0"
@@ -9288,7 +9291,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmnlint@npm:11.14.0, bpmnlint@npm:^11.13.0":
+"bpmnlint@npm:11.14.0":
   version: 11.14.0
   resolution: "bpmnlint@npm:11.14.0"
   dependencies:
@@ -9305,6 +9308,26 @@ __metadata:
   bin:
     bpmnlint: bin/bpmnlint.js
   checksum: 10c0/38ec8352992daf89c84fa3f4543d882fbcca15532689b0915498ad4b8f91cbc6646a0586e797a8f730444a79a35aa625c065a807485c9d9e3667165ec906c2bf
+  languageName: node
+  linkType: hard
+
+"bpmnlint@patch:bpmnlint@npm%3A11.14.0#~/.yarn/patches/bpmnlint-npm-11.14.0-4301b18e5b.patch":
+  version: 11.14.0
+  resolution: "bpmnlint@patch:bpmnlint@npm%3A11.14.0#~/.yarn/patches/bpmnlint-npm-11.14.0-4301b18e5b.patch::version=11.14.0&hash=689e19"
+  dependencies:
+    "@bpmn-io/moddle-utils": "npm:^0.3.0"
+    ansi-colors: "npm:^4.1.3"
+    bpmn-moddle: "npm:^10.1.0"
+    bpmnlint-utils: "npm:^1.1.1"
+    cli-table: "npm:^0.3.11"
+    color-support: "npm:^1.1.3"
+    min-dash: "npm:^5.1.0"
+    mri: "npm:^1.2.0"
+    pluralize: "npm:^8.0.0"
+    tiny-glob: "npm:^0.2.9"
+  bin:
+    bpmnlint: bin/bpmnlint.js
+  checksum: 10c0/8e89bd989ac835d5fa91d568f7bdcb7675cada59f04aba43dda37586412c4184c00271f1f8ba42bebed886d998eeac647d754a5e0d153f7c238eb7360039a351
   languageName: node
   linkType: hard
 

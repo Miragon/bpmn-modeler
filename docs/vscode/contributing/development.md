@@ -302,6 +302,24 @@ never clears its busy state, the run fails and lists the host messages the
 shim left unanswered. This usually means the protocol changed and the shim in
 `bench-webview.mjs` needs updating.
 
+### Benchmark individual lint rules
+
+```bash
+yarn perf:lint                                     # no-overlapping-elements, no-bpmndi
+yarn perf:lint --rules label-required --sizes 5000 --runs 10
+yarn perf:lint --json results.json                 # also write raw samples
+```
+
+The bench runs in Node, without a browser or a build. It parses each preset
+model once, then times a single-rule `Linter` pass per run. It prints one
+Markdown row per rule, with the median and min–max per model size, plus the
+CPU, the core count and the Node version.
+
+Rules resolve through bpmnlint's `NodeResolver`, so `--rules` accepts
+bpmnlint's built-in rule names only. Plugin rules such as those in
+`@miragon/bpmnlint-plugin-rules` need a different resolver: raw Node cannot
+import that ESM bundle because of its extensionless imports.
+
 ### Counter spec
 
 `packages/bpmn-modeler/src/largeModelCounters.browser.spec.ts` runs in CI as

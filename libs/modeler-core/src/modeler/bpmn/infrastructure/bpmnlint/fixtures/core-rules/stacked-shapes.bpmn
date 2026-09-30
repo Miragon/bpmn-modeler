@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1">
+    <bpmn:task id="Task_FarRight" />
+    <bpmn:task id="Task_Alone" />
+    <bpmn:task id="Task_Stacked_A" />
+    <bpmn:task id="Task_PartlyOverlapping" />
+    <bpmn:task id="Task_Stacked_B" />
+    <bpmn:boundaryEvent id="Boundary_OnStacked_C" attachedToRef="Task_Stacked_C" />
+    <bpmn:task id="Task_Stacked_C" />
+    <bpmn:task id="Task_Stacked_D" />
+    <bpmn:task id="Task_FarLeft" />
+    <bpmn:task id="Task_Stacked_E" />
+    <bpmn:task id="Task_Stacked_F" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Task_Stacked_E_di" bpmnElement="Task_Stacked_E"><dc:Bounds x="200" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FarLeft_di" bpmnElement="Task_FarLeft"><dc:Bounds x="1000" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Stacked_B_di" bpmnElement="Task_Stacked_B"><dc:Bounds x="200" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_OnStacked_C_di" bpmnElement="Boundary_OnStacked_C"><dc:Bounds x="232" y="162" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PartlyOverlapping_di" bpmnElement="Task_PartlyOverlapping"><dc:Bounds x="260" y="140" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Stacked_F_di" bpmnElement="Task_Stacked_F"><dc:Bounds x="200" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Alone_di" bpmnElement="Task_Alone"><dc:Bounds x="0" y="400" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Stacked_C_di" bpmnElement="Task_Stacked_C"><dc:Bounds x="200" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_FarRight_di" bpmnElement="Task_FarRight"><dc:Bounds x="1050" y="120" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Stacked_A_di" bpmnElement="Task_Stacked_A"><dc:Bounds x="200" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Stacked_D_di" bpmnElement="Task_Stacked_D"><dc:Bounds x="200" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
