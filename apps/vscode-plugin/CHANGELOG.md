@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.14.3](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.14.2...vscode-v1.14.3) (2026-10-01)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fix quadratic bpmnlint overlap and bpmndi rules ([#1609](https://github.com/Miragon/bpmn-modeler/issues/1609)) [sync 0966e35] ([15f5ccd](https://github.com/Miragon/bpmn-modeler/commit/15f5ccdcbfa07a3e445dfc9c32aa8e75599486d5))
+* **bpmn-modeler:** stop redundant lint runs and overlay rebuilds ([#1606](https://github.com/Miragon/bpmn-modeler/issues/1606)) [sync a506d75] ([33aa226](https://github.com/Miragon/bpmn-modeler/commit/33aa226070d4d756fa5691b33f61df6d88167f7e))
+* **bpmn-webview:** apply the configured locale before the first import ([#1617](https://github.com/Miragon/bpmn-modeler/issues/1617)) [sync 63d01ce] ([df3d535](https://github.com/Miragon/bpmn-modeler/commit/df3d5357f21facb22528218e94b7b7438b11ecb8))
+* **standalone:** bump electron to 42.11.8 for security advisories ([#1615](https://github.com/Miragon/bpmn-modeler/issues/1615)) [sync 84bd712] ([e21650b](https://github.com/Miragon/bpmn-modeler/commit/e21650bf23f6c88d3f376e8751007b1bcfed7d91))
+* **standalone:** restore packaged file search with Theia 1.76 ([#1610](https://github.com/Miragon/bpmn-modeler/issues/1610)) [sync 6816f03] ([b77a011](https://github.com/Miragon/bpmn-modeler/commit/b77a011148de042aebac65dd32a3468425b1e850))
+
 ## [1.14.2](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.14.1...vscode-v1.14.2) (2026-09-28)
 
 
