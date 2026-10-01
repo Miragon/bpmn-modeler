@@ -98,12 +98,20 @@ export class BpmnFileQuery extends Query {
      */
     public readonly defaultMode?: SurfaceMode;
 
+    /**
+     * The configured UI locale, applied by the webview before its first import
+     * so a non-English locale needs no re-import. Only the initial query seeds
+     * it; runtime changes still arrive as `LanguageQuery`.
+     */
+    public readonly locale?: string;
+
     constructor(
         content: string,
         engine: DetectedEngine,
         viewerMode: BpmnViewerMode = "modeler",
         documentRevision = 0,
         defaultMode?: SurfaceMode,
+        locale?: string,
     ) {
         super("BpmnFileQuery");
         this.content = content;
@@ -111,6 +119,7 @@ export class BpmnFileQuery extends Query {
         this.viewerMode = viewerMode;
         this.documentRevision = documentRevision;
         this.defaultMode = defaultMode;
+        this.locale = locale;
     }
 }
 

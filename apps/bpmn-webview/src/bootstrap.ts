@@ -603,6 +603,11 @@ function startSession(
 
         const bpmnFileQuery = await bpmnFileResolver.wait();
 
+        // Before any surface exists, so the matching LanguageQuery later skips the re-import.
+        if (bpmnFileQuery?.locale) {
+            i18n.setLanguage(bpmnFileQuery.locale as SupportedLocale);
+        }
+
         /**
          * Diff view: host told us this pane is one half of a diff, so bootstrap
          * the readonly DiffMode and skip the editable modeler entirely.

@@ -11,6 +11,7 @@ import {
     PropertiesPanelStateQuery,
     ReleaseDocumentFlushQuery,
 } from "@miragon/bpmn-modeler-shared";
+import { i18n } from "@miragon/bpmn-modeler-i18n";
 
 const mocks = vi.hoisted(() => ({
     createModeler: vi.fn(),
@@ -613,6 +614,7 @@ describe("bootstrap mode switching", () => {
         vi.useRealTimers();
         document.body.innerHTML = "";
         document.body.inert = false;
+        mocks.locale = "en";
         mocks.savedMode = undefined;
         vi.clearAllMocks();
     });
@@ -691,7 +693,7 @@ describe("bootstrap mode switching", () => {
         };
     }
 
-    function makeHost(file: BpmnFileQuery) {
+    function makeHost(file: BpmnFileQuery, language?: string) {
         return {
             getState: vi.fn(() => ({})),
             setState: vi.fn(),
@@ -712,6 +714,9 @@ describe("bootstrap mode switching", () => {
                                 colorTheme: "light",
                             }),
                         );
+                        if (language) {
+                            dispatch(new LanguageQuery(language));
+                        }
                         break;
                     case "GetPropertiesPanelStateCommand":
                         dispatch(new PropertiesPanelStateQuery(true));
@@ -909,5 +914,52 @@ describe("bootstrap mode switching", () => {
         // Only the View switch ran: one destroy, the viewer stood up once.
         expect(modeler.destroy).toHaveBeenCalledOnce();
         expect(mocks.createViewer).toHaveBeenCalledOnce();
+    });
+
+    describe("initial locale", () => {
+        const germanFile = new BpmnFileQuery("<tagged />", "c7", "modeler", 1, undefined, "de");
+
+        it("applies the host locale before the first import so the matching LanguageQuery does not re-import", async () => {
+            const modeler = makeModeler();
+            mocks.createModeler.mockResolvedValue(modeler);
+
+            boot(makeHost(germanFile, "de"));
+            await drainAsyncWork();
+
+            expect(modeler.loadDiagram).toHaveBeenCalledOnce();
+            expect(modeler.exportDiagram).not.toHaveBeenCalled();
+            expect(vi.mocked(i18n.setLanguage).mock.invocationCallOrder[0]).toBeLessThan(
+                mocks.createModeler.mock.invocationCallOrder[0],
+            );
+            expect(i18n.getLocale()).toBe("de");
+        });
+
+        it("still re-imports when the language changes after the seeded open", async () => {
+            const modeler = makeModeler();
+            mocks.createModeler.mockResolvedValue(modeler);
+
+            boot(makeHost(germanFile, "de"));
+            await drainAsyncWork();
+            dispatch(new LanguageQuery("fr"));
+            await drainAsyncWork();
+
+            expect(modeler.exportDiagram).toHaveBeenCalledOnce();
+            expect(modeler.loadDiagram).toHaveBeenCalledTimes(2);
+            expect(i18n.getLocale()).toBe("fr");
+        });
+
+        it("ignores the locale on later host pushes", async () => {
+            const modeler = makeModeler();
+            mocks.createModeler.mockResolvedValue(modeler);
+
+            boot(makeHost(germanFile, "de"));
+            await drainAsyncWork();
+            dispatch(new BpmnFileQuery("<pushed />", "c7", "modeler", 2, undefined, "fr"));
+            await drainAsyncWork();
+
+            expect(modeler.loadDiagram).toHaveBeenLastCalledWith("<pushed />");
+            expect(i18n.setLanguage).not.toHaveBeenCalledWith("fr");
+            expect(i18n.getLocale()).toBe("de");
+        });
     });
 });

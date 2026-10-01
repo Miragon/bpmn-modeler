@@ -379,6 +379,32 @@ describe("bridge end-to-end (real core over a fake transport)", () => {
         await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
     });
 
+    it("carries the registered language on the first render", async () => {
+        const { rpc, frames, root, bpmnPath } = await setup();
+        const editorId = `file://${bpmnPath}`;
+
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "session/register",
+                params: registerParams(editorId, root, bpmnPath, C7_XML, { language: "de" }),
+            }),
+        );
+        await rpc.handleLine(
+            JSON.stringify({
+                method: "webview/message",
+                params: { editorId, message: { type: "GetBpmnFileCommand" } },
+            }),
+        );
+        await settle();
+
+        const render = frames.find(
+            (f) => f.method === "editor/postMessage" && f.params.message.type === "BpmnFileQuery",
+        );
+        expect(render?.params.message.locale).toBe("de");
+
+        await rpc.handleLine(JSON.stringify({ method: "session/dispose", params: { editorId } }));
+    });
+
     it("re-pushes the language to a live editor on settings/didChange", async () => {
         const { rpc, frames, root, bpmnPath } = await setup();
         const editorId = `file://${bpmnPath}`;
