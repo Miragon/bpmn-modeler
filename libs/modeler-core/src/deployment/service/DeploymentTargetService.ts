@@ -18,6 +18,7 @@ import {
     parseDeploymentTargetsFile,
     serializeDeploymentTargets,
 } from "../domain/deploymentTarget";
+import { blankIfWholeEnvRef, isWholeEnvRef } from "../domain/envRef";
 
 const TARGETS_FILE_NAME = "deployment-targets.json";
 
@@ -166,14 +167,15 @@ export class DeploymentTargetService {
             throw new Error("Open a workspace folder before saving a deployment target.");
         }
 
+        // Round-tripping through the parser re-validates the credential refs.
         const [target] = parseDeploymentTargetsFile({
-            targets: [toDomainTarget(payload).toJson()],
+            targets: [toDomainTarget(payload, credentialRefs(auth)).toJson()],
         });
         const current = await this.readTargets(location);
         const next = apply(new DeploymentTargets(current), target);
         await this.workspace.writeFile(location.filePath, serializeDeploymentTargets(next));
 
-        await this.saveSecrets(this.slotFor(location.filePath, target.name), auth);
+        await this.saveSecrets(this.slotFor(location.filePath, target.name), literalSecrets(auth));
         await this.setActiveTarget(target.name);
         return { location, target };
     }
@@ -263,20 +265,26 @@ export class DeploymentTargetService {
 
         if (target.authType === "basic") {
             const creds = await this.secretStore.getBasicAuth(slot);
-            if (creds) {
+            // File refs win over the secret store so the form shows the literal
+            // `${env:VAR}` a teammate committed, not a stale/empty stored value.
+            const username = target.username ?? creds?.username;
+            const password = target.password ?? creds?.password;
+            if (username !== undefined || password !== undefined) {
                 return {
                     authType: "basic",
-                    username: creds.username,
-                    password: creds.password,
+                    username: username ?? "",
+                    password: password ?? "",
                 };
             }
         } else if (target.authType === "oauth2") {
             const creds = await this.secretStore.getOAuth2(slot);
-            if (creds) {
+            const clientId = target.clientId ?? creds?.clientId;
+            const clientSecret = target.clientSecret ?? creds?.clientSecret;
+            if (clientId !== undefined || clientSecret !== undefined) {
                 return {
                     authType: "oauth2",
-                    clientId: creds.clientId,
-                    clientSecret: creds.clientSecret,
+                    clientId: clientId ?? "",
+                    clientSecret: clientSecret ?? "",
                     tokenEndpoint: target.tokenEndpoint,
                     audience: target.audience,
                 };
@@ -297,18 +305,26 @@ export class DeploymentTargetService {
 
         if (target.authType === "basic") {
             const creds = await this.secretStore.getBasicAuth(slot);
-            return creds ? new BasicAuth(creds.username, creds.password) : new NoAuth();
+            const username = target.username ?? creds?.username;
+            const password = target.password ?? creds?.password;
+            if (username === undefined && password === undefined) {
+                return new NoAuth();
+            }
+            return new BasicAuth(username ?? "", password ?? "");
         }
         if (target.authType === "oauth2") {
             const creds = await this.secretStore.getOAuth2(slot);
-            return creds
-                ? new OAuth2Auth(
-                      creds.clientId,
-                      creds.clientSecret,
-                      target.tokenEndpoint,
-                      target.audience,
-                  )
-                : new NoAuth();
+            const clientId = target.clientId ?? creds?.clientId;
+            const clientSecret = target.clientSecret ?? creds?.clientSecret;
+            if (clientId === undefined && clientSecret === undefined) {
+                return new NoAuth();
+            }
+            return new OAuth2Auth(
+                clientId ?? "",
+                clientSecret ?? "",
+                target.tokenEndpoint,
+                target.audience,
+            );
         }
         return new NoAuth();
     }
@@ -338,7 +354,14 @@ export class DeploymentTargetService {
     }
 }
 
-function toDomainTarget(payload: DeploymentTargetPayload): DeploymentTarget {
+interface CredentialRefs {
+    username?: string;
+    password?: string;
+    clientId?: string;
+    clientSecret?: string;
+}
+
+function toDomainTarget(payload: DeploymentTargetPayload, refs: CredentialRefs): DeploymentTarget {
     return new DeploymentTarget(
         payload.name.trim(),
         payload.engine,
@@ -349,7 +372,34 @@ function toDomainTarget(payload: DeploymentTargetPayload): DeploymentTarget {
         payload.audience ?? "",
         payload.deployUrl?.trim() ? payload.deployUrl.trim() : undefined,
         payload.startInstanceUrl?.trim() ? payload.startInstanceUrl.trim() : undefined,
+        refs.username,
+        refs.password,
+        refs.clientId,
+        refs.clientSecret,
     );
+}
+
+function credentialRefs(auth: AuthConfigPayload): CredentialRefs {
+    const refIf = (value?: string) =>
+        value !== undefined && isWholeEnvRef(value) ? value.trim() : undefined;
+    return {
+        username: refIf(auth.username),
+        password: refIf(auth.password),
+        clientId: refIf(auth.clientId),
+        clientSecret: refIf(auth.clientSecret),
+    };
+}
+
+/** Blanking also overwrites a real secret that a prior literal save left behind. */
+function literalSecrets(auth: AuthConfigPayload): AuthConfigPayload {
+    const literal = (value?: string) => (value === undefined ? value : blankIfWholeEnvRef(value));
+    return {
+        ...auth,
+        username: literal(auth.username),
+        password: literal(auth.password),
+        clientId: literal(auth.clientId),
+        clientSecret: literal(auth.clientSecret),
+    };
 }
 
 export function toTargetPayload(target: DeploymentTarget): DeploymentTargetPayload {

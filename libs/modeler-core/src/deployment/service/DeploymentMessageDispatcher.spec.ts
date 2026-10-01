@@ -38,6 +38,8 @@ import { DeploymentMessageDispatcher } from "./DeploymentMessageDispatcher";
  * methods, so structural doubles keep the test free of any host surface. The
  * injected `post` is a spy that captures every query the dispatcher sends back.
  */
+const noEnv = () => undefined;
+
 function createDispatcher() {
     const editorStore = {
         getActiveEditorId: vi.fn().mockReturnValue("editor-1"),
@@ -83,6 +85,12 @@ function createDispatcher() {
         refreshActive: vi.fn().mockResolvedValue(undefined),
         recordDeployment: vi.fn().mockResolvedValue(undefined),
         pruneTarget: vi.fn().mockResolvedValue(undefined),
+        targetIdentity: vi.fn(async (target: DeploymentTarget) =>
+            DeploymentTargetIdentity.fromTarget(target, noEnv),
+        ),
+        adHocIdentity: vi.fn(async (endpoint: string, tenantId: string) =>
+            DeploymentTargetIdentity.adHoc(endpoint, tenantId, noEnv),
+        ),
     };
 
     const post = vi.fn();
@@ -356,6 +364,15 @@ describe("DeploymentMessageDispatcher start-instance auth construction", () => {
         await startInstance(c, { authType: "none" });
 
         expect(c.startInstanceService.startInstance.mock.calls[0][3]).toBeInstanceOf(NoAuth);
+    });
+
+    it("threads the active document directory so env refs resolve against its .env", async () => {
+        const c = createDispatcher();
+        c.startInstanceService.startInstance.mockResolvedValue(new StartInstanceResult(true, "ok"));
+
+        await startInstance(c, { authType: "none" });
+
+        expect(c.startInstanceService.startInstance.mock.calls[0][6]).toBe("/work/trusted");
     });
 });
 
@@ -913,7 +930,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
         await c.dispatcher.handle(new DeleteTargetCommand("dev"));
 
         expect(c.deploymentStatusService.pruneTarget).toHaveBeenCalledWith(
-            DeploymentTargetIdentity.fromTarget(target),
+            DeploymentTargetIdentity.fromTarget(target, noEnv),
         );
     });
 
@@ -939,7 +956,7 @@ describe("DeploymentMessageDispatcher target commands", () => {
             expect.anything(),
         );
         expect(c.deploymentStatusService.pruneTarget).toHaveBeenCalledWith(
-            DeploymentTargetIdentity.fromTarget(oldTarget),
+            DeploymentTargetIdentity.fromTarget(oldTarget, noEnv),
         );
     });
 

@@ -137,6 +137,11 @@ export interface PickerPort {
     }): Promise<"switch" | "verify" | undefined>;
 }
 
+/** Keeps `process` out of the engine core and its specs. */
+export interface EnvPort {
+    get(name: string): string | undefined;
+}
+
 /**
  * Host clipboard access. Isolated so the sandboxed-iframe mediator pattern
  * (host reads/writes on behalf of the webview) stays confined to infrastructure.

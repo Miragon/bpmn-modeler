@@ -19,6 +19,7 @@ function deferred<T>() {
 }
 
 const FILE_PATH = "/work/order-process.bpmn";
+const noEnv = () => undefined;
 const target = (name: string): DeploymentTarget =>
     new DeploymentTarget(name, "c7", "http://localhost:8080/engine-rest", "", "none", "", "");
 
@@ -51,6 +52,9 @@ function createService() {
     const notifier = {
         logDebug: vi.fn(),
     };
+    const envResolver = {
+        createLookup: vi.fn().mockResolvedValue(noEnv),
+    };
 
     const service = new DeploymentStatusService(
         editorStore as never,
@@ -60,6 +64,7 @@ function createService() {
         statusBar as never,
         picker as never,
         notifier as never,
+        envResolver as never,
     );
 
     return {
@@ -71,6 +76,7 @@ function createService() {
         statusBar,
         picker,
         notifier,
+        envResolver,
     };
 }
 
@@ -83,7 +89,7 @@ describe("DeploymentStatusService.recordDeployment", () => {
         await c.service.recordDeployment(
             FILE_PATH,
             "<a/>",
-            DeploymentTargetIdentity.fromTarget(target("dev")),
+            DeploymentTargetIdentity.fromTarget(target("dev"), noEnv),
             "dep-42",
         );
 
@@ -99,7 +105,7 @@ describe("DeploymentStatusService.recordDeployment", () => {
 });
 
 describe("DeploymentStatusService ledger writes", () => {
-    const identity = () => DeploymentTargetIdentity.fromTarget(target("dev"));
+    const identity = () => DeploymentTargetIdentity.fromTarget(target("dev"), noEnv);
 
     it("adopts an engine revision under the identity/file key", async () => {
         const c = createService();
@@ -269,13 +275,30 @@ describe("DeploymentStatusService.refresh", () => {
         await c.service.refresh("editor-1");
 
         expect(c.deploymentState.getDeployedRevision).toHaveBeenCalledWith(
-            ledgerKeyFor(DeploymentTargetIdentity.fromTarget(target("dev")), FILE_PATH),
+            ledgerKeyFor(DeploymentTargetIdentity.fromTarget(target("dev"), noEnv), FILE_PATH),
         );
         expect(c.statusBar.showDeploymentTarget).toHaveBeenCalledWith(
             "dev",
             "deployed",
             "2026-09-17T14:32:00.000Z",
             undefined,
+        );
+    });
+
+    it("reads the ledger under the env-resolved endpoint host of the document's .env", async () => {
+        const c = createService();
+        c.deploymentTargetService.getActiveTarget.mockResolvedValue(
+            new DeploymentTarget("dev", "c7", "${env:URL}", "", "none", "", ""),
+        );
+        c.envResolver.createLookup.mockResolvedValue((name: string) =>
+            name === "URL" ? "https://prod.example.com/engine-rest" : undefined,
+        );
+
+        await c.service.refresh("editor-1");
+
+        expect(c.envResolver.createLookup).toHaveBeenCalledWith("/work");
+        expect(c.deploymentState.getDeployedRevision).toHaveBeenCalledWith(
+            `target:dev@prod.example.com::${FILE_PATH}`,
         );
     });
 

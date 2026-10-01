@@ -10,7 +10,35 @@ import {
 } from "../domain/deployment";
 import { DeploymentTarget } from "../domain/deploymentTarget";
 import { DeploymentService } from "./DeploymentService";
+import { EnvValueResolver } from "./EnvValueResolver";
 import { BpmnDocument } from "../../shared/domain/BpmnDocument";
+import { FileNotFound } from "../../shared/domain/errors";
+
+/**
+ * A real {@link EnvValueResolver} backed by controllable `.env` + process env, so
+ * a test can assert what the REST client vs. the secret store see.
+ */
+function createEnvResolver(
+    dotEnv: Record<string, string> = {},
+    processEnv: Record<string, string> = {},
+): EnvValueResolver {
+    const artifactService = {
+        getWorkspaceRoot: vi.fn().mockResolvedValue("/work"),
+    };
+    const workspace = {
+        readFile: vi.fn().mockImplementation(async (path: string) => {
+            if (path.endsWith(".env")) {
+                return Object.entries(dotEnv)
+                    .map(([key, value]) => `${key}=${value}`)
+                    .join("\n");
+            }
+            throw new FileNotFound(path);
+        }),
+        getWorkspaceFolderPaths: vi.fn().mockReturnValue(["/work"]),
+    };
+    const env = { get: (name: string) => processEnv[name] };
+    return new EnvValueResolver(artifactService as never, workspace as never, env as never);
+}
 
 // A real, valid C8 document so `detectEngine` exercises the production
 // `BpmnDocument.detectPlatform` path instead of a stub.
@@ -21,7 +49,7 @@ const C8_XML = BpmnDocument.empty("c8", "8.8.0").xml;
  * record cast to the interface — the service only ever calls these methods, so
  * a structural double keeps the test free of any `vscode` surface.
  */
-function createService() {
+function createService(envResolver: EnvValueResolver = createEnvResolver()) {
     const vsDocument = {
         getFilePath: vi.fn(),
         getContent: vi.fn(),
@@ -75,6 +103,7 @@ function createService() {
         picker as never,
         secretStore as never,
         deploymentStatus as never,
+        envResolver,
     );
 
     return {
@@ -304,6 +333,25 @@ describe("DeploymentService.deploy", () => {
         expect(deploymentState.saveAuthType).not.toHaveBeenCalled();
     });
 
+    it("keeps whole env refs out of the target slot so the targets file stays authoritative", async () => {
+        const { service, vsWorkspace, restClient, secretStore } = createService(
+            createEnvResolver({ CAMUNDA_USER: "admin" }),
+        );
+        vsWorkspace.readFile.mockResolvedValue("<xml/>");
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        await service.deploy(
+            buildConfig({ auth: new BasicAuth("${env:CAMUNDA_USER}", "secret") }),
+            "/ws/.camunda/deployment-targets.json::dev",
+        );
+
+        expect(secretStore.saveBasicAuth).toHaveBeenCalledWith(
+            "",
+            "secret",
+            "/ws/.camunda/deployment-targets.json::dev",
+        );
+    });
+
     it("passes a failed result through without persisting any state", async () => {
         const { service, vsWorkspace, restClient, deploymentState } = createService();
         vsWorkspace.readFile.mockResolvedValue("<xml/>");
@@ -335,6 +383,40 @@ describe("DeploymentService.deploy", () => {
 
         expect(result.success).toBe(false);
         expect(result.message).toBe("ENOENT");
+        expect(restClient.deploy).not.toHaveBeenCalled();
+    });
+
+    it("resolves ${env:VAR} for the REST request but stores the literal ref", async () => {
+        const { service, vsWorkspace, restClient, secretStore } = createService(
+            createEnvResolver({ CAMUNDA_PASSWORD: "s3cret" }),
+        );
+        vsWorkspace.readFile.mockResolvedValue("<xml/>");
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        await service.deploy(
+            buildConfig({ auth: new BasicAuth("admin", "${env:CAMUNDA_PASSWORD}") }),
+        );
+
+        const sentConfig = restClient.deploy.mock.calls[0][0] as DeploymentConfig;
+        expect((sentConfig.auth as BasicAuth).password).toBe("s3cret");
+        // The secret store must keep the literal ref, never the resolved secret.
+        expect(secretStore.saveBasicAuth).toHaveBeenCalledWith(
+            "admin",
+            "${env:CAMUNDA_PASSWORD}",
+            undefined,
+        );
+    });
+
+    it("returns a failed result naming the variable when a ${env:VAR} is unset", async () => {
+        const { service, vsWorkspace, restClient } = createService(createEnvResolver());
+        vsWorkspace.readFile.mockResolvedValue("<xml/>");
+
+        const result = await service.deploy(
+            buildConfig({ auth: new BasicAuth("admin", "${env:MISSING_VAR}") }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("MISSING_VAR");
         expect(restClient.deploy).not.toHaveBeenCalled();
     });
 });
@@ -388,5 +470,54 @@ describe("DeploymentService.deployFiles", () => {
         expect(results[1].success).toBe(false);
         expect(results[1].message).toContain("boom");
         expect(notifier.showError).toHaveBeenCalledWith('Deployed 1/2 file(s) to "dev".');
+    });
+
+    it("never throws: an unreadable .env fails every file and still reports a summary", async () => {
+        const envResolver = new EnvValueResolver(
+            { getWorkspaceRoot: vi.fn().mockResolvedValue("/work") } as never,
+            { readFile: vi.fn().mockRejectedValue(new Error("EACCES")) } as never,
+            { get: () => undefined },
+        );
+        const { service, restClient, notifier } = createService(envResolver);
+
+        const results = await service.deployFiles(
+            ["/work/a.bpmn", "/work/b.bpmn"],
+            target,
+            new NoAuth(),
+        );
+
+        expect(results.map((r) => r.success)).toEqual([false, false]);
+        expect(results[0].message).toContain("EACCES");
+        expect(restClient.deploy).not.toHaveBeenCalled();
+        expect(notifier.showError).toHaveBeenCalledWith('Deployed 0/2 file(s) to "dev".');
+    });
+
+    it("resolves env refs in the target's connection fields for every file", async () => {
+        const refTarget = new DeploymentTarget(
+            "dev",
+            "c7",
+            "${env:URL}",
+            "${env:TENANT}",
+            "none",
+            "",
+            "",
+        );
+        const { service, vsWorkspace, restClient, deploymentStatus } = createService(
+            createEnvResolver({ URL: "https://prod.example.com/api", TENANT: "acme" }),
+        );
+        vsWorkspace.readFile.mockResolvedValue("<xml/>");
+        restClient.deploy.mockResolvedValue(new DeploymentResult(true, "ok"));
+
+        await service.deployFiles(["/work/a.bpmn", "/work/b.bpmn"], refTarget, new NoAuth());
+
+        const sentConfigs = restClient.deploy.mock.calls.map((call) => call[0] as DeploymentConfig);
+        expect(sentConfigs.map((config) => config.endpoint)).toEqual([
+            "https://prod.example.com/api",
+            "https://prod.example.com/api",
+        ]);
+        expect(sentConfigs[0].tenantId).toBe("acme");
+        expect(deploymentStatus.recordDeployment.mock.calls[0][2].key()).toBe(
+            "target:dev@prod.example.com",
+        );
     });
 });

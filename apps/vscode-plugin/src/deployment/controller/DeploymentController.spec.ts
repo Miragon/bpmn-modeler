@@ -19,7 +19,11 @@ vi.mock("../../shared/infrastructure/extensionContext", () => ({
 }));
 
 import { commands, window } from "vscode";
-import { DeploymentResult } from "@miragon/bpmn-modeler-core";
+import {
+    DeploymentResult,
+    DeploymentTarget,
+    DeploymentTargetIdentity,
+} from "@miragon/bpmn-modeler-core";
 import {
     DeploymentResultQuery,
     type Command,
@@ -74,6 +78,12 @@ function createController() {
         refreshActive: vi.fn().mockResolvedValue(undefined),
         hide: vi.fn(),
         pickStatusBarAction: vi.fn().mockResolvedValue(undefined),
+        targetIdentity: vi.fn(async (target: DeploymentTarget) =>
+            DeploymentTargetIdentity.fromTarget(target, () => undefined),
+        ),
+        adHocIdentity: vi.fn(async (endpoint: string, tenantId: string) =>
+            DeploymentTargetIdentity.adHoc(endpoint, tenantId, () => undefined),
+        ),
     };
     const verificationService = {
         verifyActive: vi.fn().mockResolvedValue(undefined),
