@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.10.3](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.10.2...intellij-v1.10.3) (2026-10-01)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fix quadratic bpmnlint overlap and bpmndi rules ([#1609](https://github.com/Miragon/bpmn-modeler/issues/1609)) [sync 0966e35] ([15f5ccd](https://github.com/Miragon/bpmn-modeler/commit/15f5ccdcbfa07a3e445dfc9c32aa8e75599486d5))
+* **bpmn-modeler:** stop redundant lint runs and overlay rebuilds ([#1606](https://github.com/Miragon/bpmn-modeler/issues/1606)) [sync a506d75] ([33aa226](https://github.com/Miragon/bpmn-modeler/commit/33aa226070d4d756fa5691b33f61df6d88167f7e))
+* **bpmn-webview:** apply the configured locale before the first import ([#1617](https://github.com/Miragon/bpmn-modeler/issues/1617)) [sync 63d01ce] ([df3d535](https://github.com/Miragon/bpmn-modeler/commit/df3d5357f21facb22528218e94b7b7438b11ecb8))
+
+
+### 🛠️ Misc
+
+* **deps:** bump gradle-wrapper from 9.7.1 to 9.8.0 in /apps/intellij-plugin in the gradle-minor-patch group ([#1616](https://github.com/Miragon/bpmn-modeler/issues/1616)) ([246ff04](https://github.com/Miragon/bpmn-modeler/commit/246ff04c1a1de03107e1f892e847da4f61e86edc))
+
 ## [1.10.2](https://github.com/Miragon/bpmn-modeler/compare/intellij-v1.10.1...intellij-v1.10.2) (2026-09-28)
 
 
