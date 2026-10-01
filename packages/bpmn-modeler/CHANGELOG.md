@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.2.3](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.2.2...bpmn-modeler-v1.2.3) (2026-10-01)
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fix quadratic bpmnlint overlap and bpmndi rules ([#1609](https://github.com/Miragon/bpmn-modeler/issues/1609)) ([0966e35](https://github.com/Miragon/bpmn-modeler/commit/0966e35f1abd08589c0e1c9535484ea906efc6dc))
+* **bpmn-modeler:** stop redundant lint runs and overlay rebuilds ([#1606](https://github.com/Miragon/bpmn-modeler/issues/1606)) ([a506d75](https://github.com/Miragon/bpmn-modeler/commit/a506d75a3f0405ce339d83fc5fb3fc8ccf7cb719))
+* **bpmn-webview:** apply the configured locale before the first import ([#1617](https://github.com/Miragon/bpmn-modeler/issues/1617)) ([63d01ce](https://github.com/Miragon/bpmn-modeler/commit/63d01ce4b3df3f4746d1d44cc44fab914566181e))
+* **standalone:** bump electron to 42.11.8 for security advisories ([#1615](https://github.com/Miragon/bpmn-modeler/issues/1615)) ([84bd712](https://github.com/Miragon/bpmn-modeler/commit/84bd71203b3af66b30c80a95a9f6963a507da401))
+* **standalone:** restore packaged file search with Theia 1.76 ([#1610](https://github.com/Miragon/bpmn-modeler/issues/1610)) ([6816f03](https://github.com/Miragon/bpmn-modeler/commit/6816f03d7a9339d84d3eeb6382d9f84a475d1545))
+
+
+### 🛠️ Misc
+
+* **bpmn-modeler:** add a large-model generator and perf harness ([#1605](https://github.com/Miragon/bpmn-modeler/issues/1605)) ([75b6616](https://github.com/Miragon/bpmn-modeler/commit/75b66169bc2a87be2a1043e9614309f0637dead9))
+* **main:** release intellij 1.10.2 ([#1589](https://github.com/Miragon/bpmn-modeler/issues/1589)) ([05ef3b7](https://github.com/Miragon/bpmn-modeler/commit/05ef3b7ce08f2b17f212d0908cf98b63609d7fd4))
+* **main:** release vscode 1.14.2 ([#1590](https://github.com/Miragon/bpmn-modeler/issues/1590)) ([a0a3f7d](https://github.com/Miragon/bpmn-modeler/commit/a0a3f7da843396be8c897fa291cedb66b63a6d4f))
+
 ## [1.2.2](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.2.1...bpmn-modeler-v1.2.2) (2026-09-28)
 
 
