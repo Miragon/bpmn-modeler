@@ -24,6 +24,10 @@ export default defineConfig({
     resolve: {
         dedupe: [
             "preact",
+            "bpmn-js",
+            "diagram-js",
+            "bpmn-moddle",
+            "moddle",
             "@bpmn-io/properties-panel",
             "@codemirror/state",
             "@codemirror/view",

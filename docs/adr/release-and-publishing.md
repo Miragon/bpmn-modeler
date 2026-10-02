@@ -100,7 +100,14 @@ consistent while allowing that consumer difference.
 
 The [Yarn constraint](../../yarn.config.cjs) checks aligned dependency pins
 between published packages and in-repo consumers, excluding peer dependencies;
-conflicting shared pins fail rather than choosing one silently. Immutable CI
+conflicting shared pins fail rather than choosing one silently. It also fails
+when an identity-sensitive bpmn-io package (bpmn-js, diagram-js, the moddle
+stack, the properties panels, element templates) resolves to more than one
+version: a stale transitive range once nested a second bpmn-js under
+camunda-bpmn-js, so Implement ran a different bpmn-js than View/Design. Fix such
+drift with a scoped `yarn dedupe`, or a root resolution when the ranges do not
+overlap. The webview Vite configs dedupe the same packages as a second line of
+defence. Immutable CI
 installs additionally catch lockfile drift. Package build/declaration checks and
 the consumer smoke scripts enforce the distribution boundary.
 
