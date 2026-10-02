@@ -15,6 +15,8 @@ export default defineConfig({
         dedupe: [
             "preact",
             "inferno",
+            "diagram-js",
+            "moddle",
             "@bpmn-io/properties-panel",
             "@codemirror/state",
             "@codemirror/view",

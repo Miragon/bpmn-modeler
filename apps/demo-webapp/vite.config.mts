@@ -34,6 +34,10 @@ export default defineConfig(({ mode }) => {
                 // dmn-js renders its decision editors with inferno; the
                 // @miragon/dmn-modeler README requires deduping it.
                 "inferno",
+                "bpmn-js",
+                "diagram-js",
+                "bpmn-moddle",
+                "moddle",
                 "@bpmn-io/properties-panel",
                 "@codemirror/state",
                 "@codemirror/view",

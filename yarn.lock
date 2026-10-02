@@ -622,28 +622,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/feel-editor@npm:^2.7.0":
-  version: 2.7.0
-  resolution: "@bpmn-io/feel-editor@npm:2.7.0"
-  dependencies:
-    "@bpmn-io/cm-theme": "npm:^0.2.2"
-    "@bpmn-io/feel-lint": "npm:^3.2.0"
-    "@bpmn-io/lang-feel": "npm:^4.0.2"
-    "@bpmn-io/semver-compat": "npm:^0.1.0"
-    "@camunda/feel-builtins": "npm:^1.4.0"
-    "@codemirror/autocomplete": "npm:^6.20.0"
-    "@codemirror/commands": "npm:^6.10.3"
-    "@codemirror/language": "npm:^6.11.3"
-    "@codemirror/lint": "npm:^6.9.7"
-    "@codemirror/state": "npm:^6.6.0"
-    "@codemirror/view": "npm:^6.43.1"
-    "@lezer/highlight": "npm:^1.2.3"
-    min-dom: "npm:^5.3.0"
-    mitt: "npm:^3.0.1"
-  checksum: 10c0/9a891651528ab8108ad97deb0b824611d52a12461cea94c070827b4389f617f80dfecc665bed3c11440540b47130620efbd6fe83f3026e7399d498fa13204ceb
-  languageName: node
-  linkType: hard
-
 "@bpmn-io/feel-lint@npm:^3.1.0":
   version: 3.1.0
   resolution: "@bpmn-io/feel-lint@npm:3.1.0"
@@ -880,7 +858,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@bpmn-io/properties-panel@npm:3.55.0":
+"@bpmn-io/properties-panel@npm:3.55.0, @bpmn-io/properties-panel@npm:^3.47.0, @bpmn-io/properties-panel@npm:^3.52.0":
   version: 3.55.0
   resolution: "@bpmn-io/properties-panel@npm:3.55.0"
   dependencies:
@@ -898,48 +876,6 @@ __metadata:
     min-dash: "npm:^5.1.0"
     min-dom: "npm:^5.3.0"
   checksum: 10c0/c2f2a9571907ea715823e9283f8ef18d88819c5fb49a05d650aafd745e7d0fdee28714573e074777d39521aa438f17b91aef431bf3927c123c183b53934d96e5
-  languageName: node
-  linkType: hard
-
-"@bpmn-io/properties-panel@npm:^3.47.0":
-  version: 3.49.2
-  resolution: "@bpmn-io/properties-panel@npm:3.49.2"
-  dependencies:
-    "@bpmn-io/feel-editor": "npm:^2.7.0"
-    "@bpmn-io/feelers-editor": "npm:^1.1.1"
-    "@codemirror/autocomplete": "npm:^6.18.6"
-    "@codemirror/commands": "npm:^6.10.3"
-    "@codemirror/lang-json": "npm:^6.0.2"
-    "@codemirror/language": "npm:^6.11.0"
-    "@codemirror/lint": "npm:^6.9.5"
-    "@codemirror/state": "npm:^6.6.0"
-    "@codemirror/view": "npm:^6.28.1"
-    classnames: "npm:^2.5.1"
-    focus-trap: "npm:^8.0.0"
-    min-dash: "npm:^5.1.0"
-    min-dom: "npm:^5.3.0"
-  checksum: 10c0/5e65a90b44b785029271a2c62286dab7c23fd58ebc5317f9774f79076797d517ba5d445f85724e07243ddf2f52fccd17b94c2de143e6bc920a9b352062ac9d07
-  languageName: node
-  linkType: hard
-
-"@bpmn-io/properties-panel@npm:^3.52.0":
-  version: 3.54.1
-  resolution: "@bpmn-io/properties-panel@npm:3.54.1"
-  dependencies:
-    "@bpmn-io/feel-editor": "npm:^2.7.1"
-    "@bpmn-io/feelers-editor": "npm:^1.1.1"
-    "@codemirror/autocomplete": "npm:^6.18.6"
-    "@codemirror/commands": "npm:^6.10.3"
-    "@codemirror/lang-json": "npm:^6.0.2"
-    "@codemirror/language": "npm:^6.11.0"
-    "@codemirror/lint": "npm:^6.9.5"
-    "@codemirror/state": "npm:^6.6.0"
-    "@codemirror/view": "npm:^6.28.1"
-    classnames: "npm:^2.5.1"
-    focus-trap: "npm:^8.0.0"
-    min-dash: "npm:^5.1.0"
-    min-dom: "npm:^5.3.0"
-  checksum: 10c0/893358cc47594f91033cc539eee8649fa3fa900c3754dd24a7d78167b0243ea5affb834de8b7927719711090522be17adac4eaa074c80bcc156898d619258ae3
   languageName: node
   linkType: hard
 
@@ -9172,7 +9108,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-js@npm:18.28.0":
+"bpmn-js@npm:18.28.0, bpmn-js@npm:^18.25.1":
   version: 18.28.0
   resolution: "bpmn-js@npm:18.28.0"
   dependencies:
@@ -9188,23 +9124,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-js@npm:^18.25.1":
-  version: 18.25.1
-  resolution: "bpmn-js@npm:18.25.1"
-  dependencies:
-    bpmn-moddle: "npm:^10.0.0"
-    diagram-js: "npm:^15.24.0"
-    diagram-js-direct-editing: "npm:^3.5.1"
-    ids: "npm:^3.0.2"
-    inherits-browser: "npm:^0.1.0"
-    min-dash: "npm:^5.1.0"
-    min-dom: "npm:^5.3.0"
-    tiny-svg: "npm:^4.1.4"
-  checksum: 10c0/62f163b9802867d917aaa5105ee98cff58c00ba70c438a973453addf7de3443529b488148a6a3eb7210bf72caf8ced2a0e77fa618f45bc3e9dab38ecc1321b41
-  languageName: node
-  linkType: hard
-
-"bpmn-moddle@npm:10.2.0, bpmn-moddle@npm:^10.2.0":
+"bpmn-moddle@npm:10.2.0, bpmn-moddle@npm:^10.0.0, bpmn-moddle@npm:^10.1.0, bpmn-moddle@npm:^10.2.0":
   version: 10.2.0
   resolution: "bpmn-moddle@npm:10.2.0"
   dependencies:
@@ -9212,28 +9132,6 @@ __metadata:
     moddle: "npm:^8.2.1"
     moddle-xml: "npm:^12.2.0"
   checksum: 10c0/c3605c15cb4622d3e97244c867231b796930fd00d8b4f0a6f65c7e4ddffff39cf99282a857b33ccc3fbccfb00fdf17d256ab289d74ab396fac0d00ae197dff2e
-  languageName: node
-  linkType: hard
-
-"bpmn-moddle@npm:^10.0.0":
-  version: 10.0.0
-  resolution: "bpmn-moddle@npm:10.0.0"
-  dependencies:
-    min-dash: "npm:^5.0.0"
-    moddle: "npm:^8.0.0"
-    moddle-xml: "npm:^12.0.0"
-  checksum: 10c0/fbec9f8225b95d298e77950f51bc1e3b7854ea1624505c9677541d9753b087a16f5d6b3d4fae20b5c03b903cab1c9e932b1de5cb4de0b4a452f97d75e19599c0
-  languageName: node
-  linkType: hard
-
-"bpmn-moddle@npm:^10.1.0":
-  version: 10.1.0
-  resolution: "bpmn-moddle@npm:10.1.0"
-  dependencies:
-    min-dash: "npm:^5.1.0"
-    moddle: "npm:^8.2.1"
-    moddle-xml: "npm:^12.1.0"
-  checksum: 10c0/1114c9cf64aebd7afa297e19f176fa4dd3e790682a294debaaba493914a75df36ee37c7b1f077ed64910adc38c9af26d5577d89d3b916d3ae92f70584bc91a8c
   languageName: node
   linkType: hard
 
@@ -11317,7 +11215,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diagram-js@npm:15.26.0, diagram-js@npm:^15.22.0, diagram-js@npm:^15.26.0":
+"diagram-js@npm:15.26.0, diagram-js@npm:^15.21.0, diagram-js@npm:^15.22.0, diagram-js@npm:^15.23.2, diagram-js@npm:^15.24.1, diagram-js@npm:^15.26.0":
   version: 15.26.0
   resolution: "diagram-js@npm:15.26.0"
   dependencies:
@@ -11331,23 +11229,6 @@ __metadata:
     path-intersection: "npm:^4.1.0"
     tiny-svg: "npm:^4.1.4"
   checksum: 10c0/3ad3649463ddfc7080930d375e261662cd12e9bad234aa524ba52bffb83767a252b0eab787c3851cf96627eada9e85d99aef42e18d81fe9c3b904a5729311d0f
-  languageName: node
-  linkType: hard
-
-"diagram-js@npm:^15.21.0, diagram-js@npm:^15.23.2, diagram-js@npm:^15.24.0, diagram-js@npm:^15.24.1":
-  version: 15.24.1
-  resolution: "diagram-js@npm:15.24.1"
-  dependencies:
-    "@bpmn-io/diagram-js-ui": "npm:^0.2.4"
-    clsx: "npm:^2.1.1"
-    didi: "npm:^11.0.0"
-    inherits-browser: "npm:^0.1.0"
-    min-dash: "npm:^5.1.0"
-    min-dom: "npm:^5.3.0"
-    object-refs: "npm:^0.4.0"
-    path-intersection: "npm:^4.1.0"
-    tiny-svg: "npm:^4.1.4"
-  checksum: 10c0/aafbc3f60288aa429eb10a0d91d8410103f4054dadc854c0cd01d2b5c4a27c0debcf6c76749855d87b6fbea93601e9531c987f2efb67128cd2b3f4f1af914e6d
   languageName: node
   linkType: hard
 
@@ -16301,7 +16182,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"min-dash@npm:5.1.0, min-dash@npm:^5.1.0":
+"min-dash@npm:5.1.0, min-dash@npm:^5.0.0, min-dash@npm:^5.1.0":
   version: 5.1.0
   resolution: "min-dash@npm:5.1.0"
   checksum: 10c0/44d977d9a8dc45526e3b1badc903adb9d511937d7c895643d252947a7c6371970b89ac48f205a7207eed2f1426d6e538a1d95511d9e815ea48d23d35ef7c0ba5
@@ -16312,13 +16193,6 @@ __metadata:
   version: 3.8.1
   resolution: "min-dash@npm:3.8.1"
   checksum: 10c0/30eff7c7936496de022dc64a541aa0ce1db9eadf45425e3d7dc96e0f076677482b66f2888ef191b951558b079a0c0610d48b9e91e667c1ea6a745d730aeb3360
-  languageName: node
-  linkType: hard
-
-"min-dash@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "min-dash@npm:5.0.0"
-  checksum: 10c0/640f3c6304fd3efb89fd1dcfa94a635774e3d76829321420839d2076faa5c39dc5767476e3843f3fabad69faa5c17dbac01dedefc44422031dcc4872aef37fdf
   languageName: node
   linkType: hard
 
@@ -16677,31 +16551,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"moddle-xml@npm:^12.0.0":
-  version: 12.0.0
-  resolution: "moddle-xml@npm:12.0.0"
-  dependencies:
-    min-dash: "npm:^5.0.0"
-    saxen: "npm:^11.0.2"
-  peerDependencies:
-    moddle: ">= 6.2.0"
-  checksum: 10c0/a28f2be0f17b2ddbd4c00b8830ffda5b76000865a36f354908ab471d0ff949adad6a4522e87853b8fad61e8cda1a5a25f774baf29708bcfa7430dcd11e69ac0e
-  languageName: node
-  linkType: hard
-
-"moddle-xml@npm:^12.1.0":
-  version: 12.1.0
-  resolution: "moddle-xml@npm:12.1.0"
-  dependencies:
-    min-dash: "npm:^5.1.0"
-    saxen: "npm:^11.1.0"
-  peerDependencies:
-    moddle: ">= 6.2.0"
-  checksum: 10c0/2686cac13dfa4fbc017e3923c445cc9bcf3290e84995da71dd7c7286b146c5acb48872d7e8a14dc90791d34553cb30f235489d080fb42e74f131e711bf90ddf1
-  languageName: node
-  linkType: hard
-
-"moddle-xml@npm:^12.2.0":
+"moddle-xml@npm:^12.0.0, moddle-xml@npm:^12.2.0":
   version: 12.2.0
   resolution: "moddle-xml@npm:12.2.0"
   dependencies:
@@ -16713,16 +16563,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"moddle@npm:^8.0.0":
-  version: 8.1.0
-  resolution: "moddle@npm:8.1.0"
-  dependencies:
-    min-dash: "npm:^5.0.0"
-  checksum: 10c0/6d9b7db4263973ee7f8c1113de3d7f6ed0d55d40154d8b19f2a64579d46abc2d64a710ad6196dfbd351627cd39422f282252992b4b6a1aa5e3d9025ba6d6ba1b
-  languageName: node
-  linkType: hard
-
-"moddle@npm:^8.2.0, moddle@npm:^8.2.1":
+"moddle@npm:^8.0.0, moddle@npm:^8.2.0, moddle@npm:^8.2.1":
   version: 8.2.1
   resolution: "moddle@npm:8.2.1"
   dependencies:
@@ -19438,13 +19279,6 @@ __metadata:
   version: 1.6.0
   resolution: "sax@npm:1.6.0"
   checksum: 10c0/e5593f4a91eb25761a688c4d96902e4e95a0dd6017bc65146b6f21236e3d715cf893333b76bc758923c9574c2fb5a7a76c3a81e96ea15432f2624f906c027c1e
-  languageName: node
-  linkType: hard
-
-"saxen@npm:^11.0.2":
-  version: 11.0.2
-  resolution: "saxen@npm:11.0.2"
-  checksum: 10c0/9ca99fb956e57aef2fcf5fe3376343e4ff8bb991475c7320fe741a3b41b24ce077e6a0923be7bae0953ac70ba918f7f87c5d8877dd363506ca8a828a2ca3a0c1
   languageName: node
   linkType: hard
 
