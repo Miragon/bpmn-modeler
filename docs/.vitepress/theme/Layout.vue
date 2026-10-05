@@ -14,15 +14,6 @@ const showSiteFooter = computed(() =>
     <Layout>
         <template #nav-bar-content-after>
             <div class="nav-extras">
-                <a
-                    class="demo-btn"
-                    href="https://bpmn.modeler.miragon.io"
-                    target="_blank"
-                    rel="noopener"
-                >
-                    <svg class="play-ico" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-                    Live demo
-                </a>
                 <a class="install-btn" :href="withBase('/download')">
                     <span class="ico">↓</span> Install
                 </a>
