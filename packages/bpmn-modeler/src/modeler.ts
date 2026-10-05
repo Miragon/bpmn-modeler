@@ -73,6 +73,7 @@ interface AppendMenuOverrideService {
     setFavourites(types: string[]): void;
 }
 interface TransactionBoundariesService {
+    readonly active: boolean;
     show(): void;
     hide(): void;
 }
@@ -460,6 +461,7 @@ export class BpmnModeler {
     async newDiagram(): Promise<ImportXMLResult> {
         const version = this.options.engineVersion ?? getLatestVersion(this.engine!);
         const result = await this.getModeler().importXML(initialDiagram(this.engine!, version));
+        this.showTransactionBoundariesIfEnabled();
         this.applyEnginesFromDefinitions();
         return result;
     }
@@ -469,12 +471,7 @@ export class BpmnModeler {
             return await this.getModeler()
                 .importXML(bpmn)
                 .then((result: ImportXMLResult) => {
-                    // Transaction boundaries are a C7-only feature.
-                    if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
-                        this.getModeler()
-                            .get<TransactionBoundariesService>("transactionBoundaries")
-                            .show();
-                    }
+                    this.showTransactionBoundariesIfEnabled();
                     this.applyEnginesFromDefinitions();
                     return result;
                 });
@@ -486,6 +483,13 @@ export class BpmnModeler {
                 });
             }
             throw error;
+        }
+    }
+
+    // Import clears the overlays, so every import re-renders the boundaries (C7 only).
+    private showTransactionBoundariesIfEnabled(): void {
+        if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
+            this.getModeler().get<TransactionBoundariesService>("transactionBoundaries").show();
         }
     }
 
@@ -538,10 +542,18 @@ export class BpmnModeler {
 
         // colorTheme stays inert here; the host controls theme through setTheme.
 
-        if (this.engine === "c7") {
-            const tb = this.getModeler().get<TransactionBoundariesService>("transactionBoundaries");
-            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            this.settings.showTransactionBoundaries ? tb.show() : tb.hide();
+        const showTransactionBoundaries = settings.showTransactionBoundaries;
+        if (this.engine === "c7" && showTransactionBoundaries !== undefined) {
+            const transactionBoundaries =
+                this.getModeler().get<TransactionBoundariesService>("transactionBoundaries");
+            // Hosts re-send every setting on any change; upstream show() is not idempotent.
+            if (showTransactionBoundaries !== transactionBoundaries.active) {
+                if (showTransactionBoundaries) {
+                    transactionBoundaries.show();
+                } else {
+                    transactionBoundaries.hide();
+                }
+            }
         }
 
         if (settings.favouriteBpmnElements !== undefined) {

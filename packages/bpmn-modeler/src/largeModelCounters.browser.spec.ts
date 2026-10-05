@@ -202,8 +202,8 @@ const pinnedCounters: {
         open: {
             imports: 1,
             lintRuns: 1,
-            boundaryOverlaysAdded: 2 * BOUNDARIES,
-            boundaryOverlays: 2 * BOUNDARIES,
+            boundaryOverlaysAdded: BOUNDARIES,
+            boundaryOverlays: BOUNDARIES,
             lintOverlaysAdded: IN_PAGE_LINT_OVERLAYS,
             lintOverlaysRemoved: 0,
         },
@@ -226,7 +226,7 @@ const pinnedCounters: {
         editBurst: {
             imports: 0,
             lintRuns: 1,
-            boundaryOverlaysAdded: EDIT_BURST_SIZE * BOUNDARIES,
+            boundaryOverlaysAdded: 0,
             boundaryOverlays: BOUNDARIES,
             lintOverlaysAdded: 0,
             lintOverlaysRemoved: 0,
@@ -237,8 +237,8 @@ const pinnedCounters: {
         open: {
             imports: 1,
             lintRuns: 1,
-            boundaryOverlaysAdded: 2 * BOUNDARIES,
-            boundaryOverlays: 2 * BOUNDARIES,
+            boundaryOverlaysAdded: BOUNDARIES,
+            boundaryOverlays: BOUNDARIES,
             lintOverlaysAdded: IN_PAGE_LINT_OVERLAYS,
             lintOverlaysRemoved: 0,
         },
@@ -261,7 +261,7 @@ const pinnedCounters: {
         editBurst: {
             imports: 0,
             lintRuns: 1,
-            boundaryOverlaysAdded: EDIT_BURST_SIZE * BOUNDARIES,
+            boundaryOverlaysAdded: 0,
             boundaryOverlays: BOUNDARIES,
             lintOverlaysAdded: 0,
             lintOverlaysRemoved: 0,
@@ -272,8 +272,8 @@ const pinnedCounters: {
         open: {
             imports: 1,
             lintRuns: 0,
-            boundaryOverlaysAdded: 2 * BOUNDARIES,
-            boundaryOverlays: 2 * BOUNDARIES,
+            boundaryOverlaysAdded: BOUNDARIES,
+            boundaryOverlays: BOUNDARIES,
             lintOverlaysAdded: PUSHED_ISSUE_ELEMENT_IDS.length,
             lintOverlaysRemoved: 0,
         },
@@ -297,7 +297,7 @@ const pinnedCounters: {
         editBurst: {
             imports: 0,
             lintRuns: 0,
-            boundaryOverlaysAdded: EDIT_BURST_SIZE * BOUNDARIES,
+            boundaryOverlaysAdded: 0,
             boundaryOverlays: BOUNDARIES,
             lintOverlaysAdded: 0,
             lintOverlaysRemoved: 0,

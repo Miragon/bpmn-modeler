@@ -1,0 +1,277 @@
+diff --git a/lib/TransactionBoundaries.js b/lib/TransactionBoundaries.js
+index d2e4c5cf464382d1059b74531c85fac164b9f81b..3a242b4b89d87a35ab42e32a2e4c9a273396e76d 100644
+--- a/lib/TransactionBoundaries.js
++++ b/lib/TransactionBoundaries.js
+@@ -8,25 +8,41 @@ import { getOrientation } from './Util';
+ /**
+  * A module for showing the transaction boundaries in a BPMN diagram
+  */
+-export default function TransactionBoundaries(elementRegistry, overlays, eventBus) {
++export default function TransactionBoundaries(elementRegistry, overlays, eventBus, canvas) {
+ 
+   this._overlays = overlays;
+   this._elementRegistry = elementRegistry;
++  this._canvas = canvas;
+ 
+   this.active = false;
+ 
++  /**
++   * Marks rendered per shape, so a change re-renders only shapes whose marks differ.
++   *
++   * @type {Map<djs.model.Shape, { key: string, root: djs.model.Root, overlayIds: string[] }>}
++   */
++  this._renderedMarks = new Map();
++
+   var self = this;
+ 
+   eventBus.on('elements.changed', function() {
+ 
+     if (self.active) {
+-      self.hide();
+-      self.show();
++      self._sync();
+     }
+   });
++
++  // Overlays removes the overlays itself on both events; only the bookkeeping is left.
++  eventBus.on('diagram.clear', function() {
++    self._renderedMarks.clear();
++  });
++
++  eventBus.on('shape.remove', function(event) {
++    self._renderedMarks.delete(event.element);
++  });
+ }
+ 
+-TransactionBoundaries.$inject = [ 'elementRegistry', 'overlays', 'eventBus' ];
++TransactionBoundaries.$inject = [ 'elementRegistry', 'overlays', 'eventBus', 'canvas' ];
+ 
+ 
+ /**
+@@ -123,12 +139,14 @@ TransactionBoundaries.prototype._getTransactionBoundaryElements = function() {
+ 
+ 
+ /**
+- * Add a transaction boundary overlay on the shape at the correct trbl position.
++ * Get the transaction boundary mark on the shape at the correct trbl position.
+  *
+  * @param {djs.model.Shape} shape
+  * @param {Point} waypoint
++ *
++ * @return {object} the mark's position relative to the shape, width and height
+  */
+-TransactionBoundaries.prototype._addOverlay = function(shape, waypoint) {
++TransactionBoundaries.prototype._getMark = function(shape, waypoint) {
+ 
+   var orientation = getOrientation(waypoint, shape, -7);
+ 
+@@ -191,77 +209,159 @@ TransactionBoundaries.prototype._addOverlay = function(shape, waypoint) {
+     position.left = waypoint.x - shape.x - defaultLength/2;
+   }
+ 
+-  this._overlays.add(shape, 'transaction-boundaries', {
+-    position: position,
+-    html: '<div style="width: '+ width +'px; height: '+ height +'px; background: #ee0000; "> </div>'
++  return { position: position, width: width, height: height };
++};
++
++
++/**
++ * Add a transaction boundary overlay for the given mark.
++ *
++ * @param {djs.model.Shape} shape
++ * @param {object} mark
++ *
++ * @return {string} the overlay id
++ */
++TransactionBoundaries.prototype._addOverlay = function(shape, mark) {
++
++  return this._overlays.add(shape, 'transaction-boundaries', {
++    position: mark.position,
++    html: '<div style="width: '+ mark.width +'px; height: '+ mark.height +'px; background: #ee0000; "> </div>'
+   });
+ };
+ 
+ 
+ /**
+- * Create overlays for all transaction boundaries.
++ * Get the transaction boundary marks of the given shape.
++ *
++ * @param {djs.model.Shape} shape
++ * @param {object} boundaries
++ *
++ * @return {Array<object>}
+  */
+-TransactionBoundaries.prototype.show = function() {
++TransactionBoundaries.prototype._getMarks = function(shape, boundaries) {
+ 
+-  var transactionBoundaryElements = this._getTransactionBoundaryElements();
++  var marks = [];
+ 
+   var self = this;
+ 
+-  forEach(transactionBoundaryElements, function(element) {
++  if (boundaries.before) {
++
++    if (shape.incoming.length > 0) {
++
++      forEach(shape.incoming, function(connection) {
++
++        if (connection.type !== 'bpmn:SequenceFlow') {
++          return;
++        }
++
++        // last waypoint of the incoming connection
++        var waypoint = connection.waypoints[connection.waypoints.length - 1];
++
++        marks.push(self._getMark(shape, waypoint));
++      });
++    } else {
++
++      // no incoming connection, calculate position in the front
++      marks.push(self._getMark(shape, {
++        x: shape.x,
++        y: shape.y + shape.height / 2
++      }));
++    }
++  }
+ 
+-    if (element.boundaries.before) {
++  if (boundaries.after) {
+ 
+-      if (element.shape.incoming.length > 0) {
++    if (shape.outgoing.length > 0) {
+ 
+-        forEach(element.shape.incoming, function(connection) {
++      forEach(shape.outgoing, function(connection) {
+ 
+-          if (connection.type !== 'bpmn:SequenceFlow') {
+-            return;
+-          }
++        if (connection.type !== 'bpmn:SequenceFlow') {
++          return;
++        }
+ 
+-          // last waypoint of the incoming connection
+-          var waypoint = connection.waypoints[connection.waypoints.length - 1];
++        // first waypoint of the outgoing connection
++        var waypoint = connection.waypoints[0];
+ 
+-          self._addOverlay(element.shape, waypoint);
+-        });
+-      } else {
++        marks.push(self._getMark(shape, waypoint));
++      });
++    } else {
+ 
+-        // no incoming connection, calculate position in the front
+-        self._addOverlay(element.shape, {
+-          x: element.shape.x,
+-          y: element.shape.y + element.shape.height / 2
+-        });
+-      }
++      // no outgoing connection, calculate position after element
++      marks.push(self._getMark(shape, {
++        x: shape.x + shape.width,
++        y: shape.y + shape.height / 2
++      }));
+     }
++  }
++
++  return marks;
++};
+ 
+-    if (element.boundaries.after) {
+ 
+-      if (element.shape.outgoing.length > 0) {
++/**
++ * Bring the rendered overlays in line with the diagram, touching only shapes
++ * whose marks or plane changed.
++ */
++TransactionBoundaries.prototype._sync = function() {
++
++  var self = this;
+ 
+-        forEach(element.shape.outgoing, function(connection) {
++  var staleShapes = new Set(this._renderedMarks.keys());
+ 
+-          if (connection.type !== 'bpmn:SequenceFlow') {
+-            return;
+-          }
++  forEach(this._getTransactionBoundaryElements(), function(element) {
+ 
+-          // first waypoint of the outgoing connection
+-          var waypoint = connection.waypoints[0];
++    var shape = element.shape,
++        marks = self._getMarks(shape, element.boundaries),
++        key = JSON.stringify(marks),
++        root = self._canvas.findRoot(shape),
++        rendered = self._renderedMarks.get(shape);
+ 
+-          self._addOverlay(element.shape, waypoint);
+-        });
+-      } else {
++    staleShapes.delete(shape);
+ 
+-        // no outgoing connection, calculate position after element
+-        self._addOverlay(element.shape, {
+-          x: element.shape.x + element.shape.width,
+-          y: element.shape.y + element.shape.height / 2
+-        });
+-      }
++    // Overlays decides plane visibility on add only, so a plane change re-renders.
++    if (rendered && rendered.key === key && rendered.root === root) {
++      return;
++    }
++
++    if (rendered) {
++      self._removeOverlays(rendered.overlayIds);
+     }
+ 
++    self._renderedMarks.set(shape, {
++      key: key,
++      root: root,
++      overlayIds: marks.map(function(mark) {
++        return self._addOverlay(shape, mark);
++      })
++    });
++  });
++
++  staleShapes.forEach(function(shape) {
++    self._removeOverlays(self._renderedMarks.get(shape).overlayIds);
++    self._renderedMarks.delete(shape);
++  });
++};
++
++
++TransactionBoundaries.prototype._removeOverlays = function(overlayIds) {
++
++  var overlays = this._overlays;
++
++  overlayIds.forEach(function(overlayId) {
++    overlays.remove(overlayId);
+   });
++};
++
++
++/**
++ * Create overlays for all transaction boundaries. Calling it again only
++ * re-renders what changed.
++ */
++TransactionBoundaries.prototype.show = function() {
+ 
+   this.active = true;
++
++  this._sync();
+ };
+ 
+ 
+@@ -271,6 +371,8 @@ TransactionBoundaries.prototype.show = function() {
+ TransactionBoundaries.prototype.hide = function() {
+   this._overlays.remove({ type: 'transaction-boundaries' });
+ 
++  this._renderedMarks.clear();
++
+   this.active = false;
+ };
+ 
