@@ -1,0 +1,57 @@
+name: Dependabot Dedupe
+
+# Dependabot bumps direct dependencies but never runs `yarn dedupe`, so its npm
+# PRs leave stale transitive lockfile entries that the `yarn dedupe --check`
+# gate in build.yml rejects. Commit the dedupe onto the Dependabot branch.
+on:
+  pull_request:
+    paths:
+      - 'yarn.lock'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-dedupe-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dedupe:
+    # PR author, not actor: the re-run triggered by our own push must still
+    # match, and then finds nothing to dedupe.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      # update-lockfile skips the link step, so no lifecycle script of a bumped
+      # package runs while a write token exists in this job.
+      - run: yarn dedupe --mode=update-lockfile
+      - id: lockfile
+        run: git diff --quiet yarn.lock || echo "changed=true" >> "$GITHUB_OUTPUT"
+      # A GITHUB_TOKEN push would not re-trigger CI on the new head commit.
+      # Dependabot-triggered runs only see Dependabot secrets, so the App key
+      # must be stored there as well.
+      - if: steps.lockfile.outputs.changed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_PLEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+      - if: steps.lockfile.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # [dependabot skip] keeps Dependabot rebasing the PR over this commit.
+          git commit -m "chore(deps): dedupe yarn.lock [dependabot skip]" yarn.lock
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "HEAD:${HEAD_REF}"
