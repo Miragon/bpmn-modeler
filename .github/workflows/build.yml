@@ -115,6 +115,8 @@ jobs:
               - 'packages/dmn-modeler/package.json'
               - 'apps/*/package.json'
               - 'libs/*/package.json'
+              - 'package.json'
+              - 'yarn.config.cjs'
               - 'yarn.lock'
             bpmn-webview:
               - 'apps/bpmn-webview/**'
@@ -828,8 +830,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
-      # Constraints read manifests + yarn.lock only — no yarn install needed.
+      # Constraints and dedupe read manifests + yarn.lock only — no yarn install needed.
       - run: yarn constraints
+      - run: yarn dedupe --check
 
   build-dmn-webview:
     needs: detect-changes

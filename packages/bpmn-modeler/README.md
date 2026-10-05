@@ -823,13 +823,21 @@ brings no extra stylesheet wiring.
   instance starts with an empty undo history. Only the view state is preserved, not the edit
   history.
 - **Bundler dedupe.** The modeler and its plugins must share single copies of
-  `preact` and the properties-panel / CodeMirror stack. If you build with Vite, add these to
+  `preact`, the bpmn-js / diagram-js / moddle core, and the properties-panel / CodeMirror
+  stack. `camunda-bpmn-js` declares caret ranges for bpmn-js and diagram-js, so package
+  managers that resolve each range independently (Yarn Berry, pnpm) can install a second,
+  newer copy next to the one this package pins. If you build with Vite, add these to
   `resolve.dedupe`:
 
   ```ts
   resolve: {
       dedupe: [
           "preact",
+          "bpmn-js",
+          "diagram-js",
+          "bpmn-moddle",
+          "moddle",
+          "bpmn-js-create-append-anything",
           "@bpmn-io/properties-panel",
           "@codemirror/state",
           "@codemirror/view",

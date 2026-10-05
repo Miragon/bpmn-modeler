@@ -1,7 +1,7 @@
 # Release and publishing
 
 - Status: accepted
-- Last reviewed: 2026-09-21
+- Last reviewed: 2026-10-05
 
 ## Context
 
@@ -100,9 +100,21 @@ consistent while allowing that consumer difference.
 
 The [Yarn constraint](../../yarn.config.cjs) checks aligned dependency pins
 between published packages and in-repo consumers, excluding peer dependencies;
-conflicting shared pins fail rather than choosing one silently. Immutable CI
-installs additionally catch lockfile drift. Package build/declaration checks and
-the consumer smoke scripts enforce the distribution boundary.
+conflicting shared pins fail rather than choosing one silently. It also fails
+when an identity-sensitive bpmn-io package (bpmn-js, diagram-js, bpmn-moddle,
+moddle, the properties panels, element templates, create-append-anything)
+resolves to more than one version: a stale transitive range once nested a second
+bpmn-js under camunda-bpmn-js, so Implement ran a different bpmn-js than
+View/Design. CI also runs `yarn dedupe --check`, so the lockfile holds no
+duplicates across overlapping ranges; the constraint still catches ranges that
+do not overlap, which need a root resolution. Dependabot never dedupes, so the
+[dedupe workflow](../../.github/workflows/dependabot-dedupe.yml) commits
+`yarn dedupe` onto its npm PRs with the release GitHub App; the App's private key
+is therefore also a Dependabot secret. That workflow skips the link step, so no
+lifecycle script of a bumped package runs next to the write token. The webview
+Vite configs dedupe the core of the identity-sensitive set as a second line of
+defence. Immutable CI installs additionally catch lockfile drift. Package build/declaration checks and the consumer smoke scripts
+enforce the distribution boundary.
 
 ### Standalone Linux Git
 

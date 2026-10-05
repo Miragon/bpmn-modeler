@@ -41,6 +41,52 @@ function constrainPatchedVersions(Yarn) {
     }
 }
 
+// These packages carry identity — instanceof checks, moddle registries, DI
+// modules, preact contexts — so a stale transitive lock entry that nests a second
+// copy splits one modeler across two versions.
+const SINGLE_VERSION_PACKAGES = [
+    "bpmn-js",
+    "diagram-js",
+    "bpmn-moddle",
+    "moddle",
+    "@bpmn-io/properties-panel",
+    "bpmn-js-properties-panel",
+    "bpmn-js-element-templates",
+    "bpmn-js-create-append-anything",
+];
+
+// Yarn 4 never populates the `Yarn.packages()` index, so walk the resolved graph
+// from the workspace dependencies instead.
+function collectResolvedVersions(Yarn) {
+    const versionsByIdent = new Map();
+    const visited = new Set();
+    const pending = Yarn.dependencies()
+        .map((dependency) => dependency.resolution)
+        .filter(Boolean);
+    while (pending.length > 0) {
+        const pkg = pending.pop();
+        if (visited.has(pkg)) continue;
+        visited.add(pkg);
+        if (!versionsByIdent.has(pkg.ident)) versionsByIdent.set(pkg.ident, new Set());
+        versionsByIdent.get(pkg.ident).add(pkg.version);
+        pending.push(...pkg.dependencies.values());
+    }
+    return versionsByIdent;
+}
+
+function constrainSingleResolvedVersion(Yarn) {
+    const rootWorkspace = Yarn.workspace({ cwd: "." });
+    const versionsByIdent = collectResolvedVersions(Yarn);
+    for (const ident of SINGLE_VERSION_PACKAGES) {
+        const versions = versionsByIdent.get(ident) ?? new Set();
+        if (versions.size <= 1) continue;
+        rootWorkspace.error(
+            `${ident} resolves to ${versions.size} versions (${[...versions].join(", ")}); ` +
+                `run \`yarn dedupe ${ident}\`, or add a root resolution if the ranges don't overlap.`,
+        );
+    }
+}
+
 module.exports = {
     async constraints({ Yarn }) {
         // ident → [{ range, from, pin }] across the publishable packages.
@@ -81,5 +127,6 @@ module.exports = {
         }
 
         constrainPatchedVersions(Yarn);
+        constrainSingleResolvedVersion(Yarn);
     },
 };
