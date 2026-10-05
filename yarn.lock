@@ -8905,10 +8905,10 @@ __metadata:
 
 "camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch":
   version: 1.1.2
-  resolution: "camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch::version=1.1.2&hash=ae806e"
+  resolution: "camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch::version=1.1.2&hash=05e449"
   dependencies:
     min-dash: "npm:^3.5.2"
-  checksum: 10c0/db50a398b197e8dffbd51d8afd2fdc2107c1d3ec557e390043b23141f38d9f2a0d37d4d57f5989d783447407bdbb5b71bafff4da6e05ddf53541a4bc7536d7fb
+  checksum: 10c0/0f594bf9b5d68848d51fcca64bc1510b9e821415c5da7d555a2ccf7d9d16ba5bfebddccd8e49a61afa2ac38c4117a2efbdee14ebc9dfa8ab24113e1702c8be55
   languageName: node
   linkType: hard
 

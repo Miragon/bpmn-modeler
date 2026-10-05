@@ -1,5 +1,5 @@
 import type { Connection, Element, Shape } from "bpmn-js/lib/model/Types";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createModeler } from "./createModeler";
 import type { BpmnModeler } from "./modeler";
@@ -186,6 +186,27 @@ describe("transaction boundaries", () => {
         handle.setSettings({ showTransactionBoundaries: true, alignToOrigin: false });
 
         expect(renderedMarks(handle)).toHaveLength(FIXTURE_MARK_COUNT);
+    });
+
+    // The patched show() is idempotent, so only call counts catch a regression npm consumers would see.
+    it("toggles the service only when the setting changes its state", async () => {
+        const handle = await openModeler();
+        await handle.loadDiagram(FIXTURE_XML);
+        const service = transactionBoundaries(handle);
+        const show = vi.spyOn(service, "show");
+        const hide = vi.spyOn(service, "hide");
+
+        handle.setSettings({ showTransactionBoundaries: true });
+        handle.setSettings({ colorTheme: "light" });
+        expect(show).not.toHaveBeenCalled();
+        expect(hide).not.toHaveBeenCalled();
+
+        handle.setSettings({ showTransactionBoundaries: false });
+        handle.setSettings({ showTransactionBoundaries: false });
+        expect(hide).toHaveBeenCalledTimes(1);
+
+        handle.setSettings({ showTransactionBoundaries: true });
+        expect(show).toHaveBeenCalledTimes(1);
     });
 
     it("hides and shows the marks with the setting", async () => {

@@ -270,9 +270,10 @@ overlays.
 
 A Yarn patch in the root `resolutions` replaces the rebuild with a diffed sync.
 On every change it recomputes all marks in plain JS and touches overlays only
-for shapes whose marks or plane changed. Overlays decides plane visibility only
-when it adds an overlay. Classification, placement and HTML stay as upstream
-ships them. The
+for shapes whose marks or plane changed. Overlays re-checks plane visibility on
+add, `root.set` and viewbox changes, but not when a shape changes plane, so a
+plane change re-adds its overlays. Classification, placement and HTML stay as
+upstream ships them. The
 [equivalence spec](../../packages/bpmn-modeler/src/transactionBoundaries.browser.spec.ts)
 checks the marks after a chain of edits, undos and redos against a full render.
 The patch covers only hosts built here (VS Code, IntelliJ, standalone).

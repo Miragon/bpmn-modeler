@@ -219,7 +219,7 @@ index d2e4c5cf464382d1059b74531c85fac164b9f81b..3a242b4b89d87a35ab42e32a2e4c9a27
 -          y: element.shape.y + element.shape.height / 2
 -        });
 -      }
-+    // Overlays decides plane visibility on add only, so a plane change re-renders.
++    // Overlays does not re-check plane visibility on element.changed, so a plane change re-renders.
 +    if (rendered && rendered.key === key && rendered.root === root) {
 +      return;
 +    }

@@ -486,7 +486,7 @@ export class BpmnModeler {
         }
     }
 
-    // Import clears the overlays, so every import re-renders the boundaries (C7 only).
+    // Import clears the overlays, so every import re-renders the boundaries.
     private showTransactionBoundariesIfEnabled(): void {
         if (this.engine === "c7" && this.settings.showTransactionBoundaries) {
             this.getModeler().get<TransactionBoundariesService>("transactionBoundaries").show();
