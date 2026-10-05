@@ -8982,23 +8982,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-js-create-append-anything@npm:2.1.0":
+"bpmn-js-create-append-anything@npm:2.1.0, bpmn-js-create-append-anything@npm:^2.0.0":
   version: 2.1.0
   resolution: "bpmn-js-create-append-anything@npm:2.1.0"
   peerDependencies:
     bpmn-js: ">= 18.27.0"
     diagram-js: ">= 15.26.0"
   checksum: 10c0/ae75c30906908edd9e11859b0901e0a16d7f80c22345cd7a365464632b7d6eac10fd67d0762b38d6a2cdcc2d73d8216677660528be1404aa8e4461407b1b5aac
-  languageName: node
-  linkType: hard
-
-"bpmn-js-create-append-anything@npm:^2.0.0":
-  version: 2.0.0
-  resolution: "bpmn-js-create-append-anything@npm:2.0.0"
-  peerDependencies:
-    bpmn-js: ">= 18.22.0"
-    diagram-js: ">= 15.23.0"
-  checksum: 10c0/573ef5f15b9d46147534f41bb6495dbb23897d854418e8b36a78110571c6a4919ec46bdda1363d9d7fc2f921a70988409d4be2aeaf313b78b89b0672392e8889
   languageName: node
   linkType: hard
 

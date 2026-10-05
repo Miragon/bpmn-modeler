@@ -41,10 +41,9 @@ function constrainPatchedVersions(Yarn) {
     }
 }
 
-// A transitive caret range can keep an older lock entry alive and nest a second
-// copy (camunda-bpmn-js once pulled its own bpmn-js, so Implement ran a different
-// bpmn-js than View/Design). These packages carry identity — instanceof checks,
-// moddle registries, DI services, preact contexts — so two copies are a bug.
+// These packages carry identity — instanceof checks, moddle registries, DI
+// modules, preact contexts — so a stale transitive lock entry that nests a second
+// copy splits one modeler across two versions.
 const SINGLE_VERSION_PACKAGES = [
     "bpmn-js",
     "diagram-js",
@@ -53,6 +52,7 @@ const SINGLE_VERSION_PACKAGES = [
     "@bpmn-io/properties-panel",
     "bpmn-js-properties-panel",
     "bpmn-js-element-templates",
+    "bpmn-js-create-append-anything",
 ];
 
 // Yarn 4 never populates the `Yarn.packages()` index, so walk the resolved graph

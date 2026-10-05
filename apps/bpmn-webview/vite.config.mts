@@ -28,6 +28,7 @@ export default defineConfig({
             "diagram-js",
             "bpmn-moddle",
             "moddle",
+            "bpmn-js-create-append-anything",
             "@bpmn-io/properties-panel",
             "@codemirror/state",
             "@codemirror/view",

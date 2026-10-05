@@ -115,6 +115,8 @@ jobs:
               - 'packages/dmn-modeler/package.json'
               - 'apps/*/package.json'
               - 'libs/*/package.json'
+              - 'package.json'
+              - 'yarn.config.cjs'
               - 'yarn.lock'
             bpmn-webview:
               - 'apps/bpmn-webview/**'
