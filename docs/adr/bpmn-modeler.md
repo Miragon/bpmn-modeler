@@ -23,6 +23,7 @@ boundaries are defined in [Architecture and hosts](architecture-and-hosts.md#pac
 - [Properties panel](#properties-panel)
 - [Themes and locale](#themes-and-locale)
 - [Linting](#linting)
+- [Transaction boundaries](#transaction-boundaries)
 - [Diff](#diff)
 - [Formatting and cleanup](#formatting-and-cleanup)
 - [Mode session and lifecycle](#mode-session-and-lifecycle)
@@ -249,6 +250,39 @@ fails if the patch stops applying. Drop it once upstream ships the fix.
 The webview owns lazy `/lint` loading and routes results to either editable
 surface. The [lint-free entry check](../../packages/bpmn-modeler/scripts/check-lint-free-entry.mjs)
 and source architecture tests guard the import boundary.
+
+### Transaction boundaries
+
+C7 surfaces render `camunda-transaction-boundaries` as HTML overlays, on by
+default through `showTransactionBoundaries`. Upstream 1.1.2 does not make
+`show()` idempotent. Its `elements.changed` handler runs `hide()` + `show()`,
+so every edit removes and re-adds the overlay of every boundary in the diagram.
+That handler is an anonymous closure, so no wrapper can replace it. Debouncing
+would still rebuild every overlay once per edit. An incremental update from
+`event.elements` misses the former endpoints of deleted or reconnected flows.
+
+The facade calls `show()`/`hide()` from `setSettings()` only when
+`showTransactionBoundaries` is present and differs from the service's `active`
+state. It shows the boundaries after every import (`loadDiagram()` and
+`newDiagram()`), because `diagram.clear` drops the overlays. This reaches npm
+consumers too: settings that arrive more than once no longer duplicate the
+overlays.
+
+A Yarn patch in the root `resolutions` replaces the rebuild with a diffed sync.
+On every change it recomputes all marks in plain JS and touches overlays only
+for shapes whose marks or plane changed. Overlays re-checks plane visibility on
+add, `root.set` and viewbox changes, but not when a shape changes plane, so a
+plane change re-adds its overlays. Classification, placement and HTML stay as
+upstream ships them. The
+[equivalence spec](../../packages/bpmn-modeler/src/transactionBoundaries.browser.spec.ts)
+checks the marks after a chain of edits, undos and redos against a full render.
+The patch covers only hosts built here (VS Code, IntelliJ, standalone).
+`camunda-transaction-boundaries` is external in `@miragon/bpmn-modeler`, so npm
+consumers keep the per-edit rebuild until upstream ships a fix. The
+patched-version constraint in `yarn.config.cjs` fails a bump until the patch is
+dropped or regenerated. The edit-burst pin in the
+[large-model counter spec](../../packages/bpmn-modeler/src/largeModelCounters.browser.spec.ts)
+fails if the patch stops applying. Drop the patch once upstream ships the fix.
 
 ### Diff
 

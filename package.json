@@ -101,7 +101,8 @@
         "webpack-cli": "7.2.3",
         "bpmn-js-properties-panel": "patch:bpmn-js-properties-panel@npm%3A5.65.0#~/.yarn/patches/bpmn-js-properties-panel-npm-5.65.0-7e66ff7b5f.patch",
         "decompress": "patch:@xhmikosr/decompress@npm%3A11.1.4#~/.yarn/patches/xhmikosr-decompress-npm-11.1.4-commonjs.patch",
-        "bpmnlint": "patch:bpmnlint@npm%3A11.14.0#~/.yarn/patches/bpmnlint-npm-11.14.0-4301b18e5b.patch"
+        "bpmnlint": "patch:bpmnlint@npm%3A11.14.0#~/.yarn/patches/bpmnlint-npm-11.14.0-4301b18e5b.patch",
+        "camunda-transaction-boundaries": "patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch"
     },
     "packageManager": "yarn@4.18.0"
 }

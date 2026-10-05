@@ -8903,6 +8903,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch":
+  version: 1.1.2
+  resolution: "camunda-transaction-boundaries@patch:camunda-transaction-boundaries@npm%3A1.1.2#~/.yarn/patches/camunda-transaction-boundaries-npm-1.1.2-8eb65b163b.patch::version=1.1.2&hash=05e449"
+  dependencies:
+    min-dash: "npm:^3.5.2"
+  checksum: 10c0/0f594bf9b5d68848d51fcca64bc1510b9e821415c5da7d555a2ccf7d9d16ba5bfebddccd8e49a61afa2ac38c4117a2efbdee14ebc9dfa8ab24113e1702c8be55
+  languageName: node
+  linkType: hard
+
 "caniuse-lite@npm:^1.0.30001759":
   version: 1.0.30001776
   resolution: "caniuse-lite@npm:1.0.30001776"
