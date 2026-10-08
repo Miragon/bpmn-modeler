@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.15.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.14.2...vscode-v1.15.0) (2026-10-08)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** replace the mode strip with a compact mode menu ([#1628](https://github.com/Miragon/bpmn-modeler/issues/1628)) [sync b0a66ca] ([aa2c372](https://github.com/Miragon/bpmn-modeler/commit/aa2c372235d66265aef8d60ef690c556d46f7d7a))
+* replace the komet icons with the bpmn and dmn modeler icons ([#1630](https://github.com/Miragon/bpmn-modeler/issues/1630)) ([4aa0fb2](https://github.com/Miragon/bpmn-modeler/commit/4aa0fb2f7b47d3693755a76f09b28277daf266cd))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fix quadratic bpmnlint overlap and bpmndi rules ([#1609](https://github.com/Miragon/bpmn-modeler/issues/1609)) [sync 0966e35] ([15f5ccd](https://github.com/Miragon/bpmn-modeler/commit/15f5ccdcbfa07a3e445dfc9c32aa8e75599486d5))
+* **bpmn-modeler:** stop duplicating and rebuilding transaction boundaries ([#1620](https://github.com/Miragon/bpmn-modeler/issues/1620)) [sync 9c9ea61] ([e5b29be](https://github.com/Miragon/bpmn-modeler/commit/e5b29be2ddfb14ae7bb09f3d270635f749d0550a))
+* **bpmn-modeler:** stop redundant lint runs and overlay rebuilds ([#1606](https://github.com/Miragon/bpmn-modeler/issues/1606)) [sync a506d75] ([33aa226](https://github.com/Miragon/bpmn-modeler/commit/33aa226070d4d756fa5691b33f61df6d88167f7e))
+* **bpmn-webview:** apply the configured locale before the first import ([#1617](https://github.com/Miragon/bpmn-modeler/issues/1617)) [sync 63d01ce] ([df3d535](https://github.com/Miragon/bpmn-modeler/commit/df3d5357f21facb22528218e94b7b7438b11ecb8))
+* **deps:** dedupe bpmn-js, diagram-js and bpmn-moddle in the lockfile ([#1618](https://github.com/Miragon/bpmn-modeler/issues/1618)) [sync d7bc492] ([d411af5](https://github.com/Miragon/bpmn-modeler/commit/d411af568dbff7634c766768cf17b3ba67925af6))
+* **standalone:** bump electron to 42.11.8 for security advisories ([#1615](https://github.com/Miragon/bpmn-modeler/issues/1615)) [sync 84bd712] ([e21650b](https://github.com/Miragon/bpmn-modeler/commit/e21650bf23f6c88d3f376e8751007b1bcfed7d91))
+* **standalone:** bump electron-builder to 26.17.0 to restore macos signing ([#1623](https://github.com/Miragon/bpmn-modeler/issues/1623)) [sync 7b65ca5] ([aee60fa](https://github.com/Miragon/bpmn-modeler/commit/aee60faeb7eb739e7f09d0421df367c8f279de9b))
+* **standalone:** restore packaged file search with Theia 1.76 ([#1610](https://github.com/Miragon/bpmn-modeler/issues/1610)) [sync 6816f03] ([b77a011](https://github.com/Miragon/bpmn-modeler/commit/b77a011148de042aebac65dd32a3468425b1e850))
+
 ## [1.14.2](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.14.1...vscode-v1.14.2) (2026-09-28)
 
 
