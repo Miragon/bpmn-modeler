@@ -1,6 +1,10 @@
 import { ConfigurationTarget, workspace } from "vscode";
 
-import { MarketplaceSettingsEntry, SettingsPort } from "@miragon/bpmn-modeler-core";
+import {
+    MarketplaceSettingsEntry,
+    PropertiesPanelInitialState,
+    SettingsPort,
+} from "@miragon/bpmn-modeler-core";
 import { SurfaceMode } from "@miragon/bpmn-modeler-types";
 
 /**
@@ -61,6 +65,18 @@ export class VsCodeSettings implements SettingsPort {
         return workspace
             .getConfiguration("miragon.bpmnModeler")
             .get<string[]>("favouriteBpmnElements", []);
+    }
+
+    /**
+     * How a freshly opened diagram decides whether to show its properties
+     * panel. Defaults to `remember`, the behaviour every version so far has
+     * had: follow the persisted global default.
+     */
+    getPropertiesPanelInitialState(): PropertiesPanelInitialState {
+        const value = workspace
+            .getConfiguration("miragon.bpmnModeler")
+            .get<string>("propertiesPanel.initialState", "remember");
+        return value === "collapsed" || value === "open" ? value : "remember";
     }
 
     getLanguage(): string {
