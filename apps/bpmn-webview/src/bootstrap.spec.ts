@@ -727,11 +727,7 @@ describe("bootstrap mode switching", () => {
     }
 
     const modeButtons = () =>
-        Array.from(
-            document
-                .getElementById("js-properties-panel")!
-                .querySelectorAll<HTMLButtonElement>(".mode-button"),
-        );
+        Array.from(document.querySelectorAll<HTMLButtonElement>(".mode-menu-item"));
 
     const sentTypes = (host: { postMessage: ReturnType<typeof vi.fn> }): string[] =>
         host.postMessage.mock.calls.map(([m]) => (m as { type: string }).type);
@@ -753,11 +749,11 @@ describe("bootstrap mode switching", () => {
         expect(mocks.createDesigner.mock.calls[0][1].propertiesPanel.parent.id).toBe(
             "js-properties-panel-mount",
         );
-        // The strip always renders all three buttons; Implement is greyed out on
+        // The strip always offers all three modes; Implement is greyed out on
         // an untagged model (discoverable rather than hidden).
         const [view, design, implement] = modeButtons();
         expect(view.getAttribute("aria-disabled")).toBeNull();
-        expect(design.getAttribute("aria-pressed")).toBe("true");
+        expect(design.getAttribute("aria-checked")).toBe("true");
         expect(implement.getAttribute("aria-disabled")).toBe("true");
     });
 

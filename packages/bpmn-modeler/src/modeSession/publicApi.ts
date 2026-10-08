@@ -7,12 +7,12 @@ import type { BpmnDesignerHandle } from "../design/publicApi";
 /**
  * The public TypeScript surface of `@miragon/bpmn-modeler/mode`: the
  * View ↔ Design ↔ Implement session that owns the single live surface for a BPMN
- * page and switches it between modes, plus the opt-in segmented-control strip.
+ * page and switches it between modes, plus the opt-in mode strip.
  *
  * `/mode` value-imports **no** bpmn-js / Camunda code — the consumer injects the
  * per-mode surface factories (`createViewer` / `createDesigner` / `createModeler`),
- * so a consumer that supplies one factory gets one mode and no buttons. The strip
- * ({@link mountModeStrip}) is a separate export that only renders a group when two
+ * so a consumer that supplies one factory gets one mode and no control. The strip
+ * ({@link mountModeStrip}) is a separate export that only renders its chip when two
  * or more modes are available. See the
  * [mode-session decision](../../../../docs/adr/bpmn-modeler.md#mode-session-and-lifecycle).
  */
@@ -44,7 +44,7 @@ export interface ModelerSurfaceContext extends SurfaceContext {
 /**
  * The per-mode surface factories a consumer injects. Each is optional: the set
  * that is present decides which modes the session offers (and therefore which
- * buttons the strip renders). A surface's availability also honours the engine
+ * entries the strip offers). A surface's availability also honours the engine
  * rule (`implement` needs a tagged model).
  */
 export interface SurfaceFactories {

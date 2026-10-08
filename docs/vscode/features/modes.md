@@ -33,10 +33,11 @@ document is left exactly as it is.
 
 ## Switching modes
 
-A segmented **mode strip** sits in the properties-panel header. Click **View**,
-**Design**, or **Implement** to switch the current editor's surface. When the
-properties panel is collapsed, the strip shrinks to a single-letter badge
-(**V** / **D** / **I**) showing the active mode.
+A **mode chip** sits in the top-left corner of the canvas, right of the Token
+Simulation toggle, and shows the active mode. Click it and pick **View**,
+**Design**, or **Implement** from the menu to switch the current editor's
+surface; each entry carries a one-line description. The chip stays reachable
+while the properties panel is collapsed.
 
 Switching between **Design** and **Implement** on a tagged model is a live
 toggle — the model stays loaded and undo history survives. Any switch that

@@ -9,6 +9,7 @@
 const dictionary: Record<string, string> = {
     "Apply Template": "Apply Template",
     "Being edited in": "Being edited in",
+    "Camunda properties, templates and lint": "Camunda properties, templates and lint",
     "Clear search": "Clear search",
     "Close": "Close",
     "Collapse": "Collapse",
@@ -16,12 +17,14 @@ const dictionary: Record<string, string> = {
     "Design": "Design",
     "Element Templates": "Element Templates",
     "Element actions": "Element actions",
+    "Engine-neutral modeling": "Engine-neutral modeling",
     "Expand": "Expand",
     "Favourites": "Favourites",
     "Implement": "Implement",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.",
     "Mode": "Mode",
+    "Mode: {mode}": "Mode: {mode}",
     "No templates found": "No templates found",
     "No visible parameters": "No visible parameters",
     "Other": "Other",
@@ -39,7 +42,6 @@ const dictionary: Record<string, string> = {
     "read-only": "read-only",
     "required": "required",
     "{count} properties": "{count} properties",
-    "{mode} — open properties panel": "{mode} — open properties panel",
 };
 
 export default dictionary;

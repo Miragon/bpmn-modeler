@@ -7,21 +7,28 @@ import {
 import { i18n } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
 
-/** Human-readable label for the segmented control. */
+/** Human-readable label for the mode chip and the menu entries. */
 export const MODE_LABEL: Record<SurfaceMode, string> = {
     view: "View",
     design: "Design",
     implement: "Implement",
 };
 
-/** Single-letter badge shown on the collapsed-panel rail. */
+/** One-line explanation shown below each menu entry. */
+export const MODE_DESCRIPTION: Record<SurfaceMode, string> = {
+    view: "Read-only",
+    design: "Engine-neutral modeling",
+    implement: "Camunda properties, templates and lint",
+};
+
+/** @deprecated The strip no longer renders a collapsed-rail badge. */
 export const MODE_BADGE: Record<SurfaceMode, string> = {
     view: "V",
     design: "D",
     implement: "I",
 };
 
-/** Tooltip on the Implement button when the model carries no execution platform. */
+/** Tooltip on the Implement entry when the model carries no execution platform. */
 export const IMPLEMENT_UNAVAILABLE_HINT =
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.";
 
@@ -32,18 +39,18 @@ export type ModeStripTranslate = (
 ) => string;
 
 export interface ModeStripOptions {
-    /** The segmented-control row the strip mounts its group into. */
+    /**
+     * The canvas-side anchor the strip mounts its mode chip and menu into; place
+     * it as a direct child of the diagram container.
+     */
     stripEl: HTMLElement;
     /** Optional host element that carries `data-surface-mode` / `aria-busy`. */
     host?: HTMLElement;
-    /**
-     * The panel resizer element; hosts the collapsed-rail badge. Optional — when
-     * absent the badge is skipped and the strip still renders its buttons.
-     */
+    /** @deprecated Ignored: the strip no longer renders a collapsed-rail badge. */
     resizerEl?: HTMLElement;
-    /** Reveals the properties panel when the collapsed-rail badge is clicked. */
+    /** @deprecated Ignored: the strip no longer renders a collapsed-rail badge. */
     revealPanel?: () => void;
-    /** Which mode buttons to render, in order; defaults to all three. */
+    /** Which modes to offer, in order; defaults to all three. */
     modes?: readonly SurfaceMode[];
     /** Translates the labels; defaults to the modeler's i18n (extended with the overlay). */
     translate?: ModeStripTranslate;
@@ -64,14 +71,22 @@ export interface ModeStrip {
     destroy(): void;
 }
 
+const CARET_SVG =
+    '<svg class="mode-chip-caret" viewBox="0 0 8 8" aria-hidden="true">' +
+    '<path d="M1 2.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+
+const MENU_GAP = 4;
+const TOGGLE_GAP = 8;
+const VIEWPORT_MARGIN = 8;
+
 /**
- * Builds the mode segmented control (in the panel header) and the collapsed-rail
- * badge (on the resizer). {@link ModeStrip.render} is idempotent: it re-derives
- * each button's pressed/disabled state and the badge letter from the given state.
+ * Builds the mode chip (on the canvas, next to the token-simulation toggle) and
+ * the mode menu it opens. {@link ModeStrip.render} is idempotent: it re-derives
+ * the chip label and each entry's checked/disabled state from the given state.
  *
- * When fewer than two modes are rendered the strip mounts **no** group and **no**
- * badge — it still stamps `data-surface-mode` / `aria-busy` on `host` — so a
- * single-mode session shows no buttons.
+ * When fewer than two modes are offered the strip mounts **no** chip or menu —
+ * it still stamps `data-surface-mode` / `aria-busy` on `host` — so a
+ * single-mode session shows no control.
  */
 export function mountModeStrip(opts: ModeStripOptions): ModeStrip {
     const modes = opts.modes ?? SURFACE_MODES;
@@ -88,115 +103,196 @@ export function mountModeStrip(opts: ModeStripOptions): ModeStrip {
     const registerLabelChange =
         opts.onLabelChange ?? ((apply) => (labelDisposer = i18n.onChange(apply)));
 
-    const buttons = new Map<SurfaceMode, HTMLButtonElement>();
-    // Fewer than two modes ⇒ no group, no badge (the single-mode guarantee).
-    const showControls = modes.length >= 2;
+    const stampHost = (state: ModeStripState): void => {
+        opts.host?.setAttribute("data-surface-mode", state.mode);
+        opts.host?.setAttribute("aria-busy", state.busy ? "true" : "false");
+    };
 
-    let group: HTMLDivElement | undefined;
-    let badge: HTMLButtonElement | undefined;
-    let onKeyDown: ((event: KeyboardEvent) => void) | undefined;
+    // Fewer than two modes ⇒ no control at all (the single-mode guarantee).
+    if (modes.length < 2) {
+        return { render: stampHost, destroy: () => undefined };
+    }
 
-    if (showControls) {
-        group = document.createElement("div");
-        group.className = "mode-group";
-        group.setAttribute("role", "group");
-        group.setAttribute("aria-label", t("Mode"));
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "mode-chip";
+    chip.setAttribute("aria-haspopup", "menu");
+    chip.setAttribute("aria-expanded", "false");
+    const chipLabel = document.createElement("span");
+    chipLabel.className = "mode-chip-label";
+    chip.appendChild(chipLabel);
+    chip.insertAdjacentHTML("beforeend", CARET_SVG);
+    opts.stripEl.appendChild(chip);
 
-        for (const mode of modes) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "mode-button";
-            button.addEventListener("click", () => {
-                // A real `disabled` attribute suppresses the tooltip in some
-                // browsers, so unavailability is expressed via aria + an ignored click.
-                if (button.getAttribute("aria-disabled") === "true") {
-                    return;
-                }
-                opts.onSelect(mode);
-            });
-            buttons.set(mode, button);
-            group.appendChild(button);
-        }
+    const menu = document.createElement("div");
+    menu.className = "mode-menu";
+    menu.setAttribute("role", "menu");
+    menu.hidden = true;
+    opts.stripEl.appendChild(menu);
 
-        opts.stripEl.appendChild(group);
-
-        onKeyDown = (event: KeyboardEvent): void => {
-            if (event.key === "Escape") {
-                opts.onEscape?.();
+    const items = new Map<SurfaceMode, HTMLButtonElement>();
+    for (const mode of modes) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "mode-menu-item";
+        item.dataset.mode = mode;
+        item.setAttribute("role", "menuitemradio");
+        item.innerHTML =
+            '<span class="mode-menu-item-label"></span>' +
+            '<span class="mode-menu-item-description"></span>';
+        item.addEventListener("click", () => {
+            // A real `disabled` attribute suppresses the tooltip in some
+            // browsers, so unavailability is expressed via aria + an ignored click.
+            if (item.getAttribute("aria-disabled") === "true") {
+                return;
             }
-        };
-        opts.stripEl.addEventListener("keydown", onKeyDown);
-
-        // The collapsed-rail badge: shown (via CSS) only while the panel is
-        // collapsed, so the current mode stays visible and the panel is one click
-        // away. Skipped when no resizer element is supplied.
-        if (opts.resizerEl) {
-            badge = document.createElement("button");
-            badge.type = "button";
-            badge.className = "mode-badge";
-            badge.addEventListener("mousedown", (event) => event.stopPropagation());
-            badge.addEventListener("click", (event) => {
-                event.stopPropagation();
-                opts.revealPanel?.();
-            });
-            opts.resizerEl.appendChild(badge);
-        }
+            closeMenu();
+            opts.onSelect(mode);
+        });
+        items.set(mode, item);
+        menu.appendChild(item);
     }
 
     let lastState: ModeStripState | undefined;
+    let open = false;
 
-    const applyLabels = (state: ModeStripState): void => {
-        if (!group) {
+    chip.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (open) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    });
+    chip.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown" && !open) {
+            event.preventDefault();
+            openMenu();
+        } else if (event.key === "Escape" && !open) {
+            opts.onEscape?.();
+        }
+    });
+
+    function openMenu(): void {
+        open = true;
+        chip.setAttribute("aria-expanded", "true");
+        menu.hidden = false;
+        placeMenu();
+        (lastState && items.get(lastState.mode))?.focus();
+        document.addEventListener("mousedown", onOutsidePress, true);
+        window.addEventListener("resize", onViewportResize);
+    }
+
+    function closeMenu({ restoreFocus = true } = {}): void {
+        if (!open) {
             return;
         }
-        group.setAttribute("aria-label", t("Mode"));
-
-        for (const [buttonMode, button] of buttons) {
-            const available = isModeAvailable(buttonMode, state.engine);
-            button.textContent = t(MODE_LABEL[buttonMode]);
-            button.setAttribute("aria-pressed", buttonMode === state.mode ? "true" : "false");
-            if (available) {
-                button.removeAttribute("aria-disabled");
-                button.removeAttribute("title");
-            } else {
-                button.setAttribute("aria-disabled", "true");
-                button.title = t(IMPLEMENT_UNAVAILABLE_HINT);
-            }
+        open = false;
+        chip.setAttribute("aria-expanded", "false");
+        menu.hidden = true;
+        document.removeEventListener("mousedown", onOutsidePress, true);
+        window.removeEventListener("resize", onViewportResize);
+        if (restoreFocus) {
+            chip.focus();
         }
+    }
 
-        if (badge) {
-            badge.textContent = MODE_BADGE[state.mode];
-            const label = t("{mode} — open properties panel", {
-                mode: t(MODE_LABEL[state.mode]),
-            });
-            badge.setAttribute("aria-label", label);
-            badge.title = label;
+    // Fixed positioning, clamped to the viewport, so a small canvas never clips the menu.
+    function placeMenu(): void {
+        const anchor = chip.getBoundingClientRect();
+        const { width, height } = menu.getBoundingClientRect();
+        menu.style.left = `${clamp(anchor.left, window.innerWidth - width)}px`;
+        menu.style.top = `${clamp(anchor.bottom + MENU_GAP, window.innerHeight - height)}px`;
+    }
+
+    function clamp(position: number, max: number): number {
+        return Math.max(VIEWPORT_MARGIN, Math.min(position, max - VIEWPORT_MARGIN));
+    }
+
+    function onOutsidePress(event: MouseEvent): void {
+        const target = event.target as Node;
+        if (!menu.contains(target) && !chip.contains(target)) {
+            closeMenu({ restoreFocus: false });
+        }
+    }
+
+    function onViewportResize(): void {
+        closeMenu({ restoreFocus: false });
+    }
+
+    menu.addEventListener("keydown", (event) => {
+        const entries = [...items.values()];
+        const current = entries.indexOf(document.activeElement as HTMLButtonElement);
+        const targetByKey: Record<string, number> = {
+            ArrowDown: (current + 1) % entries.length,
+            ArrowUp: (current - 1 + entries.length) % entries.length,
+            Home: 0,
+            End: entries.length - 1,
+        };
+        if (event.key in targetByKey) {
+            event.preventDefault();
+            entries[targetByKey[event.key]].focus();
+        } else if (event.key === "Escape") {
+            event.stopPropagation();
+            closeMenu();
+        } else if (event.key === "Tab") {
+            closeMenu({ restoreFocus: false });
+        }
+    });
+
+    const applyLabels = (state: ModeStripState): void => {
+        const currentLabel = t(MODE_LABEL[state.mode]);
+        const triggerLabel = t("Mode: {mode}", { mode: currentLabel });
+        menu.setAttribute("aria-label", t("Mode"));
+
+        chipLabel.textContent = currentLabel;
+        chip.setAttribute("aria-label", triggerLabel);
+        chip.title = triggerLabel;
+
+        for (const [itemMode, item] of items) {
+            item.querySelector(".mode-menu-item-label")!.textContent = t(MODE_LABEL[itemMode]);
+            item.querySelector(".mode-menu-item-description")!.textContent = t(
+                MODE_DESCRIPTION[itemMode],
+            );
+            item.setAttribute("aria-checked", itemMode === state.mode ? "true" : "false");
+            if (isModeAvailable(itemMode, state.engine)) {
+                item.removeAttribute("aria-disabled");
+                item.removeAttribute("title");
+            } else {
+                item.setAttribute("aria-disabled", "true");
+                item.title = t(IMPLEMENT_UNAVAILABLE_HINT);
+            }
         }
     };
 
-    if (showControls) {
-        registerLabelChange(() => {
-            if (lastState) {
-                applyLabels(lastState);
-            }
-        });
-    }
+    // The toggle belongs to the live surface, so it is recreated on a mode
+    // switch and absent before the first surface exists.
+    const alignBesideTokenSimulationToggle = (): void => {
+        const toggle = opts.stripEl.parentElement?.querySelector<HTMLElement>(".bts-toggle-mode");
+        opts.stripEl.style.left = toggle
+            ? `${toggle.offsetLeft + toggle.offsetWidth + TOGGLE_GAP}px`
+            : "";
+    };
+
+    registerLabelChange(() => {
+        if (lastState) {
+            applyLabels(lastState);
+        }
+    });
 
     return {
         render(state: ModeStripState): void {
             lastState = state;
-            opts.host?.setAttribute("data-surface-mode", state.mode);
-            opts.host?.setAttribute("aria-busy", state.busy ? "true" : "false");
+            stampHost(state);
+            alignBesideTokenSimulationToggle();
             applyLabels(state);
         },
         destroy(): void {
             labelDisposer?.();
-            if (onKeyDown) {
-                opts.stripEl.removeEventListener("keydown", onKeyDown);
-            }
-            group?.remove();
-            badge?.remove();
-            buttons.clear();
+            closeMenu({ restoreFocus: false });
+            chip.remove();
+            menu.remove();
+            items.clear();
         },
     };
 }

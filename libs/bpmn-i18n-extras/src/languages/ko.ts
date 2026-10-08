@@ -9,6 +9,7 @@
 const dictionary: Record<string, string> = {
     "Apply Template": "템플릿 적용",
     "Being edited in": "편집 중:",
+    "Camunda properties, templates and lint": "Camunda 속성, 템플릿 및 린트",
     "Clear search": "검색 지우기",
     "Close": "닫기",
     "Collapse": "접기",
@@ -16,12 +17,14 @@ const dictionary: Record<string, string> = {
     "Design": "디자인",
     "Element Templates": "요소 템플릿",
     "Element actions": "요소 작업",
+    "Engine-neutral modeling": "엔진 중립적 모델링",
     "Expand": "펼치기",
     "Favourites": "즐겨찾기",
     "Implement": "구현",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "구현하려면 Camunda 실행 플랫폼이 필요하지만 이 모델에는 없습니다. 사용하려면 하나를 지정하세요.",
     "Mode": "모드",
+    "Mode: {mode}": "모드: {mode}",
     "No templates found": "템플릿을 찾을 수 없음",
     "No visible parameters": "표시할 매개변수 없음",
     "Other": "기타",
@@ -39,7 +42,6 @@ const dictionary: Record<string, string> = {
     "read-only": "읽기 전용",
     "required": "필수",
     "{count} properties": "{count}개 속성",
-    "{mode} — open properties panel": "{mode} — 속성 패널 열기",
 };
 
 export default dictionary;

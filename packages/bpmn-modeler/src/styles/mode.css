@@ -1,7 +1,8 @@
 /*
- * Canvas-side mode strip (View / Design / Implement) for `@miragon/bpmn-modeler/mode`.
- * The panel host (`.panel-host`) becomes a flex column: a fixed mode strip on
- * top, the scrolling properties-panel mount below. Colours are driven by the
+ * Mode chip and menu (View / Design / Implement) for `@miragon/bpmn-modeler/mode`.
+ * The chip sits on the canvas, right of the token-simulation toggle, and matches
+ * its size. The panel host (`.panel-host`) is a flex column holding the scrolling
+ * properties-panel mount. Colours are driven by the
  * host's `--vscode-*` custom properties (VS Code exposes them; IntelliJ injects
  * the same variables) with static fallbacks for the plain-browser preview; a
  * consumer with its own design tokens overrides the properties it cares about.
@@ -10,8 +11,8 @@
  * container ancestor (a per-instance scope).
  */
 
-/* Flex column so the strip stays pinned while the panel scrolls. `overflow:hidden`
- * lets the collapsed `width:0` win over the flex `min-width:auto` default. The
+/* `overflow:hidden` lets the collapsed `width:0` win over the flex
+ * `min-width:auto` default. The
  * compound `.properties-panel-parent.panel-host` selector wins the `overflow` tie
  * with default.css `.properties-panel-parent { overflow:auto }` regardless of
  * import order; bare `.panel-host` stays for consumers embedding without the
@@ -23,14 +24,13 @@
     overflow: hidden;
 }
 
+/* Shares the token-simulation toggle's row; the strip sets `left` to sit right
+ * of the toggle and keeps this corner position on a surface without one. */
 .mode-strip {
-    flex: 0 0 auto;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    padding: 0 8px;
-    border-bottom: 1px solid var(--vscode-panel-border, #e0e0e0);
-    background: var(--vscode-sideBar-background, #f3f3f3);
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 11;
 }
 
 /* The scrolling panel body. `min-height:0` lets it shrink inside the flex column
@@ -48,82 +48,131 @@
     min-height: 100%;
 }
 
-/* Segmented control. */
-.mode-group {
-    display: flex;
-    gap: 2px;
-    padding: 2px;
-    background: var(--vscode-editorWidget-background, #ffffff);
-    border: 1px solid var(--vscode-widget-border, #d7d9de);
-    border-radius: 5px;
-}
-
-.mode-button {
-    padding: 3px 12px;
+.mode-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
     border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--vscode-descriptionForeground, #6b7280);
-    font: 600 12px/1.4 var(--vscode-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+    border-radius: 2px;
+    background: var(--token-simulation-silver-darken-94, #efefef);
+    color: var(--token-simulation-grey-darken-30, #212121);
+    font: 400 16px/18px
+        var(--vscode-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
     cursor: pointer;
 }
 
-.mode-button:hover {
-    background: var(--vscode-toolbar-hoverBackground, rgba(51, 93, 229, 0.06));
+.mode-chip:hover,
+.mode-chip[aria-expanded="true"] {
+    background: var(--vscode-toolbar-hoverBackground, #e0e0e0);
 }
 
-.mode-button[aria-pressed="true"] {
-    background: var(--vscode-button-background, #335de5);
-    color: var(--vscode-button-foreground, #ffffff);
+.mode-chip-caret {
+    width: 10px;
+    height: 10px;
 }
 
-.mode-button[aria-disabled="true"] {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.mode-button:focus-visible {
+.mode-chip:focus-visible,
+.mode-menu-item:focus-visible {
     outline: 2px solid var(--vscode-focusBorder, #335de5);
     outline-offset: 1px;
 }
 
-/* Collapsed-rail badge: a small pill on the resizer, just above the chevron
- * toggle. Hidden unless the panel is collapsed. */
-.mode-badge {
-    display: none;
-    position: absolute;
-    right: 0;
-    bottom: calc(50% + 24px);
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border: 1px solid var(--vscode-focusBorder, rgba(0, 120, 212, 0.4));
-    border-right: none;
-    border-radius: 4px 0 0 4px;
-    background: var(--vscode-button-background, #335de5);
-    color: var(--vscode-button-foreground, #ffffff);
-    font: 700 11px/1 var(--vscode-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
-    cursor: pointer;
-    z-index: 1;
+/* Fixed so a small canvas never clips it; the strip sets `left` / `top` when it opens. */
+.mode-menu {
+    position: fixed;
+    z-index: 1000;
+    min-width: 210px;
+    padding: 4px;
+    border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, #d7d9de));
+    border-radius: 6px;
+    background: var(--vscode-menu-background, #ffffff);
+    box-shadow: 0 4px 14px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.16));
 }
 
-.panel-resizer.collapsed .mode-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.mode-menu[hidden] {
+    display: none;
+}
+
+.mode-menu-item {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    align-items: baseline;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--vscode-menu-foreground, #1f2328);
+    font: 500 12px/1.4
+        var(--vscode-font-family, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+    text-align: left;
+    cursor: pointer;
+}
+
+.mode-menu-item::before {
+    content: "";
+    color: var(--vscode-focusBorder, #335de5);
+    font-weight: 700;
+}
+
+.mode-menu-item[aria-checked="true"]::before {
+    content: "\2713";
+}
+
+.mode-menu-item-label,
+.mode-menu-item-description {
+    grid-column: 2;
+}
+
+.mode-menu-item-description {
+    color: var(--vscode-descriptionForeground, #6b7280);
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.mode-menu-item:hover,
+.mode-menu-item:focus-visible,
+.mode-menu-item[aria-checked="true"] {
+    background: var(--vscode-list-hoverBackground, rgba(51, 93, 229, 0.08));
+}
+
+.mode-menu-item[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* ── Dark theme fallback (plain-browser preview; hosts supply --vscode-*) ──── */
-[data-bpmn-theme="dark"] .mode-strip {
-    background: var(--vscode-sideBar-background, #1a1a1a);
-    border-bottom-color: var(--vscode-panel-border, #2a2a2a);
+[data-bpmn-theme="dark"] .mode-chip {
+    background: var(--dt-surface-a10, #2a2a2a);
+    color: var(--dt-primary-a50, #9aa0aa);
 }
 
-[data-bpmn-theme="dark"] .mode-group {
-    background: var(--vscode-editorWidget-background, #2a2a2a);
-    border-color: var(--vscode-widget-border, #3a3a3a);
+[data-bpmn-theme="dark"] .mode-chip:hover,
+[data-bpmn-theme="dark"] .mode-chip[aria-expanded="true"] {
+    background: var(--dt-surface-tonal-a20, #3a3a3a);
 }
 
-[data-bpmn-theme="dark"] .mode-button {
+[data-bpmn-theme="dark"] .mode-menu {
+    background: var(--vscode-menu-background, #252526);
+    border-color: var(--vscode-menu-border, var(--vscode-widget-border, #3a3a3a));
+    box-shadow: 0 4px 14px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.5));
+}
+
+[data-bpmn-theme="dark"] .mode-menu-item {
+    color: var(--vscode-menu-foreground, #e6e6e6);
+}
+
+[data-bpmn-theme="dark"] .mode-menu-item::before {
+    color: var(--vscode-focusBorder, #6f8cf0);
+}
+
+[data-bpmn-theme="dark"] .mode-menu-item-description {
     color: var(--vscode-descriptionForeground, #9aa0aa);
+}
+
+[data-bpmn-theme="dark"] .mode-menu-item:hover,
+[data-bpmn-theme="dark"] .mode-menu-item:focus-visible,
+[data-bpmn-theme="dark"] .mode-menu-item[aria-checked="true"] {
+    background: var(--vscode-list-hoverBackground, rgba(111, 140, 240, 0.18));
 }
