@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#335de5"/>
-  <g transform="translate(66 196.9) scale(1.31908)">
-    <path fill="#00e676" d="M0,89.63l220.2-14.78c11.65-.78,23.38-2.66,33.31-5.14s22.92-8.94,29.16-19.41c3.65-6.12,5.09-13.73,5.38-18.91,.27-4.94-.99-10.2-2.54-13.33-2.76-5.55-6.11-8.42-8.55-10.26-2.45-1.84-7.55-5.77-18.08-7.35-10.53-1.58-29.62,1.2-44.31,5.84C199.87,10.92,0,89.63,0,89.63Z"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" role="img">
+  <title>Miragon Modeler für BPMN</title>
+  <rect width="24" height="24" rx="5.25" fill="#335DE5"/>
+  <rect x="2" y="7" width="9" height="10" rx="2" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="11" y="11" width="5" height="2" fill="#FFFFFF"/>
+  <path d="M18 7.5L22.5 12L18 16.5L13.5 12Z" fill="#00E676"/>
 </svg>

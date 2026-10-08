@@ -20,12 +20,21 @@ export default withMermaid(defineConfig({
             {
                 rel: "icon",
                 type: "image/png",
-                href: "/bpmn-modeler/miragon-favicon.png",
+                sizes: "32x32",
+                href: "/bpmn-modeler/favicon.png",
+            },
+        ],
+        [
+            "link",
+            {
+                rel: "icon",
+                type: "image/svg+xml",
+                href: "/bpmn-modeler/favicon.svg",
             },
         ],
     ],
     themeConfig: {
-        logo: "/miragon-favicon.png",
+        logo: "/favicon.svg",
         nav: [
             { text: "VS Code", link: "/vscode/getting-started" },
             { text: "IntelliJ", link: "/intellij/getting-started" },

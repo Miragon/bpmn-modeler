@@ -132,11 +132,6 @@ module.exports = (env, argv) => {
                         to: "schemas/form.schema.json",
                     },
                     {
-                        from: path.resolve(__dirname, "../../images/miragon-logo.png"),
-                        to: "assets",
-                        noErrorOnMissing: true,
-                    },
-                    {
                         from: path.resolve(__dirname, "../../LICENSE"),
                         to: ".",
                         noErrorOnMissing: true,
