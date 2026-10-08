@@ -148,11 +148,11 @@
     </extensions>
 
     <!-- One popup subgroup under Tools gathers the ~11 portable modeler commands so they don't
-         clutter the Tools menu; each carries the komet icon so it stays recognisable in Search
+         clutter the Tools menu; each carries the modeler icon so it stays recognisable in Search
          Everywhere / Find Action, where the group chrome is absent. -->
     <actions>
         <group id="MiragonBpmn.Tools" text="Miragon BPMN Modeler" popup="true"
-               icon="io.miragon.intellij.bpmn.MiragonIcons.Komet">
+               icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
 
             <!-- Template marketplace: sources are edited on the Settings page; these add,
@@ -160,19 +160,19 @@
             <action
                 id="io.miragon.bpmn-modeler.addMarketplace"
                 class="io.miragon.intellij.bpmn.AddMarketplaceAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Add Template Marketplace…"
                 description="Add a GitHub/GitLab repository or local folder holding a marketplace.json"/>
             <action
                 id="io.miragon.bpmn-modeler.updateMarketplaces"
                 class="io.miragon.intellij.bpmn.UpdateMarketplacesAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Update Template Marketplaces"
                 description="Re-fetch every configured template marketplace"/>
             <action
                 id="io.miragon.bpmn-modeler.removeMarketplace"
                 class="io.miragon.intellij.bpmn.RemoveMarketplaceAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Remove Template Marketplace…"
                 description="Unregister one or more template marketplaces and prune their cached templates"/>
 
@@ -182,67 +182,67 @@
             <action
                 id="io.miragon.bpmn-modeler.reloadModeler"
                 class="io.miragon.intellij.bpmn.ReloadModelerAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Reload Modeler"
                 description="Re-scan element templates and re-render open diagrams without closing the tab"/>
             <action
                 id="io.miragon.bpmn-modeler.changeEngineVersion"
                 class="io.miragon.intellij.bpmn.ChangeEngineVersionAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Change Engine Version…"
                 description="Change the Camunda engine version of the focused diagram"/>
             <action
                 id="io.miragon.bpmn-modeler.migrateAllDiagrams"
                 class="io.miragon.intellij.bpmn.MigrateAllDiagramsAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Migrate All Diagrams…"
                 description="Migrate every BPMN diagram in the workspace to a chosen engine version"/>
             <action
                 id="io.miragon.bpmn-modeler.switchDeploymentTarget"
                 class="io.miragon.intellij.bpmn.SwitchDeploymentTargetAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Switch Deployment Target…"
                 description="Choose the active named deployment target for the project"/>
             <action
                 id="io.miragon.bpmn-modeler.verifyDeployment"
                 class="io.miragon.intellij.bpmn.VerifyDeploymentAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Verify Deployment on Engine…"
                 description="Verify the focused diagram against the active Camunda 7 deployment target"/>
             <action
                 id="io.miragon.bpmn-modeler.deployFiles"
                 class="io.miragon.intellij.bpmn.DeployFilesAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Deploy Files…"
                 description="Deploy selected BPMN/DMN files to the active deployment target"/>
             <action
                 id="io.miragon.bpmn-modeler.deployDiagram"
                 class="io.miragon.intellij.bpmn.DeployDiagramAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Deploy Diagram"
                 description="Save and deploy the active diagram to the active deployment target"/>
             <action
                 id="io.miragon.bpmn-modeler.changeModelerLanguage"
                 class="io.miragon.intellij.bpmn.ChangeModelerLanguageAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Change Modeler Language…"
                 description="Choose the UI language for the BPMN modeler"/>
             <action
                 id="io.miragon.bpmn-modeler.copyDiagramAsSvg"
                 class="io.miragon.intellij.bpmn.CopyDiagramAsSvgAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Copy Diagram as SVG"
                 description="Copy the focused diagram to the clipboard as SVG"/>
             <action
                 id="io.miragon.bpmn-modeler.saveDiagramAsSvg"
                 class="io.miragon.intellij.bpmn.SaveDiagramAsSvgAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Save Diagram as SVG…"
                 description="Export the focused diagram to an SVG file"/>
             <action
                 id="io.miragon.bpmn-modeler.openAllScriptTasks"
                 class="io.miragon.intellij.bpmn.OpenAllScriptTasksAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Generate Script Files for Script Tasks"
                 description="Write a file for every inline script task of the active BPMN diagram; open a file to edit it with live sync"/>
 
@@ -251,7 +251,7 @@
             <action
                 id="io.miragon.bpmn-modeler.formatDiagram"
                 class="io.miragon.intellij.bpmn.FormatDiagramAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Format Diagram"
                 description="Rearrange the active diagram left to right and reroute its connections; one undo step">
                 <keyboard-shortcut keymap="$default" first-keystroke="control alt L"/>
@@ -259,7 +259,7 @@
             <action
                 id="io.miragon.bpmn-modeler.cleanupDiagram"
                 class="io.miragon.intellij.bpmn.CleanupDiagramAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="Clean Up Diagram"
                 description="Remove orphan diagram interchange, dangling flows and other invisible leftovers, after confirmation"/>
 
@@ -270,7 +270,7 @@
             <action
                 id="io.miragon.bpmn-modeler.newBpmnModel"
                 class="io.miragon.intellij.bpmn.NewBpmnModelAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Bpmn"
                 text="New BPMN Model…"
                 description="Create a new BPMN diagram and open it in the modeler">
                 <add-to-group group-id="NewGroup" anchor="last"/>
@@ -278,7 +278,7 @@
             <action
                 id="io.miragon.bpmn-modeler.newDmnModel"
                 class="io.miragon.intellij.bpmn.NewDmnModelAction"
-                icon="io.miragon.intellij.bpmn.MiragonIcons.Komet"
+                icon="io.miragon.intellij.bpmn.MiragonIcons.Dmn"
                 text="New DMN Model…"
                 description="Create a new DMN decision file">
                 <add-to-group group-id="NewGroup" anchor="last"/>
