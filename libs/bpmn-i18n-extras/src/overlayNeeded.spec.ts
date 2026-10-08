@@ -45,7 +45,9 @@ const SOURCE_ONLY = new Set([
     "Implement",
     "Mode",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.",
-    "{mode} — open properties panel",
+    "Mode: {mode}",
+    "Engine-neutral modeling",
+    "Camunda properties, templates and lint",
     // Append-menu / element-template-chooser chrome. The harvest driver never
     // opens either overlay (no popupMenu.open of bpmn-append/bpmn-create, no
     // elementTemplates.select), and none of these are conditional on search /

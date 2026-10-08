@@ -9,6 +9,7 @@
 const dictionary: Record<string, string> = {
     "Apply Template": "套用範本",
     "Being edited in": "正在編輯於",
+    "Camunda properties, templates and lint": "Camunda 屬性、範本與檢查",
     "Clear search": "清除搜尋",
     "Close": "關閉",
     "Collapse": "收合",
@@ -16,12 +17,14 @@ const dictionary: Record<string, string> = {
     "Design": "設計",
     "Element Templates": "元素範本",
     "Element actions": "元素操作",
+    "Engine-neutral modeling": "與引擎無關的建模",
     "Expand": "展開",
     "Favourites": "我的最愛",
     "Implement": "實作",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "「實作」需要 Camunda 執行平台，但此模型沒有。請指派一個以啟用。",
     "Mode": "模式",
+    "Mode: {mode}": "模式：{mode}",
     "No templates found": "找不到範本",
     "No visible parameters": "無可見參數",
     "Other": "其他",
@@ -39,7 +42,6 @@ const dictionary: Record<string, string> = {
     "read-only": "唯讀",
     "required": "必填",
     "{count} properties": "{count} 個屬性",
-    "{mode} — open properties panel": "{mode} — 開啟屬性面板",
 };
 
 export default dictionary;

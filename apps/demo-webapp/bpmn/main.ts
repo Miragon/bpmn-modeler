@@ -38,8 +38,7 @@ async function main(): Promise<void> {
     const host = document.getElementById("js-properties-panel");
     const panelMount = document.getElementById("js-properties-panel-mount");
     const stripEl = document.getElementById("js-mode-strip");
-    const resizerEl = document.getElementById("js-panel-resizer");
-    if (!canvas || !host || !panelMount || !stripEl || !resizerEl) {
+    if (!canvas || !host || !panelMount || !stripEl) {
         throw new Error("bpmn modeler demo: missing host elements");
     }
 
@@ -80,8 +79,6 @@ async function main(): Promise<void> {
     const strip = mountModeStrip({
         host,
         stripEl,
-        resizerEl,
-        revealPanel: () => panelHandle.setVisible(true),
         // The demo ships no i18n; labels pass through unchanged.
         translate: (template) => template,
         onSelect: (mode) => void session.requestMode(mode),

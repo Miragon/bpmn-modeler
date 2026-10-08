@@ -9,6 +9,7 @@
 const dictionary: Record<string, string> = {
     "Apply Template": "テンプレートを適用",
     "Being edited in": "編集中:",
+    "Camunda properties, templates and lint": "Camunda のプロパティ、テンプレート、リント",
     "Clear search": "検索をクリア",
     "Close": "閉じる",
     "Collapse": "折りたたむ",
@@ -16,12 +17,14 @@ const dictionary: Record<string, string> = {
     "Design": "デザイン",
     "Element Templates": "要素テンプレート",
     "Element actions": "要素アクション",
+    "Engine-neutral modeling": "エンジン非依存のモデリング",
     "Expand": "展開",
     "Favourites": "お気に入り",
     "Implement": "実装",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "実装には Camunda 実行プラットフォームが必要ですが、このモデルにはありません。有効にするには割り当ててください。",
     "Mode": "モード",
+    "Mode: {mode}": "モード: {mode}",
     "No templates found": "テンプレートが見つかりません",
     "No visible parameters": "表示可能なパラメータがありません",
     "Other": "その他",
@@ -39,7 +42,6 @@ const dictionary: Record<string, string> = {
     "read-only": "読み取り専用",
     "required": "必須",
     "{count} properties": "{count} 個のプロパティ",
-    "{mode} — open properties panel": "{mode} — プロパティパネルを開く",
 };
 
 export default dictionary;

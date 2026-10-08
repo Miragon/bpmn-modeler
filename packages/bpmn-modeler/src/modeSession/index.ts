@@ -4,7 +4,13 @@
  */
 
 export { createModeSession } from "./modeSession";
-export { mountModeStrip, MODE_LABEL, MODE_BADGE, IMPLEMENT_UNAVAILABLE_HINT } from "./modeStrip";
+export {
+    mountModeStrip,
+    MODE_LABEL,
+    MODE_DESCRIPTION,
+    MODE_BADGE,
+    IMPLEMENT_UNAVAILABLE_HINT,
+} from "./modeStrip";
 export type { ModeStrip, ModeStripOptions, ModeStripState, ModeStripTranslate } from "./modeStrip";
 export type {
     ModeSession,

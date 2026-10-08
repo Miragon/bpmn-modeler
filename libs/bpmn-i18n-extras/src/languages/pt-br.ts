@@ -9,6 +9,7 @@
 const dictionary: Record<string, string> = {
     "Apply Template": "Aplicar modelo",
     "Being edited in": "Sendo editado em",
+    "Camunda properties, templates and lint": "Propriedades do Camunda, modelos e linting",
     "Clear search": "Limpar pesquisa",
     "Close": "Fechar",
     "Collapse": "Recolher",
@@ -16,12 +17,14 @@ const dictionary: Record<string, string> = {
     "Design": "Design",
     "Element Templates": "Modelos de elemento",
     "Element actions": "Ações do elemento",
+    "Engine-neutral modeling": "Modelagem independente do motor",
     "Expand": "Expandir",
     "Favourites": "Favoritos",
     "Implement": "Implementar",
     "Implement needs a Camunda execution platform — this model has none. Assign one to enable it.":
         "Implementar precisa de uma plataforma de execução Camunda; este modelo não tem nenhuma. Atribua uma para habilitá-la.",
     "Mode": "Modo",
+    "Mode: {mode}": "Modo: {mode}",
     "No templates found": "Nenhum modelo encontrado",
     "No visible parameters": "Nenhum parâmetro visível",
     "Other": "Outros",
@@ -39,7 +42,6 @@ const dictionary: Record<string, string> = {
     "read-only": "somente leitura",
     "required": "obrigatório",
     "{count} properties": "{count} propriedades",
-    "{mode} — open properties panel": "{mode} — abrir o painel de propriedades",
 };
 
 export default dictionary;

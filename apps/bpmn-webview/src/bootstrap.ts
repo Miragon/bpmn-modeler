@@ -180,7 +180,7 @@ function startSession(
     // switch — flush/capability callbacks only fire post-init, so the
     // definite-assignment assertion is safe.
     let surface!: SurfaceHandle;
-    // The mode the live surface renders, and the segmented control that drives
+    // The mode the live surface renders, and the mode strip that drives
     // it. `switchPending` blocks re-entrant switches while a recreate is in
     // flight; `disposeCanvasObserver` tears down the per-surface size observer.
     let surfaceMode!: SurfaceMode;
@@ -637,9 +637,9 @@ function startSession(
             return;
         }
 
-        // The mode strip + panel mount are created at runtime inside the host's
-        // empty `#js-properties-panel` (all three shells ship only that host).
-        // The strip sits above a scrolling mount; the mount — not the host — is
+        // The mode strip + panel mount are created at runtime (all three shells
+        // ship only the empty `#js-canvas` / `#js-properties-panel`). The strip
+        // sits on the canvas; the panel mount — not the host — is
         // the properties-panel parent and the panel-shortcut root. `initResizer`
         // still binds to the host by its hard-coded id, so its collapse behaviour
         // is unchanged.
@@ -650,7 +650,8 @@ function startSession(
         const mountEl = document.createElement("div");
         mountEl.id = "js-properties-panel-mount";
         mountEl.className = "panel-mount";
-        propertiesPanelParent.append(stripEl, mountEl);
+        canvasEl.prepend(stripEl);
+        propertiesPanelParent.append(mountEl);
 
         const propertiesPanelHandle = initResizer({
             getToggleLabel: (state) =>
@@ -681,7 +682,6 @@ function startSession(
 
         const capabilities = injectedCapabilities ?? createProtocolCapabilities();
         const extraModules = (injectedModules as unknown[]) ?? [];
-        const resizerEl = document.getElementById("js-panel-resizer") ?? undefined;
 
         const focusCanvas = (): void => surface.getService<{ focus(): void }>("canvas").focus();
 
@@ -962,17 +962,15 @@ function startSession(
         }
         surfaceMode = modeSession.getMode();
 
-        // Always render all three buttons, greying out the ones the current
+        // Always offer all three modes, greying out the ones the current
         // engine can't reach (Implement on an untagged model) so the mode is
-        // discoverable — the strip ignores clicks on an aria-disabled button. A
+        // discoverable — the strip ignores clicks on an aria-disabled entry. A
         // click is also dropped while a switch or engine reload is in flight, and
         // otherwise queues behind the other modeler operations so it never
         // interleaves with an import.
         strip = mountModeStrip({
             host: propertiesPanelParent,
             stripEl,
-            resizerEl,
-            revealPanel: () => propertiesPanelHandle.setVisible(true),
             modes: SURFACE_MODES,
             translate: (template, replacements) => i18n.translate(template, replacements),
             onLabelChange: (apply) => i18n.onChange(apply),

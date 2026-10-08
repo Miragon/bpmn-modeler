@@ -89,8 +89,9 @@ properties depend on engine, mode, templates, and locale.
 | Main editor selector | Area |
 |---|---|
 | `#js-canvas` | SVG diagram and palette |
-| `#js-properties-panel` | Mode strip and panel host |
-| `#js-mode-strip` | View / Design / Implement controls |
+| `#js-mode-strip .mode-chip` | Current mode, right of the Token Simulation toggle; opens the mode menu |
+| `.mode-menu-item[data-mode]` | View / Design / Implement entries |
+| `#js-properties-panel` | Panel host; carries `data-surface-mode` / `aria-busy` |
 | `#js-properties-panel-mount` | Current surface's properties |
 | `#js-panel-resizer` | Resize and collapse controls |
 

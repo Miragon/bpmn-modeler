@@ -569,7 +569,7 @@ Three surfaces close the feature matrix:
 | Design  | `@miragon/bpmn-modeler/design` | yes      | none          | plain BPMN                 |
 | Viewer  | `@miragon/bpmn-modeler/viewer` | no       | —             | neutral, readonly (opt-in) |
 
-To switch a page *between* these surfaces behind a segmented control, reach for
+To switch a page *between* these surfaces behind a mode menu, reach for
 the [mode session](#mode-session) — it orchestrates the three factories rather than replacing them.
 
 ### Mode-marker semantics
@@ -706,19 +706,18 @@ const session = await createModeSession( {
 // The session builds the initial surface but loads no diagram — you own the first import.
 await session.getHandle().loadDiagram( xml );
 
-// The strip is a separate opt-in export; it renders a group only for two+ modes.
+// The strip is a separate opt-in export; it renders its chip only for two+ modes.
 const strip = mountModeStrip( {
     stripEl,
     host: panel,
     modes: session.availableModes(),
-    revealPanel: () => panelHandle.setVisible( true ),
     onSelect: ( mode ) => void session.requestMode( mode ),
 } );
 strip.render( { mode: session.getMode(), engine, busy: false } );
 ```
 
-Supply a single factory and the session has one mode and the strip renders no buttons (the "single
-mode ⇒ no buttons" guarantee):
+Supply a single factory and the session has one mode and the strip renders no control (the "single
+mode ⇒ no control" guarantee):
 
 ```ts
 const viewerOnly = await createModeSession( {
@@ -726,7 +725,7 @@ const viewerOnly = await createModeSession( {
     engine: undefined,
     surfaces: { view: ( { container, theme } ) => createViewer( container, { theme } ) },
 } );
-viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no group
+viewerOnly.availableModes(); // ["view"] — mountModeStrip renders no chip
 ```
 
 ### `ModeSessionOptions`
@@ -753,11 +752,21 @@ tears down whichever surface that transaction owns, so no callbacks fire after i
 
 ### `mountModeStrip`
 
-The segmented control + the collapsed-rail badge. `stripEl` is required; `host`
-gets `data-surface-mode` / `aria-busy`, `resizerEl` hosts the badge, `revealPanel`
-is the badge click, and `modes` (default all three) chooses which buttons render. Below two modes it
-mounts no group and no badge. `translate` / `onLabelChange`
-default to the package i18n; pass your own for a host with a different translator.
+The mode chip and the menu it opens. The chip (`.mode-chip`) shows the current mode and mounts into
+`stripEl`. Place `stripEl` as a **direct child of the diagram container**, inside a positioned
+ancestor: `mode.css` puts it in the canvas's top-left corner, and the strip moves it right of the
+token-simulation toggle whenever the surface has one. The
+menu (`.mode-menu` with `.mode-menu-item` entries, each a label plus a one-line description) is
+positioned `fixed` and clamped to the viewport.
+
+`stripEl` is required; `host` gets `data-surface-mode` / `aria-busy`, and `modes` (default all three)
+chooses which entries the menu offers. Below two modes it mounts no chip and no menu. `translate` /
+`onLabelChange` default to the package i18n; pass your own for a host with a different translator.
+
+The strip used to be a segmented control in the properties-panel header with a badge on the panel
+resizer. `.mode-group`, `.mode-button` and `.mode-badge` no longer exist, so a re-skin targeting them
+needs moving to the classes above, and `stripEl` needs moving from the panel host to the diagram
+container. `resizerEl`, `revealPanel` and `MODE_BADGE` are deprecated and ignored.
 
 ### Guaranteed absent from the module graph
 
@@ -768,7 +777,7 @@ never imported.
 
 ### Theming & stylesheet
 
-Load **`@miragon/bpmn-modeler/mode.css`** for the strip/panel-host chrome. Its colours read the
+Load **`@miragon/bpmn-modeler/mode.css`** for the chip, menu and panel-host chrome. Its colours read the
 host's `--vscode-*` custom properties with static fallbacks, and the dark rules engage under a
 descendant `[data-bpmn-theme="dark"]` scope, so they work whether the attribute sits on `:root` or a
 container. Override the properties you care about to re-skin it to your own design tokens.
