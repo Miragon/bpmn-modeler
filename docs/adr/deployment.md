@@ -57,6 +57,38 @@ for `{processDefinitionKey}` in a start URL. Without overrides use conventional
 engine routes. Request bodies remain engine-specific: overrides are for gateways
 proxying that API, not a different deployment protocol.
 
+Any connection or auth field may embed `${env:VAR}` references, resolved from a
+workspace-root `.env` (preferred) then the host process environment. Store and
+display the literal reference everywhere upstream — secret store, targets file,
+webview prefill, target matching — and expand it only when the outbound request
+is built, inside the services that issue HTTP requests
+(`DeploymentService.deploy`/`deployFiles`, `StartInstanceService.startInstance`,
+`DeploymentVerificationService.verifyActive`). The expansion itself lives on the
+domain objects (`DeploymentConfig.expandEnvRefs`, `AuthConfig.expandEnvRefs`),
+which return a request-only copy; `EnvValueResolver` only builds the variable
+lookup. Expansion at the last moment is load-bearing: `persistOnSuccess` writes
+`config.auth` back to the secret store and the dispatcher matches the payload
+against the saved target literally — a resolved value there would persist a
+secret in cleartext or freeze it, and would break target matching. The ledger
+identity is the exception: it keys on the *resolved* endpoint host (unresolved
+refs stay verbatim), because keying on the literal ref would let a `.env` switch
+to another engine report a false green. A missing variable throws
+`UnresolvedEnvVariableError` (names the variable and field); it never falls back
+to the literal. Process env sits behind an `EnvPort` so domain code and specs
+never touch `process`.
+
+A whole-value env reference is not a secret, so a credential field whose entire
+trimmed value is a single `${env:VAR}` is persisted in the shared targets file
+(under `auth.username`/`password`/`clientId`/`clientSecret`, each schema-pinned
+to the env-ref pattern so a literal secret can never validate in) rather than the
+secret store. On save, per field: a whole-value ref goes to the JSON and blanks
+that field in the secret store; a literal or partial interpolation stays in the
+secret store and is omitted from the JSON. A successful deploy against a named
+target re-saves credentials through the same filter
+(`AuthConfig.withoutWholeEnvRefs`). On read, file references win over
+secret-store values. This lets a teammate clone, add a `.env`, and deploy with no
+per-machine credential setup.
+
 Both hosts expose target switching and multi-file deployment. Each selected
 `.bpmn`/`.dmn` file is deployed separately, named after the file. The status-bar
 item opens the target/verification menu described below.

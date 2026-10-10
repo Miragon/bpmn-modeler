@@ -1,4 +1,5 @@
 import { InvalidDeploymentConfigError } from "../../shared/domain/errors";
+import { blankIfWholeEnvRef, EnvLookup, expandEnvRefs, expandOptionalEnvRefs } from "./envRef";
 
 import { Engine } from "@miragon/bpmn-modeler-types";
 export type AuthConfig = NoAuth | BasicAuth | OAuth2Auth;
@@ -11,6 +12,14 @@ export class NoAuth {
      */
     toHeaders(): Record<string, string> {
         return {};
+    }
+
+    expandEnvRefs(_lookup: EnvLookup): NoAuth {
+        return this;
+    }
+
+    withoutWholeEnvRefs(): NoAuth {
+        return this;
     }
 }
 
@@ -34,6 +43,18 @@ export class BasicAuth {
         const credentials = Buffer.from(`${this.username}:${this.password}`).toString("base64");
         return { Authorization: `Basic ${credentials}` };
     }
+
+    expandEnvRefs(lookup: EnvLookup): BasicAuth {
+        return new BasicAuth(
+            expandEnvRefs(this.username, lookup, "username"),
+            expandEnvRefs(this.password, lookup, "password"),
+        );
+    }
+
+    /** Whole-value refs live in the shared targets file, so the secret store must not shadow them. */
+    withoutWholeEnvRefs(): BasicAuth {
+        return new BasicAuth(blankIfWholeEnvRef(this.username), blankIfWholeEnvRef(this.password));
+    }
 }
 
 /**
@@ -49,6 +70,25 @@ export class OAuth2Auth {
         readonly tokenEndpoint: string,
         readonly audience: string,
     ) {}
+
+    expandEnvRefs(lookup: EnvLookup): OAuth2Auth {
+        return new OAuth2Auth(
+            expandEnvRefs(this.clientId, lookup, "clientId"),
+            expandEnvRefs(this.clientSecret, lookup, "clientSecret"),
+            expandEnvRefs(this.tokenEndpoint, lookup, "tokenEndpoint"),
+            expandEnvRefs(this.audience, lookup, "audience"),
+        );
+    }
+
+    /** Whole-value refs live in the shared targets file, so the secret store must not shadow them. */
+    withoutWholeEnvRefs(): OAuth2Auth {
+        return new OAuth2Auth(
+            blankIfWholeEnvRef(this.clientId),
+            blankIfWholeEnvRef(this.clientSecret),
+            this.tokenEndpoint,
+            this.audience,
+        );
+    }
 }
 
 /**
@@ -77,6 +117,23 @@ export class DeploymentConfig {
         readonly auth: AuthConfig = new NoAuth(),
         readonly deployUrl?: string,
     ) {}
+
+    /**
+     * Request-only copy: the literal config stays the one that is persisted, so
+     * a resolved secret never reaches the secret store.
+     */
+    expandEnvRefs(lookup: EnvLookup): DeploymentConfig {
+        return new DeploymentConfig(
+            this.deploymentName,
+            expandEnvRefs(this.tenantId, lookup, "tenantId"),
+            expandEnvRefs(this.endpoint, lookup, "endpoint"),
+            this.engine,
+            this.mainFilePath,
+            this.additionalFilePaths,
+            this.auth.expandEnvRefs(lookup),
+            expandOptionalEnvRefs(this.deployUrl, lookup, "deployUrl"),
+        );
+    }
 }
 
 /**

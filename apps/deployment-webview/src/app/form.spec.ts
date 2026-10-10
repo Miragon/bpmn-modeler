@@ -69,6 +69,17 @@ function setup() {
 
 beforeEach(() => vi.clearAllMocks());
 
+describe("deployment form env-reference hints", () => {
+    it("documents ${env:VAR_NAME} support in the auth and connection sections", () => {
+        setup();
+        const hints = Array.from(document.querySelectorAll(".hint")).map(
+            (node) => node.textContent ?? "",
+        );
+        const envHints = hints.filter((text) => text.includes("${env:VAR_NAME}"));
+        expect(envHints.length).toBeGreaterThanOrEqual(3);
+    });
+});
+
 describe("deployment target form", () => {
     it("restores the latest ad-hoc defaults and clears both target overrides", () => {
         const { form } = setup();
