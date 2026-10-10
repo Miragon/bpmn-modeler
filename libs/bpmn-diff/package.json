@@ -9,8 +9,8 @@
     },
     "dependencies": {
         "bpmn-js-differ": "3.2.0",
-        "bpmn-moddle": "10.2.0",
-        "camunda-bpmn-moddle": "8.0.1",
+        "bpmn-moddle": "10.3.1",
+        "camunda-bpmn-moddle": "8.0.2",
         "zeebe-bpmn-moddle": "2.0.0"
     },
     "devDependencies": {
