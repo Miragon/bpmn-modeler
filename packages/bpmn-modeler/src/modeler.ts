@@ -1,20 +1,14 @@
-import Modeler from "camunda-bpmn-js/lib/base/Modeler";
-import BpmnModeler7 from "camunda-bpmn-js/lib/camunda-platform/Modeler";
-import BpmnModeler8 from "camunda-bpmn-js/lib/camunda-cloud/Modeler";
+import type Modeler from "camunda-bpmn-js/lib/base/Modeler";
 import { ImportXMLError, ImportXMLResult, SaveXMLResult } from "bpmn-js/lib/BaseViewer";
 import type { ModuleDeclaration } from "didi";
 import TokenSimulationModule from "bpmn-js-token-simulation";
 import { ElementTemplateChooserModule } from "@miragon/bpmn-modeler-element-template-chooser";
-// The CJS entry wraps the ESM module in a default export, preventing DI registration under Vite.
-import TransactionBoundariesModule from "camunda-transaction-boundaries/lib/index.js";
-import { CreateAppendElementTemplatesModule } from "bpmn-js-create-append-anything";
 import { AppendMenuModule } from "@miragon/bpmn-modeler-append-menu";
 import type { CodeLinkMapClient } from "@miragon/bpmn-modeler-code-link";
 import { FlowNavigationModule } from "@miragon/bpmn-modeler-flow-navigation";
 import { createBpmnLayoutModule } from "@miragon/bpmn-modeler-layout";
 import type { CleanupService, LayoutOutcome, Layouter } from "@miragon/bpmn-modeler-layout";
 import type { CleanupOutcome } from "@miragon/bpmn-modeler-types";
-import { CreateAppendC7ElementTemplatesModule } from "@miragon/create-append-c7";
 import { createClipboardModules } from "@miragon/bpmn-modeler-clipboard";
 // The full panel conflicts with Camunda's propertiesPanel service. Deep imports also avoid
 // its TSX renderer, whose JSX runtime does not resolve in Vite development builds.
@@ -58,6 +52,7 @@ import {
     type ViewState,
 } from "./viewState";
 import { deriveEngines } from "./engines";
+import { loadEngineStack, type EngineStack } from "./engineStacks";
 import { initialDiagram } from "./initialDiagram";
 import { applyMode, normalizeMode, MODE_ATTRIBUTE, type ModePorts, type ModelerMode } from "./mode";
 import { ModeUiModule } from "./modeModules";
@@ -205,13 +200,20 @@ export class BpmnModeler {
     }
 
     /**
-     * @internal Async signature retained for compatibility.
+     * @internal Loads the engine's camunda-bpmn-js stack before constructing it.
      * @throws {UnsupportedEngineError} If the engine string is not recognised.
      */
     async init(): Promise<void> {
         const engine = this.options.engine;
         this.store.dispose();
-        this.store = new DisposableStore();
+        const store = new DisposableStore();
+        this.store = store;
+
+        const engineStack = await loadEngineStack(engine);
+        // destroy() or a re-entrant init() replaced the store while the stack loaded.
+        if (this.store !== store || store.isDisposed) {
+            return;
+        }
 
         // Inject the panel root so script controls cannot target a sibling modeler's panel.
         const propertiesPanelRootModule = {
@@ -276,7 +278,13 @@ export class BpmnModeler {
 
         this.engine = engine;
 
-        this.allocateModeler(engine, modelerOptions, commonModules, capModules, clipModules, extra);
+        this.allocateModeler(engineStack, modelerOptions, [
+            ...commonModules,
+            ...engineStack.engineModules,
+            ...capModules,
+            ...clipModules,
+            ...extra,
+        ]);
         this.store.add(() => {
             this.modeler?.destroy();
             this.modeler = undefined;
@@ -339,46 +347,15 @@ export class BpmnModeler {
     }
 
     private allocateModeler(
-        engine: Engine,
+        engineStack: EngineStack,
         modelerOptions: object,
-        commonModules: unknown[],
-        capModules: unknown[],
-        clipModules: unknown[],
-        extra: unknown[],
+        additionalModules: unknown[],
     ): void {
         try {
-            switch (engine) {
-                case "c7": {
-                    this.modeler = new BpmnModeler7({
-                        ...modelerOptions,
-                        additionalModules: [
-                            ...commonModules,
-                            CreateAppendElementTemplatesModule,
-                            CreateAppendC7ElementTemplatesModule,
-                            TransactionBoundariesModule,
-                            ...capModules,
-                            ...clipModules,
-                            ...extra,
-                        ],
-                    });
-                    break;
-                }
-                case "c8": {
-                    this.modeler = new BpmnModeler8({
-                        ...modelerOptions,
-                        additionalModules: [
-                            ...commonModules,
-                            ...capModules,
-                            ...clipModules,
-                            ...extra,
-                        ] as ModuleDeclaration[],
-                    });
-                    break;
-                }
-                default: {
-                    throw new UnsupportedEngineError(engine);
-                }
-            }
+            this.modeler = new engineStack.Modeler({
+                ...modelerOptions,
+                additionalModules: additionalModules as ModuleDeclaration[],
+            });
         } catch (error) {
             // A partially-constructed bpmn-js attaches `.bjs-container` with no
             // handle to destroy; clear the dedicated container before rethrowing.
@@ -763,17 +740,5 @@ export class BpmnModeler {
             throw new NoModelerError();
         }
         return this.modeler;
-    }
-}
-
-/**
- * Thrown by {@link BpmnModeler.init} when an unknown engine string is passed.
- */
-export class UnsupportedEngineError extends Error {
-    /**
-     * @param engine The unrecognised engine string.
-     */
-    constructor(engine: string) {
-        super(`Unsupported engine: ${engine}`);
     }
 }

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NoModelerError } from "@miragon/bpmn-modeler-types";
 
 import { createModeler } from "./createModeler";
-import type { BpmnModeler } from "./modeler";
+import { BpmnModeler } from "./modeler";
 import { createDesigner } from "./design/createDesigner";
 import type { BpmnDesigner } from "./design/designer";
 import { createViewer } from "./viewer/createViewer";
@@ -278,5 +278,22 @@ describe.each(surfaces)("$name lifecycle contract", (surface) => {
         await surface.load(handle);
         expect(() => handle.destroy()).not.toThrow();
         assertClean(mount.roots);
+    });
+});
+
+describe("BpmnModeler engine stack loading", () => {
+    it("allocates nothing when destroyed while its engine stack loads", async () => {
+        const mount = mountWithPanel();
+        const modeler = new BpmnModeler(mount.container, {
+            engine: "c7",
+            propertiesPanel: { parent: mount.panelParent! },
+        });
+
+        const initialized = modeler.init();
+        modeler.destroy();
+        await initialized;
+
+        assertClean(mount.roots);
+        expect(() => modeler.getService("canvas")).toThrow(NoModelerError);
     });
 });

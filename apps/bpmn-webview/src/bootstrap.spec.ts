@@ -27,20 +27,16 @@ const mocks = vi.hoisted(() => ({
         onVisibilityChanged: vi.fn(),
     })),
     stateManagerCreated: vi.fn(),
+    prefetchSurfaceModules: vi.fn(),
 }));
 
-vi.mock("@miragon/bpmn-modeler", () => ({
-    BpmnModeler: class {},
-    createModeler: mocks.createModeler,
-    UnsupportedEngineError: class extends Error {},
-}));
-
-vi.mock("@miragon/bpmn-modeler/viewer", () => ({
-    createViewer: mocks.createViewer,
-}));
-
-vi.mock("@miragon/bpmn-modeler/design", () => ({
-    createDesigner: mocks.createDesigner,
+// The real loaders' first import resolves after the microtask drains these tests rely on.
+vi.mock("./surfaceModules", () => ({
+    loadModelerModule: vi.fn(async () => ({ createModeler: mocks.createModeler })),
+    loadViewerModule: vi.fn(async () => ({ createViewer: mocks.createViewer })),
+    loadDesignerModule: vi.fn(async () => ({ createDesigner: mocks.createDesigner })),
+    loadLintModule: vi.fn(async () => ({})),
+    prefetchSurfaceModules: mocks.prefetchSurfaceModules,
 }));
 
 vi.mock("@miragon/bpmn-modeler-i18n-extras", () => ({
@@ -99,6 +95,7 @@ vi.mock("./state", () => ({
 }));
 
 import { bootstrap } from "./bootstrap";
+import { loadDesignerModule, loadViewerModule } from "./surfaceModules";
 
 function dispatch(data: unknown): void {
     window.dispatchEvent(new MessageEvent("message", { data }));
@@ -797,6 +794,33 @@ describe("bootstrap mode switching", () => {
         dispatch(new ElementTemplatesQuery([{ id: "tpl" }]));
         await drainMicrotasks();
         expect(sentTypes(host)).not.toContain("LogErrorCommand");
+    });
+
+    it("prefetches the saved surface before the host replies with the document", () => {
+        mocks.savedMode = "implement";
+        const host = {
+            getState: vi.fn(),
+            setState: vi.fn(),
+            updateState: vi.fn(),
+            postMessage: vi.fn(),
+        };
+
+        bootstrap(host as never, { capabilities: {}, clipboard: "native" });
+
+        expect(mocks.prefetchSurfaceModules).toHaveBeenCalledWith("implement", { linting: true });
+    });
+
+    it("loads neither the viewer nor the designer for a tagged Implement open", async () => {
+        mocks.createModeler.mockResolvedValue(makeModeler());
+        const host = makeHost(new BpmnFileQuery("<tagged />", "c7", "modeler", 1));
+
+        boot(host);
+        await drainAsyncWork();
+
+        expect(mocks.createModeler).toHaveBeenCalledOnce();
+        expect(mocks.prefetchSurfaceModules).not.toHaveBeenCalled();
+        expect(loadViewerModule).not.toHaveBeenCalled();
+        expect(loadDesignerModule).not.toHaveBeenCalled();
     });
 
     it("seeds the initial mode from the host defaultMode when nothing is persisted", async () => {

@@ -204,7 +204,8 @@ fun hostPlatformDir(): String {
 }
 
 val copyWebview =
-    tasks.register<Copy>("copyWebview") {
+    // Sync, not Copy: chunk names are content-hashed, so stale chunks would pile up in the jar.
+    tasks.register<Sync>("copyWebview") {
         description = "Stages the pre-built bpmn-webview bundle into plugin resources (served from the classpath at runtime)."
         doFirst {
             if (!webviewDist.asFile.exists()) {

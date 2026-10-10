@@ -5,6 +5,18 @@ export class NoModelerError extends Error {
 }
 
 /**
+ * Thrown when a modeler is created for an unknown engine string.
+ */
+export class UnsupportedEngineError extends Error {
+    /**
+     * @param engine The unrecognised engine string.
+     */
+    constructor(engine: string) {
+        super(`Unsupported engine: ${engine}`);
+    }
+}
+
+/**
  * Create a list of information that will be sent to the backend and get logged.
  * @param errors A list of further information.
  */

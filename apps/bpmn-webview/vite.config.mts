@@ -1,10 +1,26 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
+const LAZY_SVG_TO_IMAGE_SHIM = resolve(__dirname, "src/lazySvgToImage.ts");
+
+// The package exposes no deep path to the real module, so the shim's own import
+// must bypass the redirect by importer rather than through an alias.
+function lazySvgToImage(): Plugin {
+    return {
+        name: "lazy-svg-to-image",
+        apply: "build",
+        enforce: "pre",
+        resolveId(source, importer) {
+            if (source !== "@bpmn-io/svg-to-image") return null;
+            if (importer?.split("?")[0] === LAZY_SVG_TO_IMAGE_SHIM) return null;
+            return LAZY_SVG_TO_IMAGE_SHIM;
+        },
+    };
+}
+
 // Asset-bundle build embedded by the VS Code / IntelliJ / desktop hosts.
-// The static browser demo lives in apps/demo-webapp (which reuses this app's bootstrap()).
 export default defineConfig({
     root: __dirname,
     // Relative base: the preload helper bakes `base` into async-chunk dep URLs
@@ -13,7 +29,7 @@ export default defineConfig({
     // import. Relative deps resolve against import.meta.url in every host.
     base: "./",
     cacheDir: "../../node_modules/.vite/bpmn-webview",
-    plugins: [tsconfigPaths()],
+    plugins: [tsconfigPaths(), lazySvgToImage()],
     esbuild: {
         jsx: "automatic",
         jsxImportSource: "preact",
@@ -45,7 +61,11 @@ export default defineConfig({
     build: {
         target: "es2021",
         commonjsOptions: { transformMixedEsModules: true },
-        chunkSizeWarningLimit: 1200,
+        // Surfaces and engine stacks load as async chunks, but every host shell
+        // links one `index.css`; split CSS would load late and flash unstyled.
+        cssCodeSplit: false,
+        // Just above the Camunda stack chunk C7 and C8 share (~1.33 MB), so growth warns.
+        chunkSizeWarningLimit: 1400,
         outDir: "../../dist/webview-staging/bpmn-webview",
         emptyOutDir: true,
         rollupOptions: {
@@ -58,7 +78,12 @@ export default defineConfig({
             },
             output: {
                 entryFileNames: `[name].js`,
-                assetFileNames: "[name].[ext]",
+                chunkFileNames: "chunks/[name]-[hash].js",
+                // The shells link `index.css`; without CSS splitting Vite names the sheet `style.css`.
+                assetFileNames: (asset) =>
+                    asset.names.some((name) => name.endsWith(".css"))
+                        ? "index.css"
+                        : "[name].[ext]",
             },
         },
     },

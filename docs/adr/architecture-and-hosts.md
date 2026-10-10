@@ -1,7 +1,7 @@
 # Architecture and hosts
 
 - Status: accepted
-- Last reviewed: 2026-09-18
+- Last reviewed: 2026-10-08
 
 ## Context
 
@@ -79,6 +79,15 @@ Theia/Electron and adds shell behavior through `libs/standalone-extension`.
 IntelliJ runs the same core out-of-process and renders its BPMN editor in JCEF.
 Its host also integrates diff, deployment and scripting; its visual editor does
 not currently provide DMN or Forms parity.
+
+The BPMN webview ships an `index.js` entry, one `index.css` and lazily loaded
+`chunks/**` that resolve relative to the entry (`base: "./"`), so every host
+serves the whole bundle directory. VS Code and the standalone app copy it into
+the extension; IntelliJ syncs it into plugin resources and serves any path
+below it from the loopback asset server. The BPMN shells set no CSP. One added
+later must allow the bundle origin (`webview.cspSource`) in `script-src` and
+`style-src` rather than rely on the entry's nonce alone, because the chunk
+loader injects preload links.
 
 Camunda Forms use a dedicated form-js webview and `.form` custom editor inside
 the existing VS Code extension. Forms share the modeling workflow, host

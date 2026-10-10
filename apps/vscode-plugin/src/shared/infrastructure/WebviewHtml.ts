@@ -37,9 +37,9 @@ export function bpmnEditorUi(
     const resizerClass = initialPanelVisible ? "panel-resizer" : "panel-resizer collapsed";
     const panelStyle = initialPanelVisible ? "" : ` style="width: 0"`;
 
-    // The script must load as a module: the bundle code-splits the lazy
-    // bpmnlint chunk, whose URL is resolved via import.meta.url — a syntax
-    // error in a classic script. Matches the IntelliJ host.
+    // The script must load as a module: the bundle code-splits its surfaces,
+    // engine stacks and the lint stack into chunks whose URLs are resolved via
+    // import.meta.url — a syntax error in a classic script. Matches the IntelliJ host.
     return `
         <!DOCTYPE html>
         <html lang="en">

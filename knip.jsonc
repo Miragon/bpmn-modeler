@@ -56,7 +56,9 @@
             // layout engine enters through the inlined bpmn-layout lib rather
             // than through any webview import — but Vite still has to resolve
             // the bare specifier from this workspace, so it must be declared.
-            "ignoreDependencies": ["bpmn-auto-layout"]
+            "ignoreDependencies": ["bpmn-auto-layout"],
+            // Wired in by the `lazy-svg-to-image` resolveId plugin, not by an import.
+            "entry": ["src/index.ts", "src/lazySvgToImage.ts"]
         },
         "apps/demo-webapp": {
             // dual.ts / diff.ts are reached only via their .html files, which the

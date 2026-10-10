@@ -1,7 +1,7 @@
 # BPMN modeler
 
 - Status: accepted
-- Last reviewed: 2026-09-18
+- Last reviewed: 2026-10-08
 
 ## Context
 
@@ -110,6 +110,26 @@ Viewer and designer entries import no CSS. Consumers load `viewer.css` or
 `design.css` separately, preserving scoped themes without pulling the root
 editor stylesheet through the shared CSS build. Viewer panel imports bypass
 the library barrel's CSS side effect. `/mode` likewise has its own `mode.css`.
+
+The root modeler loads its engine's camunda-bpmn-js stack (the C7 or C8
+Modeler class plus engine-only modules) through a dynamic import inside its
+already asynchronous construction, so the factory contract is unchanged.
+Unknown engines are rejected before any import, and a handle destroyed while
+its stack loads allocates nothing. Code-splitting consumers get one chunk per
+engine; single-file bundlers inline both. The per-engine saving is modest
+because the properties panel, element templates, their validator and the
+variable resolver are single-file upstream dists both engines share.
+
+The IDE webview imports every surface factory, the diff pane and `/lint`
+dynamically, so View and Design opens never parse the Camunda stack. It starts
+the saved mode's surface chunk, and `/lint` for editable modes, during the
+initial host round-trip, and loads `/lint` concurrently with the surface. It
+disables CSS code splitting because host shells link a single `index.css`. Two
+dependencies that run only on user action load on first use:
+`bpmn-auto-layout` inside the layout engine, and canvg via a webview-only
+redirect of `@bpmn-io/svg-to-image` to a lazy shim, since copy-as-image imports
+it statically upstream. Locale catalogs stay eager until the external i18n
+package can split them.
 
 ### Document identity and creation
 

@@ -6,7 +6,7 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../types/bpmn-moddle.d.ts" />
 
-import { LayoutError, layoutProcess } from "bpmn-auto-layout";
+import type { LayoutError } from "bpmn-auto-layout";
 
 import type { LayoutDiagnostic } from "@miragon/bpmn-modeler-types";
 
@@ -135,12 +135,20 @@ export class BpmnAutoLayoutEngine implements LayoutEngine {
         let laidOutXml: string;
         let diagnostics: LayoutDiagnostic[];
 
+        // Loaded on first format so the engine stays out of the initial bundle.
+        const autoLayout = await import("bpmn-auto-layout").catch((error: unknown) => {
+            throw new LayoutEngineError(
+                `Could not load the layout engine: ${messageOf(error)}`,
+                error,
+            );
+        });
+
         try {
-            const { xml: result, warnings } = await layoutProcess(xml);
+            const { xml: result, warnings } = await autoLayout.layoutProcess(xml);
             laidOutXml = result;
             diagnostics = warnings.map(toDiagnostic);
         } catch (error) {
-            throw new LayoutEngineError(describeFailure(error), error);
+            throw new LayoutEngineError(describeFailure(error, autoLayout.LayoutError), error);
         }
 
         try {
@@ -158,8 +166,8 @@ export class BpmnAutoLayoutEngine implements LayoutEngine {
     }
 }
 
-function describeFailure(error: unknown): string {
-    if (error instanceof LayoutError) {
+function describeFailure(error: unknown, layoutErrorClass: typeof LayoutError): string {
+    if (error instanceof layoutErrorClass) {
         const where = error.elementId ? ` (${error.elementId})` : "";
         return `${error.message || error.code}${where}`;
     }

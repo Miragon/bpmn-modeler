@@ -57,6 +57,7 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import {
     NoModelerError,
+    UnsupportedEngineError,
     asyncDebounce,
     formatErrors,
     observeCanvasSize,
@@ -80,9 +81,6 @@ import {
 } from "@miragon/bpmn-modeler-shared";
 import { i18n, type SupportedLocale } from "@miragon/bpmn-modeler-i18n";
 import { extras as i18nExtras } from "@miragon/bpmn-modeler-i18n-extras";
-import { createModeler, UnsupportedEngineError } from "@miragon/bpmn-modeler";
-import { createViewer } from "@miragon/bpmn-modeler/viewer";
-import { createDesigner } from "@miragon/bpmn-modeler/design";
 import type {
     ClipboardOptions,
     LintingOptions,
@@ -94,9 +92,15 @@ import type { CleanupOutcome, LintRunEvent, ResizableCanvas } from "@miragon/bpm
 import { LAYOUT_FORMATTED_EVENT } from "@miragon/bpmn-modeler-layout";
 import type { LayoutOutcome } from "@miragon/bpmn-modeler-layout";
 import type { WebviewState } from "./webviewState";
-import { DiffMode } from "./diffMode";
 import { installHostEditorActions } from "./hostEditorActions";
 import { readSavedMode, readSavedPanelVisibility, WebviewStateManager } from "./state";
+import {
+    loadDesignerModule,
+    loadLintModule,
+    loadModelerModule,
+    loadViewerModule,
+    prefetchSurfaceModules,
+} from "./surfaceModules";
 import {
     isEditableHandle,
     isFormattableHandle,
@@ -600,6 +604,10 @@ function startSession(
         }
 
         host.postMessage(new GetBpmnFileCommand());
+        const savedMode = readSavedMode(host);
+        if (savedMode) {
+            prefetchSurfaceModules(savedMode, { linting: injectedLinting === undefined });
+        }
 
         const bpmnFileQuery = await bpmnFileResolver.wait();
 
@@ -620,6 +628,7 @@ function startSession(
                 console.error("Diff mode: missing #js-canvas or #js-drop-zone");
                 return;
             }
+            const { DiffMode } = await import("./diffMode");
             const diffMode = new DiffMode(canvas, dropZone, host);
             await diffMode.startWith(bpmnFileQuery.content);
             return;
@@ -699,7 +708,7 @@ function startSession(
             return {
                 linting: injectedLinting ?? {
                     results: "external",
-                    module: await import("@miragon/bpmn-modeler/lint"),
+                    module: await loadLintModule(),
                 },
                 onLintResults:
                     injectedOnLintResults ??
@@ -726,22 +735,29 @@ function startSession(
         // external (the `/lint` subpath is imported lazily; the module cache makes
         // repeat switches free).
         const surfaces: SurfaceFactories = {
-            view: ({ container, theme }) =>
-                createViewer(container, {
+            view: async ({ container, theme }) => {
+                const { createViewer } = await loadViewerModule();
+                return createViewer(container, {
                     theme,
                     propertiesPanel: { parent: mountEl },
                     capabilities: { modelNavigation: capabilities.modelNavigation },
                     additionalModules: extraModules,
-                }),
-            design: async ({ container, theme }) =>
-                createDesigner(container, {
+                });
+            },
+            design: async ({ container, theme }) => {
+                const [{ createDesigner }, linting] = await Promise.all([
+                    loadDesignerModule(),
+                    lintingOptions(),
+                ]);
+                return createDesigner(container, {
                     theme,
                     propertiesPanel: { parent: mountEl },
                     clipboard,
                     capabilities: { modelNavigation: capabilities.modelNavigation },
                     additionalModules: extraModules,
-                    ...(await lintingOptions()),
-                }),
+                    ...linting,
+                });
+            },
             implement: async ({ container, theme, mode, engine: ctxEngine }) => {
                 if (ctxEngine === undefined) {
                     // The session only routes Implement (and tagged-model Design)
@@ -749,6 +765,10 @@ function startSession(
                     // createModeler's `engine: Engine`.
                     throw new Error("implement surface requires a tagged model");
                 }
+                const [{ createModeler }, linting] = await Promise.all([
+                    loadModelerModule(),
+                    lintingOptions(),
+                ]);
                 return createModeler(container, {
                     engine: ctxEngine,
                     mode,
@@ -757,7 +777,7 @@ function startSession(
                     additionalModules: extraModules,
                     clipboard,
                     capabilities,
-                    ...(await lintingOptions()),
+                    ...linting,
                     onWarning: (warning: string) =>
                         host.postMessage(new LogWarningCommand(warning)),
                     onElementTemplatesErrors: (errors: unknown[]) => {
@@ -892,7 +912,7 @@ function startSession(
                 container: canvasEl,
                 engine,
                 surfaces,
-                initialMode: readSavedMode(host) ?? bpmnFileQuery?.defaultMode ?? null,
+                initialMode: savedMode ?? bpmnFileQuery?.defaultMode ?? null,
                 theme: resolveHostThemeKind(),
                 onSurfaceCreated: (handle) => {
                     surface = handle as SurfaceHandle;

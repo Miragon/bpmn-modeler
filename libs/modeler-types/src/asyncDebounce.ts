@@ -1,4 +1,4 @@
-import { debounce } from "lodash";
+import debounce from "lodash/debounce.js";
 
 /**
  * An async-friendly debounced function with imperative flush/cancel controls.
