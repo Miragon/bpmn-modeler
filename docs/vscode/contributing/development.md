@@ -30,7 +30,9 @@ The webview and docs `dev` scripts (standalone browser preview) use
 [`portless`](https://www.npmjs.com/package/portless) to serve each app under a
 stable, worktree-aware `https://<worktree>.<app>.localhost` URL — no port
 numbers to remember or collide. portless is a pinned dev dependency installed
-by `yarn install`, so no global install is required. The slug is derived by
+by `yarn install`, so no global install is required. Yarn only exposes a
+workspace's own dependency binaries to its scripts, so every workspace with a
+portless `dev` script declares portless itself. The slug is derived by
 portless from the git worktree; never hand-build it.
 
 Its HTTPS proxy daemon is a one-time per-machine step (needs `sudo` once):

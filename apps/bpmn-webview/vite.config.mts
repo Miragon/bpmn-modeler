@@ -22,6 +22,13 @@ export default defineConfig({
         include: ["bpmnlint", "bpmn-js-bpmnlint", "@miragon/bpmnlint-plugin-rules"],
     },
     resolve: {
+        alias: {
+            // The dev server emits jsx-dev-runtime for libs/properties-panel TSX,
+            // but @bpmn-io/properties-panel has no exports map to redirect it
+            // to its vendored preact's jsx-runtime (which exports jsxDEV too).
+            "@bpmn-io/properties-panel/preact/jsx-dev-runtime":
+                "@bpmn-io/properties-panel/preact/jsx-runtime",
+        },
         dedupe: [
             "preact",
             "bpmn-js",

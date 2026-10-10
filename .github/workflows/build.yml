@@ -203,7 +203,7 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             if yarn npm audit --all --severity high && yarn npm audit --all --recursive --severity critical; then exit 0; fi
-            echo "audit attempt ${attempt} timed out; retrying"
+            echo "audit attempt ${attempt} failed (advisory found or request timed out)"
           done
           exit 1
         env:

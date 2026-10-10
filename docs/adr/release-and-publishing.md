@@ -105,13 +105,19 @@ when an identity-sensitive bpmn-io package (bpmn-js, diagram-js, bpmn-moddle,
 moddle, the properties panels, element templates, create-append-anything)
 resolves to more than one version: a stale transitive range once nested a second
 bpmn-js under camunda-bpmn-js, so Implement ran a different bpmn-js than
-View/Design. CI also runs `yarn dedupe --check`, so the lockfile holds no
-duplicates across overlapping ranges; the constraint still catches ranges that
-do not overlap, which need a root resolution. Dependabot never dedupes, so the
+View/Design. CI also runs `yarn dedupe --check`. Dedupe only moves ranges up to
+the highest locked version, so the constraint still catches two cases dedupe
+cannot fix: an exact workspace pin older than a version a new transitive range
+resolved to (bump the pin), and ranges that do not overlap (add a root
+resolution). Dependabot never dedupes, so the
 [dedupe workflow](../../.github/workflows/dependabot-dedupe.yml) commits
 `yarn dedupe` onto its npm PRs with the release GitHub App; the App's private key
 is therefore also a Dependabot secret. That workflow skips the link step, so no
-lifecycle script of a bumped package runs next to the write token. The webview
+lifecycle script of a bumped package runs next to the write token. To keep the
+exact pins moving with their dependents, [Dependabot](../../.github/dependabot.yml)
+groups the bpmn-io stack across all update types instead of splitting it into
+the minor/patch and major groups; a major there holds back the stack's minors
+until it lands or is closed. The webview
 Vite configs dedupe the core of the identity-sensitive set as a second line of
 defence. Immutable CI installs additionally catch lockfile drift. Package build/declaration checks and the consumer smoke scripts
 enforce the distribution boundary.

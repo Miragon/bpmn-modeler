@@ -19,6 +19,7 @@
     "devDependencies": {
         "@types/vscode-webview": "1.57.5",
         "@typescript/native": "npm:typescript@7.0.2",
+        "portless": "0.15.6",
         "typescript": "npm:@typescript/typescript6@6.0.2",
         "vite": "8.3.0",
         "vite-tsconfig-paths": "6.1.1"

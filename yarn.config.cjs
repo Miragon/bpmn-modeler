@@ -82,7 +82,8 @@ function constrainSingleResolvedVersion(Yarn) {
         if (versions.size <= 1) continue;
         rootWorkspace.error(
             `${ident} resolves to ${versions.size} versions (${[...versions].join(", ")}); ` +
-                `run \`yarn dedupe ${ident}\`, or add a root resolution if the ranges don't overlap.`,
+                `run \`yarn dedupe ${ident}\`. Dedupe only moves ranges up, so if a workspace pins ` +
+                `an older exact version, bump that pin; add a root resolution only if the ranges don't overlap.`,
         );
     }
 }

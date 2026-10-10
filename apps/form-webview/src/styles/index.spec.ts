@@ -42,3 +42,16 @@ describe("form surface theme", () => {
         expect(noticeStyle.colorScheme).toBe("light");
     });
 });
+
+describe("webview shell layout", () => {
+    it("overrides the VS Code default body padding so the editor fills the viewport", () => {
+        const vscodeDefaultWebviewStyles = "body { padding: 0 20px; }";
+        document.head.innerHTML = `<style>${vscodeDefaultWebviewStyles}</style><style>${localStyles}</style>`;
+        document.body.innerHTML = `<div id="app"><div class="form-shell"></div></div>`;
+
+        const bodyStyle = getComputedStyle(document.body);
+
+        expect(bodyStyle.paddingLeft).toBe("0px");
+        expect(bodyStyle.paddingRight).toBe("0px");
+    });
+});
