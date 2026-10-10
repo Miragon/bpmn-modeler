@@ -8438,7 +8438,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bpmn-moddle@npm:10.3.1, bpmn-moddle@npm:^10.3.1":
+"bpmn-moddle@npm:10.3.1, bpmn-moddle@npm:^10.0.0, bpmn-moddle@npm:^10.1.0, bpmn-moddle@npm:^10.2.0, bpmn-moddle@npm:^10.3.1":
   version: 10.3.1
   resolution: "bpmn-moddle@npm:10.3.1"
   dependencies:
@@ -8446,17 +8446,6 @@ __metadata:
     moddle: "npm:^8.2.1"
     moddle-xml: "npm:^12.3.1"
   checksum: 10c0/55ea7e4980e7109b165f94764a1557158ca70f6b2cb034841bbeb860ece8644fac65f832cb9f32fed4d23c01fb189a9212ee0baed342896240164bf437e1cf9e
-  languageName: node
-  linkType: hard
-
-"bpmn-moddle@npm:^10.0.0, bpmn-moddle@npm:^10.1.0, bpmn-moddle@npm:^10.2.0":
-  version: 10.2.0
-  resolution: "bpmn-moddle@npm:10.2.0"
-  dependencies:
-    min-dash: "npm:^5.1.0"
-    moddle: "npm:^8.2.1"
-    moddle-xml: "npm:^12.2.0"
-  checksum: 10c0/c3605c15cb4622d3e97244c867231b796930fd00d8b4f0a6f65c7e4ddffff39cf99282a857b33ccc3fbccfb00fdf17d256ab289d74ab396fac0d00ae197dff2e
   languageName: node
   linkType: hard
 
@@ -10445,19 +10434,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diagram-js-direct-editing@npm:^3.4.0":
-  version: 3.5.1
-  resolution: "diagram-js-direct-editing@npm:3.5.1"
-  dependencies:
-    min-dash: "npm:^5.0.0"
-    min-dom: "npm:^5.3.0"
-  peerDependencies:
-    diagram-js: "*"
-  checksum: 10c0/bf3ecb8fc246b4684e440d8e20d390cebe4ac16d7452ad241f7dccf32a46a499b3b66598127a0aea50ff024cf77753806495a3c6d768007acdce56b94cb61994
-  languageName: node
-  linkType: hard
-
-"diagram-js-direct-editing@npm:^3.6.0":
+"diagram-js-direct-editing@npm:^3.4.0, diagram-js-direct-editing@npm:^3.6.0":
   version: 3.6.0
   resolution: "diagram-js-direct-editing@npm:3.6.0"
   dependencies:
@@ -10502,7 +10479,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diagram-js@npm:15.28.0, diagram-js@npm:^15.27.1, diagram-js@npm:^15.28.0":
+"diagram-js@npm:15.28.0, diagram-js@npm:^15.21.0, diagram-js@npm:^15.22.0, diagram-js@npm:^15.23.2, diagram-js@npm:^15.27.1, diagram-js@npm:^15.28.0":
   version: 15.28.0
   resolution: "diagram-js@npm:15.28.0"
   dependencies:
@@ -10516,23 +10493,6 @@ __metadata:
     path-intersection: "npm:^4.1.0"
     tiny-svg: "npm:^4.1.4"
   checksum: 10c0/3b4322ae407208528fa0941b8d81191d192798f2c25160db2c654039e9558b63c5bb2daa3454894b74bd5f2bc6f501f40c36b2bb5f3a675217afe74c6022bfe8
-  languageName: node
-  linkType: hard
-
-"diagram-js@npm:^15.21.0, diagram-js@npm:^15.22.0, diagram-js@npm:^15.23.2":
-  version: 15.26.0
-  resolution: "diagram-js@npm:15.26.0"
-  dependencies:
-    "@bpmn-io/diagram-js-ui": "npm:^0.2.4"
-    clsx: "npm:^2.1.1"
-    didi: "npm:^11.0.0"
-    inherits-browser: "npm:^0.1.0"
-    min-dash: "npm:^5.1.0"
-    min-dom: "npm:^5.3.0"
-    object-refs: "npm:^0.4.0"
-    path-intersection: "npm:^4.1.0"
-    tiny-svg: "npm:^4.1.4"
-  checksum: 10c0/3ad3649463ddfc7080930d375e261662cd12e9bad234aa524ba52bffb83767a252b0eab787c3851cf96627eada9e85d99aef42e18d81fe9c3b904a5729311d0f
   languageName: node
   linkType: hard
 
@@ -15428,18 +15388,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"moddle-xml@npm:^12.2.0":
-  version: 12.2.0
-  resolution: "moddle-xml@npm:12.2.0"
-  dependencies:
-    min-dash: "npm:^5.1.0"
-    saxen: "npm:^11.1.0"
-  peerDependencies:
-    moddle: ">= 6.2.0"
-  checksum: 10c0/4e8698524e3dcbbac4797d1aaf2172bffa4f78e4cfa27ee6fbaa529f52ae2c199eb7bdc21459e0aa6bb8f57f15409fc0b3d777e6b8c528d876111362df31180b
-  languageName: node
-  linkType: hard
-
 "moddle-xml@npm:^12.3.1":
   version: 12.3.1
   resolution: "moddle-xml@npm:12.3.1"
@@ -18027,13 +17975,6 @@ __metadata:
   version: 1.6.0
   resolution: "sax@npm:1.6.0"
   checksum: 10c0/e5593f4a91eb25761a688c4d96902e4e95a0dd6017bc65146b6f21236e3d715cf893333b76bc758923c9574c2fb5a7a76c3a81e96ea15432f2624f906c027c1e
-  languageName: node
-  linkType: hard
-
-"saxen@npm:^11.1.0":
-  version: 11.1.1
-  resolution: "saxen@npm:11.1.1"
-  checksum: 10c0/9bddeec5fe665ac20faaccaddeb7591b1e402c73a919268d4d41fa629a4fb90aabcdda04c66bc3a5fb76147645d04af4897b15bec5b24ad7bb52fc76a1997a0e
   languageName: node
   linkType: hard
 
