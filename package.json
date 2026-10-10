@@ -75,8 +75,8 @@
         "@typescript-eslint/eslint-plugin": "8.70.0",
         "@typescript-eslint/parser": "8.70.0",
         "@typescript/native": "npm:typescript@7.0.2",
-        "@vitest/browser-playwright": "4.1.11",
-        "@vitest/coverage-v8": "4.1.11",
+        "@vitest/browser-playwright": "5.0.2",
+        "@vitest/coverage-v8": "5.0.2",
         "bpmn-moddle": "10.2.0",
         "bpmnlint": "11.14.0",
         "camunda-bpmn-moddle": "8.0.1",
@@ -92,7 +92,7 @@
         "prettier": "3.9.8",
         "typescript": "npm:@typescript/typescript6@6.0.2",
         "vite": "8.3.0",
-        "vitest": "4.1.11"
+        "vitest": "5.0.2"
     },
     "resolutions": {
         "shell-quote": "1.11.0",
