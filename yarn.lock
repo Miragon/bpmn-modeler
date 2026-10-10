@@ -2432,7 +2432,7 @@ __metadata:
     "@miragon/bpmn-modeler-diff": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.10.1"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.11.1"
     "@types/node": "npm:26.6.1"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:4.1.11"
@@ -2728,7 +2728,7 @@ __metadata:
     "@miragon/bpmn-modeler-i18n-extras": "workspace:*"
     "@miragon/bpmn-modeler-shared": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.10.1"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.11.1"
     "@types/vscode-webview": "npm:1.57.5"
     "@typescript/native": "npm:typescript@7.0.2"
     "@vitest/coverage-v8": "npm:4.1.11"
@@ -2767,7 +2767,7 @@ __metadata:
     "@miragon/bpmn-modeler-layout": "workspace:*"
     "@miragon/bpmn-modeler-properties-panel": "workspace:*"
     "@miragon/bpmn-modeler-types": "workspace:*"
-    "@miragon/bpmnlint-plugin-rules": "npm:0.10.1"
+    "@miragon/bpmnlint-plugin-rules": "npm:0.11.1"
     "@miragon/create-append-c7": "npm:1.0.1"
     "@types/node": "npm:26.6.1"
     "@typescript/native": "npm:typescript@7.0.2"
@@ -2812,17 +2812,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@miragon/bpmnlint-plugin-rules@npm:0.10.1":
-  version: 0.10.1
-  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.10.1"
+"@miragon/bpmnlint-plugin-rules@npm:0.11.1":
+  version: 0.11.1
+  resolution: "@miragon/bpmnlint-plugin-rules@npm:0.11.1"
   dependencies:
-    bpmnlint-plugin-camunda-compat: "npm:2.60.1"
+    bpmnlint-plugin-camunda-compat: "npm:2.61.0"
     bpmnlint-utils: "npm:1.1.1"
     camunda-bpmn-moddle: "npm:8.0.1"
     zeebe-bpmn-moddle: "npm:2.0.0"
   peerDependencies:
     bpmnlint: ">=11"
-  checksum: 10c0/82609dd666e8ef9fffa46c96bc04c8de2f6ee73fb57893e65f155e8d542a2b5937731669f6fc895e7ce2b8476160bd0ddba921735388c40952559b1ae6330716
+  checksum: 10c0/67645ff17cc3c42b2a6c2700142c3dbdd1f1031756ad3d79441d33c9a86e27e7d1e70bfa6d0f2af15a805e0279fe5e2ca32de1e17a9a5d4cf0eee860dde63706
   languageName: node
   linkType: hard
 
@@ -8479,9 +8479,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"bpmnlint-plugin-camunda-compat@npm:2.60.1":
-  version: 2.60.1
-  resolution: "bpmnlint-plugin-camunda-compat@npm:2.60.1"
+"bpmnlint-plugin-camunda-compat@npm:2.61.0":
+  version: 2.61.0
+  resolution: "bpmnlint-plugin-camunda-compat@npm:2.61.0"
   dependencies:
     "@bpmn-io/feel-analyzer": "npm:^0.3.0"
     "@bpmn-io/lezer-feel": "npm:^2.5.0"
@@ -8493,7 +8493,7 @@ __metadata:
     semver-compare: "npm:^1.0.0"
   peerDependencies:
     bpmnlint: ">= 11.6.0"
-  checksum: 10c0/5970063640de72ae9379d2565218d4d3563164e6970bf407f8b97b0c41f3271c7fc84fed1837e2dc391b31fd2ca9d9bc70f69e03d1150339ce3b9cdcfbee0ee5
+  checksum: 10c0/1e84ffba0605b95d3edabc612db163417e21907ddc7a4088e83926c2dc2423f3f7d49e107b4c0f1086d44fe9b509feb7afbf19a3dfebabbbadab5200ef532604
   languageName: node
   linkType: hard
 
