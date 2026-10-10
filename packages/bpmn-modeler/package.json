@@ -87,7 +87,7 @@
     },
     "dependencies": {
         "@bpmn-io/cm-theme": "0.2.2",
-        "@bpmn-io/properties-panel": "3.55.0",
+        "@bpmn-io/properties-panel": "3.56.1",
         "@lezer/lr": "1.4.10",
         "@miragon/bpmn-modeler-i18n": "0.2.0",
         "@miragon/bpmnlint-plugin-rules": "0.10.1",

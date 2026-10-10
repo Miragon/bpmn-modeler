@@ -18,6 +18,15 @@ updates:
       semver-major-days: 14
       semver-minor-days: 5
       semver-patch-days: 3
+    ignore:
+      # The Theia shell pins its Electron runtime; move electron with @theia/*.
+      - dependency-name: "electron"
+        update-types:
+          - "version-update:semver-major"
+      # vitepress-plugin-mermaid only accepts mermaid ^10 || ^11.
+      - dependency-name: "mermaid"
+        update-types:
+          - "version-update:semver-major"
     groups:
       # bpmnlint must move in lockstep with the bundled resolver in
       # @miragon/bpmnlint-plugin-rules. The root `resolutions` pin bpmnlint to a
@@ -28,6 +37,19 @@ updates:
         patterns:
           - "bpmnlint"
           - "@miragon/bpmnlint-plugin-rules"
+      # Not split by update type: a dependent's major (form-js) can add a range
+      # that Yarn resolves to a newer minor of a single-version package
+      # (@bpmn-io/properties-panel) than the workspaces pin. yarn dedupe only
+      # moves ranges upward, so the pin bump has to land in the same PR.
+      bpmn-io:
+        applies-to: version-updates
+        patterns:
+          - "@bpmn-io/*"
+          - "bpmn-js*"
+          - "camunda-*"
+          - "diagram-js*"
+          - "dmn-js*"
+          - "*-moddle"
       npm-minor-patch:
         applies-to: version-updates
         update-types:

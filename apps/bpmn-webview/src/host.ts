@@ -18,6 +18,7 @@ import {
     LogWarningCommand,
     PropertiesPanelStateQuery,
     Query,
+    ShowInfoCommand,
     SyncDocumentCommand,
     HostApi,
     HostApiImpl,
@@ -189,6 +190,10 @@ class MockHost extends MockHostApi<StateType, MessageType> {
             }
             case message.type === "LogErrorCommand": {
                 console.error((message as LogErrorCommand).message);
+                break;
+            }
+            case message.type === "ShowInfoCommand": {
+                console.info("[INFO] ShowInfoCommand", (message as ShowInfoCommand).message);
                 break;
             }
             case message.type === "LanguageQuery": {

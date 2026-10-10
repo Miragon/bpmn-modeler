@@ -91,6 +91,7 @@
         "portless": "0.15.6",
         "prettier": "3.9.8",
         "typescript": "npm:@typescript/typescript6@6.0.2",
+        "vite": "8.3.0",
         "vitest": "4.1.11"
     },
     "resolutions": {

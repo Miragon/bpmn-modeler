@@ -132,14 +132,18 @@ definition / Job type** fields exist in the default C7 preview.
   The webview shell's `?theme=dark` adds a body class, but MockHost currently sends
   `colorTheme: "light"`, which can override it. Use an explicit mock settings
   message when testing that adapter and verify the effective theme.
-- Record console errors and failed requests. A blank webview with an unresolved
-  `@bpmn-io/properties-panel/preact/jsx-dev-runtime` import is a Vite resolution
-  failure; compare the demo's alias in `apps/demo-webapp/vite.config.mts`. The
-  working demo can verify package behavior while that preview is blocked.
+- Record console errors and failed requests. The demo does not replace the
+  webview preview: it never runs the webview bootstrap, MockHost, or the
+  webview's Vite config. A blank preview with an unresolved
+  `@bpmn-io/properties-panel/preact/jsx-dev-runtime` import means the
+  `jsx-dev-runtime` → `jsx-runtime` alias is missing from that app's Vite config.
   Missing theme-link errors are not an expected baseline for current theming.
+  Rejected-template warnings for the C8 samples on the C7 fixture are expected.
 - Browser previews use native clipboard behavior. MockHost logs document sync
   and several capability commands; it does not save files or perform IDE
-  navigation. Save flushing, external edits, host clipboard, and editor lifecycle
+  navigation. It throws `Unknown message type` for any command without a case, so
+  a new webview command needs a log-only case there. Save flushing, external
+  edits, host clipboard, and editor lifecycle
   need host integration checks; consult
   [custom editors](../vscode-custom-editors/SKILL.md),
   [webviews](../vscode-webviews/SKILL.md), or
