@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.15.0...vscode-v1.15.1) (2026-10-10)
+
+
+### 🛠️ Misc
+
+* **deps:** unblock dependabot major bumps and fix webview dev preview ([#1631](https://github.com/Miragon/bpmn-modeler/issues/1631)) ([c40e3d7](https://github.com/Miragon/bpmn-modeler/commit/c40e3d7b8848190da2cf207384d4d5d84389bc89))
+
 ## [1.15.0](https://github.com/Miragon/bpmn-modeler/compare/vscode-v1.14.2...vscode-v1.15.0) (2026-10-08)
 
 
