@@ -27,7 +27,7 @@ jobs:
     name: PR links an issue
     runs-on: ubuntu-latest
     steps:
-      - uses: nearform-actions/github-action-check-linked-issues@7140e2e01aa0c18b8ac61bddf5e89abde1ca760e # v1.8.3
+      - uses: nearform-actions/github-action-check-linked-issues@f18c56dc22ba24fb2a06c3563459b4240bc2e986 # v1.9.0
         with:
           exclude-branches: "dependabot/**, release-please--**"
 
