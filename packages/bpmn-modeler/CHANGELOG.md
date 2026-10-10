@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.3.0](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.2.2...bpmn-modeler-v1.3.0) (2026-10-10)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** replace the mode strip with a compact mode menu ([#1628](https://github.com/Miragon/bpmn-modeler/issues/1628)) ([b0a66ca](https://github.com/Miragon/bpmn-modeler/commit/b0a66cafa3eb077d49c6e54576238c054ed67f6d))
+
+
+### 🐞 Bug Fixes
+
+* **bpmn-modeler:** fix quadratic bpmnlint overlap and bpmndi rules ([#1609](https://github.com/Miragon/bpmn-modeler/issues/1609)) ([0966e35](https://github.com/Miragon/bpmn-modeler/commit/0966e35f1abd08589c0e1c9535484ea906efc6dc))
+* **bpmn-modeler:** stop duplicating and rebuilding transaction boundaries ([#1620](https://github.com/Miragon/bpmn-modeler/issues/1620)) ([9c9ea61](https://github.com/Miragon/bpmn-modeler/commit/9c9ea61421f7a0013067d33882b1e1ef1b775ce6))
+* **bpmn-modeler:** stop redundant lint runs and overlay rebuilds ([#1606](https://github.com/Miragon/bpmn-modeler/issues/1606)) ([a506d75](https://github.com/Miragon/bpmn-modeler/commit/a506d75a3f0405ce339d83fc5fb3fc8ccf7cb719))
+* **bpmn-webview:** apply the configured locale before the first import ([#1617](https://github.com/Miragon/bpmn-modeler/issues/1617)) ([63d01ce](https://github.com/Miragon/bpmn-modeler/commit/63d01ce4b3df3f4746d1d44cc44fab914566181e))
+* **deps:** dedupe bpmn-js, diagram-js and bpmn-moddle in the lockfile ([#1618](https://github.com/Miragon/bpmn-modeler/issues/1618)) ([d7bc492](https://github.com/Miragon/bpmn-modeler/commit/d7bc492cef4333f543805c79550446287d357c5d))
+* **standalone:** bump electron to 42.11.8 for security advisories ([#1615](https://github.com/Miragon/bpmn-modeler/issues/1615)) ([84bd712](https://github.com/Miragon/bpmn-modeler/commit/84bd71203b3af66b30c80a95a9f6963a507da401))
+* **standalone:** bump electron-builder to 26.17.0 to restore macos signing ([#1623](https://github.com/Miragon/bpmn-modeler/issues/1623)) ([7b65ca5](https://github.com/Miragon/bpmn-modeler/commit/7b65ca55631cf6c89a55b93f1113e48b762b384c))
+* **standalone:** restore packaged file search with Theia 1.76 ([#1610](https://github.com/Miragon/bpmn-modeler/issues/1610)) ([6816f03](https://github.com/Miragon/bpmn-modeler/commit/6816f03d7a9339d84d3eeb6382d9f84a475d1545))
+
+
+### 🛠️ Misc
+
+* **bpmn-modeler:** add a large-model generator and perf harness ([#1605](https://github.com/Miragon/bpmn-modeler/issues/1605)) ([75b6616](https://github.com/Miragon/bpmn-modeler/commit/75b66169bc2a87be2a1043e9614309f0637dead9))
+* **deps:** unblock dependabot major bumps and fix webview dev preview ([#1631](https://github.com/Miragon/bpmn-modeler/issues/1631)) ([c40e3d7](https://github.com/Miragon/bpmn-modeler/commit/c40e3d7b8848190da2cf207384d4d5d84389bc89))
+* **main:** release intellij 1.10.2 ([#1589](https://github.com/Miragon/bpmn-modeler/issues/1589)) ([05ef3b7](https://github.com/Miragon/bpmn-modeler/commit/05ef3b7ce08f2b17f212d0908cf98b63609d7fd4))
+* **main:** release vscode 1.14.2 ([#1590](https://github.com/Miragon/bpmn-modeler/issues/1590)) ([a0a3f7d](https://github.com/Miragon/bpmn-modeler/commit/a0a3f7da843396be8c897fa291cedb66b63a6d4f))
+* **main:** release vscode 1.15.0 ([#1608](https://github.com/Miragon/bpmn-modeler/issues/1608)) ([8c726cb](https://github.com/Miragon/bpmn-modeler/commit/8c726cbd53f1cefd9e411cd288f4769da05b43a0))
+
 ## [1.2.2](https://github.com/Miragon/bpmn-modeler/compare/bpmn-modeler-v1.2.1...bpmn-modeler-v1.2.2) (2026-09-28)
 
 
