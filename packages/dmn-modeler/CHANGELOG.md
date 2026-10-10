@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.3.1...dmn-modeler-v0.4.0) (2026-10-10)
+
+
+### 🎉 New Features
+
+* **bpmn-modeler:** replace the mode strip with a compact mode menu ([#1628](https://github.com/Miragon/bpmn-modeler/issues/1628)) [sync b0a66ca] ([aa2c372](https://github.com/Miragon/bpmn-modeler/commit/aa2c372235d66265aef8d60ef690c556d46f7d7a))
+
+
+### 🛠️ Misc
+
+* **deps:** unblock dependabot major bumps and fix webview dev preview ([#1631](https://github.com/Miragon/bpmn-modeler/issues/1631)) ([c40e3d7](https://github.com/Miragon/bpmn-modeler/commit/c40e3d7b8848190da2cf207384d4d5d84389bc89))
+
 ## [0.3.1](https://github.com/Miragon/bpmn-modeler/compare/dmn-modeler-v0.3.0...dmn-modeler-v0.3.1) (2026-09-23)
 
 
