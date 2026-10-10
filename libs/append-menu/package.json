@@ -19,6 +19,6 @@
         "bpmn-js": "18.28.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",
         "vite": "8.3.0",
-        "vitest": "4.1.11"
+        "vitest": "5.0.2"
     }
 }
