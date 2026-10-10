@@ -1,6 +1,6 @@
 {
   ".": "1.2.2",
-  "apps/vscode-plugin": "1.15.0",
+  "apps/vscode-plugin": "1.15.1",
   "apps/intellij-plugin": "1.10.2",
   "packages/dmn-modeler": "0.3.1"
 }
